@@ -1,187 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7489D6B0601
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 09:32:46 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 185so17131254wmk.12
-        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 06:32:46 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v128si543388wmg.14.2017.07.31.06.32.44
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A8D086B0603
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 09:32:50 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id o124so123786169qke.9
+        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 06:32:50 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y25si18234203qtc.18.2017.07.31.06.32.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 31 Jul 2017 06:32:45 -0700 (PDT)
-Date: Mon, 31 Jul 2017 15:32:43 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v2 2/4] mm: add file_fdatawait_range and
- file_write_and_wait
-Message-ID: <20170731133243.GB27589@quack2.suse.cz>
-References: <20170726175538.13885-1-jlayton@kernel.org>
- <20170726175538.13885-3-jlayton@kernel.org>
- <20170727084914.GC21100@quack2.suse.cz>
- <1501159710.6279.1.camel@redhat.com>
- <1501500421.4663.4.camel@redhat.com>
- <8d46c4c6-76b5-9726-7d85-249cd9a899f1@redhat.com>
- <1501501456.4663.6.camel@redhat.com>
- <20170731120744.GA25458@quack2.suse.cz>
- <1501506037.4663.13.camel@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 31 Jul 2017 06:32:50 -0700 (PDT)
+Date: Mon, 31 Jul 2017 15:32:47 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] userfaultfd_zeropage: return -ENOSPC in case mm has gone
+Message-ID: <20170731133247.GK29716@redhat.com>
+References: <1501136819-21857-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <20170731122204.GB4878@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1501506037.4663.13.camel@redhat.com>
+In-Reply-To: <20170731122204.GB4878@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>
-Cc: Jan Kara <jack@suse.cz>, Steven Whitehouse <swhiteho@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "J . Bruce Fields" <bfields@fieldses.org>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>, Bob Peterson <rpeterso@redhat.com>, cluster-devel@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, stable@vger.kernel.org
 
-On Mon 31-07-17 09:00:37, Jeff Layton wrote:
-> On Mon, 2017-07-31 at 14:07 +0200, Jan Kara wrote:
-> > On Mon 31-07-17 07:44:16, Jeff Layton wrote:
-> > > On Mon, 2017-07-31 at 12:32 +0100, Steven Whitehouse wrote:
-> > > > On 31/07/17 12:27, Jeff Layton wrote:
-> > > > > On Thu, 2017-07-27 at 08:48 -0400, Jeff Layton wrote:
-> > > > > > On Thu, 2017-07-27 at 10:49 +0200, Jan Kara wrote:
-> > > > > > > On Wed 26-07-17 13:55:36, Jeff Layton wrote:
-> > > > > > > > +int file_write_and_wait(struct file *file)
-> > > > > > > > +{
-> > > > > > > > +	int err = 0, err2;
-> > > > > > > > +	struct address_space *mapping = file->f_mapping;
-> > > > > > > > +
-> > > > > > > > +	if ((!dax_mapping(mapping) && mapping->nrpages) ||
-> > > > > > > > +	    (dax_mapping(mapping) && mapping->nrexceptional)) {
-> > > > > > > > +		err = filemap_fdatawrite(mapping);
-> > > > > > > > +		/* See comment of filemap_write_and_wait() */
-> > > > > > > > +		if (err != -EIO) {
-> > > > > > > > +			loff_t i_size = i_size_read(mapping->host);
-> > > > > > > > +
-> > > > > > > > +			if (i_size != 0)
-> > > > > > > > +				__filemap_fdatawait_range(mapping, 0,
-> > > > > > > > +							  i_size - 1);
-> > > > > > > > +		}
-> > > > > > > > +	}
-> > > > > > > 
-> > > > > > > Err, what's the i_size check doing here? I'd just pass ~0 as the end of the
-> > > > > > > range and ignore i_size. It is much easier than trying to wrap your head
-> > > > > > > around possible races with file operations modifying i_size.
-> > > > > > > 
-> > > > > > > 								Honza
-> > > > > > 
-> > > > > > I'm basically emulating _exactly_ what filemap_write_and_wait does here,
-> > > > > > as I'm leery of making subtle behavior changes in the actual writeback
-> > > > > > behavior. For example:
-> > > > > > 
-> > > > > > -----------------8<----------------
-> > > > > > static inline int __filemap_fdatawrite(struct address_space *mapping,
-> > > > > >          int sync_mode)
-> > > > > > {
-> > > > > >          return __filemap_fdatawrite_range(mapping, 0, LLONG_MAX, sync_mode);
-> > > > > > }
-> > > > > > 
-> > > > > > int filemap_fdatawrite(struct address_space *mapping)
-> > > > > > {
-> > > > > >          return __filemap_fdatawrite(mapping, WB_SYNC_ALL);
-> > > > > > }
-> > > > > > EXPORT_SYMBOL(filemap_fdatawrite);
-> > > > > > -----------------8<----------------
-> > > > > > 
-> > > > > > ...which then sets up the wbc with the right ranges and sync mode and
-> > > > > > kicks off writepages. But then, it does the i_size_read to figure out
-> > > > > > what range it should wait on (with the shortcut for the size == 0 case).
-> > > > > > 
-> > > > > > My assumption was that it was intentionally designed that way, but I'm
-> > > > > > guessing from your comments that it wasn't? If so, then we can turn
-> > > > > > file_write_and_wait a static inline wrapper around
-> > > > > > file_write_and_wait_range.
-> > > > > 
-> > > > > FWIW, I did a bit of archaeology in the linux-history tree and found
-> > > > > this patch from Marcelo in 2004. Is this optimization still helpful? If
-> > > > > not, then that does simplify the code a bit.
-> > > > > 
-> > > > > -------------------8<--------------------
-> > > > > 
-> > > > > [PATCH] small wait_on_page_writeback_range() optimization
-> > > > > 
-> > > > > filemap_fdatawait() calls wait_on_page_writeback_range() with -1 as "end"
-> > > > > parameter.  This is not needed since we know the EOF from the inode.  Use
-> > > > > that instead.
-> > > > > 
-> > > > > Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-> > > > > Signed-off-by: Andrew Morton <akpm@osdl.org>
-> > > > > Signed-off-by: Linus Torvalds <torvalds@osdl.org>
-> > > > > ---
-> > > > >   mm/filemap.c | 8 +++++++-
-> > > > >   1 file changed, 7 insertions(+), 1 deletion(-)
-> > > > > 
-> > > > > diff --git a/mm/filemap.c b/mm/filemap.c
-> > > > > index 78e18b7639b6..55fb7b4141e4 100644
-> > > > > --- a/mm/filemap.c
-> > > > > +++ b/mm/filemap.c
-> > > > > @@ -287,7 +287,13 @@ EXPORT_SYMBOL(sync_page_range);
-> > > > >    */
-> > > > >   int filemap_fdatawait(struct address_space *mapping)
-> > > > >   {
-> > > > > -	return wait_on_page_writeback_range(mapping, 0, -1);
-> > > > > +	loff_t i_size = i_size_read(mapping->host);
-> > > > > +
-> > > > > +	if (i_size == 0)
-> > > > > +		return 0;
-> > > > > +
-> > > > > +	return wait_on_page_writeback_range(mapping, 0,
-> > > > > +				(i_size - 1) >> PAGE_CACHE_SHIFT);
-> > > > >   }
-> > > > >   EXPORT_SYMBOL(filemap_fdatawait);
-> > > > > 
-> > > > 
-> > > > Does this ever get called in cases where we would not hold fs locks? In 
-> > > > that case we definitely don't want to be relying on i_size,
-> > > > 
-> > > > Steve.
-> > > > 
-> > > 
-> > > Yes. We can initiate and wait on writeback from any context where you
-> > > can sleep, really.
-> > > 
-> > > We're just waiting on whole file writeback here, so I don't think
-> > > there's anything wrong. As long as the i_size was valid at some point in
-> > > time prior to waiting then you're ok.
-> > > 
-> > > The question I have is more whether this optimization is still useful. 
-> > > 
-> > > What we do now is just walk the radix tree and wait_on_page_writeback
-> > > for each page. Do we gain anything by avoiding ranges beyond the current
-> > > EOF with the pagecache infrastructure of 2017?
-> > 
-> > FWIW I'm not aware of any significant benefit of using i_size in
-> > filemap_fdatawait() - we iterate to the end of the radix tree node anyway
-> > since pagevec_lookup_tag() does not support range searches anyway (I'm
-> > working on fixing that however even after that the benefit would be still
-> > rather marginal).
-> > 
-> > What Marcello might have meant even back in 2004 was that if we are in the
-> > middle of truncate, i_size is already reduced but page cache not truncated
-> > yet, then filemap_fdatawait() does not have to wait for writeback of
-> > truncated pages. That might be a noticeable benefit even today if such race
-> > happens however I'm not sure it's worth optimizing for and surprises
-> > arising from randomly snapshotting i_size (which especially for clustered
-> > filesystems may be out of date) IMHO overweight the possible advantage.
-> > 
-> > 								Honza
+On Mon, Jul 31, 2017 at 02:22:04PM +0200, Michal Hocko wrote:
+> On Thu 27-07-17 09:26:59, Mike Rapoport wrote:
+> > In the non-cooperative userfaultfd case, the process exit may race with
+> > outstanding mcopy_atomic called by the uffd monitor.  Returning -ENOSPC
+> > instead of -EINVAL when mm is already gone will allow uffd monitor to
+> > distinguish this case from other error conditions.
 > 
-> Thanks for clarifying.
-> 
-> Given that file_write_and_wait is a new helper function anyway, I'll
-> just make it a wrapper around file_write_and_wait_range. Since it might
+> Normally we tend to return ESRCH in such case. ENOSPC sounds rather
+> confusing...
 
-Agreed.
+This is in sync and consistent with the retval for UFFDIO_COPY upstream:
 
-> be racy, should remove this optimization from the "legacy"
-> filemap_fdatawait / filemap_fdatawait_keep_errors calls?
+	if (mmget_not_zero(ctx->mm)) {
+		ret = mcopy_atomic(ctx->mm, uffdio_copy.dst, uffdio_copy.src,
+				   uffdio_copy.len);
+		mmput(ctx->mm);
+	} else {
+		return -ENOSPC;
+	}
 
-I'm for it.
+If you preferred ESRCH I certainly wouldn't have been against, but we
+should have discussed it before it was upstream. All it matters is
+it's documented in the great manpage that was written for it as quoted
+below.
 
-								Honza
++.TP
++.B ENOENT
++(Since Linux 4.11)
++The faulting process has changed
++its virtual memory layout simultaneously with outstanding
++.I UFFDIO_COPY
++operation.
++.TP
++.B ENOSPC
++(Since Linux 4.11)
++The faulting process has exited at the time of
++.I UFFDIO_COPY
++operation.
 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+To change it now, we would need to involve manpage and other code
+changes.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
