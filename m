@@ -1,160 +1,281 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 99F0D6B04F0
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 01:56:22 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id t25so6768251pfg.15
-        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 22:56:22 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id b68si17196168pfa.605.2017.07.31.22.56.20
-        for <linux-mm@kvack.org>;
-        Mon, 31 Jul 2017 22:56:21 -0700 (PDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2 4/4] mm: fix KSM data corruption
-Date: Tue,  1 Aug 2017 14:56:17 +0900
-Message-Id: <1501566977-20293-5-git-send-email-minchan@kernel.org>
-In-Reply-To: <1501566977-20293-1-git-send-email-minchan@kernel.org>
-References: <1501566977-20293-1-git-send-email-minchan@kernel.org>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E887B6B04F5
+	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 02:01:12 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id b83so7281569pfl.6
+        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 23:01:12 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id e1si1977037ple.334.2017.07.31.23.01.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 31 Jul 2017 23:01:11 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v715xsIC142509
+	for <linux-mm@kvack.org>; Tue, 1 Aug 2017 02:01:10 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2c2dy2e93b-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 01 Aug 2017 02:01:10 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 1 Aug 2017 07:01:08 +0100
+Date: Tue, 1 Aug 2017 09:01:02 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [RESEND PATCH v3 2/2] userfaultfd: selftest: Add tests for
+ UFFD_FEATURE_SIGBUS feature
+References: <1501552446-748335-1-git-send-email-prakash.sangappa@oracle.com>
+ <1501552446-748335-3-git-send-email-prakash.sangappa@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1501552446-748335-3-git-send-email-prakash.sangappa@oracle.com>
+Message-Id: <20170801060102.GA25852@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team <kernel-team@lge.com>, Minchan Kim <minchan@kernel.org>, Nadav Amit <nadav.amit@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Prakash Sangappa <prakash.sangappa@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org, aarcange@redhat.com, akpm@linux-foundation.org, mike.kravetz@oracle.com
 
-Nadav reported KSM can corrupt the user data by the TLB batching race[1].
-That means data user written can be lost.
+On Mon, Jul 31, 2017 at 09:54:06PM -0400, Prakash Sangappa wrote:
+> This patch adds tests for UFFD_FEATURE_SIGBUS feature. The
+> tests will verify signal delivery instead of userfault events.
+> Also, test use of UFFDIO_COPY to allocate memory and retry
+> accessing monitored area after signal delivery.
+> 
+> This patch also fixes a bug in uffd_poll_thread() where 'uffd'
+> is leaked.
+> 
+> Signed-off-by: Prakash Sangappa <prakash.sangappa@oracle.com>
+> ---
 
-Quote from Nadav Amit
-"
-For this race we need 4 CPUs:
+Reviewed-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-CPU0: Caches a writable and dirty PTE entry, and uses the stale value for
-write later.
+> Change log
+> 
+> v3:  Eliminated use of sig_repeat variable and simplified error return.
+> 
+> v2:
+>   - Added comments to explain the tests.
+>   - Fixed test to fail immediately if signal repeats.
+>   - Addressed other review comments.
+> 
+> v1: https://lkml.org/lkml/2017/7/26/101
+> ---
+>  tools/testing/selftests/vm/userfaultfd.c |  127 +++++++++++++++++++++++++++++-
+>  1 files changed, 124 insertions(+), 3 deletions(-)
+> 
+> diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
+> index 1eae79a..52740ae 100644
+> --- a/tools/testing/selftests/vm/userfaultfd.c
+> +++ b/tools/testing/selftests/vm/userfaultfd.c
+> @@ -66,6 +66,7 @@
+>  #include <sys/wait.h>
+>  #include <pthread.h>
+>  #include <linux/userfaultfd.h>
+> +#include <setjmp.h>
+> 
+>  #ifdef __NR_userfaultfd
+> 
+> @@ -408,6 +409,7 @@ static int copy_page(int ufd, unsigned long offset)
+>  				userfaults++;
+>  			break;
+>  		case UFFD_EVENT_FORK:
+> +			close(uffd);
+>  			uffd = msg.arg.fork.ufd;
+>  			pollfd[0].fd = uffd;
+>  			break;
+> @@ -572,6 +574,17 @@ static int userfaultfd_open(int features)
+>  	return 0;
+>  }
+> 
+> +sigjmp_buf jbuf, *sigbuf;
+> +
+> +static void sighndl(int sig, siginfo_t *siginfo, void *ptr)
+> +{
+> +	if (sig == SIGBUS) {
+> +		if (sigbuf)
+> +			siglongjmp(*sigbuf, 1);
+> +		abort();
+> +	}
+> +}
+> +
+>  /*
+>   * For non-cooperative userfaultfd test we fork() a process that will
+>   * generate pagefaults, will mremap the area monitored by the
+> @@ -585,19 +598,59 @@ static int userfaultfd_open(int features)
+>   * The release of the pages currently generates event for shmem and
+>   * anonymous memory (UFFD_EVENT_REMOVE), hence it is not checked
+>   * for hugetlb.
+> + * For signal test(UFFD_FEATURE_SIGBUS), signal_test = 1, we register
+> + * monitored area, generate pagefaults and test that signal is delivered.
+> + * Use UFFDIO_COPY to allocate missing page and retry. For signal_test = 2
+> + * test robustness use case - we release monitored area, fork a process
+> + * that will generate pagefaults and verify signal is generated.
+> + * This also tests UFFD_FEATURE_EVENT_FORK event along with the signal
+> + * feature. Using monitor thread, verify no userfault events are generated.
+>   */
+> -static int faulting_process(void)
+> +static int faulting_process(int signal_test)
+>  {
+>  	unsigned long nr;
+>  	unsigned long long count;
+>  	unsigned long split_nr_pages;
+> +	unsigned long lastnr;
+> +	struct sigaction act;
+> +	unsigned long signalled = 0;
+> 
+>  	if (test_type != TEST_HUGETLB)
+>  		split_nr_pages = (nr_pages + 1) / 2;
+>  	else
+>  		split_nr_pages = nr_pages;
+> 
+> +	if (signal_test) {
+> +		sigbuf = &jbuf;
+> +		memset(&act, 0, sizeof(act));
+> +		act.sa_sigaction = sighndl;
+> +		act.sa_flags = SA_SIGINFO;
+> +		if (sigaction(SIGBUS, &act, 0)) {
+> +			perror("sigaction");
+> +			return 1;
+> +		}
+> +		lastnr = (unsigned long)-1;
+> +	}
+> +
+>  	for (nr = 0; nr < split_nr_pages; nr++) {
+> +		if (signal_test) {
+> +			if (sigsetjmp(*sigbuf, 1) != 0) {
+> +				if (nr == lastnr) {
+> +					fprintf(stderr, "Signal repeated\n");
+> +					return 1;
+> +				}
+> +
+> +				lastnr = nr;
+> +				if (signal_test == 1) {
+> +					if (copy_page(uffd, nr * page_size))
+> +						signalled++;
+> +				} else {
+> +					signalled++;
+> +					continue;
+> +				}
+> +			}
+> +		}
+> +
+>  		count = *area_count(area_dst, nr);
+>  		if (count != count_verify[nr]) {
+>  			fprintf(stderr,
+> @@ -607,6 +660,9 @@ static int faulting_process(void)
+>  		}
+>  	}
+> 
+> +	if (signal_test)
+> +		return signalled != split_nr_pages;
+> +
+>  	if (test_type == TEST_HUGETLB)
+>  		return 0;
+> 
+> @@ -761,7 +817,7 @@ static int userfaultfd_events_test(void)
+>  		perror("fork"), exit(1);
+> 
+>  	if (!pid)
+> -		return faulting_process();
+> +		return faulting_process(0);
+> 
+>  	waitpid(pid, &err, 0);
+>  	if (err)
+> @@ -778,6 +834,70 @@ static int userfaultfd_events_test(void)
+>  	return userfaults != nr_pages;
+>  }
+> 
+> +static int userfaultfd_sig_test(void)
+> +{
+> +	struct uffdio_register uffdio_register;
+> +	unsigned long expected_ioctls;
+> +	unsigned long userfaults;
+> +	pthread_t uffd_mon;
+> +	int err, features;
+> +	pid_t pid;
+> +	char c;
+> +
+> +	printf("testing signal delivery: ");
+> +	fflush(stdout);
+> +
+> +	if (uffd_test_ops->release_pages(area_dst))
+> +		return 1;
+> +
+> +	features = UFFD_FEATURE_EVENT_FORK|UFFD_FEATURE_SIGBUS;
+> +	if (userfaultfd_open(features) < 0)
+> +		return 1;
+> +	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
+> +
+> +	uffdio_register.range.start = (unsigned long) area_dst;
+> +	uffdio_register.range.len = nr_pages * page_size;
+> +	uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
+> +	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
+> +		fprintf(stderr, "register failure\n"), exit(1);
+> +
+> +	expected_ioctls = uffd_test_ops->expected_ioctls;
+> +	if ((uffdio_register.ioctls & expected_ioctls) !=
+> +	    expected_ioctls)
+> +		fprintf(stderr,
+> +			"unexpected missing ioctl for anon memory\n"),
+> +			exit(1);
+> +
+> +	if (faulting_process(1))
+> +		fprintf(stderr, "faulting process failed\n"), exit(1);
+> +
+> +	if (uffd_test_ops->release_pages(area_dst))
+> +		return 1;
+> +
+> +	if (pthread_create(&uffd_mon, &attr, uffd_poll_thread, NULL))
+> +		perror("uffd_poll_thread create"), exit(1);
+> +
+> +	pid = fork();
+> +	if (pid < 0)
+> +		perror("fork"), exit(1);
+> +
+> +	if (!pid)
+> +		exit(faulting_process(2));
+> +
+> +	waitpid(pid, &err, 0);
+> +	if (err)
+> +		fprintf(stderr, "faulting process failed\n"), exit(1);
+> +
+> +	if (write(pipefd[1], &c, sizeof(c)) != sizeof(c))
+> +		perror("pipe write"), exit(1);
+> +	if (pthread_join(uffd_mon, (void **)&userfaults))
+> +		return 1;
+> +
+> +	printf("done.\n");
+> +	printf(" Signal test userfaults: %ld\n", userfaults);
+> +	close(uffd);
+> +	return userfaults != 0;
+> +}
+>  static int userfaultfd_stress(void)
+>  {
+>  	void *area;
+> @@ -946,7 +1066,8 @@ static int userfaultfd_stress(void)
+>  		return err;
+> 
+>  	close(uffd);
+> -	return userfaultfd_zeropage_test() || userfaultfd_events_test();
+> +	return userfaultfd_zeropage_test() || userfaultfd_sig_test()
+> +		|| userfaultfd_events_test();
+>  }
+> 
+>  /*
+> -- 
+> 1.7.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
-CPU1: Runs madvise_free on the range that includes the PTE. It would clear
-the dirty-bit. It batches TLB flushes.
-
-CPU2: Writes 4 to /proc/PID/clear_refs , clearing the PTEs soft-dirty. We
-care about the fact that it clears the PTE write-bit, and of course, batches
-TLB flushes.
-
-CPU3: Runs KSM. Our purpose is to pass the following test in
-write_protect_page():
-
-	if (pte_write(*pvmw.pte) || pte_dirty(*pvmw.pte) ||
-	    (pte_protnone(*pvmw.pte) && pte_savedwrite(*pvmw.pte)))
-
-Since it will avoid TLB flush. And we want to do it while the PTE is stale.
-Later, and before replacing the page, we would be able to change the page.
-
-Note that all the operations the CPU1-3 perform canhappen in parallel since
-they only acquire mmap_sem for read.
-
-We start with two identical pages. Everything below regards the same
-page/PTE.
-
-CPU0		CPU1		CPU2		CPU3
-----		----		----		----
-Write the same
-value on page
-
-[cache PTE as
- dirty in TLB]
-
-		MADV_FREE
-		pte_mkclean()
-
-				4 > clear_refs
-				pte_wrprotect()
-
-						write_protect_page()
-						[ success, no flush ]
-
-						pages_indentical()
-						[ ok ]
-
-Write to page
-different value
-
-[Ok, using stale
- PTE]
-
-						replace_page()
-
-Later, CPU1, CPU2 and CPU3 would flush the TLB, but that is too late. CPU0
-already wrote on the page, but KSM ignored this write, and it got lost.
-"
-
-In above scenario, MADV_FREE is fixed by changing TLB batching API
-including [set|clear]_tlb_flush_pending. Remained thing is soft-dirty part.
-
-This patch changes soft-dirty uses TLB batching API instead of flush_tlb_mm
-and KSM checks pending TLB flush by using mm_tlb_flush_pending so that
-it will flush TLB to avoid data lost if there are other parallel threads
-pending TLB flush.
-
-[1] http://lkml.kernel.org/r/BD3A0EBE-ECF4-41D4-87FA-C755EA9AB6BD@gmail.com
-
-Note:
-I failed to reproduce this problem through Nadav's test program which
-need to tune timing in my system speed so didn't confirm it work.
-Nadav, Could you test this patch on your test machine?
-
-Thanks!
-
-Cc: Nadav Amit <nadav.amit@gmail.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- fs/proc/task_mmu.c | 4 +++-
- mm/ksm.c           | 3 ++-
- 2 files changed, 5 insertions(+), 2 deletions(-)
-
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 9782dedeead7..58ef3a6abbc0 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -1018,6 +1018,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 	enum clear_refs_types type;
- 	int itype;
- 	int rv;
-+	struct mmu_gather tlb;
- 
- 	memset(buffer, 0, sizeof(buffer));
- 	if (count > sizeof(buffer) - 1)
-@@ -1062,6 +1063,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 		}
- 
- 		down_read(&mm->mmap_sem);
-+		tlb_gather_mmu(&tlb, mm, 0, -1);
- 		if (type == CLEAR_REFS_SOFT_DIRTY) {
- 			for (vma = mm->mmap; vma; vma = vma->vm_next) {
- 				if (!(vma->vm_flags & VM_SOFTDIRTY))
-@@ -1083,7 +1085,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 		walk_page_range(0, mm->highest_vm_end, &clear_refs_walk);
- 		if (type == CLEAR_REFS_SOFT_DIRTY)
- 			mmu_notifier_invalidate_range_end(mm, 0, -1);
--		flush_tlb_mm(mm);
-+		tlb_finish_mmu(&tlb, 0, -1);
- 		up_read(&mm->mmap_sem);
- out_mm:
- 		mmput(mm);
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 0c927e36a639..15dd7415f7b3 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1038,7 +1038,8 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
- 		goto out_unlock;
- 
- 	if (pte_write(*pvmw.pte) || pte_dirty(*pvmw.pte) ||
--	    (pte_protnone(*pvmw.pte) && pte_savedwrite(*pvmw.pte))) {
-+	    (pte_protnone(*pvmw.pte) && pte_savedwrite(*pvmw.pte)) ||
-+						mm_tlb_flush_pending(mm)) {
- 		pte_t entry;
- 
- 		swapped = PageSwapCache(page);
 -- 
-2.7.4
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
