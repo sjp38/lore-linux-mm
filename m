@@ -1,75 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AB4C6B0505
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 04:29:58 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id l3so1329632wrc.12
-        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 01:29:58 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 42D206B0507
+	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 04:58:03 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id v31so1427244wrc.7
+        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 01:58:03 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 1si362322wrj.342.2017.08.01.01.29.57
+        by mx.google.com with ESMTPS id v8si1567621wrd.130.2017.08.01.01.58.01
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 01 Aug 2017 01:29:57 -0700 (PDT)
-Date: Tue, 1 Aug 2017 10:29:52 +0200
+        Tue, 01 Aug 2017 01:58:01 -0700 (PDT)
+Date: Tue, 1 Aug 2017 10:57:59 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/1] mm/hugetlb mm/oom_kill:  Add support for
- reclaiming hugepages on OOM events.
-Message-ID: <20170801082952.GB15774@dhcp22.suse.cz>
-References: <20170727180236.6175-2-Liam.Howlett@Oracle.com>
- <20170728064602.GC2274@dhcp22.suse.cz>
- <20170728113347.rrn5igjyllrj3z4n@node.shutemov.name>
- <20170728122350.GM2274@dhcp22.suse.cz>
- <20170728124443.GO2274@dhcp22.suse.cz>
- <20170729015638.lnazqgf5isjqqkqg@oracle.com>
- <20170731091025.GH15767@dhcp22.suse.cz>
- <20170731135647.wpzk56m5qrmz3xht@oracle.com>
- <20170731140810.GD4829@dhcp22.suse.cz>
- <20170801011124.co373mej7o6u7flu@oracle.com>
+Subject: Re: [PATCH 1/3] mm:hugetlb: Define system call hugetlb size
+ encodings in single file
+Message-ID: <20170801085759.GC15774@dhcp22.suse.cz>
+References: <1501527386-10736-1-git-send-email-mike.kravetz@oracle.com>
+ <1501527386-10736-2-git-send-email-mike.kravetz@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170801011124.co373mej7o6u7flu@oracle.com>
+In-Reply-To: <1501527386-10736-2-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Liam R. Howlett" <Liam.Howlett@Oracle.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, mike.kravetz@Oracle.com, aneesh.kumar@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, punit.agrawal@arm.com, arnd@arndb.de, gerald.schaefer@de.ibm.com, aarcange@redhat.com, oleg@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, mingo@kernel.org, kirill.shutemov@linux.intel.com, vdavydov.dev@gmail.com, willy@infradead.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, akpm@linux-foundation.org, ak@linux.intel.com, mtk.manpages@gmail.com, Davidlohr Bueso <dbueso@suse.de>, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, Arnd Bergmann <arnd@arndb.de>
 
-On Mon 31-07-17 21:11:25, Liam R. Howlett wrote:
-> * Michal Hocko <mhocko@kernel.org> [170731 10:08]:
-> > On Mon 31-07-17 09:56:48, Liam R. Howlett wrote:
-[...]
-> > > No,  I'm talking about failed memory for whatever reason.  The system
-> > > reboots by a hardware means (I believe the memory controller) and
-> > > removes the memory on that failed module from the pool.  Now you
-> > > effectively have a system with less memory than before which invalidates
-> > > your configuration.  Is it worth while to have Linux successfully boot
-> > > when the system attempts to recover from a failure?
-> > 
-> > Cetainly yes but if you boot with much less memory and you want to use
-> > hugetlb pages then you have to reconsider and maybe even reconfigure
-> > your workload to reflect new conditions. So I am not really sure this
-> > can be fully automated.
-> > 
+On Mon 31-07-17 11:56:24, Mike Kravetz wrote:
+> If hugetlb pages are requested in mmap or shmget system calls,  a huge
+> page size other than default can be requested.  This is accomplished by
+> encoding the log2 of the huge page size in the upper bits of the flag
+> argument.  asm-generic and arch specific headers all define the same
+> values for these encodings.
 > 
-> I agree.  A reconfiguration or repair is required to have optimum
-> performance.  Would you agree that having functioning system better than
-> a reboot loop or hang on a panic?  It's also easier to reconfigure a
-> system that's booting.
+> Put common definitions in a single header file.  The primary uapi
+> header files for mmap and shm will use these definitions as a basis
+> for definitions specific to those system calls.
+> 
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 
-Absolutely. The thing is that I am not even sure that the hugetlb
-problem is real. Using hugetlb reservation from the boot command line
-parameter is easily fixable (just update the boot comand line from the
-boot loader). From my experience the init time hugetlb initialization
-is usually trying to be portable and as such configures a certain
-percentage of the available memory for hugetlb (some of them even on per
-NUMA node basis). Even if somebody uses hard coded values then this is
-something that is fixable during recovery.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-That being said I am not sure you are focusing on a real problem while
-the solution you are proposing might break an existing userspace. Please
-try to play with your memory recovery feature some more with real
-hugetlb usecases (Oracle DB is a heavy user AFAIR) and see what the real
-life problems might happen and we can revisit potential solutions with
-more data in hands.
+> ---
+>  include/uapi/asm-generic/hugetlb_encode.h | 34 +++++++++++++++++++++++++++++++
+>  1 file changed, 34 insertions(+)
+>  create mode 100644 include/uapi/asm-generic/hugetlb_encode.h
+> 
+> diff --git a/include/uapi/asm-generic/hugetlb_encode.h b/include/uapi/asm-generic/hugetlb_encode.h
+> new file mode 100644
+> index 0000000..e4732d3
+> --- /dev/null
+> +++ b/include/uapi/asm-generic/hugetlb_encode.h
+> @@ -0,0 +1,34 @@
+> +#ifndef _ASM_GENERIC_HUGETLB_ENCODE_H_
+> +#define _ASM_GENERIC_HUGETLB_ENCODE_H_
+> +
+> +/*
+> + * Several system calls take a flag to request "hugetlb" huge pages.
+> + * Without further specification, these system calls will use the
+> + * system's default huge page size.  If a system supports multiple
+> + * huge page sizes, the desired huge page size can be specified in
+> + * bits [26:31] of the flag arguments.  The value in these 6 bits
+> + * will encode the log2 of the huge page size.
+> + *
+> + * The following definitions are associated with this huge page size
+> + * encoding in flag arguments.  System call specific header files
+> + * that use this encoding should include this file.  They can then
+> + * provide definitions based on these with their own specific prefix.
+> + * for example:
+> + * #define MAP_HUGE_SHIFT HUGETLB_FLAG_ENCODE_SHIFT
+> + */
+> +
+> +#define HUGETLB_FLAG_ENCODE_SHIFT	26
+> +#define HUGETLB_FLAG_ENCODE_MASK	0x3f
+> +
+> +#define HUGETLB_FLAG_ENCODE_64KB	(16 << HUGETLB_FLAG_ENCODE_SHIFT)
+> +#define HUGETLB_FLAG_ENCODE_512KB	(19 << HUGETLB_FLAG_ENCODE_SHIFT)
+> +#define HUGETLB_FLAG_ENCODE_1MB		(20 << HUGETLB_FLAG_ENCODE_SHIFT)
+> +#define HUGETLB_FLAG_ENCODE_2MB		(21 << HUGETLB_FLAG_ENCODE_SHIFT)
+> +#define HUGETLB_FLAG_ENCODE_8MB		(23 << HUGETLB_FLAG_ENCODE_SHIFT)
+> +#define HUGETLB_FLAG_ENCODE_16MB	(24 << HUGETLB_FLAG_ENCODE_SHIFT)
+> +#define HUGETLB_FLAG_ENCODE_256MB	(28 << HUGETLB_FLAG_ENCODE_SHIFT)
+> +#define HUGETLB_FLAG_ENCODE_1GB		(30 << HUGETLB_FLAG_ENCODE_SHIFT)
+> +#define HUGETLB_FLAG_ENCODE_2GB		(31 << HUGETLB_FLAG_ENCODE_SHIFT)
+> +#define HUGETLB_FLAG_ENCODE_16GB	(34 << HUGETLB_FLAG_ENCODE_SHIFT)
+> +
+> +#endif /* _ASM_GENERIC_HUGETLB_ENCODE_H_ */
+> -- 
+> 2.7.5
+
 -- 
 Michal Hocko
 SUSE Labs
