@@ -1,134 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8682E6B0525
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 07:30:20 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id m80so2108671wmd.4
-        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 04:30:20 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b53si10963604wrd.550.2017.08.01.04.30.19
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E50C6B0527
+	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 07:30:52 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id t37so6091275qtg.6
+        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 04:30:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d140si13672555qkb.223.2017.08.01.04.30.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 01 Aug 2017 04:30:19 -0700 (PDT)
-Date: Tue, 1 Aug 2017 13:30:16 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Possible race condition in oom-killer
-Message-ID: <20170801113016.GF15774@dhcp22.suse.cz>
-References: <20170728130723.GP2274@dhcp22.suse.cz>
- <201707282215.AGI69210.VFOHQFtOFSOJML@I-love.SAKURA.ne.jp>
- <20170728132952.GQ2274@dhcp22.suse.cz>
- <201707282255.BGI87015.FSFOVQtMOHLJFO@I-love.SAKURA.ne.jp>
- <20170728140706.GT2274@dhcp22.suse.cz>
- <201708011946.JFC04140.FFLFOSOMQHtOVJ@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 01 Aug 2017 04:30:51 -0700 (PDT)
+Date: Tue, 1 Aug 2017 13:30:39 +0200
+From: Igor Mammedov <imammedo@redhat.com>
+Subject: Re: [RFC PATCH 0/5] mm, memory_hotplug: allocate memmap from
+ hotadded memory
+Message-ID: <20170801133039.6293f108@nial.brq.redhat.com>
+In-Reply-To: <20170731195830.0d0ebf2f@thinkpad>
+References: <20170726083333.17754-1-mhocko@kernel.org>
+	<20170726210657.GE21717@redhat.com>
+	<20170727065652.GE20970@dhcp22.suse.cz>
+	<20170728121941.GL2274@dhcp22.suse.cz>
+	<20170731143521.5809a6ca@thinkpad>
+	<20170731125319.GA4829@dhcp22.suse.cz>
+	<20170731170459.613d5cbd@thinkpad>
+	<20170731155350.GA1189@dhcp22.suse.cz>
+	<20170731195830.0d0ebf2f@thinkpad>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201708011946.JFC04140.FFLFOSOMQHtOVJ@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mjaggi@caviumnetworks.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Jerome Glisse <jglisse@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Daniel Kiper <daniel.kiper@oracle.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Dan Williams <dan.j.williams@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>
 
-On Tue 01-08-17 19:46:38, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > > >                                                                   Is
-> > > > something other than the LTP test affected to give this more priority?
-> > > > Do we have other usecases where something mlocks the whole memory?
+On Mon, 31 Jul 2017 19:58:30 +0200
+Gerald Schaefer <gerald.schaefer@de.ibm.com> wrote:
+
+> On Mon, 31 Jul 2017 17:53:50 +0200
+> Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> > On Mon 31-07-17 17:04:59, Gerald Schaefer wrote:  
+> > > On Mon, 31 Jul 2017 14:53:19 +0200
+> > > Michal Hocko <mhocko@kernel.org> wrote:
+> > >   
+> > > > On Mon 31-07-17 14:35:21, Gerald Schaefer wrote:  
+> > > > > On Fri, 28 Jul 2017 14:19:41 +0200
+> > > > > Michal Hocko <mhocko@kernel.org> wrote:
+> > > > >   
+> > > > > > On Thu 27-07-17 08:56:52, Michal Hocko wrote:  
+> > > > > > > On Wed 26-07-17 17:06:59, Jerome Glisse wrote:
+> > > > > > > [...]  
+> > > > > > > > This does not seems to be an opt-in change ie if i am reading patch 3
+> > > > > > > > correctly if an altmap is not provided to __add_pages() you fallback
+> > > > > > > > to allocating from begining of zone. This will not work with HMM ie
+> > > > > > > > device private memory. So at very least i would like to see some way
+> > > > > > > > to opt-out of this. Maybe a new argument like bool forbid_altmap ?  
+> > > > > > > 
+> > > > > > > OK, I see! I will think about how to make a sane api for that.  
+> > > > > > 
+> > > > > > This is what I came up with. s390 guys mentioned that I cannot simply
+> > > > > > use the new range at this stage yet. This will need probably some other
+> > > > > > changes but I guess we want an opt-in approach with an arch veto in general.
+> > > > > > 
+> > > > > > So what do you think about the following? Only x86 is update now and I
+> > > > > > will split it into two parts but the idea should be clear at least.  
+> > > > > 
+> > > > > This looks good, and the kernel will also boot again on s390 when applied
+> > > > > on top of the other 5 patches (plus adding the s390 part here).  
+> > > > 
+> > > > Thanks for testing Gerald! I am still undecided whether the arch code
+> > > > should veto MHP_RANGE_ACCESSIBLE if it cannot be supported or just set
+> > > > it when it is supported. My last post did the later but the first one
+> > > > sounds like a more clear API to me. I will keep thinking about it.
+> > > > 
+> > > > Anyway, did you have any chance to consider mapping the new physical
+> > > > memory range inside arch_add_memory rather than during online on s390?  
 > > > 
-> > > This panic was caused by 50 threads sharing MMF_OOM_SKIP mm exceeding
-> > > number of OOM killable processes. Whether memory is locked or not isn't
-> > > important.
+> > > Well, it still looks like we cannot do w/o splitting up add_memory():
+> > > 1) (only) set up section map during our initial memory detection, w/o
+> > > allocating struct pages, so that the sysfs entries get created also for
+> > > our offline memory (or else we have no way to online it later)
+> > > 2) set up vmemmap and allocate struct pages with your new altmap approach
+> > > during our MEM_GOING_ONLINE callback, because only now the memory is really
+> > > accessible  
 > > 
-> > You are wrong here I believe. The whole problem is that the OOM victim
-> > is consuming basically all the memory (that is what the test case
-> > actually does IIRC) and that memory is mlocked. oom_reaper is much
-> > faster to evaluate the mm of the victim and bail out sooner than the
-> > exit path actually manages to tear down the address space. And so we
-> > have to find other oom victims until we simply kill everything and
-> > panic.
+> > As I've tried to mentioned in my other response. This is not possible
+> > because there are memory hotplug usecases which never do an explicit
+> > online.  
 > 
-> Again, whether memory is locked or not isn't important. I can easily
-> reproduce unnecessary OOM victim selection as a local unprivileged user
-> using below program.
+> Of course the default behaviour should not change, we only need an option
+> to do the "2-stage-approach". E.g. we would call __add_pages() from our
+> MEM_GOING_ONLINE handler, and not from arch_add_memory() as before, but
+> then we would need some way to add memory sections (for generating sysfs
+> memory blocks) only, without allocating struct pages. See also below.
 > 
-> ----------
-> #define _GNU_SOURCE
-> #include <stdio.h>
-> #include <stdlib.h>
-> #include <sys/types.h>
-> #include <sys/stat.h>
-> #include <fcntl.h>
-> #include <unistd.h>
-> #include <sched.h>
-> #include <sys/mman.h>
-> 
-> #define NUMTHREADS 128
-> #define MMAPSIZE 128 * 1048576
-> #define STACKSIZE 4096
-> static int pipe_fd[2] = { EOF, EOF };
-> static int memory_eater(void *unused)
-> {
-> 	int fd = open("/dev/zero", O_RDONLY);
-> 	char *buf = mmap(NULL, MMAPSIZE, PROT_WRITE | PROT_READ,
-> 			 MAP_ANONYMOUS | MAP_SHARED, EOF, 0);
-> 	read(pipe_fd[0], buf, 1);
-> 	read(fd, buf, MMAPSIZE);
-> 	pause();
-> 	return 0;
-> }
-> int main(int argc, char *argv[])
-> {
-> 	int i;
-> 	char *stack;
-> 	if (fork() || fork() || setsid() == EOF || pipe(pipe_fd))
-> 		_exit(0);
-> 	stack = mmap(NULL, STACKSIZE * NUMTHREADS, PROT_WRITE | PROT_READ,
-> 		     MAP_ANONYMOUS | MAP_SHARED, EOF, 0);
-> 	for (i = 0; i < NUMTHREADS; i++)
->                 if (clone(memory_eater, stack + (i + 1) * STACKSIZE,
-> 			  CLONE_THREAD | CLONE_SIGHAND | CLONE_VM | CLONE_FS |
-> 			  CLONE_FILES, NULL) == -1)
->                         break;
-> 	sleep(1);
-> 	close(pipe_fd[1]);
-> 	pause();
-> 	return 0;
-> }
-
-This is a clear DoS. There is sadly^Wsimply no implicit limit for the
-amount of shared anonymous memory. This is very close to consuming shmem
-via fs interface except the fs interface has an upper bound for the size.
-I do not thing this is anything new. If you are creative enough you can
-DoS the system the same way regardless of the oom reaper by passing
-shmem fds around AFAICS...
-
-[...]
-> > > If a multi-threaded process which consumes little memory was
-> > > selected as an OOM victim (and reaped by the OOM reaper and MMF_OOM_SKIP
-> > > was set immediately), it might be still possible to select next OOM victims
-> > > needlessly.
 > > 
-> > This would be true if the address space itself only contained a little
-> > amount of memory and the large part of the memory was in page tables or
-> > other resources which oom_reaper cannot work with. This is not a usual
-> > case though.
+> > I am sorry to ask again. But why exactly cannot we make the range
+> > accessible from arch_add_memory on s390?  
 > 
-> mlock()ing whole memory needs CAP_IPC_LOCK, but consuming whole memory as
-> MAP_SHARED does not need CAP_IPC_LOCK. And I think we can relax MMF_OOM_SKIP
-> test in task_will_free_mem() to ignore MMF_OOM_SKIP for once
+> We have no acpi or other events to indicate new memory, both online and
+> offline memory needs to be (hypervisor) defined upfront, and then we want
+> to be able to use memory hotplug for ballooning during runtime.
+> 
+> Making the range accessible is equivalent to a hypervisor call that assigns
+> the memory to the guest. The problem with arch_add_memory() is now that
+> this gets called from add_memory(), which we call during initial memory
+> detection for the offline memory ranges. At that time, assigning all
+> offline memory to the guest, and thus making it accessible, would break
+> the ballooning usecase (even if it is still offline in Linux, the
+> hypervisor could not use it for other guests any more).
+> 
+> The main difference to other architectures is that we can not simply
+> call add_memory() (and thus arch_add_memory()) at the time when the
+> offline memory is actually supposed to get online (e.g. triggered by acpi).
+> We rather need to somehow make sure that the offline memory is detected
+> early, and sysfs entries are created for it, so that it can be set online
+> later on demand.
+> 
+> Maybe our design to use add_memory() for offline ranges during memory
+> detection was wrong, or overkill, since we actually only need to establish
+> a memory section, if I understood the sysfs code right. But I currently
+> see no other way to make sure that we get the sysfs attributes. And of
+> course the presence of users that work on offline struct pages, like
+> valid_zones, is also not helpful.
+> 
+> >   
+> > > Besides the obvious problem that this would need a new interface, there is
+> > > also the problem that (at least) show_valid_zones() in drivers/base/memory.c
+> > > operates on struct pages from _offline_ memory, for its page_zone() checks.
+> > > This will not work well if we have no struct pages for offline memory ...  
+> > 
+> > Yes.
+> >   
+> > > BTW, the latter may also be a issue with your rework on any architecture.
+> > > Not sure if I understood it correctly, but the situation on s390 (i.e.
+> > > having offline memory blocks visible in sysfs) should be similar to
+> > > the scenario on x86, when you plug in memory, set it online in the acpi
+> > > handler, and then manually set it offline again via sysfs. Now the
+> > > memory is still visible in sysfs, and reading the valid_zones attribute
+> > > will trigger an access to struct pages for that memory. What if this
+> > > memory is now physically removed, in a race with such a struct page
+> > > access?  
+> > 
+> > The memmap goes away together with the whole section tear down. And we
+> > shouldn't have any users of any struct page by that time. Memblock sysfs
+> > should be down as well. I will go and double check whether there are any
+> > possible races.  
+> 
+> I was thinking of someone pulling out a DIMM whose range was (manually)
+> set offline before. It looks like (arch_)remove_memory() is not triggered
+> directly on setting it offline, but rather by an acpi event, probably after
+> physical memory removal.
+Order here a little bit different, first and ACPI event sent and processed
+by kernel (including removing ranges from sysfs) and only then kernel should
+call ACPI _EJ0 method on DIMM device when there shouldn't be any users left
+nor races should happen.
 
-As I've said it is not that simple. I will comment on your other email.
-
-> for "mm, oom: do not grant oom victims full memory reserves access"
-> might be too large change for older kernels which next version of LTS
-> distributions would choose.
-
-While this is annoying I do not think this is something new. If you have
-an untrusted user on the system you better contain it (you can use memcg
-for example).
-
--- 
-Michal Hocko
-SUSE Labs
+> And that would mean that a user could just read
+> sysfs valid_zones in a loop, after setting it offline and before the
+> physical removal, thereby accessing struct pages in the offline range,
+> which would then race with the physical DIMM removal.
+> 
+> However, as you can see, s390 memory hotplug works in a special way,
+> so I may have gotten the wrong picture of how it works on "normal"
+> architectures :-)
+> 
+> Regards,
+> Gerald
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
