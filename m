@@ -1,66 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AF99A6B0579
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 17:38:56 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id d24so3784401wmi.0
-        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 14:38:56 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C06B6B057B
+	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 18:29:44 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id l3so3851002wrc.12
+        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 15:29:44 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 204si1934114wmw.252.2017.08.01.14.38.55
+        by mx.google.com with ESMTPS id q30si20409364wra.202.2017.08.01.15.29.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Aug 2017 14:38:55 -0700 (PDT)
-Date: Tue, 1 Aug 2017 14:38:53 -0700
+        Tue, 01 Aug 2017 15:29:43 -0700 (PDT)
+Date: Tue, 1 Aug 2017 15:29:40 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [mmotm:master 50/189] include/linux/swapops.h:220:9: error:
- implicit declaration of function '__pmd'
-Message-Id: <20170801143853.f210976a43d009dba1eeb0db@linux-foundation.org>
-In-Reply-To: <201708011949.LtRajyO5%fengguang.wu@intel.com>
-References: <201708011949.LtRajyO5%fengguang.wu@intel.com>
+Subject: Re: [PATCH v2 0/4] fix several TLB batch races
+Message-Id: <20170801152940.ba91066bd570ed3eadd8d2fc@linux-foundation.org>
+In-Reply-To: <1501566977-20293-1-git-send-email-minchan@kernel.org>
+References: <1501566977-20293-1-git-send-email-minchan@kernel.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>, sparclinux@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team <kernel-team@lge.com>, Nadav Amit <nadav.amit@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Tue, 1 Aug 2017 19:57:54 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+On Tue,  1 Aug 2017 14:56:13 +0900 Minchan Kim <minchan@kernel.org> wrote:
 
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   7961d18ba492e06ad240d37a5502c418b5f0a928
-> commit: 25faf0ef110322719330fcadf4fe541528bacd4d [50/189] mm-thp-enable-thp-migration-in-generic-path-fix
-> config: sparc-defconfig (attached as .config)
-> compiler: sparc-linux-gcc (GCC) 6.2.0
-> reproduce:
->         wget https://raw.githubusercontent.com/01org/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         git checkout 25faf0ef110322719330fcadf4fe541528bacd4d
->         # save the attached .config to linux build tree
->         make.cross ARCH=sparc 
+> Nadav and Mel founded several subtle races caused by TLB batching.
+> This patchset aims for solving thoses problems using embedding
+> [inc|dec]_tlb_flush_pending to TLB batching API.
+> With that, places to know TLB flush pending catch it up by
+> using mm_tlb_flush_pending.
 > 
-> All errors (new ones prefixed by >>):
+> Each patch includes detailed description.
 > 
->    In file included from fs/proc/task_mmu.c:15:0:
->    include/linux/swapops.h: In function 'swp_entry_to_pmd':
-> >> include/linux/swapops.h:220:9: error: implicit declaration of function '__pmd' [-Werror=implicit-function-declaration]
->      return __pmd(0);
->             ^~~~~
-> >> include/linux/swapops.h:220:9: error: incompatible types when returning type 'int' but 'pmd_t {aka struct <anonymous>}' was expected
->      return __pmd(0);
->             ^~~~~~~~
->    cc1: some warnings being treated as errors
-> 
-> vim +/__pmd +220 include/linux/swapops.h
-> 
->    217	
->    218	static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
->    219	{
->  > 220		return __pmd(0);
->    221	}
->    222	
-> 
+> This patchset is based on v4.13-rc2-mmots-2017-07-28-16-10 +
+> "[PATCH v5 0/3] mm: fixes of tlb_flush_pending races" from Nadav
 
-Seems that sparc32 forgot to implement __pmd()?
+Nadav is planning on doing a v4 of his patchset and it sounds like it
+will be significantly different.
+
+So I'll await that patch series.  Nadav, I think it would be best if
+you were to integrate Minchan's patchset on top of yours and maintain the
+whole set as a single series, please.  That way it all gets tested at
+the same time and you're testing the hopefully-final result.  If that's
+OK then please retain the various acks and reviewed-bys in the
+changelogs.
+
+And we'll need to figure out which kernel versions to fix.  Let's
+target 4.13-rcX for now, and assess the feasibility and desirability of
+backporting it all into -stable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
