@@ -1,64 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 87EEF6B051D
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 07:00:24 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 72so12785162pfl.12
-        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 04:00:24 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id k70si17714715pfh.135.2017.08.01.04.00.23
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 572F76B051F
+	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 07:05:24 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id t37so5868468qtg.6
+        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 04:05:24 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u62si5395700qkl.518.2017.08.01.04.05.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 01 Aug 2017 04:00:23 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH v2] vmalloc: show more detail info in vmallocinfo for clarify
-In-Reply-To: <1496649682-20710-1-git-send-email-xieyisheng1@huawei.com>
-References: <1496649682-20710-1-git-send-email-xieyisheng1@huawei.com>
-Date: Tue, 01 Aug 2017 21:00:20 +1000
-Message-ID: <87o9rzsgcb.fsf@concordia.ellerman.id.au>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 01 Aug 2017 04:05:23 -0700 (PDT)
+Message-ID: <1501585521.4073.80.camel@redhat.com>
+Subject: Re: [PATCH v5 2/3] mm: migrate: fix barriers around
+ tlb_flush_pending
+From: Rik van Riel <riel@redhat.com>
+Date: Tue, 01 Aug 2017 07:05:21 -0400
+In-Reply-To: <20170731164325.235019-3-namit@vmware.com>
+References: <20170731164325.235019-1-namit@vmware.com>
+	 <20170731164325.235019-3-namit@vmware.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <xieyisheng1@huawei.com>, akpm@linux-foundation.org
-Cc: mhocko@suse.com, zijun_hu@htc.com, mingo@kernel.org, thgarnie@google.com, kirill.shutemov@linux.intel.com, aryabinin@virtuozzo.com, chris@chris-wilson.co.uk, tim.c.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com
+To: Nadav Amit <namit@vmware.com>, linux-mm@kvack.org
+Cc: nadav.amit@gmail.com, mgorman@suse.de, luto@kernel.org, Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-Yisheng Xie <xieyisheng1@huawei.com> writes:
-
-> When ioremap a 67112960 bytes vm_area with the vmallocinfo:
->  [..]
->  0xec79b000-0xec7fa000  389120 ftl_add_mtd+0x4d0/0x754 pages=94 vmalloc
->  0xec800000-0xecbe1000 4067328 kbox_proc_mem_write+0x104/0x1c4 phys=8b520000 ioremap
->
-> we get the result:
->  0xf1000000-0xf5001000 67112960 devm_ioremap+0x38/0x7c phys=40000000 ioremap
->
-> For the align for ioremap must be less than '1 << IOREMAP_MAX_ORDER':
-> 	if (flags & VM_IOREMAP)
-> 		align = 1ul << clamp_t(int, get_count_order_long(size),
-> 			PAGE_SHIFT, IOREMAP_MAX_ORDER);
->
-> So it makes idiot like me a litter puzzle why jump the vm_area from
-> 0xec800000-0xecbe1000 to 0xf1000000-0xf5001000, and leave
-> 0xed000000-0xf1000000 as a big hole.
->
-> This is to show all of vm_area, including which is freeing but still in
-> vmap_area_list, to make it more clear about why we will get
-> 0xf1000000-0xf5001000 int the above case. And we will get the
-> vmallocinfo like:
->  [..]
->  0xec79b000-0xec7fa000  389120 ftl_add_mtd+0x4d0/0x754 pages=94 vmalloc
->  0xec800000-0xecbe1000 4067328 kbox_proc_mem_write+0x104/0x1c4 phys=8b520000 ioremap
->  [..]
->  0xece7c000-0xece7e000    8192 unpurged vm_area
->  0xece7e000-0xece83000   20480 vm_map_ram
->  0xf0099000-0xf00aa000   69632 vm_map_ram
-
-My vmallocinfo is full of these unpurged areas, should I be worried?
-
-# grep -c "unpurged" /proc/vmallocinfo 
-311
-
-cheers
+On Mon, 2017-07-31 at 09:43 -0700, Nadav Amit wrote:
+> Reading tlb_flush_pending while the page-table lock is taken does not
+> require a barrier, since the lock/unlock already acts as a barrier.
+> Removing the barrier in mm_tlb_flush_pending() to address this issue.
+> 
+> However, migrate_misplaced_transhuge_page() calls
+> mm_tlb_flush_pending()
+> while the page-table lock is already released, which may present a
+> problem on architectures with weak memory model (PPC). To deal with
+> this
+> case, a new parameter is added to mm_tlb_flush_pending() to indicate
+> if it is read without the page-table lock taken, and calling
+> smp_mb__after_unlock_lock() in this case.
+> 
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Rik van Riel <riel@redhat.com>
+> 
+> Signed-off-by: Nadav Amit <namit@vmware.com>
+> 
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
