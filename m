@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 572F76B051F
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 07:05:24 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id t37so5868468qtg.6
-        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 04:05:24 -0700 (PDT)
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 118246B0521
+	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 07:05:48 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id q198so6032310qke.13
+        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 04:05:48 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u62si5395700qkl.518.2017.08.01.04.05.23
+        by mx.google.com with ESMTPS id g125si13012088qkd.327.2017.08.01.04.05.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Aug 2017 04:05:23 -0700 (PDT)
-Message-ID: <1501585521.4073.80.camel@redhat.com>
-Subject: Re: [PATCH v5 2/3] mm: migrate: fix barriers around
- tlb_flush_pending
+        Tue, 01 Aug 2017 04:05:47 -0700 (PDT)
+Message-ID: <1501585545.4073.81.camel@redhat.com>
+Subject: Re: [PATCH v5 3/3] Revert "mm: numa: defer TLB flush for THP
+ migration as long as possible"
 From: Rik van Riel <riel@redhat.com>
-Date: Tue, 01 Aug 2017 07:05:21 -0400
-In-Reply-To: <20170731164325.235019-3-namit@vmware.com>
+Date: Tue, 01 Aug 2017 07:05:45 -0400
+In-Reply-To: <20170731164325.235019-4-namit@vmware.com>
 References: <20170731164325.235019-1-namit@vmware.com>
-	 <20170731164325.235019-3-namit@vmware.com>
+	 <20170731164325.235019-4-namit@vmware.com>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
@@ -26,25 +26,26 @@ To: Nadav Amit <namit@vmware.com>, linux-mm@kvack.org
 Cc: nadav.amit@gmail.com, mgorman@suse.de, luto@kernel.org, Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
 On Mon, 2017-07-31 at 09:43 -0700, Nadav Amit wrote:
-> Reading tlb_flush_pending while the page-table lock is taken does not
-> require a barrier, since the lock/unlock already acts as a barrier.
-> Removing the barrier in mm_tlb_flush_pending() to address this issue.
+> While deferring TLB flushes is a good practice, the reverted patch
+> caused pending TLB flushes to be checked while the page-table lock is
+> not taken. As a result, in architectures with weak memory model
+> (PPC),
+> Linux may miss a memory-barrier, miss the fact TLB flushes are
+> pending,
+> and cause (in theory) a memory corruption.
 > 
-> However, migrate_misplaced_transhuge_page() calls
-> mm_tlb_flush_pending()
-> while the page-table lock is already released, which may present a
-> problem on architectures with weak memory model (PPC). To deal with
-> this
-> case, a new parameter is added to mm_tlb_flush_pending() to indicate
-> if it is read without the page-table lock taken, and calling
-> smp_mb__after_unlock_lock() in this case.
+> Since the alternative of using smp_mb__after_unlock_lock() was
+> considered a bit open-coded, and the performance impact is expected
+> to
+> be small, the previous patch is reverted.
 > 
+> This reverts commit b0943d61b8fa420180f92f64ef67662b4f6cc493.
+> 
+> Suggested-by: Mel Gorman <mgorman@suse.de>
 > Cc: Minchan Kim <minchan@kernel.org>
 > Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 > Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Mel Gorman <mgorman@suse.de>
 > Cc: Rik van Riel <riel@redhat.com>
-> 
 > Signed-off-by: Nadav Amit <namit@vmware.com>
 > 
 Acked-by: Rik van Riel <riel@redhat.com>
