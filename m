@@ -1,146 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B19F96B050D
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 05:04:10 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id i187so1648583wma.15
-        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 02:04:10 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 67AE26B050F
+	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 05:52:34 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id z48so1614782wrc.4
+        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 02:52:34 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 96si16359140wrb.319.2017.08.01.02.04.09
+        by mx.google.com with ESMTPS id b193si870869wme.227.2017.08.01.02.52.32
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 01 Aug 2017 02:04:09 -0700 (PDT)
-Date: Tue, 1 Aug 2017 11:04:04 +0200
+        Tue, 01 Aug 2017 02:52:32 -0700 (PDT)
+Date: Tue, 1 Aug 2017 11:52:31 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm: remove optimizations based on i_size in mapping
- writeback waits
-Message-ID: <20170801090404.GA4215@quack2.suse.cz>
-References: <20170731152946.13976-1-jlayton@kernel.org>
+Subject: Re: [PATCH v3] mm: add file_fdatawait_range and file_write_and_wait
+Message-ID: <20170801095231.GE4215@quack2.suse.cz>
+References: <20170726175538.13885-3-jlayton@kernel.org>
+ <20170731164925.2158-1-jlayton@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170731152946.13976-1-jlayton@kernel.org>
+In-Reply-To: <20170731164925.2158-1-jlayton@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jeff Layton <jlayton@kernel.org>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>, "J . Bruce Fields" <bfields@fieldses.org>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>, Bob Peterson <rpeterso@redhat.com>, Steven Whitehouse <swhiteho@redhat.com>, cluster-devel@redhat.com
 
-On Mon 31-07-17 11:29:46, Jeff Layton wrote:
+On Mon 31-07-17 12:49:25, Jeff Layton wrote:
 > From: Jeff Layton <jlayton@redhat.com>
 > 
-> Marcelo added this i_size based optimization with a patch in 2004
-> (commit 765dad09b4ac in the linux-history tree):
+> Necessary now for gfs2_fsync and sync_file_range, but there will
+> eventually be other callers.
 > 
->     commit 765dad09b4ac101a32d87af2bb793c3060497d3c
->     Author: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
->     Date:   Tue Sep 7 17:51:17 2004 -0700
-> 
-> 	small wait_on_page_writeback_range() optimization
-> 
-> 	filemap_fdatawait() calls wait_on_page_writeback_range() with -1
-> 	as "end" parameter.  This is not needed since we know the EOF
-> 	from the inode.  Use that instead.
-> 
-> There may be races here, particularly with clustered or network
-> filesystems. Block devices always have an i_size of 0 as well, which
-> makes using this with a blockdev inode sort of pointless.
+> Signed-off-by: Jeff Layton <jlayton@redhat.com>
 
-Well, you are not quite right here. You are correct that
-file_inode(file)->i_size is 0, however file->f_mapping->host->i_size is the
-device size and that's what will be used for filemap_fdatawait(). So that
-function works fine for block devices.
-
-> It also seems like a bit of a layering violation since we're operating
-> on an address_space here, not an inode.
-> 
-> Finally, it's also questionable whether this optimization really helps
-> on workloads that we care about. Should we be optimizing for writeback
-> vs. truncate races in a codepath where we expect to wait anyway? It
-> doesn't seem worth the risk.
-> 
-> Remove this optimization from the filemap_fdatawait codepaths. This
-> means that filemap_fdatawait becomes a trivial wrapper around
-> filemap_fdatawait_range.
-
-Agreed for all the other reasons so feel free to add:
+Looks good to me. You can add:
 
 Reviewed-by: Jan Kara <jack@suse.cz>
 
 								Honza
 
-> 
-> Signed-off-by: Jeff Layton <jlayton@redhat.com>
 > ---
->  include/linux/fs.h |  9 +++++++--
->  mm/filemap.c       | 30 +-----------------------------
->  2 files changed, 8 insertions(+), 31 deletions(-)
+>  include/linux/fs.h | 11 ++++++++++-
+>  mm/filemap.c       | 23 +++++++++++++++++++++++
+>  2 files changed, 33 insertions(+), 1 deletion(-)
+> 
+> v3: make file_write_and_wait a wrapper around file_write_and_wait_range
 > 
 > diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index af592ca3d509..656e04c6983e 100644
+> index 526b6a9f30d4..909210bd6366 100644
 > --- a/include/linux/fs.h
 > +++ b/include/linux/fs.h
-> @@ -2538,10 +2538,15 @@ extern int invalidate_inode_pages2_range(struct address_space *mapping,
->  extern int write_inode_now(struct inode *, int);
->  extern int filemap_fdatawrite(struct address_space *);
->  extern int filemap_flush(struct address_space *);
-> -extern int filemap_fdatawait(struct address_space *);
-> -extern int filemap_fdatawait_keep_errors(struct address_space *mapping);
->  extern int filemap_fdatawait_range(struct address_space *, loff_t lstart,
->  				   loff_t lend);
-> +extern int filemap_fdatawait_keep_errors(struct address_space *mapping);
-> +
-> +static inline int filemap_fdatawait(struct address_space *mapping)
-> +{
-> +	return filemap_fdatawait_range(mapping, 0, LLONG_MAX);
-> +}
-> +
+> @@ -2549,6 +2549,8 @@ static inline int filemap_fdatawait(struct address_space *mapping)
+>  
 >  extern bool filemap_range_has_page(struct address_space *, loff_t lstart,
 >  				  loff_t lend);
->  extern int __must_check file_fdatawait_range(struct file *file, loff_t lstart,
+> +extern int __must_check file_fdatawait_range(struct file *file, loff_t lstart,
+> +						loff_t lend);
+>  extern int filemap_write_and_wait(struct address_space *mapping);
+>  extern int filemap_write_and_wait_range(struct address_space *mapping,
+>  				        loff_t lstart, loff_t lend);
+> @@ -2557,12 +2559,19 @@ extern int __filemap_fdatawrite_range(struct address_space *mapping,
+>  extern int filemap_fdatawrite_range(struct address_space *mapping,
+>  				loff_t start, loff_t end);
+>  extern int filemap_check_errors(struct address_space *mapping);
+> -
+>  extern void __filemap_set_wb_err(struct address_space *mapping, int err);
+> +
+> +extern int __must_check file_fdatawait_range(struct file *file, loff_t lstart,
+> +						loff_t lend);
+>  extern int __must_check file_check_and_advance_wb_err(struct file *file);
+>  extern int __must_check file_write_and_wait_range(struct file *file,
+>  						loff_t start, loff_t end);
+>  
+> +static inline int file_write_and_wait(struct file *file)
+> +{
+> +	return file_write_and_wait_range(file, 0, LLONG_MAX);
+> +}
+> +
+>  /**
+>   * filemap_set_wb_err - set a writeback error on an address_space
+>   * @mapping: mapping in which to set writeback error
 > diff --git a/mm/filemap.c b/mm/filemap.c
-> index 394bb5e96f87..85dfe3bee324 100644
+> index 953804b29a75..85dfe3bee324 100644
 > --- a/mm/filemap.c
 > +++ b/mm/filemap.c
-> @@ -512,39 +512,11 @@ EXPORT_SYMBOL(file_fdatawait_range);
->   */
->  int filemap_fdatawait_keep_errors(struct address_space *mapping)
->  {
-> -	loff_t i_size = i_size_read(mapping->host);
-> -
-> -	if (i_size == 0)
-> -		return 0;
-> -
-> -	__filemap_fdatawait_range(mapping, 0, i_size - 1);
-> +	__filemap_fdatawait_range(mapping, 0, LLONG_MAX);
->  	return filemap_check_and_keep_errors(mapping);
->  }
->  EXPORT_SYMBOL(filemap_fdatawait_keep_errors);
+> @@ -476,6 +476,29 @@ int filemap_fdatawait_range(struct address_space *mapping, loff_t start_byte,
+>  EXPORT_SYMBOL(filemap_fdatawait_range);
 >  
-> -/**
-> - * filemap_fdatawait - wait for all under-writeback pages to complete
-> - * @mapping: address space structure to wait for
-> - *
-> - * Walk the list of under-writeback pages of the given address space
-> - * and wait for all of them.  Check error status of the address space
-> - * and return it.
-> - *
-> - * Since the error status of the address space is cleared by this function,
-> - * callers are responsible for checking the return value and handling and/or
-> - * reporting the error.
-> - */
-> -int filemap_fdatawait(struct address_space *mapping)
-> -{
-> -	loff_t i_size = i_size_read(mapping->host);
-> -
-> -	if (i_size == 0)
-> -		return 0;
-> -
-> -	return filemap_fdatawait_range(mapping, 0, i_size - 1);
-> -}
-> -EXPORT_SYMBOL(filemap_fdatawait);
-> -
->  static bool mapping_needs_writeback(struct address_space *mapping)
->  {
->  	return (!dax_mapping(mapping) && mapping->nrpages) ||
+>  /**
+> + * file_fdatawait_range - wait for writeback to complete
+> + * @file:		file pointing to address space structure to wait for
+> + * @start_byte:		offset in bytes where the range starts
+> + * @end_byte:		offset in bytes where the range ends (inclusive)
+> + *
+> + * Walk the list of under-writeback pages of the address space that file
+> + * refers to, in the given range and wait for all of them.  Check error
+> + * status of the address space vs. the file->f_wb_err cursor and return it.
+> + *
+> + * Since the error status of the file is advanced by this function,
+> + * callers are responsible for checking the return value and handling and/or
+> + * reporting the error.
+> + */
+> +int file_fdatawait_range(struct file *file, loff_t start_byte, loff_t end_byte)
+> +{
+> +	struct address_space *mapping = file->f_mapping;
+> +
+> +	__filemap_fdatawait_range(mapping, start_byte, end_byte);
+> +	return file_check_and_advance_wb_err(file);
+> +}
+> +EXPORT_SYMBOL(file_fdatawait_range);
+> +
+> +/**
+>   * filemap_fdatawait_keep_errors - wait for writeback without clearing errors
+>   * @mapping: address space structure to wait for
+>   *
 > -- 
 > 2.13.3
 > 
