@@ -1,109 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 090076B0547
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 08:41:53 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id e202so15253751itc.8
-        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 05:41:53 -0700 (PDT)
-Received: from mail-io0-f194.google.com (mail-io0-f194.google.com. [209.85.223.194])
-        by mx.google.com with ESMTPS id y1si1470850ite.117.2017.08.01.05.41.52
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B0D786B054B
+	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 08:43:27 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id y129so16857595pgy.1
+        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 05:43:27 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id x84si18391105pgx.426.2017.08.01.05.43.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Aug 2017 05:41:52 -0700 (PDT)
-Received: by mail-io0-f194.google.com with SMTP id m88so1457974iod.1
-        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 05:41:52 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 6/6] mm, sparse: rename kmalloc_section_memmap, __kfree_section_memmap
-Date: Tue,  1 Aug 2017 14:41:11 +0200
-Message-Id: <20170801124111.28881-7-mhocko@kernel.org>
-In-Reply-To: <20170801124111.28881-1-mhocko@kernel.org>
-References: <20170801124111.28881-1-mhocko@kernel.org>
+        Tue, 01 Aug 2017 05:43:26 -0700 (PDT)
+Date: Tue, 1 Aug 2017 13:42:38 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH 0/2] mm, oom: do not grant oom victims full memory
+ reserves access
+Message-ID: <20170801124238.GA9497@castle.dhcp.TheFacebook.com>
+References: <20170727090357.3205-1-mhocko@kernel.org>
+ <20170801121643.GI15774@dhcp22.suse.cz>
+ <20170801122344.GA8457@castle.DHCP.thefacebook.com>
+ <20170801122905.GL15774@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20170801122905.GL15774@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-From: Michal Hocko <mhocko@suse.com>
+On Tue, Aug 01, 2017 at 02:29:05PM +0200, Michal Hocko wrote:
+> On Tue 01-08-17 13:23:44, Roman Gushchin wrote:
+> > On Tue, Aug 01, 2017 at 02:16:44PM +0200, Michal Hocko wrote:
+> > > On Thu 27-07-17 11:03:55, Michal Hocko wrote:
+> > > > Hi,
+> > > > this is a part of a larger series I posted back in Oct last year [1]. I
+> > > > have dropped patch 3 because it was incorrect and patch 4 is not
+> > > > applicable without it.
+> > > > 
+> > > > The primary reason to apply patch 1 is to remove a risk of the complete
+> > > > memory depletion by oom victims. While this is a theoretical risk right
+> > > > now there is a demand for memcg aware oom killer which might kill all
+> > > > processes inside a memcg which can be a lot of tasks. That would make
+> > > > the risk quite real.
+> > > > 
+> > > > This issue is addressed by limiting access to memory reserves. We no
+> > > > longer use TIF_MEMDIE to grant the access and use tsk_is_oom_victim
+> > > > instead. See Patch 1 for more details. Patch 2 is a trivial follow up
+> > > > cleanup.
+> > > 
+> > > Any comments, concerns? Can we merge it?
+> > 
+> > I've rebased the cgroup-aware OOM killer and ran some tests.
+> > Everything works well.
+> 
+> Thanks for your testing. Can I assume your Tested-by?
 
-Both functions will use altmap rather than kmalloc for sparsemem-vmemmap
-so rename them to alloc_section_memmap/free_section_memmap which better
-reflect the functionality.
+Sure.
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/sparse.c | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+I wonder if we can get rid of TIF_MEMDIE completely,
+if we will count OOM victims on per-oom-victim-signal-struct rather than
+on per-thread basis? Say, assign oom_mm using cmpxchg, and call
+exit_oom_victim() from __exit_signal()? __thaw_task() can be called from
+mark_oom_victim() unconditionally.
 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 19b9aa60f48a..be1527a37112 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -663,13 +663,13 @@ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
- #endif
- 
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
--static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
-+static inline struct page *alloc_section_memmap(unsigned long pnum, int nid,
- 		struct vmem_altmap *altmap)
- {
- 	/* This will make the necessary allocations eventually. */
- 	return __sparse_mem_map_populate(pnum, nid, altmap);
- }
--static void __kfree_section_memmap(struct page *memmap)
-+static void free_section_memmap(struct page *memmap)
- {
- 	unsigned long start = (unsigned long)memmap;
- 	unsigned long end = (unsigned long)(memmap + PAGES_PER_SECTION);
-@@ -707,13 +707,13 @@ static struct page *__kmalloc_section_memmap(void)
- 	return ret;
- }
- 
--static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
-+static inline struct page *alloc_section_memmap(unsigned long pnum, int nid,
- 		struct vmem_altmap *altmap)
- {
- 	return __kmalloc_section_memmap();
- }
- 
--static void __kfree_section_memmap(struct page *memmap)
-+static void free_section_memmap(struct page *memmap)
- {
- 	if (is_vmalloc_addr(memmap))
- 		vfree(memmap);
-@@ -777,12 +777,12 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat, unsigned long st
- 	ret = sparse_index_init(section_nr, pgdat->node_id);
- 	if (ret < 0 && ret != -EEXIST)
- 		return ret;
--	memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, altmap);
-+	memmap = alloc_section_memmap(section_nr, pgdat->node_id, altmap);
- 	if (!memmap)
- 		return -ENOMEM;
- 	usemap = __kmalloc_section_usemap();
- 	if (!usemap) {
--		__kfree_section_memmap(memmap);
-+		free_section_memmap(memmap);
- 		return -ENOMEM;
- 	}
- 
-@@ -816,7 +816,7 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat, unsigned long st
- 	pgdat_resize_unlock(pgdat, &flags);
- 	if (ret <= 0) {
- 		kfree(usemap);
--		__kfree_section_memmap(memmap);
-+		free_section_memmap(memmap);
- 	}
- 	return ret;
- }
-@@ -857,7 +857,7 @@ static void free_section_usemap(struct page *memmap, unsigned long *usemap)
- 	if (PageSlab(usemap_page) || PageCompound(usemap_page)) {
- 		kfree(usemap);
- 		if (memmap)
--			__kfree_section_memmap(memmap);
-+			free_section_memmap(memmap);
- 		return;
- 	}
- 
--- 
-2.13.2
+Do you see any problems with this approach?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
