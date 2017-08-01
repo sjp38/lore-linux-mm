@@ -1,99 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AFC26B0563
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 11:38:57 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id o65so9127897qkl.12
-        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 08:38:57 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x184si25823307qke.29.2017.08.01.08.38.56
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 427B36B0565
+	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 12:14:23 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id a186so22180831pge.7
+        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 09:14:23 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id b99si11259998pli.731.2017.08.01.09.14.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Aug 2017 08:38:56 -0700 (PDT)
-Date: Tue, 1 Aug 2017 18:38:54 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH] mm: don't zero ballooned pages
-Message-ID: <20170801183518-mutt-send-email-mst@kernel.org>
-References: <1501474413-21580-1-git-send-email-wei.w.wang@intel.com>
- <20170731065508.GE13036@dhcp22.suse.cz>
- <597EDF3D.8020101@intel.com>
- <20170731075153.GD15767@dhcp22.suse.cz>
- <32d9c53d-5310-25a7-0348-a6cf362a5dcd@youruncloud.com>
- <20170731083724.GF15767@dhcp22.suse.cz>
+        Tue, 01 Aug 2017 09:14:21 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v71GAkSi046016
+	for <linux-mm@kvack.org>; Tue, 1 Aug 2017 12:14:21 -0400
+Received: from e24smtp02.br.ibm.com (e24smtp02.br.ibm.com [32.104.18.86])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2c2v82a6gg-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 01 Aug 2017 12:14:21 -0400
+Received: from localhost
+	by e24smtp02.br.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <bauerman@linux.vnet.ibm.com>;
+	Tue, 1 Aug 2017 13:14:18 -0300
+Received: from d24av01.br.ibm.com (d24av01.br.ibm.com [9.8.31.91])
+	by d24relay03.br.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v71GEEZb26476756
+	for <linux-mm@kvack.org>; Tue, 1 Aug 2017 13:14:14 -0300
+Received: from d24av01.br.ibm.com (localhost [127.0.0.1])
+	by d24av01.br.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v71GEEI6004304
+	for <linux-mm@kvack.org>; Tue, 1 Aug 2017 13:14:14 -0300
+References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com> <1500177424-13695-22-git-send-email-linuxram@us.ibm.com> <87shhgdx5i.fsf@linux.vnet.ibm.com> <87d18fu6o1.fsf@concordia.ellerman.id.au>
+From: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
+Subject: Re: [RFC v6 21/62] powerpc: introduce execute-only pkey
+In-reply-to: <87d18fu6o1.fsf@concordia.ellerman.id.au>
+Date: Tue, 01 Aug 2017 13:14:02 -0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170731083724.GF15767@dhcp22.suse.cz>
+Content-Type: text/plain
+Message-Id: <87d18fw9it.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: ZhenweiPi <zhenwei.pi@youruncloud.com>, Wei Wang <wei.w.wang@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, mawilcox@microsoft.com, dave.hansen@intel.com, akpm@linux-foundation.org
+To: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Ram Pai <linuxram@us.ibm.com>, linux-arch@vger.kernel.org, corbet@lwn.net, arnd@arndb.de, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org, dave.hansen@intel.com, mingo@redhat.com, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, linux-kselftest@vger.kernel.org, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, khandual@linux.vnet.ibm.com
 
-On Mon, Jul 31, 2017 at 10:37:24AM +0200, Michal Hocko wrote:
-> On Mon 31-07-17 16:23:26, ZhenweiPi wrote:
-> > On 07/31/2017 03:51 PM, Michal Hocko wrote:
-> > 
-> > >On Mon 31-07-17 15:41:49, Wei Wang wrote:
-> > >>>On 07/31/2017 02:55 PM, Michal Hocko wrote:
-> > >>>> >On Mon 31-07-17 12:13:33, Wei Wang wrote:
-> > >>>>> >>Ballooned pages will be marked as MADV_DONTNEED by the hypervisor and
-> > >>>>> >>shouldn't be given to the host ksmd to scan.
-> > >>>> >Could you point me where this MADV_DONTNEED is done, please?
-> > >>>
-> > >>>Sure. It's done in the hypervisor when the balloon pages are received.
-> > >>>
-> > >>>Please see line 40 at
-> > >>>https://github.com/qemu/qemu/blob/master/hw/virtio/virtio-balloon.c
-> > >And one more thing. I am not familiar with ksm much. But how is
-> > >MADV_DONTNEED even helping? This madvise is not sticky - aka it will
-> > >unmap the range without leaving any note behind. AFAICS the only way
-> > >to have vma scanned is to have VM_MERGEABLE and that is an opt in:
-> > >See Documentation/vm/ksm.txt
-> > >"
-> > >KSM only operates on those areas of address space which an application
-> > >has advised to be likely candidates for merging, by using the madvise(2)
-> > >system call: int madvise(addr, length, MADV_MERGEABLE).
-> > >"
-> > >
-> > >So what exactly is going on here? The original patch looks highly
-> > >suspicious as well. If somebody wants to make that memory mergable then
-> > >the user of that memory should zero them out.
-> > 
-> > Kernel starts a kthread named "ksmd". ksmd scans the VM_MERGEABLE
-> > memory, and merge the same pages.(same page means memcmp(page1,
-> > page2, PAGESIZE) == 0).
-> > 
-> > Guest can not use ballooned pages, and these pages will not be accessed
-> > in a long time. Kswapd on host will swap these pages out and get more
-> > free memory.
-> > 
-> > Rather than swapping, KSM has better performence.  Presently pages in
-> > the balloon device have random value,  they usually cannot be merged.
-> > So enqueue zero pages will resolve this problem.
-> > 
-> > Because MADV_DONTNEED depends on host os capability and hypervisor capability,
-> > I prefer to enqueue zero pages to balloon device and made this patch.
 
-I think you should have hypervisor zero them out if it wants to then. Seems cleaner.
+Michael Ellerman <mpe@ellerman.id.au> writes:
 
-> 
-> So why exactly are we zeroying pages (and pay some cost for that) in
-> guest when we do not know what host actually does with them?
+> Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com> writes:
+>> Ram Pai <linuxram@us.ibm.com> writes:
+> ...
+>>> +
+>>> +	/* We got one, store it and use it from here on out */
+>>> +	if (need_to_set_mm_pkey)
+>>> +		mm->context.execute_only_pkey = execute_only_pkey;
+>>> +	return execute_only_pkey;
+>>> +}
+>>
+>> If you follow the code flow in __execute_only_pkey, the AMR and UAMOR
+>> are read 3 times in total, and AMR is written twice. IAMR is read and
+>> written twice. Since they are SPRs and access to them is slow (or isn't
+>> it?),
+>
+> SPRs read/writes are slow, but they're not *that* slow in comparison to
+> a system call (which I think is where this code is being called?).
 
-I suspect this is some special hypervisor that somehow benefits from
-this patch. It should just use a feature bit for its special needs
-I think.
+Yes, this code runs on mprotect and mmap syscalls if the memory is
+requested to have execute but not read nor write permissions.
 
-Michal is also exactly right that patches like this should come
-with some performance numbers.
-I'll post a patch adding virtio lists for mm/balloon_compaction.c
-so that we notice when people tweak it like that.
+> So we should try to avoid too many SPR read/writes, but at the same time
+> we can accept more than the minimum if it makes the code much easier to
+> follow.
 
-> -- 
-> Michal Hocko
-> SUSE Labs
+Ok. Ram had asked me to suggest a way to optimize the SPR reads and
+writes and I came up with the patch below. Do you think it's worth it?
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+The patch applies on top of this series, but if Ram includes it I think
+he would break it up and merge it into the other patches.
+
+-- 
+Thiago Jung Bauermann
+IBM Linux Technology Center
