@@ -1,87 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E74C6B056D
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 14:14:25 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id l3so3206638wrc.12
-        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 11:14:25 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id a23si1693966wme.75.2017.08.01.11.14.22
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 091BA6B056F
+	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 15:14:24 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e3so25119879pfc.4
+        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 12:14:24 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id y11si18599814pge.365.2017.08.01.12.14.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Aug 2017 11:14:23 -0700 (PDT)
-Date: Tue, 1 Aug 2017 19:13:52 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v4 2/4] mm, oom: cgroup-aware OOM killer
-Message-ID: <20170801181352.GA26074@castle.DHCP.thefacebook.com>
-References: <20170726132718.14806-1-guro@fb.com>
- <20170726132718.14806-3-guro@fb.com>
- <20170801145435.GN15774@dhcp22.suse.cz>
- <20170801152548.GA29502@castle.dhcp.TheFacebook.com>
- <20170801170302.GB15518@dhcp22.suse.cz>
+        Tue, 01 Aug 2017 12:14:22 -0700 (PDT)
+Date: Tue, 1 Aug 2017 22:11:44 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCHv2 08/10] x86/mm: Replace compile-time checks for 5-level
+ with runtime-time
+Message-ID: <20170801191144.k333twdie52arpwt@black.fi.intel.com>
+References: <20170718141517.52202-1-kirill.shutemov@linux.intel.com>
+ <20170718141517.52202-9-kirill.shutemov@linux.intel.com>
+ <6841c4f3-6794-f0ac-9af9-0ceb56e49653@suse.com>
+ <20170725090538.26sbgb4npkztsqj3@black.fi.intel.com>
+ <39cb1e36-f94e-32ea-c94a-2daddcbf3408@suse.com>
+ <20170726164335.xaajz5ltzhncju26@node.shutemov.name>
+ <c450949e-bd79-c9c9-797e-be6b2c7b1e5f@suse.com>
+ <20170801144414.rd67k2g2cz46nlow@black.fi.intel.com>
+ <d7d46a3c-1a01-1f35-99ed-6c1587275433@suse.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170801170302.GB15518@dhcp22.suse.cz>
+In-Reply-To: <d7d46a3c-1a01-1f35-99ed-6c1587275433@suse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Juergen Gross <jgross@suse.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Aug 01, 2017 at 07:03:03PM +0200, Michal Hocko wrote:
-> On Tue 01-08-17 16:25:48, Roman Gushchin wrote:
-> > On Tue, Aug 01, 2017 at 04:54:35PM +0200, Michal Hocko wrote:
-> [...]
-> > > I would reap out the oom_kill_process into a separate patch.
+On Tue, Aug 01, 2017 at 07:14:57PM +0200, Juergen Gross wrote:
+> On 01/08/17 16:44, Kirill A. Shutemov wrote:
+> > On Tue, Aug 01, 2017 at 09:46:56AM +0200, Juergen Gross wrote:
+> >> On 26/07/17 18:43, Kirill A. Shutemov wrote:
+> >>> On Wed, Jul 26, 2017 at 09:28:16AM +0200, Juergen Gross wrote:
+> >>>> On 25/07/17 11:05, Kirill A. Shutemov wrote:
+> >>>>> On Tue, Jul 18, 2017 at 04:24:06PM +0200, Juergen Gross wrote:
+> >>>>>> Xen PV guests will never run with 5-level-paging enabled. So I guess you
+> >>>>>> can drop the complete if (IS_ENABLED(CONFIG_X86_5LEVEL)) {} block.
+> >>>>>
+> >>>>> There is more code to drop from mmu_pv.c.
+> >>>>>
+> >>>>> But while there, I thought if with boot-time 5-level paging switching we
+> >>>>> can allow kernel to compile with XEN_PV and XEN_PVH, so the kernel image
+> >>>>> can be used in these XEN modes with 4-level paging.
+> >>>>>
+> >>>>> Could you check if with the patch below we can boot in XEN_PV and XEN_PVH
+> >>>>> modes?
+> >>>>
+> >>>> We can't. I have used your branch:
+> >>>>
+> >>>> git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git
+> >>>> la57/boot-switching/v2
+> >>>>
+> >>>> with this patch applied on top.
+> >>>>
+> >>>> Doesn't boot PV guest with X86_5LEVEL configured (very early crash).
+> >>>
+> >>> Hm. Okay.
+> >>>
+> >>> Have you tried PVH?
+> >>>
+> >>>> Doesn't build with X86_5LEVEL not configured:
+> >>>>
+> >>>>   AS      arch/x86/kernel/head_64.o
+> >>>
+> >>> I've fixed the patch and split the patch into two parts: cleanup and
+> >>> re-enabling XEN_PV and XEN_PVH for X86_5LEVEL.
+> >>>
+> >>> There's chance that I screw somthing up in clenaup part. Could you check
+> >>> that?
+> >>
+> >> Build is working with and without X86_5LEVEL configured.
+> >>
+> >> PV domU boots without X86_5LEVEL configured.
+> >>
+> >> PV domU crashes with X86_5LEVEL configured:
+> >>
+> >> xen_start_kernel()
+> >>   x86_64_start_reservations()
+> >>     start_kernel()
+> >>       setup_arch()
+> >>         early_ioremap_init()
+> >>           early_ioremap_pmd()
+> >>
+> >> In early_ioremap_pmd() there seems to be a call to p4d_val() which is an
+> >> uninitialized paravirt operation in the Xen pv case.
 > > 
-> > It was a separate patch, I've merged it based on Vladimir's feedback.
-> > No problems, I can divide it back.
-> 
-> It would make the review slightly more easier
+> > Thanks for testing.
 > > 
-> > > > -static void oom_kill_process(struct oom_control *oc, const char *message)
-> > > > +static void __oom_kill_process(struct task_struct *victim)
-> > > 
-> > > To the rest of the patch. I have to say I do not quite like how it is
-> > > implemented. I was hoping for something much simpler which would hook
-> > > into oom_evaluate_task. If a task belongs to a memcg with kill-all flag
-> > > then we would update the cumulative memcg badness (more specifically the
-> > > badness of the topmost parent with kill-all flag). Memcg will then
-> > > compete with existing self contained tasks (oom_badness will have to
-> > > tell whether points belong to a task or a memcg to allow the caller to
-> > > deal with it). But it shouldn't be much more complex than that.
-> > 
-> > I'm not sure, it will be any simpler. Basically I'm doing the same:
-> > the difference is that you want to iterate over tasks and for each
-> > task traverse the memcg tree, update per-cgroup oom score and find
-> > the corresponding memcg(s) with the kill-all flag. I'm doing the opposite:
-> > traverse the cgroup tree, and for each leaf cgroup iterate over processes.
+> > Could you check if patch below makes a difference?
 > 
-> Yeah but this doesn't fit very well to the existing scheme so we would
-> need two different schemes which is not ideal from maint. point of view.
-> We also do not have to duplicate all the tricky checks we already do in
-> oom_evaluate_task. So I would prefer if we could try to hook there and
-> do the special handling there.
+> A little bit better. I get a panic message with backtrace now:
 
-I hope, that iterating over all tasks just to check if there are
-in-flight OOM victims might be optimized at some point.
-That means, we would be able to choose a victim much cheaper.
-It's not easy, but it feels as a right direction to go.
+Are you running with 512m of ram or so?
 
-Also, adding new tricks to the oom_evaluate_task() will make the code
-even more hairy. Some of the existing tricks are useless for memcg selection.
+There's known issue with sparse mem: it still allocate data structures as
+if there's 52-bit phys address space even for p4d_folded case.
 
-> 
-> > Also, please note, that even without the kill-all flag the decision is made
-> > on per-cgroup level (except tasks in the root cgroup).
-> 
-> Yeah and I am not sure this is a reasonable behavior. Why should we
-> consider memcgs which are not kill-all as a single entity?
+I'm looking this.
 
-I think, it's reasonable to choose a cgroup/container to blow off based on
-the cgroup oom_priority/size (including hierarchical settings), and then
-kill one biggest or all tasks depending on cgroup settings.
+Try to bump memory size to 2g or so for now.
 
-Thanks!
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
