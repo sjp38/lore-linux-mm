@@ -1,58 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A8246B04F6
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 02:01:26 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id w187so7871555pgb.10
-        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 23:01:26 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id g28si35627plj.626.2017.07.31.23.01.24
-        for <linux-mm@kvack.org>;
-        Mon, 31 Jul 2017 23:01:25 -0700 (PDT)
-Date: Tue, 1 Aug 2017 15:01:23 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v5 1/3] mm: migrate: prevent racy access to
- tlb_flush_pending
-Message-ID: <20170801060123.GA19932@bbox>
-References: <20170731164325.235019-1-namit@vmware.com>
- <20170731164325.235019-2-namit@vmware.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AADAF6B04F9
+	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 02:46:26 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id r13so7750625pfd.14
+        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 23:46:26 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id 140si2472404pge.136.2017.07.31.23.46.24
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 31 Jul 2017 23:46:25 -0700 (PDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [RFC v6 21/62] powerpc: introduce execute-only pkey
+In-Reply-To: <87shhgdx5i.fsf@linux.vnet.ibm.com>
+References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com> <1500177424-13695-22-git-send-email-linuxram@us.ibm.com> <87shhgdx5i.fsf@linux.vnet.ibm.com>
+Date: Tue, 01 Aug 2017 16:46:22 +1000
+Message-ID: <87d18fu6o1.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170731164325.235019-2-namit@vmware.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nadav Amit <namit@vmware.com>
-Cc: linux-mm@kvack.org, nadav.amit@gmail.com, mgorman@suse.de, riel@redhat.com, luto@kernel.org, stable@vger.kernel.org
+To: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>, Ram Pai <linuxram@us.ibm.com>
+Cc: linux-arch@vger.kernel.org, corbet@lwn.net, arnd@arndb.de, linux-doc@vger.kernel.org, x86@kernel.org, dave.hansen@intel.com, linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org, mingo@redhat.com, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, linux-kselftest@vger.kernel.org, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, khandual@linux.vnet.ibm.com
 
-On Mon, Jul 31, 2017 at 09:43:23AM -0700, Nadav Amit wrote:
-> From: Nadav Amit <nadav.amit@gmail.com>
-> 
-> Setting and clearing mm->tlb_flush_pending can be performed by multiple
-> threads, since mmap_sem may only be acquired for read in
-> task_numa_work(). If this happens, tlb_flush_pending might be cleared
-> while one of the threads still changes PTEs and batches TLB flushes.
-> 
-> This can lead to the same race between migration and
-> change_protection_range() that led to the introduction of
-> tlb_flush_pending. The result of this race was data corruption, which
-> means that this patch also addresses a theoretically possible data
-> corruption.
-> 
-> An actual data corruption was not observed, yet the race was
-> was confirmed by adding assertion to check tlb_flush_pending is not set
-> by two threads, adding artificial latency in change_protection_range()
-> and using sysctl to reduce kernel.numa_balancing_scan_delay_ms.
-> 
-> Fixes: 20841405940e ("mm: fix TLB flush race between migration, and
-> change_protection_range")
-> 
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: stable@vger.kernel.org
-> 
-> Signed-off-by: Nadav Amit <namit@vmware.com>
-> Acked-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Minchan Kim <minchan@kernel.org>
+Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com> writes:
+> Ram Pai <linuxram@us.ibm.com> writes:
+...
+>> +
+>> +	/* We got one, store it and use it from here on out */
+>> +	if (need_to_set_mm_pkey)
+>> +		mm->context.execute_only_pkey = execute_only_pkey;
+>> +	return execute_only_pkey;
+>> +}
+>
+> If you follow the code flow in __execute_only_pkey, the AMR and UAMOR
+> are read 3 times in total, and AMR is written twice. IAMR is read and
+> written twice. Since they are SPRs and access to them is slow (or isn't
+> it?),
+
+SPRs read/writes are slow, but they're not *that* slow in comparison to
+a system call (which I think is where this code is being called?).
+
+So we should try to avoid too many SPR read/writes, but at the same time
+we can accept more than the minimum if it makes the code much easier to
+follow.
+
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
