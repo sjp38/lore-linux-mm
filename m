@@ -1,161 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CA706B0523
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 07:16:39 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id k14so6199516qkl.7
-        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 04:16:39 -0700 (PDT)
-Received: from mail-qt0-f170.google.com (mail-qt0-f170.google.com. [209.85.216.170])
-        by mx.google.com with ESMTPS id g11si25424771qtc.112.2017.08.01.04.16.38
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8682E6B0525
+	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 07:30:20 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id m80so2108671wmd.4
+        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 04:30:20 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b53si10963604wrd.550.2017.08.01.04.30.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Aug 2017 04:16:38 -0700 (PDT)
-Received: by mail-qt0-f170.google.com with SMTP id a18so6947819qta.0
-        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 04:16:38 -0700 (PDT)
-Message-ID: <1501586197.4702.5.camel@redhat.com>
-Subject: Re: [PATCH] mm: remove optimizations based on i_size in mapping
- writeback waits
-From: Jeff Layton <jlayton@redhat.com>
-Date: Tue, 01 Aug 2017 07:16:37 -0400
-In-Reply-To: <20170801090404.GA4215@quack2.suse.cz>
-References: <20170731152946.13976-1-jlayton@kernel.org>
-	 <20170801090404.GA4215@quack2.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 01 Aug 2017 04:30:19 -0700 (PDT)
+Date: Tue, 1 Aug 2017 13:30:16 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Possible race condition in oom-killer
+Message-ID: <20170801113016.GF15774@dhcp22.suse.cz>
+References: <20170728130723.GP2274@dhcp22.suse.cz>
+ <201707282215.AGI69210.VFOHQFtOFSOJML@I-love.SAKURA.ne.jp>
+ <20170728132952.GQ2274@dhcp22.suse.cz>
+ <201707282255.BGI87015.FSFOVQtMOHLJFO@I-love.SAKURA.ne.jp>
+ <20170728140706.GT2274@dhcp22.suse.cz>
+ <201708011946.JFC04140.FFLFOSOMQHtOVJ@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201708011946.JFC04140.FFLFOSOMQHtOVJ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Marcelo Tosatti <mtosatti@redhat.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mjaggi@caviumnetworks.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 2017-08-01 at 11:04 +0200, Jan Kara wrote:
-> On Mon 31-07-17 11:29:46, Jeff Layton wrote:
-> > From: Jeff Layton <jlayton@redhat.com>
+On Tue 01-08-17 19:46:38, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > > >                                                                   Is
+> > > > something other than the LTP test affected to give this more priority?
+> > > > Do we have other usecases where something mlocks the whole memory?
+> > > 
+> > > This panic was caused by 50 threads sharing MMF_OOM_SKIP mm exceeding
+> > > number of OOM killable processes. Whether memory is locked or not isn't
+> > > important.
 > > 
-> > Marcelo added this i_size based optimization with a patch in 2004
-> > (commit 765dad09b4ac in the linux-history tree):
-> > 
-> >     commit 765dad09b4ac101a32d87af2bb793c3060497d3c
-> >     Author: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-> >     Date:   Tue Sep 7 17:51:17 2004 -0700
-> > 
-> > 	small wait_on_page_writeback_range() optimization
-> > 
-> > 	filemap_fdatawait() calls wait_on_page_writeback_range() with -1
-> > 	as "end" parameter.  This is not needed since we know the EOF
-> > 	from the inode.  Use that instead.
-> > 
-> > There may be races here, particularly with clustered or network
-> > filesystems. Block devices always have an i_size of 0 as well, which
-> > makes using this with a blockdev inode sort of pointless.
+> > You are wrong here I believe. The whole problem is that the OOM victim
+> > is consuming basically all the memory (that is what the test case
+> > actually does IIRC) and that memory is mlocked. oom_reaper is much
+> > faster to evaluate the mm of the victim and bail out sooner than the
+> > exit path actually manages to tear down the address space. And so we
+> > have to find other oom victims until we simply kill everything and
+> > panic.
 > 
-> Well, you are not quite right here. You are correct that
-> file_inode(file)->i_size is 0, however file->f_mapping->host->i_size is the
-> device size and that's what will be used for filemap_fdatawait(). So that
-> function works fine for block devices.
+> Again, whether memory is locked or not isn't important. I can easily
+> reproduce unnecessary OOM victim selection as a local unprivileged user
+> using below program.
 > 
+> ----------
+> #define _GNU_SOURCE
+> #include <stdio.h>
+> #include <stdlib.h>
+> #include <sys/types.h>
+> #include <sys/stat.h>
+> #include <fcntl.h>
+> #include <unistd.h>
+> #include <sched.h>
+> #include <sys/mman.h>
+> 
+> #define NUMTHREADS 128
+> #define MMAPSIZE 128 * 1048576
+> #define STACKSIZE 4096
+> static int pipe_fd[2] = { EOF, EOF };
+> static int memory_eater(void *unused)
+> {
+> 	int fd = open("/dev/zero", O_RDONLY);
+> 	char *buf = mmap(NULL, MMAPSIZE, PROT_WRITE | PROT_READ,
+> 			 MAP_ANONYMOUS | MAP_SHARED, EOF, 0);
+> 	read(pipe_fd[0], buf, 1);
+> 	read(fd, buf, MMAPSIZE);
+> 	pause();
+> 	return 0;
+> }
+> int main(int argc, char *argv[])
+> {
+> 	int i;
+> 	char *stack;
+> 	if (fork() || fork() || setsid() == EOF || pipe(pipe_fd))
+> 		_exit(0);
+> 	stack = mmap(NULL, STACKSIZE * NUMTHREADS, PROT_WRITE | PROT_READ,
+> 		     MAP_ANONYMOUS | MAP_SHARED, EOF, 0);
+> 	for (i = 0; i < NUMTHREADS; i++)
+>                 if (clone(memory_eater, stack + (i + 1) * STACKSIZE,
+> 			  CLONE_THREAD | CLONE_SIGHAND | CLONE_VM | CLONE_FS |
+> 			  CLONE_FILES, NULL) == -1)
+>                         break;
+> 	sleep(1);
+> 	close(pipe_fd[1]);
+> 	pause();
+> 	return 0;
+> }
 
-Got it. I'll fix up the description, but I won't bother re-posting for
-that.
+This is a clear DoS. There is sadly^Wsimply no implicit limit for the
+amount of shared anonymous memory. This is very close to consuming shmem
+via fs interface except the fs interface has an upper bound for the size.
+I do not thing this is anything new. If you are creative enough you can
+DoS the system the same way regardless of the oom reaper by passing
+shmem fds around AFAICS...
 
-> > It also seems like a bit of a layering violation since we're operating
-> > on an address_space here, not an inode.
+[...]
+> > > If a multi-threaded process which consumes little memory was
+> > > selected as an OOM victim (and reaped by the OOM reaper and MMF_OOM_SKIP
+> > > was set immediately), it might be still possible to select next OOM victims
+> > > needlessly.
 > > 
-> > Finally, it's also questionable whether this optimization really helps
-> > on workloads that we care about. Should we be optimizing for writeback
-> > vs. truncate races in a codepath where we expect to wait anyway? It
-> > doesn't seem worth the risk.
-> > 
-> > Remove this optimization from the filemap_fdatawait codepaths. This
-> > means that filemap_fdatawait becomes a trivial wrapper around
-> > filemap_fdatawait_range.
+> > This would be true if the address space itself only contained a little
+> > amount of memory and the large part of the memory was in page tables or
+> > other resources which oom_reaper cannot work with. This is not a usual
+> > case though.
 > 
-> Agreed for all the other reasons so feel free to add:
-> 
-> Reviewed-by: Jan Kara <jack@suse.cz>
-> 
-> 								Honza
-> 
-> > 
-> > Signed-off-by: Jeff Layton <jlayton@redhat.com>
-> > ---
-> >  include/linux/fs.h |  9 +++++++--
-> >  mm/filemap.c       | 30 +-----------------------------
-> >  2 files changed, 8 insertions(+), 31 deletions(-)
-> > 
-> > diff --git a/include/linux/fs.h b/include/linux/fs.h
-> > index af592ca3d509..656e04c6983e 100644
-> > --- a/include/linux/fs.h
-> > +++ b/include/linux/fs.h
-> > @@ -2538,10 +2538,15 @@ extern int invalidate_inode_pages2_range(struct address_space *mapping,
-> >  extern int write_inode_now(struct inode *, int);
-> >  extern int filemap_fdatawrite(struct address_space *);
-> >  extern int filemap_flush(struct address_space *);
-> > -extern int filemap_fdatawait(struct address_space *);
-> > -extern int filemap_fdatawait_keep_errors(struct address_space *mapping);
-> >  extern int filemap_fdatawait_range(struct address_space *, loff_t lstart,
-> >  				   loff_t lend);
-> > +extern int filemap_fdatawait_keep_errors(struct address_space *mapping);
-> > +
-> > +static inline int filemap_fdatawait(struct address_space *mapping)
-> > +{
-> > +	return filemap_fdatawait_range(mapping, 0, LLONG_MAX);
-> > +}
-> > +
-> >  extern bool filemap_range_has_page(struct address_space *, loff_t lstart,
-> >  				  loff_t lend);
-> >  extern int __must_check file_fdatawait_range(struct file *file, loff_t lstart,
-> > diff --git a/mm/filemap.c b/mm/filemap.c
-> > index 394bb5e96f87..85dfe3bee324 100644
-> > --- a/mm/filemap.c
-> > +++ b/mm/filemap.c
-> > @@ -512,39 +512,11 @@ EXPORT_SYMBOL(file_fdatawait_range);
-> >   */
-> >  int filemap_fdatawait_keep_errors(struct address_space *mapping)
-> >  {
-> > -	loff_t i_size = i_size_read(mapping->host);
-> > -
-> > -	if (i_size == 0)
-> > -		return 0;
-> > -
-> > -	__filemap_fdatawait_range(mapping, 0, i_size - 1);
-> > +	__filemap_fdatawait_range(mapping, 0, LLONG_MAX);
-> >  	return filemap_check_and_keep_errors(mapping);
-> >  }
-> >  EXPORT_SYMBOL(filemap_fdatawait_keep_errors);
-> >  
-> > -/**
-> > - * filemap_fdatawait - wait for all under-writeback pages to complete
-> > - * @mapping: address space structure to wait for
-> > - *
-> > - * Walk the list of under-writeback pages of the given address space
-> > - * and wait for all of them.  Check error status of the address space
-> > - * and return it.
-> > - *
-> > - * Since the error status of the address space is cleared by this function,
-> > - * callers are responsible for checking the return value and handling and/or
-> > - * reporting the error.
-> > - */
-> > -int filemap_fdatawait(struct address_space *mapping)
-> > -{
-> > -	loff_t i_size = i_size_read(mapping->host);
-> > -
-> > -	if (i_size == 0)
-> > -		return 0;
-> > -
-> > -	return filemap_fdatawait_range(mapping, 0, i_size - 1);
-> > -}
-> > -EXPORT_SYMBOL(filemap_fdatawait);
-> > -
-> >  static bool mapping_needs_writeback(struct address_space *mapping)
-> >  {
-> >  	return (!dax_mapping(mapping) && mapping->nrpages) ||
-> > -- 
-> > 2.13.3
-> > 
+> mlock()ing whole memory needs CAP_IPC_LOCK, but consuming whole memory as
+> MAP_SHARED does not need CAP_IPC_LOCK. And I think we can relax MMF_OOM_SKIP
+> test in task_will_free_mem() to ignore MMF_OOM_SKIP for once
 
-Thanks!
+As I've said it is not that simple. I will comment on your other email.
+
+> for "mm, oom: do not grant oom victims full memory reserves access"
+> might be too large change for older kernels which next version of LTS
+> distributions would choose.
+
+While this is annoying I do not think this is something new. If you have
+an untrusted user on the system you better contain it (you can use memcg
+for example).
+
 -- 
-Jeff Layton <jlayton@redhat.com>
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
