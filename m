@@ -1,50 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AADAF6B04F9
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 02:46:26 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id r13so7750625pfd.14
-        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 23:46:26 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id 140si2472404pge.136.2017.07.31.23.46.24
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 31 Jul 2017 23:46:25 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [RFC v6 21/62] powerpc: introduce execute-only pkey
-In-Reply-To: <87shhgdx5i.fsf@linux.vnet.ibm.com>
-References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com> <1500177424-13695-22-git-send-email-linuxram@us.ibm.com> <87shhgdx5i.fsf@linux.vnet.ibm.com>
-Date: Tue, 01 Aug 2017 16:46:22 +1000
-Message-ID: <87d18fu6o1.fsf@concordia.ellerman.id.au>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2924C6B04FB
+	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 02:54:05 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id r62so6482744pfj.1
+        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 23:54:05 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id g6si16762411pln.930.2017.07.31.23.54.03
+        for <linux-mm@kvack.org>;
+        Mon, 31 Jul 2017 23:54:04 -0700 (PDT)
+Date: Tue, 1 Aug 2017 15:54:02 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm/zsmalloc: Change stat type parameter to int
+Message-ID: <20170801065402.GC19932@bbox>
+References: <20170731175000.56538-1-mka@chromium.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170731175000.56538-1-mka@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>, Ram Pai <linuxram@us.ibm.com>
-Cc: linux-arch@vger.kernel.org, corbet@lwn.net, arnd@arndb.de, linux-doc@vger.kernel.org, x86@kernel.org, dave.hansen@intel.com, linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org, mingo@redhat.com, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, linux-kselftest@vger.kernel.org, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, khandual@linux.vnet.ibm.com
+To: Matthias Kaehlcke <mka@chromium.org>
+Cc: Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Doug Anderson <dianders@chromium.org>
 
-Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com> writes:
-> Ram Pai <linuxram@us.ibm.com> writes:
-...
->> +
->> +	/* We got one, store it and use it from here on out */
->> +	if (need_to_set_mm_pkey)
->> +		mm->context.execute_only_pkey = execute_only_pkey;
->> +	return execute_only_pkey;
->> +}
->
-> If you follow the code flow in __execute_only_pkey, the AMR and UAMOR
-> are read 3 times in total, and AMR is written twice. IAMR is read and
-> written twice. Since they are SPRs and access to them is slow (or isn't
-> it?),
+On Mon, Jul 31, 2017 at 10:50:00AM -0700, Matthias Kaehlcke wrote:
+> zs_stat_inc/dec/get() uses enum zs_stat_type for the stat type, however
+> some callers pass an enum fullness_group value. Change the type to int
+> to reflect the actual use of the functions and get rid of
+> 'enum-conversion' warnings
 
-SPRs read/writes are slow, but they're not *that* slow in comparison to
-a system call (which I think is where this code is being called?).
+Maybe clang?
+        
+> 
+> Signed-off-by: Matthias Kaehlcke <mka@chromium.org>
+Anyway,
 
-So we should try to avoid too many SPR read/writes, but at the same time
-we can accept more than the minimum if it makes the code much easier to
-follow.
+Acked-by: Minchan Kim <minchan@kernel.org>
 
-cheers
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
