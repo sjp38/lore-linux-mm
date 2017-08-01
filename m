@@ -1,160 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D5B96B0561
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 11:30:49 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id s21so1986454oie.5
-        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 08:30:49 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id m11si10503459oib.497.2017.08.01.08.30.47
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AFC26B0563
+	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 11:38:57 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id o65so9127897qkl.12
+        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 08:38:57 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x184si25823307qke.29.2017.08.01.08.38.56
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 01 Aug 2017 08:30:47 -0700 (PDT)
-Subject: Re: [PATCH 1/2] mm, oom: do not rely on TIF_MEMDIE for memory reserves access
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170727090357.3205-1-mhocko@kernel.org>
-	<20170727090357.3205-2-mhocko@kernel.org>
-In-Reply-To: <20170727090357.3205-2-mhocko@kernel.org>
-Message-Id: <201708020030.ACB04683.JLHMFVOSFFOtOQ@I-love.SAKURA.ne.jp>
-Date: Wed, 2 Aug 2017 00:30:33 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 01 Aug 2017 08:38:56 -0700 (PDT)
+Date: Tue, 1 Aug 2017 18:38:54 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH] mm: don't zero ballooned pages
+Message-ID: <20170801183518-mutt-send-email-mst@kernel.org>
+References: <1501474413-21580-1-git-send-email-wei.w.wang@intel.com>
+ <20170731065508.GE13036@dhcp22.suse.cz>
+ <597EDF3D.8020101@intel.com>
+ <20170731075153.GD15767@dhcp22.suse.cz>
+ <32d9c53d-5310-25a7-0348-a6cf362a5dcd@youruncloud.com>
+ <20170731083724.GF15767@dhcp22.suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170731083724.GF15767@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, akpm@linux-foundation.org
-Cc: rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: ZhenweiPi <zhenwei.pi@youruncloud.com>, Wei Wang <wei.w.wang@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, mawilcox@microsoft.com, dave.hansen@intel.com, akpm@linux-foundation.org
 
-Michal Hocko wrote:
-> CONFIG_MMU=n doesn't have oom reaper so let's stick to the original
-> ALLOC_NO_WATERMARKS approach but be careful because they still might
-> deplete all the memory reserves so keep the semantic as close to the
-> original implementation as possible and give them access to memory
-> reserves only up to exit_mm (when tsk->mm is cleared) rather than while
-> tsk_is_oom_victim which is until signal struct is gone.
+On Mon, Jul 31, 2017 at 10:37:24AM +0200, Michal Hocko wrote:
+> On Mon 31-07-17 16:23:26, ZhenweiPi wrote:
+> > On 07/31/2017 03:51 PM, Michal Hocko wrote:
+> > 
+> > >On Mon 31-07-17 15:41:49, Wei Wang wrote:
+> > >>>On 07/31/2017 02:55 PM, Michal Hocko wrote:
+> > >>>> >On Mon 31-07-17 12:13:33, Wei Wang wrote:
+> > >>>>> >>Ballooned pages will be marked as MADV_DONTNEED by the hypervisor and
+> > >>>>> >>shouldn't be given to the host ksmd to scan.
+> > >>>> >Could you point me where this MADV_DONTNEED is done, please?
+> > >>>
+> > >>>Sure. It's done in the hypervisor when the balloon pages are received.
+> > >>>
+> > >>>Please see line 40 at
+> > >>>https://github.com/qemu/qemu/blob/master/hw/virtio/virtio-balloon.c
+> > >And one more thing. I am not familiar with ksm much. But how is
+> > >MADV_DONTNEED even helping? This madvise is not sticky - aka it will
+> > >unmap the range without leaving any note behind. AFAICS the only way
+> > >to have vma scanned is to have VM_MERGEABLE and that is an opt in:
+> > >See Documentation/vm/ksm.txt
+> > >"
+> > >KSM only operates on those areas of address space which an application
+> > >has advised to be likely candidates for merging, by using the madvise(2)
+> > >system call: int madvise(addr, length, MADV_MERGEABLE).
+> > >"
+> > >
+> > >So what exactly is going on here? The original patch looks highly
+> > >suspicious as well. If somebody wants to make that memory mergable then
+> > >the user of that memory should zero them out.
+> > 
+> > Kernel starts a kthread named "ksmd". ksmd scans the VM_MERGEABLE
+> > memory, and merge the same pages.(same page means memcmp(page1,
+> > page2, PAGESIZE) == 0).
+> > 
+> > Guest can not use ballooned pages, and these pages will not be accessed
+> > in a long time. Kswapd on host will swap these pages out and get more
+> > free memory.
+> > 
+> > Rather than swapping, KSM has better performence.  Presently pages in
+> > the balloon device have random value,  they usually cannot be merged.
+> > So enqueue zero pages will resolve this problem.
+> > 
+> > Because MADV_DONTNEED depends on host os capability and hypervisor capability,
+> > I prefer to enqueue zero pages to balloon device and made this patch.
 
-Currently memory allocations from __mmput() can use memory reserves but
-this patch changes __mmput() not to use memory reserves. You say "keep
-the semantic as close to the original implementation as possible" but
-this change is not guaranteed to be safe.
+I think you should have hypervisor zero them out if it wants to then. Seems cleaner.
 
-> @@ -2943,10 +2943,19 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
->  	 * the high-atomic reserves. This will over-estimate the size of the
->  	 * atomic reserve but it avoids a search.
->  	 */
-> -	if (likely(!alloc_harder))
-> +	if (likely(!alloc_harder)) {
->  		free_pages -= z->nr_reserved_highatomic;
-> -	else
-> -		min -= min / 4;
-> +	} else {
-> +		/*
-> +		 * OOM victims can try even harder than normal ALLOC_HARDER
-> +		 * users
-> +		 */
-> +		if (alloc_flags & ALLOC_OOM)
+> 
+> So why exactly are we zeroying pages (and pay some cost for that) in
+> guest when we do not know what host actually does with them?
 
-ALLOC_OOM is ALLOC_NO_WATERMARKS if CONFIG_MMU=n.
-I wonder this test makes sense for ALLOC_NO_WATERMARKS.
+I suspect this is some special hypervisor that somehow benefits from
+this patch. It should just use a feature bit for its special needs
+I think.
 
-> +			min -= min / 2;
-> +		else
-> +			min -= min / 4;
-> +	}
-> +
->  
->  #ifdef CONFIG_CMA
->  	/* If allocation can't use CMA areas don't use free CMA pages */
-> @@ -3603,6 +3612,22 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
->  	return alloc_flags;
->  }
->  
-> +static bool oom_reserves_allowed(struct task_struct *tsk)
-> +{
-> +	if (!tsk_is_oom_victim(tsk))
-> +		return false;
-> +
-> +	/*
-> +	 * !MMU doesn't have oom reaper so we shouldn't risk the memory reserves
-> +	 * depletion and shouldn't give access to memory reserves passed the
-> +	 * exit_mm
-> +	 */
-> +	if (!IS_ENABLED(CONFIG_MMU) && !tsk->mm)
-> +		return false;
+Michal is also exactly right that patches like this should come
+with some performance numbers.
+I'll post a patch adding virtio lists for mm/balloon_compaction.c
+so that we notice when people tweak it like that.
 
-Branching based on CONFIG_MMU is ugly. I suggest timeout based next OOM
-victim selection if CONFIG_MMU=n. Then, we no longer need to worry about
-memory reserves depletion and we can treat equally.
-
-> +
-> +	return true;
-> +}
-> +
->  bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
->  {
->  	if (unlikely(gfp_mask & __GFP_NOMEMALLOC))
-
-> @@ -3770,6 +3795,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	unsigned long alloc_start = jiffies;
->  	unsigned int stall_timeout = 10 * HZ;
->  	unsigned int cpuset_mems_cookie;
-> +	bool reserves;
->  
->  	/*
->  	 * In the slowpath, we sanity check order to avoid ever trying to
-> @@ -3875,15 +3901,24 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
->  		wake_all_kswapds(order, ac);
->  
-> -	if (gfp_pfmemalloc_allowed(gfp_mask))
-> -		alloc_flags = ALLOC_NO_WATERMARKS;
-> +	/*
-> +	 * Distinguish requests which really need access to whole memory
-> +	 * reserves from oom victims which can live with their own reserve
-> +	 */
-> +	reserves = gfp_pfmemalloc_allowed(gfp_mask);
-> +	if (reserves) {
-> +		if (tsk_is_oom_victim(current))
-> +			alloc_flags = ALLOC_OOM;
-
-If reserves == true due to reasons other than tsk_is_oom_victim(current) == true
-(e.g. __GFP_MEMALLOC), why dare to reduce it?
-
-> +		else
-> +			alloc_flags = ALLOC_NO_WATERMARKS;
-> +	}
-
-If CONFIG_MMU=n, doing this test is silly.
-
-if (tsk_is_oom_victim(current))
-	alloc_flags = ALLOC_NO_WATERMARKS;
-else
-	alloc_flags = ALLOC_NO_WATERMARKS;
-
->  
->  	/*
->  	 * Reset the zonelist iterators if memory policies can be ignored.
->  	 * These allocations are high priority and system rather than user
->  	 * orientated.
->  	 */
-> -	if (!(alloc_flags & ALLOC_CPUSET) || (alloc_flags & ALLOC_NO_WATERMARKS)) {
-> +	if (!(alloc_flags & ALLOC_CPUSET) || reserves) {
->  		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
->  		ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
->  					ac->high_zoneidx, ac->nodemask);
-> @@ -3960,7 +3995,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  		goto got_pg;
->  
->  	/* Avoid allocations with no watermarks from looping endlessly */
-> -	if (test_thread_flag(TIF_MEMDIE) &&
-> +	if (tsk_is_oom_victim(current) &&
->  	    (alloc_flags == ALLOC_NO_WATERMARKS ||
->  	     (gfp_mask & __GFP_NOMEMALLOC)))
->  		goto nopage;
-
-And you are silently changing to "!costly __GFP_DIRECT_RECLAIM allocations never fail
-(even selected for OOM victims)" (i.e. updating the too small to fail memory allocation
-rule) by doing alloc_flags == ALLOC_NO_WATERMARKS if CONFIG_MMU=y.
-
-Applying this change might disturb memory allocation behavior. I don't like this patch.
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
