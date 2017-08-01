@@ -1,202 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E37FE6B0567
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 12:52:48 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id l3so2966205wrc.12
-        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 09:52:48 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1198F6B0569
+	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 13:03:09 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id d24so3160256wmi.0
+        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 10:03:09 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k130si1593558wmf.17.2017.08.01.09.52.47
+        by mx.google.com with ESMTPS id k63si1556390wmf.26.2017.08.01.10.03.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 01 Aug 2017 09:52:47 -0700 (PDT)
-Date: Tue, 1 Aug 2017 18:52:42 +0200
+        Tue, 01 Aug 2017 10:03:07 -0700 (PDT)
+Date: Tue, 1 Aug 2017 19:03:03 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm, oom: do not rely on TIF_MEMDIE for memory
- reserves access
-Message-ID: <20170801165242.GA15518@dhcp22.suse.cz>
-References: <20170727090357.3205-1-mhocko@kernel.org>
- <20170727090357.3205-2-mhocko@kernel.org>
- <201708020030.ACB04683.JLHMFVOSFFOtOQ@I-love.SAKURA.ne.jp>
+Subject: Re: [v4 2/4] mm, oom: cgroup-aware OOM killer
+Message-ID: <20170801170302.GB15518@dhcp22.suse.cz>
+References: <20170726132718.14806-1-guro@fb.com>
+ <20170726132718.14806-3-guro@fb.com>
+ <20170801145435.GN15774@dhcp22.suse.cz>
+ <20170801152548.GA29502@castle.dhcp.TheFacebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201708020030.ACB04683.JLHMFVOSFFOtOQ@I-love.SAKURA.ne.jp>
+In-Reply-To: <20170801152548.GA29502@castle.dhcp.TheFacebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 02-08-17 00:30:33, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > CONFIG_MMU=n doesn't have oom reaper so let's stick to the original
-> > ALLOC_NO_WATERMARKS approach but be careful because they still might
-> > deplete all the memory reserves so keep the semantic as close to the
-> > original implementation as possible and give them access to memory
-> > reserves only up to exit_mm (when tsk->mm is cleared) rather than while
-> > tsk_is_oom_victim which is until signal struct is gone.
+On Tue 01-08-17 16:25:48, Roman Gushchin wrote:
+> On Tue, Aug 01, 2017 at 04:54:35PM +0200, Michal Hocko wrote:
+[...]
+> > I would reap out the oom_kill_process into a separate patch.
 > 
-> Currently memory allocations from __mmput() can use memory reserves but
-> this patch changes __mmput() not to use memory reserves. You say "keep
-> the semantic as close to the original implementation as possible" but
-> this change is not guaranteed to be safe.
+> It was a separate patch, I've merged it based on Vladimir's feedback.
+> No problems, I can divide it back.
 
-Yeah it cannot. That's why I've said as close as possible rather than
-equivalent. On the other hand I am wondering whether you have anything
-specific in mind or this is just a formalistic nitpicking^Wremark.
-
-> > @@ -2943,10 +2943,19 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
-> >  	 * the high-atomic reserves. This will over-estimate the size of the
-> >  	 * atomic reserve but it avoids a search.
-> >  	 */
-> > -	if (likely(!alloc_harder))
-> > +	if (likely(!alloc_harder)) {
-> >  		free_pages -= z->nr_reserved_highatomic;
-> > -	else
-> > -		min -= min / 4;
-> > +	} else {
-> > +		/*
-> > +		 * OOM victims can try even harder than normal ALLOC_HARDER
-> > +		 * users
-> > +		 */
-> > +		if (alloc_flags & ALLOC_OOM)
+It would make the review slightly more easier
 > 
-> ALLOC_OOM is ALLOC_NO_WATERMARKS if CONFIG_MMU=n.
-> I wonder this test makes sense for ALLOC_NO_WATERMARKS.
-
-Yeah, it would be pointless because get_page_from_freelist will then
-ignore the result of the watermark check for ALLOC_NO_WATERMARKS. It is
-not harmfull though. I didn't find much better way without making the
-code harder to read.  Do you have any suggestion?
-
-> > +			min -= min / 2;
-> > +		else
-> > +			min -= min / 4;
-> > +	}
-> > +
-> >  
-> >  #ifdef CONFIG_CMA
-> >  	/* If allocation can't use CMA areas don't use free CMA pages */
-> > @@ -3603,6 +3612,22 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
-> >  	return alloc_flags;
-> >  }
-> >  
-> > +static bool oom_reserves_allowed(struct task_struct *tsk)
-> > +{
-> > +	if (!tsk_is_oom_victim(tsk))
-> > +		return false;
-> > +
-> > +	/*
-> > +	 * !MMU doesn't have oom reaper so we shouldn't risk the memory reserves
-> > +	 * depletion and shouldn't give access to memory reserves passed the
-> > +	 * exit_mm
-> > +	 */
-> > +	if (!IS_ENABLED(CONFIG_MMU) && !tsk->mm)
-> > +		return false;
+> > > -static void oom_kill_process(struct oom_control *oc, const char *message)
+> > > +static void __oom_kill_process(struct task_struct *victim)
+> > 
+> > To the rest of the patch. I have to say I do not quite like how it is
+> > implemented. I was hoping for something much simpler which would hook
+> > into oom_evaluate_task. If a task belongs to a memcg with kill-all flag
+> > then we would update the cumulative memcg badness (more specifically the
+> > badness of the topmost parent with kill-all flag). Memcg will then
+> > compete with existing self contained tasks (oom_badness will have to
+> > tell whether points belong to a task or a memcg to allow the caller to
+> > deal with it). But it shouldn't be much more complex than that.
 > 
-> Branching based on CONFIG_MMU is ugly. I suggest timeout based next OOM
-> victim selection if CONFIG_MMU=n.
+> I'm not sure, it will be any simpler. Basically I'm doing the same:
+> the difference is that you want to iterate over tasks and for each
+> task traverse the memcg tree, update per-cgroup oom score and find
+> the corresponding memcg(s) with the kill-all flag. I'm doing the opposite:
+> traverse the cgroup tree, and for each leaf cgroup iterate over processes.
 
-I suggest we do not argue about nommu without actually optimizing for or
-fixing nommu which we are not here. I am even not sure memory reserves
-can ever be depleted for that config.
+Yeah but this doesn't fit very well to the existing scheme so we would
+need two different schemes which is not ideal from maint. point of view.
+We also do not have to duplicate all the tricky checks we already do in
+oom_evaluate_task. So I would prefer if we could try to hook there and
+do the special handling there.
 
-Anyway I will go with the following instead
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5e5911f40014..3510e06b3bf3 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3618,11 +3618,10 @@ static bool oom_reserves_allowed(struct task_struct *tsk)
- 		return false;
- 
- 	/*
--	 * !MMU doesn't have oom reaper so we shouldn't risk the memory reserves
--	 * depletion and shouldn't give access to memory reserves passed the
--	 * exit_mm
-+	 * !MMU doesn't have oom reaper so give access to memory reserves
-+	 * only to the thread with TIF_MEMDIE set
- 	 */
--	if (!IS_ENABLED(CONFIG_MMU) && !tsk->mm)
-+	if (!IS_ENABLED(CONFIG_MMU) && !test_thread_flag(TIF_MEMDIE))
- 		return false;
- 
- 	return true;
+> Also, please note, that even without the kill-all flag the decision is made
+> on per-cgroup level (except tasks in the root cgroup).
 
-This should preserve the original semantic. Is that acceptable for you?
+Yeah and I am not sure this is a reasonable behavior. Why should we
+consider memcgs which are not kill-all as a single entity?
 
-> > @@ -3875,15 +3901,24 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> >  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
-> >  		wake_all_kswapds(order, ac);
-> >  
-> > -	if (gfp_pfmemalloc_allowed(gfp_mask))
-> > -		alloc_flags = ALLOC_NO_WATERMARKS;
-> > +	/*
-> > +	 * Distinguish requests which really need access to whole memory
-> > +	 * reserves from oom victims which can live with their own reserve
-> > +	 */
-> > +	reserves = gfp_pfmemalloc_allowed(gfp_mask);
-> > +	if (reserves) {
-> > +		if (tsk_is_oom_victim(current))
-> > +			alloc_flags = ALLOC_OOM;
-> 
-> If reserves == true due to reasons other than tsk_is_oom_victim(current) == true
-> (e.g. __GFP_MEMALLOC), why dare to reduce it?
-
-Well the comment above tries to explain. I assume that the oom victim is
-special here. a) it is on the way to die and b) we know that something
-will be freeing memory on the background so I assume this is acceptable.
- 
-> > +		else
-> > +			alloc_flags = ALLOC_NO_WATERMARKS;
-> > +	}
-> 
-> If CONFIG_MMU=n, doing this test is silly.
-> 
-> if (tsk_is_oom_victim(current))
-> 	alloc_flags = ALLOC_NO_WATERMARKS;
-> else
-> 	alloc_flags = ALLOC_NO_WATERMARKS;
-
-I am pretty sure any compiler can see the outcome is the same so the
-check would be dropped in that case. I primarily wanted to prevent from
-an additional ifdefery. I am open to suggestions for a better layout
-though.
-
-> > @@ -3960,7 +3995,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> >  		goto got_pg;
-> >  
-> >  	/* Avoid allocations with no watermarks from looping endlessly */
-> > -	if (test_thread_flag(TIF_MEMDIE) &&
-> > +	if (tsk_is_oom_victim(current) &&
-> >  	    (alloc_flags == ALLOC_NO_WATERMARKS ||
-> >  	     (gfp_mask & __GFP_NOMEMALLOC)))
-> >  		goto nopage;
-> 
-> And you are silently changing to "!costly __GFP_DIRECT_RECLAIM allocations never fail
-> (even selected for OOM victims)" (i.e. updating the too small to fail memory allocation
-> rule) by doing alloc_flags == ALLOC_NO_WATERMARKS if CONFIG_MMU=y.
-
-Ups that is an oversight during the rebase.
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5e5911f40014..6593ff9de1d9 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3996,7 +3996,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 
- 	/* Avoid allocations with no watermarks from looping endlessly */
- 	if (tsk_is_oom_victim(current) &&
--	    (alloc_flags == ALLOC_NO_WATERMARKS ||
-+	    (alloc_flags == ALLOC_OOM ||
- 	     (gfp_mask & __GFP_NOMEMALLOC)))
- 		goto nopage;
- 
-Does this look better?
- 
-> Applying this change might disturb memory allocation behavior. I don't
-> like this patch.
-
-Do you see anything appart from nommu that would be an unfixable road
-block?
 -- 
 Michal Hocko
 SUSE Labs
