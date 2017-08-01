@@ -1,123 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 389906B053D
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 08:41:31 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id t78so14930943ita.14
-        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 05:41:31 -0700 (PDT)
-Received: from mail-it0-f65.google.com (mail-it0-f65.google.com. [209.85.214.65])
-        by mx.google.com with ESMTPS id y16si9526731iod.310.2017.08.01.05.41.30
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 19F066B053E
+	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 08:41:34 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id j32so14450506iod.15
+        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 05:41:34 -0700 (PDT)
+Received: from mail-io0-f194.google.com (mail-io0-f194.google.com. [209.85.223.194])
+        by mx.google.com with ESMTPS id 66si1527421itk.4.2017.08.01.05.41.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Aug 2017 05:41:30 -0700 (PDT)
-Received: by mail-it0-f65.google.com with SMTP id t78so1527427ita.1
-        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 05:41:30 -0700 (PDT)
+        Tue, 01 Aug 2017 05:41:33 -0700 (PDT)
+Received: by mail-io0-f194.google.com with SMTP id f1so1452759ioj.2
+        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 05:41:33 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH v2 0/6] mm, memory_hotplug: allocate memmap from hotadded memory
-Date: Tue,  1 Aug 2017 14:41:05 +0200
-Message-Id: <20170801124111.28881-1-mhocko@kernel.org>
+Subject: [PATCH 1/6] mm, memory_hotplug: cleanup memory offline path
+Date: Tue,  1 Aug 2017 14:41:06 +0200
+Message-Id: <20170801124111.28881-2-mhocko@kernel.org>
+In-Reply-To: <20170801124111.28881-1-mhocko@kernel.org>
+References: <20170801124111.28881-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Dan Williams <dan.j.williams@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@suse.com>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, x86@kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-Hi,
-this is a second version of the RFC previously posted [1]. It is still
-an RFC and the main reason for the repost is that I've done some changes
-and review should be easier this way. The biggest difference is that
-users of the memory hotplug can opt-in for this new feature. This is mainly
-because HMM doesn't provide its altmap nor it wants struct pages in the
-added range. Archs can then veto the feature if they cannot support it.
-The only such example is s390. See [2] for a more detailed explanation why.
+From: Michal Hocko <mhocko@suse.com>
 
-Original cover:
+check_pages_isolated_cb currently accounts the whole pfn range as being
+offlined if test_pages_isolated suceeds on the range. This is based on
+the assumption that all pages in the range are freed which is currently
+the case in most cases but it won't be with later changes. I haven't
+double checked but if the range contains invalid pfns we could
+theoretically over account and underflow zone's managed pages.
 
-This is another step to make the memory hotplug more usable. The primary
-goal of this patchset is to reduce memory overhead of the hot added
-memory (at least for SPARSE_VMEMMAP memory model). Currently we use
-kmalloc to poppulate memmap (struct page array) which has two main
-drawbacks a) it consumes an additional memory until the hotadded memory
-itslef is onlined and b) memmap might end up on a different numa node
-which is especially true for movable_node configuration.
+Move the offlined pages counting to offline_isolated_pages_cb and
+rely on __offline_isolated_pages to return the correct value.
+check_pages_isolated_cb will still do it's primary job and check the pfn
+range.
 
-a) is problem especially for memory hotplug based memory "ballooning"
-solutions when the delay between physical memory hotplug and the
-onlining can lead to OOM and that led to introduction of hacks like auto
-onlining (see 31bc3858ea3e ("memory-hotplug: add automatic onlining
-policy for the newly added memory")).
-b) can have performance drawbacks.
+While we are at it remove check_pages_isolated and offline_isolated_pages
+and use directly walk_system_ram_range as do in online_pages.
 
-One way to mitigate both issues is to simply allocate memmap array
-(which is the largest memory footprint of the physical memory hotplug)
-from the hotadded memory itself. VMEMMAP memory model allows us to map
-any pfn range so the memory doesn't need to be online to be usable
-for the array. See patch 3 for more details. In short I am reusing an
-existing vmem_altmap which wants to achieve the same thing for nvdim
-device memory.
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ include/linux/memory_hotplug.h |  2 +-
+ mm/memory_hotplug.c            | 43 ++++++++++--------------------------------
+ mm/page_alloc.c                | 11 +++++++++--
+ 3 files changed, 20 insertions(+), 36 deletions(-)
 
-I am sending this as an RFC because this has seen only a very limited
-testing and I am mostly interested about opinions on the chosen
-approach. I had to touch some arch code and I have no idea whether my
-changes make sense there (especially ppc). Therefore I would highly
-appreciate arch maintainers to check patch 3.
-
-Patches 5 and 6 should be straightforward cleanups.
-
-There is also one potential drawback, though. If somebody uses memory
-hotplug for 1G (gigantic) hugetlb pages then this scheme will not work
-for them obviously because each memory block will contain reserved
-area. Large x86 machines will use 2G memblocks so at least one 1G page
-will be available but this is still not 2G...
-
-I am not really sure somebody does that and how reliable that can work
-actually. Nevertheless, I _believe_ that onlining more memory into
-virtual machines is much more common usecase. Anyway if there ever is a
-strong demand for such a usecase we have basically 3 options a) enlarge
-memory blocks even more b) enhance altmap allocation strategy and reuse
-low memory sections to host memmaps of other sections on the same NUMA
-node c) have the memmap allocation strategy configurable to fallback to
-the current allocation.
-
-Are there any other concerns, ideas, comments?
-
-The patches is based on the current mmotm tree (mmotm-2017-07-31-16-56)
-
-Diffstat says
- arch/arm64/mm/mmu.c            |  9 +++--
- arch/ia64/mm/discontig.c       |  4 ++-
- arch/ia64/mm/init.c            |  5 +--
- arch/powerpc/mm/init_64.c      | 34 +++++++++++++-----
- arch/powerpc/mm/mem.c          |  5 +--
- arch/s390/mm/init.c            | 11 ++++--
- arch/s390/mm/vmem.c            |  9 ++---
- arch/sh/mm/init.c              |  5 +--
- arch/sparc/mm/init_64.c        |  6 ++--
- arch/x86/mm/init_32.c          |  5 +--
- arch/x86/mm/init_64.c          | 18 +++++++---
- include/linux/memory_hotplug.h | 32 ++++++++++++++---
- include/linux/memremap.h       | 39 ++++++++++++++------
- include/linux/mm.h             | 25 +++++++++++--
- include/linux/page-flags.h     | 18 ++++++++++
- kernel/memremap.c              | 12 +++----
- mm/compaction.c                |  3 ++
- mm/memory_hotplug.c            | 80 +++++++++++++++++++++---------------------
- mm/page_alloc.c                | 25 +++++++++++--
- mm/page_isolation.c            | 11 +++++-
- mm/sparse-vmemmap.c            | 13 +++++--
- mm/sparse.c                    | 36 +++++++++++++------
- 22 files changed, 290 insertions(+), 115 deletions(-)
-
-Shortlog
-Michal Hocko (6):
-      mm, memory_hotplug: cleanup memory offline path
-      mm, arch: unify vmemmap_populate altmap handling
-      mm, memory_hotplug: provide a more generic restrictions for memory hotplug
-      mm, memory_hotplug: allocate memmap from the added memory range for sparse-vmemmap
-      mm, sparse: complain about implicit altmap usage in vmemmap_populate
-      mm, sparse: rename kmalloc_section_memmap, __kfree_section_memmap
-
-
-[1] http://lkml.kernel.org/r/20170726083333.17754-1-mhocko@kernel.org
-[2] http://lkml.kernel.org/r/20170731195830.0d0ebf2f@thinkpad
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 5e6e4cc36ff4..f64321b35e88 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -101,7 +101,7 @@ extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
+ extern int online_pages(unsigned long, unsigned long, int);
+ extern int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn,
+ 	unsigned long *valid_start, unsigned long *valid_end);
+-extern void __offline_isolated_pages(unsigned long, unsigned long);
++extern unsigned long __offline_isolated_pages(unsigned long, unsigned long);
+ 
+ typedef void (*online_page_callback_t)(struct page *page);
+ 
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 1de2f132bca3..8031cc41bc5c 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1444,17 +1444,12 @@ static int
+ offline_isolated_pages_cb(unsigned long start, unsigned long nr_pages,
+ 			void *data)
+ {
+-	__offline_isolated_pages(start, start + nr_pages);
++	unsigned long offlined_pages;
++	offlined_pages = __offline_isolated_pages(start, start + nr_pages);
++	*(unsigned long *)data += offlined_pages;
+ 	return 0;
+ }
+ 
+-static void
+-offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+-{
+-	walk_system_ram_range(start_pfn, end_pfn - start_pfn, NULL,
+-				offline_isolated_pages_cb);
+-}
+-
+ /*
+  * Check all pages in range, recoreded as memory resource, are isolated.
+  */
+@@ -1462,26 +1457,7 @@ static int
+ check_pages_isolated_cb(unsigned long start_pfn, unsigned long nr_pages,
+ 			void *data)
+ {
+-	int ret;
+-	long offlined = *(long *)data;
+-	ret = test_pages_isolated(start_pfn, start_pfn + nr_pages, true);
+-	offlined = nr_pages;
+-	if (!ret)
+-		*(long *)data += offlined;
+-	return ret;
+-}
+-
+-static long
+-check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
+-{
+-	long offlined = 0;
+-	int ret;
+-
+-	ret = walk_system_ram_range(start_pfn, end_pfn - start_pfn, &offlined,
+-			check_pages_isolated_cb);
+-	if (ret < 0)
+-		offlined = (long)ret;
+-	return offlined;
++	return test_pages_isolated(start_pfn, start_pfn + nr_pages, true);
+ }
+ 
+ static int __init cmdline_parse_movable_node(char *p)
+@@ -1590,7 +1566,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ 		  unsigned long end_pfn, unsigned long timeout)
+ {
+ 	unsigned long pfn, nr_pages, expire;
+-	long offlined_pages;
++	unsigned long offlined_pages = 0;
+ 	int ret, drain, retry_max, node;
+ 	unsigned long flags;
+ 	unsigned long valid_start, valid_end;
+@@ -1673,15 +1649,16 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ 	if (ret)
+ 		goto failed_removal;
+ 	/* check again */
+-	offlined_pages = check_pages_isolated(start_pfn, end_pfn);
+-	if (offlined_pages < 0) {
++	if (walk_system_ram_range(start_pfn, end_pfn - start_pfn, NULL,
++			check_pages_isolated_cb)) {
+ 		ret = -EBUSY;
+ 		goto failed_removal;
+ 	}
+-	pr_info("Offlined Pages %ld\n", offlined_pages);
+ 	/* Ok, all of our target is isolated.
+ 	   We cannot do rollback at this point. */
+-	offline_isolated_pages(start_pfn, end_pfn);
++	walk_system_ram_range(start_pfn, end_pfn - start_pfn, &offlined_pages,
++				offline_isolated_pages_cb);
++	pr_info("Offlined Pages %ld\n", offlined_pages);
+ 	/* reset pagetype flags and makes migrate type to be MOVABLE */
+ 	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
+ 	/* removal success */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index af224632c779..f4e5db85ebfc 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7612,7 +7612,7 @@ void zone_pcp_reset(struct zone *zone)
+  * All pages in the range must be in a single zone and isolated
+  * before calling this.
+  */
+-void
++unsigned long
+ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ {
+ 	struct page *page;
+@@ -7620,12 +7620,15 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 	unsigned int order, i;
+ 	unsigned long pfn;
+ 	unsigned long flags;
++	unsigned long offlined_pages = 0;
++
+ 	/* find the first valid pfn */
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn++)
+ 		if (pfn_valid(pfn))
+ 			break;
+ 	if (pfn == end_pfn)
+-		return;
++		return offlined_pages;
++
+ 	offline_mem_sections(pfn, end_pfn);
+ 	zone = page_zone(pfn_to_page(pfn));
+ 	spin_lock_irqsave(&zone->lock, flags);
+@@ -7643,12 +7646,14 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 		if (unlikely(!PageBuddy(page) && PageHWPoison(page))) {
+ 			pfn++;
+ 			SetPageReserved(page);
++			offlined_pages++;
+ 			continue;
+ 		}
+ 
+ 		BUG_ON(page_count(page));
+ 		BUG_ON(!PageBuddy(page));
+ 		order = page_order(page);
++		offlined_pages += 1 << order;
+ #ifdef CONFIG_DEBUG_VM
+ 		pr_info("remove from free list %lx %d %lx\n",
+ 			pfn, 1 << order, end_pfn);
+@@ -7661,6 +7666,8 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 		pfn += (1 << order);
+ 	}
+ 	spin_unlock_irqrestore(&zone->lock, flags);
++
++	return offlined_pages;
+ }
+ #endif
+ 
+-- 
+2.13.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
