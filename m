@@ -1,80 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F0CF6B051B
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 06:59:27 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id u89so1823270wrc.1
-        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 03:59:27 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id a8si19385262edl.470.2017.08.01.03.59.25
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 87EEF6B051D
+	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 07:00:24 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 72so12785162pfl.12
+        for <linux-mm@kvack.org>; Tue, 01 Aug 2017 04:00:24 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id k70si17714715pfh.135.2017.08.01.04.00.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Aug 2017 03:59:26 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 866591C2201
-	for <linux-mm@kvack.org>; Tue,  1 Aug 2017 11:59:25 +0100 (IST)
-Date: Tue, 1 Aug 2017 11:59:24 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH v2 3/4] mm: fix MADV_[FREE|DONTNEED] TLB flush miss
- problem
-Message-ID: <20170801105924.h4u4ocplofdpylh5@techsingularity.net>
-References: <1501566977-20293-1-git-send-email-minchan@kernel.org>
- <1501566977-20293-4-git-send-email-minchan@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 01 Aug 2017 04:00:23 -0700 (PDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH v2] vmalloc: show more detail info in vmallocinfo for clarify
+In-Reply-To: <1496649682-20710-1-git-send-email-xieyisheng1@huawei.com>
+References: <1496649682-20710-1-git-send-email-xieyisheng1@huawei.com>
+Date: Tue, 01 Aug 2017 21:00:20 +1000
+Message-ID: <87o9rzsgcb.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1501566977-20293-4-git-send-email-minchan@kernel.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team <kernel-team@lge.com>, Ingo Molnar <mingo@redhat.com>, Russell King <linux@armlinux.org.uk>, Tony Luck <tony.luck@intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, "David S. Miller" <davem@davemloft.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Jeff Dike <jdike@addtoit.com>, linux-arch@vger.kernel.org, Nadav Amit <nadav.amit@gmail.com>
+To: Yisheng Xie <xieyisheng1@huawei.com>, akpm@linux-foundation.org
+Cc: mhocko@suse.com, zijun_hu@htc.com, mingo@kernel.org, thgarnie@google.com, kirill.shutemov@linux.intel.com, aryabinin@virtuozzo.com, chris@chris-wilson.co.uk, tim.c.chen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guohanjun@huawei.com
 
-On Tue, Aug 01, 2017 at 02:56:16PM +0900, Minchan Kim wrote:
-> Nadav reported parallel MADV_DONTNEED on same range has a stale TLB
-> problem and Mel fixed it[1] and found same problem on MADV_FREE[2].
-> 
-> Quote from Mel Gorman
-> 
-> "The race in question is CPU 0 running madv_free and updating some PTEs
-> while CPU 1 is also running madv_free and looking at the same PTEs.
-> CPU 1 may have writable TLB entries for a page but fail the pte_dirty
-> check (because CPU 0 has updated it already) and potentially fail to flush.
-> Hence, when madv_free on CPU 1 returns, there are still potentially writable
-> TLB entries and the underlying PTE is still present so that a subsequent write
-> does not necessarily propagate the dirty bit to the underlying PTE any more.
-> Reclaim at some unknown time at the future may then see that the PTE is still
-> clean and discard the page even though a write has happened in the meantime.
-> I think this is possible but I could have missed some protection in madv_free
-> that prevents it happening."
-> 
-> This patch aims for solving both problems all at once and is ready for
-> other problem with KSM, MADV_FREE and soft-dirty story[3].
-> 
-> TLB batch API(tlb_[gather|finish]_mmu] uses [inc|dec]_tlb_flush_pending
-> and mmu_tlb_flush_pending so that when tlb_finish_mmu is called, we can catch
-> there are parallel threads going on. In that case, forcefully, flush TLB
-> to prevent for user to access memory via stale TLB entry although it fail
-> to gather page table entry.
-> 
-> I confiremd this patch works with [4] test program Nadav gave so this patch
-> supersedes "mm: Always flush VMA ranges affected by zap_page_range v2"
-> in current mmotm.
-> 
-> NOTE:
-> This patch modifies arch-specific TLB gathering interface(x86, ia64,
-> s390, sh, um). It seems most of architecture are straightforward but s390
-> need to be careful because tlb_flush_mmu works only if mm->context.flush_mm
-> is set to non-zero which happens only a pte entry really is cleared by
-> ptep_get_and_clear and friends. However, this problem never changes the
-> pte entries but need to flush to prevent memory access from stale tlb.
-> 
-> Any thoughts?
-> 
+Yisheng Xie <xieyisheng1@huawei.com> writes:
 
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
+> When ioremap a 67112960 bytes vm_area with the vmallocinfo:
+>  [..]
+>  0xec79b000-0xec7fa000  389120 ftl_add_mtd+0x4d0/0x754 pages=94 vmalloc
+>  0xec800000-0xecbe1000 4067328 kbox_proc_mem_write+0x104/0x1c4 phys=8b520000 ioremap
+>
+> we get the result:
+>  0xf1000000-0xf5001000 67112960 devm_ioremap+0x38/0x7c phys=40000000 ioremap
+>
+> For the align for ioremap must be less than '1 << IOREMAP_MAX_ORDER':
+> 	if (flags & VM_IOREMAP)
+> 		align = 1ul << clamp_t(int, get_count_order_long(size),
+> 			PAGE_SHIFT, IOREMAP_MAX_ORDER);
+>
+> So it makes idiot like me a litter puzzle why jump the vm_area from
+> 0xec800000-0xecbe1000 to 0xf1000000-0xf5001000, and leave
+> 0xed000000-0xf1000000 as a big hole.
+>
+> This is to show all of vm_area, including which is freeing but still in
+> vmap_area_list, to make it more clear about why we will get
+> 0xf1000000-0xf5001000 int the above case. And we will get the
+> vmallocinfo like:
+>  [..]
+>  0xec79b000-0xec7fa000  389120 ftl_add_mtd+0x4d0/0x754 pages=94 vmalloc
+>  0xec800000-0xecbe1000 4067328 kbox_proc_mem_write+0x104/0x1c4 phys=8b520000 ioremap
+>  [..]
+>  0xece7c000-0xece7e000    8192 unpurged vm_area
+>  0xece7e000-0xece83000   20480 vm_map_ram
+>  0xf0099000-0xf00aa000   69632 vm_map_ram
 
--- 
-Mel Gorman
-SUSE Labs
+My vmallocinfo is full of these unpurged areas, should I be worried?
+
+# grep -c "unpurged" /proc/vmallocinfo 
+311
+
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
