@@ -1,93 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1814E6B04DB
-	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 21:26:29 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id q66so1406859qki.1
-        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 18:26:29 -0700 (PDT)
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 657456B04DD
+	for <linux-mm@kvack.org>; Mon, 31 Jul 2017 21:54:19 -0400 (EDT)
+Received: by mail-ua0-f197.google.com with SMTP id m32so1225788uah.4
+        for <linux-mm@kvack.org>; Mon, 31 Jul 2017 18:54:19 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id r4si9210364qtr.537.2017.07.31.18.26.27
+        by mx.google.com with ESMTPS id 10si11591170vkl.400.2017.07.31.18.54.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Jul 2017 18:26:28 -0700 (PDT)
-Date: Mon, 31 Jul 2017 21:25:42 -0400
-From: "Liam R. Howlett" <Liam.Howlett@Oracle.com>
-Subject: Re: [RFC PATCH 1/1] mm/hugetlb mm/oom_kill:  Add support for
- reclaiming hugepages on OOM events.
-Message-ID: <20170801012542.i2exb4ehuk2l6wfe@oracle.com>
-References: <20170728064602.GC2274@dhcp22.suse.cz>
- <20170728113347.rrn5igjyllrj3z4n@node.shutemov.name>
- <20170728122350.GM2274@dhcp22.suse.cz>
- <20170728124443.GO2274@dhcp22.suse.cz>
- <20170729015638.lnazqgf5isjqqkqg@oracle.com>
- <20170731091025.GH15767@dhcp22.suse.cz>
- <20170731135647.wpzk56m5qrmz3xht@oracle.com>
- <20170731140810.GD4829@dhcp22.suse.cz>
- <20170731143735.GI15980@bombadil.infradead.org>
- <20170731144932.GF4829@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170731144932.GF4829@dhcp22.suse.cz>
+        Mon, 31 Jul 2017 18:54:18 -0700 (PDT)
+From: Prakash Sangappa <prakash.sangappa@oracle.com>
+Subject: [RESEND PATCH v3 1/2] userfaultfd: Add feature to request for a signal delivery
+Date: Mon, 31 Jul 2017 21:54:05 -0400
+Message-Id: <1501552446-748335-2-git-send-email-prakash.sangappa@oracle.com>
+In-Reply-To: <1501552446-748335-1-git-send-email-prakash.sangappa@oracle.com>
+References: <1501552446-748335-1-git-send-email-prakash.sangappa@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Matthew Wilcox <willy@infradead.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, mike.kravetz@Oracle.com, aneesh.kumar@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, punit.agrawal@arm.com, arnd@arndb.de, gerald.schaefer@de.ibm.com, aarcange@redhat.com, oleg@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, mingo@kernel.org, kirill.shutemov@linux.intel.com, vdavydov.dev@gmail.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+Cc: aarcange@redhat.com, rppt@linux.vnet.ibm.com, akpm@linux-foundation.org, mike.kravetz@oracle.com
 
-* Michal Hocko <mhocko@kernel.org> [170731 10:49]:
-> On Mon 31-07-17 07:37:35, Matthew Wilcox wrote:
-> > On Mon, Jul 31, 2017 at 04:08:10PM +0200, Michal Hocko wrote:
-> > > On Mon 31-07-17 09:56:48, Liam R. Howlett wrote:
-> [...]
-> > > > My focus on hugetlb is that it can stop the automatic recovery of the
-> > > > system.
-> > > 
-> > > How?
-> > 
-> > Let me try to explain the situation as I understand it.
-> > 
-> > The customer has purchased a 128TB machine in order to run a database.
-> > They reserve 124TB of memory for use by the database cache.  Everything
-> > works great.  Then a 4TB memory module goes bad.  The machine reboots
-> > itself in order to return to operation, now having only 124TB of memory
-> > and having 124TB of memory reserved.  It OOMs during boot.  The current
-> > output from our OOM machinery doesn't point the sysadmin at the kernel
-> > command line parameter as now being the problem.  So they file a priority
-> > 1 problem ticket ...
-> 
-> Well, I would argue that the oom report is quite clear that the hugetlb
-> memory has consumed the large part if not whole usable memory and that
-> should give a clue...
+In some cases, userfaultfd mechanism should just deliver a SIGBUS signal
+to the faulting process, instead of the page-fault event. Dealing with
+page-fault event using a monitor thread can be an overhead in these
+cases. For example applications like the database could use the signaling
+mechanism for robustness purpose.
 
-Can you please show me where it's clear?  Are you referring to these
-messages?
+Database uses hugetlbfs for performance reason. Files on hugetlbfs
+filesystem are created and huge pages allocated using fallocate() API.
+Pages are deallocated/freed using fallocate() hole punching support.
+These files are mmapped and accessed by many processes as shared memory.
+The database keeps track of which offsets in the hugetlbfs file have
+pages allocated.
 
-Node 0 hugepages_total=15999 hugepages_free=15999 hugepages_surp=0
-hugepages_size=8192kB
-Node 1 hugepages_total=16157 hugepages_free=16157 hugepages_surp=0
-hugepages_size=8192kB
+Any access to mapped address over holes in the file, which can occur due
+to bugs in the application, is considered invalid and expect the process
+to simply receive a SIGBUS.  However, currently when a hole in the file is
+accessed via the mapped address, kernel/mm attempts to automatically
+allocate a page at page fault time, resulting in implicitly filling the
+hole in the file. This may not be the desired behavior for applications
+like the database that want to explicitly manage page allocations of
+hugetlbfs files.
 
-I'm not trying to be obtuse, I'm just not sure what message in which you
-are referring.
+Using userfaultfd mechanism with this support to get a signal, database
+application can prevent pages from being allocated implicitly when
+processes access mapped address over holes in the file.
 
-> 
-> Nevertheless, I can see some merit here, but I am arguing that there
-> is simply no good way to handle this without admin involvement
-> unless we want to risk other and much more subtle breakage where the
-> application really expects it can consume the preallocated hugetlb pool
-> completely. And I would even argue that the later is more probable than
-> unintended memory failure reboot cycle.  If somebody can tune hugetlb
-> pool dynamically I would recommend doing so from an init script.
+This patch adds UFFD_FEATURE_SIGBUS feature to userfaultfd mechnism to
+request for a SIGBUS signal.
 
-I agree that an admin involvement is necessary for a full recovery but
-I'm trying to make the best of a bad situation.
+See following for previous discussion about the database requirement
+leading to this proposal as suggested by Andrea.
 
-Why can't it consume the preallocated hugetlb pool completely? I'm just
-trying to make the pool a little smaller.  I thought that when the
-application fails to allocate a hugetlb it would receive a failure and
-need to cope with the allocation failure?
+http://www.spinics.net/lists/linux-mm/msg129224.html
 
-Thanks,
-Liam
+Signed-off-by: Prakash Sangappa <prakash.sangappa@oracle.com>
+Reviewed-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ fs/userfaultfd.c                 |    3 +++
+ include/uapi/linux/userfaultfd.h |   10 +++++++++-
+ 2 files changed, 12 insertions(+), 1 deletions(-)
+
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index 1d622f2..0bbe7df 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -371,6 +371,9 @@ int handle_userfault(struct vm_fault *vmf, unsigned long reason)
+ 	VM_BUG_ON(reason & ~(VM_UFFD_MISSING|VM_UFFD_WP));
+ 	VM_BUG_ON(!(reason & VM_UFFD_MISSING) ^ !!(reason & VM_UFFD_WP));
+ 
++	if (ctx->features & UFFD_FEATURE_SIGBUS)
++		goto out;
++
+ 	/*
+ 	 * If it's already released don't get it. This avoids to loop
+ 	 * in __get_user_pages if userfaultfd_release waits on the
+diff --git a/include/uapi/linux/userfaultfd.h b/include/uapi/linux/userfaultfd.h
+index 3b05953..d39d5db 100644
+--- a/include/uapi/linux/userfaultfd.h
++++ b/include/uapi/linux/userfaultfd.h
+@@ -23,7 +23,8 @@
+ 			   UFFD_FEATURE_EVENT_REMOVE |	\
+ 			   UFFD_FEATURE_EVENT_UNMAP |		\
+ 			   UFFD_FEATURE_MISSING_HUGETLBFS |	\
+-			   UFFD_FEATURE_MISSING_SHMEM)
++			   UFFD_FEATURE_MISSING_SHMEM |		\
++			   UFFD_FEATURE_SIGBUS)
+ #define UFFD_API_IOCTLS				\
+ 	((__u64)1 << _UFFDIO_REGISTER |		\
+ 	 (__u64)1 << _UFFDIO_UNREGISTER |	\
+@@ -153,6 +154,12 @@ struct uffdio_api {
+ 	 * UFFD_FEATURE_MISSING_SHMEM works the same as
+ 	 * UFFD_FEATURE_MISSING_HUGETLBFS, but it applies to shmem
+ 	 * (i.e. tmpfs and other shmem based APIs).
++	 *
++	 * UFFD_FEATURE_SIGBUS feature means no page-fault
++	 * (UFFD_EVENT_PAGEFAULT) event will be delivered, instead
++	 * a SIGBUS signal will be sent to the faulting process.
++	 * The application process can enable this behavior by adding
++	 * it to uffdio_api.features.
+ 	 */
+ #define UFFD_FEATURE_PAGEFAULT_FLAG_WP		(1<<0)
+ #define UFFD_FEATURE_EVENT_FORK			(1<<1)
+@@ -161,6 +168,7 @@ struct uffdio_api {
+ #define UFFD_FEATURE_MISSING_HUGETLBFS		(1<<4)
+ #define UFFD_FEATURE_MISSING_SHMEM		(1<<5)
+ #define UFFD_FEATURE_EVENT_UNMAP		(1<<6)
++#define UFFD_FEATURE_SIGBUS			(1<<7)
+ 	__u64 features;
+ 
+ 	__u64 ioctls;
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
