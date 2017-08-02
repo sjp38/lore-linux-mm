@@ -1,156 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 212FD6B05DB
-	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 11:15:34 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id g71so6123407wmg.13
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 08:15:34 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id y84si3389631wmd.234.2017.08.02.08.15.32
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 735FF6B05DD
+	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 11:55:26 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id p48so23058461qtf.1
+        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 08:55:26 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 10si32739026qkt.272.2017.08.02.08.55.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 02 Aug 2017 08:15:32 -0700 (PDT)
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Subject: [RFC] Tagging of vmalloc pages for supporting the pmalloc allocator
-Message-ID: <07063abd-2f5d-20d9-a182-8ae9ead26c3c@huawei.com>
-Date: Wed, 2 Aug 2017 18:14:28 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Aug 2017 08:55:25 -0700 (PDT)
+Date: Wed, 2 Aug 2017 17:55:22 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] userfaultfd_zeropage: return -ENOSPC in case mm has gone
+Message-ID: <20170802155522.GB21775@redhat.com>
+References: <1501136819-21857-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <20170731122204.GB4878@dhcp22.suse.cz>
+ <20170731133247.GK29716@redhat.com>
+ <20170731134507.GC4829@dhcp22.suse.cz>
+ <20170802123440.GD17905@rapoport-lnx>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170802123440.GD17905@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-security-module@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@kernel.org>, Kees
- Cook <keescook@google.com>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, stable@vger.kernel.org
 
-Hi,
-while I am working to another example of using pmalloc [1],
-it was pointed out to me that:
+On Wed, Aug 02, 2017 at 03:34:41PM +0300, Mike Rapoport wrote:
+> I surely can take care of CRIU, but I don't know if QEMU or certain
+> database application that uses userfaultfd rely on this API, not mentioning
+> there maybe other unknown users.
+> 
+> Andrea, what do you think?
 
-1) I had introduced a bug when I switched to using a field of the page
-structure [2]
+The manpage would need updates, from v4.11 to v4.13 -ENOSPC, from v4.1
+-ESRCH and I don't see the benefit and it just looks confusion for
+nothing, but if somebody feel strongly about it and does the work (and
+risks to take the blame if something breaks...) I wouldn't be against
+it, it won't make much of a difference anyway.
 
-2) I was also committing a layer violation in the way I was tagging the
-pages.
+The reason I don't see any benefit in code readability is that I don't
+see ESRCH as an obviously better retval, because if you grep for ESRCH
+you'll see it's a failure to find a process with a certain pid, it is
+an obvious retval when you're dealing with processes and pids, but we
+never search pids and in fact the pid and the process may be already
+gone but we still won't return ESRCH. UFFDIO_COPY never takes a pid as
+parameter anywhere so why to return ESRCH? ENOSPC shall be interpreted
+"no memory avail to copy anything", ESRCH as far as I can tell, could
+be as unexpected as ENOSPC is you don't specify a pid as parameter to
+the kernel.
 
-I am seeking help to understand what would be the correct way to do the
-tagging.
+If the mm_users is already zero and the mm is gone it means the
+process is gone too, that is true, but the process could be gone
+already and we could still obtain the mm_users and run UFFDIO_COPY if
+there's async I/O pending or something. There's no association between
+process/pid being still alive and the need to run a UFFDIO_COPY and
+succeed at it.
 
-Here are snippets describing the problems:
+Not ever dealing with pids and processes is why not even ESRCH is an
+obvious perfect match for such an error, and this is why I think such
+a change now would add no tangible pros and only short term cons.
 
-
-1) from pmalloc.c:
-
-...
-
-+static const unsigned long pmalloc_signature = (unsigned
-long)&pmalloc_mutex;
-
-...
-
-+int __pmalloc_tag_pages(void *base, const size_t size, const bool set_tag)
-+{
-+	void *end = base + size - 1;
-+
-+	do {
-+		struct page *page;
-+
-+		if (!is_vmalloc_addr(base))
-+			return -EINVAL;
-+		page = vmalloc_to_page(base);
-+		if (set_tag) {
-+			BUG_ON(page_private(page) || page->private);
-+			set_page_private(page, 1);
-+			page->private = pmalloc_signature;
-+		} else {
-+			BUG_ON(!(page_private(page) &&
-+				 page->private == pmalloc_signature));
-+			set_page_private(page, 0);
-+			page->private = 0;
-+		}
-+		base += PAGE_SIZE;
-+	} while ((PAGE_MASK & (unsigned long)base) <=
-+		 (PAGE_MASK & (unsigned long)end));
-+	return 0;
-+}
-
-...
-
-+static const char msg[] = "Not a valid Pmalloc object.";
-+const char *pmalloc_check_range(const void *ptr, unsigned long n)
-+{
-+	unsigned long p;
-+
-+	p = (unsigned long)ptr;
-+	n = p + n - 1;
-+	for (; (PAGE_MASK & p) <= (PAGE_MASK & n); p += PAGE_SIZE) {
-+		struct page *page;
-+
-+		if (!is_vmalloc_addr((void *)p))
-+			return msg;
-+		page = vmalloc_to_page((void *)p);
-+		if (!(page && page_private(page) &&
-+		      page->private == pmalloc_signature))
-+			return msg;
-+	}
-+	return NULL;
-+}
-
-
-The problem here comes from the way I am using page->private:
-the fact that the page is marked as private means only that someone is
-using it, and the way it is used could create (spoiler: it happens) a
-collision with pmalloc_signature, which can generate false positives.
-
-A way to ensure that the address really belongs to pmalloc would be to
-pre-screen it, against either the signature or some magic number and,
-if such test is passed, then compare the address against those really
-available in the pmalloc pools.
-
-This would be slower, but it would be limited only to those cases where
-the signature/magic number matches and the answer is likely to be true.
-
-2) However, both the current (incorrect) implementation and the one I am
-considering, are abusing something that should be used otherwise (see
-the following snippet):
-
-from include/linux/mm_types.h:
-
-struct page {
-...
-  union {
-    unsigned long private;		/* Mapping-private opaque data:
-				 	 * usually used for buffer_heads
-					 * if PagePrivate set; used for
-					 * swp_entry_t if PageSwapCache;
-					 * indicates order in the buddy
-					 * system if PG_buddy is set.
-					 */
-#if USE_SPLIT_PTE_PTLOCKS
-#if ALLOC_SPLIT_PTLOCKS
-		spinlock_t *ptl;
-#else
-		spinlock_t ptl;
-#endif
-#endif
-		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
-	};
-...
-}
-
-
-The "private" field is meant for mapping-private opaque data, which is
-not how I am using it.
-
-Yet it seems the least harmful field to choose.
-Is this acceptable?
-Otherwise, what would be the best course of action?
-
-
-thanks, igor
-
-
-[1] https://lkml.org/lkml/2017/7/10/400
-[2] https://lkml.org/lkml/2017/7/6/573
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
