@@ -1,192 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 13E4E6B061D
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 43A4C6B061A
 	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 16:39:12 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id c14so61338027pgn.11
+Received: by mail-pf0-f200.google.com with SMTP id r29so56589398pfi.7
         for <linux-mm@kvack.org>; Wed, 02 Aug 2017 13:39:12 -0700 (PDT)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id s195si15677770pgs.643.2017.08.02.13.39.10
+        by mx.google.com with ESMTPS id l36si21032700plg.74.2017.08.02.13.39.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Aug 2017 13:39:10 -0700 (PDT)
+        Wed, 02 Aug 2017 13:39:11 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v4 04/15] mm: discard memblock data later
-Date: Wed,  2 Aug 2017 16:38:13 -0400
-Message-Id: <1501706304-869240-5-git-send-email-pasha.tatashin@oracle.com>
+Subject: [v4 07/15] mm: defining memblock_virt_alloc_try_nid_raw
+Date: Wed,  2 Aug 2017 16:38:16 -0400
+Message-Id: <1501706304-869240-8-git-send-email-pasha.tatashin@oracle.com>
 In-Reply-To: <1501706304-869240-1-git-send-email-pasha.tatashin@oracle.com>
 References: <1501706304-869240-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org
 
-There is existing use after free bug when deferred struct pages are
-enabled:
-
-The memblock_add() allocates memory for the memory array if more than
-128 entries are needed.  See comment in e820__memblock_setup():
-
-  * The bootstrap memblock region count maximum is 128 entries
-  * (INIT_MEMBLOCK_REGIONS), but EFI might pass us more E820 entries
-  * than that - so allow memblock resizing.
-
-This memblock memory is freed here:
-        free_low_memory_core_early()
-
-We access the freed memblock.memory later in boot when deferred pages are
-initialized in this path:
-
-        deferred_init_memmap()
-                for_each_mem_pfn_range()
-                  __next_mem_pfn_range()
-                    type = &memblock.memory;
-
-One possible explanation for why this use-after-free hasn't been hit
-before is that the limit of INIT_MEMBLOCK_REGIONS has never been exceeded
-at least on systems where deferred struct pages were enabled.
-
-Another reason why we want this problem fixed in this patch series is,
-in the next patch, we will need to access memblock.reserved from
-deferred_init_memmap().
+A new variant of memblock_virt_alloc_* allocations:
+memblock_virt_alloc_try_nid_raw()
+    - Does not zero the allocated memory
+    - Does not panic if request cannot be satisfied
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
 Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 Reviewed-by: Bob Picco <bob.picco@oracle.com>
 ---
- include/linux/memblock.h |  7 +++++--
- mm/memblock.c            | 38 +++++++++++++++++---------------------
- mm/nobootmem.c           | 16 ----------------
- mm/page_alloc.c          |  2 ++
- 4 files changed, 24 insertions(+), 39 deletions(-)
+ include/linux/bootmem.h | 11 ++++++++++
+ mm/memblock.c           | 53 ++++++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 57 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 77d427974f57..c89d16c88512 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -61,9 +61,11 @@ extern int memblock_debug;
- #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
- #define __init_memblock __meminit
- #define __initdata_memblock __meminitdata
-+void memblock_discard(void);
- #else
- #define __init_memblock
- #define __initdata_memblock
-+#define memblock_discard()
- #endif
+diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
+index e223d91b6439..0a0a37f3e292 100644
+--- a/include/linux/bootmem.h
++++ b/include/linux/bootmem.h
+@@ -160,6 +160,9 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
+ #define BOOTMEM_ALLOC_ANYWHERE		(~(phys_addr_t)0)
  
- #define memblock_dbg(fmt, ...) \
-@@ -74,8 +76,6 @@ phys_addr_t memblock_find_in_range_node(phys_addr_t size, phys_addr_t align,
- 					int nid, ulong flags);
- phys_addr_t memblock_find_in_range(phys_addr_t start, phys_addr_t end,
- 				   phys_addr_t size, phys_addr_t align);
--phys_addr_t get_allocated_memblock_reserved_regions_info(phys_addr_t *addr);
--phys_addr_t get_allocated_memblock_memory_regions_info(phys_addr_t *addr);
- void memblock_allow_resize(void);
- int memblock_add_node(phys_addr_t base, phys_addr_t size, int nid);
- int memblock_add(phys_addr_t base, phys_addr_t size);
-@@ -110,6 +110,9 @@ void __next_mem_range_rev(u64 *idx, int nid, ulong flags,
- void __next_reserved_mem_region(u64 *idx, phys_addr_t *out_start,
- 				phys_addr_t *out_end);
+ /* FIXME: Move to memblock.h at a point where we remove nobootmem.c */
++void *memblock_virt_alloc_try_nid_raw(phys_addr_t size, phys_addr_t align,
++				      phys_addr_t min_addr,
++				      phys_addr_t max_addr, int nid);
+ void *memblock_virt_alloc_try_nid_nopanic(phys_addr_t size,
+ 		phys_addr_t align, phys_addr_t min_addr,
+ 		phys_addr_t max_addr, int nid);
+@@ -176,6 +179,14 @@ static inline void * __init memblock_virt_alloc(
+ 					    NUMA_NO_NODE);
+ }
  
-+void __memblock_free_early(phys_addr_t base, phys_addr_t size);
-+void __memblock_free_late(phys_addr_t base, phys_addr_t size);
++static inline void * __init memblock_virt_alloc_raw(
++					phys_addr_t size,  phys_addr_t align)
++{
++	return memblock_virt_alloc_try_nid_raw(size, align, BOOTMEM_LOW_LIMIT,
++					    BOOTMEM_ALLOC_ACCESSIBLE,
++					    NUMA_NO_NODE);
++}
 +
- /**
-  * for_each_mem_range - iterate through memblock areas from type_a and not
-  * included in type_b. Or just type_a if type_b is NULL.
+ static inline void * __init memblock_virt_alloc_nopanic(
+ 					phys_addr_t size, phys_addr_t align)
+ {
 diff --git a/mm/memblock.c b/mm/memblock.c
-index 2cb25fe4452c..3a2707914064 100644
+index e6df054e3180..bdf31f207fa4 100644
 --- a/mm/memblock.c
 +++ b/mm/memblock.c
-@@ -285,31 +285,27 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
+@@ -1327,7 +1327,6 @@ static void * __init memblock_virt_alloc_internal(
+ 	return NULL;
+ done:
+ 	ptr = phys_to_virt(alloc);
+-	memset(ptr, 0, size);
+ 
+ 	/*
+ 	 * The min_count is set to 0 so that bootmem allocated blocks
+@@ -1341,6 +1340,38 @@ static void * __init memblock_virt_alloc_internal(
  }
- 
- #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
--
--phys_addr_t __init_memblock get_allocated_memblock_reserved_regions_info(
--					phys_addr_t *addr)
--{
--	if (memblock.reserved.regions == memblock_reserved_init_regions)
--		return 0;
--
--	*addr = __pa(memblock.reserved.regions);
--
--	return PAGE_ALIGN(sizeof(struct memblock_region) *
--			  memblock.reserved.max);
--}
--
--phys_addr_t __init_memblock get_allocated_memblock_memory_regions_info(
--					phys_addr_t *addr)
-+/**
-+ * Discard memory and reserved arrays if they were allocated
-+ */
-+void __init_memblock memblock_discard(void)
- {
--	if (memblock.memory.regions == memblock_memory_init_regions)
--		return 0;
-+	phys_addr_t addr, size;
- 
--	*addr = __pa(memblock.memory.regions);
-+	if (memblock.reserved.regions != memblock_reserved_init_regions) {
-+		addr = __pa(memblock.reserved.regions);
-+		size = PAGE_ALIGN(sizeof(struct memblock_region) *
-+				  memblock.reserved.max);
-+		__memblock_free_late(addr, size);
-+	}
- 
--	return PAGE_ALIGN(sizeof(struct memblock_region) *
--			  memblock.memory.max);
-+	if (memblock.memory.regions == memblock_memory_init_regions) {
-+		addr = __pa(memblock.memory.regions);
-+		size = PAGE_ALIGN(sizeof(struct memblock_region) *
-+				  memblock.memory.max);
-+		__memblock_free_late(addr, size);
-+	}
- }
--
- #endif
  
  /**
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index 36454d0f96ee..3637809a18d0 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -146,22 +146,6 @@ static unsigned long __init free_low_memory_core_early(void)
- 				NULL)
- 		count += __free_memory_core(start, end);
- 
--#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
--	{
--		phys_addr_t size;
--
--		/* Free memblock.reserved array if it was allocated */
--		size = get_allocated_memblock_reserved_regions_info(&start);
--		if (size)
--			count += __free_memory_core(start, start + size);
--
--		/* Free memblock.memory array if it was allocated */
--		size = get_allocated_memblock_memory_regions_info(&start);
--		if (size)
--			count += __free_memory_core(start, start + size);
--	}
--#endif
--
- 	return count;
++ * memblock_virt_alloc_try_nid_raw - allocate boot memory block without zeroing
++ * memory and without panicking
++ * @size: size of memory block to be allocated in bytes
++ * @align: alignment of the region and block's size
++ * @min_addr: the lower bound of the memory region from where the allocation
++ *	  is preferred (phys address)
++ * @max_addr: the upper bound of the memory region from where the allocation
++ *	      is preferred (phys address), or %BOOTMEM_ALLOC_ACCESSIBLE to
++ *	      allocate only from memory limited by memblock.current_limit value
++ * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
++ *
++ * Public function, provides additional debug information (including caller
++ * info), if enabled. Does not zero allocated memory, does not panic if request
++ * cannot be satisfied.
++ *
++ * RETURNS:
++ * Virtual address of allocated memory block on success, NULL on failure.
++ */
++void * __init memblock_virt_alloc_try_nid_raw(
++			phys_addr_t size, phys_addr_t align,
++			phys_addr_t min_addr, phys_addr_t max_addr,
++			int nid)
++{
++	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
++		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
++		     (u64)max_addr, (void *)_RET_IP_);
++
++	return memblock_virt_alloc_internal(size, align,
++					    min_addr, max_addr, nid);
++}
++
++/**
+  * memblock_virt_alloc_try_nid_nopanic - allocate boot memory block
+  * @size: size of memory block to be allocated in bytes
+  * @align: alignment of the region and block's size
+@@ -1351,8 +1382,8 @@ static void * __init memblock_virt_alloc_internal(
+  *	      allocate only from memory limited by memblock.current_limit value
+  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
+  *
+- * Public version of _memblock_virt_alloc_try_nid_nopanic() which provides
+- * additional debug information (including caller info), if enabled.
++ * Public function, provides additional debug information (including caller
++ * info), if enabled. This function zeroes the allocated memory.
+  *
+  * RETURNS:
+  * Virtual address of allocated memory block on success, NULL on failure.
+@@ -1362,11 +1393,17 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
+ 				phys_addr_t min_addr, phys_addr_t max_addr,
+ 				int nid)
+ {
++	void *ptr;
++
+ 	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
+ 		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
+ 		     (u64)max_addr, (void *)_RET_IP_);
+-	return memblock_virt_alloc_internal(size, align, min_addr,
+-					     max_addr, nid);
++
++	ptr = memblock_virt_alloc_internal(size, align,
++					   min_addr, max_addr, nid);
++	if (ptr)
++		memset(ptr, 0, size);
++	return ptr;
  }
  
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6d30e914afb6..87fb35ac0b87 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1584,6 +1584,8 @@ void __init page_alloc_init_late(void)
- 	/* Reinit limits that are based on free pages after the kernel is up */
- 	files_maxfiles_init();
- #endif
-+	/* Discard memblock private memory */
-+	memblock_discard();
+ /**
+@@ -1380,7 +1417,7 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
+  *	      allocate only from memory limited by memblock.current_limit value
+  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
+  *
+- * Public panicking version of _memblock_virt_alloc_try_nid_nopanic()
++ * Public panicking version of memblock_virt_alloc_try_nid_nopanic()
+  * which provides debug information (including caller info), if enabled,
+  * and panics if the request can not be satisfied.
+  *
+@@ -1399,8 +1436,10 @@ void * __init memblock_virt_alloc_try_nid(
+ 		     (u64)max_addr, (void *)_RET_IP_);
+ 	ptr = memblock_virt_alloc_internal(size, align,
+ 					   min_addr, max_addr, nid);
+-	if (ptr)
++	if (ptr) {
++		memset(ptr, 0, size);
+ 		return ptr;
++	}
  
- 	for_each_populated_zone(zone)
- 		set_zone_contiguous(zone);
+ 	panic("%s: Failed to allocate %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx\n",
+ 	      __func__, (u64)size, (u64)align, nid, (u64)min_addr,
 -- 
 2.13.3
 
