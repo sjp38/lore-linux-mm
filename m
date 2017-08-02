@@ -1,56 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 35AC56B05AC
-	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 04:30:30 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id w63so5158165wrc.5
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 01:30:30 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z19si25100739wrc.101.2017.08.02.01.30.29
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 712AC6B05AE
+	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 04:44:23 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id y129so43844607pgy.1
+        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 01:44:23 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id k10si20704136pln.365.2017.08.02.01.44.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 02 Aug 2017 01:30:29 -0700 (PDT)
-Subject: Re: [PATCHv2 08/10] x86/mm: Replace compile-time checks for 5-level
- with runtime-time
-References: <20170718141517.52202-9-kirill.shutemov@linux.intel.com>
- <6841c4f3-6794-f0ac-9af9-0ceb56e49653@suse.com>
- <20170725090538.26sbgb4npkztsqj3@black.fi.intel.com>
- <39cb1e36-f94e-32ea-c94a-2daddcbf3408@suse.com>
- <20170726164335.xaajz5ltzhncju26@node.shutemov.name>
- <c450949e-bd79-c9c9-797e-be6b2c7b1e5f@suse.com>
- <20170801144414.rd67k2g2cz46nlow@black.fi.intel.com>
- <d7d46a3c-1a01-1f35-99ed-6c1587275433@suse.com>
- <20170801191144.k333twdie52arpwt@black.fi.intel.com>
- <2c425437-f887-8a7e-9bce-36338c0979d0@suse.com>
- <20170802081758.hmlmxv4xrq5lxuxl@node.shutemov.name>
-From: Juergen Gross <jgross@suse.com>
-Message-ID: <bd4169dc-dead-2e52-6a63-c2579eb96379@suse.com>
-Date: Wed, 2 Aug 2017 10:30:26 +0200
-MIME-Version: 1.0
-In-Reply-To: <20170802081758.hmlmxv4xrq5lxuxl@node.shutemov.name>
-Content-Type: text/plain; charset=utf-8
-Content-Language: de-DE
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Aug 2017 01:44:22 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v728hxhQ100809
+	for <linux-mm@kvack.org>; Wed, 2 Aug 2017 04:44:22 -0400
+Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2c35p419rh-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 02 Aug 2017 04:44:21 -0400
+Received: from localhost
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Wed, 2 Aug 2017 18:44:19 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v728h2P023396584
+	for <linux-mm@kvack.org>; Wed, 2 Aug 2017 18:43:02 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v728h2oo030042
+	for <linux-mm@kvack.org>; Wed, 2 Aug 2017 18:43:02 +1000
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [PATCH] sched/autogroup: Fix error reporting inside autogroup_create()
+Date: Wed,  2 Aug 2017 14:13:00 +0530
+Message-Id: <20170802084300.29487-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: mingo@kernel.org
 
-On 02/08/17 10:17, Kirill A. Shutemov wrote:
-> On Wed, Aug 02, 2017 at 09:44:54AM +0200, Juergen Gross wrote:
->> That did the trick!
->>
->> PV domU is coming up now with a 5-level paging enabled kernel.
-> 
-> Thanks a lot for helping me up with it.
-> 
-> I'll integrate the fixes into patchset.
-> 
-> Just, for clarification XEN_PVH works too, right?
+Its kzalloc() not kmalloc() which has failed earlier. While here
+remove a redundant empty line.
 
-Yes.
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+---
+ kernel/sched/autogroup.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-
-Juergen
+diff --git a/kernel/sched/autogroup.c b/kernel/sched/autogroup.c
+index da39489..de6d7f4 100644
+--- a/kernel/sched/autogroup.c
++++ b/kernel/sched/autogroup.c
+@@ -71,7 +71,6 @@ static inline struct autogroup *autogroup_create(void)
+ 		goto out_fail;
+ 
+ 	tg = sched_create_group(&root_task_group);
+-
+ 	if (IS_ERR(tg))
+ 		goto out_free;
+ 
+@@ -101,7 +100,7 @@ static inline struct autogroup *autogroup_create(void)
+ out_fail:
+ 	if (printk_ratelimit()) {
+ 		printk(KERN_WARNING "autogroup_create: %s failure.\n",
+-			ag ? "sched_create_group()" : "kmalloc()");
++			ag ? "sched_create_group()" : "kzalloc()");
+ 	}
+ 
+ 	return autogroup_kref_get(&autogroup_default);
+-- 
+1.8.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
