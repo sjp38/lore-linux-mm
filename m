@@ -1,52 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CFE06B063B
-	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 19:07:20 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id x28so149067wma.7
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 16:07:20 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id h65si259325wmh.58.2017.08.02.16.07.18
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Aug 2017 16:07:18 -0700 (PDT)
-Date: Wed, 2 Aug 2017 16:07:16 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] z3fold: use per-cpu unbuddied lists
-Message-Id: <20170802160716.f5d1072873799a3a420f6538@linux-foundation.org>
-In-Reply-To: <20170802122505.e41d5c778a873375bcb0cc19@gmail.com>
-References: <20170802122505.e41d5c778a873375bcb0cc19@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B1CB6B063D
+	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 19:23:19 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id s14so64820458pgs.4
+        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 16:23:19 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id z135si20284823pgz.708.2017.08.02.16.23.17
+        for <linux-mm@kvack.org>;
+        Wed, 02 Aug 2017 16:23:18 -0700 (PDT)
+Date: Thu, 3 Aug 2017 08:23:16 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v6 5/7] mm: make tlb_flush_pending global
+Message-ID: <20170802232316.GA32020@bbox>
+References: <20170802000818.4760-6-namit@vmware.com>
+ <201708022224.e3s8yqcJ%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201708022224.e3s8yqcJ%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Dan Streetman <ddstreet@ieee.org>, Oleksiy.Avramchenko@sony.com
+To: kbuild test robot <lkp@intel.com>
+Cc: Nadav Amit <namit@vmware.com>, kbuild-all@01.org, linux-mm@kvack.org, nadav.amit@gmail.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 
-On Wed, 2 Aug 2017 12:25:05 +0200 Vitaly Wool <vitalywool@gmail.com> wrote:
+On Wed, Aug 02, 2017 at 10:28:47PM +0800, kbuild test robot wrote:
+> Hi Minchan,
+> 
+> [auto build test WARNING on linus/master]
+> [also build test WARNING on v4.13-rc3]
+> [cannot apply to next-20170802]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+> 
+> url:    https://github.com/0day-ci/linux/commits/Nadav-Amit/mm-migrate-prevent-racy-access-to-tlb_flush_pending/20170802-205715
+> config: sh-allyesconfig (attached as .config)
+> compiler: sh4-linux-gnu-gcc (Debian 6.1.1-9) 6.1.1 20160705
+> reproduce:
+>         wget https://raw.githubusercontent.com/01org/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+>         chmod +x ~/bin/make.cross
+>         # save the attached .config to linux build tree
+>         make.cross ARCH=sh 
+> 
+> All warnings (new ones prefixed by >>):
+> 
+>    In file included from include/linux/printk.h:6:0,
+>                     from include/linux/kernel.h:13,
+>                     from mm/debug.c:8:
+>    mm/debug.c: In function 'dump_mm':
+> >> include/linux/kern_levels.h:4:18: warning: format '%lx' expects argument of type 'long unsigned int', but argument 40 has type 'int' [-Wformat=]
 
-> z3fold is operating on unbuddied lists in a simple manner: in fact,
-> it only takes the first entry off the list on a hot path. So if the
-> z3fold pool is big enough and balanced well enough, considering
-> only the lists local to the current CPU won't be an issue in any
-> way, while random I/O performance will go up.
+Thanks. lkp.
 
-Has the performance benefit been measured?  It's a large patch.
-
-> This patch also introduces two worker threads which: one for async
-> in-page object layout optimization and one for releasing freed
-> pages.
-
-Why?  What are the runtime effects of this change?  Does this turn
-currently-synchronous operations into now-async operations?  If so,
-what are the implications of this if, say, the workqueue doesn't get
-serviced for a while?
-
-etc.  Sorry, but I'm not seeing anywhere near enough information and
-testing results to justify merging such a large and intrusive patch.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+This patch should fix it.
