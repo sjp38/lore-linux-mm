@@ -1,60 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FB3C6B0637
-	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 17:45:58 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id v68so5051887oia.14
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 14:45:58 -0700 (PDT)
-Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com. [209.85.218.47])
-        by mx.google.com with ESMTPS id t17si21386402oij.476.2017.08.02.14.45.57
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 33F4C6B0639
+	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 18:27:21 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id q198so28745662qke.13
+        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 15:27:21 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 81si30452193qka.271.2017.08.02.15.27.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Aug 2017 14:45:57 -0700 (PDT)
-Received: by mail-oi0-f47.google.com with SMTP id x3so57277170oia.1
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 14:45:57 -0700 (PDT)
+        Wed, 02 Aug 2017 15:27:19 -0700 (PDT)
+Date: Thu, 3 Aug 2017 00:27:14 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 0/6] userfaultfd updates for v4.13-rc3
+Message-ID: <20170802222714.GH21775@redhat.com>
+References: <20170802165145.22628-1-aarcange@redhat.com>
+ <20170802142925.4a3ad06ff7b0e769046f52db@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20170802105018.GA2529@dhcp22.suse.cz>
-References: <20170802105018.GA2529@dhcp22.suse.cz>
-From: Paul Moore <pmoore@redhat.com>
-Date: Wed, 2 Aug 2017 17:45:56 -0400
-Message-ID: <CAGH-Kgt_9So8bDe=yDF3yLZHDfDgeXsnBEu_X6uE_nQnoi=5Vg@mail.gmail.com>
-Subject: Re: suspicious __GFP_NOMEMALLOC in selinux
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170802142925.4a3ad06ff7b0e769046f52db@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Jeff Vander Stoep <jeffv@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, selinux@tycho.nsa.gov
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Maxime Coquelin <maxime.coquelin@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mike Kravetz <mike.kravetz@oracle.com>, Alexey Perevalov <a.perevalov@samsung.com>
 
-On Wed, Aug 2, 2017 at 6:50 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> Hi,
-> while doing something completely unrelated to selinux I've noticed a
-> really strange __GFP_NOMEMALLOC usage pattern in selinux, especially
-> GFP_ATOMIC | __GFP_NOMEMALLOC doesn't make much sense to me. GFP_ATOMIC
-> on its own allows to access memory reserves while the later flag tells
-> we cannot use memory reserves at all. The primary usecase for
-> __GFP_NOMEMALLOC is to override a global PF_MEMALLOC should there be a
-> need.
->
-> It all leads to fa1aa143ac4a ("selinux: extended permissions for
-> ioctls") which doesn't explain this aspect so let me ask. Why is the
-> flag used at all? Moreover shouldn't GFP_ATOMIC be actually GFP_NOWAIT.
-> What makes this path important to access memory reserves?
+On Wed, Aug 02, 2017 at 02:29:25PM -0700, Andrew Morton wrote:
+> On Wed,  2 Aug 2017 18:51:39 +0200 Andrea Arcangeli <aarcange@redhat.com> wrote:
+> 
+> > Hello,
+> > 
+> > these are some uffd updates I have pending that looks ready for
+> > merging. vhost-user KVM developement run into a crash so patch 1/6 is
+> > urgent (and simple), the rest is not urgent.
+> > 
+> > The testcase has been updated to exercise it.
+> > 
+> > This should apply clean to -mm, and I reviewed in detail all other
+> > userfaultfd patches that are in -mm and they're all great, including
+> > the shmem zeropage addition.
+> > 
+> > Alexey Perevalov (1):
+> >   userfaultfd: provide pid in userfault msg
+> > 
+> > Andrea Arcangeli (5):
+> >   userfaultfd: hugetlbfs: remove superfluous page unlock in VM_SHARED
+> >     case
+> >   userfaultfd: selftest: exercise UFFDIO_COPY/ZEROPAGE -EEXIST
+> >   userfaultfd: selftest: explicit failure if the SIGBUS test failed
+> >   userfaultfd: call userfaultfd_unmap_prep only if __split_vma succeeds
+> >   userfaultfd: provide pid in userfault msg - add feat union
+> 
+> I'm thinking "userfaultfd: hugetlbfs: remove superfluous page unlock in
+> VM_SHARED case" goes into 4.13-rc and the other patches into 4.14-rc1. 
+> Sound sane?
 
-[NOTE: added the SELinux list to the CC line, please include that list
-when asking SELinux questions]
+That would be perfect!
 
-The GFP_ATOMIC|__GFP_NOMEMALLOC use in SELinux appears to be limited
-to security/selinux/avc.c, and digging a bit, I'm guessing commit
-fa1aa143ac4a copied the combination from 6290c2c43973 ("selinux: tag
-avc cache alloc as non-critical") and the avc_alloc_node() function.
+Mike spotted that 2/6 needs the incremental fix below, my compiler
+didn't warn about it and the difference would be only noticeable in
+case of fatal errors. I can resend 2/6 if you prefer.
 
-I can't say that I'm an expert at the vm subsystem and the variety of
-different GFP_* flags, but your suggestion of moving to GFP_NOWAIT in
-security/selinux/avc.c seems reasonable and in keeping with the idea
-behind commit 6290c2c43973.
+diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
+index 34838d5b33f3..a2c53a3d223d 100644
+--- a/tools/testing/selftests/vm/userfaultfd.c
++++ b/tools/testing/selftests/vm/userfaultfd.c
+@@ -813,13 +813,14 @@ static int uffdio_zeropage(int ufd, unsigned long offset)
+ 		if (uffdio_zeropage.zeropage != page_size) {
+ 			fprintf(stderr, "UFFDIO_ZEROPAGE unexpected %Ld\n",
+ 				uffdio_zeropage.zeropage), exit(1);
+-		} else
++		} else {
+ 			if (test_uffdio_zeropage_eexist) {
+ 				test_uffdio_zeropage_eexist = false;
+ 				retry_uffdio_zeropage(ufd, &uffdio_zeropage,
+ 						      offset);
+ 			}
+ 			return 1;
++		}
+ 	} else {
+ 		fprintf(stderr,
+ 			"UFFDIO_ZEROPAGE succeeded %Ld\n",
 
--- 
-paul moore
-security @ redhat
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
