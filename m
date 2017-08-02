@@ -1,96 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FFA16B0608
-	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 13:13:01 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id u19so23680340qtc.14
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 10:13:01 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id h185si4594816qkf.310.2017.08.02.10.12.59
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C1D036B060B
+	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 13:45:10 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id t7so24426171qta.3
+        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 10:45:10 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a1si15241364qkb.286.2017.08.02.10.45.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Aug 2017 10:13:00 -0700 (PDT)
-Subject: Re: [PATCH 1/6] userfaultfd: hugetlbfs: remove superfluous page
- unlock in VM_SHARED case
-References: <20170802165145.22628-1-aarcange@redhat.com>
- <20170802165145.22628-2-aarcange@redhat.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <f06e115f-03c9-03cc-e86e-f0983d3dc7e6@oracle.com>
-Date: Wed, 2 Aug 2017 10:12:52 -0700
-MIME-Version: 1.0
-In-Reply-To: <20170802165145.22628-2-aarcange@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Wed, 02 Aug 2017 10:45:09 -0700 (PDT)
+From: Jonathan Toppins <jtoppins@redhat.com>
+Subject: [PATCH] mm: ratelimit PFNs busy info message
+Date: Wed,  2 Aug 2017 13:44:57 -0400
+Message-Id: <499c0f6cc10d6eb829a67f2a4d75b4228a9b356e.1501695897.git.jtoppins@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Maxime Coquelin <maxime.coquelin@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Alexey Perevalov <a.perevalov@samsung.com>
+To: linux-mm@kvack.org
+Cc: linux-rdma@vger.kernel.org, dledford@redhat.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Hillf Danton <hillf.zj@alibaba-inc.com>, open list <linux-kernel@vger.kernel.org>
 
-On 08/02/2017 09:51 AM, Andrea Arcangeli wrote:
-> huge_add_to_page_cache->add_to_page_cache implicitly unlock the page
-> before returning in case of errors.
-> 
-> The error returned was -EEXIST by running UFFDIO_COPY on a non-hole
-> offset of a VM_SHARED hugetlbfs mapping. It was an userland bug that
-> triggered it and the kernel must cope with it returning -EEXIST from
-> ioctl(UFFDIO_COPY) as expected.
-> 
-> page dumped because: VM_BUG_ON_PAGE(!PageLocked(page))
-> ------------[ cut here ]------------
-> kernel BUG at mm/filemap.c:964!
-> invalid opcode: 0000 [#1] SMP
-> CPU: 1 PID: 22582 Comm: qemu-system-x86 Not tainted 4.11.11-300.fc26.x86_64 #1
-> task: ffff973131ab2600 task.stack: ffffacc0cba78000
-> RIP: 0010:unlock_page+0x4a/0x50
-> RSP: 0018:ffffacc0cba7bca0 EFLAGS: 00010246
-> RAX: 0000000000000036 RBX: fffff99d09f38000 RCX: 0000000000000006
-> RDX: 0000000000000000 RSI: 0000000000000000 RDI: ffff97326148e0c0
-> RBP: ffffacc0cba7bca0 R08: 00000000000006be R09: 0000000000000004
-> R10: 00000000000007ae R11: ffffffffb622cbed R12: 0000000000000008
-> R13: ffff972f9a265240 R14: ffff972de2919740 R15: ffffffffb62da820
-> FS:  00007f122efff700(0000) GS:ffff973261480000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 00007fd52f788ea8 CR3: 000000036d022000 CR4: 00000000003426e0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> Call Trace:
->  hugetlb_mcopy_atomic_pte+0xc0/0x320
->  mcopy_atomic+0x96f/0xbe0
->  userfaultfd_ioctl+0x218/0xe90
->  ? __schedule+0x23c/0x8d0
->  ? hrtimer_start_range_ns+0x1bd/0x330
->  do_vfs_ioctl+0xa5/0x600
->  ? do_vfs_ioctl+0xa5/0x600
->  SyS_ioctl+0x79/0x90
->  entry_SYSCALL_64_fastpath+0x1a/0xa9
-> 
-> Tested-by: Maxime Coquelin <maxime.coquelin@redhat.com>
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+The RDMA subsystem can generate several thousand of these messages per
+second eventually leading to a kernel crash. Ratelimit these messages
+to prevent this crash.
 
-Thanks for catching this and fixing it.
+Signed-off-by: Jonathan Toppins <jtoppins@redhat.com>
+Reviewed-by: Doug Ledford <dledford@redhat.com>
+Tested-by: Doug Ledford <dledford@redhat.com>
+---
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
-
-> ---
->  mm/hugetlb.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index bc48ee783dd9..5a240c72c3b6 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -4062,9 +4062,9 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm,
->  	return ret;
->  out_release_unlock:
->  	spin_unlock(ptl);
-> -out_release_nounlock:
->  	if (vm_shared)
->  		unlock_page(page);
-> +out_release_nounlock:
->  	put_page(page);
->  	goto out;
->  }
-> 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6d30e914afb6..07b7d3060b21 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7666,7 +7666,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 
+ 	/* Make sure the range is really isolated. */
+ 	if (test_pages_isolated(outer_start, end, false)) {
+-		pr_info("%s: [%lx, %lx) PFNs busy\n",
++		pr_info_ratelimited("%s: [%lx, %lx) PFNs busy\n",
+ 			__func__, outer_start, end);
+ 		ret = -EBUSY;
+ 		goto done;
+-- 
+2.10.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
