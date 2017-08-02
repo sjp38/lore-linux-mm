@@ -1,62 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AE4B6B0624
-	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 16:39:23 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id y192so60538588pgd.12
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 13:39:23 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F5D36B062F
+	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 16:39:46 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id r187so56501738pfr.8
+        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 13:39:46 -0700 (PDT)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id b23si14878303pfk.679.2017.08.02.13.39.22
+        by mx.google.com with ESMTPS id x7si20412384pge.177.2017.08.02.13.39.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Aug 2017 13:39:22 -0700 (PDT)
+        Wed, 02 Aug 2017 13:39:45 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v4 15/15] mm: debug for raw alloctor
-Date: Wed,  2 Aug 2017 16:38:24 -0400
-Message-Id: <1501706304-869240-16-git-send-email-pasha.tatashin@oracle.com>
+Subject: [v4 12/15] mm: explicitly zero pagetable memory
+Date: Wed,  2 Aug 2017 16:38:21 -0400
+Message-Id: <1501706304-869240-13-git-send-email-pasha.tatashin@oracle.com>
 In-Reply-To: <1501706304-869240-1-git-send-email-pasha.tatashin@oracle.com>
 References: <1501706304-869240-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org
 
-When CONFIG_DEBUG_VM is enabled, this patch sets all the memory that is
-returned by memblock_virt_alloc_try_nid_raw() to ones to ensure that no
-places excpect zeroed memory.
+Soon vmemmap_alloc_block() will no longer zero the block, so zero memory
+at its call sites for everything except struct pages.  Struct page memory
+is zero'd by struct page initialization.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
 Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 Reviewed-by: Bob Picco <bob.picco@oracle.com>
 ---
- mm/memblock.c | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ mm/sparse-vmemmap.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index bdf31f207fa4..b6f90e75946c 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1363,12 +1363,19 @@ void * __init memblock_virt_alloc_try_nid_raw(
- 			phys_addr_t min_addr, phys_addr_t max_addr,
- 			int nid)
- {
-+	void *ptr;
-+
- 	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
- 		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
- 		     (u64)max_addr, (void *)_RET_IP_);
- 
--	return memblock_virt_alloc_internal(size, align,
--					    min_addr, max_addr, nid);
-+	ptr = memblock_virt_alloc_internal(size, align,
-+					   min_addr, max_addr, nid);
-+#ifdef CONFIG_DEBUG_VM
-+	if (ptr && size > 0)
-+		memset(ptr, 0xff, size);
-+#endif
-+	return ptr;
- }
- 
- /**
+diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+index c50b1a14d55e..d40c721ab19f 100644
+--- a/mm/sparse-vmemmap.c
++++ b/mm/sparse-vmemmap.c
+@@ -191,6 +191,7 @@ pmd_t * __meminit vmemmap_pmd_populate(pud_t *pud, unsigned long addr, int node)
+ 		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
+ 		if (!p)
+ 			return NULL;
++		memset(p, 0, PAGE_SIZE);
+ 		pmd_populate_kernel(&init_mm, pmd, p);
+ 	}
+ 	return pmd;
+@@ -203,6 +204,7 @@ pud_t * __meminit vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node)
+ 		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
+ 		if (!p)
+ 			return NULL;
++		memset(p, 0, PAGE_SIZE);
+ 		pud_populate(&init_mm, pud, p);
+ 	}
+ 	return pud;
+@@ -215,6 +217,7 @@ p4d_t * __meminit vmemmap_p4d_populate(pgd_t *pgd, unsigned long addr, int node)
+ 		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
+ 		if (!p)
+ 			return NULL;
++		memset(p, 0, PAGE_SIZE);
+ 		p4d_populate(&init_mm, p4d, p);
+ 	}
+ 	return p4d;
+@@ -227,6 +230,7 @@ pgd_t * __meminit vmemmap_pgd_populate(unsigned long addr, int node)
+ 		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
+ 		if (!p)
+ 			return NULL;
++		memset(p, 0, PAGE_SIZE);
+ 		pgd_populate(&init_mm, pgd, p);
+ 	}
+ 	return pgd;
 -- 
 2.13.3
 
