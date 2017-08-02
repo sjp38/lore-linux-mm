@@ -1,89 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 885A46B061D
-	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 16:39:13 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id r187so56492515pfr.8
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 13:39:13 -0700 (PDT)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 461506B061E
+	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 16:39:14 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id v77so60469545pgb.15
+        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 13:39:14 -0700 (PDT)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id 10si20138426pfh.586.2017.08.02.13.39.12
+        by mx.google.com with ESMTPS id y12si6466208pff.512.2017.08.02.13.39.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Aug 2017 13:39:12 -0700 (PDT)
+        Wed, 02 Aug 2017 13:39:13 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v4 11/15] arm64/kasan: explicitly zero kasan shadow memory
-Date: Wed,  2 Aug 2017 16:38:20 -0400
-Message-Id: <1501706304-869240-12-git-send-email-pasha.tatashin@oracle.com>
+Subject: [v4 14/15] mm: optimize early system hash allocations
+Date: Wed,  2 Aug 2017 16:38:23 -0400
+Message-Id: <1501706304-869240-15-git-send-email-pasha.tatashin@oracle.com>
 In-Reply-To: <1501706304-869240-1-git-send-email-pasha.tatashin@oracle.com>
 References: <1501706304-869240-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org
 
-To optimize the performance of struct page initialization,
-vmemmap_populate() will no longer zero memory.
+Clients can call alloc_large_system_hash() with flag: HASH_ZERO to specify
+that memory that was allocated for system hash needs to be zeroed,
+otherwise the memory does not need to be zeroed, and client will initialize
+it.
 
-We must explicitly zero the memory that is allocated by vmemmap_populate()
-for kasan, as this memory does not go through struct page initialization
-path.
+If memory does not need to be zero'd, call the new
+memblock_virt_alloc_raw() interface, and thus improve the boot performance.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
 Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 Reviewed-by: Bob Picco <bob.picco@oracle.com>
 ---
- arch/arm64/mm/kasan_init.c | 32 ++++++++++++++++++++++++++++++++
- 1 file changed, 32 insertions(+)
+ mm/page_alloc.c | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)
 
-diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
-index 81f03959a4ab..a57104bc54b8 100644
---- a/arch/arm64/mm/kasan_init.c
-+++ b/arch/arm64/mm/kasan_init.c
-@@ -135,6 +135,31 @@ static void __init clear_pgds(unsigned long start,
- 		set_pgd(pgd_offset_k(start), __pgd(0));
- }
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index debea7c0febb..623e2f7634e7 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7350,18 +7350,17 @@ void *__init alloc_large_system_hash(const char *tablename,
  
-+/*
-+ * Memory that was allocated by vmemmap_populate is not zeroed, so we must
-+ * zero it here explicitly.
-+ */
-+static void
-+zero_vemmap_populated_memory(void)
-+{
-+	struct memblock_region *reg;
-+	u64 start, end;
-+
-+	for_each_memblock(memory, reg) {
-+		start = __phys_to_virt(reg->base);
-+		end = __phys_to_virt(reg->base + reg->size);
-+
-+		if (start >= end)
-+			break;
-+
-+		memset((void *)start, 0, end - start);
-+	}
-+
-+	start = (u64)kasan_mem_to_shadow(_stext);
-+	end = (u64)kasan_mem_to_shadow(_end);
-+	memset((void *)start, 0, end - start);
-+}
-+
- void __init kasan_init(void)
- {
- 	u64 kimg_shadow_start, kimg_shadow_end;
-@@ -205,6 +230,13 @@ void __init kasan_init(void)
- 			pfn_pte(sym_to_pfn(kasan_zero_page), PAGE_KERNEL_RO));
+ 	log2qty = ilog2(numentries);
  
- 	memset(kasan_zero_page, 0, PAGE_SIZE);
-+
-+	/*
-+	 * vmemmap_populate does not zero the memory, so we need to zero it
-+	 * explicitly
-+	 */
-+	zero_vemmap_populated_memory();
-+
- 	cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
- 
- 	/* At this point kasan is fully initialized. Enable error messages */
+-	/*
+-	 * memblock allocator returns zeroed memory already, so HASH_ZERO is
+-	 * currently not used when HASH_EARLY is specified.
+-	 */
+ 	gfp_flags = (flags & HASH_ZERO) ? GFP_ATOMIC | __GFP_ZERO : GFP_ATOMIC;
+ 	do {
+ 		size = bucketsize << log2qty;
+-		if (flags & HASH_EARLY)
+-			table = memblock_virt_alloc_nopanic(size, 0);
+-		else if (hashdist)
++		if (flags & HASH_EARLY) {
++			if (flags & HASH_ZERO)
++				table = memblock_virt_alloc_nopanic(size, 0);
++			else
++				table = memblock_virt_alloc_raw(size, 0);
++		} else if (hashdist) {
+ 			table = __vmalloc(size, gfp_flags, PAGE_KERNEL);
+-		else {
++		} else {
+ 			/*
+ 			 * If bucketsize is not a power-of-two, we may free
+ 			 * some pages at the end of hash table which
 -- 
 2.13.3
 
