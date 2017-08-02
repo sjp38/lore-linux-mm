@@ -1,88 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 33F4C6B0639
-	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 18:27:21 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id q198so28745662qke.13
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 15:27:21 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 81si30452193qka.271.2017.08.02.15.27.19
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CFE06B063B
+	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 19:07:20 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id x28so149067wma.7
+        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 16:07:20 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id h65si259325wmh.58.2017.08.02.16.07.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Aug 2017 15:27:19 -0700 (PDT)
-Date: Thu, 3 Aug 2017 00:27:14 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 0/6] userfaultfd updates for v4.13-rc3
-Message-ID: <20170802222714.GH21775@redhat.com>
-References: <20170802165145.22628-1-aarcange@redhat.com>
- <20170802142925.4a3ad06ff7b0e769046f52db@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170802142925.4a3ad06ff7b0e769046f52db@linux-foundation.org>
+        Wed, 02 Aug 2017 16:07:18 -0700 (PDT)
+Date: Wed, 2 Aug 2017 16:07:16 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] z3fold: use per-cpu unbuddied lists
+Message-Id: <20170802160716.f5d1072873799a3a420f6538@linux-foundation.org>
+In-Reply-To: <20170802122505.e41d5c778a873375bcb0cc19@gmail.com>
+References: <20170802122505.e41d5c778a873375bcb0cc19@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Maxime Coquelin <maxime.coquelin@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mike Kravetz <mike.kravetz@oracle.com>, Alexey Perevalov <a.perevalov@samsung.com>
+To: Vitaly Wool <vitalywool@gmail.com>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Dan Streetman <ddstreet@ieee.org>, Oleksiy.Avramchenko@sony.com
 
-On Wed, Aug 02, 2017 at 02:29:25PM -0700, Andrew Morton wrote:
-> On Wed,  2 Aug 2017 18:51:39 +0200 Andrea Arcangeli <aarcange@redhat.com> wrote:
-> 
-> > Hello,
-> > 
-> > these are some uffd updates I have pending that looks ready for
-> > merging. vhost-user KVM developement run into a crash so patch 1/6 is
-> > urgent (and simple), the rest is not urgent.
-> > 
-> > The testcase has been updated to exercise it.
-> > 
-> > This should apply clean to -mm, and I reviewed in detail all other
-> > userfaultfd patches that are in -mm and they're all great, including
-> > the shmem zeropage addition.
-> > 
-> > Alexey Perevalov (1):
-> >   userfaultfd: provide pid in userfault msg
-> > 
-> > Andrea Arcangeli (5):
-> >   userfaultfd: hugetlbfs: remove superfluous page unlock in VM_SHARED
-> >     case
-> >   userfaultfd: selftest: exercise UFFDIO_COPY/ZEROPAGE -EEXIST
-> >   userfaultfd: selftest: explicit failure if the SIGBUS test failed
-> >   userfaultfd: call userfaultfd_unmap_prep only if __split_vma succeeds
-> >   userfaultfd: provide pid in userfault msg - add feat union
-> 
-> I'm thinking "userfaultfd: hugetlbfs: remove superfluous page unlock in
-> VM_SHARED case" goes into 4.13-rc and the other patches into 4.14-rc1. 
-> Sound sane?
+On Wed, 2 Aug 2017 12:25:05 +0200 Vitaly Wool <vitalywool@gmail.com> wrote:
 
-That would be perfect!
+> z3fold is operating on unbuddied lists in a simple manner: in fact,
+> it only takes the first entry off the list on a hot path. So if the
+> z3fold pool is big enough and balanced well enough, considering
+> only the lists local to the current CPU won't be an issue in any
+> way, while random I/O performance will go up.
 
-Mike spotted that 2/6 needs the incremental fix below, my compiler
-didn't warn about it and the difference would be only noticeable in
-case of fatal errors. I can resend 2/6 if you prefer.
+Has the performance benefit been measured?  It's a large patch.
 
-diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
-index 34838d5b33f3..a2c53a3d223d 100644
---- a/tools/testing/selftests/vm/userfaultfd.c
-+++ b/tools/testing/selftests/vm/userfaultfd.c
-@@ -813,13 +813,14 @@ static int uffdio_zeropage(int ufd, unsigned long offset)
- 		if (uffdio_zeropage.zeropage != page_size) {
- 			fprintf(stderr, "UFFDIO_ZEROPAGE unexpected %Ld\n",
- 				uffdio_zeropage.zeropage), exit(1);
--		} else
-+		} else {
- 			if (test_uffdio_zeropage_eexist) {
- 				test_uffdio_zeropage_eexist = false;
- 				retry_uffdio_zeropage(ufd, &uffdio_zeropage,
- 						      offset);
- 			}
- 			return 1;
-+		}
- 	} else {
- 		fprintf(stderr,
- 			"UFFDIO_ZEROPAGE succeeded %Ld\n",
+> This patch also introduces two worker threads which: one for async
+> in-page object layout optimization and one for releasing freed
+> pages.
 
-Thanks,
-Andrea
+Why?  What are the runtime effects of this change?  Does this turn
+currently-synchronous operations into now-async operations?  If so,
+what are the implications of this if, say, the workqueue doesn't get
+serviced for a while?
+
+etc.  Sorry, but I'm not seeing anywhere near enough information and
+testing results to justify merging such a large and intrusive patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
