@@ -1,52 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 898C16B05E4
-	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 12:40:08 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id c2so24258426qkb.10
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 09:40:08 -0700 (PDT)
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 433836B05E8
+	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 12:52:01 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id w51so23485784qtc.12
+        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 09:52:01 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l12si29156004qtl.544.2017.08.02.09.40.07
+        by mx.google.com with ESMTPS id q45si29540532qtf.322.2017.08.02.09.52.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Aug 2017 09:40:07 -0700 (PDT)
-Date: Wed, 2 Aug 2017 18:40:01 +0200
+        Wed, 02 Aug 2017 09:52:00 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] userfaultfd_zeropage: return -ENOSPC in case mm has gone
-Message-ID: <20170802164001.GF21775@redhat.com>
-References: <1501136819-21857-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20170731122204.GB4878@dhcp22.suse.cz>
- <20170731133247.GK29716@redhat.com>
- <20170731134507.GC4829@dhcp22.suse.cz>
- <20170802123440.GD17905@rapoport-lnx>
- <20170802155522.GB21775@redhat.com>
- <20170802162248.GA3476@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170802162248.GA3476@dhcp22.suse.cz>
+Subject: [PATCH 0/6] userfaultfd updates for v4.13-rc3
+Date: Wed,  2 Aug 2017 18:51:39 +0200
+Message-Id: <20170802165145.22628-1-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, stable@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Maxime Coquelin <maxime.coquelin@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Mike Kravetz <mike.kravetz@oracle.com>, Alexey Perevalov <a.perevalov@samsung.com>
 
-On Wed, Aug 02, 2017 at 06:22:49PM +0200, Michal Hocko wrote:
-> ESRCH refers to "no such process". Strictly speaking userfaultfd code is
-> about a mm which is gone but that is a mere detail. In fact the owner of
+Hello,
 
-Well this whole issue about which retval, is about a mere detail in
-the first place, so I don't think you can discount all other mere
-details as irrelevant in the evaluation of a change to solve a mere
-detail.
+these are some uffd updates I have pending that looks ready for
+merging. vhost-user KVM developement run into a crash so patch 1/6 is
+urgent (and simple), the rest is not urgent.
 
-> But as I've said, this might be really risky to change. My impression
-> was that userfaultfd is not widely used yet and those can be fixed
-> easily but if that is not the case then we have to live with the current
-> ENOSPC.
+The testcase has been updated to exercise it.
 
-The only change would be for userfaultfd non cooperative mode, and
-CRIU is the main user of that. So I think it is up to Mike to decide,
-I'm fine either ways. I certainly agree ESRCH could be a slightly
-better fit, I only wanted to clarify it's not a 100% match either.
+This should apply clean to -mm, and I reviewed in detail all other
+userfaultfd patches that are in -mm and they're all great, including
+the shmem zeropage addition.
+
+Alexey Perevalov (1):
+  userfaultfd: provide pid in userfault msg
+
+Andrea Arcangeli (5):
+  userfaultfd: hugetlbfs: remove superfluous page unlock in VM_SHARED
+    case
+  userfaultfd: selftest: exercise UFFDIO_COPY/ZEROPAGE -EEXIST
+  userfaultfd: selftest: explicit failure if the SIGBUS test failed
+  userfaultfd: call userfaultfd_unmap_prep only if __split_vma succeeds
+  userfaultfd: provide pid in userfault msg - add feat union
+
+ fs/userfaultfd.c                         |   8 +-
+ include/uapi/linux/userfaultfd.h         |  12 ++-
+ mm/hugetlb.c                             |   2 +-
+ mm/mmap.c                                |  22 +++--
+ tools/testing/selftests/vm/userfaultfd.c | 149 +++++++++++++++++++++++++++++--
+ 5 files changed, 172 insertions(+), 21 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
