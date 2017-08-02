@@ -1,53 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 19BB56B063F
-	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 19:26:27 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id k190so64534029pge.9
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 16:26:27 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id t66si17712405pgt.865.2017.08.02.16.26.25
-        for <linux-mm@kvack.org>;
-        Wed, 02 Aug 2017 16:26:26 -0700 (PDT)
-Date: Thu, 3 Aug 2017 08:26:24 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v6 0/7] fixes of TLB batching races
-Message-ID: <20170802232624.GB32020@bbox>
-References: <20170802000818.4760-1-namit@vmware.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170802000818.4760-1-namit@vmware.com>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 278F96B0641
+	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 19:28:02 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id q189so184672wmd.6
+        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 16:28:02 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id g77si283924wmc.166.2017.08.02.16.28.00
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Aug 2017 16:28:00 -0700 (PDT)
+Date: Wed, 2 Aug 2017 16:27:58 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v6 5/7] mm: make tlb_flush_pending global
+Message-Id: <20170802162758.40760a1e3cbb24b10e1c4144@linux-foundation.org>
+In-Reply-To: <201708022224.e3s8yqcJ%fengguang.wu@intel.com>
+References: <20170802000818.4760-6-namit@vmware.com>
+	<201708022224.e3s8yqcJ%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nadav Amit <namit@vmware.com>
-Cc: linux-mm@kvack.org, nadav.amit@gmail.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: kbuild test robot <lkp@intel.com>
+Cc: Nadav Amit <namit@vmware.com>, kbuild-all@01.org, linux-mm@kvack.org, nadav.amit@gmail.com, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>
 
-On Tue, Aug 01, 2017 at 05:08:11PM -0700, Nadav Amit wrote:
-> It turns out that Linux TLB batching mechanism suffers from various races.
-> Races that are caused due to batching during reclamation were recently
-> handled by Mel and this patch-set deals with others. The more fundamental
-> issue is that concurrent updates of the page-tables allow for TLB flushes
-> to be batched on one core, while another core changes the page-tables.
-> This other core may assume a PTE change does not require a flush based on
-> the updated PTE value, while it is unaware that TLB flushes are still
-> pending.
-> 
-> This behavior affects KSM (which may result in memory corruption) and
-> MADV_FREE and MADV_DONTNEED (which may result in incorrect behavior). A
-> proof-of-concept can easily produce the wrong behavior of MADV_DONTNEED.
-> Memory corruption in KSM is harder to produce in practice, but was observed
-> by hacking the kernel and adding a delay before flushing and replacing the
-> KSM page.
-> 
-> Finally, there is also one memory barrier missing, which may affect
-> architectures with weak memory model.
-> 
-> v5 -> v6:
-> * Combining with Minchan Kim's patch set, adding ack's (Andrew)
-> * Minor: missing header, typos (Nadav)
-> * Renaming arch_generic_tlb_finish_mmu (Mel)
+On Wed, 2 Aug 2017 22:28:47 +0800 kbuild test robot <lkp@intel.com> wrote:
 
-Thanks for intergrating/correction, Nadav.
+> Hi Minchan,
+> 
+> [auto build test WARNING on linus/master]
+> [also build test WARNING on v4.13-rc3]
+> [cannot apply to next-20170802]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+> 
+> url:    https://github.com/0day-ci/linux/commits/Nadav-Amit/mm-migrate-prevent-racy-access-to-tlb_flush_pending/20170802-205715
+> config: sh-allyesconfig (attached as .config)
+> compiler: sh4-linux-gnu-gcc (Debian 6.1.1-9) 6.1.1 20160705
+> reproduce:
+>         wget https://raw.githubusercontent.com/01org/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+>         chmod +x ~/bin/make.cross
+>         # save the attached .config to linux build tree
+>         make.cross ARCH=sh 
+> 
+> All warnings (new ones prefixed by >>):
+> 
+>    In file included from include/linux/printk.h:6:0,
+>                     from include/linux/kernel.h:13,
+>                     from mm/debug.c:8:
+>    mm/debug.c: In function 'dump_mm':
+> >> include/linux/kern_levels.h:4:18: warning: format '%lx' expects argument of type 'long unsigned int', but argument 40 has type 'int' [-Wformat=]
+>
+> ...
+>
+
+This?
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: mm-make-tlb_flush_pending-global-fix
+
+remove more ifdefs from world's ugliest printk statement
+
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Nadav Amit <namit@vmware.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/debug.c |    2 --
+ 1 file changed, 2 deletions(-)
+
+diff -puN include/linux/mm_types.h~mm-make-tlb_flush_pending-global-fix include/linux/mm_types.h
+diff -puN mm/debug.c~mm-make-tlb_flush_pending-global-fix mm/debug.c
+--- a/mm/debug.c~mm-make-tlb_flush_pending-global-fix
++++ a/mm/debug.c
+@@ -124,9 +124,7 @@ void dump_mm(const struct mm_struct *mm)
+ #ifdef CONFIG_NUMA_BALANCING
+ 		"numa_next_scan %lu numa_scan_offset %lu numa_scan_seq %d\n"
+ #endif
+-#if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
+ 		"tlb_flush_pending %d\n"
+-#endif
+ 		"def_flags: %#lx(%pGv)\n",
+ 
+ 		mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
