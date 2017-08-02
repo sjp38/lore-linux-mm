@@ -1,211 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D1BEC6B0614
-	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 16:39:08 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id i19so26213883qte.5
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 13:39:08 -0700 (PDT)
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D2FD6B0615
+	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 16:39:10 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id p135so27646699qke.0
+        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 13:39:10 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id t45si12046052qth.4.2017.08.02.13.39.06
+        by mx.google.com with ESMTPS id c70si29431880qkj.133.2017.08.02.13.39.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Aug 2017 13:39:06 -0700 (PDT)
+        Wed, 02 Aug 2017 13:39:09 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v4 05/15] mm: don't accessed uninitialized struct pages
-Date: Wed,  2 Aug 2017 16:38:14 -0400
-Message-Id: <1501706304-869240-6-git-send-email-pasha.tatashin@oracle.com>
-In-Reply-To: <1501706304-869240-1-git-send-email-pasha.tatashin@oracle.com>
-References: <1501706304-869240-1-git-send-email-pasha.tatashin@oracle.com>
+Subject: [v4 00/15] complete deferred page initialization
+Date: Wed,  2 Aug 2017 16:38:09 -0400
+Message-Id: <1501706304-869240-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org
 
-In deferred_init_memmap() where all deferred struct pages are initialized
-we have a check like this:
+Changelog:
+v3 - v2
+- Rewrote code to zero sturct pages in __init_single_page() as
+  suggested by Michal Hocko
+- Added code to handle issues related to accessing struct page
+  memory before they are initialized.
 
-    if (page->flags) {
-            VM_BUG_ON(page_zone(page) != zone);
-            goto free_range;
-    }
+v2 - v3
+- Addressed David Miller comments about one change per patch:
+    * Splited changes to platforms into 4 patches
+    * Made "do not zero vmemmap_buf" as a separate patch
 
-This way we are checking if the current deferred page has already been
-initialized. It works, because memory for struct pages has been zeroed, and
-the only way flags are not zero if it went through __init_single_page()
-before.  But, once we change the current behavior and won't zero the memory
-in memblock allocator, we cannot trust anything inside "struct page"es
-until they are initialized. This patch fixes this.
+v1 - v2
+- Per request, added s390 to deferred "struct page" zeroing
+- Collected performance data on x86 which proofs the importance to
+  keep memset() as prefetch (see below).
 
-This patch defines a new accessor memblock_get_reserved_pfn_range()
-which returns successive ranges of reserved PFNs.  deferred_init_memmap()
-calls it to determine if a PFN and its struct page has already been
-initialized.
+SMP machines can benefit from the DEFERRED_STRUCT_PAGE_INIT config option,
+which defers initializing struct pages until all cpus have been started so
+it can be done in parallel.
 
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
-Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-Reviewed-by: Bob Picco <bob.picco@oracle.com>
----
- include/linux/memblock.h |  3 +++
- mm/memblock.c            | 54 ++++++++++++++++++++++++++++++++++++++++++------
- mm/page_alloc.c          | 11 +++++++++-
- 3 files changed, 61 insertions(+), 7 deletions(-)
+However, this feature is sub-optimal, because the deferred page
+initialization code expects that the struct pages have already been zeroed,
+and the zeroing is done early in boot with a single thread only.  Also, we
+access that memory and set flags before struct pages are initialized. All
+of this is fixed in this patchset.
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index c89d16c88512..9d8dabedf5ba 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -321,6 +321,9 @@ int memblock_is_map_memory(phys_addr_t addr);
- int memblock_is_region_memory(phys_addr_t base, phys_addr_t size);
- bool memblock_is_reserved(phys_addr_t addr);
- bool memblock_is_region_reserved(phys_addr_t base, phys_addr_t size);
-+void memblock_get_reserved_pfn_range(unsigned long pfn,
-+				     unsigned long *pfn_start,
-+				     unsigned long *pfn_end);
- 
- extern void __memblock_dump_all(void);
- 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 3a2707914064..e6df054e3180 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1580,7 +1580,13 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
- 	memblock_cap_memory_range(0, max_addr);
- }
- 
--static int __init_memblock memblock_search(struct memblock_type *type, phys_addr_t addr)
-+/**
-+ * Return index in regions array if addr is within the region. Otherwise
-+ * return -1. If -1 is returned and *next_idx is not %NULL, sets it to the
-+ * next region index or -1 if there is none.
-+ */
-+static int __init_memblock memblock_search(struct memblock_type *type,
-+					   phys_addr_t addr, int *next_idx)
- {
- 	unsigned int left = 0, right = type->cnt;
- 
-@@ -1595,22 +1601,26 @@ static int __init_memblock memblock_search(struct memblock_type *type, phys_addr
- 		else
- 			return mid;
- 	} while (left < right);
-+
-+	if (next_idx)
-+		*next_idx = (right == type->cnt) ? -1 : right;
-+
- 	return -1;
- }
- 
- bool __init memblock_is_reserved(phys_addr_t addr)
- {
--	return memblock_search(&memblock.reserved, addr) != -1;
-+	return memblock_search(&memblock.reserved, addr, NULL) != -1;
- }
- 
- bool __init_memblock memblock_is_memory(phys_addr_t addr)
- {
--	return memblock_search(&memblock.memory, addr) != -1;
-+	return memblock_search(&memblock.memory, addr, NULL) != -1;
- }
- 
- int __init_memblock memblock_is_map_memory(phys_addr_t addr)
- {
--	int i = memblock_search(&memblock.memory, addr);
-+	int i = memblock_search(&memblock.memory, addr, NULL);
- 
- 	if (i == -1)
- 		return false;
-@@ -1622,7 +1632,7 @@ int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
- 			 unsigned long *start_pfn, unsigned long *end_pfn)
- {
- 	struct memblock_type *type = &memblock.memory;
--	int mid = memblock_search(type, PFN_PHYS(pfn));
-+	int mid = memblock_search(type, PFN_PHYS(pfn), NULL);
- 
- 	if (mid == -1)
- 		return -1;
-@@ -1646,7 +1656,7 @@ int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
-  */
- int __init_memblock memblock_is_region_memory(phys_addr_t base, phys_addr_t size)
- {
--	int idx = memblock_search(&memblock.memory, base);
-+	int idx = memblock_search(&memblock.memory, base, NULL);
- 	phys_addr_t end = base + memblock_cap_size(base, &size);
- 
- 	if (idx == -1)
-@@ -1656,6 +1666,38 @@ int __init_memblock memblock_is_region_memory(phys_addr_t base, phys_addr_t size
- }
- 
- /**
-+ * memblock_get_reserved_pfn_range - search for the next reserved region
-+ *
-+ * @pfn: start searching from this pfn.
-+ *
-+ * RETURNS:
-+ * [start_pfn, end_pfn), where start_pfn >= pfn. If none is found
-+ * start_pfn, and end_pfn are both set to ULONG_MAX.
-+ */
-+void __init_memblock memblock_get_reserved_pfn_range(unsigned long pfn,
-+						     unsigned long *start_pfn,
-+						     unsigned long *end_pfn)
-+{
-+	struct memblock_type *type = &memblock.reserved;
-+	int next_idx, idx;
-+
-+	idx = memblock_search(type, PFN_PHYS(pfn), &next_idx);
-+	if (idx == -1 && next_idx == -1) {
-+		*start_pfn = ULONG_MAX;
-+		*end_pfn = ULONG_MAX;
-+		return;
-+	}
-+
-+	if (idx == -1) {
-+		idx = next_idx;
-+		*start_pfn = PFN_DOWN(type->regions[idx].base);
-+	} else {
-+		*start_pfn = pfn;
-+	}
-+	*end_pfn = PFN_DOWN(type->regions[idx].base + type->regions[idx].size);
-+}
-+
-+/**
-  * memblock_is_region_reserved - check if a region intersects reserved memory
-  * @base: base of region to check
-  * @size: size of region to check
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 87fb35ac0b87..99b9e2e06319 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1447,6 +1447,7 @@ static int __init deferred_init_memmap(void *data)
- 	pg_data_t *pgdat = data;
- 	int nid = pgdat->node_id;
- 	struct mminit_pfnnid_cache nid_init_state = { };
-+	unsigned long resv_start_pfn = 0, resv_end_pfn = 0;
- 	unsigned long start = jiffies;
- 	unsigned long nr_pages = 0;
- 	unsigned long walk_start, walk_end;
-@@ -1491,6 +1492,10 @@ static int __init deferred_init_memmap(void *data)
- 			pfn = zone->zone_start_pfn;
- 
- 		for (; pfn < end_pfn; pfn++) {
-+			if (pfn >= resv_end_pfn)
-+				memblock_get_reserved_pfn_range(pfn,
-+								&resv_start_pfn,
-+								&resv_end_pfn);
- 			if (!pfn_valid_within(pfn))
- 				goto free_range;
- 
-@@ -1524,7 +1529,11 @@ static int __init deferred_init_memmap(void *data)
- 				cond_resched();
- 			}
- 
--			if (page->flags) {
-+			/*
-+			 * Check if this page has already been initialized due
-+			 * to being reserved during boot in memblock.
-+			 */
-+			if (pfn >= resv_start_pfn) {
- 				VM_BUG_ON(page_zone(page) != zone);
- 				goto free_range;
- 			}
--- 
+In this work we do the following:
+- Never read access struct page until it was initialized
+- Never set any fields in struct pages before they are initialized
+- Zero struct page at the beginning of struct page initialization
+
+Performance improvements on x86 machine with 8 nodes:
+Intel(R) Xeon(R) CPU E7-8895 v3 @ 2.60GHz
+
+Single threaded struct page init: 7.6s/T improvement
+Deferred struct page init: 10.2s/T improvement
+
+Pavel Tatashin (15):
+  x86/mm: reserve only exiting low pages
+  x86/mm: setting fields in deferred pages
+  sparc64/mm: setting fields in deferred pages
+  mm: discard memblock data later
+  mm: don't accessed uninitialized struct pages
+  sparc64: simplify vmemmap_populate
+  mm: defining memblock_virt_alloc_try_nid_raw
+  mm: zero struct pages during initialization
+  sparc64: optimized struct page zeroing
+  x86/kasan: explicitly zero kasan shadow memory
+  arm64/kasan: explicitly zero kasan shadow memory
+  mm: explicitly zero pagetable memory
+  mm: stop zeroing memory during allocation in vmemmap
+  mm: optimize early system hash allocations
+  mm: debug for raw alloctor
+
+ arch/arm64/mm/kasan_init.c          |  32 ++++++++
+ arch/sparc/include/asm/pgtable_64.h |  18 +++++
+ arch/sparc/mm/init_64.c             |  31 +++-----
+ arch/x86/kernel/setup.c             |   5 +-
+ arch/x86/mm/init_64.c               |   9 ++-
+ arch/x86/mm/kasan_init_64.c         |  29 +++++++
+ include/linux/bootmem.h             |  11 +++
+ include/linux/memblock.h            |  10 ++-
+ include/linux/mm.h                  |   9 +++
+ mm/memblock.c                       | 152 ++++++++++++++++++++++++++++--------
+ mm/nobootmem.c                      |  16 ----
+ mm/page_alloc.c                     |  29 ++++---
+ mm/sparse-vmemmap.c                 |  10 ++-
+ mm/sparse.c                         |   6 +-
+ 14 files changed, 279 insertions(+), 88 deletions(-)
+
+--
 2.13.3
 
 --
