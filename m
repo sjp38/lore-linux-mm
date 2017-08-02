@@ -1,74 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F5D36B062F
-	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 16:39:46 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id r187so56501738pfr.8
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 13:39:46 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id x7si20412384pge.177.2017.08.02.13.39.45
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 879F06B0631
+	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 17:17:23 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id x64so328045wmg.11
+        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 14:17:23 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 91si185953wrg.471.2017.08.02.14.17.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Aug 2017 13:39:45 -0700 (PDT)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v4 12/15] mm: explicitly zero pagetable memory
-Date: Wed,  2 Aug 2017 16:38:21 -0400
-Message-Id: <1501706304-869240-13-git-send-email-pasha.tatashin@oracle.com>
-In-Reply-To: <1501706304-869240-1-git-send-email-pasha.tatashin@oracle.com>
-References: <1501706304-869240-1-git-send-email-pasha.tatashin@oracle.com>
+        Wed, 02 Aug 2017 14:17:22 -0700 (PDT)
+Date: Wed, 2 Aug 2017 14:17:20 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: ratelimit PFNs busy info message
+Message-Id: <20170802141720.228502368b534f517e3107ff@linux-foundation.org>
+In-Reply-To: <499c0f6cc10d6eb829a67f2a4d75b4228a9b356e.1501695897.git.jtoppins@redhat.com>
+References: <499c0f6cc10d6eb829a67f2a4d75b4228a9b356e.1501695897.git.jtoppins@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org
+To: Jonathan Toppins <jtoppins@redhat.com>
+Cc: linux-mm@kvack.org, linux-rdma@vger.kernel.org, dledford@redhat.com, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Hillf Danton <hillf.zj@alibaba-inc.com>, open list <linux-kernel@vger.kernel.org>
 
-Soon vmemmap_alloc_block() will no longer zero the block, so zero memory
-at its call sites for everything except struct pages.  Struct page memory
-is zero'd by struct page initialization.
+On Wed,  2 Aug 2017 13:44:57 -0400 Jonathan Toppins <jtoppins@redhat.com> wrote:
 
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
-Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-Reviewed-by: Bob Picco <bob.picco@oracle.com>
----
- mm/sparse-vmemmap.c | 4 ++++
- 1 file changed, 4 insertions(+)
+> The RDMA subsystem can generate several thousand of these messages per
+> second eventually leading to a kernel crash. Ratelimit these messages
+> to prevent this crash.
 
-diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-index c50b1a14d55e..d40c721ab19f 100644
---- a/mm/sparse-vmemmap.c
-+++ b/mm/sparse-vmemmap.c
-@@ -191,6 +191,7 @@ pmd_t * __meminit vmemmap_pmd_populate(pud_t *pud, unsigned long addr, int node)
- 		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
- 		if (!p)
- 			return NULL;
-+		memset(p, 0, PAGE_SIZE);
- 		pmd_populate_kernel(&init_mm, pmd, p);
- 	}
- 	return pmd;
-@@ -203,6 +204,7 @@ pud_t * __meminit vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node)
- 		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
- 		if (!p)
- 			return NULL;
-+		memset(p, 0, PAGE_SIZE);
- 		pud_populate(&init_mm, pud, p);
- 	}
- 	return pud;
-@@ -215,6 +217,7 @@ p4d_t * __meminit vmemmap_p4d_populate(pgd_t *pgd, unsigned long addr, int node)
- 		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
- 		if (!p)
- 			return NULL;
-+		memset(p, 0, PAGE_SIZE);
- 		p4d_populate(&init_mm, p4d, p);
- 	}
- 	return p4d;
-@@ -227,6 +230,7 @@ pgd_t * __meminit vmemmap_pgd_populate(unsigned long addr, int node)
- 		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
- 		if (!p)
- 			return NULL;
-+		memset(p, 0, PAGE_SIZE);
- 		pgd_populate(&init_mm, pgd, p);
- 	}
- 	return pgd;
--- 
-2.13.3
+Well...  why are all these EBUSY's occurring?  It sounds inefficient (at
+least) but if it is expected, normal and unavoidable then perhaps we
+should just remove that message altogether?
+
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -7666,7 +7666,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+>  
+>  	/* Make sure the range is really isolated. */
+>  	if (test_pages_isolated(outer_start, end, false)) {
+> -		pr_info("%s: [%lx, %lx) PFNs busy\n",
+> +		pr_info_ratelimited("%s: [%lx, %lx) PFNs busy\n",
+>  			__func__, outer_start, end);
+>  		ret = -EBUSY;
+>  		goto done;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
