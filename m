@@ -1,73 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E7236B05B3
-	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 05:40:56 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id t187so41938618pfb.0
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 02:40:56 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id z72si16665868pgd.836.2017.08.02.02.40.54
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 02 Aug 2017 02:40:54 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [RFC v6 21/62] powerpc: introduce execute-only pkey
-In-Reply-To: <87d18fw9it.fsf@linux.vnet.ibm.com>
-References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com> <1500177424-13695-22-git-send-email-linuxram@us.ibm.com> <87shhgdx5i.fsf@linux.vnet.ibm.com> <87d18fu6o1.fsf@concordia.ellerman.id.au> <87d18fw9it.fsf@linux.vnet.ibm.com>
-Date: Wed, 02 Aug 2017 19:40:46 +1000
-Message-ID: <871sous3xd.fsf@concordia.ellerman.id.au>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 90E756B05B4
+	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 05:49:22 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id d5so41731706pfg.3
+        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 02:49:22 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id d5si19628539pgk.320.2017.08.02.02.49.20
+        for <linux-mm@kvack.org>;
+        Wed, 02 Aug 2017 02:49:21 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: [PATCH v5 0/9] arm64: Enable contiguous pte hugepage support
+Date: Wed,  2 Aug 2017 10:48:55 +0100
+Message-Id: <20170802094904.27749-1-punit.agrawal@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
-Cc: Ram Pai <linuxram@us.ibm.com>, linux-arch@vger.kernel.org, corbet@lwn.net, arnd@arndb.de, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org, dave.hansen@intel.com, mingo@redhat.com, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, linux-kselftest@vger.kernel.org, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, khandual@linux.vnet.ibm.com
+To: will.deacon@arm.com, catalin.marinas@arm.com
+Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-mm@kvack.org, steve.capper@arm.com, linux-arm-kernel@lists.infradead.org, mark.rutland@arm.com
 
-Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com> writes:
+Hi,
 
-> Michael Ellerman <mpe@ellerman.id.au> writes:
->
->> Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com> writes:
->>> Ram Pai <linuxram@us.ibm.com> writes:
->> ...
->>>> +
->>>> +	/* We got one, store it and use it from here on out */
->>>> +	if (need_to_set_mm_pkey)
->>>> +		mm->context.execute_only_pkey = execute_only_pkey;
->>>> +	return execute_only_pkey;
->>>> +}
->>>
->>> If you follow the code flow in __execute_only_pkey, the AMR and UAMOR
->>> are read 3 times in total, and AMR is written twice. IAMR is read and
->>> written twice. Since they are SPRs and access to them is slow (or isn't
->>> it?),
->>
->> SPRs read/writes are slow, but they're not *that* slow in comparison to
->> a system call (which I think is where this code is being called?).
->
-> Yes, this code runs on mprotect and mmap syscalls if the memory is
-> requested to have execute but not read nor write permissions.
+This series re-enables contiguous hugepage support for arm64. Support
+for contiguous hugepages is useful on systems where the PMD hugepage
+size is too large (512MB hugepage when using 64k page granule) and
+contiguous hugepages can be used to provide reasonable hugepage sizes
+to the user.
 
-Yep. That's not in the fast path for key usage, ie. the fast path is
-userspace changing the AMR itself, and the overhead of a syscall is
-already hundreds of cycles.
+Previous postings can be found at [0], [1], [4], [5].
 
->> So we should try to avoid too many SPR read/writes, but at the same time
->> we can accept more than the minimum if it makes the code much easier to
->> follow.
->
-> Ok. Ram had asked me to suggest a way to optimize the SPR reads and
-> writes and I came up with the patch below. Do you think it's worth it?
+The patches can be split as
 
-At a glance no I don't think it is. Sorry you spent that much time on it.
+* Patches 1-3, 9 cleanups and improvements
 
-I think we can probably reduce the number of SPR accesses without
-needing to go to that level of complexity.
+* Patch 4 addresses the break-before-make requirement of the
+  architecture for contiguous hugepages.
 
-But don't throw the patch away, I may eat my words once I have the full
-series applied and am looking at it hard - at the moment I'm just
-reviewing the patches piecemeal as I get time.
+* Patch 5-7 add support for handling swap entries for contiguous pte
+  hugepages.
 
-cheers
+* Patch 8 enables contiguous hugepage support for arm64
+
+All the dependent series ([2], [3]) for enabling contiguous hugepage
+support have been merged in the previous cycle. Additionally, a patch
+to clarify the semantics of huge_pte_offset() in generic code[6] is
+currently in the -mm tree.
+
+The patches are based on v4.13-rc3. If there are no further comments
+please consider merging for the next release cycle.
+
+Thanks,
+Punit
+
+[0] https://www.spinics.net/lists/arm-kernel/msg570422.html
+[1] http://lists.infradead.org/pipermail/linux-arm-kernel/2017-March/497027.html
+[2] https://www.spinics.net/lists/arm-kernel/msg581657.html
+[3] https://www.spinics.net/lists/arm-kernel/msg583342.html
+[4] https://www.spinics.net/lists/arm-kernel/msg583367.html
+[5] https://www.spinics.net/lists/arm-kernel/msg582758.html
+[6] https://lkml.org/lkml/2017/7/25/536
+
+Changes v4 -> v5
+* Rebased on v4.13-rc3
+
+Changes v3 -> v4
+* Moved Patches 2 and 4 to [3] due to dependencies
+
+Changes v2 -> v3
+* Rebased on v4.12-rc2
+* Included swap related fixes in this series
+* Enable contiguous pte hugepages
+
+Changes v1 -> v2:
+* Marked patch 2 for stable
+* Fixed comment issues in patch 7
+* Added tags
+  
+Punit Agrawal (4):
+  arm64: hugetlb: Handle swap entries in huge_pte_offset() for
+    contiguous hugepages
+  arm64: hugetlb: Override huge_pte_clear() to support contiguous
+    hugepages
+  arm64: hugetlb: Override set_huge_swap_pte_at() to support contiguous
+    hugepages
+  arm64: Re-enable support for contiguous hugepages
+
+Steve Capper (5):
+  arm64: hugetlb: set_huge_pte_at Add WARN_ON on !pte_present
+  arm64: hugetlb: Introduce pte_pgprot helper
+  arm64: hugetlb: Spring clean huge pte accessors
+  arm64: hugetlb: Add break-before-make logic for contiguous entries
+  arm64: hugetlb: Cleanup setup_hugepagesz
+
+ arch/arm64/include/asm/hugetlb.h |   9 +-
+ arch/arm64/mm/hugetlbpage.c      | 287 ++++++++++++++++++++++++++++-----------
+ 2 files changed, 213 insertions(+), 83 deletions(-)
+
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
