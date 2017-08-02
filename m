@@ -1,70 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 461506B061E
-	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 16:39:14 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id v77so60469545pgb.15
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 13:39:14 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 0032A6B0620
+	for <linux-mm@kvack.org>; Wed,  2 Aug 2017 16:39:17 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id w187so61381242pgb.10
+        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 13:39:16 -0700 (PDT)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id y12si6466208pff.512.2017.08.02.13.39.12
+        by mx.google.com with ESMTPS id q4si21717245plk.758.2017.08.02.13.39.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Aug 2017 13:39:13 -0700 (PDT)
+        Wed, 02 Aug 2017 13:39:11 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v4 14/15] mm: optimize early system hash allocations
-Date: Wed,  2 Aug 2017 16:38:23 -0400
-Message-Id: <1501706304-869240-15-git-send-email-pasha.tatashin@oracle.com>
+Subject: [v4 08/15] mm: zero struct pages during initialization
+Date: Wed,  2 Aug 2017 16:38:17 -0400
+Message-Id: <1501706304-869240-9-git-send-email-pasha.tatashin@oracle.com>
 In-Reply-To: <1501706304-869240-1-git-send-email-pasha.tatashin@oracle.com>
 References: <1501706304-869240-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org
 
-Clients can call alloc_large_system_hash() with flag: HASH_ZERO to specify
-that memory that was allocated for system hash needs to be zeroed,
-otherwise the memory does not need to be zeroed, and client will initialize
-it.
-
-If memory does not need to be zero'd, call the new
-memblock_virt_alloc_raw() interface, and thus improve the boot performance.
+Add struct page zeroing as a part of initialization of other fields in
+__init_single_page().
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
 Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 Reviewed-by: Bob Picco <bob.picco@oracle.com>
 ---
- mm/page_alloc.c | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ include/linux/mm.h | 9 +++++++++
+ mm/page_alloc.c    | 1 +
+ 2 files changed, 10 insertions(+)
 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 46b9ac5e8569..183ac5e733db 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -94,6 +94,15 @@ extern int mmap_rnd_compat_bits __read_mostly;
+ #endif
+ 
+ /*
++ * On some architectures it is expensive to call memset() for small sizes.
++ * Those architectures should provide their own implementation of "struct page"
++ * zeroing by defining this macro in <asm/pgtable.h>.
++ */
++#ifndef mm_zero_struct_page
++#define mm_zero_struct_page(pp)  ((void)memset((pp), 0, sizeof(struct page)))
++#endif
++
++/*
+  * Default maximum number of active map areas, this limits the number of vmas
+  * per mm struct. Users can overwrite this number by sysctl but there is a
+  * problem.
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index debea7c0febb..623e2f7634e7 100644
+index 99b9e2e06319..debea7c0febb 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -7350,18 +7350,17 @@ void *__init alloc_large_system_hash(const char *tablename,
- 
- 	log2qty = ilog2(numentries);
- 
--	/*
--	 * memblock allocator returns zeroed memory already, so HASH_ZERO is
--	 * currently not used when HASH_EARLY is specified.
--	 */
- 	gfp_flags = (flags & HASH_ZERO) ? GFP_ATOMIC | __GFP_ZERO : GFP_ATOMIC;
- 	do {
- 		size = bucketsize << log2qty;
--		if (flags & HASH_EARLY)
--			table = memblock_virt_alloc_nopanic(size, 0);
--		else if (hashdist)
-+		if (flags & HASH_EARLY) {
-+			if (flags & HASH_ZERO)
-+				table = memblock_virt_alloc_nopanic(size, 0);
-+			else
-+				table = memblock_virt_alloc_raw(size, 0);
-+		} else if (hashdist) {
- 			table = __vmalloc(size, gfp_flags, PAGE_KERNEL);
--		else {
-+		} else {
- 			/*
- 			 * If bucketsize is not a power-of-two, we may free
- 			 * some pages at the end of hash table which
+@@ -1168,6 +1168,7 @@ static void free_one_page(struct zone *zone,
+ static void __meminit __init_single_page(struct page *page, unsigned long pfn,
+ 				unsigned long zone, int nid)
+ {
++	mm_zero_struct_page(page);
+ 	set_page_links(page, zone, nid, pfn);
+ 	init_page_count(page);
+ 	page_mapcount_reset(page);
 -- 
 2.13.3
 
