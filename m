@@ -1,87 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C23A6B06B5
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 09:05:23 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id o5so6101598qki.2
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 06:05:23 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 50si10344628qtv.159.2017.08.03.06.05.21
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 072F16B06B7
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 09:14:45 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id p20so12868369pfj.2
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 06:14:44 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id u16si22342884plk.819.2017.08.03.06.14.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Aug 2017 06:05:21 -0700 (PDT)
-Date: Thu, 3 Aug 2017 09:05:06 -0400 (EDT)
-From: Pankaj Gupta <pagupta@redhat.com>
-Message-ID: <900253471.38532197.1501765506419.JavaMail.zimbra@redhat.com>
-In-Reply-To: <598316DB.4050308@intel.com>
-References: <1501742299-4369-1-git-send-email-wei.w.wang@intel.com> <1501742299-4369-6-git-send-email-wei.w.wang@intel.com> <147332060.38438527.1501748021126.JavaMail.zimbra@redhat.com> <598316DB.4050308@intel.com>
-Subject: Re: [PATCH v13 5/5] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
+        Thu, 03 Aug 2017 06:14:43 -0700 (PDT)
+Message-ID: <59832265.1040805@intel.com>
+Date: Thu, 03 Aug 2017 21:17:25 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Subject: Re: [PATCH v13 4/5] mm: support reporting free page blocks
+References: <1501742299-4369-1-git-send-email-wei.w.wang@intel.com> <1501742299-4369-5-git-send-email-wei.w.wang@intel.com> <20170803091151.GF12521@dhcp22.suse.cz> <5982FE07.3040207@intel.com> <20170803104417.GI12521@dhcp22.suse.cz> <59830897.2060203@intel.com> <20170803112831.GN12521@dhcp22.suse.cz> <5983130E.2070806@intel.com> <20170803124106.GR12521@dhcp22.suse.cz>
+In-Reply-To: <20170803124106.GR12521@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, mawilcox@microsoft.com, akpm@linux-foundation.org, virtio-dev@lists.oasis-open.org, david@redhat.com, cornelia huck <cornelia.huck@de.ibm.com>, mgorman@techsingularity.net, aarcange@redhat.com, amit shah <amit.shah@redhat.com>, pbonzini@redhat.com, liliang opensource <liliang.opensource@gmail.com>, yang zhang wz <yang.zhang.wz@gmail.com>, quan xu <quan.xu@aliyun.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mawilcox@microsoft.com, akpm@linux-foundation.org, virtio-dev@lists.oasis-open.org, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+
+On 08/03/2017 08:41 PM, Michal Hocko wrote:
+> On Thu 03-08-17 20:11:58, Wei Wang wrote:
+>> On 08/03/2017 07:28 PM, Michal Hocko wrote:
+>>> On Thu 03-08-17 19:27:19, Wei Wang wrote:
+>>>> On 08/03/2017 06:44 PM, Michal Hocko wrote:
+>>>>> On Thu 03-08-17 18:42:15, Wei Wang wrote:
+>>>>>> On 08/03/2017 05:11 PM, Michal Hocko wrote:
+>>>>>>> On Thu 03-08-17 14:38:18, Wei Wang wrote:
+>>>>> [...]
+>>>>>>>> +static int report_free_page_block(struct zone *zone, unsigned int order,
+>>>>>>>> +				  unsigned int migratetype, struct page **page)
+>>>>>>> This is just too ugly and wrong actually. Never provide struct page
+>>>>>>> pointers outside of the zone->lock. What I've had in mind was to simply
+>>>>>>> walk free lists of the suitable order and call the callback for each one.
+>>>>>>> Something as simple as
+>>>>>>>
+>>>>>>> 	for (i = 0; i < MAX_NR_ZONES; i++) {
+>>>>>>> 		struct zone *zone = &pgdat->node_zones[i];
+>>>>>>>
+>>>>>>> 		if (!populated_zone(zone))
+>>>>>>> 			continue;
+>>>>>>> 		spin_lock_irqsave(&zone->lock, flags);
+>>>>>>> 		for (order = min_order; order < MAX_ORDER; ++order) {
+>>>>>>> 			struct free_area *free_area = &zone->free_area[order];
+>>>>>>> 			enum migratetype mt;
+>>>>>>> 			struct page *page;
+>>>>>>>
+>>>>>>> 			if (!free_area->nr_pages)
+>>>>>>> 				continue;
+>>>>>>>
+>>>>>>> 			for_each_migratetype_order(order, mt) {
+>>>>>>> 				list_for_each_entry(page,
+>>>>>>> 						&free_area->free_list[mt], lru) {
+>>>>>>>
+>>>>>>> 					pfn = page_to_pfn(page);
+>>>>>>> 					visit(opaque2, prn, 1<<order);
+>>>>>>> 				}
+>>>>>>> 			}
+>>>>>>> 		}
+>>>>>>>
+>>>>>>> 		spin_unlock_irqrestore(&zone->lock, flags);
+>>>>>>> 	}
+>>>>>>>
+>>>>>>> [...]
+>>>>>> I think the above would take the lock for too long time. That's why we
+>>>>>> prefer to take one free page block each time, and taking it one by one
+>>>>>> also doesn't make a difference, in terms of the performance that we
+>>>>>> need.
+>>>>> I think you should start with simple approach and impove incrementally
+>>>>> if this turns out to be not optimal. I really detest taking struct pages
+>>>>> outside of the lock. You never know what might happen after the lock is
+>>>>> dropped. E.g. can you race with the memory hotremove?
+>>>> The caller won't use pages returned from the function, so I think there
+>>>> shouldn't be an issue or race if the returned pages are used (i.e. not free
+>>>> anymore) or simply gone due to hotremove.
+>>> No, this is just too error prone. Consider that struct page pointer
+>>> itself could get invalid in the meantime. Please always keep robustness
+>>> in mind first. Optimizations are nice but it is even not clear whether
+>>> the simple variant will cause any problems.
+>>
+>> how about this:
+>>
+>> for_each_populated_zone(zone) {
+>>                for_each_migratetype_order_decend(min_order, order, type) {
+>>                      do {
+>>       =>                  spin_lock_irqsave(&zone->lock, flags);
+>>                          ret = report_free_page_block(zone, order, type,
+>>                               &page)) {
+>>                                 pfn = page_to_pfn(page);
+>>                                 nr_pages = 1 << order;
+>>                                 visit(opaque1, pfn, nr_pages);
+>>                           }
+>>       => spin_unlock_irqrestore(&zone->lock, flags);
+>>                      } while (!ret)
+>> }
+>>
+>> In this way, we can still keep the lock granularity at one free page block
+>> while having the struct page operated under the lock.
+> How can you continue iteration of free_list after the lock has been
+> dropped?
+
+report_free_page_block() has handled all the possible cases after the 
+lock is
+dropped. For example, if the previous reported page has not been on the free
+list, then the first node from the list of this order will be given. 
+This is because
+page allocation takes page blocks from the head to end, for example:
+
+1,2,3,4,5,6
+if the previous reported free block is 2, when we give 2 to the report 
+function
+to get the next page block, and find 1,2,3 have all gone, it will report 
+4, which
+is the head of the free list.
+
+> If you want to keep the lock held for each migrate type then
+> why not. Just push the lock inside for_each_migratetype_order loop from
+> my example.
+>
+
+The above lock is held for each free page block, instead of each migrate 
+type, since
+the report function only reports one page block each time.
 
 
-> 
-> On 08/03/2017 04:13 PM, Pankaj Gupta wrote:
-> >>
-> >> +        /* Allocate space for find_vqs parameters */
-> >> +        vqs = kcalloc(nvqs, sizeof(*vqs), GFP_KERNEL);
-> >> +        if (!vqs)
-> >> +                goto err_vq;
-> >> +        callbacks = kmalloc_array(nvqs, sizeof(*callbacks), GFP_KERNEL);
-> >> +        if (!callbacks)
-> >> +                goto err_callback;
-> >> +        names = kmalloc_array(nvqs, sizeof(*names), GFP_KERNEL);
-> >                      
-> >         is size here (integer) intentional?
-> 
-> 
-> Sorry, I didn't get it. Could you please elaborate more?
+Best,
+Wei
 
-This is okay
 
-> 
-> 
-> >
-> >> +        if (!names)
-> >> +                goto err_names;
-> >> +
-> >> +        callbacks[0] = balloon_ack;
-> >> +        names[0] = "inflate";
-> >> +        callbacks[1] = balloon_ack;
-> >> +        names[1] = "deflate";
-> >> +
-> >> +        i = 2;
-> >> +        if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
-> >> +                callbacks[i] = stats_request;
-> > just thinking if memory for callbacks[3] & names[3] is allocated?
-> 
-> 
-> Yes, the above kmalloc_array allocated them.
 
-I mean we have created callbacks array for two entries 0,1?
-
-callbacks = kmalloc_array(nvqs, sizeof(*callbacks), GFP_KERNEL);
-
-But we are trying to access location '2' which is third:
-
-         i = 2;
-+        if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
-+                callbacks[i] = stats_request;      <---- callbacks[2]
-+                names[i] = "stats";                <----- names[2]
-+                i++;
-+        }
-
-I am missing anything obvious here?
-
-> 
-> 
-> Best,
-> Wei
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
