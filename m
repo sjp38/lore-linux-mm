@@ -1,71 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8279A6B06CF
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 11:15:56 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id z53so2393931wrz.10
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 08:15:56 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t192si1499226wmt.44.2017.08.03.08.15.51
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 134CC6B06D1
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 11:18:07 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id j83so15761043pfe.10
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 08:18:07 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id q71si15011137pfl.438.2017.08.03.08.18.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 03 Aug 2017 08:15:52 -0700 (PDT)
-Date: Thu, 3 Aug 2017 17:15:50 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] Tagging of vmalloc pages for supporting the pmalloc
- allocator
-Message-ID: <20170803151550.GX12521@dhcp22.suse.cz>
-References: <07063abd-2f5d-20d9-a182-8ae9ead26c3c@huawei.com>
- <20170802170848.GA3240@redhat.com>
- <8e82639c-40db-02ce-096a-d114b0436d3c@huawei.com>
- <20170803114844.GO12521@dhcp22.suse.cz>
- <c3a250a6-ad4d-d24d-d0bf-4c43c467ebe6@huawei.com>
- <20170803135549.GW12521@dhcp22.suse.cz>
- <20170803144746.GA9501@redhat.com>
- <ab4809cd-0efc-a79d-6852-4bd2349a2b3f@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Aug 2017 08:18:05 -0700 (PDT)
+From: "Wang, Wei W" <wei.w.wang@intel.com>
+Subject: RE: [PATCH v13 3/5] virtio-balloon: VIRTIO_BALLOON_F_SG
+Date: Thu, 3 Aug 2017 15:17:59 +0000
+Message-ID: <286AC319A985734F985F78AFA26841F73928C952@shsmsx102.ccr.corp.intel.com>
+References: <1501742299-4369-1-git-send-email-wei.w.wang@intel.com>
+ <1501742299-4369-4-git-send-email-wei.w.wang@intel.com>
+ <20170803151212-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20170803151212-mutt-send-email-mst@kernel.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ab4809cd-0efc-a79d-6852-4bd2349a2b3f@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-security-module@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Kees Cook <keescook@google.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
 
-On Thu 03-08-17 18:06:11, Igor Stoppa wrote:
-> 
-> 
-> On 03/08/17 17:47, Jerome Glisse wrote:
-> > On Thu, Aug 03, 2017 at 03:55:50PM +0200, Michal Hocko wrote:
-> >> On Thu 03-08-17 15:20:31, Igor Stoppa wrote:
-> 
-> [...]
-> 
-> >>> I am confused about this: if "private2" is a pointer, but when I get an
-> >>> address, I do not even know if the address represents a valid pmalloc
-> >>> page, how can i know when it's ok to dereference "private2"?
-> >>
-> >> because you can make all pages which back vmalloc mappings have vm_area
-> >> pointer set.
-> > 
-> > Note that i think this might break some device driver that use vmap()
-> > i think some of them use private field to store device driver specific
-> > informations. But there likely is an unuse field in struct page that
-> > can be use for that.
-> 
-> This increases the unease from my side ... it looks like there is no way
-> to fully understand if a field is really used or not, without having
-> deep intimate knowledge of lots of code that is only marginally involved :-/
+On Thursday, August 3, 2017 10:23 PM, Michael S. Tsirkin wrote:
+> On Thu, Aug 03, 2017 at 02:38:17PM +0800, Wei Wang wrote:
+> > +static void send_one_sg(struct virtio_balloon *vb, struct virtqueue *v=
+q,
+> > +			void *addr, uint32_t size)
+> > +{
+> > +	struct scatterlist sg;
+> > +	unsigned int len;
+> > +
+> > +	sg_init_one(&sg, addr, size);
+> > +	while (unlikely(virtqueue_add_inbuf(vq, &sg, 1, vb, GFP_KERNEL)
+> > +			=3D=3D -ENOSPC)) {
+> > +		/*
+> > +		 * It is uncommon to see the vq is full, because the sg is sent
+> > +		 * one by one and the device is able to handle it in time. But
+> > +		 * if that happens, we kick and wait for an entry is released.
+>=20
+> is released -> to get used.
+>=20
+> > +		 */
+> > +		virtqueue_kick(vq);
+> > +		while (!virtqueue_get_buf(vq, &len) &&
+> > +		       !virtqueue_is_broken(vq))
+> > +			cpu_relax();
+>=20
+> Please rework to use wait_event in that case too.
 
-welcome to the struct page heaven...
- 
-> Similarly, how would I be able to specify what would be the correct way
-> to decide the member of the union to use for handling the field?
+For the balloon page case here, it is fine to use wait_event. But for the f=
+ree page
+case, I think it might not be suitable because the mm lock is being held.
 
-I would check the one where we have mapping. It is rather unlikely
-vmalloc users would touch this one.
--- 
-Michal Hocko
-SUSE Labs
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
