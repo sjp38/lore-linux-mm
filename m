@@ -1,125 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 19C546B067D
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 04:46:24 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id p62so606552oih.12
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 01:46:24 -0700 (PDT)
-Received: from out1.zte.com.cn (out1.zte.com.cn. [202.103.147.172])
-        by mx.google.com with ESMTP id n2si20298461oia.326.2017.08.03.01.46.21
-        for <linux-mm@kvack.org>;
-        Thu, 03 Aug 2017 01:46:23 -0700 (PDT)
-Date: Thu, 3 Aug 2017 16:46:02 +0800 (CST)
-Message-ID: <201708031646027704154@zte.com.cn>
-References: 1501747181-30322-1-git-send-email-wen.yang99@zte.com.cn,1f3450b4-a48c-bac6-19ee-c0f5b4d4ce86@suse.cz
-Mime-Version: 1.0
-From: <jiang.biao2@zte.com.cn>
-Subject: =?UTF-8?B?UmU6IFtQQVRDSF0gbW0vdm1zdGF0OiBmaXggZGl2aWRlIGVycm9yIGF0IF9fZnJhZ21lbnRhdGlvbl9pbmRleA==?=
-Content-Type: multipart/mixed;
-	boundary="=====_001_next====="
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AE9CA6B067F
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 04:56:35 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id z48so1121630wrc.4
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 01:56:35 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r127si971239wmr.109.2017.08.03.01.56.34
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 03 Aug 2017 01:56:34 -0700 (PDT)
+Date: Thu, 3 Aug 2017 09:56:32 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: suspicious __GFP_NOMEMALLOC in selinux
+Message-ID: <20170803085547.hqpiy7qbyas7nbvy@suse.de>
+References: <20170802105018.GA2529@dhcp22.suse.cz>
+ <CAGH-Kgt_9So8bDe=yDF3yLZHDfDgeXsnBEu_X6uE_nQnoi=5Vg@mail.gmail.com>
+ <20170803081152.GC12521@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20170803081152.GC12521@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vbabka@suse.cz
-Cc: wen.yang99@zte.com.cn, linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Paul Moore <pmoore@redhat.com>, Jeff Vander Stoep <jeffv@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, selinux@tycho.nsa.gov
 
+On Thu, Aug 03, 2017 at 10:11:52AM +0200, Michal Hocko wrote:
+> > The GFP_ATOMIC|__GFP_NOMEMALLOC use in SELinux appears to be limited
+> > to security/selinux/avc.c, and digging a bit, I'm guessing commit
+> > fa1aa143ac4a copied the combination from 6290c2c43973 ("selinux: tag
+> > avc cache alloc as non-critical") and the avc_alloc_node() function.
+> 
+> Thanks for the pointer. That makes much more sense now. Back in 2012 we
+> really didn't have a good way to distinguish non sleeping and atomic
+> with reserves allocations.
+>  
 
+Yes, and GFP_NOWAIT is the right way to express that now. It'll still
+wake kswapd but it won't stall on direct reclaim and won't dip into
+reserves.
 
---=====_001_next=====
-Content-Type: multipart/related;
-	boundary="=====_002_next====="
+Thanks Michal.
 
+> ---
+> From 6d506a75da83c0724ed399966971711f37d67411 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Thu, 3 Aug 2017 10:04:20 +0200
+> Subject: [PATCH] selinux: replace GFP_ATOMIC | __GFP_NOMEMALLOC with
+>  GFP_NOWAIT
+> 
+> selinux avc code uses a weird combination of gfp flags. It asks for
+> GFP_ATOMIC which allows access to memory reserves while it requests
+> to not consume memory reserves by __GFP_NOMEMALLOC. This seems to be
+> copying the pattern from 6290c2c43973 ("selinux: tag avc cache alloc as
+> non-critical").
+> 
+> Back then (before d0164adc89f6 ("mm, page_alloc: distinguish between
+> being unable to sleep, unwilling to sleep and avoiding waking kswapd"))
+> we didn't have a good way to distinguish nowait and atomic allocations
+> so the construct made some sense. Now we do not have to play tricks
+> though and GFP_NOWAIT will provide the required semantic (aka do not
+> sleep and do not consume any memory reserves).
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
---=====_002_next=====
-Content-Type: multipart/alternative;
-	boundary="=====_003_next====="
+Looks right to me
 
+Acked-by: Mel Gorman <mgorman@suse.de>
 
---=====_003_next=====
-Content-Type: text/plain;
-	charset="UTF-8"
-Content-Transfer-Encoding: base64 
-
-PiA+IE9uIDA4LzAzLzIwMTcgMDk6NTkgQU0sIFdlbiBZYW5nIHdyb3RlOg0KDQoNCg0KPiA+IEZy
-b206IEppYW5nIEJpYW8gPGppYW5nLmJpYW8yQHp0ZS5jb20uY24+DQo+ID4gDQo+ID4gV2hlbiBv
-cmRlciBpcyAtMSBvciB0b28gYmlnLCAqMVVMIDw8IG9yZGVyKiB3aWxsIGJlIDAsIHdoaWNoIHdp
-bGwNCj4gPiBjYXVzZSBkaXZpZGUgZXJyb3IgbGlrZSB0aGlzLA0KPiA+IA0KPiA+ICAgICBkaXZp
-ZGUgZXJyb3I6IDAwMDAgWyMxXSBTTVANCj4gPiAgICAgQ2FsbCBUcmFjZToNCj4+ICAgICAgWzxm
-ZmZmZmZmZjgxMTY4NDIzPl0gY29tcGFjdGlvbl9zdWl0YWJsZSsweDYzLzB4YzANCj4+IC4uLg0K
-PiBUaGUgdHJhY2Ugc2VlbXMgdG8gYmUgZnJvbSBhbiBvbGQgYW5kIG5vbi1tYWlubGluZSBrZXJu
-ZWwsIGFzIGl0J3MgdGhlDQo+IHNhbWUgYXMgeW91IHJlcG9ydGVkIGhlcmU6DQo+IA0KPiBodHRw
-czovL2J1Z3ppbGxhLmtlcm5lbC5vcmcvc2hvd19idWcuY2dpP2lkPTE5NjU1NQ0KPiANCj4gSW4g
-Y3VycmVudCBtYWlubGluZSBpdCBzZWVtcyB0byBtZSB0aGF0IGFsbCBjYWxsZXJzIG9mDQo+IF9f
-ZnJhZ21lbnRhdGlvbl9pbmRleCgpIHdpbGwgb25seSBkbyBzbyB3aXRoIGEgdmFsaWQgb3JkZXIu
-DQo+IA0KPiBJIHdvdWxkbid0IG1pbmQgbWFraW5nIGEgbm9uLWhvdHBhdGggY29kZSBtb3JlIHJv
-YnVzdCwgYnV0IHByb2JhYmx5IGluIGENCj4gbW9yZSBvYnZpb3VzIGFuZCBzZWxmLXJlcG9ydGlu
-Zy9kb2N1bWVudGVkIHdheSBlLmcuIHNvbWV0aGluZyBsaWtlDQo+IA0KPiBpZiAoV0FSTl9PTl9P
-TkNFKG9yZGVyID49IE1BWF9PUkRFUikpDQo+ICAgICByZXR1cm4gMA0KPiANCnllcywgSSBub3Rp
-Y2VkIHRoYXQsIEknbGwgc2VuZCBhIG5ldyBwYXRjaCBmb3IgdGhhdC4NCg0KDQoNCg0KPiA+IEBA
-IC04NzAsNiArODcwLDkgQEAgc3RhdGljIGludCBfX2ZyYWdtZW50YXRpb25faW5kZXgodW5zaWdu
-ZWQgaW50IG9yZGVyLCBzdHJ1Y3QgY29udGlnX3BhZ2VfaW5mbyAqaW4NCj4gPiAgew0KPiA+ICAg
-ICAgdW5zaWduZWQgbG9uZyByZXF1ZXN0ZWQgPSAxVUwgPDwgb3JkZXINCj4gPiAgDQo+ID4gKyAg
-ICAgICAgaWYgKCFyZXF1ZXN0ZWQpDQo+ID4gKyAgICAgICAgICAgICAgICByZXR1cm4gMA0KPiAN
-Cj4gU2VlbXMgdGhlIGluZGVudGF0aW9uIGlzIGJyb2tlbiBoZXJlIChzcGFjZXMgdnMgdGFicyku
-DQpJJ2xsIGZpeCB0aGF0Lg==
-
-
---=====_003_next=====
-Content-Type: text/html ;
-	charset="UTF-8"
-Content-Transfer-Encoding: base64
-
-PGRpdiBjbGFzcz0iemNvbnRlbnRSb3ciPiAmZ3Q7ICZndDsgT24mbmJzcDswOC8wMy8yMDE3Jm5i
-c3A7MDk6NTkmbmJzcDtBTSwmbmJzcDtXZW4mbmJzcDtZYW5nJm5ic3A7d3JvdGU6PGJyPjxkaXY+
-PGRpdiBjbGFzcz0iemhpc3RvcnlSb3ciIHN0eWxlPSJkaXNwbGF5OmJsb2NrIj48ZGl2IGlkPSJ6
-d3JpdGVIaXN0b3J5Q29udGFpbmVyIj48ZGl2IGNsYXNzPSJjb250cm9sLWdyb3VwIHpoaXN0b3J5
-UGFuZWwiPjxkaXY+Jmd0OyAmZ3Q7Jm5ic3A7RnJvbTombmJzcDtKaWFuZyZuYnNwO0JpYW8mbmJz
-cDsmbHQ7amlhbmcuYmlhbzJAenRlLmNvbS5jbiZndDs8YnI+Jmd0OyAmZ3Q7Jm5ic3A7PGJyPiZn
-dDsgJmd0OyZuYnNwO1doZW4mbmJzcDtvcmRlciZuYnNwO2lzJm5ic3A7LTEmbmJzcDtvciZuYnNw
-O3RvbyZuYnNwO2JpZywmbmJzcDsqMVVMJm5ic3A7Jmx0OyZsdDsmbmJzcDtvcmRlciombmJzcDt3
-aWxsJm5ic3A7YmUmbmJzcDswLCZuYnNwO3doaWNoJm5ic3A7d2lsbDxicj4mZ3Q7ICZndDsmbmJz
-cDtjYXVzZSZuYnNwO2RpdmlkZSZuYnNwO2Vycm9yJm5ic3A7bGlrZSZuYnNwO3RoaXMsPGJyPiZn
-dDsgJmd0OyZuYnNwOzxicj4mZ3Q7ICZndDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDtk
-aXZpZGUmbmJzcDtlcnJvcjombmJzcDswMDAwJm5ic3A7WyMxXSZuYnNwO1NNUDxicj4mZ3Q7ICZn
-dDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDtDYWxsJm5ic3A7VHJhY2U6PGJyPiZndDsm
-Z3Q7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7WyZsdDtmZmZmZmZmZjgxMTY4
-NDIzJmd0O10mbmJzcDtjb21wYWN0aW9uX3N1aXRhYmxlKzB4NjMvMHhjMDxicj4mZ3Q7Jmd0OyAu
-Li48YnI+Jmd0OyBUaGUmbmJzcDt0cmFjZSZuYnNwO3NlZW1zJm5ic3A7dG8mbmJzcDtiZSZuYnNw
-O2Zyb20mbmJzcDthbiZuYnNwO29sZCZuYnNwO2FuZCZuYnNwO25vbi1tYWlubGluZSZuYnNwO2tl
-cm5lbCwmbmJzcDthcyZuYnNwO2l0J3MmbmJzcDt0aGU8YnI+Jmd0OyBzYW1lJm5ic3A7YXMmbmJz
-cDt5b3UmbmJzcDtyZXBvcnRlZCZuYnNwO2hlcmU6PGJyPiZndDsgPGJyPiZndDsgaHR0cHM6Ly9i
-dWd6aWxsYS5rZXJuZWwub3JnL3Nob3dfYnVnLmNnaT9pZD0xOTY1NTU8YnI+Jmd0OyA8YnI+Jmd0
-OyBJbiZuYnNwO2N1cnJlbnQmbmJzcDttYWlubGluZSZuYnNwO2l0Jm5ic3A7c2VlbXMmbmJzcDt0
-byZuYnNwO21lJm5ic3A7dGhhdCZuYnNwO2FsbCZuYnNwO2NhbGxlcnMmbmJzcDtvZjxicj4mZ3Q7
-IF9fZnJhZ21lbnRhdGlvbl9pbmRleCgpJm5ic3A7d2lsbCZuYnNwO29ubHkmbmJzcDtkbyZuYnNw
-O3NvJm5ic3A7d2l0aCZuYnNwO2EmbmJzcDt2YWxpZCZuYnNwO29yZGVyLjxicj4mZ3Q7IDxicj4m
-Z3Q7IEkmbmJzcDt3b3VsZG4ndCZuYnNwO21pbmQmbmJzcDttYWtpbmcmbmJzcDthJm5ic3A7bm9u
-LWhvdHBhdGgmbmJzcDtjb2RlJm5ic3A7bW9yZSZuYnNwO3JvYnVzdCwmbmJzcDtidXQmbmJzcDtw
-cm9iYWJseSZuYnNwO2luJm5ic3A7YTxicj4mZ3Q7IG1vcmUmbmJzcDtvYnZpb3VzJm5ic3A7YW5k
-Jm5ic3A7c2VsZi1yZXBvcnRpbmcvZG9jdW1lbnRlZCZuYnNwO3dheSZuYnNwO2UuZy4mbmJzcDtz
-b21ldGhpbmcmbmJzcDtsaWtlPGJyPiZndDsgPGJyPiZndDsgaWYmbmJzcDsoV0FSTl9PTl9PTkNF
-KG9yZGVyJm5ic3A7Jmd0Oz0mbmJzcDtNQVhfT1JERVIpKTxicj4mZ3Q7Jm5ic3A7ICZuYnNwOyZu
-YnNwOyByZXR1cm4mbmJzcDswOzxicj4mZ3Q7IDxicj48cD55ZXMsIEkgbm90aWNlZCB0aGF0LCBJ
-J2xsIHNlbmQgYSBuZXcgcGF0Y2ggZm9yIHRoYXQuPC9wPjxwPjxicj48L3A+Jmd0OyAmZ3Q7Jm5i
-c3A7QEAmbmJzcDstODcwLDYmbmJzcDsrODcwLDkmbmJzcDtAQCZuYnNwO3N0YXRpYyZuYnNwO2lu
-dCZuYnNwO19fZnJhZ21lbnRhdGlvbl9pbmRleCh1bnNpZ25lZCZuYnNwO2ludCZuYnNwO29yZGVy
-LCZuYnNwO3N0cnVjdCZuYnNwO2NvbnRpZ19wYWdlX2luZm8mbmJzcDsqaW48YnI+Jmd0OyAmZ3Q7
-Jm5ic3A7Jm5ic3A7ezxicj4mZ3Q7ICZndDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsm
-bmJzcDt1bnNpZ25lZCZuYnNwO2xvbmcmbmJzcDtyZXF1ZXN0ZWQmbmJzcDs9Jm5ic3A7MVVMJm5i
-c3A7Jmx0OyZsdDsmbmJzcDtvcmRlcjs8YnI+Jmd0OyAmZ3Q7Jm5ic3A7Jm5ic3A7PGJyPiZndDsg
-Jmd0OyZuYnNwOysmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
-cDtpZiZuYnNwOyghcmVxdWVzdGVkKTxicj4mZ3Q7ICZndDsmbmJzcDsrJm5ic3A7Jm5ic3A7Jm5i
-c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
-Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7cmV0dXJuJm5ic3A7MDs8YnI+Jmd0OyA8YnI+Jmd0OyBT
-ZWVtcyZuYnNwO3RoZSZuYnNwO2luZGVudGF0aW9uJm5ic3A7aXMmbmJzcDticm9rZW4mbmJzcDto
-ZXJlJm5ic3A7KHNwYWNlcyZuYnNwO3ZzJm5ic3A7dGFicykuPGJyPkknbGwgZml4IHRoYXQuPC9k
-aXY+PC9kaXY+PC9kaXY+PC9kaXY+PC9kaXY+IDwvZGl2Pg==
-
-
---=====_003_next=====--
-
---=====_002_next=====--
-
---=====_001_next=====--
-
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
