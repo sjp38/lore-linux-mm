@@ -1,121 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 499F36B069D
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 08:09:18 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id r62so11605773pfj.1
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 05:09:18 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id C044F6B069F
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 08:10:02 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 24so11390674pfk.5
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 05:10:02 -0700 (PDT)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id 5si19239467plf.508.2017.08.03.05.09.17
+        by mx.google.com with ESMTPS id r20si349687pfg.504.2017.08.03.05.10.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Aug 2017 05:09:17 -0700 (PDT)
-Message-ID: <5983130E.2070806@intel.com>
-Date: Thu, 03 Aug 2017 20:11:58 +0800
+        Thu, 03 Aug 2017 05:10:01 -0700 (PDT)
 From: Wei Wang <wei.w.wang@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v13 4/5] mm: support reporting free page blocks
-References: <1501742299-4369-1-git-send-email-wei.w.wang@intel.com> <1501742299-4369-5-git-send-email-wei.w.wang@intel.com> <20170803091151.GF12521@dhcp22.suse.cz> <5982FE07.3040207@intel.com> <20170803104417.GI12521@dhcp22.suse.cz> <59830897.2060203@intel.com> <20170803112831.GN12521@dhcp22.suse.cz>
-In-Reply-To: <20170803112831.GN12521@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH RESEND] mm: don't zero ballooned pages
+Date: Thu,  3 Aug 2017 19:59:17 +0800
+Message-Id: <1501761557-9758-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mawilcox@microsoft.com, akpm@linux-foundation.org, virtio-dev@lists.oasis-open.org, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, mhocko@kernel.org, mst@redhat.com, zhenwei.pi@youruncloud.com
+Cc: akpm@linux-foundation.org, dave.hansen@intel.com, mawilcox@microsoft.com, Wei Wang <wei.w.wang@intel.com>
 
-On 08/03/2017 07:28 PM, Michal Hocko wrote:
-> On Thu 03-08-17 19:27:19, Wei Wang wrote:
->> On 08/03/2017 06:44 PM, Michal Hocko wrote:
->>> On Thu 03-08-17 18:42:15, Wei Wang wrote:
->>>> On 08/03/2017 05:11 PM, Michal Hocko wrote:
->>>>> On Thu 03-08-17 14:38:18, Wei Wang wrote:
->>> [...]
->>>>>> +static int report_free_page_block(struct zone *zone, unsigned int order,
->>>>>> +				  unsigned int migratetype, struct page **page)
->>>>> This is just too ugly and wrong actually. Never provide struct page
->>>>> pointers outside of the zone->lock. What I've had in mind was to simply
->>>>> walk free lists of the suitable order and call the callback for each one.
->>>>> Something as simple as
->>>>>
->>>>> 	for (i = 0; i < MAX_NR_ZONES; i++) {
->>>>> 		struct zone *zone = &pgdat->node_zones[i];
->>>>>
->>>>> 		if (!populated_zone(zone))
->>>>> 			continue;
->>>>> 		spin_lock_irqsave(&zone->lock, flags);
->>>>> 		for (order = min_order; order < MAX_ORDER; ++order) {
->>>>> 			struct free_area *free_area = &zone->free_area[order];
->>>>> 			enum migratetype mt;
->>>>> 			struct page *page;
->>>>>
->>>>> 			if (!free_area->nr_pages)
->>>>> 				continue;
->>>>>
->>>>> 			for_each_migratetype_order(order, mt) {
->>>>> 				list_for_each_entry(page,
->>>>> 						&free_area->free_list[mt], lru) {
->>>>>
->>>>> 					pfn = page_to_pfn(page);
->>>>> 					visit(opaque2, prn, 1<<order);
->>>>> 				}
->>>>> 			}
->>>>> 		}
->>>>>
->>>>> 		spin_unlock_irqrestore(&zone->lock, flags);
->>>>> 	}
->>>>>
->>>>> [...]
->>>> I think the above would take the lock for too long time. That's why we
->>>> prefer to take one free page block each time, and taking it one by one
->>>> also doesn't make a difference, in terms of the performance that we
->>>> need.
->>> I think you should start with simple approach and impove incrementally
->>> if this turns out to be not optimal. I really detest taking struct pages
->>> outside of the lock. You never know what might happen after the lock is
->>> dropped. E.g. can you race with the memory hotremove?
->>
->> The caller won't use pages returned from the function, so I think there
->> shouldn't be an issue or race if the returned pages are used (i.e. not free
->> anymore) or simply gone due to hotremove.
-> No, this is just too error prone. Consider that struct page pointer
-> itself could get invalid in the meantime. Please always keep robustness
-> in mind first. Optimizations are nice but it is even not clear whether
-> the simple variant will cause any problems.
+This patch is a revert of 'commit bb01b64cfab7 ("mm/balloon_compaction.c:
+enqueue zero page to balloon device")'
 
+Ballooned pages will be marked as MADV_DONTNEED by the hypervisor and
+shouldn't be given to the host ksmd to scan. Therefore, it is not
+necessary to zero ballooned pages, which is very time consuming when
+the page amount is large. The ongoing fast balloon tests show that the
+time to balloon 7G pages is increased from ~491ms to 2.8 seconds with
+__GFP_ZERO added. So, this patch removes the flag.
 
-how about this:
+Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Michael S. Tsirkin <mst@redhat.com>
+---
+ mm/balloon_compaction.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-for_each_populated_zone(zone) {
-               for_each_migratetype_order_decend(min_order, order, type) {
-                     do {
-      =>                  spin_lock_irqsave(&zone->lock, flags);
-                         ret = report_free_page_block(zone, order, type,
-                              &page)) {
-                                pfn = page_to_pfn(page);
-                                nr_pages = 1 << order;
-                                visit(opaque1, pfn, nr_pages);
-                          }
-      => spin_unlock_irqrestore(&zone->lock, flags);
-                     } while (!ret)
-}
-
-In this way, we can still keep the lock granularity at one free page block
-while having the struct page operated under the lock.
-
-
-
-Best,
-Wei
-
-
-
-
-
-
-
-
-
-
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+index 9075aa5..b06d9fe 100644
+--- a/mm/balloon_compaction.c
++++ b/mm/balloon_compaction.c
+@@ -24,7 +24,7 @@ struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info)
+ {
+ 	unsigned long flags;
+ 	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
+-				__GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_ZERO);
++				       __GFP_NOMEMALLOC | __GFP_NORETRY);
+ 	if (!page)
+ 		return NULL;
+ 
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
