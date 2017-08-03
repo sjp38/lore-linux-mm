@@ -1,68 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C6A8C6B06BC
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 17:25:03 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id o9so23540301iod.13
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 14:25:03 -0700 (PDT)
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E95A16B06BE
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 17:25:05 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id 77so24437064itj.4
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 14:25:05 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id n5si735068ite.46.2017.08.03.14.25.01
+        by mx.google.com with ESMTPS id x27si34195998ioe.278.2017.08.03.14.25.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Aug 2017 14:25:01 -0700 (PDT)
+        Thu, 03 Aug 2017 14:25:03 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v5 08/15] mm: zero struct pages during initialization
-Date: Thu,  3 Aug 2017 17:23:46 -0400
-Message-Id: <1501795433-982645-9-git-send-email-pasha.tatashin@oracle.com>
+Subject: [v5 01/15] x86/mm: reserve only exiting low pages
+Date: Thu,  3 Aug 2017 17:23:39 -0400
+Message-Id: <1501795433-982645-2-git-send-email-pasha.tatashin@oracle.com>
 In-Reply-To: <1501795433-982645-1-git-send-email-pasha.tatashin@oracle.com>
 References: <1501795433-982645-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org
 
-Add struct page zeroing as a part of initialization of other fields in
+Struct pages are initialized by going through __init_single_page(). Since
+the existing physical memory in memblock is represented in memblock.memory
+list, struct page for every page from this list goes through
 __init_single_page().
+
+The second memblock list: memblock.reserved, manages the allocated memory.
+The memory that won't be available to kernel allocator. So, every page from
+this list goes through reserve_bootmem_region(), where certain struct page
+fields are set, the assumption being that the struct pages have been
+initialized beforehand.
+
+In trim_low_memory_range() we unconditionally reserve memoryfrom PFN 0, but
+memblock.memory might start at a later PFN. For example, in QEMU,
+e820__memblock_setup() can use PFN 1 as the first PFN in memblock.memory,
+so PFN 0 is not on memblock.memory (and hence isn't initialized via
+__init_single_page) but is on memblock.reserved (and hence we set fields in
+the uninitialized struct page).
+
+Currently, the struct page memory is always zeroed during allocation,
+which prevents this problem from being detected. But, if some asserts
+provided by CONFIG_DEBUG_VM_PGFLAGS are tighten, this problem may become
+visible in existing kernels.
+
+In this patchset we will stop zeroing struct page memory during allocation.
+Therefore, this bug must be fixed in order to avoid random assert failures
+caused by CONFIG_DEBUG_VM_PGFLAGS triggers.
+
+The fix is to reserve memory from the first existing PFN.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
 Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 Reviewed-by: Bob Picco <bob.picco@oracle.com>
 ---
- include/linux/mm.h | 9 +++++++++
- mm/page_alloc.c    | 1 +
- 2 files changed, 10 insertions(+)
+ arch/x86/kernel/setup.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 46b9ac5e8569..183ac5e733db 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -94,6 +94,15 @@ extern int mmap_rnd_compat_bits __read_mostly;
- #endif
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index 3486d0498800..489cdc141bcb 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -790,7 +790,10 @@ early_param("reservelow", parse_reservelow);
  
- /*
-+ * On some architectures it is expensive to call memset() for small sizes.
-+ * Those architectures should provide their own implementation of "struct page"
-+ * zeroing by defining this macro in <asm/pgtable.h>.
-+ */
-+#ifndef mm_zero_struct_page
-+#define mm_zero_struct_page(pp)  ((void)memset((pp), 0, sizeof(struct page)))
-+#endif
-+
-+/*
-  * Default maximum number of active map areas, this limits the number of vmas
-  * per mm struct. Users can overwrite this number by sysctl but there is a
-  * problem.
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 05110ae50aca..cbcdd53ad9f8 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1168,6 +1168,7 @@ static void free_one_page(struct zone *zone,
- static void __meminit __init_single_page(struct page *page, unsigned long pfn,
- 				unsigned long zone, int nid)
+ static void __init trim_low_memory_range(void)
  {
-+	mm_zero_struct_page(page);
- 	set_page_links(page, zone, nid, pfn);
- 	init_page_count(page);
- 	page_mapcount_reset(page);
+-	memblock_reserve(0, ALIGN(reserve_low, PAGE_SIZE));
++	unsigned long min_pfn = find_min_pfn_with_active_regions();
++	phys_addr_t base = min_pfn << PAGE_SHIFT;
++
++	memblock_reserve(base, ALIGN(reserve_low, PAGE_SIZE));
+ }
+ 	
+ /*
 -- 
 2.13.4
 
