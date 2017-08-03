@@ -1,135 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 51EBF6B06C1
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 09:50:52 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id y206so2263029wmd.1
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 06:50:52 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ACE66B06C3
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 09:55:54 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k71so2053663wrc.15
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 06:55:54 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l22si1469074wrb.475.2017.08.03.06.50.50
+        by mx.google.com with ESMTPS id k128si1363609wme.263.2017.08.03.06.55.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 03 Aug 2017 06:50:50 -0700 (PDT)
-Date: Thu, 3 Aug 2017 15:50:47 +0200
+        Thu, 03 Aug 2017 06:55:52 -0700 (PDT)
+Date: Thu, 3 Aug 2017 15:55:50 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v13 4/5] mm: support reporting free page blocks
-Message-ID: <20170803135047.GV12521@dhcp22.suse.cz>
-References: <1501742299-4369-1-git-send-email-wei.w.wang@intel.com>
- <1501742299-4369-5-git-send-email-wei.w.wang@intel.com>
- <20170803091151.GF12521@dhcp22.suse.cz>
- <5982FE07.3040207@intel.com>
- <20170803104417.GI12521@dhcp22.suse.cz>
- <59830897.2060203@intel.com>
- <20170803112831.GN12521@dhcp22.suse.cz>
- <5983130E.2070806@intel.com>
- <20170803124106.GR12521@dhcp22.suse.cz>
- <59832265.1040805@intel.com>
+Subject: Re: [RFC] Tagging of vmalloc pages for supporting the pmalloc
+ allocator
+Message-ID: <20170803135549.GW12521@dhcp22.suse.cz>
+References: <07063abd-2f5d-20d9-a182-8ae9ead26c3c@huawei.com>
+ <20170802170848.GA3240@redhat.com>
+ <8e82639c-40db-02ce-096a-d114b0436d3c@huawei.com>
+ <20170803114844.GO12521@dhcp22.suse.cz>
+ <c3a250a6-ad4d-d24d-d0bf-4c43c467ebe6@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <59832265.1040805@intel.com>
+In-Reply-To: <c3a250a6-ad4d-d24d-d0bf-4c43c467ebe6@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mawilcox@microsoft.com, akpm@linux-foundation.org, virtio-dev@lists.oasis-open.org, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Igor Stoppa <igor.stoppa@huawei.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-security-module@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Kees Cook <keescook@google.com>
 
-On Thu 03-08-17 21:17:25, Wei Wang wrote:
-> On 08/03/2017 08:41 PM, Michal Hocko wrote:
-> >On Thu 03-08-17 20:11:58, Wei Wang wrote:
-> >>On 08/03/2017 07:28 PM, Michal Hocko wrote:
-> >>>On Thu 03-08-17 19:27:19, Wei Wang wrote:
-> >>>>On 08/03/2017 06:44 PM, Michal Hocko wrote:
-> >>>>>On Thu 03-08-17 18:42:15, Wei Wang wrote:
-> >>>>>>On 08/03/2017 05:11 PM, Michal Hocko wrote:
-> >>>>>>>On Thu 03-08-17 14:38:18, Wei Wang wrote:
-> >>>>>[...]
-> >>>>>>>>+static int report_free_page_block(struct zone *zone, unsigned int order,
-> >>>>>>>>+				  unsigned int migratetype, struct page **page)
-> >>>>>>>This is just too ugly and wrong actually. Never provide struct page
-> >>>>>>>pointers outside of the zone->lock. What I've had in mind was to simply
-> >>>>>>>walk free lists of the suitable order and call the callback for each one.
-> >>>>>>>Something as simple as
-> >>>>>>>
-> >>>>>>>	for (i = 0; i < MAX_NR_ZONES; i++) {
-> >>>>>>>		struct zone *zone = &pgdat->node_zones[i];
-> >>>>>>>
-> >>>>>>>		if (!populated_zone(zone))
-> >>>>>>>			continue;
-> >>>>>>>		spin_lock_irqsave(&zone->lock, flags);
-> >>>>>>>		for (order = min_order; order < MAX_ORDER; ++order) {
-> >>>>>>>			struct free_area *free_area = &zone->free_area[order];
-> >>>>>>>			enum migratetype mt;
-> >>>>>>>			struct page *page;
-> >>>>>>>
-> >>>>>>>			if (!free_area->nr_pages)
-> >>>>>>>				continue;
-> >>>>>>>
-> >>>>>>>			for_each_migratetype_order(order, mt) {
-> >>>>>>>				list_for_each_entry(page,
-> >>>>>>>						&free_area->free_list[mt], lru) {
-> >>>>>>>
-> >>>>>>>					pfn = page_to_pfn(page);
-> >>>>>>>					visit(opaque2, prn, 1<<order);
-> >>>>>>>				}
-> >>>>>>>			}
-> >>>>>>>		}
-> >>>>>>>
-> >>>>>>>		spin_unlock_irqrestore(&zone->lock, flags);
-> >>>>>>>	}
-> >>>>>>>
-> >>>>>>>[...]
-> >>>>>>I think the above would take the lock for too long time. That's why we
-> >>>>>>prefer to take one free page block each time, and taking it one by one
-> >>>>>>also doesn't make a difference, in terms of the performance that we
-> >>>>>>need.
-> >>>>>I think you should start with simple approach and impove incrementally
-> >>>>>if this turns out to be not optimal. I really detest taking struct pages
-> >>>>>outside of the lock. You never know what might happen after the lock is
-> >>>>>dropped. E.g. can you race with the memory hotremove?
-> >>>>The caller won't use pages returned from the function, so I think there
-> >>>>shouldn't be an issue or race if the returned pages are used (i.e. not free
-> >>>>anymore) or simply gone due to hotremove.
-> >>>No, this is just too error prone. Consider that struct page pointer
-> >>>itself could get invalid in the meantime. Please always keep robustness
-> >>>in mind first. Optimizations are nice but it is even not clear whether
-> >>>the simple variant will cause any problems.
-> >>
-> >>how about this:
-> >>
-> >>for_each_populated_zone(zone) {
-> >>               for_each_migratetype_order_decend(min_order, order, type) {
-> >>                     do {
-> >>      =>                  spin_lock_irqsave(&zone->lock, flags);
-> >>                         ret = report_free_page_block(zone, order, type,
-> >>                              &page)) {
-> >>                                pfn = page_to_pfn(page);
-> >>                                nr_pages = 1 << order;
-> >>                                visit(opaque1, pfn, nr_pages);
-> >>                          }
-> >>      => spin_unlock_irqrestore(&zone->lock, flags);
-> >>                     } while (!ret)
-> >>}
-> >>
-> >>In this way, we can still keep the lock granularity at one free page block
-> >>while having the struct page operated under the lock.
-> >How can you continue iteration of free_list after the lock has been
-> >dropped?
+On Thu 03-08-17 15:20:31, Igor Stoppa wrote:
+> On 03/08/17 14:48, Michal Hocko wrote:
+> > On Thu 03-08-17 13:11:45, Igor Stoppa wrote:
+> >> On 02/08/17 20:08, Jerome Glisse wrote:
+> >>> On Wed, Aug 02, 2017 at 06:14:28PM +0300, Igor Stoppa wrote:
 > 
-> report_free_page_block() has handled all the possible cases after the lock
-> is
-> dropped. For example, if the previous reported page has not been on the free
-> list, then the first node from the list of this order will be given. This is
-> because
-> page allocation takes page blocks from the head to end, for example:
+> [...]
 > 
-> 1,2,3,4,5,6
-> if the previous reported free block is 2, when we give 2 to the report
-> function
-> to get the next page block, and find 1,2,3 have all gone, it will report 4,
-> which
-> is the head of the free list.
+> >>>> from include/linux/mm_types.h:
+> >>>>
+> >>>> struct page {
+> >>>> ...
+> >>>>   union {
+> >>>>     unsigned long private;		/* Mapping-private opaque data:
+> >>>> 				 	 * usually used for buffer_heads
+> >>>> 					 * if PagePrivate set; used for
+> >>>> 					 * swp_entry_t if PageSwapCache;
+> >>>> 					 * indicates order in the buddy
+> >>>> 					 * system if PG_buddy is set.
+> >>>> 					 */
+> 
+> [...]
+> 
+> >> If the "Mapping-private" was dropped or somehow connected exclusively to
+> >> the cases listed in the comment, then I think it would be more clear
+> >> that the comment needs to be intended as related to mapping in certain
+> >> cases only.
+> >> But it is otherwise ok to use the "private" field for whatever purpose
+> >> it might be suitable, as long as it is not already in use.
+> > 
+> > I would recommend adding a new field into the enum...
+> 
+> s/enum/union/ ?
+> 
+> If not, I am not sure what is the enum that you are talking about.
 
-As I've said earlier. Start simple optimize incrementally with some
-numbers to justify a more subtle code.
+yeah, fat fingers on my side
+
+> 
+> [...]
+> 
+> >> But, to reply more specifically to your advice, yes, I think I could add
+> >> a flag to vm_struct and then retrieve its value, for the address being
+> >> processed, by passing through find_vm_area().
+> > 
+> > ... and you can store vm_struct pointer to the struct page there 
+> 
+> "there" as in the new field of the union?
+> btw, what would be a meaningful name, since "private" is already taken?
+> 
+> For simplicity, I'll use, for now, "private2"
+
+why not explicit vm_area?
+
+> > and you> won't need to do the slow find_vm_area. I haven't checked
+> very closely
+> > but this should be possible in principle. I guess other callers might
+> > benefit from this as well.
+> 
+> I am confused about this: if "private2" is a pointer, but when I get an
+> address, I do not even know if the address represents a valid pmalloc
+> page, how can i know when it's ok to dereference "private2"?
+
+because you can make all pages which back vmalloc mappings have vm_area
+pointer set.
+
 -- 
 Michal Hocko
 SUSE Labs
