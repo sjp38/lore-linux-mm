@@ -1,88 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E20A6B06C3
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 17:25:07 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id z196so23844382ioe.3
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 14:25:07 -0700 (PDT)
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 949976B06C6
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 17:25:11 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id t78so24170821ita.14
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 14:25:11 -0700 (PDT)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id v127si19591056iod.296.2017.08.03.14.25.03
+        by mx.google.com with ESMTPS id m81si10628118ioa.188.2017.08.03.14.25.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 03 Aug 2017 14:25:03 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v5 03/15] sparc64/mm: setting fields in deferred pages
-Date: Thu,  3 Aug 2017 17:23:41 -0400
-Message-Id: <1501795433-982645-4-git-send-email-pasha.tatashin@oracle.com>
+Subject: [v5 12/15] mm: explicitly zero pagetable memory
+Date: Thu,  3 Aug 2017 17:23:50 -0400
+Message-Id: <1501795433-982645-13-git-send-email-pasha.tatashin@oracle.com>
 In-Reply-To: <1501795433-982645-1-git-send-email-pasha.tatashin@oracle.com>
 References: <1501795433-982645-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org
 
-Without deferred struct page feature (CONFIG_DEFERRED_STRUCT_PAGE_INIT),
-flags and other fields in "struct page"es are never changed prior to first
-initializing struct pages by going through __init_single_page().
-
-With deferred struct page feature enabled there is a case where we set some
-fields prior to initializing:
-
- mem_init() {
-	 register_page_bootmem_info();
-	 free_all_bootmem();
-	 ...
- }
-
-When register_page_bootmem_info() is called only non-deferred struct pages
-are initialized. But, this function goes through some reserved pages which
-might be part of the deferred, and thus are not yet initialized.
-
-mem_init
-register_page_bootmem_info
- register_page_bootmem_info_node
-  get_page_bootmem
-   .. setting fields here ..
-   such as: page->freelist = (void *)type;
-
-We end-up with similar issue as in the previous patch, where currently we
-do not observe problem as memory is zeroed. But, if flag asserts are
-changed we can start hitting issues.
-
-Also, because in this patch series we will stop zeroing struct page memory
-during allocation, we must make sure that struct pages are properly
-initialized prior to using them.
-
-The deferred-reserved pages are initialized in free_all_bootmem().
-Therefore, the fix is to switch the above calls.
+Soon vmemmap_alloc_block() will no longer zero the block, so zero memory
+at its call sites for everything except struct pages.  Struct page memory
+is zero'd by struct page initialization.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
 Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 Reviewed-by: Bob Picco <bob.picco@oracle.com>
 ---
- arch/sparc/mm/init_64.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ mm/sparse-vmemmap.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index 3c40ebd50f92..ba957b763c07 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -2464,9 +2464,15 @@ void __init mem_init(void)
- {
- 	high_memory = __va(last_valid_pfn << PAGE_SHIFT);
- 
--	register_page_bootmem_info();
- 	free_all_bootmem();
- 
-+	/* Must be done after boot memory is put on freelist, because here we
-+	 * might set fields in deferred struct pages that have not yet been
-+	 * initialized, and free_all_bootmem() initializes all the reserved
-+	 * deferred pages for us.
-+	 */
-+	register_page_bootmem_info();
-+
- 	/*
- 	 * Set up the zero page, mark it reserved, so that page count
- 	 * is not manipulated when freeing the page from user ptes.
+diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+index c50b1a14d55e..d40c721ab19f 100644
+--- a/mm/sparse-vmemmap.c
++++ b/mm/sparse-vmemmap.c
+@@ -191,6 +191,7 @@ pmd_t * __meminit vmemmap_pmd_populate(pud_t *pud, unsigned long addr, int node)
+ 		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
+ 		if (!p)
+ 			return NULL;
++		memset(p, 0, PAGE_SIZE);
+ 		pmd_populate_kernel(&init_mm, pmd, p);
+ 	}
+ 	return pmd;
+@@ -203,6 +204,7 @@ pud_t * __meminit vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node)
+ 		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
+ 		if (!p)
+ 			return NULL;
++		memset(p, 0, PAGE_SIZE);
+ 		pud_populate(&init_mm, pud, p);
+ 	}
+ 	return pud;
+@@ -215,6 +217,7 @@ p4d_t * __meminit vmemmap_p4d_populate(pgd_t *pgd, unsigned long addr, int node)
+ 		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
+ 		if (!p)
+ 			return NULL;
++		memset(p, 0, PAGE_SIZE);
+ 		p4d_populate(&init_mm, p4d, p);
+ 	}
+ 	return p4d;
+@@ -227,6 +230,7 @@ pgd_t * __meminit vmemmap_pgd_populate(unsigned long addr, int node)
+ 		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
+ 		if (!p)
+ 			return NULL;
++		memset(p, 0, PAGE_SIZE);
+ 		pgd_populate(&init_mm, pgd, p);
+ 	}
+ 	return pgd;
 -- 
 2.13.4
 
