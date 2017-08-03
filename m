@@ -1,58 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A44746B06D0
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 17:25:25 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id 6so11684075qts.7
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 14:25:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t37si11720231qte.148.2017.08.03.14.25.24
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C7AB6B062D
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 19:11:50 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id g28so3719303wrg.3
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 16:11:49 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id i72si2129001wmc.121.2017.08.03.16.11.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Aug 2017 14:25:24 -0700 (PDT)
-Date: Thu, 3 Aug 2017 23:25:22 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] userfaultfd_zeropage: return -ENOSPC in case mm has gone
-Message-ID: <20170803212522.GK21775@redhat.com>
-References: <1501136819-21857-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20170731122204.GB4878@dhcp22.suse.cz>
- <20170731133247.GK29716@redhat.com>
- <20170731134507.GC4829@dhcp22.suse.cz>
- <20170802123440.GD17905@rapoport-lnx>
- <20170802155522.GB21775@redhat.com>
- <20170802162248.GA3476@dhcp22.suse.cz>
- <20170802164001.GF21775@redhat.com>
- <20170803172442.GA1026@rapoport-lnx>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170803172442.GA1026@rapoport-lnx>
+        Thu, 03 Aug 2017 16:11:48 -0700 (PDT)
+Date: Thu, 3 Aug 2017 16:11:46 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: fix list corruptions on shmem shrinklist
+Message-Id: <20170803161146.4316d105e533a363a5597e64@linux-foundation.org>
+In-Reply-To: <20170803054630.18775-1-xiyou.wangcong@gmail.com>
+References: <20170803054630.18775-1-xiyou.wangcong@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, stable@vger.kernel.org
+To: Cong Wang <xiyou.wangcong@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu, Aug 03, 2017 at 08:24:43PM +0300, Mike Rapoport wrote:
-> Now, seriously, I believe there are not many users of non-cooperative uffd
-> if at all and it is very unlikely anybody has it in production.
+On Wed,  2 Aug 2017 22:46:30 -0700 Cong Wang <xiyou.wangcong@gmail.com> wrote:
+
+> We saw many list corruption warnings on shmem shrinklist:
 > 
-> I'll send a patch with s/ENOSPC/ESRCH in the next few days.
+> ...
+> 
+> The problem is that shmem_unused_huge_shrink() moves entries
+> from the global sbinfo->shrinklist to its local lists and then
+> releases the spinlock. However, a parallel shmem_setattr()
+> could access one of these entries directly and add it back to
+> the global shrinklist if it is removed, with the spinlock held.
+> 
+> The logic itself looks solid since an entry could be either
+> in a local list or the global list, otherwise it is removed
+> from one of them by list_del_init(). So probably the race
+> condition is that, one CPU is in the middle of INIT_LIST_HEAD()
 
-Ok.
+Where is this INIT_LIST_HEAD()?
 
-Some more thought on this one, enterprise kernels have been shipped
-matching the v4.11-v4.12 upstream kernel ABI and I've no time machine
-to alter the kABI on those installs.
+> but the other CPU calls list_empty() which returns true
+> too early then the following list_add_tail() sees a corrupted
+> entry.
+> 
+> list_empty_careful() is designed to fix this situation.
+> 
 
-If you go ahead with the change, the safest would be that you keep
-handling -ENOSPC and -ESRCH equally in CRIU code, so there will be no
-risk of regression in the short term if somebody is playing with an
-upstream CRIU. The alternative would be add uname -r knowledge.
-
-Once it's upstream, I can fixup so further kernel updates will go in
-sync. I obviously can't make changes that affects the kABI until it's
-upstream and shipped in a official release so things will be out of
-sync for a while (and the risk of somebody using ancient kernels will
-persist for the mid term).
+I'm not sure I'm understanding this.  AFAICT all the list operations to
+which you refer are synchronized under spin_lock(&sbinfo->shrinklist_lock)?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
