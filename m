@@ -1,56 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C7AB6B062D
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 19:11:50 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id g28so3719303wrg.3
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 16:11:49 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i72si2129001wmc.121.2017.08.03.16.11.48
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C8806B0634
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 19:25:48 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id f11so137806oic.3
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 16:25:48 -0700 (PDT)
+Received: from mail-oi0-x244.google.com (mail-oi0-x244.google.com. [2607:f8b0:4003:c06::244])
+        by mx.google.com with ESMTPS id s134si80801ois.453.2017.08.03.16.25.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Aug 2017 16:11:48 -0700 (PDT)
-Date: Thu, 3 Aug 2017 16:11:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+        Thu, 03 Aug 2017 16:25:47 -0700 (PDT)
+Received: by mail-oi0-x244.google.com with SMTP id j194so134376oib.4
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 16:25:47 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20170803161146.4316d105e533a363a5597e64@linux-foundation.org>
+References: <20170803054630.18775-1-xiyou.wangcong@gmail.com> <20170803161146.4316d105e533a363a5597e64@linux-foundation.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 3 Aug 2017 16:25:46 -0700
+Message-ID: <CA+55aFyPq+vVyFJ9GGm8FxH-MYAzLA+Q86Gmz44aDopQxrsC9g@mail.gmail.com>
 Subject: Re: [PATCH] mm: fix list corruptions on shmem shrinklist
-Message-Id: <20170803161146.4316d105e533a363a5597e64@linux-foundation.org>
-In-Reply-To: <20170803054630.18775-1-xiyou.wangcong@gmail.com>
-References: <20170803054630.18775-1-xiyou.wangcong@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cong Wang <xiyou.wangcong@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@kernel.org, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Cong Wang <xiyou.wangcong@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "# .39.x" <stable@kernel.org>, Hugh Dickins <hughd@google.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed,  2 Aug 2017 22:46:30 -0700 Cong Wang <xiyou.wangcong@gmail.com> wrote:
+On Thu, Aug 3, 2017 at 4:11 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
+>
+> Where is this INIT_LIST_HEAD()?
 
-> We saw many list corruption warnings on shmem shrinklist:
-> 
-> ...
-> 
-> The problem is that shmem_unused_huge_shrink() moves entries
-> from the global sbinfo->shrinklist to its local lists and then
-> releases the spinlock. However, a parallel shmem_setattr()
-> could access one of these entries directly and add it back to
-> the global shrinklist if it is removed, with the spinlock held.
-> 
-> The logic itself looks solid since an entry could be either
-> in a local list or the global list, otherwise it is removed
-> from one of them by list_del_init(). So probably the race
-> condition is that, one CPU is in the middle of INIT_LIST_HEAD()
+I think it's this one:
 
-Where is this INIT_LIST_HEAD()?
+        list_del_init(&info->shrinklist);
 
-> but the other CPU calls list_empty() which returns true
-> too early then the following list_add_tail() sees a corrupted
-> entry.
-> 
-> list_empty_careful() is designed to fix this situation.
-> 
+in shmem_unused_huge_shrink().
 
-I'm not sure I'm understanding this.  AFAICT all the list operations to
-which you refer are synchronized under spin_lock(&sbinfo->shrinklist_lock)?
+> I'm not sure I'm understanding this.  AFAICT all the list operations to
+> which you refer are synchronized under spin_lock(&sbinfo->shrinklist_lock)?
+
+No, notice how shmem_unused_huge_shrink() does the
+
+        list_move(&info->shrinklist, &to_remove);
+
+and
+
+        list_move(&info->shrinklist, &list);
+
+to move to (two different) private lists under the shrinklist_lock,
+but once it is on that private "list/to_remove" list, it is then
+accessed outside the locked region.
+
+Honestly, I don't love this situation, or the patch, but I think the
+patch is likely the right thing to do.
+
+              Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
