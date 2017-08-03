@@ -1,63 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AA8CF6B066F
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 04:03:38 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id s21so556815oie.5
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 01:03:38 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id z204si21389198oiz.14.2017.08.03.01.03.37
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 86EEE6B0671
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 04:10:02 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id v102so980706wrb.2
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 01:10:02 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q9si1111300wrc.19.2017.08.03.01.10.01
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 03 Aug 2017 01:03:37 -0700 (PDT)
-Subject: Re: [PATCH 1/2] mm, oom: do not rely on TIF_MEMDIE for memory reserves access
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170727090357.3205-2-mhocko@kernel.org>
-	<201708020030.ACB04683.JLHMFVOSFFOtOQ@I-love.SAKURA.ne.jp>
-	<20170801165242.GA15518@dhcp22.suse.cz>
-	<201708031039.GDG05288.OQJOHtLVFMSFFO@I-love.SAKURA.ne.jp>
-	<20170803070606.GA12521@dhcp22.suse.cz>
-In-Reply-To: <20170803070606.GA12521@dhcp22.suse.cz>
-Message-Id: <201708031703.HGC35950.LSJFOHQFtFMOVO@I-love.SAKURA.ne.jp>
-Date: Thu, 3 Aug 2017 17:03:20 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Thu, 03 Aug 2017 01:10:01 -0700 (PDT)
+Subject: Re: [PATCH] mm/vmstat: fix divide error at __fragmentation_index
+References: <1501747181-30322-1-git-send-email-wen.yang99@zte.com.cn>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <1f3450b4-a48c-bac6-19ee-c0f5b4d4ce86@suse.cz>
+Date: Thu, 3 Aug 2017 10:09:59 +0200
+MIME-Version: 1.0
+In-Reply-To: <1501747181-30322-1-git-send-email-wen.yang99@zte.com.cn>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wen Yang <wen.yang99@zte.com.cn>, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, jiang.biao2@zte.com.cn
 
-Michal Hocko wrote:
-> Look, I really appreciate your sentiment for for nommu platform but with
-> an absolute lack of _any_ oom reports on that platform that I am aware
-> of nor any reports about lockups during oom I am less than thrilled to
-> add a code to fix a problem which even might not exist. Nommu is usually
-> very special with a very specific workload running (e.g. no overcommit)
-> so I strongly suspect that any OOM theories are highly academic.
+Hi,
 
-If you believe that there is really no oom report, get rid of the OOM
-killer completely.
-
+On 08/03/2017 09:59 AM, Wen Yang wrote:
+> From: Jiang Biao <jiang.biao2@zte.com.cn>
 > 
-> All I do care about is to not regress nommu as much as possible. So can
-> we get back to the proposed patch and updates I have done to address
-> your review feedback please?
+> When order is -1 or too big, *1UL << order* will be 0, which will
+> cause divide error like this,
+> 
+>     divide error: 0000 [#1] SMP
+>     Call Trace:
+>      [<ffffffff81168423>] compaction_suitable+0x63/0xc0
+>      [<ffffffff81168a75>] compact_zone+0x35/0x950
+>      [<ffffffff811745b5>] ? free_percpu+0xb5/0x140
+>      [<ffffffff81092b23>] ? schedule_on_each_cpu+0x133/0x160
+>      [<ffffffff8116949c>] compact_node+0x10c/0x120
+>      [<ffffffff8116953c>] sysctl_compaction_handler+0x5c/0x90
+>      [<ffffffff811fa517>] proc_sys_call_handler+0x97/0xd0
+>      [<ffffffff811fa564>] proc_sys_write+0x14/0x20
+>      [<ffffffff81187368>] vfs_write+0xb8/0x1a0
+>      [<ffffffff81187c61>] sys_write+0x51/0x90
+>      [<ffffffff8100b052>] system_call_fastpath+0x16/0x1b
 
-No unless we get rid of the OOM killer if CONFIG_MMU=n.
+The trace seems to be from an old and non-mainline kernel, as it's the
+same as you reported here:
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 170db4d..e931969 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3312,7 +3312,8 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 		goto out;
- 
- 	/* Exhausted what can be done so it's blamo time */
--	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
-+	if ((IS_ENABLED(CONFIG_MMU) && out_of_memory(&oc)) ||
-+		WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
- 		*did_some_progress = 1;
- 
- 		/*
+https://bugzilla.kernel.org/show_bug.cgi?id=196555
+
+In current mainline it seems to me that all callers of
+__fragmentation_index() will only do so with a valid order.
+
+I wouldn't mind making a non-hotpath code more robust, but probably in a
+more obvious and self-reporting/documented way e.g. something like
+
+if (WARN_ON_ONCE(order >= MAX_ORDER))
+	return 0;
+
+> Signed-off-by: Wen Yang <wen.yang99@zte.com.cn>
+> Reviewed-by: Jiang Biao <jiang.biao2@zte.com.cn>
+> ---
+>  mm/vmstat.c | 3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 76f7367..2f9d012 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -870,6 +870,9 @@ static int __fragmentation_index(unsigned int order, struct contig_page_info *in
+>  {
+>  	unsigned long requested = 1UL << order;
+>  
+> +        if (!requested)
+> +                return 0;
+
+Seems the indentation is broken here (spaces vs tabs).
+
+Thanks,
+Vlastimil
+
+> +
+>  	if (!info->free_blocks_total)
+>  		return 0;
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
