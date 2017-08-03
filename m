@@ -1,81 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C93266B06B8
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C56466B0616
 	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 17:25:02 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id s23so23605027ioe.8
+Received: by mail-pf0-f199.google.com with SMTP id e74so24164126pfd.12
         for <linux-mm@kvack.org>; Thu, 03 Aug 2017 14:25:02 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id a141si8562242itb.104.2017.08.03.14.24.59
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id i136si22032581pgc.828.2017.08.03.14.25.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Aug 2017 14:24:59 -0700 (PDT)
+        Thu, 03 Aug 2017 14:25:01 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v5 13/15] mm: stop zeroing memory during allocation in vmemmap
-Date: Thu,  3 Aug 2017 17:23:51 -0400
-Message-Id: <1501795433-982645-14-git-send-email-pasha.tatashin@oracle.com>
+Subject: [v5 04/15] mm: discard memblock data later
+Date: Thu,  3 Aug 2017 17:23:42 -0400
+Message-Id: <1501795433-982645-5-git-send-email-pasha.tatashin@oracle.com>
 In-Reply-To: <1501795433-982645-1-git-send-email-pasha.tatashin@oracle.com>
 References: <1501795433-982645-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org
 
-Replace allocators in sprase-vmemmap to use the non-zeroing version. So,
-we will get the performance improvement by zeroing the memory in parallel
-when struct pages are zeroed.
+There is existing use after free bug when deferred struct pages are
+enabled:
+
+The memblock_add() allocates memory for the memory array if more than
+128 entries are needed.  See comment in e820__memblock_setup():
+
+  * The bootstrap memblock region count maximum is 128 entries
+  * (INIT_MEMBLOCK_REGIONS), but EFI might pass us more E820 entries
+  * than that - so allow memblock resizing.
+
+This memblock memory is freed here:
+        free_low_memory_core_early()
+
+We access the freed memblock.memory later in boot when deferred pages are
+initialized in this path:
+
+        deferred_init_memmap()
+                for_each_mem_pfn_range()
+                  __next_mem_pfn_range()
+                    type = &memblock.memory;
+
+One possible explanation for why this use-after-free hasn't been hit
+before is that the limit of INIT_MEMBLOCK_REGIONS has never been exceeded
+at least on systems where deferred struct pages were enabled.
+
+Another reason why we want this problem fixed in this patch series is,
+in the next patch, we will need to access memblock.reserved from
+deferred_init_memmap().
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
 Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 Reviewed-by: Bob Picco <bob.picco@oracle.com>
 ---
- mm/sparse-vmemmap.c | 6 +++---
- mm/sparse.c         | 6 +++---
- 2 files changed, 6 insertions(+), 6 deletions(-)
+ include/linux/memblock.h |  6 ++++--
+ mm/memblock.c            | 38 +++++++++++++++++---------------------
+ mm/nobootmem.c           | 16 ----------------
+ mm/page_alloc.c          |  4 ++++
+ 4 files changed, 25 insertions(+), 39 deletions(-)
 
-diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-index d40c721ab19f..3b646b5ce1b6 100644
---- a/mm/sparse-vmemmap.c
-+++ b/mm/sparse-vmemmap.c
-@@ -41,7 +41,7 @@ static void * __ref __earlyonly_bootmem_alloc(int node,
- 				unsigned long align,
- 				unsigned long goal)
- {
--	return memblock_virt_alloc_try_nid(size, align, goal,
-+	return memblock_virt_alloc_try_nid_raw(size, align, goal,
- 					    BOOTMEM_ALLOC_ACCESSIBLE, node);
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 77d427974f57..bae11c7e7bf3 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -61,6 +61,7 @@ extern int memblock_debug;
+ #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
+ #define __init_memblock __meminit
+ #define __initdata_memblock __meminitdata
++void memblock_discard(void);
+ #else
+ #define __init_memblock
+ #define __initdata_memblock
+@@ -74,8 +75,6 @@ phys_addr_t memblock_find_in_range_node(phys_addr_t size, phys_addr_t align,
+ 					int nid, ulong flags);
+ phys_addr_t memblock_find_in_range(phys_addr_t start, phys_addr_t end,
+ 				   phys_addr_t size, phys_addr_t align);
+-phys_addr_t get_allocated_memblock_reserved_regions_info(phys_addr_t *addr);
+-phys_addr_t get_allocated_memblock_memory_regions_info(phys_addr_t *addr);
+ void memblock_allow_resize(void);
+ int memblock_add_node(phys_addr_t base, phys_addr_t size, int nid);
+ int memblock_add(phys_addr_t base, phys_addr_t size);
+@@ -110,6 +109,9 @@ void __next_mem_range_rev(u64 *idx, int nid, ulong flags,
+ void __next_reserved_mem_region(u64 *idx, phys_addr_t *out_start,
+ 				phys_addr_t *out_end);
+ 
++void __memblock_free_early(phys_addr_t base, phys_addr_t size);
++void __memblock_free_late(phys_addr_t base, phys_addr_t size);
++
+ /**
+  * for_each_mem_range - iterate through memblock areas from type_a and not
+  * included in type_b. Or just type_a if type_b is NULL.
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 2cb25fe4452c..3a2707914064 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -285,31 +285,27 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
  }
  
-@@ -56,11 +56,11 @@ void * __meminit vmemmap_alloc_block(unsigned long size, int node)
+ #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
+-
+-phys_addr_t __init_memblock get_allocated_memblock_reserved_regions_info(
+-					phys_addr_t *addr)
+-{
+-	if (memblock.reserved.regions == memblock_reserved_init_regions)
+-		return 0;
+-
+-	*addr = __pa(memblock.reserved.regions);
+-
+-	return PAGE_ALIGN(sizeof(struct memblock_region) *
+-			  memblock.reserved.max);
+-}
+-
+-phys_addr_t __init_memblock get_allocated_memblock_memory_regions_info(
+-					phys_addr_t *addr)
++/**
++ * Discard memory and reserved arrays if they were allocated
++ */
++void __init_memblock memblock_discard(void)
+ {
+-	if (memblock.memory.regions == memblock_memory_init_regions)
+-		return 0;
++	phys_addr_t addr, size;
  
- 		if (node_state(node, N_HIGH_MEMORY))
- 			page = alloc_pages_node(
--				node, GFP_KERNEL | __GFP_ZERO | __GFP_RETRY_MAYFAIL,
-+				node, GFP_KERNEL | __GFP_RETRY_MAYFAIL,
- 				get_order(size));
- 		else
- 			page = alloc_pages(
--				GFP_KERNEL | __GFP_ZERO | __GFP_RETRY_MAYFAIL,
-+				GFP_KERNEL | __GFP_RETRY_MAYFAIL,
- 				get_order(size));
- 		if (page)
- 			return page_address(page);
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 7b4be3fd5cac..0e315766ad11 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -441,9 +441,9 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
- 	}
+-	*addr = __pa(memblock.memory.regions);
++	if (memblock.reserved.regions != memblock_reserved_init_regions) {
++		addr = __pa(memblock.reserved.regions);
++		size = PAGE_ALIGN(sizeof(struct memblock_region) *
++				  memblock.reserved.max);
++		__memblock_free_late(addr, size);
++	}
  
- 	size = PAGE_ALIGN(size);
--	map = memblock_virt_alloc_try_nid(size * map_count,
--					  PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
--					  BOOTMEM_ALLOC_ACCESSIBLE, nodeid);
-+	map = memblock_virt_alloc_try_nid_raw(size * map_count,
-+					      PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
-+					      BOOTMEM_ALLOC_ACCESSIBLE, nodeid);
- 	if (map) {
- 		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
- 			if (!present_section_nr(pnum))
+-	return PAGE_ALIGN(sizeof(struct memblock_region) *
+-			  memblock.memory.max);
++	if (memblock.memory.regions == memblock_memory_init_regions) {
++		addr = __pa(memblock.memory.regions);
++		size = PAGE_ALIGN(sizeof(struct memblock_region) *
++				  memblock.memory.max);
++		__memblock_free_late(addr, size);
++	}
+ }
+-
+ #endif
+ 
+ /**
+diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+index 36454d0f96ee..3637809a18d0 100644
+--- a/mm/nobootmem.c
++++ b/mm/nobootmem.c
+@@ -146,22 +146,6 @@ static unsigned long __init free_low_memory_core_early(void)
+ 				NULL)
+ 		count += __free_memory_core(start, end);
+ 
+-#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
+-	{
+-		phys_addr_t size;
+-
+-		/* Free memblock.reserved array if it was allocated */
+-		size = get_allocated_memblock_reserved_regions_info(&start);
+-		if (size)
+-			count += __free_memory_core(start, start + size);
+-
+-		/* Free memblock.memory array if it was allocated */
+-		size = get_allocated_memblock_memory_regions_info(&start);
+-		if (size)
+-			count += __free_memory_core(start, start + size);
+-	}
+-#endif
+-
+ 	return count;
+ }
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6d30e914afb6..f1e84d8f1e37 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1584,6 +1584,10 @@ void __init page_alloc_init_late(void)
+ 	/* Reinit limits that are based on free pages after the kernel is up */
+ 	files_maxfiles_init();
+ #endif
++#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
++	/* Discard memblock private memory */
++	memblock_discard();
++#endif
+ 
+ 	for_each_populated_zone(zone)
+ 		set_zone_contiguous(zone);
 -- 
 2.13.4
 
