@@ -1,62 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B1FE86B0606
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B2D9D6B060A
 	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 17:25:01 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id c196so24553983itc.2
+Received: by mail-io0-f198.google.com with SMTP id z196so23843058ioe.3
         for <linux-mm@kvack.org>; Thu, 03 Aug 2017 14:25:01 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id l92si28780936ioi.260.2017.08.03.14.25.00
+        by mx.google.com with ESMTPS id u21si8822190ite.182.2017.08.03.14.24.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 03 Aug 2017 14:25:00 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v5 15/15] mm: debug for raw alloctor
-Date: Thu,  3 Aug 2017 17:23:53 -0400
-Message-Id: <1501795433-982645-16-git-send-email-pasha.tatashin@oracle.com>
+Subject: [v5 02/15] x86/mm: setting fields in deferred pages
+Date: Thu,  3 Aug 2017 17:23:40 -0400
+Message-Id: <1501795433-982645-3-git-send-email-pasha.tatashin@oracle.com>
 In-Reply-To: <1501795433-982645-1-git-send-email-pasha.tatashin@oracle.com>
 References: <1501795433-982645-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org
 
-When CONFIG_DEBUG_VM is enabled, this patch sets all the memory that is
-returned by memblock_virt_alloc_try_nid_raw() to ones to ensure that no
-places excpect zeroed memory.
+Without deferred struct page feature (CONFIG_DEFERRED_STRUCT_PAGE_INIT),
+flags and other fields in "struct page"es are never changed prior to first
+initializing struct pages by going through __init_single_page().
+
+With deferred struct page feature enabled there is a case where we set some
+fields prior to initializing:
+
+        mem_init() {
+                register_page_bootmem_info();
+                free_all_bootmem();
+                ...
+        }
+
+When register_page_bootmem_info() is called only non-deferred struct pages
+are initialized. But, this function goes through some reserved pages which
+might be part of the deferred, and thus are not yet initialized.
+
+  mem_init
+   register_page_bootmem_info
+    register_page_bootmem_info_node
+     get_page_bootmem
+      .. setting fields here ..
+      such as: page->freelist = (void *)type;
+
+We end-up with similar issue as in the previous patch, where currently we
+do not observe problem as memory is zeroed. But, if flag asserts are
+changed we can start hitting issues.
+
+Also, because in this patch series we will stop zeroing struct page memory
+during allocation, we must make sure that struct pages are properly
+initialized prior to using them.
+
+The deferred-reserved pages are initialized in free_all_bootmem().
+Therefore, the fix is to switch the above calls.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
 Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 Reviewed-by: Bob Picco <bob.picco@oracle.com>
 ---
- mm/memblock.c | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
+ arch/x86/mm/init_64.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index bdf31f207fa4..b6f90e75946c 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1363,12 +1363,19 @@ void * __init memblock_virt_alloc_try_nid_raw(
- 			phys_addr_t min_addr, phys_addr_t max_addr,
- 			int nid)
- {
-+	void *ptr;
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 136422d7d539..1e863baec847 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1165,12 +1165,17 @@ void __init mem_init(void)
+ 
+ 	/* clear_bss() already clear the empty_zero_page */
+ 
+-	register_page_bootmem_info();
+-
+ 	/* this will put all memory onto the freelists */
+ 	free_all_bootmem();
+ 	after_bootmem = 1;
+ 
++	/* Must be done after boot memory is put on freelist, because here we
++	 * might set fields in deferred struct pages that have not yet been
++	 * initialized, and free_all_bootmem() initializes all the reserved
++	 * deferred pages for us.
++	 */
++	register_page_bootmem_info();
 +
- 	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
- 		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
- 		     (u64)max_addr, (void *)_RET_IP_);
- 
--	return memblock_virt_alloc_internal(size, align,
--					    min_addr, max_addr, nid);
-+	ptr = memblock_virt_alloc_internal(size, align,
-+					   min_addr, max_addr, nid);
-+#ifdef CONFIG_DEBUG_VM
-+	if (ptr && size > 0)
-+		memset(ptr, 0xff, size);
-+#endif
-+	return ptr;
- }
- 
- /**
+ 	/* Register memory areas for /proc/kcore */
+ 	kclist_add(&kcore_vsyscall, (void *)VSYSCALL_ADDR,
+ 			 PAGE_SIZE, KCORE_OTHER);
 -- 
 2.13.4
 
