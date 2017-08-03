@@ -1,102 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2ACE66B06C3
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 09:55:54 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id k71so2053663wrc.15
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 06:55:54 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k128si1363609wme.263.2017.08.03.06.55.52
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D08436B06C4
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 09:59:14 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id a186so2281705wmh.9
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 06:59:14 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id g15si2122760edl.279.2017.08.03.06.59.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 03 Aug 2017 06:55:52 -0700 (PDT)
-Date: Thu, 3 Aug 2017 15:55:50 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Aug 2017 06:59:13 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id r77so2317343wmd.2
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 06:59:13 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] Tagging of vmalloc pages for supporting the pmalloc
- allocator
-Message-ID: <20170803135549.GW12521@dhcp22.suse.cz>
-References: <07063abd-2f5d-20d9-a182-8ae9ead26c3c@huawei.com>
- <20170802170848.GA3240@redhat.com>
- <8e82639c-40db-02ce-096a-d114b0436d3c@huawei.com>
- <20170803114844.GO12521@dhcp22.suse.cz>
- <c3a250a6-ad4d-d24d-d0bf-4c43c467ebe6@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <c3a250a6-ad4d-d24d-d0bf-4c43c467ebe6@huawei.com>
+Subject: [PATCH] mm, oom: fix potential data corruption when oom_reaper races with writer
+Date: Thu,  3 Aug 2017 15:59:02 +0200
+Message-Id: <20170803135902.31977-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-security-module@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Kees Cook <keescook@google.com>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Wenwei Tao <wenwei.tww@alibaba-inc.com>, Oleg Nesterov <oleg@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Thu 03-08-17 15:20:31, Igor Stoppa wrote:
-> On 03/08/17 14:48, Michal Hocko wrote:
-> > On Thu 03-08-17 13:11:45, Igor Stoppa wrote:
-> >> On 02/08/17 20:08, Jerome Glisse wrote:
-> >>> On Wed, Aug 02, 2017 at 06:14:28PM +0300, Igor Stoppa wrote:
-> 
-> [...]
-> 
-> >>>> from include/linux/mm_types.h:
-> >>>>
-> >>>> struct page {
-> >>>> ...
-> >>>>   union {
-> >>>>     unsigned long private;		/* Mapping-private opaque data:
-> >>>> 				 	 * usually used for buffer_heads
-> >>>> 					 * if PagePrivate set; used for
-> >>>> 					 * swp_entry_t if PageSwapCache;
-> >>>> 					 * indicates order in the buddy
-> >>>> 					 * system if PG_buddy is set.
-> >>>> 					 */
-> 
-> [...]
-> 
-> >> If the "Mapping-private" was dropped or somehow connected exclusively to
-> >> the cases listed in the comment, then I think it would be more clear
-> >> that the comment needs to be intended as related to mapping in certain
-> >> cases only.
-> >> But it is otherwise ok to use the "private" field for whatever purpose
-> >> it might be suitable, as long as it is not already in use.
-> > 
-> > I would recommend adding a new field into the enum...
-> 
-> s/enum/union/ ?
-> 
-> If not, I am not sure what is the enum that you are talking about.
+From: Michal Hocko <mhocko@suse.com>
 
-yeah, fat fingers on my side
+Wenwei Tao has noticed that our current assumption that the oom victim
+is dying and never doing any visible changes after it dies is not
+entirely true. __task_will_free_mem consider a task dying when
+SIGNAL_GROUP_EXIT is set but do_group_exit sends SIGKILL to all threads
+_after_ the flag is set. So there is a race window when some threads
+won't have fatal_signal_pending while the oom_reaper could start
+unmapping the address space. generic_perform_write could then write
+zero page to the page cache and corrupt data.
 
-> 
-> [...]
-> 
-> >> But, to reply more specifically to your advice, yes, I think I could add
-> >> a flag to vm_struct and then retrieve its value, for the address being
-> >> processed, by passing through find_vm_area().
-> > 
-> > ... and you can store vm_struct pointer to the struct page there 
-> 
-> "there" as in the new field of the union?
-> btw, what would be a meaningful name, since "private" is already taken?
-> 
-> For simplicity, I'll use, for now, "private2"
+The race window is rather small and close to impossible to happen but it
+would be better to have it covered.
 
-why not explicit vm_area?
+Fix this by extending the existing MMF_UNSTABLE check in handle_mm_fault
+and segfault on any page fault after the oom reaper started its work.
+This means that nobody will ever observe a potentially corrupted
+content. Formerly we cared only about use_mm users because those can
+outlive the oom victim quite easily but having the process itself
+protected sounds like a reasonable thing to do as well.
 
-> > and you> won't need to do the slow find_vm_area. I haven't checked
-> very closely
-> > but this should be possible in principle. I guess other callers might
-> > benefit from this as well.
-> 
-> I am confused about this: if "private2" is a pointer, but when I get an
-> address, I do not even know if the address represents a valid pmalloc
-> page, how can i know when it's ok to dereference "private2"?
+There doesn't seem to be any real life bug report so this is merely a
+fix of a theoretical bug.
 
-because you can make all pages which back vmalloc mappings have vm_area
-pointer set.
+Noticed-by: Wenwei Tao <wenwei.tww@alibaba-inc.com>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+Hi,
+Wenwei has contacted me off list and this is a result of the dicussion.
+I do not think this would be serious enough to warrant a stable backport
+even though the description might sound scary. The race is highly unlikely.
 
+ mm/memory.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/mm/memory.c b/mm/memory.c
+index 0e517be91a89..3d8bfeaca38a 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3874,13 +3874,9 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+ 	/*
+ 	 * This mm has been already reaped by the oom reaper and so the
+ 	 * refault cannot be trusted in general. Anonymous refaults would
+-	 * lose data and give a zero page instead e.g. This is especially
+-	 * problem for use_mm() because regular tasks will just die and
+-	 * the corrupted data will not be visible anywhere while kthread
+-	 * will outlive the oom victim and potentially propagate the date
+-	 * further.
++	 * lose data and give a zero page instead e.g.
+ 	 */
+-	if (unlikely((current->flags & PF_KTHREAD) && !(ret & VM_FAULT_ERROR)
++	if (unlikely(!(ret & VM_FAULT_ERROR)
+ 				&& test_bit(MMF_UNSTABLE, &vma->vm_mm->flags)))
+ 		ret = VM_FAULT_SIGBUS;
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.13.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
