@@ -1,95 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 86EEE6B0671
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 04:10:02 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id v102so980706wrb.2
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 01:10:02 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 31AF66B0673
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 04:11:55 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id z48so986883wrc.4
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 01:11:55 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q9si1111300wrc.19.2017.08.03.01.10.01
+        by mx.google.com with ESMTPS id 75si1100700wrb.356.2017.08.03.01.11.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 03 Aug 2017 01:10:01 -0700 (PDT)
-Subject: Re: [PATCH] mm/vmstat: fix divide error at __fragmentation_index
-References: <1501747181-30322-1-git-send-email-wen.yang99@zte.com.cn>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <1f3450b4-a48c-bac6-19ee-c0f5b4d4ce86@suse.cz>
-Date: Thu, 3 Aug 2017 10:09:59 +0200
+        Thu, 03 Aug 2017 01:11:53 -0700 (PDT)
+Date: Thu, 3 Aug 2017 10:11:52 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: suspicious __GFP_NOMEMALLOC in selinux
+Message-ID: <20170803081152.GC12521@dhcp22.suse.cz>
+References: <20170802105018.GA2529@dhcp22.suse.cz>
+ <CAGH-Kgt_9So8bDe=yDF3yLZHDfDgeXsnBEu_X6uE_nQnoi=5Vg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1501747181-30322-1-git-send-email-wen.yang99@zte.com.cn>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGH-Kgt_9So8bDe=yDF3yLZHDfDgeXsnBEu_X6uE_nQnoi=5Vg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Yang <wen.yang99@zte.com.cn>, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, jiang.biao2@zte.com.cn
+To: Paul Moore <pmoore@redhat.com>
+Cc: Jeff Vander Stoep <jeffv@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, selinux@tycho.nsa.gov, Mel Gorman <mgorman@suse.de>
 
-Hi,
+[CC Mel]
 
-On 08/03/2017 09:59 AM, Wen Yang wrote:
-> From: Jiang Biao <jiang.biao2@zte.com.cn>
+On Wed 02-08-17 17:45:56, Paul Moore wrote:
+> On Wed, Aug 2, 2017 at 6:50 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > Hi,
+> > while doing something completely unrelated to selinux I've noticed a
+> > really strange __GFP_NOMEMALLOC usage pattern in selinux, especially
+> > GFP_ATOMIC | __GFP_NOMEMALLOC doesn't make much sense to me. GFP_ATOMIC
+> > on its own allows to access memory reserves while the later flag tells
+> > we cannot use memory reserves at all. The primary usecase for
+> > __GFP_NOMEMALLOC is to override a global PF_MEMALLOC should there be a
+> > need.
+> >
+> > It all leads to fa1aa143ac4a ("selinux: extended permissions for
+> > ioctls") which doesn't explain this aspect so let me ask. Why is the
+> > flag used at all? Moreover shouldn't GFP_ATOMIC be actually GFP_NOWAIT.
+> > What makes this path important to access memory reserves?
 > 
-> When order is -1 or too big, *1UL << order* will be 0, which will
-> cause divide error like this,
-> 
->     divide error: 0000 [#1] SMP
->     Call Trace:
->      [<ffffffff81168423>] compaction_suitable+0x63/0xc0
->      [<ffffffff81168a75>] compact_zone+0x35/0x950
->      [<ffffffff811745b5>] ? free_percpu+0xb5/0x140
->      [<ffffffff81092b23>] ? schedule_on_each_cpu+0x133/0x160
->      [<ffffffff8116949c>] compact_node+0x10c/0x120
->      [<ffffffff8116953c>] sysctl_compaction_handler+0x5c/0x90
->      [<ffffffff811fa517>] proc_sys_call_handler+0x97/0xd0
->      [<ffffffff811fa564>] proc_sys_write+0x14/0x20
->      [<ffffffff81187368>] vfs_write+0xb8/0x1a0
->      [<ffffffff81187c61>] sys_write+0x51/0x90
->      [<ffffffff8100b052>] system_call_fastpath+0x16/0x1b
+> [NOTE: added the SELinux list to the CC line, please include that list
+> when asking SELinux questions]
 
-The trace seems to be from an old and non-mainline kernel, as it's the
-same as you reported here:
+Sorry about that. Will keep it in mind for next posts
+ 
+> The GFP_ATOMIC|__GFP_NOMEMALLOC use in SELinux appears to be limited
+> to security/selinux/avc.c, and digging a bit, I'm guessing commit
+> fa1aa143ac4a copied the combination from 6290c2c43973 ("selinux: tag
+> avc cache alloc as non-critical") and the avc_alloc_node() function.
 
-https://bugzilla.kernel.org/show_bug.cgi?id=196555
+Thanks for the pointer. That makes much more sense now. Back in 2012 we
+really didn't have a good way to distinguish non sleeping and atomic
+with reserves allocations.
+ 
+> I can't say that I'm an expert at the vm subsystem and the variety of
+> different GFP_* flags, but your suggestion of moving to GFP_NOWAIT in
+> security/selinux/avc.c seems reasonable and in keeping with the idea
+> behind commit 6290c2c43973.
 
-In current mainline it seems to me that all callers of
-__fragmentation_index() will only do so with a valid order.
-
-I wouldn't mind making a non-hotpath code more robust, but probably in a
-more obvious and self-reporting/documented way e.g. something like
-
-if (WARN_ON_ONCE(order >= MAX_ORDER))
-	return 0;
-
-> Signed-off-by: Wen Yang <wen.yang99@zte.com.cn>
-> Reviewed-by: Jiang Biao <jiang.biao2@zte.com.cn>
-> ---
->  mm/vmstat.c | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 76f7367..2f9d012 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -870,6 +870,9 @@ static int __fragmentation_index(unsigned int order, struct contig_page_info *in
->  {
->  	unsigned long requested = 1UL << order;
->  
-> +        if (!requested)
-> +                return 0;
-
-Seems the indentation is broken here (spaces vs tabs).
-
-Thanks,
-Vlastimil
-
-> +
->  	if (!info->free_blocks_total)
->  		return 0;
->  
-> 
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+What do you think about the following? I haven't tested it but it should
+be rather straightforward.
+---
