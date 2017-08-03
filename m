@@ -1,142 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 98F746B067B
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 04:35:56 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id g71so1313031wmg.13
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 01:35:56 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id q45si1344818edq.83.2017.08.03.01.35.55
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Aug 2017 01:35:55 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id x64so1312578wmg.1
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 01:35:55 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mm, hugetlb: do not allocate non-migrateable gigantic pages from movable zones
-Date: Thu,  3 Aug 2017 10:35:49 +0200
-Message-Id: <20170803083549.21407-1-mhocko@kernel.org>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 19C546B067D
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 04:46:24 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id p62so606552oih.12
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 01:46:24 -0700 (PDT)
+Received: from out1.zte.com.cn (out1.zte.com.cn. [202.103.147.172])
+        by mx.google.com with ESMTP id n2si20298461oia.326.2017.08.03.01.46.21
+        for <linux-mm@kvack.org>;
+        Thu, 03 Aug 2017 01:46:23 -0700 (PDT)
+Date: Thu, 3 Aug 2017 16:46:02 +0800 (CST)
+Message-ID: <201708031646027704154@zte.com.cn>
+References: 1501747181-30322-1-git-send-email-wen.yang99@zte.com.cn,1f3450b4-a48c-bac6-19ee-c0f5b4d4ce86@suse.cz
+Mime-Version: 1.0
+From: <jiang.biao2@zte.com.cn>
+Subject: =?UTF-8?B?UmU6IFtQQVRDSF0gbW0vdm1zdGF0OiBmaXggZGl2aWRlIGVycm9yIGF0IF9fZnJhZ21lbnRhdGlvbl9pbmRleA==?=
+Content-Type: multipart/mixed;
+	boundary="=====_001_next====="
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, Luiz Capitulino <lcapitulino@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: vbabka@suse.cz
+Cc: wen.yang99@zte.com.cn, linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@suse.com, kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.com>
 
-alloc_gigantic_page doesn't consider movability of the gigantic hugetlb
-when scanning eligible ranges for the allocation. As 1GB hugetlb pages
-are not movable currently this can break the movable zone assumption
-that all allocations are migrateable and as such break memory hotplug.
 
-Reorganize the code and use the standard zonelist allocations scheme
-that we use for standard hugetbl pages. htlb_alloc_mask will ensure that
-only migratable hugetlb pages will ever see a movable zone.
+--=====_001_next=====
+Content-Type: multipart/related;
+	boundary="=====_002_next====="
 
-Fixes: 944d9fec8d7a ("hugetlb: add support for gigantic page allocation at runtime")
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
 
-Hi,
-I have posted this previously more or less as an RFC [1] because the
-patch is a result of a code review not a real bug report. I wanted to
-know more about the motivation why the original patch (944d9fec8d7a)
-did the allocation that way but the more I think about it the more I am
-convinced that this was just an omission because not everybody is aware
-of zone movable semantic.
+--=====_002_next=====
+Content-Type: multipart/alternative;
+	boundary="=====_003_next====="
 
-Mike has reviewed the code and did some smoke testing. I've done some
-testing as well.
 
-Therefore I am sending the patch for inclusion.
+--=====_003_next=====
+Content-Type: text/plain;
+	charset="UTF-8"
+Content-Transfer-Encoding: base64 
 
-[1] http://lkml.kernel.org/r/20170726105004.GI2981@dhcp22.suse.cz
+PiA+IE9uIDA4LzAzLzIwMTcgMDk6NTkgQU0sIFdlbiBZYW5nIHdyb3RlOg0KDQoNCg0KPiA+IEZy
+b206IEppYW5nIEJpYW8gPGppYW5nLmJpYW8yQHp0ZS5jb20uY24+DQo+ID4gDQo+ID4gV2hlbiBv
+cmRlciBpcyAtMSBvciB0b28gYmlnLCAqMVVMIDw8IG9yZGVyKiB3aWxsIGJlIDAsIHdoaWNoIHdp
+bGwNCj4gPiBjYXVzZSBkaXZpZGUgZXJyb3IgbGlrZSB0aGlzLA0KPiA+IA0KPiA+ICAgICBkaXZp
+ZGUgZXJyb3I6IDAwMDAgWyMxXSBTTVANCj4gPiAgICAgQ2FsbCBUcmFjZToNCj4+ICAgICAgWzxm
+ZmZmZmZmZjgxMTY4NDIzPl0gY29tcGFjdGlvbl9zdWl0YWJsZSsweDYzLzB4YzANCj4+IC4uLg0K
+PiBUaGUgdHJhY2Ugc2VlbXMgdG8gYmUgZnJvbSBhbiBvbGQgYW5kIG5vbi1tYWlubGluZSBrZXJu
+ZWwsIGFzIGl0J3MgdGhlDQo+IHNhbWUgYXMgeW91IHJlcG9ydGVkIGhlcmU6DQo+IA0KPiBodHRw
+czovL2J1Z3ppbGxhLmtlcm5lbC5vcmcvc2hvd19idWcuY2dpP2lkPTE5NjU1NQ0KPiANCj4gSW4g
+Y3VycmVudCBtYWlubGluZSBpdCBzZWVtcyB0byBtZSB0aGF0IGFsbCBjYWxsZXJzIG9mDQo+IF9f
+ZnJhZ21lbnRhdGlvbl9pbmRleCgpIHdpbGwgb25seSBkbyBzbyB3aXRoIGEgdmFsaWQgb3JkZXIu
+DQo+IA0KPiBJIHdvdWxkbid0IG1pbmQgbWFraW5nIGEgbm9uLWhvdHBhdGggY29kZSBtb3JlIHJv
+YnVzdCwgYnV0IHByb2JhYmx5IGluIGENCj4gbW9yZSBvYnZpb3VzIGFuZCBzZWxmLXJlcG9ydGlu
+Zy9kb2N1bWVudGVkIHdheSBlLmcuIHNvbWV0aGluZyBsaWtlDQo+IA0KPiBpZiAoV0FSTl9PTl9P
+TkNFKG9yZGVyID49IE1BWF9PUkRFUikpDQo+ICAgICByZXR1cm4gMA0KPiANCnllcywgSSBub3Rp
+Y2VkIHRoYXQsIEknbGwgc2VuZCBhIG5ldyBwYXRjaCBmb3IgdGhhdC4NCg0KDQoNCg0KPiA+IEBA
+IC04NzAsNiArODcwLDkgQEAgc3RhdGljIGludCBfX2ZyYWdtZW50YXRpb25faW5kZXgodW5zaWdu
+ZWQgaW50IG9yZGVyLCBzdHJ1Y3QgY29udGlnX3BhZ2VfaW5mbyAqaW4NCj4gPiAgew0KPiA+ICAg
+ICAgdW5zaWduZWQgbG9uZyByZXF1ZXN0ZWQgPSAxVUwgPDwgb3JkZXINCj4gPiAgDQo+ID4gKyAg
+ICAgICAgaWYgKCFyZXF1ZXN0ZWQpDQo+ID4gKyAgICAgICAgICAgICAgICByZXR1cm4gMA0KPiAN
+Cj4gU2VlbXMgdGhlIGluZGVudGF0aW9uIGlzIGJyb2tlbiBoZXJlIChzcGFjZXMgdnMgdGFicyku
+DQpJJ2xsIGZpeCB0aGF0Lg==
 
- mm/hugetlb.c | 35 ++++++++++++++++++++---------------
- 1 file changed, 20 insertions(+), 15 deletions(-)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index bc48ee783dd9..60530bb3d228 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1066,11 +1066,11 @@ static void free_gigantic_page(struct page *page, unsigned int order)
- }
- 
- static int __alloc_gigantic_page(unsigned long start_pfn,
--				unsigned long nr_pages)
-+				unsigned long nr_pages, gfp_t gfp_mask)
- {
- 	unsigned long end_pfn = start_pfn + nr_pages;
- 	return alloc_contig_range(start_pfn, end_pfn, MIGRATE_MOVABLE,
--				  GFP_KERNEL);
-+				  gfp_mask);
- }
- 
- static bool pfn_range_valid_gigantic(struct zone *z,
-@@ -1108,19 +1108,24 @@ static bool zone_spans_last_pfn(const struct zone *zone,
- 	return zone_spans_pfn(zone, last_pfn);
- }
- 
--static struct page *alloc_gigantic_page(int nid, unsigned int order)
-+static struct page *alloc_gigantic_page(int nid, struct hstate *h)
- {
-+	unsigned int order = huge_page_order(h);
- 	unsigned long nr_pages = 1 << order;
- 	unsigned long ret, pfn, flags;
--	struct zone *z;
-+	struct zonelist *zonelist;
-+	struct zone *zone;
-+	struct zoneref *z;
-+	gfp_t gfp_mask;
- 
--	z = NODE_DATA(nid)->node_zones;
--	for (; z - NODE_DATA(nid)->node_zones < MAX_NR_ZONES; z++) {
--		spin_lock_irqsave(&z->lock, flags);
-+	gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
-+	zonelist = node_zonelist(nid, gfp_mask);
-+	for_each_zone_zonelist_nodemask(zone, z, zonelist, gfp_zone(gfp_mask), NULL) {
-+		spin_lock_irqsave(&zone->lock, flags);
- 
--		pfn = ALIGN(z->zone_start_pfn, nr_pages);
--		while (zone_spans_last_pfn(z, pfn, nr_pages)) {
--			if (pfn_range_valid_gigantic(z, pfn, nr_pages)) {
-+		pfn = ALIGN(zone->zone_start_pfn, nr_pages);
-+		while (zone_spans_last_pfn(zone, pfn, nr_pages)) {
-+			if (pfn_range_valid_gigantic(zone, pfn, nr_pages)) {
- 				/*
- 				 * We release the zone lock here because
- 				 * alloc_contig_range() will also lock the zone
-@@ -1128,16 +1133,16 @@ static struct page *alloc_gigantic_page(int nid, unsigned int order)
- 				 * spinning on this lock, it may win the race
- 				 * and cause alloc_contig_range() to fail...
- 				 */
--				spin_unlock_irqrestore(&z->lock, flags);
--				ret = __alloc_gigantic_page(pfn, nr_pages);
-+				spin_unlock_irqrestore(&zone->lock, flags);
-+				ret = __alloc_gigantic_page(pfn, nr_pages, gfp_mask);
- 				if (!ret)
- 					return pfn_to_page(pfn);
--				spin_lock_irqsave(&z->lock, flags);
-+				spin_lock_irqsave(&zone->lock, flags);
- 			}
- 			pfn += nr_pages;
- 		}
- 
--		spin_unlock_irqrestore(&z->lock, flags);
-+		spin_unlock_irqrestore(&zone->lock, flags);
- 	}
- 
- 	return NULL;
-@@ -1150,7 +1155,7 @@ static struct page *alloc_fresh_gigantic_page_node(struct hstate *h, int nid)
- {
- 	struct page *page;
- 
--	page = alloc_gigantic_page(nid, huge_page_order(h));
-+	page = alloc_gigantic_page(nid, h);
- 	if (page) {
- 		prep_compound_gigantic_page(page, huge_page_order(h));
- 		prep_new_huge_page(h, page, nid);
--- 
-2.13.2
+--=====_003_next=====
+Content-Type: text/html ;
+	charset="UTF-8"
+Content-Transfer-Encoding: base64
+
+PGRpdiBjbGFzcz0iemNvbnRlbnRSb3ciPiAmZ3Q7ICZndDsgT24mbmJzcDswOC8wMy8yMDE3Jm5i
+c3A7MDk6NTkmbmJzcDtBTSwmbmJzcDtXZW4mbmJzcDtZYW5nJm5ic3A7d3JvdGU6PGJyPjxkaXY+
+PGRpdiBjbGFzcz0iemhpc3RvcnlSb3ciIHN0eWxlPSJkaXNwbGF5OmJsb2NrIj48ZGl2IGlkPSJ6
+d3JpdGVIaXN0b3J5Q29udGFpbmVyIj48ZGl2IGNsYXNzPSJjb250cm9sLWdyb3VwIHpoaXN0b3J5
+UGFuZWwiPjxkaXY+Jmd0OyAmZ3Q7Jm5ic3A7RnJvbTombmJzcDtKaWFuZyZuYnNwO0JpYW8mbmJz
+cDsmbHQ7amlhbmcuYmlhbzJAenRlLmNvbS5jbiZndDs8YnI+Jmd0OyAmZ3Q7Jm5ic3A7PGJyPiZn
+dDsgJmd0OyZuYnNwO1doZW4mbmJzcDtvcmRlciZuYnNwO2lzJm5ic3A7LTEmbmJzcDtvciZuYnNw
+O3RvbyZuYnNwO2JpZywmbmJzcDsqMVVMJm5ic3A7Jmx0OyZsdDsmbmJzcDtvcmRlciombmJzcDt3
+aWxsJm5ic3A7YmUmbmJzcDswLCZuYnNwO3doaWNoJm5ic3A7d2lsbDxicj4mZ3Q7ICZndDsmbmJz
+cDtjYXVzZSZuYnNwO2RpdmlkZSZuYnNwO2Vycm9yJm5ic3A7bGlrZSZuYnNwO3RoaXMsPGJyPiZn
+dDsgJmd0OyZuYnNwOzxicj4mZ3Q7ICZndDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDtk
+aXZpZGUmbmJzcDtlcnJvcjombmJzcDswMDAwJm5ic3A7WyMxXSZuYnNwO1NNUDxicj4mZ3Q7ICZn
+dDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDtDYWxsJm5ic3A7VHJhY2U6PGJyPiZndDsm
+Z3Q7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7WyZsdDtmZmZmZmZmZjgxMTY4
+NDIzJmd0O10mbmJzcDtjb21wYWN0aW9uX3N1aXRhYmxlKzB4NjMvMHhjMDxicj4mZ3Q7Jmd0OyAu
+Li48YnI+Jmd0OyBUaGUmbmJzcDt0cmFjZSZuYnNwO3NlZW1zJm5ic3A7dG8mbmJzcDtiZSZuYnNw
+O2Zyb20mbmJzcDthbiZuYnNwO29sZCZuYnNwO2FuZCZuYnNwO25vbi1tYWlubGluZSZuYnNwO2tl
+cm5lbCwmbmJzcDthcyZuYnNwO2l0J3MmbmJzcDt0aGU8YnI+Jmd0OyBzYW1lJm5ic3A7YXMmbmJz
+cDt5b3UmbmJzcDtyZXBvcnRlZCZuYnNwO2hlcmU6PGJyPiZndDsgPGJyPiZndDsgaHR0cHM6Ly9i
+dWd6aWxsYS5rZXJuZWwub3JnL3Nob3dfYnVnLmNnaT9pZD0xOTY1NTU8YnI+Jmd0OyA8YnI+Jmd0
+OyBJbiZuYnNwO2N1cnJlbnQmbmJzcDttYWlubGluZSZuYnNwO2l0Jm5ic3A7c2VlbXMmbmJzcDt0
+byZuYnNwO21lJm5ic3A7dGhhdCZuYnNwO2FsbCZuYnNwO2NhbGxlcnMmbmJzcDtvZjxicj4mZ3Q7
+IF9fZnJhZ21lbnRhdGlvbl9pbmRleCgpJm5ic3A7d2lsbCZuYnNwO29ubHkmbmJzcDtkbyZuYnNw
+O3NvJm5ic3A7d2l0aCZuYnNwO2EmbmJzcDt2YWxpZCZuYnNwO29yZGVyLjxicj4mZ3Q7IDxicj4m
+Z3Q7IEkmbmJzcDt3b3VsZG4ndCZuYnNwO21pbmQmbmJzcDttYWtpbmcmbmJzcDthJm5ic3A7bm9u
+LWhvdHBhdGgmbmJzcDtjb2RlJm5ic3A7bW9yZSZuYnNwO3JvYnVzdCwmbmJzcDtidXQmbmJzcDtw
+cm9iYWJseSZuYnNwO2luJm5ic3A7YTxicj4mZ3Q7IG1vcmUmbmJzcDtvYnZpb3VzJm5ic3A7YW5k
+Jm5ic3A7c2VsZi1yZXBvcnRpbmcvZG9jdW1lbnRlZCZuYnNwO3dheSZuYnNwO2UuZy4mbmJzcDtz
+b21ldGhpbmcmbmJzcDtsaWtlPGJyPiZndDsgPGJyPiZndDsgaWYmbmJzcDsoV0FSTl9PTl9PTkNF
+KG9yZGVyJm5ic3A7Jmd0Oz0mbmJzcDtNQVhfT1JERVIpKTxicj4mZ3Q7Jm5ic3A7ICZuYnNwOyZu
+YnNwOyByZXR1cm4mbmJzcDswOzxicj4mZ3Q7IDxicj48cD55ZXMsIEkgbm90aWNlZCB0aGF0LCBJ
+J2xsIHNlbmQgYSBuZXcgcGF0Y2ggZm9yIHRoYXQuPC9wPjxwPjxicj48L3A+Jmd0OyAmZ3Q7Jm5i
+c3A7QEAmbmJzcDstODcwLDYmbmJzcDsrODcwLDkmbmJzcDtAQCZuYnNwO3N0YXRpYyZuYnNwO2lu
+dCZuYnNwO19fZnJhZ21lbnRhdGlvbl9pbmRleCh1bnNpZ25lZCZuYnNwO2ludCZuYnNwO29yZGVy
+LCZuYnNwO3N0cnVjdCZuYnNwO2NvbnRpZ19wYWdlX2luZm8mbmJzcDsqaW48YnI+Jmd0OyAmZ3Q7
+Jm5ic3A7Jm5ic3A7ezxicj4mZ3Q7ICZndDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsm
+bmJzcDt1bnNpZ25lZCZuYnNwO2xvbmcmbmJzcDtyZXF1ZXN0ZWQmbmJzcDs9Jm5ic3A7MVVMJm5i
+c3A7Jmx0OyZsdDsmbmJzcDtvcmRlcjs8YnI+Jmd0OyAmZ3Q7Jm5ic3A7Jm5ic3A7PGJyPiZndDsg
+Jmd0OyZuYnNwOysmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJzcDsmbmJz
+cDtpZiZuYnNwOyghcmVxdWVzdGVkKTxicj4mZ3Q7ICZndDsmbmJzcDsrJm5ic3A7Jm5ic3A7Jm5i
+c3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7
+Jm5ic3A7Jm5ic3A7Jm5ic3A7Jm5ic3A7cmV0dXJuJm5ic3A7MDs8YnI+Jmd0OyA8YnI+Jmd0OyBT
+ZWVtcyZuYnNwO3RoZSZuYnNwO2luZGVudGF0aW9uJm5ic3A7aXMmbmJzcDticm9rZW4mbmJzcDto
+ZXJlJm5ic3A7KHNwYWNlcyZuYnNwO3ZzJm5ic3A7dGFicykuPGJyPkknbGwgZml4IHRoYXQuPC9k
+aXY+PC9kaXY+PC9kaXY+PC9kaXY+PC9kaXY+IDwvZGl2Pg==
+
+
+--=====_003_next=====--
+
+--=====_002_next=====--
+
+--=====_001_next=====--
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
