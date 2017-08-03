@@ -1,55 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E7B3280300
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 17:02:13 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id o5so11753153qki.2
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 14:02:13 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x90si13666381qte.479.2017.08.03.14.02.12
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CBB16B05FE
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 17:25:00 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id t187so24728633pfb.0
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 14:25:00 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id w10si21892388pgm.394.2017.08.03.14.24.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Aug 2017 14:02:12 -0700 (PDT)
-Date: Fri, 4 Aug 2017 00:02:01 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v13 4/5] mm: support reporting free page blocks
-Message-ID: <20170804000043-mutt-send-email-mst@kernel.org>
-References: <20170803091151.GF12521@dhcp22.suse.cz>
- <5982FE07.3040207@intel.com>
- <20170803104417.GI12521@dhcp22.suse.cz>
- <59830897.2060203@intel.com>
- <20170803112831.GN12521@dhcp22.suse.cz>
- <5983130E.2070806@intel.com>
- <20170803124106.GR12521@dhcp22.suse.cz>
- <59832265.1040805@intel.com>
- <20170803135047.GV12521@dhcp22.suse.cz>
- <286AC319A985734F985F78AFA26841F73928C971@shsmsx102.ccr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <286AC319A985734F985F78AFA26841F73928C971@shsmsx102.ccr.corp.intel.com>
+        Thu, 03 Aug 2017 14:24:59 -0700 (PDT)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [v5 00/15] complete deferred page initialization
+Date: Thu,  3 Aug 2017 17:23:38 -0400
+Message-Id: <1501795433-982645-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Wei W" <wei.w.wang@intel.com>
-Cc: Michal Hocko <mhocko@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
+To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org
 
-On Thu, Aug 03, 2017 at 03:20:09PM +0000, Wang, Wei W wrote:
-> On Thursday, August 3, 2017 9:51 PM, Michal Hocko: 
-> > As I've said earlier. Start simple optimize incrementally with some numbers to
-> > justify a more subtle code.
-> > --
-> 
-> OK. Let's start with the simple implementation as you suggested.
-> 
-> Best,
-> Wei
+Changelog:
+v5 - v4
+- Fixed build issues reported by kbuild on various configurations
 
-The tricky part is when you need to drop the lock and
-then restart because the device is busy. Would it maybe
-make sense to rotate the list so that new head
-will consist of pages not yet sent to device?
+v4 - v3
+- Rewrote code to zero sturct pages in __init_single_page() as
+  suggested by Michal Hocko
+- Added code to handle issues related to accessing struct page
+  memory before they are initialized.
+
+v3 - v2
+- Addressed David Miller comments about one change per patch:
+    * Splited changes to platforms into 4 patches
+    * Made "do not zero vmemmap_buf" as a separate patch
+
+v2 - v1
+- Per request, added s390 to deferred "struct page" zeroing
+- Collected performance data on x86 which proofs the importance to
+  keep memset() as prefetch (see below).
+
+SMP machines can benefit from the DEFERRED_STRUCT_PAGE_INIT config option,
+which defers initializing struct pages until all cpus have been started so
+it can be done in parallel.
+
+However, this feature is sub-optimal, because the deferred page
+initialization code expects that the struct pages have already been zeroed,
+and the zeroing is done early in boot with a single thread only.  Also, we
+access that memory and set flags before struct pages are initialized. All
+of this is fixed in this patchset.
+
+In this work we do the following:
+- Never read access struct page until it was initialized
+- Never set any fields in struct pages before they are initialized
+- Zero struct page at the beginning of struct page initialization
+
+Performance improvements on x86 machine with 8 nodes:
+Intel(R) Xeon(R) CPU E7-8895 v3 @ 2.60GHz
+
+Single threaded struct page init: 7.6s/T improvement
+Deferred struct page init: 10.2s/T improvement
+
+Pavel Tatashin (15):
+  x86/mm: reserve only exiting low pages
+  x86/mm: setting fields in deferred pages
+  sparc64/mm: setting fields in deferred pages
+  mm: discard memblock data later
+  mm: don't accessed uninitialized struct pages
+  sparc64: simplify vmemmap_populate
+  mm: defining memblock_virt_alloc_try_nid_raw
+  mm: zero struct pages during initialization
+  sparc64: optimized struct page zeroing
+  x86/kasan: explicitly zero kasan shadow memory
+  arm64/kasan: explicitly zero kasan shadow memory
+  mm: explicitly zero pagetable memory
+  mm: stop zeroing memory during allocation in vmemmap
+  mm: optimize early system hash allocations
+  mm: debug for raw alloctor
+
+ arch/arm64/mm/kasan_init.c          |  32 ++++++++
+ arch/sparc/include/asm/pgtable_64.h |  32 ++++++++
+ arch/sparc/mm/init_64.c             |  31 +++-----
+ arch/x86/kernel/setup.c             |   5 +-
+ arch/x86/mm/init_64.c               |   9 ++-
+ arch/x86/mm/kasan_init_64.c         |  29 +++++++
+ include/linux/bootmem.h             |  27 +++++++
+ include/linux/memblock.h            |   9 ++-
+ include/linux/mm.h                  |   9 +++
+ mm/memblock.c                       | 152 ++++++++++++++++++++++++++++--------
+ mm/nobootmem.c                      |  16 ----
+ mm/page_alloc.c                     |  31 +++++---
+ mm/sparse-vmemmap.c                 |  10 ++-
+ mm/sparse.c                         |   6 +-
+ 14 files changed, 310 insertions(+), 88 deletions(-)
 
 -- 
-MST
+2.13.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
