@@ -1,72 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 949976B06C6
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A11426B06C7
 	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 17:25:11 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id t78so24170821ita.14
+Received: by mail-io0-f200.google.com with SMTP id 41so23833519iop.2
         for <linux-mm@kvack.org>; Thu, 03 Aug 2017 14:25:11 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id m81si10628118ioa.188.2017.08.03.14.25.02
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id z101si8455054ita.166.2017.08.03.14.25.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Aug 2017 14:25:03 -0700 (PDT)
+        Thu, 03 Aug 2017 14:25:01 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v5 12/15] mm: explicitly zero pagetable memory
-Date: Thu,  3 Aug 2017 17:23:50 -0400
-Message-Id: <1501795433-982645-13-git-send-email-pasha.tatashin@oracle.com>
+Subject: [v5 09/15] sparc64: optimized struct page zeroing
+Date: Thu,  3 Aug 2017 17:23:47 -0400
+Message-Id: <1501795433-982645-10-git-send-email-pasha.tatashin@oracle.com>
 In-Reply-To: <1501795433-982645-1-git-send-email-pasha.tatashin@oracle.com>
 References: <1501795433-982645-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org
 
-Soon vmemmap_alloc_block() will no longer zero the block, so zero memory
-at its call sites for everything except struct pages.  Struct page memory
-is zero'd by struct page initialization.
+Add an optimized mm_zero_struct_page(), so struct page's are zeroed without
+calling memset(). We do eight regular stores, thus avoid cost of membar.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
 Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 Reviewed-by: Bob Picco <bob.picco@oracle.com>
 ---
- mm/sparse-vmemmap.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ arch/sparc/include/asm/pgtable_64.h | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)
 
-diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-index c50b1a14d55e..d40c721ab19f 100644
---- a/mm/sparse-vmemmap.c
-+++ b/mm/sparse-vmemmap.c
-@@ -191,6 +191,7 @@ pmd_t * __meminit vmemmap_pmd_populate(pud_t *pud, unsigned long addr, int node)
- 		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
- 		if (!p)
- 			return NULL;
-+		memset(p, 0, PAGE_SIZE);
- 		pmd_populate_kernel(&init_mm, pmd, p);
- 	}
- 	return pmd;
-@@ -203,6 +204,7 @@ pud_t * __meminit vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node)
- 		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
- 		if (!p)
- 			return NULL;
-+		memset(p, 0, PAGE_SIZE);
- 		pud_populate(&init_mm, pud, p);
- 	}
- 	return pud;
-@@ -215,6 +217,7 @@ p4d_t * __meminit vmemmap_p4d_populate(pgd_t *pgd, unsigned long addr, int node)
- 		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
- 		if (!p)
- 			return NULL;
-+		memset(p, 0, PAGE_SIZE);
- 		p4d_populate(&init_mm, p4d, p);
- 	}
- 	return p4d;
-@@ -227,6 +230,7 @@ pgd_t * __meminit vmemmap_pgd_populate(unsigned long addr, int node)
- 		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
- 		if (!p)
- 			return NULL;
-+		memset(p, 0, PAGE_SIZE);
- 		pgd_populate(&init_mm, pgd, p);
- 	}
- 	return pgd;
+diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
+index 6fbd931f0570..be47537e84c5 100644
+--- a/arch/sparc/include/asm/pgtable_64.h
++++ b/arch/sparc/include/asm/pgtable_64.h
+@@ -230,6 +230,38 @@ extern unsigned long _PAGE_ALL_SZ_BITS;
+ extern struct page *mem_map_zero;
+ #define ZERO_PAGE(vaddr)	(mem_map_zero)
+ 
++/* This macro must be updated when the size of struct page grows above 80
++ * or reduces below 64.
++ * The idea that compiler optimizes out switch() statement, and only
++ * leaves clrx instructions or memset() call.
++ */
++#define	mm_zero_struct_page(pp) do {					\
++	unsigned long *_pp = (void *)(pp);				\
++									\
++	/* Check that struct page is 8-byte aligned */			\
++	BUILD_BUG_ON(sizeof(struct page) & 7);				\
++									\
++	switch (sizeof(struct page)) {					\
++	case 80:							\
++		_pp[9] = 0;	/* fallthrough */			\
++	case 72:							\
++		_pp[8] = 0;	/* fallthrough */			\
++	case 64:							\
++		_pp[7] = 0;						\
++		_pp[6] = 0;						\
++		_pp[5] = 0;						\
++		_pp[4] = 0;						\
++		_pp[3] = 0;						\
++		_pp[2] = 0;						\
++		_pp[1] = 0;						\
++		_pp[0] = 0;						\
++		break;		/* no fallthrough */			\
++	default:							\
++		pr_warn_once("suboptimal mm_zero_struct_page");		\
++		memset(_pp, 0, sizeof(struct page));			\
++	}								\
++} while (0)
++
+ /* PFNs are real physical page numbers.  However, mem_map only begins to record
+  * per-page information starting at pfn_base.  This is to handle systems where
+  * the first physical page in the machine is at some huge physical address,
 -- 
 2.13.4
 
