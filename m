@@ -1,318 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 246856B0664
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 02:48:51 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id v77so5364328pgb.15
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 23:48:51 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id z66si1004619pff.284.2017.08.02.23.48.49
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 91A656B0667
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 03:06:11 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id g71so1051903wmg.13
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 00:06:11 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g53si986529wrg.284.2017.08.03.00.06.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Aug 2017 23:48:49 -0700 (PDT)
-From: Wei Wang <wei.w.wang@intel.com>
-Subject: [PATCH v13 5/5] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
-Date: Thu,  3 Aug 2017 14:38:19 +0800
-Message-Id: <1501742299-4369-6-git-send-email-wei.w.wang@intel.com>
-In-Reply-To: <1501742299-4369-1-git-send-email-wei.w.wang@intel.com>
-References: <1501742299-4369-1-git-send-email-wei.w.wang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 03 Aug 2017 00:06:09 -0700 (PDT)
+Date: Thu, 3 Aug 2017 09:06:06 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm, oom: do not rely on TIF_MEMDIE for memory
+ reserves access
+Message-ID: <20170803070606.GA12521@dhcp22.suse.cz>
+References: <20170727090357.3205-1-mhocko@kernel.org>
+ <20170727090357.3205-2-mhocko@kernel.org>
+ <201708020030.ACB04683.JLHMFVOSFFOtOQ@I-love.SAKURA.ne.jp>
+ <20170801165242.GA15518@dhcp22.suse.cz>
+ <201708031039.GDG05288.OQJOHtLVFMSFFO@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201708031039.GDG05288.OQJOHtLVFMSFFO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, mawilcox@microsoft.com, akpm@linux-foundation.org
-Cc: virtio-dev@lists.oasis-open.org, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Add a new vq to report hints of guest free pages to the host.
+On Thu 03-08-17 10:39:42, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Wed 02-08-17 00:30:33, Tetsuo Handa wrote:
+> > > > @@ -3603,6 +3612,22 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+> > > >  	return alloc_flags;
+> > > >  }
+> > > >  
+> > > > +static bool oom_reserves_allowed(struct task_struct *tsk)
+> > > > +{
+> > > > +	if (!tsk_is_oom_victim(tsk))
+> > > > +		return false;
+> > > > +
+> > > > +	/*
+> > > > +	 * !MMU doesn't have oom reaper so we shouldn't risk the memory reserves
+> > > > +	 * depletion and shouldn't give access to memory reserves passed the
+> > > > +	 * exit_mm
+> > > > +	 */
+> > > > +	if (!IS_ENABLED(CONFIG_MMU) && !tsk->mm)
+> > > > +		return false;
+> > > 
+> > > Branching based on CONFIG_MMU is ugly. I suggest timeout based next OOM
+> > > victim selection if CONFIG_MMU=n.
+> > 
+> > I suggest we do not argue about nommu without actually optimizing for or
+> > fixing nommu which we are not here. I am even not sure memory reserves
+> > can ever be depleted for that config.
+> 
+> I don't think memory reserves can deplete for CONFIG_MMU=n environment.
+> But the reason the OOM reaper was introduced is not limited to handling
+> depletion of memory reserves. The OOM reaper was introduced because
+> OOM victims might get stuck indirectly waiting for other threads doing
+> memory allocation. You said
+> 
+>   > Yes, exit_aio is the only blocking call I know of currently. But I would
+>   > like this to be as robust as possible and so I do not want to rely on
+>   > the current implementation. This can change in future and I can
+>   > guarantee that nobody will think about the oom path when adding
+>   > something to the final __mmput path.
+> 
+> at http://lkml.kernel.org/r/20170726054533.GA960@dhcp22.suse.cz , but
+> how can you guarantee that nobody will think about the oom path
+> when adding something to the final __mmput() path without thinking
+> about possibility of getting stuck waiting for memory allocation in
+> CONFIG_MMU=n environment?
 
-Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-Signed-off-by: Liang Li <liang.z.li@intel.com>
----
- drivers/virtio/virtio_balloon.c     | 164 ++++++++++++++++++++++++++++++------
- include/uapi/linux/virtio_balloon.h |   1 +
- 2 files changed, 140 insertions(+), 25 deletions(-)
+Look, I really appreciate your sentiment for for nommu platform but with
+an absolute lack of _any_ oom reports on that platform that I am aware
+of nor any reports about lockups during oom I am less than thrilled to
+add a code to fix a problem which even might not exist. Nommu is usually
+very special with a very specific workload running (e.g. no overcommit)
+so I strongly suspect that any OOM theories are highly academic.
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index 29aca0c..29c4a61 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -54,11 +54,12 @@ static struct vfsmount *balloon_mnt;
- 
- struct virtio_balloon {
- 	struct virtio_device *vdev;
--	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq;
-+	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_page_vq;
- 
- 	/* The balloon servicing is delegated to a freezable workqueue. */
- 	struct work_struct update_balloon_stats_work;
- 	struct work_struct update_balloon_size_work;
-+	struct work_struct report_free_page_work;
- 
- 	/* Prevent updating balloon when it is being canceled. */
- 	spinlock_t stop_update_lock;
-@@ -90,6 +91,13 @@ struct virtio_balloon {
- 	/* Memory statistics */
- 	struct virtio_balloon_stat stats[VIRTIO_BALLOON_S_NR];
- 
-+	/*
-+	 * Used by the device and driver to signal each other.
-+	 * device->driver: start the free page report.
-+	 * driver->device: end the free page report.
-+	 */
-+	__virtio32 report_free_page_signal;
-+
- 	/* To register callback in oom notifier call chain */
- 	struct notifier_block nb;
- };
-@@ -146,7 +154,7 @@ static void set_page_pfns(struct virtio_balloon *vb,
- }
- 
- static void send_one_sg(struct virtio_balloon *vb, struct virtqueue *vq,
--			void *addr, uint32_t size)
-+			void *addr, uint32_t size, bool busywait)
- {
- 	struct scatterlist sg;
- 	unsigned int len;
-@@ -165,7 +173,12 @@ static void send_one_sg(struct virtio_balloon *vb, struct virtqueue *vq,
- 			cpu_relax();
- 	}
- 	virtqueue_kick(vq);
--	wait_event(vb->acked, virtqueue_get_buf(vq, &len));
-+	if (busywait)
-+		while (!virtqueue_get_buf(vq, &len) &&
-+		       !virtqueue_is_broken(vq))
-+			cpu_relax();
-+	else
-+		wait_event(vb->acked, virtqueue_get_buf(vq, &len));
- }
- 
- /*
-@@ -197,11 +210,11 @@ static void tell_host_sgs(struct virtio_balloon *vb,
- 		sg_addr = pfn_to_kaddr(sg_pfn_start);
- 		sg_len = (sg_pfn_end - sg_pfn_start) << PAGE_SHIFT;
- 		while (sg_len > sg_max_len) {
--			send_one_sg(vb, vq, sg_addr, sg_max_len);
-+			send_one_sg(vb, vq, sg_addr, sg_max_len, 0);
- 			sg_addr += sg_max_len;
- 			sg_len -= sg_max_len;
- 		}
--		send_one_sg(vb, vq, sg_addr, sg_len);
-+		send_one_sg(vb, vq, sg_addr, sg_len, 0);
- 		xb_zero(&vb->page_xb, sg_pfn_start, sg_pfn_end);
- 		sg_pfn_start = sg_pfn_end + 1;
- 	}
-@@ -503,42 +516,138 @@ static void update_balloon_size_func(struct work_struct *work)
- 		queue_work(system_freezable_wq, work);
- }
- 
-+static void virtio_balloon_send_free_pages(void *opaque, unsigned long pfn,
-+					   unsigned long nr_pages)
-+{
-+	struct virtio_balloon *vb = (struct virtio_balloon *)opaque;
-+	void *addr = pfn_to_kaddr(pfn);
-+	uint32_t len = nr_pages << PAGE_SHIFT;
-+
-+	send_one_sg(vb, vb->free_page_vq, addr, len, 1);
-+}
-+
-+static void report_free_page_completion(struct virtio_balloon *vb)
-+{
-+	struct virtqueue *vq = vb->free_page_vq;
-+	struct scatterlist sg;
-+	unsigned int len;
-+
-+	sg_init_one(&sg, &vb->report_free_page_signal, sizeof(__virtio32));
-+	while (unlikely(virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL)
-+			== -ENOSPC)) {
-+		virtqueue_kick(vq);
-+		while (!virtqueue_get_buf(vq, &len) &&
-+		       !virtqueue_is_broken(vq))
-+			cpu_relax();
-+	}
-+	virtqueue_kick(vq);
-+}
-+
-+static void report_free_page(struct work_struct *work)
-+{
-+	struct virtio_balloon *vb;
-+
-+	vb = container_of(work, struct virtio_balloon, report_free_page_work);
-+	walk_free_mem_block(vb, 1, &virtio_balloon_send_free_pages);
-+	report_free_page_completion(vb);
-+}
-+
-+static void free_page_request(struct virtqueue *vq)
-+{
-+	struct virtio_balloon *vb = vq->vdev->priv;
-+
-+	queue_work(system_freezable_wq, &vb->report_free_page_work);
-+}
-+
- static int init_vqs(struct virtio_balloon *vb)
- {
--	struct virtqueue *vqs[3];
--	vq_callback_t *callbacks[] = { balloon_ack, balloon_ack, stats_request };
--	static const char * const names[] = { "inflate", "deflate", "stats" };
--	int err, nvqs;
-+	struct virtqueue **vqs;
-+	vq_callback_t **callbacks;
-+	const char **names;
-+	struct scatterlist sg;
-+	int i, nvqs, err = -ENOMEM;
-+
-+	/* Inflateq and deflateq are used unconditionally */
-+	nvqs = 2;
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ))
-+		nvqs++;
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_VQ))
-+		nvqs++;
-+
-+	/* Allocate space for find_vqs parameters */
-+	vqs = kcalloc(nvqs, sizeof(*vqs), GFP_KERNEL);
-+	if (!vqs)
-+		goto err_vq;
-+	callbacks = kmalloc_array(nvqs, sizeof(*callbacks), GFP_KERNEL);
-+	if (!callbacks)
-+		goto err_callback;
-+	names = kmalloc_array(nvqs, sizeof(*names), GFP_KERNEL);
-+	if (!names)
-+		goto err_names;
-+
-+	callbacks[0] = balloon_ack;
-+	names[0] = "inflate";
-+	callbacks[1] = balloon_ack;
-+	names[1] = "deflate";
-+
-+	i = 2;
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
-+		callbacks[i] = stats_request;
-+		names[i] = "stats";
-+		i++;
-+	}
- 
--	/*
--	 * We expect two virtqueues: inflate and deflate, and
--	 * optionally stat.
--	 */
--	nvqs = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ) ? 3 : 2;
--	err = virtio_find_vqs(vb->vdev, nvqs, vqs, callbacks, names, NULL);
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_VQ)) {
-+		callbacks[i] = free_page_request;
-+		names[i] = "free_page_vq";
-+	}
-+
-+	err = vb->vdev->config->find_vqs(vb->vdev, nvqs, vqs, callbacks, names,
-+					 NULL, NULL);
- 	if (err)
--		return err;
-+		goto err_find;
- 
- 	vb->inflate_vq = vqs[0];
- 	vb->deflate_vq = vqs[1];
-+	i = 2;
- 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
--		struct scatterlist sg;
--		unsigned int num_stats;
--		vb->stats_vq = vqs[2];
--
-+		vb->stats_vq = vqs[i++];
- 		/*
- 		 * Prime this virtqueue with one buffer so the hypervisor can
- 		 * use it to signal us later (it can't be broken yet!).
- 		 */
--		num_stats = update_balloon_stats(vb);
--
--		sg_init_one(&sg, vb->stats, sizeof(vb->stats[0]) * num_stats);
-+		sg_init_one(&sg, vb->stats, sizeof(vb->stats));
- 		if (virtqueue_add_outbuf(vb->stats_vq, &sg, 1, vb, GFP_KERNEL)
- 		    < 0)
- 			BUG();
- 		virtqueue_kick(vb->stats_vq);
- 	}
-+
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_VQ)) {
-+		vb->free_page_vq = vqs[i];
-+		vb->report_free_page_signal = 0;
-+		sg_init_one(&sg, &vb->report_free_page_signal,
-+			    sizeof(__virtio32));
-+		if (virtqueue_add_outbuf(vb->free_page_vq, &sg, 1, vb,
-+					 GFP_KERNEL) < 0)
-+			dev_warn(&vb->vdev->dev, "%s: add signal buf fail\n",
-+				 __func__);
-+		virtqueue_kick(vb->free_page_vq);
-+	}
-+
-+	kfree(names);
-+	kfree(callbacks);
-+	kfree(vqs);
- 	return 0;
-+
-+err_find:
-+	kfree(names);
-+err_names:
-+	kfree(callbacks);
-+err_callback:
-+	kfree(vqs);
-+err_vq:
-+	return err;
- }
- 
- #ifdef CONFIG_BALLOON_COMPACTION
-@@ -590,7 +699,7 @@ static int virtballoon_migratepage(struct balloon_dev_info *vb_dev_info,
- 	spin_unlock_irqrestore(&vb_dev_info->pages_lock, flags);
- 	if (use_sg) {
- 		send_one_sg(vb, vb->inflate_vq, page_address(newpage),
--			    PAGE_SIZE);
-+			    PAGE_SIZE, 0);
- 	} else {
- 		vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
- 		set_page_pfns(vb, vb->pfns, newpage);
-@@ -600,7 +709,7 @@ static int virtballoon_migratepage(struct balloon_dev_info *vb_dev_info,
- 	balloon_page_delete(page);
- 	if (use_sg) {
- 		send_one_sg(vb, vb->deflate_vq, page_address(page),
--			    PAGE_SIZE);
-+			    PAGE_SIZE, 0);
- 	} else {
- 		vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
- 		set_page_pfns(vb, vb->pfns, page);
-@@ -667,6 +776,9 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_SG))
- 		xb_init(&vb->page_xb);
- 
-+	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_VQ))
-+		INIT_WORK(&vb->report_free_page_work, report_free_page);
-+
- 	vb->nb.notifier_call = virtballoon_oom_notify;
- 	vb->nb.priority = VIRTBALLOON_OOM_NOTIFY_PRIORITY;
- 	err = register_oom_notifier(&vb->nb);
-@@ -731,6 +843,7 @@ static void virtballoon_remove(struct virtio_device *vdev)
- 	spin_unlock_irq(&vb->stop_update_lock);
- 	cancel_work_sync(&vb->update_balloon_size_work);
- 	cancel_work_sync(&vb->update_balloon_stats_work);
-+	cancel_work_sync(&vb->report_free_page_work);
- 
- 	xb_empty(&vb->page_xb);
- 	remove_common(vb);
-@@ -785,6 +898,7 @@ static unsigned int features[] = {
- 	VIRTIO_BALLOON_F_STATS_VQ,
- 	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
- 	VIRTIO_BALLOON_F_SG,
-+	VIRTIO_BALLOON_F_FREE_PAGE_VQ,
- };
- 
- static struct virtio_driver virtio_balloon_driver = {
-diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-index 37780a7..8214f84 100644
---- a/include/uapi/linux/virtio_balloon.h
-+++ b/include/uapi/linux/virtio_balloon.h
-@@ -35,6 +35,7 @@
- #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
- #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
- #define VIRTIO_BALLOON_F_SG		3 /* Use sg instead of PFN lists */
-+#define VIRTIO_BALLOON_F_FREE_PAGE_VQ	4 /* Virtqueue to report free pages */
- 
- /* Size of a PFN in the balloon interface. */
- #define VIRTIO_BALLOON_PFN_SHIFT 12
+All I do care about is to not regress nommu as much as possible. So can
+we get back to the proposed patch and updates I have done to address
+your review feedback please?
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
