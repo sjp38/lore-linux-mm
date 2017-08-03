@@ -1,77 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B9B2280394
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 13:24:55 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id z53so2800641wrz.10
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 10:24:55 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 20si1657844wma.1.2017.08.03.10.24.53
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 09FD26B061F
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 14:17:30 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id f26so4145079lfh.14
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 11:17:29 -0700 (PDT)
+Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
+        by mx.google.com with ESMTPS id e18si8880605lfg.508.2017.08.03.11.17.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Aug 2017 10:24:53 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v73HO3sJ057335
-	for <linux-mm@kvack.org>; Thu, 3 Aug 2017 13:24:52 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2c46b4exmk-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 03 Aug 2017 13:24:52 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Thu, 3 Aug 2017 18:24:50 +0100
-Date: Thu, 3 Aug 2017 20:24:43 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH] userfaultfd_zeropage: return -ENOSPC in case mm has gone
-References: <1501136819-21857-1-git-send-email-rppt@linux.vnet.ibm.com>
- <20170731122204.GB4878@dhcp22.suse.cz>
- <20170731133247.GK29716@redhat.com>
- <20170731134507.GC4829@dhcp22.suse.cz>
- <20170802123440.GD17905@rapoport-lnx>
- <20170802155522.GB21775@redhat.com>
- <20170802162248.GA3476@dhcp22.suse.cz>
- <20170802164001.GF21775@redhat.com>
+        Thu, 03 Aug 2017 11:17:27 -0700 (PDT)
+Received: by mail-lf0-x241.google.com with SMTP id x16so1454253lfb.4
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 11:17:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170802164001.GF21775@redhat.com>
-Message-Id: <20170803172442.GA1026@rapoport-lnx>
+In-Reply-To: <20170803110548.GK12521@dhcp22.suse.cz>
+References: <20170802105018.GA2529@dhcp22.suse.cz> <CAGH-Kgt_9So8bDe=yDF3yLZHDfDgeXsnBEu_X6uE_nQnoi=5Vg@mail.gmail.com>
+ <20170803081152.GC12521@dhcp22.suse.cz> <5aca0179-3b04-aa1a-58cd-668a04f63ae7@I-love.SAKURA.ne.jp>
+ <20170803103337.GH12521@dhcp22.suse.cz> <201708031944.JCB39029.SJOOOLHFQFMVFt@I-love.SAKURA.ne.jp>
+ <20170803110548.GK12521@dhcp22.suse.cz>
+From: Paul Moore <paul@paul-moore.com>
+Date: Thu, 3 Aug 2017 14:17:26 -0400
+Message-ID: <CAHC9VhQ_TtFPQL76OEui8_rfvDJ5i6AEdPdYLSHtn1vtWEKTOA@mail.gmail.com>
+Subject: Re: suspicious __GFP_NOMEMALLOC in selinux
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, stable@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, mgorman@suse.de
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, selinux@tycho.nsa.gov
 
-On Wed, Aug 02, 2017 at 06:40:01PM +0200, Andrea Arcangeli wrote:
-> On Wed, Aug 02, 2017 at 06:22:49PM +0200, Michal Hocko wrote:
-> > ESRCH refers to "no such process". Strictly speaking userfaultfd code is
-> > about a mm which is gone but that is a mere detail. In fact the owner of
-> 
-> Well this whole issue about which retval, is about a mere detail in
-> the first place, so I don't think you can discount all other mere
-> details as irrelevant in the evaluation of a change to solve a mere
-> detail.
-> 
-> > But as I've said, this might be really risky to change. My impression
-> > was that userfaultfd is not widely used yet and those can be fixed
-> > easily but if that is not the case then we have to live with the current
-> > ENOSPC.
-> 
-> The only change would be for userfaultfd non cooperative mode, and
-> CRIU is the main user of that. So I think it is up to Mike to decide,
-> I'm fine either ways. I certainly agree ESRCH could be a slightly
-> better fit, I only wanted to clarify it's not a 100% match either.
+On Thu, Aug 3, 2017 at 7:05 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Thu 03-08-17 19:44:46, Tetsuo Handa wrote:
+>> Michal Hocko wrote:
+>> > On Thu 03-08-17 19:02:57, Tetsuo Handa wrote:
+>> > > On 2017/08/03 17:11, Michal Hocko wrote:
+>> > > > [CC Mel]
+>> > > >
+>> > > > On Wed 02-08-17 17:45:56, Paul Moore wrote:
+>> > > >> On Wed, Aug 2, 2017 at 6:50 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>> > > >>> Hi,
+>> > > >>> while doing something completely unrelated to selinux I've noticed a
+>> > > >>> really strange __GFP_NOMEMALLOC usage pattern in selinux, especially
+>> > > >>> GFP_ATOMIC | __GFP_NOMEMALLOC doesn't make much sense to me. GFP_ATOMIC
+>> > > >>> on its own allows to access memory reserves while the later flag tells
+>> > > >>> we cannot use memory reserves at all. The primary usecase for
+>> > > >>> __GFP_NOMEMALLOC is to override a global PF_MEMALLOC should there be a
+>> > > >>> need.
+>> > > >>>
+>> > > >>> It all leads to fa1aa143ac4a ("selinux: extended permissions for
+>> > > >>> ioctls") which doesn't explain this aspect so let me ask. Why is the
+>> > > >>> flag used at all? Moreover shouldn't GFP_ATOMIC be actually GFP_NOWAIT.
+>> > > >>> What makes this path important to access memory reserves?
+>> > > >>
+>> > > >> [NOTE: added the SELinux list to the CC line, please include that list
+>> > > >> when asking SELinux questions]
+>> > > >
+>> > > > Sorry about that. Will keep it in mind for next posts
+>> > > >
+>> > > >> The GFP_ATOMIC|__GFP_NOMEMALLOC use in SELinux appears to be limited
+>> > > >> to security/selinux/avc.c, and digging a bit, I'm guessing commit
+>> > > >> fa1aa143ac4a copied the combination from 6290c2c43973 ("selinux: tag
+>> > > >> avc cache alloc as non-critical") and the avc_alloc_node() function.
+>> > > >
+>> > > > Thanks for the pointer. That makes much more sense now. Back in 2012 we
+>> > > > really didn't have a good way to distinguish non sleeping and atomic
+>> > > > with reserves allocations.
+>> > > >
+>> > > >> I can't say that I'm an expert at the vm subsystem and the variety of
+>> > > >> different GFP_* flags, but your suggestion of moving to GFP_NOWAIT in
+>> > > >> security/selinux/avc.c seems reasonable and in keeping with the idea
+>> > > >> behind commit 6290c2c43973.
+>> > > >
+>> > > > What do you think about the following? I haven't tested it but it should
+>> > > > be rather straightforward.
+>> > >
+>> > > Why not at least __GFP_NOWARN ?
+>> >
+>> > This would require an additional justification.
+>>
+>> If allocation failure is not a problem, printing allocation failure messages
+>> is nothing but noisy.
+>
+> That alone is not a sufficient justification. An allocation warning
+> might still tell you that something is not configured properly. Note
+> that I am not objecting that __GFP_NOWARN is wrong it should just not be
+> added blindly withtout deep understanding of the code which I do not
+> have.
 
-I'm Ok with updating the code and the man page as long as Michal takes the
-blame if anything but CRIU breaks :)
+I understand the concern about noise from failed memory allocations,
+but I tend to agree with the argument that notification of these
+failures could be useful to admins/devs who are trying to diagnose
+problems; let's *not* use __GFP_NOWARN in the SELinux AVC code.
 
-Now, seriously, I believe there are not many users of non-cooperative uffd
-if at all and it is very unlikely anybody has it in production.
+>> > > And why not also __GFP_NOMEMALLOC ?
+>> >
+>> > What would be the purpose of __GFP_NOMEMALLOC? In other words which
+>> > context would set PF_NOMEMALLOC so that the flag would override it?
+>> >
+>>
+>> When allocating thread is selected as an OOM victim, it gets TIF_MEMDIE.
+>> Since that function might be called from !in_interrupt() context, it is
+>> possible that gfp_pfmemalloc_allowed() returns true due to TIF_MEMDIE and
+>> the OOM victim will dip into memory reserves even when allocation failure
+>> is not a problem.
+>
+> Yes this is possible but I do not see any major problem with that.
+> I wouldn't add __GFP_NOMEMALLOC unless there is a real runaway of some
+> sort that could be abused.
 
-I'll send a patch with s/ENOSPC/ESRCH in the next few days.
+Adding __GFP_NOMEMALLOC would not hurt anything would it?
+
+>> Thus, I think that majority of plain GFP_NOWAIT users want to use
+>> GFP_NOWAIT | __GFP_NOWARN | __GFP_NOMEMALLOC.
 
 -- 
-Sincerely yours,
-Mike.
+paul moore
+www.paul-moore.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
