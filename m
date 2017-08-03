@@ -1,202 +1,337 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 98DC86B0683
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 05:11:54 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id g32so1164415wrd.8
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 02:11:54 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 59si1170274wrp.7.2017.08.03.02.11.52
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C8486B0685
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 05:37:04 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id g32so1243612wrd.8
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 02:37:04 -0700 (PDT)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id 140si1028242wmm.132.2017.08.03.02.37.02
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 03 Aug 2017 02:11:53 -0700 (PDT)
-Date: Thu, 3 Aug 2017 11:11:51 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v13 4/5] mm: support reporting free page blocks
-Message-ID: <20170803091151.GF12521@dhcp22.suse.cz>
-References: <1501742299-4369-1-git-send-email-wei.w.wang@intel.com>
- <1501742299-4369-5-git-send-email-wei.w.wang@intel.com>
+        Thu, 03 Aug 2017 02:37:02 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id EF5B598CA1
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 09:37:01 +0000 (UTC)
+Date: Thu, 3 Aug 2017 10:37:01 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH v2 1/2] mm, oom: do not rely on TIF_MEMDIE for memory
+ reserves access
+Message-ID: <20170803093701.icju4mxmto3ls3ch@techsingularity.net>
+References: <20170727090357.3205-1-mhocko@kernel.org>
+ <20170727090357.3205-2-mhocko@kernel.org>
+ <20170802082914.GF2524@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1501742299-4369-5-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <20170802082914.GF2524@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mawilcox@microsoft.com, akpm@linux-foundation.org, virtio-dev@lists.oasis-open.org, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 03-08-17 14:38:18, Wei Wang wrote:
-> This patch adds support to walk through the free page blocks in the
-> system and report them via a callback function. Some page blocks may
-> leave the free list after the report function returns, so it is the
-> caller's responsibility to either detect or prevent the use of such
-> pages.
+On Wed, Aug 02, 2017 at 10:29:14AM +0200, Michal Hocko wrote:
+>     For ages we have been relying on TIF_MEMDIE thread flag to mark OOM
+>     victims and then, among other things, to give these threads full
+>     access to memory reserves. There are few shortcomings of this
+>     implementation, though.
+>     
+
+I believe the original intent was that allocations from the exit path
+would be small and relatively short-lived.
+
+>     First of all and the most serious one is that the full access to memory
+>     reserves is quite dangerous because we leave no safety room for the
+>     system to operate and potentially do last emergency steps to move on.
+>     
+>     Secondly this flag is per task_struct while the OOM killer operates
+>     on mm_struct granularity so all processes sharing the given mm are
+>     killed. Giving the full access to all these task_structs could lead to
+>     a quick memory reserves depletion.
+
+This is a valid concern.
+
+>     We have tried to reduce this risk by
+>     giving TIF_MEMDIE only to the main thread and the currently allocating
+>     task but that doesn't really solve this problem while it surely opens up
+>     a room for corner cases - e.g. GFP_NO{FS,IO} requests might loop inside
+>     the allocator without access to memory reserves because a particular
+>     thread was not the group leader.
+>     
+>     Now that we have the oom reaper and that all oom victims are reapable
+>     after 1b51e65eab64 ("oom, oom_reaper: allow to reap mm shared by the
+>     kthreads") we can be more conservative and grant only partial access to
+>     memory reserves because there are reasonable chances of the parallel
+>     memory freeing. We still want some access to reserves because we do not
+>     want other consumers to eat up the victim's freed memory. oom victims
+>     will still contend with __GFP_HIGH users but those shouldn't be so
+>     aggressive to starve oom victims completely.
+>     
+>     Introduce ALLOC_OOM flag and give all tsk_is_oom_victim tasks access to
+>     the half of the reserves. This makes the access to reserves independent
+>     on which task has passed through mark_oom_victim. Also drop any
+>     usage of TIF_MEMDIE from the page allocator proper and replace it by
+>     tsk_is_oom_victim as well which will make page_alloc.c completely
+>     TIF_MEMDIE free finally.
+>     
+>     CONFIG_MMU=n doesn't have oom reaper so let's stick to the original
+>     ALLOC_NO_WATERMARKS approach.
+>     
+>     There is a demand to make the oom killer memcg aware which will imply
+>     many tasks killed at once. This change will allow such a usecase without
+>     worrying about complete memory reserves depletion.
+>     
+>     Changes since v1
+>     - do not play tricks with nommu and grant access to memory reserves as
+>       long as TIF_MEMDIE is set
+>     - break out from allocation properly for oom victims as per Tetsuo
+>     - distinguish oom victims from other consumers of memory reserves in
+>       __gfp_pfmemalloc_flags - per Tetsuo
+>     
+>     Signed-off-by: Michal Hocko <mhocko@suse.com>
 > 
-> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> Signed-off-by: Liang Li <liang.z.li@intel.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Michael S. Tsirkin <mst@redhat.com>
-> ---
->  include/linux/mm.h     |   7 ++++
->  include/linux/mmzone.h |   5 +++
->  mm/page_alloc.c        | 109 +++++++++++++++++++++++++++++++++++++++++++++++++
->  3 files changed, 121 insertions(+)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 46b9ac5..24481e3 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1835,6 +1835,13 @@ extern void free_area_init_node(int nid, unsigned long * zones_size,
->  		unsigned long zone_start_pfn, unsigned long *zholes_size);
->  extern void free_initmem(void);
+> diff --git a/mm/internal.h b/mm/internal.h
+> index 24d88f084705..1ebcb1ed01b5 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -480,6 +480,17 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+>  /* Mask to get the watermark bits */
+>  #define ALLOC_WMARK_MASK	(ALLOC_NO_WATERMARKS-1)
 >  
-> +#if IS_ENABLED(CONFIG_VIRTIO_BALLOON)
-> +extern void walk_free_mem_block(void *opaque1,
-> +				unsigned int min_order,
-> +				void (*visit)(void *opaque2,
-> +					      unsigned long pfn,
-> +					      unsigned long nr_pages));
+> +/*
+> + * Only MMU archs have async oom victim reclaim - aka oom_reaper so we
+> + * cannot assume a reduced access to memory reserves is sufficient for
+> + * !MMU
+> + */
+> +#ifdef CONFIG_MMU
+> +#define ALLOC_OOM		0x08
+> +#else
+> +#define ALLOC_OOM		ALLOC_NO_WATERMARKS
 > +#endif
-
-Is the ifdef necessary. Sure only virtio balloon driver will use this
-currently but this looks like a generic functionality not specific to
-virtio at all so the ifdef is rather confusing.
-
->  /*
->   * Free reserved pages within range [PAGE_ALIGN(start), end & PAGE_MASK)
->   * into the buddy system. The freed pages will be poisoned with pattern
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index fc14b8b..59eacf2 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -83,6 +83,11 @@ static inline bool is_migrate_movable(int mt)
->  	for (order = 0; order < MAX_ORDER; order++) \
->  		for (type = 0; type < MIGRATE_TYPES; type++)
->  
-> +#define for_each_migratetype_order_decend(min_order, order, type) \
-> +	for (order = MAX_ORDER - 1; order < MAX_ORDER && order >= min_order; \
-> +	     order--) \
-> +		for (type = 0; type < MIGRATE_TYPES; type++)
 > +
+>  #define ALLOC_HARDER		0x10 /* try to alloc harder */
+>  #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
+>  #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
 
-Is there going to be any other user outside of mm/page_alloc.c? If not
-then do not export this.
+Ok, no collision with the wmark indexes so that should be fine. While I
+didn't check, I suspect that !MMU users also have relatively few CPUs to
+allow major contention.
 
->  extern int page_group_by_mobility_disabled;
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 9e8b4f030c1c..c9f3569a76c7 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -824,7 +824,8 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
 >  
->  #define NR_MIGRATETYPE_BITS (PB_migrate_end - PB_migrate + 1)
+>  	/*
+>  	 * If the task is already exiting, don't alarm the sysadmin or kill
+> -	 * its children or threads, just set TIF_MEMDIE so it can die quickly
+> +	 * its children or threads, just give it access to memory reserves
+> +	 * so it can die quickly
+>  	 */
+>  	task_lock(p);
+>  	if (task_will_free_mem(p)) {
+> @@ -889,9 +890,9 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+>  	count_memcg_event_mm(mm, OOM_KILL);
+>  
+>  	/*
+> -	 * We should send SIGKILL before setting TIF_MEMDIE in order to prevent
+> -	 * the OOM victim from depleting the memory reserves from the user
+> -	 * space under its control.
+> +	 * We should send SIGKILL before granting access to memory reserves
+> +	 * in order to prevent the OOM victim from depleting the memory
+> +	 * reserves from the user space under its control.
+>  	 */
+>  	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
+>  	mark_oom_victim(victim);
+
+There is the secondary effect that some operations gets aborted entirely
+if a SIGKILL is pending but that's neither here nor there.
+
 > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 6d30e91..b90b513 100644
+> index 80e4adb4c360..7ae0f6d45614 100644
 > --- a/mm/page_alloc.c
 > +++ b/mm/page_alloc.c
-> @@ -4761,6 +4761,115 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
->  	show_swap_cache_info();
+> @@ -2930,7 +2930,7 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+>  {
+>  	long min = mark;
+>  	int o;
+> -	const bool alloc_harder = (alloc_flags & ALLOC_HARDER);
+> +	const bool alloc_harder = (alloc_flags & (ALLOC_HARDER|ALLOC_OOM));
+>  
+>  	/* free_pages may go negative - that's OK */
+>  	free_pages -= (1 << order) - 1;
+> @@ -2943,10 +2943,19 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+>  	 * the high-atomic reserves. This will over-estimate the size of the
+>  	 * atomic reserve but it avoids a search.
+>  	 */
+> -	if (likely(!alloc_harder))
+> +	if (likely(!alloc_harder)) {
+>  		free_pages -= z->nr_reserved_highatomic;
+> -	else
+> -		min -= min / 4;
+> +	} else {
+> +		/*
+> +		 * OOM victims can try even harder than normal ALLOC_HARDER
+> +		 * users
+> +		 */
+> +		if (alloc_flags & ALLOC_OOM)
+> +			min -= min / 2;
+> +		else
+> +			min -= min / 4;
+> +	}
+> +
+>  
+>  #ifdef CONFIG_CMA
+>  	/* If allocation can't use CMA areas don't use free CMA pages */
+
+I see no problem here although the comment could be slightly better. It
+suggests at OOM victims can try harder but not why
+
+/*
+ * OOM victims can try even harder than normal ALLOC_HARDER users on the
+ * grounds that it's definitely going to be in the exit path shortly and
+ * free memory. Any allocation it makes during the free path will be
+ * small and short-lived.
+ */
+
+> @@ -3184,7 +3193,7 @@ static void warn_alloc_show_mem(gfp_t gfp_mask, nodemask_t *nodemask)
+>  	 * of allowed nodes.
+>  	 */
+>  	if (!(gfp_mask & __GFP_NOMEMALLOC))
+> -		if (test_thread_flag(TIF_MEMDIE) ||
+> +		if (tsk_is_oom_victim(current) ||
+>  		    (current->flags & (PF_MEMALLOC | PF_EXITING)))
+>  			filter &= ~SHOW_MEM_FILTER_NODES;
+>  	if (in_interrupt() || !(gfp_mask & __GFP_DIRECT_RECLAIM))
+
+> @@ -3603,21 +3612,46 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+>  	return alloc_flags;
 >  }
 >  
-> +#if IS_ENABLED(CONFIG_VIRTIO_BALLOON)
-> +
-> +/*
-> + * Heuristically get a free page block in the system.
-> + *
-> + * It is possible that pages from the page block are used immediately after
-> + * report_free_page_block() returns. It is the caller's responsibility to
-> + * either detect or prevent the use of such pages.
-> + *
-> + * The input parameters specify the free list to check for a free page block:
-> + * zone->free_area[order].free_list[migratetype]
-> + *
-> + * If the caller supplied page block (i.e. **page) is on the free list, offer
-> + * the next page block on the list to the caller. Otherwise, offer the first
-> + * page block on the list.
-> + *
-> + * Return 0 when a page block is found on the caller specified free list.
-> + * Otherwise, no page block is found.
-> + */
-> +static int report_free_page_block(struct zone *zone, unsigned int order,
-> +				  unsigned int migratetype, struct page **page)
-
-This is just too ugly and wrong actually. Never provide struct page
-pointers outside of the zone->lock. What I've had in mind was to simply
-walk free lists of the suitable order and call the callback for each one.
-Something as simple as
-
-	for (i = 0; i < MAX_NR_ZONES; i++) {
-		struct zone *zone = &pgdat->node_zones[i];
-
-		if (!populated_zone(zone))
-			continue;
-		spin_lock_irqsave(&zone->lock, flags);
-		for (order = min_order; order < MAX_ORDER; ++order) {
-			struct free_area *free_area = &zone->free_area[order];
-			enum migratetype mt;
-			struct page *page;
-
-			if (!free_area->nr_pages)
-				continue;
-
-			for_each_migratetype_order(order, mt) {
-				list_for_each_entry(page,
-						&free_area->free_list[mt], lru) {
-
-					pfn = page_to_pfn(page);
-					visit(opaque2, prn, 1<<order);
-				}
-			}
-		}
-
-		spin_unlock_irqrestore(&zone->lock, flags);
-	}
-
-[...]
-
-> +/*
-> + * Walk through the free page blocks in the system. The @visit callback is
-> + * invoked to handle each free page block.
-> + *
-> + * Note: some page blocks may be used after the report function returns, so it
-> + * is not safe for the callback to use any pages or discard data on such page
-> + * blocks.
-> + */
-> +void walk_free_mem_block(void *opaque1,
-> +			 unsigned int min_order,
-> +			 void (*visit)(void *opaque2,
-> +				       unsigned long pfn,
-> +				       unsigned long nr_pages))
-
-Is there any reason why there is no node id? I guess you just do not
-care for your particular use case. Not that I care too much either. If
-somebody wants this per node then it would be trivial to extend I was
-just wondering whether this is a deliberate decision or an omission.
-
-> +{
-> +	struct zone *zone = NULL;
-> +	struct page *page = NULL;
-> +	unsigned int order;
-> +	unsigned long pfn, nr_pages;
-> +	int type;
-> +
-> +	for_each_populated_zone(zone) {
-> +		for_each_migratetype_order_decend(min_order, order, type) {
-> +			while (!report_free_page_block(zone, order, type,
-> +						       &page)) {
-> +				pfn = page_to_pfn(page);
-> +				nr_pages = 1 << order;
-> +				visit(opaque1, pfn, nr_pages);
-> +			}
-> +		}
-> +	}
-> +}
-> +EXPORT_SYMBOL_GPL(walk_free_mem_block);
-> +
-> +#endif
-> +
->  static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
+> -bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+> +static bool oom_reserves_allowed(struct task_struct *tsk)
 >  {
->  	zoneref->zone = zone;
-> -- 
-> 2.7.4
+> -	if (unlikely(gfp_mask & __GFP_NOMEMALLOC))
+> +	if (!tsk_is_oom_victim(tsk))
+> +		return false;
+> +
+> +	/*
+> +	 * !MMU doesn't have oom reaper so give access to memory reserves
+> +	 * only to the thread with TIF_MEMDIE set
+> +	 */
+> +	if (!IS_ENABLED(CONFIG_MMU) && !test_thread_flag(TIF_MEMDIE))
+>  		return false;
+>  
+> +	return true;
+> +}
+> +
+
+Ok, there is a chance that a task selected as an OOM kill victim may be
+in the middle of a __GFP_NOMEMALLOC allocation but I can't actually see a
+problem wiith that. __GFP_NOMEMALLOC users are not going to be in the exit
+path (which we care about for an OOM killed task) and the caller should
+always be able to handle a failure.
+
+> +/*
+> + * Distinguish requests which really need access to full memory
+> + * reserves from oom victims which can live with a portion of it
+> + */
+> +static inline int __gfp_pfmemalloc_flags(gfp_t gfp_mask)
+> +{
+> +	if (unlikely(gfp_mask & __GFP_NOMEMALLOC))
+> +		return 0;
+>  	if (gfp_mask & __GFP_MEMALLOC)
+> -		return true;
+> +		return ALLOC_NO_WATERMARKS;
+>  	if (in_serving_softirq() && (current->flags & PF_MEMALLOC))
+> -		return true;
+> -	if (!in_interrupt() &&
+> -			((current->flags & PF_MEMALLOC) ||
+> -			 unlikely(test_thread_flag(TIF_MEMDIE))))
+> -		return true;
+> +		return ALLOC_NO_WATERMARKS;
+> +	if (!in_interrupt()) {
+> +		if (current->flags & PF_MEMALLOC)
+> +			return ALLOC_NO_WATERMARKS;
+> +		else if (oom_reserves_allowed(current))
+> +			return ALLOC_OOM;
+> +	}
+>  
+> -	return false;
+> +	return 0;
+> +}
+> +
+> +bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+> +{
+> +	return __gfp_pfmemalloc_flags(gfp_mask) > 0;
+>  }
+
+Very subtle sign casing error here. If the flags ever use the high bit,
+this wraps and fails. It "shouldn't be possible" but you could just remove
+the "> 0" there to be on the safe side or have __gfp_pfmemalloc_flags
+return unsigned.
+
+>  
+>  /*
+> @@ -3770,6 +3804,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	unsigned long alloc_start = jiffies;
+>  	unsigned int stall_timeout = 10 * HZ;
+>  	unsigned int cpuset_mems_cookie;
+> +	int reserves;
+>  
+
+This should be explicitly named to indicate it's about flags and not the
+number of reserve pages or something else wacky.
+
+>  	/*
+>  	 * In the slowpath, we sanity check order to avoid ever trying to
+> @@ -3875,15 +3910,16 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
+>  		wake_all_kswapds(order, ac);
+>  
+> -	if (gfp_pfmemalloc_allowed(gfp_mask))
+> -		alloc_flags = ALLOC_NO_WATERMARKS;
+> +	reserves = __gfp_pfmemalloc_flags(gfp_mask);
+> +	if (reserves)
+> +		alloc_flags = reserves;
+>  
+
+And if it's reserve_flags you can save a branch with
+
+reserve_flags = __gfp_pfmemalloc_flags(gfp_mask);
+alloc_pags |= reserve_flags;
+
+It won't make much difference considering how branch-intensive the allocator
+is anyway.
+
+>  	/*
+>  	 * Reset the zonelist iterators if memory policies can be ignored.
+>  	 * These allocations are high priority and system rather than user
+>  	 * orientated.
+>  	 */
+> -	if (!(alloc_flags & ALLOC_CPUSET) || (alloc_flags & ALLOC_NO_WATERMARKS)) {
+> +	if (!(alloc_flags & ALLOC_CPUSET) || reserves) {
+>  		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
+>  		ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
+>  					ac->high_zoneidx, ac->nodemask);
+> @@ -3960,8 +3996,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  		goto got_pg;
+>  
+>  	/* Avoid allocations with no watermarks from looping endlessly */
+> -	if (test_thread_flag(TIF_MEMDIE) &&
+> -	    (alloc_flags == ALLOC_NO_WATERMARKS ||
+> +	if (tsk_is_oom_victim(current) &&
+> +	    (alloc_flags == ALLOC_OOM ||
+>  	     (gfp_mask & __GFP_NOMEMALLOC)))
+>  		goto nopage;
+>  
+
+Mostly I only found nit-picks so whether you address them or not
+
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
