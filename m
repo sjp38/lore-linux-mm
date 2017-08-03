@@ -1,91 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EFD66B0657
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 01:49:41 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id q64so6816179ioi.6
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 22:49:41 -0700 (PDT)
-Received: from mail-io0-x22e.google.com (mail-io0-x22e.google.com. [2607:f8b0:4001:c06::22e])
-        by mx.google.com with ESMTPS id w136si6565679ita.92.2017.08.02.22.49.39
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 46DAA6B0659
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 02:38:28 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id l2so5572941pgu.2
+        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 23:38:28 -0700 (PDT)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id t11si20706901plm.644.2017.08.02.23.38.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Aug 2017 22:49:39 -0700 (PDT)
-Received: by mail-io0-x22e.google.com with SMTP id o9so3029522iod.1
-        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 22:49:39 -0700 (PDT)
-Subject: Re: [PATCH] mm/ksm : Checksum calculation function change (jhash2 ->
- crc32)
-References: <1501589255-9389-1-git-send-email-solee@os.korea.ac.kr>
- <20170801200550.GB24406@redhat.com>
-From: sioh Lee <solee@os.korea.ac.kr>
-Message-ID: <bf406908-bf93-83dd-54e6-d2e3e5881db6@os.korea.ac.kr>
-Date: Thu, 3 Aug 2017 14:26:27 +0900
-MIME-Version: 1.0
-In-Reply-To: <20170801200550.GB24406@redhat.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Content-Language: ko
+        Wed, 02 Aug 2017 23:38:27 -0700 (PDT)
+Received: by mail-pg0-x243.google.com with SMTP id 123so652475pga.5
+        for <linux-mm@kvack.org>; Wed, 02 Aug 2017 23:38:27 -0700 (PDT)
+From: Wei Yang <richard.weiyang@gmail.com>
+Subject: [PATCH] mm/vmalloc: reduce half comparison during pcpu_get_vm_areas()
+Date: Thu,  3 Aug 2017 14:38:22 +0800
+Message-Id: <20170803063822.48702-1-richard.weiyang@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: akpm@linux-foundation.org, mingo@kernel.org, zhongjiang@huawei.com, minchan@kernel.org, arvind.yadav.cs@gmail.com, imbrenda@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org
+To: akpm@linux-foundation.org, mhocko@suse.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wei Yang <richard.weiyang@gmail.com>
 
-Thank you very much for reading and responding to my commit.
-I understand the problem with crc32 you describe.
-I will investigate a?? as the first step, I will try to compare the number of CoWs with jhash2 and crc32. And I will send you the experiment results.
-Thanks again!
+In pcpu_get_vm_areas(), it checks each range is not overlapped. To make
+sure it is, only (N^2)/2 comparison is necessary, while current code does
+N^2 times. By starting from the next range, it achieves the goal and the
+continue could be removed.
 
--leesioh-
+At the mean time, other two work in this patch:
+*  the overlap check of two ranges could be done with one clause
+*  one typo in comment is fixed.
 
+Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
+---
+ mm/vmalloc.c | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)
 
-2017-08-02 i??i ? 5:05i?? Andrea Arcangeli i?'(e??) i?' e,?:
-> On Tue, Aug 01, 2017 at 09:07:35PM +0900, leesioh wrote:
->> In ksm, the checksum values are used to check changes in page content and keep the unstable tree more stable.
->> KSM implements checksum calculation with jhash2 hash function.
->> However, because jhash2 is implemented in software,
->> it consumes high CPU cycles (about 26%, according to KSM thread profiling results)
->>
->> To reduce CPU consumption, this commit applies the crc32 hash function
->> which is included in the SSE4.2 CPU instruction set.
->> This can significantly reduce the page checksum overhead as follows.
->>
->> I measured checksum computation 300 times to see how fast crc32 is compared to jhash2.
->> With jhash2, the average checksum calculation time is about 3460ns,
->> and with crc32, the average checksum calculation time is 888ns. This is about 74% less than jhash2.
-> crc32 may create more false positives than jhash2. crc32 only
-> guarantees a different value in return if fewer than N bit
-> changes. False positives in crc32 comparison, would result in more
-> unstable pages being added to the unstable tree, and if they're
-> changing as result of false positives it may make the unstable tree
-> more unstable leading to missed merges (in addition to the overhead of
-> adding those to the unstable tree in the first place and in addition
-> of risking an immediate cow post merge which would slowdown apps even
-> more).
->
-> I think if somebody wants a crc instead of a more proper hash (that is
-> less likely to generate false positives if a couple of bits changes)
-> it should be an option in sysfs not enabled by default, but overall I
-> think it's not worth this change for a downgrade to crc. There's the
-> risk an admin thinks it's going to make things runs faster because KSM
-> CPU utilization decreases, but missing the risk of increased CoWs in
-> app context or missed merges because of higher instability in the
-> unstable tree.
->
-> Still deploying hardware accelleration in the KSM hash is a
-> interesting idea that I don't recall has been tried. Could you try to
-> benchmark in userland (or kernel if you wish) software jhash2 vs
-> CONFIG_CRYPTO_SHA1_SSSE3 or CONFIG_CRYPTO_GHASH_CLMUL_NI_INTEL instead
-> of the accellerated crc?  (I don't know if GHASH API can fit our use
-> case though, but accellerated SHA1 sure would fit).  I suppose they'll
-> be slower than crc32, and probably slower than jhash2 too, however I
-> can't be sure by just thinking about it.
->
-> We've to also keep the floating point save and restore into account in
-> the real world, where ksm schedules often and may run interleaved in
-> the same CPU where an app uses the fpu a lot in userland (if the
-> interleaved app doesn't use the fpu in userland it won't create
-> overhead).
->
-> Thanks!
-> Andrea
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 8087451cb332..f33c8350fd83 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -2457,7 +2457,7 @@ static unsigned long pvm_determine_end(struct vmap_area **pnext,
+  * matching slot.  While scanning, if any of the areas overlaps with
+  * existing vmap_area, the base address is pulled down to fit the
+  * area.  Scanning is repeated till all the areas fit and then all
+- * necessary data structres are inserted and the result is returned.
++ * necessary data structures are inserted and the result is returned.
+  */
+ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
+ 				     const size_t *sizes, int nr_vms,
+@@ -2485,15 +2485,11 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
+ 		if (start > offsets[last_area])
+ 			last_area = area;
+ 
+-		for (area2 = 0; area2 < nr_vms; area2++) {
++		for (area2 = area + 1; area2 < nr_vms; area2++) {
+ 			unsigned long start2 = offsets[area2];
+ 			unsigned long end2 = start2 + sizes[area2];
+ 
+-			if (area2 == area)
+-				continue;
+-
+-			BUG_ON(start2 >= start && start2 < end);
+-			BUG_ON(end2 <= end && end2 > start);
++			BUG_ON(start2 < end && start < end2);
+ 		}
+ 	}
+ 	last_end = offsets[last_area] + sizes[last_area];
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
