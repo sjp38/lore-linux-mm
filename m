@@ -1,78 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 830816B063A
-	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 19:53:11 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id h126so3800197wmf.10
-        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 16:53:11 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id s23si2164970wma.93.2017.08.03.16.53.10
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7572028038D
+	for <linux-mm@kvack.org>; Thu,  3 Aug 2017 20:14:51 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id 41so2132828iop.2
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 17:14:51 -0700 (PDT)
+Received: from mail-it0-x22e.google.com (mail-it0-x22e.google.com. [2607:f8b0:4001:c0b::22e])
+        by mx.google.com with ESMTPS id 41si295328ioq.6.2017.08.03.17.14.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Aug 2017 16:53:10 -0700 (PDT)
-Date: Thu, 3 Aug 2017 16:53:07 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: fix list corruptions on shmem shrinklist
-Message-Id: <20170803165307.172e2e1100b0170f6055894a@linux-foundation.org>
-In-Reply-To: <CA+55aFyPq+vVyFJ9GGm8FxH-MYAzLA+Q86Gmz44aDopQxrsC9g@mail.gmail.com>
-References: <20170803054630.18775-1-xiyou.wangcong@gmail.com>
-	<20170803161146.4316d105e533a363a5597e64@linux-foundation.org>
-	<CA+55aFyPq+vVyFJ9GGm8FxH-MYAzLA+Q86Gmz44aDopQxrsC9g@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 03 Aug 2017 17:14:50 -0700 (PDT)
+Received: by mail-it0-x22e.google.com with SMTP id 77so1016772itj.1
+        for <linux-mm@kvack.org>; Thu, 03 Aug 2017 17:14:50 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1501795433-982645-12-git-send-email-pasha.tatashin@oracle.com>
+References: <1501795433-982645-1-git-send-email-pasha.tatashin@oracle.com> <1501795433-982645-12-git-send-email-pasha.tatashin@oracle.com>
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Date: Fri, 4 Aug 2017 01:14:49 +0100
+Message-ID: <CAKv+Gu_V_T56qPS=c3kq73TLFwqpP4YHtggCrjGRmgW1itq3pQ@mail.gmail.com>
+Subject: Re: [v5 11/15] arm64/kasan: explicitly zero kasan shadow memory
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Cong Wang <xiyou.wangcong@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "# .39.x" <stable@kernel.org>, Hugh Dickins <hughd@google.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Mark Rutland <mark.rutland@arm.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, sparclinux@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-s390@vger.kernel.org, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "x86@kernel.org" <x86@kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "David S. Miller" <davem@davemloft.net>, willy@infradead.org, mhocko@kernel.org
 
-On Thu, 3 Aug 2017 16:25:46 -0700 Linus Torvalds <torvalds@linux-foundation.org> wrote:
+(+ arm64 maintainers)
 
-> On Thu, Aug 3, 2017 at 4:11 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> >
-> > Where is this INIT_LIST_HEAD()?
-> 
-> I think it's this one:
-> 
->         list_del_init(&info->shrinklist);
-> 
-> in shmem_unused_huge_shrink().
+Hi Pavel,
 
-OK.
+On 3 August 2017 at 22:23, Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
+> To optimize the performance of struct page initialization,
+> vmemmap_populate() will no longer zero memory.
+>
+> We must explicitly zero the memory that is allocated by vmemmap_populate()
+> for kasan, as this memory does not go through struct page initialization
+> path.
+>
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
+> Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+> Reviewed-by: Bob Picco <bob.picco@oracle.com>
+> ---
+>  arch/arm64/mm/kasan_init.c | 32 ++++++++++++++++++++++++++++++++
+>  1 file changed, 32 insertions(+)
+>
+> diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
+> index 81f03959a4ab..a57104bc54b8 100644
+> --- a/arch/arm64/mm/kasan_init.c
+> +++ b/arch/arm64/mm/kasan_init.c
+> @@ -135,6 +135,31 @@ static void __init clear_pgds(unsigned long start,
+>                 set_pgd(pgd_offset_k(start), __pgd(0));
+>  }
+>
+> +/*
+> + * Memory that was allocated by vmemmap_populate is not zeroed, so we must
+> + * zero it here explicitly.
+> + */
+> +static void
+> +zero_vemmap_populated_memory(void)
 
-> > I'm not sure I'm understanding this.  AFAICT all the list operations to
-> > which you refer are synchronized under spin_lock(&sbinfo->shrinklist_lock)?
-> 
-> No, notice how shmem_unused_huge_shrink() does the
-> 
->         list_move(&info->shrinklist, &to_remove);
-> 
-> and
-> 
->         list_move(&info->shrinklist, &list);
-> 
-> to move to (two different) private lists under the shrinklist_lock,
-> but once it is on that private "list/to_remove" list, it is then
-> accessed outside the locked region.
+Typo here: vemmap -> vmemmap
 
-So the code is using sbinfo->shrinklist_lock to protect
-sbinfo->shrinklist AND to protect all the per-inode info->shrinklist's.
-Except it didn't get the coverage complete.
+> +{
+> +       struct memblock_region *reg;
+> +       u64 start, end;
+> +
+> +       for_each_memblock(memory, reg) {
+> +               start = __phys_to_virt(reg->base);
+> +               end = __phys_to_virt(reg->base + reg->size);
+> +
+> +               if (start >= end)
 
-Presumably it's too expensive to extend sbinfo->shrinklist_lock
-coverage in shmem_unused_huge_shrink() (or is it?  - this is huge
-pages).  An alternative would be to add a new
-shmem_inode_info.shrinklist_lock whose mandate is to protect
-shmem_inode_info.shrinklist.
+How would this ever be true? And why is it a stop condition?
 
-> Honestly, I don't love this situation, or the patch, but I think the
-> patch is likely the right thing to do.
+> +                       break;
+> +
 
-Well, we could view the premature droppage of sbinfo->shrinklist_lock
-in shmem_unused_huge_shrink() to be a performance optimization and put
-some big fat comments in there explaining what's going on.  But it's
-tricky and it's not known that such an optimization is warranted.
+Are you missing a couple of kasan_mem_to_shadow() calls here? I can't
+believe your intention is to wipe all of DRAM.
 
+> +               memset((void *)start, 0, end - start);
+> +       }
+> +
+> +       start = (u64)kasan_mem_to_shadow(_stext);
+> +       end = (u64)kasan_mem_to_shadow(_end);
+> +       memset((void *)start, 0, end - start);
+> +}
+> +
+>  void __init kasan_init(void)
+>  {
+>         u64 kimg_shadow_start, kimg_shadow_end;
+> @@ -205,6 +230,13 @@ void __init kasan_init(void)
+>                         pfn_pte(sym_to_pfn(kasan_zero_page), PAGE_KERNEL_RO));
+>
+>         memset(kasan_zero_page, 0, PAGE_SIZE);
+> +
+> +       /*
+> +        * vmemmap_populate does not zero the memory, so we need to zero it
+> +        * explicitly
+> +        */
+> +       zero_vemmap_populated_memory();
+> +
+>         cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
+>
+>         /* At this point kasan is fully initialized. Enable error messages */
+> --
+> 2.13.4
+>
 
+KASAN uses vmemmap_populate as a convenience: kasan has nothing to do
+with vmemmap, but the function already existed and happened to do what
+KASAN requires.
+
+Given that that will no longer be the case, it would be far better to
+stop using vmemmap_populate altogether, and clone it into a KASAN
+specific version (with an appropriate name) with the zeroing folded
+into it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
