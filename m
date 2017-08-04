@@ -1,85 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DAF2280396
-	for <linux-mm@kvack.org>; Fri,  4 Aug 2017 15:08:21 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id k14so12593416qkl.7
-        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 12:08:21 -0700 (PDT)
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id a130si2120142qkg.282.2017.08.04.12.08.20
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ED604280396
+	for <linux-mm@kvack.org>; Fri,  4 Aug 2017 15:25:18 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id d5so26745996pfg.3
+        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 12:25:18 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id m6si1527285pln.457.2017.08.04.12.25.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 04 Aug 2017 12:08:20 -0700 (PDT)
-From: riel@redhat.com
-Subject: [PATCH 1/2] x86,mpx: make mpx depend on x86-64 to free up VMA flag
-Date: Fri,  4 Aug 2017 15:07:29 -0400
-Message-Id: <20170804190730.17858-2-riel@redhat.com>
-In-Reply-To: <20170804190730.17858-1-riel@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Aug 2017 12:25:17 -0700 (PDT)
+Subject: Re: [PATCH 1/2] x86,mpx: make mpx depend on x86-64 to free up VMA
+ flag
 References: <20170804190730.17858-1-riel@redhat.com>
+ <20170804190730.17858-2-riel@redhat.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <543e85d4-d4a1-41a7-cfcf-6a88c0124998@intel.com>
+Date: Fri, 4 Aug 2017 12:25:15 -0700
+MIME-Version: 1.0
+In-Reply-To: <20170804190730.17858-2-riel@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
+To: riel@redhat.com, linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, fweimer@redhat.com, colm@allcosts.net, akpm@linux-foundation.org, rppt@linux.vnet.ibm.com, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org
 
-From: Rik van Riel <riel@redhat.com>
+On 08/04/2017 12:07 PM, riel@redhat.com wrote:
+> MPX only seems to be available on 64 bit CPUs, starting with Skylake
+> and Goldmont. Move VM_MPX into the 64 bit only portion of vma->vm_flags,
+> in order to free up a VMA flag.
 
-MPX only seems to be available on 64 bit CPUs, starting with Skylake
-and Goldmont. Move VM_MPX into the 64 bit only portion of vma->vm_flags,
-in order to free up a VMA flag.
+Makes me a little sad.  But, seems worth it.
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- arch/x86/Kconfig   | 4 +++-
- include/linux/mm.h | 8 ++++++--
- 2 files changed, 9 insertions(+), 3 deletions(-)
-
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 781521b7cf9e..6dff14fadc6f 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1756,7 +1756,9 @@ config X86_SMAP
- config X86_INTEL_MPX
- 	prompt "Intel MPX (Memory Protection Extensions)"
- 	def_bool n
--	depends on CPU_SUP_INTEL
-+	# Note: only available in 64-bit mode due to VMA flags shortage
-+	depends on CPU_SUP_INTEL && X86_64
-+	select ARCH_USES_HIGH_VMA_FLAGS
- 	---help---
- 	  MPX provides hardware features that can be used in
- 	  conjunction with compiler-instrumented code to check
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 46b9ac5e8569..7550eeb06ccf 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -208,10 +208,12 @@ extern unsigned int kobjsize(const void *objp);
- #define VM_HIGH_ARCH_BIT_1	33	/* bit only usable on 64-bit architectures */
- #define VM_HIGH_ARCH_BIT_2	34	/* bit only usable on 64-bit architectures */
- #define VM_HIGH_ARCH_BIT_3	35	/* bit only usable on 64-bit architectures */
-+#define VM_HIGH_ARCH_BIT_4	36	/* bit only usable on 64-bit architectures */
- #define VM_HIGH_ARCH_0	BIT(VM_HIGH_ARCH_BIT_0)
- #define VM_HIGH_ARCH_1	BIT(VM_HIGH_ARCH_BIT_1)
- #define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
- #define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
-+#define VM_HIGH_ARCH_4	BIT(VM_HIGH_ARCH_BIT_4)
- #endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
- 
- #if defined(CONFIG_X86)
-@@ -235,9 +237,11 @@ extern unsigned int kobjsize(const void *objp);
- # define VM_MAPPED_COPY	VM_ARCH_1	/* T if mapped copy of data (nommu mmap) */
- #endif
- 
--#if defined(CONFIG_X86)
-+#if defined(CONFIG_X86_INTEL_MPX)
- /* MPX specific bounds table or bounds directory */
--# define VM_MPX		VM_ARCH_2
-+# define VM_MPX		VM_HIGH_ARCH_BIT_4
-+#else
-+# define VM_MPX		VM_NONE
- #endif
- 
- #ifndef VM_GROWSUP
--- 
-2.9.4
+Acked-by: Dave Hansen <dave.hansen@intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
