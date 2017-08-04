@@ -1,82 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D5432803E9
-	for <linux-mm@kvack.org>; Fri,  4 Aug 2017 09:51:38 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id p135so8884876qke.0
-        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 06:51:38 -0700 (PDT)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A9D9B2803E9
+	for <linux-mm@kvack.org>; Fri,  4 Aug 2017 10:01:56 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id x3so1354290oia.8
+        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 07:01:56 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id p64si1622639qkf.274.2017.08.04.06.51.37
+        by mx.google.com with ESMTPS id r124si1189082oig.441.2017.08.04.07.01.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Aug 2017 06:51:37 -0700 (PDT)
-Subject: Re: [v5 09/15] sparc64: optimized struct page zeroing
+        Fri, 04 Aug 2017 07:01:55 -0700 (PDT)
+Subject: Re: [v5 11/15] arm64/kasan: explicitly zero kasan shadow memory
 References: <1501795433-982645-1-git-send-email-pasha.tatashin@oracle.com>
- <1501795433-982645-10-git-send-email-pasha.tatashin@oracle.com>
- <20170804053701.GA30068@ravnborg.org>
+ <1501795433-982645-12-git-send-email-pasha.tatashin@oracle.com>
+ <CAKv+Gu_V_T56qPS=c3kq73TLFwqpP4YHtggCrjGRmgW1itq3pQ@mail.gmail.com>
 From: Pasha Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <4d98e852-15c0-1b66-a472-776ba1d51a6b@oracle.com>
-Date: Fri, 4 Aug 2017 09:50:57 -0400
+Message-ID: <85cce150-74b7-c89b-678c-8fdd0be6c066@oracle.com>
+Date: Fri, 4 Aug 2017 10:01:15 -0400
 MIME-Version: 1.0
-In-Reply-To: <20170804053701.GA30068@ravnborg.org>
+In-Reply-To: <CAKv+Gu_V_T56qPS=c3kq73TLFwqpP4YHtggCrjGRmgW1itq3pQ@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sam Ravnborg <sam@ravnborg.org>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org
+To: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Mark Rutland <mark.rutland@arm.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, sparclinux@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, linux-s390@vger.kernel.org, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "x86@kernel.org" <x86@kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "David S. Miller" <davem@davemloft.net>, willy@infradead.org, mhocko@kernel.org
 
-Hi Sam,
+Hi Ard,
 
-Thank you for looking at this. I will update patch description, and as 
-you suggested replace memset() via static assert in next iteration.
+Thank you very much for reviewing this. I will fix the bug you found in 
+the next iteration.
+>> +zero_vemmap_populated_memory(void)
+> 
+> Typo here: vemmap -> vmemmap
+
+Yeap, will rename here, and in Intel variant.
+
+> 
+>> +{
+>> +       struct memblock_region *reg;
+>> +       u64 start, end;
+>> +
+>> +       for_each_memblock(memory, reg) {
+>> +               start = __phys_to_virt(reg->base);
+>> +               end = __phys_to_virt(reg->base + reg->size);
+>> +
+>> +               if (start >= end)
+> How would this ever be true? And why is it a stop condition?
+
+Yes this is a stop condition. Also look at the way kasan allocates its 
+shadow memory in this file kasan_init():
+
+187  	for_each_memblock(memory, reg) {
+188  		void *start = (void *)__phys_to_virt(reg->base);
+189  		void *end = (void *)__phys_to_virt(reg->base + reg->size);
+190
+191  		if (start >= end)
+192  			break;
+...
+200  		vmemmap_populate(...)
+
+>> +
+> 
+> Are you missing a couple of kasan_mem_to_shadow() calls here? I can't
+> believe your intention is to wipe all of DRAM.
+
+True. Thank you for catching this bug. I have not really tested on arm, 
+only compiled for sanity checking. Need to figure out how to configure 
+qemu to run most generic arm code. I tested on x86 and sparc both real 
+and qemu hardware.
+
+> 
+> KASAN uses vmemmap_populate as a convenience: kasan has nothing to do
+> with vmemmap, but the function already existed and happened to do what
+> KASAN requires.
+> 
+> Given that that will no longer be the case, it would be far better to
+> stop using vmemmap_populate altogether, and clone it into a KASAN
+> specific version (with an appropriate name) with the zeroing folded
+> into it.
+
+I agree, but this would be outside of the scope of this project.
 
 Pasha
-
-On 08/04/2017 01:37 AM, Sam Ravnborg wrote:
-> Hi Pavel.
-> 
-> On Thu, Aug 03, 2017 at 05:23:47PM -0400, Pavel Tatashin wrote:
->> Add an optimized mm_zero_struct_page(), so struct page's are zeroed without
->> calling memset(). We do eight regular stores, thus avoid cost of membar.
-> 
-> The commit message does no longer reflect the implementation,
-> and should be updated.
-> 
->>
->> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
->> Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
->> Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
->> Reviewed-by: Bob Picco <bob.picco@oracle.com>
->> ---
->>   arch/sparc/include/asm/pgtable_64.h | 32 ++++++++++++++++++++++++++++++++
->>   1 file changed, 32 insertions(+)
->>
->> diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
->> index 6fbd931f0570..be47537e84c5 100644
->> --- a/arch/sparc/include/asm/pgtable_64.h
->> +++ b/arch/sparc/include/asm/pgtable_64.h
->> @@ -230,6 +230,38 @@ extern unsigned long _PAGE_ALL_SZ_BITS;
->>   extern struct page *mem_map_zero;
->>   #define ZERO_PAGE(vaddr)	(mem_map_zero)
->>   
->> +/* This macro must be updated when the size of struct page grows above 80
->> + * or reduces below 64.
->> + * The idea that compiler optimizes out switch() statement, and only
->> + * leaves clrx instructions or memset() call.
->> + */
->> +#define	mm_zero_struct_page(pp) do {					\
->> +	unsigned long *_pp = (void *)(pp);				\
->> +									\
->> +	/* Check that struct page is 8-byte aligned */			\
->> +	BUILD_BUG_ON(sizeof(struct page) & 7);				\
-> Would also be good to catch if sizeof > 80 so we do not silently
-> migrate to the suboptimal version (silent at build time).
-> Can you at build time catch if size is no any of: 64, 72, 80
-> and simplify the below a little?
-> 
-> 	Sam
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
