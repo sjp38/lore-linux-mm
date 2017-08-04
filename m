@@ -1,70 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D01C56B074F
-	for <linux-mm@kvack.org>; Fri,  4 Aug 2017 14:06:25 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id g32so6785415wrd.8
-        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 11:06:25 -0700 (PDT)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id a11si5471454edk.129.2017.08.04.11.06.24
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 78FF5280393
+	for <linux-mm@kvack.org>; Fri,  4 Aug 2017 14:55:10 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id o65so12240796qkl.12
+        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 11:55:10 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t62si2089720qkt.392.2017.08.04.11.55.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Aug 2017 11:06:24 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id x64so6529569wmg.1
-        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 11:06:24 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CA+55aFyPq+vVyFJ9GGm8FxH-MYAzLA+Q86Gmz44aDopQxrsC9g@mail.gmail.com>
-References: <20170803054630.18775-1-xiyou.wangcong@gmail.com>
- <20170803161146.4316d105e533a363a5597e64@linux-foundation.org> <CA+55aFyPq+vVyFJ9GGm8FxH-MYAzLA+Q86Gmz44aDopQxrsC9g@mail.gmail.com>
-From: Cong Wang <xiyou.wangcong@gmail.com>
-Date: Fri, 4 Aug 2017 11:06:03 -0700
-Message-ID: <CAM_iQpXNpZC+2Fs4Gjm13qHDtL_Nk_BwOH5xg+bp65QE8=Pfng@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix list corruptions on shmem shrinklist
+        Fri, 04 Aug 2017 11:55:09 -0700 (PDT)
+Message-ID: <1501872906.79618.10.camel@redhat.com>
+Subject: Re: [PATCH] mm: ratelimit PFNs busy info message
+From: Doug Ledford <dledford@redhat.com>
+Date: Fri, 04 Aug 2017 14:55:06 -0400
+In-Reply-To: <20170802141720.228502368b534f517e3107ff@linux-foundation.org>
+References: 
+	<499c0f6cc10d6eb829a67f2a4d75b4228a9b356e.1501695897.git.jtoppins@redhat.com>
+	 <20170802141720.228502368b534f517e3107ff@linux-foundation.org>
 Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "# .39.x" <stable@kernel.org>, Hugh Dickins <hughd@google.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Jonathan Toppins <jtoppins@redhat.com>
+Cc: linux-mm@kvack.org, linux-rdma@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Hillf Danton <hillf.zj@alibaba-inc.com>, open list <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 3, 2017 at 4:25 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> On Thu, Aug 3, 2017 at 4:11 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
->>
->> Where is this INIT_LIST_HEAD()?
->
-> I think it's this one:
->
->         list_del_init(&info->shrinklist);
->
-> in shmem_unused_huge_shrink().
+On Wed, 2017-08-02 at 14:17 -0700, Andrew Morton wrote:
+> On Wed,  2 Aug 2017 13:44:57 -0400 Jonathan Toppins <jtoppins@redhat.
+> com> wrote:
+> 
+> > The RDMA subsystem can generate several thousand of these messages
+> > per
+> > second eventually leading to a kernel crash. Ratelimit these
+> > messages
+> > to prevent this crash.
+> 
+> Well...  why are all these EBUSY's occurring?  It sounds inefficient
+> (at
+> least) but if it is expected, normal and unavoidable then perhaps we
+> should just remove that message altogether?
 
+I don't have an answer to that question.  To be honest, I haven't
+looked real hard.  We never had this at all, then it started out of the
+blue, but only on our Dell 730xd machines (and it hits all of them),
+but no other classes or brands of machines.  And we have our 730xd
+machines loaded up with different brands and models of cards (for
+instance one dedicated to mlx4 hardware, one for qib, one for mlx5, an
+ocrdma/cxgb4 combo, etc), so the fact that it hit all of the machines
+meant it wasn't tied to any particular brand/model of RDMA hardware. 
+To me, it always smelled of a hardware oddity specific to maybe the
+CPUs or mainboard chipsets in these machines, so given that I'm not an
+mm expert anyway, I never chased it down.
 
-Yes, this is correct. Sorry about confusion.
+A few other relevant details: it showed up somewhere around 4.8/4.9 or
+thereabouts.  It never happened before, but the prinkt has been there
+since the 3.18 days, so possibly the test to trigger this message was
+changed, or something else in the allocator changed such that the
+situation started happening on these machines?
 
+And, like I said, it is specific to our 730xd machines (but they are
+all identical, so that could mean it's something like their specific
+ram configuration is causing the allocator to hit this on these machine
+but not on other machines in the cluster, I don't want to say it's
+necessarily the model of chipset or CPU, there are other bits of
+identicalness between these machines).
 
->
->> I'm not sure I'm understanding this.  AFAICT all the list operations to
->> which you refer are synchronized under spin_lock(&sbinfo->shrinklist_lock)?
->
-> No, notice how shmem_unused_huge_shrink() does the
->
->         list_move(&info->shrinklist, &to_remove);
->
-> and
->
->         list_move(&info->shrinklist, &list);
->
-> to move to (two different) private lists under the shrinklist_lock,
-> but once it is on that private "list/to_remove" list, it is then
-> accessed outside the locked region.
->
-> Honestly, I don't love this situation, or the patch, but I think the
-> patch is likely the right thing to do.
->
-
-Me neither. This is probably the quickest fix we could have,
-other possible changes might need much more work.
-
-Thanks.
+-- 
+Doug Ledford <dledford@redhat.com>
+    GPG KeyID: B826A3330E572FDD
+    Key fingerprint = AE6B 1BDA 122B 23B4 265B  1274 B826 A333 0E57 2FDD
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
