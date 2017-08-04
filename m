@@ -1,163 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3049F2803E9
-	for <linux-mm@kvack.org>; Fri,  4 Aug 2017 10:04:02 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id j124so8835916qke.6
-        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 07:04:02 -0700 (PDT)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0062.outbound.protection.outlook.com. [104.47.33.62])
-        by mx.google.com with ESMTPS id 49si1646852qtq.306.2017.08.04.07.04.01
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A92F6B054A
+	for <linux-mm@kvack.org>; Fri,  4 Aug 2017 10:42:55 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id h126so5952611wmf.10
+        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 07:42:55 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id j19si4197584edh.128.2017.08.04.07.42.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 04 Aug 2017 07:04:01 -0700 (PDT)
-Subject: Re: A possible bug: Calling mutex_lock while holding spinlock
-References: <2d442de2-c5d4-ecce-2345-4f8f34314247@amd.com>
- <20170803153902.71ceaa3b435083fc2e112631@linux-foundation.org>
- <20170804134928.l4klfcnqatni7vsc@black.fi.intel.com>
-From: axie <axie@amd.com>
-Message-ID: <6027ba44-d3ca-9b0b-acdf-f2ec39f01929@amd.com>
-Date: Fri, 4 Aug 2017 10:03:49 -0400
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Aug 2017 07:42:53 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id d40so5923850wma.3
+        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 07:42:53 -0700 (PDT)
+Date: Fri, 4 Aug 2017 17:42:51 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: fix list corruptions on shmem shrinklist
+Message-ID: <20170804144251.zpkfjm2eybevqo7t@node.shutemov.name>
+References: <20170803054630.18775-1-xiyou.wangcong@gmail.com>
+ <20170803161146.4316d105e533a363a5597e64@linux-foundation.org>
+ <CA+55aFyPq+vVyFJ9GGm8FxH-MYAzLA+Q86Gmz44aDopQxrsC9g@mail.gmail.com>
+ <20170803165307.172e2e1100b0170f6055894a@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20170804134928.l4klfcnqatni7vsc@black.fi.intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170803165307.172e2e1100b0170f6055894a@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Alex Deucher <alexander.deucher@amd.com>, "Writer, Tim" <Tim.Writer@amd.com>, linux-mm@kvack.org, "Xie, AlexBin" <AlexBin.Xie@amd.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "# .39.x" <stable@kernel.org>, Hugh Dickins <hughd@google.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hi Kirill,
+On Thu, Aug 03, 2017 at 04:53:07PM -0700, Andrew Morton wrote:
+> On Thu, 3 Aug 2017 16:25:46 -0700 Linus Torvalds <torvalds@linux-foundation.org> wrote:
+> 
+> > On Thu, Aug 3, 2017 at 4:11 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> > >
+> > > Where is this INIT_LIST_HEAD()?
+> > 
+> > I think it's this one:
+> > 
+> >         list_del_init(&info->shrinklist);
+> > 
+> > in shmem_unused_huge_shrink().
+> 
+> OK.
+> 
+> > > I'm not sure I'm understanding this.  AFAICT all the list operations to
+> > > which you refer are synchronized under spin_lock(&sbinfo->shrinklist_lock)?
+> > 
+> > No, notice how shmem_unused_huge_shrink() does the
+> > 
+> >         list_move(&info->shrinklist, &to_remove);
+> > 
+> > and
+> > 
+> >         list_move(&info->shrinklist, &list);
+> > 
+> > to move to (two different) private lists under the shrinklist_lock,
+> > but once it is on that private "list/to_remove" list, it is then
+> > accessed outside the locked region.
+> 
+> So the code is using sbinfo->shrinklist_lock to protect
+> sbinfo->shrinklist AND to protect all the per-inode info->shrinklist's.
+> Except it didn't get the coverage complete.
+> 
+> Presumably it's too expensive to extend sbinfo->shrinklist_lock
+> coverage in shmem_unused_huge_shrink() (or is it?  - this is huge
+> pages).  An alternative would be to add a new
+> shmem_inode_info.shrinklist_lock whose mandate is to protect
+> shmem_inode_info.shrinklist.
+> 
+> > Honestly, I don't love this situation, or the patch, but I think the
+> > patch is likely the right thing to do.
+> 
+> Well, we could view the premature droppage of sbinfo->shrinklist_lock
+> in shmem_unused_huge_shrink() to be a performance optimization and put
+> some big fat comments in there explaining what's going on.  But it's
+> tricky and it's not known that such an optimization is warranted.
 
+The reason we need to drop shrinklist_lock is that we need to perform
+sleeping operations for both of the lists:
 
-Thanks for the patch. I have sent the patch to the user asking whether 
-he can give it a try.
+ - 'to_remove' was added to get iput() running outside spin lock.
+    See 253fd0f02040 ("shmem: fix sleeping from atomic context")
 
+ - on handling 'list' we need to take lock_page() and also call iput().
 
-Regards,
+ The fix looks fine to me.
 
-Alex (Bin) Xie
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-
-
-On 2017-08-04 09:49 AM, Kirill A. Shutemov wrote:
-> On Thu, Aug 03, 2017 at 03:39:02PM -0700, Andrew Morton wrote:
->> (cc Kirill)
->>
->> On Thu, 3 Aug 2017 12:35:28 -0400 axie <axie@amd.com> wrote:
->>
->>> Hi Andrew,
->>>
->>>
->>> I got a report yesterday with "BUG: sleeping function called from
->>> invalid context at kernel/locking/mutex.c"
->>>
->>> I checked the relevant functions for the issue. Function
->>> page_vma_mapped_walk did acquire spinlock. Later, in MMU notifier,
->>> amdgpu_mn_invalidate_page called function mutex_lock, which triggered
->>> the "bug".
->>>
->>> Function page_vma_mapped_walk was introduced recently by you in commit
->>> c7ab0d2fdc840266b39db94538f74207ec2afbf6 and
->>> ace71a19cec5eb430207c3269d8a2683f0574306.
->>>
->>> Would you advise how to proceed with this bug? Change
->>> page_vma_mapped_walk not to use spinlock? Or change
->>> amdgpu_mn_invalidate_page to use spinlock to meet the change, or
->>> something else?
->>>
->> hm, as far as I can tell this was an unintended side-effect of
->> c7ab0d2fd ("mm: convert try_to_unmap_one() to use
->> page_vma_mapped_walk()").  Before that patch,
->> mmu_notifier_invalidate_page() was not called under page_table_lock.
->> After that patch, mmu_notifier_invalidate_page() is called under
->> page_table_lock.
->>
->> Perhaps Kirill can suggest a fix?
-> Sorry for this.
->
-> What about the patch below?
->
->  From f48dbcdd0ed83dee9a157062b7ca1e2915172678 Mon Sep 17 00:00:00 2001
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Date: Fri, 4 Aug 2017 16:37:26 +0300
-> Subject: [PATCH] rmap: do not call mmu_notifier_invalidate_page() under ptl
->
-> MMU notifiers can sleep, but in page_mkclean_one() we call
-> mmu_notifier_invalidate_page() under page table lock.
->
-> Let's instead use mmu_notifier_invalidate_range() outside
-> page_vma_mapped_walk() loop.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Fixes: c7ab0d2fdc84 ("mm: convert try_to_unmap_one() to use page_vma_mapped_walk()")
-> ---
->   mm/rmap.c | 21 +++++++++++++--------
->   1 file changed, 13 insertions(+), 8 deletions(-)
->
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index ced14f1af6dc..b4b711a82c01 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -852,10 +852,10 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
->   		.flags = PVMW_SYNC,
->   	};
->   	int *cleaned = arg;
-> +	bool invalidation_needed = false;
->   
->   	while (page_vma_mapped_walk(&pvmw)) {
->   		int ret = 0;
-> -		address = pvmw.address;
->   		if (pvmw.pte) {
->   			pte_t entry;
->   			pte_t *pte = pvmw.pte;
-> @@ -863,11 +863,11 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
->   			if (!pte_dirty(*pte) && !pte_write(*pte))
->   				continue;
->   
-> -			flush_cache_page(vma, address, pte_pfn(*pte));
-> -			entry = ptep_clear_flush(vma, address, pte);
-> +			flush_cache_page(vma, pvmw.address, pte_pfn(*pte));
-> +			entry = ptep_clear_flush(vma, pvmw.address, pte);
->   			entry = pte_wrprotect(entry);
->   			entry = pte_mkclean(entry);
-> -			set_pte_at(vma->vm_mm, address, pte, entry);
-> +			set_pte_at(vma->vm_mm, pvmw.address, pte, entry);
->   			ret = 1;
->   		} else {
->   #ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
-> @@ -877,11 +877,11 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
->   			if (!pmd_dirty(*pmd) && !pmd_write(*pmd))
->   				continue;
->   
-> -			flush_cache_page(vma, address, page_to_pfn(page));
-> -			entry = pmdp_huge_clear_flush(vma, address, pmd);
-> +			flush_cache_page(vma, pvmw.address, page_to_pfn(page));
-> +			entry = pmdp_huge_clear_flush(vma, pvmw.address, pmd);
->   			entry = pmd_wrprotect(entry);
->   			entry = pmd_mkclean(entry);
-> -			set_pmd_at(vma->vm_mm, address, pmd, entry);
-> +			set_pmd_at(vma->vm_mm, pvmw.address, pmd, entry);
->   			ret = 1;
->   #else
->   			/* unexpected pmd-mapped page? */
-> @@ -890,11 +890,16 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
->   		}
->   
->   		if (ret) {
-> -			mmu_notifier_invalidate_page(vma->vm_mm, address);
->   			(*cleaned)++;
-> +			invalidation_needed = true;
->   		}
->   	}
->   
-> +	if (invalidation_needed) {
-> +		mmu_notifier_invalidate_range(vma->vm_mm, address,
-> +				address + (1UL << compound_order(page)));
-> +	}
-> +
->   	return true;
->   }
->   
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
