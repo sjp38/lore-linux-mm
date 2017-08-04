@@ -1,79 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id F2C186B0721
-	for <linux-mm@kvack.org>; Fri,  4 Aug 2017 04:12:42 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id p17so4803331wmd.5
-        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 01:12:42 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i25si2990462wrb.477.2017.08.04.01.12.41
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B573A6B0722
+	for <linux-mm@kvack.org>; Fri,  4 Aug 2017 04:12:45 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id t187so11223697pfb.0
+        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 01:12:45 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id s13si769508plj.719.2017.08.04.01.12.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 04 Aug 2017 01:12:41 -0700 (PDT)
-Date: Fri, 4 Aug 2017 10:12:40 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] Tagging of vmalloc pages for supporting the pmalloc
- allocator
-Message-ID: <20170804081240.GF26029@dhcp22.suse.cz>
-References: <07063abd-2f5d-20d9-a182-8ae9ead26c3c@huawei.com>
- <20170802170848.GA3240@redhat.com>
- <8e82639c-40db-02ce-096a-d114b0436d3c@huawei.com>
- <20170803114844.GO12521@dhcp22.suse.cz>
- <c3a250a6-ad4d-d24d-d0bf-4c43c467ebe6@huawei.com>
- <20170803135549.GW12521@dhcp22.suse.cz>
- <20170803144746.GA9501@redhat.com>
- <ab4809cd-0efc-a79d-6852-4bd2349a2b3f@huawei.com>
- <20170803151550.GX12521@dhcp22.suse.cz>
- <abe0c086-8c5a-d6fb-63c4-bf75528d0ec5@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Aug 2017 01:12:44 -0700 (PDT)
+Message-ID: <59842D1C.5020608@intel.com>
+Date: Fri, 04 Aug 2017 16:15:24 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <abe0c086-8c5a-d6fb-63c4-bf75528d0ec5@huawei.com>
+Subject: Re: [PATCH v13 4/5] mm: support reporting free page blocks
+References: <5982FE07.3040207@intel.com> <20170803104417.GI12521@dhcp22.suse.cz> <59830897.2060203@intel.com> <20170803112831.GN12521@dhcp22.suse.cz> <5983130E.2070806@intel.com> <20170803124106.GR12521@dhcp22.suse.cz> <59832265.1040805@intel.com> <20170803135047.GV12521@dhcp22.suse.cz> <286AC319A985734F985F78AFA26841F73928C971@shsmsx102.ccr.corp.intel.com> <20170804000043-mutt-send-email-mst@kernel.org> <20170804075337.GC26029@dhcp22.suse.cz>
+In-Reply-To: <20170804075337.GC26029@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-security-module@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Kees Cook <keescook@google.com>
+To: Michal Hocko <mhocko@kernel.org>, "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
 
-On Fri 04-08-17 11:02:46, Igor Stoppa wrote:
-> 
-> 
-> On 03/08/17 18:15, Michal Hocko wrote:
-> 
-> > I would check the one where we have mapping. It is rather unlikely
-> > vmalloc users would touch this one.
-> 
-> That was also the initial recommendation from Jerome Glisse, but it
-> seemed unusable, because of the related comment.
-> 
-> I should have asked for clarifications back then :-(
-> 
-> But it's never too late ...
-> 
-> 
-> struct page {
->   /* First double word block */
->   unsigned long flags;		/* Atomic flags, some possibly
-> 				 * updated asynchronously */
-> union {
-> 	struct address_space *mapping;	/* If low bit clear, points to
-> 					 * inode address_space, or NULL.
-> 					 * If page mapped as anonymous
-> 					 * memory, low bit is set, and
-> 					 * it points to anon_vma object:
-> 					 * see PAGE_MAPPING_ANON below.
-> 					 */
-> ...
-> }
-> 
-> mapping seems to be used exclusively in 2 ways, based on the value of
-> its lower bit.
+On 08/04/2017 03:53 PM, Michal Hocko wrote:
+> On Fri 04-08-17 00:02:01, Michael S. Tsirkin wrote:
+>> On Thu, Aug 03, 2017 at 03:20:09PM +0000, Wang, Wei W wrote:
+>>> On Thursday, August 3, 2017 9:51 PM, Michal Hocko:
+>>>> As I've said earlier. Start simple optimize incrementally with some numbers to
+>>>> justify a more subtle code.
+>>>> --
+>>> OK. Let's start with the simple implementation as you suggested.
+>>>
+>>> Best,
+>>> Wei
+>> The tricky part is when you need to drop the lock and
+>> then restart because the device is busy. Would it maybe
+>> make sense to rotate the list so that new head
+>> will consist of pages not yet sent to device?
+> No, I this should be strictly non-modifying API.
 
-Not really. The above applies to LRU pages. Please note that Slab pages
-use s_mem and huge pages use compound_mapcount. If vmalloc pages are
-using none of those already you can add a new field there.
 
--- 
-Michal Hocko
-SUSE Labs
+Just get the context here for discussion:
+
+     spin_lock_irqsave(&zone->lock, flags);
+     ...
+     visit(opaque2, pfn, 1<<order);
+     spin_unlock_irqrestore(&zone->lock, flags);
+
+The concern is that the callback may cause the lock be
+taken too long.
+
+
+I think here we can have two options:
+- Option 1: Put a Note for the callback: the callback function
+     should not block and it should finish as soon as possible.
+     (when implementing an interrupt handler, we also have
+     such similar rules in mind, right?).
+
+For our use case, the callback just puts the reported page
+block to the ring, then returns. If the ring is full as the host
+is busy, then I think it should skip this one, and just return.
+Because:
+     A. This is an optimization feature, losing a couple of free
+          pages to report isn't that important;
+     B. In reality, I think it's uncommon to see this ring getting
+         full (I didn't observe ring full in the tests), since the host
+         (consumer) is notified to take out the page block right
+         after it is added.
+
+- Option 2: Put the callback function outside the lock
+     What's input into the callback is just a pfn, and the callback
+     won't access the corresponding pages. So, I still think it won't
+     be an issue no matter what status of the pages is after they
+     are reported (even they doesn't exit due to hot-remove).
+
+
+What would you guys think?
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
