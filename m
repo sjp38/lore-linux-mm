@@ -1,74 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 78FF5280393
-	for <linux-mm@kvack.org>; Fri,  4 Aug 2017 14:55:10 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id o65so12240796qkl.12
-        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 11:55:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t62si2089720qkt.392.2017.08.04.11.55.09
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9754C280396
+	for <linux-mm@kvack.org>; Fri,  4 Aug 2017 15:07:33 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id d136so12517434qkg.11
+        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 12:07:33 -0700 (PDT)
+Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
+        by mx.google.com with ESMTPS id f89si2044394qtb.408.2017.08.04.12.07.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Aug 2017 11:55:09 -0700 (PDT)
-Message-ID: <1501872906.79618.10.camel@redhat.com>
-Subject: Re: [PATCH] mm: ratelimit PFNs busy info message
-From: Doug Ledford <dledford@redhat.com>
-Date: Fri, 04 Aug 2017 14:55:06 -0400
-In-Reply-To: <20170802141720.228502368b534f517e3107ff@linux-foundation.org>
-References: 
-	<499c0f6cc10d6eb829a67f2a4d75b4228a9b356e.1501695897.git.jtoppins@redhat.com>
-	 <20170802141720.228502368b534f517e3107ff@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 04 Aug 2017 12:07:32 -0700 (PDT)
+From: riel@redhat.com
+Subject: [PATCH 0/2] mm,fork,security: introduce MADV_WIPEONFORK
+Date: Fri,  4 Aug 2017 15:07:28 -0400
+Message-Id: <20170804190730.17858-1-riel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Jonathan Toppins <jtoppins@redhat.com>
-Cc: linux-mm@kvack.org, linux-rdma@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Hillf Danton <hillf.zj@alibaba-inc.com>, open list <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, fweimer@redhat.com, colm@allcosts.net, akpm@linux-foundation.org, rppt@linux.vnet.ibm.com, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org
 
-On Wed, 2017-08-02 at 14:17 -0700, Andrew Morton wrote:
-> On Wed,  2 Aug 2017 13:44:57 -0400 Jonathan Toppins <jtoppins@redhat.
-> com> wrote:
-> 
-> > The RDMA subsystem can generate several thousand of these messages
-> > per
-> > second eventually leading to a kernel crash. Ratelimit these
-> > messages
-> > to prevent this crash.
-> 
-> Well...  why are all these EBUSY's occurring?  It sounds inefficient
-> (at
-> least) but if it is expected, normal and unavoidable then perhaps we
-> should just remove that message altogether?
+[resend because half the recipients got dropped due to IPv6 firewall issues]
 
-I don't have an answer to that question.  To be honest, I haven't
-looked real hard.  We never had this at all, then it started out of the
-blue, but only on our Dell 730xd machines (and it hits all of them),
-but no other classes or brands of machines.  And we have our 730xd
-machines loaded up with different brands and models of cards (for
-instance one dedicated to mlx4 hardware, one for qib, one for mlx5, an
-ocrdma/cxgb4 combo, etc), so the fact that it hit all of the machines
-meant it wasn't tied to any particular brand/model of RDMA hardware. 
-To me, it always smelled of a hardware oddity specific to maybe the
-CPUs or mainboard chipsets in these machines, so given that I'm not an
-mm expert anyway, I never chased it down.
+Introduce MADV_WIPEONFORK semantics, which result in a VMA being
+empty in the child process after fork. This differs from MADV_DONTFORK
+in one important way.
 
-A few other relevant details: it showed up somewhere around 4.8/4.9 or
-thereabouts.  It never happened before, but the prinkt has been there
-since the 3.18 days, so possibly the test to trigger this message was
-changed, or something else in the allocator changed such that the
-situation started happening on these machines?
+If a child process accesses memory that was MADV_WIPEONFORK, it
+will get zeroes. The address ranges are still valid, they are just empty.
 
-And, like I said, it is specific to our 730xd machines (but they are
-all identical, so that could mean it's something like their specific
-ram configuration is causing the allocator to hit this on these machine
-but not on other machines in the cluster, I don't want to say it's
-necessarily the model of chipset or CPU, there are other bits of
-identicalness between these machines).
+If a child process accesses memory that was MADV_DONTFORK, it will
+get a segmentation fault, since those address ranges are no longer
+valid in the child after fork.
 
--- 
-Doug Ledford <dledford@redhat.com>
-    GPG KeyID: B826A3330E572FDD
-    Key fingerprint = AE6B 1BDA 122B 23B4 265B  1274 B826 A333 0E57 2FDD
+Since MADV_DONTFORK also seems to be used to allow very large
+programs to fork in systems with strict memory overcommit restrictions,
+changing the semantics of MADV_DONTFORK might break existing programs.
+
+The use case is libraries that store or cache information, and
+want to know that they need to regenerate it in the child process
+after fork.
+
+Examples of this would be:
+- systemd/pulseaudio API checks (fail after fork)
+  (replacing a getpid check, which is too slow without a PID cache)
+- PKCS#11 API reinitialization check (mandated by specification)
+- glibc's upcoming PRNG (reseed after fork)
+- OpenSSL PRNG (reseed after fork)
+
+The security benefits of a forking server having a re-inialized
+PRNG in every child process are pretty obvious. However, due to
+libraries having all kinds of internal state, and programs getting
+compiled with many different versions of each library, it is
+unreasonable to expect calling programs to re-initialize everything
+manually after fork.
+
+A further complication is the proliferation of clone flags,
+programs bypassing glibc's functions to call clone directly,
+and programs calling unshare, causing the glibc pthread_atfork
+hook to not get called.
+
+It would be better to have the kernel take care of this automatically.
+
+This is similar to the OpenBSD minherit syscall with MAP_INHERIT_ZERO:
+
+    https://man.openbsd.org/minherit.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
