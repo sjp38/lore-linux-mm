@@ -1,51 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A1B886B072F
-	for <linux-mm@kvack.org>; Fri,  4 Aug 2017 04:52:41 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id r13so11235003pfd.14
-        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 01:52:41 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id 3si818152plt.612.2017.08.04.01.52.39
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 304CF2802FE
+	for <linux-mm@kvack.org>; Fri,  4 Aug 2017 05:16:33 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id g71so4975177wmg.13
+        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 02:16:33 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o9si3201663wrc.547.2017.08.04.02.16.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Aug 2017 01:52:40 -0700 (PDT)
-Message-ID: <5984367A.3030809@intel.com>
-Date: Fri, 04 Aug 2017 16:55:22 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 04 Aug 2017 02:16:31 -0700 (PDT)
+Date: Fri, 4 Aug 2017 11:16:29 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Re: [PATCH] mm, oom: fix potential data corruption when
+ oom_reaper races with writer
+Message-ID: <20170804091629.GI26029@dhcp22.suse.cz>
+References: <201708040646.v746kkhC024636@www262.sakura.ne.jp>
+ <20170804074212.GA26029@dhcp22.suse.cz>
+ <201708040825.v748Pkul053862@www262.sakura.ne.jp>
 MIME-Version: 1.0
-Subject: Re: [PATCH v13 4/5] mm: support reporting free page blocks
-References: <59830897.2060203@intel.com> <20170803112831.GN12521@dhcp22.suse.cz> <5983130E.2070806@intel.com> <20170803124106.GR12521@dhcp22.suse.cz> <59832265.1040805@intel.com> <20170803135047.GV12521@dhcp22.suse.cz> <286AC319A985734F985F78AFA26841F73928C971@shsmsx102.ccr.corp.intel.com> <20170804000043-mutt-send-email-mst@kernel.org> <20170804075337.GC26029@dhcp22.suse.cz> <59842D1C.5020608@intel.com> <20170804082423.GG26029@dhcp22.suse.cz>
-In-Reply-To: <20170804082423.GG26029@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201708040825.v748Pkul053862@www262.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Wenwei Tao <wenwei.tww@alibaba-inc.com>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>
 
-On 08/04/2017 04:24 PM, Michal Hocko wrote:
->
->> For our use case, the callback just puts the reported page
->> block to the ring, then returns. If the ring is full as the host
->> is busy, then I think it should skip this one, and just return.
->> Because:
->>      A. This is an optimization feature, losing a couple of free
->>           pages to report isn't that important;
->>      B. In reality, I think it's uncommon to see this ring getting
->>          full (I didn't observe ring full in the tests), since the host
->>          (consumer) is notified to take out the page block right
->>          after it is added.
-> I thought you only updated a pre allocated bitmat... Anyway, I cannot
-> comment on this part much as I am not familiar with your usecase.
->   
+On Fri 04-08-17 17:25:46, Tetsuo Handa wrote:
+> Well, while lockdep warning is gone, this problem is remaining.
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index edabf6f..1e06c29 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3931,15 +3931,14 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+>         /*
+>          * This mm has been already reaped by the oom reaper and so the
+>          * refault cannot be trusted in general. Anonymous refaults would
+> -        * lose data and give a zero page instead e.g. This is especially
+> -        * problem for use_mm() because regular tasks will just die and
+> -        * the corrupted data will not be visible anywhere while kthread
+> -        * will outlive the oom victim and potentially propagate the date
+> -        * further.
+> +        * lose data and give a zero page instead e.g.
+>          */
+> -       if (unlikely((current->flags & PF_KTHREAD) && !(ret & VM_FAULT_ERROR)
+> -                               && test_bit(MMF_UNSTABLE, &vma->vm_mm->flags)))
+> +       if (unlikely(!(ret & VM_FAULT_ERROR)
+> +                    && test_bit(MMF_UNSTABLE, &vma->vm_mm->flags))) {
+> +               if (ret & VM_FAULT_RETRY)
+> +                       down_read(&vma->vm_mm->mmap_sem);
+>                 ret = VM_FAULT_SIGBUS;
+> +       }
+> 
+>         return ret;
+>  }
 
-Actually the bitmap is in the hypervisor (host). The callback puts the
-(pfn,size) on a ring which is shared with the hypervisor, then the
-hypervisor takes that info from the ring and updates that bitmap.
+I have re-read your email again and I guess I misread previously. Are
+you saying that the data corruption happens with the both patches
+applied?
 
+> 
+> $ cat /tmp/file.* | od -b | head
+> 0000000 377 377 377 377 377 377 377 377 377 377 377 377 377 377 377 377
+> *
+> 420330000 000 000 000 000 000 000 000 000 000 000 000 000 000 000 000 000
+> *
+> 420340000 377 377 377 377 377 377 377 377 377 377 377 377 377 377 377 377
+> *
+> 457330000 000 000 000 000 000 000 000 000 000 000 000 000 000 000 000 000
+> *
+> 457340000 377 377 377 377 377 377 377 377 377 377 377 377 377 377 377 377
+> *
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Best,
-Wei
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
