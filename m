@@ -1,259 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D7922802FE
-	for <linux-mm@kvack.org>; Fri,  4 Aug 2017 10:56:36 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id m80so5989364wmd.4
-        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 07:56:36 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 48si3670910wrt.399.2017.08.04.07.56.34
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EC9456B06F2
+	for <linux-mm@kvack.org>; Fri,  4 Aug 2017 11:24:04 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 24so20624207pfk.5
+        for <linux-mm@kvack.org>; Fri, 04 Aug 2017 08:24:04 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id h194si1155676pfe.672.2017.08.04.08.24.02
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 04 Aug 2017 07:56:34 -0700 (PDT)
-Date: Fri, 4 Aug 2017 16:56:31 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, oom: fix potential data corruption when oom_reaper
- races with writer
-Message-ID: <20170804145631.GP26029@dhcp22.suse.cz>
-References: <201708040646.v746kkhC024636@www262.sakura.ne.jp>
- <20170804074212.GA26029@dhcp22.suse.cz>
- <201708040825.v748Pkul053862@www262.sakura.ne.jp>
- <20170804091629.GI26029@dhcp22.suse.cz>
- <201708041941.JFH26516.HOMtSQFFFOLVJO@I-love.SAKURA.ne.jp>
- <20170804110047.GK26029@dhcp22.suse.cz>
-MIME-Version: 1.0
+        Fri, 04 Aug 2017 08:24:02 -0700 (PDT)
+Subject: Re: [PATCH] mm, oom: task_will_free_mem(current) should ignore MMF_OOM_SKIP for once.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1501718104-8099-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<a9a57062-a56d-4cc8-7027-6b80d12a8996@caviumnetworks.com>
+In-Reply-To: <a9a57062-a56d-4cc8-7027-6b80d12a8996@caviumnetworks.com>
+Message-Id: <201708050024.ABD87010.SFFOVQOFOJMHtL@I-love.SAKURA.ne.jp>
+Date: Sat, 5 Aug 2017 00:24:01 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170804110047.GK26029@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, wenwei.tww@alibaba-inc.com, oleg@redhat.com, rientjes@google.com, linux-kernel@vger.kernel.org
+To: mjaggi@caviumnetworks.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, rientjes@google.com, mhocko@suse.com, oleg@redhat.com, vdavydov.dev@gmail.com
 
-On Fri 04-08-17 13:00:47, Michal Hocko wrote:
-> On Fri 04-08-17 19:41:42, Tetsuo Handa wrote:
-[...]
-> > Yes. Data corruption still happens.
+Manish Jaggi wrote:
+> Hi Tetsuo Handa,
 > 
-> I guess I managed to reproduce finally. Will investigate further.
+> On 8/3/2017 5:25 AM, Tetsuo Handa wrote:
+> > Manish Jaggi noticed that running LTP oom01/oom02 ltp tests with high core
+> > count causes random kernel panics when an OOM victim which consumed memory
+> > in a way the OOM reaper does not help was selected by the OOM killer.
+> >
+> > ----------
+> > oom02       0  TINFO  :  start OOM testing for mlocked pages.
+> > oom02       0  TINFO  :  expected victim is 4578.
+> > oom02       0  TINFO  :  thread (ffff8b0e71f0), allocating 3221225472 bytes.
+> > oom02       0  TINFO  :  thread (ffff8b8e71f0), allocating 3221225472 bytes.
+> > (...snipped...)
+> > oom02       0  TINFO  :  thread (ffff8a0e71f0), allocating 3221225472 bytes.
+> > [  364.737486] oom02:4583 invoked oom-killer: gfp_mask=0x16080c0(GFP_KERNEL|__GFP_ZERO|__GFP_NOTRACK), nodemask=1,  order=0, oom_score_adj=0
+> > (...snipped...)
+> > [  365.036127] [ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds swapents oom_score_adj name
+> > [  365.044691] [ 1905]     0  1905     3236     1714      10       4        0             0 systemd-journal
+> > [  365.054172] [ 1908]     0  1908    20247      590       8       4        0             0 lvmetad
+> > [  365.062959] [ 2421]     0  2421     3241      878       9       3        0         -1000 systemd-udevd
+> > [  365.072266] [ 3125]     0  3125     3834      719       9       4        0         -1000 auditd
+> > [  365.080963] [ 3145]     0  3145     1086      630       6       4        0             0 systemd-logind
+> > [  365.090353] [ 3146]     0  3146     1208      596       7       3        0             0 irqbalance
+> > [  365.099413] [ 3147]    81  3147     1118      625       5       4        0          -900 dbus-daemon
+> > [  365.108548] [ 3149]   998  3149   116294     4180      26       5        0             0 polkitd
+> > [  365.117333] [ 3164]   997  3164    19992      785       9       3        0             0 chronyd
+> > [  365.126118] [ 3180]     0  3180    55605     7880      29       3        0             0 firewalld
+> > [  365.135075] [ 3187]     0  3187    87842     3033      26       3        0             0 NetworkManager
+> > [  365.144465] [ 3290]     0  3290    43037     1224      16       5        0             0 rsyslogd
+> > [  365.153335] [ 3295]     0  3295   108279     6617      30       3        0             0 tuned
+> > [  365.161944] [ 3308]     0  3308    27846      676      11       3        0             0 crond
+> > [  365.170554] [ 3309]     0  3309     3332      616      10       3        0         -1000 sshd
+> > [  365.179076] [ 3371]     0  3371    27307      364       6       3        0             0 agetty
+> > [  365.187790] [ 3375]     0  3375    29397     1125      11       3        0             0 login
+> > [  365.196402] [ 4178]     0  4178     4797     1119      14       4        0             0 master
+> > [  365.205101] [ 4209]    89  4209     4823     1396      12       4        0             0 pickup
+> > [  365.213798] [ 4211]    89  4211     4842     1485      12       3        0             0 qmgr
+> > [  365.222325] [ 4491]     0  4491    27965     1022       8       3        0             0 bash
+> > [  365.230849] [ 4513]     0  4513      670      365       5       3        0             0 oom02
+> > [  365.239459] [ 4578]     0  4578 37776030 32890957   64257     138        0             0 oom02
+> > [  365.248067] Out of memory: Kill process 4578 (oom02) score 952 or sacrifice child
+> > [  365.255581] Killed process 4578 (oom02) total-vm:151104120kB, anon-rss:131562528kB, file-rss:1300kB, shmem-rss:0kB
+> > [  365.266829] out_of_memory: Current (4583) has a pending SIGKILL
+> > [  365.267347] oom_reaper: reaped process 4578 (oom02), now anon-rss:131559616kB, file-rss:0kB, shmem-rss:0kB
+> > [  365.282658] oom_reaper: reaped process 4583 (oom02), now anon-rss:131561664kB, file-rss:0kB, shmem-rss:0kB
+> > [  365.283361] oom02:4586 invoked oom-killer: gfp_mask=0x16040c0(GFP_KERNEL|__GFP_COMP|__GFP_NOTRACK), nodemask=1,  order=0, oom_score_adj=0
+> > (...snipped...)
+> > [  365.576164] oom02:4585 invoked oom-killer: gfp_mask=0x16080c0(GFP_KERNEL|__GFP_ZERO|__GFP_NOTRACK), nodemask=1,  order=0, oom_score_adj=0
+> > (...snipped...)
+> > [  365.576298] [ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds swapents oom_score_adj name
+> > [  365.576338] [ 2421]     0  2421     3241      878       9       3        0         -1000 systemd-udevd
+> > [  365.576342] [ 3125]     0  3125     3834      719       9       4        0         -1000 auditd
+> > [  365.576347] [ 3309]     0  3309     3332      616      10       3        0         -1000 sshd
+> > [  365.576356] [ 4580]     0  4578 37776030 32890417   64258     138        0             0 oom02
+> > [  365.576361] Kernel panic - not syncing: Out of memory and no killable processes...
+> > ----------
+> Wanted to understand the envisaged effect of this patch
+> - would this patch kill the task fully or it will still take few more 
+> iterations of oom-kill to kill other process to free memory
+> - when I apply this patch I see other tasks getting killed, though I 
+> didnt got panic in initial testing, I saw login process getting killed.
+> So I am not sure if this patch works...
 
-One limitation of the current MMF_UNSTABLE implementation is that it
-still keeps the new page mapped and only sends EFAULT/kill to the
-consumer. If somebody tries to re-read the same content nothing will
-really happen. I went this way because it was much simpler and memory
-consumers usually do not retry on EFAULT. Maybe this is not the case
-here.
+Thank you for testing. This patch is working as intended.
 
-I've been staring into iov_iter_copy_from_user_atomic which I
-believe should be the common write path which reads the user buffer
-where the corruption caused by the oom_reaper would come from.
-iov_iter_fault_in_readable should be called before this function. If
-this happened after MMF_UNSTABLE was set then we should get EFAULT and
-bail out early. Let's assume this wasn't the case. Then we should get
-down to iov_iter_copy_from_user_atomic and that one shouldn't copy any
-data because __copy_from_user_inatomic says
+This patch (or any other patches) won't wait for the OOM victim (in this case
+oom02) to be fully killed. We don't want to risk OOM lockup situation by waiting
+for the OOM victim to be fully killed. If the OOM reaper kernel thread waits for
+the OOM victim forever, different OOM stress will trigger OOM lockup situation.
+Thus, the OOM reaper kernel thread gives up waiting for the OOM victim as soon as
+memory which can be reclaimed before __mmput() from mmput() from exit_mm() from
+do_exit() is called is reclaimed and sets MMF_OOM_SKIP.
 
- * If copying succeeds, the return value must be 0.  If some data cannot be
- * fetched, it is permitted to copy less than had been fetched; the only
- * hard requirement is that not storing anything at all (i.e. returning size)
- * should happen only when nothing could be copied.  In other words, you don't
- * have to squeeze as much as possible - it is allowed, but not necessary.
+Other tasks might be getting killed, for threads which task_will_free_mem(current)
+returns false will call select_bad_process() and select_bad_process() will ignore
+existing OOM victims with MMF_OOM_SKIP already set. Compared to older kernels
+which do not have the OOM reaper support, this behavior looks like a regression.
+But please be patient. This behavior is our choice for not to risk OOM lockup
+situation.
 
-which should be our case.
-
-I was testing with xfs (but generic_perform_write seem to be doing the
-same thing) and that one does
-		if (unlikely(copied == 0)) {
-			/*
-			 * If we were unable to copy any data at all, we must
-			 * fall back to a single segment length write.
-			 *
-			 * If we didn't fallback here, we could livelock
-			 * because not all segments in the iov can be copied at
-			 * once without a pagefault.
-			 */
-			bytes = min_t(unsigned long, PAGE_SIZE - offset,
-						iov_iter_single_seg_count(i));
-			goto again;
-		}
-
-and that again will go through iov_iter_fault_in_readable again and that
-will succeed now.
-
-And that's why we still see the corruption. That, however, means that
-the MMF_UNSTABLE implementation has to be more complex and we have to
-hook into all anonymous memory fault paths which I hoped I could avoid
-previously.
-
-This is a rough first draft that passes the test case from Tetsuo on my
-system. It will need much more eyes on it and I will return to it with a
-fresh brain next week. I would appreciate as much testing as possible.
-
-Note that this is on top of the previous attempt for the fix but I will
-squash the result into one patch because the previous one is not
-sufficient.
----
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 86975dec0ba1..1fbc78d423d7 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -550,6 +550,7 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
- 	struct mem_cgroup *memcg;
- 	pgtable_t pgtable;
- 	unsigned long haddr = vmf->address & HPAGE_PMD_MASK;
-+	int ret;
- 
- 	VM_BUG_ON_PAGE(!PageCompound(page), page);
- 
-@@ -561,9 +562,8 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
- 
- 	pgtable = pte_alloc_one(vma->vm_mm, haddr);
- 	if (unlikely(!pgtable)) {
--		mem_cgroup_cancel_charge(page, memcg, true);
--		put_page(page);
--		return VM_FAULT_OOM;
-+		ret = VM_FAULT_OOM;
-+		goto release;
- 	}
- 
- 	clear_huge_page(page, haddr, HPAGE_PMD_NR);
-@@ -583,6 +583,15 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
- 	} else {
- 		pmd_t entry;
- 
-+		/*
-+		 * range could have been already torn down by
-+		 * the oom reaper
-+		 */
-+		if (test_bit(MMF_UNSTABLE, &vma->vm_mm->flags)) {
-+			spin_unlock(vmf->ptl);
-+			ret = VM_FAULT_SIGBUS;
-+			goto release;
-+		}
- 		/* Deliver the page fault to userland */
- 		if (userfaultfd_missing(vma)) {
- 			int ret;
-@@ -610,6 +619,13 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
- 	}
- 
- 	return 0;
-+release:
-+	if (pgtable)
-+		pte_free(vma->vm_mm, pgtable);
-+	mem_cgroup_cancel_charge(page, memcg, true);
-+	put_page(page);
-+	return ret;
-+
- }
- 
- /*
-@@ -688,7 +704,14 @@ int do_huge_pmd_anonymous_page(struct vm_fault *vmf)
- 		ret = 0;
- 		set = false;
- 		if (pmd_none(*vmf->pmd)) {
--			if (userfaultfd_missing(vma)) {
-+			/*
-+			 * range could have been already torn down by
-+			 * the oom reaper
-+			 */
-+			if (test_bit(MMF_UNSTABLE, &vma->vm_mm->flags)) {
-+				spin_unlock(vmf->ptl);
-+				ret = VM_FAULT_SIGBUS;
-+			} else if (userfaultfd_missing(vma)) {
- 				spin_unlock(vmf->ptl);
- 				ret = handle_userfault(vmf, VM_UFFD_MISSING);
- 				VM_BUG_ON(ret & VM_FAULT_FALLBACK);
-diff --git a/mm/memory.c b/mm/memory.c
-index e7308e633b52..7de9508e38e4 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2864,6 +2864,7 @@ static int do_anonymous_page(struct vm_fault *vmf)
- 	struct vm_area_struct *vma = vmf->vma;
- 	struct mem_cgroup *memcg;
- 	struct page *page;
-+	int ret = 0;
- 	pte_t entry;
- 
- 	/* File mapping without ->vm_ops ? */
-@@ -2896,6 +2897,14 @@ static int do_anonymous_page(struct vm_fault *vmf)
- 				vmf->address, &vmf->ptl);
- 		if (!pte_none(*vmf->pte))
- 			goto unlock;
-+		/*
-+		 * range could have been already torn down by
-+		 * the oom reaper
-+		 */
-+		if (test_bit(MMF_UNSTABLE, &vma->vm_mm->flags)) {
-+			ret = VM_FAULT_SIGBUS;
-+			goto unlock;
-+		}
- 		/* Deliver the page fault to userland, check inside PT lock */
- 		if (userfaultfd_missing(vma)) {
- 			pte_unmap_unlock(vmf->pte, vmf->ptl);
-@@ -2930,6 +2939,15 @@ static int do_anonymous_page(struct vm_fault *vmf)
- 	if (!pte_none(*vmf->pte))
- 		goto release;
- 
-+	/*
-+	 * range could have been already torn down by
-+	 * the oom reaper
-+	 */
-+	if (test_bit(MMF_UNSTABLE, &vma->vm_mm->flags)) {
-+		ret = VM_FAULT_SIGBUS;
-+		goto release;
-+	}
-+
- 	/* Deliver the page fault to userland, check inside PT lock */
- 	if (userfaultfd_missing(vma)) {
- 		pte_unmap_unlock(vmf->pte, vmf->ptl);
-@@ -2949,7 +2967,7 @@ static int do_anonymous_page(struct vm_fault *vmf)
- 	update_mmu_cache(vma, vmf->address, vmf->pte);
- unlock:
- 	pte_unmap_unlock(vmf->pte, vmf->ptl);
--	return 0;
-+	return ret;
- release:
- 	mem_cgroup_cancel_charge(page, memcg, false);
- 	put_page(page);
-@@ -3231,7 +3249,10 @@ int finish_fault(struct vm_fault *vmf)
- 		page = vmf->cow_page;
- 	else
- 		page = vmf->page;
--	ret = alloc_set_pte(vmf, vmf->memcg, page);
-+	if (!test_bit(MMF_UNSTABLE, &vmf->vma->vm_mm->flags))
-+		ret = alloc_set_pte(vmf, vmf->memcg, page);
-+	else
-+		ret = VM_FAULT_SIGBUS;
- 	if (vmf->pte)
- 		pte_unmap_unlock(vmf->pte, vmf->ptl);
- 	return ret;
-@@ -3871,24 +3892,6 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
- 			mem_cgroup_oom_synchronize(false);
- 	}
- 
--	/*
--	 * This mm has been already reaped by the oom reaper and so the
--	 * refault cannot be trusted in general. Anonymous refaults would
--	 * lose data and give a zero page instead e.g.
--	 */
--	if (unlikely(!(ret & VM_FAULT_ERROR)
--				&& test_bit(MMF_UNSTABLE, &vma->vm_mm->flags))) {
--		/*
--		 * We are going to enforce SIGBUS but the PF path might have
--		 * dropped the mmap_sem already so take it again so that
--		 * we do not break expectations of all arch specific PF paths
--		 * and g-u-p
--		 */
--		if (ret & VM_FAULT_RETRY)
--			down_read(&vma->vm_mm->mmap_sem);
--		ret = VM_FAULT_SIGBUS;
--	}
--
- 	return ret;
- }
- EXPORT_SYMBOL_GPL(handle_mm_fault);
--- 
-Michal Hocko
-SUSE Labs
+This patch will prevent _all_ threads which task_will_free_mem(current) returns
+true from calling select_bad_process(). And Michal's patch will prevent _most_
+threads which task_will_free_mem(current) returns true from calling select_bad_process().
+Since oom02 has many threads which task_will_free_mem(current) returns true,
+this patch (or Michal's patch) will reduce possibility of killing all threads.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
