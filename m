@@ -1,115 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B4E816B02FA
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 01:42:17 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id b66so85114919pfe.9
-        for <linux-mm@kvack.org>; Sun, 06 Aug 2017 22:42:17 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id n16si942416pll.676.2017.08.06.22.42.16
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C5F726B025F
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 02:02:47 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id k71so13445175wrc.15
+        for <linux-mm@kvack.org>; Sun, 06 Aug 2017 23:02:47 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 59si7919796wrd.166.2017.08.06.23.02.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 06 Aug 2017 22:42:16 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v4 5/5] mm, swap: Don't use VMA based swap readahead if HDD is used as swap
-Date: Mon,  7 Aug 2017 13:40:38 +0800
-Message-Id: <20170807054038.1843-6-ying.huang@intel.com>
-In-Reply-To: <20170807054038.1843-1-ying.huang@intel.com>
-References: <20170807054038.1843-1-ying.huang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 06 Aug 2017 23:02:46 -0700 (PDT)
+Date: Mon, 7 Aug 2017 08:02:43 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] oom_reaper: close race without using oom_lock
+Message-ID: <20170807060243.GA32434@dhcp22.suse.cz>
+References: <20170721153353.GG5944@dhcp22.suse.cz>
+ <201707230941.BFG30203.OFHSJtFFVQLOMO@I-love.SAKURA.ne.jp>
+ <20170724063844.GA25221@dhcp22.suse.cz>
+ <201707262033.JGE65600.MOtQFFLOJOSFVH@I-love.SAKURA.ne.jp>
+ <20170726114638.GL2981@dhcp22.suse.cz>
+ <201708051002.FGG87553.QtFFFMVJOSOOHL@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201708051002.FGG87553.QtFFFMVJOSOOHL@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org, rientjes@google.com, linux-kernel@vger.kernel.org
 
-From: Huang Ying <ying.huang@intel.com>
+On Sat 05-08-17 10:02:55, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Wed 26-07-17 20:33:21, Tetsuo Handa wrote:
+> > > Michal Hocko wrote:
+> > > > On Sun 23-07-17 09:41:50, Tetsuo Handa wrote:
+> > > > > So, how can we verify the above race a real problem?
+> > > > 
+> > > > Try to simulate a _real_ workload and see whether we kill more tasks
+> > > > than necessary. 
+> > > 
+> > > Whether it is a _real_ workload or not cannot become an answer.
+> > > 
+> > > If somebody is trying to allocate hundreds/thousands of pages after memory of
+> > > an OOM victim was reaped, avoiding this race window makes no sense; next OOM
+> > > victim will be selected anyway. But if somebody is trying to allocate only one
+> > > page and then is planning to release a lot of memory, avoiding this race window
+> > > can save somebody from being OOM-killed needlessly. This race window depends on
+> > > what the threads are about to do, not whether the workload is natural or
+> > > artificial.
+> > 
+> > And with a desparate lack of crystal ball we cannot do much about that
+> > really.
+> > 
+> > > My question is, how can users know it if somebody was OOM-killed needlessly
+> > > by allowing MMF_OOM_SKIP to race.
+> > 
+> > Is it really important to know that the race is due to MMF_OOM_SKIP?
+> 
+> Yes, it is really important. Needlessly selecting even one OOM victim is
+> a pain which is difficult to explain to and persuade some of customers.
 
-VMA based swap readahead will readahead the virtual pages that is
-continuous in the virtual address space.  While the original swap
-readahead will readahead the swap slots that is continuous in the swap
-device.  Although VMA based swap readahead is more correct for the
-swap slots to be readahead, it will trigger more small random
-readings, which may cause the performance of HDD (hard disk) to
-degrade heavily, and may finally exceed the benefit.
+How is this any different from a race with a task exiting an releasing
+some memory after we have crossed the point of no return and will kill
+something?
 
-To avoid the issue, in this patch, if the HDD is used as swap, the VMA
-based swap readahead will be disabled, and the original swap readahead
-will be used instead.
+> > Isn't it sufficient to see that we kill too many tasks and then debug it
+> > further once something hits that?
+> 
+> It is not sufficient.
+> 
+> > 
+> > [...]
+> > > Is it guaranteed that __node_reclaim() never (even indirectly) waits for
+> > > __GFP_DIRECT_RECLAIM && !__GFP_NORETRY memory allocation?
+> > 
+> > this is a direct reclaim which can go down to slab shrinkers with all
+> > the usual fun...
+> 
+> Excuse me, but does that mean "Yes, it is" ?
+> 
+> As far as I checked, most shrinkers use non-scheduling operations other than
+> cond_resched(). But some shrinkers use lock_page()/down_write() etc. I worry
+> that such shrinkers might wait for __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
+> memory allocation (i.e. "No, it isn't").
 
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Tim Chen <tim.c.chen@intel.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
----
- include/linux/swap.h | 11 ++++++-----
- mm/swapfile.c        |  8 +++++++-
- 2 files changed, 13 insertions(+), 6 deletions(-)
+Yes that is possible. Once you are in the shrinker land then you have to
+count with everything. And if you want to imply that
+get_page_from_freelist inside __alloc_pages_may_oom may lockup while
+holding the oom_lock then you might be right but I haven't checked that
+too deeply. It might be very well possible that the node reclaim bails
+out early when we are under OOM.
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 61d63379e956..9c4ae6f14eea 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -400,16 +400,17 @@ extern struct page *do_swap_page_readahead(swp_entry_t fentry, gfp_t gfp_mask,
- 					   struct vm_fault *vmf,
- 					   struct vma_swap_readahead *swap_ra);
- 
--static inline bool swap_use_vma_readahead(void)
--{
--	return READ_ONCE(swap_vma_readahead);
--}
--
- /* linux/mm/swapfile.c */
- extern atomic_long_t nr_swap_pages;
- extern long total_swap_pages;
-+extern atomic_t nr_rotate_swap;
- extern bool has_usable_swap(void);
- 
-+static inline bool swap_use_vma_readahead(void)
-+{
-+	return READ_ONCE(swap_vma_readahead) && !atomic_read(&nr_rotate_swap);
-+}
-+
- /* Swap 50% full? Release swapcache more aggressively.. */
- static inline bool vm_swap_full(void)
- {
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 42eff9e4e972..4f8b3e08a547 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -96,6 +96,8 @@ static DECLARE_WAIT_QUEUE_HEAD(proc_poll_wait);
- /* Activity counter to indicate that a swapon or swapoff has occurred */
- static atomic_t proc_poll_event = ATOMIC_INIT(0);
- 
-+atomic_t nr_rotate_swap = ATOMIC_INIT(0);
-+
- static inline unsigned char swap_count(unsigned char ent)
- {
- 	return ent & ~SWAP_HAS_CACHE;	/* may include SWAP_HAS_CONT flag */
-@@ -2569,6 +2571,9 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	if (p->flags & SWP_CONTINUED)
- 		free_swap_count_continuations(p);
- 
-+	if (!p->bdev || !blk_queue_nonrot(bdev_get_queue(p->bdev)))
-+		atomic_dec(&nr_rotate_swap);
-+
- 	mutex_lock(&swapon_mutex);
- 	spin_lock(&swap_lock);
- 	spin_lock(&p->lock);
-@@ -3145,7 +3150,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 			cluster = per_cpu_ptr(p->percpu_cluster, cpu);
- 			cluster_set_null(&cluster->index);
- 		}
--	}
-+	} else
-+		atomic_inc(&nr_rotate_swap);
- 
- 	error = swap_cgroup_swapon(p->type, maxpages);
- 	if (error)
 -- 
-2.11.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
