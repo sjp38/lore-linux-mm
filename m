@@ -1,36 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 31A7E6B025F
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 06:36:42 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 16so318092pgg.8
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 03:36:42 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id e7si5354954plj.347.2017.08.07.03.36.40
+	by kanga.kvack.org (Postfix) with ESMTP id B110B6B025F
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 06:43:42 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id r133so476429pgr.6
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 03:43:42 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id 3si4506965pgf.431.2017.08.07.03.43.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Aug 2017 03:36:41 -0700 (PDT)
-Date: Mon, 7 Aug 2017 18:36:10 +0800
+        Mon, 07 Aug 2017 03:43:41 -0700 (PDT)
+Date: Mon, 7 Aug 2017 18:43:20 +0800
 From: kbuild test robot <lkp@intel.com>
-Subject: Re: [PATCH v8 11/14] lockdep: Apply crossrelease to PG_locked locks
-Message-ID: <201708071812.DEA8LPsT%fengguang.wu@intel.com>
+Subject: Re: [PATCH v8 13/14] lockdep: Move data of CONFIG_LOCKDEP_PAGELOCK
+ from page to page_ext
+Message-ID: <201708071842.ibSdZ12V%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="3V7upXqbjpZ4EhLz"
+Content-Type: multipart/mixed; boundary="CE+1k2dSO48ffgeK"
 Content-Disposition: inline
-In-Reply-To: <1502089981-21272-12-git-send-email-byungchul.park@lge.com>
+In-Reply-To: <1502089981-21272-14-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Byungchul Park <byungchul.park@lge.com>
 Cc: kbuild-all@01.org, peterz@infradead.org, mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
 
---3V7upXqbjpZ4EhLz
+--CE+1k2dSO48ffgeK
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
 Hi Byungchul,
 
-[auto build test WARNING on linus/master]
-[also build test WARNING on v4.13-rc4 next-20170807]
+[auto build test ERROR on linus/master]
+[also build test ERROR on v4.13-rc4 next-20170807]
 [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 
 url:    https://github.com/0day-ci/linux/commits/Byungchul-Park/lockdep-Implement-crossrelease-feature/20170807-172617
@@ -42,20 +43,65 @@ reproduce:
         # save the attached .config to linux build tree
         make.cross ARCH=alpha 
 
-All warnings (new ones prefixed by >>):
+All errors (new ones prefixed by >>):
 
-warning: (LOCKDEP_COMPLETE && LOCKDEP_PAGELOCK) selects LOCKDEP_CROSSRELEASE which has unmet direct dependencies (PROVE_LOCKING)
+   warning: (LOCKDEP_COMPLETE && LOCKDEP_PAGELOCK) selects LOCKDEP_CROSSRELEASE which has unmet direct dependencies (PROVE_LOCKING)
+   warning: (LOCKDEP_COMPLETE && LOCKDEP_PAGELOCK) selects LOCKDEP_CROSSRELEASE which has unmet direct dependencies (PROVE_LOCKING)
+   In file included from include/linux/srcutree.h:28:0,
+                    from include/linux/srcu.h:62,
+                    from include/linux/notifier.h:15,
+                    from include/linux/memory_hotplug.h:6,
+                    from include/linux/mmzone.h:771,
+                    from include/linux/gfp.h:5,
+                    from include/linux/mm.h:9,
+                    from include/linux/pid_namespace.h:6,
+                    from include/linux/ptrace.h:9,
+                    from arch/alpha/kernel/asm-offsets.c:10:
+   include/linux/completion.h:32:27: error: field 'map' has incomplete type
+     struct lockdep_map_cross map;
+                              ^~~
+   In file included from include/linux/mm.h:23:0,
+                    from include/linux/pid_namespace.h:6,
+                    from include/linux/ptrace.h:9,
+                    from arch/alpha/kernel/asm-offsets.c:10:
+>> include/linux/page_ext.h:49:27: error: field 'map' has incomplete type
+     struct lockdep_map_cross map;
+                              ^~~
+   make[2]: *** [arch/alpha/kernel/asm-offsets.s] Error 1
+   make[2]: Target '__build' not remade because of errors.
+   make[1]: *** [prepare0] Error 2
+   make[1]: Target 'prepare' not remade because of errors.
+   make: *** [sub-make] Error 2
+
+vim +/map +49 include/linux/page_ext.h
+
+    37	
+    38	/*
+    39	 * Page Extension can be considered as an extended mem_map.
+    40	 * A page_ext page is associated with every page descriptor. The
+    41	 * page_ext helps us add more information about the page.
+    42	 * All page_ext are allocated at boot or memory hotplug event,
+    43	 * then the page_ext for pfn always exists.
+    44	 */
+    45	struct page_ext {
+    46		unsigned long flags;
+    47	
+    48	#ifdef CONFIG_LOCKDEP_PAGELOCK
+  > 49		struct lockdep_map_cross map;
+    50	#endif
+    51	};
+    52	
 
 ---
 0-DAY kernel test infrastructure                Open Source Technology Center
 https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
---3V7upXqbjpZ4EhLz
+--CE+1k2dSO48ffgeK
 Content-Type: application/gzip
 Content-Disposition: attachment; filename=".config.gz"
 Content-Transfer-Encoding: base64
 
-H4sICKhAiFkAAy5jb25maWcAlFxZk9u2ln7Pr1A58zDzkNi9RHFmqh9AEBQRkQQNgFK3X1hy
+H4sICD5DiFkAAy5jb25maWcAlFxZk9u2ln7Pr1A58zDzkNi9RHFmqh9AEBQRkQQNgFK3X1hy
 W7G70m65uuXc638/54CLsJHyrXKVm993iB1nA6iff/p5Qb4dD192x4f73ePj98Wn/dP+eXfc
 f1z89fC4/79FKhaV0AuWcv0rCBcPT9/+/Xr3+PXzbnH968XVr29+eb6/Xqz3z0/7xwU9PP31
 8OkbvP9wePrp55+oqDK+aklR5+Tm+/C4vE64Pj2WZXN6kFvFyvaW5iuSpvDiSkiu8xIEfl4M
@@ -1001,7 +1047,7 @@ G4zoUcD8po2JL+gCkhaR/0uQmXnqn4ZLq7YLssjo9KZraMiULqqYuhNwi37q7OoCvRakHVmZ
 qKAXcgHHM+7d8l142HEALY7fF2Hpus2FlgK6OHk/oVeVY0hoSvd2akyPWqR0HNqJgePT3Sqf
 5FLWgT6YadJNg0AkUIwy0+UgG13M1P8BfVO3mn0gAwA=
 
---3V7upXqbjpZ4EhLz--
+--CE+1k2dSO48ffgeK--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
