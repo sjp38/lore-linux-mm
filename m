@@ -1,128 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 329E96B02B4
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A79A6B02F3
 	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 10:16:39 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id p20so5125652pfj.2
+Received: by mail-pf0-f197.google.com with SMTP id b83so5049176pfl.6
         for <linux-mm@kvack.org>; Mon, 07 Aug 2017 07:16:39 -0700 (PDT)
 Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id f13si4641667pgr.65.2017.08.07.07.16.37
+        by mx.google.com with ESMTPS id f13si4641667pgr.65.2017.08.07.07.16.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 07 Aug 2017 07:16:38 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 09/13] x86/mm: Fold p4d page table layer at runtime
-Date: Mon,  7 Aug 2017 17:14:47 +0300
-Message-Id: <20170807141451.80934-10-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 12/13] x86/xen: Allow XEN_PV and XEN_PVH to be enabled with X86_5LEVEL
+Date: Mon,  7 Aug 2017 17:14:50 +0300
+Message-Id: <20170807141451.80934-13-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170807141451.80934-1-kirill.shutemov@linux.intel.com>
 References: <20170807141451.80934-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Juergen Gross <jgross@suse.com>
 
-This patch changes page table helpers to fold p4d at runtime.
-The logic is the same as in <asm-generic/pgtable-nop4d.h>.
+With boot-time switching between paging modes, XEN_PV and XEN_PVH can be
+boot into 4-level paging mode.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Juergen Gross <jgross@suse.com>
 ---
- arch/x86/include/asm/paravirt.h | 10 ++++++----
- arch/x86/include/asm/pgalloc.h  |  5 ++++-
- arch/x86/include/asm/pgtable.h  | 10 +++++++++-
- 3 files changed, 19 insertions(+), 6 deletions(-)
+ arch/x86/kernel/head_64.S | 12 ++++++------
+ arch/x86/xen/Kconfig      |  5 -----
+ arch/x86/xen/mmu_pv.c     | 21 +++++++++++++++++++++
+ 3 files changed, 27 insertions(+), 11 deletions(-)
 
-diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
-index 9ccac1926587..69c3cb792f34 100644
---- a/arch/x86/include/asm/paravirt.h
-+++ b/arch/x86/include/asm/paravirt.h
-@@ -606,14 +606,16 @@ static inline p4dval_t p4d_val(p4d_t p4d)
+diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
+index ebdcb08a91cb..9de244aa72fd 100644
+--- a/arch/x86/kernel/head_64.S
++++ b/arch/x86/kernel/head_64.S
+@@ -37,12 +37,12 @@
+  *
+  */
  
- static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
- {
--	pgdval_t val = native_pgd_val(pgd);
--
--	PVOP_VCALL2(pv_mmu_ops.set_pgd, pgdp, val);
-+	if (p4d_folded)
-+		set_p4d((p4d_t *)(pgdp), (p4d_t) { pgd.pgd });
-+	else
-+		PVOP_VCALL2(pv_mmu_ops.set_pgd, pgdp, native_pgd_val(pgd));
++#define l4_index(x)	(((x) >> 39) & 511)
+ #define pud_index(x)	(((x) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
+ 
+-#if defined(CONFIG_XEN_PV) || defined(CONFIG_XEN_PVH)
+-PGD_PAGE_OFFSET = pgd_index(__PAGE_OFFSET_BASE48)
+-PGD_START_KERNEL = pgd_index(__START_KERNEL_map)
+-#endif
++L4_PAGE_OFFSET = l4_index(__PAGE_OFFSET_BASE48)
++L4_START_KERNEL = l4_index(__START_KERNEL_map)
++
+ L3_START_KERNEL = pud_index(__START_KERNEL_map)
+ 
+ 	.text
+@@ -363,9 +363,9 @@ NEXT_PAGE(early_dynamic_pgts)
+ #if defined(CONFIG_XEN_PV) || defined(CONFIG_XEN_PVH)
+ NEXT_PAGE(init_top_pgt)
+ 	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
+-	.org    init_top_pgt + PGD_PAGE_OFFSET*8, 0
++	.org    init_top_pgt + L4_PAGE_OFFSET*8, 0
+ 	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
+-	.org    init_top_pgt + PGD_START_KERNEL*8, 0
++	.org    init_top_pgt + L4_START_KERNEL*8, 0
+ 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
+ 	.quad   level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
+ 
+diff --git a/arch/x86/xen/Kconfig b/arch/x86/xen/Kconfig
+index 1ecd419811a2..027987638e98 100644
+--- a/arch/x86/xen/Kconfig
++++ b/arch/x86/xen/Kconfig
+@@ -17,9 +17,6 @@ config XEN_PV
+ 	bool "Xen PV guest support"
+ 	default y
+ 	depends on XEN
+-	# XEN_PV is not ready to work with 5-level paging.
+-	# Changes to hypervisor are also required.
+-	depends on !X86_5LEVEL
+ 	select XEN_HAVE_PVMMU
+ 	select XEN_HAVE_VPMU
+ 	help
+@@ -78,6 +75,4 @@ config XEN_DEBUG_FS
+ config XEN_PVH
+ 	bool "Support for running as a PVH guest"
+ 	depends on XEN && XEN_PVHVM && ACPI
+-	# Pre-built page tables are not ready to handle 5-level paging.
+-	depends on !X86_5LEVEL
+ 	def_bool n
+diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
+index bc5fddd64217..55b529c36f16 100644
+--- a/arch/x86/xen/mmu_pv.c
++++ b/arch/x86/xen/mmu_pv.c
+@@ -558,6 +558,22 @@ static void xen_set_p4d(p4d_t *ptr, p4d_t val)
+ 
+ 	xen_mc_issue(PARAVIRT_LAZY_MMU);
  }
++
++#if CONFIG_PGTABLE_LEVELS >= 5
++__visible p4dval_t xen_p4d_val(p4d_t p4d)
++{
++	return pte_mfn_to_pfn(p4d.p4d);
++}
++PV_CALLEE_SAVE_REGS_THUNK(xen_p4d_val);
++
++__visible p4d_t xen_make_p4d(p4dval_t p4d)
++{
++	p4d = pte_pfn_to_mfn(p4d);
++
++	return native_make_p4d(p4d);
++}
++PV_CALLEE_SAVE_REGS_THUNK(xen_make_p4d);
++#endif  /* CONFIG_PGTABLE_LEVELS >= 5 */
+ #endif	/* CONFIG_X86_64 */
  
- static inline void pgd_clear(pgd_t *pgdp)
- {
--	set_pgd(pgdp, __pgd(0));
-+	if (!p4d_folded)
-+		set_pgd(pgdp, __pgd(0));
- }
+ static int xen_pmd_walk(struct mm_struct *mm, pmd_t *pmd,
+@@ -2430,6 +2446,11 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
  
- #endif  /* CONFIG_PGTABLE_LEVELS == 5 */
-diff --git a/arch/x86/include/asm/pgalloc.h b/arch/x86/include/asm/pgalloc.h
-index b2d0cd8288aa..5c42262169d0 100644
---- a/arch/x86/include/asm/pgalloc.h
-+++ b/arch/x86/include/asm/pgalloc.h
-@@ -155,6 +155,8 @@ static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
- #if CONFIG_PGTABLE_LEVELS > 4
- static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, p4d_t *p4d)
- {
-+	if (p4d_folded)
-+		return;
- 	paravirt_alloc_p4d(mm, __pa(p4d) >> PAGE_SHIFT);
- 	set_pgd(pgd, __pgd(_PAGE_TABLE | __pa(p4d)));
- }
-@@ -179,7 +181,8 @@ extern void ___p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d);
- static inline void __p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d,
- 				  unsigned long address)
- {
--	___p4d_free_tlb(tlb, p4d);
-+	if (!p4d_folded)
-+		___p4d_free_tlb(tlb, p4d);
- }
+ 	.alloc_pud = xen_alloc_pmd_init,
+ 	.release_pud = xen_release_pmd_init,
++
++#if CONFIG_PGTABLE_LEVELS >= 5
++	.p4d_val = PV_CALLEE_SAVE(xen_p4d_val),
++	.make_p4d = PV_CALLEE_SAVE(xen_make_p4d),
++#endif
+ #endif	/* CONFIG_X86_64 */
  
- #endif	/* CONFIG_PGTABLE_LEVELS > 4 */
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index bbeae4a2bd01..5114495e4bfd 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -65,7 +65,7 @@ extern pmdval_t early_pmd_flags;
- 
- #ifndef __PAGETABLE_P4D_FOLDED
- #define set_pgd(pgdp, pgd)		native_set_pgd(pgdp, pgd)
--#define pgd_clear(pgd)			native_pgd_clear(pgd)
-+#define pgd_clear(pgd)			(!p4d_folded ? native_pgd_clear(pgd) : 0)
- #endif
- 
- #ifndef set_p4d
-@@ -861,6 +861,8 @@ static inline unsigned long p4d_index(unsigned long address)
- #if CONFIG_PGTABLE_LEVELS > 4
- static inline int pgd_present(pgd_t pgd)
- {
-+	if (p4d_folded)
-+		return 1;
- 	return pgd_flags(pgd) & _PAGE_PRESENT;
- }
- 
-@@ -878,16 +880,22 @@ static inline unsigned long pgd_page_vaddr(pgd_t pgd)
- /* to find an entry in a page-table-directory. */
- static inline p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
- {
-+	if (p4d_folded)
-+		return (p4d_t *)pgd;
- 	return (p4d_t *)pgd_page_vaddr(*pgd) + p4d_index(address);
- }
- 
- static inline int pgd_bad(pgd_t pgd)
- {
-+	if (p4d_folded)
-+		return 0;
- 	return (pgd_flags(pgd) & ~_PAGE_USER) != _KERNPG_TABLE;
- }
- 
- static inline int pgd_none(pgd_t pgd)
- {
-+	if (p4d_folded)
-+		return 0;
- 	/*
- 	 * There is no need to do a workaround for the KNL stray
- 	 * A/D bit erratum here.  PGDs only point to page tables
+ 	.activate_mm = xen_activate_mm,
 -- 
 2.13.2
 
