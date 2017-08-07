@@ -1,57 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6ECD26B02B4
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 14:45:59 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id f11so952328oic.3
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 11:45:59 -0700 (PDT)
-Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
-        by mx.google.com with ESMTPS id u6si4666069oib.413.2017.08.07.11.45.58
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A966B6B02C3
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 14:46:39 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id o9so11488348iod.13
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 11:46:39 -0700 (PDT)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
+        by mx.google.com with ESMTPS id l92si8964225ioi.260.2017.08.07.11.46.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Aug 2017 11:45:58 -0700 (PDT)
-Received: by mail-it0-x242.google.com with SMTP id 76so857364ith.2
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 11:45:58 -0700 (PDT)
-Message-ID: <1502131556.1803.10.camel@gmail.com>
-Subject: Re: binfmt_elf: use ELF_ET_DYN_BASE only for PIE breaks asan
-From: Daniel Micay <danielmicay@gmail.com>
-Date: Mon, 07 Aug 2017 14:45:56 -0400
-In-Reply-To: <1502131092.1803.8.camel@gmail.com>
-References: 
-	<CACT4Y+bLGEC=14CUJpkMhw0toSxvbyqKj49kqqW+gCLLBDFu4A@mail.gmail.com>
-	 <CAGXu5jJhFt8JNFRnB-oiGjNy=Auo4bGx=i=DDtCa__20acANBQ@mail.gmail.com>
-	 <CAN=P9pj_jbTgGoiECmu-b=s+NOL6uTkPbXDueXLhs8C6PVbLHg@mail.gmail.com>
-	 <1502131092.1803.8.camel@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Mon, 07 Aug 2017 11:46:38 -0700 (PDT)
+Date: Mon, 7 Aug 2017 13:46:37 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH -mm] mm: Clear to access sub-page last when clearing huge
+ page
+In-Reply-To: <20170807072131.8343-1-ying.huang@intel.com>
+Message-ID: <alpine.DEB.2.20.1708071343030.19915@nuc-kabylake>
+References: <20170807072131.8343-1-ying.huang@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kostya Serebryany <kcc@google.com>, Kees Cook <keescook@google.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Reid Kleckner <rnk@google.com>, Peter Collingbourne <pcc@google.com>, eugenis@google.com
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>
 
-> There are currently other issues. Try:
-> 
-> sysctl vm.mmap_rnd_bits=32
-> sysctl vm.mmap_rnd_compat_bits=16
-> 
-> IIRC that breaks some sanitizers at least for 32-bit executables.
+On Mon, 7 Aug 2017, Huang, Ying wrote:
 
-Also, stack mapping rand isn't yet tied to that sysctl but is rather
-hard-wired to 11 bits on 32-bit and 20 bits (IIRC) on 64-bit. Once it's
-tied to the sysctl (or a different sysctl, if keeping the same defaults
-is desired) that will be able to use significantly more address space.
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -4374,9 +4374,31 @@ void clear_huge_page(struct page *page,
+>  	}
+>
+>  	might_sleep();
+> -	for (i = 0; i < pages_per_huge_page; i++) {
+> +	VM_BUG_ON(clamp(addr_hint, addr, addr +
+> +			(pages_per_huge_page << PAGE_SHIFT)) != addr_hint);
+> +	n = (addr_hint - addr) / PAGE_SIZE;
+> +	if (2 * n <= pages_per_huge_page) {
+> +		base = 0;
+> +		l = n;
+> +		for (i = pages_per_huge_page - 1; i >= 2 * n; i--) {
+> +			cond_resched();
+> +			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
+> +		}
 
-It might be setting it to the maximum + better stack rand that breaks
-sanitizers, rather than just setting the entropy higher.
+I really like the idea behind the patch but this is not clearing from last
+to first byte of the huge page.
 
-If anyone wants to test some other changes though...
+What seems to be happening here is clearing from the last page to the
+first page and I would think that within each page the clearing is from
+first byte to last byte. Maybe more gains can be had by really clearing
+from last to first byte of the huge page instead of this jumping over 4k
+addresses?
 
-https://github.com/copperhead/linux-hardened/commit/31ebed471d31a437cc551b1bfae03c9e7f58117d.patch
-https://github.com/copperhead/linux-hardened/commit/073329e7b541b89172833f61fb84d81f32389d6e.patch
-
-They haven't been submitted for inclusion upstream, but that's the plan:
-reaching parity with the ASLR PaX has provided for years when the
-entropy values are set to max.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
