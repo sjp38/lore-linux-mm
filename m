@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 686D06B0292
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 10:15:03 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id w187so5168634pgb.10
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 07:15:03 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id b6si5581263pll.83.2017.08.07.07.15.02
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 43EC76B02B4
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 10:15:04 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id t25so4754841pfg.15
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 07:15:04 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id d13si4650955pgn.872.2017.08.07.07.15.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 07 Aug 2017 07:15:02 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 01/13] mm, sparsemem: Allocate mem_section at runtime for SPARSEMEM_EXTREME
-Date: Mon,  7 Aug 2017 17:14:39 +0300
-Message-Id: <20170807141451.80934-2-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 03/13] x86/xen: Provide pre-built page tables only for XEN_PV and XEN_PVH
+Date: Mon,  7 Aug 2017 17:14:41 +0300
+Message-Id: <20170807141451.80934-4-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170807141451.80934-1-kirill.shutemov@linux.intel.com>
 References: <20170807141451.80934-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,69 +20,55 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Size of mem_section array depends on size of physical address space.
-
-In preparation for boot-time switching between paging modes on x86-64
-we need to make allocation of mem_section dynamic.
-
-The patch allocates the array on the first call to
-sparse_memory_present_with_active_regions().
+Looks like we only need pre-built page tables for XEN_PV and XEN_PVH
+cases. Let's not provide them for other configurations.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reviewed-by: Juergen Gross <jgross@suse.com>
 ---
- include/linux/mmzone.h |  2 +-
- mm/page_alloc.c        | 10 ++++++++++
- mm/sparse.c            |  3 +--
- 3 files changed, 12 insertions(+), 3 deletions(-)
+ arch/x86/kernel/head_64.S | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index fc14b8b3f6ce..c8eb668eab79 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -1137,7 +1137,7 @@ struct mem_section {
- #define SECTION_ROOT_MASK	(SECTIONS_PER_ROOT - 1)
- 
- #ifdef CONFIG_SPARSEMEM_EXTREME
--extern struct mem_section *mem_section[NR_SECTION_ROOTS];
-+extern struct mem_section **mem_section;
- #else
- extern struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT];
- #endif
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6d30e914afb6..639fd2dce0c4 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5681,6 +5681,16 @@ void __init sparse_memory_present_with_active_regions(int nid)
- 	unsigned long start_pfn, end_pfn;
- 	int i, this_nid;
- 
-+#ifdef CONFIG_SPARSEMEM_EXTREME
-+	if (!mem_section) {
-+		unsigned long size, align;
-+
-+		size = sizeof(struct mem_section) * NR_SECTION_ROOTS;
-+		align = 1 << (INTERNODE_CACHE_SHIFT);
-+		mem_section = memblock_virt_alloc(size, align);
-+	}
-+#endif
-+
- 	for_each_mem_pfn_range(i, nid, &start_pfn, &end_pfn, &this_nid)
- 		memory_present(this_nid, start_pfn, end_pfn);
- }
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 7b4be3fd5cac..3a226a8c1968 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -22,8 +22,7 @@
-  * 1) mem_section	- memory sections, mem_map's for valid memory
+diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
+index 513cbb012ecc..2be7d1e7fcf1 100644
+--- a/arch/x86/kernel/head_64.S
++++ b/arch/x86/kernel/head_64.S
+@@ -37,11 +37,12 @@
+  *
   */
- #ifdef CONFIG_SPARSEMEM_EXTREME
--struct mem_section *mem_section[NR_SECTION_ROOTS]
--	____cacheline_internodealigned_in_smp;
-+struct mem_section **mem_section;
- #else
- struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT]
- 	____cacheline_internodealigned_in_smp;
+ 
+-#define p4d_index(x)	(((x) >> P4D_SHIFT) & (PTRS_PER_P4D-1))
+ #define pud_index(x)	(((x) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
+ 
++#if defined(CONFIG_XEN_PV) || defined(CONFIG_XEN_PVH)
+ PGD_PAGE_OFFSET = pgd_index(__PAGE_OFFSET_BASE)
+ PGD_START_KERNEL = pgd_index(__START_KERNEL_map)
++#endif
+ L3_START_KERNEL = pud_index(__START_KERNEL_map)
+ 
+ 	.text
+@@ -361,10 +362,7 @@ NEXT_PAGE(early_dynamic_pgts)
+ 
+ 	.data
+ 
+-#ifndef CONFIG_XEN
+-NEXT_PAGE(init_top_pgt)
+-	.fill	512,8,0
+-#else
++#if defined(CONFIG_XEN_PV) || defined(CONFIG_XEN_PVH)
+ NEXT_PAGE(init_top_pgt)
+ 	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
+ 	.org    init_top_pgt + PGD_PAGE_OFFSET*8, 0
+@@ -381,6 +379,9 @@ NEXT_PAGE(level2_ident_pgt)
+ 	 * Don't set NX because code runs from these pages.
+ 	 */
+ 	PMDS(0, __PAGE_KERNEL_IDENT_LARGE_EXEC, PTRS_PER_PMD)
++#else
++NEXT_PAGE(init_top_pgt)
++	.fill	512,8,0
+ #endif
+ 
+ #ifdef CONFIG_X86_5LEVEL
 -- 
 2.13.2
 
