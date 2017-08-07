@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E0146B0292
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 01:41:56 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id r187so85075021pfr.8
-        for <linux-mm@kvack.org>; Sun, 06 Aug 2017 22:41:56 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id f83si4233583pfk.367.2017.08.06.22.41.54
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2287F6B02B4
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 01:42:02 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 83so88064007pgb.14
+        for <linux-mm@kvack.org>; Sun, 06 Aug 2017 22:42:02 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id s15si4202877pgs.640.2017.08.06.22.42.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 06 Aug 2017 22:41:55 -0700 (PDT)
+        Sun, 06 Aug 2017 22:42:01 -0700 (PDT)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v4 1/5] mm, swap: Add swap readahead hit statistics
-Date: Mon,  7 Aug 2017 13:40:34 +0800
-Message-Id: <20170807054038.1843-2-ying.huang@intel.com>
+Subject: [PATCH -mm -v4 2/5] mm, swap: Fix swap readahead marking
+Date: Mon,  7 Aug 2017 13:40:35 +0800
+Message-Id: <20170807054038.1843-3-ying.huang@intel.com>
 In-Reply-To: <20170807054038.1843-1-ying.huang@intel.com>
 References: <20170807054038.1843-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,15 +22,16 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@int
 
 From: Huang Ying <ying.huang@intel.com>
 
-The statistics for total readahead pages and total readahead hits are
-recorded and exported via the following sysfs interface.
+In the original implementation, it is possible that the existing pages
+in the swap cache (not newly readahead) could be marked as the
+readahead pages.  This will cause the statistics of swap readahead be
+wrong and influence the swap readahead algorithm too.
 
-/sys/kernel/mm/swap/ra_hits
-/sys/kernel/mm/swap/ra_total
+This is fixed via marking a page as the readahead page only if it is
+newly allocated and read from the disk.
 
-With them, the efficiency of the swap readahead could be measured, so
-that the swap readahead algorithm and parameters could be tuned
-accordingly.
+When testing with linpack, after the fixing the swap readahead hit
+rate increased from ~66% to ~86%.
 
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
@@ -42,67 +43,47 @@ Cc: Fengguang Wu <fengguang.wu@intel.com>
 Cc: Tim Chen <tim.c.chen@intel.com>
 Cc: Dave Hansen <dave.hansen@intel.com>
 ---
- include/linux/vm_event_item.h | 2 ++
- mm/swap_state.c               | 9 +++++++--
- mm/vmstat.c                   | 3 +++
- 3 files changed, 12 insertions(+), 2 deletions(-)
+ mm/swap_state.c | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index e02820fc2861..27e3339cfd65 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -106,6 +106,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		VMACACHE_FIND_HITS,
- 		VMACACHE_FULL_FLUSHES,
- #endif
-+		SWAP_RA,
-+		SWAP_RA_HIT,
- 		NR_VM_EVENT_ITEMS
- };
- 
 diff --git a/mm/swap_state.c b/mm/swap_state.c
-index b68c93014f50..d1bdb31cab13 100644
+index d1bdb31cab13..a901afe9da61 100644
 --- a/mm/swap_state.c
 +++ b/mm/swap_state.c
-@@ -305,8 +305,10 @@ struct page * lookup_swap_cache(swp_entry_t entry)
+@@ -498,7 +498,7 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+ 	unsigned long start_offset, end_offset;
+ 	unsigned long mask;
+ 	struct blk_plug plug;
+-	bool do_poll = true;
++	bool do_poll = true, page_allocated;
  
- 	if (page && likely(!PageTransCompound(page))) {
- 		INC_CACHE_INFO(find_success);
--		if (TestClearPageReadahead(page))
-+		if (TestClearPageReadahead(page)) {
- 			atomic_inc(&swapin_readahead_hits);
-+			count_vm_event(SWAP_RA_HIT);
-+		}
- 	}
- 
- 	INC_CACHE_INFO(find_total);
-@@ -516,8 +518,11 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
- 						gfp_mask, vma, addr, false);
+ 	mask = swapin_nr_pages(offset) - 1;
+ 	if (!mask)
+@@ -514,14 +514,18 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+ 	blk_start_plug(&plug);
+ 	for (offset = start_offset; offset <= end_offset ; offset++) {
+ 		/* Ok, do the async read-ahead now */
+-		page = read_swap_cache_async(swp_entry(swp_type(entry), offset),
+-						gfp_mask, vma, addr, false);
++		page = __read_swap_cache_async(
++			swp_entry(swp_type(entry), offset),
++			gfp_mask, vma, addr, &page_allocated);
  		if (!page)
  			continue;
--		if (offset != entry_offset && likely(!PageTransCompound(page)))
-+		if (offset != entry_offset &&
-+		    likely(!PageTransCompound(page))) {
- 			SetPageReadahead(page);
-+			count_vm_event(SWAP_RA);
-+		}
+-		if (offset != entry_offset &&
+-		    likely(!PageTransCompound(page))) {
+-			SetPageReadahead(page);
+-			count_vm_event(SWAP_RA);
++		if (page_allocated) {
++			swap_readpage(page, false);
++			if (offset != entry_offset &&
++			    likely(!PageTransCompound(page))) {
++				SetPageReadahead(page);
++				count_vm_event(SWAP_RA);
++			}
+ 		}
  		put_page(page);
  	}
- 	blk_finish_plug(&plug);
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index ba9b202e8500..4c2121a8b877 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1095,6 +1095,9 @@ const char * const vmstat_text[] = {
- 	"vmacache_find_hits",
- 	"vmacache_full_flushes",
- #endif
-+
-+	"swap_ra",
-+	"swap_ra_hit",
- #endif /* CONFIG_VM_EVENTS_COUNTERS */
- };
- #endif /* CONFIG_PROC_FS || CONFIG_SYSFS || CONFIG_NUMA */
 -- 
 2.11.0
 
