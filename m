@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C7236B03AB
+	by kanga.kvack.org (Postfix) with ESMTP id 6F0C96B03B4
 	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 03:14:22 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id a186so90120489pge.7
+Received: by mail-pg0-f71.google.com with SMTP id a186so90120529pge.7
         for <linux-mm@kvack.org>; Mon, 07 Aug 2017 00:14:22 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id d25si5027685plj.960.2017.08.07.00.14.12
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id h1si4933669plh.532.2017.08.07.00.14.12
         for <linux-mm@kvack.org>;
         Mon, 07 Aug 2017 00:14:13 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v8 11/14] lockdep: Apply crossrelease to PG_locked locks
-Date: Mon,  7 Aug 2017 16:12:58 +0900
-Message-Id: <1502089981-21272-12-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v8 01/14] lockdep: Refactor lookup_chain_cache()
+Date: Mon,  7 Aug 2017 16:12:48 +0900
+Message-Id: <1502089981-21272-2-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
 References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,254 +19,200 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-Although lock_page() and its family can cause deadlock, the lock
-correctness validator could not be applied to them until now, becasue
-things like unlock_page() might be called in a different context from
-the acquisition context, which violates lockdep's assumption.
-
-Thanks to CONFIG_LOCKDEP_CROSSRELEASE, we can now apply the lockdep
-detector to page locks. Applied it.
+Currently, lookup_chain_cache() provides both 'lookup' and 'add'
+functionalities in a function. However, each is useful. So this
+patch makes lookup_chain_cache() only do 'lookup' functionality and
+makes add_chain_cahce() only do 'add' functionality. And it's more
+readable than before.
 
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- include/linux/mm_types.h |   8 ++++
- include/linux/pagemap.h  | 101 ++++++++++++++++++++++++++++++++++++++++++++---
- lib/Kconfig.debug        |   8 ++++
- mm/filemap.c             |   4 +-
- mm/page_alloc.c          |   3 ++
- 5 files changed, 116 insertions(+), 8 deletions(-)
+ kernel/locking/lockdep.c | 132 ++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 86 insertions(+), 46 deletions(-)
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index ff15181..f1e3dba 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -16,6 +16,10 @@
- 
- #include <asm/mmu.h>
- 
-+#ifdef CONFIG_LOCKDEP_PAGELOCK
-+#include <linux/lockdep.h>
-+#endif
-+
- #ifndef AT_VECTOR_SIZE_ARCH
- #define AT_VECTOR_SIZE_ARCH 0
- #endif
-@@ -216,6 +220,10 @@ struct page {
- #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
- 	int _last_cpupid;
- #endif
-+
-+#ifdef CONFIG_LOCKDEP_PAGELOCK
-+	struct lockdep_map_cross map;
-+#endif
- }
- /*
-  * The struct page can be forced to be double word aligned so that atomic ops
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 9717ca8..9f448c6 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -14,6 +14,9 @@
- #include <linux/bitops.h>
- #include <linux/hardirq.h> /* for in_interrupt() */
- #include <linux/hugetlb_inline.h>
-+#ifdef CONFIG_LOCKDEP_PAGELOCK
-+#include <linux/lockdep.h>
-+#endif
- 
- /*
-  * Bits in mapping->flags.
-@@ -450,26 +453,91 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
- 	return pgoff;
+diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+index 7d2499b..9260b40 100644
+--- a/kernel/locking/lockdep.c
++++ b/kernel/locking/lockdep.c
+@@ -2126,14 +2126,15 @@ static int check_no_collision(struct task_struct *curr,
  }
  
-+#ifdef CONFIG_LOCKDEP_PAGELOCK
-+#define lock_page_init(p)						\
-+do {									\
-+	static struct lock_class_key __key;				\
-+	lockdep_init_map_crosslock((struct lockdep_map *)&(p)->map,	\
-+			"(PG_locked)" #p, &__key, 0);			\
-+} while (0)
-+
-+static inline void lock_page_acquire(struct page *page, int try)
-+{
-+	page = compound_head(page);
-+	lock_acquire_exclusive((struct lockdep_map *)&page->map, 0,
-+			       try, NULL, _RET_IP_);
-+}
-+
-+static inline void lock_page_release(struct page *page)
-+{
-+	page = compound_head(page);
-+	/*
-+	 * lock_commit_crosslock() is necessary for crosslocks.
-+	 */
-+	lock_commit_crosslock((struct lockdep_map *)&page->map);
-+	lock_release((struct lockdep_map *)&page->map, 0, _RET_IP_);
-+}
-+#else
-+static inline void lock_page_init(struct page *page) {}
-+static inline void lock_page_free(struct page *page) {}
-+static inline void lock_page_acquire(struct page *page, int try) {}
-+static inline void lock_page_release(struct page *page) {}
-+#endif
-+
- extern void __lock_page(struct page *page);
- extern int __lock_page_killable(struct page *page);
- extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
- 				unsigned int flags);
--extern void unlock_page(struct page *page);
-+extern void do_raw_unlock_page(struct page *page);
- 
--static inline int trylock_page(struct page *page)
-+static inline void unlock_page(struct page *page)
-+{
-+	lock_page_release(page);
-+	do_raw_unlock_page(page);
-+}
-+
-+static inline int do_raw_trylock_page(struct page *page)
- {
- 	page = compound_head(page);
- 	return (likely(!test_and_set_bit_lock(PG_locked, &page->flags)));
- }
- 
-+static inline int trylock_page(struct page *page)
-+{
-+	if (do_raw_trylock_page(page)) {
-+		lock_page_acquire(page, 1);
-+		return 1;
-+	}
-+	return 0;
-+}
-+
  /*
-  * lock_page may only be called if we have the page's inode pinned.
+- * Look up a dependency chain. If the key is not present yet then
+- * add it and return 1 - in this case the new dependency chain is
+- * validated. If the key is already hashed, return 0.
+- * (On return with 1 graph_lock is held.)
++ * Adds a dependency chain into chain hashtable. And must be called with
++ * graph_lock held.
++ *
++ * Return 0 if fail, and graph_lock is released.
++ * Return 1 if succeed, with graph_lock held.
   */
- static inline void lock_page(struct page *page)
+-static inline int lookup_chain_cache(struct task_struct *curr,
+-				     struct held_lock *hlock,
+-				     u64 chain_key)
++static inline int add_chain_cache(struct task_struct *curr,
++				  struct held_lock *hlock,
++				  u64 chain_key)
  {
- 	might_sleep();
--	if (!trylock_page(page))
-+
-+	if (!do_raw_trylock_page(page))
- 		__lock_page(page);
-+	/*
-+	 * acquire() must be after actual lock operation for crosslocks.
-+	 * This way a crosslock and current lock can be ordered like:
-+	 *
-+	 *	CONTEXT 1		CONTEXT 2
-+	 *	---------		---------
-+	 *	lock A (cross)
-+	 *	acquire A
-+	 *	  X = atomic_inc_return(&cross_gen_id)
-+	 *	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-+	 *				acquire B
-+	 *				  Y = atomic_read_acquire(&cross_gen_id)
-+	 *				lock B
-+	 *
-+	 * so that 'lock A and then lock B' can be seen globally,
-+	 * if X <= Y.
+ 	struct lock_class *class = hlock_class(hlock);
+ 	struct hlist_head *hash_head = chainhashentry(chain_key);
+@@ -2141,49 +2142,18 @@ static inline int lookup_chain_cache(struct task_struct *curr,
+ 	int i, j;
+ 
+ 	/*
++	 * Allocate a new chain entry from the static array, and add
++	 * it to the hash:
 +	 */
-+	lock_page_acquire(page, 0);
++
++	/*
+ 	 * We might need to take the graph lock, ensure we've got IRQs
+ 	 * disabled to make this an IRQ-safe lock.. for recursion reasons
+ 	 * lockdep won't complain about its own locking errors.
+ 	 */
+ 	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
+ 		return 0;
+-	/*
+-	 * We can walk it lock-free, because entries only get added
+-	 * to the hash:
+-	 */
+-	hlist_for_each_entry_rcu(chain, hash_head, entry) {
+-		if (chain->chain_key == chain_key) {
+-cache_hit:
+-			debug_atomic_inc(chain_lookup_hits);
+-			if (!check_no_collision(curr, hlock, chain))
+-				return 0;
+ 
+-			if (very_verbose(class))
+-				printk("\nhash chain already cached, key: "
+-					"%016Lx tail class: [%p] %s\n",
+-					(unsigned long long)chain_key,
+-					class->key, class->name);
+-			return 0;
+-		}
+-	}
+-	if (very_verbose(class))
+-		printk("\nnew hash chain, key: %016Lx tail class: [%p] %s\n",
+-			(unsigned long long)chain_key, class->key, class->name);
+-	/*
+-	 * Allocate a new chain entry from the static array, and add
+-	 * it to the hash:
+-	 */
+-	if (!graph_lock())
+-		return 0;
+-	/*
+-	 * We have to walk the chain again locked - to avoid duplicates:
+-	 */
+-	hlist_for_each_entry(chain, hash_head, entry) {
+-		if (chain->chain_key == chain_key) {
+-			graph_unlock();
+-			goto cache_hit;
+-		}
+-	}
+ 	if (unlikely(nr_lock_chains >= MAX_LOCKDEP_CHAINS)) {
+ 		if (!debug_locks_off_graph_unlock())
+ 			return 0;
+@@ -2235,6 +2205,75 @@ static inline int lookup_chain_cache(struct task_struct *curr,
+ 	return 1;
  }
  
- /*
-@@ -479,9 +547,20 @@ static inline void lock_page(struct page *page)
-  */
- static inline int lock_page_killable(struct page *page)
- {
-+	int ret;
++/*
++ * Look up a dependency chain.
++ */
++static inline struct lock_chain *lookup_chain_cache(u64 chain_key)
++{
++	struct hlist_head *hash_head = chainhashentry(chain_key);
++	struct lock_chain *chain;
 +
- 	might_sleep();
--	if (!trylock_page(page))
--		return __lock_page_killable(page);
-+
-+	if (!do_raw_trylock_page(page)) {
-+		ret = __lock_page_killable(page);
-+		if (ret)
-+			return ret;
++	/*
++	 * We can walk it lock-free, because entries only get added
++	 * to the hash:
++	 */
++	hlist_for_each_entry_rcu(chain, hash_head, entry) {
++		if (chain->chain_key == chain_key) {
++			debug_atomic_inc(chain_lookup_hits);
++			return chain;
++		}
 +	}
-+	/*
-+	 * acquire() must be after actual lock operation for crosslocks.
-+	 * This way a crosslock and other locks can be ordered.
-+	 */
-+	lock_page_acquire(page, 0);
- 	return 0;
- }
- 
-@@ -496,7 +575,17 @@ static inline int lock_page_or_retry(struct page *page, struct mm_struct *mm,
- 				     unsigned int flags)
- {
- 	might_sleep();
--	return trylock_page(page) || __lock_page_or_retry(page, mm, flags);
++	return NULL;
++}
 +
-+	if (do_raw_trylock_page(page) || __lock_page_or_retry(page, mm, flags)) {
-+		/*
-+		 * acquire() must be after actual lock operation for crosslocks.
-+		 * This way a crosslock and other locks can be ordered.
-+		 */
-+		lock_page_acquire(page, 0);
-+		return 1;
++/*
++ * If the key is not present yet in dependency chain cache then
++ * add it and return 1 - in this case the new dependency chain is
++ * validated. If the key is already hashed, return 0.
++ * (On return with 1 graph_lock is held.)
++ */
++static inline int lookup_chain_cache_add(struct task_struct *curr,
++					 struct held_lock *hlock,
++					 u64 chain_key)
++{
++	struct lock_class *class = hlock_class(hlock);
++	struct lock_chain *chain = lookup_chain_cache(chain_key);
++
++	if (chain) {
++cache_hit:
++		if (!check_no_collision(curr, hlock, chain))
++			return 0;
++
++		if (very_verbose(class))
++			printk("\nhash chain already cached, key: "
++					"%016Lx tail class: [%p] %s\n",
++					(unsigned long long)chain_key,
++					class->key, class->name);
++		return 0;
 +	}
 +
-+	return 0;
- }
- 
- /*
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 4ba8adc..99b5f76 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -1093,6 +1093,14 @@ config LOCKDEP_COMPLETE
- 	 A deadlock caused by wait_for_completion() and complete() can be
- 	 detected by lockdep using crossrelease feature.
- 
-+config LOCKDEP_PAGELOCK
-+	bool "Lock debugging: allow PG_locked lock to use deadlock detector"
-+	select LOCKDEP_CROSSRELEASE
-+	default n
-+	help
-+	 PG_locked lock is a kind of crosslock. Using crossrelease feature,
-+	 PG_locked lock can work with runtime deadlock detector.
++	if (very_verbose(class))
++		printk("\nnew hash chain, key: %016Lx tail class: [%p] %s\n",
++			(unsigned long long)chain_key, class->key, class->name);
 +
- config PROVE_LOCKING
- 	bool "Lock debugging: prove locking correctness"
- 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
-diff --git a/mm/filemap.c b/mm/filemap.c
-index a497024..0d83bf0 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1083,7 +1083,7 @@ static inline bool clear_bit_unlock_is_negative_byte(long nr, volatile void *mem
-  * portably (architectures that do LL/SC can test any bit, while x86 can
-  * test the sign bit).
-  */
--void unlock_page(struct page *page)
-+void do_raw_unlock_page(struct page *page)
++	if (!graph_lock())
++		return 0;
++
++	/*
++	 * We have to walk the chain again locked - to avoid duplicates:
++	 */
++	chain = lookup_chain_cache(chain_key);
++	if (chain) {
++		graph_unlock();
++		goto cache_hit;
++	}
++
++	if (!add_chain_cache(curr, hlock, chain_key))
++		return 0;
++
++	return 1;
++}
++
+ static int validate_chain(struct task_struct *curr, struct lockdep_map *lock,
+ 		struct held_lock *hlock, int chain_head, u64 chain_key)
  {
- 	BUILD_BUG_ON(PG_waiters != 7);
- 	page = compound_head(page);
-@@ -1091,7 +1091,7 @@ void unlock_page(struct page *page)
- 	if (clear_bit_unlock_is_negative_byte(PG_locked, &page->flags))
- 		wake_up_page_bit(page, PG_locked);
- }
--EXPORT_SYMBOL(unlock_page);
-+EXPORT_SYMBOL(do_raw_unlock_page);
- 
- /**
-  * end_page_writeback - end writeback against a page
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6d30e91..2cbf412 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5406,6 +5406,9 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 		} else {
- 			__init_single_pfn(pfn, zone, nid);
- 		}
-+#ifdef CONFIG_LOCKDEP_PAGELOCK
-+		lock_page_init(pfn_to_page(pfn));
-+#endif
- 	}
- }
+@@ -2245,11 +2284,11 @@ static int validate_chain(struct task_struct *curr, struct lockdep_map *lock,
+ 	 *
+ 	 * We look up the chain_key and do the O(N^2) check and update of
+ 	 * the dependencies only if this is a new dependency chain.
+-	 * (If lookup_chain_cache() returns with 1 it acquires
++	 * (If lookup_chain_cache_add() return with 1 it acquires
+ 	 * graph_lock for us)
+ 	 */
+ 	if (!hlock->trylock && hlock->check &&
+-	    lookup_chain_cache(curr, hlock, chain_key)) {
++	    lookup_chain_cache_add(curr, hlock, chain_key)) {
+ 		/*
+ 		 * Check whether last held lock:
+ 		 *
+@@ -2280,9 +2319,10 @@ static int validate_chain(struct task_struct *curr, struct lockdep_map *lock,
+ 		if (!chain_head && ret != 2)
+ 			if (!check_prevs_add(curr, hlock))
+ 				return 0;
++
+ 		graph_unlock();
+ 	} else
+-		/* after lookup_chain_cache(): */
++		/* after lookup_chain_cache_add(): */
+ 		if (unlikely(!debug_locks))
+ 			return 0;
  
 -- 
 1.9.1
