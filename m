@@ -1,91 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BB836B025F
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 09:46:52 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z53so639315wrz.10
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 06:46:52 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 84A946B025F
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 10:04:14 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id g28so736718wrg.3
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 07:04:14 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s12si8786852wrb.250.2017.08.07.06.46.51
+        by mx.google.com with ESMTPS id 125si7496750wmv.33.2017.08.07.07.04.13
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 07 Aug 2017 06:46:51 -0700 (PDT)
-Date: Mon, 7 Aug 2017 15:46:48 +0200
+        Mon, 07 Aug 2017 07:04:13 -0700 (PDT)
+Date: Mon, 7 Aug 2017 16:04:09 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 0/2] mm,fork,security: introduce MADV_WIPEONFORK
-Message-ID: <20170807134648.GI32434@dhcp22.suse.cz>
-References: <20170806140425.20937-1-riel@redhat.com>
- <20170807132257.GH32434@dhcp22.suse.cz>
+Subject: Re: [PATCH 0/2] mm, oom: fix oom_reaper fallouts
+Message-ID: <20170807140409.GJ32434@dhcp22.suse.cz>
+References: <20170807113839.16695-1-mhocko@kernel.org>
+ <201708072228.FAJ09347.tOOVOFFQJSHMFL@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170807132257.GH32434@dhcp22.suse.cz>
+In-Reply-To: <201708072228.FAJ09347.tOOVOFFQJSHMFL@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: riel@redhat.com
-Cc: linux-kernel@vger.kernel.org, mike.kravetz@oracle.com, linux-mm@kvack.org, fweimer@redhat.com, colm@allcosts.net, akpm@linux-foundation.org, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org, kirill@shutemov.name, dave.hansen@intel.com, linux-api@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, andrea@kernel.org, kirill@shutemov.name, oleg@redhat.com, wenwei.tww@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 07-08-17 15:22:57, Michal Hocko wrote:
-> This is an user visible API so make sure you CC linux-api (added)
+On Mon 07-08-17 22:28:27, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > Hi,
+> > there are two issues this patch series attempts to fix. First one is
+> > something that has been broken since MMF_UNSTABLE flag introduction
+> > and I guess we should backport it stable trees (patch 1). The other
+> > issue has been brought up by Wenwei Tao and Tetsuo Handa has created
+> > a test case to trigger it very reliably. I am not yet sure this is a
+> > stable material because the test case is rather artificial. If there is
+> > a demand for the stable backport I will prepare it, of course, though.
+> > 
+> > I hope I've done the second patch correctly but I would definitely
+> > appreciate some more eyes on it. Hence CCing Andrea and Kirill. My
+> > previous attempt with some more context was posted here
+> > http://lkml.kernel.org/r/20170803135902.31977-1-mhocko@kernel.org
+> > 
+> > My testing didn't show anything unusual with these two applied on top of
+> > the mmotm tree.
 > 
-> On Sun 06-08-17 10:04:23, Rik van Riel wrote:
-> > v2: fix MAP_SHARED case and kbuild warnings
-> > 
-> > Introduce MADV_WIPEONFORK semantics, which result in a VMA being
-> > empty in the child process after fork. This differs from MADV_DONTFORK
-> > in one important way.
-> > 
-> > If a child process accesses memory that was MADV_WIPEONFORK, it
-> > will get zeroes. The address ranges are still valid, they are just empty.
-> > 
-> > If a child process accesses memory that was MADV_DONTFORK, it will
-> > get a segmentation fault, since those address ranges are no longer
-> > valid in the child after fork.
-> > 
-> > Since MADV_DONTFORK also seems to be used to allow very large
-> > programs to fork in systems with strict memory overcommit restrictions,
-> > changing the semantics of MADV_DONTFORK might break existing programs.
-> > 
-> > The use case is libraries that store or cache information, and
-> > want to know that they need to regenerate it in the child process
-> > after fork.
+> I really don't like your likely/unlikely speculation.
 
-How do they know that they need to regenerate if they do not get SEGV?
-Are they going to assume that a read of zeros is a "must init again"? Isn't
-that too fragile? Or do they play other tricks like parse /proc/self/smaps
-and read in the flag?
- 
-> > Examples of this would be:
-> > - systemd/pulseaudio API checks (fail after fork)
-> >   (replacing a getpid check, which is too slow without a PID cache)
-> > - PKCS#11 API reinitialization check (mandated by specification)
-> > - glibc's upcoming PRNG (reseed after fork)
-> > - OpenSSL PRNG (reseed after fork)
-> > 
-> > The security benefits of a forking server having a re-inialized
-> > PRNG in every child process are pretty obvious. However, due to
-> > libraries having all kinds of internal state, and programs getting
-> > compiled with many different versions of each library, it is
-> > unreasonable to expect calling programs to re-initialize everything
-> > manually after fork.
-> > 
-> > A further complication is the proliferation of clone flags,
-> > programs bypassing glibc's functions to call clone directly,
-> > and programs calling unshare, causing the glibc pthread_atfork
-> > hook to not get called.
-> > 
-> > It would be better to have the kernel take care of this automatically.
-> > 
-> > This is similar to the OpenBSD minherit syscall with MAP_INHERIT_ZERO:
-> > 
-> >     https://man.openbsd.org/minherit.2
+Have you seen any non artificial workload triggering this? Look, I am
+not going to argue about how likely this is or not. I've said I am
+willing to do backports if there is a demand but please do realize that
+this is not a trivial change to backport pre 4.9 kernels would require
+MMF_UNSTABLE to be backported as well. This all can be discussed
+after the merge so can we focus on the review now rather than any
+distractions?
 
-I would argue that a MAP_$FOO flag would be more appropriate. Or do you
-see any cases where such a special mapping would need to change the
-semantic and inherit the content over the fork again?
-
-I do not like the madvise because it is an advise and as such it can be
-ignored/not implemented and that shouldn't have any correctness effects
-on the child process.
+Also please note that while writing zeros is certainly bad any integrity
+assumptions are basically off when an application gets killed
+unexpectedly while performing an IO.
 -- 
 Michal Hocko
 SUSE Labs
