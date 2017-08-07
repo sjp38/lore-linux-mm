@@ -1,51 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 404276B02FD
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 10:19:27 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id j124so2446705qke.6
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 07:19:27 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d21si7730364qtb.69.2017.08.07.07.19.26
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DBC56B02F4
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 10:22:26 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id g21so1046450lfg.3
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 07:22:26 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m29si3177444lfj.628.2017.08.07.07.22.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Aug 2017 07:19:26 -0700 (PDT)
-Subject: Re: [PATCH v2 0/2] mm,fork,security: introduce MADV_WIPEONFORK
-References: <20170806140425.20937-1-riel@redhat.com>
- <20170807132257.GH32434@dhcp22.suse.cz>
- <20170807134648.GI32434@dhcp22.suse.cz>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <134bbcf4-5717-7f53-0bf1-57158e948bbe@redhat.com>
-Date: Mon, 7 Aug 2017 16:19:18 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 07 Aug 2017 07:22:24 -0700 (PDT)
+Date: Mon, 7 Aug 2017 16:21:21 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/2] mm, oom: do not grant oom victims full memory
+ reserves access
+Message-ID: <20170807142121.GK32434@dhcp22.suse.cz>
+References: <20170727090357.3205-1-mhocko@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20170807134648.GI32434@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170727090357.3205-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, riel@redhat.com
-Cc: linux-kernel@vger.kernel.org, mike.kravetz@oracle.com, linux-mm@kvack.org, colm@allcosts.net, akpm@linux-foundation.org, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org, kirill@shutemov.name, dave.hansen@intel.com, linux-api@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 08/07/2017 03:46 PM, Michal Hocko wrote:
-> How do they know that they need to regenerate if they do not get SEGV?
-> Are they going to assume that a read of zeros is a "must init again"? Isn't
-> that too fragile?
+On Thu 27-07-17 11:03:55, Michal Hocko wrote:
+> Hi,
+> this is a part of a larger series I posted back in Oct last year [1]. I
+> have dropped patch 3 because it was incorrect and patch 4 is not
+> applicable without it.
+> 
+> The primary reason to apply patch 1 is to remove a risk of the complete
+> memory depletion by oom victims. While this is a theoretical risk right
+> now there is a demand for memcg aware oom killer which might kill all
+> processes inside a memcg which can be a lot of tasks. That would make
+> the risk quite real.
+> 
+> This issue is addressed by limiting access to memory reserves. We no
+> longer use TIF_MEMDIE to grant the access and use tsk_is_oom_victim
+> instead. See Patch 1 for more details. Patch 2 is a trivial follow up
+> cleanup.
+> 
+> I would still like to get rid of TIF_MEMDIE completely but I do not have
+> time to do it now and it is not a pressing issue.
+> 
+> [1] http://lkml.kernel.org/r/20161004090009.7974-1-mhocko@kernel.org
 
-Why would it be fragile?  Some level of synchronization is needed to set
-things up, of course, but I think it's possible to write a lock-free
-algorithm to maintain the state even without strong guarantees of memory
-ordering from fork.
+Are there any more comments/questions? I will resubmit if not.
 
-In the DRBG uniqueness case, you don't care if you reinitialize because
-it's the first use, or because a fork just happened.
-
-In the API-mandated fork check, a detection false positive before a fork
-is not acceptable (because it would prevent legitimate API use), but I
-think you can deal with this case if you publish a pointer to a
-pre-initialized, non-zero mapping.
-
-Thanks,
-Florian
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
