@@ -1,92 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 04F3E6B025F
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 05:25:30 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id z195so313257wmz.8
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 02:25:29 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l24si8528774wrb.200.2017.08.07.02.25.28
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CCDD6B025F
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 05:32:49 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id r187so89121743pfr.8
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 02:32:49 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id z62si4408718pgd.107.2017.08.07.02.32.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 07 Aug 2017 02:25:28 -0700 (PDT)
-Date: Mon, 7 Aug 2017 11:25:25 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH RESEND] mm: don't zero ballooned pages
-Message-ID: <20170807092525.GE32434@dhcp22.suse.cz>
-References: <1501761557-9758-1-git-send-email-wei.w.wang@intel.com>
- <9ac31505-0996-2822-752e-8ec055373aa0@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Aug 2017 02:32:48 -0700 (PDT)
+Message-ID: <59883464.700@intel.com>
+Date: Mon, 07 Aug 2017 17:35:32 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [PATCH RESEND] mm: don't zero ballooned pages
+References: <1501761557-9758-1-git-send-email-wei.w.wang@intel.com> <9ac31505-0996-2822-752e-8ec055373aa0@redhat.com>
 In-Reply-To: <9ac31505-0996-2822-752e-8ec055373aa0@redhat.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: Wei Wang <wei.w.wang@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, mst@redhat.com, zhenwei.pi@youruncloud.com, dave.hansen@intel.com, akpm@linux-foundation.org, mawilcox@microsoft.com, Andrea Arcangeli <aarcange@redhat.com>
+To: David Hildenbrand <david@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, mhocko@kernel.org, mst@redhat.com, zhenwei.pi@youruncloud.com
+Cc: dave.hansen@intel.com, akpm@linux-foundation.org, mawilcox@microsoft.com, Andrea Arcangeli <aarcange@redhat.com>
 
-On Mon 07-08-17 10:44:50, David Hildenbrand wrote:
+On 08/07/2017 04:44 PM, David Hildenbrand wrote:
 > On 03.08.2017 13:59, Wei Wang wrote:
-> > This patch is a revert of 'commit bb01b64cfab7 ("mm/balloon_compaction.c:
-> > enqueue zero page to balloon device")'
-> > 
-> > Ballooned pages will be marked as MADV_DONTNEED by the hypervisor and
-> > shouldn't be given to the host ksmd to scan. Therefore, it is not
-> > necessary to zero ballooned pages, which is very time consuming when
-> > the page amount is large. The ongoing fast balloon tests show that the
-> > time to balloon 7G pages is increased from ~491ms to 2.8 seconds with
-> > __GFP_ZERO added. So, this patch removes the flag.
-> > 
-> > Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> > Cc: Michal Hocko <mhocko@kernel.org>
-> > Cc: Michael S. Tsirkin <mst@redhat.com>
-> > ---
-> >  mm/balloon_compaction.c | 2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > 
-> > diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
-> > index 9075aa5..b06d9fe 100644
-> > --- a/mm/balloon_compaction.c
-> > +++ b/mm/balloon_compaction.c
-> > @@ -24,7 +24,7 @@ struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info)
-> >  {
-> >  	unsigned long flags;
-> >  	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
-> > -				__GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_ZERO);
-> > +				       __GFP_NOMEMALLOC | __GFP_NORETRY);
-> >  	if (!page)
-> >  		return NULL;
-> >  
-> > 
-> 
+>> This patch is a revert of 'commit bb01b64cfab7 ("mm/balloon_compaction.c:
+>> enqueue zero page to balloon device")'
+>>
+>> Ballooned pages will be marked as MADV_DONTNEED by the hypervisor and
+>> shouldn't be given to the host ksmd to scan. Therefore, it is not
+>> necessary to zero ballooned pages, which is very time consuming when
+>> the page amount is large. The ongoing fast balloon tests show that the
+>> time to balloon 7G pages is increased from ~491ms to 2.8 seconds with
+>> __GFP_ZERO added. So, this patch removes the flag.
+>>
+>> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+>> Cc: Michal Hocko <mhocko@kernel.org>
+>> Cc: Michael S. Tsirkin <mst@redhat.com>
+>> ---
+>>   mm/balloon_compaction.c | 2 +-
+>>   1 file changed, 1 insertion(+), 1 deletion(-)
+>>
+>> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+>> index 9075aa5..b06d9fe 100644
+>> --- a/mm/balloon_compaction.c
+>> +++ b/mm/balloon_compaction.c
+>> @@ -24,7 +24,7 @@ struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info)
+>>   {
+>>   	unsigned long flags;
+>>   	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
+>> -				__GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_ZERO);
+>> +				       __GFP_NOMEMALLOC | __GFP_NORETRY);
+>>   	if (!page)
+>>   		return NULL;
+>>   
+>>
 > Your assumption here is, that the hypervisor will always supply a zero
 > page. Unfortunately, this assumption is wrong (and it stems from the
 > lack of different page size support in virtio-balloon).
-> 
+
+I think this would be something that we can improve the balloon.
+
+For example, the balloon request from the device should be aligned
+to the host page size before sending to the guest driver:
+On PPC, if the command requests for 140K memory to inflate, it can
+be aligned to 128K.
+
+
+>
 > Think about these examples:
-> 
+>
 > 1. Guest is backed by huge pages (hugetbfs). Ballooning kicks in.
-> 
+>
 > MADV_DONTNEED is simply ignored in the hypervisor (hugetlbfs requires
 > fallocate punshhole). Also, trying to zap 4k on e.g. 1MB pages will
 > simply be ignored.
-> 
-> 2. Guest on PPC uses 4k pages. Hypervisor uses 64k pages. trying to
-> MADV_DONTNEED 4K on 64k pages will simply be ignored.
-> 
-> So unfortunately, zeroing the page is the right thing to do to cover all
-> cases.
 
-Maybe it is my absolute lack of familiarity with what the host actually
-does with balloon pages but I fail to see why the above matters at all.
-ksm will not try to merge sub page units (4k for hugetlb or a large base
-page). And if you need to hide the guest contents then the host can
-clear the respective subpage just fine. So could you be more explicit
-why MADV_DONTNEED matters at all? Also does any host actually share sub
-pages between different guests? This sounds like a bad idea to me in
-general.
--- 
-Michal Hocko
-SUSE Labs
+For the hugetlbfs case, I think the balloon size can be aligned to
+the huge page size (i.e 2M or 1GB).
+
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
