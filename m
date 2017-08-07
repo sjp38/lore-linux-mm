@@ -1,64 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BE9E6B025F
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 18:23:17 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id v11so1383298oif.2
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 15:23:17 -0700 (PDT)
-Received: from mail-io0-x22a.google.com (mail-io0-x22a.google.com. [2607:f8b0:4001:c06::22a])
-        by mx.google.com with ESMTPS id s66si5013184oib.468.2017.08.07.15.23.16
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 559F36B02B4
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 18:51:33 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id l2so17978052pgu.2
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 15:51:33 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id i185si5058874pge.117.2017.08.07.15.51.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Aug 2017 15:23:16 -0700 (PDT)
-Received: by mail-io0-x22a.google.com with SMTP id g35so7509710ioi.3
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 15:23:16 -0700 (PDT)
+        Mon, 07 Aug 2017 15:51:32 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm] mm: Clear to access sub-page last when clearing huge page
+References: <20170807072131.8343-1-ying.huang@intel.com>
+	<20170807101639.4fb4v42jynkscep6@node.shutemov.name>
+Date: Tue, 08 Aug 2017 06:51:26 +0800
+In-Reply-To: <20170807101639.4fb4v42jynkscep6@node.shutemov.name> (Kirill
+	A. Shutemov's message of "Mon, 7 Aug 2017 13:16:39 +0300")
+Message-ID: <87efsngff5.fsf@yhuang-mobile.sh.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <e0fc8a0a-fa52-e644-1fc2-4e96082858e0@redhat.com>
-References: <20170804231002.20362-1-labbott@redhat.com> <alpine.DEB.2.20.1708070936400.17268@nuc-kabylake>
- <559096f0-bf1b-eff1-f0ce-33f53a4df255@redhat.com> <alpine.DEB.2.20.1708071302310.18681@nuc-kabylake>
- <e0fc8a0a-fa52-e644-1fc2-4e96082858e0@redhat.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Mon, 7 Aug 2017 15:23:15 -0700
-Message-ID: <CAGXu5jKsb+7NyKLemdkS4ENtxuQzbaDY2h2DnMEr+=qBqJAJqw@mail.gmail.com>
-Subject: Re: [RFC][PATCH] mm/slub.c: Allow poisoning to use the fast path
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Christopher Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>
 
-On Mon, Aug 7, 2017 at 3:00 PM, Laura Abbott <labbott@redhat.com> wrote:
-> On 08/07/2017 11:03 AM, Christopher Lameter wrote:
->> On Mon, 7 Aug 2017, Laura Abbott wrote:
->>
->>>> Ok I see that the objects are initialized with poisoning and redzoning but
->>>> I do not see that there is fastpath code to actually check the values
->>>> before the object is reinitialized. Is that intentional or am
->>>> I missing something?
->>>
->>> Yes, that's intentional here. I see the validation as a separate more
->>> expensive feature. I had a crude patch to do some checks for testing
->>> and I know Daniel Micay had an out of tree patch to do some checks
->>> as well.
->>
->> Ok then this patch does nothing? How does this help?
+"Kirill A. Shutemov" <kirill@shutemov.name> writes:
+
+> On Mon, Aug 07, 2017 at 03:21:31PM +0800, Huang, Ying wrote:
+>> From: Huang Ying <ying.huang@intel.com>
+>> 
+>> Huge page helps to reduce TLB miss rate, but it has higher cache
+>> footprint, sometimes this may cause some issue.  For example, when
+>> clearing huge page on x86_64 platform, the cache footprint is 2M.  But
+>> on a Xeon E5 v3 2699 CPU, there are 18 cores, 36 threads, and only 45M
+>> LLC (last level cache).  That is, in average, there are 2.5M LLC for
+>> each core and 1.25M LLC for each thread.  If the cache pressure is
+>> heavy when clearing the huge page, and we clear the huge page from the
+>> begin to the end, it is possible that the begin of huge page is
+>> evicted from the cache after we finishing clearing the end of the huge
+>> page.  And it is possible for the application to access the begin of
+>> the huge page after clearing the huge page.
+>> 
+>> To help the above situation, in this patch, when we clear a huge page,
+>> the order to clear sub-pages is changed.  In quite some situation, we
+>> can get the address that the application will access after we clear
+>> the huge page, for example, in a page fault handler.  Instead of
+>> clearing the huge page from begin to end, we will clear the sub-pages
+>> farthest from the the sub-page to access firstly, and clear the
+>> sub-page to access last.  This will make the sub-page to access most
+>> cache-hot and sub-pages around it more cache-hot too.  If we cannot
+>> know the address the application will access, the begin of the huge
+>> page is assumed to be the the address the application will access.
+>> 
+>> With this patch, the throughput increases ~28.3% in vm-scalability
+>> anon-w-seq test case with 72 processes on a 2 socket Xeon E5 v3 2699
+>> system (36 cores, 72 threads).  The test case creates 72 processes,
+>> each process mmap a big anonymous memory area and writes to it from
+>> the begin to the end.  For each process, other processes could be seen
+>> as other workload which generates heavy cache pressure.  At the same
+>> time, the cache miss rate reduced from ~33.4% to ~31.7%, the
+>> IPC (instruction per cycle) increased from 0.56 to 0.74, and the time
+>> spent in user space is reduced ~7.9%
 >
-> The purpose of this patch is to ensure the poisoning can happen without
-> too much penalty. Even if there aren't checks to abort/warn when there
-> is a problem, there's still value in ensuring objects are always poisoned.
+> That's impressive.
+>
+> But what about the case when we are not bounded that much by the size of
+> LLC? What about running the same test on the same hardware, but with 4
+> processes instead of 72.
+>
+> I just want to make sure we don't regress on more realistic tast case.
 
-To clarify, this is desirable to kill exploitation of
-exposure-after-free flaws and some classes of use-after-free flaws,
-since the contents will have be wiped out after a free. (Verification
-of poison is nice, but is expensive compared to the benefit against
-these exploits -- and notably doesn't protect against the other
-use-after-free attacks where the contents are changed after the next
-allocation, which would have passed the poison verification.)
+Sure.  I will test it.
 
--Kees
-
--- 
-Kees Cook
-Pixel Security
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
