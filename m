@@ -1,86 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E63206B02F3
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 09:31:11 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id o124so1848825qke.9
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 06:31:11 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u41si7434187qth.202.2017.08.07.06.31.10
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BB836B025F
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 09:46:52 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id z53so639315wrz.10
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 06:46:52 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s12si8786852wrb.250.2017.08.07.06.46.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Aug 2017 06:31:11 -0700 (PDT)
-Date: Mon, 7 Aug 2017 09:31:07 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [RFC] Tagging of vmalloc pages for supporting the pmalloc
- allocator
-Message-ID: <20170807133107.GA16616@redhat.com>
-References: <8e82639c-40db-02ce-096a-d114b0436d3c@huawei.com>
- <20170803114844.GO12521@dhcp22.suse.cz>
- <c3a250a6-ad4d-d24d-d0bf-4c43c467ebe6@huawei.com>
- <20170803135549.GW12521@dhcp22.suse.cz>
- <20170803144746.GA9501@redhat.com>
- <ab4809cd-0efc-a79d-6852-4bd2349a2b3f@huawei.com>
- <20170803151550.GX12521@dhcp22.suse.cz>
- <abe0c086-8c5a-d6fb-63c4-bf75528d0ec5@huawei.com>
- <20170804081240.GF26029@dhcp22.suse.cz>
- <7733852a-67c9-17a3-4031-cb08520b9ad2@huawei.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 07 Aug 2017 06:46:51 -0700 (PDT)
+Date: Mon, 7 Aug 2017 15:46:48 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 0/2] mm,fork,security: introduce MADV_WIPEONFORK
+Message-ID: <20170807134648.GI32434@dhcp22.suse.cz>
+References: <20170806140425.20937-1-riel@redhat.com>
+ <20170807132257.GH32434@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <7733852a-67c9-17a3-4031-cb08520b9ad2@huawei.com>
+In-Reply-To: <20170807132257.GH32434@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-security-module@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Kees Cook <keescook@google.com>
+To: riel@redhat.com
+Cc: linux-kernel@vger.kernel.org, mike.kravetz@oracle.com, linux-mm@kvack.org, fweimer@redhat.com, colm@allcosts.net, akpm@linux-foundation.org, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org, kirill@shutemov.name, dave.hansen@intel.com, linux-api@vger.kernel.org
 
-On Mon, Aug 07, 2017 at 02:26:21PM +0300, Igor Stoppa wrote:
-> On 04/08/17 11:12, Michal Hocko wrote:
-> > On Fri 04-08-17 11:02:46, Igor Stoppa wrote:
+On Mon 07-08-17 15:22:57, Michal Hocko wrote:
+> This is an user visible API so make sure you CC linux-api (added)
 > 
-> [...]
-> 
-> >> struct page {
-> >>   /* First double word block */
-> >>   unsigned long flags;		/* Atomic flags, some possibly
-> >> 				 * updated asynchronously */
-> >> union {
-> >> 	struct address_space *mapping;	/* If low bit clear, points to
-> >> 					 * inode address_space, or NULL.
-> >> 					 * If page mapped as anonymous
-> >> 					 * memory, low bit is set, and
-> >> 					 * it points to anon_vma object:
-> >> 					 * see PAGE_MAPPING_ANON below.
-> >> 					 */
-> >> ...
-> >> }
-> >>
-> >> mapping seems to be used exclusively in 2 ways, based on the value of
-> >> its lower bit.
+> On Sun 06-08-17 10:04:23, Rik van Riel wrote:
+> > v2: fix MAP_SHARED case and kbuild warnings
 > > 
-> > Not really. The above applies to LRU pages. Please note that Slab pages
-> > use s_mem and huge pages use compound_mapcount. If vmalloc pages are
-> > using none of those already you can add a new field there.
-> 
-> Yes, both from reading the code and some experimentation, it seems that
-> vmalloc is not using either field.
-> 
-> I'll add a vm_area field as you advised.
-> 
-> Is this something I could send as standalone patch?
+> > Introduce MADV_WIPEONFORK semantics, which result in a VMA being
+> > empty in the child process after fork. This differs from MADV_DONTFORK
+> > in one important way.
+> > 
+> > If a child process accesses memory that was MADV_WIPEONFORK, it
+> > will get zeroes. The address ranges are still valid, they are just empty.
+> > 
+> > If a child process accesses memory that was MADV_DONTFORK, it will
+> > get a segmentation fault, since those address ranges are no longer
+> > valid in the child after fork.
+> > 
+> > Since MADV_DONTFORK also seems to be used to allow very large
+> > programs to fork in systems with strict memory overcommit restrictions,
+> > changing the semantics of MADV_DONTFORK might break existing programs.
+> > 
+> > The use case is libraries that store or cache information, and
+> > want to know that they need to regenerate it in the child process
+> > after fork.
 
-Note that vmalloc() is not the only thing that use vmalloc address
-space. There is also vmap() and i know one set of drivers that use
-vmap() and also use the mapping field of struct page namely GPU
-drivers.
+How do they know that they need to regenerate if they do not get SEGV?
+Are they going to assume that a read of zeros is a "must init again"? Isn't
+that too fragile? Or do they play other tricks like parse /proc/self/smaps
+and read in the flag?
+ 
+> > Examples of this would be:
+> > - systemd/pulseaudio API checks (fail after fork)
+> >   (replacing a getpid check, which is too slow without a PID cache)
+> > - PKCS#11 API reinitialization check (mandated by specification)
+> > - glibc's upcoming PRNG (reseed after fork)
+> > - OpenSSL PRNG (reseed after fork)
+> > 
+> > The security benefits of a forking server having a re-inialized
+> > PRNG in every child process are pretty obvious. However, due to
+> > libraries having all kinds of internal state, and programs getting
+> > compiled with many different versions of each library, it is
+> > unreasonable to expect calling programs to re-initialize everything
+> > manually after fork.
+> > 
+> > A further complication is the proliferation of clone flags,
+> > programs bypassing glibc's functions to call clone directly,
+> > and programs calling unshare, causing the glibc pthread_atfork
+> > hook to not get called.
+> > 
+> > It would be better to have the kernel take care of this automatically.
+> > 
+> > This is similar to the OpenBSD minherit syscall with MAP_INHERIT_ZERO:
+> > 
+> >     https://man.openbsd.org/minherit.2
 
-So like i said previously i would store a flag inside vm_struct to
-know if page you are looking at are pmalloc or not. Again do you
-need to store something per page ? Would storing it per vm_struct
-not be enough ?
+I would argue that a MAP_$FOO flag would be more appropriate. Or do you
+see any cases where such a special mapping would need to change the
+semantic and inherit the content over the fork again?
 
-Cheers,
-Jerome
+I do not like the madvise because it is an advise and as such it can be
+ignored/not implemented and that shouldn't have any correctness effects
+on the child process.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
