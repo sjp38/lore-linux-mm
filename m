@@ -1,136 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EBCB56B025F
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 01:41:52 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id s14so88546615pgs.4
-        for <linux-mm@kvack.org>; Sun, 06 Aug 2017 22:41:52 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E0146B0292
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 01:41:56 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id r187so85075021pfr.8
+        for <linux-mm@kvack.org>; Sun, 06 Aug 2017 22:41:56 -0700 (PDT)
 Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id f83si4233583pfk.367.2017.08.06.22.41.50
+        by mx.google.com with ESMTPS id f83si4233583pfk.367.2017.08.06.22.41.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 06 Aug 2017 22:41:51 -0700 (PDT)
+        Sun, 06 Aug 2017 22:41:55 -0700 (PDT)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm -v4 0/5] mm, swap: VMA based swap readahead
-Date: Mon,  7 Aug 2017 13:40:33 +0800
-Message-Id: <20170807054038.1843-1-ying.huang@intel.com>
+Subject: [PATCH -mm -v4 1/5] mm, swap: Add swap readahead hit statistics
+Date: Mon,  7 Aug 2017 13:40:34 +0800
+Message-Id: <20170807054038.1843-2-ying.huang@intel.com>
+In-Reply-To: <20170807054038.1843-1-ying.huang@intel.com>
+References: <20170807054038.1843-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Huang, Ying" <ying.huang@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
 
-The swap readahead is an important mechanism to reduce the swap in
-latency.  Although pure sequential memory access pattern isn't very
-popular for anonymous memory, the space locality is still considered
-valid.
+From: Huang Ying <ying.huang@intel.com>
 
-In the original swap readahead implementation, the consecutive blocks
-in swap device are readahead based on the global space locality
-estimation.  But the consecutive blocks in swap device just reflect
-the order of page reclaiming, don't necessarily reflect the access
-pattern in virtual memory space.  And the different tasks in the
-system may have different access patterns, which makes the global
-space locality estimation incorrect.
+The statistics for total readahead pages and total readahead hits are
+recorded and exported via the following sysfs interface.
 
-In this patchset, when page fault occurs, the virtual pages near the
-fault address will be readahead instead of the swap slots near the
-fault swap slot in swap device.  This avoid to readahead the unrelated
-swap slots.  At the same time, the swap readahead is changed to work
-on per-VMA from globally.  So that the different access patterns of
-the different VMAs could be distinguished, and the different readahead
-policy could be applied accordingly.  The original core readahead
-detection and scaling algorithm is reused, because it is an effect
-algorithm to detect the space locality.
+/sys/kernel/mm/swap/ra_hits
+/sys/kernel/mm/swap/ra_total
 
-In addition to the swap readahead changes, some new sysfs interface is
-added to show the efficiency of the readahead algorithm and some other
-swap statistics.
+With them, the efficiency of the swap readahead could be measured, so
+that the swap readahead algorithm and parameters could be tuned
+accordingly.
 
-This new implementation will incur more small random read, on SSD, the
-improved correctness of estimation and readahead target should beat
-the potential increased overhead, this is also illustrated in the test
-results below.  But on HDD, the overhead may beat the benefit, so the
-original implementation will be used by default.
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Tim Chen <tim.c.chen@intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+---
+ include/linux/vm_event_item.h | 2 ++
+ mm/swap_state.c               | 9 +++++++--
+ mm/vmstat.c                   | 3 +++
+ 3 files changed, 12 insertions(+), 2 deletions(-)
 
-The test and result is as follow,
-
-Common test condition
-=====================
-
-Test Machine: Xeon E5 v3 (2 sockets, 72 threads, 32G RAM)
-Swap device: NVMe disk
-
-Micro-benchmark with combined access pattern
-============================================
-
-vm-scalability, sequential swap test case, 4 processes to eat 50G
-virtual memory space, repeat the sequential memory writing until 300
-seconds.  The first round writing will trigger swap out, the following
-rounds will trigger sequential swap in and out.
-
-At the same time, run vm-scalability random swap test case in
-background, 8 processes to eat 30G virtual memory space, repeat the
-random memory write until 300 seconds.  This will trigger random
-swap-in in the background.
-
-This is a combined workload with sequential and random memory
-accessing at the same time.  The result (for sequential workload) is
-as follow,
-
-			Base		Optimized
-			----		---------
-throughput		345413 KB/s	414029 KB/s (+19.9%)
-latency.average		97.14 us	61.06 us (-37.1%)
-latency.50th		2 us		1 us
-latency.60th		2 us		1 us
-latency.70th		98 us		2 us
-latency.80th		160 us		2 us
-latency.90th		260 us		217 us
-latency.95th		346 us		369 us
-latency.99th		1.34 ms		1.09 ms
-ra_hit%			52.69%		99.98%
-
-The original swap readahead algorithm is confused by the background
-random access workload, so readahead hit rate is lower.  The VMA-base
-readahead algorithm works much better.
-
-Linpack
-=======
-
-The test memory size is bigger than RAM to trigger swapping.
-
-			Base		Optimized
-			----		---------
-elapsed_time		393.49 s	329.88 s (-16.2%)
-ra_hit%			86.21%		98.82%
-
-The score of base and optimized kernel hasn't visible changes.  But
-the elapsed time reduced and readahead hit rate improved, so the
-optimized kernel runs better for startup and tear down stages.  And
-the absolute value of readahead hit rate is high, shows that the space
-locality is still valid in some practical workloads.
-
-Changelogs:
-
-v4:
-
-- Rebased on latest -mm tree.
-
-- Remove swap cache statistics interface, because we found that the
-  interface for readahead statistics should be sufficient.
-
-- Use /proc/vmstat for swap readahead statistics, because that is the
-  interface used by other similar statistics.
-
-- Add ABI document for newly added sysfs interface.
-
-v3:
-
-- Rebased on latest -mm tree
-
-- Use percpu_counter for swap readahead statistics per Dave Hansen's comment.
-
-Best Regards,
-Huang, Ying
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index e02820fc2861..27e3339cfd65 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -106,6 +106,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		VMACACHE_FIND_HITS,
+ 		VMACACHE_FULL_FLUSHES,
+ #endif
++		SWAP_RA,
++		SWAP_RA_HIT,
+ 		NR_VM_EVENT_ITEMS
+ };
+ 
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index b68c93014f50..d1bdb31cab13 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -305,8 +305,10 @@ struct page * lookup_swap_cache(swp_entry_t entry)
+ 
+ 	if (page && likely(!PageTransCompound(page))) {
+ 		INC_CACHE_INFO(find_success);
+-		if (TestClearPageReadahead(page))
++		if (TestClearPageReadahead(page)) {
+ 			atomic_inc(&swapin_readahead_hits);
++			count_vm_event(SWAP_RA_HIT);
++		}
+ 	}
+ 
+ 	INC_CACHE_INFO(find_total);
+@@ -516,8 +518,11 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+ 						gfp_mask, vma, addr, false);
+ 		if (!page)
+ 			continue;
+-		if (offset != entry_offset && likely(!PageTransCompound(page)))
++		if (offset != entry_offset &&
++		    likely(!PageTransCompound(page))) {
+ 			SetPageReadahead(page);
++			count_vm_event(SWAP_RA);
++		}
+ 		put_page(page);
+ 	}
+ 	blk_finish_plug(&plug);
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index ba9b202e8500..4c2121a8b877 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1095,6 +1095,9 @@ const char * const vmstat_text[] = {
+ 	"vmacache_find_hits",
+ 	"vmacache_full_flushes",
+ #endif
++
++	"swap_ra",
++	"swap_ra_hit",
+ #endif /* CONFIG_VM_EVENTS_COUNTERS */
+ };
+ #endif /* CONFIG_PROC_FS || CONFIG_SYSFS || CONFIG_NUMA */
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
