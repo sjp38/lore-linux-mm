@@ -1,79 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 324DF6B03B5
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 16:39:58 -0400 (EDT)
-Received: by mail-vk0-f69.google.com with SMTP id o78so5393072vkf.0
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 13:39:58 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id v129si3973412vkf.401.2017.08.07.13.39.49
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A8AD6B025F
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 18:00:49 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id s26so7490121qts.8
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 15:00:49 -0700 (PDT)
+Received: from mail-qt0-f181.google.com (mail-qt0-f181.google.com. [209.85.216.181])
+        by mx.google.com with ESMTPS id v2si8247945qtf.184.2017.08.07.15.00.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Aug 2017 13:39:50 -0700 (PDT)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [v6 09/15] sparc64: optimized struct page zeroing
-Date: Mon,  7 Aug 2017 16:38:43 -0400
-Message-Id: <1502138329-123460-10-git-send-email-pasha.tatashin@oracle.com>
-In-Reply-To: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
-References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
+        Mon, 07 Aug 2017 15:00:48 -0700 (PDT)
+Received: by mail-qt0-f181.google.com with SMTP id 16so10504990qtz.4
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 15:00:48 -0700 (PDT)
+Subject: Re: [RFC][PATCH] mm/slub.c: Allow poisoning to use the fast path
+References: <20170804231002.20362-1-labbott@redhat.com>
+ <alpine.DEB.2.20.1708070936400.17268@nuc-kabylake>
+ <559096f0-bf1b-eff1-f0ce-33f53a4df255@redhat.com>
+ <alpine.DEB.2.20.1708071302310.18681@nuc-kabylake>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <e0fc8a0a-fa52-e644-1fc2-4e96082858e0@redhat.com>
+Date: Mon, 7 Aug 2017 15:00:44 -0700
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.20.1708071302310.18681@nuc-kabylake>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org
+To: Christopher Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>, Rik van Riel <riel@redhat.com>
 
-Add an optimized mm_zero_struct_page(), so struct page's are zeroed without
-calling memset(). We do eight to tent regular stores based on the size of
-struct page. Compiler optimizes out the conditions of switch() statement.
+On 08/07/2017 11:03 AM, Christopher Lameter wrote:
+> On Mon, 7 Aug 2017, Laura Abbott wrote:
+> 
+>>> Ok I see that the objects are initialized with poisoning and redzoning but
+>>> I do not see that there is fastpath code to actually check the values
+>>> before the object is reinitialized. Is that intentional or am
+>>> I missing something?
+>>
+>> Yes, that's intentional here. I see the validation as a separate more
+>> expensive feature. I had a crude patch to do some checks for testing
+>> and I know Daniel Micay had an out of tree patch to do some checks
+>> as well.
+> 
+> Ok then this patch does nothing? How does this help?
 
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
-Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-Reviewed-by: Bob Picco <bob.picco@oracle.com>
----
- arch/sparc/include/asm/pgtable_64.h | 30 ++++++++++++++++++++++++++++++
- 1 file changed, 30 insertions(+)
+The purpose of this patch is to ensure the poisoning can happen without
+too much penalty. Even if there aren't checks to abort/warn when there
+is a problem, there's still value in ensuring objects are always poisoned.
 
-diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-index 6fbd931f0570..cee5cc7ccc51 100644
---- a/arch/sparc/include/asm/pgtable_64.h
-+++ b/arch/sparc/include/asm/pgtable_64.h
-@@ -230,6 +230,36 @@ extern unsigned long _PAGE_ALL_SZ_BITS;
- extern struct page *mem_map_zero;
- #define ZERO_PAGE(vaddr)	(mem_map_zero)
- 
-+/* This macro must be updated when the size of struct page grows above 80
-+ * or reduces below 64.
-+ * The idea that compiler optimizes out switch() statement, and only
-+ * leaves clrx instructions
-+ */
-+#define	mm_zero_struct_page(pp) do {					\
-+	unsigned long *_pp = (void *)(pp);				\
-+									\
-+	 /* Check that struct page is either 64, 72, or 80 bytes */	\
-+	BUILD_BUG_ON(sizeof(struct page) & 7);				\
-+	BUILD_BUG_ON(sizeof(struct page) < 64);				\
-+	BUILD_BUG_ON(sizeof(struct page) > 80);				\
-+									\
-+	switch (sizeof(struct page)) {					\
-+	case 80:							\
-+		_pp[9] = 0;	/* fallthrough */			\
-+	case 72:							\
-+		_pp[8] = 0;	/* fallthrough */			\
-+	default:							\
-+		_pp[7] = 0;						\
-+		_pp[6] = 0;						\
-+		_pp[5] = 0;						\
-+		_pp[4] = 0;						\
-+		_pp[3] = 0;						\
-+		_pp[2] = 0;						\
-+		_pp[1] = 0;						\
-+		_pp[0] = 0;						\
-+	}								\
-+} while (0)
-+
- /* PFNs are real physical page numbers.  However, mem_map only begins to record
-  * per-page information starting at pfn_base.  This is to handle systems where
-  * the first physical page in the machine is at some huge physical address,
--- 
-2.14.0
+Thanks,
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
