@@ -1,393 +1,220 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 71B9B6B03B5
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 03:14:22 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id k190so89849656pge.9
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 00:14:22 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id z10si4325251pfj.242.2017.08.07.00.14.12
-        for <linux-mm@kvack.org>;
-        Mon, 07 Aug 2017 00:14:13 -0700 (PDT)
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v8 09/14] lockdep: Apply crossrelease to completions
-Date: Mon,  7 Aug 2017 16:12:56 +0900
-Message-Id: <1502089981-21272-10-git-send-email-byungchul.park@lge.com>
-In-Reply-To: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
-References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D58AA6B02B4
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 03:22:07 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id p20so87307646pfj.2
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 00:22:07 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id o6si4315088pgn.290.2017.08.07.00.22.06
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Aug 2017 00:22:06 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -mm] mm: Clear to access sub-page last when clearing huge page
+Date: Mon,  7 Aug 2017 15:21:31 +0800
+Message-Id: <20170807072131.8343-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peterz@infradead.org, mingo@kernel.org
-Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>
 
-Although wait_for_completion() and its family can cause deadlock, the
-lock correctness validator could not be applied to them until now,
-because things like complete() are usually called in a different context
-from the waiting context, which violates lockdep's assumption.
+From: Huang Ying <ying.huang@intel.com>
 
-Thanks to CONFIG_LOCKDEP_CROSSRELEASE, we can now apply the lockdep
-detector to those completion operations. Applied it.
+Huge page helps to reduce TLB miss rate, but it has higher cache
+footprint, sometimes this may cause some issue.  For example, when
+clearing huge page on x86_64 platform, the cache footprint is 2M.  But
+on a Xeon E5 v3 2699 CPU, there are 18 cores, 36 threads, and only 45M
+LLC (last level cache).  That is, in average, there are 2.5M LLC for
+each core and 1.25M LLC for each thread.  If the cache pressure is
+heavy when clearing the huge page, and we clear the huge page from the
+begin to the end, it is possible that the begin of huge page is
+evicted from the cache after we finishing clearing the end of the huge
+page.  And it is possible for the application to access the begin of
+the huge page after clearing the huge page.
 
-Signed-off-by: Byungchul Park <byungchul.park@lge.com>
+To help the above situation, in this patch, when we clear a huge page,
+the order to clear sub-pages is changed.  In quite some situation, we
+can get the address that the application will access after we clear
+the huge page, for example, in a page fault handler.  Instead of
+clearing the huge page from begin to end, we will clear the sub-pages
+farthest from the the sub-page to access firstly, and clear the
+sub-page to access last.  This will make the sub-page to access most
+cache-hot and sub-pages around it more cache-hot too.  If we cannot
+know the address the application will access, the begin of the huge
+page is assumed to be the the address the application will access.
+
+With this patch, the throughput increases ~28.3% in vm-scalability
+anon-w-seq test case with 72 processes on a 2 socket Xeon E5 v3 2699
+system (36 cores, 72 threads).  The test case creates 72 processes,
+each process mmap a big anonymous memory area and writes to it from
+the begin to the end.  For each process, other processes could be seen
+as other workload which generates heavy cache pressure.  At the same
+time, the cache miss rate reduced from ~33.4% to ~31.7%, the
+IPC (instruction per cycle) increased from 0.56 to 0.74, and the time
+spent in user space is reduced ~7.9%
+
+Thanks Andi Kleen to propose to use address to access to determine the
+order of sub-pages to clear.
+
+The hugetlbfs access address could be improved, will do that in
+another patch.
+
+[Use address to access information]
+Suggested-by: Andi Kleen <andi.kleen@intel.com>
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Nadia Yvette Chambers <nyc@holomorphy.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Matthew Wilcox <willy@linux.intel.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Shaohua Li <shli@fb.com>
 ---
- include/linux/completion.h | 118 +++++++++++++++++++++++++++++++++++++++++----
- kernel/sched/completion.c  |  56 ++++++++++++---------
- lib/Kconfig.debug          |   8 +++
- 3 files changed, 149 insertions(+), 33 deletions(-)
+ fs/hugetlbfs/inode.c |  2 +-
+ include/linux/mm.h   |  3 ++-
+ mm/huge_memory.c     | 10 ++++++----
+ mm/hugetlb.c         |  2 +-
+ mm/memory.c          | 32 +++++++++++++++++++++++++++-----
+ 5 files changed, 37 insertions(+), 12 deletions(-)
 
-diff --git a/include/linux/completion.h b/include/linux/completion.h
-index 5d5aaae..6b3bcfc 100644
---- a/include/linux/completion.h
-+++ b/include/linux/completion.h
-@@ -9,6 +9,9 @@
-  */
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 33961b35007b..1bbb38fcaa11 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -627,7 +627,7 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
+ 			error = PTR_ERR(page);
+ 			goto out;
+ 		}
+-		clear_huge_page(page, addr, pages_per_huge_page(h));
++		clear_huge_page(page, addr, pages_per_huge_page(h), addr);
+ 		__SetPageUptodate(page);
+ 		error = huge_add_to_page_cache(page, mapping, index);
+ 		if (unlikely(error)) {
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 9fee3213a75e..a954f63a13c9 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2509,7 +2509,8 @@ enum mf_action_page_type {
+ #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
+ extern void clear_huge_page(struct page *page,
+ 			    unsigned long addr,
+-			    unsigned int pages_per_huge_page);
++			    unsigned int pages_per_huge_page,
++			    unsigned long addr_hint);
+ extern void copy_user_huge_page(struct page *dst, struct page *src,
+ 				unsigned long addr, struct vm_area_struct *vma,
+ 				unsigned int pages_per_huge_page);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index fd3ad6c88c8a..b1e66df38661 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -549,7 +549,8 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
+ 	struct vm_area_struct *vma = vmf->vma;
+ 	struct mem_cgroup *memcg;
+ 	pgtable_t pgtable;
+-	unsigned long haddr = vmf->address & HPAGE_PMD_MASK;
++	unsigned long address = vmf->address;
++	unsigned long haddr = address & HPAGE_PMD_MASK;
  
- #include <linux/wait.h>
-+#ifdef CONFIG_LOCKDEP_COMPLETE
-+#include <linux/lockdep.h>
-+#endif
+ 	VM_BUG_ON_PAGE(!PageCompound(page), page);
  
- /*
-  * struct completion - structure used to maintain state for a "completion"
-@@ -25,10 +28,50 @@
- struct completion {
- 	unsigned int done;
- 	wait_queue_head_t wait;
-+#ifdef CONFIG_LOCKDEP_COMPLETE
-+	struct lockdep_map_cross map;
-+#endif
- };
+@@ -566,7 +567,7 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
+ 		return VM_FAULT_OOM;
+ 	}
  
-+#ifdef CONFIG_LOCKDEP_COMPLETE
-+static inline void complete_acquire(struct completion *x)
-+{
-+	lock_acquire_exclusive((struct lockdep_map *)&x->map, 0, 0, NULL, _RET_IP_);
-+}
-+
-+static inline void complete_release(struct completion *x)
-+{
-+	lock_release((struct lockdep_map *)&x->map, 0, _RET_IP_);
-+}
-+
-+static inline void complete_release_commit(struct completion *x)
-+{
-+	lock_commit_crosslock((struct lockdep_map *)&x->map);
-+}
-+
-+#define init_completion(x)						\
-+do {									\
-+	static struct lock_class_key __key;				\
-+	lockdep_init_map_crosslock((struct lockdep_map *)&(x)->map,	\
-+			"(complete)" #x,				\
-+			&__key, 0);					\
-+	__init_completion(x);						\
-+} while (0)
-+#else
-+#define init_completion(x) __init_completion(x)
-+static inline void complete_acquire(struct completion *x) {}
-+static inline void complete_release(struct completion *x) {}
-+static inline void complete_release_commit(struct completion *x) {}
-+#endif
-+
-+#ifdef CONFIG_LOCKDEP_COMPLETE
-+#define COMPLETION_INITIALIZER(work) \
-+	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait), \
-+	STATIC_CROSS_LOCKDEP_MAP_INIT("(complete)" #work, &(work)) }
-+#else
- #define COMPLETION_INITIALIZER(work) \
- 	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait) }
-+#endif
+-	clear_huge_page(page, haddr, HPAGE_PMD_NR);
++	clear_huge_page(page, haddr, HPAGE_PMD_NR, address);
+ 	/*
+ 	 * The memory barrier inside __SetPageUptodate makes sure that
+ 	 * clear_huge_page writes become visible before the set_pmd_at()
+@@ -1225,7 +1226,8 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
+ 	struct vm_area_struct *vma = vmf->vma;
+ 	struct page *page = NULL, *new_page;
+ 	struct mem_cgroup *memcg;
+-	unsigned long haddr = vmf->address & HPAGE_PMD_MASK;
++	unsigned long address = vmf->address;
++	unsigned long haddr = address & HPAGE_PMD_MASK;
+ 	unsigned long mmun_start;	/* For mmu_notifiers */
+ 	unsigned long mmun_end;		/* For mmu_notifiers */
+ 	gfp_t huge_gfp;			/* for allocation and charge */
+@@ -1310,7 +1312,7 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
+ 	count_vm_event(THP_FAULT_ALLOC);
  
- #define COMPLETION_INITIALIZER_ONSTACK(work) \
- 	({ init_completion(&work); work; })
-@@ -70,7 +113,7 @@ struct completion {
-  * This inline function will initialize a dynamically created completion
-  * structure.
-  */
--static inline void init_completion(struct completion *x)
-+static inline void __init_completion(struct completion *x)
+ 	if (!page)
+-		clear_huge_page(new_page, haddr, HPAGE_PMD_NR);
++		clear_huge_page(new_page, haddr, HPAGE_PMD_NR, address);
+ 	else
+ 		copy_user_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
+ 	__SetPageUptodate(new_page);
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 5dae4fff368d..fb2ff230236a 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -3707,7 +3707,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 				ret = VM_FAULT_SIGBUS;
+ 			goto out;
+ 		}
+-		clear_huge_page(page, address, pages_per_huge_page(h));
++		clear_huge_page(page, address, pages_per_huge_page(h), address);
+ 		__SetPageUptodate(page);
+ 		set_page_huge_active(page);
+ 
+diff --git a/mm/memory.c b/mm/memory.c
+index edabf6f03447..d5bd7633a443 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -4363,10 +4363,10 @@ static void clear_gigantic_page(struct page *page,
+ 		clear_user_highpage(p, addr + i * PAGE_SIZE);
+ 	}
+ }
+-void clear_huge_page(struct page *page,
+-		     unsigned long addr, unsigned int pages_per_huge_page)
++void clear_huge_page(struct page *page, unsigned long addr,
++		     unsigned int pages_per_huge_page, unsigned long addr_hint)
  {
- 	x->done = 0;
- 	init_waitqueue_head(&x->wait);
-@@ -88,18 +131,75 @@ static inline void reinit_completion(struct completion *x)
- 	x->done = 0;
+-	int i;
++	int i, n, base, l;
+ 
+ 	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
+ 		clear_gigantic_page(page, addr, pages_per_huge_page);
+@@ -4374,9 +4374,31 @@ void clear_huge_page(struct page *page,
+ 	}
+ 
+ 	might_sleep();
+-	for (i = 0; i < pages_per_huge_page; i++) {
++	VM_BUG_ON(clamp(addr_hint, addr, addr +
++			(pages_per_huge_page << PAGE_SHIFT)) != addr_hint);
++	n = (addr_hint - addr) / PAGE_SIZE;
++	if (2 * n <= pages_per_huge_page) {
++		base = 0;
++		l = n;
++		for (i = pages_per_huge_page - 1; i >= 2 * n; i--) {
++			cond_resched();
++			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
++		}
++	} else {
++		base = 2 * n - pages_per_huge_page;
++		l = pages_per_huge_page - n;
++		for (i = 0; i < base; i++) {
++			cond_resched();
++			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
++		}
++	}
++	for (i = 0; i < l; i++) {
++		cond_resched();
++		clear_user_highpage(page + base + i,
++				    addr + (base + i) * PAGE_SIZE);
+ 		cond_resched();
+-		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
++		clear_user_highpage(page + base + 2 * l - 1 - i,
++				    addr + (base + 2 * l - 1 - i) * PAGE_SIZE);
+ 	}
  }
  
--extern void wait_for_completion(struct completion *);
--extern void wait_for_completion_io(struct completion *);
--extern int wait_for_completion_interruptible(struct completion *x);
--extern int wait_for_completion_killable(struct completion *x);
--extern unsigned long wait_for_completion_timeout(struct completion *x,
-+extern void __wait_for_completion(struct completion *);
-+extern void __wait_for_completion_io(struct completion *);
-+extern int __wait_for_completion_interruptible(struct completion *x);
-+extern int __wait_for_completion_killable(struct completion *x);
-+extern unsigned long __wait_for_completion_timeout(struct completion *x,
- 						   unsigned long timeout);
--extern unsigned long wait_for_completion_io_timeout(struct completion *x,
-+extern unsigned long __wait_for_completion_io_timeout(struct completion *x,
- 						    unsigned long timeout);
--extern long wait_for_completion_interruptible_timeout(
-+extern long __wait_for_completion_interruptible_timeout(
- 	struct completion *x, unsigned long timeout);
--extern long wait_for_completion_killable_timeout(
-+extern long __wait_for_completion_killable_timeout(
- 	struct completion *x, unsigned long timeout);
-+
-+static inline void wait_for_completion(struct completion *x)
-+{
-+	complete_acquire(x);
-+	__wait_for_completion(x);
-+	complete_release(x);
-+}
-+
-+static inline void wait_for_completion_io(struct completion *x)
-+{
-+	complete_acquire(x);
-+	__wait_for_completion_io(x);
-+	complete_release(x);
-+}
-+
-+static inline int wait_for_completion_interruptible(struct completion *x)
-+{
-+	int ret;
-+	complete_acquire(x);
-+	ret = __wait_for_completion_interruptible(x);
-+	complete_release(x);
-+	return ret;
-+}
-+
-+static inline int wait_for_completion_killable(struct completion *x)
-+{
-+	int ret;
-+	complete_acquire(x);
-+	ret = __wait_for_completion_killable(x);
-+	complete_release(x);
-+	return ret;
-+}
-+
-+static inline unsigned long wait_for_completion_timeout(struct completion *x,
-+		unsigned long timeout)
-+{
-+	return __wait_for_completion_timeout(x, timeout);
-+}
-+
-+static inline unsigned long wait_for_completion_io_timeout(struct completion *x,
-+		unsigned long timeout)
-+{
-+	return __wait_for_completion_io_timeout(x, timeout);
-+}
-+
-+static inline long wait_for_completion_interruptible_timeout(
-+	struct completion *x, unsigned long timeout)
-+{
-+	return __wait_for_completion_interruptible_timeout(x, timeout);
-+}
-+
-+static inline long wait_for_completion_killable_timeout(
-+	struct completion *x, unsigned long timeout)
-+{
-+	return __wait_for_completion_killable_timeout(x, timeout);
-+}
-+
- extern bool try_wait_for_completion(struct completion *x);
- extern bool completion_done(struct completion *x);
- 
-diff --git a/kernel/sched/completion.c b/kernel/sched/completion.c
-index 13fc5ae..0b5f16b 100644
---- a/kernel/sched/completion.c
-+++ b/kernel/sched/completion.c
-@@ -32,6 +32,12 @@ void complete(struct completion *x)
- 	unsigned long flags;
- 
- 	spin_lock_irqsave(&x->wait.lock, flags);
-+
-+	/*
-+	 * Perform commit of crossrelease here.
-+	 */
-+	complete_release_commit(x);
-+
- 	if (x->done != UINT_MAX)
- 		x->done++;
- 	__wake_up_locked(&x->wait, TASK_NORMAL, 1);
-@@ -111,7 +117,7 @@ void complete_all(struct completion *x)
- }
- 
- /**
-- * wait_for_completion: - waits for completion of a task
-+ * __wait_for_completion: - waits for completion of a task
-  * @x:  holds the state of this particular completion
-  *
-  * This waits to be signaled for completion of a specific task. It is NOT
-@@ -120,14 +126,14 @@ void complete_all(struct completion *x)
-  * See also similar routines (i.e. wait_for_completion_timeout()) with timeout
-  * and interrupt capability. Also see complete().
-  */
--void __sched wait_for_completion(struct completion *x)
-+void __sched __wait_for_completion(struct completion *x)
- {
- 	wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_UNINTERRUPTIBLE);
- }
--EXPORT_SYMBOL(wait_for_completion);
-+EXPORT_SYMBOL(__wait_for_completion);
- 
- /**
-- * wait_for_completion_timeout: - waits for completion of a task (w/timeout)
-+ * __wait_for_completion_timeout: - waits for completion of a task (w/timeout)
-  * @x:  holds the state of this particular completion
-  * @timeout:  timeout value in jiffies
-  *
-@@ -139,28 +145,28 @@ void __sched wait_for_completion(struct completion *x)
-  * till timeout) if completed.
-  */
- unsigned long __sched
--wait_for_completion_timeout(struct completion *x, unsigned long timeout)
-+__wait_for_completion_timeout(struct completion *x, unsigned long timeout)
- {
- 	return wait_for_common(x, timeout, TASK_UNINTERRUPTIBLE);
- }
--EXPORT_SYMBOL(wait_for_completion_timeout);
-+EXPORT_SYMBOL(__wait_for_completion_timeout);
- 
- /**
-- * wait_for_completion_io: - waits for completion of a task
-+ * __wait_for_completion_io: - waits for completion of a task
-  * @x:  holds the state of this particular completion
-  *
-  * This waits to be signaled for completion of a specific task. It is NOT
-  * interruptible and there is no timeout. The caller is accounted as waiting
-  * for IO (which traditionally means blkio only).
-  */
--void __sched wait_for_completion_io(struct completion *x)
-+void __sched __wait_for_completion_io(struct completion *x)
- {
- 	wait_for_common_io(x, MAX_SCHEDULE_TIMEOUT, TASK_UNINTERRUPTIBLE);
- }
--EXPORT_SYMBOL(wait_for_completion_io);
-+EXPORT_SYMBOL(__wait_for_completion_io);
- 
- /**
-- * wait_for_completion_io_timeout: - waits for completion of a task (w/timeout)
-+ * __wait_for_completion_io_timeout: - waits for completion of a task (w/timeout)
-  * @x:  holds the state of this particular completion
-  * @timeout:  timeout value in jiffies
-  *
-@@ -173,14 +179,14 @@ void __sched wait_for_completion_io(struct completion *x)
-  * till timeout) if completed.
-  */
- unsigned long __sched
--wait_for_completion_io_timeout(struct completion *x, unsigned long timeout)
-+__wait_for_completion_io_timeout(struct completion *x, unsigned long timeout)
- {
- 	return wait_for_common_io(x, timeout, TASK_UNINTERRUPTIBLE);
- }
--EXPORT_SYMBOL(wait_for_completion_io_timeout);
-+EXPORT_SYMBOL(__wait_for_completion_io_timeout);
- 
- /**
-- * wait_for_completion_interruptible: - waits for completion of a task (w/intr)
-+ * __wait_for_completion_interruptible: - waits for completion of a task (w/intr)
-  * @x:  holds the state of this particular completion
-  *
-  * This waits for completion of a specific task to be signaled. It is
-@@ -188,17 +194,18 @@ void __sched wait_for_completion_io(struct completion *x)
-  *
-  * Return: -ERESTARTSYS if interrupted, 0 if completed.
-  */
--int __sched wait_for_completion_interruptible(struct completion *x)
-+int __sched __wait_for_completion_interruptible(struct completion *x)
- {
- 	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_INTERRUPTIBLE);
-+
- 	if (t == -ERESTARTSYS)
- 		return t;
- 	return 0;
- }
--EXPORT_SYMBOL(wait_for_completion_interruptible);
-+EXPORT_SYMBOL(__wait_for_completion_interruptible);
- 
- /**
-- * wait_for_completion_interruptible_timeout: - waits for completion (w/(to,intr))
-+ * __wait_for_completion_interruptible_timeout: - waits for completion (w/(to,intr))
-  * @x:  holds the state of this particular completion
-  * @timeout:  timeout value in jiffies
-  *
-@@ -209,15 +216,15 @@ int __sched wait_for_completion_interruptible(struct completion *x)
-  * or number of jiffies left till timeout) if completed.
-  */
- long __sched
--wait_for_completion_interruptible_timeout(struct completion *x,
-+__wait_for_completion_interruptible_timeout(struct completion *x,
- 					  unsigned long timeout)
- {
- 	return wait_for_common(x, timeout, TASK_INTERRUPTIBLE);
- }
--EXPORT_SYMBOL(wait_for_completion_interruptible_timeout);
-+EXPORT_SYMBOL(__wait_for_completion_interruptible_timeout);
- 
- /**
-- * wait_for_completion_killable: - waits for completion of a task (killable)
-+ * __wait_for_completion_killable: - waits for completion of a task (killable)
-  * @x:  holds the state of this particular completion
-  *
-  * This waits to be signaled for completion of a specific task. It can be
-@@ -225,17 +232,18 @@ int __sched wait_for_completion_interruptible(struct completion *x)
-  *
-  * Return: -ERESTARTSYS if interrupted, 0 if completed.
-  */
--int __sched wait_for_completion_killable(struct completion *x)
-+int __sched __wait_for_completion_killable(struct completion *x)
- {
- 	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_KILLABLE);
-+
- 	if (t == -ERESTARTSYS)
- 		return t;
- 	return 0;
- }
--EXPORT_SYMBOL(wait_for_completion_killable);
-+EXPORT_SYMBOL(__wait_for_completion_killable);
- 
- /**
-- * wait_for_completion_killable_timeout: - waits for completion of a task (w/(to,killable))
-+ * __wait_for_completion_killable_timeout: - waits for completion of a task (w/(to,killable))
-  * @x:  holds the state of this particular completion
-  * @timeout:  timeout value in jiffies
-  *
-@@ -247,12 +255,12 @@ int __sched wait_for_completion_killable(struct completion *x)
-  * or number of jiffies left till timeout) if completed.
-  */
- long __sched
--wait_for_completion_killable_timeout(struct completion *x,
-+__wait_for_completion_killable_timeout(struct completion *x,
- 				     unsigned long timeout)
- {
- 	return wait_for_common(x, timeout, TASK_KILLABLE);
- }
--EXPORT_SYMBOL(wait_for_completion_killable_timeout);
-+EXPORT_SYMBOL(__wait_for_completion_killable_timeout);
- 
- /**
-  *	try_wait_for_completion - try to decrement a completion without blocking
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 037e813..4ba8adc 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -1085,6 +1085,14 @@ config LOCKDEP_CROSSRELEASE
- 	 such as page locks or completions can use the lock correctness
- 	 detector, lockdep.
- 
-+config LOCKDEP_COMPLETE
-+	bool "Lock debugging: allow completions to use deadlock detector"
-+	select LOCKDEP_CROSSRELEASE
-+	default n
-+	help
-+	 A deadlock caused by wait_for_completion() and complete() can be
-+	 detected by lockdep using crossrelease feature.
-+
- config PROVE_LOCKING
- 	bool "Lock debugging: prove locking correctness"
- 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 -- 
-1.9.1
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
