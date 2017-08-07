@@ -1,176 +1,236 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E1106B0313
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BC5C36B02FA
 	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 03:14:14 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id p20so87180396pfj.2
+Received: by mail-pg0-f70.google.com with SMTP id y190so91021416pgb.3
         for <linux-mm@kvack.org>; Mon, 07 Aug 2017 00:14:14 -0700 (PDT)
 Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id y10si4308550pfk.573.2017.08.07.00.14.12
+        by mx.google.com with ESMTP id g3si4917053pld.496.2017.08.07.00.14.12
         for <linux-mm@kvack.org>;
         Mon, 07 Aug 2017 00:14:13 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v8 00/14] lockdep: Implement crossrelease feature
-Date: Mon,  7 Aug 2017 16:12:47 +0900
-Message-Id: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v8 07/14] lockdep: Handle non(or multi)-acquisition of a crosslock
+Date: Mon,  7 Aug 2017 16:12:54 +0900
+Message-Id: <1502089981-21272-8-git-send-email-byungchul.park@lge.com>
+In-Reply-To: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
+References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-Change from v7
-	- rebase on latest tip/sched/core (Jul 26 2017)
-	- apply peterz's suggestions
-	- simplify code of crossrelease_{hist/soft/hard}_{start/end}
-	- exclude a patch avoiding redundant links
-	- exclude a patch already applied onto the base
+No acquisition might be in progress on commit of a crosslock. Completion
+operations enabling crossrelease are the case like:
 
-Change from v6
-	- unwind the ring buffer instead tagging for 'work' context
-	- introduce hist_id to distinguish every entry of ring buffer
-	- change the point calling crossrelease_work_start()
-	- handle cases the ring buffer was overwritten
-	- change LOCKDEP_CROSSRELEASE config in Kconfig
-	  (select PROVE_LOCKING -> depends on PROVE_LOCKING)
-	- rename xhlock_used() -> xhlock_valid()
-	- simplify serveral code (e.g. traversal the ring buffer)
-	- add/enhance several comments and changelogs
+   CONTEXT X                         CONTEXT Y
+   ---------                         ---------
+   trigger completion context
+                                     complete AX
+                                        commit AX
+   wait_for_complete AX
+      acquire AX
+      wait
 
-Change from v5
-	- force XHLOCKS_SIZE to be power of 2 and simplify code
-	- remove nmi check
-	- separate an optimization using prev_gen_id with a full changelog
-	- separate non(multi)-acquisition handling with a full changelog
-	- replace vmalloc with kmallock(GFP_KERNEL) for xhlocks
-	- select PROVE_LOCKING when choosing CROSSRELEASE
-	- clean serveral code (e.g. loose some ifdefferies)
-	- enhance several comments and changelogs
+   where AX is a crosslock.
 
-Change from v4
-	- rebase on vanilla v4.9 tag
-	- re-name pend_lock(plock) to hist_lock(xhlock)
-	- allow overwriting ring buffer for hist_lock
-	- unwind ring buffer instead of tagging id for each irq
-	- introduce lockdep_map_cross embedding cross_lock
-	- make each work of workqueue distinguishable
-	- enhance comments
-	(I will update the document at the next spin.)
+When no acquisition is in progress, we should not perform commit because
+the lock does not exist, which might cause incorrect memory access. So
+we have to track the number of acquisitions of a crosslock to handle it.
 
-Change from v3
-	- reviced document
+Moreover, in case that more than one acquisition of a crosslock are
+overlapped like:
 
-Change from v2
-	- rebase on vanilla v4.7 tag
-	- move lockdep data for page lock from struct page to page_ext
-	- allocate plocks buffer via vmalloc instead of in struct task
-	- enhanced comments and document
-	- optimize performance
-	- make reporting function crossrelease-aware
+   CONTEXT W        CONTEXT X        CONTEXT Y        CONTEXT Z
+   ---------        ---------        ---------        ---------
+   acquire AX (gen_id: 1)
+                                     acquire A
+                    acquire AX (gen_id: 10)
+                                     acquire B
+                                     commit AX
+                                                      acquire C
+                                                      commit AX
 
-Change from v1
-	- enhanced the document
-	- removed save_stack_trace() optimizing patch
-	- made this based on the seperated save_stack_trace patchset
-	  https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1182242.html
+   where A, B and C are typical locks and AX is a crosslock.
 
-Can we detect deadlocks below with original lockdep?
+Current crossrelease code performs commits in Y and Z with gen_id = 10.
+However, we can use gen_id = 1 to do it, since not only 'acquire AX in X'
+but 'acquire AX in W' also depends on each acquisition in Y and Z until
+their commits. So make it use gen_id = 1 instead of 10 on their commits,
+which adds an additional dependency 'AX -> A' in the example above.
 
-Example 1)
+Signed-off-by: Byungchul Park <byungchul.park@lge.com>
+---
+ include/linux/lockdep.h  | 22 ++++++++++++-
+ kernel/locking/lockdep.c | 82 +++++++++++++++++++++++++++++++++---------------
+ 2 files changed, 77 insertions(+), 27 deletions(-)
 
-	PROCESS X	PROCESS Y
-	--------------	--------------
-	mutext_lock A
-			lock_page B
-	lock_page B
-			mutext_lock A // DEADLOCK
-	unlock_page B
-			mutext_unlock A
-	mutex_unlock A
-			unlock_page B
-
-where A and B are different lock classes.
-
-No, we cannot.
-
-Example 2)
-
-	PROCESS X	PROCESS Y	PROCESS Z
-	--------------	--------------	--------------
-			mutex_lock A
-	lock_page B
-			lock_page B
-					mutext_lock A // DEADLOCK
-					mutext_unlock A
-					unlock_page B
-					(B was held by PROCESS X)
-			unlock_page B
-			mutex_unlock A
-
-where A and B are different lock classes.
-
-No, we cannot.
-
-Example 3)
-
-	PROCESS X	PROCESS Y
-	--------------	--------------
-			mutex_lock A
-	mutex_lock A
-			wait_for_complete B // DEADLOCK
-	mutex_unlock A
-	complete B
-			mutex_unlock A
-
-where A is a lock class and B is a completion variable.
-
-No, we cannot.
-
-Not only lock operations, but also any operations causing to wait or
-spin for something can cause deadlock unless it's eventually *released*
-by someone. The important point here is that the waiting or spinning
-must be *released* by someone.
-
-Using crossrelease feature, we can check dependency and detect deadlock
-possibility not only for typical lock, but also for lock_page(),
-wait_for_xxx() and so on, which might be released in any context.
-
-See the last patch including the document for more information.
-
-Byungchul Park (14):
-  lockdep: Refactor lookup_chain_cache()
-  lockdep: Add a function building a chain between two classes
-  lockdep: Change the meaning of check_prev_add()'s return value
-  lockdep: Make check_prev_add() able to handle external stack_trace
-  lockdep: Implement crossrelease feature
-  lockdep: Detect and handle hist_lock ring buffer overwrite
-  lockdep: Handle non(or multi)-acquisition of a crosslock
-  lockdep: Make print_circular_bug() aware of crossrelease
-  lockdep: Apply crossrelease to completions
-  pagemap.h: Remove trailing white space
-  lockdep: Apply crossrelease to PG_locked locks
-  lockdep: Apply lock_acquire(release) on __Set(__Clear)PageLocked
-  lockdep: Move data of CONFIG_LOCKDEP_PAGELOCK from page to page_ext
-  lockdep: Crossrelease feature documentation
-
- Documentation/locking/crossrelease.txt | 874 +++++++++++++++++++++++++++++++++
- include/linux/completion.h             | 118 ++++-
- include/linux/irqflags.h               |  24 +-
- include/linux/lockdep.h                | 150 +++++-
- include/linux/mm_types.h               |   4 +
- include/linux/page-flags.h             |  43 +-
- include/linux/page_ext.h               |   4 +
- include/linux/pagemap.h                | 125 ++++-
- include/linux/sched.h                  |  11 +
- kernel/exit.c                          |   1 +
- kernel/fork.c                          |   4 +
- kernel/locking/lockdep.c               | 862 ++++++++++++++++++++++++++++----
- kernel/sched/completion.c              |  56 ++-
- kernel/workqueue.c                     |   2 +
- lib/Kconfig.debug                      |  29 ++
- mm/filemap.c                           |  73 ++-
- mm/page_ext.c                          |   4 +
- 17 files changed, 2233 insertions(+), 151 deletions(-)
- create mode 100644 Documentation/locking/crossrelease.txt
-
+diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
+index 48c244c..54916f7 100644
+--- a/include/linux/lockdep.h
++++ b/include/linux/lockdep.h
+@@ -325,6 +325,19 @@ struct hist_lock {
+  */
+ struct cross_lock {
+ 	/*
++	 * When more than one acquisition of crosslocks are overlapped,
++	 * we have to perform commit for them based on cross_gen_id of
++	 * the first acquisition, which allows us to add more true
++	 * dependencies.
++	 *
++	 * Moreover, when no acquisition of a crosslock is in progress,
++	 * we should not perform commit because the lock might not exist
++	 * any more, which might cause incorrect memory access. So we
++	 * have to track the number of acquisitions of a crosslock.
++	 */
++	int nr_acquire;
++
++	/*
+ 	 * Seperate hlock instance. This will be used at commit step.
+ 	 *
+ 	 * TODO: Use a smaller data structure containing only necessary
+@@ -554,9 +567,16 @@ extern void lockdep_init_map_crosslock(struct lockdep_map *lock,
+ 				       int subclass);
+ extern void lock_commit_crosslock(struct lockdep_map *lock);
+ 
++/*
++ * What we essencially have to initialize is 'nr_acquire'. Other members
++ * will be initialized in add_xlock().
++ */
++#define STATIC_CROSS_LOCK_INIT() \
++	{ .nr_acquire = 0,}
++
+ #define STATIC_CROSS_LOCKDEP_MAP_INIT(_name, _key) \
+ 	{ .map.name = (_name), .map.key = (void *)(_key), \
+-	  .map.cross = 1, }
++	  .map.cross = 1, .xlock = STATIC_CROSS_LOCK_INIT(), }
+ 
+ /*
+  * To initialize a lockdep_map statically use this macro.
+diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+index 5168dac..4eae7dc 100644
+--- a/kernel/locking/lockdep.c
++++ b/kernel/locking/lockdep.c
+@@ -4928,11 +4928,28 @@ static int add_xlock(struct held_lock *hlock)
+ 
+ 	xlock = &((struct lockdep_map_cross *)hlock->instance)->xlock;
+ 
++	/*
++	 * When acquisitions for a crosslock are overlapped, we use
++	 * nr_acquire to perform commit for them, based on cross_gen_id
++	 * of the first acquisition, which allows to add additional
++	 * dependencies.
++	 *
++	 * Moreover, when no acquisition of a crosslock is in progress,
++	 * we should not perform commit because the lock might not exist
++	 * any more, which might cause incorrect memory access. So we
++	 * have to track the number of acquisitions of a crosslock.
++	 *
++	 * depend_after() is necessary to initialize only the first
++	 * valid xlock so that the xlock can be used on its commit.
++	 */
++	if (xlock->nr_acquire++ && depend_after(&xlock->hlock))
++		goto unlock;
++
+ 	gen_id = (unsigned int)atomic_inc_return(&cross_gen_id);
+ 	xlock->hlock = *hlock;
+ 	xlock->hlock.gen_id = gen_id;
++unlock:
+ 	graph_unlock();
+-
+ 	return 1;
+ }
+ 
+@@ -5028,35 +5045,37 @@ static void commit_xhlocks(struct cross_lock *xlock)
+ 	if (!graph_lock())
+ 		return;
+ 
+-	for (i = 0; i < MAX_XHLOCKS_NR; i++) {
+-		struct hist_lock *xhlock = &xhlock(cur - i);
++	if (xlock->nr_acquire) {
++		for (i = 0; i < MAX_XHLOCKS_NR; i++) {
++			struct hist_lock *xhlock = &xhlock(cur - i);
+ 
+-		if (!xhlock_valid(xhlock))
+-			break;
++			if (!xhlock_valid(xhlock))
++				break;
+ 
+-		if (before(xhlock->hlock.gen_id, xlock->hlock.gen_id))
+-			break;
++			if (before(xhlock->hlock.gen_id, xlock->hlock.gen_id))
++				break;
+ 
+-		if (!same_context_xhlock(xhlock))
+-			break;
++			if (!same_context_xhlock(xhlock))
++				break;
+ 
+-		/*
+-		 * Filter out the cases that the ring buffer was
+-		 * overwritten and the previous entry has a bigger
+-		 * hist_id than the following one, which is impossible
+-		 * otherwise.
+-		 */
+-		if (unlikely(before(xhlock->hist_id, prev_hist_id)))
+-			break;
++			/*
++			 * Filter out the cases that the ring buffer was
++			 * overwritten and the previous entry has a bigger
++			 * hist_id than the following one, which is impossible
++			 * otherwise.
++			 */
++			if (unlikely(before(xhlock->hist_id, prev_hist_id)))
++				break;
+ 
+-		prev_hist_id = xhlock->hist_id;
++			prev_hist_id = xhlock->hist_id;
+ 
+-		/*
+-		 * commit_xhlock() returns 0 with graph_lock already
+-		 * released if fail.
+-		 */
+-		if (!commit_xhlock(xlock, xhlock))
+-			return;
++			/*
++			 * commit_xhlock() returns 0 with graph_lock already
++			 * released if fail.
++			 */
++			if (!commit_xhlock(xlock, xhlock))
++				return;
++		}
+ 	}
+ 
+ 	graph_unlock();
+@@ -5100,16 +5119,27 @@ void lock_commit_crosslock(struct lockdep_map *lock)
+ EXPORT_SYMBOL_GPL(lock_commit_crosslock);
+ 
+ /*
+- * Return: 1 - crosslock, done;
++ * Return: 0 - failure;
++ *         1 - crosslock, done;
+  *         2 - normal lock, continue to held_lock[] ops.
+  */
+ static int lock_release_crosslock(struct lockdep_map *lock)
+ {
+-	return cross_lock(lock) ? 1 : 2;
++	if (cross_lock(lock)) {
++		if (!graph_lock())
++			return 0;
++		((struct lockdep_map_cross *)lock)->xlock.nr_acquire--;
++		graph_unlock();
++		return 1;
++	}
++	return 2;
+ }
+ 
+ static void cross_init(struct lockdep_map *lock, int cross)
+ {
++	if (cross)
++		((struct lockdep_map_cross *)lock)->xlock.nr_acquire = 0;
++
+ 	lock->cross = cross;
+ 
+ 	/*
 -- 
 1.9.1
 
