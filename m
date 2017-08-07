@@ -1,78 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 752956B025F
-	for <linux-mm@kvack.org>; Sun,  6 Aug 2017 20:04:17 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id v102so12754160wrb.2
-        for <linux-mm@kvack.org>; Sun, 06 Aug 2017 17:04:17 -0700 (PDT)
-Received: from mail.kmu-office.ch (mail.kmu-office.ch. [2a02:418:6a02::a2])
-        by mx.google.com with ESMTPS id r6si8860804edb.546.2017.08.06.17.04.15
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EBCB56B025F
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 01:41:52 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id s14so88546615pgs.4
+        for <linux-mm@kvack.org>; Sun, 06 Aug 2017 22:41:52 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id f83si4233583pfk.367.2017.08.06.22.41.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 06 Aug 2017 17:04:16 -0700 (PDT)
-From: Stefan Agner <stefan@agner.ch>
-Subject: [PATCH] mm: vmstat: get slab statistics always from node counters
-Date: Sun,  6 Aug 2017 17:04:09 -0700
-Message-Id: <20170807000409.2423-1-stefan@agner.ch>
+        Sun, 06 Aug 2017 22:41:51 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -mm -v4 0/5] mm, swap: VMA based swap readahead
+Date: Mon,  7 Aug 2017 13:40:33 +0800
+Message-Id: <20170807054038.1843-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org, akpm@linux-foundation.org
-Cc: torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Stefan Agner <stefan@agner.ch>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Huang, Ying" <ying.huang@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
 
-After the move of slab statistics from zone to node counters some
-users still try to get the counters from the zone counters. This has
-been caught while compiling with clang printing a warning like:
+The swap readahead is an important mechanism to reduce the swap in
+latency.  Although pure sequential memory access pattern isn't very
+popular for anonymous memory, the space locality is still considered
+valid.
 
-  implicit conversion from enumeration type 'enum node_stat_item' to
-  different enumeration type 'enum zone_stat_item' [-Wenum-conversion]
+In the original swap readahead implementation, the consecutive blocks
+in swap device are readahead based on the global space locality
+estimation.  But the consecutive blocks in swap device just reflect
+the order of page reclaiming, don't necessarily reflect the access
+pattern in virtual memory space.  And the different tasks in the
+system may have different access patterns, which makes the global
+space locality estimation incorrect.
 
-Fixes: 385386cff4 ("mm: vmstat: move slab statistics from zone to node counters")
-Signed-off-by: Stefan Agner <stefan@agner.ch>
----
- kernel/power/snapshot.c | 2 +-
- mm/page_alloc.c         | 8 ++++----
- 2 files changed, 5 insertions(+), 5 deletions(-)
+In this patchset, when page fault occurs, the virtual pages near the
+fault address will be readahead instead of the swap slots near the
+fault swap slot in swap device.  This avoid to readahead the unrelated
+swap slots.  At the same time, the swap readahead is changed to work
+on per-VMA from globally.  So that the different access patterns of
+the different VMAs could be distinguished, and the different readahead
+policy could be applied accordingly.  The original core readahead
+detection and scaling algorithm is reused, because it is an effect
+algorithm to detect the space locality.
 
-diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
-index 222317721c5a..0972a8e09d08 100644
---- a/kernel/power/snapshot.c
-+++ b/kernel/power/snapshot.c
-@@ -1650,7 +1650,7 @@ static unsigned long minimum_image_size(unsigned long saveable)
- {
- 	unsigned long size;
- 
--	size = global_page_state(NR_SLAB_RECLAIMABLE)
-+	size = global_node_page_state(NR_SLAB_RECLAIMABLE)
- 		+ global_node_page_state(NR_ACTIVE_ANON)
- 		+ global_node_page_state(NR_INACTIVE_ANON)
- 		+ global_node_page_state(NR_ACTIVE_FILE)
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6d30e914afb6..10aa91b58487 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4458,8 +4458,8 @@ long si_mem_available(void)
- 	 * Part of the reclaimable slab consists of items that are in use,
- 	 * and cannot be freed. Cap this estimate at the low watermark.
- 	 */
--	available += global_page_state(NR_SLAB_RECLAIMABLE) -
--		     min(global_page_state(NR_SLAB_RECLAIMABLE) / 2, wmark_low);
-+	available += global_node_page_state(NR_SLAB_RECLAIMABLE) -
-+		     min(global_node_page_state(NR_SLAB_RECLAIMABLE) / 2, wmark_low);
- 
- 	if (available < 0)
- 		available = 0;
-@@ -4602,8 +4602,8 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
- 		global_node_page_state(NR_FILE_DIRTY),
- 		global_node_page_state(NR_WRITEBACK),
- 		global_node_page_state(NR_UNSTABLE_NFS),
--		global_page_state(NR_SLAB_RECLAIMABLE),
--		global_page_state(NR_SLAB_UNRECLAIMABLE),
-+		global_node_page_state(NR_SLAB_RECLAIMABLE),
-+		global_node_page_state(NR_SLAB_UNRECLAIMABLE),
- 		global_node_page_state(NR_FILE_MAPPED),
- 		global_node_page_state(NR_SHMEM),
- 		global_page_state(NR_PAGETABLE),
--- 
-2.13.3
+In addition to the swap readahead changes, some new sysfs interface is
+added to show the efficiency of the readahead algorithm and some other
+swap statistics.
+
+This new implementation will incur more small random read, on SSD, the
+improved correctness of estimation and readahead target should beat
+the potential increased overhead, this is also illustrated in the test
+results below.  But on HDD, the overhead may beat the benefit, so the
+original implementation will be used by default.
+
+The test and result is as follow,
+
+Common test condition
+=====================
+
+Test Machine: Xeon E5 v3 (2 sockets, 72 threads, 32G RAM)
+Swap device: NVMe disk
+
+Micro-benchmark with combined access pattern
+============================================
+
+vm-scalability, sequential swap test case, 4 processes to eat 50G
+virtual memory space, repeat the sequential memory writing until 300
+seconds.  The first round writing will trigger swap out, the following
+rounds will trigger sequential swap in and out.
+
+At the same time, run vm-scalability random swap test case in
+background, 8 processes to eat 30G virtual memory space, repeat the
+random memory write until 300 seconds.  This will trigger random
+swap-in in the background.
+
+This is a combined workload with sequential and random memory
+accessing at the same time.  The result (for sequential workload) is
+as follow,
+
+			Base		Optimized
+			----		---------
+throughput		345413 KB/s	414029 KB/s (+19.9%)
+latency.average		97.14 us	61.06 us (-37.1%)
+latency.50th		2 us		1 us
+latency.60th		2 us		1 us
+latency.70th		98 us		2 us
+latency.80th		160 us		2 us
+latency.90th		260 us		217 us
+latency.95th		346 us		369 us
+latency.99th		1.34 ms		1.09 ms
+ra_hit%			52.69%		99.98%
+
+The original swap readahead algorithm is confused by the background
+random access workload, so readahead hit rate is lower.  The VMA-base
+readahead algorithm works much better.
+
+Linpack
+=======
+
+The test memory size is bigger than RAM to trigger swapping.
+
+			Base		Optimized
+			----		---------
+elapsed_time		393.49 s	329.88 s (-16.2%)
+ra_hit%			86.21%		98.82%
+
+The score of base and optimized kernel hasn't visible changes.  But
+the elapsed time reduced and readahead hit rate improved, so the
+optimized kernel runs better for startup and tear down stages.  And
+the absolute value of readahead hit rate is high, shows that the space
+locality is still valid in some practical workloads.
+
+Changelogs:
+
+v4:
+
+- Rebased on latest -mm tree.
+
+- Remove swap cache statistics interface, because we found that the
+  interface for readahead statistics should be sufficient.
+
+- Use /proc/vmstat for swap readahead statistics, because that is the
+  interface used by other similar statistics.
+
+- Add ABI document for newly added sysfs interface.
+
+v3:
+
+- Rebased on latest -mm tree
+
+- Use percpu_counter for swap readahead statistics per Dave Hansen's comment.
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
