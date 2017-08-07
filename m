@@ -1,84 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0762F6B02B4
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 07:40:47 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id w63so246193wrc.5
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 04:40:46 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b62si7290354wme.222.2017.08.07.04.40.45
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D65646B025F
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 08:31:52 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id y190so2828231pgb.3
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 05:31:52 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0101.outbound.protection.outlook.com. [104.47.0.101])
+        by mx.google.com with ESMTPS id v37si5235224plg.1000.2017.08.07.05.31.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 07 Aug 2017 04:40:45 -0700 (PDT)
-Date: Mon, 7 Aug 2017 13:40:43 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/vmalloc: reduce half comparison during
- pcpu_get_vm_areas()
-Message-ID: <20170807114043.GG32434@dhcp22.suse.cz>
-References: <20170803063822.48702-1-richard.weiyang@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 07 Aug 2017 05:31:50 -0700 (PDT)
+Subject: Re: [RFC PATCH v1] powerpc/radix/kasan: KASAN support for Radix
+References: <20170729140901.5887-1-bsingharora@gmail.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <d00f364a-1683-7981-f912-7014d48dc9ad@virtuozzo.com>
+Date: Mon, 7 Aug 2017 15:30:55 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170803063822.48702-1-richard.weiyang@gmail.com>
+In-Reply-To: <20170729140901.5887-1-bsingharora@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Yang <richard.weiyang@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>
+To: Balbir Singh <bsingharora@gmail.com>, mpe@ellerman.id.au
+Cc: kasan-dev@googlegroups.com, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, glider@google.com, dvyukov@google.com
 
-[CC Tejun]
+On 07/29/2017 05:09 PM, Balbir Singh wrote:
+> This is the first attempt to implement KASAN for radix
+> on powerpc64. Aneesh Kumar implemented KASAN for hash 64
+> in limited mode (support only for kernel linear mapping)
+> (https://lwn.net/Articles/655642/)
+> 
+> This patch does the following:
+> 1. Defines its own zero_page,pte,pmd and pud because
+> the generic PTRS_PER_PTE, etc are variables on ppc64
+> book3s. Since the implementation is for radix, we use
+> the radix constants. This patch uses ARCH_DEFINES_KASAN_ZERO_PTE
+> for that purpose
+> 2. There is a new function check_return_arch_not_ready()
+> which is defined for ppc64/book3s/radix and overrides the
+> checks in check_memory_region_inline() until the arch has
+> done kasan setup is done for the architecture. This is needed
+> for powerpc. A lot of functions are called in real mode prior
+> to MMU paging init, we could fix some of this by using
+> the kasan_early_init() bits, but that just maps the zero
+> page and does not do useful reporting. For this RFC we
+> just delay the checks in mem* functions till kasan_init()
 
-On Thu 03-08-17 14:38:22, Wei Yang wrote:
-> In pcpu_get_vm_areas(), it checks each range is not overlapped. To make
-> sure it is, only (N^2)/2 comparison is necessary, while current code does
-> N^2 times. By starting from the next range, it achieves the goal and the
-> continue could be removed.
+check_return_arch_not_ready() works only for outline instrumentation
+and without stack instrumentation.
+
+I guess this works for you only because CONFIG_KASAN_SHADOW_OFFSET is not defined.
+Therefore test for CFLAGS_KASAN can't pass, as '-fasan-shadow-offset= ' is invalid option,
+so CFLAGS_KASAN_MINIMAL is used instead. Or maybe you just used gcc 4.9.x which don't have
+full kasan support.
+This is also the reason why some tests doesn't pass for you.
+
+For stack instrumentation you'll have to implement kasan_early_init() and define CONFIG_KASAN_SHADOW_OFFSET.
+
+> 3. This patch renames memcpy/memset/memmove to their
+> equivalent __memcpy/__memset/__memmove and for files
+> that skip KASAN via KASAN_SANITIZE, we use the __
+> variants. This is largely based on Aneesh's patchset
+> mentioned above
+> 4. In paca.c, some explicit memcpy inserted by the
+> compiler/linker is replaced via explicit memcpy
+> for structure content copying
+> 5. prom_init and a few other files have KASAN_SANITIZE
+> set to n, I think with the delayed checks (#2 above)
+> we might be able to work around many of them
+> 6. Resizing of virtual address space is done a little
+> aggressively the size is reduced to 1/4 and totally
+> to 1/2. For the RFC it was considered OK, since this
+> is just a debug tool for developers. This can be revisited
+> in the final implementation
 > 
-> At the mean time, other two work in this patch:
-> *  the overlap check of two ranges could be done with one clause
-> *  one typo in comment is fixed.
+> Tests:
 > 
-> Signed-off-by: Wei Yang <richard.weiyang@gmail.com>
-> ---
->  mm/vmalloc.c | 10 +++-------
->  1 file changed, 3 insertions(+), 7 deletions(-)
+> I ran test_kasan.ko and it reported errors for all test
+> cases except for
 > 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 8087451cb332..f33c8350fd83 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -2457,7 +2457,7 @@ static unsigned long pvm_determine_end(struct vmap_area **pnext,
->   * matching slot.  While scanning, if any of the areas overlaps with
->   * existing vmap_area, the base address is pulled down to fit the
->   * area.  Scanning is repeated till all the areas fit and then all
-> - * necessary data structres are inserted and the result is returned.
-> + * necessary data structures are inserted and the result is returned.
->   */
->  struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
->  				     const size_t *sizes, int nr_vms,
-> @@ -2485,15 +2485,11 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
->  		if (start > offsets[last_area])
->  			last_area = area;
->  
-> -		for (area2 = 0; area2 < nr_vms; area2++) {
-> +		for (area2 = area + 1; area2 < nr_vms; area2++) {
->  			unsigned long start2 = offsets[area2];
->  			unsigned long end2 = start2 + sizes[area2];
->  
-> -			if (area2 == area)
-> -				continue;
-> -
-> -			BUG_ON(start2 >= start && start2 < end);
-> -			BUG_ON(end2 <= end && end2 > start);
-> +			BUG_ON(start2 < end && start < end2);
->  		}
->  	}
->  	last_end = offsets[last_area] + sizes[last_area];
-> -- 
-> 2.11.0
+> kasan test: memcg_accounted_kmem_cache allocate memcg accounted object
+> kasan test: kasan_stack_oob out-of-bounds on stack
+> kasan test: kasan_global_oob out-of-bounds global variable
+> kasan test: use_after_scope_test use-after-scope on int
+> kasan test: use_after_scope_test use-after-scope on array
+> 
+> Based on my understanding of the test, which is an expected
+> kasan bug report after each test starting with a "===" line.
 > 
 
--- 
-Michal Hocko
-SUSE Labs
+Right, with exception of memc_accounted_kmem_cache test.
+The rest are expected to produce the kasan report unless CLFAGS_KASAN_MINIMAL
+used.
+use_after_scope tests also require fresh gcc 7.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
