@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 42FEA6B03A1
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C7236B03AB
 	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 03:14:22 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 16so90628515pgg.8
+Received: by mail-pg0-f71.google.com with SMTP id a186so90120489pge.7
         for <linux-mm@kvack.org>; Mon, 07 Aug 2017 00:14:22 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id m8si3759277pli.107.2017.08.07.00.14.12
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id d25si5027685plj.960.2017.08.07.00.14.12
         for <linux-mm@kvack.org>;
         Mon, 07 Aug 2017 00:14:13 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v8 12/14] lockdep: Apply lock_acquire(release) on __Set(__Clear)PageLocked
-Date: Mon,  7 Aug 2017 16:12:59 +0900
-Message-Id: <1502089981-21272-13-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v8 11/14] lockdep: Apply crossrelease to PG_locked locks
+Date: Mon,  7 Aug 2017 16:12:58 +0900
+Message-Id: <1502089981-21272-12-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
 References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,68 +19,255 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-Usually PG_locked bit is updated by lock_page() or unlock_page().
-However, it can be also updated through __SetPageLocked() or
-__ClearPageLockded(). They have to be considered, to get paired between
-acquire and release.
+Although lock_page() and its family can cause deadlock, the lock
+correctness validator could not be applied to them until now, becasue
+things like unlock_page() might be called in a different context from
+the acquisition context, which violates lockdep's assumption.
 
-Furthermore, e.g. __SetPageLocked() in add_to_page_cache_lru() is called
-frequently. We might miss many chances to check deadlock if we ignore it.
-Make __Set(__Clear)PageLockded considered as well.
+Thanks to CONFIG_LOCKDEP_CROSSRELEASE, we can now apply the lockdep
+detector to page locks. Applied it.
 
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- include/linux/page-flags.h | 30 +++++++++++++++++++++++++++++-
- 1 file changed, 29 insertions(+), 1 deletion(-)
+ include/linux/mm_types.h |   8 ++++
+ include/linux/pagemap.h  | 101 ++++++++++++++++++++++++++++++++++++++++++++---
+ lib/Kconfig.debug        |   8 ++++
+ mm/filemap.c             |   4 +-
+ mm/page_alloc.c          |   3 ++
+ 5 files changed, 116 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index d33e328..b793342 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -261,7 +261,6 @@ static __always_inline int PageCompound(struct page *page)
- #define TESTSCFLAG_FALSE(uname)						\
- 	TESTSETFLAG_FALSE(uname) TESTCLEARFLAG_FALSE(uname)
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index ff15181..f1e3dba 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -16,6 +16,10 @@
  
--__PAGEFLAG(Locked, locked, PF_NO_TAIL)
- PAGEFLAG(Waiters, waiters, PF_ONLY_HEAD) __CLEARPAGEFLAG(Waiters, waiters, PF_ONLY_HEAD)
- PAGEFLAG(Error, error, PF_NO_COMPOUND) TESTCLEARFLAG(Error, error, PF_NO_COMPOUND)
- PAGEFLAG(Referenced, referenced, PF_HEAD)
-@@ -373,6 +372,35 @@ static __always_inline int PageSwapCache(struct page *page)
- PAGEFLAG(Idle, idle, PF_ANY)
- #endif
+ #include <asm/mmu.h>
  
 +#ifdef CONFIG_LOCKDEP_PAGELOCK
 +#include <linux/lockdep.h>
++#endif
 +
-+TESTPAGEFLAG(Locked, locked, PF_NO_TAIL)
+ #ifndef AT_VECTOR_SIZE_ARCH
+ #define AT_VECTOR_SIZE_ARCH 0
+ #endif
+@@ -216,6 +220,10 @@ struct page {
+ #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+ 	int _last_cpupid;
+ #endif
 +
-+static __always_inline void __SetPageLocked(struct page *page)
++#ifdef CONFIG_LOCKDEP_PAGELOCK
++	struct lockdep_map_cross map;
++#endif
+ }
+ /*
+  * The struct page can be forced to be double word aligned so that atomic ops
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 9717ca8..9f448c6 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -14,6 +14,9 @@
+ #include <linux/bitops.h>
+ #include <linux/hardirq.h> /* for in_interrupt() */
+ #include <linux/hugetlb_inline.h>
++#ifdef CONFIG_LOCKDEP_PAGELOCK
++#include <linux/lockdep.h>
++#endif
+ 
+ /*
+  * Bits in mapping->flags.
+@@ -450,26 +453,91 @@ static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
+ 	return pgoff;
+ }
+ 
++#ifdef CONFIG_LOCKDEP_PAGELOCK
++#define lock_page_init(p)						\
++do {									\
++	static struct lock_class_key __key;				\
++	lockdep_init_map_crosslock((struct lockdep_map *)&(p)->map,	\
++			"(PG_locked)" #p, &__key, 0);			\
++} while (0)
++
++static inline void lock_page_acquire(struct page *page, int try)
 +{
-+	__set_bit(PG_locked, &PF_NO_TAIL(page, 1)->flags);
-+
 +	page = compound_head(page);
-+	lock_acquire_exclusive((struct lockdep_map *)&page->map, 0, 1, NULL, _RET_IP_);
++	lock_acquire_exclusive((struct lockdep_map *)&page->map, 0,
++			       try, NULL, _RET_IP_);
 +}
 +
-+static __always_inline void __ClearPageLocked(struct page *page)
++static inline void lock_page_release(struct page *page)
 +{
-+	__clear_bit(PG_locked, &PF_NO_TAIL(page, 1)->flags);
-+
 +	page = compound_head(page);
 +	/*
-+	 * lock_commit_crosslock() is necessary for crosslock
-+	 * when the lock is released, before lock_release().
++	 * lock_commit_crosslock() is necessary for crosslocks.
 +	 */
 +	lock_commit_crosslock((struct lockdep_map *)&page->map);
 +	lock_release((struct lockdep_map *)&page->map, 0, _RET_IP_);
 +}
 +#else
-+__PAGEFLAG(Locked, locked, PF_NO_TAIL)
++static inline void lock_page_init(struct page *page) {}
++static inline void lock_page_free(struct page *page) {}
++static inline void lock_page_acquire(struct page *page, int try) {}
++static inline void lock_page_release(struct page *page) {}
 +#endif
 +
+ extern void __lock_page(struct page *page);
+ extern int __lock_page_killable(struct page *page);
+ extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
+ 				unsigned int flags);
+-extern void unlock_page(struct page *page);
++extern void do_raw_unlock_page(struct page *page);
+ 
+-static inline int trylock_page(struct page *page)
++static inline void unlock_page(struct page *page)
++{
++	lock_page_release(page);
++	do_raw_unlock_page(page);
++}
++
++static inline int do_raw_trylock_page(struct page *page)
+ {
+ 	page = compound_head(page);
+ 	return (likely(!test_and_set_bit_lock(PG_locked, &page->flags)));
+ }
+ 
++static inline int trylock_page(struct page *page)
++{
++	if (do_raw_trylock_page(page)) {
++		lock_page_acquire(page, 1);
++		return 1;
++	}
++	return 0;
++}
++
  /*
-  * On an anonymous page mapped into a user virtual memory area,
-  * page->mapping points to its anon_vma, not to a struct address_space;
+  * lock_page may only be called if we have the page's inode pinned.
+  */
+ static inline void lock_page(struct page *page)
+ {
+ 	might_sleep();
+-	if (!trylock_page(page))
++
++	if (!do_raw_trylock_page(page))
+ 		__lock_page(page);
++	/*
++	 * acquire() must be after actual lock operation for crosslocks.
++	 * This way a crosslock and current lock can be ordered like:
++	 *
++	 *	CONTEXT 1		CONTEXT 2
++	 *	---------		---------
++	 *	lock A (cross)
++	 *	acquire A
++	 *	  X = atomic_inc_return(&cross_gen_id)
++	 *	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++	 *				acquire B
++	 *				  Y = atomic_read_acquire(&cross_gen_id)
++	 *				lock B
++	 *
++	 * so that 'lock A and then lock B' can be seen globally,
++	 * if X <= Y.
++	 */
++	lock_page_acquire(page, 0);
+ }
+ 
+ /*
+@@ -479,9 +547,20 @@ static inline void lock_page(struct page *page)
+  */
+ static inline int lock_page_killable(struct page *page)
+ {
++	int ret;
++
+ 	might_sleep();
+-	if (!trylock_page(page))
+-		return __lock_page_killable(page);
++
++	if (!do_raw_trylock_page(page)) {
++		ret = __lock_page_killable(page);
++		if (ret)
++			return ret;
++	}
++	/*
++	 * acquire() must be after actual lock operation for crosslocks.
++	 * This way a crosslock and other locks can be ordered.
++	 */
++	lock_page_acquire(page, 0);
+ 	return 0;
+ }
+ 
+@@ -496,7 +575,17 @@ static inline int lock_page_or_retry(struct page *page, struct mm_struct *mm,
+ 				     unsigned int flags)
+ {
+ 	might_sleep();
+-	return trylock_page(page) || __lock_page_or_retry(page, mm, flags);
++
++	if (do_raw_trylock_page(page) || __lock_page_or_retry(page, mm, flags)) {
++		/*
++		 * acquire() must be after actual lock operation for crosslocks.
++		 * This way a crosslock and other locks can be ordered.
++		 */
++		lock_page_acquire(page, 0);
++		return 1;
++	}
++
++	return 0;
+ }
+ 
+ /*
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index 4ba8adc..99b5f76 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -1093,6 +1093,14 @@ config LOCKDEP_COMPLETE
+ 	 A deadlock caused by wait_for_completion() and complete() can be
+ 	 detected by lockdep using crossrelease feature.
+ 
++config LOCKDEP_PAGELOCK
++	bool "Lock debugging: allow PG_locked lock to use deadlock detector"
++	select LOCKDEP_CROSSRELEASE
++	default n
++	help
++	 PG_locked lock is a kind of crosslock. Using crossrelease feature,
++	 PG_locked lock can work with runtime deadlock detector.
++
+ config PROVE_LOCKING
+ 	bool "Lock debugging: prove locking correctness"
+ 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
+diff --git a/mm/filemap.c b/mm/filemap.c
+index a497024..0d83bf0 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1083,7 +1083,7 @@ static inline bool clear_bit_unlock_is_negative_byte(long nr, volatile void *mem
+  * portably (architectures that do LL/SC can test any bit, while x86 can
+  * test the sign bit).
+  */
+-void unlock_page(struct page *page)
++void do_raw_unlock_page(struct page *page)
+ {
+ 	BUILD_BUG_ON(PG_waiters != 7);
+ 	page = compound_head(page);
+@@ -1091,7 +1091,7 @@ void unlock_page(struct page *page)
+ 	if (clear_bit_unlock_is_negative_byte(PG_locked, &page->flags))
+ 		wake_up_page_bit(page, PG_locked);
+ }
+-EXPORT_SYMBOL(unlock_page);
++EXPORT_SYMBOL(do_raw_unlock_page);
+ 
+ /**
+  * end_page_writeback - end writeback against a page
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6d30e91..2cbf412 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5406,6 +5406,9 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 		} else {
+ 			__init_single_pfn(pfn, zone, nid);
+ 		}
++#ifdef CONFIG_LOCKDEP_PAGELOCK
++		lock_page_init(pfn_to_page(pfn));
++#endif
+ 	}
+ }
+ 
 -- 
 1.9.1
 
