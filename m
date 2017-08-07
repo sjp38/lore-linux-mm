@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C96EC6B02C3
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 07:38:48 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id e204so715166wma.2
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 04:38:48 -0700 (PDT)
-Received: from mail-wr0-f196.google.com (mail-wr0-f196.google.com. [209.85.128.196])
-        by mx.google.com with ESMTPS id f18si9741160ede.120.2017.08.07.04.38.47
+	by kanga.kvack.org (Postfix) with ESMTP id 0CE746B02F3
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 07:38:51 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 185so685333wmk.12
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 04:38:51 -0700 (PDT)
+Received: from mail-wr0-f193.google.com (mail-wr0-f193.google.com. [209.85.128.193])
+        by mx.google.com with ESMTPS id p1si9403019edb.413.2017.08.07.04.38.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Aug 2017 04:38:47 -0700 (PDT)
-Received: by mail-wr0-f196.google.com with SMTP id 12so144993wrb.4
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 04:38:47 -0700 (PDT)
+        Mon, 07 Aug 2017 04:38:48 -0700 (PDT)
+Received: by mail-wr0-f193.google.com with SMTP id c24so151431wra.2
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 04:38:48 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 1/2] mm: fix double mmap_sem unlock on MMF_UNSTABLE enforced SIGBUS
-Date: Mon,  7 Aug 2017 13:38:38 +0200
-Message-Id: <20170807113839.16695-2-mhocko@kernel.org>
+Subject: [PATCH 2/2] mm, oom: fix potential data corruption when oom_reaper races with writer
+Date: Mon,  7 Aug 2017 13:38:39 +0200
+Message-Id: <20170807113839.16695-3-mhocko@kernel.org>
 In-Reply-To: <20170807113839.16695-1-mhocko@kernel.org>
 References: <20170807113839.16695-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,73 +24,277 @@ Cc: Andrea Argangeli <andrea@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.
 
 From: Michal Hocko <mhocko@suse.com>
 
-Tetsuo Handa has noticed that MMF_UNSTABLE SIGBUS path in
-handle_mm_fault causes a lockdep splat
-[   58.539455] Out of memory: Kill process 1056 (a.out) score 603 or sacrifice child
-[   58.543943] Killed process 1056 (a.out) total-vm:4268108kB, anon-rss:2246048kB, file-rss:0kB, shmem-rss:0kB
-[   58.544245] a.out (1169) used greatest stack depth: 11664 bytes left
-[   58.557471] DEBUG_LOCKS_WARN_ON(depth <= 0)
-[   58.557480] ------------[ cut here ]------------
-[   58.564407] WARNING: CPU: 6 PID: 1339 at kernel/locking/lockdep.c:3617 lock_release+0x172/0x1e0
-[   58.599401] CPU: 6 PID: 1339 Comm: a.out Not tainted 4.13.0-rc3-next-20170803+ #142
-[   58.604126] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/02/2015
-[   58.609790] task: ffff9d90df888040 task.stack: ffffa07084854000
-[   58.613944] RIP: 0010:lock_release+0x172/0x1e0
-[   58.617622] RSP: 0000:ffffa07084857e58 EFLAGS: 00010082
-[   58.621533] RAX: 000000000000001f RBX: ffff9d90df888040 RCX: 0000000000000000
-[   58.626074] RDX: 0000000000000000 RSI: 0000000000000001 RDI: ffffffffa30d4ba4
-[   58.630572] RBP: ffffa07084857e98 R08: 0000000000000000 R09: 0000000000000001
-[   58.635016] R10: 0000000000000000 R11: 000000000000001f R12: ffffa07084857f58
-[   58.639694] R13: ffff9d90f60d6cd0 R14: 0000000000000000 R15: ffffffffa305cb6e
-[   58.644200] FS:  00007fb932730740(0000) GS:ffff9d90f9f80000(0000) knlGS:0000000000000000
-[   58.648989] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[   58.652903] CR2: 000000000040092f CR3: 0000000135229000 CR4: 00000000000606e0
-[   58.657280] Call Trace:
-[   58.659989]  up_read+0x1a/0x40
-[   58.662825]  __do_page_fault+0x28e/0x4c0
-[   58.665946]  do_page_fault+0x30/0x80
-[   58.668911]  page_fault+0x28/0x30
+Wenwei Tao has noticed that our current assumption that the oom victim
+is dying and never doing any visible changes after it dies, and so the
+oom_reaper can tear it down, is not entirely true.
 
-The reason is that the page fault path might have dropped the mmap_sem
-and returned with VM_FAULT_RETRY. MMF_UNSTABLE check however rewrites
-the error path to VM_FAULT_SIGBUS and we always expect mmap_sem taken in
-that path. Fix this by taking mmap_sem when VM_FAULT_RETRY is held in
-the MMF_UNSTABLE path. We cannot simply add VM_FAULT_SIGBUS to the
-existing error code because all arch specific page fault handlers and
-g-u-p would have to learn a new error code combination.
+__task_will_free_mem consider a task dying when SIGNAL_GROUP_EXIT
+is set but do_group_exit sends SIGKILL to all threads _after_ the
+flag is set. So there is a race window when some threads won't have
+fatal_signal_pending while the oom_reaper could start unmapping the
+address space. Moreover some paths might not check for fatal signals
+before each PF/g-u-p/copy_from_user.
 
-Reported-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Fixes: 3f70dc38cec2 ("mm: make sure that kthreads will not refault oom reaped memory")
-Cc: stable # 4.9+
+We already have a protection for oom_reaper vs. PF races by checking
+MMF_UNSTABLE. This has been, however, checked only for kernel threads
+(use_mm users) which can outlive the oom victim. A simple fix would be
+to extend the current check in handle_mm_fault for all tasks but that
+wouldn't be sufficient because the current check assumes that a kernel
+thread would bail out after EFAULT from get_user*/copy_from_user and
+never re-read the same address which would succeed because the PF path
+has established page tables already. This seems to be the case for the
+only existing use_mm user currently (virtio driver) but it is rather
+fragile in general.
+
+This is even more fragile in general for more complex paths such as
+generic_perform_write which can re-read the same address more times
+(e.g. iov_iter_copy_from_user_atomic to fail and then
+iov_iter_fault_in_readable on retry). Therefore we have to implement
+MMF_UNSTABLE protection in a robust way and never make a potentially
+corrupted content visible. That requires to hook deeper into the PF
+path and check for the flag _every time_ before a pte for anonymous
+memory is established (that means all !VM_SHARED mappings).
+
+The corruption can be triggered artificially [1] but there doesn't seem
+to be any real life bug report. The race window should be quite tight
+to trigger most of the time.
+
+Fixes: aac453635549 ("mm, oom: introduce oom reaper")
+Noticed-by: Wenwei Tao <wenwei.tww@alibaba-inc.com>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/memory.c | 12 +++++++++++-
- 1 file changed, 11 insertions(+), 1 deletion(-)
 
+[1] http://lkml.kernel.org/r/201708040646.v746kkhC024636@www262.sakura.ne.jp
+---
+ include/linux/oom.h | 22 ++++++++++++++++++++++
+ mm/huge_memory.c    | 30 ++++++++++++++++++++++--------
+ mm/memory.c         | 46 ++++++++++++++++++++--------------------------
+ 3 files changed, 64 insertions(+), 34 deletions(-)
+
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index 8a266e2be5a6..76aac4ce39bc 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -6,6 +6,8 @@
+ #include <linux/types.h>
+ #include <linux/nodemask.h>
+ #include <uapi/linux/oom.h>
++#include <linux/sched/coredump.h> /* MMF_* */
++#include <linux/mm.h> /* VM_FAULT* */
+ 
+ struct zonelist;
+ struct notifier_block;
+@@ -63,6 +65,26 @@ static inline bool tsk_is_oom_victim(struct task_struct * tsk)
+ 	return tsk->signal->oom_mm;
+ }
+ 
++/*
++ * Checks whether a page fault on the given mm is still reliable.
++ * This is no longer true if the oom reaper started to reap the
++ * address space which is reflected by MMF_UNSTABLE flag set in
++ * the mm. At that moment any !shared mapping would lose the content
++ * and could cause a memory corruption (zero pages instead of the
++ * original content).
++ *
++ * User should call this before establishing a page table entry for
++ * a !shared mapping and under the proper page table lock.
++ *
++ * Return 0 when the PF is safe VM_FAULT_SIGBUS otherwise.
++ */
++static inline int check_stable_address_space(struct mm_struct *mm)
++{
++	if (unlikely(test_bit(MMF_UNSTABLE, &mm->flags)))
++		return VM_FAULT_SIGBUS;
++	return 0;
++}
++
+ extern unsigned long oom_badness(struct task_struct *p,
+ 		struct mem_cgroup *memcg, const nodemask_t *nodemask,
+ 		unsigned long totalpages);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 86975dec0ba1..b03cfc0d3141 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -32,6 +32,7 @@
+ #include <linux/userfaultfd_k.h>
+ #include <linux/page_idle.h>
+ #include <linux/shmem_fs.h>
++#include <linux/oom.h>
+ 
+ #include <asm/tlb.h>
+ #include <asm/pgalloc.h>
+@@ -550,6 +551,7 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
+ 	struct mem_cgroup *memcg;
+ 	pgtable_t pgtable;
+ 	unsigned long haddr = vmf->address & HPAGE_PMD_MASK;
++	int ret = 0;
+ 
+ 	VM_BUG_ON_PAGE(!PageCompound(page), page);
+ 
+@@ -561,9 +563,8 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
+ 
+ 	pgtable = pte_alloc_one(vma->vm_mm, haddr);
+ 	if (unlikely(!pgtable)) {
+-		mem_cgroup_cancel_charge(page, memcg, true);
+-		put_page(page);
+-		return VM_FAULT_OOM;
++		ret = VM_FAULT_OOM;
++		goto release;
+ 	}
+ 
+ 	clear_huge_page(page, haddr, HPAGE_PMD_NR);
+@@ -576,13 +577,14 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
+ 
+ 	vmf->ptl = pmd_lock(vma->vm_mm, vmf->pmd);
+ 	if (unlikely(!pmd_none(*vmf->pmd))) {
+-		spin_unlock(vmf->ptl);
+-		mem_cgroup_cancel_charge(page, memcg, true);
+-		put_page(page);
+-		pte_free(vma->vm_mm, pgtable);
++		goto unlock_release;
+ 	} else {
+ 		pmd_t entry;
+ 
++		ret = check_stable_address_space(vma->vm_mm);
++		if (ret)
++			goto unlock_release;
++
+ 		/* Deliver the page fault to userland */
+ 		if (userfaultfd_missing(vma)) {
+ 			int ret;
+@@ -610,6 +612,15 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
+ 	}
+ 
+ 	return 0;
++unlock_release:
++	spin_unlock(vmf->ptl);
++release:
++	if (pgtable)
++		pte_free(vma->vm_mm, pgtable);
++	mem_cgroup_cancel_charge(page, memcg, true);
++	put_page(page);
++	return ret;
++
+ }
+ 
+ /*
+@@ -688,7 +699,10 @@ int do_huge_pmd_anonymous_page(struct vm_fault *vmf)
+ 		ret = 0;
+ 		set = false;
+ 		if (pmd_none(*vmf->pmd)) {
+-			if (userfaultfd_missing(vma)) {
++			ret = check_stable_address_space(vma->vm_mm);
++			if (ret) {
++				spin_unlock(vmf->ptl);
++			} else if (userfaultfd_missing(vma)) {
+ 				spin_unlock(vmf->ptl);
+ 				ret = handle_userfault(vmf, VM_UFFD_MISSING);
+ 				VM_BUG_ON(ret & VM_FAULT_FALLBACK);
 diff --git a/mm/memory.c b/mm/memory.c
-index 0e517be91a89..4fe5b6254688 100644
+index 4fe5b6254688..1b4504441bd2 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -3881,8 +3881,18 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
- 	 * further.
- 	 */
- 	if (unlikely((current->flags & PF_KTHREAD) && !(ret & VM_FAULT_ERROR)
--				&& test_bit(MMF_UNSTABLE, &vma->vm_mm->flags)))
-+				&& test_bit(MMF_UNSTABLE, &vma->vm_mm->flags))) {
-+
-+		/*
-+		 * We are going to enforce SIGBUS but the PF path might have
-+		 * dropped the mmap_sem already so take it again so that
-+		 * we do not break expectations of all arch specific PF paths
-+		 * and g-u-p
-+		 */
-+		if (ret & VM_FAULT_RETRY)
-+			down_read(&vma->vm_mm->mmap_sem);
- 		ret = VM_FAULT_SIGBUS;
-+	}
+@@ -68,6 +68,7 @@
+ #include <linux/debugfs.h>
+ #include <linux/userfaultfd_k.h>
+ #include <linux/dax.h>
++#include <linux/oom.h>
  
+ #include <asm/io.h>
+ #include <asm/mmu_context.h>
+@@ -2864,6 +2865,7 @@ static int do_anonymous_page(struct vm_fault *vmf)
+ 	struct vm_area_struct *vma = vmf->vma;
+ 	struct mem_cgroup *memcg;
+ 	struct page *page;
++	int ret = 0;
+ 	pte_t entry;
+ 
+ 	/* File mapping without ->vm_ops ? */
+@@ -2896,6 +2898,9 @@ static int do_anonymous_page(struct vm_fault *vmf)
+ 				vmf->address, &vmf->ptl);
+ 		if (!pte_none(*vmf->pte))
+ 			goto unlock;
++		ret = check_stable_address_space(vma->vm_mm);
++		if (ret)
++			goto unlock;
+ 		/* Deliver the page fault to userland, check inside PT lock */
+ 		if (userfaultfd_missing(vma)) {
+ 			pte_unmap_unlock(vmf->pte, vmf->ptl);
+@@ -2930,6 +2935,10 @@ static int do_anonymous_page(struct vm_fault *vmf)
+ 	if (!pte_none(*vmf->pte))
+ 		goto release;
+ 
++	ret = check_stable_address_space(vma->vm_mm);
++	if (ret)
++		goto release;
++
+ 	/* Deliver the page fault to userland, check inside PT lock */
+ 	if (userfaultfd_missing(vma)) {
+ 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+@@ -2949,7 +2958,7 @@ static int do_anonymous_page(struct vm_fault *vmf)
+ 	update_mmu_cache(vma, vmf->address, vmf->pte);
+ unlock:
+ 	pte_unmap_unlock(vmf->pte, vmf->ptl);
+-	return 0;
++	return ret;
+ release:
+ 	mem_cgroup_cancel_charge(page, memcg, false);
+ 	put_page(page);
+@@ -3223,7 +3232,7 @@ int alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
+ int finish_fault(struct vm_fault *vmf)
+ {
+ 	struct page *page;
+-	int ret;
++	int ret = 0;
+ 
+ 	/* Did we COW the page? */
+ 	if ((vmf->flags & FAULT_FLAG_WRITE) &&
+@@ -3231,7 +3240,15 @@ int finish_fault(struct vm_fault *vmf)
+ 		page = vmf->cow_page;
+ 	else
+ 		page = vmf->page;
+-	ret = alloc_set_pte(vmf, vmf->memcg, page);
++
++	/*
++	 * check even for read faults because we might have lost our CoWed
++	 * page
++	 */
++	if (!(vmf->vma->vm_flags & VM_SHARED))
++		ret = check_stable_address_space(vmf->vma->vm_mm);
++	if (!ret)
++		ret = alloc_set_pte(vmf, vmf->memcg, page);
+ 	if (vmf->pte)
+ 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+ 	return ret;
+@@ -3871,29 +3888,6 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+ 			mem_cgroup_oom_synchronize(false);
+ 	}
+ 
+-	/*
+-	 * This mm has been already reaped by the oom reaper and so the
+-	 * refault cannot be trusted in general. Anonymous refaults would
+-	 * lose data and give a zero page instead e.g. This is especially
+-	 * problem for use_mm() because regular tasks will just die and
+-	 * the corrupted data will not be visible anywhere while kthread
+-	 * will outlive the oom victim and potentially propagate the date
+-	 * further.
+-	 */
+-	if (unlikely((current->flags & PF_KTHREAD) && !(ret & VM_FAULT_ERROR)
+-				&& test_bit(MMF_UNSTABLE, &vma->vm_mm->flags))) {
+-
+-		/*
+-		 * We are going to enforce SIGBUS but the PF path might have
+-		 * dropped the mmap_sem already so take it again so that
+-		 * we do not break expectations of all arch specific PF paths
+-		 * and g-u-p
+-		 */
+-		if (ret & VM_FAULT_RETRY)
+-			down_read(&vma->vm_mm->mmap_sem);
+-		ret = VM_FAULT_SIGBUS;
+-	}
+-
  	return ret;
  }
+ EXPORT_SYMBOL_GPL(handle_mm_fault);
 -- 
 2.13.2
 
