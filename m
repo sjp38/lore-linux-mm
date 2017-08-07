@@ -1,98 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D65646B025F
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 08:31:52 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id y190so2828231pgb.3
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 05:31:52 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0101.outbound.protection.outlook.com. [104.47.0.101])
-        by mx.google.com with ESMTPS id v37si5235224plg.1000.2017.08.07.05.31.50
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D51A6B025F
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 09:12:41 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id l3so519183wrc.12
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 06:12:41 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id l38si8829994wrc.193.2017.08.07.06.12.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 07 Aug 2017 05:31:50 -0700 (PDT)
-Subject: Re: [RFC PATCH v1] powerpc/radix/kasan: KASAN support for Radix
-References: <20170729140901.5887-1-bsingharora@gmail.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <d00f364a-1683-7981-f912-7014d48dc9ad@virtuozzo.com>
-Date: Mon, 7 Aug 2017 15:30:55 +0300
-MIME-Version: 1.0
-In-Reply-To: <20170729140901.5887-1-bsingharora@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Aug 2017 06:12:40 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v77DAYRl073251
+	for <linux-mm@kvack.org>; Mon, 7 Aug 2017 09:12:38 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2c6jehrpsq-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 07 Aug 2017 09:12:38 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Mon, 7 Aug 2017 14:12:36 +0100
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH] userfaultfd: replace ENOSPC with ESRCH in case mm has gone during copy/zeropage
+Date: Mon,  7 Aug 2017 16:12:25 +0300
+Message-Id: <1502111545-32305-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>, mpe@ellerman.id.au
-Cc: kasan-dev@googlegroups.com, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, glider@google.com, dvyukov@google.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On 07/29/2017 05:09 PM, Balbir Singh wrote:
-> This is the first attempt to implement KASAN for radix
-> on powerpc64. Aneesh Kumar implemented KASAN for hash 64
-> in limited mode (support only for kernel linear mapping)
-> (https://lwn.net/Articles/655642/)
-> 
-> This patch does the following:
-> 1. Defines its own zero_page,pte,pmd and pud because
-> the generic PTRS_PER_PTE, etc are variables on ppc64
-> book3s. Since the implementation is for radix, we use
-> the radix constants. This patch uses ARCH_DEFINES_KASAN_ZERO_PTE
-> for that purpose
-> 2. There is a new function check_return_arch_not_ready()
-> which is defined for ppc64/book3s/radix and overrides the
-> checks in check_memory_region_inline() until the arch has
-> done kasan setup is done for the architecture. This is needed
-> for powerpc. A lot of functions are called in real mode prior
-> to MMU paging init, we could fix some of this by using
-> the kasan_early_init() bits, but that just maps the zero
-> page and does not do useful reporting. For this RFC we
-> just delay the checks in mem* functions till kasan_init()
+When the process exit races with outstanding mcopy_atomic, it would be
+better to return ESRCH error. When such race occurs the process and it's mm
+are going away and returning "no such process" to the uffd monitor seems
+better fit than ENOSPC.
 
-check_return_arch_not_ready() works only for outline instrumentation
-and without stack instrumentation.
+Suggested-by: Michal Hocko <mhocko@suse.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Cc: Pavel Emelyanov <xemul@virtuozzo.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+---
+The man-pages update is ready and I'll send it out once the patch is
+merged.
 
-I guess this works for you only because CONFIG_KASAN_SHADOW_OFFSET is not defined.
-Therefore test for CFLAGS_KASAN can't pass, as '-fasan-shadow-offset= ' is invalid option,
-so CFLAGS_KASAN_MINIMAL is used instead. Or maybe you just used gcc 4.9.x which don't have
-full kasan support.
-This is also the reason why some tests doesn't pass for you.
+ fs/userfaultfd.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-For stack instrumentation you'll have to implement kasan_early_init() and define CONFIG_KASAN_SHADOW_OFFSET.
-
-> 3. This patch renames memcpy/memset/memmove to their
-> equivalent __memcpy/__memset/__memmove and for files
-> that skip KASAN via KASAN_SANITIZE, we use the __
-> variants. This is largely based on Aneesh's patchset
-> mentioned above
-> 4. In paca.c, some explicit memcpy inserted by the
-> compiler/linker is replaced via explicit memcpy
-> for structure content copying
-> 5. prom_init and a few other files have KASAN_SANITIZE
-> set to n, I think with the delayed checks (#2 above)
-> we might be able to work around many of them
-> 6. Resizing of virtual address space is done a little
-> aggressively the size is reduced to 1/4 and totally
-> to 1/2. For the RFC it was considered OK, since this
-> is just a debug tool for developers. This can be revisited
-> in the final implementation
-> 
-> Tests:
-> 
-> I ran test_kasan.ko and it reported errors for all test
-> cases except for
-> 
-> kasan test: memcg_accounted_kmem_cache allocate memcg accounted object
-> kasan test: kasan_stack_oob out-of-bounds on stack
-> kasan test: kasan_global_oob out-of-bounds global variable
-> kasan test: use_after_scope_test use-after-scope on int
-> kasan test: use_after_scope_test use-after-scope on array
-> 
-> Based on my understanding of the test, which is an expected
-> kasan bug report after each test starting with a "===" line.
-> 
-
-Right, with exception of memc_accounted_kmem_cache test.
-The rest are expected to produce the kasan report unless CLFAGS_KASAN_MINIMAL
-used.
-use_after_scope tests also require fresh gcc 7.
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index 06ea26b8c996..b0d5897bc4e6 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -1600,7 +1600,7 @@ static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
+ 				   uffdio_copy.len);
+ 		mmput(ctx->mm);
+ 	} else {
+-		return -ENOSPC;
++		return -ESRCH;
+ 	}
+ 	if (unlikely(put_user(ret, &user_uffdio_copy->copy)))
+ 		return -EFAULT;
+@@ -1647,7 +1647,7 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
+ 				     uffdio_zeropage.range.len);
+ 		mmput(ctx->mm);
+ 	} else {
+-		return -ENOSPC;
++		return -ESRCH;
+ 	}
+ 	if (unlikely(put_user(ret, &user_uffdio_zeropage->zeropage)))
+ 		return -EFAULT;
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
