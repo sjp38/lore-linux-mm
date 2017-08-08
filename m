@@ -1,126 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E8F86B02F3
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B078C6B02FD
 	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 08:54:27 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id o82so31727431pfj.11
+Received: by mail-pg0-f72.google.com with SMTP id r133so33566868pgr.6
         for <linux-mm@kvack.org>; Tue, 08 Aug 2017 05:54:27 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id m63si853978pfi.109.2017.08.08.05.54.25
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id i13si764960pgr.389.2017.08.08.05.54.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 08 Aug 2017 05:54:26 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 01/14] mm/sparsemem: Allocate mem_section at runtime for SPARSEMEM_EXTREME
-Date: Tue,  8 Aug 2017 15:54:02 +0300
-Message-Id: <20170808125415.78842-2-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20170808125415.78842-1-kirill.shutemov@linux.intel.com>
-References: <20170808125415.78842-1-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 00/14] Boot-time switching between 4- and 5-level paging
+Date: Tue,  8 Aug 2017 15:54:01 +0300
+Message-Id: <20170808125415.78842-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Size of mem_section array depends on size of physical address space.
+The basic idea is to implement the same logic as pgtable-nop4d.h provides,
+but at runtime.
 
-In preparation for boot-time switching between paging modes on x86-64
-we need to make allocation of mem_section dynamic.
+Runtime folding is only implemented for CONFIG_X86_5LEVEL=y case. With the
+option disabled, we do compile-time folding as before..
 
-The patch allocates the array on the first call to
-sparse_memory_present_with_active_regions().
+Initially, I tried to fold pgd instread. I've got to shell, but it
+required a lot of hacks as kernel threats pgd in a special way.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- include/linux/mmzone.h |  2 +-
- mm/page_alloc.c        | 10 ++++++++++
- mm/sparse.c            | 17 +++++++++++------
- 3 files changed, 22 insertions(+), 7 deletions(-)
+Please review and consider applying.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index fc14b8b3f6ce..c8eb668eab79 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -1137,7 +1137,7 @@ struct mem_section {
- #define SECTION_ROOT_MASK	(SECTIONS_PER_ROOT - 1)
- 
- #ifdef CONFIG_SPARSEMEM_EXTREME
--extern struct mem_section *mem_section[NR_SECTION_ROOTS];
-+extern struct mem_section **mem_section;
- #else
- extern struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT];
- #endif
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6d30e914afb6..639fd2dce0c4 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5681,6 +5681,16 @@ void __init sparse_memory_present_with_active_regions(int nid)
- 	unsigned long start_pfn, end_pfn;
- 	int i, this_nid;
- 
-+#ifdef CONFIG_SPARSEMEM_EXTREME
-+	if (!mem_section) {
-+		unsigned long size, align;
-+
-+		size = sizeof(struct mem_section) * NR_SECTION_ROOTS;
-+		align = 1 << (INTERNODE_CACHE_SHIFT);
-+		mem_section = memblock_virt_alloc(size, align);
-+	}
-+#endif
-+
- 	for_each_mem_pfn_range(i, nid, &start_pfn, &end_pfn, &this_nid)
- 		memory_present(this_nid, start_pfn, end_pfn);
- }
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 7b4be3fd5cac..a91dafb189d4 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -22,8 +22,7 @@
-  * 1) mem_section	- memory sections, mem_map's for valid memory
-  */
- #ifdef CONFIG_SPARSEMEM_EXTREME
--struct mem_section *mem_section[NR_SECTION_ROOTS]
--	____cacheline_internodealigned_in_smp;
-+struct mem_section **mem_section;
- #else
- struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT]
- 	____cacheline_internodealigned_in_smp;
-@@ -104,7 +103,7 @@ static inline int sparse_index_init(unsigned long section_nr, int nid)
- int __section_nr(struct mem_section* ms)
- {
- 	unsigned long root_nr;
--	struct mem_section* root;
-+	struct mem_section* root = NULL;
- 
- 	for (root_nr = 0; root_nr < NR_SECTION_ROOTS; root_nr++) {
- 		root = __nr_to_section(root_nr * SECTIONS_PER_ROOT);
-@@ -115,7 +114,7 @@ int __section_nr(struct mem_section* ms)
- 		     break;
- 	}
- 
--	VM_BUG_ON(root_nr == NR_SECTION_ROOTS);
-+	VM_BUG_ON(!root);
- 
- 	return (root_nr * SECTIONS_PER_ROOT) + (ms - root);
- }
-@@ -333,11 +332,17 @@ sparse_early_usemaps_alloc_pgdat_section(struct pglist_data *pgdat,
- static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
- {
- 	unsigned long usemap_snr, pgdat_snr;
--	static unsigned long old_usemap_snr = NR_MEM_SECTIONS;
--	static unsigned long old_pgdat_snr = NR_MEM_SECTIONS;
-+	static unsigned long old_usemap_snr = 0;
-+	static unsigned long old_pgdat_snr = 0;
- 	struct pglist_data *pgdat = NODE_DATA(nid);
- 	int usemap_nid;
- 
-+	/* First call */
-+	if (!old_usemap_snr) {
-+		old_usemap_snr = NR_MEM_SECTIONS;
-+		old_pgdat_snr = NR_MEM_SECTIONS;
-+	}
-+
- 	usemap_snr = pfn_to_section_nr(__pa(usemap) >> PAGE_SHIFT);
- 	pgdat_snr = pfn_to_section_nr(__pa(pgdat) >> PAGE_SHIFT);
- 	if (usemap_snr == pgdat_snr)
+v4:
+ - Use ALTERNATIVE to patch return_from_SYSCALL_64 (Andi);
+ - Use __read_mostly where appropriate (Andi);
+ - Make X86_5LEVEL dependant on SPARSEMEM_VMEMMAP;
+ - Fix build errors and warnings;
+
+v3:
+ - Make sparsemem data stuctures allocation dynamic to lower memory overhead on
+   4-level paging machines;
+ - Allow XEN_PV and XEN_PVH to be enabled with X86_5LEVEL;
+ - XEN cleanups;
+
+Kirill A. Shutemov (14):
+  mm/sparsemem: Allocate mem_section at runtime for SPARSEMEM_EXTREME
+  mm/zsmalloc: Prepare to variable MAX_PHYSMEM_BITS
+  x86/kasan: Use the same shadow offset for 4- and 5-level paging
+  x86/xen: Provide pre-built page tables only for XEN_PV and XEN_PVH
+  x86/xen: Drop 5-level paging support code from XEN_PV code
+  x86/boot/compressed/64: Detect and handle 5-level paging at boot-time
+  x86/mm: Make virtual memory layout movable for CONFIG_X86_5LEVEL
+  x86/mm: Make PGDIR_SHIFT and PTRS_PER_P4D variable
+  x86/mm: Handle boot-time paging mode switching at early boot
+  x86/mm: Fold p4d page table layer at runtime
+  x86/mm: Replace compile-time checks for 5-level with runtime-time
+  x86/mm: Allow to boot without la57 if CONFIG_X86_5LEVEL=y
+  x86/xen: Allow XEN_PV and XEN_PVH to be enabled with X86_5LEVEL
+  x86/mm: Offset boot-time paging mode switching cost
+
+ Documentation/x86/x86_64/5level-paging.txt |   9 +-
+ arch/x86/Kconfig                           |   6 +-
+ arch/x86/boot/compressed/head_64.S         |  24 ++++
+ arch/x86/boot/compressed/kaslr.c           |  14 +++
+ arch/x86/boot/compressed/misc.h            |   5 +
+ arch/x86/entry/entry_64.S                  |   5 +
+ arch/x86/include/asm/kaslr.h               |   4 -
+ arch/x86/include/asm/page_64.h             |   4 +
+ arch/x86/include/asm/page_64_types.h       |  15 +--
+ arch/x86/include/asm/paravirt.h            |  21 ++--
+ arch/x86/include/asm/pgalloc.h             |   5 +-
+ arch/x86/include/asm/pgtable.h             |  10 +-
+ arch/x86/include/asm/pgtable_32.h          |   2 +
+ arch/x86/include/asm/pgtable_32_types.h    |   2 +
+ arch/x86/include/asm/pgtable_64_types.h    |  53 ++++++---
+ arch/x86/include/asm/pgtable_types.h       |  67 +++--------
+ arch/x86/include/asm/processor.h           |   2 +-
+ arch/x86/include/asm/required-features.h   |   8 +-
+ arch/x86/include/asm/sparsemem.h           |   9 +-
+ arch/x86/kernel/Makefile                   |   3 +-
+ arch/x86/kernel/head64.c                   |  73 ++++++++++--
+ arch/x86/kernel/head_64.S                  |  35 +++---
+ arch/x86/kernel/setup.c                    |   5 +-
+ arch/x86/mm/dump_pagetables.c              |  20 ++--
+ arch/x86/mm/fault.c                        |   2 +-
+ arch/x86/mm/ident_map.c                    |   2 +-
+ arch/x86/mm/init_64.c                      |  32 ++---
+ arch/x86/mm/kasan_init_64.c                |  94 +++++++++++----
+ arch/x86/mm/kaslr.c                        |  27 ++---
+ arch/x86/platform/efi/efi_64.c             |   6 +-
+ arch/x86/power/hibernate_64.c              |   6 +-
+ arch/x86/xen/Kconfig                       |   5 -
+ arch/x86/xen/mmu_pv.c                      | 180 +++++++++++++----------------
+ include/asm-generic/5level-fixup.h         |   1 +
+ include/asm-generic/pgtable-nop4d.h        |   1 +
+ include/linux/kasan.h                      |   2 +-
+ include/linux/mmzone.h                     |   2 +-
+ mm/kasan/kasan_init.c                      |   2 +-
+ mm/page_alloc.c                            |  10 ++
+ mm/sparse.c                                |  17 ++-
+ mm/zsmalloc.c                              |   6 +
+ 41 files changed, 475 insertions(+), 321 deletions(-)
+
 -- 
 2.13.2
 
