@@ -1,57 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 632576B039F
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 04:47:59 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id p135so13114471qke.0
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 01:47:59 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 8418C6B03AB
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 04:48:11 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id q198so12969235qke.13
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 01:48:11 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j61si750387qtd.429.2017.08.08.01.47.58
+        by mx.google.com with ESMTPS id s4si762917qks.546.2017.08.08.01.48.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 01:47:58 -0700 (PDT)
+        Tue, 08 Aug 2017 01:48:10 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH v3 10/49] dm: limit the max bio size as BIO_MAX_PAGES * PAGE_SIZE
-Date: Tue,  8 Aug 2017 16:45:09 +0800
-Message-Id: <20170808084548.18963-11-ming.lei@redhat.com>
+Subject: [PATCH v3 11/49] btrfs: avoid access to .bi_vcnt directly
+Date: Tue,  8 Aug 2017 16:45:10 +0800
+Message-Id: <20170808084548.18963-12-ming.lei@redhat.com>
 In-Reply-To: <20170808084548.18963-1-ming.lei@redhat.com>
 References: <20170808084548.18963-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>, Mike Snitzer <snitzer@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org
 
-For BIO based DM, some targets aren't ready for dealing with
-bigger incoming bio than 1Mbyte, such as crypt target.
+BTRFS uses bio->bi_vcnt to figure out page numbers, this
+way becomes not correct once we start to enable multipage
+bvec.
 
-Cc: Mike Snitzer <snitzer@redhat.com>
-Cc:dm-devel@redhat.com
+So use bio_for_each_segment_all() to do that instead.
+
+Cc: Chris Mason <clm@fb.com>
+Cc: Josef Bacik <jbacik@fb.com>
+Cc: David Sterba <dsterba@suse.com>
+Cc: linux-btrfs@vger.kernel.org
+Acked-by: David Sterba <dsterba@suse.com>
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- drivers/md/dm.c | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ fs/btrfs/extent_io.c | 20 ++++++++++++++++----
+ fs/btrfs/extent_io.h |  2 +-
+ 2 files changed, 17 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/md/dm.c b/drivers/md/dm.c
-index 2edbcc2d7d3f..631348699fb8 100644
---- a/drivers/md/dm.c
-+++ b/drivers/md/dm.c
-@@ -922,7 +922,16 @@ int dm_set_target_max_io_len(struct dm_target *ti, sector_t len)
- 		return -EINVAL;
- 	}
- 
--	ti->max_io_len = (uint32_t) len;
-+	/*
-+	 * BIO based queue uses its own splitting. When multipage bvecs
-+	 * is switched on, size of the incoming bio may be too big to
-+	 * be handled in some targets, such as crypt.
-+	 *
-+	 * When these targets are ready for the big bio, we can remove
-+	 * the limit.
-+	 */
-+	ti->max_io_len = min_t(uint32_t, len,
-+			       (BIO_MAX_PAGES * PAGE_SIZE));
- 
+diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
+index 0aff9b278c19..0e7367817b92 100644
+--- a/fs/btrfs/extent_io.c
++++ b/fs/btrfs/extent_io.c
+@@ -2258,7 +2258,7 @@ int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
  	return 0;
  }
+ 
+-bool btrfs_check_repairable(struct inode *inode, struct bio *failed_bio,
++bool btrfs_check_repairable(struct inode *inode, unsigned failed_bio_pages,
+ 			   struct io_failure_record *failrec, int failed_mirror)
+ {
+ 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+@@ -2282,7 +2282,7 @@ bool btrfs_check_repairable(struct inode *inode, struct bio *failed_bio,
+ 	 *	a) deliver good data to the caller
+ 	 *	b) correct the bad sectors on disk
+ 	 */
+-	if (failed_bio->bi_vcnt > 1) {
++	if (failed_bio_pages > 1) {
+ 		/*
+ 		 * to fulfill b), we need to know the exact failing sectors, as
+ 		 * we don't want to rewrite any more than the failed ones. thus,
+@@ -2355,6 +2355,17 @@ struct bio *btrfs_create_repair_bio(struct inode *inode, struct bio *failed_bio,
+ 	return bio;
+ }
+ 
++static unsigned int get_bio_pages(struct bio *bio)
++{
++	unsigned i;
++	struct bio_vec *bv;
++
++	bio_for_each_segment_all(bv, bio, i)
++		;
++
++	return i;
++}
++
+ /*
+  * this is a generic handler for readpage errors (default
+  * readpage_io_failed_hook). if other copies exist, read those and write back
+@@ -2375,6 +2386,7 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
+ 	int read_mode = 0;
+ 	blk_status_t status;
+ 	int ret;
++	unsigned failed_bio_pages = get_bio_pages(failed_bio);
+ 
+ 	BUG_ON(bio_op(failed_bio) == REQ_OP_WRITE);
+ 
+@@ -2382,13 +2394,13 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
+ 	if (ret)
+ 		return ret;
+ 
+-	if (!btrfs_check_repairable(inode, failed_bio, failrec,
++	if (!btrfs_check_repairable(inode, failed_bio_pages, failrec,
+ 				    failed_mirror)) {
+ 		free_io_failure(failure_tree, tree, failrec);
+ 		return -EIO;
+ 	}
+ 
+-	if (failed_bio->bi_vcnt > 1)
++	if (failed_bio_pages > 1)
+ 		read_mode |= REQ_FAILFAST_DEV;
+ 
+ 	phy_offset >>= inode->i_sb->s_blocksize_bits;
+diff --git a/fs/btrfs/extent_io.h b/fs/btrfs/extent_io.h
+index 4f030912f3ef..300ee10f39f2 100644
+--- a/fs/btrfs/extent_io.h
++++ b/fs/btrfs/extent_io.h
+@@ -539,7 +539,7 @@ void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start,
+ 		u64 end);
+ int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
+ 				struct io_failure_record **failrec_ret);
+-bool btrfs_check_repairable(struct inode *inode, struct bio *failed_bio,
++bool btrfs_check_repairable(struct inode *inode, unsigned failed_bio_pages,
+ 			    struct io_failure_record *failrec, int fail_mirror);
+ struct bio *btrfs_create_repair_bio(struct inode *inode, struct bio *failed_bio,
+ 				    struct io_failure_record *failrec,
 -- 
 2.9.4
 
