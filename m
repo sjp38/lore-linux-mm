@@ -1,88 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B2C36B025F
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 12:33:09 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id a186so5214164wmh.9
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 09:33:08 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id m15si1657926edb.511.2017.08.08.09.33.07
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D9916B025F
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 12:48:19 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id f72so60438013ywb.4
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 09:48:19 -0700 (PDT)
+Received: from mail-yw0-x22d.google.com (mail-yw0-x22d.google.com. [2607:f8b0:4002:c05::22d])
+        by mx.google.com with ESMTPS id g63si461479ybb.713.2017.08.08.09.48.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 09:33:07 -0700 (PDT)
-Date: Tue, 8 Aug 2017 09:32:32 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH v3 41/49] xfs: convert to bio_for_each_segment_all_sp()
-Message-ID: <20170808163232.GO24087@magnolia>
-References: <20170808084548.18963-1-ming.lei@redhat.com>
- <20170808084548.18963-42-ming.lei@redhat.com>
+        Tue, 08 Aug 2017 09:48:18 -0700 (PDT)
+Received: by mail-yw0-x22d.google.com with SMTP id p68so24934612ywg.0
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 09:48:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170808084548.18963-42-ming.lei@redhat.com>
+In-Reply-To: <1502207168.6577.25.camel@redhat.com>
+References: <20170806140425.20937-1-riel@redhat.com> <a0d79f77-f916-d3d6-1d61-a052581dbd4a@oracle.com>
+ <bfdab709-e5b2-0d26-1c0f-31535eda1678@redhat.com> <1502198148.6577.18.camel@redhat.com>
+ <0324df31-717d-32c1-95ef-351c5b23105f@oracle.com> <1502207168.6577.25.camel@redhat.com>
+From: =?UTF-8?Q?Colm_MacC=C3=A1rthaigh?= <colm@allcosts.net>
+Date: Tue, 8 Aug 2017 18:48:17 +0200
+Message-ID: <CAAF6GDfgX-60OFonQ+Rm=bQRNhEVho_xdizHbqCvmOCk_AOPWQ@mail.gmail.com>
+Subject: Re: [PATCH v2 0/2] mm,fork,security: introduce MADV_WIPEONFORK
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@redhat.com>
-Cc: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-xfs@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, Florian Weimer <fweimer@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Kees Cook <keescook@chromium.org>, luto@amacapital.net, Will Drewry <wad@chromium.org>, mingo@kernel.org, kirill@shutemov.name, dave.hansen@intel.com
 
-On Tue, Aug 08, 2017 at 04:45:40PM +0800, Ming Lei wrote:
+On Tue, Aug 8, 2017 at 5:46 PM, Rik van Riel <riel@redhat.com> wrote:
 
-Sure would be nice to have a changelog explaining why we're doing this.
+>> If the use case is fairly specific, then perhaps it makes sense to
+>> make MADV_WIPEONFORK not applicable (EINVAL) for mappings where the
+>> result is 'questionable'.
+>
+> That would be a question for Florian and Colm.
+>
+> If they are OK with MADV_WIPEONFORK only working on
+> anonymous VMAs (no file mapping), that certainly could
+> be implemented.
 
-> Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
-> Cc: linux-xfs@vger.kernel.org
-> Signed-off-by: Ming Lei <ming.lei@redhat.com>
-> ---
->  fs/xfs/xfs_aops.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-> index 6bf120bb1a17..94df43dcae0b 100644
-> --- a/fs/xfs/xfs_aops.c
-> +++ b/fs/xfs/xfs_aops.c
-> @@ -139,6 +139,7 @@ xfs_destroy_ioend(
->  	for (bio = &ioend->io_inline_bio; bio; bio = next) {
->  		struct bio_vec	*bvec;
->  		int		i;
-> +		struct bvec_iter_all bia;
->  
->  		/*
->  		 * For the last bio, bi_private points to the ioend, so we
-> @@ -150,7 +151,7 @@ xfs_destroy_ioend(
->  			next = bio->bi_private;
->  
->  		/* walk each page on bio, ending page IO on them */
-> -		bio_for_each_segment_all(bvec, bio, i)
-> +		bio_for_each_segment_all_sp(bvec, bio, i, bia)
+Anonymous would be sufficient for all of the Crypto-cases that I've
+come across. But I can imagine someone wanting to initialize all
+application state from a saved file, or share it between processes.
 
-It's confusing that you're splitting the old bio_for_each_segment_all
-into multipage and singlepage variants, but bio_for_each_segment_all
-continues to exist?
+The comparable minherit call sidesteps all of this by simply
+documenting that it results in a new anonymous page after fork, and so
+the previous state doesn't matter.
 
-Hmm, the new multipage variant aliases the name bio_for_each_segment_all,
-so clearly the _all function's sematics have changed a bit, but its name
-and signature haven't, which seems likely to trip up someone who didn't
-notice the behavioral change.
+Maybe the problem here is the poor name (my fault). WIPEONFORK
+suggests an action being taken ... like a user might think that it
+literally zeroes a file, for example.  At the risk of bike shedding:
+maybe ZEROESONFORK would resolve that small ambiguity?
 
-Is it still valid to call bio_for_each_segment_all?  I get the feeling
-from this patchset that you're really supposed to decide whether you
-want one page at a time or more than one page at a time and choose _sp
-or _mp?
-
-(And, seeing how this was the only patch sent to this list, the chances
-are higher of someone missing out on these subtle changes...)
-
---D
-
->  			xfs_finish_page_writeback(inode, bvec, error);
->  
->  		bio_put(bio);
-> -- 
-> 2.9.4
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+-- 
+Colm
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
