@@ -1,119 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 29E606B025F
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 22:15:09 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id y129so21879942pgy.1
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 19:15:09 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id 198si124112pgg.676.2017.08.07.19.15.07
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 07 Aug 2017 19:15:07 -0700 (PDT)
-Message-Id: <201708080214.v782EoDD084315@www262.sakura.ne.jp>
-Subject: Re: Re: [PATCH] =?ISO-2022-JP?B?b29tX3JlYXBlcjogY2xvc2UgcmFjZSB3aXRob3V0?=
- =?ISO-2022-JP?B?IHVzaW5nIG9vbV9sb2Nr?=
-From: penguin-kernel@i-love.sakura.ne.jp
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BC0A6B025F
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 22:28:33 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id e74so20307816pfd.12
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 19:28:33 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id 3si170094pls.283.2017.08.07.19.28.31
+        for <linux-mm@kvack.org>;
+        Mon, 07 Aug 2017 19:28:32 -0700 (PDT)
+Date: Tue, 8 Aug 2017 11:28:30 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [lkp-robot] [mm]  7674270022:  will-it-scale.per_process_ops
+ -19.3% regression
+Message-ID: <20170808022830.GA28570@bbox>
+References: <20170802000818.4760-7-namit@vmware.com>
+ <20170808011923.GE25554@yexl-desktop>
 MIME-Version: 1.0
-Date: Tue, 08 Aug 2017 11:14:50 +0900
-References: <201708051002.FGG87553.QtFFFMVJOSOOHL@I-love.SAKURA.ne.jp> <20170807060243.GA32434@dhcp22.suse.cz>
-In-Reply-To: <20170807060243.GA32434@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170808011923.GE25554@yexl-desktop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, hannes@cmpxchg.org, rientjes@google.com, linux-kernel@vger.kernel.org
+To: kernel test robot <xiaolong.ye@intel.com>
+Cc: Nadav Amit <namit@vmware.com>, linux-mm@kvack.org, nadav.amit@gmail.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Ingo Molnar <mingo@redhat.com>, Russell King <linux@armlinux.org.uk>, Tony Luck <tony.luck@intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, "David S. Miller" <davem@davemloft.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Jeff Dike <jdike@addtoit.com>, linux-arch@vger.kernel.org, lkp@01.org
 
-Michal Hocko wrote:
-> On Sat 05-08-17 10:02:55, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Wed 26-07-17 20:33:21, Tetsuo Handa wrote:
-> > > > Michal Hocko wrote:
-> > > > > On Sun 23-07-17 09:41:50, Tetsuo Handa wrote:
-> > > > > > So, how can we verify the above race a real problem?
-> > > > > 
-> > > > > Try to simulate a _real_ workload and see whether we kill more tasks
-> > > > > than necessary. 
-> > > > 
-> > > > Whether it is a _real_ workload or not cannot become an answer.
-> > > > 
-> > > > If somebody is trying to allocate hundreds/thousands of pages after memory of
-> > > > an OOM victim was reaped, avoiding this race window makes no sense; next OOM
-> > > > victim will be selected anyway. But if somebody is trying to allocate only one
-> > > > page and then is planning to release a lot of memory, avoiding this race window
-> > > > can save somebody from being OOM-killed needlessly. This race window depends on
-> > > > what the threads are about to do, not whether the workload is natural or
-> > > > artificial.
-> > > 
-> > > And with a desparate lack of crystal ball we cannot do much about that
-> > > really.
-> > > 
-> > > > My question is, how can users know it if somebody was OOM-killed needlessly
-> > > > by allowing MMF_OOM_SKIP to race.
-> > > 
-> > > Is it really important to know that the race is due to MMF_OOM_SKIP?
-> > 
-> > Yes, it is really important. Needlessly selecting even one OOM victim is
-> > a pain which is difficult to explain to and persuade some of customers.
+Hi,
+
+On Tue, Aug 08, 2017 at 09:19:23AM +0800, kernel test robot wrote:
 > 
-> How is this any different from a race with a task exiting an releasing
-> some memory after we have crossed the point of no return and will kill
-> something?
-
-I'm not complaining about an exiting task releasing some memory after we have
-crossed the point of no return.
-
-What I'm saying is that we can postpone "the point of no return" if we ignore
-MMF_OOM_SKIP for once (both this "oom_reaper: close race without using oom_lock"
-thread and "mm, oom: task_will_free_mem(current) should ignore MMF_OOM_SKIP for
-once." thread). These are race conditions we can avoid without crystal ball.
-
-I don't like leaving MMF_OOM_SKIP race window open which we can reduce to "an
-exiting task releasing some memory after we have crossed the point of no return."
-if we ignore MMF_OOM_SKIP for once.
-
+> Greeting,
 > 
-> > > Isn't it sufficient to see that we kill too many tasks and then debug it
-> > > further once something hits that?
-> > 
-> > It is not sufficient.
-> > 
-> > > 
-> > > [...]
-> > > > Is it guaranteed that __node_reclaim() never (even indirectly) waits for
-> > > > __GFP_DIRECT_RECLAIM && !__GFP_NORETRY memory allocation?
-> > > 
-> > > this is a direct reclaim which can go down to slab shrinkers with all
-> > > the usual fun...
-> > 
-> > Excuse me, but does that mean "Yes, it is" ?
-> > 
-> > As far as I checked, most shrinkers use non-scheduling operations other than
-> > cond_resched(). But some shrinkers use lock_page()/down_write() etc. I worry
-> > that such shrinkers might wait for __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
-> > memory allocation (i.e. "No, it isn't").
+> FYI, we noticed a -19.3% regression of will-it-scale.per_process_ops due to commit:
 > 
-> Yes that is possible. Once you are in the shrinker land then you have to
-> count with everything. And if you want to imply that
-> get_page_from_freelist inside __alloc_pages_may_oom may lockup while
-> holding the oom_lock then you might be right but I haven't checked that
-> too deeply. It might be very well possible that the node reclaim bails
-> out early when we are under OOM.
+> 
+> commit: 76742700225cad9df49f05399381ac3f1ec3dc60 ("mm: fix MADV_[FREE|DONTNEED] TLB flush miss problem")
+> url: https://github.com/0day-ci/linux/commits/Nadav-Amit/mm-migrate-prevent-racy-access-to-tlb_flush_pending/20170802-205715
+> 
+> 
+> in testcase: will-it-scale
+> on test machine: 88 threads Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz with 64G memory
+> with following parameters:
+> 
+> 	nr_task: 16
+> 	mode: process
+> 	test: brk1
+> 	cpufreq_governor: performance
+> 
+> test-description: Will It Scale takes a testcase and runs it from 1 through to n parallel copies to see if the testcase will scale. It builds both a process and threads based test in order to see any differences between the two.
+> test-url: https://github.com/antonblanchard/will-it-scale
 
-Yes, I worry that get_page_from_freelist() with oom_lock held might lockup.
+Thanks for the report.
+Could you explain what kinds of workload you are testing?
 
-If we are about to invoke the OOM killer for the first time, it is likely that
-__node_reclaim() finds nothing to reclaim and will bail out immediately. But if
-we are about to invoke the OOM killer again, it is possible that small amount of
-memory was reclaimed by the OOM killer/reaper, and all reclaimed memory was assigned
-to things which __node_reclaim() will find and try to reclaim, and any thread which
-took oom_lock will call __node_reclaim() and __node_reclaim() find something
-reclaimable if __GFP_DIRECT_RECLAIM && !__GFP_NORETRY memory allocation is involved.
-
-We should consider such situation volatile (i.e. should not make assumption that
-get_page_from_freelist() with oom_lock held shall bail out immediately) if shrinkers
-which (directly or indirectly) involve __GFP_DIRECT_RECLAIM && !__GFP_NORETRY memory
-allocation are permitted.
+Does it calls frequently madvise(MADV_DONTNEED) in parallel on multiple
+threads?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
