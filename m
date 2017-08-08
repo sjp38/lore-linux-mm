@@ -1,123 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E64A86B03AB
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 10:36:25 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id g71so4787575wmg.13
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 07:36:25 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 295AC6B03B5
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 10:36:26 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id k71so4876053wrc.15
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 07:36:26 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id p10si1300847wmd.3.2017.08.08.07.36.24
+        by mx.google.com with ESMTPS id 190si1303174wmb.20.2017.08.08.07.36.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 08 Aug 2017 07:36:24 -0700 (PDT)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v78EXdj1015195
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v78EXbSD042238
 	for <linux-mm@kvack.org>; Tue, 8 Aug 2017 10:36:23 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2c7f3v8fvq-1
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2c7f12gug8-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
 	for <linux-mm@kvack.org>; Tue, 08 Aug 2017 10:36:23 -0400
 Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Tue, 8 Aug 2017 15:36:20 +0100
+	Tue, 8 Aug 2017 15:36:19 +0100
 From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: [PATCH 12/16] mm: Protect SPF handler against anon_vma changes
-Date: Tue,  8 Aug 2017 16:35:45 +0200
+Subject: [PATCH 11/16] mm: Introduce __page_add_new_anon_rmap()
+Date: Tue,  8 Aug 2017 16:35:44 +0200
 In-Reply-To: <1502202949-8138-1-git-send-email-ldufour@linux.vnet.ibm.com>
 References: <1502202949-8138-1-git-send-email-ldufour@linux.vnet.ibm.com>
-Message-Id: <1502202949-8138-13-git-send-email-ldufour@linux.vnet.ibm.com>
+Message-Id: <1502202949-8138-12-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-The speculative page fault handler must be protected against anon_vma
-changes. This is because page_add_new_anon_rmap() is called during the
-speculative path.
+When dealing with speculative page fault handler, we may race with VMA
+being split or merged. In this case the vma->vm_start and vm->vm_end
+fields may not match the address the page fault is occurring.
 
-In addition, don't try speculative page fault if the VMA don't have an
-anon_vma structure allocated because its allocation should be
-protected by the mmap_sem.
+This can only happens when the VMA is split but in that case, the
+anon_vma pointer of the new VMA will be the same as the original one,
+because in __split_vma the new->anon_vma is set to src->anon_vma when
+*new = *vma.
 
-In __vma_adjust() when importer->anon_vma is set, there is no need to
-protect against speculative page faults since speculative page fault
-is aborted if the vma->anon_vma is not set.
+So even if the VMA boundaries are not correct, the anon_vma pointer is
+still valid.
 
-When calling page_add_new_anon_rmap() vma->anon_vma is necessarily
-valid since we checked for it when locking the pte and the anon_vma is
-removed once the pte is unlocked. So even if the speculative page
-fault handler is running concurrently with do_unmap(), as the pte is
-locked in unmap_region() - through unmap_vmas() - and the anon_vma
-unlinked later, because we check for the vma sequence counter which is
-updated in unmap_page_range() before locking the pte, and then in
-free_pgtables() so when locking the pte the change will be detected.
+If the VMA has been merged, then the VMA in which it has been merged
+must have the same anon_vma pointer otherwise the merge can't be done.
+
+So in all the case we know that the anon_vma is valid, since we have
+checked before starting the speculative page fault that the anon_vma
+pointer is valid for this VMA and since there is an anon_vma this
+means that at one time a page has been backed and that before the VMA
+is cleaned, the page table lock would have to be grab to clean the
+PTE, and the anon_vma field is checked once the PTE is locked.
+
+This patch introduce a new __page_add_new_anon_rmap() service which
+doesn't check for the VMA boundaries, and create a new inline one
+which do the check. Currently __page_add_new_anon_rmap() is only
+called during the speculative page fault path.
 
 Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 ---
- mm/memory.c | 13 ++++++++++---
- 1 file changed, 10 insertions(+), 3 deletions(-)
+ include/linux/rmap.h | 12 ++++++++++--
+ mm/rmap.c            |  5 ++---
+ 2 files changed, 12 insertions(+), 5 deletions(-)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 519c28507a93..cb6906435ff5 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -587,7 +587,9 @@ void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 		 * Hide vma from rmap and truncate_pagecache before freeing
- 		 * pgtables
- 		 */
-+		write_seqcount_begin(&vma->vm_sequence);
- 		unlink_anon_vmas(vma);
-+		write_seqcount_end(&vma->vm_sequence);
- 		unlink_file_vma(vma);
- 
- 		if (is_vm_hugetlb_page(vma)) {
-@@ -601,7 +603,9 @@ void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 			       && !is_vm_hugetlb_page(next)) {
- 				vma = next;
- 				next = vma->vm_next;
-+				write_seqcount_begin(&vma->vm_sequence);
- 				unlink_anon_vmas(vma);
-+				write_seqcount_end(&vma->vm_sequence);
- 				unlink_file_vma(vma);
- 			}
- 			free_pgd_range(tlb, addr, vma->vm_end,
-@@ -2403,7 +2407,7 @@ static int wp_page_copy(struct vm_fault *vmf)
- 		 * thread doing COW.
- 		 */
- 		ptep_clear_flush_notify(vma, vmf->address, vmf->pte);
--		page_add_new_anon_rmap(new_page, vma, vmf->address, false);
-+		__page_add_new_anon_rmap(new_page, vma, vmf->address, false);
- 		mem_cgroup_commit_charge(new_page, memcg, false, false);
- 		lru_cache_add_active_or_unevictable(new_page, vma);
- 		/*
-@@ -2873,7 +2877,7 @@ int do_swap_page(struct vm_fault *vmf)
- 		mem_cgroup_commit_charge(page, memcg, true, false);
- 		activate_page(page);
- 	} else { /* ksm created a completely new copy */
--		page_add_new_anon_rmap(page, vma, vmf->address, false);
-+		__page_add_new_anon_rmap(page, vma, vmf->address, false);
- 		mem_cgroup_commit_charge(page, memcg, false, false);
- 		lru_cache_add_active_or_unevictable(page, vma);
- 	}
-@@ -3015,7 +3019,7 @@ static int do_anonymous_page(struct vm_fault *vmf)
- 	}
- 
- 	inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
--	page_add_new_anon_rmap(page, vma, vmf->address, false);
-+	__page_add_new_anon_rmap(page, vma, vmf->address, false);
- 	mem_cgroup_commit_charge(page, memcg, false, false);
- 	lru_cache_add_active_or_unevictable(page, vma);
- setpte:
-@@ -3940,6 +3944,9 @@ int handle_speculative_fault(struct mm_struct *mm, unsigned long address,
- 	if (address < vma->vm_start || vma->vm_end <= address)
- 		goto unlock;
- 
-+	if (unlikely(!vma->anon_vma))
-+		goto unlock;
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 43ef2c30cb0f..f5cd4dbc78b0 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -170,8 +170,16 @@ void page_add_anon_rmap(struct page *, struct vm_area_struct *,
+ 		unsigned long, bool);
+ void do_page_add_anon_rmap(struct page *, struct vm_area_struct *,
+ 			   unsigned long, int);
+-void page_add_new_anon_rmap(struct page *, struct vm_area_struct *,
+-		unsigned long, bool);
++void __page_add_new_anon_rmap(struct page *, struct vm_area_struct *,
++			      unsigned long, bool);
++static inline void page_add_new_anon_rmap(struct page *page,
++					  struct vm_area_struct *vma,
++					  unsigned long address, bool compound)
++{
++	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
++	__page_add_new_anon_rmap(page, vma, address, compound);
++}
 +
- 	/*
- 	 * Huge pages are not yet supported.
- 	 */
+ void page_add_file_rmap(struct page *, bool);
+ void page_remove_rmap(struct page *, bool);
+ 
+diff --git a/mm/rmap.c b/mm/rmap.c
+index c8993c63eb25..e99f9cd7b399 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1117,7 +1117,7 @@ void do_page_add_anon_rmap(struct page *page,
+ }
+ 
+ /**
+- * page_add_new_anon_rmap - add pte mapping to a new anonymous page
++ * __page_add_new_anon_rmap - add pte mapping to a new anonymous page
+  * @page:	the page to add the mapping to
+  * @vma:	the vm area in which the mapping is added
+  * @address:	the user virtual address mapped
+@@ -1127,12 +1127,11 @@ void do_page_add_anon_rmap(struct page *page,
+  * This means the inc-and-test can be bypassed.
+  * Page does not have to be locked.
+  */
+-void page_add_new_anon_rmap(struct page *page,
++void __page_add_new_anon_rmap(struct page *page,
+ 	struct vm_area_struct *vma, unsigned long address, bool compound)
+ {
+ 	int nr = compound ? hpage_nr_pages(page) : 1;
+ 
+-	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
+ 	__SetPageSwapBacked(page);
+ 	if (compound) {
+ 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
 -- 
 2.7.4
 
