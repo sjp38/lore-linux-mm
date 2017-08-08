@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C7D286B02C3
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 02:50:34 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id r133so26089073pgr.6
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 23:50:34 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 322736B02FD
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 02:50:35 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p20so24888213pfj.2
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 23:50:35 -0700 (PDT)
 Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id f35si453761plh.628.2017.08.07.23.50.32
+        by mx.google.com with ESMTP id n16si466300pll.676.2017.08.07.23.50.33
         for <linux-mm@kvack.org>;
         Mon, 07 Aug 2017 23:50:33 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v1 4/6] mm:swap: use on-stack-bio for BDI_CAP_SYNC devices
-Date: Tue,  8 Aug 2017 15:50:22 +0900
-Message-Id: <1502175024-28338-5-git-send-email-minchan@kernel.org>
+Subject: [PATCH v1 6/6] fs: remove rw_page
+Date: Tue,  8 Aug 2017 15:50:24 +0900
+Message-Id: <1502175024-28338-7-git-send-email-minchan@kernel.org>
 In-Reply-To: <1502175024-28338-1-git-send-email-minchan@kernel.org>
 References: <1502175024-28338-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,240 +19,192 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, "karam . lee" <karam.lee@lge.com>, seungho1.park@lge.com, Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, jack@suse.cz, Jens Axboe <axboe@kernel.dk>, Vishal Verma <vishal.l.verma@intel.com>, linux-nvdimm@lists.01.org, kernel-team <kernel-team@lge.com>, Minchan Kim <minchan@kernel.org>
 
-There is no need to use dynamic bio allocation for BDI_CAP_SYNC
-devices. They can live with on-stack-bio without concern about
-waiting bio allocation from mempool under heavy memory pressure.
-
-It would be much better for swap devices because the bio mempool
-for swap IO have been used with fs. It means super-fast swap
-IO like zram don't need to depends on slow eMMC read/write
-completion.
+Currently, there is no user of rw_page so remove it.
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- include/linux/swap.h |   3 +-
- mm/page_io.c         | 123 +++++++++++++++++++++++++++++++++++----------------
- mm/swapfile.c        |   3 ++
- 3 files changed, 89 insertions(+), 40 deletions(-)
+ fs/block_dev.c         | 76 --------------------------------------------------
+ fs/mpage.c             | 12 ++------
+ include/linux/blkdev.h |  4 ---
+ mm/page_io.c           | 17 -----------
+ 4 files changed, 2 insertions(+), 107 deletions(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index ae3da979a7b7..6ed9b6423f7d 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -152,8 +152,9 @@ enum {
- 	SWP_AREA_DISCARD = (1 << 8),	/* single-time swap area discards */
- 	SWP_PAGE_DISCARD = (1 << 9),	/* freed swap page-cluster discards */
- 	SWP_STABLE_WRITES = (1 << 10),	/* no overwrite PG_writeback pages */
-+	SWP_SYNC_IO	= (1<<11),	/* synchronous IO is efficient */
- 					/* add others here before... */
--	SWP_SCANNING	= (1 << 11),	/* refcount in scan_swap_map */
-+	SWP_SCANNING	= (1 << 12),	/* refcount in scan_swap_map */
- };
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index 9941dc8342df..6fb408041e7d 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -649,82 +649,6 @@ int blkdev_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
+ }
+ EXPORT_SYMBOL(blkdev_fsync);
  
- #define SWAP_CLUSTER_MAX 32UL
+-/**
+- * bdev_read_page() - Start reading a page from a block device
+- * @bdev: The device to read the page from
+- * @sector: The offset on the device to read the page to (need not be aligned)
+- * @page: The page to read
+- *
+- * On entry, the page should be locked.  It will be unlocked when the page
+- * has been read.  If the block driver implements rw_page synchronously,
+- * that will be true on exit from this function, but it need not be.
+- *
+- * Errors returned by this function are usually "soft", eg out of memory, or
+- * queue full; callers should try a different route to read this page rather
+- * than propagate an error back up the stack.
+- *
+- * Return: negative errno if an error occurs, 0 if submission was successful.
+- */
+-int bdev_read_page(struct block_device *bdev, sector_t sector,
+-			struct page *page)
+-{
+-	const struct block_device_operations *ops = bdev->bd_disk->fops;
+-	int result = -EOPNOTSUPP;
+-
+-	if (!ops->rw_page || bdev_get_integrity(bdev))
+-		return result;
+-
+-	result = blk_queue_enter(bdev->bd_queue, false);
+-	if (result)
+-		return result;
+-	result = ops->rw_page(bdev, sector + get_start_sect(bdev), page, false);
+-	blk_queue_exit(bdev->bd_queue);
+-	return result;
+-}
+-EXPORT_SYMBOL_GPL(bdev_read_page);
+-
+-/**
+- * bdev_write_page() - Start writing a page to a block device
+- * @bdev: The device to write the page to
+- * @sector: The offset on the device to write the page to (need not be aligned)
+- * @page: The page to write
+- * @wbc: The writeback_control for the write
+- *
+- * On entry, the page should be locked and not currently under writeback.
+- * On exit, if the write started successfully, the page will be unlocked and
+- * under writeback.  If the write failed already (eg the driver failed to
+- * queue the page to the device), the page will still be locked.  If the
+- * caller is a ->writepage implementation, it will need to unlock the page.
+- *
+- * Errors returned by this function are usually "soft", eg out of memory, or
+- * queue full; callers should try a different route to write this page rather
+- * than propagate an error back up the stack.
+- *
+- * Return: negative errno if an error occurs, 0 if submission was successful.
+- */
+-int bdev_write_page(struct block_device *bdev, sector_t sector,
+-			struct page *page, struct writeback_control *wbc)
+-{
+-	int result;
+-	const struct block_device_operations *ops = bdev->bd_disk->fops;
+-
+-	if (!ops->rw_page || bdev_get_integrity(bdev))
+-		return -EOPNOTSUPP;
+-	result = blk_queue_enter(bdev->bd_queue, false);
+-	if (result)
+-		return result;
+-
+-	set_page_writeback(page);
+-	result = ops->rw_page(bdev, sector + get_start_sect(bdev), page, true);
+-	if (result)
+-		end_page_writeback(page);
+-	else
+-		unlock_page(page);
+-	blk_queue_exit(bdev->bd_queue);
+-	return result;
+-}
+-EXPORT_SYMBOL_GPL(bdev_write_page);
+-
+ /*
+  * pseudo-fs
+  */
+diff --git a/fs/mpage.c b/fs/mpage.c
+index eaeaef27d693..707d77fe7289 100644
+--- a/fs/mpage.c
++++ b/fs/mpage.c
+@@ -301,11 +301,8 @@ do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
+ 				submit_bio(&sbio);
+ 				goto out;
+ 			}
+-
+-			if (!bdev_read_page(bdev, blocks[0] << (blkbits - 9),
+-								page))
+-				goto out;
+ 		}
++
+ 		bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
+ 				min_t(int, nr_pages, BIO_MAX_PAGES), gfp);
+ 		if (bio == NULL)
+@@ -646,13 +643,8 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
+ 				submit_bio(&sbio);
+ 				clean_buffers(page, first_unmapped);
+ 			}
+-
+-			if (!bdev_write_page(bdev, blocks[0] << (blkbits - 9),
+-								page, wbc)) {
+-				clean_buffers(page, first_unmapped);
+-				goto out;
+-			}
+ 		}
++
+ 		bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
+ 				BIO_MAX_PAGES, GFP_NOFS|__GFP_HIGH);
+ 		if (bio == NULL)
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index 25f6a0cb27d3..21fffa849033 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -1936,7 +1936,6 @@ static inline bool integrity_req_gap_front_merge(struct request *req,
+ struct block_device_operations {
+ 	int (*open) (struct block_device *, fmode_t);
+ 	void (*release) (struct gendisk *, fmode_t);
+-	int (*rw_page)(struct block_device *, sector_t, struct page *, bool);
+ 	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+ 	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+ 	unsigned int (*check_events) (struct gendisk *disk,
+@@ -1954,9 +1953,6 @@ struct block_device_operations {
+ 
+ extern int __blkdev_driver_ioctl(struct block_device *, fmode_t, unsigned int,
+ 				 unsigned long);
+-extern int bdev_read_page(struct block_device *, sector_t, struct page *);
+-extern int bdev_write_page(struct block_device *, sector_t, struct page *,
+-						struct writeback_control *);
+ #else /* CONFIG_BLOCK */
+ 
+ struct block_device;
 diff --git a/mm/page_io.c b/mm/page_io.c
-index 3502a97f7c48..d794fd810773 100644
+index d794fd810773..1cbbac7b852a 100644
 --- a/mm/page_io.c
 +++ b/mm/page_io.c
-@@ -44,7 +44,7 @@ static struct bio *get_swap_bio(gfp_t gfp_flags,
- 	return bio;
- }
- 
--void end_swap_bio_write(struct bio *bio)
-+void end_swap_bio_write_simple(struct bio *bio)
- {
- 	struct page *page = bio->bi_io_vec[0].bv_page;
- 
-@@ -66,6 +66,11 @@ void end_swap_bio_write(struct bio *bio)
- 		ClearPageReclaim(page);
- 	}
- 	end_page_writeback(page);
-+}
-+
-+void end_swap_bio_write(struct bio *bio)
-+{
-+	end_swap_bio_write_simple(bio);
- 	bio_put(bio);
- }
- 
-@@ -117,10 +122,9 @@ static void swap_slot_free_notify(struct page *page)
- 	}
- }
- 
--static void end_swap_bio_read(struct bio *bio)
-+static void end_swap_bio_read_simple(struct bio *bio)
- {
- 	struct page *page = bio->bi_io_vec[0].bv_page;
--	struct task_struct *waiter = bio->bi_private;
- 
- 	if (bio->bi_status) {
- 		SetPageError(page);
-@@ -136,6 +140,13 @@ static void end_swap_bio_read(struct bio *bio)
- 	swap_slot_free_notify(page);
- out:
- 	unlock_page(page);
-+}
-+
-+static void end_swap_bio_read(struct bio *bio)
-+{
-+	struct task_struct *waiter = bio->bi_private;
-+
-+	end_swap_bio_read_simple(bio);
- 	WRITE_ONCE(bio->bi_private, NULL);
- 	bio_put(bio);
- 	wake_up_process(waiter);
-@@ -275,7 +286,6 @@ static inline void count_swpout_vm_event(struct page *page)
- 
- int __swap_writepage(struct page *page, struct writeback_control *wbc)
- {
--	struct bio *bio;
- 	int ret;
- 	struct swap_info_struct *sis = page_swap_info(page);
- 
-@@ -328,25 +338,43 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc)
+@@ -331,12 +331,6 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc)
+ 		return ret;
  	}
  
- 	ret = 0;
--	bio = get_swap_bio(GFP_NOIO, page, end_swap_bio_write);
--	if (bio == NULL) {
--		set_page_dirty(page);
-+	if (!(sis->flags & SWP_SYNC_IO)) {
-+		struct bio *bio;
-+
-+		bio = get_swap_bio(GFP_NOIO, page, end_swap_bio_write);
-+		if (bio == NULL) {
-+			set_page_dirty(page);
-+			unlock_page(page);
-+			ret = -ENOMEM;
-+			goto out;
-+		}
-+		bio->bi_opf = REQ_OP_WRITE | wbc_to_write_flags(wbc);
-+		set_page_writeback(page);
- 		unlock_page(page);
--		ret = -ENOMEM;
--		goto out;
-+		submit_bio(bio);
-+	} else {
-+
-+		/* on-stack-bio */
-+		struct bio sbio;
-+		struct bio_vec bvec;
-+
-+		bio_init(&sbio, &bvec, 1);
-+		sbio.bi_bdev = sis->bdev;
-+		sbio.bi_iter.bi_sector = swap_page_sector(page);
-+		sbio.bi_end_io = end_swap_bio_write_simple;
-+		bio_add_page(&sbio, page, PAGE_SIZE, 0);
-+		bio_set_op_attrs(&sbio, REQ_OP_WRITE, wbc_to_write_flags(wbc));
-+		set_page_writeback(page);
-+		unlock_page(page);
-+		submit_bio(&sbio);
- 	}
--	bio->bi_opf = REQ_OP_WRITE | wbc_to_write_flags(wbc);
- 	count_swpout_vm_event(page);
--	set_page_writeback(page);
--	unlock_page(page);
--	submit_bio(bio);
- out:
- 	return ret;
- }
- 
- int swap_readpage(struct page *page, bool do_poll)
- {
--	struct bio *bio;
- 	int ret = 0;
- 	struct swap_info_struct *sis = page_swap_info(page);
- 	blk_qc_t qc;
-@@ -383,33 +411,50 @@ int swap_readpage(struct page *page, bool do_poll)
- 	}
- 
- 	ret = 0;
--	bio = get_swap_bio(GFP_KERNEL, page, end_swap_bio_read);
--	if (bio == NULL) {
--		unlock_page(page);
--		ret = -ENOMEM;
--		goto out;
+-	ret = bdev_write_page(sis->bdev, swap_page_sector(page), page, wbc);
+-	if (!ret) {
+-		count_swpout_vm_event(page);
+-		return 0;
 -	}
--	bdev = bio->bi_bdev;
--	/*
--	 * Keep this task valid during swap readpage because the oom killer may
--	 * attempt to access it in the page fault retry time check.
--	 */
--	get_task_struct(current);
--	bio->bi_private = current;
--	bio_set_op_attrs(bio, REQ_OP_READ, 0);
- 	count_vm_event(PSWPIN);
--	bio_get(bio);
--	qc = submit_bio(bio);
--	while (do_poll) {
--		set_current_state(TASK_UNINTERRUPTIBLE);
--		if (!READ_ONCE(bio->bi_private))
--			break;
 -
--		if (!blk_mq_poll(bdev_get_queue(bdev), qc))
--			break;
-+	if (!(sis->flags & SWP_SYNC_IO)) {
-+		struct bio *bio;
-+
-+		bio = get_swap_bio(GFP_KERNEL, page, end_swap_bio_read);
-+		if (bio == NULL) {
-+			unlock_page(page);
-+			ret = -ENOMEM;
-+			goto out;
-+		}
-+		bdev = bio->bi_bdev;
-+		/*
-+		 * Keep this task valid during swap readpage because
-+		 * the oom killer may attempt to access it
-+		 * in the page fault retry time check.
-+		 */
-+		get_task_struct(current);
-+		bio->bi_private = current;
-+		bio_set_op_attrs(bio, REQ_OP_READ, 0);
-+		bio_get(bio);
-+		qc = submit_bio(bio);
-+		while (do_poll) {
-+			set_current_state(TASK_UNINTERRUPTIBLE);
-+			if (!READ_ONCE(bio->bi_private))
-+				break;
-+
-+			if (!blk_mq_poll(bdev_get_queue(bdev), qc))
-+				break;
-+		}
-+		__set_current_state(TASK_RUNNING);
-+		bio_put(bio);
-+	} else {
-+		/* on-stack-bio */
-+		struct bio sbio;
-+		struct bio_vec bvec;
-+
-+		bio_init(&sbio, &bvec, 1);
-+		sbio.bi_bdev = sis->bdev;
-+		sbio.bi_iter.bi_sector = swap_page_sector(page);
-+		sbio.bi_end_io = end_swap_bio_read_simple;
-+		bio_add_page(&sbio, page, PAGE_SIZE, 0);
-+		bio_set_op_attrs(&sbio, REQ_OP_READ, 0);
-+		submit_bio(&sbio);
+ 	ret = 0;
+ 	if (!(sis->flags & SWP_SYNC_IO)) {
+ 		struct bio *bio;
+@@ -399,17 +393,6 @@ int swap_readpage(struct page *page, bool do_poll)
+ 		return ret;
  	}
--	__set_current_state(TASK_RUNNING);
--	bio_put(bio);
  
- out:
- 	return ret;
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 42eff9e4e972..e916b325b0b7 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -3113,6 +3113,9 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	if (bdi_cap_stable_pages_required(inode_to_bdi(inode)))
- 		p->flags |= SWP_STABLE_WRITES;
- 
-+	if (bdi_cap_synchronous_io(inode_to_bdi(inode)))
-+		p->flags |= SWP_SYNC_IO;
-+
- 	if (p->bdev && blk_queue_nonrot(bdev_get_queue(p->bdev))) {
- 		int cpu;
- 		unsigned long ci, nr_cluster;
+-	ret = bdev_read_page(sis->bdev, swap_page_sector(page), page);
+-	if (!ret) {
+-		if (trylock_page(page)) {
+-			swap_slot_free_notify(page);
+-			unlock_page(page);
+-		}
+-
+-		count_vm_event(PSWPIN);
+-		return 0;
+-	}
+-
+ 	ret = 0;
+ 	count_vm_event(PSWPIN);
+ 	if (!(sis->flags & SWP_SYNC_IO)) {
 -- 
 2.7.4
 
