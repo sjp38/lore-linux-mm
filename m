@@ -1,153 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 413696B025F
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 13:37:11 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id g32so5598507wrd.8
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 10:37:11 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id z11si1876116edj.442.2017.08.08.10.37.09
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B9F3F6B025F
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 13:49:01 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id s26so18649225qts.8
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 10:49:01 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 135si1449871qkh.134.2017.08.08.10.49.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 08 Aug 2017 10:37:09 -0700 (PDT)
-Date: Tue, 8 Aug 2017 13:37:04 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: kernel panic on null pointer on page->mem_cgroup
-Message-ID: <20170808173704.GA22887@cmpxchg.org>
-References: <20170805155241.GA94821@jaegeuk-macbookpro.roam.corp.google.com>
- <20170808010150.4155-1-bradleybolen@gmail.com>
- <20170808162122.GA14689@cmpxchg.org>
- <20170808165601.GA7693@jaegeuk-macbookpro.roam.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Aug 2017 10:49:00 -0700 (PDT)
+Date: Tue, 8 Aug 2017 19:48:55 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 2/2] mm, oom: fix potential data corruption when
+ oom_reaper races with writer
+Message-ID: <20170808174855.GK25347@redhat.com>
+References: <20170807113839.16695-1-mhocko@kernel.org>
+ <20170807113839.16695-3-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170808165601.GA7693@jaegeuk-macbookpro.roam.corp.google.com>
+In-Reply-To: <20170807113839.16695-3-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jaegeuk Kim <jaegeuk@kernel.org>
-Cc: Bradley Bolen <bradleybolen@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Wenwei Tao <wenwei.tww@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Tue, Aug 08, 2017 at 09:56:01AM -0700, Jaegeuk Kim wrote:
-> On 08/08, Johannes Weiner wrote:
-> > Hi Jaegeuk and Bradley,
-> > 
-> > On Mon, Aug 07, 2017 at 09:01:50PM -0400, Bradley Bolen wrote:
-> > > I am getting a very similar error on v4.11 with an arm64 board.
-> > > 
-> > > I, too, also see page->mem_cgroup checked to make sure that it is not
-> > > NULL and then several instructions later it is NULL.  It does appear
-> > > that someone is changing that member without taking the lock.  In my
-> > > setup, I see
-> > > 
-> > > crash> bt
-> > > PID: 72     TASK: e1f48640  CPU: 0   COMMAND: "mmcqd/1"
-> > >  #0 [<c00ad35c>] (__crash_kexec) from [<c0101080>]
-> > >  #1 [<c0101080>] (panic) from [<c028cd6c>]
-> > >  #2 [<c028cd6c>] (svcerr_panic) from [<c028cdc4>]
-> > >  #3 [<c028cdc4>] (_SvcErr_) from [<c001474c>]
-> > >  #4 [<c001474c>] (die) from [<c00241f8>]
-> > >  #5 [<c00241f8>] (__do_kernel_fault) from [<c0560600>]
-> > >  #6 [<c0560600>] (do_page_fault) from [<c00092e8>]
-> > >  #7 [<c00092e8>] (do_DataAbort) from [<c055f9f0>]
-> > >     pc : [<c0112540>]    lr : [<c0112518>]    psr: a0000193
-> > >     sp : c1a19cc8  ip : 00000000  fp : c1a19d04
-> > >     r10: 0006ae29  r9 : 00000000  r8 : dfbf1800
-> > >     r7 : dfbf1800  r6 : 00000001  r5 : f3c1107c  r4 : e2fb6424
-> > >     r3 : 00000000  r2 : 00040228  r1 : 221e3000  r0 : a0000113
-> > >     Flags: NzCv  IRQs off  FIQs on  Mode SVC_32  ISA ARM
-> > >  #8 [<c055f9f0>] (__dabt_svc) from [<c0112518>]
-> > >  #9 [<c0112540>] (test_clear_page_writeback) from [<c01046d4>]
-> > > #10 [<c01046d4>] (end_page_writeback) from [<c0149bcc>]
-> > > #11 [<c0149bcc>] (end_swap_bio_write) from [<c0261460>]
-> > > #12 [<c0261460>] (bio_endio) from [<c042c800>]
-> > > #13 [<c042c800>] (dec_pending) from [<c042e648>]
-> > > #14 [<c042e648>] (clone_endio) from [<c0261460>]
-> > > #15 [<c0261460>] (bio_endio) from [<bf60aa00>]
-> > > #16 [<bf60aa00>] (crypt_dec_pending [dm_crypt]) from [<bf60c1e8>]
-> > > #17 [<bf60c1e8>] (crypt_endio [dm_crypt]) from [<c0261460>]
-> > > #18 [<c0261460>] (bio_endio) from [<c0269e34>]
-> > > #19 [<c0269e34>] (blk_update_request) from [<c026a058>]
-> > > #20 [<c026a058>] (blk_update_bidi_request) from [<c026a444>]
-> > > #21 [<c026a444>] (blk_end_bidi_request) from [<c026a494>]
-> > > #22 [<c026a494>] (blk_end_request) from [<c0458dbc>]
-> > > #23 [<c0458dbc>] (mmc_blk_issue_rw_rq) from [<c0459e24>]
-> > > #24 [<c0459e24>] (mmc_blk_issue_rq) from [<c045a018>]
-> > > #25 [<c045a018>] (mmc_queue_thread) from [<c0048890>]
-> > > #26 [<c0048890>] (kthread) from [<c0010388>]
-> > > crash> sym c0112540
-> > > c0112540 (T) test_clear_page_writeback+512
-> > >  /kernel-source/include/linux/memcontrol.h: 518
-> > > 
-> > > crash> bt 35
-> > > PID: 35     TASK: e1d45dc0  CPU: 1   COMMAND: "kswapd0"
-> > >  #0 [<c0559ab8>] (__schedule) from [<c0559edc>]
-> > >  #1 [<c0559edc>] (schedule) from [<c055e54c>]
-> > >  #2 [<c055e54c>] (schedule_timeout) from [<c055a3a4>]
-> > >  #3 [<c055a3a4>] (io_schedule_timeout) from [<c0106cb0>]
-> > >  #4 [<c0106cb0>] (mempool_alloc) from [<c0261668>]
-> > >  #5 [<c0261668>] (bio_alloc_bioset) from [<c0149d68>]
-> > >  #6 [<c0149d68>] (get_swap_bio) from [<c014a280>]
-> > >  #7 [<c014a280>] (__swap_writepage) from [<c014a3bc>]
-> > >  #8 [<c014a3bc>] (swap_writepage) from [<c011e5c8>]
-> > >  #9 [<c011e5c8>] (shmem_writepage) from [<c011a9b8>]
-> > > #10 [<c011a9b8>] (shrink_page_list) from [<c011b528>]
-> > > #11 [<c011b528>] (shrink_inactive_list) from [<c011c160>]
-> > > #12 [<c011c160>] (shrink_node_memcg) from [<c011c400>]
-> > > #13 [<c011c400>] (shrink_node) from [<c011d7dc>]
-> > > #14 [<c011d7dc>] (kswapd) from [<c0048890>]
-> > > #15 [<c0048890>] (kthread) from [<c0010388>]
-> > > 
-> > > It appears that uncharge_list() in mm/memcontrol.c is not taking the
-> > > page lock when it sets mem_cgroup to NULL.  I am not familiar with the
-> > > mm code so I do not know if this is on purpose or not.  There is a
-> > > comment in uncharge_list that makes me believe that the crashing code
-> > > should not have been running:
-> > > /*
-> > >  * Nobody should be changing or seriously looking at
-> > >  * page->mem_cgroup at this point, we have fully
-> > >  * exclusive access to the page.
-> > >  */
-> > > However, I am new to looking at this area of the kernel so I am not
-> > > sure.
-> > 
-> > The lock is for pages that are actively being used, whereas the free
-> > path requires the page refcount to be 0; nobody else should be having
-> > access to the page at that time.
+Hello,
+
+On Mon, Aug 07, 2017 at 01:38:39PM +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> Given various trials for a while, using __mod_memcg_state() instead of
-> mod_memcg_state() ssems somehow blowing the panic away. It might be caused
-> by kernel preemption?
-
-That's puzzling. Is that reliably the case? Because on x86-64,
-__this_cpu_add and this_cpu_add should result in the same code:
-
-#define raw_cpu_add_8(pcp, val)                 percpu_add_op((pcp), val)
-#define this_cpu_add_8(pcp, val)                percpu_add_op((pcp), val)
-
-which boils down to single instructions - incq, decq, addq - and so
-never needs explicit disabling of scheduler or interrupt preemption.
-
-> > > I was able to create a reproducible scenario by using a udelay to
-> > > increase the time between the if (page->mem_cgroup) check and the later
-> > > dereference of it to increase the race window.  I then mounted an empty
-> > > ext4 partition and ran the following no more than twice before it
-> > > crashed.
-> > > dd if=/dev/zero of=/tmp/ext4disk/test bs=1M count=100
-> > 
-> > Thanks, that's useful. I'm going to try to reproduce this also.
-> > 
-> > There is a
-> > 
-> > 	VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
-> > 
-> > inside uncharge_list() that verifies that there shouldn't in fact be
-> > any pages ending writeback when they get into that function. Can you
-> > build your kernel with CONFIG_DEBUG_VM to enable that test?
+> Wenwei Tao has noticed that our current assumption that the oom victim
+> is dying and never doing any visible changes after it dies, and so the
+> oom_reaper can tear it down, is not entirely true.
 > 
-> I'll test this as well. ;)
+> __task_will_free_mem consider a task dying when SIGNAL_GROUP_EXIT
+> is set but do_group_exit sends SIGKILL to all threads _after_ the
+> flag is set. So there is a race window when some threads won't have
+> fatal_signal_pending while the oom_reaper could start unmapping the
+> address space. Moreover some paths might not check for fatal signals
+> before each PF/g-u-p/copy_from_user.
+> 
+> We already have a protection for oom_reaper vs. PF races by checking
+> MMF_UNSTABLE. This has been, however, checked only for kernel threads
+> (use_mm users) which can outlive the oom victim. A simple fix would be
+> to extend the current check in handle_mm_fault for all tasks but that
+> wouldn't be sufficient because the current check assumes that a kernel
+> thread would bail out after EFAULT from get_user*/copy_from_user and
+> never re-read the same address which would succeed because the PF path
+> has established page tables already. This seems to be the case for the
+> only existing use_mm user currently (virtio driver) but it is rather
+> fragile in general.
+> 
+> This is even more fragile in general for more complex paths such as
+> generic_perform_write which can re-read the same address more times
+> (e.g. iov_iter_copy_from_user_atomic to fail and then
+> iov_iter_fault_in_readable on retry). Therefore we have to implement
+> MMF_UNSTABLE protection in a robust way and never make a potentially
+> corrupted content visible. That requires to hook deeper into the PF
+> path and check for the flag _every time_ before a pte for anonymous
+> memory is established (that means all !VM_SHARED mappings).
+> 
+> The corruption can be triggered artificially [1] but there doesn't seem
+> to be any real life bug report. The race window should be quite tight
+> to trigger most of the time.
 
-Thanks. I'm trying various udelays in between the NULL-check and the
-dereference, but I cannot seem to make it happen with the ext4-dd on
-my local machine.
+The bug corrected by this patch 1/2 I pointed it out last week while
+reviewing other oom reaper fixes so that looks fine.
+
+However I'd prefer to dump MMF_UNSTABLE for good instead of adding
+more of it. It can be replaced with unmap_page_range in
+__oom_reap_task_mm with a function that arms a special migration entry
+so that no branchs are added to the fast paths and it's all hidden
+inside is_migration_entry slow paths. Instead of triggering a
+wait_on_page_bit(TASK_UNINTERRUPTIBLE) when is_migration_entry(entry)
+is true, it will do a:
+
+   __set_current_state(TASK_KILLABLE);
+   schedule();
+   return VM_FAULT_SIGBUS;
+
+Because the SIGKILL is already posted by the time it gets waken, the
+sigbus handler cannot run because the process will exit before
+returning to userland, and the error should prevent GUP to keep trying
+in a loop (which would happen with a regular migration entry).
+
+It will be a page-less migration entry, so a fake, fixed,
+non-page-struct-backing page pointer, could be used to create the
+migration entry. migration_entry_to_page will not return a page, but
+such entry can be cleared fine during exit_mmap like a regular
+migration entry. No pagetable will be established either during those
+migration entry blocking events in do_swap_page.
+
+The above however looks simple compared to the core dumping. That is
+an additional trouble, and not just because it can call
+handle_mm_fault without mmap_sem. Regardless of mmap_sem, I wonder if
+SIGNAL_GROUP_COREDUMP can get set while __oom_reap_task_mm is already
+running and then what happens?  It can't be ok if core dumping can run
+in those page-less migration entries and if it does, there's no chance
+to get a coherent coredump after that, the page contents are already
+freed and reused by the time. There should be an explanation of how
+this race against coredumping is controlled to be sure oom reaper
+can't start during coredumping (of course there's the check already,
+but I'm just wondering if such check leaves a window for the race, if
+there was a race already in the main page faults).
+
+Overall OOM killing to me was reliable also before the oom reaper was
+introduced.
+
+I just did a search in bz for RHEL7 and there's a single bugreport
+related to OOM issues but it's hanging in a non-ext4 filesystem, and
+not nested in alloc_pages (but in wait_for_completion) and it's not
+reproducible with ext4. And it's happening only in an artificial
+specific "eatmemory" stress test from QA, there seems to be zero
+customer related bugreports about OOM hangs.
+
+A couple of years ago I could trivially trigger OOM deadlocks on
+various ext4 paths that loops or use GFP_NOFAIL, but that was just a
+matter of letting GFP_NOIO/NOFS/NOFAIL kind of allocation go through
+memory reserves below the low watermark.
+
+It is also fine to kill a few more processes in fact. It's not the end
+of the world if two tasks are killed because the first one couldn't
+reach exit_mmap without oom reaper assistance. The fs kind of OOM
+hangs in kernel threads are major issues if the whole filesystem in
+the journal or something tends to prevent a multitude of tasks to
+handle SIGKILL, so it has to be handled with reserves and it looked
+like it was working fine already.
+
+The main point of the oom reaper nowadays is to free memory fast
+enough so a second task isn't killed as a false positive, but it's not
+like anybody will notice much of a difference if a second task is
+killed, it wasn't commonly happening either.
+
+Certainly it's preferable to get two tasks killed than corrupted core
+dumps or corrupted memory, so if oom reaper will stay we need to
+document how we guarantee it's mutually exclusive against core dumping
+and it'd better not slowdown page fault fast paths considering it's
+possible to do so by arming page-less migration entries that can wait
+for sigkill to be delivered in do_swap_page.
+
+It's a big hammer feature that is nice to have but doing it safely and
+without adding branches to the fast paths, is somewhat more complex
+than current code.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
