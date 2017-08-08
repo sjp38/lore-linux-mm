@@ -1,197 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A5D5E6B025F
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 19:14:53 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id t25so46602218pfg.15
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 16:14:53 -0700 (PDT)
-Received: from mail-pg0-x22e.google.com (mail-pg0-x22e.google.com. [2607:f8b0:400e:c05::22e])
-        by mx.google.com with ESMTPS id v8si1690161plg.655.2017.08.08.16.14.52
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EC3C6B02F4
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 19:15:41 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id d15so22491809qta.11
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 16:15:41 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g44si1024384qtk.133.2017.08.08.16.15.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 16:14:52 -0700 (PDT)
-Received: by mail-pg0-x22e.google.com with SMTP id y129so20551202pgy.4
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 16:14:52 -0700 (PDT)
-Date: Tue, 8 Aug 2017 16:14:50 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [v4 3/4] mm, oom: introduce oom_priority for memory cgroups
-In-Reply-To: <20170726132718.14806-4-guro@fb.com>
-Message-ID: <alpine.DEB.2.10.1708081607230.54505@chino.kir.corp.google.com>
-References: <20170726132718.14806-1-guro@fb.com> <20170726132718.14806-4-guro@fb.com>
+        Tue, 08 Aug 2017 16:15:40 -0700 (PDT)
+Date: Tue, 8 Aug 2017 19:15:36 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [RFC] Tagging of vmalloc pages for supporting the pmalloc
+ allocator
+Message-ID: <20170808231535.GA20840@redhat.com>
+References: <20170803144746.GA9501@redhat.com>
+ <ab4809cd-0efc-a79d-6852-4bd2349a2b3f@huawei.com>
+ <20170803151550.GX12521@dhcp22.suse.cz>
+ <abe0c086-8c5a-d6fb-63c4-bf75528d0ec5@huawei.com>
+ <20170804081240.GF26029@dhcp22.suse.cz>
+ <7733852a-67c9-17a3-4031-cb08520b9ad2@huawei.com>
+ <20170807133107.GA16616@redhat.com>
+ <555dc453-3028-199a-881a-3ddeb41e4d6d@huawei.com>
+ <20170807191235.GE16616@redhat.com>
+ <c06fdd1a-fb18-8e17-b4fb-ea73ccd93f90@huawei.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <c06fdd1a-fb18-8e17-b4fb-ea73ccd93f90@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Igor Stoppa <igor.stoppa@huawei.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-security-module@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Kees Cook <keescook@google.com>
 
-On Wed, 26 Jul 2017, Roman Gushchin wrote:
-
-> Introduce a per-memory-cgroup oom_priority setting: an integer number
-> within the [-10000, 10000] range, which defines the order in which
-> the OOM killer selects victim memory cgroups.
+On Tue, Aug 08, 2017 at 03:59:36PM +0300, Igor Stoppa wrote:
+> On 07/08/17 22:12, Jerome Glisse wrote:
+> > On Mon, Aug 07, 2017 at 05:13:00PM +0300, Igor Stoppa wrote:
 > 
-> OOM killer prefers memory cgroups with larger priority if they are
-> populated with elegible tasks.
+> [...]
 > 
-> The oom_priority value is compared within sibling cgroups.
+> >> I have an updated version of the old proposal:
+> >>
+> >> * put a magic number in the private field, during initialization of
+> >> pmalloc pages
+> >>
+> >> * during hardened usercopy verification, when I have to assess if a page
+> >> is of pmalloc type, compare the private field against the magic number
+> >>
+> >> * if and only if the private field matches the magic number, then invoke
+> >> find_vm_area(), so that the slowness affects only a possibly limited
+> >> amount of false positives.
+> > 
+> > This all sounds good to me.
 > 
-> The root cgroup has the oom_priority 0, which cannot be changed.
+> ok, I still have one doubt wrt defining the flag.
+> Where should I do it?
 > 
-
-Awesome!  Very excited to see that you implemented this suggestion and it 
-is similar to priority based oom killing that we have done.  I think this 
-kind of support is long overdue in the oom killer.
-
-Comment inline.
-
-> Signed-off-by: Roman Gushchin <guro@fb.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Tejun Heo <tj@kernel.org>
-> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: kernel-team@fb.com
-> Cc: cgroups@vger.kernel.org
-> Cc: linux-doc@vger.kernel.org
-> Cc: linux-kernel@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> ---
->  include/linux/memcontrol.h |  3 +++
->  mm/memcontrol.c            | 55 ++++++++++++++++++++++++++++++++++++++++++++--
->  2 files changed, 56 insertions(+), 2 deletions(-)
+> vmalloc.h has the following:
 > 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index b21bbb0edc72..d31ac58e08ad 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -206,6 +206,9 @@ struct mem_cgroup {
->  	/* cached OOM score */
->  	long oom_score;
->  
-> +	/* OOM killer priority */
-> +	short oom_priority;
-> +
->  	/* handle for "memory.events" */
->  	struct cgroup_file events_file;
->  
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index ba72d1cf73d0..2c1566995077 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2710,12 +2710,21 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
->  	for (;;) {
->  		struct cgroup_subsys_state *css;
->  		struct mem_cgroup *memcg = NULL;
-> +		short prio = SHRT_MIN;
->  		long score = LONG_MIN;
->  
->  		css_for_each_child(css, &root->css) {
->  			struct mem_cgroup *iter = mem_cgroup_from_css(css);
->  
-> -			if (iter->oom_score > score) {
-> +			if (iter->oom_score == 0)
-> +				continue;
-> +
-> +			if (iter->oom_priority > prio) {
-> +				memcg = iter;
-> +				prio = iter->oom_priority;
-> +				score = iter->oom_score;
-> +			} else if (iter->oom_priority == prio &&
-> +				   iter->oom_score > score) {
->  				memcg = iter;
->  				score = iter->oom_score;
->  			}
+> /* bits in flags of vmalloc's vm_struct below */
+> #define VM_IOREMAP		0x00000001	/* ioremap() and friends
+> 						*/
+> #define VM_ALLOC		0x00000002	/* vmalloc() */
+> #define VM_MAP			0x00000004	/* vmap()ed pages */
+> #define VM_USERMAP		0x00000008	/* suitable for
+> 						   remap_vmalloc_range
+> 						*/
+> #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not
+> 						   fully initialized */
+> #define VM_NO_GUARD		0x00000040      /* don't add guard page
+> 						*/
+> #define VM_KASAN		0x00000080      /* has allocated kasan
+> 						shadow memory */
+> /* bits [20..32] reserved for arch specific ioremap internals */
+> 
+> 
+> 
+> I am tempted to add
+> 
+> #define VM_PMALLOC		0x00000100
+> 
+> But would it be acceptable, to mention pmalloc into vmalloc?
+> 
+> Should I name it VM_PRIVATE bit, instead?
+> 
+> Using VM_PRIVATE would avoid contaminating vmalloc with something that
+> depends on it (like VM_PMALLOC would do).
+> 
+> But using VM_PRIVATE will likely add tracking issues, if someone else
+> wants to use the same bit and it's not clear who is the user, if any.
 
-Your tiebreaking is done based on iter->oom_score, which I suppose makes 
-sense given that the oom killer traditionally tries to kill from the 
-largest memory hogging process.
+VM_PMALLOC sounds fine to me also adding a comment there pointing to
+pmalloc documentation would be a good thing to do. The above are flags
+that are use only inside vmalloc context and so there is no issue
+here of conflicting with other potential user.
 
-We actually tiebreak on a timestamp of memcg creation and prefer to kill 
-from the newer memcg when iter->oom_priority is the same.  The reasoning 
-is that we schedule jobs on a machine that have an inherent priority but 
-is unaware of other jobs running at the same priority and so the kill 
-decision, if based on iter->oom_score, may differ based on current memory 
-usage.
+> 
+> Unless it's acceptable to check the private field in the page struct.
+> It would bear the pmalloc magic number.
 
-I'm not necessarily arguing against using iter->oom_score, but was 
-wondering if you would also find that tiebreaking based on a timestamp 
-when priorities are the same is a more clear semantic to describe?  It's 
-similar to how the system oom killer tiebreaked based on which task_struct 
-appeared later in the tasklist when memory usage was the same.
+I thought you wanted to do:
+  check struct page mapping field
+  check vmap->flags for VM_PMALLOC
 
-Your approach makes oom killing less likely in the near term since it 
-kills a more memory hogging memcg, but has the potential to lose less 
-work.  A timestamp based approach loses the least amount of work by 
-preferring to kill newer memcgs but oom killing may be more frequent if 
-smaller child memcgs are killed.  I would argue the former is the 
-responsibility of the user for using the same priority.
+bool is_pmalloc(unsigned long addr)
+{
+    struct page *page;
+    struct vm_struct *vm_struct;
 
-> @@ -2782,7 +2791,15 @@ bool mem_cgroup_select_oom_victim(struct oom_control *oc)
->  	 * For system-wide OOMs we should consider tasks in the root cgroup
->  	 * with oom_score larger than oc->chosen_points.
->  	 */
-> -	if (!oc->memcg) {
-> +	if (!oc->memcg && !(oc->chosen_memcg &&
-> +			    oc->chosen_memcg->oom_priority > 0)) {
-> +		/*
-> +		 * Root memcg has priority 0, so if chosen memcg has lower
-> +		 * priority, any task in root cgroup is preferable.
-> +		 */
-> +		if (oc->chosen_memcg && oc->chosen_memcg->oom_priority < 0)
-> +			oc->chosen_points = 0;
-> +
->  		select_victim_root_cgroup_task(oc);
->  
->  		if (oc->chosen && oc->chosen_memcg) {
-> @@ -5373,6 +5390,34 @@ static ssize_t memory_oom_kill_all_tasks_write(struct kernfs_open_file *of,
->  	return nbytes;
->  }
->  
-> +static int memory_oom_priority_show(struct seq_file *m, void *v)
-> +{
-> +	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
-> +
-> +	seq_printf(m, "%d\n", memcg->oom_priority);
-> +
-> +	return 0;
-> +}
-> +
-> +static ssize_t memory_oom_priority_write(struct kernfs_open_file *of,
-> +				char *buf, size_t nbytes, loff_t off)
-> +{
-> +	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
-> +	int oom_priority;
-> +	int err;
-> +
-> +	err = kstrtoint(strstrip(buf), 0, &oom_priority);
-> +	if (err)
-> +		return err;
-> +
-> +	if (oom_priority < -10000 || oom_priority > 10000)
-> +		return -EINVAL;
-> +
-> +	memcg->oom_priority = (short)oom_priority;
-> +
-> +	return nbytes;
-> +}
-> +
->  static int memory_events_show(struct seq_file *m, void *v)
->  {
->  	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
-> @@ -5499,6 +5544,12 @@ static struct cftype memory_files[] = {
->  		.write = memory_oom_kill_all_tasks_write,
->  	},
->  	{
-> +		.name = "oom_priority",
-> +		.flags = CFTYPE_NOT_ON_ROOT,
-> +		.seq_show = memory_oom_priority_show,
-> +		.write = memory_oom_priority_write,
-> +	},
-> +	{
->  		.name = "events",
->  		.flags = CFTYPE_NOT_ON_ROOT,
->  		.file_offset = offsetof(struct mem_cgroup, events_file),
+    if (!is_vmalloc_addr(addr))
+        return false;
+    page = vmalloc_to_page(addr);
+    if (!page)
+        return false;
+    if (page->mapping != pmalloc_magic_key)
+        return false;
+
+    vm_struct = find_vm_area(addr);
+    if (!vm_struct)
+        return false;
+
+    return vm_struct->flags & VM_PMALLOC;
+}
+
+Did you change your plan ?
+
+> 
+> I'm thinking to use a pointer to one of pmalloc data items, as signature.
+
+What ever is easier for you. Note that dereferencing such pointer before
+asserting this is really a pmalloc page would be hazardous.
+
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
