@@ -1,51 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 483236B02F3
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 12:52:16 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id j83so37565557pfe.10
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 09:52:16 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id r5si1249107pli.111.2017.08.08.09.52.15
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E7A776B02FA
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 12:56:03 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id k82so3638934oih.1
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 09:56:03 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id s185si1218569oig.245.2017.08.08.09.56.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 09:52:15 -0700 (PDT)
-Date: Tue, 8 Aug 2017 09:52:11 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2 0/2] mm,fork,security: introduce MADV_WIPEONFORK
-Message-ID: <20170808165211.GE31390@bombadil.infradead.org>
-References: <20170806140425.20937-1-riel@redhat.com>
- <a0d79f77-f916-d3d6-1d61-a052581dbd4a@oracle.com>
- <bfdab709-e5b2-0d26-1c0f-31535eda1678@redhat.com>
- <1502198148.6577.18.camel@redhat.com>
- <0324df31-717d-32c1-95ef-351c5b23105f@oracle.com>
- <1502207168.6577.25.camel@redhat.com>
+        Tue, 08 Aug 2017 09:56:02 -0700 (PDT)
+Date: Tue, 8 Aug 2017 09:56:01 -0700
+From: Jaegeuk Kim <jaegeuk@kernel.org>
+Subject: Re: kernel panic on null pointer on page->mem_cgroup
+Message-ID: <20170808165601.GA7693@jaegeuk-macbookpro.roam.corp.google.com>
+References: <20170805155241.GA94821@jaegeuk-macbookpro.roam.corp.google.com>
+ <20170808010150.4155-1-bradleybolen@gmail.com>
+ <20170808162122.GA14689@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1502207168.6577.25.camel@redhat.com>
+In-Reply-To: <20170808162122.GA14689@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, Florian Weimer <fweimer@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, colm@allcosts.net, akpm@linux-foundation.org, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org, kirill@shutemov.name, dave.hansen@intel.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Bradley Bolen <bradleybolen@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Aug 08, 2017 at 11:46:08AM -0400, Rik van Riel wrote:
-> On Tue, 2017-08-08 at 08:19 -0700, Mike Kravetz wrote:
-> > If the use case is fairly specific, then perhaps it makes sense to
-> > make MADV_WIPEONFORK not applicable (EINVAL) for mappings where the
-> > result is 'questionable'.
+On 08/08, Johannes Weiner wrote:
+> Hi Jaegeuk and Bradley,
 > 
-> That would be a question for Florian and Colm.
+> On Mon, Aug 07, 2017 at 09:01:50PM -0400, Bradley Bolen wrote:
+> > I am getting a very similar error on v4.11 with an arm64 board.
+> > 
+> > I, too, also see page->mem_cgroup checked to make sure that it is not
+> > NULL and then several instructions later it is NULL.  It does appear
+> > that someone is changing that member without taking the lock.  In my
+> > setup, I see
+> > 
+> > crash> bt
+> > PID: 72     TASK: e1f48640  CPU: 0   COMMAND: "mmcqd/1"
+> >  #0 [<c00ad35c>] (__crash_kexec) from [<c0101080>]
+> >  #1 [<c0101080>] (panic) from [<c028cd6c>]
+> >  #2 [<c028cd6c>] (svcerr_panic) from [<c028cdc4>]
+> >  #3 [<c028cdc4>] (_SvcErr_) from [<c001474c>]
+> >  #4 [<c001474c>] (die) from [<c00241f8>]
+> >  #5 [<c00241f8>] (__do_kernel_fault) from [<c0560600>]
+> >  #6 [<c0560600>] (do_page_fault) from [<c00092e8>]
+> >  #7 [<c00092e8>] (do_DataAbort) from [<c055f9f0>]
+> >     pc : [<c0112540>]    lr : [<c0112518>]    psr: a0000193
+> >     sp : c1a19cc8  ip : 00000000  fp : c1a19d04
+> >     r10: 0006ae29  r9 : 00000000  r8 : dfbf1800
+> >     r7 : dfbf1800  r6 : 00000001  r5 : f3c1107c  r4 : e2fb6424
+> >     r3 : 00000000  r2 : 00040228  r1 : 221e3000  r0 : a0000113
+> >     Flags: NzCv  IRQs off  FIQs on  Mode SVC_32  ISA ARM
+> >  #8 [<c055f9f0>] (__dabt_svc) from [<c0112518>]
+> >  #9 [<c0112540>] (test_clear_page_writeback) from [<c01046d4>]
+> > #10 [<c01046d4>] (end_page_writeback) from [<c0149bcc>]
+> > #11 [<c0149bcc>] (end_swap_bio_write) from [<c0261460>]
+> > #12 [<c0261460>] (bio_endio) from [<c042c800>]
+> > #13 [<c042c800>] (dec_pending) from [<c042e648>]
+> > #14 [<c042e648>] (clone_endio) from [<c0261460>]
+> > #15 [<c0261460>] (bio_endio) from [<bf60aa00>]
+> > #16 [<bf60aa00>] (crypt_dec_pending [dm_crypt]) from [<bf60c1e8>]
+> > #17 [<bf60c1e8>] (crypt_endio [dm_crypt]) from [<c0261460>]
+> > #18 [<c0261460>] (bio_endio) from [<c0269e34>]
+> > #19 [<c0269e34>] (blk_update_request) from [<c026a058>]
+> > #20 [<c026a058>] (blk_update_bidi_request) from [<c026a444>]
+> > #21 [<c026a444>] (blk_end_bidi_request) from [<c026a494>]
+> > #22 [<c026a494>] (blk_end_request) from [<c0458dbc>]
+> > #23 [<c0458dbc>] (mmc_blk_issue_rw_rq) from [<c0459e24>]
+> > #24 [<c0459e24>] (mmc_blk_issue_rq) from [<c045a018>]
+> > #25 [<c045a018>] (mmc_queue_thread) from [<c0048890>]
+> > #26 [<c0048890>] (kthread) from [<c0010388>]
+> > crash> sym c0112540
+> > c0112540 (T) test_clear_page_writeback+512
+> >  /kernel-source/include/linux/memcontrol.h: 518
+> > 
+> > crash> bt 35
+> > PID: 35     TASK: e1d45dc0  CPU: 1   COMMAND: "kswapd0"
+> >  #0 [<c0559ab8>] (__schedule) from [<c0559edc>]
+> >  #1 [<c0559edc>] (schedule) from [<c055e54c>]
+> >  #2 [<c055e54c>] (schedule_timeout) from [<c055a3a4>]
+> >  #3 [<c055a3a4>] (io_schedule_timeout) from [<c0106cb0>]
+> >  #4 [<c0106cb0>] (mempool_alloc) from [<c0261668>]
+> >  #5 [<c0261668>] (bio_alloc_bioset) from [<c0149d68>]
+> >  #6 [<c0149d68>] (get_swap_bio) from [<c014a280>]
+> >  #7 [<c014a280>] (__swap_writepage) from [<c014a3bc>]
+> >  #8 [<c014a3bc>] (swap_writepage) from [<c011e5c8>]
+> >  #9 [<c011e5c8>] (shmem_writepage) from [<c011a9b8>]
+> > #10 [<c011a9b8>] (shrink_page_list) from [<c011b528>]
+> > #11 [<c011b528>] (shrink_inactive_list) from [<c011c160>]
+> > #12 [<c011c160>] (shrink_node_memcg) from [<c011c400>]
+> > #13 [<c011c400>] (shrink_node) from [<c011d7dc>]
+> > #14 [<c011d7dc>] (kswapd) from [<c0048890>]
+> > #15 [<c0048890>] (kthread) from [<c0010388>]
+> > 
+> > It appears that uncharge_list() in mm/memcontrol.c is not taking the
+> > page lock when it sets mem_cgroup to NULL.  I am not familiar with the
+> > mm code so I do not know if this is on purpose or not.  There is a
+> > comment in uncharge_list that makes me believe that the crashing code
+> > should not have been running:
+> > /*
+> >  * Nobody should be changing or seriously looking at
+> >  * page->mem_cgroup at this point, we have fully
+> >  * exclusive access to the page.
+> >  */
+> > However, I am new to looking at this area of the kernel so I am not
+> > sure.
 > 
-> If they are OK with MADV_WIPEONFORK only working on
-> anonymous VMAs (no file mapping), that certainly could
-> be implemented.
-> 
-> On the other hand, I am not sure that introducing cases
-> where MADV_WIPEONFORK does not implement wipe-on-fork
-> semantics would reduce user confusion...
+> The lock is for pages that are actively being used, whereas the free
+> path requires the page refcount to be 0; nobody else should be having
+> access to the page at that time.
 
-It'll simply do exactly what it does today, so it won't introduce any
-new fallback code.
+Given various trials for a while, using __mod_memcg_state() instead of
+mod_memcg_state() ssems somehow blowing the panic away. It might be caused
+by kernel preemption?
+
+> 
+> > I was able to create a reproducible scenario by using a udelay to
+> > increase the time between the if (page->mem_cgroup) check and the later
+> > dereference of it to increase the race window.  I then mounted an empty
+> > ext4 partition and ran the following no more than twice before it
+> > crashed.
+> > dd if=/dev/zero of=/tmp/ext4disk/test bs=1M count=100
+> 
+> Thanks, that's useful. I'm going to try to reproduce this also.
+> 
+> There is a
+> 
+> 	VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
+> 
+> inside uncharge_list() that verifies that there shouldn't in fact be
+> any pages ending writeback when they get into that function. Can you
+> build your kernel with CONFIG_DEBUG_VM to enable that test?
+
+I'll test this as well. ;)
+
+Thanks,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
