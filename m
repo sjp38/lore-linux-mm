@@ -1,42 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 25DD96B0494
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 09:16:09 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id c74so28189435iod.4
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 06:16:09 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id f196si1600893itc.41.2017.08.08.06.16.08
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DD176B02C3
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 09:29:07 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id j83so32617790pfe.10
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 06:29:07 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id f16si914958plk.484.2017.08.08.06.29.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 06:16:08 -0700 (PDT)
-Date: Tue, 8 Aug 2017 15:15:57 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC v5 05/11] mm: fix lock dependency against
- mapping->i_mmap_rwsem
-Message-ID: <20170808131557.iyczqs4wzqanx35p@hirez.programming.kicks-ass.net>
-References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1497635555-25679-6-git-send-email-ldufour@linux.vnet.ibm.com>
- <564749a2-a729-b927-7707-1cad897c418a@linux.vnet.ibm.com>
- <78d903c4-6e9f-e049-de60-6d1ccb45ff92@linux.vnet.ibm.com>
+        Tue, 08 Aug 2017 06:29:05 -0700 (PDT)
+Date: Tue, 8 Aug 2017 06:29:04 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v1 2/6] fs: use on-stack-bio if backing device has
+ BDI_CAP_SYNC capability
+Message-ID: <20170808132904.GC31390@bombadil.infradead.org>
+References: <1502175024-28338-1-git-send-email-minchan@kernel.org>
+ <1502175024-28338-3-git-send-email-minchan@kernel.org>
+ <20170808124959.GB31390@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <78d903c4-6e9f-e049-de60-6d1ccb45ff92@linux.vnet.ibm.com>
+In-Reply-To: <20170808124959.GB31390@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, "karam . lee" <karam.lee@lge.com>, seungho1.park@lge.com, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, jack@suse.cz, Jens Axboe <axboe@kernel.dk>, Vishal Verma <vishal.l.verma@intel.com>, linux-nvdimm@lists.01.org, kernel-team <kernel-team@lge.com>
 
-On Tue, Aug 08, 2017 at 02:20:23PM +0200, Laurent Dufour wrote:
-> This is an option, but the previous one was signed by Peter, and I'd prefer
-> to keep his unchanged and add this new one to fix that.
-> Again this is to ease the review.
+On Tue, Aug 08, 2017 at 05:49:59AM -0700, Matthew Wilcox wrote:
+> +	struct bio sbio;
+> +	struct bio_vec sbvec;
 
-You can always add something like:
+... this needs to be sbvec[nr_pages], of course.
 
-[ldufour: fixed lockdep complaint]
+> -		bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
+> +		if (bdi_cap_synchronous_io(inode_to_bdi(inode))) {
+> +			bio = &sbio;
+> +			bio_init(bio, &sbvec, nr_pages);
 
-Before your SoB.
+... and this needs to be 'sbvec', not '&sbvec'.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
