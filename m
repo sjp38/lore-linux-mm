@@ -1,121 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A1B456B025F
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 21:01:59 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id 7so30932034ywe.0
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 18:01:59 -0700 (PDT)
-Received: from mail-yw0-x244.google.com (mail-yw0-x244.google.com. [2607:f8b0:4002:c05::244])
-        by mx.google.com with ESMTPS id b3si28334ybm.434.2017.08.07.18.01.58
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F45C6B025F
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 21:12:13 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id u199so20257573pgb.13
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 18:12:13 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id x11si63483pgo.556.2017.08.07.18.12.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Aug 2017 18:01:58 -0700 (PDT)
-Received: by mail-yw0-x244.google.com with SMTP id p68so1337278ywg.5
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 18:01:58 -0700 (PDT)
-From: Bradley Bolen <bradleybolen@gmail.com>
-Subject: Re: kernel panic on null pointer on page->mem_cgroup
-Date: Mon,  7 Aug 2017 21:01:50 -0400
-Message-Id: <20170808010150.4155-1-bradleybolen@gmail.com>
-In-Reply-To: <20170805155241.GA94821@jaegeuk-macbookpro.roam.corp.google.com>
-References: <20170805155241.GA94821@jaegeuk-macbookpro.roam.corp.google.com>
+        Mon, 07 Aug 2017 18:12:11 -0700 (PDT)
+Subject: [PATCH] mm,
+ devm_memremap_pages: use multi-order radix for ZONE_DEVICE lookups
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 07 Aug 2017 18:05:41 -0700
+Message-ID: <150215410565.39310.13767886055248249438.stgit@dwillia2-desk3.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: jaegeuk@kernel.org, Bradley Bolen <bradleybolen@gmail.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>, Matthew Wilcox <mawilcox@microsoft.com>
 
-I am getting a very similar error on v4.11 with an arm64 board.
+devm_memremap_pages() records mapped ranges in pgmap_radix with an entry
+per section's worth of memory (128MB).  The key for each of those
+entries is a section number.
 
-I, too, also see page->mem_cgroup checked to make sure that it is not
-NULL and then several instructions later it is NULL.  It does appear
-that someone is changing that member without taking the lock.  In my
-setup, I see
+This leads to false positives when devm_memremap_pages() is passed a
+section-unaligned range as lookups in the misalignment fail to return
+NULL. We can close this hole by using the pfn as the key for entries in
+the tree.  The number of entries required to describe a remapped range
+is reduced by leveraging multi-order entries.
 
-crash> bt
-PID: 72     TASK: e1f48640  CPU: 0   COMMAND: "mmcqd/1"
- #0 [<c00ad35c>] (__crash_kexec) from [<c0101080>]
- #1 [<c0101080>] (panic) from [<c028cd6c>]
- #2 [<c028cd6c>] (svcerr_panic) from [<c028cdc4>]
- #3 [<c028cdc4>] (_SvcErr_) from [<c001474c>]
- #4 [<c001474c>] (die) from [<c00241f8>]
- #5 [<c00241f8>] (__do_kernel_fault) from [<c0560600>]
- #6 [<c0560600>] (do_page_fault) from [<c00092e8>]
- #7 [<c00092e8>] (do_DataAbort) from [<c055f9f0>]
-    pc : [<c0112540>]    lr : [<c0112518>]    psr: a0000193
-    sp : c1a19cc8  ip : 00000000  fp : c1a19d04
-    r10: 0006ae29  r9 : 00000000  r8 : dfbf1800
-    r7 : dfbf1800  r6 : 00000001  r5 : f3c1107c  r4 : e2fb6424
-    r3 : 00000000  r2 : 00040228  r1 : 221e3000  r0 : a0000113
-    Flags: NzCv  IRQs off  FIQs on  Mode SVC_32  ISA ARM
- #8 [<c055f9f0>] (__dabt_svc) from [<c0112518>]
- #9 [<c0112540>] (test_clear_page_writeback) from [<c01046d4>]
-#10 [<c01046d4>] (end_page_writeback) from [<c0149bcc>]
-#11 [<c0149bcc>] (end_swap_bio_write) from [<c0261460>]
-#12 [<c0261460>] (bio_endio) from [<c042c800>]
-#13 [<c042c800>] (dec_pending) from [<c042e648>]
-#14 [<c042e648>] (clone_endio) from [<c0261460>]
-#15 [<c0261460>] (bio_endio) from [<bf60aa00>]
-#16 [<bf60aa00>] (crypt_dec_pending [dm_crypt]) from [<bf60c1e8>]
-#17 [<bf60c1e8>] (crypt_endio [dm_crypt]) from [<c0261460>]
-#18 [<c0261460>] (bio_endio) from [<c0269e34>]
-#19 [<c0269e34>] (blk_update_request) from [<c026a058>]
-#20 [<c026a058>] (blk_update_bidi_request) from [<c026a444>]
-#21 [<c026a444>] (blk_end_bidi_request) from [<c026a494>]
-#22 [<c026a494>] (blk_end_request) from [<c0458dbc>]
-#23 [<c0458dbc>] (mmc_blk_issue_rw_rq) from [<c0459e24>]
-#24 [<c0459e24>] (mmc_blk_issue_rq) from [<c045a018>]
-#25 [<c045a018>] (mmc_queue_thread) from [<c0048890>]
-#26 [<c0048890>] (kthread) from [<c0010388>]
-crash> sym c0112540
-c0112540 (T) test_clear_page_writeback+512
- /kernel-source/include/linux/memcontrol.h: 518
+In practice this approach usually yields just one entry in the tree if
+the size and starting address are of the same power-of-2 alignment.
+Previously we always needed nr_entries = mapping_size / 128MB.
 
-crash> bt 35
-PID: 35     TASK: e1d45dc0  CPU: 1   COMMAND: "kswapd0"
- #0 [<c0559ab8>] (__schedule) from [<c0559edc>]
- #1 [<c0559edc>] (schedule) from [<c055e54c>]
- #2 [<c055e54c>] (schedule_timeout) from [<c055a3a4>]
- #3 [<c055a3a4>] (io_schedule_timeout) from [<c0106cb0>]
- #4 [<c0106cb0>] (mempool_alloc) from [<c0261668>]
- #5 [<c0261668>] (bio_alloc_bioset) from [<c0149d68>]
- #6 [<c0149d68>] (get_swap_bio) from [<c014a280>]
- #7 [<c014a280>] (__swap_writepage) from [<c014a3bc>]
- #8 [<c014a3bc>] (swap_writepage) from [<c011e5c8>]
- #9 [<c011e5c8>] (shmem_writepage) from [<c011a9b8>]
-#10 [<c011a9b8>] (shrink_page_list) from [<c011b528>]
-#11 [<c011b528>] (shrink_inactive_list) from [<c011c160>]
-#12 [<c011c160>] (shrink_node_memcg) from [<c011c400>]
-#13 [<c011c400>] (shrink_node) from [<c011d7dc>]
-#14 [<c011d7dc>] (kswapd) from [<c0048890>]
-#15 [<c0048890>] (kthread) from [<c0010388>]
+Link: https://lists.01.org/pipermail/linux-nvdimm/2016-August/006666.html
+Reported-by: Toshi Kani <toshi.kani@hpe.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+---
+Hi Andrew,
 
-It appears that uncharge_list() in mm/memcontrol.c is not taking the
-page lock when it sets mem_cgroup to NULL.  I am not familiar with the
-mm code so I do not know if this is on purpose or not.  There is a
-comment in uncharge_list that makes me believe that the crashing code
-should not have been running:
-/*
- * Nobody should be changing or seriously looking at
- * page->mem_cgroup at this point, we have fully
- * exclusive access to the page.
- */
-However, I am new to looking at this area of the kernel so I am not
-sure.
+This is an optimization for devm_memremap_pages() that has been idling
+in my local tree for a while. At one point Matthew had proposed an
+official radix tree api to allow filling a range of a radix similar to
+what the foreach_order_pgoff() loop is performing. Perhaps this prompts
+Matthew to dust that proposal off, but this patch otherwise minimizes
+the amount of entries we need in the pgmap_radix.
 
-I was able to create a reproducible scenario by using a udelay to
-increase the time between the if (page->mem_cgroup) check and the later
-dereference of it to increase the race window.  I then mounted an empty
-ext4 partition and ran the following no more than twice before it
-crashed.
-dd if=/dev/zero of=/tmp/ext4disk/test bs=1M count=100
+This patch is against latest -next.
 
-I added page_lock/page_unlock to uncharge_list() and it fixes my
-problem, but I do not know what other effects this would have.
 
-Hopefully, some of this information can help someone more knowledgable
-than me.
+ kernel/memremap.c |   52 ++++++++++++++++++++++++++++++++++++++--------------
+ mm/Kconfig        |    1 +
+ 2 files changed, 39 insertions(+), 14 deletions(-)
 
-Thanks.
-
-Brad Bolen
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index 9afdc434fb49..066e73c2fcc9 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -194,18 +194,41 @@ struct page_map {
+ 	struct vmem_altmap altmap;
+ };
+ 
+-static void pgmap_radix_release(struct resource *res)
++static unsigned long order_at(struct resource *res, unsigned long pgoff)
+ {
+-	resource_size_t key, align_start, align_size, align_end;
++	unsigned long phys_pgoff = PHYS_PFN(res->start) + pgoff;
++	unsigned long nr_pages, mask;
+ 
+-	align_start = res->start & ~(SECTION_SIZE - 1);
+-	align_size = ALIGN(resource_size(res), SECTION_SIZE);
+-	align_end = align_start + align_size - 1;
++	nr_pages = PHYS_PFN(resource_size(res));
++	if (nr_pages == pgoff)
++		return ULONG_MAX;
++
++	/*
++	 * What is the largest aligned power-of-2 range available from
++	 * this resource pgoff to the end of the resource range,
++	 * considering the alignment of the current pgoff?
++	 */
++	mask = phys_pgoff | rounddown_pow_of_two(nr_pages - pgoff);
++	if (!mask)
++		return ULONG_MAX;
++
++	return find_first_bit(&mask, BITS_PER_LONG);
++}
++
++#define foreach_order_pgoff(res, order, pgoff) \
++	for (pgoff = 0, order = order_at((res), pgoff); order < ULONG_MAX; \
++			pgoff += 1UL << order, order = order_at((res), pgoff))
++
++static void pgmap_radix_release(struct resource *res)
++{
++	unsigned long pgoff, order;
+ 
+ 	mutex_lock(&pgmap_lock);
+-	for (key = res->start; key <= res->end; key += SECTION_SIZE)
+-		radix_tree_delete(&pgmap_radix, key >> PA_SECTION_SHIFT);
++	foreach_order_pgoff(res, order, pgoff)
++		radix_tree_delete(&pgmap_radix, PHYS_PFN(res->start) + pgoff);
+ 	mutex_unlock(&pgmap_lock);
++
++	synchronize_rcu();
+ }
+ 
+ static unsigned long pfn_first(struct page_map *page_map)
+@@ -268,7 +291,7 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
+ 
+ 	WARN_ON_ONCE(!rcu_read_lock_held());
+ 
+-	page_map = radix_tree_lookup(&pgmap_radix, phys >> PA_SECTION_SHIFT);
++	page_map = radix_tree_lookup(&pgmap_radix, PHYS_PFN(phys));
+ 	return page_map ? &page_map->pgmap : NULL;
+ }
+ 
+@@ -293,12 +316,12 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
+ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 		struct percpu_ref *ref, struct vmem_altmap *altmap)
+ {
+-	resource_size_t key, align_start, align_size, align_end;
++	resource_size_t align_start, align_size, align_end;
++	unsigned long pfn, pgoff, order;
+ 	pgprot_t pgprot = PAGE_KERNEL;
+ 	struct dev_pagemap *pgmap;
+ 	struct page_map *page_map;
+ 	int error, nid, is_ram;
+-	unsigned long pfn;
+ 
+ 	align_start = res->start & ~(SECTION_SIZE - 1);
+ 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
+@@ -337,11 +360,12 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 	mutex_lock(&pgmap_lock);
+ 	error = 0;
+ 	align_end = align_start + align_size - 1;
+-	for (key = align_start; key <= align_end; key += SECTION_SIZE) {
++
++	foreach_order_pgoff(res, order, pgoff) {
+ 		struct dev_pagemap *dup;
+ 
+ 		rcu_read_lock();
+-		dup = find_dev_pagemap(key);
++		dup = find_dev_pagemap(res->start + PFN_PHYS(pgoff));
+ 		rcu_read_unlock();
+ 		if (dup) {
+ 			dev_err(dev, "%s: %pr collides with mapping for %s\n",
+@@ -349,8 +373,8 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 			error = -EBUSY;
+ 			break;
+ 		}
+-		error = radix_tree_insert(&pgmap_radix, key >> PA_SECTION_SHIFT,
+-				page_map);
++		error = __radix_tree_insert(&pgmap_radix,
++				PHYS_PFN(res->start) + pgoff, order, page_map);
+ 		if (error) {
+ 			dev_err(dev, "%s: failed: %d\n", __func__, error);
+ 			break;
+diff --git a/mm/Kconfig b/mm/Kconfig
+index ab937c8d247f..9ef8c2ea92ad 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -681,6 +681,7 @@ config ZONE_DEVICE
+ 	depends on MEMORY_HOTREMOVE
+ 	depends on SPARSEMEM_VMEMMAP
+ 	depends on ARCH_HAS_ZONE_DEVICE
++	select RADIX_TREE_MULTIORDER
+ 
+ 	help
+ 	  Device memory hotplug support allows for establishing pmem,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
