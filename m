@@ -1,213 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 21DB56B03BD
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 08:55:10 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id y129so34132487pgy.1
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 05:55:10 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id g2si663226pln.360.2017.08.08.05.55.06
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 13C216B02B4
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 09:01:02 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id g71so4444771wmg.13
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 06:01:02 -0700 (PDT)
+Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
+        by mx.google.com with ESMTPS id i31si1113367wri.344.2017.08.08.06.01.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 05:55:06 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 03/14] x86/kasan: Use the same shadow offset for 4- and 5-level paging
-Date: Tue,  8 Aug 2017 15:54:04 +0300
-Message-Id: <20170808125415.78842-4-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20170808125415.78842-1-kirill.shutemov@linux.intel.com>
-References: <20170808125415.78842-1-kirill.shutemov@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 08 Aug 2017 06:01:00 -0700 (PDT)
+Subject: Re: [RFC] Tagging of vmalloc pages for supporting the pmalloc
+ allocator
+References: <c3a250a6-ad4d-d24d-d0bf-4c43c467ebe6@huawei.com>
+ <20170803135549.GW12521@dhcp22.suse.cz> <20170803144746.GA9501@redhat.com>
+ <ab4809cd-0efc-a79d-6852-4bd2349a2b3f@huawei.com>
+ <20170803151550.GX12521@dhcp22.suse.cz>
+ <abe0c086-8c5a-d6fb-63c4-bf75528d0ec5@huawei.com>
+ <20170804081240.GF26029@dhcp22.suse.cz>
+ <7733852a-67c9-17a3-4031-cb08520b9ad2@huawei.com>
+ <20170807133107.GA16616@redhat.com>
+ <555dc453-3028-199a-881a-3ddeb41e4d6d@huawei.com>
+ <20170807191235.GE16616@redhat.com>
+From: Igor Stoppa <igor.stoppa@huawei.com>
+Message-ID: <c06fdd1a-fb18-8e17-b4fb-ea73ccd93f90@huawei.com>
+Date: Tue, 8 Aug 2017 15:59:36 +0300
+MIME-Version: 1.0
+In-Reply-To: <20170807191235.GE16616@redhat.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-security-module@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Kees Cook <keescook@google.com>
 
-We are going to support boot-time switching between 4- and 5-level
-paging. For KASAN it means we cannot have different KASAN_SHADOW_OFFSET
-for different paging modes: the constant is passed to gcc to generate
-code and cannot be changed at runtime.
+On 07/08/17 22:12, Jerome Glisse wrote:
+> On Mon, Aug 07, 2017 at 05:13:00PM +0300, Igor Stoppa wrote:
 
-This patch changes KASAN code to use 0xdffffc0000000000 as shadow offset
-for both 4- and 5-level paging.
+[...]
 
-For 5-level paging it means that shadow memory region is not aligned to
-PGD boundary anymore and we have to handle unaligned parts of the region
-properly.
+>> I have an updated version of the old proposal:
+>>
+>> * put a magic number in the private field, during initialization of
+>> pmalloc pages
+>>
+>> * during hardened usercopy verification, when I have to assess if a page
+>> is of pmalloc type, compare the private field against the magic number
+>>
+>> * if and only if the private field matches the magic number, then invoke
+>> find_vm_area(), so that the slowness affects only a possibly limited
+>> amount of false positives.
+> 
+> This all sounds good to me.
 
-In addition, we have to exclude paravirt code from KASAN instrumentation
-as we now use set_pgd() before KASAN is fully ready.
+ok, I still have one doubt wrt defining the flag.
+Where should I do it?
 
-Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-[kirill.shutemov@linux.intel.com: clenaup, changelog message]
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/Kconfig            |  1 -
- arch/x86/kernel/Makefile    |  3 +-
- arch/x86/mm/kasan_init_64.c | 86 ++++++++++++++++++++++++++++++++++-----------
- 3 files changed, 67 insertions(+), 23 deletions(-)
+vmalloc.h has the following:
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index ce3ed304288d..2c9c4899d9ff 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -299,7 +299,6 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
- config KASAN_SHADOW_OFFSET
- 	hex
- 	depends on KASAN
--	default 0xdff8000000000000 if X86_5LEVEL
- 	default 0xdffffc0000000000
- 
- config HAVE_INTEL_TXT
-diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
-index 287eac7d207f..4509140232c3 100644
---- a/arch/x86/kernel/Makefile
-+++ b/arch/x86/kernel/Makefile
-@@ -24,7 +24,8 @@ endif
- KASAN_SANITIZE_head$(BITS).o				:= n
- KASAN_SANITIZE_dumpstack.o				:= n
- KASAN_SANITIZE_dumpstack_$(BITS).o			:= n
--KASAN_SANITIZE_stacktrace.o := n
-+KASAN_SANITIZE_stacktrace.o				:= n
-+KASAN_SANITIZE_paravirt.o				:= n
- 
- OBJECT_FILES_NON_STANDARD_head_$(BITS).o		:= y
- OBJECT_FILES_NON_STANDARD_relocate_kernel_$(BITS).o	:= y
-diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
-index bc84b73684b7..f6b4db2647b5 100644
---- a/arch/x86/mm/kasan_init_64.c
-+++ b/arch/x86/mm/kasan_init_64.c
-@@ -15,6 +15,8 @@
- 
- extern struct range pfn_mapped[E820_MAX_ENTRIES];
- 
-+static p4d_t tmp_p4d_table[PTRS_PER_P4D] __initdata __aligned(PAGE_SIZE);
-+
- static int __init map_range(struct range *range)
- {
- 	unsigned long start;
-@@ -30,8 +32,9 @@ static void __init clear_pgds(unsigned long start,
- 			unsigned long end)
- {
- 	pgd_t *pgd;
-+	unsigned long pgd_end = end & PGDIR_MASK;
- 
--	for (; start < end; start += PGDIR_SIZE) {
-+	for (; start < pgd_end; start += PGDIR_SIZE) {
- 		pgd = pgd_offset_k(start);
- 		/*
- 		 * With folded p4d, pgd_clear() is nop, use p4d_clear()
-@@ -42,29 +45,60 @@ static void __init clear_pgds(unsigned long start,
- 		else
- 			pgd_clear(pgd);
- 	}
-+
-+	pgd = pgd_offset_k(start);
-+	for (; start < end; start += P4D_SIZE)
-+		p4d_clear(p4d_offset(pgd, start));
-+}
-+
-+static inline p4d_t *early_p4d_offset(pgd_t *pgd, unsigned long addr)
-+{
-+	unsigned long p4d;
-+
-+	if (!IS_ENABLED(CONFIG_X86_5LEVEL))
-+		return (p4d_t *)pgd;
-+
-+	p4d = __pa_nodebug(pgd_val(*pgd)) & PTE_PFN_MASK;
-+	p4d += __START_KERNEL_map - phys_base;
-+	return (p4d_t *)p4d + p4d_index(addr);
-+}
-+
-+static void __init kasan_early_p4d_populate(pgd_t *pgd,
-+		unsigned long addr,
-+		unsigned long end)
-+{
-+	pgd_t pgd_entry;
-+	p4d_t *p4d, p4d_entry;
-+	unsigned long next;
-+
-+	if (pgd_none(*pgd)) {
-+		pgd_entry = __pgd(_KERNPG_TABLE | __pa_nodebug(kasan_zero_p4d));
-+		set_pgd(pgd, pgd_entry);
-+	}
-+
-+	p4d = early_p4d_offset(pgd, addr);
-+	do {
-+		next = p4d_addr_end(addr, end);
-+
-+		if (!p4d_none(*p4d))
-+			continue;
-+
-+		p4d_entry = __p4d(_KERNPG_TABLE | __pa_nodebug(kasan_zero_pud));
-+		set_p4d(p4d, p4d_entry);
-+	} while (p4d++, addr = next, addr != end && p4d_none(*p4d));
- }
- 
- static void __init kasan_map_early_shadow(pgd_t *pgd)
- {
--	int i;
--	unsigned long start = KASAN_SHADOW_START;
-+	unsigned long addr = KASAN_SHADOW_START & PGDIR_MASK;
- 	unsigned long end = KASAN_SHADOW_END;
-+	unsigned long next;
- 
--	for (i = pgd_index(start); start < end; i++) {
--		switch (CONFIG_PGTABLE_LEVELS) {
--		case 4:
--			pgd[i] = __pgd(__pa_nodebug(kasan_zero_pud) |
--					_KERNPG_TABLE);
--			break;
--		case 5:
--			pgd[i] = __pgd(__pa_nodebug(kasan_zero_p4d) |
--					_KERNPG_TABLE);
--			break;
--		default:
--			BUILD_BUG();
--		}
--		start += PGDIR_SIZE;
--	}
-+	pgd += pgd_index(addr);
-+	do {
-+		next = pgd_addr_end(addr, end);
-+		kasan_early_p4d_populate(pgd, addr, next);
-+	} while (pgd++, addr = next, addr != end);
- }
- 
- #ifdef CONFIG_KASAN_INLINE
-@@ -101,7 +135,7 @@ void __init kasan_early_init(void)
- 	for (i = 0; i < PTRS_PER_PUD; i++)
- 		kasan_zero_pud[i] = __pud(pud_val);
- 
--	for (i = 0; CONFIG_PGTABLE_LEVELS >= 5 && i < PTRS_PER_P4D; i++)
-+	for (i = 0; IS_ENABLED(CONFIG_X86_5LEVEL) && i < PTRS_PER_P4D; i++)
- 		kasan_zero_p4d[i] = __p4d(p4d_val);
- 
- 	kasan_map_early_shadow(early_top_pgt);
-@@ -117,12 +151,22 @@ void __init kasan_init(void)
- #endif
- 
- 	memcpy(early_top_pgt, init_top_pgt, sizeof(early_top_pgt));
-+
-+	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
-+		void *ptr;
-+
-+		ptr = (void *)pgd_page_vaddr(*pgd_offset_k(KASAN_SHADOW_END));
-+		memcpy(tmp_p4d_table, (void *)ptr, sizeof(tmp_p4d_table));
-+		set_pgd(&early_top_pgt[pgd_index(KASAN_SHADOW_END)],
-+				__pgd(__pa(tmp_p4d_table) | _KERNPG_TABLE));
-+	}
-+
- 	load_cr3(early_top_pgt);
- 	__flush_tlb_all();
- 
--	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
-+	clear_pgds(KASAN_SHADOW_START & PGDIR_MASK, KASAN_SHADOW_END);
- 
--	kasan_populate_zero_shadow((void *)KASAN_SHADOW_START,
-+	kasan_populate_zero_shadow((void *)(KASAN_SHADOW_START & PGDIR_MASK),
- 			kasan_mem_to_shadow((void *)PAGE_OFFSET));
- 
- 	for (i = 0; i < E820_MAX_ENTRIES; i++) {
--- 
-2.13.2
+/* bits in flags of vmalloc's vm_struct below */
+#define VM_IOREMAP		0x00000001	/* ioremap() and friends
+						*/
+#define VM_ALLOC		0x00000002	/* vmalloc() */
+#define VM_MAP			0x00000004	/* vmap()ed pages */
+#define VM_USERMAP		0x00000008	/* suitable for
+						   remap_vmalloc_range
+						*/
+#define VM_UNINITIALIZED	0x00000020	/* vm_struct is not
+						   fully initialized */
+#define VM_NO_GUARD		0x00000040      /* don't add guard page
+						*/
+#define VM_KASAN		0x00000080      /* has allocated kasan
+						shadow memory */
+/* bits [20..32] reserved for arch specific ioremap internals */
+
+
+
+I am tempted to add
+
+#define VM_PMALLOC		0x00000100
+
+But would it be acceptable, to mention pmalloc into vmalloc?
+
+Should I name it VM_PRIVATE bit, instead?
+
+Using VM_PRIVATE would avoid contaminating vmalloc with something that
+depends on it (like VM_PMALLOC would do).
+
+But using VM_PRIVATE will likely add tracking issues, if someone else
+wants to use the same bit and it's not clear who is the user, if any.
+
+Unless it's acceptable to check the private field in the page struct.
+It would bear the pmalloc magic number.
+
+I'm thinking to use a pointer to one of pmalloc data items, as signature.
+
+
+--
+igor
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
