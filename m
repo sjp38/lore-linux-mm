@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BB6C66B02FD
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 08:54:31 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 24so31899494pfk.5
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 05:54:31 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F9EE6B02FD
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 08:54:32 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 24so31899592pfk.5
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 05:54:32 -0700 (PDT)
 Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
         by mx.google.com with ESMTPS id 77si846787pfn.385.2017.08.08.05.54.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 05:54:30 -0700 (PDT)
+        Tue, 08 Aug 2017 05:54:31 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 07/14] x86/mm: Make virtual memory layout movable for CONFIG_X86_5LEVEL
-Date: Tue,  8 Aug 2017 15:54:08 +0300
-Message-Id: <20170808125415.78842-8-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 10/14] x86/mm: Fold p4d page table layer at runtime
+Date: Tue,  8 Aug 2017 15:54:11 +0300
+Message-Id: <20170808125415.78842-11-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170808125415.78842-1-kirill.shutemov@linux.intel.com>
 References: <20170808125415.78842-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,117 +20,109 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We need to be able to adjust virtual memory layout at runtime to be able
-to switch between 4- and 5-level paging at boot-time.
-
-KASLR already has movable __VMALLOC_BASE, __VMEMMAP_BASE and __PAGE_OFFSET.
-Let's re-use it.
+This patch changes page table helpers to fold p4d at runtime.
+The logic is the same as in <asm-generic/pgtable-nop4d.h>.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/kaslr.h            | 4 ----
- arch/x86/include/asm/page_64.h          | 4 ++++
- arch/x86/include/asm/page_64_types.h    | 2 +-
- arch/x86/include/asm/pgtable_64_types.h | 2 +-
- arch/x86/kernel/head64.c                | 9 +++++++++
- arch/x86/mm/kaslr.c                     | 8 --------
- 6 files changed, 15 insertions(+), 14 deletions(-)
+ arch/x86/include/asm/paravirt.h | 10 ++++++----
+ arch/x86/include/asm/pgalloc.h  |  5 ++++-
+ arch/x86/include/asm/pgtable.h  | 10 +++++++++-
+ 3 files changed, 19 insertions(+), 6 deletions(-)
 
-diff --git a/arch/x86/include/asm/kaslr.h b/arch/x86/include/asm/kaslr.h
-index 1052a797d71d..683c9d736314 100644
---- a/arch/x86/include/asm/kaslr.h
-+++ b/arch/x86/include/asm/kaslr.h
-@@ -4,10 +4,6 @@
- unsigned long kaslr_get_random_long(const char *purpose);
+diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
+index 9ccac1926587..69c3cb792f34 100644
+--- a/arch/x86/include/asm/paravirt.h
++++ b/arch/x86/include/asm/paravirt.h
+@@ -606,14 +606,16 @@ static inline p4dval_t p4d_val(p4d_t p4d)
  
- #ifdef CONFIG_RANDOMIZE_MEMORY
--extern unsigned long page_offset_base;
--extern unsigned long vmalloc_base;
--extern unsigned long vmemmap_base;
--
- void kernel_randomize_memory(void);
- #else
- static inline void kernel_randomize_memory(void) { }
-diff --git a/arch/x86/include/asm/page_64.h b/arch/x86/include/asm/page_64.h
-index b4a0d43248cf..a12fb4dcdd15 100644
---- a/arch/x86/include/asm/page_64.h
-+++ b/arch/x86/include/asm/page_64.h
-@@ -10,6 +10,10 @@
- extern unsigned long max_pfn;
- extern unsigned long phys_base;
- 
-+extern unsigned long page_offset_base;
-+extern unsigned long vmalloc_base;
-+extern unsigned long vmemmap_base;
-+
- static inline unsigned long __phys_addr_nodebug(unsigned long x)
+ static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
  {
- 	unsigned long y = x - __START_KERNEL_map;
-diff --git a/arch/x86/include/asm/page_64_types.h b/arch/x86/include/asm/page_64_types.h
-index 3f5f08b010d0..0126d6bc2eb1 100644
---- a/arch/x86/include/asm/page_64_types.h
-+++ b/arch/x86/include/asm/page_64_types.h
-@@ -42,7 +42,7 @@
- #define __PAGE_OFFSET_BASE      _AC(0xffff880000000000, UL)
- #endif
- 
--#ifdef CONFIG_RANDOMIZE_MEMORY
-+#if defined(CONFIG_RANDOMIZE_MEMORY) || defined(CONFIG_X86_5LEVEL)
- #define __PAGE_OFFSET           page_offset_base
- #else
- #define __PAGE_OFFSET           __PAGE_OFFSET_BASE
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 06470da156ba..a9f77ead7088 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -85,7 +85,7 @@ typedef struct { pteval_t pte; } pte_t;
- #define __VMALLOC_BASE	_AC(0xffffc90000000000, UL)
- #define __VMEMMAP_BASE	_AC(0xffffea0000000000, UL)
- #endif
--#ifdef CONFIG_RANDOMIZE_MEMORY
-+#if defined(CONFIG_RANDOMIZE_MEMORY) || defined(CONFIG_X86_5LEVEL)
- #define VMALLOC_START	vmalloc_base
- #define VMEMMAP_START	vmemmap_base
- #else
-diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
-index 925b2928f377..aa163bda4a29 100644
---- a/arch/x86/kernel/head64.c
-+++ b/arch/x86/kernel/head64.c
-@@ -38,6 +38,15 @@ extern pmd_t early_dynamic_pgts[EARLY_DYNAMIC_PAGE_TABLES][PTRS_PER_PMD];
- static unsigned int __initdata next_early_pgt;
- pmdval_t early_pmd_flags = __PAGE_KERNEL_LARGE & ~(_PAGE_GLOBAL | _PAGE_NX);
- 
-+#if defined(CONFIG_RANDOMIZE_MEMORY) || defined(CONFIG_X86_5LEVEL)
-+unsigned long page_offset_base __read_mostly = __PAGE_OFFSET_BASE;
-+EXPORT_SYMBOL(page_offset_base);
-+unsigned long vmalloc_base __read_mostly = __VMALLOC_BASE;
-+EXPORT_SYMBOL(vmalloc_base);
-+unsigned long vmemmap_base __read_mostly = __VMEMMAP_BASE;
-+EXPORT_SYMBOL(vmemmap_base);
-+#endif
-+
- #define __head	__section(.head.text)
- 
- static void __head *fixup_pointer(void *ptr, unsigned long physaddr)
-diff --git a/arch/x86/mm/kaslr.c b/arch/x86/mm/kaslr.c
-index af599167fe3c..e6420b18f6e0 100644
---- a/arch/x86/mm/kaslr.c
-+++ b/arch/x86/mm/kaslr.c
-@@ -53,14 +53,6 @@ static const unsigned long vaddr_end = EFI_VA_END;
- static const unsigned long vaddr_end = __START_KERNEL_map;
- #endif
- 
--/* Default values */
--unsigned long page_offset_base = __PAGE_OFFSET_BASE;
--EXPORT_SYMBOL(page_offset_base);
--unsigned long vmalloc_base = __VMALLOC_BASE;
--EXPORT_SYMBOL(vmalloc_base);
--unsigned long vmemmap_base = __VMEMMAP_BASE;
--EXPORT_SYMBOL(vmemmap_base);
+-	pgdval_t val = native_pgd_val(pgd);
 -
- /*
-  * Memory regions randomized by KASLR (except modules that use a separate logic
-  * earlier during boot). The list is ordered based on virtual addresses. This
+-	PVOP_VCALL2(pv_mmu_ops.set_pgd, pgdp, val);
++	if (p4d_folded)
++		set_p4d((p4d_t *)(pgdp), (p4d_t) { pgd.pgd });
++	else
++		PVOP_VCALL2(pv_mmu_ops.set_pgd, pgdp, native_pgd_val(pgd));
+ }
+ 
+ static inline void pgd_clear(pgd_t *pgdp)
+ {
+-	set_pgd(pgdp, __pgd(0));
++	if (!p4d_folded)
++		set_pgd(pgdp, __pgd(0));
+ }
+ 
+ #endif  /* CONFIG_PGTABLE_LEVELS == 5 */
+diff --git a/arch/x86/include/asm/pgalloc.h b/arch/x86/include/asm/pgalloc.h
+index b2d0cd8288aa..5c42262169d0 100644
+--- a/arch/x86/include/asm/pgalloc.h
++++ b/arch/x86/include/asm/pgalloc.h
+@@ -155,6 +155,8 @@ static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
+ #if CONFIG_PGTABLE_LEVELS > 4
+ static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, p4d_t *p4d)
+ {
++	if (p4d_folded)
++		return;
+ 	paravirt_alloc_p4d(mm, __pa(p4d) >> PAGE_SHIFT);
+ 	set_pgd(pgd, __pgd(_PAGE_TABLE | __pa(p4d)));
+ }
+@@ -179,7 +181,8 @@ extern void ___p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d);
+ static inline void __p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d,
+ 				  unsigned long address)
+ {
+-	___p4d_free_tlb(tlb, p4d);
++	if (!p4d_folded)
++		___p4d_free_tlb(tlb, p4d);
+ }
+ 
+ #endif	/* CONFIG_PGTABLE_LEVELS > 4 */
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index bbeae4a2bd01..5114495e4bfd 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -65,7 +65,7 @@ extern pmdval_t early_pmd_flags;
+ 
+ #ifndef __PAGETABLE_P4D_FOLDED
+ #define set_pgd(pgdp, pgd)		native_set_pgd(pgdp, pgd)
+-#define pgd_clear(pgd)			native_pgd_clear(pgd)
++#define pgd_clear(pgd)			(!p4d_folded ? native_pgd_clear(pgd) : 0)
+ #endif
+ 
+ #ifndef set_p4d
+@@ -861,6 +861,8 @@ static inline unsigned long p4d_index(unsigned long address)
+ #if CONFIG_PGTABLE_LEVELS > 4
+ static inline int pgd_present(pgd_t pgd)
+ {
++	if (p4d_folded)
++		return 1;
+ 	return pgd_flags(pgd) & _PAGE_PRESENT;
+ }
+ 
+@@ -878,16 +880,22 @@ static inline unsigned long pgd_page_vaddr(pgd_t pgd)
+ /* to find an entry in a page-table-directory. */
+ static inline p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
+ {
++	if (p4d_folded)
++		return (p4d_t *)pgd;
+ 	return (p4d_t *)pgd_page_vaddr(*pgd) + p4d_index(address);
+ }
+ 
+ static inline int pgd_bad(pgd_t pgd)
+ {
++	if (p4d_folded)
++		return 0;
+ 	return (pgd_flags(pgd) & ~_PAGE_USER) != _KERNPG_TABLE;
+ }
+ 
+ static inline int pgd_none(pgd_t pgd)
+ {
++	if (p4d_folded)
++		return 0;
+ 	/*
+ 	 * There is no need to do a workaround for the KNL stray
+ 	 * A/D bit erratum here.  PGDs only point to page tables
 -- 
 2.13.2
 
