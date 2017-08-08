@@ -1,87 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A50C86B025F
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 03:40:14 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id 83so26724429pgb.14
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 00:40:14 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id s61si510461plb.600.2017.08.08.00.40.13
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 00:40:13 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm] mm: Clear to access sub-page last when clearing huge page
-References: <20170807072131.8343-1-ying.huang@intel.com>
-	<20170807101639.4fb4v42jynkscep6@node.shutemov.name>
-	<87efsngff5.fsf@yhuang-mobile.sh.intel.com>
-Date: Tue, 08 Aug 2017 15:40:04 +0800
-In-Reply-To: <87efsngff5.fsf@yhuang-mobile.sh.intel.com> (Ying Huang's message
-	of "Tue, 8 Aug 2017 06:51:26 +0800")
-Message-ID: <877eye7bjf.fsf@yhuang-mobile.sh.intel.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C3D086B025F
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 04:08:25 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id w187so27757070pgb.10
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 01:08:25 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id 3si555253plm.81.2017.08.08.01.08.23
+        for <linux-mm@kvack.org>;
+        Tue, 08 Aug 2017 01:08:24 -0700 (PDT)
+Date: Tue, 8 Aug 2017 17:08:21 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [lkp-robot] [mm]  7674270022:  will-it-scale.per_process_ops
+ -19.3% regression
+Message-ID: <20170808080821.GA31730@bbox>
+References: <20170802000818.4760-7-namit@vmware.com>
+ <20170808011923.GE25554@yexl-desktop>
+ <20170808022830.GA28570@bbox>
+ <93CA4B47-95C2-43A2-8E92-B142CAB1DAF7@gmail.com>
+ <970B5DC5-BFC2-461E-AC46-F71B3691D301@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <970B5DC5-BFC2-461E-AC46-F71B3691D301@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>
+To: Nadav Amit <nadav.amit@gmail.com>
+Cc: kernel test robot <xiaolong.ye@intel.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Russell King <linux@armlinux.org.uk>, Tony Luck <tony.luck@intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, "David S. Miller" <davem@davemloft.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Jeff Dike <jdike@addtoit.com>, linux-arch@vger.kernel.org, lkp@01.org
 
-"Huang, Ying" <ying.huang@intel.com> writes:
+On Mon, Aug 07, 2017 at 10:51:00PM -0700, Nadav Amit wrote:
+> Nadav Amit <nadav.amit@gmail.com> wrote:
+> 
+> > Minchan Kim <minchan@kernel.org> wrote:
+> > 
+> >> Hi,
+> >> 
+> >> On Tue, Aug 08, 2017 at 09:19:23AM +0800, kernel test robot wrote:
+> >>> Greeting,
+> >>> 
+> >>> FYI, we noticed a -19.3% regression of will-it-scale.per_process_ops due to commit:
+> >>> 
+> >>> 
+> >>> commit: 76742700225cad9df49f05399381ac3f1ec3dc60 ("mm: fix MADV_[FREE|DONTNEED] TLB flush miss problem")
+> >>> url: https://github.com/0day-ci/linux/commits/Nadav-Amit/mm-migrate-prevent-racy-access-to-tlb_flush_pending/20170802-205715
+> >>> 
+> >>> 
+> >>> in testcase: will-it-scale
+> >>> on test machine: 88 threads Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz with 64G memory
+> >>> with following parameters:
+> >>> 
+> >>> 	nr_task: 16
+> >>> 	mode: process
+> >>> 	test: brk1
+> >>> 	cpufreq_governor: performance
+> >>> 
+> >>> test-description: Will It Scale takes a testcase and runs it from 1 through to n parallel copies to see if the testcase will scale. It builds both a process and threads based test in order to see any differences between the two.
+> >>> test-url: https://github.com/antonblanchard/will-it-scale
+> >> 
+> >> Thanks for the report.
+> >> Could you explain what kinds of workload you are testing?
+> >> 
+> >> Does it calls frequently madvise(MADV_DONTNEED) in parallel on multiple
+> >> threads?
+> > 
+> > According to the description it is "testcase:brk increase/decrease of one
+> > pagea??. According to the mode it spawns multiple processes, not threads.
+> > 
+> > Since a single page is unmapped each time, and the iTLB-loads increase
+> > dramatically, I would suspect that for some reason a full TLB flush is
+> > caused during do_munmap().
+> > 
+> > If I find some free time, Ia??ll try to profile the workload - but feel free
+> > to beat me to it.
+> 
+> The root-cause appears to be that tlb_finish_mmu() does not call
+> dec_tlb_flush_pending() - as it should. Any chance you can take care of it?
 
-> "Kirill A. Shutemov" <kirill@shutemov.name> writes:
->
->> On Mon, Aug 07, 2017 at 03:21:31PM +0800, Huang, Ying wrote:
->>> From: Huang Ying <ying.huang@intel.com>
->>> 
->>> Huge page helps to reduce TLB miss rate, but it has higher cache
->>> footprint, sometimes this may cause some issue.  For example, when
->>> clearing huge page on x86_64 platform, the cache footprint is 2M.  But
->>> on a Xeon E5 v3 2699 CPU, there are 18 cores, 36 threads, and only 45M
->>> LLC (last level cache).  That is, in average, there are 2.5M LLC for
->>> each core and 1.25M LLC for each thread.  If the cache pressure is
->>> heavy when clearing the huge page, and we clear the huge page from the
->>> begin to the end, it is possible that the begin of huge page is
->>> evicted from the cache after we finishing clearing the end of the huge
->>> page.  And it is possible for the application to access the begin of
->>> the huge page after clearing the huge page.
->>> 
->>> To help the above situation, in this patch, when we clear a huge page,
->>> the order to clear sub-pages is changed.  In quite some situation, we
->>> can get the address that the application will access after we clear
->>> the huge page, for example, in a page fault handler.  Instead of
->>> clearing the huge page from begin to end, we will clear the sub-pages
->>> farthest from the the sub-page to access firstly, and clear the
->>> sub-page to access last.  This will make the sub-page to access most
->>> cache-hot and sub-pages around it more cache-hot too.  If we cannot
->>> know the address the application will access, the begin of the huge
->>> page is assumed to be the the address the application will access.
->>> 
->>> With this patch, the throughput increases ~28.3% in vm-scalability
->>> anon-w-seq test case with 72 processes on a 2 socket Xeon E5 v3 2699
->>> system (36 cores, 72 threads).  The test case creates 72 processes,
->>> each process mmap a big anonymous memory area and writes to it from
->>> the begin to the end.  For each process, other processes could be seen
->>> as other workload which generates heavy cache pressure.  At the same
->>> time, the cache miss rate reduced from ~33.4% to ~31.7%, the
->>> IPC (instruction per cycle) increased from 0.56 to 0.74, and the time
->>> spent in user space is reduced ~7.9%
->>
->> That's impressive.
->>
->> But what about the case when we are not bounded that much by the size of
->> LLC? What about running the same test on the same hardware, but with 4
->> processes instead of 72.
->>
->> I just want to make sure we don't regress on more realistic tast case.
->
-> Sure.  I will test it.
+Oops, but with second looking, it seems it's not my fault. ;-)
+https://marc.info/?l=linux-mm&m=150156699114088&w=2
 
-Tested with 4 processes, there is no visible changes for benchmark result.
-
-Best Regards,
-Huang, Ying
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Anyway, thanks for the pointing out.
+xiaolong.ye, could you retest with this fix?
