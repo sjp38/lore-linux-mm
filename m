@@ -1,68 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9330E6B02C3
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 07:04:14 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id b20so26295176itd.1
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 04:04:14 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id n126si1055582iod.303.2017.08.08.04.04.13
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9149C6B02F4
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 07:05:36 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id b83so29529549pfl.6
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 04:05:36 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id x33si737316plb.838.2017.08.08.04.05.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 04:04:13 -0700 (PDT)
-Date: Tue, 8 Aug 2017 13:04:06 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC v5 04/11] mm: VMA sequence count
-Message-ID: <20170808110406.sathbzn4yxlq66ss@hirez.programming.kicks-ass.net>
-References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1497635555-25679-5-git-send-email-ldufour@linux.vnet.ibm.com>
- <1536011f-c8ac-0c00-7018-90cf3384f048@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 08 Aug 2017 04:05:35 -0700 (PDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: ksmd circular locking warning, cpu_hotplug_lock vs ksm_thread_mutex
+Date: Tue, 08 Aug 2017 21:05:27 +1000
+Message-ID: <87tw1imia0.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1536011f-c8ac-0c00-7018-90cf3384f048@linux.vnet.ibm.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, aarcange@redhat.com, hughd@google.com, kirill.shutemov@linux.intel.com, zhongjiang@huawei.com, minchan@kernel.org, mingo@kernel.org, aneesh.kumar@linux.vnet.ibm.com, imbrenda@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, tglx@linutronix.detglx@linutronix.de, linuxppc-dev@lists.ozlabs.orglinuxppc-dev@lists.ozlabs.org
 
-On Tue, Aug 08, 2017 at 04:29:32PM +0530, Anshuman Khandual wrote:
-> On 06/16/2017 11:22 PM, Laurent Dufour wrote:
-> > From: Peter Zijlstra <peterz@infradead.org>
-> > 
-> 
-> First of all, please do mention that its adding a new element into the
-> vm_area_struct which will act as a sequential lock element and help
-> in navigating page fault without mmap_sem lock.
+Hi all,
 
-You're not making sense, there is no lock, and the lines below clearly
-state we're adding a sequence count.
+Apologies for the large Cc list, but wasn't really sure who to send this to.
 
-> 
-> > Wrap the VMA modifications (vma_adjust/unmap_page_range) with sequence
-> > counts such that we can easily test if a VMA is changed
-> 
-> Yeah true.
-> 
-> > 
-> > The unmap_page_range() one allows us to make assumptions about
-> > page-tables; when we find the seqcount hasn't changed we can assume
-> > page-tables are still valid.
-> 
-> Because unmap_page_range() is the only function which can tear it down ?
-> Or is there any other reason for this assumption ?
+I've seen this once on a Power8 box, with next-20170807.
 
-Yep.
+I think it happened while I was running the memory hoptlug selftests.
 
-> > 
-> > The flip side is that we cannot distinguish between a vma_adjust() and
-> > the unmap_page_range() -- where with the former we could have
-> > re-checked the vma bounds against the address.
-> 
-> Distinguished for what purpose ?
+cheers
 
-It states. If you know its a vma_adjust we could just check if we're
-inside the new boundaries and continue. But since we cannot, we have to
-assume the worst and bail.
+  [ 3532.474435] ======================================================
+  [ 3532.474440] WARNING: possible circular locking dependency detected
+  [ 3532.474446] 4.13.0-rc3-gcc6-next-20170807-g4751f76 #1 Not tainted
+  [ 3532.474450] ------------------------------------------------------
+  [ 3532.474454] ksmd/1459 is trying to acquire lock:
+  [ 3532.474460]  (cpu_hotplug_lock.rw_sem){++++++}, at: [<c0000000002b06b0>] lru_add_drain_all+0x20/0x40
+  [ 3532.474476] 
+                 but task is already holding lock:
+  [ 3532.474480]  (ksm_thread_mutex){+.+...}, at: [<c000000000330778>] ksm_scan_thread+0xd8/0x1a30
+  [ 3532.474493] 
+                 which lock already depends on the new lock.
+  
+  [ 3532.474499] 
+                 the existing dependency chain (in reverse order) is:
+  [ 3532.474504] 
+                 -> #3 (ksm_thread_mutex){+.+...}:
+  [ 3532.474517]        __mutex_lock+0x8c/0xa80
+  [ 3532.474522]        ksm_memory_callback+0xa4/0x390
+  [ 3532.474529]        notifier_call_chain+0xa4/0x110
+  [ 3532.474533]        __blocking_notifier_call_chain+0x74/0xb0
+  [ 3532.474540]        memory_notify+0x30/0x50
+  [ 3532.474544]        __offline_pages.constprop.6+0x1c0/0xa50
+  [ 3532.474549]        memory_subsys_offline+0x68/0xf0
+  [ 3532.474555]        device_offline+0x104/0x140
+  [ 3532.474560]        store_mem_state+0x178/0x190
+  [ 3532.474566]        dev_attr_store+0x3c/0x60
+  [ 3532.474572]        sysfs_kf_write+0x9c/0xc0
+  [ 3532.474576]        kernfs_fop_write+0x190/0x260
+  [ 3532.474582]        __vfs_write+0x44/0x1a0
+  [ 3532.474586]        vfs_write+0xd4/0x240
+  [ 3532.474591]        SyS_write+0x68/0x110
+  [ 3532.474597]        system_call+0x58/0x6c
+  [ 3532.474600] 
+                 -> #2 ((memory_chain).rwsem){++++..}:
+  [ 3532.474609]        down_read+0x44/0xa0
+  [ 3532.474613]        __blocking_notifier_call_chain+0x58/0xb0
+  [ 3532.474618]        memory_notify+0x30/0x50
+  [ 3532.474622]        __offline_pages.constprop.6+0x1c0/0xa50
+  [ 3532.474627]        memory_subsys_offline+0x68/0xf0
+  [ 3532.474631]        device_offline+0x104/0x140
+  [ 3532.474636]        store_mem_state+0x178/0x190
+  [ 3532.474641]        dev_attr_store+0x3c/0x60
+  [ 3532.474645]        sysfs_kf_write+0x9c/0xc0
+  [ 3532.474649]        kernfs_fop_write+0x190/0x260
+  [ 3532.474654]        __vfs_write+0x44/0x1a0
+  [ 3532.474659]        vfs_write+0xd4/0x240
+  [ 3532.474663]        SyS_write+0x68/0x110
+  [ 3532.474668]        system_call+0x58/0x6c
+  [ 3532.474671] 
+                 -> #1 (mem_hotplug_lock.rw_sem){++++++}:
+  [ 3532.474680]        get_online_mems+0x4c/0xd0
+  [ 3532.474685]        kmem_cache_create+0x6c/0x2a0
+  [ 3532.474691]        ptlock_cache_init+0x38/0x54
+  [ 3532.474696]        start_kernel+0x2ac/0x558
+  [ 3532.474700]        start_here_common+0x1c/0x4ac
+  [ 3532.474704] 
+                 -> #0 (cpu_hotplug_lock.rw_sem){++++++}:
+  [ 3532.474713]        lock_acquire+0xec/0x2e0
+  [ 3532.474718]        cpus_read_lock+0x4c/0xd0
+  [ 3532.474723]        lru_add_drain_all+0x20/0x40
+  [ 3532.474728]        ksm_scan_thread+0xba4/0x1a30
+  [ 3532.474734]        kthread+0x164/0x1b0
+  [ 3532.474739]        ret_from_kernel_thread+0x5c/0x74
+  [ 3532.474742] 
+                 other info that might help us debug this:
+  
+  [ 3532.474748] Chain exists of:
+                   cpu_hotplug_lock.rw_sem --> (memory_chain).rwsem --> ksm_thread_mutex
+  
+  [ 3532.474760]  Possible unsafe locking scenario:
+  
+  [ 3532.474764]        CPU0                    CPU1
+  [ 3532.474768]        ----                    ----
+  [ 3532.474771]   lock(ksm_thread_mutex);
+  [ 3532.474775]                                lock((memory_chain).rwsem);
+  [ 3532.474781]                                lock(ksm_thread_mutex);
+  [ 3532.474786]   lock(cpu_hotplug_lock.rw_sem);
+  [ 3532.474791] 
+                  *** DEADLOCK ***
+  
+  [ 3532.474797] 1 lock held by ksmd/1459:
+  [ 3532.474800]  #0:  (ksm_thread_mutex){+.+...}, at: [<c000000000330778>] ksm_scan_thread+0xd8/0x1a30
+  [ 3532.474810] 
+                 stack backtrace:
+  [ 3532.474816] CPU: 0 PID: 1459 Comm: ksmd Not tainted 4.13.0-rc3-gcc6-next-20170807-g4751f76 #1
+  [ 3532.474822] Call Trace:
+  [ 3532.474827] [c000001e54d13930] [c000000000b57c38] dump_stack+0xe8/0x160 (unreliable)
+  [ 3532.474835] [c000001e54d13970] [c000000000157968] print_circular_bug+0x288/0x3d0
+  [ 3532.474842] [c000001e54d13a10] [c00000000015b9c8] __lock_acquire+0x1858/0x1a20
+  [ 3532.474849] [c000001e54d13b80] [c00000000015c6fc] lock_acquire+0xec/0x2e0
+  [ 3532.474855] [c000001e54d13c50] [c0000000000d85cc] cpus_read_lock+0x4c/0xd0
+  [ 3532.474862] [c000001e54d13c80] [c0000000002b06b0] lru_add_drain_all+0x20/0x40
+  [ 3532.474869] [c000001e54d13ca0] [c000000000331244] ksm_scan_thread+0xba4/0x1a30
+  [ 3532.474876] [c000001e54d13dc0] [c00000000010b614] kthread+0x164/0x1b0
+  [ 3532.474883] [c000001e54d13e30] [c00000000000b6e8] ret_from_kernel_thread+0x5c/0x74
+
+
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
