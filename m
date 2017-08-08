@@ -1,108 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D18B36B03A1
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 06:36:12 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id 83so30308154pgb.14
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 03:36:12 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id s15si717923plk.578.2017.08.08.03.36.11
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 157D36B03A1
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 06:42:14 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id b136so25500982ioe.9
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 03:42:14 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id c16si1319066itf.27.2017.08.08.03.42.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 03:36:11 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v78AYWGJ012619
-	for <linux-mm@kvack.org>; Tue, 8 Aug 2017 06:36:11 -0400
-Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2c78u119ur-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 08 Aug 2017 06:36:10 -0400
-Received: from localhost
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 8 Aug 2017 20:36:08 +1000
-Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
-	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v78AZwHU26148980
-	for <linux-mm@kvack.org>; Tue, 8 Aug 2017 20:36:06 +1000
-Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
-	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v78AZXEi031494
-	for <linux-mm@kvack.org>; Tue, 8 Aug 2017 20:35:33 +1000
-Subject: Re: [RFC v5 03/11] mm: Introduce pte_spinlock for
- FAULT_FLAG_SPECULATIVE
+        Tue, 08 Aug 2017 03:42:13 -0700 (PDT)
+Date: Tue, 8 Aug 2017 12:42:01 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC v5 02/11] mm: Prepare for FAULT_FLAG_SPECULATIVE
+Message-ID: <20170808104201.sh7iyanrjs2wjz3y@hirez.programming.kicks-ass.net>
 References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1497635555-25679-4-git-send-email-ldufour@linux.vnet.ibm.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Tue, 8 Aug 2017 16:05:07 +0530
+ <1497635555-25679-3-git-send-email-ldufour@linux.vnet.ibm.com>
+ <7e770060-32b2-c136-5d34-2f078800df21@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <1497635555-25679-4-git-send-email-ldufour@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <bcad987f-055a-e089-440d-baf4a035aef3@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <7e770060-32b2-c136-5d34-2f078800df21@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
 
-On 06/16/2017 11:22 PM, Laurent Dufour wrote:
-> When handling page fault without holding the mmap_sem the fetch of the
-> pte lock pointer and the locking will have to be done while ensuring
-> that the VMA is not touched in our back.
-
-It does not change things from whats happening right now, where do we
-check that VMA has not changed by now ?
-
+On Tue, Aug 08, 2017 at 03:54:01PM +0530, Anshuman Khandual wrote:
+> On 06/16/2017 11:22 PM, Laurent Dufour wrote:
+> > From: Peter Zijlstra <peterz@infradead.org>
+> > 
+> > When speculating faults (without holding mmap_sem) we need to validate
+> > that the vma against which we loaded pages is still valid when we're
+> > ready to install the new PTE.
+> > 
+> > Therefore, replace the pte_offset_map_lock() calls that (re)take the
+> > PTL with pte_map_lock() which can fail in case we find the VMA changed
+> > since we started the fault.
 > 
-> So move the fetch and locking operations in a dedicated function.
-> 
-> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> ---
->  mm/memory.c | 15 +++++++++++----
->  1 file changed, 11 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 40834444ea0d..f1132f7931ef 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2240,6 +2240,13 @@ static inline void wp_page_reuse(struct vm_fault *vmf)
->  	pte_unmap_unlock(vmf->pte, vmf->ptl);
->  }
->  
-> +static bool pte_spinlock(struct vm_fault *vmf)
-> +{
-> +	vmf->ptl = pte_lockptr(vmf->vma->vm_mm, vmf->pmd);
-> +	spin_lock(vmf->ptl);
-> +	return true;
-> +}
-> +
+> Where we are checking if VMA has changed or not since the fault ?
 
-Moving them together makes sense but again if blocks are redundant when
-it returns true all the time.
+Not there yet, this is what you call a preparatory patch. They help
+review in that you can consider smaller steps.
 
->  static bool pte_map_lock(struct vm_fault *vmf)
->  {
->  	vmf->pte = pte_offset_map_lock(vmf->vma->vm_mm, vmf->pmd, vmf->address, &vmf->ptl);
-> @@ -3552,8 +3559,8 @@ static int do_numa_page(struct vm_fault *vmf)
->  	 * validation through pte_unmap_same(). It's of NUMA type but
->  	 * the pfn may be screwed if the read is non atomic.
->  	 */
-> -	vmf->ptl = pte_lockptr(vma->vm_mm, vmf->pmd);
-> -	spin_lock(vmf->ptl);
-> +	if (!pte_spinlock(vmf))
-> +		return VM_FAULT_RETRY;
->  	if (unlikely(!pte_same(*vmf->pte, vmf->orig_pte))) {
->  		pte_unmap_unlock(vmf->pte, vmf->ptl);
->  		goto out;
-> @@ -3745,8 +3752,8 @@ static int handle_pte_fault(struct vm_fault *vmf)
->  	if (pte_protnone(vmf->orig_pte) && vma_is_accessible(vmf->vma))
->  		return do_numa_page(vmf);
->  
-> -	vmf->ptl = pte_lockptr(vmf->vma->vm_mm, vmf->pmd);
-> -	spin_lock(vmf->ptl);
-> +	if (!pte_spinlock(vmf))
-> +		return VM_FAULT_RETRY;
->  	entry = vmf->orig_pte;
->  	if (unlikely(!pte_same(*vmf->pte, entry)))
->  		goto unlock;
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index fd952f05e016..40834444ea0d 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -2240,6 +2240,12 @@ static inline void wp_page_reuse(struct vm_fault *vmf)
+> >  	pte_unmap_unlock(vmf->pte, vmf->ptl);
+> >  }
+> >  
+> > +static bool pte_map_lock(struct vm_fault *vmf)
+> > +{
+> > +	vmf->pte = pte_offset_map_lock(vmf->vma->vm_mm, vmf->pmd, vmf->address, &vmf->ptl);
+> > +	return true;
+> > +}
 > 
+> This is always true ? Then we should not have all these if (!pte_map_lock(vmf))
+> check blocks down below.
+
+Later patches will make it possible to return false. This patch is about
+the placing this call. Having this in a separate patch makes it easier
+to review all those new error conditions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
