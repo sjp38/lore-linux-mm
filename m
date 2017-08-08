@@ -1,46 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EE94F6B02B4
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 04:46:37 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id v49so12684189qtc.2
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 01:46:37 -0700 (PDT)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 74FFB6B02C3
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 04:46:48 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id e2so12506768qta.13
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 01:46:48 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c38si784614qtc.31.2017.08.08.01.46.37
+        by mx.google.com with ESMTPS id 5si762017qke.453.2017.08.08.01.46.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 01:46:37 -0700 (PDT)
+        Tue, 08 Aug 2017 01:46:47 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH v3 02/49] block: loop: comment on direct access to bvec table
-Date: Tue,  8 Aug 2017 16:45:01 +0800
-Message-Id: <20170808084548.18963-3-ming.lei@redhat.com>
+Subject: [PATCH v3 03/49] kernel/power/swap.c: comment on direct access to bvec table
+Date: Tue,  8 Aug 2017 16:45:02 +0800
+Message-Id: <20170808084548.18963-4-ming.lei@redhat.com>
 In-Reply-To: <20170808084548.18963-1-ming.lei@redhat.com>
 References: <20170808084548.18963-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, linux-pm@vger.kernel.org
 
+Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Cc: linux-pm@vger.kernel.org
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- drivers/block/loop.c | 5 +++++
- 1 file changed, 5 insertions(+)
+ kernel/power/swap.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/drivers/block/loop.c b/drivers/block/loop.c
-index ef8334949b42..58df9ed70328 100644
---- a/drivers/block/loop.c
-+++ b/drivers/block/loop.c
-@@ -487,6 +487,11 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
- 	/* nomerge for loop request queue */
- 	WARN_ON(cmd->rq->bio != cmd->rq->biotail);
+diff --git a/kernel/power/swap.c b/kernel/power/swap.c
+index 57d22571f306..aa52ccc03fcc 100644
+--- a/kernel/power/swap.c
++++ b/kernel/power/swap.c
+@@ -238,6 +238,8 @@ static void hib_init_batch(struct hib_bio_batch *hb)
+ static void hib_end_io(struct bio *bio)
+ {
+ 	struct hib_bio_batch *hb = bio->bi_private;
++
++	/* single page bio, safe for multipage bvec */
+ 	struct page *page = bio->bi_io_vec[0].bv_page;
  
-+	/*
-+	 * For multipage bvec support, it is safe to pass the bvec
-+	 * table to iov iterator, because iov iter still uses bvec
-+	 * iter helpers to travese bvec.
-+	 */
- 	bvec = __bvec_iter_bvec(bio->bi_io_vec, bio->bi_iter);
- 	iov_iter_bvec(&iter, ITER_BVEC | rw, bvec,
- 		      bio_segments(bio), blk_rq_bytes(cmd->rq));
+ 	if (bio->bi_status) {
 -- 
 2.9.4
 
