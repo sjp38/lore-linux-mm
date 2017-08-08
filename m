@@ -1,65 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A2836B02F4
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 08:04:56 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id r62so30936994pfj.1
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 05:04:56 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id i1si845573plk.597.2017.08.08.05.04.54
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 399766B02F4
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 08:11:56 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id g32so4370105wrd.8
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 05:11:56 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id k1si1111422wrf.34.2017.08.08.05.11.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 05:04:54 -0700 (PDT)
-Message-ID: <1502193889.5509.8.camel@linux.intel.com>
-Subject: Re: [PATCH 01/21] mm/shmem: introduce shmem_file_setup_with_mnt
-From: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Date: Tue, 08 Aug 2017 15:04:49 +0300
-In-Reply-To: <20170728131227.uxgmtl2vjs7rk5pp@node.shutemov.name>
-References: <20170725192133.2012-1-matthew.auld@intel.com>
-	 <20170725192133.2012-2-matthew.auld@intel.com>
-	 <20170728131227.uxgmtl2vjs7rk5pp@node.shutemov.name>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        Tue, 08 Aug 2017 05:11:54 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v78C4s9u144731
+	for <linux-mm@kvack.org>; Tue, 8 Aug 2017 08:11:53 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2c7c2s4983-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 08 Aug 2017 08:11:53 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Tue, 8 Aug 2017 13:11:50 +0100
+Subject: Re: [RFC v5 01/11] mm: Dont assume page-table invariance during
+ faults
+References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1497635555-25679-2-git-send-email-ldufour@linux.vnet.ibm.com>
+ <57cbb4ca-7f04-ac50-3321-2c34ac08307b@linux.vnet.ibm.com>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Tue, 8 Aug 2017 14:11:44 +0200
+MIME-Version: 1.0
+In-Reply-To: <57cbb4ca-7f04-ac50-3321-2c34ac08307b@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+Message-Id: <e1d576f4-82f9-04f1-3387-19fb72bdb161@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
-Cc: intel-gfx@lists.freedesktop.org, Chris Wilson <chris@chris-wilson.co.uk>, Dave Hansen <dave.hansen@intel.com>, "Kirill
- A. Shutemov" <kirill@shutemov.name>, Matthew Auld <matthew.auld@intel.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
 
-Hi Hugh,
-
-Could we get this patch merged? Or would you prefer us to merge through drm-tip?
-
-For what it's worth, this is:
-
-Reviewed-by: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-
-Regards, Joonas
-
-On pe, 2017-07-28 at 16:12 +0300, Kirill A. Shutemov wrote:
-> On Tue, Jul 25, 2017 at 08:21:13PM +0100, Matthew Auld wrote:
-> > 
-> > We are planning to use our own tmpfs mnt in i915 in place of the
-> > shm_mnt, such that we can control the mount options, in particular
-> > huge=, which we require to support huge-gtt-pages. So rather than roll
-> > our own version of __shmem_file_setup, it would be preferred if we could
-> > just give shmem our mnt, and let it do the rest.
-> > 
-> > Signed-off-by: Matthew Auld <matthew.auld@intel.com>
-> > Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-> > Cc: Chris Wilson <chris@chris-wilson.co.uk>
-> > Cc: Dave Hansen <dave.hansen@intel.com>
-> > Cc: Kirill A. Shutemov <kirill@shutemov.name>
-> > Cc: Hugh Dickins <hughd@google.com>
-> > Cc: linux-mm@kvack.org
+On 08/08/2017 11:45, Anshuman Khandual wrote:
+> On 06/16/2017 11:22 PM, Laurent Dufour wrote:
+>> From: Peter Zijlstra <peterz@infradead.org>
+>>
+>> One of the side effects of speculating on faults (without holding
+>> mmap_sem) is that we can race with free_pgtables() and therefore we
+>> cannot assume the page-tables will stick around.
+>>
+>> Remove the relyance on the pte pointer.
 > 
-> Looks okay to me.
-> 
-> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
--- 
-Joonas Lahtinen
-Open Source Technology Center
-Intel Corporation
+> Looking into other parts of the series, it seemed like now we have
+> sequence lock both at MM and VMA level but then after that we still
+> need to take page table lock before handling page faults (in turn
+> manipulating PTE which includes swap in paths as well). Is not that
+> true ?
+
+Page table locking is still required as several VMAs can reference the same
+page table.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
