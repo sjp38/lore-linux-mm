@@ -1,90 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C70126B025F
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 02:08:26 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id g71so3238620wmg.13
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 23:08:26 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id r129si581144wma.40.2017.08.07.23.08.25
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 723BB6B025F
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 02:10:13 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id g9so23909505pfk.13
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 23:10:13 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id 71si409740pfy.79.2017.08.07.23.10.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Aug 2017 23:08:25 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7863phY060819
-	for <linux-mm@kvack.org>; Tue, 8 Aug 2017 02:08:24 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2c728rbf45-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 08 Aug 2017 02:08:23 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Tue, 8 Aug 2017 07:08:22 +0100
-Date: Tue, 8 Aug 2017 09:08:17 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH] userfaultfd: replace ENOSPC with ESRCH in case mm has
- gone during copy/zeropage
-References: <1502111545-32305-1-git-send-email-rppt@linux.vnet.ibm.com>
+        Mon, 07 Aug 2017 23:10:12 -0700 (PDT)
+Message-ID: <59895668.9090104@intel.com>
+Date: Tue, 08 Aug 2017 14:12:56 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1502111545-32305-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <20170808060816.GA31648@rapoport-lnx>
+Subject: Re: [PATCH v13 4/5] mm: support reporting free page blocks
+References: <1501742299-4369-1-git-send-email-wei.w.wang@intel.com> <1501742299-4369-5-git-send-email-wei.w.wang@intel.com> <20170803091151.GF12521@dhcp22.suse.cz>
+In-Reply-To: <20170803091151.GF12521@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Mike Kravetz <mike.kravetz@oracle.com>, Michal Hocko <mhocko@suse.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mawilcox@microsoft.com, akpm@linux-foundation.org, virtio-dev@lists.oasis-open.org, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-(adding Michal)
+On 08/03/2017 05:11 PM, Michal Hocko wrote:
+> On Thu 03-08-17 14:38:18, Wei Wang wrote:
+> This is just too ugly and wrong actually. Never provide struct page
+> pointers outside of the zone->lock. What I've had in mind was to simply
+> walk free lists of the suitable order and call the callback for each one.
+> Something as simple as
+>
+> 	for (i = 0; i < MAX_NR_ZONES; i++) {
+> 		struct zone *zone = &pgdat->node_zones[i];
+>
+> 		if (!populated_zone(zone))
+> 			continue;
 
-On Mon, Aug 07, 2017 at 04:12:25PM +0300, Mike Rapoport wrote:
-> When the process exit races with outstanding mcopy_atomic, it would be
-> better to return ESRCH error. When such race occurs the process and it's mm
-> are going away and returning "no such process" to the uffd monitor seems
-> better fit than ENOSPC.
-> 
-> Suggested-by: Michal Hocko <mhocko@suse.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-> Cc: Pavel Emelyanov <xemul@virtuozzo.com>
-> Cc: Mike Kravetz <mike.kravetz@oracle.com>
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> ---
-> The man-pages update is ready and I'll send it out once the patch is
-> merged.
-> 
->  fs/userfaultfd.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-> index 06ea26b8c996..b0d5897bc4e6 100644
-> --- a/fs/userfaultfd.c
-> +++ b/fs/userfaultfd.c
-> @@ -1600,7 +1600,7 @@ static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
->  				   uffdio_copy.len);
->  		mmput(ctx->mm);
->  	} else {
-> -		return -ENOSPC;
-> +		return -ESRCH;
->  	}
->  	if (unlikely(put_user(ret, &user_uffdio_copy->copy)))
->  		return -EFAULT;
-> @@ -1647,7 +1647,7 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
->  				     uffdio_zeropage.range.len);
->  		mmput(ctx->mm);
->  	} else {
-> -		return -ENOSPC;
-> +		return -ESRCH;
->  	}
->  	if (unlikely(put_user(ret, &user_uffdio_zeropage->zeropage)))
->  		return -EFAULT;
-> -- 
-> 2.7.4
-> 
+Can we directly use for_each_populated_zone(zone) here?
 
--- 
-Sincerely yours,
-Mike.
+
+> 		spin_lock_irqsave(&zone->lock, flags);
+> 		for (order = min_order; order < MAX_ORDER; ++order) {
+
+
+This appears to be covered by for_each_migratetype_order(order, mt) below.
+
+
+> 			struct free_area *free_area = &zone->free_area[order];
+> 			enum migratetype mt;
+> 			struct page *page;
+>
+> 			if (!free_area->nr_pages)
+> 				continue;
+>
+> 			for_each_migratetype_order(order, mt) {
+> 				list_for_each_entry(page,
+> 						&free_area->free_list[mt], lru) {
+>
+> 					pfn = page_to_pfn(page);
+> 					visit(opaque2, prn, 1<<order);
+> 				}
+> 			}
+> 		}
+>
+> 		spin_unlock_irqrestore(&zone->lock, flags);
+> 	}
+>
+> [...]
+>
+
+What do you think if we further simply the above implementation like this:
+
+for_each_populated_zone(zone) {
+                 for_each_migratetype_order_decend(1, order, mt) {
+                         spin_lock_irqsave(&zone->lock, flags);
+                         list_for_each_entry(page,
+&zone->free_area[order].free_list[mt], lru) {
+                                 pfn = page_to_pfn(page);
+                                 visit(opaque1, pfn, 1 << order);
+                         }
+                         spin_unlock_irqrestore(&zone->lock, flags);
+                 }
+         }
+
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
