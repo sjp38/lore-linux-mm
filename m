@@ -1,76 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F00206B02C3
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 04:52:03 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id i143so12953138qke.14
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 01:52:03 -0700 (PDT)
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 727E16B04B0
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 04:52:12 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id g13so12729246qta.0
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 01:52:12 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c3si803069qte.125.2017.08.08.01.52.03
+        by mx.google.com with ESMTPS id 50si781769qtv.159.2017.08.08.01.52.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 01:52:03 -0700 (PDT)
+        Tue, 08 Aug 2017 01:52:11 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH v3 30/49] btrfs: use bvec_get_last_page to get bio's last page
-Date: Tue,  8 Aug 2017 16:45:29 +0800
-Message-Id: <20170808084548.18963-31-ming.lei@redhat.com>
+Subject: [PATCH v3 31/49] block: deal with dirtying pages for multipage bvec
+Date: Tue,  8 Aug 2017 16:45:30 +0800
+Message-Id: <20170808084548.18963-32-ming.lei@redhat.com>
 In-Reply-To: <20170808084548.18963-1-ming.lei@redhat.com>
 References: <20170808084548.18963-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>
 
-Preparing for supporting multipage bvec.
+In bio_check_pages_dirty(), bvec->bv_page is used as flag
+for marking if the page has been dirtied & released, and if
+no, it will be dirtied in deferred workqueue.
 
-Cc: Chris Mason <clm@fb.com>
-Cc: Josef Bacik <jbacik@fb.com>
-Cc: David Sterba <dsterba@suse.com>
-Cc: linux-btrfs@vger.kernel.org
+With multipage bvec, we can't do that any more, so change
+the logic into checking all pages in one mp bvec, and only
+release all these pages if all are dirtied, otherwise dirty
+them all in deferred wrokqueue.
+
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- fs/btrfs/compression.c | 5 ++++-
- fs/btrfs/extent_io.c   | 8 ++++++--
- 2 files changed, 10 insertions(+), 3 deletions(-)
+ block/bio.c | 45 +++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 37 insertions(+), 8 deletions(-)
 
-diff --git a/fs/btrfs/compression.c b/fs/btrfs/compression.c
-index f795d0a6d176..28746588f228 100644
---- a/fs/btrfs/compression.c
-+++ b/fs/btrfs/compression.c
-@@ -392,8 +392,11 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
- static u64 bio_end_offset(struct bio *bio)
+diff --git a/block/bio.c b/block/bio.c
+index 28697e3c8ce3..716e6917b0fd 100644
+--- a/block/bio.c
++++ b/block/bio.c
+@@ -1650,8 +1650,9 @@ void bio_set_pages_dirty(struct bio *bio)
  {
- 	struct bio_vec *last = &bio->bi_io_vec[bio->bi_vcnt - 1];
-+	struct bio_vec bv;
+ 	struct bio_vec *bvec;
+ 	int i;
++	struct bvec_iter_all bia;
  
--	return page_offset(last->bv_page) + last->bv_len + last->bv_offset;
-+	bvec_get_last_page(last, &bv);
-+
-+	return page_offset(bv.bv_page) + bv.bv_len + bv.bv_offset;
+-	bio_for_each_segment_all(bvec, bio, i) {
++	bio_for_each_segment_all_sp(bvec, bio, i, bia) {
+ 		struct page *page = bvec->bv_page;
+ 
+ 		if (page && !PageCompound(page))
+@@ -1659,16 +1660,26 @@ void bio_set_pages_dirty(struct bio *bio)
+ 	}
  }
  
- static noinline int add_ra_bio_pages(struct inode *inode,
-diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
-index 0e7367817b92..c8f6a8657bf2 100644
---- a/fs/btrfs/extent_io.c
-+++ b/fs/btrfs/extent_io.c
-@@ -2738,11 +2738,15 @@ static int __must_check submit_one_bio(struct bio *bio, int mirror_num,
- {
- 	blk_status_t ret = 0;
- 	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
--	struct page *page = bvec->bv_page;
- 	struct extent_io_tree *tree = bio->bi_private;
++static inline void release_mp_bvec_pages(struct bio_vec *bvec)
++{
 +	struct bio_vec bv;
-+	struct page *page;
- 	u64 start;
- 
--	start = page_offset(page) + bvec->bv_offset;
-+	bvec_get_last_page(bvec, &bv);
-+	page = bv.bv_page;
++	struct bvec_iter iter;
 +
-+	start = page_offset(page) + bv.bv_offset;
++	bvec_for_each_sp_bvec(bv, bvec, iter)
++		put_page(bv.bv_page);
++}
++
+ static void bio_release_pages(struct bio *bio)
+ {
+ 	struct bio_vec *bvec;
+ 	int i;
  
- 	bio->bi_private = NULL;
- 	bio_get(bio);
+-	bio_for_each_segment_all(bvec, bio, i) {
++	/* iterate each mp bvec */
++	bio_for_each_segment_all_mp(bvec, bio, i) {
+ 		struct page *page = bvec->bv_page;
+ 
+ 		if (page)
+-			put_page(page);
++			release_mp_bvec_pages(bvec);
+ 	}
+ }
+ 
+@@ -1712,20 +1723,38 @@ static void bio_dirty_fn(struct work_struct *work)
+ 	}
+ }
+ 
++static inline void check_mp_bvec_pages(struct bio_vec *bvec,
++		int *nr_dirty, int *nr_pages)
++{
++	struct bio_vec bv;
++	struct bvec_iter iter;
++
++	bvec_for_each_sp_bvec(bv, bvec, iter) {
++		struct page *page = bv.bv_page;
++
++		if (PageDirty(page) || PageCompound(page))
++			(*nr_dirty)++;
++		(*nr_pages)++;
++	}
++}
++
+ void bio_check_pages_dirty(struct bio *bio)
+ {
+ 	struct bio_vec *bvec;
+ 	int nr_clean_pages = 0;
+ 	int i;
+ 
+-	bio_for_each_segment_all(bvec, bio, i) {
+-		struct page *page = bvec->bv_page;
++	bio_for_each_segment_all_mp(bvec, bio, i) {
++		int nr_dirty = 0, nr_pages = 0;
++
++		check_mp_bvec_pages(bvec, &nr_dirty, &nr_pages);
+ 
+-		if (PageDirty(page) || PageCompound(page)) {
+-			put_page(page);
++		/* release all pages in the mp bvec if all are dirtied */
++		if (nr_dirty == nr_pages) {
++			release_mp_bvec_pages(bvec);
+ 			bvec->bv_page = NULL;
+ 		} else {
+-			nr_clean_pages++;
++			nr_clean_pages += nr_pages;
+ 		}
+ 	}
+ 
 -- 
 2.9.4
 
