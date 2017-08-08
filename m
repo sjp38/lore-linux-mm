@@ -1,102 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F6C66B02FA
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 08:12:23 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e74so30660513pfd.12
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 05:12:23 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id c195si734796pga.622.2017.08.08.05.12.22
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 77C4F6B025F
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 08:16:18 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id q189so4326751wmd.6
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 05:16:18 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id n48si1054479wrn.445.2017.08.08.05.16.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 05:12:22 -0700 (PDT)
-Date: Tue, 8 Aug 2017 05:12:20 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH -mm] mm: Clear to access sub-page last when clearing huge
- page
-Message-ID: <20170808121220.GA31390@bombadil.infradead.org>
-References: <20170807072131.8343-1-ying.huang@intel.com>
+        Tue, 08 Aug 2017 05:16:17 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v78CEe9g041266
+	for <linux-mm@kvack.org>; Tue, 8 Aug 2017 08:16:15 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2c79csc9xm-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 08 Aug 2017 08:16:15 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Tue, 8 Aug 2017 13:16:13 +0100
+Subject: Re: [RFC v5 03/11] mm: Introduce pte_spinlock for
+ FAULT_FLAG_SPECULATIVE
+References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1497635555-25679-4-git-send-email-ldufour@linux.vnet.ibm.com>
+ <bcad987f-055a-e089-440d-baf4a035aef3@linux.vnet.ibm.com>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Tue, 8 Aug 2017 14:16:06 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170807072131.8343-1-ying.huang@intel.com>
+In-Reply-To: <bcad987f-055a-e089-440d-baf4a035aef3@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: fr
+Content-Transfer-Encoding: 7bit
+Message-Id: <fcb3ccc0-7ea7-4ad5-87b0-fcb261fd4323@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
 
-On Mon, Aug 07, 2017 at 03:21:31PM +0800, Huang, Ying wrote:
-> @@ -2509,7 +2509,8 @@ enum mf_action_page_type {
->  #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
->  extern void clear_huge_page(struct page *page,
->  			    unsigned long addr,
-> -			    unsigned int pages_per_huge_page);
-> +			    unsigned int pages_per_huge_page,
-> +			    unsigned long addr_hint);
+On 08/08/2017 12:35, Anshuman Khandual wrote:
+> On 06/16/2017 11:22 PM, Laurent Dufour wrote:
+>> When handling page fault without holding the mmap_sem the fetch of the
+>> pte lock pointer and the locking will have to be done while ensuring
+>> that the VMA is not touched in our back.
+> 
+> It does not change things from whats happening right now, where do we
+> check that VMA has not changed by now ?
 
-I don't really like adding the extra argument to this function ...
+This patch is preparing the use done later in this series, the goal is to
+introduce the service and the check which are relevant.
+Later when the VMA check will be added this service is changed.
+The goal is to ease the review.
 
-> +++ b/mm/huge_memory.c
-> @@ -549,7 +549,8 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
->  	struct vm_area_struct *vma = vmf->vma;
->  	struct mem_cgroup *memcg;
->  	pgtable_t pgtable;
-> -	unsigned long haddr = vmf->address & HPAGE_PMD_MASK;
-> +	unsigned long address = vmf->address;
-> +	unsigned long haddr = address & HPAGE_PMD_MASK;
->  
->  	VM_BUG_ON_PAGE(!PageCompound(page), page);
->  
-> @@ -566,7 +567,7 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
->  		return VM_FAULT_OOM;
->  	}
->  
-> -	clear_huge_page(page, haddr, HPAGE_PMD_NR);
-> +	clear_huge_page(page, haddr, HPAGE_PMD_NR, address);
->  	/*
->  	 * The memory barrier inside __SetPageUptodate makes sure that
->  	 * clear_huge_page writes become visible before the set_pmd_at()
-
-How about calling:
-
--	clear_huge_page(page, haddr, HPAGE_PMD_NR);
-+	clear_huge_page(page, address, HPAGE_PMD_NR);
-
-> +++ b/mm/memory.c
-> @@ -4363,10 +4363,10 @@ static void clear_gigantic_page(struct page *page,
->  		clear_user_highpage(p, addr + i * PAGE_SIZE);
->  	}
->  }
-> -void clear_huge_page(struct page *page,
-> -		     unsigned long addr, unsigned int pages_per_huge_page)
-> +void clear_huge_page(struct page *page, unsigned long addr,
-> +		     unsigned int pages_per_huge_page, unsigned long addr_hint)
->  {
-> -	int i;
-> +	int i, n, base, l;
->  
->  	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
->  		clear_gigantic_page(page, addr, pages_per_huge_page);
-
-... and doing this:
-
- void clear_huge_page(struct page *page,
--		     unsigned long addr, unsigned int pages_per_huge_page)
-+		     unsigned long addr_hint, unsigned int pages_per_huge_page)
- {
--	int i;
-+	int i, n, base, l;
-+	unsigned long addr = addr_hint &
-+				(1UL << (pages_per_huge_page + PAGE_SHIFT));
-
-> @@ -4374,9 +4374,31 @@ void clear_huge_page(struct page *page,
->  	}
->  
->  	might_sleep();
-> -	for (i = 0; i < pages_per_huge_page; i++) {
-> +	VM_BUG_ON(clamp(addr_hint, addr, addr +
-> +			(pages_per_huge_page << PAGE_SHIFT)) != addr_hint);
-
-... then you can ditch this check
+> 
+>>
+>> So move the fetch and locking operations in a dedicated function.
+>>
+>> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+>> ---
+>>  mm/memory.c | 15 +++++++++++----
+>>  1 file changed, 11 insertions(+), 4 deletions(-)
+>>
+>> diff --git a/mm/memory.c b/mm/memory.c
+>> index 40834444ea0d..f1132f7931ef 100644
+>> --- a/mm/memory.c
+>> +++ b/mm/memory.c
+>> @@ -2240,6 +2240,13 @@ static inline void wp_page_reuse(struct vm_fault *vmf)
+>>  	pte_unmap_unlock(vmf->pte, vmf->ptl);
+>>  }
+>>  
+>> +static bool pte_spinlock(struct vm_fault *vmf)
+>> +{
+>> +	vmf->ptl = pte_lockptr(vmf->vma->vm_mm, vmf->pmd);
+>> +	spin_lock(vmf->ptl);
+>> +	return true;
+>> +}
+>> +
+> 
+> Moving them together makes sense but again if blocks are redundant when
+> it returns true all the time.
+> 
+>>  static bool pte_map_lock(struct vm_fault *vmf)
+>>  {
+>>  	vmf->pte = pte_offset_map_lock(vmf->vma->vm_mm, vmf->pmd, vmf->address, &vmf->ptl);
+>> @@ -3552,8 +3559,8 @@ static int do_numa_page(struct vm_fault *vmf)
+>>  	 * validation through pte_unmap_same(). It's of NUMA type but
+>>  	 * the pfn may be screwed if the read is non atomic.
+>>  	 */
+>> -	vmf->ptl = pte_lockptr(vma->vm_mm, vmf->pmd);
+>> -	spin_lock(vmf->ptl);
+>> +	if (!pte_spinlock(vmf))
+>> +		return VM_FAULT_RETRY;
+>>  	if (unlikely(!pte_same(*vmf->pte, vmf->orig_pte))) {
+>>  		pte_unmap_unlock(vmf->pte, vmf->ptl);
+>>  		goto out;
+>> @@ -3745,8 +3752,8 @@ static int handle_pte_fault(struct vm_fault *vmf)
+>>  	if (pte_protnone(vmf->orig_pte) && vma_is_accessible(vmf->vma))
+>>  		return do_numa_page(vmf);
+>>  
+>> -	vmf->ptl = pte_lockptr(vmf->vma->vm_mm, vmf->pmd);
+>> -	spin_lock(vmf->ptl);
+>> +	if (!pte_spinlock(vmf))
+>> +		return VM_FAULT_RETRY;
+>>  	entry = vmf->orig_pte;
+>>  	if (unlikely(!pte_same(*vmf->pte, entry)))
+>>  		goto unlock;
+>>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
