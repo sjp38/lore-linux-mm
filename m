@@ -1,75 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 49C366B0292
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 11:48:10 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 16so38408947pgg.8
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 08:48:10 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id j21si979177pgn.452.2017.08.08.08.48.09
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8532E6B025F
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 12:21:30 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id y206so5216089wmd.1
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 09:21:30 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id y36si1328944ede.296.2017.08.08.09.21.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 08:48:09 -0700 (PDT)
-Date: Tue, 8 Aug 2017 08:48:06 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v1 5/6] zram: remove zram_rw_page
-Message-ID: <20170808154806.GD31390@bombadil.infradead.org>
-References: <1502175024-28338-1-git-send-email-minchan@kernel.org>
- <1502175024-28338-6-git-send-email-minchan@kernel.org>
- <20170808070226.GC7765@jagdpanzerIV.localdomain>
- <20170808081338.GA30908@bbox>
- <20170808082350.GD7765@jagdpanzerIV.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 08 Aug 2017 09:21:27 -0700 (PDT)
+Date: Tue, 8 Aug 2017 12:21:22 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: kernel panic on null pointer on page->mem_cgroup
+Message-ID: <20170808162122.GA14689@cmpxchg.org>
+References: <20170805155241.GA94821@jaegeuk-macbookpro.roam.corp.google.com>
+ <20170808010150.4155-1-bradleybolen@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170808082350.GD7765@jagdpanzerIV.localdomain>
+In-Reply-To: <20170808010150.4155-1-bradleybolen@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, "karam . lee" <karam.lee@lge.com>, seungho1.park@lge.com, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, jack@suse.cz, Jens Axboe <axboe@kernel.dk>, Vishal Verma <vishal.l.verma@intel.com>, linux-nvdimm@lists.01.org, kernel-team <kernel-team@lge.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Bradley Bolen <bradleybolen@gmail.com>
+Cc: linux-mm@kvack.org, jaegeuk@kernel.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Aug 08, 2017 at 05:23:50PM +0900, Sergey Senozhatsky wrote:
-> Hello Minchan,
-> 
-> On (08/08/17 17:13), Minchan Kim wrote:
-> > Hi Sergey,
-> > 
-> > On Tue, Aug 08, 2017 at 04:02:26PM +0900, Sergey Senozhatsky wrote:
-> > > On (08/08/17 15:50), Minchan Kim wrote:
-> > > > With on-stack-bio, rw_page interface doesn't provide a clear performance
-> > > > benefit for zram and surely has a maintenance burden, so remove the
-> > > > last user to remove rw_page completely.
-> > > 
-> > > OK, never really liked it, I think we had that conversation before.
-> > > 
-> > > as far as I remember, zram_rw_page() was the reason we had to do some
-> > > tricks with init_lock to make lockdep happy. may be now we can "simplify"
-> > > the things back.
-> > 
-> > I cannot remember. Blame my brain. ;-)
-> 
-> no worries. I didn't remember it clearly as well, hence the "may be" part.
-> 
-> commit 08eee69fcf6baea543a2b4d2a2fcba0e61aa3160
-> Author: Minchan Kim
-> 
->     zram: remove init_lock in zram_make_request
->     
->     Admin could reset zram during I/O operation going on so we have used
->     zram->init_lock as read-side lock in I/O path to prevent sudden zram
->     meta freeing.
->     
->     However, the init_lock is really troublesome.  We can't do call
->     zram_meta_alloc under init_lock due to lockdep splat because
->     zram_rw_page is one of the function under reclaim path and hold it as
->     read_lock while other places in process context hold it as write_lock.
->     So, we have used allocation out of the lock to avoid lockdep warn but
->     it's not good for readability and fainally, I met another lockdep splat
->     between init_lock and cpu_hotplug from kmem_cache_destroy during working
->     zsmalloc compaction.  :(
+Hi Jaegeuk and Bradley,
 
-I don't think this patch is going to change anything with respect to the
-use of init_lock.  You're still going to be called in the reclaim path,
-no longer through rw_page, but through the bio path instead.
+On Mon, Aug 07, 2017 at 09:01:50PM -0400, Bradley Bolen wrote:
+> I am getting a very similar error on v4.11 with an arm64 board.
+> 
+> I, too, also see page->mem_cgroup checked to make sure that it is not
+> NULL and then several instructions later it is NULL.  It does appear
+> that someone is changing that member without taking the lock.  In my
+> setup, I see
+> 
+> crash> bt
+> PID: 72     TASK: e1f48640  CPU: 0   COMMAND: "mmcqd/1"
+>  #0 [<c00ad35c>] (__crash_kexec) from [<c0101080>]
+>  #1 [<c0101080>] (panic) from [<c028cd6c>]
+>  #2 [<c028cd6c>] (svcerr_panic) from [<c028cdc4>]
+>  #3 [<c028cdc4>] (_SvcErr_) from [<c001474c>]
+>  #4 [<c001474c>] (die) from [<c00241f8>]
+>  #5 [<c00241f8>] (__do_kernel_fault) from [<c0560600>]
+>  #6 [<c0560600>] (do_page_fault) from [<c00092e8>]
+>  #7 [<c00092e8>] (do_DataAbort) from [<c055f9f0>]
+>     pc : [<c0112540>]    lr : [<c0112518>]    psr: a0000193
+>     sp : c1a19cc8  ip : 00000000  fp : c1a19d04
+>     r10: 0006ae29  r9 : 00000000  r8 : dfbf1800
+>     r7 : dfbf1800  r6 : 00000001  r5 : f3c1107c  r4 : e2fb6424
+>     r3 : 00000000  r2 : 00040228  r1 : 221e3000  r0 : a0000113
+>     Flags: NzCv  IRQs off  FIQs on  Mode SVC_32  ISA ARM
+>  #8 [<c055f9f0>] (__dabt_svc) from [<c0112518>]
+>  #9 [<c0112540>] (test_clear_page_writeback) from [<c01046d4>]
+> #10 [<c01046d4>] (end_page_writeback) from [<c0149bcc>]
+> #11 [<c0149bcc>] (end_swap_bio_write) from [<c0261460>]
+> #12 [<c0261460>] (bio_endio) from [<c042c800>]
+> #13 [<c042c800>] (dec_pending) from [<c042e648>]
+> #14 [<c042e648>] (clone_endio) from [<c0261460>]
+> #15 [<c0261460>] (bio_endio) from [<bf60aa00>]
+> #16 [<bf60aa00>] (crypt_dec_pending [dm_crypt]) from [<bf60c1e8>]
+> #17 [<bf60c1e8>] (crypt_endio [dm_crypt]) from [<c0261460>]
+> #18 [<c0261460>] (bio_endio) from [<c0269e34>]
+> #19 [<c0269e34>] (blk_update_request) from [<c026a058>]
+> #20 [<c026a058>] (blk_update_bidi_request) from [<c026a444>]
+> #21 [<c026a444>] (blk_end_bidi_request) from [<c026a494>]
+> #22 [<c026a494>] (blk_end_request) from [<c0458dbc>]
+> #23 [<c0458dbc>] (mmc_blk_issue_rw_rq) from [<c0459e24>]
+> #24 [<c0459e24>] (mmc_blk_issue_rq) from [<c045a018>]
+> #25 [<c045a018>] (mmc_queue_thread) from [<c0048890>]
+> #26 [<c0048890>] (kthread) from [<c0010388>]
+> crash> sym c0112540
+> c0112540 (T) test_clear_page_writeback+512
+>  /kernel-source/include/linux/memcontrol.h: 518
+> 
+> crash> bt 35
+> PID: 35     TASK: e1d45dc0  CPU: 1   COMMAND: "kswapd0"
+>  #0 [<c0559ab8>] (__schedule) from [<c0559edc>]
+>  #1 [<c0559edc>] (schedule) from [<c055e54c>]
+>  #2 [<c055e54c>] (schedule_timeout) from [<c055a3a4>]
+>  #3 [<c055a3a4>] (io_schedule_timeout) from [<c0106cb0>]
+>  #4 [<c0106cb0>] (mempool_alloc) from [<c0261668>]
+>  #5 [<c0261668>] (bio_alloc_bioset) from [<c0149d68>]
+>  #6 [<c0149d68>] (get_swap_bio) from [<c014a280>]
+>  #7 [<c014a280>] (__swap_writepage) from [<c014a3bc>]
+>  #8 [<c014a3bc>] (swap_writepage) from [<c011e5c8>]
+>  #9 [<c011e5c8>] (shmem_writepage) from [<c011a9b8>]
+> #10 [<c011a9b8>] (shrink_page_list) from [<c011b528>]
+> #11 [<c011b528>] (shrink_inactive_list) from [<c011c160>]
+> #12 [<c011c160>] (shrink_node_memcg) from [<c011c400>]
+> #13 [<c011c400>] (shrink_node) from [<c011d7dc>]
+> #14 [<c011d7dc>] (kswapd) from [<c0048890>]
+> #15 [<c0048890>] (kthread) from [<c0010388>]
+> 
+> It appears that uncharge_list() in mm/memcontrol.c is not taking the
+> page lock when it sets mem_cgroup to NULL.  I am not familiar with the
+> mm code so I do not know if this is on purpose or not.  There is a
+> comment in uncharge_list that makes me believe that the crashing code
+> should not have been running:
+> /*
+>  * Nobody should be changing or seriously looking at
+>  * page->mem_cgroup at this point, we have fully
+>  * exclusive access to the page.
+>  */
+> However, I am new to looking at this area of the kernel so I am not
+> sure.
+
+The lock is for pages that are actively being used, whereas the free
+path requires the page refcount to be 0; nobody else should be having
+access to the page at that time.
+
+> I was able to create a reproducible scenario by using a udelay to
+> increase the time between the if (page->mem_cgroup) check and the later
+> dereference of it to increase the race window.  I then mounted an empty
+> ext4 partition and ran the following no more than twice before it
+> crashed.
+> dd if=/dev/zero of=/tmp/ext4disk/test bs=1M count=100
+
+Thanks, that's useful. I'm going to try to reproduce this also.
+
+There is a
+
+	VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
+
+inside uncharge_list() that verifies that there shouldn't in fact be
+any pages ending writeback when they get into that function. Can you
+build your kernel with CONFIG_DEBUG_VM to enable that test?
+
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
