@@ -1,110 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A3C06B02F4
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 19:06:55 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id y129so49201377pgy.1
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 16:06:55 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id t3si1639029plm.534.2017.08.08.16.06.54
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A5D5E6B025F
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 19:14:53 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id t25so46602218pfg.15
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 16:14:53 -0700 (PDT)
+Received: from mail-pg0-x22e.google.com (mail-pg0-x22e.google.com. [2607:f8b0:400e:c05::22e])
+        by mx.google.com with ESMTPS id v8si1690161plg.655.2017.08.08.16.14.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 16:06:54 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm] mm: Clear to access sub-page last when clearing huge page
-References: <20170807072131.8343-1-ying.huang@intel.com>
-	<20170808121220.GA31390@bombadil.infradead.org>
-Date: Wed, 09 Aug 2017 07:06:48 +0800
-In-Reply-To: <20170808121220.GA31390@bombadil.infradead.org> (Matthew Wilcox's
-	message of "Tue, 8 Aug 2017 05:12:20 -0700")
-Message-ID: <87y3qt64mv.fsf@yhuang-mobile.sh.intel.com>
+        Tue, 08 Aug 2017 16:14:52 -0700 (PDT)
+Received: by mail-pg0-x22e.google.com with SMTP id y129so20551202pgy.4
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 16:14:52 -0700 (PDT)
+Date: Tue, 8 Aug 2017 16:14:50 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [v4 3/4] mm, oom: introduce oom_priority for memory cgroups
+In-Reply-To: <20170726132718.14806-4-guro@fb.com>
+Message-ID: <alpine.DEB.2.10.1708081607230.54505@chino.kir.corp.google.com>
+References: <20170726132718.14806-1-guro@fb.com> <20170726132718.14806-4-guro@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Matthew Wilcox <willy@infradead.org> writes:
+On Wed, 26 Jul 2017, Roman Gushchin wrote:
 
-> On Mon, Aug 07, 2017 at 03:21:31PM +0800, Huang, Ying wrote:
->> @@ -2509,7 +2509,8 @@ enum mf_action_page_type {
->>  #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
->>  extern void clear_huge_page(struct page *page,
->>  			    unsigned long addr,
->> -			    unsigned int pages_per_huge_page);
->> +			    unsigned int pages_per_huge_page,
->> +			    unsigned long addr_hint);
->
-> I don't really like adding the extra argument to this function ...
->
->> +++ b/mm/huge_memory.c
->> @@ -549,7 +549,8 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
->>  	struct vm_area_struct *vma = vmf->vma;
->>  	struct mem_cgroup *memcg;
->>  	pgtable_t pgtable;
->> -	unsigned long haddr = vmf->address & HPAGE_PMD_MASK;
->> +	unsigned long address = vmf->address;
->> +	unsigned long haddr = address & HPAGE_PMD_MASK;
->>  
->>  	VM_BUG_ON_PAGE(!PageCompound(page), page);
->>  
->> @@ -566,7 +567,7 @@ static int __do_huge_pmd_anonymous_page(struct vm_fault *vmf, struct page *page,
->>  		return VM_FAULT_OOM;
->>  	}
->>  
->> -	clear_huge_page(page, haddr, HPAGE_PMD_NR);
->> +	clear_huge_page(page, haddr, HPAGE_PMD_NR, address);
->>  	/*
->>  	 * The memory barrier inside __SetPageUptodate makes sure that
->>  	 * clear_huge_page writes become visible before the set_pmd_at()
->
-> How about calling:
->
-> -	clear_huge_page(page, haddr, HPAGE_PMD_NR);
-> +	clear_huge_page(page, address, HPAGE_PMD_NR);
->
->> +++ b/mm/memory.c
->> @@ -4363,10 +4363,10 @@ static void clear_gigantic_page(struct page *page,
->>  		clear_user_highpage(p, addr + i * PAGE_SIZE);
->>  	}
->>  }
->> -void clear_huge_page(struct page *page,
->> -		     unsigned long addr, unsigned int pages_per_huge_page)
->> +void clear_huge_page(struct page *page, unsigned long addr,
->> +		     unsigned int pages_per_huge_page, unsigned long addr_hint)
->>  {
->> -	int i;
->> +	int i, n, base, l;
->>  
->>  	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
->>  		clear_gigantic_page(page, addr, pages_per_huge_page);
->
-> ... and doing this:
->
->  void clear_huge_page(struct page *page,
-> -		     unsigned long addr, unsigned int pages_per_huge_page)
-> +		     unsigned long addr_hint, unsigned int pages_per_huge_page)
+> Introduce a per-memory-cgroup oom_priority setting: an integer number
+> within the [-10000, 10000] range, which defines the order in which
+> the OOM killer selects victim memory cgroups.
+> 
+> OOM killer prefers memory cgroups with larger priority if they are
+> populated with elegible tasks.
+> 
+> The oom_priority value is compared within sibling cgroups.
+> 
+> The root cgroup has the oom_priority 0, which cannot be changed.
+> 
+
+Awesome!  Very excited to see that you implemented this suggestion and it 
+is similar to priority based oom killing that we have done.  I think this 
+kind of support is long overdue in the oom killer.
+
+Comment inline.
+
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: kernel-team@fb.com
+> Cc: cgroups@vger.kernel.org
+> Cc: linux-doc@vger.kernel.org
+> Cc: linux-kernel@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> ---
+>  include/linux/memcontrol.h |  3 +++
+>  mm/memcontrol.c            | 55 ++++++++++++++++++++++++++++++++++++++++++++--
+>  2 files changed, 56 insertions(+), 2 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index b21bbb0edc72..d31ac58e08ad 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -206,6 +206,9 @@ struct mem_cgroup {
+>  	/* cached OOM score */
+>  	long oom_score;
+>  
+> +	/* OOM killer priority */
+> +	short oom_priority;
+> +
+>  	/* handle for "memory.events" */
+>  	struct cgroup_file events_file;
+>  
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index ba72d1cf73d0..2c1566995077 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2710,12 +2710,21 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+>  	for (;;) {
+>  		struct cgroup_subsys_state *css;
+>  		struct mem_cgroup *memcg = NULL;
+> +		short prio = SHRT_MIN;
+>  		long score = LONG_MIN;
+>  
+>  		css_for_each_child(css, &root->css) {
+>  			struct mem_cgroup *iter = mem_cgroup_from_css(css);
+>  
+> -			if (iter->oom_score > score) {
+> +			if (iter->oom_score == 0)
+> +				continue;
+> +
+> +			if (iter->oom_priority > prio) {
+> +				memcg = iter;
+> +				prio = iter->oom_priority;
+> +				score = iter->oom_score;
+> +			} else if (iter->oom_priority == prio &&
+> +				   iter->oom_score > score) {
+>  				memcg = iter;
+>  				score = iter->oom_score;
+>  			}
+
+Your tiebreaking is done based on iter->oom_score, which I suppose makes 
+sense given that the oom killer traditionally tries to kill from the 
+largest memory hogging process.
+
+We actually tiebreak on a timestamp of memcg creation and prefer to kill 
+from the newer memcg when iter->oom_priority is the same.  The reasoning 
+is that we schedule jobs on a machine that have an inherent priority but 
+is unaware of other jobs running at the same priority and so the kill 
+decision, if based on iter->oom_score, may differ based on current memory 
+usage.
+
+I'm not necessarily arguing against using iter->oom_score, but was 
+wondering if you would also find that tiebreaking based on a timestamp 
+when priorities are the same is a more clear semantic to describe?  It's 
+similar to how the system oom killer tiebreaked based on which task_struct 
+appeared later in the tasklist when memory usage was the same.
+
+Your approach makes oom killing less likely in the near term since it 
+kills a more memory hogging memcg, but has the potential to lose less 
+work.  A timestamp based approach loses the least amount of work by 
+preferring to kill newer memcgs but oom killing may be more frequent if 
+smaller child memcgs are killed.  I would argue the former is the 
+responsibility of the user for using the same priority.
+
+> @@ -2782,7 +2791,15 @@ bool mem_cgroup_select_oom_victim(struct oom_control *oc)
+>  	 * For system-wide OOMs we should consider tasks in the root cgroup
+>  	 * with oom_score larger than oc->chosen_points.
+>  	 */
+> -	if (!oc->memcg) {
+> +	if (!oc->memcg && !(oc->chosen_memcg &&
+> +			    oc->chosen_memcg->oom_priority > 0)) {
+> +		/*
+> +		 * Root memcg has priority 0, so if chosen memcg has lower
+> +		 * priority, any task in root cgroup is preferable.
+> +		 */
+> +		if (oc->chosen_memcg && oc->chosen_memcg->oom_priority < 0)
+> +			oc->chosen_points = 0;
+> +
+>  		select_victim_root_cgroup_task(oc);
+>  
+>  		if (oc->chosen && oc->chosen_memcg) {
+> @@ -5373,6 +5390,34 @@ static ssize_t memory_oom_kill_all_tasks_write(struct kernfs_open_file *of,
+>  	return nbytes;
+>  }
+>  
+> +static int memory_oom_priority_show(struct seq_file *m, void *v)
+> +{
+> +	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+> +
+> +	seq_printf(m, "%d\n", memcg->oom_priority);
+> +
+> +	return 0;
+> +}
+> +
+> +static ssize_t memory_oom_priority_write(struct kernfs_open_file *of,
+> +				char *buf, size_t nbytes, loff_t off)
+> +{
+> +	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
+> +	int oom_priority;
+> +	int err;
+> +
+> +	err = kstrtoint(strstrip(buf), 0, &oom_priority);
+> +	if (err)
+> +		return err;
+> +
+> +	if (oom_priority < -10000 || oom_priority > 10000)
+> +		return -EINVAL;
+> +
+> +	memcg->oom_priority = (short)oom_priority;
+> +
+> +	return nbytes;
+> +}
+> +
+>  static int memory_events_show(struct seq_file *m, void *v)
 >  {
-> -	int i;
-> +	int i, n, base, l;
-> +	unsigned long addr = addr_hint &
-> +				(1UL << (pages_per_huge_page + PAGE_SHIFT));
->
->> @@ -4374,9 +4374,31 @@ void clear_huge_page(struct page *page,
->>  	}
->>  
->>  	might_sleep();
->> -	for (i = 0; i < pages_per_huge_page; i++) {
->> +	VM_BUG_ON(clamp(addr_hint, addr, addr +
->> +			(pages_per_huge_page << PAGE_SHIFT)) != addr_hint);
->
-> ... then you can ditch this check
-
-Yes.  This looks good for me.  If there is no objection, I will go this
-way in the next version.
-
-Best Regards,
-Huang, Ying
+>  	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+> @@ -5499,6 +5544,12 @@ static struct cftype memory_files[] = {
+>  		.write = memory_oom_kill_all_tasks_write,
+>  	},
+>  	{
+> +		.name = "oom_priority",
+> +		.flags = CFTYPE_NOT_ON_ROOT,
+> +		.seq_show = memory_oom_priority_show,
+> +		.write = memory_oom_priority_write,
+> +	},
+> +	{
+>  		.name = "events",
+>  		.flags = CFTYPE_NOT_ON_ROOT,
+>  		.file_offset = offsetof(struct mem_cgroup, events_file),
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
