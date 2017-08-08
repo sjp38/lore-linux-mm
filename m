@@ -1,103 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 13C216B02B4
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 09:01:02 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id g71so4444771wmg.13
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 06:01:02 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id i31si1113367wri.344.2017.08.08.06.01.00
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 79A916B025F
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 09:08:10 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id a186so34126443pge.7
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 06:08:10 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 5si855637pfi.554.2017.08.08.06.08.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 08 Aug 2017 06:01:00 -0700 (PDT)
-Subject: Re: [RFC] Tagging of vmalloc pages for supporting the pmalloc
- allocator
-References: <c3a250a6-ad4d-d24d-d0bf-4c43c467ebe6@huawei.com>
- <20170803135549.GW12521@dhcp22.suse.cz> <20170803144746.GA9501@redhat.com>
- <ab4809cd-0efc-a79d-6852-4bd2349a2b3f@huawei.com>
- <20170803151550.GX12521@dhcp22.suse.cz>
- <abe0c086-8c5a-d6fb-63c4-bf75528d0ec5@huawei.com>
- <20170804081240.GF26029@dhcp22.suse.cz>
- <7733852a-67c9-17a3-4031-cb08520b9ad2@huawei.com>
- <20170807133107.GA16616@redhat.com>
- <555dc453-3028-199a-881a-3ddeb41e4d6d@huawei.com>
- <20170807191235.GE16616@redhat.com>
-From: Igor Stoppa <igor.stoppa@huawei.com>
-Message-ID: <c06fdd1a-fb18-8e17-b4fb-ea73ccd93f90@huawei.com>
-Date: Tue, 8 Aug 2017 15:59:36 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Aug 2017 06:08:09 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v78D5HJb127052
+	for <linux-mm@kvack.org>; Tue, 8 Aug 2017 09:08:08 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2c7byh91vj-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 08 Aug 2017 09:08:08 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Tue, 8 Aug 2017 14:08:05 +0100
+Subject: Re: [RFC v5 05/11] mm: fix lock dependency against
+ mapping->i_mmap_rwsem
+References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1497635555-25679-6-git-send-email-ldufour@linux.vnet.ibm.com>
+ <564749a2-a729-b927-7707-1cad897c418a@linux.vnet.ibm.com>
+ <78d903c4-6e9f-e049-de60-6d1ccb45ff92@linux.vnet.ibm.com>
+ <20170808124942.GD20321@quack2.suse.cz>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Tue, 8 Aug 2017 15:08:01 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170807191235.GE16616@redhat.com>
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <20170808124942.GD20321@quack2.suse.cz>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+Message-Id: <7fe897cd-ba24-9969-161b-943dd62de083@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-security-module@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Kees Cook <keescook@google.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
 
-On 07/08/17 22:12, Jerome Glisse wrote:
-> On Mon, Aug 07, 2017 at 05:13:00PM +0300, Igor Stoppa wrote:
-
-[...]
-
->> I have an updated version of the old proposal:
+On 08/08/2017 14:49, Jan Kara wrote:
+> On Tue 08-08-17 14:20:23, Laurent Dufour wrote:
+>> On 08/08/2017 13:17, Anshuman Khandual wrote:
+>>> On 06/16/2017 11:22 PM, Laurent Dufour wrote:
+>>>> kworker/32:1/819 is trying to acquire lock:
+>>>>  (&vma->vm_sequence){+.+...}, at: [<c0000000002f20e0>]
+>>>> zap_page_range_single+0xd0/0x1a0
+>>>>
+>>>> but task is already holding lock:
+>>>>  (&mapping->i_mmap_rwsem){++++..}, at: [<c0000000002f229c>]
+>>>> unmap_mapping_range+0x7c/0x160
+>>>>
+>>>> which lock already depends on the new lock.
+>>>>
+>>>> the existing dependency chain (in reverse order) is:
+>>>>
+>>>> -> #2 (&mapping->i_mmap_rwsem){++++..}:
+>>>>        down_write+0x84/0x130
+>>>>        __vma_adjust+0x1f4/0xa80
+>>>>        __split_vma.isra.2+0x174/0x290
+>>>>        do_munmap+0x13c/0x4e0
+>>>>        vm_munmap+0x64/0xb0
+>>>>        elf_map+0x11c/0x130
+>>>>        load_elf_binary+0x6f0/0x15f0
+>>>>        search_binary_handler+0xe0/0x2a0
+>>>>        do_execveat_common.isra.14+0x7fc/0xbe0
+>>>>        call_usermodehelper_exec_async+0x14c/0x1d0
+>>>>        ret_from_kernel_thread+0x5c/0x68
+>>>>
+>>>> -> #1 (&vma->vm_sequence/1){+.+...}:
+>>>>        __vma_adjust+0x124/0xa80
+>>>>        __split_vma.isra.2+0x174/0x290
+>>>>        do_munmap+0x13c/0x4e0
+>>>>        vm_munmap+0x64/0xb0
+>>>>        elf_map+0x11c/0x130
+>>>>        load_elf_binary+0x6f0/0x15f0
+>>>>        search_binary_handler+0xe0/0x2a0
+>>>>        do_execveat_common.isra.14+0x7fc/0xbe0
+>>>>        call_usermodehelper_exec_async+0x14c/0x1d0
+>>>>        ret_from_kernel_thread+0x5c/0x68
+>>>>
+>>>> -> #0 (&vma->vm_sequence){+.+...}:
+>>>>        lock_acquire+0xf4/0x310
+>>>>        unmap_page_range+0xcc/0xfa0
+>>>>        zap_page_range_single+0xd0/0x1a0
+>>>>        unmap_mapping_range+0x138/0x160
+>>>>        truncate_pagecache+0x50/0xa0
+>>>>        put_aio_ring_file+0x48/0xb0
+>>>>        aio_free_ring+0x40/0x1b0
+>>>>        free_ioctx+0x38/0xc0
+>>>>        process_one_work+0x2cc/0x8a0
+>>>>        worker_thread+0xac/0x580
+>>>>        kthread+0x164/0x1b0
+>>>>        ret_from_kernel_thread+0x5c/0x68
+>>>>
+>>>> other info that might help us debug this:
+>>>>
+>>>> Chain exists of:
+>>>>   &vma->vm_sequence --> &vma->vm_sequence/1 --> &mapping->i_mmap_rwsem
+>>>>
+>>>>  Possible unsafe locking scenario:
+>>>>
+>>>>        CPU0                    CPU1
+>>>>        ----                    ----
+>>>>   lock(&mapping->i_mmap_rwsem);
+>>>>                                lock(&vma->vm_sequence/1);
+>>>>                                lock(&mapping->i_mmap_rwsem);
+>>>>   lock(&vma->vm_sequence);
+>>>>
+>>>>  *** DEADLOCK ***
+>>>>
+>>>> To fix that we must grab the vm_sequence lock after any mapping one in
+>>>> __vma_adjust().
+>>>>
+>>>> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+>>>
+>>> Should not this be folded back into the previous patch ? It fixes an
+>>> issue introduced by the previous one.
 >>
->> * put a magic number in the private field, during initialization of
->> pmalloc pages
->>
->> * during hardened usercopy verification, when I have to assess if a page
->> is of pmalloc type, compare the private field against the magic number
->>
->> * if and only if the private field matches the magic number, then invoke
->> find_vm_area(), so that the slowness affects only a possibly limited
->> amount of false positives.
+>> This is an option, but the previous one was signed by Peter, and I'd prefer
+>> to keep his unchanged and add this new one to fix that.
+>> Again this is to ease the review.
 > 
-> This all sounds good to me.
+> In this particular case I disagree. We should not have buggy patches in the
+> series. It breaks bisectability and the ease of review is IMO very
+> questionable because the previous patch is simply buggy and thus is hard to
+> validate on its own. If the resulting combo would be too complex, you could
+> think of a different way how to split it up so that intermediate steps are
+> not buggy...
 
-ok, I still have one doubt wrt defining the flag.
-Where should I do it?
-
-vmalloc.h has the following:
-
-/* bits in flags of vmalloc's vm_struct below */
-#define VM_IOREMAP		0x00000001	/* ioremap() and friends
-						*/
-#define VM_ALLOC		0x00000002	/* vmalloc() */
-#define VM_MAP			0x00000004	/* vmap()ed pages */
-#define VM_USERMAP		0x00000008	/* suitable for
-						   remap_vmalloc_range
-						*/
-#define VM_UNINITIALIZED	0x00000020	/* vm_struct is not
-						   fully initialized */
-#define VM_NO_GUARD		0x00000040      /* don't add guard page
-						*/
-#define VM_KASAN		0x00000080      /* has allocated kasan
-						shadow memory */
-/* bits [20..32] reserved for arch specific ioremap internals */
-
-
-
-I am tempted to add
-
-#define VM_PMALLOC		0x00000100
-
-But would it be acceptable, to mention pmalloc into vmalloc?
-
-Should I name it VM_PRIVATE bit, instead?
-
-Using VM_PRIVATE would avoid contaminating vmalloc with something that
-depends on it (like VM_PMALLOC would do).
-
-But using VM_PRIVATE will likely add tracking issues, if someone else
-wants to use the same bit and it's not clear who is the user, if any.
-
-Unless it's acceptable to check the private field in the page struct.
-It would bear the pmalloc magic number.
-
-I'm thinking to use a pointer to one of pmalloc data items, as signature.
-
-
---
-igor
+I don't think the combo will become too large, it's just moving some calls
+around. So as bisectability seems to be more important than readability,
+I'll merge it into the original Peter's patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
