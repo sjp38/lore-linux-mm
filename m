@@ -1,57 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BEFEB6B02C3
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 09:34:11 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id m84so15718871qki.5
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 06:34:11 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id h18si1202730qkh.257.2017.08.08.06.34.10
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F38156B02F3
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 09:34:18 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id 65so6333205lfa.1
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 06:34:18 -0700 (PDT)
+Received: from mail-lf0-x22a.google.com (mail-lf0-x22a.google.com. [2a00:1450:4010:c07::22a])
+        by mx.google.com with ESMTPS id e86si600773lji.325.2017.08.08.06.34.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 06:34:11 -0700 (PDT)
-Subject: Re: [v6 11/15] arm64/kasan: explicitly zero kasan shadow memory
-References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
- <1502138329-123460-12-git-send-email-pasha.tatashin@oracle.com>
- <20170808090743.GA12887@arm.com>
- <f8b2b9ed-abf0-0c16-faa2-98b66dcbed78@oracle.com>
- <063D6719AE5E284EB5DD2968C1650D6DD004DA79@AcuExch.aculab.com>
-From: Pasha Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <43c261e5-7568-0d5b-70ab-d1f82ef257ec@oracle.com>
-Date: Tue, 8 Aug 2017 09:30:58 -0400
+        Tue, 08 Aug 2017 06:34:16 -0700 (PDT)
+Received: by mail-lf0-x22a.google.com with SMTP id d17so14975425lfe.0
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 06:34:16 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <063D6719AE5E284EB5DD2968C1650D6DD004DA79@AcuExch.aculab.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170807065827.GC32434@dhcp22.suse.cz>
+References: <20170802105018.GA2529@dhcp22.suse.cz> <CAGH-Kgt_9So8bDe=yDF3yLZHDfDgeXsnBEu_X6uE_nQnoi=5Vg@mail.gmail.com>
+ <20170803081152.GC12521@dhcp22.suse.cz> <5aca0179-3b04-aa1a-58cd-668a04f63ae7@I-love.SAKURA.ne.jp>
+ <20170803103337.GH12521@dhcp22.suse.cz> <201708031944.JCB39029.SJOOOLHFQFMVFt@I-love.SAKURA.ne.jp>
+ <20170803110548.GK12521@dhcp22.suse.cz> <CAHC9VhQ_TtFPQL76OEui8_rfvDJ5i6AEdPdYLSHtn1vtWEKTOA@mail.gmail.com>
+ <20170804075636.GD26029@dhcp22.suse.cz> <CAHC9VhR_SJUg2wkKhoeXHJeLrNFh=KYwSgz-5X57xx0Maa95Mg@mail.gmail.com>
+ <20170807065827.GC32434@dhcp22.suse.cz>
+From: Paul Moore <paul@paul-moore.com>
+Date: Tue, 8 Aug 2017 09:34:15 -0400
+Message-ID: <CAHC9VhRGmBn7EA1iLzHjv2A3nawc5ZtZs+cjdVm4BUX0wGGHVA@mail.gmail.com>
+Subject: Re: suspicious __GFP_NOMEMALLOC in selinux
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Laight <David.Laight@ACULAB.COM>, Will Deacon <will.deacon@arm.com>
-Cc: "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "sam@ravnborg.org" <sam@ravnborg.org>, "borntraeger@de.ibm.com" <borntraeger@de.ibm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "x86@kernel.org" <x86@kernel.org>, "heiko.carstens@de.ibm.com" <heiko.carstens@de.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "willy@infradead.org" <willy@infradead.org>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "davem@davemloft.net" <davem@davemloft.net>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Michal Hocko <mhocko@kernel.org>, mgorman@suse.de
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, selinux@tycho.nsa.gov
 
-On 2017-08-08 09:15, David Laight wrote:
-> From: Pasha Tatashin
->> Sent: 08 August 2017 12:49
->> Thank you for looking at this change. What you described was in my
->> previous iterations of this project.
+On Mon, Aug 7, 2017 at 2:58 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Fri 04-08-17 13:12:04, Paul Moore wrote:
+>> On Fri, Aug 4, 2017 at 3:56 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> [...]
+>> > Btw. Should I resend the patch or somebody will take it from this email
+>> > thread?
 >>
->> See for example here: https://lkml.org/lkml/2017/5/5/369
->>
->> I was asked to remove that flag, and only zero memory in place when
->> needed. Overall the current approach is better everywhere else in the
->> kernel, but it adds a little extra code to kasan initialization.
-> 
-> Perhaps you could #define the function prototype(s?) so that the flags
-> are not passed unless it is a kasan build?
-> 
+>> No, unless your mailer mangled the patch I should be able to pull it
+>> from this thread.  However, I'm probably going to let this sit until
+>> early next week on the odd chance that anyone else wants to comment on
+>> the flag choice.  I'll send another reply once I merge the patch.
+>
+> OK, there is certainly no hurry for merging this. Thanks!
+> --
+> Michal Hocko
+> SUSE Labs
 
-Hi David,
+Merged into selinux/next with this patch description, and your
+sign-off (I had to munge the description a bit based on the thread).
+Are you okay with this, especially your sign-off?
 
-Thank you for suggestion. I think a kasan specific vmemmap (what I 
-described in the previous e-mail) would be a better solution over having 
-different prototypes with different builds.  It would be cleaner to have 
-all kasan specific code in one place.
+  commit 476accbe2f6ef69caeebe99f52a286e12ac35aee
+  Author: Michal Hocko <mhocko@kernel.org>
+  Date:   Thu Aug 3 10:11:52 2017 +0200
 
-Pasha
+   selinux: use GFP_NOWAIT in the AVC kmem_caches
+
+   There is a strange __GFP_NOMEMALLOC usage pattern in SELinux,
+   specifically GFP_ATOMIC | __GFP_NOMEMALLOC which doesn't make much
+   sense.  GFP_ATOMIC on its own allows to access memory reserves while
+   __GFP_NOMEMALLOC dictates we cannot use memory reserves.  Replace this
+   with the much more sane GFP_NOWAIT in the AVC code as we can tolerate
+   memory allocation failures in that code.
+
+   Signed-off-by: Michal Hocko <mhocko@kernel.org>
+   Acked-by: Mel Gorman <mgorman@suse.de>
+   Signed-off-by: Paul Moore <paul@paul-moore.com>
+
+-- 
+paul moore
+www.paul-moore.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
