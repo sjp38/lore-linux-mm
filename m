@@ -1,41 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A508F6B025F
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 16:01:38 -0400 (EDT)
-Received: by mail-ua0-f200.google.com with SMTP id x35so15495255uax.11
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 13:01:38 -0700 (PDT)
-Received: from mail-vk0-x232.google.com (mail-vk0-x232.google.com. [2607:f8b0:400c:c05::232])
-        by mx.google.com with ESMTPS id o75si1080248uao.70.2017.08.08.13.01.37
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 11BB06B025F
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 16:08:56 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g32so6069381wrd.8
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 13:08:56 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id b24si1842941edj.359.2017.08.08.13.08.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 13:01:37 -0700 (PDT)
-Received: by mail-vk0-x232.google.com with SMTP id g189so17936263vke.5
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 13:01:37 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 08 Aug 2017 13:08:54 -0700 (PDT)
+Date: Tue, 8 Aug 2017 16:08:49 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: kernel panic on null pointer on page->mem_cgroup
+Message-ID: <20170808200849.GA1104@cmpxchg.org>
+References: <20170805155241.GA94821@jaegeuk-macbookpro.roam.corp.google.com>
+ <20170808010150.4155-1-bradleybolen@gmail.com>
+ <20170808162122.GA14689@cmpxchg.org>
+ <20170808165601.GA7693@jaegeuk-macbookpro.roam.corp.google.com>
+ <20170808173704.GA22887@cmpxchg.org>
+ <CADvgSZSn1v-tTpa07ebqr19heQbkzbavdPM_nbRNR1WF-EBnFw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170807070029.GD32434@dhcp22.suse.cz>
-References: <20170801124111.28881-1-mhocko@kernel.org> <20170807070029.GD32434@dhcp22.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 8 Aug 2017 13:01:36 -0700
-Message-ID: <CAPcyv4gYGohbfme8Ouih_L2mzDiz=7g-KTTwmQNZaw=VXxB4uQ@mail.gmail.com>
-Subject: Re: [RFC PATCH v2 0/6] mm, memory_hotplug: allocate memmap from
- hotadded memory
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CADvgSZSn1v-tTpa07ebqr19heQbkzbavdPM_nbRNR1WF-EBnFw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Fenghua Yu <fenghua.yu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, X86 ML <x86@kernel.org>
+To: Brad Bolen <bradleybolen@gmail.com>
+Cc: Jaegeuk Kim <jaegeuk@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 7, 2017 at 12:00 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> Any comments? Especially for the arch specific? Has anybody had a chance
-> to test this? I do not want to rush this but I would be really glag if
-> we could push this work in 4.14 merge window.
+On Tue, Aug 08, 2017 at 03:13:42PM -0400, Brad Bolen wrote:
+> On Tue, Aug 8, 2017 at 1:37 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > On Tue, Aug 08, 2017 at 09:56:01AM -0700, Jaegeuk Kim wrote:
+> >> On 08/08, Johannes Weiner wrote:
+> >> > Hi Jaegeuk and Bradley,
+> >> >
+> >> > On Mon, Aug 07, 2017 at 09:01:50PM -0400, Bradley Bolen wrote:
+> >> > > I am getting a very similar error on v4.11 with an arm64 board.
+> >> > >
+> >> > > I, too, also see page->mem_cgroup checked to make sure that it is not
+> >> > > NULL and then several instructions later it is NULL.  It does appear
+> >> > > that someone is changing that member without taking the lock.  In my
+> >> > > setup, I see
+> >> > >
+> >> > > crash> bt
+> >> > > PID: 72     TASK: e1f48640  CPU: 0   COMMAND: "mmcqd/1"
+> >> > >  #0 [<c00ad35c>] (__crash_kexec) from [<c0101080>]
+> >> > >  #1 [<c0101080>] (panic) from [<c028cd6c>]
+> >> > >  #2 [<c028cd6c>] (svcerr_panic) from [<c028cdc4>]
+> >> > >  #3 [<c028cdc4>] (_SvcErr_) from [<c001474c>]
+> >> > >  #4 [<c001474c>] (die) from [<c00241f8>]
+> >> > >  #5 [<c00241f8>] (__do_kernel_fault) from [<c0560600>]
+> >> > >  #6 [<c0560600>] (do_page_fault) from [<c00092e8>]
+> >> > >  #7 [<c00092e8>] (do_DataAbort) from [<c055f9f0>]
+> >> > >     pc : [<c0112540>]    lr : [<c0112518>]    psr: a0000193
+> >> > >     sp : c1a19cc8  ip : 00000000  fp : c1a19d04
+> >> > >     r10: 0006ae29  r9 : 00000000  r8 : dfbf1800
+> >> > >     r7 : dfbf1800  r6 : 00000001  r5 : f3c1107c  r4 : e2fb6424
+> >> > >     r3 : 00000000  r2 : 00040228  r1 : 221e3000  r0 : a0000113
+> >> > >     Flags: NzCv  IRQs off  FIQs on  Mode SVC_32  ISA ARM
+> >> > >  #8 [<c055f9f0>] (__dabt_svc) from [<c0112518>]
+> >> > >  #9 [<c0112540>] (test_clear_page_writeback) from [<c01046d4>]
+> >> > > #10 [<c01046d4>] (end_page_writeback) from [<c0149bcc>]
+> >> > > #11 [<c0149bcc>] (end_swap_bio_write) from [<c0261460>]
+> >> > > #12 [<c0261460>] (bio_endio) from [<c042c800>]
+> >> > > #13 [<c042c800>] (dec_pending) from [<c042e648>]
+> >> > > #14 [<c042e648>] (clone_endio) from [<c0261460>]
+> >> > > #15 [<c0261460>] (bio_endio) from [<bf60aa00>]
+> >> > > #16 [<bf60aa00>] (crypt_dec_pending [dm_crypt]) from [<bf60c1e8>]
+> >> > > #17 [<bf60c1e8>] (crypt_endio [dm_crypt]) from [<c0261460>]
+> >> > > #18 [<c0261460>] (bio_endio) from [<c0269e34>]
+> >> > > #19 [<c0269e34>] (blk_update_request) from [<c026a058>]
+> >> > > #20 [<c026a058>] (blk_update_bidi_request) from [<c026a444>]
+> >> > > #21 [<c026a444>] (blk_end_bidi_request) from [<c026a494>]
+> >> > > #22 [<c026a494>] (blk_end_request) from [<c0458dbc>]
+> >> > > #23 [<c0458dbc>] (mmc_blk_issue_rw_rq) from [<c0459e24>]
+> >> > > #24 [<c0459e24>] (mmc_blk_issue_rq) from [<c045a018>]
+> >> > > #25 [<c045a018>] (mmc_queue_thread) from [<c0048890>]
+> >> > > #26 [<c0048890>] (kthread) from [<c0010388>]
+> >> > > crash> sym c0112540
+> >> > > c0112540 (T) test_clear_page_writeback+512
+> >> > >  /kernel-source/include/linux/memcontrol.h: 518
+> >> > >
+> >> > > crash> bt 35
+> >> > > PID: 35     TASK: e1d45dc0  CPU: 1   COMMAND: "kswapd0"
+> >> > >  #0 [<c0559ab8>] (__schedule) from [<c0559edc>]
+> >> > >  #1 [<c0559edc>] (schedule) from [<c055e54c>]
+> >> > >  #2 [<c055e54c>] (schedule_timeout) from [<c055a3a4>]
+> >> > >  #3 [<c055a3a4>] (io_schedule_timeout) from [<c0106cb0>]
+> >> > >  #4 [<c0106cb0>] (mempool_alloc) from [<c0261668>]
+> >> > >  #5 [<c0261668>] (bio_alloc_bioset) from [<c0149d68>]
+> >> > >  #6 [<c0149d68>] (get_swap_bio) from [<c014a280>]
+> >> > >  #7 [<c014a280>] (__swap_writepage) from [<c014a3bc>]
+> >> > >  #8 [<c014a3bc>] (swap_writepage) from [<c011e5c8>]
+> >> > >  #9 [<c011e5c8>] (shmem_writepage) from [<c011a9b8>]
+> >> > > #10 [<c011a9b8>] (shrink_page_list) from [<c011b528>]
+> >> > > #11 [<c011b528>] (shrink_inactive_list) from [<c011c160>]
+> >> > > #12 [<c011c160>] (shrink_node_memcg) from [<c011c400>]
+> >> > > #13 [<c011c400>] (shrink_node) from [<c011d7dc>]
+> >> > > #14 [<c011d7dc>] (kswapd) from [<c0048890>]
+> >> > > #15 [<c0048890>] (kthread) from [<c0010388>]
+> >> > >
+> >> > > It appears that uncharge_list() in mm/memcontrol.c is not taking the
+> >> > > page lock when it sets mem_cgroup to NULL.  I am not familiar with the
+> >> > > mm code so I do not know if this is on purpose or not.  There is a
+> >> > > comment in uncharge_list that makes me believe that the crashing code
+> >> > > should not have been running:
+> >> > > /*
+> >> > >  * Nobody should be changing or seriously looking at
+> >> > >  * page->mem_cgroup at this point, we have fully
+> >> > >  * exclusive access to the page.
+> >> > >  */
+> >> > > However, I am new to looking at this area of the kernel so I am not
+> >> > > sure.
+> >> >
+> >> > The lock is for pages that are actively being used, whereas the free
+> >> > path requires the page refcount to be 0; nobody else should be having
+> >> > access to the page at that time.
+> >>
+> >> Given various trials for a while, using __mod_memcg_state() instead of
+> >> mod_memcg_state() ssems somehow blowing the panic away. It might be caused
+> >> by kernel preemption?
+> >
+> > That's puzzling. Is that reliably the case? Because on x86-64,
+> > __this_cpu_add and this_cpu_add should result in the same code:
+> >
+> > #define raw_cpu_add_8(pcp, val)                 percpu_add_op((pcp), val)
+> > #define this_cpu_add_8(pcp, val)                percpu_add_op((pcp), val)
+> >
+> > which boils down to single instructions - incq, decq, addq - and so
+> > never needs explicit disabling of scheduler or interrupt preemption.
+> >
+> >> > > I was able to create a reproducible scenario by using a udelay to
+> >> > > increase the time between the if (page->mem_cgroup) check and the later
+> >> > > dereference of it to increase the race window.  I then mounted an empty
+> >> > > ext4 partition and ran the following no more than twice before it
+> >> > > crashed.
+> >> > > dd if=/dev/zero of=/tmp/ext4disk/test bs=1M count=100
+> >> >
+> >> > Thanks, that's useful. I'm going to try to reproduce this also.
+> >> >
+> >> > There is a
+> >> >
+> >> >     VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
+> >> >
+> >> > inside uncharge_list() that verifies that there shouldn't in fact be
+> >> > any pages ending writeback when they get into that function. Can you
+> >> > build your kernel with CONFIG_DEBUG_VM to enable that test?
+> >>
+> >> I'll test this as well. ;)
+> >
+> > Thanks. I'm trying various udelays in between the NULL-check and the
+> > dereference, but I cannot seem to make it happen with the ext4-dd on
+> > my local machine.
+> I am using a fairly fat udelay of 100.
+> 
+> I turned on CONFIG_DEBUG_VM but it didn't bug for me, although the original
+> problem still reproduced.
 
-Hi Michal,
+Ok that sounds like a page refcounting bug then.
 
-I'm interested in taking a look at this especially if we might be able
-to get rid of vmem_altmap, but this is currently stuck behind some
-other work in my queue. I'll try to circle back in the next couple
-weeks.
+> I can insert some tracing to try to get some more information, but unfortunately
+> I am stuck with v4.11 at the moment and can't try v4.13-rc4 on this setup.
+
+Does the below trigger with your reproducer? (Still doesn't for me).
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 3914e3dd6168..c052b085c5dd 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -599,6 +599,7 @@ static inline void __mod_lruvec_page_state(struct page *page,
+ 	struct mem_cgroup_per_node *pn;
+ 
+ 	__mod_node_page_state(page_pgdat(page), idx, val);
++	VM_BUG_ON_PAGE(!page_count(page), page);
+ 	if (mem_cgroup_disabled() || !page->mem_cgroup)
+ 		return;
+ 	__mod_memcg_state(page->mem_cgroup, idx, val);
+@@ -612,6 +613,7 @@ static inline void mod_lruvec_page_state(struct page *page,
+ 	struct mem_cgroup_per_node *pn;
+ 
+ 	mod_node_page_state(page_pgdat(page), idx, val);
++	VM_BUG_ON_PAGE(!page_count(page), page);
+ 	if (mem_cgroup_disabled() || !page->mem_cgroup)
+ 		return;
+ 	mod_memcg_state(page->mem_cgroup, idx, val);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
