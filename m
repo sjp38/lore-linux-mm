@@ -1,101 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 757EC6B02F3
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 01:51:05 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id d15so11221196qta.11
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 22:51:05 -0700 (PDT)
-Received: from mail-qt0-x243.google.com (mail-qt0-x243.google.com. [2607:f8b0:400d:c0d::243])
-        by mx.google.com with ESMTPS id p31si551340qtp.188.2017.08.07.22.51.04
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C70126B025F
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 02:08:26 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id g71so3238620wmg.13
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 23:08:26 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id r129si581144wma.40.2017.08.07.23.08.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Aug 2017 22:51:04 -0700 (PDT)
-Received: by mail-qt0-x243.google.com with SMTP id i19so2439701qte.1
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 22:51:04 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Re: [lkp-robot] [mm]  7674270022:  will-it-scale.per_process_ops
- -19.3% regression
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <93CA4B47-95C2-43A2-8E92-B142CAB1DAF7@gmail.com>
-Date: Mon, 7 Aug 2017 22:51:00 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <970B5DC5-BFC2-461E-AC46-F71B3691D301@gmail.com>
-References: <20170802000818.4760-7-namit@vmware.com>
- <20170808011923.GE25554@yexl-desktop> <20170808022830.GA28570@bbox>
- <93CA4B47-95C2-43A2-8E92-B142CAB1DAF7@gmail.com>
+        Mon, 07 Aug 2017 23:08:25 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7863phY060819
+	for <linux-mm@kvack.org>; Tue, 8 Aug 2017 02:08:24 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2c728rbf45-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 08 Aug 2017 02:08:23 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 8 Aug 2017 07:08:22 +0100
+Date: Tue, 8 Aug 2017 09:08:17 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH] userfaultfd: replace ENOSPC with ESRCH in case mm has
+ gone during copy/zeropage
+References: <1502111545-32305-1-git-send-email-rppt@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1502111545-32305-1-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <20170808060816.GA31648@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: kernel test robot <xiaolong.ye@intel.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Russell King <linux@armlinux.org.uk>, Tony Luck <tony.luck@intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, "David S. Miller" <davem@davemloft.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Jeff Dike <jdike@addtoit.com>, linux-arch@vger.kernel.org, lkp@01.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Mike Kravetz <mike.kravetz@oracle.com>, Michal Hocko <mhocko@suse.com>
 
-Nadav Amit <nadav.amit@gmail.com> wrote:
+(adding Michal)
 
-> Minchan Kim <minchan@kernel.org> wrote:
->=20
->> Hi,
->>=20
->> On Tue, Aug 08, 2017 at 09:19:23AM +0800, kernel test robot wrote:
->>> Greeting,
->>>=20
->>> FYI, we noticed a -19.3% regression of will-it-scale.per_process_ops =
-due to commit:
->>>=20
->>>=20
->>> commit: 76742700225cad9df49f05399381ac3f1ec3dc60 ("mm: fix =
-MADV_[FREE|DONTNEED] TLB flush miss problem")
->>> url: =
-https://github.com/0day-ci/linux/commits/Nadav-Amit/mm-migrate-prevent-rac=
-y-access-to-tlb_flush_pending/20170802-205715
->>>=20
->>>=20
->>> in testcase: will-it-scale
->>> on test machine: 88 threads Intel(R) Xeon(R) CPU E5-2699 v4 @ =
-2.20GHz with 64G memory
->>> with following parameters:
->>>=20
->>> 	nr_task: 16
->>> 	mode: process
->>> 	test: brk1
->>> 	cpufreq_governor: performance
->>>=20
->>> test-description: Will It Scale takes a testcase and runs it from 1 =
-through to n parallel copies to see if the testcase will scale. It =
-builds both a process and threads based test in order to see any =
-differences between the two.
->>> test-url: https://github.com/antonblanchard/will-it-scale
->>=20
->> Thanks for the report.
->> Could you explain what kinds of workload you are testing?
->>=20
->> Does it calls frequently madvise(MADV_DONTNEED) in parallel on =
-multiple
->> threads?
->=20
-> According to the description it is "testcase:brk increase/decrease of =
-one
-> page=E2=80=9D. According to the mode it spawns multiple processes, not =
-threads.
->=20
-> Since a single page is unmapped each time, and the iTLB-loads increase
-> dramatically, I would suspect that for some reason a full TLB flush is
-> caused during do_munmap().
->=20
-> If I find some free time, I=E2=80=99ll try to profile the workload - =
-but feel free
-> to beat me to it.
+On Mon, Aug 07, 2017 at 04:12:25PM +0300, Mike Rapoport wrote:
+> When the process exit races with outstanding mcopy_atomic, it would be
+> better to return ESRCH error. When such race occurs the process and it's mm
+> are going away and returning "no such process" to the uffd monitor seems
+> better fit than ENOSPC.
+> 
+> Suggested-by: Michal Hocko <mhocko@suse.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+> Cc: Pavel Emelyanov <xemul@virtuozzo.com>
+> Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> ---
+> The man-pages update is ready and I'll send it out once the patch is
+> merged.
+> 
+>  fs/userfaultfd.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> index 06ea26b8c996..b0d5897bc4e6 100644
+> --- a/fs/userfaultfd.c
+> +++ b/fs/userfaultfd.c
+> @@ -1600,7 +1600,7 @@ static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
+>  				   uffdio_copy.len);
+>  		mmput(ctx->mm);
+>  	} else {
+> -		return -ENOSPC;
+> +		return -ESRCH;
+>  	}
+>  	if (unlikely(put_user(ret, &user_uffdio_copy->copy)))
+>  		return -EFAULT;
+> @@ -1647,7 +1647,7 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
+>  				     uffdio_zeropage.range.len);
+>  		mmput(ctx->mm);
+>  	} else {
+> -		return -ENOSPC;
+> +		return -ESRCH;
+>  	}
+>  	if (unlikely(put_user(ret, &user_uffdio_zeropage->zeropage)))
+>  		return -EFAULT;
+> -- 
+> 2.7.4
+> 
 
-The root-cause appears to be that tlb_finish_mmu() does not call
-dec_tlb_flush_pending() - as it should. Any chance you can take care of =
-it?
-
-Having said that it appears that cpumask_any_but() is really inefficient
-since it does not have an optimization for the case in which
-small_const_nbits(nbits)=3D=3Dtrue. When I find some free time, I=E2=80=99=
-ll try to deal
-with it.
-
-Thanks,
-Nadav=
+-- 
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
