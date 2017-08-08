@@ -1,98 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 36A796B025F
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 18:08:28 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id p135so22148015qke.0
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 15:08:28 -0700 (PDT)
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4162A6B02B4
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 18:57:25 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id l13so22239932qtc.15
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 15:57:25 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k77si1783157qke.89.2017.08.08.15.08.27
+        by mx.google.com with ESMTPS id r190si1798373qkf.190.2017.08.08.15.57.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 15:08:27 -0700 (PDT)
+        Tue, 08 Aug 2017 15:57:24 -0700 (PDT)
 From: jglisse@redhat.com
-Subject: [PATCH] mm/rmap/mmu_notifier: restore mmu_notifier_invalidate_page() semantic
-Date: Tue,  8 Aug 2017 18:08:20 -0400
-Message-Id: <20170808220820.16503-1-jglisse@redhat.com>
+Subject: [PATCH] mm/mmu_notifier: fix deadlock from typo vm_lock_anon_vma()
+Date: Tue,  8 Aug 2017 18:57:19 -0400
+Message-Id: <20170808225719.20723-1-jglisse@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Davidlohr Bueso <dbueso@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 
 From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-Commit c7ab0d2fdc840266b39db94538f74207ec2afbf6 silently modified
-semantic of mmu_notifier_invalidate_page() this patch restore it
-to its previous semantic ie allowing to sleep inside invalidate_page()
-callback.
+Fix typo introduced by 0c67e6038580e343bd5af12b7ac6548634f05f0d
+which result in dead lock when mm_take_all_locks() is call (only
+user being mmu_notifier at this time)
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Davidlohr Bueso <dbueso@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/rmap.c | 22 +++++++++++++++++++---
- 1 file changed, 19 insertions(+), 3 deletions(-)
+ mm/mmap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 92070cfd63e9..fc1e2ab194c0 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -888,6 +888,8 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
- 		.address = address,
- 		.flags = PVMW_SYNC,
- 	};
-+	unsigned long start = address, end = address;
-+	bool invalidate = false;
- 	int *cleaned = arg;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 74abfd382478..2d906a8f67ac 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3314,7 +3314,7 @@ static DEFINE_MUTEX(mm_all_locks_mutex);
  
- 	while (page_vma_mapped_walk(&pvmw)) {
-@@ -927,11 +929,17 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
- 		}
- 
- 		if (ret) {
--			mmu_notifier_invalidate_page(vma->vm_mm, address);
-+			invalidate = true;
-+			end = address;
- 			(*cleaned)++;
- 		}
- 	}
- 
-+	if (invalidate) {
-+		for (address = start; address <= end; address += PAGE_SIZE)
-+			mmu_notifier_invalidate_page(vma->vm_mm, address);
-+	}
-+
- 	return true;
- }
- 
-@@ -1324,7 +1332,8 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 	};
- 	pte_t pteval;
- 	struct page *subpage;
--	bool ret = true;
-+	bool ret = true, invalidate = false;
-+	unsigned long start = address, end = address;
- 	enum ttu_flags flags = (enum ttu_flags)arg;
- 
- 	/* munlock has nothing to gain from examining un-locked vmas */
-@@ -1528,8 +1537,15 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- discard:
- 		page_remove_rmap(subpage, PageHuge(page));
- 		put_page(page);
--		mmu_notifier_invalidate_page(mm, address);
-+		end = address;
-+		invalidate = true;
- 	}
-+
-+	if (invalidate) {
-+		for (address = start; address <= end; address += PAGE_SIZE)
-+			mmu_notifier_invalidate_page(mm, address);
-+	}
-+
- 	return ret;
- }
- 
+ static void vm_lock_anon_vma(struct mm_struct *mm, struct anon_vma *anon_vma)
+ {
+-	if (!test_bit(0, (unsigned long *) &anon_vma->rb_root.rb_root.rb_node)) {
++	if (!test_bit(0, (unsigned long *) &anon_vma->root->rb_root.rb_root.rb_node)) {
+ 		/*
+ 		 * The LSB of head.next can't change from under us
+ 		 * because we hold the mm_all_locks_mutex.
 -- 
 2.13.4
 
