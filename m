@@ -1,52 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 094FC6B049F
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 11:01:35 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id s23so30239760ioe.8
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 08:01:35 -0700 (PDT)
-Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
-        by mx.google.com with ESMTPS id u18si1553908ioi.269.2017.08.08.08.01.33
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 922896B02C3
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 11:20:02 -0400 (EDT)
+Received: by mail-ua0-f198.google.com with SMTP id p32so12909478uag.13
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 08:20:02 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id 205si790849vkc.106.2017.08.08.08.20.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 08:01:33 -0700 (PDT)
-Date: Tue, 8 Aug 2017 10:01:31 -0500 (CDT)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH] mm/slub.c: Allow poisoning to use the fast path
-In-Reply-To: <CAGXu5jKsb+7NyKLemdkS4ENtxuQzbaDY2h2DnMEr+=qBqJAJqw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1708080957470.25441@nuc-kabylake>
-References: <20170804231002.20362-1-labbott@redhat.com> <alpine.DEB.2.20.1708070936400.17268@nuc-kabylake> <559096f0-bf1b-eff1-f0ce-33f53a4df255@redhat.com> <alpine.DEB.2.20.1708071302310.18681@nuc-kabylake> <e0fc8a0a-fa52-e644-1fc2-4e96082858e0@redhat.com>
- <CAGXu5jKsb+7NyKLemdkS4ENtxuQzbaDY2h2DnMEr+=qBqJAJqw@mail.gmail.com>
+        Tue, 08 Aug 2017 08:20:01 -0700 (PDT)
+Subject: Re: [PATCH v2 0/2] mm,fork,security: introduce MADV_WIPEONFORK
+References: <20170806140425.20937-1-riel@redhat.com>
+ <a0d79f77-f916-d3d6-1d61-a052581dbd4a@oracle.com>
+ <bfdab709-e5b2-0d26-1c0f-31535eda1678@redhat.com>
+ <1502198148.6577.18.camel@redhat.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <0324df31-717d-32c1-95ef-351c5b23105f@oracle.com>
+Date: Tue, 8 Aug 2017 08:19:48 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <1502198148.6577.18.camel@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Laura Abbott <labbott@redhat.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
+To: Rik van Riel <riel@redhat.com>, Florian Weimer <fweimer@redhat.com>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, colm@allcosts.net, akpm@linux-foundation.org, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org, kirill@shutemov.name, dave.hansen@intel.com
 
+On 08/08/2017 06:15 AM, Rik van Riel wrote:
+> On Tue, 2017-08-08 at 11:58 +0200, Florian Weimer wrote:
+>> On 08/07/2017 08:23 PM, Mike Kravetz wrote:
+>>> If my thoughts above are correct, what about returning EINVAL if
+>>> one
+>>> attempts to set MADV_DONTFORK on mappings set up for sharing?
+>>
+>> That's my preference as well.  If there is a use case for shared or
+>> non-anonymous mappings, then we can implement MADV_DONTFORK with the
+>> semantics for this use case.  If we pick some arbitrary semantics
+>> now,
+>> without any use case, we might end up with something that's not
+>> actually
+>> useful.
+> 
+> MADV_DONTFORK is existing semantics, and it is enforced
+> on shared, non-anonymous mappings. It is frequently used
+> for things like device mappings, which should not be
+> inherited by a child process, because the device can only
+> be used by one process at a time.
+> 
+> When someone requests MADV_DONTFORK on a shared VMA, they
+> will get it. The later madvise request overrides the mmap
+> flags that were used earlier.
+> 
+> The question is, should MADV_WIPEONFORK (introduced by
+> this series) have not just different semantics, but also
+> totally different behavior from MADV_DONTFORK?
 
-On Mon, 7 Aug 2017, Kees Cook wrote:
->
-> To clarify, this is desirable to kill exploitation of
-> exposure-after-free flaws and some classes of use-after-free flaws,
-> since the contents will have be wiped out after a free. (Verification
-> of poison is nice, but is expensive compared to the benefit against
-> these exploits -- and notably doesn't protect against the other
-> use-after-free attacks where the contents are changed after the next
-> allocation, which would have passed the poison verification.)
+Sorry for the confusion.  I accidentally used MADV_DONTFORK instead
+of MADV_WIPEONFORK in my reply (which Florian commented on).
 
-Well the only variable in the freed area that is in use by the allocator
-is the free pointer. This ensures that complete object is poisoned and the
-free pointer has a separate storage area right? So the size of the slab
-objects increase. In addition to more hotpath processing we also have
-increased object sizes.
+> Does the principle of least surprise dictate that the
+> last request determines the policy on an area, or should
+> later requests not be able to override policy that was
+> set at mmap time?
 
-I am not familiar with the terminology here.
+That is the question.
 
-So exposure-after-free means that the contents of the object can be used
-after it was freed?
+The other question I was trying to bring up is "What does MADV_WIPEONFORK
+mean for various types of mappings?"  For example, if we allow
+MADV_WIPEONFORK on a file backed mapping what does that mapping look
+like in the child after fork?  Does it have any connection at all to the
+file?  Or, do we drop all references to the file and essentially transform
+it to a private (or shared?) anonymous mapping after fork.  What about
+System V shared memory?  What about hugetlb?
 
-Contents are changed after allocation? Someone gets a pointer to the
-object and the mods it later?
+If the use case is fairly specific, then perhaps it makes sense to
+make MADV_WIPEONFORK not applicable (EINVAL) for mappings where the
+result is 'questionable'.
+
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
