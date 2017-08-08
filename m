@@ -1,74 +1,211 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 98DD16B03B5
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 08:55:07 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id y190so33997868pgb.3
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 05:55:07 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 21DB56B03BD
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 08:55:10 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id y129so34132487pgy.1
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 05:55:10 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
         by mx.google.com with ESMTPS id g2si663226pln.360.2017.08.08.05.55.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 08 Aug 2017 05:55:06 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 04/14] x86/xen: Provide pre-built page tables only for XEN_PV and XEN_PVH
-Date: Tue,  8 Aug 2017 15:54:05 +0300
-Message-Id: <20170808125415.78842-5-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 03/14] x86/kasan: Use the same shadow offset for 4- and 5-level paging
+Date: Tue,  8 Aug 2017 15:54:04 +0300
+Message-Id: <20170808125415.78842-4-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170808125415.78842-1-kirill.shutemov@linux.intel.com>
 References: <20170808125415.78842-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-Looks like we only need pre-built page tables for XEN_PV and XEN_PVH
-cases. Let's not provide them for other configurations.
+We are going to support boot-time switching between 4- and 5-level
+paging. For KASAN it means we cannot have different KASAN_SHADOW_OFFSET
+for different paging modes: the constant is passed to gcc to generate
+code and cannot be changed at runtime.
 
+This patch changes KASAN code to use 0xdffffc0000000000 as shadow offset
+for both 4- and 5-level paging.
+
+For 5-level paging it means that shadow memory region is not aligned to
+PGD boundary anymore and we have to handle unaligned parts of the region
+properly.
+
+In addition, we have to exclude paravirt code from KASAN instrumentation
+as we now use set_pgd() before KASAN is fully ready.
+
+Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+[kirill.shutemov@linux.intel.com: clenaup, changelog message]
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reviewed-by: Juergen Gross <jgross@suse.com>
 ---
- arch/x86/kernel/head_64.S | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ arch/x86/Kconfig            |  1 -
+ arch/x86/kernel/Makefile    |  3 +-
+ arch/x86/mm/kasan_init_64.c | 86 ++++++++++++++++++++++++++++++++++-----------
+ 3 files changed, 67 insertions(+), 23 deletions(-)
 
-diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
-index 513cbb012ecc..2be7d1e7fcf1 100644
---- a/arch/x86/kernel/head_64.S
-+++ b/arch/x86/kernel/head_64.S
-@@ -37,11 +37,12 @@
-  *
-  */
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index ce3ed304288d..2c9c4899d9ff 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -299,7 +299,6 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+ config KASAN_SHADOW_OFFSET
+ 	hex
+ 	depends on KASAN
+-	default 0xdff8000000000000 if X86_5LEVEL
+ 	default 0xdffffc0000000000
  
--#define p4d_index(x)	(((x) >> P4D_SHIFT) & (PTRS_PER_P4D-1))
- #define pud_index(x)	(((x) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
+ config HAVE_INTEL_TXT
+diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+index 287eac7d207f..4509140232c3 100644
+--- a/arch/x86/kernel/Makefile
++++ b/arch/x86/kernel/Makefile
+@@ -24,7 +24,8 @@ endif
+ KASAN_SANITIZE_head$(BITS).o				:= n
+ KASAN_SANITIZE_dumpstack.o				:= n
+ KASAN_SANITIZE_dumpstack_$(BITS).o			:= n
+-KASAN_SANITIZE_stacktrace.o := n
++KASAN_SANITIZE_stacktrace.o				:= n
++KASAN_SANITIZE_paravirt.o				:= n
  
-+#if defined(CONFIG_XEN_PV) || defined(CONFIG_XEN_PVH)
- PGD_PAGE_OFFSET = pgd_index(__PAGE_OFFSET_BASE)
- PGD_START_KERNEL = pgd_index(__START_KERNEL_map)
-+#endif
- L3_START_KERNEL = pud_index(__START_KERNEL_map)
+ OBJECT_FILES_NON_STANDARD_head_$(BITS).o		:= y
+ OBJECT_FILES_NON_STANDARD_relocate_kernel_$(BITS).o	:= y
+diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+index bc84b73684b7..f6b4db2647b5 100644
+--- a/arch/x86/mm/kasan_init_64.c
++++ b/arch/x86/mm/kasan_init_64.c
+@@ -15,6 +15,8 @@
  
- 	.text
-@@ -361,10 +362,7 @@ NEXT_PAGE(early_dynamic_pgts)
+ extern struct range pfn_mapped[E820_MAX_ENTRIES];
  
- 	.data
++static p4d_t tmp_p4d_table[PTRS_PER_P4D] __initdata __aligned(PAGE_SIZE);
++
+ static int __init map_range(struct range *range)
+ {
+ 	unsigned long start;
+@@ -30,8 +32,9 @@ static void __init clear_pgds(unsigned long start,
+ 			unsigned long end)
+ {
+ 	pgd_t *pgd;
++	unsigned long pgd_end = end & PGDIR_MASK;
  
--#ifndef CONFIG_XEN
--NEXT_PAGE(init_top_pgt)
--	.fill	512,8,0
--#else
-+#if defined(CONFIG_XEN_PV) || defined(CONFIG_XEN_PVH)
- NEXT_PAGE(init_top_pgt)
- 	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
- 	.org    init_top_pgt + PGD_PAGE_OFFSET*8, 0
-@@ -381,6 +379,9 @@ NEXT_PAGE(level2_ident_pgt)
- 	 * Don't set NX because code runs from these pages.
- 	 */
- 	PMDS(0, __PAGE_KERNEL_IDENT_LARGE_EXEC, PTRS_PER_PMD)
-+#else
-+NEXT_PAGE(init_top_pgt)
-+	.fill	512,8,0
+-	for (; start < end; start += PGDIR_SIZE) {
++	for (; start < pgd_end; start += PGDIR_SIZE) {
+ 		pgd = pgd_offset_k(start);
+ 		/*
+ 		 * With folded p4d, pgd_clear() is nop, use p4d_clear()
+@@ -42,29 +45,60 @@ static void __init clear_pgds(unsigned long start,
+ 		else
+ 			pgd_clear(pgd);
+ 	}
++
++	pgd = pgd_offset_k(start);
++	for (; start < end; start += P4D_SIZE)
++		p4d_clear(p4d_offset(pgd, start));
++}
++
++static inline p4d_t *early_p4d_offset(pgd_t *pgd, unsigned long addr)
++{
++	unsigned long p4d;
++
++	if (!IS_ENABLED(CONFIG_X86_5LEVEL))
++		return (p4d_t *)pgd;
++
++	p4d = __pa_nodebug(pgd_val(*pgd)) & PTE_PFN_MASK;
++	p4d += __START_KERNEL_map - phys_base;
++	return (p4d_t *)p4d + p4d_index(addr);
++}
++
++static void __init kasan_early_p4d_populate(pgd_t *pgd,
++		unsigned long addr,
++		unsigned long end)
++{
++	pgd_t pgd_entry;
++	p4d_t *p4d, p4d_entry;
++	unsigned long next;
++
++	if (pgd_none(*pgd)) {
++		pgd_entry = __pgd(_KERNPG_TABLE | __pa_nodebug(kasan_zero_p4d));
++		set_pgd(pgd, pgd_entry);
++	}
++
++	p4d = early_p4d_offset(pgd, addr);
++	do {
++		next = p4d_addr_end(addr, end);
++
++		if (!p4d_none(*p4d))
++			continue;
++
++		p4d_entry = __p4d(_KERNPG_TABLE | __pa_nodebug(kasan_zero_pud));
++		set_p4d(p4d, p4d_entry);
++	} while (p4d++, addr = next, addr != end && p4d_none(*p4d));
+ }
+ 
+ static void __init kasan_map_early_shadow(pgd_t *pgd)
+ {
+-	int i;
+-	unsigned long start = KASAN_SHADOW_START;
++	unsigned long addr = KASAN_SHADOW_START & PGDIR_MASK;
+ 	unsigned long end = KASAN_SHADOW_END;
++	unsigned long next;
+ 
+-	for (i = pgd_index(start); start < end; i++) {
+-		switch (CONFIG_PGTABLE_LEVELS) {
+-		case 4:
+-			pgd[i] = __pgd(__pa_nodebug(kasan_zero_pud) |
+-					_KERNPG_TABLE);
+-			break;
+-		case 5:
+-			pgd[i] = __pgd(__pa_nodebug(kasan_zero_p4d) |
+-					_KERNPG_TABLE);
+-			break;
+-		default:
+-			BUILD_BUG();
+-		}
+-		start += PGDIR_SIZE;
+-	}
++	pgd += pgd_index(addr);
++	do {
++		next = pgd_addr_end(addr, end);
++		kasan_early_p4d_populate(pgd, addr, next);
++	} while (pgd++, addr = next, addr != end);
+ }
+ 
+ #ifdef CONFIG_KASAN_INLINE
+@@ -101,7 +135,7 @@ void __init kasan_early_init(void)
+ 	for (i = 0; i < PTRS_PER_PUD; i++)
+ 		kasan_zero_pud[i] = __pud(pud_val);
+ 
+-	for (i = 0; CONFIG_PGTABLE_LEVELS >= 5 && i < PTRS_PER_P4D; i++)
++	for (i = 0; IS_ENABLED(CONFIG_X86_5LEVEL) && i < PTRS_PER_P4D; i++)
+ 		kasan_zero_p4d[i] = __p4d(p4d_val);
+ 
+ 	kasan_map_early_shadow(early_top_pgt);
+@@ -117,12 +151,22 @@ void __init kasan_init(void)
  #endif
  
- #ifdef CONFIG_X86_5LEVEL
+ 	memcpy(early_top_pgt, init_top_pgt, sizeof(early_top_pgt));
++
++	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
++		void *ptr;
++
++		ptr = (void *)pgd_page_vaddr(*pgd_offset_k(KASAN_SHADOW_END));
++		memcpy(tmp_p4d_table, (void *)ptr, sizeof(tmp_p4d_table));
++		set_pgd(&early_top_pgt[pgd_index(KASAN_SHADOW_END)],
++				__pgd(__pa(tmp_p4d_table) | _KERNPG_TABLE));
++	}
++
+ 	load_cr3(early_top_pgt);
+ 	__flush_tlb_all();
+ 
+-	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
++	clear_pgds(KASAN_SHADOW_START & PGDIR_MASK, KASAN_SHADOW_END);
+ 
+-	kasan_populate_zero_shadow((void *)KASAN_SHADOW_START,
++	kasan_populate_zero_shadow((void *)(KASAN_SHADOW_START & PGDIR_MASK),
+ 			kasan_mem_to_shadow((void *)PAGE_OFFSET));
+ 
+ 	for (i = 0; i < E820_MAX_ENTRIES; i++) {
 -- 
 2.13.2
 
