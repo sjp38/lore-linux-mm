@@ -1,178 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F45C6B025F
-	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 21:12:13 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id u199so20257573pgb.13
-        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 18:12:13 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id x11si63483pgo.556.2017.08.07.18.12.11
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F08C36B025F
+	for <linux-mm@kvack.org>; Mon,  7 Aug 2017 21:18:58 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id q66so9513220qki.1
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 18:18:58 -0700 (PDT)
+Received: from mail-qt0-x241.google.com (mail-qt0-x241.google.com. [2607:f8b0:400d:c0d::241])
+        by mx.google.com with ESMTPS id w67si140375qkc.114.2017.08.07.18.18.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Aug 2017 18:12:11 -0700 (PDT)
-Subject: [PATCH] mm,
- devm_memremap_pages: use multi-order radix for ZONE_DEVICE lookups
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 07 Aug 2017 18:05:41 -0700
-Message-ID: <150215410565.39310.13767886055248249438.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Mon, 07 Aug 2017 18:18:57 -0700 (PDT)
+Received: by mail-qt0-x241.google.com with SMTP id d10so2071396qtb.4
+        for <linux-mm@kvack.org>; Mon, 07 Aug 2017 18:18:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <d00f364a-1683-7981-f912-7014d48dc9ad@virtuozzo.com>
+References: <20170729140901.5887-1-bsingharora@gmail.com> <d00f364a-1683-7981-f912-7014d48dc9ad@virtuozzo.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Tue, 8 Aug 2017 11:18:56 +1000
+Message-ID: <CAKTCnznzKtZWD25pYysGosns6GQLOnqAOS-BV90FtLOuLwS36Q@mail.gmail.com>
+Subject: Re: [RFC PATCH v1] powerpc/radix/kasan: KASAN support for Radix
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, Toshi Kani <toshi.kani@hpe.com>, Matthew Wilcox <mawilcox@microsoft.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, kasan-dev@googlegroups.com, "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, linux-mm <linux-mm@kvack.org>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
 
-devm_memremap_pages() records mapped ranges in pgmap_radix with an entry
-per section's worth of memory (128MB).  The key for each of those
-entries is a section number.
+On Mon, Aug 7, 2017 at 10:30 PM, Andrey Ryabinin
+<aryabinin@virtuozzo.com> wrote:
+> On 07/29/2017 05:09 PM, Balbir Singh wrote:
+>> This is the first attempt to implement KASAN for radix
+>> on powerpc64. Aneesh Kumar implemented KASAN for hash 64
+>> in limited mode (support only for kernel linear mapping)
+>> (https://lwn.net/Articles/655642/)
+>>
+>> This patch does the following:
+>> 1. Defines its own zero_page,pte,pmd and pud because
+>> the generic PTRS_PER_PTE, etc are variables on ppc64
+>> book3s. Since the implementation is for radix, we use
+>> the radix constants. This patch uses ARCH_DEFINES_KASAN_ZERO_PTE
+>> for that purpose
+>> 2. There is a new function check_return_arch_not_ready()
+>> which is defined for ppc64/book3s/radix and overrides the
+>> checks in check_memory_region_inline() until the arch has
+>> done kasan setup is done for the architecture. This is needed
+>> for powerpc. A lot of functions are called in real mode prior
+>> to MMU paging init, we could fix some of this by using
+>> the kasan_early_init() bits, but that just maps the zero
+>> page and does not do useful reporting. For this RFC we
+>> just delay the checks in mem* functions till kasan_init()
+>
+> check_return_arch_not_ready() works only for outline instrumentation
+> and without stack instrumentation.
+>
+> I guess this works for you only because CONFIG_KASAN_SHADOW_OFFSET is not defined.
+> Therefore test for CFLAGS_KASAN can't pass, as '-fasan-shadow-offset= ' is invalid option,
+> so CFLAGS_KASAN_MINIMAL is used instead. Or maybe you just used gcc 4.9.x which don't have
+> full kasan support.
+> This is also the reason why some tests doesn't pass for you.
+>
+> For stack instrumentation you'll have to implement kasan_early_init() and define CONFIG_KASAN_SHADOW_OFFSET.
 
-This leads to false positives when devm_memremap_pages() is passed a
-section-unaligned range as lookups in the misalignment fail to return
-NULL. We can close this hole by using the pfn as the key for entries in
-the tree.  The number of entries required to describe a remapped range
-is reduced by leveraging multi-order entries.
+Yep, I noticed that a little later when reading the build log,
+scripts/Makefile.kasan does
+print a warning. I guess we'll need to do early_init() because
+kasan_init() can happen only
+once we've setup our memblocks after parsing the device-tree.
 
-In practice this approach usually yields just one entry in the tree if
-the size and starting address are of the same power-of-2 alignment.
-Previously we always needed nr_entries = mapping_size / 128MB.
+>
+>> 3. This patch renames memcpy/memset/memmove to their
+>> equivalent __memcpy/__memset/__memmove and for files
+>> that skip KASAN via KASAN_SANITIZE, we use the __
+>> variants. This is largely based on Aneesh's patchset
+>> mentioned above
+>> 4. In paca.c, some explicit memcpy inserted by the
+>> compiler/linker is replaced via explicit memcpy
+>> for structure content copying
+>> 5. prom_init and a few other files have KASAN_SANITIZE
+>> set to n, I think with the delayed checks (#2 above)
+>> we might be able to work around many of them
+>> 6. Resizing of virtual address space is done a little
+>> aggressively the size is reduced to 1/4 and totally
+>> to 1/2. For the RFC it was considered OK, since this
+>> is just a debug tool for developers. This can be revisited
+>> in the final implementation
+>>
+>> Tests:
+>>
+>> I ran test_kasan.ko and it reported errors for all test
+>> cases except for
+>>
+>> kasan test: memcg_accounted_kmem_cache allocate memcg accounted object
+>> kasan test: kasan_stack_oob out-of-bounds on stack
+>> kasan test: kasan_global_oob out-of-bounds global variable
+>> kasan test: use_after_scope_test use-after-scope on int
+>> kasan test: use_after_scope_test use-after-scope on array
+>>
+>> Based on my understanding of the test, which is an expected
+>> kasan bug report after each test starting with a "===" line.
+>>
+>
+> Right, with exception of memc_accounted_kmem_cache test.
+> The rest are expected to produce the kasan report unless CLFAGS_KASAN_MINIMAL
+> used.
+> use_after_scope tests also require fresh gcc 7.
 
-Link: https://lists.01.org/pipermail/linux-nvdimm/2016-August/006666.html
-Reported-by: Toshi Kani <toshi.kani@hpe.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
-Hi Andrew,
 
-This is an optimization for devm_memremap_pages() that has been idling
-in my local tree for a while. At one point Matthew had proposed an
-official radix tree api to allow filling a range of a radix similar to
-what the foreach_order_pgoff() loop is performing. Perhaps this prompts
-Matthew to dust that proposal off, but this patch otherwise minimizes
-the amount of entries we need in the pgmap_radix.
+Yep, Thanks for the review!
 
-This patch is against latest -next.
+I'll work on a v2 and resend the patches
 
-
- kernel/memremap.c |   52 ++++++++++++++++++++++++++++++++++++++--------------
- mm/Kconfig        |    1 +
- 2 files changed, 39 insertions(+), 14 deletions(-)
-
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 9afdc434fb49..066e73c2fcc9 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -194,18 +194,41 @@ struct page_map {
- 	struct vmem_altmap altmap;
- };
- 
--static void pgmap_radix_release(struct resource *res)
-+static unsigned long order_at(struct resource *res, unsigned long pgoff)
- {
--	resource_size_t key, align_start, align_size, align_end;
-+	unsigned long phys_pgoff = PHYS_PFN(res->start) + pgoff;
-+	unsigned long nr_pages, mask;
- 
--	align_start = res->start & ~(SECTION_SIZE - 1);
--	align_size = ALIGN(resource_size(res), SECTION_SIZE);
--	align_end = align_start + align_size - 1;
-+	nr_pages = PHYS_PFN(resource_size(res));
-+	if (nr_pages == pgoff)
-+		return ULONG_MAX;
-+
-+	/*
-+	 * What is the largest aligned power-of-2 range available from
-+	 * this resource pgoff to the end of the resource range,
-+	 * considering the alignment of the current pgoff?
-+	 */
-+	mask = phys_pgoff | rounddown_pow_of_two(nr_pages - pgoff);
-+	if (!mask)
-+		return ULONG_MAX;
-+
-+	return find_first_bit(&mask, BITS_PER_LONG);
-+}
-+
-+#define foreach_order_pgoff(res, order, pgoff) \
-+	for (pgoff = 0, order = order_at((res), pgoff); order < ULONG_MAX; \
-+			pgoff += 1UL << order, order = order_at((res), pgoff))
-+
-+static void pgmap_radix_release(struct resource *res)
-+{
-+	unsigned long pgoff, order;
- 
- 	mutex_lock(&pgmap_lock);
--	for (key = res->start; key <= res->end; key += SECTION_SIZE)
--		radix_tree_delete(&pgmap_radix, key >> PA_SECTION_SHIFT);
-+	foreach_order_pgoff(res, order, pgoff)
-+		radix_tree_delete(&pgmap_radix, PHYS_PFN(res->start) + pgoff);
- 	mutex_unlock(&pgmap_lock);
-+
-+	synchronize_rcu();
- }
- 
- static unsigned long pfn_first(struct page_map *page_map)
-@@ -268,7 +291,7 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
- 
- 	WARN_ON_ONCE(!rcu_read_lock_held());
- 
--	page_map = radix_tree_lookup(&pgmap_radix, phys >> PA_SECTION_SHIFT);
-+	page_map = radix_tree_lookup(&pgmap_radix, PHYS_PFN(phys));
- 	return page_map ? &page_map->pgmap : NULL;
- }
- 
-@@ -293,12 +316,12 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
- void *devm_memremap_pages(struct device *dev, struct resource *res,
- 		struct percpu_ref *ref, struct vmem_altmap *altmap)
- {
--	resource_size_t key, align_start, align_size, align_end;
-+	resource_size_t align_start, align_size, align_end;
-+	unsigned long pfn, pgoff, order;
- 	pgprot_t pgprot = PAGE_KERNEL;
- 	struct dev_pagemap *pgmap;
- 	struct page_map *page_map;
- 	int error, nid, is_ram;
--	unsigned long pfn;
- 
- 	align_start = res->start & ~(SECTION_SIZE - 1);
- 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
-@@ -337,11 +360,12 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- 	mutex_lock(&pgmap_lock);
- 	error = 0;
- 	align_end = align_start + align_size - 1;
--	for (key = align_start; key <= align_end; key += SECTION_SIZE) {
-+
-+	foreach_order_pgoff(res, order, pgoff) {
- 		struct dev_pagemap *dup;
- 
- 		rcu_read_lock();
--		dup = find_dev_pagemap(key);
-+		dup = find_dev_pagemap(res->start + PFN_PHYS(pgoff));
- 		rcu_read_unlock();
- 		if (dup) {
- 			dev_err(dev, "%s: %pr collides with mapping for %s\n",
-@@ -349,8 +373,8 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- 			error = -EBUSY;
- 			break;
- 		}
--		error = radix_tree_insert(&pgmap_radix, key >> PA_SECTION_SHIFT,
--				page_map);
-+		error = __radix_tree_insert(&pgmap_radix,
-+				PHYS_PFN(res->start) + pgoff, order, page_map);
- 		if (error) {
- 			dev_err(dev, "%s: failed: %d\n", __func__, error);
- 			break;
-diff --git a/mm/Kconfig b/mm/Kconfig
-index ab937c8d247f..9ef8c2ea92ad 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -681,6 +681,7 @@ config ZONE_DEVICE
- 	depends on MEMORY_HOTREMOVE
- 	depends on SPARSEMEM_VMEMMAP
- 	depends on ARCH_HAS_ZONE_DEVICE
-+	select RADIX_TREE_MULTIORDER
- 
- 	help
- 	  Device memory hotplug support allows for establishing pmem,
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
