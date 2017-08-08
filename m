@@ -1,43 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 23DF36B0493
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 09:16:08 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id w63so4611761wrc.5
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 06:16:08 -0700 (PDT)
-Received: from smtp-out4.electric.net (smtp-out4.electric.net. [192.162.216.189])
-        by mx.google.com with ESMTPS id 35si1606531edo.414.2017.08.08.06.16.06
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 25DD96B0494
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 09:16:09 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id c74so28189435iod.4
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 06:16:09 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id f196si1600893itc.41.2017.08.08.06.16.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 06:16:06 -0700 (PDT)
-From: David Laight <David.Laight@ACULAB.COM>
-Subject: RE: [v6 11/15] arm64/kasan: explicitly zero kasan shadow memory
-Date: Tue, 8 Aug 2017 13:15:55 +0000
-Message-ID: <063D6719AE5E284EB5DD2968C1650D6DD004DA79@AcuExch.aculab.com>
-References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
- <1502138329-123460-12-git-send-email-pasha.tatashin@oracle.com>
- <20170808090743.GA12887@arm.com>
- <f8b2b9ed-abf0-0c16-faa2-98b66dcbed78@oracle.com>
-In-Reply-To: <f8b2b9ed-abf0-0c16-faa2-98b66dcbed78@oracle.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        Tue, 08 Aug 2017 06:16:08 -0700 (PDT)
+Date: Tue, 8 Aug 2017 15:15:57 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC v5 05/11] mm: fix lock dependency against
+ mapping->i_mmap_rwsem
+Message-ID: <20170808131557.iyczqs4wzqanx35p@hirez.programming.kicks-ass.net>
+References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1497635555-25679-6-git-send-email-ldufour@linux.vnet.ibm.com>
+ <564749a2-a729-b927-7707-1cad897c418a@linux.vnet.ibm.com>
+ <78d903c4-6e9f-e049-de60-6d1ccb45ff92@linux.vnet.ibm.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <78d903c4-6e9f-e049-de60-6d1ccb45ff92@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Pasha Tatashin' <pasha.tatashin@oracle.com>, Will Deacon <will.deacon@arm.com>
-Cc: "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "sam@ravnborg.org" <sam@ravnborg.org>, "borntraeger@de.ibm.com" <borntraeger@de.ibm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "x86@kernel.org" <x86@kernel.org>, "heiko.carstens@de.ibm.com" <heiko.carstens@de.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "willy@infradead.org" <willy@infradead.org>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "davem@davemloft.net" <davem@davemloft.net>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
 
-RnJvbTogUGFzaGEgVGF0YXNoaW4NCj4gU2VudDogMDggQXVndXN0IDIwMTcgMTI6NDkNCj4gVGhh
-bmsgeW91IGZvciBsb29raW5nIGF0IHRoaXMgY2hhbmdlLiBXaGF0IHlvdSBkZXNjcmliZWQgd2Fz
-IGluIG15DQo+IHByZXZpb3VzIGl0ZXJhdGlvbnMgb2YgdGhpcyBwcm9qZWN0Lg0KPiANCj4gU2Vl
-IGZvciBleGFtcGxlIGhlcmU6IGh0dHBzOi8vbGttbC5vcmcvbGttbC8yMDE3LzUvNS8zNjkNCj4g
-DQo+IEkgd2FzIGFza2VkIHRvIHJlbW92ZSB0aGF0IGZsYWcsIGFuZCBvbmx5IHplcm8gbWVtb3J5
-IGluIHBsYWNlIHdoZW4NCj4gbmVlZGVkLiBPdmVyYWxsIHRoZSBjdXJyZW50IGFwcHJvYWNoIGlz
-IGJldHRlciBldmVyeXdoZXJlIGVsc2UgaW4gdGhlDQo+IGtlcm5lbCwgYnV0IGl0IGFkZHMgYSBs
-aXR0bGUgZXh0cmEgY29kZSB0byBrYXNhbiBpbml0aWFsaXphdGlvbi4NCg0KUGVyaGFwcyB5b3Ug
-Y291bGQgI2RlZmluZSB0aGUgZnVuY3Rpb24gcHJvdG90eXBlKHM/KSBzbyB0aGF0IHRoZSBmbGFn
-cw0KYXJlIG5vdCBwYXNzZWQgdW5sZXNzIGl0IGlzIGEga2FzYW4gYnVpbGQ/DQoNCglEYXZpZA0K
-DQo=
+On Tue, Aug 08, 2017 at 02:20:23PM +0200, Laurent Dufour wrote:
+> This is an option, but the previous one was signed by Peter, and I'd prefer
+> to keep his unchanged and add this new one to fix that.
+> Again this is to ease the review.
+
+You can always add something like:
+
+[ldufour: fixed lockdep complaint]
+
+Before your SoB.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
