@@ -1,138 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EC3C6B02F4
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 19:15:41 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id d15so22491809qta.11
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 16:15:41 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g44si1024384qtk.133.2017.08.08.16.15.40
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CAAD66B0292
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 19:24:35 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 16so49393225pgg.8
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 16:24:35 -0700 (PDT)
+Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
+        by mx.google.com with ESMTPS id k15si1708433pln.412.2017.08.08.16.24.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 16:15:40 -0700 (PDT)
-Date: Tue, 8 Aug 2017 19:15:36 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [RFC] Tagging of vmalloc pages for supporting the pmalloc
- allocator
-Message-ID: <20170808231535.GA20840@redhat.com>
-References: <20170803144746.GA9501@redhat.com>
- <ab4809cd-0efc-a79d-6852-4bd2349a2b3f@huawei.com>
- <20170803151550.GX12521@dhcp22.suse.cz>
- <abe0c086-8c5a-d6fb-63c4-bf75528d0ec5@huawei.com>
- <20170804081240.GF26029@dhcp22.suse.cz>
- <7733852a-67c9-17a3-4031-cb08520b9ad2@huawei.com>
- <20170807133107.GA16616@redhat.com>
- <555dc453-3028-199a-881a-3ddeb41e4d6d@huawei.com>
- <20170807191235.GE16616@redhat.com>
- <c06fdd1a-fb18-8e17-b4fb-ea73ccd93f90@huawei.com>
+        Tue, 08 Aug 2017 16:24:34 -0700 (PDT)
+Received: by mail-pf0-x234.google.com with SMTP id o86so20379435pfj.1
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 16:24:34 -0700 (PDT)
+Date: Tue, 8 Aug 2017 16:24:32 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [v4 4/4] mm, oom, docs: describe the cgroup-aware OOM killer
+In-Reply-To: <20170726132718.14806-5-guro@fb.com>
+Message-ID: <alpine.DEB.2.10.1708081615110.54505@chino.kir.corp.google.com>
+References: <20170726132718.14806-1-guro@fb.com> <20170726132718.14806-5-guro@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <c06fdd1a-fb18-8e17-b4fb-ea73ccd93f90@huawei.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Stoppa <igor.stoppa@huawei.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-security-module@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Kees Cook <keescook@google.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Aug 08, 2017 at 03:59:36PM +0300, Igor Stoppa wrote:
-> On 07/08/17 22:12, Jerome Glisse wrote:
-> > On Mon, Aug 07, 2017 at 05:13:00PM +0300, Igor Stoppa wrote:
-> 
-> [...]
-> 
-> >> I have an updated version of the old proposal:
-> >>
-> >> * put a magic number in the private field, during initialization of
-> >> pmalloc pages
-> >>
-> >> * during hardened usercopy verification, when I have to assess if a page
-> >> is of pmalloc type, compare the private field against the magic number
-> >>
-> >> * if and only if the private field matches the magic number, then invoke
-> >> find_vm_area(), so that the slowness affects only a possibly limited
-> >> amount of false positives.
-> > 
-> > This all sounds good to me.
-> 
-> ok, I still have one doubt wrt defining the flag.
-> Where should I do it?
-> 
-> vmalloc.h has the following:
-> 
-> /* bits in flags of vmalloc's vm_struct below */
-> #define VM_IOREMAP		0x00000001	/* ioremap() and friends
-> 						*/
-> #define VM_ALLOC		0x00000002	/* vmalloc() */
-> #define VM_MAP			0x00000004	/* vmap()ed pages */
-> #define VM_USERMAP		0x00000008	/* suitable for
-> 						   remap_vmalloc_range
-> 						*/
-> #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not
-> 						   fully initialized */
-> #define VM_NO_GUARD		0x00000040      /* don't add guard page
-> 						*/
-> #define VM_KASAN		0x00000080      /* has allocated kasan
-> 						shadow memory */
-> /* bits [20..32] reserved for arch specific ioremap internals */
-> 
-> 
-> 
-> I am tempted to add
-> 
-> #define VM_PMALLOC		0x00000100
-> 
-> But would it be acceptable, to mention pmalloc into vmalloc?
-> 
-> Should I name it VM_PRIVATE bit, instead?
-> 
-> Using VM_PRIVATE would avoid contaminating vmalloc with something that
-> depends on it (like VM_PMALLOC would do).
-> 
-> But using VM_PRIVATE will likely add tracking issues, if someone else
-> wants to use the same bit and it's not clear who is the user, if any.
+On Wed, 26 Jul 2017, Roman Gushchin wrote:
 
-VM_PMALLOC sounds fine to me also adding a comment there pointing to
-pmalloc documentation would be a good thing to do. The above are flags
-that are use only inside vmalloc context and so there is no issue
-here of conflicting with other potential user.
+> +Cgroup-aware OOM Killer
+> +~~~~~~~~~~~~~~~~~~~~~~~
+> +
+> +Cgroup v2 memory controller implements a cgroup-aware OOM killer.
+> +It means that it treats memory cgroups as first class OOM entities.
+> +
+> +Under OOM conditions the memory controller tries to make the best
+> +choise of a victim, hierarchically looking for the largest memory
+> +consumer. By default, it will look for the biggest task in the
+> +biggest leaf cgroup.
+> +
+> +Be default, all cgroups have oom_priority 0, and OOM killer will
+> +chose the largest cgroup recursively on each level. For non-root
+> +cgroups it's possible to change the oom_priority, and it will cause
+> +the OOM killer to look athe the priority value first, and compare
+> +sizes only of cgroups with equal priority.
+> +
+> +But a user can change this behavior by enabling the per-cgroup
+> +oom_kill_all_tasks option. If set, it causes the OOM killer treat
+> +the whole cgroup as an indivisible memory consumer. In case if it's
+> +selected as on OOM victim, all belonging tasks will be killed.
+> +
+> +Tasks in the root cgroup are treated as independent memory consumers,
+> +and are compared with other memory consumers (e.g. leaf cgroups).
+> +The root cgroup doesn't support the oom_kill_all_tasks feature.
+> +
+> +This affects both system- and cgroup-wide OOMs. For a cgroup-wide OOM
+> +the memory controller considers only cgroups belonging to the sub-tree
+> +of the OOM'ing cgroup.
+> +
+>  IO
+>  --
 
-> 
-> Unless it's acceptable to check the private field in the page struct.
-> It would bear the pmalloc magic number.
+Thanks very much for following through with this.
 
-I thought you wanted to do:
-  check struct page mapping field
-  check vmap->flags for VM_PMALLOC
+As described in http://marc.info/?l=linux-kernel&m=149980660611610 this is 
+very similar to what we do for priority based oom killing.
 
-bool is_pmalloc(unsigned long addr)
-{
-    struct page *page;
-    struct vm_struct *vm_struct;
+I'm wondering your comments on extending it one step further, however: 
+include process priority as part of the selection rather than simply memcg 
+priority.
 
-    if (!is_vmalloc_addr(addr))
-        return false;
-    page = vmalloc_to_page(addr);
-    if (!page)
-        return false;
-    if (page->mapping != pmalloc_magic_key)
-        return false;
+memory.oom_priority will dictate which memcg the kill will originate from, 
+but processes have no ability to specify that they should actually be 
+killed as opposed to a leaf memcg.  I'm not sure how important this is for 
+your usecase, but we have found it useful to be able to specify process 
+priority as part of the decisionmaking.
 
-    vm_struct = find_vm_area(addr);
-    if (!vm_struct)
-        return false;
+At each level of consideration, we simply kill a process with lower 
+/proc/pid/oom_priority if there are no memcgs with a lower 
+memory.oom_priority.  This allows us to define the exact process that will 
+be oom killed, absent oom_kill_all_tasks, and not require that the process 
+be attached to leaf memcg.  Most notably these are processes that are best 
+effort: stats collection, logging, etc.
 
-    return vm_struct->flags & VM_PMALLOC;
-}
-
-Did you change your plan ?
-
-> 
-> I'm thinking to use a pointer to one of pmalloc data items, as signature.
-
-What ever is easier for you. Note that dereferencing such pointer before
-asserting this is really a pmalloc page would be hazardous.
-
-Jerome
+Do you think it would be helpful to introduce per-process oom priority as 
+well?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
