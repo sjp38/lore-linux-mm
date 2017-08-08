@@ -1,129 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 431736B03AB
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 08:54:39 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id r62so31959436pfj.1
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 05:54:39 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id h188si853850pfb.183.2017.08.08.05.54.34
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E784C6B03B4
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 08:54:44 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id l2so34117386pgu.2
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 05:54:44 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id t15si824284pfj.572.2017.08.08.05.54.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 05:54:34 -0700 (PDT)
+        Tue, 08 Aug 2017 05:54:43 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 13/14] x86/xen: Allow XEN_PV and XEN_PVH to be enabled with X86_5LEVEL
-Date: Tue,  8 Aug 2017 15:54:14 +0300
-Message-Id: <20170808125415.78842-14-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 06/14] x86/boot/compressed/64: Detect and handle 5-level paging at boot-time
+Date: Tue,  8 Aug 2017 15:54:07 +0300
+Message-Id: <20170808125415.78842-7-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170808125415.78842-1-kirill.shutemov@linux.intel.com>
 References: <20170808125415.78842-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Juergen Gross <jgross@suse.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With boot-time switching between paging modes, XEN_PV and XEN_PVH can be
-boot into 4-level paging mode.
+This patch prepare decompression code to boot-time switching between 4-
+and 5-level paging.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Juergen Gross <jgross@suse.com>
 ---
- arch/x86/kernel/head_64.S | 12 ++++++------
- arch/x86/xen/Kconfig      |  5 -----
- arch/x86/xen/mmu_pv.c     | 21 +++++++++++++++++++++
- 3 files changed, 27 insertions(+), 11 deletions(-)
+ arch/x86/boot/compressed/head_64.S | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
 
-diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
-index ebdcb08a91cb..9de244aa72fd 100644
---- a/arch/x86/kernel/head_64.S
-+++ b/arch/x86/kernel/head_64.S
-@@ -37,12 +37,12 @@
-  *
-  */
+diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
+index fbf4c32d0b62..2e362aea3319 100644
+--- a/arch/x86/boot/compressed/head_64.S
++++ b/arch/x86/boot/compressed/head_64.S
+@@ -347,6 +347,28 @@ preferred_addr:
+ 	leaq	boot_stack_end(%rbx), %rsp
  
-+#define l4_index(x)	(((x) >> 39) & 511)
- #define pud_index(x)	(((x) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
- 
--#if defined(CONFIG_XEN_PV) || defined(CONFIG_XEN_PVH)
--PGD_PAGE_OFFSET = pgd_index(__PAGE_OFFSET_BASE48)
--PGD_START_KERNEL = pgd_index(__START_KERNEL_map)
--#endif
-+L4_PAGE_OFFSET = l4_index(__PAGE_OFFSET_BASE48)
-+L4_START_KERNEL = l4_index(__START_KERNEL_map)
+ #ifdef CONFIG_X86_5LEVEL
++	/* Preserve rbx across cpuid */
++	movq	%rbx, %r8
 +
- L3_START_KERNEL = pud_index(__START_KERNEL_map)
- 
- 	.text
-@@ -363,9 +363,9 @@ NEXT_PAGE(early_dynamic_pgts)
- #if defined(CONFIG_XEN_PV) || defined(CONFIG_XEN_PVH)
- NEXT_PAGE(init_top_pgt)
- 	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
--	.org    init_top_pgt + PGD_PAGE_OFFSET*8, 0
-+	.org    init_top_pgt + L4_PAGE_OFFSET*8, 0
- 	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
--	.org    init_top_pgt + PGD_START_KERNEL*8, 0
-+	.org    init_top_pgt + L4_START_KERNEL*8, 0
- 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
- 	.quad   level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
- 
-diff --git a/arch/x86/xen/Kconfig b/arch/x86/xen/Kconfig
-index 1ecd419811a2..027987638e98 100644
---- a/arch/x86/xen/Kconfig
-+++ b/arch/x86/xen/Kconfig
-@@ -17,9 +17,6 @@ config XEN_PV
- 	bool "Xen PV guest support"
- 	default y
- 	depends on XEN
--	# XEN_PV is not ready to work with 5-level paging.
--	# Changes to hypervisor are also required.
--	depends on !X86_5LEVEL
- 	select XEN_HAVE_PVMMU
- 	select XEN_HAVE_VPMU
- 	help
-@@ -78,6 +75,4 @@ config XEN_DEBUG_FS
- config XEN_PVH
- 	bool "Support for running as a PVH guest"
- 	depends on XEN && XEN_PVHVM && ACPI
--	# Pre-built page tables are not ready to handle 5-level paging.
--	depends on !X86_5LEVEL
- 	def_bool n
-diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
-index bc5fddd64217..55b529c36f16 100644
---- a/arch/x86/xen/mmu_pv.c
-+++ b/arch/x86/xen/mmu_pv.c
-@@ -558,6 +558,22 @@ static void xen_set_p4d(p4d_t *ptr, p4d_t val)
- 
- 	xen_mc_issue(PARAVIRT_LAZY_MMU);
- }
++	/* Check if leaf 7 is supported */
++	movl	$0, %eax
++	cpuid
++	cmpl	$7, %eax
++	jb	lvl5
 +
-+#if CONFIG_PGTABLE_LEVELS >= 5
-+__visible p4dval_t xen_p4d_val(p4d_t p4d)
-+{
-+	return pte_mfn_to_pfn(p4d.p4d);
-+}
-+PV_CALLEE_SAVE_REGS_THUNK(xen_p4d_val);
++	/*
++	 * Check if la57 is supported.
++	 * The feature is enumerated with CPUID.(EAX=07H, ECX=0):ECX[bit 16]
++	 */
++	movl	$7, %eax
++	movl	$0, %ecx
++	cpuid
++	andl	$(1 << 16), %ecx
++	jz	lvl5
 +
-+__visible p4d_t xen_make_p4d(p4dval_t p4d)
-+{
-+	p4d = pte_pfn_to_mfn(p4d);
++	/* Restore rbx */
++	movq	%r8, %rbx
 +
-+	return native_make_p4d(p4d);
-+}
-+PV_CALLEE_SAVE_REGS_THUNK(xen_make_p4d);
-+#endif  /* CONFIG_PGTABLE_LEVELS >= 5 */
- #endif	/* CONFIG_X86_64 */
+ 	/* Check if 5-level paging has already enabled */
+ 	movq	%cr4, %rax
+ 	testl	$X86_CR4_LA57, %eax
+@@ -386,6 +408,8 @@ preferred_addr:
+ 	pushq	%rax
+ 	lretq
+ lvl5:
++	/* Restore rbx */
++	movq	%r8, %rbx
+ #endif
  
- static int xen_pmd_walk(struct mm_struct *mm, pmd_t *pmd,
-@@ -2430,6 +2446,11 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
- 
- 	.alloc_pud = xen_alloc_pmd_init,
- 	.release_pud = xen_release_pmd_init,
-+
-+#if CONFIG_PGTABLE_LEVELS >= 5
-+	.p4d_val = PV_CALLEE_SAVE(xen_p4d_val),
-+	.make_p4d = PV_CALLEE_SAVE(xen_make_p4d),
-+#endif
- #endif	/* CONFIG_X86_64 */
- 
- 	.activate_mm = xen_activate_mm,
+ 	/* Zero EFLAGS */
 -- 
 2.13.2
 
