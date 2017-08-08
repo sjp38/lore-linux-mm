@@ -1,66 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 305886B02B4
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 08:51:49 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id k68so4410359wmd.14
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 05:51:49 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 4si1208367wrp.126.2017.08.08.05.51.47
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 577E56B02C3
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 08:54:27 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id y129so34115311pgy.1
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 05:54:27 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id w19si778931pgj.62.2017.08.08.05.54.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 05:51:48 -0700 (PDT)
-Subject: Re: [v6 11/15] arm64/kasan: explicitly zero kasan shadow memory
-References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
- <1502138329-123460-12-git-send-email-pasha.tatashin@oracle.com>
- <20170808090743.GA12887@arm.com>
- <f8b2b9ed-abf0-0c16-faa2-98b66dcbed78@oracle.com>
- <20170808123042.GG13355@arm.com>
-From: Pasha Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <a777718a-00b5-fb3a-75d6-03cc7ad181d9@oracle.com>
-Date: Tue, 8 Aug 2017 08:49:55 -0400
-MIME-Version: 1.0
-In-Reply-To: <20170808123042.GG13355@arm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+        Tue, 08 Aug 2017 05:54:26 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 02/14] mm/zsmalloc: Prepare to variable MAX_PHYSMEM_BITS
+Date: Tue,  8 Aug 2017 15:54:03 +0300
+Message-Id: <20170808125415.78842-3-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170808125415.78842-1-kirill.shutemov@linux.intel.com>
+References: <20170808125415.78842-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>, ard.biesheuvel@linaro.org
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, catalin.marinas@arm.com, sam@ravnborg.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-Hi Will,
+With boot-time switching between paging mode we will have variable
+MAX_PHYSMEM_BITS.
 
- > Damn, I actually prefer the flag :)
- >
- > But actually, if you look at our implementation of vmemmap_populate, 
-then we
- > have our own version of vmemmap_populate_basepages that terminates at the
- > pmd level anyway if ARM64_SWAPPER_USES_SECTION_MAPS. If there's 
-resistance
- > to do this in the core code, then I'd be inclined to replace our
- > vmemmap_populate implementation in the arm64 code with a single 
-version that
- > can terminate at either the PMD or the PTE level, and do zeroing if
- > required. We're already special-casing it, so we don't really lose 
-anything
- > imo.
+Let's use the maximum varible possible for CONFIG_X86_5LEVEL=y
+configuration to define zsmalloc data structures.
 
-Another approach is to create a new mapping interface for kasan only. As 
-what Ard Biesheuvel wrote:
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Nitin Gupta <ngupta@vflare.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+---
+ mm/zsmalloc.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
- > KASAN uses vmemmap_populate as a convenience: kasan has nothing to do
- > with vmemmap, but the function already existed and happened to do what
- > KASAN requires.
- >
- > Given that that will no longer be the case, it would be far better to
- > stop using vmemmap_populate altogether, and clone it into a KASAN
- > specific version (with an appropriate name) with the zeroing folded
- > into it.
-
-I agree with this statement, but I think it should not be part of this 
-project.
-
-Pasha
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 013eea76685e..468879915d3d 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -93,7 +93,13 @@
+ #define MAX_PHYSMEM_BITS BITS_PER_LONG
+ #endif
+ #endif
++
++#ifdef CONFIG_X86_5LEVEL
++/* MAX_PHYSMEM_BITS is variable, use maximum value here */
++#define _PFN_BITS		(52 - PAGE_SHIFT)
++#else
+ #define _PFN_BITS		(MAX_PHYSMEM_BITS - PAGE_SHIFT)
++#endif
+ 
+ /*
+  * Memory for allocating for handle keeps object position by
+-- 
+2.13.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
