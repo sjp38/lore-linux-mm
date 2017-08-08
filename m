@@ -1,133 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9149C6B02F4
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 07:05:36 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b83so29529549pfl.6
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 04:05:36 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id x33si737316plb.838.2017.08.08.04.05.34
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E5ECE6B02C3
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 07:17:52 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id r62so29957254pfj.1
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 04:17:52 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id m8si786630plk.673.2017.08.08.04.17.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 08 Aug 2017 04:05:35 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: ksmd circular locking warning, cpu_hotplug_lock vs ksm_thread_mutex
-Date: Tue, 08 Aug 2017 21:05:27 +1000
-Message-ID: <87tw1imia0.fsf@concordia.ellerman.id.au>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Aug 2017 04:17:51 -0700 (PDT)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v78BH3tb106872
+	for <linux-mm@kvack.org>; Tue, 8 Aug 2017 07:17:51 -0400
+Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com [202.81.31.141])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2c7ay0n19y-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 08 Aug 2017 07:17:50 -0400
+Received: from localhost
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 8 Aug 2017 21:17:48 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v78BHl5433292542
+	for <linux-mm@kvack.org>; Tue, 8 Aug 2017 21:17:47 +1000
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v78BHkW7011337
+	for <linux-mm@kvack.org>; Tue, 8 Aug 2017 21:17:46 +1000
+Subject: Re: [RFC v5 05/11] mm: fix lock dependency against
+ mapping->i_mmap_rwsem
+References: <1497635555-25679-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1497635555-25679-6-git-send-email-ldufour@linux.vnet.ibm.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 8 Aug 2017 16:47:23 +0530
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <1497635555-25679-6-git-send-email-ldufour@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <564749a2-a729-b927-7707-1cad897c418a@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, aarcange@redhat.com, hughd@google.com, kirill.shutemov@linux.intel.com, zhongjiang@huawei.com, minchan@kernel.org, mingo@kernel.org, aneesh.kumar@linux.vnet.ibm.com, imbrenda@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, tglx@linutronix.detglx@linutronix.de, linuxppc-dev@lists.ozlabs.orglinuxppc-dev@lists.ozlabs.org
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>
 
-Hi all,
+On 06/16/2017 11:22 PM, Laurent Dufour wrote:
+> kworker/32:1/819 is trying to acquire lock:
+>  (&vma->vm_sequence){+.+...}, at: [<c0000000002f20e0>]
+> zap_page_range_single+0xd0/0x1a0
+> 
+> but task is already holding lock:
+>  (&mapping->i_mmap_rwsem){++++..}, at: [<c0000000002f229c>]
+> unmap_mapping_range+0x7c/0x160
+> 
+> which lock already depends on the new lock.
+> 
+> the existing dependency chain (in reverse order) is:
+> 
+> -> #2 (&mapping->i_mmap_rwsem){++++..}:
+>        down_write+0x84/0x130
+>        __vma_adjust+0x1f4/0xa80
+>        __split_vma.isra.2+0x174/0x290
+>        do_munmap+0x13c/0x4e0
+>        vm_munmap+0x64/0xb0
+>        elf_map+0x11c/0x130
+>        load_elf_binary+0x6f0/0x15f0
+>        search_binary_handler+0xe0/0x2a0
+>        do_execveat_common.isra.14+0x7fc/0xbe0
+>        call_usermodehelper_exec_async+0x14c/0x1d0
+>        ret_from_kernel_thread+0x5c/0x68
+> 
+> -> #1 (&vma->vm_sequence/1){+.+...}:
+>        __vma_adjust+0x124/0xa80
+>        __split_vma.isra.2+0x174/0x290
+>        do_munmap+0x13c/0x4e0
+>        vm_munmap+0x64/0xb0
+>        elf_map+0x11c/0x130
+>        load_elf_binary+0x6f0/0x15f0
+>        search_binary_handler+0xe0/0x2a0
+>        do_execveat_common.isra.14+0x7fc/0xbe0
+>        call_usermodehelper_exec_async+0x14c/0x1d0
+>        ret_from_kernel_thread+0x5c/0x68
+> 
+> -> #0 (&vma->vm_sequence){+.+...}:
+>        lock_acquire+0xf4/0x310
+>        unmap_page_range+0xcc/0xfa0
+>        zap_page_range_single+0xd0/0x1a0
+>        unmap_mapping_range+0x138/0x160
+>        truncate_pagecache+0x50/0xa0
+>        put_aio_ring_file+0x48/0xb0
+>        aio_free_ring+0x40/0x1b0
+>        free_ioctx+0x38/0xc0
+>        process_one_work+0x2cc/0x8a0
+>        worker_thread+0xac/0x580
+>        kthread+0x164/0x1b0
+>        ret_from_kernel_thread+0x5c/0x68
+> 
+> other info that might help us debug this:
+> 
+> Chain exists of:
+>   &vma->vm_sequence --> &vma->vm_sequence/1 --> &mapping->i_mmap_rwsem
+> 
+>  Possible unsafe locking scenario:
+> 
+>        CPU0                    CPU1
+>        ----                    ----
+>   lock(&mapping->i_mmap_rwsem);
+>                                lock(&vma->vm_sequence/1);
+>                                lock(&mapping->i_mmap_rwsem);
+>   lock(&vma->vm_sequence);
+> 
+>  *** DEADLOCK ***
+> 
+> To fix that we must grab the vm_sequence lock after any mapping one in
+> __vma_adjust().
+> 
+> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 
-Apologies for the large Cc list, but wasn't really sure who to send this to.
-
-I've seen this once on a Power8 box, with next-20170807.
-
-I think it happened while I was running the memory hoptlug selftests.
-
-cheers
-
-  [ 3532.474435] ======================================================
-  [ 3532.474440] WARNING: possible circular locking dependency detected
-  [ 3532.474446] 4.13.0-rc3-gcc6-next-20170807-g4751f76 #1 Not tainted
-  [ 3532.474450] ------------------------------------------------------
-  [ 3532.474454] ksmd/1459 is trying to acquire lock:
-  [ 3532.474460]  (cpu_hotplug_lock.rw_sem){++++++}, at: [<c0000000002b06b0>] lru_add_drain_all+0x20/0x40
-  [ 3532.474476] 
-                 but task is already holding lock:
-  [ 3532.474480]  (ksm_thread_mutex){+.+...}, at: [<c000000000330778>] ksm_scan_thread+0xd8/0x1a30
-  [ 3532.474493] 
-                 which lock already depends on the new lock.
-  
-  [ 3532.474499] 
-                 the existing dependency chain (in reverse order) is:
-  [ 3532.474504] 
-                 -> #3 (ksm_thread_mutex){+.+...}:
-  [ 3532.474517]        __mutex_lock+0x8c/0xa80
-  [ 3532.474522]        ksm_memory_callback+0xa4/0x390
-  [ 3532.474529]        notifier_call_chain+0xa4/0x110
-  [ 3532.474533]        __blocking_notifier_call_chain+0x74/0xb0
-  [ 3532.474540]        memory_notify+0x30/0x50
-  [ 3532.474544]        __offline_pages.constprop.6+0x1c0/0xa50
-  [ 3532.474549]        memory_subsys_offline+0x68/0xf0
-  [ 3532.474555]        device_offline+0x104/0x140
-  [ 3532.474560]        store_mem_state+0x178/0x190
-  [ 3532.474566]        dev_attr_store+0x3c/0x60
-  [ 3532.474572]        sysfs_kf_write+0x9c/0xc0
-  [ 3532.474576]        kernfs_fop_write+0x190/0x260
-  [ 3532.474582]        __vfs_write+0x44/0x1a0
-  [ 3532.474586]        vfs_write+0xd4/0x240
-  [ 3532.474591]        SyS_write+0x68/0x110
-  [ 3532.474597]        system_call+0x58/0x6c
-  [ 3532.474600] 
-                 -> #2 ((memory_chain).rwsem){++++..}:
-  [ 3532.474609]        down_read+0x44/0xa0
-  [ 3532.474613]        __blocking_notifier_call_chain+0x58/0xb0
-  [ 3532.474618]        memory_notify+0x30/0x50
-  [ 3532.474622]        __offline_pages.constprop.6+0x1c0/0xa50
-  [ 3532.474627]        memory_subsys_offline+0x68/0xf0
-  [ 3532.474631]        device_offline+0x104/0x140
-  [ 3532.474636]        store_mem_state+0x178/0x190
-  [ 3532.474641]        dev_attr_store+0x3c/0x60
-  [ 3532.474645]        sysfs_kf_write+0x9c/0xc0
-  [ 3532.474649]        kernfs_fop_write+0x190/0x260
-  [ 3532.474654]        __vfs_write+0x44/0x1a0
-  [ 3532.474659]        vfs_write+0xd4/0x240
-  [ 3532.474663]        SyS_write+0x68/0x110
-  [ 3532.474668]        system_call+0x58/0x6c
-  [ 3532.474671] 
-                 -> #1 (mem_hotplug_lock.rw_sem){++++++}:
-  [ 3532.474680]        get_online_mems+0x4c/0xd0
-  [ 3532.474685]        kmem_cache_create+0x6c/0x2a0
-  [ 3532.474691]        ptlock_cache_init+0x38/0x54
-  [ 3532.474696]        start_kernel+0x2ac/0x558
-  [ 3532.474700]        start_here_common+0x1c/0x4ac
-  [ 3532.474704] 
-                 -> #0 (cpu_hotplug_lock.rw_sem){++++++}:
-  [ 3532.474713]        lock_acquire+0xec/0x2e0
-  [ 3532.474718]        cpus_read_lock+0x4c/0xd0
-  [ 3532.474723]        lru_add_drain_all+0x20/0x40
-  [ 3532.474728]        ksm_scan_thread+0xba4/0x1a30
-  [ 3532.474734]        kthread+0x164/0x1b0
-  [ 3532.474739]        ret_from_kernel_thread+0x5c/0x74
-  [ 3532.474742] 
-                 other info that might help us debug this:
-  
-  [ 3532.474748] Chain exists of:
-                   cpu_hotplug_lock.rw_sem --> (memory_chain).rwsem --> ksm_thread_mutex
-  
-  [ 3532.474760]  Possible unsafe locking scenario:
-  
-  [ 3532.474764]        CPU0                    CPU1
-  [ 3532.474768]        ----                    ----
-  [ 3532.474771]   lock(ksm_thread_mutex);
-  [ 3532.474775]                                lock((memory_chain).rwsem);
-  [ 3532.474781]                                lock(ksm_thread_mutex);
-  [ 3532.474786]   lock(cpu_hotplug_lock.rw_sem);
-  [ 3532.474791] 
-                  *** DEADLOCK ***
-  
-  [ 3532.474797] 1 lock held by ksmd/1459:
-  [ 3532.474800]  #0:  (ksm_thread_mutex){+.+...}, at: [<c000000000330778>] ksm_scan_thread+0xd8/0x1a30
-  [ 3532.474810] 
-                 stack backtrace:
-  [ 3532.474816] CPU: 0 PID: 1459 Comm: ksmd Not tainted 4.13.0-rc3-gcc6-next-20170807-g4751f76 #1
-  [ 3532.474822] Call Trace:
-  [ 3532.474827] [c000001e54d13930] [c000000000b57c38] dump_stack+0xe8/0x160 (unreliable)
-  [ 3532.474835] [c000001e54d13970] [c000000000157968] print_circular_bug+0x288/0x3d0
-  [ 3532.474842] [c000001e54d13a10] [c00000000015b9c8] __lock_acquire+0x1858/0x1a20
-  [ 3532.474849] [c000001e54d13b80] [c00000000015c6fc] lock_acquire+0xec/0x2e0
-  [ 3532.474855] [c000001e54d13c50] [c0000000000d85cc] cpus_read_lock+0x4c/0xd0
-  [ 3532.474862] [c000001e54d13c80] [c0000000002b06b0] lru_add_drain_all+0x20/0x40
-  [ 3532.474869] [c000001e54d13ca0] [c000000000331244] ksm_scan_thread+0xba4/0x1a30
-  [ 3532.474876] [c000001e54d13dc0] [c00000000010b614] kthread+0x164/0x1b0
-  [ 3532.474883] [c000001e54d13e30] [c00000000000b6e8] ret_from_kernel_thread+0x5c/0x74
-
-
-cheers
+Should not this be folded back into the previous patch ? It fixes an
+issue introduced by the previous one.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
