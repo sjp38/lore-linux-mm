@@ -1,65 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A7106B03B5
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 04:48:21 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id g13so12697053qta.0
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 01:48:21 -0700 (PDT)
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EEB456B03C1
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 04:48:29 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id o124so12934277qke.9
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 01:48:29 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n206si776118qkn.297.2017.08.08.01.48.20
+        by mx.google.com with ESMTPS id h187si725685qkf.509.2017.08.08.01.48.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 01:48:20 -0700 (PDT)
+        Tue, 08 Aug 2017 01:48:29 -0700 (PDT)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH v3 12/49] btrfs: avoid to access bvec table directly for a cloned bio
-Date: Tue,  8 Aug 2017 16:45:11 +0800
-Message-Id: <20170808084548.18963-13-ming.lei@redhat.com>
+Subject: [PATCH v3 13/49] btrfs: comment on direct access bvec table
+Date: Tue,  8 Aug 2017 16:45:12 +0800
+Message-Id: <20170808084548.18963-14-ming.lei@redhat.com>
 In-Reply-To: <20170808084548.18963-1-ming.lei@redhat.com>
 References: <20170808084548.18963-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org, Liu Bo <bo.li.liu@oracle.com>
-
-Commit 17347cec15f919901c90(Btrfs: change how we iterate bios in endio)
-mentioned that for dio the submitted bio may be fast cloned, we
-can't access the bvec table directly for a cloned bio, so use
-bio_get_first_bvec() to retrieve the 1st bvec.
+Cc: linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@redhat.com>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org
 
 Cc: Chris Mason <clm@fb.com>
 Cc: Josef Bacik <jbacik@fb.com>
 Cc: David Sterba <dsterba@suse.com>
 Cc: linux-btrfs@vger.kernel.org
-Cc: Liu Bo <bo.li.liu@oracle.com>
-Reviewed-by: Liu Bo <bo.li.liu@oracle.com>
 Acked: David Sterba <dsterba@suse.com>
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- fs/btrfs/inode.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ fs/btrfs/compression.c |  4 ++++
+ fs/btrfs/inode.c       | 12 ++++++++++++
+ 2 files changed, 16 insertions(+)
 
+diff --git a/fs/btrfs/compression.c b/fs/btrfs/compression.c
+index d2ef9ac2a630..f795d0a6d176 100644
+--- a/fs/btrfs/compression.c
++++ b/fs/btrfs/compression.c
+@@ -542,6 +542,10 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
+ 
+ 	/* we need the actual starting offset of this extent in the file */
+ 	read_lock(&em_tree->lock);
++	/*
++	 * It is still safe to retrieve the 1st page of the bio
++	 * in this way after supporting multipage bvec.
++	 */
+ 	em = lookup_extent_mapping(em_tree,
+ 				   page_offset(bio->bi_io_vec->bv_page),
+ 				   PAGE_SIZE);
 diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
-index 95c212037095..5cf320ee7ea0 100644
+index 5cf320ee7ea0..084ed99dd308 100644
 --- a/fs/btrfs/inode.c
 +++ b/fs/btrfs/inode.c
-@@ -7993,6 +7993,7 @@ static int dio_read_error(struct inode *inode, struct bio *failed_bio,
- 	int read_mode = 0;
- 	int segs;
- 	int ret;
-+	struct bio_vec bvec;
+@@ -8051,6 +8051,12 @@ static void btrfs_retry_endio_nocsum(struct bio *bio)
+ 	if (bio->bi_status)
+ 		goto end;
  
- 	BUG_ON(bio_op(failed_bio) == REQ_OP_WRITE);
++	/*
++	 * WARNING:
++	 *
++	 * With multipage bvec, the following way of direct access to
++	 * bvec table is only safe if the bio includes single page.
++	 */
+ 	ASSERT(bio->bi_vcnt == 1);
+ 	io_tree = &BTRFS_I(inode)->io_tree;
+ 	failure_tree = &BTRFS_I(inode)->io_failure_tree;
+@@ -8143,6 +8149,12 @@ static void btrfs_retry_endio(struct bio *bio)
  
-@@ -8008,8 +8009,9 @@ static int dio_read_error(struct inode *inode, struct bio *failed_bio,
- 	}
+ 	uptodate = 1;
  
- 	segs = bio_segments(failed_bio);
-+	bio_get_first_bvec(failed_bio, &bvec);
- 	if (segs > 1 ||
--	    (failed_bio->bi_io_vec->bv_len > btrfs_inode_sectorsize(inode)))
-+	    (bvec.bv_len > btrfs_inode_sectorsize(inode)))
- 		read_mode |= REQ_FAILFAST_DEV;
++	/*
++	 * WARNING:
++	 *
++	 * With multipage bvec, the following way of direct access to
++	 * bvec table is only safe if the bio includes single page.
++	 */
+ 	ASSERT(bio->bi_vcnt == 1);
+ 	ASSERT(bio->bi_io_vec->bv_len == btrfs_inode_sectorsize(done->inode));
  
- 	isector = start - btrfs_io_bio(failed_bio)->logical;
 -- 
 2.9.4
 
