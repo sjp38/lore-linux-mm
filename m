@@ -1,54 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4162A6B02B4
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 18:57:25 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id l13so22239932qtc.15
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 15:57:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r190si1798373qkf.190.2017.08.08.15.57.24
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A590C6B025F
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 19:06:42 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id y129so49197849pgy.1
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 16:06:42 -0700 (PDT)
+Received: from mail-pf0-x233.google.com (mail-pf0-x233.google.com. [2607:f8b0:400e:c00::233])
+        by mx.google.com with ESMTPS id z70si1535810pfk.642.2017.08.08.16.06.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 15:57:24 -0700 (PDT)
-From: jglisse@redhat.com
-Subject: [PATCH] mm/mmu_notifier: fix deadlock from typo vm_lock_anon_vma()
-Date: Tue,  8 Aug 2017 18:57:19 -0400
-Message-Id: <20170808225719.20723-1-jglisse@redhat.com>
+        Tue, 08 Aug 2017 16:06:40 -0700 (PDT)
+Received: by mail-pf0-x233.google.com with SMTP id t86so20190516pfe.2
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 16:06:40 -0700 (PDT)
+Date: Tue, 8 Aug 2017 16:06:38 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [v4 2/4] mm, oom: cgroup-aware OOM killer
+In-Reply-To: <20170801152548.GA29502@castle.dhcp.TheFacebook.com>
+Message-ID: <alpine.DEB.2.10.1708081559001.54505@chino.kir.corp.google.com>
+References: <20170726132718.14806-1-guro@fb.com> <20170726132718.14806-3-guro@fb.com> <20170801145435.GN15774@dhcp22.suse.cz> <20170801152548.GA29502@castle.dhcp.TheFacebook.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Davidlohr Bueso <dbueso@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: Roman Gushchin <guro@fb.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-From: JA(C)rA'me Glisse <jglisse@redhat.com>
+On Tue, 1 Aug 2017, Roman Gushchin wrote:
 
-Fix typo introduced by 0c67e6038580e343bd5af12b7ac6548634f05f0d
-which result in dead lock when mm_take_all_locks() is call (only
-user being mmu_notifier at this time)
+> > To the rest of the patch. I have to say I do not quite like how it is
+> > implemented. I was hoping for something much simpler which would hook
+> > into oom_evaluate_task. If a task belongs to a memcg with kill-all flag
+> > then we would update the cumulative memcg badness (more specifically the
+> > badness of the topmost parent with kill-all flag). Memcg will then
+> > compete with existing self contained tasks (oom_badness will have to
+> > tell whether points belong to a task or a memcg to allow the caller to
+> > deal with it). But it shouldn't be much more complex than that.
+> 
+> I'm not sure, it will be any simpler. Basically I'm doing the same:
+> the difference is that you want to iterate over tasks and for each
+> task traverse the memcg tree, update per-cgroup oom score and find
+> the corresponding memcg(s) with the kill-all flag. I'm doing the opposite:
+> traverse the cgroup tree, and for each leaf cgroup iterate over processes.
+> 
+> Also, please note, that even without the kill-all flag the decision is made
+> on per-cgroup level (except tasks in the root cgroup).
+> 
 
-Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Davidlohr Bueso <dbueso@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- mm/mmap.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+I think your implementation is preferred and is actually quite simple to 
+follow, and I would encourage you to follow through with it.  It has a 
+similar implementation to what we have done for years to kill a process 
+from a leaf memcg.
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 74abfd382478..2d906a8f67ac 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3314,7 +3314,7 @@ static DEFINE_MUTEX(mm_all_locks_mutex);
- 
- static void vm_lock_anon_vma(struct mm_struct *mm, struct anon_vma *anon_vma)
- {
--	if (!test_bit(0, (unsigned long *) &anon_vma->rb_root.rb_root.rb_node)) {
-+	if (!test_bit(0, (unsigned long *) &anon_vma->root->rb_root.rb_root.rb_node)) {
- 		/*
- 		 * The LSB of head.next can't change from under us
- 		 * because we hold the mm_all_locks_mutex.
--- 
-2.13.4
+I did notice that oom_kill_memcg_victim() calls directly into 
+__oom_kill_process(), however, so we lack the traditional oom killer 
+output that shows memcg usage and potential tasklist.  I think we should 
+still be dumping this information to the kernel log so that we can see a 
+breakdown of charged memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
