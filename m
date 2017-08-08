@@ -1,126 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C48FD6B025F
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 15:03:38 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id o124so19797318qke.9
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 12:03:38 -0700 (PDT)
-Received: from mail-yw0-x234.google.com (mail-yw0-x234.google.com. [2607:f8b0:4002:c05::234])
-        by mx.google.com with ESMTPS id i9si551787ybj.431.2017.08.08.12.03.37
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 131FC6B02F4
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 15:13:45 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id w51so19710801qtc.12
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 12:13:45 -0700 (PDT)
+Received: from mail-qt0-x233.google.com (mail-qt0-x233.google.com. [2607:f8b0:400d:c0d::233])
+        by mx.google.com with ESMTPS id e62si1777263qkh.328.2017.08.08.12.13.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 12:03:37 -0700 (PDT)
-Received: by mail-yw0-x234.google.com with SMTP id l82so27103261ywc.2
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 12:03:37 -0700 (PDT)
+        Tue, 08 Aug 2017 12:13:43 -0700 (PDT)
+Received: by mail-qt0-x233.google.com with SMTP id a18so25203018qta.0
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 12:13:43 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1708080957470.25441@nuc-kabylake>
-References: <20170804231002.20362-1-labbott@redhat.com> <alpine.DEB.2.20.1708070936400.17268@nuc-kabylake>
- <559096f0-bf1b-eff1-f0ce-33f53a4df255@redhat.com> <alpine.DEB.2.20.1708071302310.18681@nuc-kabylake>
- <e0fc8a0a-fa52-e644-1fc2-4e96082858e0@redhat.com> <CAGXu5jKsb+7NyKLemdkS4ENtxuQzbaDY2h2DnMEr+=qBqJAJqw@mail.gmail.com>
- <alpine.DEB.2.20.1708080957470.25441@nuc-kabylake>
-From: Kees Cook <keescook@chromium.org>
-Date: Tue, 8 Aug 2017 12:03:35 -0700
-Message-ID: <CAGXu5jJSWtYfRu368cPpyMExbippb8=XchR48Dxt8uM_tNSd6A@mail.gmail.com>
-Subject: Re: [RFC][PATCH] mm/slub.c: Allow poisoning to use the fast path
+In-Reply-To: <20170808173704.GA22887@cmpxchg.org>
+References: <20170805155241.GA94821@jaegeuk-macbookpro.roam.corp.google.com>
+ <20170808010150.4155-1-bradleybolen@gmail.com> <20170808162122.GA14689@cmpxchg.org>
+ <20170808165601.GA7693@jaegeuk-macbookpro.roam.corp.google.com> <20170808173704.GA22887@cmpxchg.org>
+From: Brad Bolen <bradleybolen@gmail.com>
+Date: Tue, 8 Aug 2017 15:13:42 -0400
+Message-ID: <CADvgSZSn1v-tTpa07ebqr19heQbkzbavdPM_nbRNR1WF-EBnFw@mail.gmail.com>
+Subject: Re: kernel panic on null pointer on page->mem_cgroup
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Laura Abbott <labbott@redhat.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Jaegeuk Kim <jaegeuk@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Aug 8, 2017 at 8:01 AM, Christopher Lameter <cl@linux.com> wrote:
->
-> On Mon, 7 Aug 2017, Kees Cook wrote:
+On Tue, Aug 8, 2017 at 1:37 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> On Tue, Aug 08, 2017 at 09:56:01AM -0700, Jaegeuk Kim wrote:
+>> On 08/08, Johannes Weiner wrote:
+>> > Hi Jaegeuk and Bradley,
+>> >
+>> > On Mon, Aug 07, 2017 at 09:01:50PM -0400, Bradley Bolen wrote:
+>> > > I am getting a very similar error on v4.11 with an arm64 board.
+>> > >
+>> > > I, too, also see page->mem_cgroup checked to make sure that it is not
+>> > > NULL and then several instructions later it is NULL.  It does appear
+>> > > that someone is changing that member without taking the lock.  In my
+>> > > setup, I see
+>> > >
+>> > > crash> bt
+>> > > PID: 72     TASK: e1f48640  CPU: 0   COMMAND: "mmcqd/1"
+>> > >  #0 [<c00ad35c>] (__crash_kexec) from [<c0101080>]
+>> > >  #1 [<c0101080>] (panic) from [<c028cd6c>]
+>> > >  #2 [<c028cd6c>] (svcerr_panic) from [<c028cdc4>]
+>> > >  #3 [<c028cdc4>] (_SvcErr_) from [<c001474c>]
+>> > >  #4 [<c001474c>] (die) from [<c00241f8>]
+>> > >  #5 [<c00241f8>] (__do_kernel_fault) from [<c0560600>]
+>> > >  #6 [<c0560600>] (do_page_fault) from [<c00092e8>]
+>> > >  #7 [<c00092e8>] (do_DataAbort) from [<c055f9f0>]
+>> > >     pc : [<c0112540>]    lr : [<c0112518>]    psr: a0000193
+>> > >     sp : c1a19cc8  ip : 00000000  fp : c1a19d04
+>> > >     r10: 0006ae29  r9 : 00000000  r8 : dfbf1800
+>> > >     r7 : dfbf1800  r6 : 00000001  r5 : f3c1107c  r4 : e2fb6424
+>> > >     r3 : 00000000  r2 : 00040228  r1 : 221e3000  r0 : a0000113
+>> > >     Flags: NzCv  IRQs off  FIQs on  Mode SVC_32  ISA ARM
+>> > >  #8 [<c055f9f0>] (__dabt_svc) from [<c0112518>]
+>> > >  #9 [<c0112540>] (test_clear_page_writeback) from [<c01046d4>]
+>> > > #10 [<c01046d4>] (end_page_writeback) from [<c0149bcc>]
+>> > > #11 [<c0149bcc>] (end_swap_bio_write) from [<c0261460>]
+>> > > #12 [<c0261460>] (bio_endio) from [<c042c800>]
+>> > > #13 [<c042c800>] (dec_pending) from [<c042e648>]
+>> > > #14 [<c042e648>] (clone_endio) from [<c0261460>]
+>> > > #15 [<c0261460>] (bio_endio) from [<bf60aa00>]
+>> > > #16 [<bf60aa00>] (crypt_dec_pending [dm_crypt]) from [<bf60c1e8>]
+>> > > #17 [<bf60c1e8>] (crypt_endio [dm_crypt]) from [<c0261460>]
+>> > > #18 [<c0261460>] (bio_endio) from [<c0269e34>]
+>> > > #19 [<c0269e34>] (blk_update_request) from [<c026a058>]
+>> > > #20 [<c026a058>] (blk_update_bidi_request) from [<c026a444>]
+>> > > #21 [<c026a444>] (blk_end_bidi_request) from [<c026a494>]
+>> > > #22 [<c026a494>] (blk_end_request) from [<c0458dbc>]
+>> > > #23 [<c0458dbc>] (mmc_blk_issue_rw_rq) from [<c0459e24>]
+>> > > #24 [<c0459e24>] (mmc_blk_issue_rq) from [<c045a018>]
+>> > > #25 [<c045a018>] (mmc_queue_thread) from [<c0048890>]
+>> > > #26 [<c0048890>] (kthread) from [<c0010388>]
+>> > > crash> sym c0112540
+>> > > c0112540 (T) test_clear_page_writeback+512
+>> > >  /kernel-source/include/linux/memcontrol.h: 518
+>> > >
+>> > > crash> bt 35
+>> > > PID: 35     TASK: e1d45dc0  CPU: 1   COMMAND: "kswapd0"
+>> > >  #0 [<c0559ab8>] (__schedule) from [<c0559edc>]
+>> > >  #1 [<c0559edc>] (schedule) from [<c055e54c>]
+>> > >  #2 [<c055e54c>] (schedule_timeout) from [<c055a3a4>]
+>> > >  #3 [<c055a3a4>] (io_schedule_timeout) from [<c0106cb0>]
+>> > >  #4 [<c0106cb0>] (mempool_alloc) from [<c0261668>]
+>> > >  #5 [<c0261668>] (bio_alloc_bioset) from [<c0149d68>]
+>> > >  #6 [<c0149d68>] (get_swap_bio) from [<c014a280>]
+>> > >  #7 [<c014a280>] (__swap_writepage) from [<c014a3bc>]
+>> > >  #8 [<c014a3bc>] (swap_writepage) from [<c011e5c8>]
+>> > >  #9 [<c011e5c8>] (shmem_writepage) from [<c011a9b8>]
+>> > > #10 [<c011a9b8>] (shrink_page_list) from [<c011b528>]
+>> > > #11 [<c011b528>] (shrink_inactive_list) from [<c011c160>]
+>> > > #12 [<c011c160>] (shrink_node_memcg) from [<c011c400>]
+>> > > #13 [<c011c400>] (shrink_node) from [<c011d7dc>]
+>> > > #14 [<c011d7dc>] (kswapd) from [<c0048890>]
+>> > > #15 [<c0048890>] (kthread) from [<c0010388>]
+>> > >
+>> > > It appears that uncharge_list() in mm/memcontrol.c is not taking the
+>> > > page lock when it sets mem_cgroup to NULL.  I am not familiar with the
+>> > > mm code so I do not know if this is on purpose or not.  There is a
+>> > > comment in uncharge_list that makes me believe that the crashing code
+>> > > should not have been running:
+>> > > /*
+>> > >  * Nobody should be changing or seriously looking at
+>> > >  * page->mem_cgroup at this point, we have fully
+>> > >  * exclusive access to the page.
+>> > >  */
+>> > > However, I am new to looking at this area of the kernel so I am not
+>> > > sure.
+>> >
+>> > The lock is for pages that are actively being used, whereas the free
+>> > path requires the page refcount to be 0; nobody else should be having
+>> > access to the page at that time.
 >>
->> To clarify, this is desirable to kill exploitation of
->> exposure-after-free flaws and some classes of use-after-free flaws,
->> since the contents will have be wiped out after a free. (Verification
->> of poison is nice, but is expensive compared to the benefit against
->> these exploits -- and notably doesn't protect against the other
->> use-after-free attacks where the contents are changed after the next
->> allocation, which would have passed the poison verification.)
+>> Given various trials for a while, using __mod_memcg_state() instead of
+>> mod_memcg_state() ssems somehow blowing the panic away. It might be caused
+>> by kernel preemption?
 >
-> Well the only variable in the freed area that is in use by the allocator
-> is the free pointer. This ensures that complete object is poisoned and the
-> free pointer has a separate storage area right? So the size of the slab
-> objects increase. In addition to more hotpath processing we also have
-> increased object sizes.
+> That's puzzling. Is that reliably the case? Because on x86-64,
+> __this_cpu_add and this_cpu_add should result in the same code:
+>
+> #define raw_cpu_add_8(pcp, val)                 percpu_add_op((pcp), val)
+> #define this_cpu_add_8(pcp, val)                percpu_add_op((pcp), val)
+>
+> which boils down to single instructions - incq, decq, addq - and so
+> never needs explicit disabling of scheduler or interrupt preemption.
+>
+>> > > I was able to create a reproducible scenario by using a udelay to
+>> > > increase the time between the if (page->mem_cgroup) check and the later
+>> > > dereference of it to increase the race window.  I then mounted an empty
+>> > > ext4 partition and ran the following no more than twice before it
+>> > > crashed.
+>> > > dd if=/dev/zero of=/tmp/ext4disk/test bs=1M count=100
+>> >
+>> > Thanks, that's useful. I'm going to try to reproduce this also.
+>> >
+>> > There is a
+>> >
+>> >     VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
+>> >
+>> > inside uncharge_list() that verifies that there shouldn't in fact be
+>> > any pages ending writeback when they get into that function. Can you
+>> > build your kernel with CONFIG_DEBUG_VM to enable that test?
+>>
+>> I'll test this as well. ;)
+>
+> Thanks. I'm trying various udelays in between the NULL-check and the
+> dereference, but I cannot seem to make it happen with the ext4-dd on
+> my local machine.
+I am using a fairly fat udelay of 100.
 
-I'll let Laura speak to that; this is mainly an implementation detail.
-I think it would be fine to leave the free pointer written in-object
-after poisoning.
+I turned on CONFIG_DEBUG_VM but it didn't bug for me, although the original
+problem still reproduced.
 
-> I am not familiar with the terminology here.
-
-Sorry, my fault for not being more clear! More below...
-
-> So exposure-after-free means that the contents of the object can be used
-> after it was freed?
-
-There's a few things mixed together, but mainly this is about removing
-the idea of "uninitialized" memory contents. One example is just
-simply a memory region getting reused immediately, but failing to
-properly initialize it, so the old contents are still there, and they
-get exposed in some way (for a recent example, see [1]), leaking
-sensitive kernel contents that an attacker can use to extend another
-attack (e.g. leaking the precise location of some other target in
-kernel memory). A simple example could look like this:
-
-userspace makes syscall
-... some function call path ...
-kfree($location);
-
-userspace makes syscall
-... other function ...
-ptr = kmalloc(...); // ptr is $location now
-... buggy logic that never writes to ptr contents ...
-copy_to_user(user, ptr, ...); // contents of $location copied to userspace
-
-> Contents are changed after allocation? Someone gets a pointer to the
-> object and the mods it later?
-
-The classic use-after-free attack isn't normally affected by cache
-poisoning, since the attack pattern is:
-
-userspace makes syscall
-tracked_struct = kmalloc(...);
-...
-kfree(tracked_struct); // some bug causes an early free
-
-userspace makes syscall
-...
-other_struct = kmalloc(...); // tracked_struct same as other_struct now
-other_struct->fields = evil_from_userspace; // overwrite by attacker
-
-userspace makes syscall
-...
-tracked_struct->function_pointer(...); // calls attacker-controlled function
-
-In other words, between the kfree() and the use, it gets reallocated
-and written to, but the old reference remains and operates on the
-newly written contents (in this worst-case example, it's a function
-pointer overwrite). What I meant by "some classes of use-after-free
-flaws" was that in rare cases, the "written to" step isn't needed,
-since the existing contents can be used as-is (i.e. like the
-"exposure-after-free" example I showed first), but it differs in what
-primitives it provides to an attacker since it's not "just" an
-exposure, but results in an attacker having control over kernel
-behavior due to unexpected contents in memory.
-
-Similar things happen to stack variables (there are lots of stack
-info-leak examples, and see my presentation[2] for a direct execution
-control example due to "uninitialized" variables), but that is being
-worked on separately (forced stack variable init, and forced stack
-clearing). The fast-path poisoning-on-free effort here is to protect
-the slab cache from these classes of flaws and attacks.
-
--Kees
-
-[1] http://seclists.org/oss-sec/2017/q2/455
-[2] https://outflux.net/slides/2011/defcon/kernel-exploitation.pdf
-
--- 
-Kees Cook
-Pixel Security
+I can insert some tracing to try to get some more information, but unfortunately
+I am stuck with v4.11 at the moment and can't try v4.13-rc4 on this setup.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
