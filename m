@@ -1,75 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4557A6B02C3
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 21:44:00 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id u199so51443567pgb.13
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 18:44:00 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id j2si1784498pli.1040.2017.08.08.18.43.58
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5276A6B02F3
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 21:45:02 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id t18so4741531oih.11
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 18:45:02 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id h26si2044594oig.298.2017.08.08.18.45.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 18:43:59 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v791hpBt047215
-	for <linux-mm@kvack.org>; Tue, 8 Aug 2017 21:43:58 -0400
-Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com [202.81.31.141])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2c7k46rvw7-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 08 Aug 2017 21:43:58 -0400
-Received: from localhost
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 9 Aug 2017 11:43:55 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v791hqIB28508176
-	for <linux-mm@kvack.org>; Wed, 9 Aug 2017 11:43:53 +1000
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v791hpOC028550
-	for <linux-mm@kvack.org>; Wed, 9 Aug 2017 11:43:52 +1000
-Subject: Re: [PATCH 16/16] perf tools: Add support for SPF events
-References: <1502202949-8138-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1502202949-8138-17-git-send-email-ldufour@linux.vnet.ibm.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Wed, 9 Aug 2017 07:13:36 +0530
+        Tue, 08 Aug 2017 18:45:01 -0700 (PDT)
+Date: Tue, 8 Aug 2017 18:44:59 -0700
+From: Jaegeuk Kim <jaegeuk@kernel.org>
+Subject: Re: kernel panic on null pointer on page->mem_cgroup
+Message-ID: <20170809014459.GB7693@jaegeuk-macbookpro.roam.corp.google.com>
+References: <20170805155241.GA94821@jaegeuk-macbookpro.roam.corp.google.com>
+ <20170808010150.4155-1-bradleybolen@gmail.com>
+ <20170808162122.GA14689@cmpxchg.org>
+ <20170808165601.GA7693@jaegeuk-macbookpro.roam.corp.google.com>
+ <20170808173704.GA22887@cmpxchg.org>
+ <CADvgSZSn1v-tTpa07ebqr19heQbkzbavdPM_nbRNR1WF-EBnFw@mail.gmail.com>
+ <20170808200849.GA1104@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <1502202949-8138-17-git-send-email-ldufour@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <c6468c4e-d704-d71a-6b00-e72977fbf68f@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170808200849.GA1104@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Brad Bolen <bradleybolen@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 08/08/2017 08:05 PM, Laurent Dufour wrote:
-> Add support for the new speculative faults events.
+On 08/08, Johannes Weiner wrote:
+> On Tue, Aug 08, 2017 at 03:13:42PM -0400, Brad Bolen wrote:
+> > On Tue, Aug 8, 2017 at 1:37 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > > On Tue, Aug 08, 2017 at 09:56:01AM -0700, Jaegeuk Kim wrote:
+> > >> On 08/08, Johannes Weiner wrote:
+> > >> > Hi Jaegeuk and Bradley,
+> > >> >
+> > >> > On Mon, Aug 07, 2017 at 09:01:50PM -0400, Bradley Bolen wrote:
+> > >> > > I am getting a very similar error on v4.11 with an arm64 board.
+> > >> > >
+> > >> > > I, too, also see page->mem_cgroup checked to make sure that it is not
+> > >> > > NULL and then several instructions later it is NULL.  It does appear
+> > >> > > that someone is changing that member without taking the lock.  In my
+> > >> > > setup, I see
+> > >> > >
+> > >> > > crash> bt
+> > >> > > PID: 72     TASK: e1f48640  CPU: 0   COMMAND: "mmcqd/1"
+> > >> > >  #0 [<c00ad35c>] (__crash_kexec) from [<c0101080>]
+> > >> > >  #1 [<c0101080>] (panic) from [<c028cd6c>]
+> > >> > >  #2 [<c028cd6c>] (svcerr_panic) from [<c028cdc4>]
+> > >> > >  #3 [<c028cdc4>] (_SvcErr_) from [<c001474c>]
+> > >> > >  #4 [<c001474c>] (die) from [<c00241f8>]
+> > >> > >  #5 [<c00241f8>] (__do_kernel_fault) from [<c0560600>]
+> > >> > >  #6 [<c0560600>] (do_page_fault) from [<c00092e8>]
+> > >> > >  #7 [<c00092e8>] (do_DataAbort) from [<c055f9f0>]
+> > >> > >     pc : [<c0112540>]    lr : [<c0112518>]    psr: a0000193
+> > >> > >     sp : c1a19cc8  ip : 00000000  fp : c1a19d04
+> > >> > >     r10: 0006ae29  r9 : 00000000  r8 : dfbf1800
+> > >> > >     r7 : dfbf1800  r6 : 00000001  r5 : f3c1107c  r4 : e2fb6424
+> > >> > >     r3 : 00000000  r2 : 00040228  r1 : 221e3000  r0 : a0000113
+> > >> > >     Flags: NzCv  IRQs off  FIQs on  Mode SVC_32  ISA ARM
+> > >> > >  #8 [<c055f9f0>] (__dabt_svc) from [<c0112518>]
+> > >> > >  #9 [<c0112540>] (test_clear_page_writeback) from [<c01046d4>]
+> > >> > > #10 [<c01046d4>] (end_page_writeback) from [<c0149bcc>]
+> > >> > > #11 [<c0149bcc>] (end_swap_bio_write) from [<c0261460>]
+> > >> > > #12 [<c0261460>] (bio_endio) from [<c042c800>]
+> > >> > > #13 [<c042c800>] (dec_pending) from [<c042e648>]
+> > >> > > #14 [<c042e648>] (clone_endio) from [<c0261460>]
+> > >> > > #15 [<c0261460>] (bio_endio) from [<bf60aa00>]
+> > >> > > #16 [<bf60aa00>] (crypt_dec_pending [dm_crypt]) from [<bf60c1e8>]
+> > >> > > #17 [<bf60c1e8>] (crypt_endio [dm_crypt]) from [<c0261460>]
+> > >> > > #18 [<c0261460>] (bio_endio) from [<c0269e34>]
+> > >> > > #19 [<c0269e34>] (blk_update_request) from [<c026a058>]
+> > >> > > #20 [<c026a058>] (blk_update_bidi_request) from [<c026a444>]
+> > >> > > #21 [<c026a444>] (blk_end_bidi_request) from [<c026a494>]
+> > >> > > #22 [<c026a494>] (blk_end_request) from [<c0458dbc>]
+> > >> > > #23 [<c0458dbc>] (mmc_blk_issue_rw_rq) from [<c0459e24>]
+> > >> > > #24 [<c0459e24>] (mmc_blk_issue_rq) from [<c045a018>]
+> > >> > > #25 [<c045a018>] (mmc_queue_thread) from [<c0048890>]
+> > >> > > #26 [<c0048890>] (kthread) from [<c0010388>]
+> > >> > > crash> sym c0112540
+> > >> > > c0112540 (T) test_clear_page_writeback+512
+> > >> > >  /kernel-source/include/linux/memcontrol.h: 518
+> > >> > >
+> > >> > > crash> bt 35
+> > >> > > PID: 35     TASK: e1d45dc0  CPU: 1   COMMAND: "kswapd0"
+> > >> > >  #0 [<c0559ab8>] (__schedule) from [<c0559edc>]
+> > >> > >  #1 [<c0559edc>] (schedule) from [<c055e54c>]
+> > >> > >  #2 [<c055e54c>] (schedule_timeout) from [<c055a3a4>]
+> > >> > >  #3 [<c055a3a4>] (io_schedule_timeout) from [<c0106cb0>]
+> > >> > >  #4 [<c0106cb0>] (mempool_alloc) from [<c0261668>]
+> > >> > >  #5 [<c0261668>] (bio_alloc_bioset) from [<c0149d68>]
+> > >> > >  #6 [<c0149d68>] (get_swap_bio) from [<c014a280>]
+> > >> > >  #7 [<c014a280>] (__swap_writepage) from [<c014a3bc>]
+> > >> > >  #8 [<c014a3bc>] (swap_writepage) from [<c011e5c8>]
+> > >> > >  #9 [<c011e5c8>] (shmem_writepage) from [<c011a9b8>]
+> > >> > > #10 [<c011a9b8>] (shrink_page_list) from [<c011b528>]
+> > >> > > #11 [<c011b528>] (shrink_inactive_list) from [<c011c160>]
+> > >> > > #12 [<c011c160>] (shrink_node_memcg) from [<c011c400>]
+> > >> > > #13 [<c011c400>] (shrink_node) from [<c011d7dc>]
+> > >> > > #14 [<c011d7dc>] (kswapd) from [<c0048890>]
+> > >> > > #15 [<c0048890>] (kthread) from [<c0010388>]
+> > >> > >
+> > >> > > It appears that uncharge_list() in mm/memcontrol.c is not taking the
+> > >> > > page lock when it sets mem_cgroup to NULL.  I am not familiar with the
+> > >> > > mm code so I do not know if this is on purpose or not.  There is a
+> > >> > > comment in uncharge_list that makes me believe that the crashing code
+> > >> > > should not have been running:
+> > >> > > /*
+> > >> > >  * Nobody should be changing or seriously looking at
+> > >> > >  * page->mem_cgroup at this point, we have fully
+> > >> > >  * exclusive access to the page.
+> > >> > >  */
+> > >> > > However, I am new to looking at this area of the kernel so I am not
+> > >> > > sure.
+> > >> >
+> > >> > The lock is for pages that are actively being used, whereas the free
+> > >> > path requires the page refcount to be 0; nobody else should be having
+> > >> > access to the page at that time.
+> > >>
+> > >> Given various trials for a while, using __mod_memcg_state() instead of
+> > >> mod_memcg_state() ssems somehow blowing the panic away. It might be caused
+> > >> by kernel preemption?
+> > >
+> > > That's puzzling. Is that reliably the case? Because on x86-64,
+> > > __this_cpu_add and this_cpu_add should result in the same code:
+> > >
+> > > #define raw_cpu_add_8(pcp, val)                 percpu_add_op((pcp), val)
+> > > #define this_cpu_add_8(pcp, val)                percpu_add_op((pcp), val)
+> > >
+> > > which boils down to single instructions - incq, decq, addq - and so
+> > > never needs explicit disabling of scheduler or interrupt preemption.
+> > >
+> > >> > > I was able to create a reproducible scenario by using a udelay to
+> > >> > > increase the time between the if (page->mem_cgroup) check and the later
+> > >> > > dereference of it to increase the race window.  I then mounted an empty
+> > >> > > ext4 partition and ran the following no more than twice before it
+> > >> > > crashed.
+> > >> > > dd if=/dev/zero of=/tmp/ext4disk/test bs=1M count=100
+> > >> >
+> > >> > Thanks, that's useful. I'm going to try to reproduce this also.
+> > >> >
+> > >> > There is a
+> > >> >
+> > >> >     VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
+> > >> >
+> > >> > inside uncharge_list() that verifies that there shouldn't in fact be
+> > >> > any pages ending writeback when they get into that function. Can you
+> > >> > build your kernel with CONFIG_DEBUG_VM to enable that test?
+> > >>
+> > >> I'll test this as well. ;)
+> > >
+> > > Thanks. I'm trying various udelays in between the NULL-check and the
+> > > dereference, but I cannot seem to make it happen with the ext4-dd on
+> > > my local machine.
+> > I am using a fairly fat udelay of 100.
+> > 
+> > I turned on CONFIG_DEBUG_VM but it didn't bug for me, although the original
+> > problem still reproduced.
 > 
-> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> ---
->  tools/include/uapi/linux/perf_event.h | 2 ++
->  tools/perf/util/evsel.c               | 2 ++
->  tools/perf/util/parse-events.c        | 8 ++++++++
->  tools/perf/util/parse-events.l        | 2 ++
->  tools/perf/util/python.c              | 2 ++
->  5 files changed, 16 insertions(+)
+> Ok that sounds like a page refcounting bug then.
 > 
-> diff --git a/tools/include/uapi/linux/perf_event.h b/tools/include/uapi/linux/perf_event.h
-> index b1c0b187acfe..fbfb03dff334 100644
-> --- a/tools/include/uapi/linux/perf_event.h
-> +++ b/tools/include/uapi/linux/perf_event.h
-> @@ -111,6 +111,8 @@ enum perf_sw_ids {
->  	PERF_COUNT_SW_EMULATION_FAULTS		= 8,
->  	PERF_COUNT_SW_DUMMY			= 9,
->  	PERF_COUNT_SW_BPF_OUTPUT		= 10,
-> +	PERF_COUNT_SW_SPF_DONE			= 11,
-> +	PERF_COUNT_SW_SPF_FAILED		= 12,
+> > I can insert some tracing to try to get some more information, but unfortunately
+> > I am stuck with v4.11 at the moment and can't try v4.13-rc4 on this setup.
+> 
+> Does the below trigger with your reproducer? (Still doesn't for me).
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 3914e3dd6168..c052b085c5dd 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -599,6 +599,7 @@ static inline void __mod_lruvec_page_state(struct page *page,
+>  	struct mem_cgroup_per_node *pn;
 >  
+>  	__mod_node_page_state(page_pgdat(page), idx, val);
+> +	VM_BUG_ON_PAGE(!page_count(page), page);
+>  	if (mem_cgroup_disabled() || !page->mem_cgroup)
+>  		return;
+>  	__mod_memcg_state(page->mem_cgroup, idx, val);
+> @@ -612,6 +613,7 @@ static inline void mod_lruvec_page_state(struct page *page,
+>  	struct mem_cgroup_per_node *pn;
+>  
+>  	mod_node_page_state(page_pgdat(page), idx, val);
+> +	VM_BUG_ON_PAGE(!page_count(page), page);
 
-PERF_COUNT_SW_SPF_FAULTS makes sense but not the FAILED one. IIRC,
-there are no error path counting in perf SW events at the moment.
-SPF_FAULTS and SPF_FAILS are VM internal events like THP collapse
-etc. IMHO it should be added as a VM statistics counter or as a
-trace point event instead.
+It seems DEBUG_VM may hide the problem in my case, so I turned it off and
+replaced it with BUG_ON(!page_count(page)). Then, I exactly hit this.
+
+Thanks,
+
+>  	if (mem_cgroup_disabled() || !page->mem_cgroup)
+>  		return;
+>  	mod_memcg_state(page->mem_cgroup, idx, val);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
