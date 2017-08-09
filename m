@@ -1,49 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C97C6B0292
-	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 14:58:28 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id k190so72901173pge.9
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 11:58:28 -0700 (PDT)
-Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
-        by mx.google.com with ESMTPS id l125si2990462pfl.219.2017.08.09.11.58.26
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 74F9B6B02B4
+	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 15:43:43 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id r7so10090176wrb.0
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 12:43:43 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 2si3844215wrh.288.2017.08.09.12.43.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Aug 2017 11:58:26 -0700 (PDT)
-Received: by mail-pg0-x241.google.com with SMTP id y192so6556024pgd.1
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 11:58:26 -0700 (PDT)
-From: SeongJae Park <sj38.park@gmail.com>
-Subject: [PATCH] vmstat: Fix wrong comment
-Date: Thu, 10 Aug 2017 03:58:16 +0900
-Message-Id: <20170809185816.11244-1-sj38.park@gmail.com>
+        Wed, 09 Aug 2017 12:43:42 -0700 (PDT)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.4 07/58] mm/page_alloc: Remove kernel address exposure in free_reserved_area()
+Date: Wed,  9 Aug 2017 12:41:19 -0700
+Message-Id: <20170809194146.795256295@linuxfoundation.org>
+In-Reply-To: <20170809194146.501519882@linuxfoundation.org>
+References: <20170809194146.501519882@linuxfoundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com
-Cc: vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, SeongJae Park <sj38.park@gmail.com>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Kees Cook <keescook@google.com>
 
-Comment for pagetypeinfo_showblockcount() is mistakenly duplicated from
-pagetypeinfo_show_free()'s comment.  This commit fixes it.
+4.4-stable review patch.  If anyone has any objections, please let me know.
 
-Signed-off-by: SeongJae Park <sj38.park@gmail.com>
-Fixes: 467c996c1e19 ("Print out statistics in relation to fragmentation avoidance to /proc/pagetypeinfo")
+------------------
+
+From: Josh Poimboeuf <jpoimboe@redhat.com>
+
+commit adb1fe9ae2ee6ef6bc10f3d5a588020e7664dfa7 upstream.
+
+Linus suggested we try to remove some of the low-hanging fruit related
+to kernel address exposure in dmesg.  The only leaks I see on my local
+system are:
+
+  Freeing SMP alternatives memory: 32K (ffffffff9e309000 - ffffffff9e311000)
+  Freeing initrd memory: 10588K (ffffa0b736b42000 - ffffa0b737599000)
+  Freeing unused kernel memory: 3592K (ffffffff9df87000 - ffffffff9e309000)
+  Freeing unused kernel memory: 1352K (ffffa0b7288ae000 - ffffa0b728a00000)
+  Freeing unused kernel memory: 632K (ffffa0b728d62000 - ffffa0b728e00000)
+
+Linus says:
+
+  "I suspect we should just remove [the addresses in the 'Freeing'
+   messages]. I'm sure they are useful in theory, but I suspect they
+   were more useful back when the whole "free init memory" was
+   originally done.
+
+   These days, if we have a use-after-free, I suspect the init-mem
+   situation is the easiest situation by far. Compared to all the dynamic
+   allocations which are much more likely to show it anyway. So having
+   debug output for that case is likely not all that productive."
+
+With this patch the freeing messages now look like this:
+
+  Freeing SMP alternatives memory: 32K
+  Freeing initrd memory: 10588K
+  Freeing unused kernel memory: 3592K
+  Freeing unused kernel memory: 1352K
+  Freeing unused kernel memory: 632K
+
+Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/6836ff90c45b71d38e5d4405aec56fa9e5d1d4b2.1477405374.git.jpoimboe@redhat.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Cc: Kees Cook <keescook@google.com>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
 ---
- mm/vmstat.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/page_alloc.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 9a4441bbeef2..c30cda773d4a 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1250,7 +1250,7 @@ static void pagetypeinfo_showblockcount_print(struct seq_file *m,
- 	seq_putc(m, '\n');
- }
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5847,8 +5847,8 @@ unsigned long free_reserved_area(void *s
+ 	}
  
--/* Print out the free pages at each order for each migratetype */
-+/* Print out the number of pageblocks for each migratetype */
- static int pagetypeinfo_showblockcount(struct seq_file *m, void *arg)
- {
- 	int mtype;
--- 
-2.13.0
+ 	if (pages && s)
+-		pr_info("Freeing %s memory: %ldK (%p - %p)\n",
+-			s, pages << (PAGE_SHIFT - 10), start, end);
++		pr_info("Freeing %s memory: %ldK\n",
++			s, pages << (PAGE_SHIFT - 10));
+ 
+ 	return pages;
+ }
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
