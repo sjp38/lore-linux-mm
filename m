@@ -1,39 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D75FF6B02F4
-	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 14:38:36 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id x43so9848842wrb.9
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 11:38:36 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id m1si4706850eda.34.2017.08.09.11.38.35
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C97C6B0292
+	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 14:58:28 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id k190so72901173pge.9
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 11:58:28 -0700 (PDT)
+Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
+        by mx.google.com with ESMTPS id l125si2990462pfl.219.2017.08.09.11.58.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 09 Aug 2017 11:38:35 -0700 (PDT)
-Date: Wed, 9 Aug 2017 14:38:25 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: kernel panic on null pointer on page->mem_cgroup
-Message-ID: <20170809183825.GA26387@cmpxchg.org>
-References: <20170805155241.GA94821@jaegeuk-macbookpro.roam.corp.google.com>
- <20170808010150.4155-1-bradleybolen@gmail.com>
- <20170808162122.GA14689@cmpxchg.org>
- <20170808165601.GA7693@jaegeuk-macbookpro.roam.corp.google.com>
- <20170808173704.GA22887@cmpxchg.org>
- <CADvgSZSn1v-tTpa07ebqr19heQbkzbavdPM_nbRNR1WF-EBnFw@mail.gmail.com>
- <20170808200849.GA1104@cmpxchg.org>
- <20170809014459.GB7693@jaegeuk-macbookpro.roam.corp.google.com>
- <CADvgSZSNn7N3R7+jjeCgns2ZEPtYc6c3MWmkkQ3PA+0LHO_MfA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CADvgSZSNn7N3R7+jjeCgns2ZEPtYc6c3MWmkkQ3PA+0LHO_MfA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 Aug 2017 11:58:26 -0700 (PDT)
+Received: by mail-pg0-x241.google.com with SMTP id y192so6556024pgd.1
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 11:58:26 -0700 (PDT)
+From: SeongJae Park <sj38.park@gmail.com>
+Subject: [PATCH] vmstat: Fix wrong comment
+Date: Thu, 10 Aug 2017 03:58:16 +0900
+Message-Id: <20170809185816.11244-1-sj38.park@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brad Bolen <bradleybolen@gmail.com>
-Cc: Jaegeuk Kim <jaegeuk@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org, mhocko@suse.com
+Cc: vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, SeongJae Park <sj38.park@gmail.com>
 
-On Tue, Aug 08, 2017 at 10:39:27PM -0400, Brad Bolen wrote:
-> Yes, the BUG_ON(!page_count(page)) fired for me as well.
+Comment for pagetypeinfo_showblockcount() is mistakenly duplicated from
+pagetypeinfo_show_free()'s comment.  This commit fixes it.
 
-Brad, Jaegeuk, does the following patch address this problem?
-
+Signed-off-by: SeongJae Park <sj38.park@gmail.com>
+Fixes: 467c996c1e19 ("Print out statistics in relation to fragmentation avoidance to /proc/pagetypeinfo")
 ---
+ mm/vmstat.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 9a4441bbeef2..c30cda773d4a 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1250,7 +1250,7 @@ static void pagetypeinfo_showblockcount_print(struct seq_file *m,
+ 	seq_putc(m, '\n');
+ }
+ 
+-/* Print out the free pages at each order for each migratetype */
++/* Print out the number of pageblocks for each migratetype */
+ static int pagetypeinfo_showblockcount(struct seq_file *m, void *arg)
+ {
+ 	int mtype;
+-- 
+2.13.0
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
