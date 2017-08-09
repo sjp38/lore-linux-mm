@@ -1,95 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A40F56B02FD
-	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 16:43:20 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id e2so35081979qta.13
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 13:43:20 -0700 (PDT)
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E3606B0313
+	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 16:43:37 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id b184so7214507oih.9
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 13:43:37 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z35si3779744qtc.481.2017.08.09.13.43.19
+        by mx.google.com with ESMTPS id f7si3613160oic.351.2017.08.09.13.43.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Aug 2017 13:43:19 -0700 (PDT)
-Date: Wed, 9 Aug 2017 16:43:16 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH] mm/rmap: try_to_unmap_one() do not call mmu_notifier
- under ptl
-Message-ID: <20170809204315.GB27149@redhat.com>
-References: <20170809161709.9278-1-jglisse@redhat.com>
- <20170809163434.p356oyarqpqh52hu@node.shutemov.name>
- <88997080.69197246.1502297566486.JavaMail.zimbra@redhat.com>
- <20170809131742.303dfdc5730d8a8bba62a7cb@linux-foundation.org>
+        Wed, 09 Aug 2017 13:43:36 -0700 (PDT)
+From: jglisse@redhat.com
+Subject: [PATCH] mm/rmap: try_to_unmap_one() do not call mmu_notifier under ptl v2
+Date: Wed,  9 Aug 2017 16:43:33 -0400
+Message-Id: <20170809204333.27485-1-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170809131742.303dfdc5730d8a8bba62a7cb@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Aug 09, 2017 at 01:17:42PM -0700, Andrew Morton wrote:
-> On Wed, 9 Aug 2017 12:52:46 -0400 (EDT) Jerome Glisse <jglisse@redhat.com> wrote:
-> 
-> > > On Wed, Aug 09, 2017 at 12:17:09PM -0400, jglisse@redhat.com wrote:
-> > > > From: J__r__me Glisse <jglisse@redhat.com>
-> > > > 
-> > > > MMU notifiers can sleep, but in try_to_unmap_one() we call
-> > > > mmu_notifier_invalidate_page() under page table lock.
-> > > > 
-> > > > Let's instead use mmu_notifier_invalidate_range() outside
-> > > > page_vma_mapped_walk() loop.
-> > > > 
-> > > > Signed-off-by: J__r__me Glisse <jglisse@redhat.com>
-> > > > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > > > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > > > Fixes: c7ab0d2fdc84 ("mm: convert try_to_unmap_one() to use
-> > > > page_vma_mapped_walk()")
-> > > > ---
-> > > >  mm/rmap.c | 36 +++++++++++++++++++++---------------
-> > > >  1 file changed, 21 insertions(+), 15 deletions(-)
-> > > > 
-> > > > diff --git a/mm/rmap.c b/mm/rmap.c
-> > > > index aff607d5f7d2..d60e887f1cda 100644
-> > > > --- a/mm/rmap.c
-> > > > +++ b/mm/rmap.c
-> > > > @@ -1329,7 +1329,8 @@ static bool try_to_unmap_one(struct page *page,
-> > > > struct vm_area_struct *vma,
-> > > >  	};
-> > > >  	pte_t pteval;
-> > > >  	struct page *subpage;
-> > > > -	bool ret = true;
-> > > > +	bool ret = true, invalidation_needed = false;
-> > > > +	unsigned long end = address + PAGE_SIZE;
-> > > 
-> > > I think it should be 'address + (1UL << compound_order(page))'.
-> > 
-> > Can't address point to something else than first page in huge page ?
-> > Also i did use end as an optimization ie maybe not all the pte in the
-> > range are valid and thus they not all need to be invalidated hence by
-> > tracking the last one that needs invalidation i am limiting the range.
-> > 
-> > But it is a small optimization so i am not attach to it.
-> > 
-> 
-> So we need this patch in addition to Kirrill's "rmap: do not call
-> mmu_notifier_invalidate_page() under ptl". 
+From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-Yes we need both to restore mmu_notifier.
+MMU notifiers can sleep, but in try_to_unmap_one() we call
+mmu_notifier_invalidate_page() under page table lock.
 
-> 
-> Jerome, I'm seeing a bunch of rejects applying this patch to current
-> mainline.  It's unclear which kernel you're patching but we'll need
-> something which can go into Linus soon and which is backportable (with
-> mimimal fixups) into -stable kernels, please.
-> 
+Let's instead use mmu_notifier_invalidate_range() outside
+page_vma_mapped_walk() loop.
 
-Sorry this was on top of one of my HMM branches. I am reposting with
-Kirill end address computation as it is not a big optimization if pte
-are already invalid then invalidating them once more should not trigger
-any more work.
+Changed since v1:
+  - s/end/address + (1UL << compound_order(page))
+  - rebase on top of mmotm
 
-Jerome
+Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Fixes: c7ab0d2fdc84 ("mm: convert try_to_unmap_one() to use page_vma_mapped_walk()")
+---
+ mm/rmap.c | 31 +++++++++++++++++--------------
+ 1 file changed, 17 insertions(+), 14 deletions(-)
+
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 2c55e7b8f8f4..37d18dccf17e 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1323,7 +1323,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 	};
+ 	pte_t pteval;
+ 	struct page *subpage;
+-	bool ret = true;
++	bool ret = true, invalidation_needed = false;
+ 	enum ttu_flags flags = (enum ttu_flags)arg;
+ 
+ 	/* munlock has nothing to gain from examining un-locked vmas */
+@@ -1376,11 +1376,9 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 		VM_BUG_ON_PAGE(!pvmw.pte, page);
+ 
+ 		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
+-		address = pvmw.address;
+-
+ 
+ 		if (!(flags & TTU_IGNORE_ACCESS)) {
+-			if (ptep_clear_flush_young_notify(vma, address,
++			if (ptep_clear_flush_young_notify(vma, pvmw.address,
+ 						pvmw.pte)) {
+ 				ret = false;
+ 				page_vma_mapped_walk_done(&pvmw);
+@@ -1389,7 +1387,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 		}
+ 
+ 		/* Nuke the page table entry. */
+-		flush_cache_page(vma, address, pte_pfn(*pvmw.pte));
++		flush_cache_page(vma, pvmw.address, pte_pfn(*pvmw.pte));
+ 		if (should_defer_flush(mm, flags)) {
+ 			/*
+ 			 * We clear the PTE but do not flush so potentially
+@@ -1399,11 +1397,12 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 			 * transition on a cached TLB entry is written through
+ 			 * and traps if the PTE is unmapped.
+ 			 */
+-			pteval = ptep_get_and_clear(mm, address, pvmw.pte);
++			pteval = ptep_get_and_clear(mm, pvmw.address,
++						    pvmw.pte);
+ 
+ 			set_tlb_ubc_flush_pending(mm, pte_dirty(pteval));
+ 		} else {
+-			pteval = ptep_clear_flush(vma, address, pvmw.pte);
++			pteval = ptep_clear_flush(vma, pvmw.address, pvmw.pte);
+ 		}
+ 
+ 		/* Move the dirty bit to the page. Now the pte is gone. */
+@@ -1418,12 +1417,12 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 			if (PageHuge(page)) {
+ 				int nr = 1 << compound_order(page);
+ 				hugetlb_count_sub(nr, mm);
+-				set_huge_swap_pte_at(mm, address,
++				set_huge_swap_pte_at(mm, pvmw.address,
+ 						     pvmw.pte, pteval,
+ 						     vma_mmu_pagesize(vma));
+ 			} else {
+ 				dec_mm_counter(mm, mm_counter(page));
+-				set_pte_at(mm, address, pvmw.pte, pteval);
++				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);
+ 			}
+ 
+ 		} else if (pte_unused(pteval)) {
+@@ -1447,7 +1446,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 			swp_pte = swp_entry_to_pte(entry);
+ 			if (pte_soft_dirty(pteval))
+ 				swp_pte = pte_swp_mksoft_dirty(swp_pte);
+-			set_pte_at(mm, address, pvmw.pte, swp_pte);
++			set_pte_at(mm, pvmw.address, pvmw.pte, swp_pte);
+ 		} else if (PageAnon(page)) {
+ 			swp_entry_t entry = { .val = page_private(subpage) };
+ 			pte_t swp_pte;
+@@ -1473,7 +1472,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 				 * If the page was redirtied, it cannot be
+ 				 * discarded. Remap the page to page table.
+ 				 */
+-				set_pte_at(mm, address, pvmw.pte, pteval);
++				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);
+ 				SetPageSwapBacked(page);
+ 				ret = false;
+ 				page_vma_mapped_walk_done(&pvmw);
+@@ -1481,7 +1480,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 			}
+ 
+ 			if (swap_duplicate(entry) < 0) {
+-				set_pte_at(mm, address, pvmw.pte, pteval);
++				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);
+ 				ret = false;
+ 				page_vma_mapped_walk_done(&pvmw);
+ 				break;
+@@ -1497,14 +1496,18 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 			swp_pte = swp_entry_to_pte(entry);
+ 			if (pte_soft_dirty(pteval))
+ 				swp_pte = pte_swp_mksoft_dirty(swp_pte);
+-			set_pte_at(mm, address, pvmw.pte, swp_pte);
++			set_pte_at(mm, pvmw.address, pvmw.pte, swp_pte);
+ 		} else
+ 			dec_mm_counter(mm, mm_counter_file(page));
+ discard:
+ 		page_remove_rmap(subpage, PageHuge(page));
+ 		put_page(page);
+-		mmu_notifier_invalidate_page(mm, address);
++		invalidation_needed = true;
+ 	}
++
++	if (invalidation_needed)
++		mmu_notifier_invalidate_range(mm, address,
++				address + (1UL << compound_order(page)));
+ 	return ret;
+ }
+ 
+-- 
+2.13.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
