@@ -1,124 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C4166B025F
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 21:26:26 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 123so51264716pga.5
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 18:26:26 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id d30si1829708plj.659.2017.08.08.18.26.24
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4557A6B02C3
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 21:44:00 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id u199so51443567pgb.13
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 18:44:00 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id j2si1784498pli.1040.2017.08.08.18.43.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 18:26:25 -0700 (PDT)
-Date: Wed, 9 Aug 2017 09:25:19 +0800
-From: Ye Xiaolong <xiaolong.ye@intel.com>
-Subject: Re: [lkp-robot] [mm]  7674270022:  will-it-scale.per_process_ops
- -19.3% regression
-Message-ID: <20170809012519.GB29499@yexl-desktop>
-References: <20170802000818.4760-7-namit@vmware.com>
- <20170808011923.GE25554@yexl-desktop>
- <20170808022830.GA28570@bbox>
- <93CA4B47-95C2-43A2-8E92-B142CAB1DAF7@gmail.com>
- <970B5DC5-BFC2-461E-AC46-F71B3691D301@gmail.com>
- <20170808080821.GA31730@bbox>
+        Tue, 08 Aug 2017 18:43:59 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v791hpBt047215
+	for <linux-mm@kvack.org>; Tue, 8 Aug 2017 21:43:58 -0400
+Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com [202.81.31.141])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2c7k46rvw7-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 08 Aug 2017 21:43:58 -0400
+Received: from localhost
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Wed, 9 Aug 2017 11:43:55 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v791hqIB28508176
+	for <linux-mm@kvack.org>; Wed, 9 Aug 2017 11:43:53 +1000
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v791hpOC028550
+	for <linux-mm@kvack.org>; Wed, 9 Aug 2017 11:43:52 +1000
+Subject: Re: [PATCH 16/16] perf tools: Add support for SPF events
+References: <1502202949-8138-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1502202949-8138-17-git-send-email-ldufour@linux.vnet.ibm.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Wed, 9 Aug 2017 07:13:36 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170808080821.GA31730@bbox>
+In-Reply-To: <1502202949-8138-17-git-send-email-ldufour@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <c6468c4e-d704-d71a-6b00-e72977fbf68f@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Nadav Amit <nadav.amit@gmail.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Russell King <linux@armlinux.org.uk>, Tony Luck <tony.luck@intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, "David S. Miller" <davem@davemloft.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Jeff Dike <jdike@addtoit.com>, linux-arch@vger.kernel.org, lkp@01.org
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On 08/08, Minchan Kim wrote:
->On Mon, Aug 07, 2017 at 10:51:00PM -0700, Nadav Amit wrote:
->> Nadav Amit <nadav.amit@gmail.com> wrote:
->> 
->> > Minchan Kim <minchan@kernel.org> wrote:
->> > 
->> >> Hi,
->> >> 
->> >> On Tue, Aug 08, 2017 at 09:19:23AM +0800, kernel test robot wrote:
->> >>> Greeting,
->> >>> 
->> >>> FYI, we noticed a -19.3% regression of will-it-scale.per_process_ops due to commit:
->> >>> 
->> >>> 
->> >>> commit: 76742700225cad9df49f05399381ac3f1ec3dc60 ("mm: fix MADV_[FREE|DONTNEED] TLB flush miss problem")
->> >>> url: https://github.com/0day-ci/linux/commits/Nadav-Amit/mm-migrate-prevent-racy-access-to-tlb_flush_pending/20170802-205715
->> >>> 
->> >>> 
->> >>> in testcase: will-it-scale
->> >>> on test machine: 88 threads Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz with 64G memory
->> >>> with following parameters:
->> >>> 
->> >>> 	nr_task: 16
->> >>> 	mode: process
->> >>> 	test: brk1
->> >>> 	cpufreq_governor: performance
->> >>> 
->> >>> test-description: Will It Scale takes a testcase and runs it from 1 through to n parallel copies to see if the testcase will scale. It builds both a process and threads based test in order to see any differences between the two.
->> >>> test-url: https://github.com/antonblanchard/will-it-scale
->> >> 
->> >> Thanks for the report.
->> >> Could you explain what kinds of workload you are testing?
->> >> 
->> >> Does it calls frequently madvise(MADV_DONTNEED) in parallel on multiple
->> >> threads?
->> > 
->> > According to the description it is "testcase:brk increase/decrease of one
->> > pagea??. According to the mode it spawns multiple processes, not threads.
->> > 
->> > Since a single page is unmapped each time, and the iTLB-loads increase
->> > dramatically, I would suspect that for some reason a full TLB flush is
->> > caused during do_munmap().
->> > 
->> > If I find some free time, Ia??ll try to profile the workload - but feel free
->> > to beat me to it.
->> 
->> The root-cause appears to be that tlb_finish_mmu() does not call
->> dec_tlb_flush_pending() - as it should. Any chance you can take care of it?
->
->Oops, but with second looking, it seems it's not my fault. ;-)
->https://marc.info/?l=linux-mm&m=150156699114088&w=2
->
->Anyway, thanks for the pointing out.
->xiaolong.ye, could you retest with this fix?
-
-Sure, I'll provide the result later.
-
-Thanks,
-Xiaolong
->
->From 83012114c9cd9304f0d55d899bb4b9329d0e22ac Mon Sep 17 00:00:00 2001
->From: Minchan Kim <minchan@kernel.org>
->Date: Tue, 8 Aug 2017 17:05:19 +0900
->Subject: [PATCH] mm: decrease tlb flush pending count in tlb_finish_mmu
->
->The tlb pending count increased by tlb_gather_mmu should be decreased
->at tlb_finish_mmu. Otherwise, A lot of TLB happens which makes
->performance regression.
->
->Signed-off-by: Minchan Kim <minchan@kernel.org>
->---
-> mm/memory.c | 1 +
-> 1 file changed, 1 insertion(+)
->
->diff --git a/mm/memory.c b/mm/memory.c
->index 34b1fcb829e4..ad2617552f55 100644
->--- a/mm/memory.c
->+++ b/mm/memory.c
->@@ -423,6 +423,7 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
-> 	bool force = mm_tlb_flush_nested(tlb->mm);
+On 08/08/2017 08:05 PM, Laurent Dufour wrote:
+> Add support for the new speculative faults events.
 > 
-> 	arch_tlb_finish_mmu(tlb, start, end, force);
->+	dec_tlb_flush_pending(tlb->mm);
-> }
+> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> ---
+>  tools/include/uapi/linux/perf_event.h | 2 ++
+>  tools/perf/util/evsel.c               | 2 ++
+>  tools/perf/util/parse-events.c        | 8 ++++++++
+>  tools/perf/util/parse-events.l        | 2 ++
+>  tools/perf/util/python.c              | 2 ++
+>  5 files changed, 16 insertions(+)
 > 
-> /*
->-- 
->2.7.4
->
+> diff --git a/tools/include/uapi/linux/perf_event.h b/tools/include/uapi/linux/perf_event.h
+> index b1c0b187acfe..fbfb03dff334 100644
+> --- a/tools/include/uapi/linux/perf_event.h
+> +++ b/tools/include/uapi/linux/perf_event.h
+> @@ -111,6 +111,8 @@ enum perf_sw_ids {
+>  	PERF_COUNT_SW_EMULATION_FAULTS		= 8,
+>  	PERF_COUNT_SW_DUMMY			= 9,
+>  	PERF_COUNT_SW_BPF_OUTPUT		= 10,
+> +	PERF_COUNT_SW_SPF_DONE			= 11,
+> +	PERF_COUNT_SW_SPF_FAILED		= 12,
+>  
+
+PERF_COUNT_SW_SPF_FAULTS makes sense but not the FAILED one. IIRC,
+there are no error path counting in perf SW events at the moment.
+SPF_FAULTS and SPF_FAILS are VM internal events like THP collapse
+etc. IMHO it should be added as a VM statistics counter or as a
+trace point event instead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
