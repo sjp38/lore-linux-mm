@@ -1,94 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AAD076B025F
-	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 11:47:46 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id v11so6527668oif.2
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 08:47:46 -0700 (PDT)
-Received: from mail-io0-x244.google.com (mail-io0-x244.google.com. [2607:f8b0:4001:c06::244])
-        by mx.google.com with ESMTPS id e69si3268740oih.224.2017.08.09.08.47.45
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 70F0B6B025F
+	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 11:51:10 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id z196so55303547ioe.3
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 08:51:10 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id j15si4570073itf.10.2017.08.09.08.51.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Aug 2017 08:47:45 -0700 (PDT)
-Received: by mail-io0-x244.google.com with SMTP id q64so4727630ioi.0
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 08:47:45 -0700 (PDT)
-Message-ID: <1502293662.1439.12.camel@gmail.com>
-Subject: Re: drivers/tty/serial/8250/8250_fintek.c:364: warning:
- 'probe_data' is used uninitialized in this function
-From: Daniel Micay <danielmicay@gmail.com>
-Date: Wed, 09 Aug 2017 11:47:42 -0400
-In-Reply-To: <CAK8P3a3yweXF_rXgs7ymTfeiO=bRU3gOX=zGhQcMdz4nV7sk_A@mail.gmail.com>
-References: <201708092333.gJ53XSff%fengguang.wu@intel.com>
-	 <CAK8P3a3yweXF_rXgs7ymTfeiO=bRU3gOX=zGhQcMdz4nV7sk_A@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Wed, 09 Aug 2017 08:51:09 -0700 (PDT)
+Date: Wed, 9 Aug 2017 17:50:59 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v8 00/14] lockdep: Implement crossrelease feature
+Message-ID: <20170809155059.yd7le2szn2rcd4h2@hirez.programming.kicks-ass.net>
+References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>, kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-On Wed, 2017-08-09 at 17:32 +0200, Arnd Bergmann wrote:
-> On Wed, Aug 9, 2017 at 5:07 PM, kbuild test robot
-> <fengguang.wu@intel.com> wrote:
-> > tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/lin
-> > ux.git master
-> > head:   bfa738cf3dfae2111626650f86135f93c5ff0a22
-> > commit: 6974f0c4555e285ab217cee58b6e874f776ff409
-> > include/linux/string.h: add the option of fortified string.h
-> > functions
-> > date:   4 weeks ago
-> > config: x86_64-randconfig-v0-08092220 (attached as .config)
-> > compiler: gcc-4.4 (Debian 4.4.7-8) 4.4.7
-> > reproduce:
-> >         git checkout 6974f0c4555e285ab217cee58b6e874f776ff409
-> >         # save the attached .config to linux build tree
-> >         make ARCH=x86_64
-> > 
-> > All warnings (new ones prefixed by >>):
-> > 
-> >    In file included from include/linux/bitmap.h:8,
-> >                     from include/linux/cpumask.h:11,
-> >                     from arch/x86/include/asm/cpumask.h:4,
-> >                     from arch/x86/include/asm/msr.h:10,
-> >                     from arch/x86/include/asm/processor.h:20,
-> >                     from arch/x86/include/asm/cpufeature.h:4,
-> >                     from arch/x86/include/asm/thread_info.h:52,
-> >                     from include/linux/thread_info.h:37,
-> >                     from arch/x86/include/asm/preempt.h:6,
-> >                     from include/linux/preempt.h:80,
-> >                     from include/linux/spinlock.h:50,
-> >                     from include/linux/seqlock.h:35,
-> >                     from include/linux/time.h:5,
-> >                     from include/linux/stat.h:18,
-> >                     from include/linux/module.h:10,
-> >                     from drivers/tty/serial/8250/8250_fintek.c:11:
-> >    include/linux/string.h: In function 'strcpy':
-> >    include/linux/string.h:209: warning: '______f' is static but
-> > declared in inline function 'strcpy' which is not static
-> >    include/linux/string.h:211: warning: '______f' is static but
-> > declared in inline function 'strcpy' which is not static
-> 
-> 
-> This clearly comes from __trace_if() when CONFIG_PROFILE_ALL_BRANCHES
-> is enabled. I did not see the warning with gcc-7.1.1, and I guess this
-> only
-> happens on older compilers like the gcc-4.4 that was used here.
-> 
-> What is the reason for __FORTIFY_INLINE to be "extern __always_inline"
-> rather than "static __always_inline"? If they cannot just be 'static',
-> maybe
-> this can be changed to depend on the compiler version.
-> 
->        Arnd
 
-It's important to get the semantics of using extern. It means if you do
-something like &memcpy, it resolves to the address of the direct symbol
-instead of generating a useless thunk for that object file. It might
-also be required for Clang compatibility, I don't remember.
 
-It could have a compiler version dependency or maybe one specifically
-tied to old compiler && CONFIG_PROFILE_ALL_BRANCHES / other options that
-conflict with it like that.
+Heh, look what it does...
+
+
+4======================================================
+4WARNING: possible circular locking dependency detected
+4.13.0-rc2-00317-gadc6764a3adf-dirty #797 Tainted: G        W      
+4------------------------------------------------------
+4startpar/582 is trying to acquire lock:
+c (c(complete)&barr->donec){+.+.}c, at: [<ffffffff8110de4d>] flush_work+0x1fd/0x2c0
+4
+but task is already holding lock:
+c (clockc#3c){+.+.}c, at: [<ffffffff8122e866>] lru_add_drain_all_cpuslocked+0x46/0x1a0
+4
+which lock already depends on the new lock.
+
+4
+the existing dependency chain (in reverse order) is:
+
+-> #4c (clockc#3c){+.+.}c:
+       __lock_acquire+0x10a5/0x1100
+       lock_acquire+0xea/0x1f0
+       __mutex_lock+0x6c/0x960
+       mutex_lock_nested+0x1b/0x20
+       lru_add_drain_all_cpuslocked+0x46/0x1a0
+       lru_add_drain_all+0x13/0x20
+       SyS_mlockall+0xb8/0x1c0
+       entry_SYSCALL_64_fastpath+0x23/0xc2
+
+-> #3c (ccpu_hotplug_lock.rw_semc){++++}c:
+       __lock_acquire+0x10a5/0x1100
+       lock_acquire+0xea/0x1f0
+       cpus_read_lock+0x2a/0x90
+       kmem_cache_create+0x2a/0x1d0
+       scsi_init_sense_cache+0xa0/0xc0
+       scsi_add_host_with_dma+0x67/0x360
+       isci_pci_probe+0x873/0xc90
+       local_pci_probe+0x42/0xa0
+       work_for_cpu_fn+0x14/0x20
+       process_one_work+0x273/0x6b0
+       worker_thread+0x21b/0x3f0
+       kthread+0x147/0x180
+       ret_from_fork+0x2a/0x40
+
+-> #2c (cscsi_sense_cache_mutexc){+.+.}c:
+       __lock_acquire+0x10a5/0x1100
+       lock_acquire+0xea/0x1f0
+       __mutex_lock+0x6c/0x960
+       mutex_lock_nested+0x1b/0x20
+       scsi_init_sense_cache+0x3d/0xc0
+       scsi_add_host_with_dma+0x67/0x360
+       isci_pci_probe+0x873/0xc90
+       local_pci_probe+0x42/0xa0
+       work_for_cpu_fn+0x14/0x20
+       process_one_work+0x273/0x6b0
+       worker_thread+0x21b/0x3f0
+       kthread+0x147/0x180
+       ret_from_fork+0x2a/0x40
+
+-> #1c (c(&wfc.work)c){+.+.}c:
+       process_one_work+0x244/0x6b0
+       worker_thread+0x21b/0x3f0
+       kthread+0x147/0x180
+       ret_from_fork+0x2a/0x40
+       0xffffffffffffffff
+
+-> #0c (c(complete)&barr->donec){+.+.}c:
+       check_prev_add+0x3be/0x700
+       __lock_acquire+0x10a5/0x1100
+       lock_acquire+0xea/0x1f0
+       wait_for_completion+0x3b/0x130
+       flush_work+0x1fd/0x2c0
+       lru_add_drain_all_cpuslocked+0x158/0x1a0
+       lru_add_drain_all+0x13/0x20
+       SyS_mlockall+0xb8/0x1c0
+       entry_SYSCALL_64_fastpath+0x23/0xc2
+
+other info that might help us debug this:
+
+Chain exists of:
+  c(complete)&barr->donec --> ccpu_hotplug_lock.rw_semc --> clockc#3c
+
+ Possible unsafe locking scenario:
+
+       CPU0                    CPU1
+       ----                    ----
+  lock(clockc#3c);
+                               lock(ccpu_hotplug_lock.rw_semc);
+                               lock(clockc#3c);
+  lock(c(complete)&barr->donec);
+
+ *** DEADLOCK ***
+
+2 locks held by startpar/582:
+ #0: c (ccpu_hotplug_lock.rw_semc){++++}c, at: [<ffffffff8122e9ce>] lru_add_drain_all+0xe/0x20
+ #1: c (clockc#3c){+.+.}c, at: [<ffffffff8122e866>] lru_add_drain_all_cpuslocked+0x46/0x1a0
+
+stack backtrace:
+dCPU: 23 PID: 582 Comm: startpar Tainted: G        W       4.13.0-rc2-00317-gadc6764a3adf-dirty #797
+dHardware name: Intel Corporation S2600GZ/S2600GZ, BIOS SE5C600.86B.02.02.0002.122320131210 12/23/2013
+dCall Trace:
+d dump_stack+0x86/0xcf
+d print_circular_bug+0x203/0x2f0
+d check_prev_add+0x3be/0x700
+d ? add_lock_to_list.isra.30+0xc0/0xc0
+d ? is_bpf_text_address+0x82/0xe0
+d ? unwind_get_return_address+0x1f/0x30
+d __lock_acquire+0x10a5/0x1100
+d ? __lock_acquire+0x10a5/0x1100
+d ? add_lock_to_list.isra.30+0xc0/0xc0
+d lock_acquire+0xea/0x1f0
+d ? flush_work+0x1fd/0x2c0
+d wait_for_completion+0x3b/0x130
+d ? flush_work+0x1fd/0x2c0
+d flush_work+0x1fd/0x2c0
+d ? flush_workqueue_prep_pwqs+0x1c0/0x1c0
+d ? trace_hardirqs_on+0xd/0x10
+d lru_add_drain_all_cpuslocked+0x158/0x1a0
+d lru_add_drain_all+0x13/0x20
+d SyS_mlockall+0xb8/0x1c0
+d entry_SYSCALL_64_fastpath+0x23/0xc2
+dRIP: 0033:0x7f818d2e54c7
+dRSP: 002b:00007fffcce83798 EFLAGS: 00000246c ORIG_RAX: 0000000000000097
+dRAX: ffffffffffffffda RBX: 0000000000000046 RCX: 00007f818d2e54c7
+dRDX: 0000000000000000 RSI: 00007fffcce83650 RDI: 0000000000000003
+dRBP: 000000000002c010 R08: 0000000000000000 R09: 0000000000000000
+dR10: 0000000000000008 R11: 0000000000000246 R12: 000000000002d000
+dR13: 000000000002c010 R14: 0000000000001000 R15: 00007f818d599b00
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
