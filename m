@@ -1,53 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A4C76B025F
-	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 06:27:47 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id x28so7674339wma.7
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 03:27:47 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id y28si3884060edi.306.2017.08.09.03.27.46
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 02FFD6B025F
+	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 06:43:46 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id v31so8301969wrc.7
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 03:43:45 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id q106si3378393wrb.291.2017.08.09.03.43.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Aug 2017 03:27:46 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id x64so6269170wmg.1
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 03:27:46 -0700 (PDT)
-Date: Wed, 9 Aug 2017 13:27:43 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm/rmap/mmu_notifier: restore
- mmu_notifier_invalidate_page() semantic
-Message-ID: <20170809102743.onfujwpwuli6quc5@node.shutemov.name>
-References: <20170808220820.16503-1-jglisse@redhat.com>
+        Wed, 09 Aug 2017 03:43:44 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v79Ad3Mw059971
+	for <linux-mm@kvack.org>; Wed, 9 Aug 2017 06:43:43 -0400
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2c7x3v0e6d-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 09 Aug 2017 06:43:43 -0400
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Wed, 9 Aug 2017 11:43:41 +0100
+Subject: Re: [PATCH 05/16] mm: Protect VMA modifications using VMA sequence
+ count
+References: <1502202949-8138-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1502202949-8138-6-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20170809101241.ek4fqinqaq5qfkq4@node.shutemov.name>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Wed, 9 Aug 2017 12:43:33 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170808220820.16503-1-jglisse@redhat.com>
+In-Reply-To: <20170809101241.ek4fqinqaq5qfkq4@node.shutemov.name>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <f935091a-d8f9-1951-8397-f5c464a2b922@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jglisse@redhat.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Tue, Aug 08, 2017 at 06:08:20PM -0400, jglisse@redhat.com wrote:
-> From: Jerome Glisse <jglisse@redhat.com>
+On 09/08/2017 12:12, Kirill A. Shutemov wrote:
+> On Tue, Aug 08, 2017 at 04:35:38PM +0200, Laurent Dufour wrote:
+>> The VMA sequence count has been introduced to allow fast detection of
+>> VMA modification when running a page fault handler without holding
+>> the mmap_sem.
+>>
+>> This patch provides protection agains the VMA modification done in :
+>> 	- madvise()
+>> 	- mremap()
+>> 	- mpol_rebind_policy()
+>> 	- vma_replace_policy()
+>> 	- change_prot_numa()
+>> 	- mlock(), munlock()
+>> 	- mprotect()
+>> 	- mmap_region()
+>> 	- collapse_huge_page()
 > 
-> Commit c7ab0d2fdc840266b39db94538f74207ec2afbf6 silently modified
-> semantic of mmu_notifier_invalidate_page() this patch restore it
-> to its previous semantic ie allowing to sleep inside invalidate_page()
-> callback.
-> 
-> Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> I don't thinks it's anywhere near complete list of places where we touch
+> vm_flags. What is your plan for the rest?
 
-The issue in page_mkclean_one() was addressed recently by this:
+The goal is only to protect places where change to the VMA is impacting the
+page fault handling. If you think I missed one, please advise.
 
-http://lkml.kernel.org/r/20170804134928.l4klfcnqatni7vsc@black.fi.intel.com
-
-(I think mmu_notifier_invalidate_range() it better in the situation, right?)
-
-But I've missed try_to_unmap_one(). Could you prepare patch for this one?
-
--- 
- Kirill A. Shutemov
+Thanks,
+Laurent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
