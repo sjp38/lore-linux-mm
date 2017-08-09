@@ -1,118 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B8316B02C3
-	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 17:25:05 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 185so745671wmk.12
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 14:25:05 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j27si3945148wrd.9.2017.08.09.14.25.03
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AB1D6B02C3
+	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 17:28:07 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id o5so35599912qki.2
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 14:28:07 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id w78si3833307qkb.454.2017.08.09.14.28.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Aug 2017 14:25:04 -0700 (PDT)
-Date: Wed, 9 Aug 2017 14:25:01 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm] mm: Clear to access sub-page last when clearing
- huge page
-Message-Id: <20170809142501.1286e8818359fd95b5794abd@linux-foundation.org>
-In-Reply-To: <20170807072131.8343-1-ying.huang@intel.com>
-References: <20170807072131.8343-1-ying.huang@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 09 Aug 2017 14:28:06 -0700 (PDT)
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Subject: [PATCH v7 7/9] mm: Add address parameter to arch_validate_prot()
+Date: Wed,  9 Aug 2017 15:26:00 -0600
+Message-Id: <43c120f0cbbebd1398997b9521013ced664e5053.1502219353.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1502219353.git.khalid.aziz@oracle.com>
+References: <cover.1502219353.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1502219353.git.khalid.aziz@oracle.com>
+References: <cover.1502219353.git.khalid.aziz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>
+To: akpm@linux-foundation.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, davem@davemloft.net, dave.hansen@linux.intel.com
+Cc: Khalid Aziz <khalid.aziz@oracle.com>, bsingharora@gmail.com, dja@axtens.net, tglx@linutronix.de, mgorman@suse.de, aarcange@redhat.com, kirill.shutemov@linux.intel.com, heiko.carstens@de.ibm.com, ak@linux.intel.com, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, Khalid Aziz <khalid@gonehiking.org>
 
-On Mon,  7 Aug 2017 15:21:31 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
+A protection flag may not be valid across entire address space and
+hence arch_validate_prot() might need the address a protection bit is
+being set on to ensure it is a valid protection flag. For example, sparc
+processors support memory corruption detection (as part of ADI feature)
+flag on memory addresses mapped on to physical RAM but not on PFN mapped
+pages or addresses mapped on to devices. This patch adds address to the
+parameters being passed to arch_validate_prot() so protection bits can
+be validated in the relevant context.
 
-> From: Huang Ying <ying.huang@intel.com>
-> 
-> Huge page helps to reduce TLB miss rate, but it has higher cache
-> footprint, sometimes this may cause some issue.  For example, when
-> clearing huge page on x86_64 platform, the cache footprint is 2M.  But
-> on a Xeon E5 v3 2699 CPU, there are 18 cores, 36 threads, and only 45M
-> LLC (last level cache).  That is, in average, there are 2.5M LLC for
-> each core and 1.25M LLC for each thread.  If the cache pressure is
-> heavy when clearing the huge page, and we clear the huge page from the
-> begin to the end, it is possible that the begin of huge page is
-> evicted from the cache after we finishing clearing the end of the huge
-> page.  And it is possible for the application to access the begin of
-> the huge page after clearing the huge page.
-> 
-> To help the above situation, in this patch, when we clear a huge page,
-> the order to clear sub-pages is changed.  In quite some situation, we
-> can get the address that the application will access after we clear
-> the huge page, for example, in a page fault handler.  Instead of
-> clearing the huge page from begin to end, we will clear the sub-pages
-> farthest from the the sub-page to access firstly, and clear the
-> sub-page to access last.  This will make the sub-page to access most
-> cache-hot and sub-pages around it more cache-hot too.  If we cannot
-> know the address the application will access, the begin of the huge
-> page is assumed to be the the address the application will access.
-> 
-> With this patch, the throughput increases ~28.3% in vm-scalability
-> anon-w-seq test case with 72 processes on a 2 socket Xeon E5 v3 2699
-> system (36 cores, 72 threads).  The test case creates 72 processes,
-> each process mmap a big anonymous memory area and writes to it from
-> the begin to the end.  For each process, other processes could be seen
-> as other workload which generates heavy cache pressure.  At the same
-> time, the cache miss rate reduced from ~33.4% to ~31.7%, the
-> IPC (instruction per cycle) increased from 0.56 to 0.74, and the time
-> spent in user space is reduced ~7.9%
-> 
-> Thanks Andi Kleen to propose to use address to access to determine the
-> order of sub-pages to clear.
-> 
-> The hugetlbfs access address could be improved, will do that in
-> another patch.
+Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
+Cc: Khalid Aziz <khalid@gonehiking.org>
+---
+v7:
+	- new patch
 
-I agree with what others said, plus...
+ arch/powerpc/include/asm/mman.h | 2 +-
+ arch/powerpc/kernel/syscalls.c  | 2 +-
+ include/linux/mman.h            | 2 +-
+ mm/mprotect.c                   | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)
 
-> @@ -4374,9 +4374,31 @@ void clear_huge_page(struct page *page,
->  	}
->  
->  	might_sleep();
-> -	for (i = 0; i < pages_per_huge_page; i++) {
-> +	VM_BUG_ON(clamp(addr_hint, addr, addr +
-> +			(pages_per_huge_page << PAGE_SHIFT)) != addr_hint);
-> +	n = (addr_hint - addr) / PAGE_SIZE;
-> +	if (2 * n <= pages_per_huge_page) {
-> +		base = 0;
-> +		l = n;
-> +		for (i = pages_per_huge_page - 1; i >= 2 * n; i--) {
-> +			cond_resched();
-> +			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-> +		}
-> +	} else {
-> +		base = 2 * n - pages_per_huge_page;
-> +		l = pages_per_huge_page - n;
-> +		for (i = 0; i < base; i++) {
-> +			cond_resched();
-> +			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-> +		}
-> +	}
-> +	for (i = 0; i < l; i++) {
-> +		cond_resched();
-> +		clear_user_highpage(page + base + i,
-> +				    addr + (base + i) * PAGE_SIZE);
->  		cond_resched();
-> -		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
-> +		clear_user_highpage(page + base + 2 * l - 1 - i,
-> +				    addr + (base + 2 * l - 1 - i) * PAGE_SIZE);
-
-Please document this design with a carefully written code comment.
-For example, why was "2 * n" chosen?  What is it trying to achieve?
-
-Also, the final clearing loop "for (i = 0; i < l; i++)" might cause
-eviction of data which was cached in the previous loop.  Perhaps some
-additional gains will be made by clearing the hugepage in a
-left-right-left-right "start from the ends and work inwards" manner, if
-you see what I mean.  So the 4k pages immediately surrounding addr_hint
-are the most-recently-cleared.  Although accesses to the data at lower
-addresses than addr_hint are probably somewhat rare (and may be
-nonexistent in your synthetic test case).
-
+diff --git a/arch/powerpc/include/asm/mman.h b/arch/powerpc/include/asm/mman.h
+index 30922f699341..bc74074304a2 100644
+--- a/arch/powerpc/include/asm/mman.h
++++ b/arch/powerpc/include/asm/mman.h
+@@ -40,7 +40,7 @@ static inline bool arch_validate_prot(unsigned long prot)
+ 		return false;
+ 	return true;
+ }
+-#define arch_validate_prot(prot) arch_validate_prot(prot)
++#define arch_validate_prot(prot, addr) arch_validate_prot(prot)
+ 
+ #endif /* CONFIG_PPC64 */
+ #endif	/* _ASM_POWERPC_MMAN_H */
+diff --git a/arch/powerpc/kernel/syscalls.c b/arch/powerpc/kernel/syscalls.c
+index a877bf8269fe..6d90ddbd2d11 100644
+--- a/arch/powerpc/kernel/syscalls.c
++++ b/arch/powerpc/kernel/syscalls.c
+@@ -48,7 +48,7 @@ static inline long do_mmap2(unsigned long addr, size_t len,
+ {
+ 	long ret = -EINVAL;
+ 
+-	if (!arch_validate_prot(prot))
++	if (!arch_validate_prot(prot, addr))
+ 		goto out;
+ 
+ 	if (shift) {
+diff --git a/include/linux/mman.h b/include/linux/mman.h
+index 634c4c51fe3a..1693d95a88ee 100644
+--- a/include/linux/mman.h
++++ b/include/linux/mman.h
+@@ -49,7 +49,7 @@ static inline void vm_unacct_memory(long pages)
+  *
+  * Returns true if the prot flags are valid
+  */
+-static inline bool arch_validate_prot(unsigned long prot)
++static inline bool arch_validate_prot(unsigned long prot, unsigned long addr)
+ {
+ 	return (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM)) == 0;
+ }
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 8edd0d576254..beac2dfbb5fa 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -396,7 +396,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
+ 	end = start + len;
+ 	if (end <= start)
+ 		return -ENOMEM;
+-	if (!arch_validate_prot(prot))
++	if (!arch_validate_prot(prot, start))
+ 		return -EINVAL;
+ 
+ 	reqprot = prot;
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
