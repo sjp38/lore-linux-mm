@@ -1,161 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E3606B0313
-	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 16:43:37 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id b184so7214507oih.9
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 13:43:37 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f7si3613160oic.351.2017.08.09.13.43.36
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 995416B02C3
+	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 16:58:45 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id i192so76223274pgc.11
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 13:58:45 -0700 (PDT)
+Received: from mail-pg0-x22f.google.com (mail-pg0-x22f.google.com. [2607:f8b0:400e:c05::22f])
+        by mx.google.com with ESMTPS id p2si2905935pgc.67.2017.08.09.13.58.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Aug 2017 13:43:36 -0700 (PDT)
-From: jglisse@redhat.com
-Subject: [PATCH] mm/rmap: try_to_unmap_one() do not call mmu_notifier under ptl v2
-Date: Wed,  9 Aug 2017 16:43:33 -0400
-Message-Id: <20170809204333.27485-1-jglisse@redhat.com>
+        Wed, 09 Aug 2017 13:58:44 -0700 (PDT)
+Received: by mail-pg0-x22f.google.com with SMTP id u5so32697960pgn.0
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 13:58:44 -0700 (PDT)
+Date: Wed, 9 Aug 2017 13:58:42 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC PATCH 0/6] proactive kcompactd
+In-Reply-To: <20170727160701.9245-1-vbabka@suse.cz>
+Message-ID: <alpine.DEB.2.10.1708091353500.1218@chino.kir.corp.google.com>
+References: <20170727160701.9245-1-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
 
-From: JA(C)rA'me Glisse <jglisse@redhat.com>
+On Thu, 27 Jul 2017, Vlastimil Babka wrote:
 
-MMU notifiers can sleep, but in try_to_unmap_one() we call
-mmu_notifier_invalidate_page() under page table lock.
+> As we discussed at last LSF/MM [1], the goal here is to shift more compaction
+> work to kcompactd, which currently just makes a single high-order page
+> available and then goes to sleep. The last patch, evolved from the initial RFC
+> [2] does this by recording for each order > 0 how many allocations would have
+> potentially be able to skip direct compaction, if the memory wasn't fragmented.
+> Kcompactd then tries to compact as long as it takes to make that many
+> allocations satisfiable. This approach avoids any hooks in allocator fast
+> paths. There are more details to this, see the last patch.
+> 
 
-Let's instead use mmu_notifier_invalidate_range() outside
-page_vma_mapped_walk() loop.
+I think I would have liked to have seen "less proactive" :)
 
-Changed since v1:
-  - s/end/address + (1UL << compound_order(page))
-  - rebase on top of mmotm
+Kcompactd currently has the problem that it is MIGRATE_SYNC_LIGHT so it 
+continues until it can defragment memory.  On a host with 128GB of memory 
+and 100GB of it sitting in a hugetlb pool, we constantly get kcompactd 
+wakeups for order-2 memory allocation.  The stats are pretty bad:
 
-Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Fixes: c7ab0d2fdc84 ("mm: convert try_to_unmap_one() to use page_vma_mapped_walk()")
----
- mm/rmap.c | 31 +++++++++++++++++--------------
- 1 file changed, 17 insertions(+), 14 deletions(-)
+compact_migrate_scanned 2931254031294 
+compact_free_scanned    102707804816705 
+compact_isolated        1309145254 
 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 2c55e7b8f8f4..37d18dccf17e 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1323,7 +1323,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 	};
- 	pte_t pteval;
- 	struct page *subpage;
--	bool ret = true;
-+	bool ret = true, invalidation_needed = false;
- 	enum ttu_flags flags = (enum ttu_flags)arg;
- 
- 	/* munlock has nothing to gain from examining un-locked vmas */
-@@ -1376,11 +1376,9 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 		VM_BUG_ON_PAGE(!pvmw.pte, page);
- 
- 		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
--		address = pvmw.address;
--
- 
- 		if (!(flags & TTU_IGNORE_ACCESS)) {
--			if (ptep_clear_flush_young_notify(vma, address,
-+			if (ptep_clear_flush_young_notify(vma, pvmw.address,
- 						pvmw.pte)) {
- 				ret = false;
- 				page_vma_mapped_walk_done(&pvmw);
-@@ -1389,7 +1387,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 		}
- 
- 		/* Nuke the page table entry. */
--		flush_cache_page(vma, address, pte_pfn(*pvmw.pte));
-+		flush_cache_page(vma, pvmw.address, pte_pfn(*pvmw.pte));
- 		if (should_defer_flush(mm, flags)) {
- 			/*
- 			 * We clear the PTE but do not flush so potentially
-@@ -1399,11 +1397,12 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 			 * transition on a cached TLB entry is written through
- 			 * and traps if the PTE is unmapped.
- 			 */
--			pteval = ptep_get_and_clear(mm, address, pvmw.pte);
-+			pteval = ptep_get_and_clear(mm, pvmw.address,
-+						    pvmw.pte);
- 
- 			set_tlb_ubc_flush_pending(mm, pte_dirty(pteval));
- 		} else {
--			pteval = ptep_clear_flush(vma, address, pvmw.pte);
-+			pteval = ptep_clear_flush(vma, pvmw.address, pvmw.pte);
- 		}
- 
- 		/* Move the dirty bit to the page. Now the pte is gone. */
-@@ -1418,12 +1417,12 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 			if (PageHuge(page)) {
- 				int nr = 1 << compound_order(page);
- 				hugetlb_count_sub(nr, mm);
--				set_huge_swap_pte_at(mm, address,
-+				set_huge_swap_pte_at(mm, pvmw.address,
- 						     pvmw.pte, pteval,
- 						     vma_mmu_pagesize(vma));
- 			} else {
- 				dec_mm_counter(mm, mm_counter(page));
--				set_pte_at(mm, address, pvmw.pte, pteval);
-+				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);
- 			}
- 
- 		} else if (pte_unused(pteval)) {
-@@ -1447,7 +1446,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 			swp_pte = swp_entry_to_pte(entry);
- 			if (pte_soft_dirty(pteval))
- 				swp_pte = pte_swp_mksoft_dirty(swp_pte);
--			set_pte_at(mm, address, pvmw.pte, swp_pte);
-+			set_pte_at(mm, pvmw.address, pvmw.pte, swp_pte);
- 		} else if (PageAnon(page)) {
- 			swp_entry_t entry = { .val = page_private(subpage) };
- 			pte_t swp_pte;
-@@ -1473,7 +1472,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 				 * If the page was redirtied, it cannot be
- 				 * discarded. Remap the page to page table.
- 				 */
--				set_pte_at(mm, address, pvmw.pte, pteval);
-+				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);
- 				SetPageSwapBacked(page);
- 				ret = false;
- 				page_vma_mapped_walk_done(&pvmw);
-@@ -1481,7 +1480,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 			}
- 
- 			if (swap_duplicate(entry) < 0) {
--				set_pte_at(mm, address, pvmw.pte, pteval);
-+				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);
- 				ret = false;
- 				page_vma_mapped_walk_done(&pvmw);
- 				break;
-@@ -1497,14 +1496,18 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 			swp_pte = swp_entry_to_pte(entry);
- 			if (pte_soft_dirty(pteval))
- 				swp_pte = pte_swp_mksoft_dirty(swp_pte);
--			set_pte_at(mm, address, pvmw.pte, swp_pte);
-+			set_pte_at(mm, pvmw.address, pvmw.pte, swp_pte);
- 		} else
- 			dec_mm_counter(mm, mm_counter_file(page));
- discard:
- 		page_remove_rmap(subpage, PageHuge(page));
- 		put_page(page);
--		mmu_notifier_invalidate_page(mm, address);
-+		invalidation_needed = true;
- 	}
-+
-+	if (invalidation_needed)
-+		mmu_notifier_invalidate_range(mm, address,
-+				address + (1UL << compound_order(page)));
- 	return ret;
- }
- 
--- 
-2.13.4
+0.0012% of memory scanned is ever actually isolated.  We constantly see 
+very high cpu for compaction_alloc() because kcompactd is almost always 
+running in the background and iterating most memory completely needlessly 
+(define needless as 0.0012% of memory scanned being isolated).
+
+vm.extfrag_threshold isn't a solution to the problem because it sees 
+memory as being free in the 28GB of memory remaining and isolates/migrates 
+even if order-2 memory will not become available, so it would need to be 
+set at >850 for it to prevent compaction.  If memory is freed from the 
+hugetlb pool we would need to adjust the threshold at runtime.  (Why is 
+kcompactd setting ignore_skip_hint, again?)
+
+I think we need to look at making kcompactd do less work on each wakeup, 
+perhaps by not forcing full scans of memory with MIGRATE_SYNC_LIGHT and 
+defer compaction for longer if most scanning is completely pointless.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
