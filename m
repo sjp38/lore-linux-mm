@@ -1,67 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 995416B02C3
-	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 16:58:45 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id i192so76223274pgc.11
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 13:58:45 -0700 (PDT)
-Received: from mail-pg0-x22f.google.com (mail-pg0-x22f.google.com. [2607:f8b0:400e:c05::22f])
-        by mx.google.com with ESMTPS id p2si2905935pgc.67.2017.08.09.13.58.44
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B8316B02C3
+	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 17:25:05 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 185so745671wmk.12
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 14:25:05 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id j27si3945148wrd.9.2017.08.09.14.25.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Aug 2017 13:58:44 -0700 (PDT)
-Received: by mail-pg0-x22f.google.com with SMTP id u5so32697960pgn.0
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 13:58:44 -0700 (PDT)
-Date: Wed, 9 Aug 2017 13:58:42 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH 0/6] proactive kcompactd
-In-Reply-To: <20170727160701.9245-1-vbabka@suse.cz>
-Message-ID: <alpine.DEB.2.10.1708091353500.1218@chino.kir.corp.google.com>
-References: <20170727160701.9245-1-vbabka@suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Wed, 09 Aug 2017 14:25:04 -0700 (PDT)
+Date: Wed, 9 Aug 2017 14:25:01 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm] mm: Clear to access sub-page last when clearing
+ huge page
+Message-Id: <20170809142501.1286e8818359fd95b5794abd@linux-foundation.org>
+In-Reply-To: <20170807072131.8343-1-ying.huang@intel.com>
+References: <20170807072131.8343-1-ying.huang@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>
 
-On Thu, 27 Jul 2017, Vlastimil Babka wrote:
+On Mon,  7 Aug 2017 15:21:31 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
 
-> As we discussed at last LSF/MM [1], the goal here is to shift more compaction
-> work to kcompactd, which currently just makes a single high-order page
-> available and then goes to sleep. The last patch, evolved from the initial RFC
-> [2] does this by recording for each order > 0 how many allocations would have
-> potentially be able to skip direct compaction, if the memory wasn't fragmented.
-> Kcompactd then tries to compact as long as it takes to make that many
-> allocations satisfiable. This approach avoids any hooks in allocator fast
-> paths. There are more details to this, see the last patch.
+> From: Huang Ying <ying.huang@intel.com>
 > 
+> Huge page helps to reduce TLB miss rate, but it has higher cache
+> footprint, sometimes this may cause some issue.  For example, when
+> clearing huge page on x86_64 platform, the cache footprint is 2M.  But
+> on a Xeon E5 v3 2699 CPU, there are 18 cores, 36 threads, and only 45M
+> LLC (last level cache).  That is, in average, there are 2.5M LLC for
+> each core and 1.25M LLC for each thread.  If the cache pressure is
+> heavy when clearing the huge page, and we clear the huge page from the
+> begin to the end, it is possible that the begin of huge page is
+> evicted from the cache after we finishing clearing the end of the huge
+> page.  And it is possible for the application to access the begin of
+> the huge page after clearing the huge page.
+> 
+> To help the above situation, in this patch, when we clear a huge page,
+> the order to clear sub-pages is changed.  In quite some situation, we
+> can get the address that the application will access after we clear
+> the huge page, for example, in a page fault handler.  Instead of
+> clearing the huge page from begin to end, we will clear the sub-pages
+> farthest from the the sub-page to access firstly, and clear the
+> sub-page to access last.  This will make the sub-page to access most
+> cache-hot and sub-pages around it more cache-hot too.  If we cannot
+> know the address the application will access, the begin of the huge
+> page is assumed to be the the address the application will access.
+> 
+> With this patch, the throughput increases ~28.3% in vm-scalability
+> anon-w-seq test case with 72 processes on a 2 socket Xeon E5 v3 2699
+> system (36 cores, 72 threads).  The test case creates 72 processes,
+> each process mmap a big anonymous memory area and writes to it from
+> the begin to the end.  For each process, other processes could be seen
+> as other workload which generates heavy cache pressure.  At the same
+> time, the cache miss rate reduced from ~33.4% to ~31.7%, the
+> IPC (instruction per cycle) increased from 0.56 to 0.74, and the time
+> spent in user space is reduced ~7.9%
+> 
+> Thanks Andi Kleen to propose to use address to access to determine the
+> order of sub-pages to clear.
+> 
+> The hugetlbfs access address could be improved, will do that in
+> another patch.
 
-I think I would have liked to have seen "less proactive" :)
+I agree with what others said, plus...
 
-Kcompactd currently has the problem that it is MIGRATE_SYNC_LIGHT so it 
-continues until it can defragment memory.  On a host with 128GB of memory 
-and 100GB of it sitting in a hugetlb pool, we constantly get kcompactd 
-wakeups for order-2 memory allocation.  The stats are pretty bad:
+> @@ -4374,9 +4374,31 @@ void clear_huge_page(struct page *page,
+>  	}
+>  
+>  	might_sleep();
+> -	for (i = 0; i < pages_per_huge_page; i++) {
+> +	VM_BUG_ON(clamp(addr_hint, addr, addr +
+> +			(pages_per_huge_page << PAGE_SHIFT)) != addr_hint);
+> +	n = (addr_hint - addr) / PAGE_SIZE;
+> +	if (2 * n <= pages_per_huge_page) {
+> +		base = 0;
+> +		l = n;
+> +		for (i = pages_per_huge_page - 1; i >= 2 * n; i--) {
+> +			cond_resched();
+> +			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
+> +		}
+> +	} else {
+> +		base = 2 * n - pages_per_huge_page;
+> +		l = pages_per_huge_page - n;
+> +		for (i = 0; i < base; i++) {
+> +			cond_resched();
+> +			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
+> +		}
+> +	}
+> +	for (i = 0; i < l; i++) {
+> +		cond_resched();
+> +		clear_user_highpage(page + base + i,
+> +				    addr + (base + i) * PAGE_SIZE);
+>  		cond_resched();
+> -		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
+> +		clear_user_highpage(page + base + 2 * l - 1 - i,
+> +				    addr + (base + 2 * l - 1 - i) * PAGE_SIZE);
 
-compact_migrate_scanned 2931254031294 
-compact_free_scanned    102707804816705 
-compact_isolated        1309145254 
+Please document this design with a carefully written code comment.
+For example, why was "2 * n" chosen?  What is it trying to achieve?
 
-0.0012% of memory scanned is ever actually isolated.  We constantly see 
-very high cpu for compaction_alloc() because kcompactd is almost always 
-running in the background and iterating most memory completely needlessly 
-(define needless as 0.0012% of memory scanned being isolated).
+Also, the final clearing loop "for (i = 0; i < l; i++)" might cause
+eviction of data which was cached in the previous loop.  Perhaps some
+additional gains will be made by clearing the hugepage in a
+left-right-left-right "start from the ends and work inwards" manner, if
+you see what I mean.  So the 4k pages immediately surrounding addr_hint
+are the most-recently-cleared.  Although accesses to the data at lower
+addresses than addr_hint are probably somewhat rare (and may be
+nonexistent in your synthetic test case).
 
-vm.extfrag_threshold isn't a solution to the problem because it sees 
-memory as being free in the 28GB of memory remaining and isolates/migrates 
-even if order-2 memory will not become available, so it would need to be 
-set at >850 for it to prevent compaction.  If memory is freed from the 
-hugetlb pool we would need to adjust the threshold at runtime.  (Why is 
-kcompactd setting ignore_skip_hint, again?)
-
-I think we need to look at making kcompactd do less work on each wakeup, 
-perhaps by not forcing full scans of memory with MIGRATE_SYNC_LIGHT and 
-defer compaction for longer if most scanning is completely pointless.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
