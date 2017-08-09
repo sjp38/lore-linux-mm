@@ -1,185 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AF6426B025F
-	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 08:13:37 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 185so7946165wmk.12
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 05:13:37 -0700 (PDT)
-Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
-        by mx.google.com with ESMTPS id s15si3602816edd.47.2017.08.09.05.13.35
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 707B56B02B4
+	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 08:31:12 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id o124so29513660qke.9
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 05:31:12 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m15si3267555qkh.57.2017.08.09.05.31.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Aug 2017 05:13:36 -0700 (PDT)
-Received: by mail-wm0-x231.google.com with SMTP id m85so29507909wma.1
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 05:13:35 -0700 (PDT)
-Date: Wed, 9 Aug 2017 13:13:33 +0100
-From: Steve Capper <steve.capper@linaro.org>
-Subject: Re: [PATCH v5 4/9] arm64: hugetlb: Add break-before-make logic for
- contiguous entries
-Message-ID: <20170809121332.GA21276@linaro.org>
-References: <20170802094904.27749-1-punit.agrawal@arm.com>
- <20170802094904.27749-5-punit.agrawal@arm.com>
- <20170807171916.vdplrndrdyeontho@armageddon.cambridge.arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170807171916.vdplrndrdyeontho@armageddon.cambridge.arm.com>
+        Wed, 09 Aug 2017 05:31:11 -0700 (PDT)
+Message-ID: <1502281867.6577.35.camel@redhat.com>
+Subject: Re: [PATCH v2 0/2] mm,fork,security: introduce MADV_WIPEONFORK
+From: Rik van Riel <riel@redhat.com>
+Date: Wed, 09 Aug 2017 08:31:07 -0400
+In-Reply-To: <20170809095957.kv47or2w4obaipkn@node.shutemov.name>
+References: <20170806140425.20937-1-riel@redhat.com>
+	 <20170807132257.GH32434@dhcp22.suse.cz>
+	 <20170807134648.GI32434@dhcp22.suse.cz>
+	 <1502117991.6577.13.camel@redhat.com>
+	 <20170809095957.kv47or2w4obaipkn@node.shutemov.name>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Punit Agrawal <punit.agrawal@arm.com>, will.deacon@arm.com, mark.rutland@arm.com, David Woods <dwoods@mellanox.com>, Steve Capper <steve.capper@arm.com>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, mike.kravetz@oracle.com, linux-mm@kvack.org, fweimer@redhat.com, colm@allcosts.net, akpm@linux-foundation.org, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org, dave.hansen@intel.com, linux-api@vger.kernel.org
 
-Hi Catalin,
-
-On Mon, Aug 07, 2017 at 06:19:17PM +0100, Catalin Marinas wrote:
-> On Wed, Aug 02, 2017 at 10:48:59AM +0100, Punit Agrawal wrote:
-> > diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
-> > index 08deed7c71f0..f2c976464f39 100644
-> > --- a/arch/arm64/mm/hugetlbpage.c
-> > +++ b/arch/arm64/mm/hugetlbpage.c
-> > @@ -68,6 +68,47 @@ static int find_num_contig(struct mm_struct *mm, unsigned long addr,
-> >  	return CONT_PTES;
-> >  }
-> >  
-> > +/*
-> > + * Changing some bits of contiguous entries requires us to follow a
-> > + * Break-Before-Make approach, breaking the whole contiguous set
-> > + * before we can change any entries. See ARM DDI 0487A.k_iss10775,
-> > + * "Misprogramming of the Contiguous bit", page D4-1762.
-> > + *
-> > + * This helper performs the break step.
-> > + */
-> > +static pte_t get_clear_flush(struct mm_struct *mm,
-> > +			     unsigned long addr,
-> > +			     pte_t *ptep,
-> > +			     unsigned long pgsize,
-> > +			     unsigned long ncontig)
-> > +{
-> > +	unsigned long i, saddr = addr;
-> > +	struct vm_area_struct vma = { .vm_mm = mm };
-> > +	pte_t orig_pte = huge_ptep_get(ptep);
-> > +
-> > +	/*
-> > +	 * If we already have a faulting entry then we don't need
-> > +	 * to break before make (there won't be a tlb entry cached).
-> > +	 */
-> > +	if (!pte_present(orig_pte))
-> > +		return orig_pte;
-> > +
-> > +	for (i = 0; i < ncontig; i++, addr += pgsize, ptep++) {
-> > +		pte_t pte = ptep_get_and_clear(mm, addr, ptep);
-> > +
-> > +		/*
-> > +		 * If HW_AFDBM is enabled, then the HW could turn on
-> > +		 * the dirty bit for any page in the set, so check
-> > +		 * them all.  All hugetlb entries are already young.
-> > +		 */
-> > +		if (IS_ENABLED(CONFIG_ARM64_HW_AFDBM) && pte_dirty(pte))
-> > +			orig_pte = pte_mkdirty(orig_pte);
-> > +	}
-> > +
-> > +	flush_tlb_range(&vma, saddr, addr);
-> > +	return orig_pte;
-> > +}
-> > +
-> >  void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
-> >  			    pte_t *ptep, pte_t pte)
-> >  {
-> > @@ -93,6 +134,8 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
-> >  	dpfn = pgsize >> PAGE_SHIFT;
-> >  	hugeprot = pte_pgprot(pte);
-> >  
-> > +	get_clear_flush(mm, addr, ptep, pgsize, ncontig);
-> > +
-> >  	for (i = 0; i < ncontig; i++, ptep++, addr += pgsize, pfn += dpfn) {
-> >  		pr_debug("%s: set pte %p to 0x%llx\n", __func__, ptep,
-> >  			 pte_val(pfn_pte(pfn, hugeprot)));
+On Wed, 2017-08-09 at 12:59 +0300, Kirill A. Shutemov wrote:
+> On Mon, Aug 07, 2017 at 10:59:51AM -0400, Rik van Riel wrote:
+> > On Mon, 2017-08-07 at 15:46 +0200, Michal Hocko wrote:
+> > > On Mon 07-08-17 15:22:57, Michal Hocko wrote:
+> > > > This is an user visible API so make sure you CC linux-api
+> > > > (added)
+> > > > 
+> > > > On Sun 06-08-17 10:04:23, Rik van Riel wrote:
+> > > > > 
+> > > > > A further complication is the proliferation of clone flags,
+> > > > > programs bypassing glibc's functions to call clone directly,
+> > > > > and programs calling unshare, causing the glibc
+> > > > > pthread_atfork
+> > > > > hook to not get called.
+> > > > > 
+> > > > > It would be better to have the kernel take care of this
+> > > > > automatically.
+> > > > > 
+> > > > > This is similar to the OpenBSD minherit syscall with
+> > > > > MAP_INHERIT_ZERO:
+> > > > > 
+> > > > > A A A A https://man.openbsd.org/minherit.2
+> > > 
+> > > I would argue that a MAP_$FOO flag would be more appropriate. Or
+> > > do
+> > > you
+> > > see any cases where such a special mapping would need to change
+> > > the
+> > > semantic and inherit the content over the fork again?
+> > > 
+> > > I do not like the madvise because it is an advise and as such it
+> > > can
+> > > be
+> > > ignored/not implemented and that shouldn't have any correctness
+> > > effects
+> > > on the child process.
+> > 
+> > Too late for that. VM_DONTFORK is already implemented
+> > through MADV_DONTFORK & MADV_DOFORK, in a way that is
+> > very similar to the MADV_WIPEONFORK from these patches.
 > 
-> Is there any risk of the huge pte being accessed (from user space on
-> another CPU) in the short break-before-make window? Not that we can do
-> much about it but just checking.
-
-IIUC we're protected by the huge_pte_lock(.).
-
+> It's not obvious to me what would break if kernel would ignore
+> MADV_DONTFORK or MADV_DONTDUMP.
 > 
-> BTW, it seems a bit overkill to use ptep_get_and_clear() (via
-> get_clear_flush) when we just want to zero the entries. Probably not
-> much overhead though.
->
+You might end up with multiple processes having a device open
+which can only handle one process at a time.
 
-I think we need the TLB invalidate here to ensure there's zero possibility of
-conflicting TLB entries being in play.
- 
-> > @@ -222,6 +256,7 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
-> >  	int ncontig, i, changed = 0;
-> >  	size_t pgsize = 0;
-> >  	unsigned long pfn = pte_pfn(pte), dpfn;
-> > +	pte_t orig_pte;
-> >  	pgprot_t hugeprot;
-> >  
-> >  	if (!pte_cont(pte))
-> > @@ -231,10 +266,12 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
-> >  	dpfn = pgsize >> PAGE_SHIFT;
-> >  	hugeprot = pte_pgprot(pte);
-> >  
-> > -	for (i = 0; i < ncontig; i++, ptep++, addr += pgsize, pfn += dpfn) {
-> > -		changed |= ptep_set_access_flags(vma, addr, ptep,
-> > -				pfn_pte(pfn, hugeprot), dirty);
-> > -	}
-> > +	orig_pte = get_clear_flush(vma->vm_mm, addr, ptep, pgsize, ncontig);
-> > +	if (!pte_same(orig_pte, pte))
-> > +		changed = 1;
-> > +
-> > +	for (i = 0; i < ncontig; i++, ptep++, addr += pgsize, pfn += dpfn)
-> > +		set_pte_at(vma->vm_mm, addr, ptep, pfn_pte(pfn, hugeprot));
-> >  
-> >  	return changed;
-> >  }
-> 
-> If hugeprot isn't dirty but orig_pte became dirty, it looks like we just
-> drop such information from the new pte.
-
-Ahhh... okay, I will have a think about this, thanks!
-
-> 
-> Same comment here about the window. huge_ptep_set_access_flags() is
-> called on a present (huge) pte and we briefly make it invalid. Can the
-> mm subsystem cope with a fault on another CPU here? Same for the
-> huge_ptep_set_wrprotect() below.
-
-I think the fault handler will wait for the huge_pte_lock(.).
-
-> 
-> > @@ -244,6 +281,9 @@ void huge_ptep_set_wrprotect(struct mm_struct *mm,
-> >  {
-> >  	int ncontig, i;
-> >  	size_t pgsize;
-> > +	pte_t pte = pte_wrprotect(huge_ptep_get(ptep)), orig_pte;
-> > +	unsigned long pfn = pte_pfn(pte), dpfn;
-> > +	pgprot_t hugeprot;
-> >  
-> >  	if (!pte_cont(*ptep)) {
-> >  		ptep_set_wrprotect(mm, addr, ptep);
-> > @@ -251,8 +291,15 @@ void huge_ptep_set_wrprotect(struct mm_struct *mm,
-> >  	}
-> >  
-> >  	ncontig = find_num_contig(mm, addr, ptep, &pgsize);
-> > -	for (i = 0; i < ncontig; i++, ptep++, addr += pgsize)
-> > -		ptep_set_wrprotect(mm, addr, ptep);
-> > +	dpfn = pgsize >> PAGE_SHIFT;
-> > +
-> > +	orig_pte = get_clear_flush(mm, addr, ptep, pgsize, ncontig);
-> > +	if (pte_dirty(orig_pte))
-> > +		pte = pte_mkdirty(pte);
-> > +
-> > +	hugeprot = pte_pgprot(pte);
-> > +	for (i = 0; i < ncontig; i++, ptep++, addr += pgsize, pfn += dpfn)
-> > +		set_pte_at(mm, addr, ptep, pfn_pte(pfn, hugeprot));
-> >  }
-> >  
-> >  void huge_ptep_clear_flush(struct vm_area_struct *vma,
-> 
-
-Cheers Catalin.
+Another thing that could go wrong is that if overcommit_memory=2,
+a very large process with MADV_DONTFORK on a large memory area
+suddenly fails to fork (due to there not being enough available
+memory), and is unable to start a helper process.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
