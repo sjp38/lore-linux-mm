@@ -1,157 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 70F0B6B025F
-	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 11:51:10 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id z196so55303547ioe.3
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 08:51:10 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id j15si4570073itf.10.2017.08.09.08.51.08
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A819E6B0292
+	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 12:17:15 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id k126so32278563qke.8
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 09:17:15 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b67si3462842qkd.525.2017.08.09.09.17.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Aug 2017 08:51:09 -0700 (PDT)
-Date: Wed, 9 Aug 2017 17:50:59 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v8 00/14] lockdep: Implement crossrelease feature
-Message-ID: <20170809155059.yd7le2szn2rcd4h2@hirez.programming.kicks-ass.net>
-References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
+        Wed, 09 Aug 2017 09:17:14 -0700 (PDT)
+From: jglisse@redhat.com
+Subject: [PATCH] mm/rmap: try_to_unmap_one() do not call mmu_notifier under ptl
+Date: Wed,  9 Aug 2017 12:17:09 -0400
+Message-Id: <20170809161709.9278-1-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <byungchul.park@lge.com>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
+From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
+MMU notifiers can sleep, but in try_to_unmap_one() we call
+mmu_notifier_invalidate_page() under page table lock.
 
-Heh, look what it does...
+Let's instead use mmu_notifier_invalidate_range() outside
+page_vma_mapped_walk() loop.
 
+Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Fixes: c7ab0d2fdc84 ("mm: convert try_to_unmap_one() to use page_vma_mapped_walk()")
+---
+ mm/rmap.c | 36 +++++++++++++++++++++---------------
+ 1 file changed, 21 insertions(+), 15 deletions(-)
 
-4======================================================
-4WARNING: possible circular locking dependency detected
-4.13.0-rc2-00317-gadc6764a3adf-dirty #797 Tainted: G        W      
-4------------------------------------------------------
-4startpar/582 is trying to acquire lock:
-c (c(complete)&barr->donec){+.+.}c, at: [<ffffffff8110de4d>] flush_work+0x1fd/0x2c0
-4
-but task is already holding lock:
-c (clockc#3c){+.+.}c, at: [<ffffffff8122e866>] lru_add_drain_all_cpuslocked+0x46/0x1a0
-4
-which lock already depends on the new lock.
-
-4
-the existing dependency chain (in reverse order) is:
-
--> #4c (clockc#3c){+.+.}c:
-       __lock_acquire+0x10a5/0x1100
-       lock_acquire+0xea/0x1f0
-       __mutex_lock+0x6c/0x960
-       mutex_lock_nested+0x1b/0x20
-       lru_add_drain_all_cpuslocked+0x46/0x1a0
-       lru_add_drain_all+0x13/0x20
-       SyS_mlockall+0xb8/0x1c0
-       entry_SYSCALL_64_fastpath+0x23/0xc2
-
--> #3c (ccpu_hotplug_lock.rw_semc){++++}c:
-       __lock_acquire+0x10a5/0x1100
-       lock_acquire+0xea/0x1f0
-       cpus_read_lock+0x2a/0x90
-       kmem_cache_create+0x2a/0x1d0
-       scsi_init_sense_cache+0xa0/0xc0
-       scsi_add_host_with_dma+0x67/0x360
-       isci_pci_probe+0x873/0xc90
-       local_pci_probe+0x42/0xa0
-       work_for_cpu_fn+0x14/0x20
-       process_one_work+0x273/0x6b0
-       worker_thread+0x21b/0x3f0
-       kthread+0x147/0x180
-       ret_from_fork+0x2a/0x40
-
--> #2c (cscsi_sense_cache_mutexc){+.+.}c:
-       __lock_acquire+0x10a5/0x1100
-       lock_acquire+0xea/0x1f0
-       __mutex_lock+0x6c/0x960
-       mutex_lock_nested+0x1b/0x20
-       scsi_init_sense_cache+0x3d/0xc0
-       scsi_add_host_with_dma+0x67/0x360
-       isci_pci_probe+0x873/0xc90
-       local_pci_probe+0x42/0xa0
-       work_for_cpu_fn+0x14/0x20
-       process_one_work+0x273/0x6b0
-       worker_thread+0x21b/0x3f0
-       kthread+0x147/0x180
-       ret_from_fork+0x2a/0x40
-
--> #1c (c(&wfc.work)c){+.+.}c:
-       process_one_work+0x244/0x6b0
-       worker_thread+0x21b/0x3f0
-       kthread+0x147/0x180
-       ret_from_fork+0x2a/0x40
-       0xffffffffffffffff
-
--> #0c (c(complete)&barr->donec){+.+.}c:
-       check_prev_add+0x3be/0x700
-       __lock_acquire+0x10a5/0x1100
-       lock_acquire+0xea/0x1f0
-       wait_for_completion+0x3b/0x130
-       flush_work+0x1fd/0x2c0
-       lru_add_drain_all_cpuslocked+0x158/0x1a0
-       lru_add_drain_all+0x13/0x20
-       SyS_mlockall+0xb8/0x1c0
-       entry_SYSCALL_64_fastpath+0x23/0xc2
-
-other info that might help us debug this:
-
-Chain exists of:
-  c(complete)&barr->donec --> ccpu_hotplug_lock.rw_semc --> clockc#3c
-
- Possible unsafe locking scenario:
-
-       CPU0                    CPU1
-       ----                    ----
-  lock(clockc#3c);
-                               lock(ccpu_hotplug_lock.rw_semc);
-                               lock(clockc#3c);
-  lock(c(complete)&barr->donec);
-
- *** DEADLOCK ***
-
-2 locks held by startpar/582:
- #0: c (ccpu_hotplug_lock.rw_semc){++++}c, at: [<ffffffff8122e9ce>] lru_add_drain_all+0xe/0x20
- #1: c (clockc#3c){+.+.}c, at: [<ffffffff8122e866>] lru_add_drain_all_cpuslocked+0x46/0x1a0
-
-stack backtrace:
-dCPU: 23 PID: 582 Comm: startpar Tainted: G        W       4.13.0-rc2-00317-gadc6764a3adf-dirty #797
-dHardware name: Intel Corporation S2600GZ/S2600GZ, BIOS SE5C600.86B.02.02.0002.122320131210 12/23/2013
-dCall Trace:
-d dump_stack+0x86/0xcf
-d print_circular_bug+0x203/0x2f0
-d check_prev_add+0x3be/0x700
-d ? add_lock_to_list.isra.30+0xc0/0xc0
-d ? is_bpf_text_address+0x82/0xe0
-d ? unwind_get_return_address+0x1f/0x30
-d __lock_acquire+0x10a5/0x1100
-d ? __lock_acquire+0x10a5/0x1100
-d ? add_lock_to_list.isra.30+0xc0/0xc0
-d lock_acquire+0xea/0x1f0
-d ? flush_work+0x1fd/0x2c0
-d wait_for_completion+0x3b/0x130
-d ? flush_work+0x1fd/0x2c0
-d flush_work+0x1fd/0x2c0
-d ? flush_workqueue_prep_pwqs+0x1c0/0x1c0
-d ? trace_hardirqs_on+0xd/0x10
-d lru_add_drain_all_cpuslocked+0x158/0x1a0
-d lru_add_drain_all+0x13/0x20
-d SyS_mlockall+0xb8/0x1c0
-d entry_SYSCALL_64_fastpath+0x23/0xc2
-dRIP: 0033:0x7f818d2e54c7
-dRSP: 002b:00007fffcce83798 EFLAGS: 00000246c ORIG_RAX: 0000000000000097
-dRAX: ffffffffffffffda RBX: 0000000000000046 RCX: 00007f818d2e54c7
-dRDX: 0000000000000000 RSI: 00007fffcce83650 RDI: 0000000000000003
-dRBP: 000000000002c010 R08: 0000000000000000 R09: 0000000000000000
-dR10: 0000000000000008 R11: 0000000000000246 R12: 000000000002d000
-dR13: 000000000002c010 R14: 0000000000001000 R15: 00007f818d599b00
+diff --git a/mm/rmap.c b/mm/rmap.c
+index aff607d5f7d2..d60e887f1cda 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1329,7 +1329,8 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 	};
+ 	pte_t pteval;
+ 	struct page *subpage;
+-	bool ret = true;
++	bool ret = true, invalidation_needed = false;
++	unsigned long end = address + PAGE_SIZE;
+ 	enum ttu_flags flags = (enum ttu_flags)arg;
+ 
+ 	/* munlock has nothing to gain from examining un-locked vmas */
+@@ -1386,7 +1387,6 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 		VM_BUG_ON_PAGE(!pvmw.pte, page);
+ 
+ 		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
+-		address = pvmw.address;
+ 
+ 		if (IS_ENABLED(CONFIG_MIGRATION) &&
+ 		    (flags & TTU_MIGRATION) &&
+@@ -1394,7 +1394,8 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 			swp_entry_t entry;
+ 			pte_t swp_pte;
+ 
+-			pteval = ptep_get_and_clear(mm, address, pvmw.pte);
++			pteval = ptep_get_and_clear(mm, pvmw.address,
++						    pvmw.pte);
+ 
+ 			/*
+ 			 * Store the pfn of the page in a special migration
+@@ -1405,12 +1406,12 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 			swp_pte = swp_entry_to_pte(entry);
+ 			if (pte_soft_dirty(pteval))
+ 				swp_pte = pte_swp_mksoft_dirty(swp_pte);
+-			set_pte_at(mm, address, pvmw.pte, swp_pte);
++			set_pte_at(mm, pvmw.address, pvmw.pte, swp_pte);
+ 			goto discard;
+ 		}
+ 
+ 		if (!(flags & TTU_IGNORE_ACCESS)) {
+-			if (ptep_clear_flush_young_notify(vma, address,
++			if (ptep_clear_flush_young_notify(vma, pvmw.address,
+ 						pvmw.pte)) {
+ 				ret = false;
+ 				page_vma_mapped_walk_done(&pvmw);
+@@ -1419,7 +1420,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 		}
+ 
+ 		/* Nuke the page table entry. */
+-		flush_cache_page(vma, address, pte_pfn(*pvmw.pte));
++		flush_cache_page(vma, pvmw.address, pte_pfn(*pvmw.pte));
+ 		if (should_defer_flush(mm, flags)) {
+ 			/*
+ 			 * We clear the PTE but do not flush so potentially
+@@ -1429,11 +1430,12 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 			 * transition on a cached TLB entry is written through
+ 			 * and traps if the PTE is unmapped.
+ 			 */
+-			pteval = ptep_get_and_clear(mm, address, pvmw.pte);
++			pteval = ptep_get_and_clear(mm, pvmw.address,
++						    pvmw.pte);
+ 
+ 			set_tlb_ubc_flush_pending(mm, pte_dirty(pteval));
+ 		} else {
+-			pteval = ptep_clear_flush(vma, address, pvmw.pte);
++			pteval = ptep_clear_flush(vma, pvmw.address, pvmw.pte);
+ 		}
+ 
+ 		/* Move the dirty bit to the page. Now the pte is gone. */
+@@ -1448,12 +1450,12 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 			if (PageHuge(page)) {
+ 				int nr = 1 << compound_order(page);
+ 				hugetlb_count_sub(nr, mm);
+-				set_huge_swap_pte_at(mm, address,
++				set_huge_swap_pte_at(mm, pvmw.address,
+ 						     pvmw.pte, pteval,
+ 						     vma_mmu_pagesize(vma));
+ 			} else {
+ 				dec_mm_counter(mm, mm_counter(page));
+-				set_pte_at(mm, address, pvmw.pte, pteval);
++				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);
+ 			}
+ 
+ 		} else if (pte_unused(pteval)) {
+@@ -1477,7 +1479,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 			swp_pte = swp_entry_to_pte(entry);
+ 			if (pte_soft_dirty(pteval))
+ 				swp_pte = pte_swp_mksoft_dirty(swp_pte);
+-			set_pte_at(mm, address, pvmw.pte, swp_pte);
++			set_pte_at(mm, pvmw.address, pvmw.pte, swp_pte);
+ 		} else if (PageAnon(page)) {
+ 			swp_entry_t entry = { .val = page_private(subpage) };
+ 			pte_t swp_pte;
+@@ -1503,7 +1505,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 				 * If the page was redirtied, it cannot be
+ 				 * discarded. Remap the page to page table.
+ 				 */
+-				set_pte_at(mm, address, pvmw.pte, pteval);
++				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);
+ 				SetPageSwapBacked(page);
+ 				ret = false;
+ 				page_vma_mapped_walk_done(&pvmw);
+@@ -1511,7 +1513,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 			}
+ 
+ 			if (swap_duplicate(entry) < 0) {
+-				set_pte_at(mm, address, pvmw.pte, pteval);
++				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);
+ 				ret = false;
+ 				page_vma_mapped_walk_done(&pvmw);
+ 				break;
+@@ -1527,14 +1529,18 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 			swp_pte = swp_entry_to_pte(entry);
+ 			if (pte_soft_dirty(pteval))
+ 				swp_pte = pte_swp_mksoft_dirty(swp_pte);
+-			set_pte_at(mm, address, pvmw.pte, swp_pte);
++			set_pte_at(mm, pvmw.address, pvmw.pte, swp_pte);
+ 		} else
+ 			dec_mm_counter(mm, mm_counter_file(page));
+ discard:
+ 		page_remove_rmap(subpage, PageHuge(page));
+ 		put_page(page);
+-		mmu_notifier_invalidate_page(mm, address);
++		end = pvmw.address + PAGE_SIZE;
++		invalidation_needed = true;
+ 	}
++
++	if (invalidation_needed)
++		mmu_notifier_invalidate_range(mm, address, end);
+ 	return ret;
+ }
+ 
+-- 
+2.13.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
