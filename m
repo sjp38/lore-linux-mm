@@ -1,197 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5276A6B02F3
-	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 21:45:02 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id t18so4741531oih.11
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 18:45:02 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id h26si2044594oig.298.2017.08.08.18.45.00
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Aug 2017 18:45:01 -0700 (PDT)
-Date: Tue, 8 Aug 2017 18:44:59 -0700
-From: Jaegeuk Kim <jaegeuk@kernel.org>
-Subject: Re: kernel panic on null pointer on page->mem_cgroup
-Message-ID: <20170809014459.GB7693@jaegeuk-macbookpro.roam.corp.google.com>
-References: <20170805155241.GA94821@jaegeuk-macbookpro.roam.corp.google.com>
- <20170808010150.4155-1-bradleybolen@gmail.com>
- <20170808162122.GA14689@cmpxchg.org>
- <20170808165601.GA7693@jaegeuk-macbookpro.roam.corp.google.com>
- <20170808173704.GA22887@cmpxchg.org>
- <CADvgSZSn1v-tTpa07ebqr19heQbkzbavdPM_nbRNR1WF-EBnFw@mail.gmail.com>
- <20170808200849.GA1104@cmpxchg.org>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 610CE6B02F3
+	for <linux-mm@kvack.org>; Tue,  8 Aug 2017 21:48:07 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id t25so49445769pfg.15
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 18:48:07 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id v31si1831892plg.424.2017.08.08.18.48.05
+        for <linux-mm@kvack.org>;
+        Tue, 08 Aug 2017 18:48:06 -0700 (PDT)
+Date: Wed, 9 Aug 2017 10:48:04 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v1 2/6] fs: use on-stack-bio if backing device has
+ BDI_CAP_SYNC capability
+Message-ID: <20170809014804.GA32338@bbox>
+References: <1502175024-28338-1-git-send-email-minchan@kernel.org>
+ <1502175024-28338-3-git-send-email-minchan@kernel.org>
+ <20170808124959.GB31390@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170808200849.GA1104@cmpxchg.org>
+In-Reply-To: <20170808124959.GB31390@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Brad Bolen <bradleybolen@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, "karam . lee" <karam.lee@lge.com>, seungho1.park@lge.com, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, jack@suse.cz, Jens Axboe <axboe@kernel.dk>, Vishal Verma <vishal.l.verma@intel.com>, linux-nvdimm@lists.01.org, kernel-team <kernel-team@lge.com>
 
-On 08/08, Johannes Weiner wrote:
-> On Tue, Aug 08, 2017 at 03:13:42PM -0400, Brad Bolen wrote:
-> > On Tue, Aug 8, 2017 at 1:37 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > > On Tue, Aug 08, 2017 at 09:56:01AM -0700, Jaegeuk Kim wrote:
-> > >> On 08/08, Johannes Weiner wrote:
-> > >> > Hi Jaegeuk and Bradley,
-> > >> >
-> > >> > On Mon, Aug 07, 2017 at 09:01:50PM -0400, Bradley Bolen wrote:
-> > >> > > I am getting a very similar error on v4.11 with an arm64 board.
-> > >> > >
-> > >> > > I, too, also see page->mem_cgroup checked to make sure that it is not
-> > >> > > NULL and then several instructions later it is NULL.  It does appear
-> > >> > > that someone is changing that member without taking the lock.  In my
-> > >> > > setup, I see
-> > >> > >
-> > >> > > crash> bt
-> > >> > > PID: 72     TASK: e1f48640  CPU: 0   COMMAND: "mmcqd/1"
-> > >> > >  #0 [<c00ad35c>] (__crash_kexec) from [<c0101080>]
-> > >> > >  #1 [<c0101080>] (panic) from [<c028cd6c>]
-> > >> > >  #2 [<c028cd6c>] (svcerr_panic) from [<c028cdc4>]
-> > >> > >  #3 [<c028cdc4>] (_SvcErr_) from [<c001474c>]
-> > >> > >  #4 [<c001474c>] (die) from [<c00241f8>]
-> > >> > >  #5 [<c00241f8>] (__do_kernel_fault) from [<c0560600>]
-> > >> > >  #6 [<c0560600>] (do_page_fault) from [<c00092e8>]
-> > >> > >  #7 [<c00092e8>] (do_DataAbort) from [<c055f9f0>]
-> > >> > >     pc : [<c0112540>]    lr : [<c0112518>]    psr: a0000193
-> > >> > >     sp : c1a19cc8  ip : 00000000  fp : c1a19d04
-> > >> > >     r10: 0006ae29  r9 : 00000000  r8 : dfbf1800
-> > >> > >     r7 : dfbf1800  r6 : 00000001  r5 : f3c1107c  r4 : e2fb6424
-> > >> > >     r3 : 00000000  r2 : 00040228  r1 : 221e3000  r0 : a0000113
-> > >> > >     Flags: NzCv  IRQs off  FIQs on  Mode SVC_32  ISA ARM
-> > >> > >  #8 [<c055f9f0>] (__dabt_svc) from [<c0112518>]
-> > >> > >  #9 [<c0112540>] (test_clear_page_writeback) from [<c01046d4>]
-> > >> > > #10 [<c01046d4>] (end_page_writeback) from [<c0149bcc>]
-> > >> > > #11 [<c0149bcc>] (end_swap_bio_write) from [<c0261460>]
-> > >> > > #12 [<c0261460>] (bio_endio) from [<c042c800>]
-> > >> > > #13 [<c042c800>] (dec_pending) from [<c042e648>]
-> > >> > > #14 [<c042e648>] (clone_endio) from [<c0261460>]
-> > >> > > #15 [<c0261460>] (bio_endio) from [<bf60aa00>]
-> > >> > > #16 [<bf60aa00>] (crypt_dec_pending [dm_crypt]) from [<bf60c1e8>]
-> > >> > > #17 [<bf60c1e8>] (crypt_endio [dm_crypt]) from [<c0261460>]
-> > >> > > #18 [<c0261460>] (bio_endio) from [<c0269e34>]
-> > >> > > #19 [<c0269e34>] (blk_update_request) from [<c026a058>]
-> > >> > > #20 [<c026a058>] (blk_update_bidi_request) from [<c026a444>]
-> > >> > > #21 [<c026a444>] (blk_end_bidi_request) from [<c026a494>]
-> > >> > > #22 [<c026a494>] (blk_end_request) from [<c0458dbc>]
-> > >> > > #23 [<c0458dbc>] (mmc_blk_issue_rw_rq) from [<c0459e24>]
-> > >> > > #24 [<c0459e24>] (mmc_blk_issue_rq) from [<c045a018>]
-> > >> > > #25 [<c045a018>] (mmc_queue_thread) from [<c0048890>]
-> > >> > > #26 [<c0048890>] (kthread) from [<c0010388>]
-> > >> > > crash> sym c0112540
-> > >> > > c0112540 (T) test_clear_page_writeback+512
-> > >> > >  /kernel-source/include/linux/memcontrol.h: 518
-> > >> > >
-> > >> > > crash> bt 35
-> > >> > > PID: 35     TASK: e1d45dc0  CPU: 1   COMMAND: "kswapd0"
-> > >> > >  #0 [<c0559ab8>] (__schedule) from [<c0559edc>]
-> > >> > >  #1 [<c0559edc>] (schedule) from [<c055e54c>]
-> > >> > >  #2 [<c055e54c>] (schedule_timeout) from [<c055a3a4>]
-> > >> > >  #3 [<c055a3a4>] (io_schedule_timeout) from [<c0106cb0>]
-> > >> > >  #4 [<c0106cb0>] (mempool_alloc) from [<c0261668>]
-> > >> > >  #5 [<c0261668>] (bio_alloc_bioset) from [<c0149d68>]
-> > >> > >  #6 [<c0149d68>] (get_swap_bio) from [<c014a280>]
-> > >> > >  #7 [<c014a280>] (__swap_writepage) from [<c014a3bc>]
-> > >> > >  #8 [<c014a3bc>] (swap_writepage) from [<c011e5c8>]
-> > >> > >  #9 [<c011e5c8>] (shmem_writepage) from [<c011a9b8>]
-> > >> > > #10 [<c011a9b8>] (shrink_page_list) from [<c011b528>]
-> > >> > > #11 [<c011b528>] (shrink_inactive_list) from [<c011c160>]
-> > >> > > #12 [<c011c160>] (shrink_node_memcg) from [<c011c400>]
-> > >> > > #13 [<c011c400>] (shrink_node) from [<c011d7dc>]
-> > >> > > #14 [<c011d7dc>] (kswapd) from [<c0048890>]
-> > >> > > #15 [<c0048890>] (kthread) from [<c0010388>]
-> > >> > >
-> > >> > > It appears that uncharge_list() in mm/memcontrol.c is not taking the
-> > >> > > page lock when it sets mem_cgroup to NULL.  I am not familiar with the
-> > >> > > mm code so I do not know if this is on purpose or not.  There is a
-> > >> > > comment in uncharge_list that makes me believe that the crashing code
-> > >> > > should not have been running:
-> > >> > > /*
-> > >> > >  * Nobody should be changing or seriously looking at
-> > >> > >  * page->mem_cgroup at this point, we have fully
-> > >> > >  * exclusive access to the page.
-> > >> > >  */
-> > >> > > However, I am new to looking at this area of the kernel so I am not
-> > >> > > sure.
-> > >> >
-> > >> > The lock is for pages that are actively being used, whereas the free
-> > >> > path requires the page refcount to be 0; nobody else should be having
-> > >> > access to the page at that time.
-> > >>
-> > >> Given various trials for a while, using __mod_memcg_state() instead of
-> > >> mod_memcg_state() ssems somehow blowing the panic away. It might be caused
-> > >> by kernel preemption?
-> > >
-> > > That's puzzling. Is that reliably the case? Because on x86-64,
-> > > __this_cpu_add and this_cpu_add should result in the same code:
-> > >
-> > > #define raw_cpu_add_8(pcp, val)                 percpu_add_op((pcp), val)
-> > > #define this_cpu_add_8(pcp, val)                percpu_add_op((pcp), val)
-> > >
-> > > which boils down to single instructions - incq, decq, addq - and so
-> > > never needs explicit disabling of scheduler or interrupt preemption.
-> > >
-> > >> > > I was able to create a reproducible scenario by using a udelay to
-> > >> > > increase the time between the if (page->mem_cgroup) check and the later
-> > >> > > dereference of it to increase the race window.  I then mounted an empty
-> > >> > > ext4 partition and ran the following no more than twice before it
-> > >> > > crashed.
-> > >> > > dd if=/dev/zero of=/tmp/ext4disk/test bs=1M count=100
-> > >> >
-> > >> > Thanks, that's useful. I'm going to try to reproduce this also.
-> > >> >
-> > >> > There is a
-> > >> >
-> > >> >     VM_BUG_ON_PAGE(!PageHWPoison(page) && page_count(page), page);
-> > >> >
-> > >> > inside uncharge_list() that verifies that there shouldn't in fact be
-> > >> > any pages ending writeback when they get into that function. Can you
-> > >> > build your kernel with CONFIG_DEBUG_VM to enable that test?
-> > >>
-> > >> I'll test this as well. ;)
-> > >
-> > > Thanks. I'm trying various udelays in between the NULL-check and the
-> > > dereference, but I cannot seem to make it happen with the ext4-dd on
-> > > my local machine.
-> > I am using a fairly fat udelay of 100.
-> > 
-> > I turned on CONFIG_DEBUG_VM but it didn't bug for me, although the original
-> > problem still reproduced.
+Hi Matthew,
+
+On Tue, Aug 08, 2017 at 05:49:59AM -0700, Matthew Wilcox wrote:
+> On Tue, Aug 08, 2017 at 03:50:20PM +0900, Minchan Kim wrote:
+> > There is no need to use dynamic bio allocation for BDI_CAP_SYNC
+> > devices. They can with on-stack-bio without concern about waiting
+> > bio allocation from mempool under heavy memory pressure.
 > 
-> Ok that sounds like a page refcounting bug then.
+> This seems ... more complex than necessary?  Why not simply do this:
 > 
-> > I can insert some tracing to try to get some more information, but unfortunately
-> > I am stuck with v4.11 at the moment and can't try v4.13-rc4 on this setup.
-> 
-> Does the below trigger with your reproducer? (Still doesn't for me).
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 3914e3dd6168..c052b085c5dd 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -599,6 +599,7 @@ static inline void __mod_lruvec_page_state(struct page *page,
->  	struct mem_cgroup_per_node *pn;
+> diff --git a/fs/mpage.c b/fs/mpage.c
+> index baff8f820c29..6db6bf5131ed 100644
+> --- a/fs/mpage.c
+> +++ b/fs/mpage.c
+> @@ -157,6 +157,8 @@ do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
+>  	unsigned page_block;
+>  	unsigned first_hole = blocks_per_page;
+>  	struct block_device *bdev = NULL;
+> +	struct bio sbio;
+> +	struct bio_vec sbvec;
+>  	int length;
+>  	int fully_mapped = 1;
+>  	unsigned nblocks;
+> @@ -281,10 +283,17 @@ do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
+>  								page))
+>  				goto out;
+>  		}
+> -		bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
+> +		if (bdi_cap_synchronous_io(inode_to_bdi(inode))) {
+> +			bio = &sbio;
+> +			bio_init(bio, &sbvec, nr_pages);
+> +			sbio.bi_bdev = bdev;
+> +			sbio.bi_iter.bi_sector = blocks[0] << (blkbits - 9);
+> +		} else {
+> +			bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
+>  				min_t(int, nr_pages, BIO_MAX_PAGES), gfp);
+> -		if (bio == NULL)
+> -			goto confused;
+> +			if (bio == NULL)
+> +				goto confused;
+> +		}
+>  	}
 >  
->  	__mod_node_page_state(page_pgdat(page), idx, val);
-> +	VM_BUG_ON_PAGE(!page_count(page), page);
->  	if (mem_cgroup_disabled() || !page->mem_cgroup)
->  		return;
->  	__mod_memcg_state(page->mem_cgroup, idx, val);
-> @@ -612,6 +613,7 @@ static inline void mod_lruvec_page_state(struct page *page,
->  	struct mem_cgroup_per_node *pn;
->  
->  	mod_node_page_state(page_pgdat(page), idx, val);
-> +	VM_BUG_ON_PAGE(!page_count(page), page);
+>  	length = first_hole << blkbits;
+> @@ -301,6 +310,8 @@ do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
+>  	else
+>  		*last_block_in_bio = blocks[blocks_per_page - 1];
+>  out:
+> +	if (bio == &sbio)
+> +		bio = mpage_bio_submit(REQ_OP_READ, 0, bio);
 
-It seems DEBUG_VM may hide the problem in my case, so I turned it off and
-replaced it with BUG_ON(!page_count(page)). Then, I exactly hit this.
+Looks nicer but one nitpick:
 
-Thanks,
+For reusing mpage_bio_submit, we need to call bio_get for on-stack-bio which
+doesn't make sense to me but if you think it's more readable and ok with
+overhead with two unnecessary atomic instructions(bio_get/put), I will do it
+in next spin.
 
->  	if (mem_cgroup_disabled() || !page->mem_cgroup)
->  		return;
->  	mod_memcg_state(page->mem_cgroup, idx, val);
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
