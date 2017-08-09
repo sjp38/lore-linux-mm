@@ -1,31 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 569DF6B0292
-	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 02:14:47 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id h126so6983371wmf.10
-        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 23:14:47 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q6si2782448wrd.173.2017.08.08.23.14.46
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 08 Aug 2017 23:14:46 -0700 (PDT)
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII;
- format=flowed
-Content-Transfer-Encoding: 7bit
-Date: Tue, 08 Aug 2017 23:14:45 -0700
-From: Davidlohr Bueso <dbueso@suse.de>
-Subject: Re: [PATCH] mm/mmu_notifier: fix deadlock from typo
- vm_lock_anon_vma()
-In-Reply-To: <20170808225719.20723-1-jglisse@redhat.com>
-References: <20170808225719.20723-1-jglisse@redhat.com>
-Message-ID: <a976e37559cc899008dee5615880cf4d@suse.de>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AF576B025F
+	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 02:44:42 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id y192so56451538pgd.12
+        for <linux-mm@kvack.org>; Tue, 08 Aug 2017 23:44:42 -0700 (PDT)
+Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
+        by mx.google.com with ESMTP id i72si2121533pfj.386.2017.08.08.23.44.40
+        for <linux-mm@kvack.org>;
+        Tue, 08 Aug 2017 23:44:41 -0700 (PDT)
+Date: Wed, 09 Aug 2017 14:44:23 +0800
+Subject: memcg Can't context between v1 and v2 because css->refcnt not
+ released
+From: "=?GBK?B?0/fN+w==?=" <yuwang.yuwang@alibaba-inc.com>
+Message-ID: <D5B0D047.344%yuwang.yuwang@alibaba-inc.com>
+Mime-version: 1.0
+Content-type: text/plain;
+	charset="US-ASCII"
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jglisse@redhat.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-Thanks!
+Hello Johannes ,Michal,and Tejun:
+
+  i using memcg v1,  but some reason  i want to context to  memcg v2,
+but i can't, here is my step:
+#cat /proc/cgroups
+#subsys_name hierarchy num_cgroups enabled
+ memory 5 1 1
+#cd /sys/fs/cgroup/memory
+#mkdir a
+#echo 0 > a/cgroup.procs
+#sleep 1
+#echo 0 > cgroup.procs
+#cat /proc/cgroups
+#subsys_name hierarchy num_cgroups enabled
+ memory 5 2 1  
+the num_cgroups not go to "1"
+so it will lead to can't context to memcg 2
+#cd ..
+#umount memory
+umount: /sys/fs/cgroup/memory: target is busy.
+        (In some cases useful info about processes that use
+         the device is found by lsof(8) or fuser(1))
+
+  and i have tracked  the root cause, i found that "b2052564e66d mm:
+memcontrol: continue cache reclaim from offlined groups"from Johannes
+Weiner, remove mem_cgroup_reparent_charges when mem_cgroup_css_offline, so
+the css->refcount  not go to "0", so the css_release not call when rmdir
+cgroup, and nr_cgroups not released.
+  so i want to ask does it reasonable can't context between v1 and v2
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
