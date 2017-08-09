@@ -1,71 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A1096B02C3
-	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 06:00:01 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id g71so7580100wmg.13
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 03:00:01 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id u18si3822564edb.541.2017.08.09.03.00.00
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 369026B02F4
+	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 06:08:39 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id i187so7593551wma.15
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 03:08:39 -0700 (PDT)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id m15si3153177edb.511.2017.08.09.03.08.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Aug 2017 03:00:00 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id q189so6185189wmd.0
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 03:00:00 -0700 (PDT)
-Date: Wed, 9 Aug 2017 12:59:57 +0300
+        Wed, 09 Aug 2017 03:08:38 -0700 (PDT)
+Received: by mail-wm0-x244.google.com with SMTP id y206so6168635wmd.5
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 03:08:38 -0700 (PDT)
+Date: Wed, 9 Aug 2017 13:08:35 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v2 0/2] mm,fork,security: introduce MADV_WIPEONFORK
-Message-ID: <20170809095957.kv47or2w4obaipkn@node.shutemov.name>
-References: <20170806140425.20937-1-riel@redhat.com>
- <20170807132257.GH32434@dhcp22.suse.cz>
- <20170807134648.GI32434@dhcp22.suse.cz>
- <1502117991.6577.13.camel@redhat.com>
+Subject: Re: [PATCH 02/16] mm: Prepare for FAULT_FLAG_SPECULATIVE
+Message-ID: <20170809100835.5kz3zf5sd3oqrrj4@node.shutemov.name>
+References: <1502202949-8138-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1502202949-8138-3-git-send-email-ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1502117991.6577.13.camel@redhat.com>
+In-Reply-To: <1502202949-8138-3-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, mike.kravetz@oracle.com, linux-mm@kvack.org, fweimer@redhat.com, colm@allcosts.net, akpm@linux-foundation.org, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org, dave.hansen@intel.com, linux-api@vger.kernel.org
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Mon, Aug 07, 2017 at 10:59:51AM -0400, Rik van Riel wrote:
-> On Mon, 2017-08-07 at 15:46 +0200, Michal Hocko wrote:
-> > On Mon 07-08-17 15:22:57, Michal Hocko wrote:
-> > > This is an user visible API so make sure you CC linux-api (added)
-> > > 
-> > > On Sun 06-08-17 10:04:23, Rik van Riel wrote:
-> > > > 
-> > > > A further complication is the proliferation of clone flags,
-> > > > programs bypassing glibc's functions to call clone directly,
-> > > > and programs calling unshare, causing the glibc pthread_atfork
-> > > > hook to not get called.
-> > > > 
-> > > > It would be better to have the kernel take care of this
-> > > > automatically.
-> > > > 
-> > > > This is similar to the OpenBSD minherit syscall with
-> > > > MAP_INHERIT_ZERO:
-> > > > 
-> > > >     https://man.openbsd.org/minherit.2
-> > 
-> > I would argue that a MAP_$FOO flag would be more appropriate. Or do
-> > you
-> > see any cases where such a special mapping would need to change the
-> > semantic and inherit the content over the fork again?
-> > 
-> > I do not like the madvise because it is an advise and as such it can
-> > be
-> > ignored/not implemented and that shouldn't have any correctness
-> > effects
-> > on the child process.
-> 
-> Too late for that. VM_DONTFORK is already implemented
-> through MADV_DONTFORK & MADV_DOFORK, in a way that is
-> very similar to the MADV_WIPEONFORK from these patches.
+On Tue, Aug 08, 2017 at 04:35:35PM +0200, Laurent Dufour wrote:
+> @@ -2295,7 +2302,11 @@ static int wp_page_copy(struct vm_fault *vmf)
+>  	/*
+>  	 * Re-check the pte - we dropped the lock
+>  	 */
+> -	vmf->pte = pte_offset_map_lock(mm, vmf->pmd, vmf->address, &vmf->ptl);
+> +	if (!pte_map_lock(vmf)) {
+> +		mem_cgroup_cancel_charge(new_page, memcg, false);
+> +		ret = VM_FAULT_RETRY;
+> +		goto oom_free_new;
 
-It's not obvious to me what would break if kernel would ignore
-MADV_DONTFORK or MADV_DONTDUMP.
+With the change, label is misleading.
+
+> +	}
+>  	if (likely(pte_same(*vmf->pte, vmf->orig_pte))) {
+>  		if (old_page) {
+>  			if (!PageAnon(old_page)) {
 
 -- 
  Kirill A. Shutemov
