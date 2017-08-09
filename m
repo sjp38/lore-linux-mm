@@ -1,70 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AC226B0292
-	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 12:52:52 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id w51so32357875qtc.12
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 09:52:52 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j97si3363020qte.527.2017.08.09.09.52.51
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D258E6B0292
+	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 14:14:47 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id q50so9774660wrb.14
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 11:14:47 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id v23si3414031wmv.57.2017.08.09.11.14.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Aug 2017 09:52:51 -0700 (PDT)
-Date: Wed, 9 Aug 2017 12:52:46 -0400 (EDT)
-From: Jerome Glisse <jglisse@redhat.com>
-Message-ID: <88997080.69197246.1502297566486.JavaMail.zimbra@redhat.com>
-In-Reply-To: <20170809163434.p356oyarqpqh52hu@node.shutemov.name>
-References: <20170809161709.9278-1-jglisse@redhat.com> <20170809163434.p356oyarqpqh52hu@node.shutemov.name>
-Subject: Re: [PATCH] mm/rmap: try_to_unmap_one() do not call mmu_notifier
- under ptl
+        Wed, 09 Aug 2017 11:14:46 -0700 (PDT)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.9 18/93] mm/page_alloc: Remove kernel address exposure in free_reserved_area()
+Date: Wed,  9 Aug 2017 11:13:11 -0700
+Message-Id: <20170809181336.404766514@linuxfoundation.org>
+In-Reply-To: <20170809181335.658857427@linuxfoundation.org>
+References: <20170809181335.658857427@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Kees Cook <keescook@google.com>
 
-> On Wed, Aug 09, 2017 at 12:17:09PM -0400, jglisse@redhat.com wrote:
-> > From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> >=20
-> > MMU notifiers can sleep, but in try_to_unmap_one() we call
-> > mmu_notifier_invalidate_page() under page table lock.
-> >=20
-> > Let's instead use mmu_notifier_invalidate_range() outside
-> > page_vma_mapped_walk() loop.
-> >=20
-> > Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Fixes: c7ab0d2fdc84 ("mm: convert try_to_unmap_one() to use
-> > page_vma_mapped_walk()")
-> > ---
-> >  mm/rmap.c | 36 +++++++++++++++++++++---------------
-> >  1 file changed, 21 insertions(+), 15 deletions(-)
-> >=20
-> > diff --git a/mm/rmap.c b/mm/rmap.c
-> > index aff607d5f7d2..d60e887f1cda 100644
-> > --- a/mm/rmap.c
-> > +++ b/mm/rmap.c
-> > @@ -1329,7 +1329,8 @@ static bool try_to_unmap_one(struct page *page,
-> > struct vm_area_struct *vma,
-> >  =09};
-> >  =09pte_t pteval;
-> >  =09struct page *subpage;
-> > -=09bool ret =3D true;
-> > +=09bool ret =3D true, invalidation_needed =3D false;
-> > +=09unsigned long end =3D address + PAGE_SIZE;
->=20
-> I think it should be 'address + (1UL << compound_order(page))'.
+4.9-stable review patch.  If anyone has any objections, please let me know.
 
-Can't address point to something else than first page in huge page ?
-Also i did use end as an optimization ie maybe not all the pte in the
-range are valid and thus they not all need to be invalidated hence by
-tracking the last one that needs invalidation i am limiting the range.
+------------------
 
-But it is a small optimization so i am not attach to it.
+From: Josh Poimboeuf <jpoimboe@redhat.com>
 
-J=C3=A9r=C3=B4me
+commit adb1fe9ae2ee6ef6bc10f3d5a588020e7664dfa7 upstream.
+
+Linus suggested we try to remove some of the low-hanging fruit related
+to kernel address exposure in dmesg.  The only leaks I see on my local
+system are:
+
+  Freeing SMP alternatives memory: 32K (ffffffff9e309000 - ffffffff9e311000)
+  Freeing initrd memory: 10588K (ffffa0b736b42000 - ffffa0b737599000)
+  Freeing unused kernel memory: 3592K (ffffffff9df87000 - ffffffff9e309000)
+  Freeing unused kernel memory: 1352K (ffffa0b7288ae000 - ffffa0b728a00000)
+  Freeing unused kernel memory: 632K (ffffa0b728d62000 - ffffa0b728e00000)
+
+Linus says:
+
+  "I suspect we should just remove [the addresses in the 'Freeing'
+   messages]. I'm sure they are useful in theory, but I suspect they
+   were more useful back when the whole "free init memory" was
+   originally done.
+
+   These days, if we have a use-after-free, I suspect the init-mem
+   situation is the easiest situation by far. Compared to all the dynamic
+   allocations which are much more likely to show it anyway. So having
+   debug output for that case is likely not all that productive."
+
+With this patch the freeing messages now look like this:
+
+  Freeing SMP alternatives memory: 32K
+  Freeing initrd memory: 10588K
+  Freeing unused kernel memory: 3592K
+  Freeing unused kernel memory: 1352K
+  Freeing unused kernel memory: 632K
+
+Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/6836ff90c45b71d38e5d4405aec56fa9e5d1d4b2.1477405374.git.jpoimboe@redhat.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Cc: Kees Cook <keescook@google.com>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+---
+ mm/page_alloc.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6445,8 +6445,8 @@ unsigned long free_reserved_area(void *s
+ 	}
+ 
+ 	if (pages && s)
+-		pr_info("Freeing %s memory: %ldK (%p - %p)\n",
+-			s, pages << (PAGE_SHIFT - 10), start, end);
++		pr_info("Freeing %s memory: %ldK\n",
++			s, pages << (PAGE_SHIFT - 10));
+ 
+ 	return pages;
+ }
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
