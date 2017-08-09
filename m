@@ -1,98 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 74F9B6B02B4
-	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 15:43:43 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id r7so10090176wrb.0
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 12:43:43 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 2si3844215wrh.288.2017.08.09.12.43.41
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E3BC36B02C3
+	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 16:08:55 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id b184so7137897oih.9
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 13:08:55 -0700 (PDT)
+Received: from mail-it0-x22b.google.com (mail-it0-x22b.google.com. [2607:f8b0:4001:c0b::22b])
+        by mx.google.com with ESMTPS id o205si3317493oib.8.2017.08.09.13.08.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Aug 2017 12:43:42 -0700 (PDT)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.4 07/58] mm/page_alloc: Remove kernel address exposure in free_reserved_area()
-Date: Wed,  9 Aug 2017 12:41:19 -0700
-Message-Id: <20170809194146.795256295@linuxfoundation.org>
-In-Reply-To: <20170809194146.501519882@linuxfoundation.org>
-References: <20170809194146.501519882@linuxfoundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+        Wed, 09 Aug 2017 13:08:54 -0700 (PDT)
+Received: by mail-it0-x22b.google.com with SMTP id f16so11778450itb.0
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 13:08:54 -0700 (PDT)
+From: Tycho Andersen <tycho@docker.com>
+Subject: [PATCH v5 00/10] Add support for eXclusive Page Frame Ownership
+Date: Wed,  9 Aug 2017 14:07:45 -0600
+Message-Id: <20170809200755.11234-1-tycho@docker.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Kees Cook <keescook@google.com>
+Cc: linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Tycho Andersen <tycho@docker.com>
 
-4.4-stable review patch.  If anyone has any objections, please let me know.
+Hi all,
 
-------------------
+Here's a v5 of the XPFO set. Changes from v4 are:
 
-From: Josh Poimboeuf <jpoimboe@redhat.com>
+* huge pages support actually works now on x86
+* arm64 support, which boots on several different arm64 boards
+* tests for hugepages support as well via LKDTM (thanks Kees for suggesting how
+  to make this work)
 
-commit adb1fe9ae2ee6ef6bc10f3d5a588020e7664dfa7 upstream.
+Patch 2 contains some potentially controversial stuff, exposing the cpa_lock
+and lifting some other static functions out; there is probably a better way to
+do this, thoughts welcome.
 
-Linus suggested we try to remove some of the low-hanging fruit related
-to kernel address exposure in dmesg.  The only leaks I see on my local
-system are:
+Still to do are:
 
-  Freeing SMP alternatives memory: 32K (ffffffff9e309000 - ffffffff9e311000)
-  Freeing initrd memory: 10588K (ffffa0b736b42000 - ffffa0b737599000)
-  Freeing unused kernel memory: 3592K (ffffffff9df87000 - ffffffff9e309000)
-  Freeing unused kernel memory: 1352K (ffffa0b7288ae000 - ffffa0b728a00000)
-  Freeing unused kernel memory: 632K (ffffa0b728d62000 - ffffa0b728e00000)
+* get it to work with non-64k pages on ARM
+* get rid of the BUG()s, in favor or WARN or similar
+* other things people come up with in this review
 
-Linus says:
+Please have a look. Thoughts welcome!
 
-  "I suspect we should just remove [the addresses in the 'Freeing'
-   messages]. I'm sure they are useful in theory, but I suspect they
-   were more useful back when the whole "free init memory" was
-   originally done.
+Previously: http://www.openwall.com/lists/kernel-hardening/2017/06/07/24
 
-   These days, if we have a use-after-free, I suspect the init-mem
-   situation is the easiest situation by far. Compared to all the dynamic
-   allocations which are much more likely to show it anyway. So having
-   debug output for that case is likely not all that productive."
+Tycho
 
-With this patch the freeing messages now look like this:
+Juerg Haefliger (8):
+  mm, x86: Add support for eXclusive Page Frame Ownership (XPFO)
+  swiotlb: Map the buffer if it was unmapped by XPFO
+  arm64: Add __flush_tlb_one()
+  arm64/mm: Add support for XPFO
+  arm64/mm: Disable section mappings if XPFO is enabled
+  arm64/mm: Don't flush the data cache if the page is unmapped by XPFO
+  arm64/mm: Add support for XPFO to swiotlb
+  lkdtm: Add test for XPFO
 
-  Freeing SMP alternatives memory: 32K
-  Freeing initrd memory: 10588K
-  Freeing unused kernel memory: 3592K
-  Freeing unused kernel memory: 1352K
-  Freeing unused kernel memory: 632K
+Tycho Andersen (2):
+  mm: add MAP_HUGETLB support to vm_mmap
+  mm: add a user_virt_to_phys symbol
 
-Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/6836ff90c45b71d38e5d4405aec56fa9e5d1d4b2.1477405374.git.jpoimboe@redhat.com
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Cc: Kees Cook <keescook@google.com>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+ Documentation/admin-guide/kernel-parameters.txt |   2 +
+ arch/arm64/Kconfig                              |   1 +
+ arch/arm64/include/asm/cacheflush.h             |  11 ++
+ arch/arm64/include/asm/tlbflush.h               |   8 +
+ arch/arm64/mm/Makefile                          |   2 +
+ arch/arm64/mm/dma-mapping.c                     |  32 ++--
+ arch/arm64/mm/flush.c                           |   5 +-
+ arch/arm64/mm/mmu.c                             |  14 +-
+ arch/arm64/mm/xpfo.c                            | 160 +++++++++++++++++
+ arch/x86/Kconfig                                |   1 +
+ arch/x86/include/asm/pgtable.h                  |  23 +++
+ arch/x86/mm/Makefile                            |   1 +
+ arch/x86/mm/pageattr.c                          |  24 +--
+ arch/x86/mm/xpfo.c                              | 153 +++++++++++++++++
+ drivers/misc/Makefile                           |   1 +
+ drivers/misc/lkdtm.h                            |   4 +
+ drivers/misc/lkdtm_core.c                       |   4 +
+ drivers/misc/lkdtm_xpfo.c                       |  62 +++++++
+ include/linux/highmem.h                         |  15 +-
+ include/linux/mm.h                              |   2 +
+ include/linux/xpfo.h                            |  47 +++++
+ lib/swiotlb.c                                   |   3 +-
+ mm/Makefile                                     |   1 +
+ mm/mmap.c                                       |  19 +--
+ mm/page_alloc.c                                 |   2 +
+ mm/page_ext.c                                   |   4 +
+ mm/util.c                                       |  32 ++++
+ mm/xpfo.c                                       | 217 ++++++++++++++++++++++++
+ security/Kconfig                                |  19 +++
+ 29 files changed, 810 insertions(+), 59 deletions(-)
+ create mode 100644 arch/arm64/mm/xpfo.c
+ create mode 100644 arch/x86/mm/xpfo.c
+ create mode 100644 drivers/misc/lkdtm_xpfo.c
+ create mode 100644 include/linux/xpfo.h
+ create mode 100644 mm/xpfo.c
 
----
- mm/page_alloc.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5847,8 +5847,8 @@ unsigned long free_reserved_area(void *s
- 	}
- 
- 	if (pages && s)
--		pr_info("Freeing %s memory: %ldK (%p - %p)\n",
--			s, pages << (PAGE_SHIFT - 10), start, end);
-+		pr_info("Freeing %s memory: %ldK\n",
-+			s, pages << (PAGE_SHIFT - 10));
- 
- 	return pages;
- }
-
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
