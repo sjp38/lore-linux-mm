@@ -1,45 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 09EE26B025F
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 16:36:23 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id x28so4189433wma.7
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 13:36:22 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 195si5351107wmm.151.2017.08.10.13.36.21
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A70D6B0292
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 17:20:29 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 83so18674787pgb.14
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 14:20:29 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id o129si4471543pga.543.2017.08.10.14.20.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 10 Aug 2017 13:36:21 -0700 (PDT)
-Date: Thu, 10 Aug 2017 22:36:18 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
-Message-ID: <20170810203616.GA17766@dhcp22.suse.cz>
-References: <20170810081632.31265-1-mhocko@kernel.org>
- <20170810180554.GT25347@redhat.com>
- <20170810185138.GA8269@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Aug 2017 14:20:28 -0700 (PDT)
+Date: Thu, 10 Aug 2017 14:20:26 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: How can we share page cache pages for reflinked files?
+Message-ID: <20170810212026.GJ31390@bombadil.infradead.org>
+References: <20170810042849.GK21024@dastard>
+ <20170810161159.GI31390@bombadil.infradead.org>
+ <20170810191746.GB24674@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170810185138.GA8269@dhcp22.suse.cz>
+In-Reply-To: <20170810191746.GB24674@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Argangeli <andrea@kernel.org>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Dave Chinner <david@fromorbit.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 10-08-17 20:51:38, Michal Hocko wrote:
-[...]
-> OK, let's agree to disagree. As I've said I like when the critical
-> section is explicit and we _know_ what it protects. In this case it is
-> clear that we have to protect from the page tables tear down and the
-> vma destructions. But as I've said I am not going to argue about this
-> more. It is more important to finally fix this.
+On Thu, Aug 10, 2017 at 03:17:46PM -0400, Vivek Goyal wrote:
+> On Thu, Aug 10, 2017 at 09:11:59AM -0700, Matthew Wilcox wrote:
+> > On Thu, Aug 10, 2017 at 02:28:49PM +1000, Dave Chinner wrote:
+> > > If we scale this up to a container host which is using reflink trees
+> > > it's shared root images, there might be hundreds of copies of the
+> > > same data held in cache (i.e. one page per container). Given that
+> > > the filesystem knows that the underlying data extent is shared when
+> > > we go to read it, it's relatively easy to add mechanisms to the
+> > > filesystem to return the same page for all attempts to read the
+> > > from a shared extent from all inodes that share it.
+> > 
+> > I agree the problem exists.  Should we try to fix this problem, or
+> > should we steer people towards solutions which don't have this problem?
+> > The solutions I've been seeing use COW block devices instead of COW
+> > filesystems, and DAX to share the common pages between the host and
+> > each guest.
+> 
+> Hi Matthew, 
+> 
+> This is in the context of clear containers? It would be good to have
+> a solution for those who are not launching virt guests.
+> 
+> overlayfs helps mitigate this page cache sharing issue but xfs reflink
+> and dm thin pool continue to face this issue.
 
-Now that I've reread, it may sound different than I thought. I meant to
-say that I will not argue about which solution is better and both
-patches are good to go. I will let others to decide but I would be glad
-if we go with something finally.
--- 
-Michal Hocko
-SUSE Labs
+Right, this is with clear containers.  But there's no reason it couldn't
+be used with other virtualisation solutions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
