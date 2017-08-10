@@ -1,126 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 725F16B02B4
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 14:51:46 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id w63so2124015wrc.5
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 11:51:46 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 61si5689324wrf.313.2017.08.10.11.51.42
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B2C556B02B4
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 14:57:17 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id q189so3934730wmd.6
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 11:57:17 -0700 (PDT)
+Received: from mail-wr0-x22f.google.com (mail-wr0-x22f.google.com. [2a00:1450:400c:c0c::22f])
+        by mx.google.com with ESMTPS id t13si6431886edd.46.2017.08.10.11.57.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 10 Aug 2017 11:51:42 -0700 (PDT)
-Date: Thu, 10 Aug 2017 20:51:38 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
-Message-ID: <20170810185138.GA8269@dhcp22.suse.cz>
-References: <20170810081632.31265-1-mhocko@kernel.org>
- <20170810180554.GT25347@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Aug 2017 11:57:16 -0700 (PDT)
+Received: by mail-wr0-x22f.google.com with SMTP id y43so6213107wrd.3
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 11:57:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170810180554.GT25347@redhat.com>
+In-Reply-To: <20170810105852.GM23863@dhcp22.suse.cz>
+References: <20170808132554.141143-1-dancol@google.com> <20170810001557.147285-1-dancol@google.com>
+ <20170810043831.GB2249@bbox> <20170810084617.GI23863@dhcp22.suse.cz>
+ <r0251soju3fo.fsf@dancol.org> <20170810105852.GM23863@dhcp22.suse.cz>
+From: Sonny Rao <sonnyrao@chromium.org>
+Date: Thu, 10 Aug 2017 11:56:54 -0700
+Message-ID: <CAPz6YkUNu1uH057ENuH+Umq5J=J24my0p91mvYMtEb4Vy6Dhqg@mail.gmail.com>
+Subject: Re: [PATCH RFC v2] Add /proc/pid/smaps_rollup
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Andrea Argangeli <andrea@kernel.org>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Daniel Colascione <dancol@google.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Tim Murray <timmurray@google.com>, joelaf@google.com, Al Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Robert Foss <robert.foss@collabora.com>, linux-api@vger.kernel.org, Luigi Semenzato <semenzato@google.com>
 
-On Thu 10-08-17 20:05:54, Andrea Arcangeli wrote:
-> On Thu, Aug 10, 2017 at 10:16:32AM +0200, Michal Hocko wrote:
-> > Andrea has proposed and alternative solution [4] which should be
-> > equivalent functionally similar to {ksm,khugepaged}_exit. I have to
-> > confess I really don't like that approach but I can live with it if
-> > that is a preferred way (to be honest I would like to drop the empty
-> 
-> Well you added two branches, when only one is necessary. It's more or
-> less like preferring a rwsem when a mutex is enough, because you're
-> more used to use rwsems.
-> 
-> > down_write();up_write() from the other two callers as well). In fact I
-> > have asked Andrea to post his patch [5] but that hasn't happened. I do
-> > not think we should wait much longer and finally merge some fix. 
-> 
-> It's posted in [4] already below I didn't think it was necessary to
-> resend it.
+On Thu, Aug 10, 2017 at 3:58 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Thu 10-08-17 03:23:23, Daniel Colascione wrote:
+>> Thanks for taking a look at the patch!
+>>
+>> On Thu, Aug 10 2017, Michal Hocko wrote:
+>> > [CC linux-api - the patch was posted here
+>> > http://lkml.kernel.org/r/20170810001557.147285-1-dancol@google.com]
+>> >
+>> > On Thu 10-08-17 13:38:31, Minchan Kim wrote:
+>> >> On Wed, Aug 09, 2017 at 05:15:57PM -0700, Daniel Colascione wrote:
+>> >> > /proc/pid/smaps_rollup is a new proc file that improves the
+>> >> > performance of user programs that determine aggregate memory
+>> >> > statistics (e.g., total PSS) of a process.
+>> >> >
+>> >> > Android regularly "samples" the memory usage of various processes in
+>> >> > order to balance its memory pool sizes. This sampling process involves
+>> >> > opening /proc/pid/smaps and summing certain fields. For very large
+>> >> > processes, sampling memory use this way can take several hundred
+>> >> > milliseconds, due mostly to the overhead of the seq_printf calls in
+>> >> > task_mmu.c.
+>> >
+>> > Have you tried to reduce that overhead? E.g. by replacing seq_printf by
+>> > something more simple
+>> > http://lkml.kernel.org/r/20160817130320.GC20703@dhcp22.suse.cz?
+>>
+>> I haven't tried that yet, but if I'm reading that thread correctly, it
+>> looks like using more efficient printing primitives gives us a 7%
+>> speedup. The smaps_rollup patch gives us a much bigger speedup while
+>> reusing almost all the smaps code, so it seems easier and simpler than a
+>> bunch of incremental improvements to smaps. And even an efficient smaps
+>> would have to push 2MB through seq_file for the 3000-VMA process case.
+>
+> The thing is that more users would benefit from a more efficient
+> /proc/pid/smaps call. Maybe we can use some caching tricks etc...  We
+> should make sure that existing options should be attempted before a new
+> user visible interface is added. It is kind of sad that the real work
+> (pte walk) is less expensive than formating the output and copying it to
+> the userspace...
+>
+>> > How often you you need to read this information?
+>>
+>> It varies depending on how often processes change state.  We sample a
+>> short time (tens of seconds) after processes change state (e.g., enters
+>> foreground) and every few minutes thereafter. We're particularly
+>> concerned from an energy perspective about needlessly burning CPU on
+>> background samples.
+>
+> Please make sure this is documented in the patch along with some numbers
+> ideally.
+>
+> [...]
+>
+>> >> FYI, there was trial but got failed at that time so in this time,
+>> >> https://marc.info/?l=linux-kernel&m=147310650003277&w=2
+>> >> http://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1229163.html
+>> >
+>> > Yes I really disliked the previous attempt and this one is not all that
+>> > better. The primary unanswered question back then was a relevant
+>> > usecase. Back then it was argued [1] that PSS was useful for userspace
+>> > OOM handling but arguments were rather dubious. Follow up questions [2]
+>> > shown that the useage of PSS was very workload specific. Minchan has
+>> > noted some usecase as well but not very specific either.
+>>
+>> Anyway, I see what you mean about PSS being iffy for user-space OOM
+>> processing (because PSS doesn't tell you how much memory you get back in
+>> exchange for killing a given process at a particular moment). We're not
+>> using it like that.
+>>
+>> Instead, we're using the PSS samples we collect asynchronously for
+>> system-management tasks like fine-tuning oom_adj_score, memory use
+>> tracking for debugging, application-level memory-use attribution, and
+>> deciding whether we want to kill large processes during system idle
+>> maintenance windows. Android has been using PSS for these purposes for a
+>> long time; as the average process VMA count has increased and and
+>> devices become more efficiency-conscious, PSS-collection inefficiency
+>> has started to matter more. IMHO, it'd be a lot safer to optimize the
+>> existing PSS-collection model, which has been fine-tuned over the years,
+>> instead of changing the memory tracking approach entirely to work around
+>> smaps-generation inefficiency.
+>
+> This is really vague. Please be more specific.
 
-it was deep in the email thread and I've asked you explicitly to repost
-which I've done for the same reason.
+I actually think this is really similar to the Chrome OS use case --
+we need to do proper accounting of memory from user space, and we need
+something more accurate than what we have now (usually RSS) to figure
+it out.  I'm not sure what is vague about that statement?
 
-> The only other improvement I can think of is an unlikely
-> around tsk_is_oom_victim() in exit_mmap, but your patch below would
-> need it too, and two of them.
+PSS is not perfect but in closed systems where we have some knowledge
+about what is being shared amongst process, PSS is much better than
+RSS and readily available.  So, I disagree that this is a dubious
+usage -- if there's a better metric for making this kind of decision,
+please share it.
 
-with
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 822e8860b9d2..9d4a5a488f72 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3002,7 +3002,7 @@ void exit_mmap(struct mm_struct *mm)
- 	 * with tsk->mm != NULL checked on !current tasks which synchronizes
- 	 * with exit_mm and so we cannot race here.
- 	 */
--	if (tsk_is_oom_victim(current)) {
-+	if (unlikely(tsk_is_oom_victim(current))) {
- 		down_write(&mm->mmap_sem);
- 		locked = true;
- 	}
-@@ -3020,7 +3020,7 @@ void exit_mmap(struct mm_struct *mm)
- 	}
- 	mm->mmap = NULL;
- 	vm_unacct_memory(nr_accounted);
--	if (locked)
-+	if (unlikely(locked))
- 		up_write(&mm->mmap_sem);
- }
- 
-The generated code is identical. But I do not have any objection of
-course.
+Also I realized there's another argument for presenting this
+information outside of smaps which is that we expose far less
+information about a process and it's address space via something like
+this, so it's much better for isolation to have a separate file with
+different permissions.  Right now the process in charge of accounting
+for memory usage also gains knowledge about each process's address
+space which is unnecessary.
 
-> > [1] http://lkml.kernel.org/r/20170724072332.31903-1-mhocko@kernel.org
-> > [2] http://lkml.kernel.org/r/20170725142626.GJ26723@dhcp22.suse.cz
-> > [3] http://lkml.kernel.org/r/20170725160359.GO26723@dhcp22.suse.cz
-> > [4] http://lkml.kernel.org/r/20170726162912.GA29716@redhat.com
-> > [5] http://lkml.kernel.org/r/20170728062345.GA2274@dhcp22.suse.cz
-> > 
-> > +	if (tsk_is_oom_victim(current)) {
-> > +		down_write(&mm->mmap_sem);
-> > +		locked = true;
-> > +	}
-> >  	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
-> >  	tlb_finish_mmu(&tlb, 0, -1);
-> >  
-> > @@ -3005,7 +3018,10 @@ void exit_mmap(struct mm_struct *mm)
-> >  			nr_accounted += vma_pages(vma);
-> >  		vma = remove_vma(vma);
-> >  	}
-> > +	mm->mmap = NULL;
-> >  	vm_unacct_memory(nr_accounted);
-> > +	if (locked)
-> > +		up_write(&mm->mmap_sem);
-> 
-> I wouldn't normally repost to add an unlikely when I'm not sure if it
-> gets merged, but if it gets merged I would immediately tell to Andrew
-> about the microoptimization being missing there so he can fold it
-> later.
-> 
-> Before reposting about the unlikely I thought we should agree which
-> version to merge: [4] or the above double branch (for no good as far
-> as I tangibly can tell).
-> 
-> I think down_write;up_write is the correct thing to do here because
-> holding the lock for any additional instruction has zero benefits, and
-> if it has zero benefits it only adds up confusion and makes the code
-> partly senseless, and that ultimately hurts the reader when it tries
-> to understand why you're holding the lock for so long when it's not
-> needed.
+IMHO, the fact that multiple folks have independently asked for this
+seems like an argument that something like this is needed.
 
-OK, let's agree to disagree. As I've said I like when the critical
-section is explicit and we _know_ what it protects. In this case it is
-clear that we have to protect from the page tables tear down and the
-vma destructions. But as I've said I am not going to argue about this
-more. It is more important to finally fix this.
--- 
-Michal Hocko
-SUSE Labs
+
+> --
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
