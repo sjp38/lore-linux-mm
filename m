@@ -1,96 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DD9A6B0292
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 00:28:54 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id z3so82614831pfk.4
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 21:28:54 -0700 (PDT)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id m13si1051556pli.586.2017.08.09.21.28.52
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 826CC6B0292
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 00:38:36 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id o82so82952639pfj.11
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 21:38:36 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id v198si3419632pgb.311.2017.08.09.21.38.34
         for <linux-mm@kvack.org>;
-        Wed, 09 Aug 2017 21:28:53 -0700 (PDT)
-Date: Thu, 10 Aug 2017 14:28:49 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: How can we share page cache pages for reflinked files?
-Message-ID: <20170810042849.GK21024@dastard>
+        Wed, 09 Aug 2017 21:38:35 -0700 (PDT)
+Date: Thu, 10 Aug 2017 13:38:31 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH RFC v2] Add /proc/pid/smaps_rollup
+Message-ID: <20170810043831.GB2249@bbox>
+References: <20170808132554.141143-1-dancol@google.com>
+ <20170810001557.147285-1-dancol@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20170810001557.147285-1-dancol@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-fsdevel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: Daniel Colascione <dancol@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, timmurray@google.com, joelaf@google.com, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, sonnyrao@chromium.org, robert.foss@collabora.com
 
-Hi folks,
+On Wed, Aug 09, 2017 at 05:15:57PM -0700, Daniel Colascione wrote:
+> /proc/pid/smaps_rollup is a new proc file that improves the
+> performance of user programs that determine aggregate memory
+> statistics (e.g., total PSS) of a process.
+> 
+> Android regularly "samples" the memory usage of various processes in
+> order to balance its memory pool sizes. This sampling process involves
+> opening /proc/pid/smaps and summing certain fields. For very large
+> processes, sampling memory use this way can take several hundred
+> milliseconds, due mostly to the overhead of the seq_printf calls in
+> task_mmu.c.
+> 
+> smaps_rollup improves the situation. It contains most of the fields of
+> /proc/pid/smaps, but instead of a set of fields for each VMA,
+> smaps_rollup instead contains one synthetic smaps-format entry
+> representing the whole process. In the single smaps_rollup synthetic
+> entry, each field is the summation of the corresponding field in all
+> of the real-smaps VMAs. Using a common format for smaps_rollup and
+> smaps allows userspace parsers to repurpose parsers meant for use with
+> non-rollup smaps for smaps_rollup, and it allows userspace to switch
+> between smaps_rollup and smaps at runtime (say, based on the
+> availability of smaps_rollup in a given kernel) with minimal fuss.
+> 
+> By using smaps_rollup instead of smaps, a caller can avoid the
+> significant overhead of formatting, reading, and parsing each of a
+> large process's potentially very numerous memory mappings. For
+> sampling system_server's PSS in Android, we measured a 12x speedup,
+> representing a savings of several hundred milliseconds.
+> 
+> One alternative to a new per-process proc file would have been
+> including PSS information in /proc/pid/status. We considered this
+> option but thought that PSS would be too expensive (by a few orders of
+> magnitude) to collect relative to what's already emitted as part of
+> /proc/pid/status, and slowing every user of /proc/pid/status for the
+> sake of readers that happen to want PSS feels wrong.
+> 
+> The code itself works by reusing the existing VMA-walking framework we
+> use for regular smaps generation and keeping the mem_size_stats
+> structure around between VMA walks instead of using a fresh one for
+> each VMA.  In this way, summation happens automatically.  We let
+> seq_file walk over the VMAs just as it does for regular smaps and just
+> emit nothing to the seq_file until we hit the last VMA.
+> 
+> Patch changelog:
+> 
+> v2: Fix typo in commit message
+>     Add ABI documentation as requested by gregkh
+> 
+> Signed-off-by: Daniel Colascione <dancol@google.com>
 
-I've recently been looking into what is involved in sharing page
-cache pages for shared extents in a filesystem. That is, create a
-file, reflink it so there's two files but only one copy of the data
-on disk, then read both files.  Right now, we get two copies of the
-data in the page cache - one in each inode mapping tree.
+I love this.
 
-If we scale this up to a container host which is using reflink trees
-it's shared root images, there might be hundreds of copies of the
-same data held in cache (i.e. one page per container). Given that
-the filesystem knows that the underlying data extent is shared when
-we go to read it, it's relatively easy to add mechanisms to the
-filesystem to return the same page for all attempts to read the
-from a shared extent from all inodes that share it.
+FYI, there was trial but got failed at that time so in this time,
+https://marc.info/?l=linux-kernel&m=147310650003277&w=2
+http://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1229163.html
 
-However, the problem I'm getting stuck on is that the page cache
-itself can't handle inserting a single page into multiple page cache
-mapping trees. i.e. The page has a single pointer to the mapping
-address space, and the mapping has a single pointer back to the
-owner inode. As such, a cached page has a 1:1 mapping to it's host
-inode and this structure seems to be assumed rather widely through
-the code.
-
-The problem is somewhat limited by the fact that only clean,
-read-only pages would be shared, and the attempt to write/dirty
-a shared page in a mapping would trigger a COW operation in the
-filesystem which would invalidate that inode's shared page and
-replace it with a new, inode-private page that could be written to.
-This still requires us to be able to find the right inode from the
-shared page context to run the COW operation. Luckily, the IO path
-already has an inode pointer, and the page fault path provides us
-with the inode via file_inode(vmf->vma->vm_file) so we don't
-actually need page->mapping->host in these paths.
-
-Along these lines I've thought about using a "shared mapping" that
-is associated with the filesystem rather than a specific inode (like
-a bdev mapping), but that's no good because if page->mapping !=
-inode->i_mapping the page is consider to have been invalidated and
-should be considered invalid.
-
-Further - a page has a single, fixed index into the mapping tree
-(i.e. page->index), so this prevents arbitrary page sharing across
-inodes (the "deduplication triggered shared extent" case). And we
-can't really get rid of the page index, because that's how the page
-finds itself in a mapping tree.
-
-This leads me to think about crazy schemes like allocating a
-"referring struct page" that is allocated for every reference to a
-shared cache page and chain them all to the real struct page sorta
-like we do for compound pages. That would give us a unique struct
-page for each mapping tree and solve many of the issues, but I'm not
-sure how viable such a concept would be.
-
-I'm sure there's more issues than I've outlined here, but I haven't
-gone deeper than this because I've got to solve the one to many
-problem first.  I don't know if anyone has looked at this in any
-detail, so I don't know what ideas, patches, crazy schemes, etc
-might already exist out there. Right now I'm just looking for
-information to narrow down what I need to look at - finding what
-rabbit holes have already been explored and what dragons are already
-known about would help an awful lot right now.
-
-Anyone?
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+I really hope we merge this patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
