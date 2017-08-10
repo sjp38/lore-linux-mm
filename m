@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B7CF46B0313
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 13:11:01 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j83so12755189pfe.10
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 10:11:01 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 43D276B037C
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 13:11:06 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id y190so13069202pgb.3
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 10:11:06 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id k16si4800867pli.369.2017.08.10.10.11.00
+        by mx.google.com with ESMTP id z12si4221810pgc.584.2017.08.10.10.11.04
         for <linux-mm@kvack.org>;
-        Thu, 10 Aug 2017 10:11:00 -0700 (PDT)
+        Thu, 10 Aug 2017 10:11:05 -0700 (PDT)
 From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: [PATCH v6 5/9] arm64: hugetlb: Handle swap entries in huge_pte_offset() for contiguous hugepages
-Date: Thu, 10 Aug 2017 18:09:02 +0100
-Message-Id: <20170810170906.30772-6-punit.agrawal@arm.com>
+Subject: [PATCH v6 6/9] arm64: hugetlb: Override huge_pte_clear() to support contiguous hugepages
+Date: Thu, 10 Aug 2017 18:09:03 +0100
+Message-Id: <20170810170906.30772-7-punit.agrawal@arm.com>
 In-Reply-To: <20170810170906.30772-1-punit.agrawal@arm.com>
 References: <20170810170906.30772-1-punit.agrawal@arm.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,64 +19,98 @@ List-ID: <linux-mm.kvack.org>
 To: will.deacon@arm.com, catalin.marinas@arm.com
 Cc: Punit Agrawal <punit.agrawal@arm.com>, linux-mm@kvack.org, steve.capper@arm.com, linux-arm-kernel@lists.infradead.org, mark.rutland@arm.com, David Woods <dwoods@mellanox.com>
 
-huge_pte_offset() was updated to correctly handle swap entries for
-hugepages. With the addition of the size parameter, it is now possible
-to disambiguate whether the request is for a regular hugepage or a
-contiguous hugepage.
+The default huge_pte_clear() implementation does not clear contiguous
+page table entries when it encounters contiguous hugepages that are
+supported on arm64.
 
-Fix huge_pte_offset() for contiguous hugepages by using the size to find
-the correct page table entry.
+Fix this by overriding the default implementation to clear all the
+entries associated with contiguous hugepages.
 
 Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
 Cc: David Woods <dwoods@mellanox.com>
 ---
- arch/arm64/mm/hugetlbpage.c | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ arch/arm64/include/asm/hugetlb.h |  6 +++++-
+ arch/arm64/mm/hugetlbpage.c      | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 1 deletion(-)
 
+diff --git a/arch/arm64/include/asm/hugetlb.h b/arch/arm64/include/asm/hugetlb.h
+index 793bd73b0d07..df8c0aea0917 100644
+--- a/arch/arm64/include/asm/hugetlb.h
++++ b/arch/arm64/include/asm/hugetlb.h
+@@ -18,7 +18,6 @@
+ #ifndef __ASM_HUGETLB_H
+ #define __ASM_HUGETLB_H
+ 
+-#include <asm-generic/hugetlb.h>
+ #include <asm/page.h>
+ 
+ static inline pte_t huge_ptep_get(pte_t *ptep)
+@@ -82,6 +81,11 @@ extern void huge_ptep_set_wrprotect(struct mm_struct *mm,
+ 				    unsigned long addr, pte_t *ptep);
+ extern void huge_ptep_clear_flush(struct vm_area_struct *vma,
+ 				  unsigned long addr, pte_t *ptep);
++extern void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
++			   pte_t *ptep, unsigned long sz);
++#define huge_pte_clear huge_pte_clear
++
++#include <asm-generic/hugetlb.h>
+ 
+ #ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
+ static inline bool gigantic_page_supported(void) { return true; }
 diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
-index d3a6713048a2..09e79785c019 100644
+index 09e79785c019..b69430a04e87 100644
 --- a/arch/arm64/mm/hugetlbpage.c
 +++ b/arch/arm64/mm/hugetlbpage.c
-@@ -210,6 +210,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
- 	pgd_t *pgd;
- 	pud_t *pud;
- 	pmd_t *pmd;
-+	pte_t *pte;
- 
- 	pgd = pgd_offset(mm, addr);
- 	pr_debug("%s: addr:0x%lx pgd:%p\n", __func__, addr, pgd);
-@@ -217,19 +218,29 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
- 		return NULL;
- 
- 	pud = pud_offset(pgd, addr);
--	if (pud_none(*pud))
-+	if (pud_none(*pud) && sz != PUD_SIZE)
- 		return NULL;
- 	/* swap or huge page */
- 	if (!pud_present(*pud) || pud_huge(*pud))
- 		return (pte_t *)pud;
- 	/* table; check the next level */
- 
-+	if (sz == CONT_PMD_SIZE)
-+		addr &= CONT_PMD_MASK;
-+
- 	pmd = pmd_offset(pud, addr);
--	if (pmd_none(*pmd))
-+	if (pmd_none(*pmd) &&
-+	    !(sz == PMD_SIZE || sz == CONT_PMD_SIZE))
- 		return NULL;
- 	if (!pmd_present(*pmd) || pmd_huge(*pmd))
- 		return (pte_t *)pmd;
- 
-+	if (sz == CONT_PTE_SIZE) {
-+		pte = pte_offset_kernel(
-+			pmd, (addr & CONT_PTE_MASK));
-+		return pte;
-+	}
-+
- 	return NULL;
+@@ -68,6 +68,30 @@ static int find_num_contig(struct mm_struct *mm, unsigned long addr,
+ 	return CONT_PTES;
  }
  
++static inline int num_contig_ptes(unsigned long size, size_t *pgsize)
++{
++	int contig_ptes = 0;
++
++	*pgsize = size;
++
++	switch (size) {
++	case PUD_SIZE:
++	case PMD_SIZE:
++		contig_ptes = 1;
++		break;
++	case CONT_PMD_SIZE:
++		*pgsize = PMD_SIZE;
++		contig_ptes = CONT_PMDS;
++		break;
++	case CONT_PTE_SIZE:
++		*pgsize = PAGE_SIZE;
++		contig_ptes = CONT_PTES;
++		break;
++	}
++
++	return contig_ptes;
++}
++
+ /*
+  * Changing some bits of contiguous entries requires us to follow a
+  * Break-Before-Make approach, breaking the whole contiguous set
+@@ -260,6 +284,18 @@ pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
+ 	return entry;
+ }
+ 
++void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
++		    pte_t *ptep, unsigned long sz)
++{
++	int i, ncontig;
++	size_t pgsize;
++
++	ncontig = num_contig_ptes(sz, &pgsize);
++
++	for (i = 0; i < ncontig; i++, addr += pgsize, ptep++)
++		pte_clear(mm, addr, ptep);
++}
++
+ pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+ 			      unsigned long addr, pte_t *ptep)
+ {
 -- 
 2.13.2
 
