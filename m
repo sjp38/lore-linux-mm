@@ -1,161 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D6B46B0292
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 05:38:23 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id u199so1756329pgb.13
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 02:38:23 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id c3si4051630pld.94.2017.08.10.02.38.21
-        for <linux-mm@kvack.org>;
-        Thu, 10 Aug 2017 02:38:21 -0700 (PDT)
-Date: Thu, 10 Aug 2017 18:37:07 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v8 00/14] lockdep: Implement crossrelease feature
-Message-ID: <20170810093707.GA20323@X58A-UD3R>
-References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
- <20170809155059.yd7le2szn2rcd4h2@hirez.programming.kicks-ass.net>
+	by kanga.kvack.org (Postfix) with ESMTP id BF2EE6B0292
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 06:23:27 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id k190so2822922pge.9
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 03:23:27 -0700 (PDT)
+Received: from mail-pf0-x236.google.com (mail-pf0-x236.google.com. [2607:f8b0:400e:c00::236])
+        by mx.google.com with ESMTPS id d5si3677069pgk.320.2017.08.10.03.23.26
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Aug 2017 03:23:26 -0700 (PDT)
+Received: by mail-pf0-x236.google.com with SMTP id t86so1352305pfe.2
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 03:23:26 -0700 (PDT)
+From: Daniel Colascione <dancol@google.com>
+Subject: Re: [PATCH RFC v2] Add /proc/pid/smaps_rollup
+References: <20170808132554.141143-1-dancol@google.com>
+	<20170810001557.147285-1-dancol@google.com>
+	<20170810043831.GB2249@bbox> <20170810084617.GI23863@dhcp22.suse.cz>
+Date: Thu, 10 Aug 2017 03:23:23 -0700
+In-Reply-To: <20170810084617.GI23863@dhcp22.suse.cz> (Michal Hocko's message
+	of "Thu, 10 Aug 2017 10:46:17 +0200")
+Message-ID: <r0251soju3fo.fsf@dancol.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170809155059.yd7le2szn2rcd4h2@hirez.programming.kicks-ass.net>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, timmurray@google.com, joelaf@google.com, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, sonnyrao@chromium.org, robert.foss@collabora.com, linux-api@vger.kernel.org
 
-On Wed, Aug 09, 2017 at 05:50:59PM +0200, Peter Zijlstra wrote:
-> 
-> 
-> Heh, look what it does...
+Thanks for taking a look at the patch!
 
-Wait.. execuse me but.. is it a real problem?
+On Thu, Aug 10 2017, Michal Hocko wrote:
+> [CC linux-api - the patch was posted here
+> http://lkml.kernel.org/r/20170810001557.147285-1-dancol@google.com]
+>
+> On Thu 10-08-17 13:38:31, Minchan Kim wrote:
+>> On Wed, Aug 09, 2017 at 05:15:57PM -0700, Daniel Colascione wrote:
+>> > /proc/pid/smaps_rollup is a new proc file that improves the
+>> > performance of user programs that determine aggregate memory
+>> > statistics (e.g., total PSS) of a process.
+>> > 
+>> > Android regularly "samples" the memory usage of various processes in
+>> > order to balance its memory pool sizes. This sampling process involves
+>> > opening /proc/pid/smaps and summing certain fields. For very large
+>> > processes, sampling memory use this way can take several hundred
+>> > milliseconds, due mostly to the overhead of the seq_printf calls in
+>> > task_mmu.c.
+>
+> Have you tried to reduce that overhead? E.g. by replacing seq_printf by
+> something more simple
+> http://lkml.kernel.org/r/20160817130320.GC20703@dhcp22.suse.cz?
 
-> 
-> 
-> 4======================================================
-> 4WARNING: possible circular locking dependency detected
-> 4.13.0-rc2-00317-gadc6764a3adf-dirty #797 Tainted: G        W      
-> 4------------------------------------------------------
-> 4startpar/582 is trying to acquire lock:
-> c (c(complete)&barr->donec){+.+.}c, at: [<ffffffff8110de4d>] flush_work+0x1fd/0x2c0
-> 4
-> but task is already holding lock:
-> c (clockc#3c){+.+.}c, at: [<ffffffff8122e866>] lru_add_drain_all_cpuslocked+0x46/0x1a0
-> 4
-> which lock already depends on the new lock.
-> 
-> 4
-> the existing dependency chain (in reverse order) is:
-> 
-> -> #4c (clockc#3c){+.+.}c:
->        __lock_acquire+0x10a5/0x1100
->        lock_acquire+0xea/0x1f0
->        __mutex_lock+0x6c/0x960
->        mutex_lock_nested+0x1b/0x20
->        lru_add_drain_all_cpuslocked+0x46/0x1a0
->        lru_add_drain_all+0x13/0x20
->        SyS_mlockall+0xb8/0x1c0
->        entry_SYSCALL_64_fastpath+0x23/0xc2
-> 
-> -> #3c (ccpu_hotplug_lock.rw_semc){++++}c:
->        __lock_acquire+0x10a5/0x1100
->        lock_acquire+0xea/0x1f0
->        cpus_read_lock+0x2a/0x90
->        kmem_cache_create+0x2a/0x1d0
->        scsi_init_sense_cache+0xa0/0xc0
->        scsi_add_host_with_dma+0x67/0x360
->        isci_pci_probe+0x873/0xc90
->        local_pci_probe+0x42/0xa0
->        work_for_cpu_fn+0x14/0x20
->        process_one_work+0x273/0x6b0
->        worker_thread+0x21b/0x3f0
->        kthread+0x147/0x180
->        ret_from_fork+0x2a/0x40
-> 
-> -> #2c (cscsi_sense_cache_mutexc){+.+.}c:
->        __lock_acquire+0x10a5/0x1100
->        lock_acquire+0xea/0x1f0
->        __mutex_lock+0x6c/0x960
->        mutex_lock_nested+0x1b/0x20
->        scsi_init_sense_cache+0x3d/0xc0
->        scsi_add_host_with_dma+0x67/0x360
->        isci_pci_probe+0x873/0xc90
->        local_pci_probe+0x42/0xa0
->        work_for_cpu_fn+0x14/0x20
->        process_one_work+0x273/0x6b0
->        worker_thread+0x21b/0x3f0
->        kthread+0x147/0x180
->        ret_from_fork+0x2a/0x40
-> 
-> -> #1c (c(&wfc.work)c){+.+.}c:
->        process_one_work+0x244/0x6b0
->        worker_thread+0x21b/0x3f0
->        kthread+0x147/0x180
->        ret_from_fork+0x2a/0x40
->        0xffffffffffffffff
-> 
-> -> #0c (c(complete)&barr->donec){+.+.}c:
->        check_prev_add+0x3be/0x700
->        __lock_acquire+0x10a5/0x1100
->        lock_acquire+0xea/0x1f0
->        wait_for_completion+0x3b/0x130
->        flush_work+0x1fd/0x2c0
->        lru_add_drain_all_cpuslocked+0x158/0x1a0
->        lru_add_drain_all+0x13/0x20
->        SyS_mlockall+0xb8/0x1c0
->        entry_SYSCALL_64_fastpath+0x23/0xc2
-> 
-> other info that might help us debug this:
-> 
-> Chain exists of:
->   c(complete)&barr->donec --> ccpu_hotplug_lock.rw_semc --> clockc#3c
-> 
->  Possible unsafe locking scenario:
-> 
->        CPU0                    CPU1
->        ----                    ----
->   lock(clockc#3c);
->                                lock(ccpu_hotplug_lock.rw_semc);
->                                lock(clockc#3c);
->   lock(c(complete)&barr->donec);
-> 
->  *** DEADLOCK ***
-> 
-> 2 locks held by startpar/582:
->  #0: c (ccpu_hotplug_lock.rw_semc){++++}c, at: [<ffffffff8122e9ce>] lru_add_drain_all+0xe/0x20
->  #1: c (clockc#3c){+.+.}c, at: [<ffffffff8122e866>] lru_add_drain_all_cpuslocked+0x46/0x1a0
-> 
-> stack backtrace:
-> dCPU: 23 PID: 582 Comm: startpar Tainted: G        W       4.13.0-rc2-00317-gadc6764a3adf-dirty #797
-> dHardware name: Intel Corporation S2600GZ/S2600GZ, BIOS SE5C600.86B.02.02.0002.122320131210 12/23/2013
-> dCall Trace:
-> d dump_stack+0x86/0xcf
-> d print_circular_bug+0x203/0x2f0
-> d check_prev_add+0x3be/0x700
-> d ? add_lock_to_list.isra.30+0xc0/0xc0
-> d ? is_bpf_text_address+0x82/0xe0
-> d ? unwind_get_return_address+0x1f/0x30
-> d __lock_acquire+0x10a5/0x1100
-> d ? __lock_acquire+0x10a5/0x1100
-> d ? add_lock_to_list.isra.30+0xc0/0xc0
-> d lock_acquire+0xea/0x1f0
-> d ? flush_work+0x1fd/0x2c0
-> d wait_for_completion+0x3b/0x130
-> d ? flush_work+0x1fd/0x2c0
-> d flush_work+0x1fd/0x2c0
-> d ? flush_workqueue_prep_pwqs+0x1c0/0x1c0
-> d ? trace_hardirqs_on+0xd/0x10
-> d lru_add_drain_all_cpuslocked+0x158/0x1a0
-> d lru_add_drain_all+0x13/0x20
-> d SyS_mlockall+0xb8/0x1c0
-> d entry_SYSCALL_64_fastpath+0x23/0xc2
-> dRIP: 0033:0x7f818d2e54c7
-> dRSP: 002b:00007fffcce83798 EFLAGS: 00000246c ORIG_RAX: 0000000000000097
-> dRAX: ffffffffffffffda RBX: 0000000000000046 RCX: 00007f818d2e54c7
-> dRDX: 0000000000000000 RSI: 00007fffcce83650 RDI: 0000000000000003
-> dRBP: 000000000002c010 R08: 0000000000000000 R09: 0000000000000000
-> dR10: 0000000000000008 R11: 0000000000000246 R12: 000000000002d000
-> dR13: 000000000002c010 R14: 0000000000001000 R15: 00007f818d599b00
+I haven't tried that yet, but if I'm reading that thread correctly, it
+looks like using more efficient printing primitives gives us a 7%
+speedup. The smaps_rollup patch gives us a much bigger speedup while
+reusing almost all the smaps code, so it seems easier and simpler than a
+bunch of incremental improvements to smaps. And even an efficient smaps
+would have to push 2MB through seq_file for the 3000-VMA process case.
+
+> How often you you need to read this information?
+
+It varies depending on how often processes change state.  We sample a
+short time (tens of seconds) after processes change state (e.g., enters
+foreground) and every few minutes thereafter. We're particularly
+concerned from an energy perspective about needlessly burning CPU on
+background samples.
+
+>> > smaps_rollup improves the situation. It contains most of the fields of
+>> > /proc/pid/smaps, but instead of a set of fields for each VMA,
+>> > smaps_rollup instead contains one synthetic smaps-format entry
+>> > representing the whole process. In the single smaps_rollup synthetic
+>> > entry, each field is the summation of the corresponding field in all
+>> > of the real-smaps VMAs. Using a common format for smaps_rollup and
+>> > smaps allows userspace parsers to repurpose parsers meant for use with
+>> > non-rollup smaps for smaps_rollup, and it allows userspace to switch
+>> > between smaps_rollup and smaps at runtime (say, based on the
+>> > availability of smaps_rollup in a given kernel) with minimal fuss.
+>> > 
+>> > By using smaps_rollup instead of smaps, a caller can avoid the
+>> > significant overhead of formatting, reading, and parsing each of a
+>> > large process's potentially very numerous memory mappings. For
+>> > sampling system_server's PSS in Android, we measured a 12x speedup,
+>> > representing a savings of several hundred milliseconds.
+>
+> By a large process you mean a process with many VMAs right? How many
+> vmas are we talking about?
+
+Yes: ~3000 VMAs is one I'd consider large in this context.
+
+>> > One alternative to a new per-process proc file would have been
+>> > including PSS information in /proc/pid/status. We considered this
+>> > option but thought that PSS would be too expensive (by a few orders of
+>> > magnitude) to collect relative to what's already emitted as part of
+>> > /proc/pid/status, and slowing every user of /proc/pid/status for the
+>> > sake of readers that happen to want PSS feels wrong.
+>> > 
+>> > The code itself works by reusing the existing VMA-walking framework we
+>> > use for regular smaps generation and keeping the mem_size_stats
+>> > structure around between VMA walks instead of using a fresh one for
+>> > each VMA.  In this way, summation happens automatically.  We let
+>> > seq_file walk over the VMAs just as it does for regular smaps and just
+>> > emit nothing to the seq_file until we hit the last VMA.
+>> > 
+>> > Patch changelog:
+>> > 
+>> > v2: Fix typo in commit message
+>> >     Add ABI documentation as requested by gregkh
+>> > 
+>> > Signed-off-by: Daniel Colascione <dancol@google.com>
+>> 
+>> I love this.
+>> 
+>> FYI, there was trial but got failed at that time so in this time,
+>> https://marc.info/?l=linux-kernel&m=147310650003277&w=2
+>> http://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1229163.html
+>
+> Yes I really disliked the previous attempt and this one is not all that
+> better. The primary unanswered question back then was a relevant
+> usecase. Back then it was argued [1] that PSS was useful for userspace
+> OOM handling but arguments were rather dubious. Follow up questions [2]
+> shown that the useage of PSS was very workload specific. Minchan has
+> noted some usecase as well but not very specific either.
+
+Anyway, I see what you mean about PSS being iffy for user-space OOM
+processing (because PSS doesn't tell you how much memory you get back in
+exchange for killing a given process at a particular moment). We're not
+using it like that.
+
+Instead, we're using the PSS samples we collect asynchronously for
+system-management tasks like fine-tuning oom_adj_score, memory use
+tracking for debugging, application-level memory-use attribution, and
+deciding whether we want to kill large processes during system idle
+maintenance windows. Android has been using PSS for these purposes for a
+long time; as the average process VMA count has increased and and
+devices become more efficiency-conscious, PSS-collection inefficiency
+has started to matter more. IMHO, it'd be a lot safer to optimize the
+existing PSS-collection model, which has been fine-tuned over the years,
+instead of changing the memory tracking approach entirely to work around
+smaps-generation inefficiency.
+
+The existence of an independent attempt to add this functionality
+suggests that it might be generally useful too.
+
+> So let's start with a clear use case description. Then let's make it
+> clear that even optimizing the current implementation is not sufficient
+> to meat goals and only then try to add one more user visible API which
+> we will have to maintain for ever.
+
+Adding a new API shouldn't be anyone's first choice, but the efficiency
+wins are hard to ignore. We can cut ~2MB of smaps data to a few KB this
+way. I'm definitely open to other ideas for getting similar wins, but
+right now, I'd like to explore approaches that let us keep using the
+existing PSS metric.
+
+Thanks again!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
