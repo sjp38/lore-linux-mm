@@ -1,43 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F21276B02C3
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 05:25:30 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id 77so17059319itj.4
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 02:25:30 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id f1si7048593itf.14.2017.08.10.02.25.30
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 14D556B02F3
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 05:28:59 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id y129so1894494pgy.1
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 02:28:59 -0700 (PDT)
+Received: from mail-pg0-x22a.google.com (mail-pg0-x22a.google.com. [2607:f8b0:400e:c05::22a])
+        by mx.google.com with ESMTPS id l21si3920574pfj.297.2017.08.10.02.28.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Aug 2017 02:25:30 -0700 (PDT)
-Date: Thu, 10 Aug 2017 11:25:23 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v8 11/14] lockdep: Apply crossrelease to PG_locked locks
-Message-ID: <20170810092523.ktie2iqhefw5saop@hirez.programming.kicks-ass.net>
-References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
- <1502089981-21272-12-git-send-email-byungchul.park@lge.com>
- <20170810013501.GY20323@X58A-UD3R>
+        Thu, 10 Aug 2017 02:28:58 -0700 (PDT)
+Received: by mail-pg0-x22a.google.com with SMTP id l64so669174pge.5
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 02:28:58 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170810013501.GY20323@X58A-UD3R>
+In-Reply-To: <CADK2BfxJim8MvLPY497a+JAK2t9OTq+f1BY0o4qK0ihaWsoEMQ@mail.gmail.com>
+References: <CADK2BfzM9V=C3Kk6v714K3NVX58Q6pEaAMiHDGSyr6PakC2O=w@mail.gmail.com>
+ <20170810071059.GC23863@dhcp22.suse.cz> <CADK2BfwC3WDGwoDPSjX1UpwP-4fDz5fSBjdENbxn5XQL8y3K3A@mail.gmail.com>
+ <20170810081920.GG23863@dhcp22.suse.cz> <CADK2BfxJim8MvLPY497a+JAK2t9OTq+f1BY0o4qK0ihaWsoEMQ@mail.gmail.com>
+From: wang Yu <yuwang668899@gmail.com>
+Date: Thu, 10 Aug 2017 17:28:57 +0800
+Message-ID: <CADK2BfzarAEQz=_Um23mywmdRvhNbe5OL_7k13XD3D5==nn0qg@mail.gmail.com>
+Subject: Re: memcg Can't context between v1 and v2 because css->refcnt not released
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <byungchul.park@lge.com>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Aug 10, 2017 at 10:35:02AM +0900, Byungchul Park wrote:
-> On Mon, Aug 07, 2017 at 04:12:58PM +0900, Byungchul Park wrote:
-> > Although lock_page() and its family can cause deadlock, the lock
-> > correctness validator could not be applied to them until now, becasue
-> > things like unlock_page() might be called in a different context from
-> > the acquisition context, which violates lockdep's assumption.
-> > 
-> > Thanks to CONFIG_LOCKDEP_CROSSRELEASE, we can now apply the lockdep
-> > detector to page locks. Applied it.
-> 
-> Is there any reason excluding applying it into PG_locked?
+2017-08-10 16:26 GMT+08:00 wang Yu <yuwang668899@gmail.com>:
+> 2017-08-10 16:19 GMT+08:00 Michal Hocko <mhocko@kernel.org>:
+>> [Please do not top-post]
+>>
+>> On Thu 10-08-17 16:10:45, wang Yu wrote:
+>>> at first ,thanks for your reply.
+>>> but i also tested what you said, the problem is also.
+>>> force_empty only call try_to_free_pages, not all the pages remove
+>>> because mem_cgroup_reparent_charges moved
+>>
+>> Right. An alternative would be dropping the page cache globaly via
+>> /proc/sys/vm/drop_caches. Not an ideal solution but it should help.
+>> --
+>> Michal Hocko
+>> SUSE Labs
+>
+> thanks again, but /proc/sys/vm/drop_caches can't solve it
+> you can try as follow
+>
+> #cat /proc/cgroups
+>
+> memory 11 2 1
+>
+> #mkdir a
+>
+> #echo 0 > a/cgroup.procs
+>
+> #sleep 1
+>
+> #echo 0 > cgroup.procs
+>
+> #echo 1 > a/memory.force_empty
+>
+> #echo 3 > /proc/sys/vm/drop_caches
+>
+> #rmdir  a
+>
+> #cat /proc/cgroups
+>
+> memory 11 3 1
+> the  num_cgroups not decrease
+and i found that, after drop cache
 
-Wanted to start small.. 
+after drop caches, memory.stat  shows not pages belong the group, but
+memory.usage_in_bytes not zero, so maybe other pages
+has wrong to belong this cgroup
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
