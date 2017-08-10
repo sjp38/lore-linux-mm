@@ -1,107 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 10F8E6B02B4
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 03:14:08 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id q189so1911162wmd.6
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 00:14:08 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b195si4352022wma.200.2017.08.10.00.14.06
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 14AA46B0292
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 03:36:24 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id k190so88164871pge.9
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 00:36:24 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id z3si3706525pgs.149.2017.08.10.00.36.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 10 Aug 2017 00:14:06 -0700 (PDT)
-Date: Thu, 10 Aug 2017 09:14:05 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] Tagging of vmalloc pages for supporting the pmalloc
- allocator
-Message-ID: <20170810071404.GD23863@dhcp22.suse.cz>
-References: <ab4809cd-0efc-a79d-6852-4bd2349a2b3f@huawei.com>
- <20170803151550.GX12521@dhcp22.suse.cz>
- <abe0c086-8c5a-d6fb-63c4-bf75528d0ec5@huawei.com>
- <20170804081240.GF26029@dhcp22.suse.cz>
- <7733852a-67c9-17a3-4031-cb08520b9ad2@huawei.com>
- <20170807133107.GA16616@redhat.com>
- <555dc453-3028-199a-881a-3ddeb41e4d6d@huawei.com>
- <20170807191235.GE16616@redhat.com>
- <c06fdd1a-fb18-8e17-b4fb-ea73ccd93f90@huawei.com>
- <20170808231535.GA20840@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Aug 2017 00:36:23 -0700 (PDT)
+Message-ID: <598C0D7A.9060909@intel.com>
+Date: Thu, 10 Aug 2017 15:38:34 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170808231535.GA20840@redhat.com>
+Subject: Re: [virtio-dev] Re: [PATCH v13 4/5] mm: support reporting free page
+ blocks
+References: <1501742299-4369-1-git-send-email-wei.w.wang@intel.com> <1501742299-4369-5-git-send-email-wei.w.wang@intel.com> <20170803091151.GF12521@dhcp22.suse.cz> <59895668.9090104@intel.com> <59895B71.7050709@intel.com> <20170810070517.GB23863@dhcp22.suse.cz>
+In-Reply-To: <20170810070517.GB23863@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Igor Stoppa <igor.stoppa@huawei.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-security-module@vger.kernel.org, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Kees Cook <keescook@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mawilcox@microsoft.com, akpm@linux-foundation.org, virtio-dev@lists.oasis-open.org, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On Tue 08-08-17 19:15:36, Jerome Glisse wrote:
-> On Tue, Aug 08, 2017 at 03:59:36PM +0300, Igor Stoppa wrote:
-> > On 07/08/17 22:12, Jerome Glisse wrote:
-> > > On Mon, Aug 07, 2017 at 05:13:00PM +0300, Igor Stoppa wrote:
-> > 
-> > [...]
-> > 
-> > >> I have an updated version of the old proposal:
-> > >>
-> > >> * put a magic number in the private field, during initialization of
-> > >> pmalloc pages
-> > >>
-> > >> * during hardened usercopy verification, when I have to assess if a page
-> > >> is of pmalloc type, compare the private field against the magic number
-> > >>
-> > >> * if and only if the private field matches the magic number, then invoke
-> > >> find_vm_area(), so that the slowness affects only a possibly limited
-> > >> amount of false positives.
-> > > 
-> > > This all sounds good to me.
-> > 
-> > ok, I still have one doubt wrt defining the flag.
-> > Where should I do it?
-> > 
-> > vmalloc.h has the following:
-> > 
-> > /* bits in flags of vmalloc's vm_struct below */
-> > #define VM_IOREMAP		0x00000001	/* ioremap() and friends
-> > 						*/
-> > #define VM_ALLOC		0x00000002	/* vmalloc() */
-> > #define VM_MAP			0x00000004	/* vmap()ed pages */
-> > #define VM_USERMAP		0x00000008	/* suitable for
-> > 						   remap_vmalloc_range
-> > 						*/
-> > #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not
-> > 						   fully initialized */
-> > #define VM_NO_GUARD		0x00000040      /* don't add guard page
-> > 						*/
-> > #define VM_KASAN		0x00000080      /* has allocated kasan
-> > 						shadow memory */
-> > /* bits [20..32] reserved for arch specific ioremap internals */
-> > 
-> > 
-> > 
-> > I am tempted to add
-> > 
-> > #define VM_PMALLOC		0x00000100
-> > 
-> > But would it be acceptable, to mention pmalloc into vmalloc?
-> > 
-> > Should I name it VM_PRIVATE bit, instead?
-> > 
-> > Using VM_PRIVATE would avoid contaminating vmalloc with something that
-> > depends on it (like VM_PMALLOC would do).
-> > 
-> > But using VM_PRIVATE will likely add tracking issues, if someone else
-> > wants to use the same bit and it's not clear who is the user, if any.
-> 
-> VM_PMALLOC sounds fine to me also adding a comment there pointing to
-> pmalloc documentation would be a good thing to do. The above are flags
-> that are use only inside vmalloc context and so there is no issue
-> here of conflicting with other potential user.
+On 08/10/2017 03:05 PM, Michal Hocko wrote:
+> On Tue 08-08-17 14:34:25, Wei Wang wrote:
+>> On 08/08/2017 02:12 PM, Wei Wang wrote:
+>>> On 08/03/2017 05:11 PM, Michal Hocko wrote:
+>>>> On Thu 03-08-17 14:38:18, Wei Wang wrote:
+>>>> This is just too ugly and wrong actually. Never provide struct page
+>>>> pointers outside of the zone->lock. What I've had in mind was to simply
+>>>> walk free lists of the suitable order and call the callback for each
+>>>> one.
+>>>> Something as simple as
+>>>>
+>>>>     for (i = 0; i < MAX_NR_ZONES; i++) {
+>>>>         struct zone *zone = &pgdat->node_zones[i];
+>>>>
+>>>>         if (!populated_zone(zone))
+>>>>             continue;
+>>> Can we directly use for_each_populated_zone(zone) here?
+> yes, my example couldn't because I was still assuming per-node API
+>
+>>>> spin_lock_irqsave(&zone->lock, flags);
+>>>>         for (order = min_order; order < MAX_ORDER; ++order) {
+>>>
+>>> This appears to be covered by for_each_migratetype_order(order, mt) below.
+> yes but
+> #define for_each_migratetype_order(order, type) \
+> 	for (order = 0; order < MAX_ORDER; order++) \
+> 		for (type = 0; type < MIGRATE_TYPES; type++)
+>
+> so you would have to skip orders < min_order
 
-Yes I agree. VM_PRIVATE just calls for the issues you are dealing with
-at struct page level where you simply do not know who might be (ab)using
-mapping and what not because the naming is just too generic...
--- 
-Michal Hocko
-SUSE Labs
+Yes, that's why we have a new macro
+
+#define for_each_migratetype_order_decend(min_order, order, type) \
+  for (order = MAX_ORDER - 1; order < MAX_ORDER && order >= min_order; \
+  order--) \
+     for (type = 0; type < MIGRATE_TYPES; type++)
+
+If you don't like the macro, we can also directly use it in the code.
+
+I think it would be better to report the larger free page block first, since
+the callback has an opportunity (though just a theoretical possibility, 
+good to
+take that into consideration if possible) to skip reporting the given 
+free page
+block to the hypervisor as the ring gets full. Losing the small block is 
+better
+than losing the larger one, in terms of the optimization work.
+
+
+Best,
+Wei
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
