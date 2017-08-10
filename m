@@ -1,69 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1188B6B0292
-	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 20:58:32 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k71so10826721wrc.15
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 17:58:32 -0700 (PDT)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id q46si5323236eda.37.2017.08.09.17.58.30
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 940816B02B4
+	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 20:58:45 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id y192so81160193pgd.12
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 17:58:45 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id 132si3171848pgh.94.2017.08.09.17.58.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Aug 2017 17:58:30 -0700 (PDT)
-Received: by mail-wm0-x242.google.com with SMTP id y206so1247551wmd.5
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 17:58:30 -0700 (PDT)
-Date: Thu, 10 Aug 2017 03:58:28 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 05/16] mm: Protect VMA modifications using VMA sequence
- count
-Message-ID: <20170810005828.qmw3p7d676hjwkss@node.shutemov.name>
-References: <1502202949-8138-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1502202949-8138-6-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170809101241.ek4fqinqaq5qfkq4@node.shutemov.name>
- <f935091a-d8f9-1951-8397-f5c464a2b922@linux.vnet.ibm.com>
+        Wed, 09 Aug 2017 17:58:44 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm] mm: Clear to access sub-page last when clearing huge page
+References: <20170807072131.8343-1-ying.huang@intel.com>
+	<20170809142501.1286e8818359fd95b5794abd@linux-foundation.org>
+Date: Thu, 10 Aug 2017 08:58:39 +0800
+In-Reply-To: <20170809142501.1286e8818359fd95b5794abd@linux-foundation.org>
+	(Andrew Morton's message of "Wed, 9 Aug 2017 14:25:01 -0700")
+Message-ID: <87inhwz1a8.fsf@yhuang-mobile.sh.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f935091a-d8f9-1951-8397-f5c464a2b922@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>
 
-On Wed, Aug 09, 2017 at 12:43:33PM +0200, Laurent Dufour wrote:
-> On 09/08/2017 12:12, Kirill A. Shutemov wrote:
-> > On Tue, Aug 08, 2017 at 04:35:38PM +0200, Laurent Dufour wrote:
-> >> The VMA sequence count has been introduced to allow fast detection of
-> >> VMA modification when running a page fault handler without holding
-> >> the mmap_sem.
-> >>
-> >> This patch provides protection agains the VMA modification done in :
-> >> 	- madvise()
-> >> 	- mremap()
-> >> 	- mpol_rebind_policy()
-> >> 	- vma_replace_policy()
-> >> 	- change_prot_numa()
-> >> 	- mlock(), munlock()
-> >> 	- mprotect()
-> >> 	- mmap_region()
-> >> 	- collapse_huge_page()
-> > 
-> > I don't thinks it's anywhere near complete list of places where we touch
-> > vm_flags. What is your plan for the rest?
-> 
-> The goal is only to protect places where change to the VMA is impacting the
-> page fault handling. If you think I missed one, please advise.
+Hi, Andrew,
 
-That's very fragile approach. We rely here too much on specific compiler behaviour.
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-Any write access to vm_flags can, in theory, be translated to several
-write accesses. For instance with setting vm_flags to 0 in the middle,
-which would result in sigfault on page fault to the vma.
+> On Mon,  7 Aug 2017 15:21:31 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
+>
+>> From: Huang Ying <ying.huang@intel.com>
+>> 
+>> Huge page helps to reduce TLB miss rate, but it has higher cache
+>> footprint, sometimes this may cause some issue.  For example, when
+>> clearing huge page on x86_64 platform, the cache footprint is 2M.  But
+>> on a Xeon E5 v3 2699 CPU, there are 18 cores, 36 threads, and only 45M
+>> LLC (last level cache).  That is, in average, there are 2.5M LLC for
+>> each core and 1.25M LLC for each thread.  If the cache pressure is
+>> heavy when clearing the huge page, and we clear the huge page from the
+>> begin to the end, it is possible that the begin of huge page is
+>> evicted from the cache after we finishing clearing the end of the huge
+>> page.  And it is possible for the application to access the begin of
+>> the huge page after clearing the huge page.
+>> 
+>> To help the above situation, in this patch, when we clear a huge page,
+>> the order to clear sub-pages is changed.  In quite some situation, we
+>> can get the address that the application will access after we clear
+>> the huge page, for example, in a page fault handler.  Instead of
+>> clearing the huge page from begin to end, we will clear the sub-pages
+>> farthest from the the sub-page to access firstly, and clear the
+>> sub-page to access last.  This will make the sub-page to access most
+>> cache-hot and sub-pages around it more cache-hot too.  If we cannot
+>> know the address the application will access, the begin of the huge
+>> page is assumed to be the the address the application will access.
+>> 
+>> With this patch, the throughput increases ~28.3% in vm-scalability
+>> anon-w-seq test case with 72 processes on a 2 socket Xeon E5 v3 2699
+>> system (36 cores, 72 threads).  The test case creates 72 processes,
+>> each process mmap a big anonymous memory area and writes to it from
+>> the begin to the end.  For each process, other processes could be seen
+>> as other workload which generates heavy cache pressure.  At the same
+>> time, the cache miss rate reduced from ~33.4% to ~31.7%, the
+>> IPC (instruction per cycle) increased from 0.56 to 0.74, and the time
+>> spent in user space is reduced ~7.9%
+>> 
+>> Thanks Andi Kleen to propose to use address to access to determine the
+>> order of sub-pages to clear.
+>> 
+>> The hugetlbfs access address could be improved, will do that in
+>> another patch.
+>
+> I agree with what others said, plus...
+>
+>> @@ -4374,9 +4374,31 @@ void clear_huge_page(struct page *page,
+>>  	}
+>>  
+>>  	might_sleep();
+>> -	for (i = 0; i < pages_per_huge_page; i++) {
+>> +	VM_BUG_ON(clamp(addr_hint, addr, addr +
+>> +			(pages_per_huge_page << PAGE_SHIFT)) != addr_hint);
+>> +	n = (addr_hint - addr) / PAGE_SIZE;
+>> +	if (2 * n <= pages_per_huge_page) {
+>> +		base = 0;
+>> +		l = n;
+>> +		for (i = pages_per_huge_page - 1; i >= 2 * n; i--) {
+>> +			cond_resched();
+>> +			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
+>> +		}
+>> +	} else {
+>> +		base = 2 * n - pages_per_huge_page;
+>> +		l = pages_per_huge_page - n;
+>> +		for (i = 0; i < base; i++) {
+>> +			cond_resched();
+>> +			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
+>> +		}
+>> +	}
+>> +	for (i = 0; i < l; i++) {
+>> +		cond_resched();
+>> +		clear_user_highpage(page + base + i,
+>> +				    addr + (base + i) * PAGE_SIZE);
+>>  		cond_resched();
+>> -		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
+>> +		clear_user_highpage(page + base + 2 * l - 1 - i,
+>> +				    addr + (base + 2 * l - 1 - i) * PAGE_SIZE);
+>
+> Please document this design with a carefully written code comment.
+> For example, why was "2 * n" chosen?  What is it trying to achieve?
 
-Nothing (apart from common sense) prevents compiler from generating this
-kind of pattern.
+Sure.
 
--- 
- Kirill A. Shutemov
+"2 * n" here is to determine whether addr_hint is in the first half (2 *
+n <= pages_per_huge_page) or the second half (2 * n >
+pages_per_huge_page) of the huge page.
+
+> Also, the final clearing loop "for (i = 0; i < l; i++)" might cause
+> eviction of data which was cached in the previous loop.  Perhaps some
+> additional gains will be made by clearing the hugepage in a
+> left-right-left-right "start from the ends and work inwards" manner, if
+> you see what I mean.  So the 4k pages immediately surrounding addr_hint
+> are the most-recently-cleared.  Although accesses to the data at lower
+> addresses than addr_hint are probably somewhat rare (and may be
+> nonexistent in your synthetic test case).
+
+Yes.  I think I have done exactly this in the patch.  For each iteration
+of the loop, two sub-pages will be cleared: base + i, and base + 2 * l -
+1 - i, that is, the left and right of the fault sub-page, and finally
+reach the fault sub-page as the last sub-page to clear.
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
