@@ -1,57 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A07016B0292
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 11:33:05 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id v102so1514716wrb.2
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 08:33:05 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A63856B0292
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 11:36:42 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id l3so1482302wrc.12
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 08:36:42 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e12si5392103wrd.321.2017.08.10.08.33.04
+        by mx.google.com with ESMTPS id m80si4937227wmc.221.2017.08.10.08.36.40
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 10 Aug 2017 08:33:04 -0700 (PDT)
-Date: Thu, 10 Aug 2017 17:33:01 +0200
+        Thu, 10 Aug 2017 08:36:41 -0700 (PDT)
+Date: Thu, 10 Aug 2017 17:36:39 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH v2 0/6] mm, memory_hotplug: allocate memmap from
- hotadded memory
-Message-ID: <20170810153300.GA23863@dhcp22.suse.cz>
-References: <20170801124111.28881-1-mhocko@kernel.org>
- <20170807070029.GD32434@dhcp22.suse.cz>
- <CAPcyv4gYGohbfme8Ouih_L2mzDiz=7g-KTTwmQNZaw=VXxB4uQ@mail.gmail.com>
- <20170810114052.GP23863@dhcp22.suse.cz>
- <CAPcyv4jxdhJ0VSViqKxBzD0-H+3dvrWh3OOmM1diX7i_go_4Mg@mail.gmail.com>
+Subject: Re: [PATCH v2 0/2] mm,fork,security: introduce MADV_WIPEONFORK
+Message-ID: <20170810153639.GB23863@dhcp22.suse.cz>
+References: <20170806140425.20937-1-riel@redhat.com>
+ <20170807132257.GH32434@dhcp22.suse.cz>
+ <20170807134648.GI32434@dhcp22.suse.cz>
+ <1502117991.6577.13.camel@redhat.com>
+ <20170810130531.GS23863@dhcp22.suse.cz>
+ <CAAF6GDc2hsj-XJj=Rx2ZF6Sh3Ke6nKewABXfqQxQjfDd5QN7Ug@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <CAPcyv4jxdhJ0VSViqKxBzD0-H+3dvrWh3OOmM1diX7i_go_4Mg@mail.gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAAF6GDc2hsj-XJj=Rx2ZF6Sh3Ke6nKewABXfqQxQjfDd5QN7Ug@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Fenghua Yu <fenghua.yu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, X86 ML <x86@kernel.org>
+To: Colm =?iso-8859-1?Q?MacC=E1rthaigh?= <colm@allcosts.net>
+Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, Florian Weimer <fweimer@redhat.com>, akpm@linux-foundation.org, Kees Cook <keescook@chromium.org>, luto@amacapital.net, Will Drewry <wad@chromium.org>, mingo@kernel.org, kirill@shutemov.name, dave.hansen@intel.com, linux-api@vger.kernel.org
 
-On Thu 10-08-17 08:27:56, Dan Williams wrote:
-> On Thu, Aug 10, 2017 at 4:40 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Tue 08-08-17 13:01:36, Dan Williams wrote:
-> >> On Mon, Aug 7, 2017 at 12:00 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> >> > Any comments? Especially for the arch specific? Has anybody had a chance
-> >> > to test this? I do not want to rush this but I would be really glag if
-> >> > we could push this work in 4.14 merge window.
-> >>
-> >> Hi Michal,
-> >>
-> >> I'm interested in taking a look at this especially if we might be able
-> >> to get rid of vmem_altmap, but this is currently stuck behind some
-> >> other work in my queue. I'll try to circle back in the next couple
-> >> weeks.
+On Thu 10-08-17 15:23:05, Colm MacCarthaigh wrote:
+> On Thu, Aug 10, 2017 at 3:05 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> >> Too late for that. VM_DONTFORK is already implemented
+> >> through MADV_DONTFORK & MADV_DOFORK, in a way that is
+> >> very similar to the MADV_WIPEONFORK from these patches.
 > >
-> > Well, vmem_altmap was there and easy to reuse. Replacing with something
-> > else is certainly possible but I really need something to hook a
-> > dedicated allocator into vmemmap code.
+> > Yeah, those two seem to be breaking the "madvise as an advise" semantic as
+> > well but that doesn't mean we should follow that pattern any further.
 > 
-> Oh, you're reusing it, that's great. Then I definitely got the wrong
-> impression from the first glance at the patch set, I'll dig deeper.
+> I would imagine that many of the crypto applications using
+> MADV_WIPEONFORK will also be using MADV_DONTDUMP. In cases where it's
+> for protecting secret keys, I'd like to use both in my code, for
+> example. Though that doesn't really help decide this.
+> 
+> There is also at least one case for being able to turn WIPEONFORK
+> on/off with an existing page; a process that uses privilege separation
+> often goes through the following flow:
+> 
+> 1. [ Access privileged keys as a power user and initialize memory ]
+> 2. [ Fork a child process that actually does the work ]
+> 3. [ Child drops privileges and uses the memory to do work ]
+> 4. [ Parent hangs around to re-spawn a child if it crashes ]
+> 
+> In that mode it would be convenient to be able to mark the memory as
+> WIPEONFORK in the child, but not the parent.
 
-yeah, reusing and extending a bit so I would highly appreciate if you
-could have a look I am doing that in a sane way.
+I am not sure I understand. The child will have an own VMA so chaging
+the attribute will not affect parent. Or did I misunderstand your
+example?
 
 -- 
 Michal Hocko
