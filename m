@@ -1,57 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A70D6B0292
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 17:20:29 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id 83so18674787pgb.14
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 14:20:29 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id o129si4471543pga.543.2017.08.10.14.20.27
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 338516B0292
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 18:10:00 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id g129so30606680ywh.11
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 15:10:00 -0700 (PDT)
+Received: from mail-yw0-x234.google.com (mail-yw0-x234.google.com. [2607:f8b0:4002:c05::234])
+        by mx.google.com with ESMTPS id u2si963615yba.212.2017.08.10.15.09.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Aug 2017 14:20:28 -0700 (PDT)
-Date: Thu, 10 Aug 2017 14:20:26 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: How can we share page cache pages for reflinked files?
-Message-ID: <20170810212026.GJ31390@bombadil.infradead.org>
-References: <20170810042849.GK21024@dastard>
- <20170810161159.GI31390@bombadil.infradead.org>
- <20170810191746.GB24674@redhat.com>
+        Thu, 10 Aug 2017 15:09:58 -0700 (PDT)
+Received: by mail-yw0-x234.google.com with SMTP id s143so13038294ywg.1
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 15:09:58 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170810191746.GB24674@redhat.com>
+In-Reply-To: <20170810170144.GA987@dhcp22.suse.cz>
+References: <20170806140425.20937-1-riel@redhat.com> <20170807132257.GH32434@dhcp22.suse.cz>
+ <20170807134648.GI32434@dhcp22.suse.cz> <1502117991.6577.13.camel@redhat.com>
+ <20170810130531.GS23863@dhcp22.suse.cz> <CAAF6GDc2hsj-XJj=Rx2ZF6Sh3Ke6nKewABXfqQxQjfDd5QN7Ug@mail.gmail.com>
+ <20170810153639.GB23863@dhcp22.suse.cz> <CAAF6GDeno6RpHf1KORVSxUL7M-CQfbWFFdyKK8LAWd_6PcJ55Q@mail.gmail.com>
+ <20170810170144.GA987@dhcp22.suse.cz>
+From: =?UTF-8?Q?Colm_MacC=C3=A1rthaigh?= <colm@allcosts.net>
+Date: Fri, 11 Aug 2017 00:09:57 +0200
+Message-ID: <CAAF6GDdFjS612mx1TXzaVk1J-Afz9wsAywTEijO2TG4idxabiw@mail.gmail.com>
+Subject: Re: [PATCH v2 0/2] mm,fork,security: introduce MADV_WIPEONFORK
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Dave Chinner <david@fromorbit.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Florian Weimer <fweimer@redhat.com>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Rik van Riel <riel@redhat.com>, Will Drewry <wad@chromium.org>, akpm@linux-foundation.org, dave.hansen@intel.com, kirill@shutemov.name, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, luto@amacapital.net, mingo@kernel.org
 
-On Thu, Aug 10, 2017 at 03:17:46PM -0400, Vivek Goyal wrote:
-> On Thu, Aug 10, 2017 at 09:11:59AM -0700, Matthew Wilcox wrote:
-> > On Thu, Aug 10, 2017 at 02:28:49PM +1000, Dave Chinner wrote:
-> > > If we scale this up to a container host which is using reflink trees
-> > > it's shared root images, there might be hundreds of copies of the
-> > > same data held in cache (i.e. one page per container). Given that
-> > > the filesystem knows that the underlying data extent is shared when
-> > > we go to read it, it's relatively easy to add mechanisms to the
-> > > filesystem to return the same page for all attempts to read the
-> > > from a shared extent from all inodes that share it.
-> > 
-> > I agree the problem exists.  Should we try to fix this problem, or
-> > should we steer people towards solutions which don't have this problem?
-> > The solutions I've been seeing use COW block devices instead of COW
-> > filesystems, and DAX to share the common pages between the host and
-> > each guest.
-> 
-> Hi Matthew, 
-> 
-> This is in the context of clear containers? It would be good to have
-> a solution for those who are not launching virt guests.
-> 
-> overlayfs helps mitigate this page cache sharing issue but xfs reflink
-> and dm thin pool continue to face this issue.
+On Thu, Aug 10, 2017 at 7:01 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> Does anybody actually do that using the minherit BSD interface?
 
-Right, this is with clear containers.  But there's no reason it couldn't
-be used with other virtualisation solutions.
+I can't find any OSS examples. I just thought of it in response to
+your question, but now that I have, I do want to use it that way in
+privsep code.
+
+As a mere user, fwiw it would make /my/ code less complex (in
+Kolmogorov terms) to be an madvise option. Here's what that would look
+like in user space:
+
+mmap()
+
+#if MAP_INHERIT_ZERO
+    minherit() || pthread_atfork(workaround_fptr);
+#elif MADVISE_WIPEONFORK
+    madvise() || pthread_atfork(workaround_fptr);
+#else
+    pthread_atfork(workaround_fptr);
+#endif
+
+Vs:
+
+#if MAP_WIPEONFORK
+    mmap( ... WIPEONFORK) || pthread_atfork(workaround_fptr);
+#else
+    mmap()
+#endif
+
+#if MAP_INHERIT_ZERO
+    madvise() || pthread_atfork(workaround_fptr);
+#endif
+
+#if !defined(MAP_WIPEONFORK) && !defined(MAP_INHERIT_ZERO)
+    pthread_atfork(workaround_fptr);
+#endif
+
+The former is neater, and also a lot easier to stay structured if the
+code is separated across different functional units. Allocation is
+often handled in special functions.
+
+For me, madvise() is the principle of least surprise, following
+existing DONTDUMP semantics.
+
+-- 
+Colm
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
