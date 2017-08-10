@@ -1,85 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D9F726B0292
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 00:20:42 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id r13so82470839pfd.14
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 21:20:42 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id f22si3837462plk.492.2017.08.09.21.20.41
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DD9A6B0292
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 00:28:54 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id z3so82614831pfk.4
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 21:28:54 -0700 (PDT)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id m13si1051556pli.586.2017.08.09.21.28.52
         for <linux-mm@kvack.org>;
-        Wed, 09 Aug 2017 21:20:41 -0700 (PDT)
-Date: Thu, 10 Aug 2017 13:20:40 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [lkp-robot] [mm]  7674270022:  will-it-scale.per_process_ops
- -19.3% regression
-Message-ID: <20170810042040.GA2249@bbox>
-References: <20170802000818.4760-7-namit@vmware.com>
- <20170808011923.GE25554@yexl-desktop>
- <20170808022830.GA28570@bbox>
- <93CA4B47-95C2-43A2-8E92-B142CAB1DAF7@gmail.com>
- <970B5DC5-BFC2-461E-AC46-F71B3691D301@gmail.com>
- <20170808080821.GA31730@bbox>
- <20170809025902.GA17616@yexl-desktop>
- <20170810041353.GB2042@bbox>
- <80589593-6F0E-4421-9279-681D5B388100@gmail.com>
+        Wed, 09 Aug 2017 21:28:53 -0700 (PDT)
+Date: Thu, 10 Aug 2017 14:28:49 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: How can we share page cache pages for reflinked files?
+Message-ID: <20170810042849.GK21024@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <80589593-6F0E-4421-9279-681D5B388100@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nadav Amit <nadav.amit@gmail.com>
-Cc: Ye Xiaolong <xiaolong.ye@intel.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Russell King <linux@armlinux.org.uk>, Tony Luck <tony.luck@intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, "David S. Miller" <davem@davemloft.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Jeff Dike <jdike@addtoit.com>, linux-arch@vger.kernel.org, lkp@01.org
+To: linux-fsdevel@vger.kernel.org
+Cc: linux-mm@kvack.org
 
-On Wed, Aug 09, 2017 at 09:14:50PM -0700, Nadav Amit wrote:
+Hi folks,
 
-Hi Nadav,
+I've recently been looking into what is involved in sharing page
+cache pages for shared extents in a filesystem. That is, create a
+file, reflink it so there's two files but only one copy of the data
+on disk, then read both files.  Right now, we get two copies of the
+data in the page cache - one in each inode mapping tree.
 
-< snip >
+If we scale this up to a container host which is using reflink trees
+it's shared root images, there might be hundreds of copies of the
+same data held in cache (i.e. one page per container). Given that
+the filesystem knows that the underlying data extent is shared when
+we go to read it, it's relatively easy to add mechanisms to the
+filesystem to return the same page for all attempts to read the
+from a shared extent from all inodes that share it.
 
-> >>>>> According to the description it is "testcase:brk increase/decrease of one
-> >>>>> pagea??. According to the mode it spawns multiple processes, not threads.
-> >>>>> 
-> >>>>> Since a single page is unmapped each time, and the iTLB-loads increase
-> >>>>> dramatically, I would suspect that for some reason a full TLB flush is
-> >>>>> caused during do_munmap().
-> >>>>> 
-> >>>>> If I find some free time, Ia??ll try to profile the workload - but feel free
-> >>>>> to beat me to it.
-> >>>> 
-> >>>> The root-cause appears to be that tlb_finish_mmu() does not call
-> >>>> dec_tlb_flush_pending() - as it should. Any chance you can take care of it?
-> >>> 
-> >>> Oops, but with second looking, it seems it's not my fault. ;-)
-> >>> https://marc.info/?l=linux-mm&m=150156699114088&w=2
-> >>> 
-> >>> Anyway, thanks for the pointing out.
-> >>> xiaolong.ye, could you retest with this fix?
-> >> 
-> >> I've queued tests for 5 times and results show this patch (e8f682574e4 "mm:
-> >> decrease tlb flush pending count in tlb_finish_mmu") does help recover the
-> >> performance back.
-> >> 
-> >> 378005bdbac0a2ec  76742700225cad9df49f053993  e8f682574e45b6406dadfffeb4  
-> >> ----------------  --------------------------  --------------------------  
-> >>         %stddev      change         %stddev      change         %stddev
-> >>             \          |                \          |                \  
-> >>   3405093             -19%    2747088              -2%    3348752        will-it-scale.per_process_ops
-> >>      1280 A+-  3%        -2%       1257 A+-  3%        -6%       1207        vmstat.system.cs
-> >>      2702 A+- 18%        11%       3002 A+- 19%        17%       3156 A+- 18%  numa-vmstat.node0.nr_mapped
-> >>     10765 A+- 18%        11%      11964 A+- 19%        17%      12588 A+- 18%  numa-meminfo.node0.Mapped
-> >>      0.00 A+- 47%       -40%       0.00 A+- 45%       -84%       0.00 A+- 42%  mpstat.cpu.soft%
-> >> 
-> >> Thanks,
-> >> Xiaolong
-> > 
-> > Thanks for the testing!
-> 
-> Sorry again for screwing your patch, Minchan.
+However, the problem I'm getting stuck on is that the page cache
+itself can't handle inserting a single page into multiple page cache
+mapping trees. i.e. The page has a single pointer to the mapping
+address space, and the mapping has a single pointer back to the
+owner inode. As such, a cached page has a 1:1 mapping to it's host
+inode and this structure seems to be assumed rather widely through
+the code.
 
-Never mind! It always happens. :)
-In this chance, I really appreciates your insight/testing/cooperation!
+The problem is somewhat limited by the fact that only clean,
+read-only pages would be shared, and the attempt to write/dirty
+a shared page in a mapping would trigger a COW operation in the
+filesystem which would invalidate that inode's shared page and
+replace it with a new, inode-private page that could be written to.
+This still requires us to be able to find the right inode from the
+shared page context to run the COW operation. Luckily, the IO path
+already has an inode pointer, and the page fault path provides us
+with the inode via file_inode(vmf->vma->vm_file) so we don't
+actually need page->mapping->host in these paths.
+
+Along these lines I've thought about using a "shared mapping" that
+is associated with the filesystem rather than a specific inode (like
+a bdev mapping), but that's no good because if page->mapping !=
+inode->i_mapping the page is consider to have been invalidated and
+should be considered invalid.
+
+Further - a page has a single, fixed index into the mapping tree
+(i.e. page->index), so this prevents arbitrary page sharing across
+inodes (the "deduplication triggered shared extent" case). And we
+can't really get rid of the page index, because that's how the page
+finds itself in a mapping tree.
+
+This leads me to think about crazy schemes like allocating a
+"referring struct page" that is allocated for every reference to a
+shared cache page and chain them all to the real struct page sorta
+like we do for compound pages. That would give us a unique struct
+page for each mapping tree and solve many of the issues, but I'm not
+sure how viable such a concept would be.
+
+I'm sure there's more issues than I've outlined here, but I haven't
+gone deeper than this because I've got to solve the one to many
+problem first.  I don't know if anyone has looked at this in any
+detail, so I don't know what ideas, patches, crazy schemes, etc
+might already exist out there. Right now I'm just looking for
+information to narrow down what I need to look at - finding what
+rabbit holes have already been explored and what dragons are already
+known about would help an awful lot right now.
+
+Anyone?
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
