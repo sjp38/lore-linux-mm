@@ -1,85 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 826CC6B0292
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 00:38:36 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id o82so82952639pfj.11
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 21:38:36 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id v198si3419632pgb.311.2017.08.09.21.38.34
-        for <linux-mm@kvack.org>;
-        Wed, 09 Aug 2017 21:38:35 -0700 (PDT)
-Date: Thu, 10 Aug 2017 13:38:31 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH RFC v2] Add /proc/pid/smaps_rollup
-Message-ID: <20170810043831.GB2249@bbox>
-References: <20170808132554.141143-1-dancol@google.com>
- <20170810001557.147285-1-dancol@google.com>
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C5E6F6B0292
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 01:57:41 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z48so11566191wrc.4
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 22:57:41 -0700 (PDT)
+Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
+        by mx.google.com with ESMTPS id j6si4977412edd.217.2017.08.09.22.57.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 Aug 2017 22:57:40 -0700 (PDT)
+Received: by mail-wm0-x22a.google.com with SMTP id f15so13113220wmg.1
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 22:57:40 -0700 (PDT)
+Date: Thu, 10 Aug 2017 08:57:37 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: How can we share page cache pages for reflinked files?
+Message-ID: <20170810055737.v6yexikxa5zxvntv@node.shutemov.name>
+References: <20170810042849.GK21024@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170810001557.147285-1-dancol@google.com>
+In-Reply-To: <20170810042849.GK21024@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Colascione <dancol@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, timmurray@google.com, joelaf@google.com, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, sonnyrao@chromium.org, robert.foss@collabora.com
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Aug 09, 2017 at 05:15:57PM -0700, Daniel Colascione wrote:
-> /proc/pid/smaps_rollup is a new proc file that improves the
-> performance of user programs that determine aggregate memory
-> statistics (e.g., total PSS) of a process.
+On Thu, Aug 10, 2017 at 02:28:49PM +1000, Dave Chinner wrote:
+> Hi folks,
 > 
-> Android regularly "samples" the memory usage of various processes in
-> order to balance its memory pool sizes. This sampling process involves
-> opening /proc/pid/smaps and summing certain fields. For very large
-> processes, sampling memory use this way can take several hundred
-> milliseconds, due mostly to the overhead of the seq_printf calls in
-> task_mmu.c.
+> I've recently been looking into what is involved in sharing page
+> cache pages for shared extents in a filesystem. That is, create a
+> file, reflink it so there's two files but only one copy of the data
+> on disk, then read both files.  Right now, we get two copies of the
+> data in the page cache - one in each inode mapping tree.
 > 
-> smaps_rollup improves the situation. It contains most of the fields of
-> /proc/pid/smaps, but instead of a set of fields for each VMA,
-> smaps_rollup instead contains one synthetic smaps-format entry
-> representing the whole process. In the single smaps_rollup synthetic
-> entry, each field is the summation of the corresponding field in all
-> of the real-smaps VMAs. Using a common format for smaps_rollup and
-> smaps allows userspace parsers to repurpose parsers meant for use with
-> non-rollup smaps for smaps_rollup, and it allows userspace to switch
-> between smaps_rollup and smaps at runtime (say, based on the
-> availability of smaps_rollup in a given kernel) with minimal fuss.
+> If we scale this up to a container host which is using reflink trees
+> it's shared root images, there might be hundreds of copies of the
+> same data held in cache (i.e. one page per container). Given that
+> the filesystem knows that the underlying data extent is shared when
+> we go to read it, it's relatively easy to add mechanisms to the
+> filesystem to return the same page for all attempts to read the
+> from a shared extent from all inodes that share it.
 > 
-> By using smaps_rollup instead of smaps, a caller can avoid the
-> significant overhead of formatting, reading, and parsing each of a
-> large process's potentially very numerous memory mappings. For
-> sampling system_server's PSS in Android, we measured a 12x speedup,
-> representing a savings of several hundred milliseconds.
-> 
-> One alternative to a new per-process proc file would have been
-> including PSS information in /proc/pid/status. We considered this
-> option but thought that PSS would be too expensive (by a few orders of
-> magnitude) to collect relative to what's already emitted as part of
-> /proc/pid/status, and slowing every user of /proc/pid/status for the
-> sake of readers that happen to want PSS feels wrong.
-> 
-> The code itself works by reusing the existing VMA-walking framework we
-> use for regular smaps generation and keeping the mem_size_stats
-> structure around between VMA walks instead of using a fresh one for
-> each VMA.  In this way, summation happens automatically.  We let
-> seq_file walk over the VMAs just as it does for regular smaps and just
-> emit nothing to the seq_file until we hit the last VMA.
-> 
-> Patch changelog:
-> 
-> v2: Fix typo in commit message
->     Add ABI documentation as requested by gregkh
-> 
-> Signed-off-by: Daniel Colascione <dancol@google.com>
+> However, the problem I'm getting stuck on is that the page cache
+> itself can't handle inserting a single page into multiple page cache
+> mapping trees. i.e. The page has a single pointer to the mapping
+> address space, and the mapping has a single pointer back to the
+> owner inode. As such, a cached page has a 1:1 mapping to it's host
+> inode and this structure seems to be assumed rather widely through
+> the code.
 
-I love this.
+I think to solve the problem with page->mapping we need something similar
+to what we have for anon rmap[1]. In this case we would be able to keep
+the same page in page cache for multiple inodes.
 
-FYI, there was trial but got failed at that time so in this time,
-https://marc.info/?l=linux-kernel&m=147310650003277&w=2
-http://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1229163.html
+The long term benefit for this is that we might be able to unify a lot of
+code for anon and file code paths in mm, making anon memory a special case
+of file mapping.
 
-I really hope we merge this patch.
+The downside is that anon rmap is rather complicated. I have to re-read
+the article everytime I deal with anon rmap to remind myself how it works.
+
+[1] https://lwn.net/Articles/383162/
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
