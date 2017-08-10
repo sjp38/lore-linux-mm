@@ -1,104 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 507226B0292
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 09:31:25 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id a186so2981850wmh.9
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 06:31:25 -0700 (PDT)
-Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
-        by mx.google.com with ESMTPS id z11si7261484edc.97.2017.08.10.06.31.23
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 822A06B0292
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 09:33:44 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id e204so3060598wma.2
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 06:33:44 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o104si5246465wrb.203.2017.08.10.06.33.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Aug 2017 06:31:24 -0700 (PDT)
-Received: by mail-wm0-x236.google.com with SMTP id f15so22623987wmg.1
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 06:31:23 -0700 (PDT)
-Date: Thu, 10 Aug 2017 16:31:18 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: How can we share page cache pages for reflinked files?
-Message-ID: <20170810133118.va2ziyzcwxmtkbi2@node.shutemov.name>
-References: <20170810042849.GK21024@dastard>
- <20170810055737.v6yexikxa5zxvntv@node.shutemov.name>
- <20170810090133.GL21024@dastard>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 10 Aug 2017 06:33:43 -0700 (PDT)
+Date: Thu, 10 Aug 2017 15:33:38 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] mm, oom: fix potential data corruption when
+ oom_reaper races with writer
+Message-ID: <20170810133338.GV23863@dhcp22.suse.cz>
+References: <20170807113839.16695-1-mhocko@kernel.org>
+ <20170807113839.16695-3-mhocko@kernel.org>
+ <20170808174855.GK25347@redhat.com>
+ <20170810082118.GH23863@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170810090133.GL21024@dastard>
+In-Reply-To: <20170810082118.GH23863@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Wenwei Tao <wenwei.tww@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 10, 2017 at 07:01:33PM +1000, Dave Chinner wrote:
-> On Thu, Aug 10, 2017 at 08:57:37AM +0300, Kirill A. Shutemov wrote:
-> > On Thu, Aug 10, 2017 at 02:28:49PM +1000, Dave Chinner wrote:
-> > > Hi folks,
-> > > 
-> > > I've recently been looking into what is involved in sharing page
-> > > cache pages for shared extents in a filesystem. That is, create a
-> > > file, reflink it so there's two files but only one copy of the data
-> > > on disk, then read both files.  Right now, we get two copies of the
-> > > data in the page cache - one in each inode mapping tree.
-> > > 
-> > > If we scale this up to a container host which is using reflink trees
-> > > it's shared root images, there might be hundreds of copies of the
-> > > same data held in cache (i.e. one page per container). Given that
-> > > the filesystem knows that the underlying data extent is shared when
-> > > we go to read it, it's relatively easy to add mechanisms to the
-> > > filesystem to return the same page for all attempts to read the
-> > > from a shared extent from all inodes that share it.
-> > > 
-> > > However, the problem I'm getting stuck on is that the page cache
-> > > itself can't handle inserting a single page into multiple page cache
-> > > mapping trees. i.e. The page has a single pointer to the mapping
-> > > address space, and the mapping has a single pointer back to the
-> > > owner inode. As such, a cached page has a 1:1 mapping to it's host
-> > > inode and this structure seems to be assumed rather widely through
-> > > the code.
+On Thu 10-08-17 10:21:18, Michal Hocko wrote:
+> On Tue 08-08-17 19:48:55, Andrea Arcangeli wrote:
+> [...]
+> > The bug corrected by this patch 1/2 I pointed it out last week while
+> > reviewing other oom reaper fixes so that looks fine.
 > > 
-> > I think to solve the problem with page->mapping we need something similar
-> > to what we have for anon rmap[1]. In this case we would be able to keep
-> > the same page in page cache for multiple inodes.
+> > However I'd prefer to dump MMF_UNSTABLE for good instead of adding
+> > more of it. It can be replaced with unmap_page_range in
+> > __oom_reap_task_mm with a function that arms a special migration entry
+> > so that no branchs are added to the fast paths and it's all hidden
+> > inside is_migration_entry slow paths.
 > 
-> Being unfamiliar with the anon rmap code, I'm struggling to see the
-> need for that much complexity here. The AVC abstraction solves a
-> scalability problem that, to me, doesn't exist for tracking multiple
-> mapping tree pointers for a page. i.e. I don't see where a list
-> traversal is necessary in the shared page -> mapping tree resolution
-> for page cache sharing.
+> This sounds like an interesting idea but I would like to address the
+> _correctness_ issue first and optimize on top of it. If for nothing else
+> backporting a follow up fix sounds easier than a complete rework. There
+> are quite some callers of is_migration_entry and the patch won't be
+> trivial either. So can we focus on the fix first please?
 
-[ Cc: Rik ]
-
-The reflink interface has potential to construct a tree of dependencies
-between reflinked files similar in complexity to tree of forks (and CoWed
-anon mappings) that lead to current anon rmap design.
-
-But it's harder to get there accidentally. :)
-
-> I've been thinking of something simpler along the lines of a dynamic
-> struct page objects w/ special page flags as an object that allows
-> us to keep different mapping tree entries for the same physical
-> page. Seems like this would work for read-only sharing, but perhaps
-> I'm just blind and I'm missing something I shouldn't be?
-
-Naive approach would be just to put all connected through reflink mappings
-on the same linked list. page->mapping can point to any of them in this
-case. To check that the page actually belong to the mapping we would need
-to look into radix-tree.
-
-Something like this we had before current anon rmap design, but with
-checking page tables instead of radix-tree as primary reference.
-
-> > The long term benefit for this is that we might be able to unify a lot of
-> > code for anon and file code paths in mm, making anon memory a special case
-> > of file mapping.
-> > 
-> > The downside is that anon rmap is rather complicated. I have to re-read
-> > the article everytime I deal with anon rmap to remind myself how it works.
-> 
-> Yeah, that's a problem - if you have trouble with it, I've got no
-> hope.... :/
-
+Btw, if the overhead is a concern then we can add a jump label and only
+make the code active only while the OOM is in progress. We already do
+count all oom victims so we have a clear entry and exit points. This
+would still sound easier to do than teach every is_migration_entry a new
+migration entry type and handle it properly, not to mention make
+everybody aware of this for future callers of is_migration_entry.
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
