@@ -1,71 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 30F436B0292
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 04:26:25 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id t25so250580pfg.15
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 01:26:25 -0700 (PDT)
-Received: from mail-pg0-x22d.google.com (mail-pg0-x22d.google.com. [2607:f8b0:400e:c05::22d])
-        by mx.google.com with ESMTPS id t202si3662573pgb.68.2017.08.10.01.26.23
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F38E6B02C3
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 04:28:03 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id t80so760312pgb.0
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 01:28:03 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 189si3811237pfc.500.2017.08.10.01.28.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Aug 2017 01:26:24 -0700 (PDT)
-Received: by mail-pg0-x22d.google.com with SMTP id u185so291067pgb.1
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 01:26:23 -0700 (PDT)
+        Thu, 10 Aug 2017 01:28:02 -0700 (PDT)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7A8R3aT138171
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 04:28:01 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2c8hdv81v6-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 04:28:01 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Thu, 10 Aug 2017 09:27:58 +0100
+Subject: Re: [PATCH 05/16] mm: Protect VMA modifications using VMA sequence
+ count
+References: <1502202949-8138-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1502202949-8138-6-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20170809101241.ek4fqinqaq5qfkq4@node.shutemov.name>
+ <f935091a-d8f9-1951-8397-f5c464a2b922@linux.vnet.ibm.com>
+ <20170810005828.qmw3p7d676hjwkss@node.shutemov.name>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Thu, 10 Aug 2017 10:27:50 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170810081920.GG23863@dhcp22.suse.cz>
-References: <CADK2BfzM9V=C3Kk6v714K3NVX58Q6pEaAMiHDGSyr6PakC2O=w@mail.gmail.com>
- <20170810071059.GC23863@dhcp22.suse.cz> <CADK2BfwC3WDGwoDPSjX1UpwP-4fDz5fSBjdENbxn5XQL8y3K3A@mail.gmail.com>
- <20170810081920.GG23863@dhcp22.suse.cz>
-From: wang Yu <yuwang668899@gmail.com>
-Date: Thu, 10 Aug 2017 16:26:23 +0800
-Message-ID: <CADK2BfxJim8MvLPY497a+JAK2t9OTq+f1BY0o4qK0ihaWsoEMQ@mail.gmail.com>
-Subject: Re: memcg Can't context between v1 and v2 because css->refcnt not released
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20170810005828.qmw3p7d676hjwkss@node.shutemov.name>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <4e552377-af38-3580-73b6-1edf685cb90d@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-2017-08-10 16:19 GMT+08:00 Michal Hocko <mhocko@kernel.org>:
-> [Please do not top-post]
->
-> On Thu 10-08-17 16:10:45, wang Yu wrote:
->> at first ,thanks for your reply.
->> but i also tested what you said, the problem is also.
->> force_empty only call try_to_free_pages, not all the pages remove
->> because mem_cgroup_reparent_charges moved
->
-> Right. An alternative would be dropping the page cache globaly via
-> /proc/sys/vm/drop_caches. Not an ideal solution but it should help.
-> --
-> Michal Hocko
-> SUSE Labs
+On 10/08/2017 02:58, Kirill A. Shutemov wrote:
+> On Wed, Aug 09, 2017 at 12:43:33PM +0200, Laurent Dufour wrote:
+>> On 09/08/2017 12:12, Kirill A. Shutemov wrote:
+>>> On Tue, Aug 08, 2017 at 04:35:38PM +0200, Laurent Dufour wrote:
+>>>> The VMA sequence count has been introduced to allow fast detection of
+>>>> VMA modification when running a page fault handler without holding
+>>>> the mmap_sem.
+>>>>
+>>>> This patch provides protection agains the VMA modification done in :
+>>>> 	- madvise()
+>>>> 	- mremap()
+>>>> 	- mpol_rebind_policy()
+>>>> 	- vma_replace_policy()
+>>>> 	- change_prot_numa()
+>>>> 	- mlock(), munlock()
+>>>> 	- mprotect()
+>>>> 	- mmap_region()
+>>>> 	- collapse_huge_page()
+>>>
+>>> I don't thinks it's anywhere near complete list of places where we touch
+>>> vm_flags. What is your plan for the rest?
+>>
+>> The goal is only to protect places where change to the VMA is impacting the
+>> page fault handling. If you think I missed one, please advise.
+> 
+> That's very fragile approach. We rely here too much on specific compiler behaviour.
+> 
+> Any write access to vm_flags can, in theory, be translated to several
+> write accesses. For instance with setting vm_flags to 0 in the middle,
+> which would result in sigfault on page fault to the vma.
 
-thanks again, but /proc/sys/vm/drop_caches can't solve it
-you can try as follow
+Indeed, just setting vm_flags to 0 will not result in sigfault, the real
+job is done when the pte are updated and the bits allowing access are
+cleared. Access to the pte is controlled by the pte lock.
+Page fault handler is triggered based on the pte bits, not the content of
+vm_flags and the speculative page fault is checking for the vma again once
+the pte lock is held. So there is no concurrency when dealing with the pte
+bits.
 
-#cat /proc/cgroups
+Regarding the compiler behaviour, there are memory barriers and locking
+which should prevent that.
 
-memory 11 2 1
-
-#mkdir a
-
-#echo 0 > a/cgroup.procs
-
-#sleep 1
-
-#echo 0 > cgroup.procs
-
-#echo 1 > a/memory.force_empty
-
-#echo 3 > /proc/sys/vm/drop_caches
-
-#rmdir  a
-
-#cat /proc/cgroups
-
-memory 11 3 1
-the  num_cgroups not decrease
+Thanks,
+Laurent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
