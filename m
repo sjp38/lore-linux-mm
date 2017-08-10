@@ -1,51 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C48E86B0292
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 07:40:58 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id q50so658530wrb.14
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 04:40:58 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j140si4907828wmf.188.2017.08.10.04.40.57
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 10 Aug 2017 04:40:57 -0700 (PDT)
-Date: Thu, 10 Aug 2017 13:40:52 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH v2 0/6] mm, memory_hotplug: allocate memmap from
- hotadded memory
-Message-ID: <20170810114052.GP23863@dhcp22.suse.cz>
-References: <20170801124111.28881-1-mhocko@kernel.org>
- <20170807070029.GD32434@dhcp22.suse.cz>
- <CAPcyv4gYGohbfme8Ouih_L2mzDiz=7g-KTTwmQNZaw=VXxB4uQ@mail.gmail.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FDE16B02B4
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 07:46:20 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 123so4651368pga.5
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 04:46:20 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id n3si4296133plb.6.2017.08.10.04.46.18
+        for <linux-mm@kvack.org>;
+        Thu, 10 Aug 2017 04:46:19 -0700 (PDT)
+Date: Thu, 10 Aug 2017 20:45:04 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v8 00/14] lockdep: Implement crossrelease feature
+Message-ID: <20170810114504.GD20323@X58A-UD3R>
+References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
+ <20170810111019.n376bsm6h4de2jvi@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAPcyv4gYGohbfme8Ouih_L2mzDiz=7g-KTTwmQNZaw=VXxB4uQ@mail.gmail.com>
+In-Reply-To: <20170810111019.n376bsm6h4de2jvi@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Fenghua Yu <fenghua.yu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, X86 ML <x86@kernel.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: peterz@infradead.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-On Tue 08-08-17 13:01:36, Dan Williams wrote:
-> On Mon, Aug 7, 2017 at 12:00 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > Any comments? Especially for the arch specific? Has anybody had a chance
-> > to test this? I do not want to rush this but I would be really glag if
-> > we could push this work in 4.14 merge window.
+On Thu, Aug 10, 2017 at 01:10:19PM +0200, Ingo Molnar wrote:
 > 
-> Hi Michal,
+> * Byungchul Park <byungchul.park@lge.com> wrote:
 > 
-> I'm interested in taking a look at this especially if we might be able
-> to get rid of vmem_altmap, but this is currently stuck behind some
-> other work in my queue. I'll try to circle back in the next couple
-> weeks.
+> > Change from v7
+> > 	- rebase on latest tip/sched/core (Jul 26 2017)
+> > 	- apply peterz's suggestions
+> > 	- simplify code of crossrelease_{hist/soft/hard}_{start/end}
+> > 	- exclude a patch avoiding redundant links
+> > 	- exclude a patch already applied onto the base
+> 
+> Ok, it's looking pretty good here now, there's one thing I'd like you to change, 
+> please remove all the new Kconfig dependencies:
+> 
+>  CONFIG_LOCKDEP_CROSSRELEASE=y
+>  CONFIG_LOCKDEP_COMPLETE=y
+> 
+> and make it all part of PROVE_LOCKING, like most of the other lock debugging bits.
 
-Well, vmem_altmap was there and easy to reuse. Replacing with something
-else is certainly possible but I really need something to hook a
-dedicated allocator into vmemmap code.
-
--- 
-Michal Hocko
-SUSE Labs
+OK. I will remove them. What about CONFIG_LOCKDEP_PAGELOCK? Should I also
+remove it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
