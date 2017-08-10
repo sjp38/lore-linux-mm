@@ -1,65 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C7176B0292
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 03:05:21 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id v31so11710045wrc.7
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 00:05:21 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F3246B0292
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 03:11:02 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id v31so11726897wrc.7
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 00:11:02 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 125si4314103wmy.54.2017.08.10.00.05.20
+        by mx.google.com with ESMTPS id o10si4293445wme.23.2017.08.10.00.11.01
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 10 Aug 2017 00:05:20 -0700 (PDT)
-Date: Thu, 10 Aug 2017 09:05:18 +0200
+        Thu, 10 Aug 2017 00:11:01 -0700 (PDT)
+Date: Thu, 10 Aug 2017 09:10:59 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [virtio-dev] Re: [PATCH v13 4/5] mm: support reporting free page
- blocks
-Message-ID: <20170810070517.GB23863@dhcp22.suse.cz>
-References: <1501742299-4369-1-git-send-email-wei.w.wang@intel.com>
- <1501742299-4369-5-git-send-email-wei.w.wang@intel.com>
- <20170803091151.GF12521@dhcp22.suse.cz>
- <59895668.9090104@intel.com>
- <59895B71.7050709@intel.com>
+Subject: Re: memcg Can't context between v1 and v2 because css->refcnt not
+ released
+Message-ID: <20170810071059.GC23863@dhcp22.suse.cz>
+References: <CADK2BfzM9V=C3Kk6v714K3NVX58Q6pEaAMiHDGSyr6PakC2O=w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <59895B71.7050709@intel.com>
+In-Reply-To: <CADK2BfzM9V=C3Kk6v714K3NVX58Q6pEaAMiHDGSyr6PakC2O=w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mawilcox@microsoft.com, akpm@linux-foundation.org, virtio-dev@lists.oasis-open.org, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: wang Yu <yuwang668899@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 08-08-17 14:34:25, Wei Wang wrote:
-> On 08/08/2017 02:12 PM, Wei Wang wrote:
-> >On 08/03/2017 05:11 PM, Michal Hocko wrote:
-> >>On Thu 03-08-17 14:38:18, Wei Wang wrote:
-> >>This is just too ugly and wrong actually. Never provide struct page
-> >>pointers outside of the zone->lock. What I've had in mind was to simply
-> >>walk free lists of the suitable order and call the callback for each
-> >>one.
-> >>Something as simple as
-> >>
-> >>    for (i = 0; i < MAX_NR_ZONES; i++) {
-> >>        struct zone *zone = &pgdat->node_zones[i];
-> >>
-> >>        if (!populated_zone(zone))
-> >>            continue;
-> >
-> >Can we directly use for_each_populated_zone(zone) here?
+On Wed 09-08-17 15:06:34, wang Yu wrote:
+> Hello Johannes ,Michal,and Tejun:
+> 
+>   i using memcg v1,  but some reason  i want to context to  memcg v2,
+> but i can't, here is my step:
+> #cat /proc/cgroups
+> #subsys_name hierarchy num_cgroups enabled
+>  memory 5 1 1
+> #cd /sys/fs/cgroup/memory
+> #mkdir a
+> #echo 0 > a/cgroup.procs
+> #sleep 1
+> #echo 0 > cgroup.procs
 
-yes, my example couldn't because I was still assuming per-node API
-
-> >>spin_lock_irqsave(&zone->lock, flags);
-> >>        for (order = min_order; order < MAX_ORDER; ++order) {
-> >
-> >
-> >This appears to be covered by for_each_migratetype_order(order, mt) below.
-
-yes but
-#define for_each_migratetype_order(order, type) \
-	for (order = 0; order < MAX_ORDER; order++) \
-		for (type = 0; type < MIGRATE_TYPES; type++)
-
-so you would have to skip orders < min_order
+This doesn't do what you think. It will try to add a non-existant pid 0
+to the root cgroup. You need to remove cgroup a. Moreover it is possible
+that the `sleep' command will fault some page cache and that will stay
+in memcg `a' until there is a memory pressure. cgroup v1 had
+force_empty knob which you can use to drain the cgroup before removal.
+Then you should be able to umount the v1 cgroup and mount v2.
 -- 
 Michal Hocko
 SUSE Labs
