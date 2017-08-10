@@ -1,77 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 14D556B02F3
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 05:28:59 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id y129so1894494pgy.1
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 02:28:59 -0700 (PDT)
-Received: from mail-pg0-x22a.google.com (mail-pg0-x22a.google.com. [2607:f8b0:400e:c05::22a])
-        by mx.google.com with ESMTPS id l21si3920574pfj.297.2017.08.10.02.28.58
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AF0096B0292
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 05:33:52 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id u89so344514wrc.1
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 02:33:52 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d43si5081620wrd.85.2017.08.10.02.33.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Aug 2017 02:28:58 -0700 (PDT)
-Received: by mail-pg0-x22a.google.com with SMTP id l64so669174pge.5
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 02:28:58 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 10 Aug 2017 02:33:51 -0700 (PDT)
+Date: Thu, 10 Aug 2017 11:33:49 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] userfaultfd: replace ENOSPC with ESRCH in case mm has
+ gone during copy/zeropage
+Message-ID: <20170810093349.GK23863@dhcp22.suse.cz>
+References: <1502111545-32305-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <20170808060816.GA31648@rapoport-lnx>
 MIME-Version: 1.0
-In-Reply-To: <CADK2BfxJim8MvLPY497a+JAK2t9OTq+f1BY0o4qK0ihaWsoEMQ@mail.gmail.com>
-References: <CADK2BfzM9V=C3Kk6v714K3NVX58Q6pEaAMiHDGSyr6PakC2O=w@mail.gmail.com>
- <20170810071059.GC23863@dhcp22.suse.cz> <CADK2BfwC3WDGwoDPSjX1UpwP-4fDz5fSBjdENbxn5XQL8y3K3A@mail.gmail.com>
- <20170810081920.GG23863@dhcp22.suse.cz> <CADK2BfxJim8MvLPY497a+JAK2t9OTq+f1BY0o4qK0ihaWsoEMQ@mail.gmail.com>
-From: wang Yu <yuwang668899@gmail.com>
-Date: Thu, 10 Aug 2017 17:28:57 +0800
-Message-ID: <CADK2BfzarAEQz=_Um23mywmdRvhNbe5OL_7k13XD3D5==nn0qg@mail.gmail.com>
-Subject: Re: memcg Can't context between v1 and v2 because css->refcnt not released
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170808060816.GA31648@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-2017-08-10 16:26 GMT+08:00 wang Yu <yuwang668899@gmail.com>:
-> 2017-08-10 16:19 GMT+08:00 Michal Hocko <mhocko@kernel.org>:
->> [Please do not top-post]
->>
->> On Thu 10-08-17 16:10:45, wang Yu wrote:
->>> at first ,thanks for your reply.
->>> but i also tested what you said, the problem is also.
->>> force_empty only call try_to_free_pages, not all the pages remove
->>> because mem_cgroup_reparent_charges moved
->>
->> Right. An alternative would be dropping the page cache globaly via
->> /proc/sys/vm/drop_caches. Not an ideal solution but it should help.
->> --
->> Michal Hocko
->> SUSE Labs
->
-> thanks again, but /proc/sys/vm/drop_caches can't solve it
-> you can try as follow
->
-> #cat /proc/cgroups
->
-> memory 11 2 1
->
-> #mkdir a
->
-> #echo 0 > a/cgroup.procs
->
-> #sleep 1
->
-> #echo 0 > cgroup.procs
->
-> #echo 1 > a/memory.force_empty
->
-> #echo 3 > /proc/sys/vm/drop_caches
->
-> #rmdir  a
->
-> #cat /proc/cgroups
->
-> memory 11 3 1
-> the  num_cgroups not decrease
-and i found that, after drop cache
+On Tue 08-08-17 09:08:17, Mike Rapoport wrote:
+> (adding Michal)
 
-after drop caches, memory.stat  shows not pages belong the group, but
-memory.usage_in_bytes not zero, so maybe other pages
-has wrong to belong this cgroup
+Thanks
+
+> On Mon, Aug 07, 2017 at 04:12:25PM +0300, Mike Rapoport wrote:
+> > When the process exit races with outstanding mcopy_atomic, it would be
+> > better to return ESRCH error. When such race occurs the process and it's mm
+> > are going away and returning "no such process" to the uffd monitor seems
+> > better fit than ENOSPC.
+
+Not only the error message would be less confusing I also think that
+error handling should be more straightforward. Although I cannot find
+any guidelines for ENOSPC handling I've considered this errno as
+potentially temporary and retry might be feasible while ESRCH is a
+terminal error. I do not expect any userfaultfd users would retry on
+error but who knows how the interface will be used in future so better
+be prepared.
+
+> > Suggested-by: Michal Hocko <mhocko@suse.com>
+> > Cc: Andrea Arcangeli <aarcange@redhat.com>
+> > Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+> > Cc: Pavel Emelyanov <xemul@virtuozzo.com>
+> > Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> > ---
+> > The man-pages update is ready and I'll send it out once the patch is
+> > merged.
+> > 
+> >  fs/userfaultfd.c | 4 ++--
+> >  1 file changed, 2 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> > index 06ea26b8c996..b0d5897bc4e6 100644
+> > --- a/fs/userfaultfd.c
+> > +++ b/fs/userfaultfd.c
+> > @@ -1600,7 +1600,7 @@ static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
+> >  				   uffdio_copy.len);
+> >  		mmput(ctx->mm);
+> >  	} else {
+> > -		return -ENOSPC;
+> > +		return -ESRCH;
+> >  	}
+> >  	if (unlikely(put_user(ret, &user_uffdio_copy->copy)))
+> >  		return -EFAULT;
+> > @@ -1647,7 +1647,7 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
+> >  				     uffdio_zeropage.range.len);
+> >  		mmput(ctx->mm);
+> >  	} else {
+> > -		return -ENOSPC;
+> > +		return -ESRCH;
+> >  	}
+> >  	if (unlikely(put_user(ret, &user_uffdio_zeropage->zeropage)))
+> >  		return -EFAULT;
+> > -- 
+> > 2.7.4
+> > 
+> 
+> -- 
+> Sincerely yours,
+> Mike.
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
