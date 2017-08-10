@@ -1,104 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 340216B025F
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 09:01:12 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id v49so3023095qtc.2
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 06:01:12 -0700 (PDT)
-Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
-        by mx.google.com with ESMTPS id n13si5693327qtn.540.2017.08.10.06.01.10
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F0206B02B4
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 09:05:34 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id o201so2929894wmg.3
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 06:05:34 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r71si4616326wmf.263.2017.08.10.06.05.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Aug 2017 06:01:10 -0700 (PDT)
-Received: by mail-qk0-x243.google.com with SMTP id d145so582715qkc.0
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 06:01:10 -0700 (PDT)
-Date: Thu, 10 Aug 2017 09:01:06 -0400
-From: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Subject: Re: [PATCH v5 03/10] swiotlb: Map the buffer if it was unmapped by
- XPFO
-Message-ID: <20170810130104.GB2413@localhost.localdomain>
-References: <20170809200755.11234-1-tycho@docker.com>
- <20170809200755.11234-4-tycho@docker.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 10 Aug 2017 06:05:33 -0700 (PDT)
+Date: Thu, 10 Aug 2017 15:05:31 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 0/2] mm,fork,security: introduce MADV_WIPEONFORK
+Message-ID: <20170810130531.GS23863@dhcp22.suse.cz>
+References: <20170806140425.20937-1-riel@redhat.com>
+ <20170807132257.GH32434@dhcp22.suse.cz>
+ <20170807134648.GI32434@dhcp22.suse.cz>
+ <1502117991.6577.13.camel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20170809200755.11234-4-tycho@docker.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1502117991.6577.13.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tycho Andersen <tycho@docker.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Juerg Haefliger <juerg.haefliger@hpe.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, mike.kravetz@oracle.com, linux-mm@kvack.org, fweimer@redhat.com, colm@allcosts.net, akpm@linux-foundation.org, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org, kirill@shutemov.name, dave.hansen@intel.com, linux-api@vger.kernel.org
 
-On Wed, Aug 09, 2017 at 02:07:48PM -0600, Tycho Andersen wrote:
-> From: Juerg Haefliger <juerg.haefliger@hpe.com>
+On Mon 07-08-17 10:59:51, Rik van Riel wrote:
+> On Mon, 2017-08-07 at 15:46 +0200, Michal Hocko wrote:
+> > On Mon 07-08-17 15:22:57, Michal Hocko wrote:
+> > > This is an user visible API so make sure you CC linux-api (added)
+> > > 
+> > > On Sun 06-08-17 10:04:23, Rik van Riel wrote:
+> > > > 
+> > > > A further complication is the proliferation of clone flags,
+> > > > programs bypassing glibc's functions to call clone directly,
+> > > > and programs calling unshare, causing the glibc pthread_atfork
+> > > > hook to not get called.
+> > > > 
+> > > > It would be better to have the kernel take care of this
+> > > > automatically.
+> > > > 
+> > > > This is similar to the OpenBSD minherit syscall with
+> > > > MAP_INHERIT_ZERO:
+> > > > 
+> > > >     https://man.openbsd.org/minherit.2
+> > 
+> > I would argue that a MAP_$FOO flag would be more appropriate. Or do
+> > you
+> > see any cases where such a special mapping would need to change the
+> > semantic and inherit the content over the fork again?
+> > 
+> > I do not like the madvise because it is an advise and as such it can
+> > be
+> > ignored/not implemented and that shouldn't have any correctness
+> > effects
+> > on the child process.
 > 
-> Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
-> Tested-by: Tycho Andersen <tycho@docker.com>
-> ---
->  include/linux/xpfo.h | 4 ++++
->  lib/swiotlb.c        | 3 ++-
->  mm/xpfo.c            | 9 +++++++++
->  3 files changed, 15 insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
-> index 1ff2d1976837..6b61f7b820f4 100644
-> --- a/include/linux/xpfo.h
-> +++ b/include/linux/xpfo.h
-> @@ -27,6 +27,8 @@ void xpfo_kunmap(void *kaddr, struct page *page);
->  void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp);
->  void xpfo_free_pages(struct page *page, int order);
->  
-> +bool xpfo_page_is_unmapped(struct page *page);
-> +
->  #else /* !CONFIG_XPFO */
->  
->  static inline void xpfo_kmap(void *kaddr, struct page *page) { }
-> @@ -34,6 +36,8 @@ static inline void xpfo_kunmap(void *kaddr, struct page *page) { }
->  static inline void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp) { }
->  static inline void xpfo_free_pages(struct page *page, int order) { }
->  
-> +static inline bool xpfo_page_is_unmapped(struct page *page) { return false; }
-> +
->  #endif /* CONFIG_XPFO */
->  
->  #endif /* _LINUX_XPFO_H */
-> diff --git a/lib/swiotlb.c b/lib/swiotlb.c
-> index a8d74a733a38..d4fee5ca2d9e 100644
-> --- a/lib/swiotlb.c
-> +++ b/lib/swiotlb.c
-> @@ -420,8 +420,9 @@ static void swiotlb_bounce(phys_addr_t orig_addr, phys_addr_t tlb_addr,
->  {
->  	unsigned long pfn = PFN_DOWN(orig_addr);
->  	unsigned char *vaddr = phys_to_virt(tlb_addr);
-> +	struct page *page = pfn_to_page(pfn);
->  
-> -	if (PageHighMem(pfn_to_page(pfn))) {
-> +	if (PageHighMem(page) || xpfo_page_is_unmapped(page)) {
->  		/* The buffer does not have a mapping.  Map it in and copy */
->  		unsigned int offset = orig_addr & ~PAGE_MASK;
->  		char *buffer;
-> diff --git a/mm/xpfo.c b/mm/xpfo.c
-> index 3cd45f68b5ad..3f305f31a072 100644
-> --- a/mm/xpfo.c
-> +++ b/mm/xpfo.c
-> @@ -206,3 +206,12 @@ void xpfo_kunmap(void *kaddr, struct page *page)
->  	spin_unlock_irqrestore(&xpfo->maplock, flags);
->  }
->  EXPORT_SYMBOL(xpfo_kunmap);
-> +
-> +inline bool xpfo_page_is_unmapped(struct page *page)
-> +{
-> +	if (!static_branch_unlikely(&xpfo_inited))
-> +		return false;
-> +
-> +	return test_bit(XPFO_PAGE_UNMAPPED, &lookup_xpfo(page)->flags);
-> +}
-> +EXPORT_SYMBOL(xpfo_page_is_unmapped);
+> Too late for that. VM_DONTFORK is already implemented
+> through MADV_DONTFORK & MADV_DOFORK, in a way that is
+> very similar to the MADV_WIPEONFORK from these patches.
 
-How can it be inline and 'EXPORT_SYMBOL' ? And why make it inline? It
-surely does not need to be access that often?
+Yeah, those two seem to be breaking the "madvise as an advise" semantic as
+well but that doesn't mean we should follow that pattern any further.
 
-> -- 
-> 2.11.0
-> 
+> I wonder if that was done because MAP_* flags are a
+> bitmap, with a very limited number of values as a result,
+> while MADV_* constants have an essentially unlimited
+> numerical namespace available.
+
+That might have been the reason or it could have been simply because it
+is easier to put something into madvise than mmap...
+
+So back to the question. Is there any real usecase where you want to
+have this on/off like or would a simple MAP_ZERO_ON_FORK be sufficient.
+There should be some bits left between from my quick grep over arch
+mman.h.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
