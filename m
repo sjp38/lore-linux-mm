@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D92FE6B02B4
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 13:10:06 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id b83so12804767pfl.6
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 10:10:06 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E0DEE6B02F3
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 13:10:21 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id y192so12548661pgd.12
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 10:10:21 -0700 (PDT)
 Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id l21si4244982pgo.614.2017.08.10.10.10.05
+        by mx.google.com with ESMTP id f13si4122108pgn.594.2017.08.10.10.10.20
         for <linux-mm@kvack.org>;
-        Thu, 10 Aug 2017 10:10:05 -0700 (PDT)
+        Thu, 10 Aug 2017 10:10:20 -0700 (PDT)
 From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: [PATCH v6 1/9] arm64: hugetlb: set_huge_pte_at Add WARN_ON on !pte_present
-Date: Thu, 10 Aug 2017 18:08:58 +0100
-Message-Id: <20170810170906.30772-2-punit.agrawal@arm.com>
+Subject: [PATCH v6 2/9] arm64: hugetlb: Introduce pte_pgprot helper
+Date: Thu, 10 Aug 2017 18:08:59 +0100
+Message-Id: <20170810170906.30772-3-punit.agrawal@arm.com>
 In-Reply-To: <20170810170906.30772-1-punit.agrawal@arm.com>
 References: <20170810170906.30772-1-punit.agrawal@arm.com>
 Sender: owner-linux-mm@kvack.org
@@ -21,38 +21,57 @@ Cc: Steve Capper <steve.capper@arm.com>, linux-mm@kvack.org, linux-arm-kernel@li
 
 From: Steve Capper <steve.capper@arm.com>
 
-This patch adds a WARN_ON to set_huge_pte_at as the accessor assumes
-that entries to be written down are all present. (There are separate
-accessors to clear huge ptes).
-
-We will need to handle the !pte_present case where memory offlining
-is used on hugetlb pages. swap and migration entries will be supplied
-to set_huge_pte_at in this case.
+Rather than xor pte bits in various places, use this helper function.
 
 Cc: David Woods <dwoods@mellanox.com>
 Signed-off-by: Steve Capper <steve.capper@arm.com>
 Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
+Reviewed-by: Mark Rutland <mark.rutland@arm.com>
 ---
- arch/arm64/mm/hugetlbpage.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ arch/arm64/mm/hugetlbpage.c | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)
 
 diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
-index 656e0ece2289..7b61e4833432 100644
+index 7b61e4833432..cb84ca33bc6b 100644
 --- a/arch/arm64/mm/hugetlbpage.c
 +++ b/arch/arm64/mm/hugetlbpage.c
-@@ -67,6 +67,12 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
- 	unsigned long pfn;
- 	pgprot_t hugeprot;
+@@ -41,6 +41,16 @@ int pud_huge(pud_t pud)
+ #endif
+ }
  
-+	/*
-+	 * Code needs to be expanded to handle huge swap and migration
-+	 * entries. Needed for HUGETLB and MEMORY_FAILURE.
-+	 */
-+	WARN_ON(!pte_present(pte));
++/*
++ * Select all bits except the pfn
++ */
++static inline pgprot_t pte_pgprot(pte_t pte)
++{
++	unsigned long pfn = pte_pfn(pte);
 +
- 	if (!pte_cont(pte)) {
- 		set_pte_at(mm, addr, ptep, pte);
- 		return;
++	return __pgprot(pte_val(pfn_pte(pfn, __pgprot(0))) ^ pte_val(pte));
++}
++
+ static int find_num_contig(struct mm_struct *mm, unsigned long addr,
+ 			   pte_t *ptep, size_t *pgsize)
+ {
+@@ -80,7 +90,7 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+ 
+ 	ncontig = find_num_contig(mm, addr, ptep, &pgsize);
+ 	pfn = pte_pfn(pte);
+-	hugeprot = __pgprot(pte_val(pfn_pte(pfn, __pgprot(0))) ^ pte_val(pte));
++	hugeprot = pte_pgprot(pte);
+ 	for (i = 0; i < ncontig; i++) {
+ 		pr_debug("%s: set pte %p to 0x%llx\n", __func__, ptep,
+ 			 pte_val(pfn_pte(pfn, hugeprot)));
+@@ -223,9 +233,7 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
+ 		size_t pgsize = 0;
+ 		unsigned long pfn = pte_pfn(pte);
+ 		/* Select all bits except the pfn */
+-		pgprot_t hugeprot =
+-			__pgprot(pte_val(pfn_pte(pfn, __pgprot(0))) ^
+-				 pte_val(pte));
++		pgprot_t hugeprot = pte_pgprot(pte);
+ 
+ 		pfn = pte_pfn(pte);
+ 		ncontig = find_num_contig(vma->vm_mm, addr, ptep,
 -- 
 2.13.2
 
