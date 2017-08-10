@@ -1,142 +1,276 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AAA2C6B0292
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 08:36:05 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id q50so829484wrb.14
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 05:36:05 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 9si5390025wra.123.2017.08.10.05.36.03
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 62C2C6B0292
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 08:51:22 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id o82so5830639pfj.11
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 05:51:22 -0700 (PDT)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id 81si1515050pfs.644.2017.08.10.05.51.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 10 Aug 2017 05:36:04 -0700 (PDT)
-Date: Thu, 10 Aug 2017 14:36:02 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Re: [PATCH] oom_reaper: close race without using oom_lock
-Message-ID: <20170810123601.GR23863@dhcp22.suse.cz>
-References: <201708051002.FGG87553.QtFFFMVJOSOOHL@I-love.SAKURA.ne.jp>
- <20170807060243.GA32434@dhcp22.suse.cz>
- <201708080214.v782EoDD084315@www262.sakura.ne.jp>
- <20170810113400.GO23863@dhcp22.suse.cz>
- <201708102110.CAB48416.JSMFVHLOtOOFFQ@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Aug 2017 05:51:20 -0700 (PDT)
+Received: by mail-pg0-x243.google.com with SMTP id y192so550360pgd.1
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 05:51:20 -0700 (PDT)
+Date: Thu, 10 Aug 2017 20:51:33 +0800
+From: Boqun Feng <boqun.feng@gmail.com>
+Subject: Re: [PATCH v8 06/14] lockdep: Detect and handle hist_lock ring
+ buffer overwrite
+Message-ID: <20170810125133.2poixhni4d5aqkpy@tardis>
+References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
+ <1502089981-21272-7-git-send-email-byungchul.park@lge.com>
+ <20170810115922.kegrfeg6xz7mgpj4@tardis>
+ <016b01d311d1$d02acfa0$70806ee0$@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="i7xzaj27tckrkcft"
 Content-Disposition: inline
-In-Reply-To: <201708102110.CAB48416.JSMFVHLOtOOFFQ@I-love.SAKURA.ne.jp>
+In-Reply-To: <016b01d311d1$d02acfa0$70806ee0$@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, hannes@cmpxchg.org, rientjes@google.com, linux-kernel@vger.kernel.org
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: peterz@infradead.org, mingo@kernel.org, tglx@linutronix.de, walken@google.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-On Thu 10-08-17 21:10:30, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Tue 08-08-17 11:14:50, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-> > > > On Sat 05-08-17 10:02:55, Tetsuo Handa wrote:
-> > > > > Michal Hocko wrote:
-> > > > > > On Wed 26-07-17 20:33:21, Tetsuo Handa wrote:
-> > > > > > > My question is, how can users know it if somebody was OOM-killed needlessly
-> > > > > > > by allowing MMF_OOM_SKIP to race.
-> > > > > > 
-> > > > > > Is it really important to know that the race is due to MMF_OOM_SKIP?
-> > > > > 
-> > > > > Yes, it is really important. Needlessly selecting even one OOM victim is
-> > > > > a pain which is difficult to explain to and persuade some of customers.
-> > > > 
-> > > > How is this any different from a race with a task exiting an releasing
-> > > > some memory after we have crossed the point of no return and will kill
-> > > > something?
-> > > 
-> > > I'm not complaining about an exiting task releasing some memory after we have
-> > > crossed the point of no return.
-> > > 
-> > > What I'm saying is that we can postpone "the point of no return" if we ignore
-> > > MMF_OOM_SKIP for once (both this "oom_reaper: close race without using oom_lock"
-> > > thread and "mm, oom: task_will_free_mem(current) should ignore MMF_OOM_SKIP for
-> > > once." thread). These are race conditions we can avoid without crystal ball.
-> > 
-> > If those races are really that common than we can handle them even
-> > without "try once more" tricks. Really this is just an ugly hack. If you
-> > really care then make sure that we always try to allocate from memory
-> > reserves before going down the oom path. In other words, try to find a
-> > robust solution rather than tweaks around a problem.
-> 
-> Since your "mm, oom: allow oom reaper to race with exit_mmap" patch removes
-> oom_lock serialization from the OOM reaper, possibility of calling out_of_memory()
-> due to successful mutex_trylock(&oom_lock) would increase when the OOM reaper set
-> MMF_OOM_SKIP quickly.
-> 
-> What if task_is_oom_victim(current) became true and MMF_OOM_SKIP was set
-> on current->mm between after __gfp_pfmemalloc_flags() returned 0 and before
-> out_of_memory() is called (due to successful mutex_trylock(&oom_lock)) ?
-> 
-> Excuse me? Are you suggesting to try memory reserves before
-> task_is_oom_victim(current) becomes true?
 
-No what I've tried to say is that if this really is a real problem,
-which I am not sure about, then the proper way to handle that is to
-attempt to allocate from memory reserves for an oom victim. I would be
-even willing to take the oom_lock back into the oom reaper path if the
-former turnes out to be awkward to implement. But all this assumes this
-is a _real_ problem.
+--i7xzaj27tckrkcft
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> > [...]
-> > > > Yes that is possible. Once you are in the shrinker land then you have to
-> > > > count with everything. And if you want to imply that
-> > > > get_page_from_freelist inside __alloc_pages_may_oom may lockup while
-> > > > holding the oom_lock then you might be right but I haven't checked that
-> > > > too deeply. It might be very well possible that the node reclaim bails
-> > > > out early when we are under OOM.
-> > > 
-> > > Yes, I worry that get_page_from_freelist() with oom_lock held might lockup.
-> > > 
-> > > If we are about to invoke the OOM killer for the first time, it is likely that
-> > > __node_reclaim() finds nothing to reclaim and will bail out immediately. But if
-> > > we are about to invoke the OOM killer again, it is possible that small amount of
-> > > memory was reclaimed by the OOM killer/reaper, and all reclaimed memory was assigned
-> > > to things which __node_reclaim() will find and try to reclaim, and any thread which
-> > > took oom_lock will call __node_reclaim() and __node_reclaim() find something
-> > > reclaimable if __GFP_DIRECT_RECLAIM && !__GFP_NORETRY memory allocation is involved.
-> > > 
-> > > We should consider such situation volatile (i.e. should not make assumption that
-> > > get_page_from_freelist() with oom_lock held shall bail out immediately) if shrinkers
-> > > which (directly or indirectly) involve __GFP_DIRECT_RECLAIM && !__GFP_NORETRY memory
-> > > allocation are permitted.
-> > 
-> > Well, I think you are so focused on details that you most probably miss
-> > a large picture here. Just think about the purpose of the node reclaim.
-> > It is there to _prefer_ local allocations than go to a distant NUMA
-> > node. So rather than speculating about details maybe it makes sense to
-> > consider whether it actually makes any sense to even try to node reclaim
-> > when we are OOM. In other words why to do an additional reclaim when we
-> > just found out that all reclaim attempts have failed...
-> 
-> Below is what I will propose if there is possibility of lockup.
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index be5bd60..718b2e7 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3271,9 +3271,11 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
->  	/*
->  	 * Go through the zonelist yet one more time, keep very high watermark
->  	 * here, this is only to catch a parallel oom killing, we must fail if
-> -	 * we're still under heavy pressure.
-> +	 * we're still under heavy pressure. But make sure that this reclaim
-> +	 * attempt shall not involve __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
-> +	 * allocation which will never fail due to oom_lock already held.
->  	 */
-> -	page = get_page_from_freelist(gfp_mask | __GFP_HARDWALL, order,
-> +	page = get_page_from_freelist((gfp_mask | __GFP_HARDWALL) & ~__GFP_DIRECT_RECLAIM, order,
->  					ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
->  	if (page)
->  		goto out;
+On Thu, Aug 10, 2017 at 09:11:32PM +0900, Byungchul Park wrote:
+> > -----Original Message-----
+> > From: Boqun Feng [mailto:boqun.feng@gmail.com]
+> > Sent: Thursday, August 10, 2017 8:59 PM
+> > To: Byungchul Park
+> > Cc: peterz@infradead.org; mingo@kernel.org; tglx@linutronix.de;
+> > walken@google.com; kirill@shutemov.name; linux-kernel@vger.kernel.org;
+> > linux-mm@kvack.org; akpm@linux-foundation.org; willy@infradead.org;
+> > npiggin@gmail.com; kernel-team@lge.com
+> > Subject: Re: [PATCH v8 06/14] lockdep: Detect and handle hist_lock ring
+> > buffer overwrite
+> >=20
+> > On Mon, Aug 07, 2017 at 04:12:53PM +0900, Byungchul Park wrote:
+> > > The ring buffer can be overwritten by hardirq/softirq/work contexts.
+> > > That cases must be considered on rollback or commit. For example,
+> > >
+> > >           |<------ hist_lock ring buffer size ----->|
+> > >           ppppppppppppiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+> > > wrapped > iiiiiiiiiiiiiiiiiiiiiii....................
+> > >
+> > >           where 'p' represents an acquisition in process context,
+> > >           'i' represents an acquisition in irq context.
+> > >
+> > > On irq exit, crossrelease tries to rollback idx to original position,
+> > > but it should not because the entry already has been invalid by
+> > > overwriting 'i'. Avoid rollback or commit for entries overwritten.
+> > >
+> > > Signed-off-by: Byungchul Park <byungchul.park@lge.com>
+> > > ---
+> > >  include/linux/lockdep.h  | 20 +++++++++++++++++++
+> > >  include/linux/sched.h    |  3 +++
+> > >  kernel/locking/lockdep.c | 52
+> > +++++++++++++++++++++++++++++++++++++++++++-----
+> > >  3 files changed, 70 insertions(+), 5 deletions(-)
+> > >
+> > > diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
+> > > index 0c8a1b8..48c244c 100644
+> > > --- a/include/linux/lockdep.h
+> > > +++ b/include/linux/lockdep.h
+> > > @@ -284,6 +284,26 @@ struct held_lock {
+> > >   */
+> > >  struct hist_lock {
+> > >  	/*
+> > > +	 * Id for each entry in the ring buffer. This is used to
+> > > +	 * decide whether the ring buffer was overwritten or not.
+> > > +	 *
+> > > +	 * For example,
+> > > +	 *
+> > > +	 *           |<----------- hist_lock ring buffer size ------->|
+> > > +	 *           pppppppppppppppppppppiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+> > > +	 * wrapped > iiiiiiiiiiiiiiiiiiiiiiiiiii.......................
+> > > +	 *
+> > > +	 *           where 'p' represents an acquisition in process
+> > > +	 *           context, 'i' represents an acquisition in irq
+> > > +	 *           context.
+> > > +	 *
+> > > +	 * In this example, the ring buffer was overwritten by
+> > > +	 * acquisitions in irq context, that should be detected on
+> > > +	 * rollback or commit.
+> > > +	 */
+> > > +	unsigned int hist_id;
+> > > +
+> > > +	/*
+> > >  	 * Seperate stack_trace data. This will be used at commit step.
+> > >  	 */
+> > >  	struct stack_trace	trace;
+> > > diff --git a/include/linux/sched.h b/include/linux/sched.h
+> > > index 5becef5..373466b 100644
+> > > --- a/include/linux/sched.h
+> > > +++ b/include/linux/sched.h
+> > > @@ -855,6 +855,9 @@ struct task_struct {
+> > >  	unsigned int xhlock_idx;
+> > >  	/* For restoring at history boundaries */
+> > >  	unsigned int xhlock_idx_hist[CONTEXT_NR];
+> > > +	unsigned int hist_id;
+> > > +	/* For overwrite check at each context exit */
+> > > +	unsigned int hist_id_save[CONTEXT_NR];
+> > >  #endif
+> > >
+> > >  #ifdef CONFIG_UBSAN
+> > > diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+> > > index afd6e64..5168dac 100644
+> > > --- a/kernel/locking/lockdep.c
+> > > +++ b/kernel/locking/lockdep.c
+> > > @@ -4742,6 +4742,17 @@ void lockdep_rcu_suspicious(const char *file,
+> > const int line, const char *s)
+> > >  static atomic_t cross_gen_id; /* Can be wrapped */
+> > >
+> > >  /*
+> > > + * Make an entry of the ring buffer invalid.
+> > > + */
+> > > +static inline void invalidate_xhlock(struct hist_lock *xhlock)
+> > > +{
+> > > +	/*
+> > > +	 * Normally, xhlock->hlock.instance must be !NULL.
+> > > +	 */
+> > > +	xhlock->hlock.instance =3D NULL;
+> > > +}
+> > > +
+> > > +/*
+> > >   * Lock history stacks; we have 3 nested lock history stacks:
+> > >   *
+> > >   *   Hard IRQ
+> > > @@ -4773,14 +4784,28 @@ void lockdep_rcu_suspicious(const char *file,
+> > const int line, const char *s)
+> > >   */
+> > >  void crossrelease_hist_start(enum context_t c)
+> > >  {
+> > > -	if (current->xhlocks)
+> > > -		current->xhlock_idx_hist[c] =3D current->xhlock_idx;
+> > > +	struct task_struct *cur =3D current;
+> > > +
+> > > +	if (cur->xhlocks) {
+> > > +		cur->xhlock_idx_hist[c] =3D cur->xhlock_idx;
+> > > +		cur->hist_id_save[c] =3D cur->hist_id;
+> > > +	}
+> > >  }
+> > >
+> > >  void crossrelease_hist_end(enum context_t c)
+> > >  {
+> > > -	if (current->xhlocks)
+> > > -		current->xhlock_idx =3D current->xhlock_idx_hist[c];
+> > > +	struct task_struct *cur =3D current;
+> > > +
+> > > +	if (cur->xhlocks) {
+> > > +		unsigned int idx =3D cur->xhlock_idx_hist[c];
+> > > +		struct hist_lock *h =3D &xhlock(idx);
+> > > +
+> > > +		cur->xhlock_idx =3D idx;
+> > > +
+> > > +		/* Check if the ring was overwritten. */
+> > > +		if (h->hist_id !=3D cur->hist_id_save[c])
+> >=20
+> > Could we use:
+> >=20
+> > 		if (h->hist_id !=3D idx)
+>=20
+> No, we cannot.
+>=20
 
-get_page_from_freelist doesn't check __GFP_DIRECT_RECLAIM. I was think
-something like ALLOC_OOM which would skip node reclaim.
+Hey, I'm not buying it. task_struct::hist_id and task_struct::xhlock_idx
+are increased at the same place(in add_xhlock()), right?
 
--- 
-Michal Hocko
-SUSE Labs
+And, yes, xhlock_idx will get decreased when we do ring-buffer
+unwinding, but that's OK, because we need to throw away those recently
+added items.
+
+And xhlock_idx always points to the most recently added valid item,
+right?  Any other item's idx must "before()" the most recently added
+one's, right? So ::xhlock_idx acts just like a timestamp, doesn't it?
+
+Maybe I'm missing something subtle, but could you show me an example,
+that could end up being a problem if we use xhlock_idx as the hist_id?
+
+> hist_id is a kind of timestamp and used to detect overwriting
+> data into places of same indexes of the ring buffer. And idx is
+> just an index. :) IOW, they mean different things.
+>=20
+> >=20
+> > here, and
+> >=20
+> > > +			invalidate_xhlock(h);
+> > > +	}
+> > >  }
+> > >
+> > >  static int cross_lock(struct lockdep_map *lock)
+> > > @@ -4826,6 +4851,7 @@ static inline int depend_after(struct held_lock
+> > *hlock)
+> > >   * Check if the xhlock is valid, which would be false if,
+> > >   *
+> > >   *    1. Has not used after initializaion yet.
+> > > + *    2. Got invalidated.
+> > >   *
+> > >   * Remind hist_lock is implemented as a ring buffer.
+> > >   */
+> > > @@ -4857,6 +4883,7 @@ static void add_xhlock(struct held_lock *hlock)
+> > >
+> > >  	/* Initialize hist_lock's members */
+> > >  	xhlock->hlock =3D *hlock;
+> > > +	xhlock->hist_id =3D current->hist_id++;
+
+Besides, is this code correct? Does this just make xhlock->hist_id
+one-less-than the curr->hist_id, which cause the invalidation every time
+you do ring buffer unwinding?
+
+Regards,
+Boqun
+
+> >=20
+> > use:
+> >=20
+> > 	xhlock->hist_id =3D idx;
+> >=20
+> > and,
+>=20
+> Same.
+>=20
+> >=20
+> >=20
+> > >
+> > >  	xhlock->trace.nr_entries =3D 0;
+> > >  	xhlock->trace.max_entries =3D MAX_XHLOCK_TRACE_ENTRIES;
+> > > @@ -4995,6 +5022,7 @@ static int commit_xhlock(struct cross_lock *xlo=
+ck,
+> > struct hist_lock *xhlock)
+> > >  static void commit_xhlocks(struct cross_lock *xlock)
+> > >  {
+> > >  	unsigned int cur =3D current->xhlock_idx;
+> > > +	unsigned int prev_hist_id =3D xhlock(cur).hist_id;
+> >=20
+> > use:
+> > 	unsigned int prev_hist_id =3D cur;
+> >=20
+> > here.
+>=20
+> Same.
+>=20
+>=20
+
+--i7xzaj27tckrkcft
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEEj5IosQTPz8XU1wRHSXnow7UH+rgFAlmMVtIACgkQSXnow7UH
++riGdwgApcsiZdqKu98PF9CY95arBR9U7rAe0qtx9PnXng2i2G77+aoMMEWVtCh1
+pJVzvEgZtBbjOImUeF30d+H9Vy3DdkcR9GFmt2tLT7kszR2iE9Fakqk2hzR0eXHv
+Z+kis+wckatN9sGFL1OsP3HAC7Mx1HTRHKnbG/cXPufrKToap9Sk6yOl9rZeSd69
+GRkL2Nz1CruwDVRvmaMEUHTVEIhQGupd0BzEKJ8GFo3qTqyaoyvleo/83kNJGZNc
+EHWHqYRJazpFjoICYA9g10itMqz4cY+7mSJBiPZpqX1/i9K4CPkik/S3H3vY4jBl
+ffc9OcTp5OW70mLMMGWfYlKvXVqKew==
+=IARR
+-----END PGP SIGNATURE-----
+
+--i7xzaj27tckrkcft--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
