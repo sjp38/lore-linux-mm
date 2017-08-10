@@ -1,135 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 940816B02B4
-	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 20:58:45 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id y192so81160193pgd.12
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 17:58:45 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id 132si3171848pgh.94.2017.08.09.17.58.44
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 509E46B0292
+	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 21:24:55 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id j32so10046028iod.15
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 18:24:55 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id m71si6344756ith.196.2017.08.09.18.24.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Aug 2017 17:58:44 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm] mm: Clear to access sub-page last when clearing huge page
-References: <20170807072131.8343-1-ying.huang@intel.com>
-	<20170809142501.1286e8818359fd95b5794abd@linux-foundation.org>
-Date: Thu, 10 Aug 2017 08:58:39 +0800
-In-Reply-To: <20170809142501.1286e8818359fd95b5794abd@linux-foundation.org>
-	(Andrew Morton's message of "Wed, 9 Aug 2017 14:25:01 -0700")
-Message-ID: <87inhwz1a8.fsf@yhuang-mobile.sh.intel.com>
+        Wed, 09 Aug 2017 18:24:53 -0700 (PDT)
+Subject: Re: [PATCH RFC v2] Add /proc/pid/smaps_rollup
+References: <20170808132554.141143-1-dancol@google.com>
+ <20170810001557.147285-1-dancol@google.com>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <6d20ced6-a7ca-f4b9-81eb-e34517f97644@infradead.org>
+Date: Wed, 9 Aug 2017 18:24:43 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <20170810001557.147285-1-dancol@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>
+To: Daniel Colascione <dancol@google.com>, linux-kernel@vger.kernel.org, timmurray@google.com, joelaf@google.com, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-Hi, Andrew,
+On 08/09/2017 05:15 PM, Daniel Colascione wrote:
+> 
+> diff --git a/Documentation/ABI/testing/procfs-smaps_rollup b/Documentation/ABI/testing/procfs-smaps_rollup
+> new file mode 100644
+> index 000000000000..fd5a3699edf1
+> --- /dev/null
+> +++ b/Documentation/ABI/testing/procfs-smaps_rollup
+> @@ -0,0 +1,34 @@
+> +What:		/proc/pid/smaps_Rollup
 
-Andrew Morton <akpm@linux-foundation.org> writes:
+        		          smaps_rollup
 
-> On Mon,  7 Aug 2017 15:21:31 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
->
->> From: Huang Ying <ying.huang@intel.com>
->> 
->> Huge page helps to reduce TLB miss rate, but it has higher cache
->> footprint, sometimes this may cause some issue.  For example, when
->> clearing huge page on x86_64 platform, the cache footprint is 2M.  But
->> on a Xeon E5 v3 2699 CPU, there are 18 cores, 36 threads, and only 45M
->> LLC (last level cache).  That is, in average, there are 2.5M LLC for
->> each core and 1.25M LLC for each thread.  If the cache pressure is
->> heavy when clearing the huge page, and we clear the huge page from the
->> begin to the end, it is possible that the begin of huge page is
->> evicted from the cache after we finishing clearing the end of the huge
->> page.  And it is possible for the application to access the begin of
->> the huge page after clearing the huge page.
->> 
->> To help the above situation, in this patch, when we clear a huge page,
->> the order to clear sub-pages is changed.  In quite some situation, we
->> can get the address that the application will access after we clear
->> the huge page, for example, in a page fault handler.  Instead of
->> clearing the huge page from begin to end, we will clear the sub-pages
->> farthest from the the sub-page to access firstly, and clear the
->> sub-page to access last.  This will make the sub-page to access most
->> cache-hot and sub-pages around it more cache-hot too.  If we cannot
->> know the address the application will access, the begin of the huge
->> page is assumed to be the the address the application will access.
->> 
->> With this patch, the throughput increases ~28.3% in vm-scalability
->> anon-w-seq test case with 72 processes on a 2 socket Xeon E5 v3 2699
->> system (36 cores, 72 threads).  The test case creates 72 processes,
->> each process mmap a big anonymous memory area and writes to it from
->> the begin to the end.  For each process, other processes could be seen
->> as other workload which generates heavy cache pressure.  At the same
->> time, the cache miss rate reduced from ~33.4% to ~31.7%, the
->> IPC (instruction per cycle) increased from 0.56 to 0.74, and the time
->> spent in user space is reduced ~7.9%
->> 
->> Thanks Andi Kleen to propose to use address to access to determine the
->> order of sub-pages to clear.
->> 
->> The hugetlbfs access address could be improved, will do that in
->> another patch.
->
-> I agree with what others said, plus...
->
->> @@ -4374,9 +4374,31 @@ void clear_huge_page(struct page *page,
->>  	}
->>  
->>  	might_sleep();
->> -	for (i = 0; i < pages_per_huge_page; i++) {
->> +	VM_BUG_ON(clamp(addr_hint, addr, addr +
->> +			(pages_per_huge_page << PAGE_SHIFT)) != addr_hint);
->> +	n = (addr_hint - addr) / PAGE_SIZE;
->> +	if (2 * n <= pages_per_huge_page) {
->> +		base = 0;
->> +		l = n;
->> +		for (i = pages_per_huge_page - 1; i >= 2 * n; i--) {
->> +			cond_resched();
->> +			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
->> +		}
->> +	} else {
->> +		base = 2 * n - pages_per_huge_page;
->> +		l = pages_per_huge_page - n;
->> +		for (i = 0; i < base; i++) {
->> +			cond_resched();
->> +			clear_user_highpage(page + i, addr + i * PAGE_SIZE);
->> +		}
->> +	}
->> +	for (i = 0; i < l; i++) {
->> +		cond_resched();
->> +		clear_user_highpage(page + base + i,
->> +				    addr + (base + i) * PAGE_SIZE);
->>  		cond_resched();
->> -		clear_user_highpage(page + i, addr + i * PAGE_SIZE);
->> +		clear_user_highpage(page + base + 2 * l - 1 - i,
->> +				    addr + (base + 2 * l - 1 - i) * PAGE_SIZE);
->
-> Please document this design with a carefully written code comment.
-> For example, why was "2 * n" chosen?  What is it trying to achieve?
+\although I would prefer smaps_summary. whatever.
 
-Sure.
+> +Date:		August 2017
+> +Contact:	Daniel Colascione <dancol@google.com>
+> +Description:
+> +		This file provides pre-summed memory information for a
+> +		process.  The format is identical to /proc/pid/smaps,
+> +		except instead of an entry for each VMA in a process,
+> +		smaps_rollup has a single entry (tagged "[rollup]")
+> +		for which each field is the sum of the corresponding
+> +		fields from all the maps in /proc/pid/smaps.
+> +		For more details, see the procfs man page.
 
-"2 * n" here is to determine whether addr_hint is in the first half (2 *
-n <= pages_per_huge_page) or the second half (2 * n >
-pages_per_huge_page) of the huge page.
 
-> Also, the final clearing loop "for (i = 0; i < l; i++)" might cause
-> eviction of data which was cached in the previous loop.  Perhaps some
-> additional gains will be made by clearing the hugepage in a
-> left-right-left-right "start from the ends and work inwards" manner, if
-> you see what I mean.  So the 4k pages immediately surrounding addr_hint
-> are the most-recently-cleared.  Although accesses to the data at lower
-> addresses than addr_hint are probably somewhat rare (and may be
-> nonexistent in your synthetic test case).
-
-Yes.  I think I have done exactly this in the patch.  For each iteration
-of the loop, two sub-pages will be cleared: base + i, and base + 2 * l -
-1 - i, that is, the left and right of the fault sub-page, and finally
-reach the fault sub-page as the last sub-page to clear.
-
-Best Regards,
-Huang, Ying
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
