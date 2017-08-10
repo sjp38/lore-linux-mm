@@ -1,83 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CD456B0292
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 03:02:10 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id g32so11701114wrd.8
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 00:02:10 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C7176B0292
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 03:05:21 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id v31so11710045wrc.7
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 00:05:21 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y67si4220183wmy.237.2017.08.10.00.02.08
+        by mx.google.com with ESMTPS id 125si4314103wmy.54.2017.08.10.00.05.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 10 Aug 2017 00:02:08 -0700 (PDT)
-Date: Thu, 10 Aug 2017 09:02:06 +0200
+        Thu, 10 Aug 2017 00:05:20 -0700 (PDT)
+Date: Thu, 10 Aug 2017 09:05:18 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: suspicious __GFP_NOMEMALLOC in selinux
-Message-ID: <20170810070206.GA23863@dhcp22.suse.cz>
-References: <20170803081152.GC12521@dhcp22.suse.cz>
- <5aca0179-3b04-aa1a-58cd-668a04f63ae7@I-love.SAKURA.ne.jp>
- <20170803103337.GH12521@dhcp22.suse.cz>
- <201708031944.JCB39029.SJOOOLHFQFMVFt@I-love.SAKURA.ne.jp>
- <20170803110548.GK12521@dhcp22.suse.cz>
- <CAHC9VhQ_TtFPQL76OEui8_rfvDJ5i6AEdPdYLSHtn1vtWEKTOA@mail.gmail.com>
- <20170804075636.GD26029@dhcp22.suse.cz>
- <CAHC9VhR_SJUg2wkKhoeXHJeLrNFh=KYwSgz-5X57xx0Maa95Mg@mail.gmail.com>
- <20170807065827.GC32434@dhcp22.suse.cz>
- <CAHC9VhRGmBn7EA1iLzHjv2A3nawc5ZtZs+cjdVm4BUX0wGGHVA@mail.gmail.com>
+Subject: Re: [virtio-dev] Re: [PATCH v13 4/5] mm: support reporting free page
+ blocks
+Message-ID: <20170810070517.GB23863@dhcp22.suse.cz>
+References: <1501742299-4369-1-git-send-email-wei.w.wang@intel.com>
+ <1501742299-4369-5-git-send-email-wei.w.wang@intel.com>
+ <20170803091151.GF12521@dhcp22.suse.cz>
+ <59895668.9090104@intel.com>
+ <59895B71.7050709@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAHC9VhRGmBn7EA1iLzHjv2A3nawc5ZtZs+cjdVm4BUX0wGGHVA@mail.gmail.com>
+In-Reply-To: <59895B71.7050709@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Moore <paul@paul-moore.com>
-Cc: mgorman@suse.de, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, selinux@tycho.nsa.gov
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mawilcox@microsoft.com, akpm@linux-foundation.org, virtio-dev@lists.oasis-open.org, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On Tue 08-08-17 09:34:15, Paul Moore wrote:
-> On Mon, Aug 7, 2017 at 2:58 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Fri 04-08-17 13:12:04, Paul Moore wrote:
-> >> On Fri, Aug 4, 2017 at 3:56 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > [...]
-> >> > Btw. Should I resend the patch or somebody will take it from this email
-> >> > thread?
+On Tue 08-08-17 14:34:25, Wei Wang wrote:
+> On 08/08/2017 02:12 PM, Wei Wang wrote:
+> >On 08/03/2017 05:11 PM, Michal Hocko wrote:
+> >>On Thu 03-08-17 14:38:18, Wei Wang wrote:
+> >>This is just too ugly and wrong actually. Never provide struct page
+> >>pointers outside of the zone->lock. What I've had in mind was to simply
+> >>walk free lists of the suitable order and call the callback for each
+> >>one.
+> >>Something as simple as
 > >>
-> >> No, unless your mailer mangled the patch I should be able to pull it
-> >> from this thread.  However, I'm probably going to let this sit until
-> >> early next week on the odd chance that anyone else wants to comment on
-> >> the flag choice.  I'll send another reply once I merge the patch.
+> >>    for (i = 0; i < MAX_NR_ZONES; i++) {
+> >>        struct zone *zone = &pgdat->node_zones[i];
+> >>
+> >>        if (!populated_zone(zone))
+> >>            continue;
 > >
-> > OK, there is certainly no hurry for merging this. Thanks!
-> > --
-> > Michal Hocko
-> > SUSE Labs
-> 
-> Merged into selinux/next with this patch description, and your
-> sign-off (I had to munge the description a bit based on the thread).
-> Are you okay with this, especially your sign-off?
+> >Can we directly use for_each_populated_zone(zone) here?
 
-Yes. Thanks!
+yes, my example couldn't because I was still assuming per-node API
 
-> 
->   commit 476accbe2f6ef69caeebe99f52a286e12ac35aee
->   Author: Michal Hocko <mhocko@kernel.org>
->   Date:   Thu Aug 3 10:11:52 2017 +0200
-> 
->    selinux: use GFP_NOWAIT in the AVC kmem_caches
-> 
->    There is a strange __GFP_NOMEMALLOC usage pattern in SELinux,
->    specifically GFP_ATOMIC | __GFP_NOMEMALLOC which doesn't make much
->    sense.  GFP_ATOMIC on its own allows to access memory reserves while
->    __GFP_NOMEMALLOC dictates we cannot use memory reserves.  Replace this
->    with the much more sane GFP_NOWAIT in the AVC code as we can tolerate
->    memory allocation failures in that code.
-> 
->    Signed-off-by: Michal Hocko <mhocko@kernel.org>
->    Acked-by: Mel Gorman <mgorman@suse.de>
->    Signed-off-by: Paul Moore <paul@paul-moore.com>
-> 
-> -- 
-> paul moore
-> www.paul-moore.com
+> >>spin_lock_irqsave(&zone->lock, flags);
+> >>        for (order = min_order; order < MAX_ORDER; ++order) {
+> >
+> >
+> >This appears to be covered by for_each_migratetype_order(order, mt) below.
 
+yes but
+#define for_each_migratetype_order(order, type) \
+	for (order = 0; order < MAX_ORDER; order++) \
+		for (type = 0; type < MIGRATE_TYPES; type++)
+
+so you would have to skip orders < min_order
 -- 
 Michal Hocko
 SUSE Labs
