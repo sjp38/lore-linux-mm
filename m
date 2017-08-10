@@ -1,90 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C1076B0292
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 03:53:53 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 92so11853814wra.11
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 00:53:53 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a1si4823289wrd.47.2017.08.10.00.53.52
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A54C6B0292
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 04:10:48 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 16so178276pgg.8
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 01:10:48 -0700 (PDT)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id q8si3660947pgs.869.2017.08.10.01.10.46
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 10 Aug 2017 00:53:52 -0700 (PDT)
-Date: Thu, 10 Aug 2017 09:53:50 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [virtio-dev] Re: [PATCH v13 4/5] mm: support reporting free page
- blocks
-Message-ID: <20170810075350.GE23863@dhcp22.suse.cz>
-References: <1501742299-4369-1-git-send-email-wei.w.wang@intel.com>
- <1501742299-4369-5-git-send-email-wei.w.wang@intel.com>
- <20170803091151.GF12521@dhcp22.suse.cz>
- <59895668.9090104@intel.com>
- <59895B71.7050709@intel.com>
- <20170810070517.GB23863@dhcp22.suse.cz>
- <598C0D7A.9060909@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Aug 2017 01:10:46 -0700 (PDT)
+Received: by mail-pf0-x22d.google.com with SMTP id c28so142292pfe.3
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 01:10:46 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <598C0D7A.9060909@intel.com>
+In-Reply-To: <20170810071059.GC23863@dhcp22.suse.cz>
+References: <CADK2BfzM9V=C3Kk6v714K3NVX58Q6pEaAMiHDGSyr6PakC2O=w@mail.gmail.com>
+ <20170810071059.GC23863@dhcp22.suse.cz>
+From: wang Yu <yuwang668899@gmail.com>
+Date: Thu, 10 Aug 2017 16:10:45 +0800
+Message-ID: <CADK2BfwC3WDGwoDPSjX1UpwP-4fDz5fSBjdENbxn5XQL8y3K3A@mail.gmail.com>
+Subject: Re: memcg Can't context between v1 and v2 because css->refcnt not released
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mawilcox@microsoft.com, akpm@linux-foundation.org, virtio-dev@lists.oasis-open.org, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 10-08-17 15:38:34, Wei Wang wrote:
-> On 08/10/2017 03:05 PM, Michal Hocko wrote:
-> >On Tue 08-08-17 14:34:25, Wei Wang wrote:
-> >>On 08/08/2017 02:12 PM, Wei Wang wrote:
-> >>>On 08/03/2017 05:11 PM, Michal Hocko wrote:
-> >>>>On Thu 03-08-17 14:38:18, Wei Wang wrote:
-> >>>>This is just too ugly and wrong actually. Never provide struct page
-> >>>>pointers outside of the zone->lock. What I've had in mind was to simply
-> >>>>walk free lists of the suitable order and call the callback for each
-> >>>>one.
-> >>>>Something as simple as
-> >>>>
-> >>>>    for (i = 0; i < MAX_NR_ZONES; i++) {
-> >>>>        struct zone *zone = &pgdat->node_zones[i];
-> >>>>
-> >>>>        if (!populated_zone(zone))
-> >>>>            continue;
-> >>>Can we directly use for_each_populated_zone(zone) here?
-> >yes, my example couldn't because I was still assuming per-node API
-> >
-> >>>>spin_lock_irqsave(&zone->lock, flags);
-> >>>>        for (order = min_order; order < MAX_ORDER; ++order) {
-> >>>
-> >>>This appears to be covered by for_each_migratetype_order(order, mt) below.
-> >yes but
-> >#define for_each_migratetype_order(order, type) \
-> >	for (order = 0; order < MAX_ORDER; order++) \
-> >		for (type = 0; type < MIGRATE_TYPES; type++)
-> >
-> >so you would have to skip orders < min_order
-> 
-> Yes, that's why we have a new macro
-> 
-> #define for_each_migratetype_order_decend(min_order, order, type) \
->  for (order = MAX_ORDER - 1; order < MAX_ORDER && order >= min_order; \
->  order--) \
->     for (type = 0; type < MIGRATE_TYPES; type++)
-> 
-> If you don't like the macro, we can also directly use it in the code.
-> 
-> I think it would be better to report the larger free page block first, since
-> the callback has an opportunity (though just a theoretical possibility, good
-> to
-> take that into consideration if possible) to skip reporting the given free
-> page
-> block to the hypervisor as the ring gets full. Losing the small block is
-> better
-> than losing the larger one, in terms of the optimization work.
+at first ,thanks for your reply.
+but i also tested what you said, the problem is also.
+force_empty only call try_to_free_pages, not all the pages remove
+because mem_cgroup_reparent_charges moved
+#cd /sys/fs/cgroup/memory
+#mkdir a
+#echo 0 > a/cgroup.procs
+#sleep 1
+#echo 0 > a/cgroup.procs
+#echo 1 > a/memory.force_empty
+#rmdir a
+#cat /proc/cgroups
+#subsys_name hierarchy num_cgroups enabled
+memory 2 2 1
+the num_cgroups also not released
 
-I see. But I think this is so specialized that opencoding the macro
-would be easier to read.
 
--- 
-Michal Hocko
-SUSE Labs
+
+
+
+2017-08-10 15:10 GMT+08:00 Michal Hocko <mhocko@kernel.org>:
+> On Wed 09-08-17 15:06:34, wang Yu wrote:
+>> Hello Johannes ,Michal,and Tejun:
+>>
+>>   i using memcg v1,  but some reason  i want to context to  memcg v2,
+>> but i can't, here is my step:
+>> #cat /proc/cgroups
+>> #subsys_name hierarchy num_cgroups enabled
+>>  memory 5 1 1
+>> #cd /sys/fs/cgroup/memory
+>> #mkdir a
+>> #echo 0 > a/cgroup.procs
+>> #sleep 1
+>> #echo 0 > cgroup.procs
+>
+> This doesn't do what you think. It will try to add a non-existant pid 0
+> to the root cgroup. You need to remove cgroup a. Moreover it is possible
+> that the `sleep' command will fault some page cache and that will stay
+> in memcg `a' until there is a memory pressure. cgroup v1 had
+> force_empty knob which you can use to drain the cgroup before removal.
+> Then you should be able to umount the v1 cgroup and mount v2.
+> --
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
