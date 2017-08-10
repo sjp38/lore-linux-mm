@@ -1,57 +1,246 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 222156B0292
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 415906B02B4
 	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 06:34:09 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id a186so2470945wmh.9
+Received: by mail-pf0-f197.google.com with SMTP id o82so2923837pfj.11
         for <linux-mm@kvack.org>; Thu, 10 Aug 2017 03:34:09 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p2si4941683wrp.61.2017.08.10.03.34.07
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 10 Aug 2017 03:34:07 -0700 (PDT)
-Date: Thu, 10 Aug 2017 12:34:06 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: memcg Can't context between v1 and v2 because css->refcnt not
- released
-Message-ID: <20170810103405.GL23863@dhcp22.suse.cz>
-References: <CADK2BfzM9V=C3Kk6v714K3NVX58Q6pEaAMiHDGSyr6PakC2O=w@mail.gmail.com>
- <20170810071059.GC23863@dhcp22.suse.cz>
- <CADK2BfwC3WDGwoDPSjX1UpwP-4fDz5fSBjdENbxn5XQL8y3K3A@mail.gmail.com>
- <20170810081920.GG23863@dhcp22.suse.cz>
- <CADK2BfxJim8MvLPY497a+JAK2t9OTq+f1BY0o4qK0ihaWsoEMQ@mail.gmail.com>
- <CADK2BfzarAEQz=_Um23mywmdRvhNbe5OL_7k13XD3D5==nn0qg@mail.gmail.com>
- <CADK2Bfwxp3gSDrYXAxhgoYne2T=1_RyPXqQt_cGHz86dfWgsqg@mail.gmail.com>
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id h5si3738954pgr.918.2017.08.10.03.34.07
+        for <linux-mm@kvack.org>;
+        Thu, 10 Aug 2017 03:34:08 -0700 (PDT)
+Date: Thu, 10 Aug 2017 19:32:53 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v8 06/14] lockdep: Detect and handle hist_lock ring
+ buffer overwrite
+Message-ID: <20170810103253.GB20323@X58A-UD3R>
+References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
+ <1502089981-21272-7-git-send-email-byungchul.park@lge.com>
+ <20170809141605.7r3cldc4na3skcnp@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CADK2Bfwxp3gSDrYXAxhgoYne2T=1_RyPXqQt_cGHz86dfWgsqg@mail.gmail.com>
+In-Reply-To: <20170809141605.7r3cldc4na3skcnp@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wang Yu <yuwang668899@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-[restoring the CC list]
+On Wed, Aug 09, 2017 at 04:16:05PM +0200, Peter Zijlstra wrote:
+> 
+> Hehe, _another_ scheme...
+> 
+> Yes I think this works.. but I had just sort of understood the last one.
+> 
+> How about I do this on top? That I think is a combination of what I
+> proposed last and your single invalidate thing. Combined they solve the
+> problem with the least amount of extra storage (a single int).
+> 
 
-On Thu 10-08-17 17:57:38, wang Yu wrote:
-> 2017-08-10 17:28 GMT+08:00 wang Yu <yuwang668899@gmail.com>:
-[...]
-> > after drop caches, memory.stat  shows not pages belong the group, but
-> > memory.usage_in_bytes not zero, so maybe other pages
-> > has wrong to belong this group
->
-> after drop cache, there maybe have kmem pages ,e.g. slab
-> it can't free both drop cache or tasks free,
-> so back this problem, without mem_cgroup_reparent_charges,
-> cgroup v1 can't umount , and cgroup v2 can't mount
+I like your trying because it looks like making code simple, but there are
+some cases the patch does not cover.
 
-Ohh, right. It is true that there is no explicit control over kmem page
-life time. I am afraid this is something non-trivial to address though.
-I am not sure swithing between cgroup versions is a strong enough use
-case to implement something like that but you can definitely try to do
-that.
--- 
-Michal Hocko
-SUSE Labs
+          pppppppppppppppwwwwwwwwwwwwwwwwwwwwwwwwwiiiiiiiiiiiii
+wrapped > iiiiiiiiiiiiiiiiiiiii................................
+
+          where,
+          p: process
+          w: work
+          i: irq
+
+In this case, your patch cannot detect overwriting 'w' with 'i'. What do
+you think about it?
+
+> ---
+> Subject: lockdep: Simplify xhlock ring buffer invalidation
+> From: Peter Zijlstra <peterz@infradead.org>
+> Date: Wed Aug 9 15:31:27 CEST 2017
+> 
+> 
+> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+> ---
+>  include/linux/lockdep.h  |   20 -----------
+>  include/linux/sched.h    |    4 --
+>  kernel/locking/lockdep.c |   82 ++++++++++++++++++++++++++++++-----------------
+>  3 files changed, 54 insertions(+), 52 deletions(-)
+> 
+> --- a/include/linux/lockdep.h
+> +++ b/include/linux/lockdep.h
+> @@ -284,26 +284,6 @@ struct held_lock {
+>   */
+>  struct hist_lock {
+>  	/*
+> -	 * Id for each entry in the ring buffer. This is used to
+> -	 * decide whether the ring buffer was overwritten or not.
+> -	 *
+> -	 * For example,
+> -	 *
+> -	 *           |<----------- hist_lock ring buffer size ------->|
+> -	 *           pppppppppppppppppppppiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+> -	 * wrapped > iiiiiiiiiiiiiiiiiiiiiiiiiii.......................
+> -	 *
+> -	 *           where 'p' represents an acquisition in process
+> -	 *           context, 'i' represents an acquisition in irq
+> -	 *           context.
+> -	 *
+> -	 * In this example, the ring buffer was overwritten by
+> -	 * acquisitions in irq context, that should be detected on
+> -	 * rollback or commit.
+> -	 */
+> -	unsigned int hist_id;
+> -
+> -	/*
+>  	 * Seperate stack_trace data. This will be used at commit step.
+>  	 */
+>  	struct stack_trace	trace;
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -855,9 +855,7 @@ struct task_struct {
+>  	unsigned int xhlock_idx;
+>  	/* For restoring at history boundaries */
+>  	unsigned int xhlock_idx_hist[XHLOCK_NR];
+> -	unsigned int hist_id;
+> -	/* For overwrite check at each context exit */
+> -	unsigned int hist_id_save[XHLOCK_NR];
+> +	unsigned int xhlock_idx_max;
+>  #endif
+>  
+>  #ifdef CONFIG_UBSAN
+> --- a/kernel/locking/lockdep.c
+> +++ b/kernel/locking/lockdep.c
+> @@ -4818,26 +4818,65 @@ void crossrelease_hist_start(enum contex
+>  {
+>  	struct task_struct *cur = current;
+>  
+> -	if (cur->xhlocks) {
+> +	if (cur->xhlocks)
+>  		cur->xhlock_idx_hist[c] = cur->xhlock_idx;
+> -		cur->hist_id_save[c] = cur->hist_id;
+> -	}
+>  }
+>  
+>  void crossrelease_hist_end(enum context_t c)
+>  {
+>  	struct task_struct *cur = current;
+> +	unsigned int idx;
+>  
+> -	if (cur->xhlocks) {
+> -		unsigned int idx = cur->xhlock_idx_hist[c];
+> -		struct hist_lock *h = &xhlock(idx);
+> -
+> -		cur->xhlock_idx = idx;
+> -
+> -		/* Check if the ring was overwritten. */
+> -		if (h->hist_id != cur->hist_id_save[c])
+> -			invalidate_xhlock(h);
+> -	}
+> +	if (!cur->xhlocks)
+> +		return;
+> +
+> +	idx = cur->xhlock_idx_hist[c];
+> +	cur->xhlock_idx = idx;
+> +
+> +	/*
+> +	 * A bit of magic here.. this deals with rewinding the (cyclic) history
+> +	 * array further than its size. IOW. looses the complete history.
+> +	 *
+> +	 * We detect this by tracking the previous oldest entry we've (over)
+> +	 * written in @xhlock_idx_max, this means the next entry is the oldest
+> +	 * entry still in the buffer, ie. its tail.
+> +	 *
+> +	 * So when we restore an @xhlock_idx that is at least MAX_XHLOCKS_NR
+> +	 * older than @xhlock_idx_max we know we've just wiped the entire
+> +	 * history.
+> +	 */
+> +	if ((cur->xhlock_idx_max - idx) < MAX_XHLOCKS_NR)
+> +		return;
+> +
+> +	/*
+> +	 * Now that we know the buffer is effectively empty, reset our state
+> +	 * such that it appears empty (without in fact clearing the entire
+> +	 * buffer).
+> +	 *
+> +	 * Pick @idx as the 'new' beginning, (re)set all save-points to not
+> +	 * rewind past it and reset the max. Then invalidate this idx such that
+> +	 * commit_xhlocks() will never rewind past it. Since xhlock_idx_inc()
+> +	 * will return the _next_ entry, we'll not overwrite this invalid entry
+> +	 * until the entire buffer is full again.
+> +	 */
+> +	for (c = 0; c < XHLOCK_NR; c++)
+> +		cur->xhlock_idx_hist[c] = idx;
+> +	cur->xhlock_idx_max = idx;
+> +	invalidate_xhlock(&xhlock(idx));
+> +}
+> +
+> +static inline unsigned int xhlock_idx_inc(void)
+> +{
+> +	struct task_struct *cur = current;
+> +	unsigned int idx = ++cur->xhlock_idx;
+> +
+> +	/*
+> +	 * As per the requirement in crossrelease_hist_end(), track the tail.
+> +	 */
+> +	if ((int)(cur->xhlock_idx_max - idx) < 0)
+> +		cur->xhlock_idx_max = idx;
+> +
+> +	return idx;
+>  }
+>  
+>  static int cross_lock(struct lockdep_map *lock)
+> @@ -4902,7 +4941,7 @@ static inline int xhlock_valid(struct hi
+>   */
+>  static void add_xhlock(struct held_lock *hlock)
+>  {
+> -	unsigned int idx = ++current->xhlock_idx;
+> +	unsigned int idx = xhlock_idx_inc();
+>  	struct hist_lock *xhlock = &xhlock(idx);
+>  
+>  #ifdef CONFIG_DEBUG_LOCKDEP
+> @@ -4915,7 +4954,6 @@ static void add_xhlock(struct held_lock
+>  
+>  	/* Initialize hist_lock's members */
+>  	xhlock->hlock = *hlock;
+> -	xhlock->hist_id = current->hist_id++;
+>  
+>  	xhlock->trace.nr_entries = 0;
+>  	xhlock->trace.max_entries = MAX_XHLOCK_TRACE_ENTRIES;
+> @@ -5071,7 +5109,6 @@ static int commit_xhlock(struct cross_lo
+>  static void commit_xhlocks(struct cross_lock *xlock)
+>  {
+>  	unsigned int cur = current->xhlock_idx;
+> -	unsigned int prev_hist_id = xhlock(cur).hist_id;
+>  	unsigned int i;
+>  
+>  	if (!graph_lock())
+> @@ -5091,17 +5128,6 @@ static void commit_xhlocks(struct cross_
+>  				break;
+>  
+>  			/*
+> -			 * Filter out the cases that the ring buffer was
+> -			 * overwritten and the previous entry has a bigger
+> -			 * hist_id than the following one, which is impossible
+> -			 * otherwise.
+> -			 */
+> -			if (unlikely(before(xhlock->hist_id, prev_hist_id)))
+> -				break;
+> -
+> -			prev_hist_id = xhlock->hist_id;
+> -
+> -			/*
+>  			 * commit_xhlock() returns 0 with graph_lock already
+>  			 * released if fail.
+>  			 */
+> @@ -5186,11 +5212,9 @@ void lockdep_init_task(struct task_struc
+>  	int i;
+>  
+>  	task->xhlock_idx = UINT_MAX;
+> -	task->hist_id = 0;
+>  
+>  	for (i = 0; i < XHLOCK_NR; i++) {
+>  		task->xhlock_idx_hist[i] = UINT_MAX;
+> -		task->hist_id_save[i] = 0;
+>  	}
+>  
+>  	task->xhlocks = kzalloc(sizeof(struct hist_lock) * MAX_XHLOCKS_NR,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
