@@ -1,38 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 15FC06B02C3
-	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 21:36:17 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id l2so82875247pgu.2
-        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 18:36:17 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id a20si3379936pfc.420.2017.08.09.18.36.15
-        for <linux-mm@kvack.org>;
-        Wed, 09 Aug 2017 18:36:16 -0700 (PDT)
-Date: Thu, 10 Aug 2017 10:35:02 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v8 11/14] lockdep: Apply crossrelease to PG_locked locks
-Message-ID: <20170810013501.GY20323@X58A-UD3R>
-References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
- <1502089981-21272-12-git-send-email-byungchul.park@lge.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 203796B0292
+	for <linux-mm@kvack.org>; Wed,  9 Aug 2017 23:04:39 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id s14so83738297pgs.4
+        for <linux-mm@kvack.org>; Wed, 09 Aug 2017 20:04:39 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id r63si3650583plb.349.2017.08.09.20.04.37
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 Aug 2017 20:04:37 -0700 (PDT)
+Date: Wed, 9 Aug 2017 20:04:33 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v1 2/6] fs: use on-stack-bio if backing device has
+ BDI_CAP_SYNC capability
+Message-ID: <20170810030433.GG31390@bombadil.infradead.org>
+References: <1502175024-28338-1-git-send-email-minchan@kernel.org>
+ <1502175024-28338-3-git-send-email-minchan@kernel.org>
+ <20170808124959.GB31390@bombadil.infradead.org>
+ <20170808132904.GC31390@bombadil.infradead.org>
+ <20170809015113.GB32338@bbox>
+ <20170809023122.GF31390@bombadil.infradead.org>
+ <20170809024150.GA32471@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1502089981-21272-12-git-send-email-byungchul.park@lge.com>
+In-Reply-To: <20170809024150.GA32471@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peterz@infradead.org, mingo@kernel.org
-Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, "karam . lee" <karam.lee@lge.com>, seungho1.park@lge.com, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, jack@suse.cz, Jens Axboe <axboe@kernel.dk>, Vishal Verma <vishal.l.verma@intel.com>, linux-nvdimm@lists.01.org, kernel-team <kernel-team@lge.com>
 
-On Mon, Aug 07, 2017 at 04:12:58PM +0900, Byungchul Park wrote:
-> Although lock_page() and its family can cause deadlock, the lock
-> correctness validator could not be applied to them until now, becasue
-> things like unlock_page() might be called in a different context from
-> the acquisition context, which violates lockdep's assumption.
+On Wed, Aug 09, 2017 at 11:41:50AM +0900, Minchan Kim wrote:
+> On Tue, Aug 08, 2017 at 07:31:22PM -0700, Matthew Wilcox wrote:
+> > On Wed, Aug 09, 2017 at 10:51:13AM +0900, Minchan Kim wrote:
+> > > On Tue, Aug 08, 2017 at 06:29:04AM -0700, Matthew Wilcox wrote:
+> > > > On Tue, Aug 08, 2017 at 05:49:59AM -0700, Matthew Wilcox wrote:
+> > > > > +	struct bio sbio;
+> > > > > +	struct bio_vec sbvec;
+> > > > 
+> > > > ... this needs to be sbvec[nr_pages], of course.
+> > > > 
+> > > > > -		bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
+> > > > > +		if (bdi_cap_synchronous_io(inode_to_bdi(inode))) {
+> > > > > +			bio = &sbio;
+> > > > > +			bio_init(bio, &sbvec, nr_pages);
+> > > > 
+> > > > ... and this needs to be 'sbvec', not '&sbvec'.
+> > > 
+> > > I don't get it why we need sbvec[nr_pages].
+> > > On-stack-bio works with per-page.
+> > > May I miss something?
+> > 
+> > The way I redid it, it will work with an arbitrary number of pages.
 > 
-> Thanks to CONFIG_LOCKDEP_CROSSRELEASE, we can now apply the lockdep
-> detector to page locks. Applied it.
+> IIUC, it would be good things with dynamic bio alloction with passing
+> allocated bio back and forth but on-stack bio cannot work like that.
+> It should be done in per-page so it is worth?
 
-Is there any reason excluding applying it into PG_locked?
+I'm not passing the bio back and forth between do_mpage_readpage() and
+its callers.  The version I sent allows for multiple pages in a single
+on-stack bio (when called from mpage_readpages()).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
