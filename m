@@ -1,66 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3095B6B0292
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 09:20:30 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id r62so7037006pfj.1
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 06:20:30 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id j63si4117331pfc.339.2017.08.10.06.20.28
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F5FE6B02B4
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 09:21:15 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id h126so2942967wmf.10
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 06:21:15 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g10si5205062wrc.359.2017.08.10.06.21.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 10 Aug 2017 06:20:28 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH v7 7/9] mm: Add address parameter to arch_validate_prot()
-In-Reply-To: <43c120f0cbbebd1398997b9521013ced664e5053.1502219353.git.khalid.aziz@oracle.com>
-References: <cover.1502219353.git.khalid.aziz@oracle.com> <43c120f0cbbebd1398997b9521013ced664e5053.1502219353.git.khalid.aziz@oracle.com>
-Date: Thu, 10 Aug 2017 23:20:24 +1000
-Message-ID: <87tw1flftz.fsf@concordia.ellerman.id.au>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 10 Aug 2017 06:21:13 -0700 (PDT)
+Date: Thu, 10 Aug 2017 15:21:10 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 0/2] mm,fork,security: introduce MADV_WIPEONFORK
+Message-ID: <20170810132110.GU23863@dhcp22.suse.cz>
+References: <20170806140425.20937-1-riel@redhat.com>
+ <20170807132257.GH32434@dhcp22.suse.cz>
+ <20170807134648.GI32434@dhcp22.suse.cz>
+ <CAAF6GDcNoDUaDSxV6N12A_bOzo8phRUX5b8-OBteuN0AmeCv0g@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAAF6GDcNoDUaDSxV6N12A_bOzo8phRUX5b8-OBteuN0AmeCv0g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>, akpm@linux-foundation.org, benh@kernel.crashing.org, paulus@samba.org, davem@davemloft.net, dave.hansen@linux.intel.com
-Cc: bsingharora@gmail.com, dja@axtens.net, tglx@linutronix.de, mgorman@suse.de, aarcange@redhat.com, kirill.shutemov@linux.intel.com, heiko.carstens@de.ibm.com, ak@linux.intel.com, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, Khalid Aziz <khalid@gonehiking.org>
+To: Colm =?iso-8859-1?Q?MacC=E1rthaigh?= <colm@allcosts.net>
+Cc: Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, mike.kravetz@oracle.com, linux-mm@kvack.org, Florian Weimer <fweimer@redhat.com>, akpm@linux-foundation.org, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org, kirill@shutemov.name, dave.hansen@intel.com, linux-api@vger.kernel.org
 
-Khalid Aziz <khalid.aziz@oracle.com> writes:
+On Mon 07-08-17 17:55:45, Colm MacCarthaigh wrote:
+> On Mon, Aug 7, 2017 at 3:46 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> >
+> > > > The use case is libraries that store or cache information, and
+> > > > want to know that they need to regenerate it in the child process
+> > > > after fork.
+> >
+> > How do they know that they need to regenerate if they do not get SEGV?
+> > Are they going to assume that a read of zeros is a "must init again"? Isn't
+> > that too fragile? Or do they play other tricks like parse /proc/self/smaps
+> > and read in the flag?
+> >
+> 
+> Hi from a user space crypto maintainer :) Here's how we do exactly this it
+> in s2n:
+> 
+> https://github.com/awslabs/s2n/blob/master/utils/s2n_random.c , lines 62 -
+> 91
+> 
+> and here's how LibreSSL does it:
+> 
+> https://github.com/libressl-portable/openbsd/blob/57dcd4329d83bff3dd67a293d5c4a53b795c587e/src/lib/libc/crypt/arc4random.h
+> (lines 37 on)
+> https://github.com/libressl-portable/openbsd/blob/57dcd4329d83bff3dd67a293d5c4a53b795c587e/src/lib/libc/crypt/arc4random.c
+> (Line 110)
+> 
+> OpenSSL and libc are in the process of adding similar DRBGs and would use a
+> WIPEONFORK. BoringSSL's maintainers are also interested as it adds
+> robustness.  I also recall it being a topic of discussion at the High
+> Assurance Cryptography Symposium (HACS) where many crypto maintainers meet
+> and several more maintainers there indicated it would be nice to have.
+> 
+> Right now on Linux we all either use pthread_atfork() to zero the memory on
+> fork, or getpid() and getppid() guards. The former can be evaded by direct
+> syscall() and other tricks (which things like Language VMs are prone to
+> doing), and the latter check is probabilistic as pids can repeat, though if
+> you use both getpid() and getppid() - which is slow! - the probability of
+> both PIDs colliding is very low indeed.
 
-> A protection flag may not be valid across entire address space and
-> hence arch_validate_prot() might need the address a protection bit is
-> being set on to ensure it is a valid protection flag. For example, sparc
-> processors support memory corruption detection (as part of ADI feature)
-> flag on memory addresses mapped on to physical RAM but not on PFN mapped
-> pages or addresses mapped on to devices. This patch adds address to the
-> parameters being passed to arch_validate_prot() so protection bits can
-> be validated in the relevant context.
->
-> Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
-> Cc: Khalid Aziz <khalid@gonehiking.org>
-> ---
-> v7:
-> 	- new patch
->
->  arch/powerpc/include/asm/mman.h | 2 +-
->  arch/powerpc/kernel/syscalls.c  | 2 +-
->  include/linux/mman.h            | 2 +-
->  mm/mprotect.c                   | 2 +-
->  4 files changed, 4 insertions(+), 4 deletions(-)
->
-> diff --git a/arch/powerpc/include/asm/mman.h b/arch/powerpc/include/asm/mman.h
-> index 30922f699341..bc74074304a2 100644
-> --- a/arch/powerpc/include/asm/mman.h
-> +++ b/arch/powerpc/include/asm/mman.h
-> @@ -40,7 +40,7 @@ static inline bool arch_validate_prot(unsigned long prot)
->  		return false;
->  	return true;
->  }
-> -#define arch_validate_prot(prot) arch_validate_prot(prot)
-> +#define arch_validate_prot(prot, addr) arch_validate_prot(prot)
+Thanks, these references are really useful to build a picture. I would
+probably use an unlinked fd with O_CLOEXEC to dect this but I can see
+how this is not the greatest option for a library.
 
-This can be simpler, as just:
+> The result at the moment on Linux there's no bulletproof way to detect a
+> fork and erase a key or DRBG state. It would really be nice to be able to
+> match what we can do with MAP_INHERIT_ZERO and minherit() on BSD.
+>  madvise() does seem like the established idiom for behavior like this on
+> Linux.  I don't imagine it will be hard to use in practice, we can fall
+> back to existing behavior if the flag isn't accepted.
 
-#define arch_validate_prot arch_validate_prot
+The reason why I dislike madvise, as already said, is that it should be
+an advise rather than something correctness related. Sure we do have
+some exceptions there but that doesn't mean we should repeat the same
+error. If anything an mmap MAP_$FOO sounds like a better approach to me.
 
-cheers
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
