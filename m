@@ -1,111 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 753286B0292
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 07:34:03 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 92so666491wra.11
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 04:34:03 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C48E86B0292
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 07:40:58 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id q50so658530wrb.14
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 04:40:58 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b65si4673541wmi.205.2017.08.10.04.34.02
+        by mx.google.com with ESMTPS id j140si4907828wmf.188.2017.08.10.04.40.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 10 Aug 2017 04:34:02 -0700 (PDT)
-Date: Thu, 10 Aug 2017 13:34:00 +0200
+        Thu, 10 Aug 2017 04:40:57 -0700 (PDT)
+Date: Thu, 10 Aug 2017 13:40:52 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Re: [PATCH] oom_reaper: close race without using oom_lock
-Message-ID: <20170810113400.GO23863@dhcp22.suse.cz>
-References: <201708051002.FGG87553.QtFFFMVJOSOOHL@I-love.SAKURA.ne.jp>
- <20170807060243.GA32434@dhcp22.suse.cz>
- <201708080214.v782EoDD084315@www262.sakura.ne.jp>
+Subject: Re: [RFC PATCH v2 0/6] mm, memory_hotplug: allocate memmap from
+ hotadded memory
+Message-ID: <20170810114052.GP23863@dhcp22.suse.cz>
+References: <20170801124111.28881-1-mhocko@kernel.org>
+ <20170807070029.GD32434@dhcp22.suse.cz>
+ <CAPcyv4gYGohbfme8Ouih_L2mzDiz=7g-KTTwmQNZaw=VXxB4uQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201708080214.v782EoDD084315@www262.sakura.ne.jp>
+In-Reply-To: <CAPcyv4gYGohbfme8Ouih_L2mzDiz=7g-KTTwmQNZaw=VXxB4uQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: penguin-kernel@i-love.sakura.ne.jp
-Cc: linux-mm@kvack.org, hannes@cmpxchg.org, rientjes@google.com, linux-kernel@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Kani Toshimitsu <toshi.kani@hpe.com>, slaoub@gmail.com, Joonsoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>, Daniel Kiper <daniel.kiper@oracle.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Fenghua Yu <fenghua.yu@intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, X86 ML <x86@kernel.org>
 
-On Tue 08-08-17 11:14:50, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Sat 05-08-17 10:02:55, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-> > > > On Wed 26-07-17 20:33:21, Tetsuo Handa wrote:
-> > > > > Michal Hocko wrote:
-> > > > > > On Sun 23-07-17 09:41:50, Tetsuo Handa wrote:
-> > > > > > > So, how can we verify the above race a real problem?
-> > > > > > 
-> > > > > > Try to simulate a _real_ workload and see whether we kill more tasks
-> > > > > > than necessary. 
-> > > > > 
-> > > > > Whether it is a _real_ workload or not cannot become an answer.
-> > > > > 
-> > > > > If somebody is trying to allocate hundreds/thousands of pages after memory of
-> > > > > an OOM victim was reaped, avoiding this race window makes no sense; next OOM
-> > > > > victim will be selected anyway. But if somebody is trying to allocate only one
-> > > > > page and then is planning to release a lot of memory, avoiding this race window
-> > > > > can save somebody from being OOM-killed needlessly. This race window depends on
-> > > > > what the threads are about to do, not whether the workload is natural or
-> > > > > artificial.
-> > > > 
-> > > > And with a desparate lack of crystal ball we cannot do much about that
-> > > > really.
-> > > > 
-> > > > > My question is, how can users know it if somebody was OOM-killed needlessly
-> > > > > by allowing MMF_OOM_SKIP to race.
-> > > > 
-> > > > Is it really important to know that the race is due to MMF_OOM_SKIP?
-> > > 
-> > > Yes, it is really important. Needlessly selecting even one OOM victim is
-> > > a pain which is difficult to explain to and persuade some of customers.
-> > 
-> > How is this any different from a race with a task exiting an releasing
-> > some memory after we have crossed the point of no return and will kill
-> > something?
+On Tue 08-08-17 13:01:36, Dan Williams wrote:
+> On Mon, Aug 7, 2017 at 12:00 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > Any comments? Especially for the arch specific? Has anybody had a chance
+> > to test this? I do not want to rush this but I would be really glag if
+> > we could push this work in 4.14 merge window.
 > 
-> I'm not complaining about an exiting task releasing some memory after we have
-> crossed the point of no return.
+> Hi Michal,
 > 
-> What I'm saying is that we can postpone "the point of no return" if we ignore
-> MMF_OOM_SKIP for once (both this "oom_reaper: close race without using oom_lock"
-> thread and "mm, oom: task_will_free_mem(current) should ignore MMF_OOM_SKIP for
-> once." thread). These are race conditions we can avoid without crystal ball.
+> I'm interested in taking a look at this especially if we might be able
+> to get rid of vmem_altmap, but this is currently stuck behind some
+> other work in my queue. I'll try to circle back in the next couple
+> weeks.
 
-If those races are really that common than we can handle them even
-without "try once more" tricks. Really this is just an ugly hack. If you
-really care then make sure that we always try to allocate from memory
-reserves before going down the oom path. In other words, try to find a
-robust solution rather than tweaks around a problem.
-
-[...]
-> > Yes that is possible. Once you are in the shrinker land then you have to
-> > count with everything. And if you want to imply that
-> > get_page_from_freelist inside __alloc_pages_may_oom may lockup while
-> > holding the oom_lock then you might be right but I haven't checked that
-> > too deeply. It might be very well possible that the node reclaim bails
-> > out early when we are under OOM.
-> 
-> Yes, I worry that get_page_from_freelist() with oom_lock held might lockup.
-> 
-> If we are about to invoke the OOM killer for the first time, it is likely that
-> __node_reclaim() finds nothing to reclaim and will bail out immediately. But if
-> we are about to invoke the OOM killer again, it is possible that small amount of
-> memory was reclaimed by the OOM killer/reaper, and all reclaimed memory was assigned
-> to things which __node_reclaim() will find and try to reclaim, and any thread which
-> took oom_lock will call __node_reclaim() and __node_reclaim() find something
-> reclaimable if __GFP_DIRECT_RECLAIM && !__GFP_NORETRY memory allocation is involved.
-> 
-> We should consider such situation volatile (i.e. should not make assumption that
-> get_page_from_freelist() with oom_lock held shall bail out immediately) if shrinkers
-> which (directly or indirectly) involve __GFP_DIRECT_RECLAIM && !__GFP_NORETRY memory
-> allocation are permitted.
-
-Well, I think you are so focused on details that you most probably miss
-a large picture here. Just think about the purpose of the node reclaim.
-It is there to _prefer_ local allocations than go to a distant NUMA
-node. So rather than speculating about details maybe it makes sense to
-consider whether it actually makes any sense to even try to node reclaim
-when we are OOM. In other words why to do an additional reclaim when we
-just found out that all reclaim attempts have failed...
+Well, vmem_altmap was there and easy to reuse. Replacing with something
+else is certainly possible but I really need something to hook a
+dedicated allocator into vmemmap code.
 
 -- 
 Michal Hocko
