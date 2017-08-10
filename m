@@ -1,115 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C15B6B02C3
-	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 04:46:21 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z53so145601wrz.10
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 01:46:21 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u138si4430070wmu.1.2017.08.10.01.46.19
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 10 Aug 2017 01:46:19 -0700 (PDT)
-Date: Thu, 10 Aug 2017 10:46:17 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH RFC v2] Add /proc/pid/smaps_rollup
-Message-ID: <20170810084617.GI23863@dhcp22.suse.cz>
-References: <20170808132554.141143-1-dancol@google.com>
- <20170810001557.147285-1-dancol@google.com>
- <20170810043831.GB2249@bbox>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B74D6B0292
+	for <linux-mm@kvack.org>; Thu, 10 Aug 2017 05:01:39 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id i192so1089205pgc.11
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 02:01:39 -0700 (PDT)
+Received: from ipmail01.adl6.internode.on.net (ipmail01.adl6.internode.on.net. [150.101.137.136])
+        by mx.google.com with ESMTP id e25si3889606pfk.338.2017.08.10.02.01.36
+        for <linux-mm@kvack.org>;
+        Thu, 10 Aug 2017 02:01:37 -0700 (PDT)
+Date: Thu, 10 Aug 2017 19:01:33 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: How can we share page cache pages for reflinked files?
+Message-ID: <20170810090133.GL21024@dastard>
+References: <20170810042849.GK21024@dastard>
+ <20170810055737.v6yexikxa5zxvntv@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170810043831.GB2249@bbox>
+In-Reply-To: <20170810055737.v6yexikxa5zxvntv@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Daniel Colascione <dancol@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, timmurray@google.com, joelaf@google.com, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, sonnyrao@chromium.org, robert.foss@collabora.com, linux-api@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-[CC linux-api - the patch was posted here
-http://lkml.kernel.org/r/20170810001557.147285-1-dancol@google.com]
-
-On Thu 10-08-17 13:38:31, Minchan Kim wrote:
-> On Wed, Aug 09, 2017 at 05:15:57PM -0700, Daniel Colascione wrote:
-> > /proc/pid/smaps_rollup is a new proc file that improves the
-> > performance of user programs that determine aggregate memory
-> > statistics (e.g., total PSS) of a process.
+On Thu, Aug 10, 2017 at 08:57:37AM +0300, Kirill A. Shutemov wrote:
+> On Thu, Aug 10, 2017 at 02:28:49PM +1000, Dave Chinner wrote:
+> > Hi folks,
 > > 
-> > Android regularly "samples" the memory usage of various processes in
-> > order to balance its memory pool sizes. This sampling process involves
-> > opening /proc/pid/smaps and summing certain fields. For very large
-> > processes, sampling memory use this way can take several hundred
-> > milliseconds, due mostly to the overhead of the seq_printf calls in
-> > task_mmu.c.
-
-Have you tried to reduce that overhead? E.g. by replacing seq_printf by
-something more simple
-http://lkml.kernel.org/r/20160817130320.GC20703@dhcp22.suse.cz?
-How often you you need to read this information?
-
-> > smaps_rollup improves the situation. It contains most of the fields of
-> > /proc/pid/smaps, but instead of a set of fields for each VMA,
-> > smaps_rollup instead contains one synthetic smaps-format entry
-> > representing the whole process. In the single smaps_rollup synthetic
-> > entry, each field is the summation of the corresponding field in all
-> > of the real-smaps VMAs. Using a common format for smaps_rollup and
-> > smaps allows userspace parsers to repurpose parsers meant for use with
-> > non-rollup smaps for smaps_rollup, and it allows userspace to switch
-> > between smaps_rollup and smaps at runtime (say, based on the
-> > availability of smaps_rollup in a given kernel) with minimal fuss.
+> > I've recently been looking into what is involved in sharing page
+> > cache pages for shared extents in a filesystem. That is, create a
+> > file, reflink it so there's two files but only one copy of the data
+> > on disk, then read both files.  Right now, we get two copies of the
+> > data in the page cache - one in each inode mapping tree.
 > > 
-> > By using smaps_rollup instead of smaps, a caller can avoid the
-> > significant overhead of formatting, reading, and parsing each of a
-> > large process's potentially very numerous memory mappings. For
-> > sampling system_server's PSS in Android, we measured a 12x speedup,
-> > representing a savings of several hundred milliseconds.
-
-By a large process you mean a process with many VMAs right? How many
-vmas are we talking about?
-
-> > One alternative to a new per-process proc file would have been
-> > including PSS information in /proc/pid/status. We considered this
-> > option but thought that PSS would be too expensive (by a few orders of
-> > magnitude) to collect relative to what's already emitted as part of
-> > /proc/pid/status, and slowing every user of /proc/pid/status for the
-> > sake of readers that happen to want PSS feels wrong.
+> > If we scale this up to a container host which is using reflink trees
+> > it's shared root images, there might be hundreds of copies of the
+> > same data held in cache (i.e. one page per container). Given that
+> > the filesystem knows that the underlying data extent is shared when
+> > we go to read it, it's relatively easy to add mechanisms to the
+> > filesystem to return the same page for all attempts to read the
+> > from a shared extent from all inodes that share it.
 > > 
-> > The code itself works by reusing the existing VMA-walking framework we
-> > use for regular smaps generation and keeping the mem_size_stats
-> > structure around between VMA walks instead of using a fresh one for
-> > each VMA.  In this way, summation happens automatically.  We let
-> > seq_file walk over the VMAs just as it does for regular smaps and just
-> > emit nothing to the seq_file until we hit the last VMA.
-> > 
-> > Patch changelog:
-> > 
-> > v2: Fix typo in commit message
-> >     Add ABI documentation as requested by gregkh
-> > 
-> > Signed-off-by: Daniel Colascione <dancol@google.com>
+> > However, the problem I'm getting stuck on is that the page cache
+> > itself can't handle inserting a single page into multiple page cache
+> > mapping trees. i.e. The page has a single pointer to the mapping
+> > address space, and the mapping has a single pointer back to the
+> > owner inode. As such, a cached page has a 1:1 mapping to it's host
+> > inode and this structure seems to be assumed rather widely through
+> > the code.
 > 
-> I love this.
+> I think to solve the problem with page->mapping we need something similar
+> to what we have for anon rmap[1]. In this case we would be able to keep
+> the same page in page cache for multiple inodes.
+
+Being unfamiliar with the anon rmap code, I'm struggling to see the
+need for that much complexity here. The AVC abstraction solves a
+scalability problem that, to me, doesn't exist for tracking multiple
+mapping tree pointers for a page. i.e. I don't see where a list
+traversal is necessary in the shared page -> mapping tree resolution
+for page cache sharing.
+
+I've been thinking of something simpler along the lines of a dynamic
+struct page objects w/ special page flags as an object that allows
+us to keep different mapping tree entries for the same physical
+page. Seems like this would work for read-only sharing, but perhaps
+I'm just blind and I'm missing something I shouldn't be?
+
+> The long term benefit for this is that we might be able to unify a lot of
+> code for anon and file code paths in mm, making anon memory a special case
+> of file mapping.
 > 
-> FYI, there was trial but got failed at that time so in this time,
-> https://marc.info/?l=linux-kernel&m=147310650003277&w=2
-> http://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1229163.html
+> The downside is that anon rmap is rather complicated. I have to re-read
+> the article everytime I deal with anon rmap to remind myself how it works.
 
-Yes I really disliked the previous attempt and this one is not all that
-better. The primary unanswered question back then was a relevant
-usecase. Back then it was argued [1] that PSS was useful for userspace
-OOM handling but arguments were rather dubious. Follow up questions [2]
-shown that the useage of PSS was very workload specific. Minchan has
-noted some usecase as well but not very specific either.
+Yeah, that's a problem - if you have trouble with it, I've got no
+hope.... :/
 
-So let's start with a clear use case description. Then let's make it
-clear that even optimizing the current implementation is not sufficient
-to meat goals and only then try to add one more user visible API which
-we will have to maintain for ever.
+Cheers,
 
-[1] http://lkml.kernel.org/r/CAPz6YkW3Ph4mi++qY4cJiQ1PwhnxLr5=E4oCHjf5nYJHMhRcew@mail.gmail.com
-[2] http://lkml.kernel.org/r/20160819075910.GB32619@dhcp22.suse.cz
+Dave.
 -- 
-Michal Hocko
-SUSE Labs
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
