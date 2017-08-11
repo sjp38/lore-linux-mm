@@ -1,61 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C6736B025F
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 10:25:00 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id k68so6514761wmd.14
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 07:25:00 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o9si750888wrc.547.2017.08.11.07.24.59
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 95C216B025F
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 10:27:04 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id k82so4008031oih.1
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 07:27:04 -0700 (PDT)
+Received: from mail-it0-x235.google.com (mail-it0-x235.google.com. [2607:f8b0:4001:c0b::235])
+        by mx.google.com with ESMTPS id a80si696701oib.297.2017.08.11.07.27.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 11 Aug 2017 07:24:59 -0700 (PDT)
-Date: Fri, 11 Aug 2017 16:24:57 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 0/2] mm,fork,security: introduce MADV_WIPEONFORK
-Message-ID: <20170811142457.GP30811@dhcp22.suse.cz>
-References: <20170807134648.GI32434@dhcp22.suse.cz>
- <1502117991.6577.13.camel@redhat.com>
- <20170810130531.GS23863@dhcp22.suse.cz>
- <CAAF6GDc2hsj-XJj=Rx2ZF6Sh3Ke6nKewABXfqQxQjfDd5QN7Ug@mail.gmail.com>
- <20170810153639.GB23863@dhcp22.suse.cz>
- <CAAF6GDeno6RpHf1KORVSxUL7M-CQfbWFFdyKK8LAWd_6PcJ55Q@mail.gmail.com>
- <20170810170144.GA987@dhcp22.suse.cz>
- <CAAF6GDdFjS612mx1TXzaVk1J-Afz9wsAywTEijO2TG4idxabiw@mail.gmail.com>
- <20170811140653.GO30811@dhcp22.suse.cz>
- <c8cda773-b28d-f35f-7f18-6735584cb173@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Aug 2017 07:27:03 -0700 (PDT)
+Received: by mail-it0-x235.google.com with SMTP id 76so28511414ith.0
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 07:27:03 -0700 (PDT)
+Subject: Re: [PATCH v1 2/6] fs: use on-stack-bio if backing device has
+ BDI_CAP_SYNC capability
+References: <1502175024-28338-1-git-send-email-minchan@kernel.org>
+ <1502175024-28338-3-git-send-email-minchan@kernel.org>
+ <20170808124959.GB31390@bombadil.infradead.org>
+ <20170808132904.GC31390@bombadil.infradead.org> <20170809015113.GB32338@bbox>
+ <20170809023122.GF31390@bombadil.infradead.org> <20170809024150.GA32471@bbox>
+ <20170810030433.GG31390@bombadil.infradead.org>
+ <CAA9_cmekE9_PYmNnVmiOkyH2gq5o8=uvEKnAbMWw5nBX-zE69g@mail.gmail.com>
+ <20170811104615.GA14397@lst.de>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <20c5b30a-b787-1f46-f997-7542a87033f8@kernel.dk>
+Date: Fri, 11 Aug 2017 08:26:59 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <c8cda773-b28d-f35f-7f18-6735584cb173@redhat.com>
+In-Reply-To: <20170811104615.GA14397@lst.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: Colm =?iso-8859-1?Q?MacC=E1rthaigh?= <colm@allcosts.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Rik van Riel <riel@redhat.com>, Will Drewry <wad@chromium.org>, akpm@linux-foundation.org, dave.hansen@intel.com, kirill@shutemov.name, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, luto@amacapital.net, mingo@kernel.org
+To: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, "karam . lee" <karam.lee@lge.com>, seungho1.park@lge.com, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Vishal Verma <vishal.l.verma@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, kernel-team <kernel-team@lge.com>
 
-On Fri 11-08-17 16:11:44, Florian Weimer wrote:
-> On 08/11/2017 04:06 PM, Michal Hocko wrote:
+On 08/11/2017 04:46 AM, Christoph Hellwig wrote:
+> On Wed, Aug 09, 2017 at 08:06:24PM -0700, Dan Williams wrote:
+>> I like it, but do you think we should switch to sbvec[<constant>] to
+>> preclude pathological cases where nr_pages is large?
 > 
-> > I am sorry to look too insisting here (I have still hard time to reconcile
-> > myself with the madvise (ab)use) but if we in fact want minherit like
-> > interface why don't we simply add minherit and make the code which wants
-> > to use that interface easier to port? Is the only reason that hooking
-> > into madvise is less code? If yes is that a sufficient reason to justify
-> > the (ab)use of madvise? If there is a general consensus on that part I
-> > will shut up and won't object anymore. Arguably MADV_DONTFORK would fit
-> > into minherit API better as well.
+> Yes, please.
 > 
-> It does, OpenBSD calls it MAP_INHERIT_NONE.
-> 
-> Could you implement MAP_INHERIT_COPY and MAP_INHERIT_SHARE as well?  Or
-> is changing from MAP_SHARED to MAP_PRIVATE and back impossible?
+> Then I'd like to see that the on-stack bio even matters for
+> mpage_readpage / mpage_writepage.  Compared to all the buffer head
+> overhead the bio allocation should not actually matter in practice.
 
-I haven't explored those two very much. Their semantic seems rather
-awkward, especially map_inherit_share one. I guess MAP_INHERIT_COPY
-would be doable. Do we have to support all modes or a missing support
-would disqualify the syscall completely?
+I'm skeptical for that path, too. I also wonder how far we could go
+with just doing a per-cpu bio recycling facility, to reduce the cost
+of having to allocate a bio. The on-stack bio parts are fine for
+simple use case, where simple means that the patch just special
+cases the allocation, and doesn't have to change much else.
+
+I had a patch for bio recycling and batched freeing a year or two
+ago, I'll see if I can find and resurrect it.
+
 -- 
-Michal Hocko
-SUSE Labs
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
