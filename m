@@ -1,169 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E90E6B025F
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 16:19:21 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id j194so4799338oib.15
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 13:19:21 -0700 (PDT)
-Received: from mail-io0-x233.google.com (mail-io0-x233.google.com. [2607:f8b0:4001:c06::233])
-        by mx.google.com with ESMTPS id 138si1190439oia.62.2017.08.11.13.19.19
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 04D296B025F
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 16:27:51 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id 6so22817502qts.7
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 13:27:50 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o43si1531141qtj.27.2017.08.11.13.27.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Aug 2017 13:19:19 -0700 (PDT)
-Received: by mail-io0-x233.google.com with SMTP id g35so23829660ioi.3
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 13:19:19 -0700 (PDT)
-Date: Fri, 11 Aug 2017 14:19:18 -0600
-From: Tycho Andersen <tycho@docker.com>
-Subject: Re: [kernel-hardening] [PATCH v5 05/10] arm64/mm: Add support for
- XPFO
-Message-ID: <20170811201918.rgolw5whuevxyg3k@smitten>
-References: <20170809200755.11234-1-tycho@docker.com>
- <20170809200755.11234-6-tycho@docker.com>
- <b883c93d-93fa-2536-b050-e67360246530@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b883c93d-93fa-2536-b050-e67360246530@redhat.com>
+        Fri, 11 Aug 2017 13:27:49 -0700 (PDT)
+Message-ID: <1502483265.6577.52.camel@redhat.com>
+Subject: Re: [PATCH 2/2] mm,fork: introduce MADV_WIPEONFORK
+From: Rik van Riel <riel@redhat.com>
+Date: Fri, 11 Aug 2017 16:27:45 -0400
+In-Reply-To: <CA+55aFzA+7CeCdUi-13DfOeE3FfhtTPMMmBA4UQx8FixXiD4YA@mail.gmail.com>
+References: <20170811191942.17487-1-riel@redhat.com>
+	 <20170811191942.17487-3-riel@redhat.com>
+	 <CA+55aFzA+7CeCdUi-13DfOeE3FfhtTPMMmBA4UQx8FixXiD4YA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Juerg Haefliger <juerg.haefliger@hpe.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, linux-mm <linux-mm@kvack.org>, Florian Weimer <fweimer@redhat.com>, colm@allcosts.net, Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, Andy Lutomirski <luto@amacapital.net>, Will Drewry <wad@chromium.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave.hansen@intel.com>, Linux API <linux-api@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>
 
-Hi Laura,
-
-On Fri, Aug 11, 2017 at 11:01:46AM -0700, Laura Abbott wrote:
-> On 08/09/2017 01:07 PM, Tycho Andersen wrote:
-> > From: Juerg Haefliger <juerg.haefliger@hpe.com>
+On Fri, 2017-08-11 at 12:42 -0700, Linus Torvalds wrote:
+> On Fri, Aug 11, 2017 at 12:19 PM,A A <riel@redhat.com> wrote:
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index 0e517be91a89..f9b0ad7feb57 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -1134,6 +1134,16 @@ int copy_page_range(struct mm_struct
+> > *dst_mm, struct mm_struct *src_mm,
+> > A A A A A A A A A A A A A A A A A A A A A A A A !vma->anon_vma)
+> > A A A A A A A A A A A A A A A A return 0;
 > > 
-> > Enable support for eXclusive Page Frame Ownership (XPFO) for arm64 and
-> > provide a hook for updating a single kernel page table entry (which is
-> > required by the generic XPFO code).
-> > 
-> > At the moment, only 64k page sizes are supported.
-> > 
+> > +A A A A A A A /*
+> > +A A A A A A A A * With VM_WIPEONFORK, the child inherits the VMA from the
+> > +A A A A A A A A * parent, but not its contents.
+> > +A A A A A A A A *
+> > +A A A A A A A A * A child accessing VM_WIPEONFORK memory will see all
+> > zeroes;
+> > +A A A A A A A A * a child accessing VM_DONTCOPY memory receives a
+> > segfault.
+> > +A A A A A A A A */
+> > +A A A A A A A if (vma->vm_flags & VM_WIPEONFORK)
+> > +A A A A A A A A A A A A A A A return 0;
+> > +
 > 
-> Can you add a note somewhere explaining this limitation or what's
-> on the TODO list?
-
-I have a little TODO list in the cover letter, and fixing this is on
-it.
-
-As for what the limitation is, I'm not really sure. When I enable e.g.
-4k pages, it just hangs as soon as the bootloader branches to the
-kernel, and doesn't print the kernel's hello world or anything. This
-is much before XPFO's initialization code is even run, so it's
-probably something simple, but I haven't figured out what yet.
-
-Cheers,
-
-Tycho
-
-> > Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
-> > Tested-by: Tycho Andersen <tycho@docker.com>
-> > ---
-> >  arch/arm64/Kconfig     |  1 +
-> >  arch/arm64/mm/Makefile |  2 ++
-> >  arch/arm64/mm/xpfo.c   | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++
-> >  3 files changed, 67 insertions(+)
-> > 
-> > diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> > index dfd908630631..2ddae41e0793 100644
-> > --- a/arch/arm64/Kconfig
-> > +++ b/arch/arm64/Kconfig
-> > @@ -121,6 +121,7 @@ config ARM64
-> >  	select SPARSE_IRQ
-> >  	select SYSCTL_EXCEPTION_TRACE
-> >  	select THREAD_INFO_IN_TASK
-> > +	select ARCH_SUPPORTS_XPFO if ARM64_64K_PAGES
-> >  	help
-> >  	  ARM 64-bit (AArch64) Linux support.
-> >  
-> > diff --git a/arch/arm64/mm/Makefile b/arch/arm64/mm/Makefile
-> > index 9b0ba191e48e..22e5cab543d8 100644
-> > --- a/arch/arm64/mm/Makefile
-> > +++ b/arch/arm64/mm/Makefile
-> > @@ -11,3 +11,5 @@ KASAN_SANITIZE_physaddr.o	+= n
-> >  
-> >  obj-$(CONFIG_KASAN)		+= kasan_init.o
-> >  KASAN_SANITIZE_kasan_init.o	:= n
-> > +
-> > +obj-$(CONFIG_XPFO)		+= xpfo.o
-> > diff --git a/arch/arm64/mm/xpfo.c b/arch/arm64/mm/xpfo.c
-> > new file mode 100644
-> > index 000000000000..de03a652d48a
-> > --- /dev/null
-> > +++ b/arch/arm64/mm/xpfo.c
-> > @@ -0,0 +1,64 @@
-> > +/*
-> > + * Copyright (C) 2017 Hewlett Packard Enterprise Development, L.P.
-> > + * Copyright (C) 2016 Brown University. All rights reserved.
-> > + *
-> > + * Authors:
-> > + *   Juerg Haefliger <juerg.haefliger@hpe.com>
-> > + *   Vasileios P. Kemerlis <vpk@cs.brown.edu>
-> > + *
-> > + * This program is free software; you can redistribute it and/or modify it
-> > + * under the terms of the GNU General Public License version 2 as published by
-> > + * the Free Software Foundation.
-> > + */
-> > +
-> > +#include <linux/mm.h>
-> > +#include <linux/module.h>
-> > +
-> > +#include <asm/tlbflush.h>
-> > +
-> > +/*
-> > + * Lookup the page table entry for a virtual address and return a pointer to
-> > + * the entry. Based on x86 tree.
-> > + */
-> > +static pte_t *lookup_address(unsigned long addr)
-> > +{
-> > +	pgd_t *pgd;
-> > +	pud_t *pud;
-> > +	pmd_t *pmd;
-> > +
-> > +	pgd = pgd_offset_k(addr);
-> > +	if (pgd_none(*pgd))
-> > +		return NULL;
-> > +
-> > +	BUG_ON(pgd_bad(*pgd));
-> > +
-> > +	pud = pud_offset(pgd, addr);
-> > +	if (pud_none(*pud))
-> > +		return NULL;
-> > +
-> > +	BUG_ON(pud_bad(*pud));
-> > +
-> > +	pmd = pmd_offset(pud, addr);
-> > +	if (pmd_none(*pmd))
-> > +		return NULL;
-> > +
-> > +	BUG_ON(pmd_bad(*pmd));
-> > +
-> > +	return pte_offset_kernel(pmd, addr);
-> > +}
+> Is this right?
 > 
-> We already have much of this logic implemented for kernel_page_present
-> in arch/arm64/mm/pageattr.c, we should move this into there and
-> make this common, similar to x86
+> Yes, you don't do the page table copies. Fine. But you leave vma with
+> the the anon_vma pointer - doesn't that mean that it's still
+> connected
+> to the original anonvma chain, and we might end up swapping something
+> in?
+
+Swapping something in would require there to be a swap entry in
+the page table entries, which we are not copying, so this should
+not be a correctness issue.
+
+> And even if that ends up not being an issue, I'd expect that you'd
+> want to break the anon_vma chain just to not make it grow
+> unnecessarily.
+
+This is a good point. I can send a v4 that skips the anon_vma_fork()
+call if VM_WIPEONFORK, and calls anon_vma_prepare(), instead.
+
+> So my gut feel is that doing this in "copy_page_range()" is wrong,
+> and
+> the logic should be moved up to dup_mmap(), where we can also
+> short-circuit the anon_vma chain entirely.
 > 
-> > +
-> > +/* Update a single kernel page table entry */
-> > +inline void set_kpte(void *kaddr, struct page *page, pgprot_t prot)
-> > +{
-> > +	pte_t *pte = lookup_address((unsigned long)kaddr);
-> > +
-> > +	set_pte(pte, pfn_pte(page_to_pfn(page), prot));
-> > +}
-> > +
-> > +inline void xpfo_flush_kernel_page(struct page *page, int order)
-> > +{
-> > +	unsigned long kaddr = (unsigned long)page_address(page);
-> > +	unsigned long size = PAGE_SIZE;
-> > +
-> > +	flush_tlb_kernel_range(kaddr, kaddr + (1 << order) * size);
-> > +}
-> > 
-> 
+> No?
+
+There is another test in copy_page_range already which ends up
+skipping the page table copy when it should not be done.
+
+If you want, I can move that test into a should_copy_page_range()
+function, and call that from dup_mmap(), skipping the call to
+copy_page_range() if should_copy_page_range() returns false.
+
+Having only one of the two sets of tests in dup_mmap(), and
+the other in copy_page_range() seems wrong.
+
+Just let me know what you prefer, and I'll put that in v4.
+
+> The madvice() interface looks fine to me.
+
+That was the main reason for adding you to the thread :)
+
+kind regards,
+
+Rik
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
