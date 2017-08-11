@@ -1,99 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D9AB6B025F
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 13:07:17 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id d136so20297957qkg.11
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 10:07:17 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id 140si1134441qkg.455.2017.08.11.10.07.16
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AA2506B025F
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 13:08:49 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id v77so42633022pgb.15
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 10:08:49 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id m4si818495pln.696.2017.08.11.10.08.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Aug 2017 10:07:16 -0700 (PDT)
-Subject: Re: [PATCH 2/2] mm,fork: introduce MADV_WIPEONFORK
-References: <20170806140425.20937-1-riel@redhat.com>
- <20170806140425.20937-3-riel@redhat.com>
- <20170810152352.GZ23863@dhcp22.suse.cz> <1502464992.6577.48.camel@redhat.com>
- <6a3e2dbe-6274-4402-0716-88f4fbda73dd@oracle.com>
- <1502470781.6577.49.camel@redhat.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <a9d00a69-bc53-acab-6e63-f4b263f88cbb@oracle.com>
-Date: Fri, 11 Aug 2017 10:07:04 -0700
+        Fri, 11 Aug 2017 10:08:48 -0700 (PDT)
+Date: Fri, 11 Aug 2017 10:08:47 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: How can we share page cache pages for reflinked files?
+Message-ID: <20170811170847.GK31390@bombadil.infradead.org>
+References: <20170810042849.GK21024@dastard>
+ <20170810161159.GI31390@bombadil.infradead.org>
+ <20170811042519.GS21024@dastard>
 MIME-Version: 1.0
-In-Reply-To: <1502470781.6577.49.camel@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170811042519.GS21024@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, fweimer@redhat.com, colm@allcosts.net, akpm@linux-foundation.org, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org, kirill@shutemov.name, dave.hansen@intel.com
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On 08/11/2017 09:59 AM, Rik van Riel wrote:
-> On Fri, 2017-08-11 at 09:36 -0700, Mike Kravetz wrote:
->> On 08/11/2017 08:23 AM, Rik van Riel wrote:
->>> On Thu, 2017-08-10 at 17:23 +0200, Michal Hocko wrote:
->>>> On Sun 06-08-17 10:04:25, Rik van Riel wrote:
->>>> [...]
->>>>> diff --git a/kernel/fork.c b/kernel/fork.c
->>>>> index 17921b0390b4..db1fb2802ecc 100644
->>>>> --- a/kernel/fork.c
->>>>> +++ b/kernel/fork.c
->>>>> @@ -659,6 +659,13 @@ static __latent_entropy int
->>>>> dup_mmap(struct
->>>>> mm_struct *mm,
->>>>>  		tmp->vm_flags &= ~(VM_LOCKED |
->>>>> VM_LOCKONFAULT);
->>>>>  		tmp->vm_next = tmp->vm_prev = NULL;
->>>>>  		file = tmp->vm_file;
->>>>> +
->>>>> +		/* With VM_WIPEONFORK, the child gets an empty
->>>>> VMA. */
->>>>> +		if (tmp->vm_flags & VM_WIPEONFORK) {
->>>>> +			tmp->vm_file = file = NULL;
->>>>> +			tmp->vm_ops = NULL;
->>>>> +		}
->>>>
->>>> What about VM_SHARED/|VM)MAYSHARE flags. Is it OK to keep the
->>>> around?
->>>> At
->>>> least do_anonymous_page SIGBUS on !vm_ops && VM_SHARED. Or do I
->>>> miss
->>>> where those flags are cleared?
->>>
->>> Huh, good spotting.  That makes me wonder why the test case that
->>> Mike and I ran worked just fine on a MAP_SHARED|MAP_ANONYMOUS VMA,
->>> and returned zero-filled memory when read by the child process.
->>
->> Well, I think I still got a BUG with a MAP_SHARED|MAP_ANONYMOUS vma
->> on
->> your v2 patch.  Did not really want to start a discussion on the
->> implementation until the issue of exactly what VM_WIPEONFORK was
->> supposed
->> to do was settled.
+On Fri, Aug 11, 2017 at 02:25:19PM +1000, Dave Chinner wrote:
+> On Thu, Aug 10, 2017 at 09:11:59AM -0700, Matthew Wilcox wrote:
+> > On Thu, Aug 10, 2017 at 02:28:49PM +1000, Dave Chinner wrote:
+> > > If we scale this up to a container host which is using reflink trees
+> > > it's shared root images, there might be hundreds of copies of the
+> > > same data held in cache (i.e. one page per container). Given that
+> > > the filesystem knows that the underlying data extent is shared when
+> > > we go to read it, it's relatively easy to add mechanisms to the
+> > > filesystem to return the same page for all attempts to read the
+> > > from a shared extent from all inodes that share it.
+> > 
+> > I agree the problem exists.  Should we try to fix this problem, or
+> > should we steer people towards solutions which don't have this problem?
+> > The solutions I've been seeing use COW block devices instead of COW
+> > filesystems, and DAX to share the common pages between the host and
+> > each guest.
 > 
-> It worked here, but now I don't understand why :)
-> 
->>>
->>> OK, I'll do a minimal implementation for now, which will return
->>> -EINVAL if MADV_WIPEONFORK is called on a VMA with MAP_SHARED
->>> and/or an mmapped file.
->>>
->>> It will work the way it is supposed to with anonymous MAP_PRIVATE
->>> memory, which is likely the only memory it will be used on, anyway.
->>>
->>
->> Seems reasonable.
->>
->> You should also add VM_HUGETLB to those returning -EINVAL.  IIRC, a
->> VM_HUGETLB vma even without VM_SHARED expects vm_file != NULL.
-> 
-> In other words (flags & MAP_SHARED || vma->vm_file) would catch
-> hugetlbfs, too?
+> That's one possible solution for people using hardware
+> virutalisation, but not everyone is doing that. It also relies on
+> block devices, which rules out a whole bunch of interesting stuff we
+> can do with filesystems...
 
-Yes, that should catch hugetlbfs.
+Assuming there's something fun we can do with filesystems that's
+interesting to this type of user, what do you think to this:
 
--- 
-Mike Kravetz
+Create a block device (maybe it's a loop device, maybe it's dm-raid0)
+which supports DAX and uses the page cache to cache the physical pages
+of the block device it's fronting.
+
+Use XFS+reflink+DAX on top of this loop device.  Now there's only one
+copy of each page in RAM.
+
+We'd need to be able to shoot down all mapped pages when evicting pages
+from the loop device's page cache, but we have the right data structures
+in place for that; we just need to use them.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
