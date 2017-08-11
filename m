@@ -1,63 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B7D356B025F
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 19:33:28 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id t80so52171655pgb.0
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 16:33:28 -0700 (PDT)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id u204si1053542pgb.742.2017.08.11.16.33.26
-        for <linux-mm@kvack.org>;
-        Fri, 11 Aug 2017 16:33:27 -0700 (PDT)
-Date: Sat, 12 Aug 2017 09:33:24 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v3 6/6] mm, xfs: protect swapfile contents with immutable
- + unwritten extents
-Message-ID: <20170811233323.GU21024@dastard>
-References: <150243355681.8777.14902834768886160223.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150243358949.8777.17308615269167142735.stgit@dwillia2-desk3.amr.corp.intel.com>
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 89F826B02B4
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 19:35:56 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id q66so24728235qki.1
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 16:35:56 -0700 (PDT)
+Received: from mail-qt0-f182.google.com (mail-qt0-f182.google.com. [209.85.216.182])
+        by mx.google.com with ESMTPS id r77si106195qkl.85.2017.08.11.16.35.55
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Aug 2017 16:35:55 -0700 (PDT)
+Received: by mail-qt0-f182.google.com with SMTP id s6so29237250qtc.1
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 16:35:55 -0700 (PDT)
+Subject: Re: [kernel-hardening] [PATCH v5 00/10] Add support for eXclusive
+ Page Frame Ownership
+References: <20170809200755.11234-1-tycho@docker.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <9b3d80f0-7625-a0dc-cb00-cf0e940015b1@redhat.com>
+Date: Fri, 11 Aug 2017 16:35:52 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <150243358949.8777.17308615269167142735.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <20170809200755.11234-1-tycho@docker.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: darrick.wong@oracle.com, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, Trond Myklebust <trond.myklebust@primarydata.com>, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, luto@kernel.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Anna Schumaker <anna.schumaker@netapp.com>
+To: Tycho Andersen <tycho@docker.com>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>
 
-On Thu, Aug 10, 2017 at 11:39:49PM -0700, Dan Williams wrote:
->  	ifp = XFS_IFORK_PTR(ip, whichfork);
-> diff --git a/fs/xfs/libxfs/xfs_bmap.h b/fs/xfs/libxfs/xfs_bmap.h
-> index 851982a5dfbc..a0f099289520 100644
-> --- a/fs/xfs/libxfs/xfs_bmap.h
-> +++ b/fs/xfs/libxfs/xfs_bmap.h
-> @@ -113,6 +113,15 @@ struct xfs_extent_free_item
->  /* Only convert delalloc space, don't allocate entirely new extents */
->  #define XFS_BMAPI_DELALLOC	0x400
->  
-> +/*
-> + * Permit extent manipulations even if S_IOMAP_IMMUTABLE is set on the
-> + * inode. This is only expected to be used in the swapfile activation
-> + * case where we want to mark all swap space as unwritten so that reads
-> + * return zero and writes fail with ETXTBSY. Storage access in this
-> + * state can only occur via swap operations.
-> + */
-> +#define XFS_BMAPI_FORCE		0x800
+On 08/09/2017 01:07 PM, Tycho Andersen wrote:
+> Hi all,
+> 
+> Here's a v5 of the XPFO set. Changes from v4 are:
+> 
+> * huge pages support actually works now on x86
+> * arm64 support, which boots on several different arm64 boards
+> * tests for hugepages support as well via LKDTM (thanks Kees for suggesting how
+>   to make this work)
+> 
+> Patch 2 contains some potentially controversial stuff, exposing the cpa_lock
+> and lifting some other static functions out; there is probably a better way to
+> do this, thoughts welcome.
+> 
+> Still to do are:
+> 
+> * get it to work with non-64k pages on ARM
+> * get rid of the BUG()s, in favor or WARN or similar
+> * other things people come up with in this review
+> 
+> Please have a look. Thoughts welcome!
+> 
 
-Urk. No. Immutable means immutable.
+I gave this a quick test on my arm64 machine and I see faults once
+we hit userspace:
 
-And, as a matter of policy, we should not be changing the on disk
-layout of the swapfile that is provided inside the kernel.  If the
-swap file is already allocated as unwritten, great. If not, we
-should not force it to be unwritten to be because then if the user
-downgrades their kernel the swapfile suddenly can not be used by the
-older kernel.
+[    4.439714] Unhandled fault: TLB conflict abort (0x96000030) at 0xffff800391440090
+[    4.447357] Internal error: : 96000030 [#1] SMP
+[    4.451875] Modules linked in:
+[    4.454924] CPU: 2 PID: 184 Comm: systemd Tainted: G        W       4.13.0-rc4-xpfo+ #63
+[    4.462989] Hardware name: AppliedMicro X-Gene Mustang Board/X-Gene Mustang Board, BIOS 3.06.12 Aug 12 2016
+[    4.472698] task: ffff8003e8d9fb00 task.stack: ffff8003f9fbc000
+[    4.478602] PC is at copy_page+0x48/0x110
+[    4.482601] LR is at __cpu_copy_user_page+0x28/0x48
+ 
+I'll have to give this a closer look to see what's going on with the TLB flushing.
 
-Cheers,
+Thanks,
+Laura
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+
+> Previously: http://www.openwall.com/lists/kernel-hardening/2017/06/07/24
+> 
+> Tycho
+> 
+> Juerg Haefliger (8):
+>   mm, x86: Add support for eXclusive Page Frame Ownership (XPFO)
+>   swiotlb: Map the buffer if it was unmapped by XPFO
+>   arm64: Add __flush_tlb_one()
+>   arm64/mm: Add support for XPFO
+>   arm64/mm: Disable section mappings if XPFO is enabled
+>   arm64/mm: Don't flush the data cache if the page is unmapped by XPFO
+>   arm64/mm: Add support for XPFO to swiotlb
+>   lkdtm: Add test for XPFO
+> 
+> Tycho Andersen (2):
+>   mm: add MAP_HUGETLB support to vm_mmap
+>   mm: add a user_virt_to_phys symbol
+> 
+>  Documentation/admin-guide/kernel-parameters.txt |   2 +
+>  arch/arm64/Kconfig                              |   1 +
+>  arch/arm64/include/asm/cacheflush.h             |  11 ++
+>  arch/arm64/include/asm/tlbflush.h               |   8 +
+>  arch/arm64/mm/Makefile                          |   2 +
+>  arch/arm64/mm/dma-mapping.c                     |  32 ++--
+>  arch/arm64/mm/flush.c                           |   5 +-
+>  arch/arm64/mm/mmu.c                             |  14 +-
+>  arch/arm64/mm/xpfo.c                            | 160 +++++++++++++++++
+>  arch/x86/Kconfig                                |   1 +
+>  arch/x86/include/asm/pgtable.h                  |  23 +++
+>  arch/x86/mm/Makefile                            |   1 +
+>  arch/x86/mm/pageattr.c                          |  24 +--
+>  arch/x86/mm/xpfo.c                              | 153 +++++++++++++++++
+>  drivers/misc/Makefile                           |   1 +
+>  drivers/misc/lkdtm.h                            |   4 +
+>  drivers/misc/lkdtm_core.c                       |   4 +
+>  drivers/misc/lkdtm_xpfo.c                       |  62 +++++++
+>  include/linux/highmem.h                         |  15 +-
+>  include/linux/mm.h                              |   2 +
+>  include/linux/xpfo.h                            |  47 +++++
+>  lib/swiotlb.c                                   |   3 +-
+>  mm/Makefile                                     |   1 +
+>  mm/mmap.c                                       |  19 +--
+>  mm/page_alloc.c                                 |   2 +
+>  mm/page_ext.c                                   |   4 +
+>  mm/util.c                                       |  32 ++++
+>  mm/xpfo.c                                       | 217 ++++++++++++++++++++++++
+>  security/Kconfig                                |  19 +++
+>  29 files changed, 810 insertions(+), 59 deletions(-)
+>  create mode 100644 arch/arm64/mm/xpfo.c
+>  create mode 100644 arch/x86/mm/xpfo.c
+>  create mode 100644 drivers/misc/lkdtm_xpfo.c
+>  create mode 100644 include/linux/xpfo.h
+>  create mode 100644 mm/xpfo.c
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
