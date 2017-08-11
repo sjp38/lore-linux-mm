@@ -1,46 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 466BA6B025F
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 14:04:51 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id a186so44193604pge.7
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 11:04:51 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id t12si847101plm.964.2017.08.11.11.04.48
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ADE586B025F
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 15:01:35 -0400 (EDT)
+Received: by mail-ua0-f197.google.com with SMTP id f9so16764330uaf.1
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 12:01:35 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id l41si821778uaf.153.2017.08.11.12.01.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Aug 2017 11:04:48 -0700 (PDT)
-Date: Fri, 11 Aug 2017 11:04:47 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: How can we share page cache pages for reflinked files?
-Message-ID: <20170811180447.GA23669@infradead.org>
-References: <20170810042849.GK21024@dastard>
- <20170810161159.GI31390@bombadil.infradead.org>
- <20170811042519.GS21024@dastard>
- <20170811170847.GK31390@bombadil.infradead.org>
+        Fri, 11 Aug 2017 12:01:33 -0700 (PDT)
+Subject: Re: [v6 04/15] mm: discard memblock data later
+References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
+ <1502138329-123460-5-git-send-email-pasha.tatashin@oracle.com>
+ <20170811093249.GE30811@dhcp22.suse.cz>
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <42a04441-47ad-2fa0-ca3c-784c717213f7@oracle.com>
+Date: Fri, 11 Aug 2017 15:00:47 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170811170847.GK31390@bombadil.infradead.org>
+In-Reply-To: <20170811093249.GE30811@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Dave Chinner <david@fromorbit.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, Mel Gorman <mgorman@suse.de>
 
-On Fri, Aug 11, 2017 at 10:08:47AM -0700, Matthew Wilcox wrote:
-> Assuming there's something fun we can do with filesystems that's
-> interesting to this type of user, what do you think to this:
+Hi Michal,
+
+This suggestion won't work, because there are arches without memblock 
+support: tile, sh...
+
+So, I would still need to have:
+
+#ifdef CONFIG_MEMBLOCK in page_alloc, or define memblock_discard() stubs 
+in nobootmem headfile. In either case it would become messier than what 
+it is right now.
+
+Pasha
+
+> I have just one nit below
+> Acked-by: Michal Hocko <mhocko@suse.com>
 > 
-> Create a block device (maybe it's a loop device, maybe it's dm-raid0)
-> which supports DAX and uses the page cache to cache the physical pages
-> of the block device it's fronting.
-
-Why not make every block device just support fake DAX and avoid the
-additional layer?
-
-Basically this would be going back to a file cache indexed by
-physical blocks from our logically indexed page cache model.  And
-for a fs using heavy reflinks that's probably the right model in the
-end.
+> [...]
+>> diff --git a/mm/memblock.c b/mm/memblock.c
+>> index 2cb25fe4452c..bf14aea6ab70 100644
+>> --- a/mm/memblock.c
+>> +++ b/mm/memblock.c
+>> @@ -285,31 +285,27 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
+>>   }
+>>   
+>>   #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
+> 
+> pull this ifdef inside memblock_discard and you do not have an another
+> one in page_alloc_init_late
+> 
+> [...]
+>> +/**
+>> + * Discard memory and reserved arrays if they were allocated
+>> + */
+>> +void __init memblock_discard(void)
+>>   {
+> 
+> here
+> 
+>> -	if (memblock.memory.regions == memblock_memory_init_regions)
+>> -		return 0;
+>> +	phys_addr_t addr, size;
+>>   
+>> -	*addr = __pa(memblock.memory.regions);
+>> +	if (memblock.reserved.regions != memblock_reserved_init_regions) {
+>> +		addr = __pa(memblock.reserved.regions);
+>> +		size = PAGE_ALIGN(sizeof(struct memblock_region) *
+>> +				  memblock.reserved.max);
+>> +		__memblock_free_late(addr, size);
+>> +	}
+>>   
+>> -	return PAGE_ALIGN(sizeof(struct memblock_region) *
+>> -			  memblock.memory.max);
+>> +	if (memblock.memory.regions == memblock_memory_init_regions) {
+>> +		addr = __pa(memblock.memory.regions);
+>> +		size = PAGE_ALIGN(sizeof(struct memblock_region) *
+>> +				  memblock.memory.max);
+>> +		__memblock_free_late(addr, size);
+>> +	}
+>>   }
+>> -
+>>   #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
