@@ -1,264 +1,234 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 04FF96B025F
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 13:35:04 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id p20so44097683pfj.2
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 10:35:03 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id v14si766097pgc.31.2017.08.11.10.35.02
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 58F6C6B025F
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 13:51:41 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id y129so44351268pgy.1
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 10:51:41 -0700 (PDT)
+Received: from mail-pg0-x234.google.com (mail-pg0-x234.google.com. [2607:f8b0:400e:c05::234])
+        by mx.google.com with ESMTPS id k91si832780pld.990.2017.08.11.10.51.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Aug 2017 10:35:02 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7BHXXO1105648
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 13:35:01 -0400
-Received: from e32.co.us.ibm.com (e32.co.us.ibm.com [32.97.110.150])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2c9f6bcy26-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 13:35:01 -0400
-Received: from localhost
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <bauerman@linux.vnet.ibm.com>;
-	Fri, 11 Aug 2017 11:35:01 -0600
-From: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
-Subject: [RFC v7 26/25] mm/mprotect, powerpc/mm/pkeys, x86/mm/pkeys: Add sysfs interface
-Date: Fri, 11 Aug 2017 14:34:43 -0300
-In-Reply-To: <1501459946-11619-1-git-send-email-linuxram@us.ibm.com>
-References: <1501459946-11619-1-git-send-email-linuxram@us.ibm.com>
-Message-Id: <20170811173443.6227-1-bauerman@linux.vnet.ibm.com>
+        Fri, 11 Aug 2017 10:51:39 -0700 (PDT)
+Received: by mail-pg0-x234.google.com with SMTP id y129so18159984pgy.4
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 10:51:39 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <0ef258fb-57ad-277c-fa34-31f1c41f80e0@molgen.mpg.de>
+References: <0ef258fb-57ad-277c-fa34-31f1c41f80e0@molgen.mpg.de>
+From: Cong Wang <xiyou.wangcong@gmail.com>
+Date: Fri, 11 Aug 2017 10:51:18 -0700
+Message-ID: <CAM_iQpVA1gSaLZct_wAwZLxUbQoH2Nby5NRSc=PDi2LPQFtxUA@mail.gmail.com>
+Subject: Re: `page allocation failure: order:0` with ixgbe under high load
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linuxppc-dev@lists.ozlabs.org
-Cc: x86@kernel.org, linux-mm@kvack.org, Ram Pai <linuxram@us.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Haren Myneni <hbabu@us.ibm.com>, Michal Hocko <mhocko@kernel.org>, Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
+To: Paul Menzel <pmenzel@molgen.mpg.de>
+Cc: linux-mm <linux-mm@kvack.org>, it+linux-mm@molgen.mpg.de
 
-Expose useful information for programs using memory protection keys.
-Provide implementation for powerpc and x86.
+Hello,
 
-On a powerpc system with pkeys support, here is what is shown:
+On Fri, Aug 11, 2017 at 8:36 AM, Paul Menzel <pmenzel@molgen.mpg.de> wrote:
+> Dear Linux folks,
+>
+>
+> Stress-testing a Dell PowerEdge T630 (12x E5-2603 v4 @ 1.70GHz, 96.3 GB R=
+AM)
+> with Linux 4.9.41 by writing 40 100 GB files in parallel from different
+> systems into an NFS exported directory, after some time Linux writes the
+> messages below.
 
-$ head /sys/kernel/mm/protection_keys/*
-==> /sys/kernel/mm/protection_keys/disable_execute_supported <==
-true
+We saw similar OOM for atomic allocations in RX.
 
-==> /sys/kernel/mm/protection_keys/total_keys <==
-32
 
-==> /sys/kernel/mm/protection_keys/usable_keys <==
-30
-
-And on an x86 without pkeys support:
-
-$ head /sys/kernel/mm/protection_keys/*
-==> /sys/kernel/mm/protection_keys/disable_execute_supported <==
-false
-
-==> /sys/kernel/mm/protection_keys/total_keys <==
-1
-
-==> /sys/kernel/mm/protection_keys/usable_keys <==
+>
+>> $ dmesg -T
+>> [=E2=80=A6]
+>>
+>> [Fri Aug 11 16:51:47 2017] swapper/0: page allocation failure: order:0,
+>> mode:0x2080020(GFP_ATOMIC)
+>> [Fri Aug 11 16:51:47 2017] CPU: 0 PID: 0 Comm: swapper/0 Not tainted
+>> 4.9.41.mx64.169 #1
+>> [Fri Aug 11 16:51:47 2017] Hardware name: Dell Inc. PowerEdge T630/0NT78=
+X,
+>> BIOS 2.4.2 01/09/2017
+>> [Fri Aug 11 16:51:47 2017]  ffff880c4fc03bd0 ffffffff813e31a6
+>> ffffffff81f341e8 0000000000000000
+>> [Fri Aug 11 16:51:47 2017]  ffff880c4fc03c50 ffffffff8113fedc
+>> 0208002000000011 ffffffff81f341e8
+>> [Fri Aug 11 16:51:47 2017]  ffff880c4fc03bf8 ffff880c00000010
+>> ffff880c4fc03c60 ffff880c4fc03c10
+>> [Fri Aug 11 16:51:47 2017] Call Trace:
+>> [Fri Aug 11 16:51:47 2017]  <IRQ>
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff813e31a6>] dump_stack+0x4d/0x67
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff8113fedc>] warn_alloc+0x11c/0x140
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff811403db>]
+>> __alloc_pages_nodemask+0x45b/0xe70
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff81140f6b>]
+>> __alloc_page_frag+0x17b/0x1a0
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff819dbebc>]
+>> __napi_alloc_skb+0xac/0xf0
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffffa01f7263>]
+>> ixgbe_clean_rx_irq+0xf3/0x950 [ixgbe]
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff819d4df8>] ?
+>> skb_release_data+0xa8/0xd0
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffffa01f886f>] ixgbe_poll+0x4df/0x7a0
+>> [ixgbe]
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff819ebfe9>] net_rx_action+0x1f9/0x3=
+40
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff81a9d2e8>] __do_softirq+0x88/0x29b
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff81064236>] irq_exit+0x76/0x80
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff81a9d093>] do_IRQ+0x63/0xf0
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff81a9b57f>]
+>> common_interrupt+0x7f/0x7f
+>> [Fri Aug 11 16:51:47 2017]  <EOI>
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff81a9a41d>] ? mwait_idle+0x6d/0x170
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff810283ef>] arch_cpu_idle+0xf/0x20
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff81a9a713>]
+>> default_idle_call+0x23/0x30
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff8109e435>]
+>> cpu_startup_entry+0x175/0x1e0
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff81a94fa7>] rest_init+0x77/0x80
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff8235fec3>] start_kernel+0x3b3/0x3c=
 0
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff8235f28f>]
+>> x86_64_start_reservations+0x2a/0x2c
+>> [Fri Aug 11 16:51:47 2017]  [<ffffffff8235f3f9>]
+>> x86_64_start_kernel+0x168/0x176
+>> [Fri Aug 11 16:51:47 2017] Mem-Info:
+>> [Fri Aug 11 16:51:47 2017] active_anon:29369 inactive_anon:351
+>> isolated_anon:0
+>> [Fri Aug 11 16:51:47 2017]  active_file:22668707 inactive_file:1211442
+>> isolated_file:64
+>> [Fri Aug 11 16:51:47 2017]  unevictable:0 dirty:871455 writeback:10178
+>> unstable:0
+>> [Fri Aug 11 16:51:47 2017]  slab_reclaimable:527010
+>> slab_unreclaimable:35231
+>> [Fri Aug 11 16:51:47 2017]  mapped:3998 shmem:360 pagetables:1931 bounce=
+:0
+>> [Fri Aug 11 16:51:47 2017]  free:53778 free_pcp:4689 free_cma:0
+>> [Fri Aug 11 16:51:47 2017] Node 0 active_anon:68492kB inactive_anon:1296=
+kB
+>> active_file:44916512kB inactive_file:2415652kB unevictable:0kB
+>> isolated(anon):0kB isolated(file):128kB mapped:5448kB dirty:1750600kB
+>> writeback:24708kB shmem:1304kB writeback_tmp:0kB unstable:0kB
+>> pages_scanned:0 all_unreclaimable? no
+>> [Fri Aug 11 16:51:47 2017] Node 1 active_anon:48984kB inactive_anon:108k=
+B
+>> active_file:45758316kB inactive_file:2430116kB unevictable:0kB
+>> isolated(anon):0kB isolated(file):128kB mapped:10544kB dirty:1735220kB
+>> writeback:16004kB shmem:136kB writeback_tmp:0kB unstable:0kB pages_scann=
+ed:0
+>> all_unreclaimable? no
+>> [Fri Aug 11 16:51:47 2017] Node 0 DMA free:15896kB min:4kB low:16kB
+>> high:28kB active_anon:0kB inactive_anon:0kB active_file:0kB
+>> inactive_file:0kB unevictable:0kB writepending:0kB present:15980kB
+>> managed:15896kB mlocked:0kB slab_reclaimable:0kB slab_unreclaimable:0kB
+>> kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:0kB local_pcp:0kB
+>> free_cma:0kB
+>> [Fri Aug 11 16:51:47 2017] lowmem_reserve[]: 0 1592 47927 47927
+>> [Fri Aug 11 16:51:47 2017] Node 0 DMA32 free:185436kB min:656kB low:2284=
+kB
+>> high:3912kB active_anon:656kB inactive_anon:0kB active_file:1306260kB
+>> inactive_file:85160kB unevictable:0kB writepending:63324kB present:19853=
+56kB
+>> managed:1640236kB mlocked:0kB slab_reclaimable:35744kB
+>> slab_unreclaimable:1268kB kernel_stack:252kB pagetables:28kB bounce:0kB
+>> free_pcp:6060kB local_pcp:544kB free_cma:0kB
+>> [Fri Aug 11 16:51:47 2017] lowmem_reserve[]: 0 0 46335 46335
+>> [Fri Aug 11 16:51:47 2017] Node 0 Normal free:6672kB min:19108kB
+>> low:66552kB high:113996kB active_anon:67836kB inactive_anon:1296kB
+>> active_file:43610252kB inactive_file:2330492kB unevictable:0kB
+>> writepending:1712224kB present:48234496kB managed:47447216kB mlocked:0kB
+>> slab_reclaimable:1085248kB slab_unreclaimable:75896kB kernel_stack:26424=
+kB
+>> pagetables:2636kB bounce:0kB free_pcp:6652kB local_pcp:728kB free_cma:0k=
+B
+>> [Fri Aug 11 16:51:47 2017] lowmem_reserve[]: 0 0 0 0
+>> [Fri Aug 11 16:51:47 2017] Node 1 Normal free:7108kB min:19952kB
+>> low:69492kB high:119032kB active_anon:48984kB inactive_anon:108kB
+>> active_file:45758316kB inactive_file:2430116kB unevictable:0kB
+>> writepending:1751708kB present:50331648kB managed:49543960kB mlocked:0kB
+>> slab_reclaimable:987048kB slab_unreclaimable:63760kB kernel_stack:28988k=
+B
+>> pagetables:5060kB bounce:0kB free_pcp:6044kB local_pcp:560kB free_cma:0k=
+B
+>> [Fri Aug 11 16:51:47 2017] lowmem_reserve[]: 0 0 0 0
+>> [Fri Aug 11 16:51:47 2017] Node 0 DMA: 0*4kB 1*8kB (U) 1*16kB (U) 0*32kB
+>> 2*64kB (U) 1*128kB (U) 1*256kB (U) 0*512kB 1*1024kB (U) 1*2048kB (M)
+>> 3*4096kB (M) =3D 15896kB
+>> [Fri Aug 11 16:51:47 2017] Node 0 DMA32: 831*4kB (UME) 895*8kB (UME)
+>> 275*16kB (UME) 33*32kB (UME) 70*64kB (UME) 216*128kB (UME) 29*256kB (UM)
+>> 19*512kB (UM) 3*1024kB (UM) 5*2048kB (UE) 26*4096kB (UM) =3D 185028kB
+>> [Fri Aug 11 16:51:47 2017] Node 0 Normal: 1558*4kB (UM) 0*8kB 0*16kB
+>> 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB =3D 623=
+2kB
+>> [Fri Aug 11 16:51:47 2017] Node 1 Normal: 121*4kB (ME) 768*8kB (M) 0*16k=
+B
+>> 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB =3D 662=
+8kB
+>> [Fri Aug 11 16:51:47 2017] Node 0 hugepages_total=3D0 hugepages_free=3D0
+>> hugepages_surp=3D0 hugepages_size=3D2048kB
+>> [Fri Aug 11 16:51:47 2017] Node 1 hugepages_total=3D0 hugepages_free=3D0
+>> hugepages_surp=3D0 hugepages_size=3D2048kB
+>> [Fri Aug 11 16:51:47 2017] 23880608 total pagecache pages
+>> [Fri Aug 11 16:51:47 2017] 23880608 total pagecache pages
+>> [Fri Aug 11 16:51:47 2017] 0 pages in swap cache
+>> [Fri Aug 11 16:51:47 2017] Swap cache stats: add 0, delete 0, find 0/0
+>> [Fri Aug 11 16:51:47 2017] Free swap  =3D 0kB
+>> [Fri Aug 11 16:51:47 2017] Total swap =3D 0kB
+>> [Fri Aug 11 16:51:47 2017] 25141870 pages RAM
+>> [Fri Aug 11 16:51:47 2017] 0 pages HighMem/MovableOnly
+>> [Fri Aug 11 16:51:47 2017] 480043 pages reserved
+>
+>> [=E2=80=A6]
+>
+> Is that a problem with the network device module ixgbe?
+>
+> ```
+> 04:00.0 Ethernet controller: Intel Corporation Ethernet 10G 2P X520 Adapt=
+er
+> (rev 01)
+> 04:00.1 Ethernet controller: Intel Corporation Ethernet 10G 2P X520 Adapt=
+er
+> (rev 01)
+> ```
+>
+> Or should some parameters be tuned?
+>
+> ```
+> $ more /proc/sys/vm/min*
+> ::::::::::::::
+> /proc/sys/vm/min_free_kbytes
+> ::::::::::::::
+> 39726
 
-Signed-off-by: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
----
 
-Ram asked me to add a sysfs interface for the memory protection keys
-feature. Here it is.
+Can you try to increase this? Although it depends on your workload,
+38M seems too small for a host with 96+G memory.
 
-If you have suggestions on what should be exposed, please let me know.
 
- arch/powerpc/include/asm/pkeys.h   |  2 ++
- arch/powerpc/mm/pkeys.c            | 12 ++++++++
- arch/x86/include/asm/mmu_context.h | 34 +++++++++++-----------
- arch/x86/include/asm/pkeys.h       |  1 +
- arch/x86/mm/pkeys.c                |  5 ++++
- mm/mprotect.c                      | 58 ++++++++++++++++++++++++++++++++++++++
- 6 files changed, 96 insertions(+), 16 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/pkeys.h b/arch/powerpc/include/asm/pkeys.h
-index e61ed6c332db..bbc5a34cc6d6 100644
---- a/arch/powerpc/include/asm/pkeys.h
-+++ b/arch/powerpc/include/asm/pkeys.h
-@@ -215,6 +215,8 @@ static inline int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
- 	return __arch_set_user_pkey_access(tsk, pkey, init_val);
- }
- 
-+unsigned int arch_usable_pkeys(void);
-+
- static inline bool arch_pkeys_enabled(void)
- {
- 	return pkey_inited;
-diff --git a/arch/powerpc/mm/pkeys.c b/arch/powerpc/mm/pkeys.c
-index 1424c79f45f6..54efbb133049 100644
---- a/arch/powerpc/mm/pkeys.c
-+++ b/arch/powerpc/mm/pkeys.c
-@@ -272,3 +272,15 @@ bool arch_vma_access_permitted(struct vm_area_struct *vma,
- 
- 	return pkey_access_permitted(pkey, write, execute);
- }
-+
-+unsigned int arch_usable_pkeys(void)
-+{
-+	unsigned int reserved;
-+
-+	if (!pkey_inited)
-+		return 0;
-+
-+	reserved = hweight32(initial_allocation_mask);
-+
-+	return (pkeys_total > reserved) ? pkeys_total - reserved : 0;
-+}
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index 68b329d77b3a..d2eabedd583a 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -105,13 +105,30 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
- #endif
- }
- 
-+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-+#define PKEY_INITIAL_ALLOCATION_MAP	1
-+
-+static inline int vma_pkey(struct vm_area_struct *vma)
-+{
-+	unsigned long vma_pkey_mask = VM_PKEY_BIT0 | VM_PKEY_BIT1 |
-+				      VM_PKEY_BIT2 | VM_PKEY_BIT3;
-+
-+	return (vma->vm_flags & vma_pkey_mask) >> VM_PKEY_SHIFT;
-+}
-+#else
-+static inline int vma_pkey(struct vm_area_struct *vma)
-+{
-+	return 0;
-+}
-+#endif
-+
- static inline int init_new_context(struct task_struct *tsk,
- 				   struct mm_struct *mm)
- {
- 	#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
- 	if (cpu_feature_enabled(X86_FEATURE_OSPKE)) {
- 		/* pkey 0 is the default and always allocated */
--		mm->context.pkey_allocation_map = 0x1;
-+		mm->context.pkey_allocation_map = PKEY_INITIAL_ALLOCATION_MAP;
- 		/* -1 means unallocated or invalid */
- 		mm->context.execute_only_pkey = -1;
- 	}
-@@ -205,21 +222,6 @@ static inline void arch_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
- 		mpx_notify_unmap(mm, vma, start, end);
- }
- 
--#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
--static inline int vma_pkey(struct vm_area_struct *vma)
--{
--	unsigned long vma_pkey_mask = VM_PKEY_BIT0 | VM_PKEY_BIT1 |
--				      VM_PKEY_BIT2 | VM_PKEY_BIT3;
--
--	return (vma->vm_flags & vma_pkey_mask) >> VM_PKEY_SHIFT;
--}
--#else
--static inline int vma_pkey(struct vm_area_struct *vma)
--{
--	return 0;
--}
--#endif
--
- static inline bool __pkru_allows_pkey(u16 pkey, bool write)
- {
- 	u32 pkru = read_pkru();
-diff --git a/arch/x86/include/asm/pkeys.h b/arch/x86/include/asm/pkeys.h
-index fa8279972ddf..e1b25aa60530 100644
---- a/arch/x86/include/asm/pkeys.h
-+++ b/arch/x86/include/asm/pkeys.h
-@@ -105,5 +105,6 @@ extern int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
- extern int __arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
- 		unsigned long init_val);
- extern void copy_init_pkru_to_fpregs(void);
-+extern unsigned int arch_usable_pkeys(void);
- 
- #endif /*_ASM_X86_PKEYS_H */
-diff --git a/arch/x86/mm/pkeys.c b/arch/x86/mm/pkeys.c
-index 2dab69a706ec..a3acca15ff83 100644
---- a/arch/x86/mm/pkeys.c
-+++ b/arch/x86/mm/pkeys.c
-@@ -123,6 +123,11 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot, int pkey
- 	return vma_pkey(vma);
- }
- 
-+unsigned int arch_usable_pkeys(void)
-+{
-+	return arch_max_pkey() - hweight32(PKEY_INITIAL_ALLOCATION_MAP);
-+}
-+
- #define PKRU_AD_KEY(pkey)	(PKRU_AD_BIT << ((pkey) * PKRU_BITS_PER_PKEY))
- 
- /*
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 8edd0d576254..855744b9f7d6 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -554,4 +554,62 @@ SYSCALL_DEFINE1(pkey_free, int, pkey)
- 	return ret;
- }
- 
-+#ifdef CONFIG_SYSFS
-+
-+#define PKEYS_ATTR_RO(_name)						\
-+	static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
-+
-+static ssize_t total_keys_show(struct kobject *kobj,
-+			       struct kobj_attribute *attr, char *buf)
-+{
-+	return sprintf(buf, "%u\n", arch_max_pkey());
-+}
-+PKEYS_ATTR_RO(total_keys);
-+
-+static ssize_t usable_keys_show(struct kobject *kobj,
-+				struct kobj_attribute *attr, char *buf)
-+{
-+	return sprintf(buf, "%u\n", arch_usable_pkeys());
-+}
-+PKEYS_ATTR_RO(usable_keys);
-+
-+static ssize_t disable_execute_supported_show(struct kobject *kobj,
-+					      struct kobj_attribute *attr,
-+					      char *buf)
-+{
-+#ifdef PKEY_DISABLE_EXECUTE
-+	if (arch_pkeys_enabled()) {
-+		strcpy(buf, "true\n");
-+		return sizeof("true\n") - 1;
-+	}
-+#endif
-+
-+	strcpy(buf, "false\n");
-+	return sizeof("false\n") - 1;
-+}
-+PKEYS_ATTR_RO(disable_execute_supported);
-+
-+static struct attribute *pkeys_attrs[] = {
-+	&total_keys_attr.attr,
-+	&usable_keys_attr.attr,
-+	&disable_execute_supported_attr.attr,
-+	NULL,
-+};
-+
-+static const struct attribute_group pkeys_attr_group = {
-+	.attrs = pkeys_attrs,
-+	.name = "protection_keys",
-+};
-+
-+static int __init pkeys_sysfs_init(void)
-+{
-+	int err;
-+
-+	err = sysfs_create_group(mm_kobj, &pkeys_attr_group);
-+
-+	return err;
-+}
-+late_initcall(pkeys_sysfs_init);
-+#endif /* CONFIG_SYSFS */
-+
- #endif /* CONFIG_ARCH_HAS_PKEYS */
+> ::::::::::::::
+> /proc/sys/vm/min_slab_ratio
+> ::::::::::::::
+> 5
+> ::::::::::::::
+> /proc/sys/vm/min_unmapped_ratio
+> ::::::::::::::
+> 1
+> ```
+>
+> There is quite some information about this on the WWW [1], but some sugge=
+st
+> that with recent Linux kernels, this shouldn=E2=80=99t happen, as memory =
+get
+> defragmented.
+
+
+On the other hand, the allocation order is 0 anyway. ;)
+
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
