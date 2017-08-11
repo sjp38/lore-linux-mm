@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 38E2A6B02C3
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B26D6B02F4
 	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 01:17:50 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 123so27658641pga.5
+Received: by mail-pf0-f197.google.com with SMTP id b83so27627491pfl.6
         for <linux-mm@kvack.org>; Thu, 10 Aug 2017 22:17:50 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id 29si17337pfl.465.2017.08.10.22.17.48
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id r5si19582pfr.419.2017.08.10.22.17.48
         for <linux-mm@kvack.org>;
-        Thu, 10 Aug 2017 22:17:48 -0700 (PDT)
+        Thu, 10 Aug 2017 22:17:49 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2 3/7] fs: use on-stack-bio if backing device has BDI_CAP_SYNCHRONOUS capability
-Date: Fri, 11 Aug 2017 14:17:23 +0900
-Message-Id: <1502428647-28928-4-git-send-email-minchan@kernel.org>
+Subject: [PATCH v2 4/7] mm:swap: remove end_swap_bio_write argument
+Date: Fri, 11 Aug 2017 14:17:24 +0900
+Message-Id: <1502428647-28928-5-git-send-email-minchan@kernel.org>
 In-Reply-To: <1502428647-28928-1-git-send-email-minchan@kernel.org>
 References: <1502428647-28928-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,120 +19,76 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, "karam . lee" <karam.lee@lge.com>, seungho1.park@lge.com, Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, jack@suse.cz, Jens Axboe <axboe@kernel.dk>, Vishal Verma <vishal.l.verma@intel.com>, linux-nvdimm@lists.01.org, kernel-team <kernel-team@lge.com>, Minchan Kim <minchan@kernel.org>
 
-There is no need to use dynamic bio allocation for BDI_CAP_SYNCHRONOUS
-devices. They can with on-stack bio without concern about waiting
-bio allocation from mempool under heavy memory pressure.
+Every caller of __swap_writepage uses end_swap_bio_write as
+end_write_func argument so the argument is pointless.
+Remove it.
 
-Cc: Matthew Wilcox <willy@infradead.org>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
+ include/linux/swap.h | 3 +--
+ mm/page_io.c         | 7 +++----
+ mm/zswap.c           | 2 +-
+ 3 files changed, 5 insertions(+), 7 deletions(-)
 
-Hi Mattew,
-
-I didn't use sbvec[nr_pages] as you suggested[1] because I don't think
-it's pointless in do_mpage_readpage which works per-page base as
-I replied to you.
-If I misunderstood something, please correct me.
-
-[1] http://lkml.kernel.org/r/<20170808132904.GC31390@bombadil.infradead.org>
-
- fs/mpage.c | 47 ++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 40 insertions(+), 7 deletions(-)
-
-diff --git a/fs/mpage.c b/fs/mpage.c
-index 2e4c41ccb5c9..d3b777fdfd5a 100644
---- a/fs/mpage.c
-+++ b/fs/mpage.c
-@@ -162,6 +162,9 @@ do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
- 	int fully_mapped = 1;
- 	unsigned nblocks;
- 	unsigned relative_block;
-+	/* on-stack bio for synchronous devices */
-+	struct bio sbio;
-+	struct bio_vec sbvec;
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 76f1632eea5a..ae3da979a7b7 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -336,8 +336,7 @@ extern void kswapd_stop(int nid);
+ extern int swap_readpage(struct page *page, bool do_poll);
+ extern int swap_writepage(struct page *page, struct writeback_control *wbc);
+ extern void end_swap_bio_write(struct bio *bio);
+-extern int __swap_writepage(struct page *page, struct writeback_control *wbc,
+-	bio_end_io_t end_write_func);
++extern int __swap_writepage(struct page *page, struct writeback_control *wbc);
+ extern int swap_set_page_dirty(struct page *page);
  
- 	if (page_has_buffers(page))
- 		goto confused;
-@@ -282,10 +285,22 @@ do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
- 								page))
- 				goto out;
- 		}
--		bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
-+
-+		if (bdi_cap_synchronous_io(inode_to_bdi(inode))) {
-+			bio = &sbio;
-+			/* mpage_end_io calls bio_put unconditionally */
-+			bio_get(&sbio);
-+
-+			bio_init(&sbio, &sbvec, 1);
-+			sbio.bi_bdev = bdev;
-+			sbio.bi_iter.bi_sector = blocks[0] << (blkbits - 9);
-+		} else {
-+
-+			bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
- 				min_t(int, nr_pages, BIO_MAX_PAGES), gfp);
--		if (bio == NULL)
--			goto confused;
-+			if (bio == NULL)
-+				goto confused;
-+		}
+ int add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
+diff --git a/mm/page_io.c b/mm/page_io.c
+index 20139b90125a..3502a97f7c48 100644
+--- a/mm/page_io.c
++++ b/mm/page_io.c
+@@ -254,7 +254,7 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
+ 		end_page_writeback(page);
+ 		goto out;
  	}
- 
- 	length = first_hole << blkbits;
-@@ -302,6 +317,8 @@ do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
- 	else
- 		*last_block_in_bio = blocks[blocks_per_page - 1];
+-	ret = __swap_writepage(page, wbc, end_swap_bio_write);
++	ret = __swap_writepage(page, wbc);
  out:
-+	if (bio == &sbio)
-+		bio = mpage_bio_submit(REQ_OP_READ, 0, bio);
- 	return bio;
- 
- confused:
-@@ -492,6 +509,9 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
- 	loff_t i_size = i_size_read(inode);
- 	int ret = 0;
- 	int op_flags = wbc_to_write_flags(wbc);
-+	/* on-stack-bio */
-+	struct bio sbio;
-+	struct bio_vec sbvec;
- 
- 	if (page_has_buffers(page)) {
- 		struct buffer_head *head = page_buffers(page);
-@@ -610,10 +630,21 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
- 				goto out;
- 			}
- 		}
--		bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
--				BIO_MAX_PAGES, GFP_NOFS|__GFP_HIGH);
--		if (bio == NULL)
--			goto confused;
-+
-+		if (bdi_cap_synchronous_io(inode_to_bdi(inode))) {
-+			bio = &sbio;
-+			/* mpage_end_io calls bio_put unconditionally */
-+			bio_get(&sbio);
-+
-+			bio_init(&sbio, &sbvec, 1);
-+			sbio.bi_bdev = bdev;
-+			sbio.bi_iter.bi_sector = blocks[0] << (blkbits - 9);
-+		} else {
-+			bio = mpage_alloc(bdev, blocks[0] << (blkbits - 9),
-+					BIO_MAX_PAGES, GFP_NOFS|__GFP_HIGH);
-+			if (bio == NULL)
-+				goto confused;
-+		}
- 
- 		wbc_init_bio(wbc, bio);
- 		bio->bi_write_hint = inode->i_write_hint;
-@@ -662,6 +693,8 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
- 	 */
- 	mapping_set_error(mapping, ret);
- out:
-+	if (bio == &sbio)
-+		bio = mpage_bio_submit(REQ_OP_WRITE, op_flags, bio);
- 	mpd->bio = bio;
  	return ret;
  }
+@@ -273,8 +273,7 @@ static inline void count_swpout_vm_event(struct page *page)
+ 	count_vm_events(PSWPOUT, hpage_nr_pages(page));
+ }
+ 
+-int __swap_writepage(struct page *page, struct writeback_control *wbc,
+-		bio_end_io_t end_write_func)
++int __swap_writepage(struct page *page, struct writeback_control *wbc)
+ {
+ 	struct bio *bio;
+ 	int ret;
+@@ -329,7 +328,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
+ 	}
+ 
+ 	ret = 0;
+-	bio = get_swap_bio(GFP_NOIO, page, end_write_func);
++	bio = get_swap_bio(GFP_NOIO, page, end_swap_bio_write);
+ 	if (bio == NULL) {
+ 		set_page_dirty(page);
+ 		unlock_page(page);
+diff --git a/mm/zswap.c b/mm/zswap.c
+index d39581a076c3..38db258515b5 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -900,7 +900,7 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
+ 	SetPageReclaim(page);
+ 
+ 	/* start writeback */
+-	__swap_writepage(page, &wbc, end_swap_bio_write);
++	__swap_writepage(page, &wbc);
+ 	put_page(page);
+ 	zswap_written_back_pages++;
+ 
 -- 
 2.7.4
 
