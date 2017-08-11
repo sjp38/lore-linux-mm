@@ -1,65 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A4886B0292
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 11:23:16 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id t37so18935169qtg.6
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 08:23:16 -0700 (PDT)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C8E526B025F
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 11:24:34 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id s18so19111095qks.4
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 08:24:34 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 6si992315qty.275.2017.08.11.08.23.15
+        by mx.google.com with ESMTPS id p8si972123qkl.356.2017.08.11.08.24.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Aug 2017 08:23:15 -0700 (PDT)
-Message-ID: <1502464992.6577.48.camel@redhat.com>
-Subject: Re: [PATCH 2/2] mm,fork: introduce MADV_WIPEONFORK
-From: Rik van Riel <riel@redhat.com>
-Date: Fri, 11 Aug 2017 11:23:12 -0400
-In-Reply-To: <20170810152352.GZ23863@dhcp22.suse.cz>
-References: <20170806140425.20937-1-riel@redhat.com>
-	 <20170806140425.20937-3-riel@redhat.com>
-	 <20170810152352.GZ23863@dhcp22.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        Fri, 11 Aug 2017 08:24:34 -0700 (PDT)
+Subject: Re: [PATCH v2 0/2] mm,fork,security: introduce MADV_WIPEONFORK
+References: <20170807134648.GI32434@dhcp22.suse.cz>
+ <1502117991.6577.13.camel@redhat.com> <20170810130531.GS23863@dhcp22.suse.cz>
+ <CAAF6GDc2hsj-XJj=Rx2ZF6Sh3Ke6nKewABXfqQxQjfDd5QN7Ug@mail.gmail.com>
+ <20170810153639.GB23863@dhcp22.suse.cz>
+ <CAAF6GDeno6RpHf1KORVSxUL7M-CQfbWFFdyKK8LAWd_6PcJ55Q@mail.gmail.com>
+ <20170810170144.GA987@dhcp22.suse.cz>
+ <CAAF6GDdFjS612mx1TXzaVk1J-Afz9wsAywTEijO2TG4idxabiw@mail.gmail.com>
+ <20170811140653.GO30811@dhcp22.suse.cz>
+ <c8cda773-b28d-f35f-7f18-6735584cb173@redhat.com>
+ <20170811142457.GP30811@dhcp22.suse.cz>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <6a04f59b-b72b-c468-ea5c-230764a24402@redhat.com>
+Date: Fri, 11 Aug 2017 17:24:29 +0200
+MIME-Version: 1.0
+In-Reply-To: <20170811142457.GP30811@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, mike.kravetz@oracle.com, linux-mm@kvack.org, fweimer@redhat.com, colm@allcosts.net, akpm@linux-foundation.org, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org, kirill@shutemov.name, dave.hansen@intel.com
+Cc: =?UTF-8?Q?Colm_MacC=c3=a1rthaigh?= <colm@allcosts.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Rik van Riel <riel@redhat.com>, Will Drewry <wad@chromium.org>, akpm@linux-foundation.org, dave.hansen@intel.com, kirill@shutemov.name, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, luto@amacapital.net, mingo@kernel.org
 
-On Thu, 2017-08-10 at 17:23 +0200, Michal Hocko wrote:
-> On Sun 06-08-17 10:04:25, Rik van Riel wrote:
-> [...]
-> > diff --git a/kernel/fork.c b/kernel/fork.c
-> > index 17921b0390b4..db1fb2802ecc 100644
-> > --- a/kernel/fork.c
-> > +++ b/kernel/fork.c
-> > @@ -659,6 +659,13 @@ static __latent_entropy int dup_mmap(struct
-> > mm_struct *mm,
-> > A 		tmp->vm_flags &= ~(VM_LOCKED | VM_LOCKONFAULT);
-> > A 		tmp->vm_next = tmp->vm_prev = NULL;
-> > A 		file = tmp->vm_file;
-> > +
-> > +		/* With VM_WIPEONFORK, the child gets an empty
-> > VMA. */
-> > +		if (tmp->vm_flags & VM_WIPEONFORK) {
-> > +			tmp->vm_file = file = NULL;
-> > +			tmp->vm_ops = NULL;
-> > +		}
+On 08/11/2017 04:24 PM, Michal Hocko wrote:
+> On Fri 11-08-17 16:11:44, Florian Weimer wrote:
+>> On 08/11/2017 04:06 PM, Michal Hocko wrote:
+>>
+>>> I am sorry to look too insisting here (I have still hard time to reconcile
+>>> myself with the madvise (ab)use) but if we in fact want minherit like
+>>> interface why don't we simply add minherit and make the code which wants
+>>> to use that interface easier to port? Is the only reason that hooking
+>>> into madvise is less code? If yes is that a sufficient reason to justify
+>>> the (ab)use of madvise? If there is a general consensus on that part I
+>>> will shut up and won't object anymore. Arguably MADV_DONTFORK would fit
+>>> into minherit API better as well.
+>>
+>> It does, OpenBSD calls it MAP_INHERIT_NONE.
+>>
+>> Could you implement MAP_INHERIT_COPY and MAP_INHERIT_SHARE as well?  Or
+>> is changing from MAP_SHARED to MAP_PRIVATE and back impossible?
 > 
-> What about VM_SHARED/|VM)MAYSHARE flags. Is it OK to keep the around?
-> At
-> least do_anonymous_page SIGBUS on !vm_ops && VM_SHARED. Or do I miss
-> where those flags are cleared?
+> I haven't explored those two very much. Their semantic seems rather
+> awkward, especially map_inherit_share one. I guess MAP_INHERIT_COPY
+> would be doable. Do we have to support all modes or a missing support
+> would disqualify the syscall completely?
 
-Huh, good spotting.  That makes me wonder why the test case that
-Mike and I ran worked just fine on a MAP_SHARED|MAP_ANONYMOUS VMA,
-and returned zero-filled memory when read by the child process.
+I think it would be a bit awkward if we implemented MAP_INHERIT_ZERO and
+it would not turn a shared mapping into a private mapping in the child,
+or would not work on shared mappings at all, or deviate in any way from
+the OpenBSD implementation.
 
-OK, I'll do a minimal implementation for now, which will return
--EINVAL if MADV_WIPEONFORK is called on a VMA with MAP_SHARED
-and/or an mmapped file.
+MAP_INHERIT_SHARE for a MAP_PRIVATE mapping which has been modified is a
+bit bizarre, and I don't know how OpenBSD implements any of this.  It
+could well be that the exact behavior implemented in OpenBSD is a poor
+fit for the Linux VM implementation.
 
-It will work the way it is supposed to with anonymous MAP_PRIVATE
-memory, which is likely the only memory it will be used on, anyway.
+Florian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
