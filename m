@@ -1,92 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id ADE586B025F
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 15:01:35 -0400 (EDT)
-Received: by mail-ua0-f197.google.com with SMTP id f9so16764330uaf.1
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 12:01:35 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id l41si821778uaf.153.2017.08.11.12.01.33
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D4866B025F
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 15:19:52 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id u11so21931421qtu.10
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 12:19:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f7si1358061qkb.172.2017.08.11.12.19.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Aug 2017 12:01:33 -0700 (PDT)
-Subject: Re: [v6 04/15] mm: discard memblock data later
-References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
- <1502138329-123460-5-git-send-email-pasha.tatashin@oracle.com>
- <20170811093249.GE30811@dhcp22.suse.cz>
-From: Pasha Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <42a04441-47ad-2fa0-ca3c-784c717213f7@oracle.com>
-Date: Fri, 11 Aug 2017 15:00:47 -0400
-MIME-Version: 1.0
-In-Reply-To: <20170811093249.GE30811@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Fri, 11 Aug 2017 12:19:51 -0700 (PDT)
+From: riel@redhat.com
+Subject: [PATCH v3 0/2] mm,fork,security: introduce MADV_WIPEONFORK
+Date: Fri, 11 Aug 2017 15:19:40 -0400
+Message-Id: <20170811191942.17487-1-riel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, Mel Gorman <mgorman@suse.de>
+To: linux-kernel@vger.kernel.org
+Cc: mhocko@kernel.org, mike.kravetz@oracle.com, linux-mm@kvack.org, fweimer@redhat.com, colm@allcosts.net, akpm@linux-foundation.org, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org, kirill@shutemov.name, dave.hansen@intel.com, linux-api@vger.kernel.org, torvalds@linux-foundation.org, willy@infradead.org
 
-Hi Michal,
+v3: simplify implementation, limit to anonymous, private mappings
+v2: fix kbuild warnings
 
-This suggestion won't work, because there are arches without memblock 
-support: tile, sh...
+Remaining question: should this be under madvise (like MADV_DONTDUMP,
+MADV_DONTFORK, etc) or should we implement an minherit syscall? Linus?
 
-So, I would still need to have:
 
-#ifdef CONFIG_MEMBLOCK in page_alloc, or define memblock_discard() stubs 
-in nobootmem headfile. In either case it would become messier than what 
-it is right now.
+Introduce MADV_WIPEONFORK semantics, which result in a VMA being
+empty in the child process after fork. This differs from MADV_DONTFORK
+in one important way.
 
-Pasha
+If a child process accesses memory that was MADV_WIPEONFORK, it
+will get zeroes. The address ranges are still valid, they are just empty.
 
-> I have just one nit below
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> [...]
->> diff --git a/mm/memblock.c b/mm/memblock.c
->> index 2cb25fe4452c..bf14aea6ab70 100644
->> --- a/mm/memblock.c
->> +++ b/mm/memblock.c
->> @@ -285,31 +285,27 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
->>   }
->>   
->>   #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
-> 
-> pull this ifdef inside memblock_discard and you do not have an another
-> one in page_alloc_init_late
-> 
-> [...]
->> +/**
->> + * Discard memory and reserved arrays if they were allocated
->> + */
->> +void __init memblock_discard(void)
->>   {
-> 
-> here
-> 
->> -	if (memblock.memory.regions == memblock_memory_init_regions)
->> -		return 0;
->> +	phys_addr_t addr, size;
->>   
->> -	*addr = __pa(memblock.memory.regions);
->> +	if (memblock.reserved.regions != memblock_reserved_init_regions) {
->> +		addr = __pa(memblock.reserved.regions);
->> +		size = PAGE_ALIGN(sizeof(struct memblock_region) *
->> +				  memblock.reserved.max);
->> +		__memblock_free_late(addr, size);
->> +	}
->>   
->> -	return PAGE_ALIGN(sizeof(struct memblock_region) *
->> -			  memblock.memory.max);
->> +	if (memblock.memory.regions == memblock_memory_init_regions) {
->> +		addr = __pa(memblock.memory.regions);
->> +		size = PAGE_ALIGN(sizeof(struct memblock_region) *
->> +				  memblock.memory.max);
->> +		__memblock_free_late(addr, size);
->> +	}
->>   }
->> -
->>   #endif
+If a child process accesses memory that was MADV_DONTFORK, it will
+get a segmentation fault, since those address ranges are no longer
+valid in the child after fork.
+
+Since MADV_DONTFORK also seems to be used to allow very large
+programs to fork in systems with strict memory overcommit restrictions,
+changing the semantics of MADV_DONTFORK might break existing programs.
+
+The use case is libraries that store or cache information, and
+want to know that they need to regenerate it in the child process
+after fork.
+
+Examples of this would be:
+- systemd/pulseaudio API checks (fail after fork)
+  (replacing a getpid check, which is too slow without a PID cache)
+- PKCS#11 API reinitialization check (mandated by specification)
+- glibc's upcoming PRNG (reseed after fork)
+- OpenSSL PRNG (reseed after fork)
+
+The security benefits of a forking server having a re-inialized
+PRNG in every child process are pretty obvious. However, due to
+libraries having all kinds of internal state, and programs getting
+compiled with many different versions of each library, it is
+unreasonable to expect calling programs to re-initialize everything
+manually after fork.
+
+A further complication is the proliferation of clone flags,
+programs bypassing glibc's functions to call clone directly,
+and programs calling unshare, causing the glibc pthread_atfork
+hook to not get called.
+
+It would be better to have the kernel take care of this automatically.
+
+This is similar to the OpenBSD minherit syscall with MAP_INHERIT_ZERO:
+
+    https://man.openbsd.org/minherit.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
