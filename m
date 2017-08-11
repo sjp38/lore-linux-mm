@@ -1,53 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B40576B0387
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 12:13:51 -0400 (EDT)
-Received: by mail-vk0-f72.google.com with SMTP id 9so15430795vkd.4
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 09:13:51 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id y62si581159vkc.31.2017.08.11.09.13.50
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CC45C6B039F
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 12:17:37 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id y15so6887565lfd.7
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 09:17:37 -0700 (PDT)
+Received: from mail-lf0-f66.google.com (mail-lf0-f66.google.com. [209.85.215.66])
+        by mx.google.com with ESMTPS id a65si517842lfl.321.2017.08.11.09.17.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Aug 2017 09:13:50 -0700 (PDT)
-Subject: Re: [v6 14/15] mm: optimize early system hash allocations
-References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
- <1502138329-123460-15-git-send-email-pasha.tatashin@oracle.com>
- <20170811130541.GM30811@dhcp22.suse.cz>
-From: Pasha Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <8da9321c-769c-3319-8c02-3c91d86b221e@oracle.com>
-Date: Fri, 11 Aug 2017 12:13:13 -0400
-MIME-Version: 1.0
-In-Reply-To: <20170811130541.GM30811@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Fri, 11 Aug 2017 09:17:36 -0700 (PDT)
+Received: by mail-lf0-f66.google.com with SMTP id t128so2600306lff.3
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 09:17:35 -0700 (PDT)
+From: Alexander Popov <alex.popov@linux.com>
+Subject: [linux-next][PATCH v2] mm/slub.c: add a naive detection of double free or corruption
+Date: Fri, 11 Aug 2017 19:17:26 +0300
+Message-Id: <1502468246-1262-1-git-send-email-alex.popov@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org
+To: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Paul E McKenney <paulmck@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, Tejun Heo <tj@kernel.org>, Andy Lutomirski <luto@kernel.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Tycho Andersen <tycho@docker.com>, Alexander Popov <alex.popov@linux.com>, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
 
->> Clients can call alloc_large_system_hash() with flag: HASH_ZERO to specify
->> that memory that was allocated for system hash needs to be zeroed,
->> otherwise the memory does not need to be zeroed, and client will initialize
->> it.
->>
->> If memory does not need to be zero'd, call the new
->> memblock_virt_alloc_raw() interface, and thus improve the boot performance.
->>
->> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
->> Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
->> Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
->> Reviewed-by: Bob Picco <bob.picco@oracle.com>
-> 
-> OK, but as mentioned in the previous patch add memblock_virt_alloc_raw
-> in this patch.
-> 
-> Acked-by: Michal Hocko <mhocko@suse.com>
+Add an assertion similar to "fasttop" check in GNU C Library allocator
+as a part of SLAB_FREELIST_HARDENED feature. An object added to a singly
+linked freelist should not point to itself. That helps to detect some
+double free errors (e.g. CVE-2017-2636) without slub_debug and KASAN.
 
-Ok I will merge them.
+Signed-off-by: Alexander Popov <alex.popov@linux.com>
+---
+ mm/slub.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-Thank you,
-Pasha
+diff --git a/mm/slub.c b/mm/slub.c
+index b9c7f1a..77b2781 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -290,6 +290,10 @@ static inline void set_freepointer(struct kmem_cache *s, void *object, void *fp)
+ {
+ 	unsigned long freeptr_addr = (unsigned long)object + s->offset;
+ 
++#ifdef CONFIG_SLAB_FREELIST_HARDENED
++	BUG_ON(object == fp); /* naive detection of double free or corruption */
++#endif
++
+ 	*(void **)freeptr_addr = freelist_ptr(s, fp, freeptr_addr);
+ }
+ 
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
