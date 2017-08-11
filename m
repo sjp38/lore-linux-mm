@@ -1,61 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 95C216B025F
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 10:27:04 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id k82so4008031oih.1
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 07:27:04 -0700 (PDT)
-Received: from mail-it0-x235.google.com (mail-it0-x235.google.com. [2607:f8b0:4001:c0b::235])
-        by mx.google.com with ESMTPS id a80si696701oib.297.2017.08.11.07.27.03
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CD1846B025F
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 11:13:54 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id q64so46383234ioi.6
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 08:13:54 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id j5si1406355itg.154.2017.08.11.08.13.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Aug 2017 07:27:03 -0700 (PDT)
-Received: by mail-it0-x235.google.com with SMTP id 76so28511414ith.0
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 07:27:03 -0700 (PDT)
-Subject: Re: [PATCH v1 2/6] fs: use on-stack-bio if backing device has
- BDI_CAP_SYNC capability
-References: <1502175024-28338-1-git-send-email-minchan@kernel.org>
- <1502175024-28338-3-git-send-email-minchan@kernel.org>
- <20170808124959.GB31390@bombadil.infradead.org>
- <20170808132904.GC31390@bombadil.infradead.org> <20170809015113.GB32338@bbox>
- <20170809023122.GF31390@bombadil.infradead.org> <20170809024150.GA32471@bbox>
- <20170810030433.GG31390@bombadil.infradead.org>
- <CAA9_cmekE9_PYmNnVmiOkyH2gq5o8=uvEKnAbMWw5nBX-zE69g@mail.gmail.com>
- <20170811104615.GA14397@lst.de>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <20c5b30a-b787-1f46-f997-7542a87033f8@kernel.dk>
-Date: Fri, 11 Aug 2017 08:26:59 -0600
+        Fri, 11 Aug 2017 08:13:53 -0700 (PDT)
+Subject: Re: [v6 00/15] complete deferred page initialization
+References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
+ <20170811075826.GB30811@dhcp22.suse.cz>
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <23e22449-89f0-507d-e92a-9ee947a7c363@oracle.com>
+Date: Fri, 11 Aug 2017 11:13:07 -0400
 MIME-Version: 1.0
-In-Reply-To: <20170811104615.GA14397@lst.de>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20170811075826.GB30811@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, "karam . lee" <karam.lee@lge.com>, seungho1.park@lge.com, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Vishal Verma <vishal.l.verma@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, kernel-team <kernel-team@lge.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org
 
-On 08/11/2017 04:46 AM, Christoph Hellwig wrote:
-> On Wed, Aug 09, 2017 at 08:06:24PM -0700, Dan Williams wrote:
->> I like it, but do you think we should switch to sbvec[<constant>] to
->> preclude pathological cases where nr_pages is large?
+On 08/11/2017 03:58 AM, Michal Hocko wrote:
+> [I am sorry I didn't get to your previous versions]
+
+Thank you for reviewing this work. I will address your comments, and 
+send-out a new patches.
+
+>>
+>> In this work we do the following:
+>> - Never read access struct page until it was initialized
 > 
-> Yes, please.
+> How is this enforced? What about pfn walkers? E.g. page_ext
+> initialization code (page owner in particular)
+
+This is hard to enforce 100%. But, because we have a patch in this 
+series that sets all memory that was allocated by 
+memblock_virt_alloc_try_nid_raw() to ones with debug options enabled, 
+and because Linux has a good set of asserts in place that check struct 
+pages to be sane, especially the ones that are enabled with this config: 
+CONFIG_DEBUG_VM_PGFLAGS. I was able to find many places in linux which 
+accessed struct pages before __init_single_page() is performed, and fix 
+them. Most of these places happen only when deferred struct page 
+initialization code is enabled.
+
 > 
-> Then I'd like to see that the on-stack bio even matters for
-> mpage_readpage / mpage_writepage.  Compared to all the buffer head
-> overhead the bio allocation should not actually matter in practice.
+>> - Never set any fields in struct pages before they are initialized
+>> - Zero struct page at the beginning of struct page initialization
+> 
+> Please give us a more highlevel description of how your reimplementation
+> works and how is the patchset organized. I will go through those patches
+> but it is always good to give an overview in the cover letter to make
+> the review easier.
 
-I'm skeptical for that path, too. I also wonder how far we could go
-with just doing a per-cpu bio recycling facility, to reduce the cost
-of having to allocate a bio. The on-stack bio parts are fine for
-simple use case, where simple means that the patch just special
-cases the allocation, and doesn't have to change much else.
+Ok, will add more explanation to the cover letter.
 
-I had a patch for bio recycling and batched freeing a year or two
-ago, I'll see if I can find and resurrect it.
+>> Single threaded struct page init: 7.6s/T improvement
+>> Deferred struct page init: 10.2s/T improvement
+> 
+> What are before and after numbers and how have you measured them.
 
--- 
-Jens Axboe
+When I send out this series the next time I will include before vs. 
+after on the machine I tested, including links to dmesg output.
+
+I used my early boot timestamps for x86 and sparc to measure the data. 
+Early boot timestamps for sparc is already part of mainline, the x86 
+patches are out for review: https://lkml.org/lkml/2017/8/10/946 (should 
+have changed subject line there :) ).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
