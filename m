@@ -1,20 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 153106B0292
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 15:19:53 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id s26so21992204qts.8
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 12:19:53 -0700 (PDT)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 74EE96B02B4
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 15:19:54 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id l13so21868029qtc.15
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 12:19:54 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w7si1351682qte.364.2017.08.11.12.19.52
+        by mx.google.com with ESMTPS id 85si1478590qkz.7.2017.08.11.12.19.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Aug 2017 12:19:52 -0700 (PDT)
+        Fri, 11 Aug 2017 12:19:53 -0700 (PDT)
 From: riel@redhat.com
-Subject: [PATCH 1/2] x86,mpx: make mpx depend on x86-64 to free up VMA flag
-Date: Fri, 11 Aug 2017 15:19:41 -0400
-Message-Id: <20170811191942.17487-2-riel@redhat.com>
+Subject: [PATCH 2/2] mm,fork: introduce MADV_WIPEONFORK
+Date: Fri, 11 Aug 2017 15:19:42 -0400
+Message-Id: <20170811191942.17487-3-riel@redhat.com>
 In-Reply-To: <20170811191942.17487-1-riel@redhat.com>
 References: <20170811191942.17487-1-riel@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,63 +25,254 @@ Cc: mhocko@kernel.org, mike.kravetz@oracle.com, linux-mm@kvack.org, fweimer@redh
 
 From: Rik van Riel <riel@redhat.com>
 
-MPX only seems to be available on 64 bit CPUs, starting with Skylake
-and Goldmont. Move VM_MPX into the 64 bit only portion of vma->vm_flags,
-in order to free up a VMA flag.
+Introduce MADV_WIPEONFORK semantics, which result in a VMA being
+empty in the child process after fork. This differs from MADV_DONTFORK
+in one important way.
 
+If a child process accesses memory that was MADV_WIPEONFORK, it
+will get zeroes. The address ranges are still valid, they are just empty.
+
+If a child process accesses memory that was MADV_DONTFORK, it will
+get a segmentation fault, since those address ranges are no longer
+valid in the child after fork.
+
+Since MADV_DONTFORK also seems to be used to allow very large
+programs to fork in systems with strict memory overcommit restrictions,
+changing the semantics of MADV_DONTFORK might break existing programs.
+
+MADV_WIPEONFORK only works on private, anonymous VMAs.
+
+The use case is libraries that store or cache information, and
+want to know that they need to regenerate it in the child process
+after fork.
+
+Examples of this would be:
+- systemd/pulseaudio API checks (fail after fork)
+  (replacing a getpid check, which is too slow without a PID cache)
+- PKCS#11 API reinitialization check (mandated by specification)
+- glibc's upcoming PRNG (reseed after fork)
+- OpenSSL PRNG (reseed after fork)
+
+The security benefits of a forking server having a re-inialized
+PRNG in every child process are pretty obvious. However, due to
+libraries having all kinds of internal state, and programs getting
+compiled with many different versions of each library, it is
+unreasonable to expect calling programs to re-initialize everything
+manually after fork.
+
+A further complication is the proliferation of clone flags,
+programs bypassing glibc's functions to call clone directly,
+and programs calling unshare, causing the glibc pthread_atfork
+hook to not get called.
+
+It would be better to have the kernel take care of this automatically.
+
+This is similar to the OpenBSD minherit syscall with MAP_INHERIT_ZERO:
+
+    https://man.openbsd.org/minherit.2
+
+Reported-by: Florian Weimer <fweimer@redhat.com>
+Reported-by: Colm MacCA!rtaigh <colm@allcosts.net>
 Signed-off-by: Rik van Riel <riel@redhat.com>
-Acked-by: Dave Hansen <dave.hansen@intel.com>
 ---
- arch/x86/Kconfig   | 4 +++-
- include/linux/mm.h | 8 ++++++--
- 2 files changed, 9 insertions(+), 3 deletions(-)
+ arch/alpha/include/uapi/asm/mman.h     |  3 +++
+ arch/mips/include/uapi/asm/mman.h      |  3 +++
+ arch/parisc/include/uapi/asm/mman.h    |  3 +++
+ arch/xtensa/include/uapi/asm/mman.h    |  3 +++
+ fs/proc/task_mmu.c                     |  1 +
+ include/linux/mm.h                     |  2 +-
+ include/trace/events/mmflags.h         |  8 +-------
+ include/uapi/asm-generic/mman-common.h |  3 +++
+ kernel/fork.c                          |  1 +
+ mm/madvise.c                           | 13 +++++++++++++
+ mm/memory.c                            | 10 ++++++++++
+ 11 files changed, 42 insertions(+), 8 deletions(-)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 781521b7cf9e..6dff14fadc6f 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1756,7 +1756,9 @@ config X86_SMAP
- config X86_INTEL_MPX
- 	prompt "Intel MPX (Memory Protection Extensions)"
- 	def_bool n
--	depends on CPU_SUP_INTEL
-+	# Note: only available in 64-bit mode due to VMA flags shortage
-+	depends on CPU_SUP_INTEL && X86_64
-+	select ARCH_USES_HIGH_VMA_FLAGS
- 	---help---
- 	  MPX provides hardware features that can be used in
- 	  conjunction with compiler-instrumented code to check
+diff --git a/arch/alpha/include/uapi/asm/mman.h b/arch/alpha/include/uapi/asm/mman.h
+index 02760f6e6ca4..2a708a792882 100644
+--- a/arch/alpha/include/uapi/asm/mman.h
++++ b/arch/alpha/include/uapi/asm/mman.h
+@@ -64,6 +64,9 @@
+ 					   overrides the coredump filter bits */
+ #define MADV_DODUMP	17		/* Clear the MADV_NODUMP flag */
+ 
++#define MADV_WIPEONFORK 18		/* Zero memory on fork, child only */
++#define MADV_KEEPONFORK 19		/* Undo MADV_WIPEONFORK */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
+diff --git a/arch/mips/include/uapi/asm/mman.h b/arch/mips/include/uapi/asm/mman.h
+index 655e2fb5395b..d59c57d60d7d 100644
+--- a/arch/mips/include/uapi/asm/mman.h
++++ b/arch/mips/include/uapi/asm/mman.h
+@@ -91,6 +91,9 @@
+ 					   overrides the coredump filter bits */
+ #define MADV_DODUMP	17		/* Clear the MADV_NODUMP flag */
+ 
++#define MADV_WIPEONFORK 18		/* Zero memory on fork, child only */
++#define MADV_KEEPONFORK 19		/* Undo MADV_WIPEONFORK */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
+diff --git a/arch/parisc/include/uapi/asm/mman.h b/arch/parisc/include/uapi/asm/mman.h
+index 5979745815a5..e205e0179642 100644
+--- a/arch/parisc/include/uapi/asm/mman.h
++++ b/arch/parisc/include/uapi/asm/mman.h
+@@ -60,6 +60,9 @@
+ 					   overrides the coredump filter bits */
+ #define MADV_DODUMP	70		/* Clear the MADV_NODUMP flag */
+ 
++#define MADV_WIPEONFORK 71		/* Zero memory on fork, child only */
++#define MADV_KEEPONFORK 72		/* Undo MADV_WIPEONFORK */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ #define MAP_VARIABLE	0
+diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
+index 24365b30aae9..ed23e0a1b30d 100644
+--- a/arch/xtensa/include/uapi/asm/mman.h
++++ b/arch/xtensa/include/uapi/asm/mman.h
+@@ -103,6 +103,9 @@
+ 					   overrides the coredump filter bits */
+ #define MADV_DODUMP	17		/* Clear the MADV_NODUMP flag */
+ 
++#define MADV_WIPEONFORK 18		/* Zero memory on fork, child only */
++#define MADV_KEEPONFORK 19		/* Undo MADV_WIPEONFORK */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index b836fd61ed87..2591e70216ff 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -651,6 +651,7 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
+ 		[ilog2(VM_NORESERVE)]	= "nr",
+ 		[ilog2(VM_HUGETLB)]	= "ht",
+ 		[ilog2(VM_ARCH_1)]	= "ar",
++		[ilog2(VM_WIPEONFORK)]	= "wf",
+ 		[ilog2(VM_DONTDUMP)]	= "dd",
+ #ifdef CONFIG_MEM_SOFT_DIRTY
+ 		[ilog2(VM_SOFTDIRTY)]	= "sd",
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 46b9ac5e8569..7550eeb06ccf 100644
+index 7550eeb06ccf..58788c1b9e9d 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -208,10 +208,12 @@ extern unsigned int kobjsize(const void *objp);
- #define VM_HIGH_ARCH_BIT_1	33	/* bit only usable on 64-bit architectures */
- #define VM_HIGH_ARCH_BIT_2	34	/* bit only usable on 64-bit architectures */
- #define VM_HIGH_ARCH_BIT_3	35	/* bit only usable on 64-bit architectures */
-+#define VM_HIGH_ARCH_BIT_4	36	/* bit only usable on 64-bit architectures */
- #define VM_HIGH_ARCH_0	BIT(VM_HIGH_ARCH_BIT_0)
- #define VM_HIGH_ARCH_1	BIT(VM_HIGH_ARCH_BIT_1)
- #define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
- #define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
-+#define VM_HIGH_ARCH_4	BIT(VM_HIGH_ARCH_BIT_4)
- #endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
+@@ -189,7 +189,7 @@ extern unsigned int kobjsize(const void *objp);
+ #define VM_NORESERVE	0x00200000	/* should the VM suppress accounting */
+ #define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
+ #define VM_ARCH_1	0x01000000	/* Architecture-specific flag */
+-#define VM_ARCH_2	0x02000000
++#define VM_WIPEONFORK	0x02000000	/* Wipe VMA contents in child. */
+ #define VM_DONTDUMP	0x04000000	/* Do not include in the core dump */
  
- #if defined(CONFIG_X86)
-@@ -235,9 +237,11 @@ extern unsigned int kobjsize(const void *objp);
- # define VM_MAPPED_COPY	VM_ARCH_1	/* T if mapped copy of data (nommu mmap) */
+ #ifdef CONFIG_MEM_SOFT_DIRTY
+diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
+index 8e50d01c645f..4c2e4737d7bc 100644
+--- a/include/trace/events/mmflags.h
++++ b/include/trace/events/mmflags.h
+@@ -125,12 +125,6 @@ IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
+ #define __VM_ARCH_SPECIFIC_1 {VM_ARCH_1,	"arch_1"	}
  #endif
  
 -#if defined(CONFIG_X86)
-+#if defined(CONFIG_X86_INTEL_MPX)
- /* MPX specific bounds table or bounds directory */
--# define VM_MPX		VM_ARCH_2
-+# define VM_MPX		VM_HIGH_ARCH_BIT_4
-+#else
-+# define VM_MPX		VM_NONE
- #endif
+-#define __VM_ARCH_SPECIFIC_2 {VM_MPX,		"mpx"		}
+-#else
+-#define __VM_ARCH_SPECIFIC_2 {VM_ARCH_2,	"arch_2"	}
+-#endif
+-
+ #ifdef CONFIG_MEM_SOFT_DIRTY
+ #define IF_HAVE_VM_SOFTDIRTY(flag,name) {flag, name },
+ #else
+@@ -162,7 +156,7 @@ IF_HAVE_PG_IDLE(PG_idle,		"idle"		)
+ 	{VM_NORESERVE,			"noreserve"	},		\
+ 	{VM_HUGETLB,			"hugetlb"	},		\
+ 	__VM_ARCH_SPECIFIC_1				,		\
+-	__VM_ARCH_SPECIFIC_2				,		\
++	{VM_WIPEONFORK,			"wipeonfork"	},		\
+ 	{VM_DONTDUMP,			"dontdump"	},		\
+ IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
+ 	{VM_MIXEDMAP,			"mixedmap"	},		\
+diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
+index 8c27db0c5c08..49e2b1d78093 100644
+--- a/include/uapi/asm-generic/mman-common.h
++++ b/include/uapi/asm-generic/mman-common.h
+@@ -58,6 +58,9 @@
+ 					   overrides the coredump filter bits */
+ #define MADV_DODUMP	17		/* Clear the MADV_DONTDUMP flag */
  
- #ifndef VM_GROWSUP
++#define MADV_WIPEONFORK 18		/* Zero memory on fork, child only */
++#define MADV_KEEPONFORK 19		/* Undo MADV_WIPEONFORK */
++
+ /* compatibility flags */
+ #define MAP_FILE	0
+ 
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 17921b0390b4..74be75373ee6 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -659,6 +659,7 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
+ 		tmp->vm_flags &= ~(VM_LOCKED | VM_LOCKONFAULT);
+ 		tmp->vm_next = tmp->vm_prev = NULL;
+ 		file = tmp->vm_file;
++
+ 		if (file) {
+ 			struct inode *inode = file_inode(file);
+ 			struct address_space *mapping = file->f_mapping;
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 9976852f1e1c..9b82cfa88ccf 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -80,6 +80,17 @@ static long madvise_behavior(struct vm_area_struct *vma,
+ 		}
+ 		new_flags &= ~VM_DONTCOPY;
+ 		break;
++	case MADV_WIPEONFORK:
++		/* MADV_WIPEONFORK is only supported on anonymous memory. */
++		if (vma->vm_file || vma->vm_flags & VM_SHARED) {
++			error = -EINVAL;
++			goto out;
++		}
++		new_flags |= VM_WIPEONFORK;
++		break;
++	case MADV_KEEPONFORK:
++		new_flags &= ~VM_WIPEONFORK;
++		break;
+ 	case MADV_DONTDUMP:
+ 		new_flags |= VM_DONTDUMP;
+ 		break;
+@@ -689,6 +700,8 @@ madvise_behavior_valid(int behavior)
+ #endif
+ 	case MADV_DONTDUMP:
+ 	case MADV_DODUMP:
++	case MADV_WIPEONFORK:
++	case MADV_KEEPONFORK:
+ #ifdef CONFIG_MEMORY_FAILURE
+ 	case MADV_SOFT_OFFLINE:
+ 	case MADV_HWPOISON:
+diff --git a/mm/memory.c b/mm/memory.c
+index 0e517be91a89..f9b0ad7feb57 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1134,6 +1134,16 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 			!vma->anon_vma)
+ 		return 0;
+ 
++	/*
++	 * With VM_WIPEONFORK, the child inherits the VMA from the
++	 * parent, but not its contents.
++	 *
++	 * A child accessing VM_WIPEONFORK memory will see all zeroes;
++	 * a child accessing VM_DONTCOPY memory receives a segfault.
++	 */
++	if (vma->vm_flags & VM_WIPEONFORK)
++		return 0;
++
+ 	if (is_vm_hugetlb_page(vma))
+ 		return copy_hugetlb_page_range(dst_mm, src_mm, vma);
+ 
 -- 
 2.9.4
 
