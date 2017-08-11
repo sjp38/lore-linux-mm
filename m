@@ -1,148 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4315B6B03AB
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 01:18:29 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id v68so2816363oia.14
-        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 22:18:29 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id b15si32041oih.312.2017.08.10.22.18.27
-        for <linux-mm@kvack.org>;
-        Thu, 10 Aug 2017 22:18:28 -0700 (PDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2 2/7] bdi: introduce BDI_CAP_SYNCHRONOUS_IO
-Date: Fri, 11 Aug 2017 14:17:22 +0900
-Message-Id: <1502428647-28928-3-git-send-email-minchan@kernel.org>
-In-Reply-To: <1502428647-28928-1-git-send-email-minchan@kernel.org>
-References: <1502428647-28928-1-git-send-email-minchan@kernel.org>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8683B6B03B4
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 02:45:43 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id t80so29236591pgb.0
+        for <linux-mm@kvack.org>; Thu, 10 Aug 2017 23:45:43 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id u1si108204plk.956.2017.08.10.23.45.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Aug 2017 23:45:42 -0700 (PDT)
+Subject: [PATCH v3 0/6] fs, xfs: block map immutable files
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 10 Aug 2017 23:39:17 -0700
+Message-ID: <150243355681.8777.14902834768886160223.stgit@dwillia2-desk3.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, "karam . lee" <karam.lee@lge.com>, seungho1.park@lge.com, Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, jack@suse.cz, Jens Axboe <axboe@kernel.dk>, Vishal Verma <vishal.l.verma@intel.com>, linux-nvdimm@lists.01.org, kernel-team <kernel-team@lge.com>, Minchan Kim <minchan@kernel.org>
+To: darrick.wong@oracle.com
+Cc: Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, Trond Myklebust <trond.myklebust@primarydata.com>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, luto@kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Anna Schumaker <anna.schumaker@netapp.com>
 
-By discussion[1], we will replace rw_page devices with on-stack-bio.
-For such super-fast devices to be detected, this patch introduces
-BDI_CAP_SYNC which means synchronous IO would be more efficient for
-asnychronous IO and uses the flags to brd, zram, btt and pmem.
+Changes since v2 [1]:
+* Rather than have an IS_IOMAP_IMMUTABLE() check in
+  xfs_alloc_file_space(), place one centrally in xfs_bmapi_write() to
+  catch all attempts to write the block allocation map. (Dave)
 
-[1] lkml.kernel.org/r/<20170728165604.10455-1-ross.zwisler@linux.intel.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
+* Make sealing an already sealed file, or unsealing an already unsealed
+  file return success (Darrick)
+
+* Set S_IOMAP_IMMUTABLE along with the transaction that sets
+  XFS_DIFLAG2_IOMAP_IMMUTABLE (Darrick)
+
+* Round the range of the allocation and extent conversion performed by
+  FALLOC_FL_SEAL_BLOCK_MAP up to the filesystem block size.
+
+* Add a proof-of-concept patch for the use of immutable files with swap.
+
+[1]: https://lkml.org/lkml/2017/8/3/996
+
 ---
- drivers/block/brd.c           | 2 ++
- drivers/block/zram/zram_drv.c | 2 +-
- drivers/nvdimm/btt.c          | 3 +++
- drivers/nvdimm/pmem.c         | 2 ++
- include/linux/backing-dev.h   | 8 ++++++++
- 5 files changed, 16 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/block/brd.c b/drivers/block/brd.c
-index 293250582f00..13e03b46e3e7 100644
---- a/drivers/block/brd.c
-+++ b/drivers/block/brd.c
-@@ -20,6 +20,7 @@
- #include <linux/radix-tree.h>
- #include <linux/fs.h>
- #include <linux/slab.h>
-+#include <linux/backing-dev.h>
- #ifdef CONFIG_BLK_DEV_RAM_DAX
- #include <linux/pfn_t.h>
- #include <linux/dax.h>
-@@ -436,6 +437,7 @@ static struct brd_device *brd_alloc(int i)
- 	disk->flags		= GENHD_FL_EXT_DEVT;
- 	sprintf(disk->disk_name, "ram%d", i);
- 	set_capacity(disk, rd_size * 2);
-+	disk->queue->backing_dev_info->capabilities |= BDI_CAP_SYNCHRONOUS_IO;
- 
- #ifdef CONFIG_BLK_DEV_RAM_DAX
- 	queue_flag_set_unlocked(QUEUE_FLAG_DAX, brd->brd_queue);
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index bbbc2f230b8e..a60441bd6f0c 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -1577,7 +1577,7 @@ static int zram_add(void)
- 		blk_queue_max_write_zeroes_sectors(zram->disk->queue, UINT_MAX);
- 
- 	zram->disk->queue->backing_dev_info->capabilities |=
--					BDI_CAP_STABLE_WRITES;
-+			(BDI_CAP_STABLE_WRITES | BDI_CAP_SYNCHRONOUS_IO);
- 	add_disk(zram->disk);
- 
- 	ret = sysfs_create_group(&disk_to_dev(zram->disk)->kobj,
-diff --git a/drivers/nvdimm/btt.c b/drivers/nvdimm/btt.c
-index e10d3300b64c..f9437d36fc37 100644
---- a/drivers/nvdimm/btt.c
-+++ b/drivers/nvdimm/btt.c
-@@ -23,6 +23,7 @@
- #include <linux/ndctl.h>
- #include <linux/fs.h>
- #include <linux/nd.h>
-+#include <linux/backing-dev.h>
- #include "btt.h"
- #include "nd.h"
- 
-@@ -1273,6 +1274,8 @@ static int btt_blk_init(struct btt *btt)
- 	btt->btt_disk->private_data = btt;
- 	btt->btt_disk->queue = btt->btt_queue;
- 	btt->btt_disk->flags = GENHD_FL_EXT_DEVT;
-+	btt->btt_disk->queue->backing_dev_info->capabilities |=
-+			BDI_CAP_SYNCHRONOUS_IO;
- 
- 	blk_queue_make_request(btt->btt_queue, btt_make_request);
- 	blk_queue_logical_block_size(btt->btt_queue, btt->sector_size);
-diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index b5f04559a497..37eb836f9657 100644
---- a/drivers/nvdimm/pmem.c
-+++ b/drivers/nvdimm/pmem.c
-@@ -31,6 +31,7 @@
- #include <linux/uio.h>
- #include <linux/dax.h>
- #include <linux/nd.h>
-+#include <linux/backing-dev.h>
- #include "pmem.h"
- #include "pfn.h"
- #include "nd.h"
-@@ -379,6 +380,7 @@ static int pmem_attach_disk(struct device *dev,
- 	disk->fops		= &pmem_fops;
- 	disk->queue		= q;
- 	disk->flags		= GENHD_FL_EXT_DEVT;
-+	disk->queue->backing_dev_info->capabilities |= BDI_CAP_SYNCHRONOUS_IO;
- 	nvdimm_namespace_disk_name(ndns, disk->disk_name);
- 	set_capacity(disk, (pmem->size - pmem->pfn_pad - pmem->data_offset)
- 			/ 512);
-diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index 854e1bdd0b2a..cd41617c6594 100644
---- a/include/linux/backing-dev.h
-+++ b/include/linux/backing-dev.h
-@@ -123,6 +123,8 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
-  * BDI_CAP_STRICTLIMIT:    Keep number of dirty pages below bdi threshold.
-  *
-  * BDI_CAP_CGROUP_WRITEBACK: Supports cgroup-aware writeback.
-+ * BDI_CAP_SYNCHRONOUS_IO: Device is so fast that asynchronous IO would be
-+ *			   inefficient.
-  */
- #define BDI_CAP_NO_ACCT_DIRTY	0x00000001
- #define BDI_CAP_NO_WRITEBACK	0x00000002
-@@ -130,6 +132,7 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
- #define BDI_CAP_STABLE_WRITES	0x00000008
- #define BDI_CAP_STRICTLIMIT	0x00000010
- #define BDI_CAP_CGROUP_WRITEBACK 0x00000020
-+#define BDI_CAP_SYNCHRONOUS_IO	0x00000040
- 
- #define BDI_CAP_NO_ACCT_AND_WRITEBACK \
- 	(BDI_CAP_NO_WRITEBACK | BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_ACCT_WB)
-@@ -177,6 +180,11 @@ long wait_iff_congested(struct pglist_data *pgdat, int sync, long timeout);
- int pdflush_proc_obsolete(struct ctl_table *table, int write,
- 		void __user *buffer, size_t *lenp, loff_t *ppos);
- 
-+static inline bool bdi_cap_synchronous_io(struct backing_dev_info *bdi)
-+{
-+	return bdi->capabilities & BDI_CAP_SYNCHRONOUS_IO;
-+}
-+
- static inline bool bdi_cap_stable_pages_required(struct backing_dev_info *bdi)
- {
- 	return bdi->capabilities & BDI_CAP_STABLE_WRITES;
--- 
-2.7.4
+The ability to make the physical block-allocation map of a file
+immutable is a powerful mechanism that allows userspace to have
+predictable dax-fault latencies, flush dax mappings to persistent memory
+without a syscall, and otherwise enable access to storage directly
+without ongoing mediation from the filesystem.
+
+This last aspect of direct storage addressability has been called a
+"horrible abuse" [2], but the reality is quite the reverse. Enabling
+files to be block-map immutable allows applications that would otherwise
+need to rely on dangerous raw device access to instead use a filesystem.
+Security, naming, re-provisioning capacity between usages are all better
+supported with safe semantics in a filesystem compared to a device file.
+
+It is time to "give up the idea that only the filesystem can access the
+storage underlying the filesystem" [3] to enable a better / safer
+alternative to using a raw device for userpace block servers, dax
+hypervisors, and peer-to-peer transfers to name a few use cases.
+
+[2]: https://lkml.org/lkml/2017/8/5/56
+[3]: https://lkml.org/lkml/2017/8/6/299
+
+---
+
+Dan Williams (6):
+      fs, xfs: introduce S_IOMAP_IMMUTABLE
+      fs, xfs: introduce FALLOC_FL_SEAL_BLOCK_MAP
+      fs, xfs: introduce FALLOC_FL_UNSEAL_BLOCK_MAP
+      xfs: introduce XFS_DIFLAG2_IOMAP_IMMUTABLE
+      xfs: toggle XFS_DIFLAG2_IOMAP_IMMUTABLE in response to fallocate
+      mm, xfs: protect swapfile contents with immutable + unwritten extents
+
+
+ fs/attr.c                   |   10 +++
+ fs/nfs/file.c               |    7 ++
+ fs/open.c                   |   24 +++++++
+ fs/read_write.c             |    3 +
+ fs/xfs/libxfs/xfs_bmap.c    |    6 ++
+ fs/xfs/libxfs/xfs_bmap.h    |   12 +++-
+ fs/xfs/libxfs/xfs_format.h  |    5 +-
+ fs/xfs/xfs_aops.c           |   54 ++++++++++++++++
+ fs/xfs/xfs_bmap_util.c      |  142 +++++++++++++++++++++++++++++++++++++++++++
+ fs/xfs/xfs_bmap_util.h      |    5 ++
+ fs/xfs/xfs_file.c           |   16 ++++-
+ fs/xfs/xfs_inode.c          |    2 +
+ fs/xfs/xfs_ioctl.c          |    7 ++
+ fs/xfs/xfs_iops.c           |    8 ++
+ include/linux/falloc.h      |    4 +
+ include/linux/fs.h          |    2 +
+ include/uapi/linux/falloc.h |   18 +++++
+ include/uapi/linux/fs.h     |    1 
+ mm/filemap.c                |    5 ++
+ mm/page_io.c                |    1 
+ mm/swapfile.c               |   20 ++----
+ 21 files changed, 328 insertions(+), 24 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
