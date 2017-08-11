@@ -1,116 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0891E6B0292
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 05:46:05 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id w187so32268392pgb.10
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 02:46:05 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id y127si261676pgb.962.2017.08.11.02.46.03
-        for <linux-mm@kvack.org>;
-        Fri, 11 Aug 2017 02:46:03 -0700 (PDT)
-Date: Fri, 11 Aug 2017 18:44:48 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v8 06/14] lockdep: Detect and handle hist_lock ring
- buffer overwrite
-Message-ID: <20170811094448.GJ20323@X58A-UD3R>
-References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
- <1502089981-21272-7-git-send-email-byungchul.park@lge.com>
- <20170810115922.kegrfeg6xz7mgpj4@tardis>
- <016b01d311d1$d02acfa0$70806ee0$@lge.com>
- <20170810125133.2poixhni4d5aqkpy@tardis>
- <20170810131737.skdyy4qcxlikbyeh@tardis>
- <20170811034328.GH20323@X58A-UD3R>
- <20170811080329.3ehu7pp7lcm62ji6@tardis>
- <20170811085201.GI20323@X58A-UD3R>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 823976B02C3
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 05:50:11 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id x28so5783982wma.7
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 02:50:11 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id s71si517282wmd.7.2017.08.11.02.50.10
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 11 Aug 2017 02:50:10 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id E02E5992AE
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 09:50:09 +0000 (UTC)
+Date: Fri, 11 Aug 2017 10:50:09 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [v6 04/15] mm: discard memblock data later
+Message-ID: <20170811095009.hz2vnatcwztffraw@techsingularity.net>
+References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
+ <1502138329-123460-5-git-send-email-pasha.tatashin@oracle.com>
+ <20170811093249.GE30811@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20170811085201.GI20323@X58A-UD3R>
+In-Reply-To: <20170811093249.GE30811@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boqun Feng <boqun.feng@gmail.com>
-Cc: peterz@infradead.org, mingo@kernel.org, tglx@linutronix.de, walken@google.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, Mel Gorman <mgorman@suse.de>
 
-On Fri, Aug 11, 2017 at 05:52:02PM +0900, Byungchul Park wrote:
-> On Fri, Aug 11, 2017 at 04:03:29PM +0800, Boqun Feng wrote:
-> > Thanks for taking a look at it ;-)
+On Fri, Aug 11, 2017 at 11:32:49AM +0200, Michal Hocko wrote:
+> > Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> > Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
+> > Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+> > Reviewed-by: Bob Picco <bob.picco@oracle.com>
 > 
-> I rather appriciate it.
+> Considering that some HW might behave strangely and this would be rather
+> hard to debug I would be tempted to mark this for stable. It should also
+> be merged separately from the rest of the series.
 > 
-> > > > @@ -5005,7 +5003,7 @@ static int commit_xhlock(struct cross_lock *xlock, struct hist_lock *xhlock)
-> > > >  static void commit_xhlocks(struct cross_lock *xlock)
-> > > >  {
-> > > >  	unsigned int cur = current->xhlock_idx;
-> > > > -	unsigned int prev_hist_id = xhlock(cur).hist_id;
-> > > > +	unsigned int prev_hist_id = cur + 1;
-> > > 
-> > > I should have named it another. Could you suggest a better one?
-> > > 
-> > 
-> > I think "prev" is fine, because I thought the "previous" means the
-> > xhlock item we visit _previously_.
-> > 
-> > > >  	unsigned int i;
-> > > >  
-> > > >  	if (!graph_lock())
-> > > > @@ -5030,7 +5028,7 @@ static void commit_xhlocks(struct cross_lock *xlock)
-> > > >  			 * hist_id than the following one, which is impossible
-> > > >  			 * otherwise.
-> > > 
-> > > Or we need to modify the comment so that the word 'prev' does not make
-> > > readers confused. It was my mistake.
-> > > 
-> > 
-> > I think the comment needs some help, but before you do it, could you
-> > have another look at what Peter proposed previously? Note you have a
-> > same_context_xhlock() check in the commit_xhlocks(), so the your
-> > previous overwrite case actually could be detected, I think.
+> I have just one nit below
+> Acked-by: Michal Hocko <mhocko@suse.com>
 > 
-> What is the previous overwrite case?
-> 
-> ppppppppppwwwwwwwwwwwwiiiiiiiii
-> iiiiiiiiiiiiiii................
-> 
-> Do you mean this one? I missed the check of same_context_xhlock(). Yes,
-> peterz's suggestion also seems to work.
-> 
-> > However, one thing may not be detected is this case:
-> > 
-> > 		ppppppppppppppppppppppppppppppppppwwwwwwww
-> > wrapped >	wwwwwww
-> 
-> To be honest, I think your suggestion is more natual, with which this
-> case would be also covered.
-> 
-> > 
-> > 	where p: process and w: worker.
-> > 
-> > , because p and w are in the same task_irq_context(). I discussed this
-> > with Peter yesterday, and he has a good idea: unconditionally do a reset
-> > on the ring buffer whenever we do a crossrelease_hist_end(XHLOCK_PROC).
 
-Ah, ok. You meant 'whenever _process_ context exit'.
+Agreed.
 
-I need more time to be sure, but anyway for now it seems to work with
-giving up some chances for remaining xhlocks.
-
-But, I am not sure if it's still true even in future and the code can be
-maintained easily. I think your approach is natural and neat enough for
-that purpose. What problem exists with yours?
-
-> > Basically it means we empty the lock history whenever we finished a
-> > worker function in a worker thread or we are about to return to
-> > userspace after we finish the syscall. This could further save some
-> > memory and so I think this may be better than my approach.
-> 
-> Do you mean reset _whenever_ hard irq exit, soft irq exit or work exit?
-> Why should we give up chances to check dependencies of remaining xhlocks
-> whenever each exit? Am I understanding correctly?
-> 
-> I am just curious. Does your approach have some problems?
-> 
-> Thanks,
-> Byungchul
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
