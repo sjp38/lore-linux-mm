@@ -1,215 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5693C6B0292
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 08:39:58 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id x28so6228405wma.7
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 05:39:58 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D17CE6B0292
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 08:50:50 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k71so4827079wrc.15
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 05:50:50 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t128si696011wma.277.2017.08.11.05.39.56
+        by mx.google.com with ESMTPS id h1si658086wrb.6.2017.08.11.05.50.49
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 11 Aug 2017 05:39:56 -0700 (PDT)
-Date: Fri, 11 Aug 2017 14:39:53 +0200
+        Fri, 11 Aug 2017 05:50:49 -0700 (PDT)
+Date: Fri, 11 Aug 2017 14:50:47 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v6 07/15] mm: defining memblock_virt_alloc_try_nid_raw
-Message-ID: <20170811123953.GI30811@dhcp22.suse.cz>
+Subject: Re: [v6 08/15] mm: zero struct pages during initialization
+Message-ID: <20170811125047.GJ30811@dhcp22.suse.cz>
 References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
- <1502138329-123460-8-git-send-email-pasha.tatashin@oracle.com>
+ <1502138329-123460-9-git-send-email-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1502138329-123460-8-git-send-email-pasha.tatashin@oracle.com>
+In-Reply-To: <1502138329-123460-9-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pavel Tatashin <pasha.tatashin@oracle.com>
 Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org
 
-On Mon 07-08-17 16:38:41, Pavel Tatashin wrote:
-> A new variant of memblock_virt_alloc_* allocations:
-> memblock_virt_alloc_try_nid_raw()
->     - Does not zero the allocated memory
->     - Does not panic if request cannot be satisfied
+On Mon 07-08-17 16:38:42, Pavel Tatashin wrote:
+> Add struct page zeroing as a part of initialization of other fields in
+> __init_single_page().
 
-OK, this looks good but I would not introduce memblock_virt_alloc_raw
-here because we do not have any users. Please move that to "mm: optimize
-early system hash allocations" which actually uses the API. It would be
-easier to review it that way.
+I believe this deserves much more detailed explanation why this is safe.
+What actually prevents any pfn walker from seeing an uninitialized
+struct page? Please make your assumptions explicit in the commit log so
+that we can check them independently.
+
+Also this is done with some purpose which is the perfmance, right? You
+have mentioned that in the cover letter but if somebody is going to read
+through git logs this wouldn't be obvious from the specific commit.
+So add that information here as well. Especially numbers will be
+interesting.
+
+As a sidenote, this will need some more followups for memory hotplug
+after my recent changes which are not merged yet but I will take care of
+that.
 
 > Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 > Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
 > Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 > Reviewed-by: Bob Picco <bob.picco@oracle.com>
 
-other than that
+After the relevant information is added feel free add
 Acked-by: Michal Hocko <mhocko@suse.com>
 
 > ---
->  include/linux/bootmem.h | 27 +++++++++++++++++++++++++
->  mm/memblock.c           | 53 ++++++++++++++++++++++++++++++++++++++++++-------
->  2 files changed, 73 insertions(+), 7 deletions(-)
+>  include/linux/mm.h | 9 +++++++++
+>  mm/page_alloc.c    | 1 +
+>  2 files changed, 10 insertions(+)
 > 
-> diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
-> index e223d91b6439..ea30b3987282 100644
-> --- a/include/linux/bootmem.h
-> +++ b/include/linux/bootmem.h
-> @@ -160,6 +160,9 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
->  #define BOOTMEM_ALLOC_ANYWHERE		(~(phys_addr_t)0)
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 46b9ac5e8569..183ac5e733db 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -93,6 +93,15 @@ extern int mmap_rnd_compat_bits __read_mostly;
+>  #define mm_forbids_zeropage(X)	(0)
+>  #endif
 >  
->  /* FIXME: Move to memblock.h at a point where we remove nobootmem.c */
-> +void *memblock_virt_alloc_try_nid_raw(phys_addr_t size, phys_addr_t align,
-> +				      phys_addr_t min_addr,
-> +				      phys_addr_t max_addr, int nid);
->  void *memblock_virt_alloc_try_nid_nopanic(phys_addr_t size,
->  		phys_addr_t align, phys_addr_t min_addr,
->  		phys_addr_t max_addr, int nid);
-> @@ -176,6 +179,14 @@ static inline void * __init memblock_virt_alloc(
->  					    NUMA_NO_NODE);
->  }
->  
-> +static inline void * __init memblock_virt_alloc_raw(
-> +					phys_addr_t size,  phys_addr_t align)
-> +{
-> +	return memblock_virt_alloc_try_nid_raw(size, align, BOOTMEM_LOW_LIMIT,
-> +					    BOOTMEM_ALLOC_ACCESSIBLE,
-> +					    NUMA_NO_NODE);
-> +}
-> +
->  static inline void * __init memblock_virt_alloc_nopanic(
->  					phys_addr_t size, phys_addr_t align)
->  {
-> @@ -257,6 +268,14 @@ static inline void * __init memblock_virt_alloc(
->  	return __alloc_bootmem(size, align, BOOTMEM_LOW_LIMIT);
->  }
->  
-> +static inline void * __init memblock_virt_alloc_raw(
-> +					phys_addr_t size,  phys_addr_t align)
-> +{
-> +	if (!align)
-> +		align = SMP_CACHE_BYTES;
-> +	return __alloc_bootmem_nopanic(size, align, BOOTMEM_LOW_LIMIT);
-> +}
-> +
->  static inline void * __init memblock_virt_alloc_nopanic(
->  					phys_addr_t size, phys_addr_t align)
->  {
-> @@ -309,6 +328,14 @@ static inline void * __init memblock_virt_alloc_try_nid(phys_addr_t size,
->  					  min_addr);
->  }
->  
-> +static inline void * __init memblock_virt_alloc_try_nid_raw(
-> +			phys_addr_t size, phys_addr_t align,
-> +			phys_addr_t min_addr, phys_addr_t max_addr, int nid)
-> +{
-> +	return ___alloc_bootmem_node_nopanic(NODE_DATA(nid), size, align,
-> +				min_addr, max_addr);
-> +}
-> +
->  static inline void * __init memblock_virt_alloc_try_nid_nopanic(
->  			phys_addr_t size, phys_addr_t align,
->  			phys_addr_t min_addr, phys_addr_t max_addr, int nid)
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 08f449acfdd1..3fbf3bcb52d9 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -1327,7 +1327,6 @@ static void * __init memblock_virt_alloc_internal(
->  	return NULL;
->  done:
->  	ptr = phys_to_virt(alloc);
-> -	memset(ptr, 0, size);
->  
->  	/*
->  	 * The min_count is set to 0 so that bootmem allocated blocks
-> @@ -1340,6 +1339,38 @@ static void * __init memblock_virt_alloc_internal(
->  	return ptr;
->  }
->  
-> +/**
-> + * memblock_virt_alloc_try_nid_raw - allocate boot memory block without zeroing
-> + * memory and without panicking
-> + * @size: size of memory block to be allocated in bytes
-> + * @align: alignment of the region and block's size
-> + * @min_addr: the lower bound of the memory region from where the allocation
-> + *	  is preferred (phys address)
-> + * @max_addr: the upper bound of the memory region from where the allocation
-> + *	      is preferred (phys address), or %BOOTMEM_ALLOC_ACCESSIBLE to
-> + *	      allocate only from memory limited by memblock.current_limit value
-> + * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
-> + *
-> + * Public function, provides additional debug information (including caller
-> + * info), if enabled. Does not zero allocated memory, does not panic if request
-> + * cannot be satisfied.
-> + *
-> + * RETURNS:
-> + * Virtual address of allocated memory block on success, NULL on failure.
+> +/*
+> + * On some architectures it is expensive to call memset() for small sizes.
+> + * Those architectures should provide their own implementation of "struct page"
+> + * zeroing by defining this macro in <asm/pgtable.h>.
 > + */
-> +void * __init memblock_virt_alloc_try_nid_raw(
-> +			phys_addr_t size, phys_addr_t align,
-> +			phys_addr_t min_addr, phys_addr_t max_addr,
-> +			int nid)
-> +{
-> +	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
-> +		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
-> +		     (u64)max_addr, (void *)_RET_IP_);
+> +#ifndef mm_zero_struct_page
+> +#define mm_zero_struct_page(pp)  ((void)memset((pp), 0, sizeof(struct page)))
+> +#endif
 > +
-> +	return memblock_virt_alloc_internal(size, align,
-> +					    min_addr, max_addr, nid);
-> +}
-> +
->  /**
->   * memblock_virt_alloc_try_nid_nopanic - allocate boot memory block
->   * @size: size of memory block to be allocated in bytes
-> @@ -1351,8 +1382,8 @@ static void * __init memblock_virt_alloc_internal(
->   *	      allocate only from memory limited by memblock.current_limit value
->   * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
->   *
-> - * Public version of _memblock_virt_alloc_try_nid_nopanic() which provides
-> - * additional debug information (including caller info), if enabled.
-> + * Public function, provides additional debug information (including caller
-> + * info), if enabled. This function zeroes the allocated memory.
->   *
->   * RETURNS:
->   * Virtual address of allocated memory block on success, NULL on failure.
-> @@ -1362,11 +1393,17 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
->  				phys_addr_t min_addr, phys_addr_t max_addr,
->  				int nid)
+>  /*
+>   * Default maximum number of active map areas, this limits the number of vmas
+>   * per mm struct. Users can overwrite this number by sysctl but there is a
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 983de0a8047b..4d32c1fa4c6c 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1168,6 +1168,7 @@ static void free_one_page(struct zone *zone,
+>  static void __meminit __init_single_page(struct page *page, unsigned long pfn,
+>  				unsigned long zone, int nid)
 >  {
-> +	void *ptr;
-> +
->  	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
->  		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
->  		     (u64)max_addr, (void *)_RET_IP_);
-> -	return memblock_virt_alloc_internal(size, align, min_addr,
-> -					     max_addr, nid);
-> +
-> +	ptr = memblock_virt_alloc_internal(size, align,
-> +					   min_addr, max_addr, nid);
-> +	if (ptr)
-> +		memset(ptr, 0, size);
-> +	return ptr;
->  }
->  
->  /**
-> @@ -1380,7 +1417,7 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
->   *	      allocate only from memory limited by memblock.current_limit value
->   * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
->   *
-> - * Public panicking version of _memblock_virt_alloc_try_nid_nopanic()
-> + * Public panicking version of memblock_virt_alloc_try_nid_nopanic()
->   * which provides debug information (including caller info), if enabled,
->   * and panics if the request can not be satisfied.
->   *
-> @@ -1399,8 +1436,10 @@ void * __init memblock_virt_alloc_try_nid(
->  		     (u64)max_addr, (void *)_RET_IP_);
->  	ptr = memblock_virt_alloc_internal(size, align,
->  					   min_addr, max_addr, nid);
-> -	if (ptr)
-> +	if (ptr) {
-> +		memset(ptr, 0, size);
->  		return ptr;
-> +	}
->  
->  	panic("%s: Failed to allocate %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx\n",
->  	      __func__, (u64)size, (u64)align, nid, (u64)min_addr,
+> +	mm_zero_struct_page(page);
+>  	set_page_links(page, zone, nid, pfn);
+>  	init_page_count(page);
+>  	page_mapcount_reset(page);
 > -- 
 > 2.14.0
 
