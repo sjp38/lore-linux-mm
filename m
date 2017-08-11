@@ -1,59 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A14CA6B025F
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 11:22:44 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id x28so6732294wma.7
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 08:22:44 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n5si919028wmf.128.2017.08.11.08.22.43
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A4886B0292
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 11:23:16 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id t37so18935169qtg.6
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 08:23:16 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 6si992315qty.275.2017.08.11.08.23.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 11 Aug 2017 08:22:43 -0700 (PDT)
-Date: Fri, 11 Aug 2017 17:22:41 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v6 00/15] complete deferred page initialization
-Message-ID: <20170811152240.GQ30811@dhcp22.suse.cz>
-References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
- <20170811075826.GB30811@dhcp22.suse.cz>
- <23e22449-89f0-507d-e92a-9ee947a7c363@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <23e22449-89f0-507d-e92a-9ee947a7c363@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Aug 2017 08:23:15 -0700 (PDT)
+Message-ID: <1502464992.6577.48.camel@redhat.com>
+Subject: Re: [PATCH 2/2] mm,fork: introduce MADV_WIPEONFORK
+From: Rik van Riel <riel@redhat.com>
+Date: Fri, 11 Aug 2017 11:23:12 -0400
+In-Reply-To: <20170810152352.GZ23863@dhcp22.suse.cz>
+References: <20170806140425.20937-1-riel@redhat.com>
+	 <20170806140425.20937-3-riel@redhat.com>
+	 <20170810152352.GZ23863@dhcp22.suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <pasha.tatashin@oracle.com>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, mike.kravetz@oracle.com, linux-mm@kvack.org, fweimer@redhat.com, colm@allcosts.net, akpm@linux-foundation.org, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org, kirill@shutemov.name, dave.hansen@intel.com
 
-On Fri 11-08-17 11:13:07, Pasha Tatashin wrote:
-> On 08/11/2017 03:58 AM, Michal Hocko wrote:
-> >[I am sorry I didn't get to your previous versions]
+On Thu, 2017-08-10 at 17:23 +0200, Michal Hocko wrote:
+> On Sun 06-08-17 10:04:25, Rik van Riel wrote:
+> [...]
+> > diff --git a/kernel/fork.c b/kernel/fork.c
+> > index 17921b0390b4..db1fb2802ecc 100644
+> > --- a/kernel/fork.c
+> > +++ b/kernel/fork.c
+> > @@ -659,6 +659,13 @@ static __latent_entropy int dup_mmap(struct
+> > mm_struct *mm,
+> > A 		tmp->vm_flags &= ~(VM_LOCKED | VM_LOCKONFAULT);
+> > A 		tmp->vm_next = tmp->vm_prev = NULL;
+> > A 		file = tmp->vm_file;
+> > +
+> > +		/* With VM_WIPEONFORK, the child gets an empty
+> > VMA. */
+> > +		if (tmp->vm_flags & VM_WIPEONFORK) {
+> > +			tmp->vm_file = file = NULL;
+> > +			tmp->vm_ops = NULL;
+> > +		}
 > 
-> Thank you for reviewing this work. I will address your comments, and
-> send-out a new patches.
-> 
-> >>
-> >>In this work we do the following:
-> >>- Never read access struct page until it was initialized
-> >
-> >How is this enforced? What about pfn walkers? E.g. page_ext
-> >initialization code (page owner in particular)
-> 
-> This is hard to enforce 100%. But, because we have a patch in this series
-> that sets all memory that was allocated by memblock_virt_alloc_try_nid_raw()
-> to ones with debug options enabled, and because Linux has a good set of
-> asserts in place that check struct pages to be sane, especially the ones
-> that are enabled with this config: CONFIG_DEBUG_VM_PGFLAGS. I was able to
-> find many places in linux which accessed struct pages before
-> __init_single_page() is performed, and fix them. Most of these places happen
-> only when deferred struct page initialization code is enabled.
+> What about VM_SHARED/|VM)MAYSHARE flags. Is it OK to keep the around?
+> At
+> least do_anonymous_page SIGBUS on !vm_ops && VM_SHARED. Or do I miss
+> where those flags are cleared?
 
-Yes, I am very well aware of how hard is this to guarantee. I was merely
-pointing out that the changelog should be more verbose about your
-testing and assumptions so that we can revalidate them.
--- 
-Michal Hocko
-SUSE Labs
+Huh, good spotting.  That makes me wonder why the test case that
+Mike and I ran worked just fine on a MAP_SHARED|MAP_ANONYMOUS VMA,
+and returned zero-filled memory when read by the child process.
+
+OK, I'll do a minimal implementation for now, which will return
+-EINVAL if MADV_WIPEONFORK is called on a VMA with MAP_SHARED
+and/or an mmapped file.
+
+It will work the way it is supposed to with anonymous MAP_PRIVATE
+memory, which is likely the only memory it will be used on, anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
