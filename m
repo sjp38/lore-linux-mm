@@ -1,104 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CEAD36B0292
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 04:53:20 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id 123so31252784pga.5
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 01:53:20 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id x72si241582pfd.141.2017.08.11.01.53.19
-        for <linux-mm@kvack.org>;
-        Fri, 11 Aug 2017 01:53:19 -0700 (PDT)
-Date: Fri, 11 Aug 2017 17:52:02 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v8 06/14] lockdep: Detect and handle hist_lock ring
- buffer overwrite
-Message-ID: <20170811085201.GI20323@X58A-UD3R>
-References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
- <1502089981-21272-7-git-send-email-byungchul.park@lge.com>
- <20170810115922.kegrfeg6xz7mgpj4@tardis>
- <016b01d311d1$d02acfa0$70806ee0$@lge.com>
- <20170810125133.2poixhni4d5aqkpy@tardis>
- <20170810131737.skdyy4qcxlikbyeh@tardis>
- <20170811034328.GH20323@X58A-UD3R>
- <20170811080329.3ehu7pp7lcm62ji6@tardis>
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 881856B0292
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 05:02:19 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id r7so4223158wrb.0
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 02:02:19 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m8si444429wmi.139.2017.08.11.02.02.17
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 11 Aug 2017 02:02:17 -0700 (PDT)
+Date: Fri, 11 Aug 2017 11:02:15 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v6 02/15] x86/mm: setting fields in deferred pages
+Message-ID: <20170811090214.GD30811@dhcp22.suse.cz>
+References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
+ <1502138329-123460-3-git-send-email-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170811080329.3ehu7pp7lcm62ji6@tardis>
+In-Reply-To: <1502138329-123460-3-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boqun Feng <boqun.feng@gmail.com>
-Cc: peterz@infradead.org, mingo@kernel.org, tglx@linutronix.de, walken@google.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org
 
-On Fri, Aug 11, 2017 at 04:03:29PM +0800, Boqun Feng wrote:
-> Thanks for taking a look at it ;-)
+[CC Mel - the full series is here
+http://lkml.kernel.org/r/1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com]
 
-I rather appriciate it.
-
-> > > @@ -5005,7 +5003,7 @@ static int commit_xhlock(struct cross_lock *xlock, struct hist_lock *xhlock)
-> > >  static void commit_xhlocks(struct cross_lock *xlock)
-> > >  {
-> > >  	unsigned int cur = current->xhlock_idx;
-> > > -	unsigned int prev_hist_id = xhlock(cur).hist_id;
-> > > +	unsigned int prev_hist_id = cur + 1;
-> > 
-> > I should have named it another. Could you suggest a better one?
-> > 
+On Mon 07-08-17 16:38:36, Pavel Tatashin wrote:
+> Without deferred struct page feature (CONFIG_DEFERRED_STRUCT_PAGE_INIT),
+> flags and other fields in "struct page"es are never changed prior to first
+> initializing struct pages by going through __init_single_page().
 > 
-> I think "prev" is fine, because I thought the "previous" means the
-> xhlock item we visit _previously_.
+> With deferred struct page feature enabled there is a case where we set some
+> fields prior to initializing:
 > 
-> > >  	unsigned int i;
-> > >  
-> > >  	if (!graph_lock())
-> > > @@ -5030,7 +5028,7 @@ static void commit_xhlocks(struct cross_lock *xlock)
-> > >  			 * hist_id than the following one, which is impossible
-> > >  			 * otherwise.
-> > 
-> > Or we need to modify the comment so that the word 'prev' does not make
-> > readers confused. It was my mistake.
-> > 
+>         mem_init() {
+>                 register_page_bootmem_info();
+>                 free_all_bootmem();
+>                 ...
+>         }
 > 
-> I think the comment needs some help, but before you do it, could you
-> have another look at what Peter proposed previously? Note you have a
-> same_context_xhlock() check in the commit_xhlocks(), so the your
-> previous overwrite case actually could be detected, I think.
-
-What is the previous overwrite case?
-
-ppppppppppwwwwwwwwwwwwiiiiiiiii
-iiiiiiiiiiiiiii................
-
-Do you mean this one? I missed the check of same_context_xhlock(). Yes,
-peterz's suggestion also seems to work.
-
-> However, one thing may not be detected is this case:
+> When register_page_bootmem_info() is called only non-deferred struct pages
+> are initialized. But, this function goes through some reserved pages which
+> might be part of the deferred, and thus are not yet initialized.
 > 
-> 		ppppppppppppppppppppppppppppppppppwwwwwwww
-> wrapped >	wwwwwww
-
-To be honest, I think your suggestion is more natual, with which this
-case would be also covered.
-
+>   mem_init
+>    register_page_bootmem_info
+>     register_page_bootmem_info_node
+>      get_page_bootmem
+>       .. setting fields here ..
+>       such as: page->freelist = (void *)type;
 > 
-> 	where p: process and w: worker.
+> We end-up with similar issue as in the previous patch, where currently we
+> do not observe problem as memory is zeroed. But, if flag asserts are
+> changed we can start hitting issues.
 > 
-> , because p and w are in the same task_irq_context(). I discussed this
-> with Peter yesterday, and he has a good idea: unconditionally do a reset
-> on the ring buffer whenever we do a crossrelease_hist_end(XHLOCK_PROC).
-> Basically it means we empty the lock history whenever we finished a
-> worker function in a worker thread or we are about to return to
-> userspace after we finish the syscall. This could further save some
-> memory and so I think this may be better than my approach.
+> Also, because in this patch series we will stop zeroing struct page memory
+> during allocation, we must make sure that struct pages are properly
+> initialized prior to using them.
+> 
+> The deferred-reserved pages are initialized in free_all_bootmem().
+> Therefore, the fix is to switch the above calls.
 
-Do you mean reset _whenever_ hard irq exit, soft irq exit or work exit?
-Why should we give up chances to check dependencies of remaining xhlocks
-whenever each exit? Am I understanding correctly?
+I have to confess that this part of the early struct page initialization
+is not my strongest point and I have to always re-read the code from the
+scratch but I really do not undestand what you are trying to achieve
+here.
 
-I am just curious. Does your approach have some problems?
+AFAIU register_page_bootmem_info_node is only about struct pages backing
+pgdat, usemap and memmap. Those should be in reserved memblocks and we
+do not initialize those at later times, they are not relevant to the
+deferred initialization as your changelog suggests so the ordering with
+get_page_bootmem shouldn't matter. Or am I missing something here?
+ 
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
+> Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+> Reviewed-by: Bob Picco <bob.picco@oracle.com>
+> ---
+>  arch/x86/mm/init_64.c | 9 +++++++--
+>  1 file changed, 7 insertions(+), 2 deletions(-)
+> 
+> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+> index 136422d7d539..1e863baec847 100644
+> --- a/arch/x86/mm/init_64.c
+> +++ b/arch/x86/mm/init_64.c
+> @@ -1165,12 +1165,17 @@ void __init mem_init(void)
+>  
+>  	/* clear_bss() already clear the empty_zero_page */
+>  
+> -	register_page_bootmem_info();
+> -
+>  	/* this will put all memory onto the freelists */
+>  	free_all_bootmem();
+>  	after_bootmem = 1;
+>  
+> +	/* Must be done after boot memory is put on freelist, because here we
+> +	 * might set fields in deferred struct pages that have not yet been
+> +	 * initialized, and free_all_bootmem() initializes all the reserved
+> +	 * deferred pages for us.
+> +	 */
+> +	register_page_bootmem_info();
+> +
+>  	/* Register memory areas for /proc/kcore */
+>  	kclist_add(&kcore_vsyscall, (void *)VSYSCALL_ADDR,
+>  			 PAGE_SIZE, KCORE_OTHER);
+> -- 
+> 2.14.0
 
-Thanks,
-Byungchul
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
