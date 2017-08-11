@@ -1,54 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D97906B02B4
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 13:12:49 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id w187so43159352pgb.10
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 10:12:49 -0700 (PDT)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id q5si763154pfj.271.2017.08.11.10.12.48
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F2DE6B02B4
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 13:25:18 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id t37so20450434qtg.6
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 10:25:18 -0700 (PDT)
+Received: from mail-qk0-f177.google.com (mail-qk0-f177.google.com. [209.85.220.177])
+        by mx.google.com with ESMTPS id h36si1222692qte.246.2017.08.11.10.25.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Aug 2017 10:12:48 -0700 (PDT)
-Received: by mail-pg0-x243.google.com with SMTP id l64so3560389pge.2
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 10:12:48 -0700 (PDT)
+        Fri, 11 Aug 2017 10:25:17 -0700 (PDT)
+Received: by mail-qk0-f177.google.com with SMTP id z18so23888376qka.4
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 10:25:17 -0700 (PDT)
+Subject: Re: [kernel-hardening] [PATCH v5 06/10] arm64/mm: Disable section
+ mappings if XPFO is enabled
+References: <20170809200755.11234-1-tycho@docker.com>
+ <20170809200755.11234-7-tycho@docker.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <f6a42032-d4e5-f488-3d55-1da4c8a4dbaf@redhat.com>
+Date: Fri, 11 Aug 2017 10:25:14 -0700
+MIME-Version: 1.0
+In-Reply-To: <20170809200755.11234-7-tycho@docker.com>
 Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Re: [PATCH v6 4/7] mm: refactoring TLB gathering API
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <20170811092334.rmeazkklvordrmrl@hirez.programming.kicks-ass.net>
-Date: Fri, 11 Aug 2017 10:12:45 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <EBBFF419-4E4C-440A-853B-25FB6F0DE7F6@gmail.com>
-References: <20170802000818.4760-1-namit@vmware.com>
- <20170802000818.4760-5-namit@vmware.com>
- <20170811092334.rmeazkklvordrmrl@hirez.programming.kicks-ass.net>
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Ingo Molnar <mingo@redhat.com>, Russell King <linux@armlinux.org.uk>, Tony Luck <tony.luck@intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, "David S. Miller" <davem@davemloft.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>, Jeff Dike <jdike@addtoit.com>, linux-arch@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>
+To: Tycho Andersen <tycho@docker.com>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Juerg Haefliger <juerg.haefliger@hpe.com>
 
-Peter Zijlstra <peterz@infradead.org> wrote:
+On 08/09/2017 01:07 PM, Tycho Andersen wrote:
+> From: Juerg Haefliger <juerg.haefliger@hpe.com>
+> 
+> XPFO (eXclusive Page Frame Ownership) doesn't support section mappings
+> yet, so disable it if XPFO is turned on.
+> 
+> Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
+> Tested-by: Tycho Andersen <tycho@docker.com>
+> ---
+>  arch/arm64/mm/mmu.c | 14 +++++++++++++-
+>  1 file changed, 13 insertions(+), 1 deletion(-)
+> 
+> diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+> index f1eb15e0e864..38026b3ccb46 100644
+> --- a/arch/arm64/mm/mmu.c
+> +++ b/arch/arm64/mm/mmu.c
+> @@ -176,6 +176,18 @@ static void alloc_init_cont_pte(pmd_t *pmd, unsigned long addr,
+>  	} while (addr = next, addr != end);
+>  }
+>  
+> +static inline bool use_section_mapping(unsigned long addr, unsigned long next,
+> +				unsigned long phys)
+> +{
+> +	if (IS_ENABLED(CONFIG_XPFO))
+> +		return false;
+> +
+> +	if (((addr | next | phys) & ~SECTION_MASK) != 0)
+> +		return false;
+> +
+> +	return true;
+> +}
+> +
+>  static void init_pmd(pud_t *pud, unsigned long addr, unsigned long end,
+>  		     phys_addr_t phys, pgprot_t prot,
+>  		     phys_addr_t (*pgtable_alloc)(void), int flags)
+> @@ -190,7 +202,7 @@ static void init_pmd(pud_t *pud, unsigned long addr, unsigned long end,
+>  		next = pmd_addr_end(addr, end);
+>  
+>  		/* try section mapping first */
+> -		if (((addr | next | phys) & ~SECTION_MASK) == 0 &&
+> +		if (use_section_mapping(addr, next, phys) &&
+>  		    (flags & NO_BLOCK_MAPPINGS) == 0) {
+>  			pmd_set_huge(pmd, phys, prot);
+>  
+> 
 
-> On Tue, Aug 01, 2017 at 05:08:15PM -0700, Nadav Amit wrote:
->> From: Minchan Kim <minchan@kernel.org>
->>=20
->> This patch is a preparatory patch for solving race problems caused by
->> TLB batch.  For that, we will increase/decrease TLB flush pending =
-count
->> of mm_struct whenever tlb_[gather|finish]_mmu is called.
->>=20
->> Before making it simple, this patch separates architecture specific
->> part and rename it to arch_tlb_[gather|finish]_mmu and generic part
->> just calls it.
->=20
-> I absolutely hate this. We should unify this stuff, not diverge it
-> further.
+There is already similar logic to disable section mappings for
+debug_pagealloc at the start of map_mem, can you take advantage
+of that?
 
-Agreed, but I don=E2=80=99t see how this patch makes the situation any =
-worse.
-
-I=E2=80=99ll review your other comments by tomorrow due to some personal
-constraints.
+Thanks,
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
