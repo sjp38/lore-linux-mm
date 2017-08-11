@@ -1,43 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C67496B02FD
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 12:05:32 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id g21so47578005ioe.12
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 09:05:32 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id o74si1534514ito.48.2017.08.11.09.05.31
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FE7D6B0313
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 12:06:50 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id e204so6933353wma.2
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 09:06:50 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i135si980009wmd.125.2017.08.11.09.06.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Aug 2017 09:05:31 -0700 (PDT)
-Subject: Re: [v6 09/15] sparc64: optimized struct page zeroing
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 11 Aug 2017 09:06:49 -0700 (PDT)
+Date: Fri, 11 Aug 2017 18:06:46 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v6 07/15] mm: defining memblock_virt_alloc_try_nid_raw
+Message-ID: <20170811160646.GT30811@dhcp22.suse.cz>
 References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
- <1502138329-123460-10-git-send-email-pasha.tatashin@oracle.com>
- <20170811125326.GK30811@dhcp22.suse.cz>
-From: Pasha Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <3830e513-cb35-e52e-341c-25eaecc51d43@oracle.com>
-Date: Fri, 11 Aug 2017 12:04:51 -0400
+ <1502138329-123460-8-git-send-email-pasha.tatashin@oracle.com>
+ <20170811123953.GI30811@dhcp22.suse.cz>
+ <545b7230-2c09-d2f9-f26a-05ef395c36d4@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20170811125326.GK30811@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <545b7230-2c09-d2f9-f26a-05ef395c36d4@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
+To: Pasha Tatashin <pasha.tatashin@oracle.com>
 Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org
 
->> Add an optimized mm_zero_struct_page(), so struct page's are zeroed without
->> calling memset(). We do eight to tent regular stores based on the size of
->> struct page. Compiler optimizes out the conditions of switch() statement.
+On Fri 11-08-17 11:58:46, Pasha Tatashin wrote:
+> On 08/11/2017 08:39 AM, Michal Hocko wrote:
+> >On Mon 07-08-17 16:38:41, Pavel Tatashin wrote:
+> >>A new variant of memblock_virt_alloc_* allocations:
+> >>memblock_virt_alloc_try_nid_raw()
+> >>     - Does not zero the allocated memory
+> >>     - Does not panic if request cannot be satisfied
+> >
+> >OK, this looks good but I would not introduce memblock_virt_alloc_raw
+> >here because we do not have any users. Please move that to "mm: optimize
+> >early system hash allocations" which actually uses the API. It would be
+> >easier to review it that way.
+> >
+> >>Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> >>Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
+> >>Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+> >>Reviewed-by: Bob Picco <bob.picco@oracle.com>
+> >
+> >other than that
+> >Acked-by: Michal Hocko <mhocko@suse.com>
 > 
-> Again, this doesn't explain why we need this. You have mentioned those
-> reasons in some previous emails but be explicit here please.
-> 
+> Sure, I could do this, but as I understood from earlier Dave Miller's
+> comments, we should do one logical change at a time. Hence, introduce API in
+> one patch use it in another. So, this is how I tried to organize this patch
+> set. Is this assumption incorrect?
 
-I will add performance data to this patch as well.
+Well, it really depends. If the patch is really small then adding a new
+API along with users is easier to review and backport because you have a
+clear view of the usage. I believe this is the case here. But if others
+feel otherwise I will not object.
 
-Thank you,
-Pasha
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
