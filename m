@@ -1,99 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F4796B0292
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 09:46:29 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id p62so3881494oih.12
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 06:46:29 -0700 (PDT)
-Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
-        by mx.google.com with ESMTPS id d144si577702oig.432.2017.08.11.06.46.28
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 77CEB6B0292
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 10:06:57 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id x43so5113791wrb.9
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 07:06:57 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y105si727970wrc.528.2017.08.11.07.06.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Aug 2017 06:46:28 -0700 (PDT)
-Received: by mail-it0-x242.google.com with SMTP id t78so3700124ita.1
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 06:46:28 -0700 (PDT)
-From: "Blake Caldwell" <caldweba@colorado.edu>
-References: <1494930962-3318-1-git-send-email-rppt@linux.vnet.ibm.com> <20170627133952.GA25343@rapoport-lnx>
-In-Reply-To: <20170627133952.GA25343@rapoport-lnx>
-Subject: RE: [RFC PATCH 0/5] userfaultfd: non-cooperative: syncronous events
-Date: Fri, 11 Aug 2017 09:46:29 -0400
-Message-ID: <011e01d312a8$3c97e6b0$b5c7b410$@colorado.edu>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 11 Aug 2017 07:06:55 -0700 (PDT)
+Date: Fri, 11 Aug 2017 16:06:53 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 0/2] mm,fork,security: introduce MADV_WIPEONFORK
+Message-ID: <20170811140653.GO30811@dhcp22.suse.cz>
+References: <20170806140425.20937-1-riel@redhat.com>
+ <20170807132257.GH32434@dhcp22.suse.cz>
+ <20170807134648.GI32434@dhcp22.suse.cz>
+ <1502117991.6577.13.camel@redhat.com>
+ <20170810130531.GS23863@dhcp22.suse.cz>
+ <CAAF6GDc2hsj-XJj=Rx2ZF6Sh3Ke6nKewABXfqQxQjfDd5QN7Ug@mail.gmail.com>
+ <20170810153639.GB23863@dhcp22.suse.cz>
+ <CAAF6GDeno6RpHf1KORVSxUL7M-CQfbWFFdyKK8LAWd_6PcJ55Q@mail.gmail.com>
+ <20170810170144.GA987@dhcp22.suse.cz>
+ <CAAF6GDdFjS612mx1TXzaVk1J-Afz9wsAywTEijO2TG4idxabiw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: en-us
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAAF6GDdFjS612mx1TXzaVk1J-Afz9wsAywTEijO2TG4idxabiw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Mike Rapoport' <rppt@linux.vnet.ibm.com>
-Cc: 'Pavel Emelyanov' <xemul@virtuozzo.com>, 'linux-mm' <linux-mm@kvack.org>, 'Andrea Arcangeli' <aarcange@redhat.com>
+To: Colm =?iso-8859-1?Q?MacC=E1rthaigh?= <colm@allcosts.net>
+Cc: Florian Weimer <fweimer@redhat.com>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Rik van Riel <riel@redhat.com>, Will Drewry <wad@chromium.org>, akpm@linux-foundation.org, dave.hansen@intel.com, kirill@shutemov.name, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, luto@amacapital.net, mingo@kernel.org
 
-> -----Original Message-----
-> From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On
-> Behalf Of Mike Rapoport
-> Sent: Tuesday, June 27, 2017 9:40 AM
-> To: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Pavel Emelyanov <xemul@virtuozzo.com>; linux-mm <linux-
-> mm@kvack.org>
-> Subject: Re: [RFC PATCH 0/5] userfaultfd: non-cooperative: syncronous
-events
+On Fri 11-08-17 00:09:57, Colm MacCarthaigh wrote:
+> On Thu, Aug 10, 2017 at 7:01 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> > Does anybody actually do that using the minherit BSD interface?
 > 
-> On Tue, May 16, 2017 at 01:35:57PM +0300, Mike Rapoport wrote:
-> > Hi,
+> I can't find any OSS examples. I just thought of it in response to
+> your question, but now that I have, I do want to use it that way in
+> privsep code.
 > 
-> Any comments on this?
-> Shall I repost without the "RFC" prefix?
+> As a mere user, fwiw it would make /my/ code less complex (in
+> Kolmogorov terms) to be an madvise option. Here's what that would look
+> like in user space:
 > 
-I have a use case for this feature exactly like what you have described. The
-process should be suspended until the event has been handled. I would like
-to test this if there is a rebased patchset out there somewhere? I'm using
-4.13.0_rc3 from
-https://kernel.googlesource.com/pub/scm/linux/kernel/git/andrea/aa.git
+> mmap()
+> 
+> #if MAP_INHERIT_ZERO
+>     minherit() || pthread_atfork(workaround_fptr);
+> #elif MADVISE_WIPEONFORK
+>     madvise() || pthread_atfork(workaround_fptr);
+> #else
+>     pthread_atfork(workaround_fptr);
+> #endif
+> 
+> Vs:
+> 
+> #if MAP_WIPEONFORK
+>     mmap( ... WIPEONFORK) || pthread_atfork(workaround_fptr);
+> #else
+>     mmap()
+> #endif
+> 
+> #if MAP_INHERIT_ZERO
+>     madvise() || pthread_atfork(workaround_fptr);
+> #endif
+> 
+> #if !defined(MAP_WIPEONFORK) && !defined(MAP_INHERIT_ZERO)
+>     pthread_atfork(workaround_fptr);
+> #endif
+> 
+> The former is neater, and also a lot easier to stay structured if the
+> code is separated across different functional units. Allocation is
+> often handled in special functions.
 
-I wasn't able to apply the patches without heavy modification (mostly patch
-3/5).
+OK, I guess I see your point. Thanks for the clarification.
+ 
+> For me, madvise() is the principle of least surprise, following
+> existing DONTDUMP semantics.
 
-Thanks for the work on this.
-> > These patches add ability to generate userfaultfd events so that thier
-> > processing will be synchronized with the non-cooperative thread that
-> > caused the event.
-> >
-> > In the non-cooperative case userfaultfd resumes execution of the
-> > thread that caused an event when the notification is read() by the uffd
-> monitor.
-> > In some cases, like, for example, madvise(MADV_REMOVE), it might be
-> > desirable to keep the thread that caused the event suspended until the
-> > uffd monitor had the event handled.
-> >
-> > The first two patches just shuffle the code a bit to make subsequent
-> > changes easier.
-> > The patches 3 and 4 create some unification in the way the threads are
-> > queued into waitqueues either after page fault or after a
-> > non-cooperative event.
-> > The fifth patch extends the userfaultfd API with an implementation of
-> > UFFD_EVENT_REMOVE_SYNC that allows to keep the thread that triggered
-> > UFFD_EVENT_REMOVE until the uffd monitor would not wake it explicitly.
-> >
-> > Mike Rapoport (5):
-> >   userfaultfd: introduce userfault_init_waitqueue helper
-> >   userfaultfd: introduce userfaultfd_should_wait helper
-> >   userfaultfd: non-cooperative: generalize wake key structure
-> >   userfaultfd: non-cooperative: use fault_pending_wqh for all events
-> >   userfaultfd: non-cooperative: allow synchronous EVENT_REMOVE
-> >
-> >  fs/userfaultfd.c                 | 205
-++++++++++++++++++++++++---------------
-> >  include/uapi/linux/userfaultfd.h |  11 +++
-> >  2 files changed, 136 insertions(+), 80 deletions(-)
-> >
-> > --
-> > 2.7.4
-> >
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I am sorry to look too insisting here (I have still hard time to reconcile
+myself with the madvise (ab)use) but if we in fact want minherit like
+interface why don't we simply add minherit and make the code which wants
+to use that interface easier to port? Is the only reason that hooking
+into madvise is less code? If yes is that a sufficient reason to justify
+the (ab)use of madvise? If there is a general consensus on that part I
+will shut up and won't object anymore. Arguably MADV_DONTFORK would fit
+into minherit API better as well. MADV_DONTDUMP is a differnet storry of
+course.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
