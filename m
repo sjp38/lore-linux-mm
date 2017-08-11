@@ -1,52 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 823976B02C3
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 05:50:11 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id x28so5783982wma.7
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 02:50:11 -0700 (PDT)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id s71si517282wmd.7.2017.08.11.02.50.10
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A3AE86B02C3
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 06:11:18 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id t18so3382527oih.11
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 03:11:18 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id e11si392143oih.330.2017.08.11.03.11.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 11 Aug 2017 02:50:10 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id E02E5992AE
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 09:50:09 +0000 (UTC)
-Date: Fri, 11 Aug 2017 10:50:09 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [v6 04/15] mm: discard memblock data later
-Message-ID: <20170811095009.hz2vnatcwztffraw@techsingularity.net>
-References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
- <1502138329-123460-5-git-send-email-pasha.tatashin@oracle.com>
- <20170811093249.GE30811@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20170811093249.GE30811@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Aug 2017 03:11:17 -0700 (PDT)
+From: Prakash Gupta <guptap@codeaurora.org>
+Subject: [PATCH] mm: cma: fix stack corruption due to sprintf usage
+Date: Fri, 11 Aug 2017 15:40:17 +0530
+Message-Id: <1502446217-21840-1-git-send-email-guptap@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, Mel Gorman <mgorman@suse.de>
+To: akpm@linux-foundation.org, labbott@redhat.com, l.stach@pengutronix.de, gregkh@linuxfoundation.org
+Cc: linux-mm@kvack.org, guptap@codeaurora.org
 
-On Fri, Aug 11, 2017 at 11:32:49AM +0200, Michal Hocko wrote:
-> > Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> > Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
-> > Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-> > Reviewed-by: Bob Picco <bob.picco@oracle.com>
-> 
-> Considering that some HW might behave strangely and this would be rather
-> hard to debug I would be tempted to mark this for stable. It should also
-> be merged separately from the rest of the series.
-> 
-> I have just one nit below
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> 
+name[] in cma_debugfs_add_one() can only accommodate 16 chars including
+NULL to store sprintf output.  It's common for cma device name to be larger
+than 15 chars. This can cause stack corrpution. If the gcc stack protector
+is turned on, this can cause a panic due to stack corruption.
 
-Agreed.
+Below is one example trace:
 
+Kernel panic - not syncing: stack-protector: Kernel stack is corrupted in:
+ffffff8e69a75730
+Call trace:
+  [<ffffff8e68289504>] dump_backtrace+0x0/0x2c4
+  [<ffffff8e682897e8>] show_stack+0x20/0x28
+  [<ffffff8e685ea808>] dump_stack+0xb8/0xf4
+  [<ffffff8e683c454c>] panic+0x154/0x2b0
+  [<ffffff8e682a724c>] print_tainted+0x0/0xc0
+  [<ffffff8e69a75730>] cma_debugfs_init+0x274/0x290
+  [<ffffff8e682839ec>] do_one_initcall+0x5c/0x168
+  [<ffffff8e69a50e24>] kernel_init_freeable+0x1c8/0x280
+
+Fix the short sprintf buffer in cma_debugfs_add_one() by using scnprintf()
+instead of sprintf().
+
+fixes: f318dd083c81 ("cma: Store a name in the cma structure")
+Signed-off-by: Prakash Gupta <guptap@codeaurora.org>
+---
+ mm/cma_debug.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/cma_debug.c b/mm/cma_debug.c
+index 595b757..c03ccbc 100644
+--- a/mm/cma_debug.c
++++ b/mm/cma_debug.c
+@@ -167,7 +167,7 @@ static void cma_debugfs_add_one(struct cma *cma, int idx)
+ 	char name[16];
+ 	int u32s;
+ 
+-	sprintf(name, "cma-%s", cma->name);
++	scnprintf(name, sizeof(name), "cma-%s", cma->name);
+ 
+ 	tmp = debugfs_create_dir(name, cma_debugfs_root);
+ 
 -- 
-Mel Gorman
-SUSE Labs
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+member of the Code Aurora Forum, hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
