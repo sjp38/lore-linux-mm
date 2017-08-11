@@ -1,73 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0592D6B02B4
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 11:56:24 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id o124so19574275qke.9
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 08:56:24 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id e64si1010344qkd.460.2017.08.11.08.56.22
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 25A2C6B02F3
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 11:56:55 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id v49so19504361qtc.2
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 08:56:55 -0700 (PDT)
+Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com. [209.85.220.170])
+        by mx.google.com with ESMTPS id i194si1096659qki.188.2017.08.11.08.56.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Aug 2017 08:56:23 -0700 (PDT)
-Subject: Re: [v6 05/15] mm: don't accessed uninitialized struct pages
-References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
- <1502138329-123460-6-git-send-email-pasha.tatashin@oracle.com>
- <20170811093746.GF30811@dhcp22.suse.cz>
-From: Pasha Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <8444cb2b-b134-e9fc-a458-1ba7b22a8df1@oracle.com>
-Date: Fri, 11 Aug 2017 11:55:39 -0400
+        Fri, 11 Aug 2017 08:56:54 -0700 (PDT)
+Received: by mail-qk0-f170.google.com with SMTP id u139so22578355qka.1
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 08:56:54 -0700 (PDT)
+Subject: Re: [PATCH] mm: cma: fix stack corruption due to sprintf usage
+References: <1502446217-21840-1-git-send-email-guptap@codeaurora.org>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <687e393b-b74f-5999-90a5-26dcb26c7df7@redhat.com>
+Date: Fri, 11 Aug 2017 08:56:50 -0700
 MIME-Version: 1.0
-In-Reply-To: <20170811093746.GF30811@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <1502446217-21840-1-git-send-email-guptap@codeaurora.org>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org
+To: Prakash Gupta <guptap@codeaurora.org>, akpm@linux-foundation.org, l.stach@pengutronix.de, gregkh@linuxfoundation.org
+Cc: linux-mm@kvack.org
 
-On 08/11/2017 05:37 AM, Michal Hocko wrote:
-> On Mon 07-08-17 16:38:39, Pavel Tatashin wrote:
->> In deferred_init_memmap() where all deferred struct pages are initialized
->> we have a check like this:
->>
->>      if (page->flags) {
->>              VM_BUG_ON(page_zone(page) != zone);
->>              goto free_range;
->>      }
->>
->> This way we are checking if the current deferred page has already been
->> initialized. It works, because memory for struct pages has been zeroed, and
->> the only way flags are not zero if it went through __init_single_page()
->> before.  But, once we change the current behavior and won't zero the memory
->> in memblock allocator, we cannot trust anything inside "struct page"es
->> until they are initialized. This patch fixes this.
->>
->> This patch defines a new accessor memblock_get_reserved_pfn_range()
->> which returns successive ranges of reserved PFNs.  deferred_init_memmap()
->> calls it to determine if a PFN and its struct page has already been
->> initialized.
+On 08/11/2017 03:10 AM, Prakash Gupta wrote:
+> name[] in cma_debugfs_add_one() can only accommodate 16 chars including
+> NULL to store sprintf output.  It's common for cma device name to be larger
+> than 15 chars. This can cause stack corrpution. If the gcc stack protector
+> is turned on, this can cause a panic due to stack corruption.
 > 
-> Why don't we simply check the pfn against pgdat->first_deferred_pfn?
+> Below is one example trace:
+> 
+> Kernel panic - not syncing: stack-protector: Kernel stack is corrupted in:
+> ffffff8e69a75730
+> Call trace:
+>   [<ffffff8e68289504>] dump_backtrace+0x0/0x2c4
+>   [<ffffff8e682897e8>] show_stack+0x20/0x28
+>   [<ffffff8e685ea808>] dump_stack+0xb8/0xf4
+>   [<ffffff8e683c454c>] panic+0x154/0x2b0
+>   [<ffffff8e682a724c>] print_tainted+0x0/0xc0
+>   [<ffffff8e69a75730>] cma_debugfs_init+0x274/0x290
+>   [<ffffff8e682839ec>] do_one_initcall+0x5c/0x168
+>   [<ffffff8e69a50e24>] kernel_init_freeable+0x1c8/0x280
+> 
+> Fix the short sprintf buffer in cma_debugfs_add_one() by using scnprintf()
+> instead of sprintf().
+> 
 
-Because we are initializing deferred pages, and all of them have pfn 
-greater than pgdat->first_deferred_pfn. However, some of deferred pages 
-were already initialized if they were reserved, in this path:
+Acked-by: Laura Abbott <labbott@redhat.com>
 
-mem_init()
-  free_all_bootmem()
-   free_low_memory_core_early()
-    for_each_reserved_mem_region()
-     reserve_bootmem_region()
-      init_reserved_page() <- if this is deferred reserved page
-       __init_single_pfn()
-        __init_single_page()
-
-So, currently, we are using the value of page->flags to figure out if 
-this page has been initialized while being part of deferred page, but 
-this is not going to work for this project, as we do not zero the memory 
-that is backing the struct pages, and size the value of page->flags can 
-be anything.
+> fixes: f318dd083c81 ("cma: Store a name in the cma structure")
+> Signed-off-by: Prakash Gupta <guptap@codeaurora.org>
+> ---
+>  mm/cma_debug.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/cma_debug.c b/mm/cma_debug.c
+> index 595b757..c03ccbc 100644
+> --- a/mm/cma_debug.c
+> +++ b/mm/cma_debug.c
+> @@ -167,7 +167,7 @@ static void cma_debugfs_add_one(struct cma *cma, int idx)
+>  	char name[16];
+>  	int u32s;
+>  
+> -	sprintf(name, "cma-%s", cma->name);
+> +	scnprintf(name, sizeof(name), "cma-%s", cma->name);
+>  
+>  	tmp = debugfs_create_dir(name, cma_debugfs_root);
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
