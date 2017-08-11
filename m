@@ -1,77 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 25A2C6B02F3
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 11:56:55 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id v49so19504361qtc.2
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 08:56:55 -0700 (PDT)
-Received: from mail-qk0-f170.google.com (mail-qk0-f170.google.com. [209.85.220.170])
-        by mx.google.com with ESMTPS id i194si1096659qki.188.2017.08.11.08.56.54
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B0E176B02B4
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 11:59:28 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id g129so63637363ywh.11
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 08:59:28 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id p204si330956ywc.445.2017.08.11.08.59.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Aug 2017 08:56:54 -0700 (PDT)
-Received: by mail-qk0-f170.google.com with SMTP id u139so22578355qka.1
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 08:56:54 -0700 (PDT)
-Subject: Re: [PATCH] mm: cma: fix stack corruption due to sprintf usage
-References: <1502446217-21840-1-git-send-email-guptap@codeaurora.org>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <687e393b-b74f-5999-90a5-26dcb26c7df7@redhat.com>
-Date: Fri, 11 Aug 2017 08:56:50 -0700
+        Fri, 11 Aug 2017 08:59:27 -0700 (PDT)
+Subject: Re: [v6 07/15] mm: defining memblock_virt_alloc_try_nid_raw
+References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
+ <1502138329-123460-8-git-send-email-pasha.tatashin@oracle.com>
+ <20170811123953.GI30811@dhcp22.suse.cz>
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <545b7230-2c09-d2f9-f26a-05ef395c36d4@oracle.com>
+Date: Fri, 11 Aug 2017 11:58:46 -0400
 MIME-Version: 1.0
-In-Reply-To: <1502446217-21840-1-git-send-email-guptap@codeaurora.org>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20170811123953.GI30811@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Prakash Gupta <guptap@codeaurora.org>, akpm@linux-foundation.org, l.stach@pengutronix.de, gregkh@linuxfoundation.org
-Cc: linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org
 
-On 08/11/2017 03:10 AM, Prakash Gupta wrote:
-> name[] in cma_debugfs_add_one() can only accommodate 16 chars including
-> NULL to store sprintf output.  It's common for cma device name to be larger
-> than 15 chars. This can cause stack corrpution. If the gcc stack protector
-> is turned on, this can cause a panic due to stack corruption.
+On 08/11/2017 08:39 AM, Michal Hocko wrote:
+> On Mon 07-08-17 16:38:41, Pavel Tatashin wrote:
+>> A new variant of memblock_virt_alloc_* allocations:
+>> memblock_virt_alloc_try_nid_raw()
+>>      - Does not zero the allocated memory
+>>      - Does not panic if request cannot be satisfied
 > 
-> Below is one example trace:
+> OK, this looks good but I would not introduce memblock_virt_alloc_raw
+> here because we do not have any users. Please move that to "mm: optimize
+> early system hash allocations" which actually uses the API. It would be
+> easier to review it that way.
 > 
-> Kernel panic - not syncing: stack-protector: Kernel stack is corrupted in:
-> ffffff8e69a75730
-> Call trace:
->   [<ffffff8e68289504>] dump_backtrace+0x0/0x2c4
->   [<ffffff8e682897e8>] show_stack+0x20/0x28
->   [<ffffff8e685ea808>] dump_stack+0xb8/0xf4
->   [<ffffff8e683c454c>] panic+0x154/0x2b0
->   [<ffffff8e682a724c>] print_tainted+0x0/0xc0
->   [<ffffff8e69a75730>] cma_debugfs_init+0x274/0x290
->   [<ffffff8e682839ec>] do_one_initcall+0x5c/0x168
->   [<ffffff8e69a50e24>] kernel_init_freeable+0x1c8/0x280
+>> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+>> Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
+>> Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+>> Reviewed-by: Bob Picco <bob.picco@oracle.com>
 > 
-> Fix the short sprintf buffer in cma_debugfs_add_one() by using scnprintf()
-> instead of sprintf().
-> 
+> other than that
+> Acked-by: Michal Hocko <mhocko@suse.com>
 
-Acked-by: Laura Abbott <labbott@redhat.com>
-
-> fixes: f318dd083c81 ("cma: Store a name in the cma structure")
-> Signed-off-by: Prakash Gupta <guptap@codeaurora.org>
-> ---
->  mm/cma_debug.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/cma_debug.c b/mm/cma_debug.c
-> index 595b757..c03ccbc 100644
-> --- a/mm/cma_debug.c
-> +++ b/mm/cma_debug.c
-> @@ -167,7 +167,7 @@ static void cma_debugfs_add_one(struct cma *cma, int idx)
->  	char name[16];
->  	int u32s;
->  
-> -	sprintf(name, "cma-%s", cma->name);
-> +	scnprintf(name, sizeof(name), "cma-%s", cma->name);
->  
->  	tmp = debugfs_create_dir(name, cma_debugfs_root);
->  
-> 
+Sure, I could do this, but as I understood from earlier Dave Miller's 
+comments, we should do one logical change at a time. Hence, introduce 
+API in one patch use it in another. So, this is how I tried to organize 
+this patch set. Is this assumption incorrect?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
