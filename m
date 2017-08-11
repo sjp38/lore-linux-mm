@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B0E176B02B4
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 11:59:28 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id g129so63637363ywh.11
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 08:59:28 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id p204si330956ywc.445.2017.08.11.08.59.27
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AD9C6B02B4
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 12:04:20 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id t37so19481955qtg.6
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 09:04:20 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id o39si1077741qtk.292.2017.08.11.09.04.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Aug 2017 08:59:27 -0700 (PDT)
-Subject: Re: [v6 07/15] mm: defining memblock_virt_alloc_try_nid_raw
+        Fri, 11 Aug 2017 09:04:19 -0700 (PDT)
+Subject: Re: [v6 08/15] mm: zero struct pages during initialization
 References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
- <1502138329-123460-8-git-send-email-pasha.tatashin@oracle.com>
- <20170811123953.GI30811@dhcp22.suse.cz>
+ <1502138329-123460-9-git-send-email-pasha.tatashin@oracle.com>
+ <20170811125047.GJ30811@dhcp22.suse.cz>
 From: Pasha Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <545b7230-2c09-d2f9-f26a-05ef395c36d4@oracle.com>
-Date: Fri, 11 Aug 2017 11:58:46 -0400
+Message-ID: <f81f5eaa-109e-666e-7020-84c090721a56@oracle.com>
+Date: Fri, 11 Aug 2017 12:03:38 -0400
 MIME-Version: 1.0
-In-Reply-To: <20170811123953.GI30811@dhcp22.suse.cz>
+In-Reply-To: <20170811125047.GJ30811@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -26,30 +26,23 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
 Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org
 
-On 08/11/2017 08:39 AM, Michal Hocko wrote:
-> On Mon 07-08-17 16:38:41, Pavel Tatashin wrote:
->> A new variant of memblock_virt_alloc_* allocations:
->> memblock_virt_alloc_try_nid_raw()
->>      - Does not zero the allocated memory
->>      - Does not panic if request cannot be satisfied
-> 
-> OK, this looks good but I would not introduce memblock_virt_alloc_raw
-> here because we do not have any users. Please move that to "mm: optimize
-> early system hash allocations" which actually uses the API. It would be
-> easier to review it that way.
-> 
->> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
->> Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
->> Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
->> Reviewed-by: Bob Picco <bob.picco@oracle.com>
-> 
-> other than that
-> Acked-by: Michal Hocko <mhocko@suse.com>
+> I believe this deserves much more detailed explanation why this is safe.
+> What actually prevents any pfn walker from seeing an uninitialized
+> struct page? Please make your assumptions explicit in the commit log so
+> that we can check them independently.
 
-Sure, I could do this, but as I understood from earlier Dave Miller's 
-comments, we should do one logical change at a time. Hence, introduce 
-API in one patch use it in another. So, this is how I tried to organize 
-this patch set. Is this assumption incorrect?
+There is nothing prevents pfn walkers from walk over any struct pages 
+deferred and non-deferred. However, during boot before deferred pages 
+are initialized we have just a few places that do that, and all of those 
+cases are fixed in this patchset.
+
+> Also this is done with some purpose which is the perfmance, right? You
+> have mentioned that in the cover letter but if somebody is going to read
+> through git logs this wouldn't be obvious from the specific commit.
+> So add that information here as well. Especially numbers will be
+> interesting.
+
+I will add more performance data to this patch comment.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
