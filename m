@@ -1,63 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 452E16B025F
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 16:50:09 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id g131so4887606oic.10
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 13:50:09 -0700 (PDT)
-Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com. [2607:f8b0:4003:c06::22c])
-        by mx.google.com with ESMTPS id l2si1129940oib.447.2017.08.11.13.50.08
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 42DCA6B025F
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 17:00:30 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id 77so53854336itj.4
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 14:00:30 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id x190si38704ite.36.2017.08.11.14.00.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Aug 2017 13:50:08 -0700 (PDT)
-Received: by mail-oi0-x22c.google.com with SMTP id x3so43793970oia.1
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 13:50:08 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1502483265.6577.52.camel@redhat.com>
-References: <20170811191942.17487-1-riel@redhat.com> <20170811191942.17487-3-riel@redhat.com>
- <CA+55aFzA+7CeCdUi-13DfOeE3FfhtTPMMmBA4UQx8FixXiD4YA@mail.gmail.com> <1502483265.6577.52.camel@redhat.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 11 Aug 2017 13:50:07 -0700
-Message-ID: <CA+55aFzXBP-dvVC_q+FMDAxFKE1=PoFX+0FjEnSU+b54VpEKtw@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm,fork: introduce MADV_WIPEONFORK
-Content-Type: text/plain; charset="UTF-8"
+        Fri, 11 Aug 2017 14:00:29 -0700 (PDT)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [v1 0/1] discard memblock data later
+Date: Fri, 11 Aug 2017 17:00:17 -0400
+Message-Id: <1502485218-318324-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, linux-mm <linux-mm@kvack.org>, Florian Weimer <fweimer@redhat.com>, =?UTF-8?Q?Colm_MacC=C3=A1rthaigh?= <colm@allcosts.net>, Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, Andy Lutomirski <luto@amacapital.net>, Will Drewry <wad@chromium.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Dave Hansen <dave.hansen@intel.com>, Linux API <linux-api@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>
+To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, mgorman@techsingularity.net
 
-On Fri, Aug 11, 2017 at 1:27 PM, Rik van Riel <riel@redhat.com> wrote:
->>
->> Yes, you don't do the page table copies. Fine. But you leave vma with
->> the the anon_vma pointer - doesn't that mean that it's still
->> connected
->> to the original anonvma chain, and we might end up swapping something
->> in?
->
-> Swapping something in would require there to be a swap entry in
-> the page table entries, which we are not copying, so this should
-> not be a correctness issue.
+This fixes a problem with use after free that can happen when there are
+many physical regions and deferred pages are enabled.
 
-Yeah, I thought the rmap code just used the offset from the start to
-avoid even doing swap entries, but I guess we don't actually ever
-populate the page tables without the swap entry being there.
+Also, this fix is needed for my upcoming improvements to deferred pages:
+"complete deferred page initialization", where we do not zero the backing
+struct page memory.
 
-> There is another test in copy_page_range already which ends up
-> skipping the page table copy when it should not be done.
+Pavel Tatashin (1):
+  mm: discard memblock data later
 
-Well, the VM_DONTCOPY test is in dup_mmap(), and I think I'd rather
-match up the VM_WIPEONFORK logic with VM_DONTCOPY than with the
-copy_page_range() tests.
+ include/linux/memblock.h |  8 +++++---
+ mm/memblock.c            | 38 +++++++++++++++++---------------------
+ mm/nobootmem.c           | 16 ----------------
+ mm/page_alloc.c          |  4 ++++
+ 4 files changed, 26 insertions(+), 40 deletions(-)
 
-Because I assume you are talking about the "if it's a shared mapping,
-we don't need to copy the page tables and can just do it at page fault
-time instead" part? That's a rather different thing, which isn't so
-much about semantics, as about just a trade-off about when to touch
-the page tables.
-
-But yes, that one *might* make sense in dup_mmap() too. I just don't
-think it's really analogous to the WIPEONFORK and DONTCOPY tests.
-
-                      Linus
+-- 
+2.14.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
