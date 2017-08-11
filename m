@@ -1,69 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EE436B025F
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 11:25:41 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id l22so19079036qtf.9
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 08:25:41 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id n1si977543qkf.231.2017.08.11.08.25.39
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DE0086B025F
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 11:31:55 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id z36so5395463wrb.13
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 08:31:55 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w6si883417wra.112.2017.08.11.08.31.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Aug 2017 08:25:39 -0700 (PDT)
-Subject: Re: [v6 01/15] x86/mm: reserve only exiting low pages
-References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
- <1502138329-123460-2-git-send-email-pasha.tatashin@oracle.com>
- <20170811080706.GC30811@dhcp22.suse.cz>
-From: Pasha Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <47ebf53b-ea8b-1822-a63a-3682ed2f4753@oracle.com>
-Date: Fri, 11 Aug 2017 11:24:55 -0400
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 11 Aug 2017 08:31:54 -0700 (PDT)
+Date: Fri, 11 Aug 2017 17:31:52 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 0/2] mm,fork,security: introduce MADV_WIPEONFORK
+Message-ID: <20170811153152.GR30811@dhcp22.suse.cz>
+References: <20170810130531.GS23863@dhcp22.suse.cz>
+ <CAAF6GDc2hsj-XJj=Rx2ZF6Sh3Ke6nKewABXfqQxQjfDd5QN7Ug@mail.gmail.com>
+ <20170810153639.GB23863@dhcp22.suse.cz>
+ <CAAF6GDeno6RpHf1KORVSxUL7M-CQfbWFFdyKK8LAWd_6PcJ55Q@mail.gmail.com>
+ <20170810170144.GA987@dhcp22.suse.cz>
+ <CAAF6GDdFjS612mx1TXzaVk1J-Afz9wsAywTEijO2TG4idxabiw@mail.gmail.com>
+ <20170811140653.GO30811@dhcp22.suse.cz>
+ <c8cda773-b28d-f35f-7f18-6735584cb173@redhat.com>
+ <20170811142457.GP30811@dhcp22.suse.cz>
+ <6a04f59b-b72b-c468-ea5c-230764a24402@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20170811080706.GC30811@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6a04f59b-b72b-c468-ea5c-230764a24402@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org
+To: Florian Weimer <fweimer@redhat.com>
+Cc: Colm =?iso-8859-1?Q?MacC=E1rthaigh?= <colm@allcosts.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>, Rik van Riel <riel@redhat.com>, Will Drewry <wad@chromium.org>, akpm@linux-foundation.org, dave.hansen@intel.com, kirill@shutemov.name, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, luto@amacapital.net, mingo@kernel.org
 
->> Struct pages are initialized by going through __init_single_page(). Since
->> the existing physical memory in memblock is represented in memblock.memory
->> list, struct page for every page from this list goes through
->> __init_single_page().
+On Fri 11-08-17 17:24:29, Florian Weimer wrote:
+> On 08/11/2017 04:24 PM, Michal Hocko wrote:
+> > On Fri 11-08-17 16:11:44, Florian Weimer wrote:
+> >> On 08/11/2017 04:06 PM, Michal Hocko wrote:
+> >>
+> >>> I am sorry to look too insisting here (I have still hard time to reconcile
+> >>> myself with the madvise (ab)use) but if we in fact want minherit like
+> >>> interface why don't we simply add minherit and make the code which wants
+> >>> to use that interface easier to port? Is the only reason that hooking
+> >>> into madvise is less code? If yes is that a sufficient reason to justify
+> >>> the (ab)use of madvise? If there is a general consensus on that part I
+> >>> will shut up and won't object anymore. Arguably MADV_DONTFORK would fit
+> >>> into minherit API better as well.
+> >>
+> >> It does, OpenBSD calls it MAP_INHERIT_NONE.
+> >>
+> >> Could you implement MAP_INHERIT_COPY and MAP_INHERIT_SHARE as well?  Or
+> >> is changing from MAP_SHARED to MAP_PRIVATE and back impossible?
+> > 
+> > I haven't explored those two very much. Their semantic seems rather
+> > awkward, especially map_inherit_share one. I guess MAP_INHERIT_COPY
+> > would be doable. Do we have to support all modes or a missing support
+> > would disqualify the syscall completely?
 > 
-> By a page _from_ this list you mean struct pages backing the physical
-> memory of the memblock lists?
+> I think it would be a bit awkward if we implemented MAP_INHERIT_ZERO and
+> it would not turn a shared mapping into a private mapping in the child,
+> or would not work on shared mappings at all, or deviate in any way from
+> the OpenBSD implementation.
 
-Correct: "for every page from this list...", for every page represented 
-by this list the struct page is initialized through __init_single_page()
+If we go with minherit API then I think we should adhere with the BSD
+semantic and alloc MAP_INHERIT_ZERO for shared mappings as well
 
->> In this patchset we will stop zeroing struct page memory during allocation.
->> Therefore, this bug must be fixed in order to avoid random assert failures
->> caused by CONFIG_DEBUG_VM_PGFLAGS triggers.
->>
->> The fix is to reserve memory from the first existing PFN.
-> 
-> Hmm, I assume this is a result of some assert triggering, right? Which
-> one? Why don't we need the same treatment for other than x86 arch?
+> MAP_INHERIT_SHARE for a MAP_PRIVATE mapping which has been modified is a
+> bit bizarre, and I don't know how OpenBSD implements any of this.  It
+> could well be that the exact behavior implemented in OpenBSD is a poor
+> fit for the Linux VM implementation.
 
-Correct, the pgflags asserts were triggered when we were setting 
-reserved flags to struct page for PFN 0 in which was never initialized 
-through __init_single_page(). The reason they were triggered is because 
-we set all uninitialized memory to ones in one of the debug patches.
-
->> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
->> Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
->> Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
->> Reviewed-by: Bob Picco <bob.picco@oracle.com>
-> 
-> I guess that the review happened inhouse. I do not want to question its
-> value but it is rather strange to not hear the specific review comments
-> which might be useful in general and moreover even not include those
-> people on the CC list so they are aware of the follow up discussion.
-
-I will bring this up with my colleagues to how to handle this better in 
-the future. I will also CC the reviewers when I sent out the updated 
-patch series.
+yeah, it would be MAP_INHERIT_SHARE that I would consider problematic
+and rather go with ENOSUPP or even EINVAL.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
