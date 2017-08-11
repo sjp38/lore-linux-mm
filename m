@@ -1,79 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CAE06B02F4
-	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 12:04:40 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id l3so5514820wrc.12
-        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 09:04:40 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u20si923402wrb.323.2017.08.11.09.04.38
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C67496B02FD
+	for <linux-mm@kvack.org>; Fri, 11 Aug 2017 12:05:32 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id g21so47578005ioe.12
+        for <linux-mm@kvack.org>; Fri, 11 Aug 2017 09:05:32 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id o74si1534514ito.48.2017.08.11.09.05.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 11 Aug 2017 09:04:39 -0700 (PDT)
-Date: Fri, 11 Aug 2017 18:04:36 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v6 04/15] mm: discard memblock data later
-Message-ID: <20170811160436.GS30811@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Aug 2017 09:05:31 -0700 (PDT)
+Subject: Re: [v6 09/15] sparc64: optimized struct page zeroing
 References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
- <1502138329-123460-5-git-send-email-pasha.tatashin@oracle.com>
- <20170811093249.GE30811@dhcp22.suse.cz>
- <6366171f-1a30-2faa-d776-01983fcb5a00@oracle.com>
+ <1502138329-123460-10-git-send-email-pasha.tatashin@oracle.com>
+ <20170811125326.GK30811@dhcp22.suse.cz>
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <3830e513-cb35-e52e-341c-25eaecc51d43@oracle.com>
+Date: Fri, 11 Aug 2017 12:04:51 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <6366171f-1a30-2faa-d776-01983fcb5a00@oracle.com>
+In-Reply-To: <20170811125326.GK30811@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <pasha.tatashin@oracle.com>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, Mel Gorman <mgorman@suse.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org
 
-On Fri 11-08-17 11:49:15, Pasha Tatashin wrote:
-> >I guess this goes all the way down to
-> >Fixes: 7e18adb4f80b ("mm: meminit: initialise remaining struct pages in parallel with kswapd")
+>> Add an optimized mm_zero_struct_page(), so struct page's are zeroed without
+>> calling memset(). We do eight to tent regular stores based on the size of
+>> struct page. Compiler optimizes out the conditions of switch() statement.
 > 
-> I will add this to the patch.
+> Again, this doesn't explain why we need this. You have mentioned those
+> reasons in some previous emails but be explicit here please.
 > 
-> >>Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> >>Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
-> >>Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-> >>Reviewed-by: Bob Picco <bob.picco@oracle.com>
-> >
-> >Considering that some HW might behave strangely and this would be rather
-> >hard to debug I would be tempted to mark this for stable. It should also
-> >be merged separately from the rest of the series.
-> >
-> >I have just one nit below
-> >Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> I will address your comment, and send out a new patch. Should I send it out
-> separately from the series or should I keep it inside?
 
-I would post it separatelly. It doesn't depend on the rest.
+I will add performance data to this patch as well.
 
-> Also, before I send out a new patch, I will need to root cause and resolve
-> problem found by kernel test robot <fengguang.wu@intel.com>, and bisected
-> down to this patch.
-> 
-> [  156.659400] BUG: Bad page state in process swapper  pfn:03147
-> [  156.660051] page:ffff88001ed8a1c0 count:0 mapcount:-127 mapping:
-> (null) index:0x1
-> [  156.660917] flags: 0x0()
-> [  156.661198] raw: 0000000000000000 0000000000000000 0000000000000001
-> 00000000ffffff80
-> [  156.662006] raw: ffff88001f4a8120 ffff88001ed85ce0 0000000000000000
-> 0000000000000000
-> [  156.662811] page dumped because: nonzero mapcount
-> [  156.663307] CPU: 0 PID: 1 Comm: swapper Not tainted
-> 4.13.0-rc3-00220-g1aad694 #1
-> [  156.664077] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS
-> 1.9.3-20161025_171302-gandalf 04/01/2014
-> [  156.665129] Call Trace:
-> [  156.665422]  dump_stack+0x1e/0x20
-> [  156.665802]  bad_page+0x122/0x148
-
-Was the report related with this patch?
--- 
-Michal Hocko
-SUSE Labs
+Thank you,
+Pasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
