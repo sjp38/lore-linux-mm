@@ -1,70 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D845B6B02B4
-	for <linux-mm@kvack.org>; Sat, 12 Aug 2017 07:26:10 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id r187so62713132pfr.8
-        for <linux-mm@kvack.org>; Sat, 12 Aug 2017 04:26:10 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id o29si1876017pli.288.2017.08.12.04.26.09
-        for <linux-mm@kvack.org>;
-        Sat, 12 Aug 2017 04:26:09 -0700 (PDT)
-Date: Sat, 12 Aug 2017 12:26:03 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [kernel-hardening] [PATCH v5 04/10] arm64: Add __flush_tlb_one()
-Message-ID: <20170812112603.GB16374@remoulade>
-References: <20170809200755.11234-1-tycho@docker.com>
- <20170809200755.11234-5-tycho@docker.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170809200755.11234-5-tycho@docker.com>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AA0666B02B4
+	for <linux-mm@kvack.org>; Sat, 12 Aug 2017 07:35:18 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id o201so9004076wmg.3
+        for <linux-mm@kvack.org>; Sat, 12 Aug 2017 04:35:18 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
+        by mx.google.com with ESMTPS id b23si2381169wra.151.2017.08.12.04.35.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 12 Aug 2017 04:35:17 -0700 (PDT)
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: [PATCH] mm: Reward slab shrinkers that reclaim more than they were asked
+Date: Sat, 12 Aug 2017 12:34:37 +0100
+Message-Id: <20170812113437.7397-1-chris@chris-wilson.co.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tycho Andersen <tycho@docker.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Juerg Haefliger <juerg.haefliger@hpe.com>
+To: linux-mm@kvack.org
+Cc: intel-gfx@lists.freedesktop.org, Chris Wilson <chris@chris-wilson.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Shaohua Li <shli@fb.com>
 
-On Wed, Aug 09, 2017 at 02:07:49PM -0600, Tycho Andersen wrote:
-> From: Juerg Haefliger <juerg.haefliger@hpe.com>
-> 
-> Add a hook for flushing a single TLB entry on arm64.
-> 
-> Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
-> Tested-by: Tycho Andersen <tycho@docker.com>
-> ---
->  arch/arm64/include/asm/tlbflush.h | 8 ++++++++
->  1 file changed, 8 insertions(+)
-> 
-> diff --git a/arch/arm64/include/asm/tlbflush.h b/arch/arm64/include/asm/tlbflush.h
-> index af1c76981911..8e0c49105d3e 100644
-> --- a/arch/arm64/include/asm/tlbflush.h
-> +++ b/arch/arm64/include/asm/tlbflush.h
-> @@ -184,6 +184,14 @@ static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end
->  	isb();
->  }
->  
-> +static inline void __flush_tlb_one(unsigned long addr)
-> +{
-> +	dsb(ishst);
-> +	__tlbi(vaae1is, addr >> 12);
-> +	dsb(ish);
-> +	isb();
-> +}
+Some shrinkers may only be able to free a bunch of objects at a time, and
+so free more than the requested nr_to_scan in one pass. Account for the
+extra freed objects against the total number of objects we intend to
+free, otherwise we may end up penalising the slab far more than intended.
 
-Is this going to be called by generic code?
+Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Shaohua Li <shli@fb.com>
+Cc: linux-mm@kvack.org
+---
+ mm/vmscan.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-It would be nice if we could drop 'kernel' into the name, to make it clear this
-is intended to affect the kernel mappings, which have different maintenance
-requirements to user mappings.
-
-We should be able to implement this more simply as:
-
-flush_tlb_kernel_page(unsigned long addr)
-{
-	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
-}
-
-Thanks,
-Mark.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a1af041930a6..8bf6f41f94fb 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -398,6 +398,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 			break;
+ 		freed += ret;
+ 
++		nr_to_scan = max(nr_to_scan, ret);
+ 		count_vm_events(SLABS_SCANNED, nr_to_scan);
+ 		total_scan -= nr_to_scan;
+ 		scanned += nr_to_scan;
+-- 
+2.13.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
