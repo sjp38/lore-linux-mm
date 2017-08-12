@@ -1,69 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 800376B025F
-	for <linux-mm@kvack.org>; Sat, 12 Aug 2017 07:17:44 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b83so62997902pfl.6
-        for <linux-mm@kvack.org>; Sat, 12 Aug 2017 04:17:44 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D845B6B02B4
+	for <linux-mm@kvack.org>; Sat, 12 Aug 2017 07:26:10 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id r187so62713132pfr.8
+        for <linux-mm@kvack.org>; Sat, 12 Aug 2017 04:26:10 -0700 (PDT)
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id n63si1668548pga.24.2017.08.12.04.17.42
+        by mx.google.com with ESMTP id o29si1876017pli.288.2017.08.12.04.26.09
         for <linux-mm@kvack.org>;
-        Sat, 12 Aug 2017 04:17:43 -0700 (PDT)
-Date: Sat, 12 Aug 2017 12:17:34 +0100
+        Sat, 12 Aug 2017 04:26:09 -0700 (PDT)
+Date: Sat, 12 Aug 2017 12:26:03 +0100
 From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [kernel-hardening] [PATCH v5 06/10] arm64/mm: Disable section
- mappings if XPFO is enabled
-Message-ID: <20170812111733.GA16374@remoulade>
+Subject: Re: [kernel-hardening] [PATCH v5 04/10] arm64: Add __flush_tlb_one()
+Message-ID: <20170812112603.GB16374@remoulade>
 References: <20170809200755.11234-1-tycho@docker.com>
- <20170809200755.11234-7-tycho@docker.com>
- <f6a42032-d4e5-f488-3d55-1da4c8a4dbaf@redhat.com>
- <20170811211302.limmjv4rmq23b25b@smitten>
+ <20170809200755.11234-5-tycho@docker.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170811211302.limmjv4rmq23b25b@smitten>
+In-Reply-To: <20170809200755.11234-5-tycho@docker.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tycho Andersen <tycho@docker.com>
-Cc: Laura Abbott <labbott@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Juerg Haefliger <juerg.haefliger@hpe.com>
 
-Hi,
-
-On Fri, Aug 11, 2017 at 03:13:02PM -0600, Tycho Andersen wrote:
-> On Fri, Aug 11, 2017 at 10:25:14AM -0700, Laura Abbott wrote:
-> > On 08/09/2017 01:07 PM, Tycho Andersen wrote:
-> > > @@ -190,7 +202,7 @@ static void init_pmd(pud_t *pud, unsigned long addr, unsigned long end,
-> > >  		next = pmd_addr_end(addr, end);
-> > >  
-> > >  		/* try section mapping first */
-> > > -		if (((addr | next | phys) & ~SECTION_MASK) == 0 &&
-> > > +		if (use_section_mapping(addr, next, phys) &&
-> > >  		    (flags & NO_BLOCK_MAPPINGS) == 0) {
-> > >  			pmd_set_huge(pmd, phys, prot);
-> > >  
-> > > 
-> > 
-> > There is already similar logic to disable section mappings for
-> > debug_pagealloc at the start of map_mem, can you take advantage
-> > of that?
+On Wed, Aug 09, 2017 at 02:07:49PM -0600, Tycho Andersen wrote:
+> From: Juerg Haefliger <juerg.haefliger@hpe.com>
 > 
-> You're suggesting something like this instead? Seems to work fine.
+> Add a hook for flushing a single TLB entry on arm64.
 > 
-> diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-> index 38026b3ccb46..3b2c17bbbf12 100644
-> --- a/arch/arm64/mm/mmu.c
-> +++ b/arch/arm64/mm/mmu.c
-> @@ -434,6 +434,8 @@ static void __init map_mem(pgd_t *pgd)
+> Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
+> Tested-by: Tycho Andersen <tycho@docker.com>
+> ---
+>  arch/arm64/include/asm/tlbflush.h | 8 ++++++++
+>  1 file changed, 8 insertions(+)
+> 
+> diff --git a/arch/arm64/include/asm/tlbflush.h b/arch/arm64/include/asm/tlbflush.h
+> index af1c76981911..8e0c49105d3e 100644
+> --- a/arch/arm64/include/asm/tlbflush.h
+> +++ b/arch/arm64/include/asm/tlbflush.h
+> @@ -184,6 +184,14 @@ static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end
+>  	isb();
+>  }
 >  
->  	if (debug_pagealloc_enabled())
->  		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
-> +	if (IS_ENABLED(CONFIG_XPFO))
-> +		flags |= NO_BLOCK_MAPPINGS;
->  
+> +static inline void __flush_tlb_one(unsigned long addr)
+> +{
+> +	dsb(ishst);
+> +	__tlbi(vaae1is, addr >> 12);
+> +	dsb(ish);
+> +	isb();
+> +}
 
-IIUC, XPFO carves out individual pages just like DEBUG_PAGEALLOC, so you'll
-also need NO_CONT_MAPPINGS.
+Is this going to be called by generic code?
 
-Thanks
+It would be nice if we could drop 'kernel' into the name, to make it clear this
+is intended to affect the kernel mappings, which have different maintenance
+requirements to user mappings.
+
+We should be able to implement this more simply as:
+
+flush_tlb_kernel_page(unsigned long addr)
+{
+	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
+}
+
+Thanks,
 Mark.
 
 --
