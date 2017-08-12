@@ -1,62 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 910B56B025F
-	for <linux-mm@kvack.org>; Sat, 12 Aug 2017 07:57:45 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id y192so62642464pgd.12
-        for <linux-mm@kvack.org>; Sat, 12 Aug 2017 04:57:45 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 94si1864186pld.1034.2017.08.12.04.57.43
-        for <linux-mm@kvack.org>;
-        Sat, 12 Aug 2017 04:57:44 -0700 (PDT)
-Date: Sat, 12 Aug 2017 12:57:37 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [kernel-hardening] [PATCH v5 07/10] arm64/mm: Don't flush the
- data cache if the page is unmapped by XPFO
-Message-ID: <20170812115736.GC16374@remoulade>
-References: <20170809200755.11234-1-tycho@docker.com>
- <20170809200755.11234-8-tycho@docker.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170809200755.11234-8-tycho@docker.com>
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CED4A6B025F
+	for <linux-mm@kvack.org>; Sat, 12 Aug 2017 14:11:37 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id o85so10854759lff.0
+        for <linux-mm@kvack.org>; Sat, 12 Aug 2017 11:11:37 -0700 (PDT)
+Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
+        by mx.google.com with ESMTPS id e71si1576265lfi.241.2017.08.12.11.11.35
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 12 Aug 2017 11:11:36 -0700 (PDT)
+Received: by mail-lf0-x244.google.com with SMTP id 65so4156182lfa.0
+        for <linux-mm@kvack.org>; Sat, 12 Aug 2017 11:11:35 -0700 (PDT)
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: [PATCH] slub: fix per memcg cache leak on css offline
+Date: Sat, 12 Aug 2017 21:11:34 +0300
+Message-Id: <20170812181134.25027-1-vdavydov.dev@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tycho Andersen <tycho@docker.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Juerg Haefliger <juerg.haefliger@hpe.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrei Vagin <avagin@gmail.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Aug 09, 2017 at 02:07:52PM -0600, Tycho Andersen wrote:
-> From: Juerg Haefliger <juerg.haefliger@hpe.com>
-> 
-> If the page is unmapped by XPFO, a data cache flush results in a fatal
-> page fault. So don't flush in that case.
+To avoid a possible deadlock, sysfs_slab_remove() schedules an
+asynchronous work to delete sysfs entries corresponding to the kmem
+cache. To ensure the cache isn't freed before the work function is
+called, it takes a reference to the cache kobject. The reference is
+supposed to be released by the work function. However, the work function
+(sysfs_slab_remove_workfn()) does nothing in case the cache sysfs entry
+has already been deleted, leaking the kobject and the corresponding
+cache. This may happen on a per memcg cache destruction, because sysfs
+entries of a per memcg cache are deleted on memcg offline if the cache
+is empty (see __kmemcg_cache_deactivate()).
 
-Do you have an example callchain where that happens? We might need to shuffle
-things around to cater for that case.
+The kmemleak report looks like this:
 
-> @@ -30,7 +31,9 @@ void sync_icache_aliases(void *kaddr, unsigned long len)
->  	unsigned long addr = (unsigned long)kaddr;
->  
->  	if (icache_is_aliasing()) {
-> -		__clean_dcache_area_pou(kaddr, len);
-> +		/* Don't flush if the page is unmapped by XPFO */
-> +		if (!xpfo_page_is_unmapped(virt_to_page(kaddr)))
-> +			__clean_dcache_area_pou(kaddr, len);
->  		__flush_icache_all();
->  	} else {
->  		flush_icache_range(addr, addr + len);
+  unreferenced object 0xffff9f798a79f540 (size 32):
+    comm "kworker/1:4", pid 15416, jiffies 4307432429 (age 28687.554s)
+    hex dump (first 32 bytes):
+      6b 6d 61 6c 6c 6f 63 2d 31 36 28 31 35 39 39 3a  kmalloc-16(1599:
+      6e 65 77 72 6f 6f 74 29 00 23 6b c0 ff ff ff ff  newroot).#k.....
+    backtrace:
+      [<ffffffff9591d28a>] kmemleak_alloc+0x4a/0xa0
+      [<ffffffff9527a378>] __kmalloc_track_caller+0x148/0x2c0
+      [<ffffffff95499466>] kvasprintf+0x66/0xd0
+      [<ffffffff954995a9>] kasprintf+0x49/0x70
+      [<ffffffff952305c6>] memcg_create_kmem_cache+0xe6/0x160
+      [<ffffffff9528eaf0>] memcg_kmem_cache_create_func+0x20/0x110
+      [<ffffffff950cd6c5>] process_one_work+0x205/0x5d0
+      [<ffffffff950cdade>] worker_thread+0x4e/0x3a0
+      [<ffffffff950d5169>] kthread+0x109/0x140
+      [<ffffffff9592b8fa>] ret_from_fork+0x2a/0x40
+      [<ffffffffffffffff>] 0xffffffffffffffff
+  unreferenced object 0xffff9f79b6136840 (size 416):
+    comm "kworker/1:4", pid 15416, jiffies 4307432429 (age 28687.573s)
+    hex dump (first 32 bytes):
+      40 fb 80 c2 3e 33 00 00 00 00 00 40 00 00 00 00  @...>3.....@....
+      00 00 00 00 00 00 00 00 10 00 00 00 10 00 00 00  ................
+    backtrace:
+      [<ffffffff9591d28a>] kmemleak_alloc+0x4a/0xa0
+      [<ffffffff95275bc8>] kmem_cache_alloc+0x128/0x280
+      [<ffffffff9522fedb>] create_cache+0x3b/0x1e0
+      [<ffffffff952305f8>] memcg_create_kmem_cache+0x118/0x160
+      [<ffffffff9528eaf0>] memcg_kmem_cache_create_func+0x20/0x110
+      [<ffffffff950cd6c5>] process_one_work+0x205/0x5d0
+      [<ffffffff950cdade>] worker_thread+0x4e/0x3a0
+      [<ffffffff950d5169>] kthread+0x109/0x140
+      [<ffffffff9592b8fa>] ret_from_fork+0x2a/0x40
+      [<ffffffffffffffff>] 0xffffffffffffffff
 
-I don't think this patch is correct. If data cache maintenance is required in
-the absence of XPFO, I don't see why it wouldn't be required in the presence of
-XPFO.
+Fix the leak by adding the missing call to kobject_put() to
+sysfs_slab_remove_workfn().
 
-I'm not immediately sure why the non-aliasing case misses data cache
-maintenance. I couldn't spot where that happens otherwise.
+Signed-off-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+Reported-and-tested-by: Andrei Vagin <avagin@gmail.com>
+Acked-by: Tejun Heo <tj@kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Fixes: 3b7b314053d02 ("slub: make sysfs file removal asynchronous")
+---
+ mm/slub.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-On a more general note, in future it would be good to Cc the arm64 maintainers
-and the linux-arm-kernel mailing list for patches affecting arm64.
-
-Thanks,
-Mark.
+diff --git a/mm/slub.c b/mm/slub.c
+index 364c0e769a05..0a9ee4f8dbb3 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -5642,13 +5642,14 @@ static void sysfs_slab_remove_workfn(struct work_struct *work)
+ 		 * A cache is never shut down before deactivation is
+ 		 * complete, so no need to worry about synchronization.
+ 		 */
+-		return;
++		goto out;
+ 
+ #ifdef CONFIG_MEMCG
+ 	kset_unregister(s->memcg_kset);
+ #endif
+ 	kobject_uevent(&s->kobj, KOBJ_REMOVE);
+ 	kobject_del(&s->kobj);
++out:
+ 	kobject_put(&s->kobj);
+ }
+ 
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
