@@ -1,20 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BEE4E6B0292
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 05:35:05 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id n88so1855411wrb.0
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 02:35:05 -0700 (PDT)
-Received: from mout.web.de (mout.web.de. [217.72.192.78])
-        by mx.google.com with ESMTPS id p1si3593717wmg.212.2017.08.14.02.35.04
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D1FD6B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 05:36:04 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id u89so13493897wrc.1
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 02:36:04 -0700 (PDT)
+Received: from mout.web.de (mout.web.de. [212.227.17.11])
+        by mx.google.com with ESMTPS id 93si5296564wra.429.2017.08.14.02.36.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Aug 2017 02:35:04 -0700 (PDT)
-Subject: [PATCH 1/2] kmemleak: Delete an error message for a failed memory
- allocation in two functions
+        Mon, 14 Aug 2017 02:36:03 -0700 (PDT)
+Subject: [PATCH 2/2] kmemleak: Use seq_puts() in print_unreferenced()
 From: SF Markus Elfring <elfring@users.sourceforge.net>
 References: <301bc8c9-d9f6-87be-ce1d-dc614e82b45b@users.sourceforge.net>
-Message-ID: <986426ab-4ca9-ee56-9712-d06c25a2ed1a@users.sourceforge.net>
-Date: Mon, 14 Aug 2017 11:35:02 +0200
+Message-ID: <b764965b-1d80-83c6-72f0-7b64d1036168@users.sourceforge.net>
+Date: Mon, 14 Aug 2017 11:36:01 +0200
 MIME-Version: 1.0
 In-Reply-To: <301bc8c9-d9f6-87be-ce1d-dc614e82b45b@users.sourceforge.net>
 Content-Type: text/plain; charset=utf-8
@@ -26,41 +25,32 @@ To: linux-mm@kvack.org, Catalin Marinas <catalin.marinas@arm.com>
 Cc: LKML <linux-kernel@vger.kernel.org>, kernel-janitors@vger.kernel.org
 
 From: Markus Elfring <elfring@users.sourceforge.net>
-Date: Mon, 14 Aug 2017 10:50:22 +0200
+Date: Mon, 14 Aug 2017 11:23:11 +0200
 
-Omit an extra message for a memory allocation failure in these functions.
+The script "checkpatch.pl" pointed information out like the following.
 
-This issue was detected by using the Coccinelle software.
+WARNING: Prefer seq_puts to seq_printf
+
+Thus fix the affected source code place.
 
 Signed-off-by: Markus Elfring <elfring@users.sourceforge.net>
 ---
- mm/kmemleak.c | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ mm/kmemleak.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 7780cd83a495..c6c798d90b2e 100644
+index c6c798d90b2e..cfac550d4d00 100644
 --- a/mm/kmemleak.c
 +++ b/mm/kmemleak.c
-@@ -555,7 +555,6 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
+@@ -373,7 +373,7 @@ static void print_unreferenced(struct seq_file *seq,
+ 		   object->comm, object->pid, object->jiffies,
+ 		   msecs_age / 1000, msecs_age % 1000);
+ 	hex_dump_object(seq, object);
+-	seq_printf(seq, "  backtrace:\n");
++	seq_puts(seq, "  backtrace:\n");
  
- 	object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
- 	if (!object) {
--		pr_warn("Cannot allocate a kmemleak_object structure\n");
- 		kmemleak_disable();
- 		return NULL;
- 	}
-@@ -775,10 +774,8 @@ static void add_scan_area(unsigned long ptr, size_t size, gfp_t gfp)
- 	}
- 
- 	area = kmem_cache_alloc(scan_area_cache, gfp_kmemleak_mask(gfp));
--	if (!area) {
--		pr_warn("Cannot allocate a scan area\n");
-+	if (!area)
- 		goto out;
--	}
- 
- 	spin_lock_irqsave(&object->lock, flags);
- 	if (size == SIZE_MAX) {
+ 	for (i = 0; i < object->trace_len; i++) {
+ 		void *ptr = (void *)object->trace[i];
 -- 
 2.14.0
 
