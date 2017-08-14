@@ -1,47 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 27D0E6B025F
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 12:28:11 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id o83so17539594lfb.3
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 09:28:11 -0700 (PDT)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id 143si3129511ljj.235.2017.08.14.09.28.09
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 134C86B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 12:35:39 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id p62so11615851oih.12
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 09:35:39 -0700 (PDT)
+Received: from mail-io0-x232.google.com (mail-io0-x232.google.com. [2607:f8b0:4001:c06::232])
+        by mx.google.com with ESMTPS id e14si5012481oib.377.2017.08.14.09.35.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Aug 2017 09:28:09 -0700 (PDT)
-Received: by mail-lf0-x244.google.com with SMTP id x16so6920444lfb.4
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 09:28:09 -0700 (PDT)
-Date: Mon, 14 Aug 2017 19:28:07 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH] x86/mm: Fix personality(ADDR_NO_RANDOMIZE)
-Message-ID: <20170814162807.GP2005@uranus.lan>
-References: <20170814155719.74839-1-kirill.shutemov@linux.intel.com>
- <20170814161347.GO2005@uranus.lan>
- <20170814162002.GA9559@redhat.com>
+        Mon, 14 Aug 2017 09:35:38 -0700 (PDT)
+Received: by mail-io0-x232.google.com with SMTP id j32so40267865iod.0
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 09:35:38 -0700 (PDT)
+Date: Mon, 14 Aug 2017 10:35:36 -0600
+From: Tycho Andersen <tycho@docker.com>
+Subject: Re: [kernel-hardening] [PATCH v5 04/10] arm64: Add __flush_tlb_one()
+Message-ID: <20170814163536.6njceqc3dip5lrlu@smitten>
+References: <20170809200755.11234-1-tycho@docker.com>
+ <20170809200755.11234-5-tycho@docker.com>
+ <20170812112603.GB16374@remoulade>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170814162002.GA9559@redhat.com>
+In-Reply-To: <20170812112603.GB16374@remoulade>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Dmitry Safonov <dsafonov@virtuozzo.com>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable <stable@vger.kernel.org>
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Juerg Haefliger <juerg.haefliger@hpe.com>
 
-On Mon, Aug 14, 2017 at 06:20:02PM +0200, Oleg Nesterov wrote:
-...
-> >
-> > Didn't Oleg's patch does the same?
-> >
-> > https://patchwork.kernel.org/patch/9832697/
-> 
-> at first glance yes, thanks Cyrill. And note that we do not need another
-> PF_RANDOMIZE check.
-> 
-> > for some reason it's not yet merged.
-> 
-> because nobody cares ;)
+Hi Mark,
 
-We all care but people are busy ;) Anyway hopefully it get merged soon.
+On Sat, Aug 12, 2017 at 12:26:03PM +0100, Mark Rutland wrote:
+> On Wed, Aug 09, 2017 at 02:07:49PM -0600, Tycho Andersen wrote:
+> > From: Juerg Haefliger <juerg.haefliger@hpe.com>
+> > 
+> > Add a hook for flushing a single TLB entry on arm64.
+> > 
+> > Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
+> > Tested-by: Tycho Andersen <tycho@docker.com>
+> > ---
+> >  arch/arm64/include/asm/tlbflush.h | 8 ++++++++
+> >  1 file changed, 8 insertions(+)
+> > 
+> > diff --git a/arch/arm64/include/asm/tlbflush.h b/arch/arm64/include/asm/tlbflush.h
+> > index af1c76981911..8e0c49105d3e 100644
+> > --- a/arch/arm64/include/asm/tlbflush.h
+> > +++ b/arch/arm64/include/asm/tlbflush.h
+> > @@ -184,6 +184,14 @@ static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end
+> >  	isb();
+> >  }
+> >  
+> > +static inline void __flush_tlb_one(unsigned long addr)
+> > +{
+> > +	dsb(ishst);
+> > +	__tlbi(vaae1is, addr >> 12);
+> > +	dsb(ish);
+> > +	isb();
+> > +}
+> 
+> Is this going to be called by generic code?
+
+Yes, it's called in mm/xpfo.c:xpfo_kunmap.
+
+> It would be nice if we could drop 'kernel' into the name, to make it clear this
+> is intended to affect the kernel mappings, which have different maintenance
+> requirements to user mappings.
+> 
+> We should be able to implement this more simply as:
+> 
+> flush_tlb_kernel_page(unsigned long addr)
+> {
+> 	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
+> }
+
+It's named __flush_tlb_one after the x86 (and a few other arches)
+function of the same name. I can change it to flush_tlb_kernel_page,
+but then we'll need some x86-specific code to map the name as well.
+
+Maybe since it's called from generic code that's warranted though?
+I'll change the implementation for now, let me know what you want to
+do about the name.
+
+Cheers,
+
+Tycho
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
