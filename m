@@ -1,114 +1,208 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B25FB6B025F
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 02:48:43 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id y192so119635073pgd.12
-        for <linux-mm@kvack.org>; Sun, 13 Aug 2017 23:48:43 -0700 (PDT)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id j11si3700660pgn.944.2017.08.13.23.48.41
-        for <linux-mm@kvack.org>;
-        Sun, 13 Aug 2017 23:48:42 -0700 (PDT)
-Date: Mon, 14 Aug 2017 16:48:38 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: How can we share page cache pages for reflinked files?
-Message-ID: <20170814064838.GB21024@dastard>
-References: <20170810042849.GK21024@dastard>
- <20170810161159.GI31390@bombadil.infradead.org>
- <20170811042519.GS21024@dastard>
- <20170811170847.GK31390@bombadil.infradead.org>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id ECE386B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 02:53:44 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id y206so13032291wmd.1
+        for <linux-mm@kvack.org>; Sun, 13 Aug 2017 23:53:44 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j18si5249346wra.238.2017.08.13.23.53.43
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 13 Aug 2017 23:53:43 -0700 (PDT)
+Date: Mon, 14 Aug 2017 08:53:42 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v2 1/1] mm: discard memblock data later
+Message-ID: <20170814065341.GB19063@dhcp22.suse.cz>
+References: <1502485554-318703-1-git-send-email-pasha.tatashin@oracle.com>
+ <1502485554-318703-2-git-send-email-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170811170847.GK31390@bombadil.infradead.org>
+In-Reply-To: <1502485554-318703-2-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, Aug 11, 2017 at 10:08:47AM -0700, Matthew Wilcox wrote:
-> On Fri, Aug 11, 2017 at 02:25:19PM +1000, Dave Chinner wrote:
-> > On Thu, Aug 10, 2017 at 09:11:59AM -0700, Matthew Wilcox wrote:
-> > > On Thu, Aug 10, 2017 at 02:28:49PM +1000, Dave Chinner wrote:
-> > > > If we scale this up to a container host which is using reflink trees
-> > > > it's shared root images, there might be hundreds of copies of the
-> > > > same data held in cache (i.e. one page per container). Given that
-> > > > the filesystem knows that the underlying data extent is shared when
-> > > > we go to read it, it's relatively easy to add mechanisms to the
-> > > > filesystem to return the same page for all attempts to read the
-> > > > from a shared extent from all inodes that share it.
-> > > 
-> > > I agree the problem exists.  Should we try to fix this problem, or
-> > > should we steer people towards solutions which don't have this problem?
-> > > The solutions I've been seeing use COW block devices instead of COW
-> > > filesystems, and DAX to share the common pages between the host and
-> > > each guest.
-> > 
-> > That's one possible solution for people using hardware
-> > virutalisation, but not everyone is doing that. It also relies on
-> > block devices, which rules out a whole bunch of interesting stuff we
-> > can do with filesystems...
+[CC Andrew]
+
+On Fri 11-08-17 17:05:54, Pavel Tatashin wrote:
+> There is existing use after free bug when deferred struct pages are
+> enabled:
 > 
-> Assuming there's something fun we can do with filesystems that's
-> interesting to this type of user, what do you think to this:
+> The memblock_add() allocates memory for the memory array if more than
+> 128 entries are needed.  See comment in e820__memblock_setup():
 > 
-> Create a block device (maybe it's a loop device, maybe it's dm-raid0)
-> which supports DAX and uses the page cache to cache the physical pages
-> of the block device it's fronting.
+>   * The bootstrap memblock region count maximum is 128 entries
+>   * (INIT_MEMBLOCK_REGIONS), but EFI might pass us more E820 entries
+>   * than that - so allow memblock resizing.
+> 
+> This memblock memory is freed here:
+>         free_low_memory_core_early()
+> 
+> We access the freed memblock.memory later in boot when deferred pages are
+> initialized in this path:
+> 
+>         deferred_init_memmap()
+>                 for_each_mem_pfn_range()
+>                   __next_mem_pfn_range()
+>                     type = &memblock.memory;
+> 
+> One possible explanation for why this use-after-free hasn't been hit
+> before is that the limit of INIT_MEMBLOCK_REGIONS has never been exceeded
+> at least on systems where deferred struct pages were enabled.
+> 
+> Tested by reducing INIT_MEMBLOCK_REGIONS down to 4 from the current 128,
+> and verifying in qemu that this code is getting excuted and that the freed
+> pages are sane.
+> 
+> Fixes: 7e18adb4f80b ("mm: meminit: initialise remaining struct pages in parallel with kswapd")
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
+> Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+> Reviewed-by: Bob Picco <bob.picco@oracle.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
 
-/me shudders and runs away screaming
+As already mentioned I believe Cc: stable is reasonable.
+> ---
+>  include/linux/memblock.h |  6 ++++--
+>  mm/memblock.c            | 38 +++++++++++++++++---------------------
+>  mm/nobootmem.c           | 16 ----------------
+>  mm/page_alloc.c          |  4 ++++
+>  4 files changed, 25 insertions(+), 39 deletions(-)
+> 
+> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> index 77d427974f57..bae11c7e7bf3 100644
+> --- a/include/linux/memblock.h
+> +++ b/include/linux/memblock.h
+> @@ -61,6 +61,7 @@ extern int memblock_debug;
+>  #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
+>  #define __init_memblock __meminit
+>  #define __initdata_memblock __meminitdata
+> +void memblock_discard(void);
+>  #else
+>  #define __init_memblock
+>  #define __initdata_memblock
+> @@ -74,8 +75,6 @@ phys_addr_t memblock_find_in_range_node(phys_addr_t size, phys_addr_t align,
+>  					int nid, ulong flags);
+>  phys_addr_t memblock_find_in_range(phys_addr_t start, phys_addr_t end,
+>  				   phys_addr_t size, phys_addr_t align);
+> -phys_addr_t get_allocated_memblock_reserved_regions_info(phys_addr_t *addr);
+> -phys_addr_t get_allocated_memblock_memory_regions_info(phys_addr_t *addr);
+>  void memblock_allow_resize(void);
+>  int memblock_add_node(phys_addr_t base, phys_addr_t size, int nid);
+>  int memblock_add(phys_addr_t base, phys_addr_t size);
+> @@ -110,6 +109,9 @@ void __next_mem_range_rev(u64 *idx, int nid, ulong flags,
+>  void __next_reserved_mem_region(u64 *idx, phys_addr_t *out_start,
+>  				phys_addr_t *out_end);
+>  
+> +void __memblock_free_early(phys_addr_t base, phys_addr_t size);
+> +void __memblock_free_late(phys_addr_t base, phys_addr_t size);
+> +
+>  /**
+>   * for_each_mem_range - iterate through memblock areas from type_a and not
+>   * included in type_b. Or just type_a if type_b is NULL.
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index 2cb25fe4452c..bf14aea6ab70 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -285,31 +285,27 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
+>  }
+>  
+>  #ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
+> -
+> -phys_addr_t __init_memblock get_allocated_memblock_reserved_regions_info(
+> -					phys_addr_t *addr)
+> -{
+> -	if (memblock.reserved.regions == memblock_reserved_init_regions)
+> -		return 0;
+> -
+> -	*addr = __pa(memblock.reserved.regions);
+> -
+> -	return PAGE_ALIGN(sizeof(struct memblock_region) *
+> -			  memblock.reserved.max);
+> -}
+> -
+> -phys_addr_t __init_memblock get_allocated_memblock_memory_regions_info(
+> -					phys_addr_t *addr)
+> +/**
+> + * Discard memory and reserved arrays if they were allocated
+> + */
+> +void __init memblock_discard(void)
+>  {
+> -	if (memblock.memory.regions == memblock_memory_init_regions)
+> -		return 0;
+> +	phys_addr_t addr, size;
+>  
+> -	*addr = __pa(memblock.memory.regions);
+> +	if (memblock.reserved.regions != memblock_reserved_init_regions) {
+> +		addr = __pa(memblock.reserved.regions);
+> +		size = PAGE_ALIGN(sizeof(struct memblock_region) *
+> +				  memblock.reserved.max);
+> +		__memblock_free_late(addr, size);
+> +	}
+>  
+> -	return PAGE_ALIGN(sizeof(struct memblock_region) *
+> -			  memblock.memory.max);
+> +	if (memblock.memory.regions == memblock_memory_init_regions) {
+> +		addr = __pa(memblock.memory.regions);
+> +		size = PAGE_ALIGN(sizeof(struct memblock_region) *
+> +				  memblock.memory.max);
+> +		__memblock_free_late(addr, size);
+> +	}
+>  }
+> -
+>  #endif
+>  
+>  /**
+> diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+> index 36454d0f96ee..3637809a18d0 100644
+> --- a/mm/nobootmem.c
+> +++ b/mm/nobootmem.c
+> @@ -146,22 +146,6 @@ static unsigned long __init free_low_memory_core_early(void)
+>  				NULL)
+>  		count += __free_memory_core(start, end);
+>  
+> -#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
+> -	{
+> -		phys_addr_t size;
+> -
+> -		/* Free memblock.reserved array if it was allocated */
+> -		size = get_allocated_memblock_reserved_regions_info(&start);
+> -		if (size)
+> -			count += __free_memory_core(start, start + size);
+> -
+> -		/* Free memblock.memory array if it was allocated */
+> -		size = get_allocated_memblock_memory_regions_info(&start);
+> -		if (size)
+> -			count += __free_memory_core(start, start + size);
+> -	}
+> -#endif
+> -
+>  	return count;
+>  }
+>  
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index fc32aa81f359..63d16c185736 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1584,6 +1584,10 @@ void __init page_alloc_init_late(void)
+>  	/* Reinit limits that are based on free pages after the kernel is up */
+>  	files_maxfiles_init();
+>  #endif
+> +#ifdef CONFIG_ARCH_DISCARD_MEMBLOCK
+> +	/* Discard memblock private memory */
+> +	memblock_discard();
+> +#endif
+>  
+>  	for_each_populated_zone(zone)
+>  		set_zone_contiguous(zone);
+> -- 
+> 2.14.0
 
-<puff, puff, gasp>
-
-Ok, I'm far away enough now. :P
-
-> Use XFS+reflink+DAX on top of this loop device.  Now there's only one
-> copy of each page in RAM.
-
-Yes, I can see how that could work. Crazy, out of the box, abuses
-DAX for non-DAX purposes and uses stuff we haven't enabled yet
-because nobody has done the work to validate it. Full points for
-creativity! :)
-
-However, I don't think it's a viable solution.
-
-First, now *everything* is cached in a single global mapping tree
-and that's going to affect scalability and likely also the working
-set tracking in the mapping tree (now global rather than per-file).
-That, in turn, will affect reclaim behaviour and patterns. I'll come
-back to that.
-
-Second, direct IO is no longer direct - it would now by cached
-and concurrency is limited by the block device page cache, not the
-capability and queue depth of the underlying device.
-
-Third, I have a concern that while the filesystem might present to
-userspace as a DAX filesystem, it does not present userspace with
-same semantics as direct access to CPU addressable non-volatile
-storage. That seems, to me, like minefield we don't want to step into.
-
-And, finally, i can't see how it would work for sharing between
-cloned filesystem images and snapshots.  e.g. you use reflink to
-clone the filesystem images exported by loopback devices. Or
-dm-thinp to clone devices - there's no way for share page cache
-pages for blocks that are shared across different dm-thinp devices
-in the same pool. (And no, turtles is not the answer here :)
-
-> We'd need to be able to shoot down all mapped pages when evicting pages
-> from the loop device's page cache, but we have the right data structures
-> in place for that; we just need to use them.
-
-Sure. My biggest concern is whether reclaim can easily determine the
-difference between a heavily shared page and a single use page? We'd
-want to make sure we don't do stupid things like reclaim widely
-shared pages from libc before we reclaim a page that has be read
-only once in one context.
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
