@@ -1,70 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F6B36B025F
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 12:20:10 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id w51so54916107qtc.12
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 09:20:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u66si6634233qkd.138.2017.08.14.09.20.09
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 997936B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 12:21:53 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id b184so11564234oih.9
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 09:21:53 -0700 (PDT)
+Received: from mail-io0-x22a.google.com (mail-io0-x22a.google.com. [2607:f8b0:4001:c06::22a])
+        by mx.google.com with ESMTPS id f63si5052676oic.182.2017.08.14.09.21.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Aug 2017 09:20:09 -0700 (PDT)
-Date: Mon, 14 Aug 2017 18:20:02 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] x86/mm: Fix personality(ADDR_NO_RANDOMIZE)
-Message-ID: <20170814162002.GA9559@redhat.com>
-References: <20170814155719.74839-1-kirill.shutemov@linux.intel.com>
- <20170814161347.GO2005@uranus.lan>
+        Mon, 14 Aug 2017 09:21:52 -0700 (PDT)
+Received: by mail-io0-x22a.google.com with SMTP id g35so40018751ioi.3
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 09:21:52 -0700 (PDT)
+Date: Mon, 14 Aug 2017 10:21:50 -0600
+From: Tycho Andersen <tycho@docker.com>
+Subject: Re: [PATCH v5 10/10] lkdtm: Add test for XPFO
+Message-ID: <20170814162150.ccq574wyt5ucuazn@smitten>
+References: <20170809200755.11234-11-tycho@docker.com>
+ <201708130449.P9mhc7yi%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170814161347.GO2005@uranus.lan>
+In-Reply-To: <201708130449.P9mhc7yi%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Dmitry Safonov <dsafonov@virtuozzo.com>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable <stable@vger.kernel.org>
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>
 
-On 08/14, Cyrill Gorcunov wrote:
->
-> On Mon, Aug 14, 2017 at 06:57:19PM +0300, Kirill A. Shutemov wrote:
-> > In v4.12, during rework of infrastructure around mmap_base, disable-ASLR
-> > personality flag got accidentally broken.
-> >
-> > Let's make it work again.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Fixes: 1b028f784e8c ("x86/mm: Introduce mmap_compat_base() for 32-bit mmap()")
-> > Cc: stable <stable@vger.kernel.org> [4.12+]
-> > ---
-> >  arch/x86/mm/mmap.c | 2 ++
-> >  1 file changed, 2 insertions(+)
-> >
-> > diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
-> > index 229d04a83f85..779bdbe5e424 100644
-> > --- a/arch/x86/mm/mmap.c
-> > +++ b/arch/x86/mm/mmap.c
-> > @@ -127,6 +127,8 @@ static unsigned long mmap_legacy_base(unsigned long rnd,
-> >  static void arch_pick_mmap_base(unsigned long *base, unsigned long *legacy_base,
-> >  		unsigned long random_factor, unsigned long task_size)
-> >  {
-> > +	if (!(current->flags & PF_RANDOMIZE))
-> > +		random_factor = 0;
-> >  	*legacy_base = mmap_legacy_base(random_factor, task_size);
-> >  	if (mmap_is_legacy())
-> >  		*base = *legacy_base;
->
-> Didn't Oleg's patch does the same?
->
-> https://patchwork.kernel.org/patch/9832697/
+On Sun, Aug 13, 2017 at 04:24:23AM +0800, kbuild test robot wrote:
+> Hi Juerg,
+> 
+> [auto build test ERROR on arm64/for-next/core]
+> [also build test ERROR on v4.13-rc4]
+> [cannot apply to next-20170811]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+> 
+> url:    https://github.com/0day-ci/linux/commits/Tycho-Andersen/Add-support-for-eXclusive-Page-Frame-Ownership/20170813-035705
+> base:   https://git.kernel.org/pub/scm/linux/kernel/git/arm64/linux.git for-next/core
+> config: x86_64-randconfig-x016-201733 (attached as .config)
+> compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+> reproduce:
+>         # save the attached .config to linux build tree
+>         make ARCH=x86_64 
+> 
+> All errors (new ones prefixed by >>):
+> 
+>    drivers/misc/lkdtm_xpfo.c: In function 'read_user_with_flags':
+> >> drivers/misc/lkdtm_xpfo.c:31:14: error: implicit declaration of function 'user_virt_to_phys' [-Werror=implicit-function-declaration]
+>      phys_addr = user_virt_to_phys(user_addr);
+>                  ^~~~~~~~~~~~~~~~~
+>    cc1: some warnings being treated as errors
 
-at first glance yes, thanks Cyrill. And note that we do not need another
-PF_RANDOMIZE check.
+These are both the same error, looks like I forgot a dummy prototype
+in the non CONFIG_XPFO case, I'll fix it in the next version.
 
-> for some reason it's not yet merged.
-
-because nobody cares ;)
-
-Oleg.
+Tycho
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
