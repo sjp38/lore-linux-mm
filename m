@@ -1,103 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 74BC96B025F
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 13:17:59 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id w204so111189597ita.13
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 10:17:59 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id f132si4282644pgc.841.2017.08.14.10.17.57
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D783C6B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 14:15:00 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id b136so111511580ioe.9
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 11:15:00 -0700 (PDT)
+Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [2001:558:fe21:29:69:252:207:37])
+        by mx.google.com with ESMTPS id c93si7885370ioj.279.2017.08.14.11.14.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Aug 2017 10:17:57 -0700 (PDT)
-From: Chen Yu <yu.c.chen@intel.com>
-Subject: [PATCH][RFC] PM / Hibernate: Feed NMI wathdog when creating snapshot
-Date: Tue, 15 Aug 2017 01:19:16 +0800
-Message-Id: <1502731156-24903-1-git-send-email-yu.c.chen@intel.com>
+        Mon, 14 Aug 2017 11:14:59 -0700 (PDT)
+Date: Mon, 14 Aug 2017 13:14:57 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: How can we share page cache pages for reflinked files?
+In-Reply-To: <20170814064838.GB21024@dastard>
+Message-ID: <alpine.DEB.2.20.1708141307380.32429@nuc-kabylake>
+References: <20170810042849.GK21024@dastard> <20170810161159.GI31390@bombadil.infradead.org> <20170811042519.GS21024@dastard> <20170811170847.GK31390@bombadil.infradead.org> <20170814064838.GB21024@dastard>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-pm@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, Chen Yu <yu.c.chen@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Dan Williams <dan.j.williams@intel.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Matthew Wilcox <willy@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-There is a problem that when counting the pages for creating
-the hibernation snapshot will take significant amount of
-time, especially on system with large memory. Since the counting
-job is performed with irq disabled, this might lead to NMI lockup.
-The following warning were found on a system with 1.5TB DRAM:
+On Mon, 14 Aug 2017, Dave Chinner wrote:
 
-[ 1124.758184] Freezing user space processes ... (elapsed 0.002 seconds) done.
-[ 1124.768721] OOM killer disabled.
-[ 1124.847009] PM: Preallocating image memory...
-[ 1139.392042] NMI watchdog: Watchdog detected hard LOCKUP on cpu 27
-[ 1139.392076] CPU: 27 PID: 3128 Comm: systemd-sleep Not tainted 4.13.0-0.rc2.git0.1.fc27.x86_64 #1
-[ 1139.392077] task: ffff9f01971ac000 task.stack: ffffb1a3f325c000
-[ 1139.392083] RIP: 0010:memory_bm_find_bit+0xf4/0x100
-[ 1139.392084] RSP: 0018:ffffb1a3f325fc20 EFLAGS: 00000006
-[ 1139.392084] RAX: 0000000000000000 RBX: 0000000013b83000 RCX: ffff9fbe89caf000
-[ 1139.392085] RDX: ffffb1a3f325fc30 RSI: 0000000000003200 RDI: ffff9fbeaffffe80
-[ 1139.392085] RBP: ffffb1a3f325fc40 R08: 0000000013b80000 R09: ffff9fbe89c54878
-[ 1139.392085] R10: ffffb1a3f325fc2c R11: 0000000013b83200 R12: 0000000000000400
-[ 1139.392086] R13: fffffd552e0c0000 R14: ffff9fc1bffd31e0 R15: 0000000000000202
-[ 1139.392086] FS:  00007f3189704180(0000) GS:ffff9fbec8ec0000(0000) knlGS:0000000000000000
-[ 1139.392087] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[ 1139.392087] CR2: 00000085da0f7398 CR3: 000001771cf9a000 CR4: 00000000007406e0
-[ 1139.392088] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[ 1139.392088] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-[ 1139.392088] PKRU: 55555554
-[ 1139.392089] Call Trace:
-[ 1139.392092]  ? memory_bm_set_bit+0x29/0x60
-[ 1139.392094]  swsusp_set_page_free+0x2b/0x30
-[ 1139.392098]  mark_free_pages+0x147/0x1c0
-[ 1139.392099]  count_data_pages+0x41/0xa0
-[ 1139.392101]  hibernate_preallocate_memory+0x80/0x450
-[ 1139.392102]  hibernation_snapshot+0x58/0x410
-[ 1139.392103]  hibernate+0x17c/0x310
-[ 1139.392104]  state_store+0xdf/0xf0
-[ 1139.392107]  kobj_attr_store+0xf/0x20
-[ 1139.392111]  sysfs_kf_write+0x37/0x40
-[ 1139.392113]  kernfs_fop_write+0x11c/0x1a0
-[ 1139.392117]  __vfs_write+0x37/0x170
-[ 1139.392121]  ? handle_mm_fault+0xd8/0x230
-[ 1139.392122]  vfs_write+0xb1/0x1a0
-[ 1139.392123]  SyS_write+0x55/0xc0
-[ 1139.392126]  entry_SYSCALL_64_fastpath+0x1a/0xa5
+> > Use XFS+reflink+DAX on top of this loop device.  Now there's only one
+> > copy of each page in RAM.
+>
+> Yes, I can see how that could work. Crazy, out of the box, abuses
+> DAX for non-DAX purposes and uses stuff we haven't enabled yet
+> because nobody has done the work to validate it. Full points for
+> creativity! :)
 
-So avoid the NMI lockup by feeding the dog in the deepest level of loop.
+Another not so crazy solution is to break the 1-1 relation between page
+structs and pages. We already have issues with huge pages where one struct
+page may represent 2m of memmory using 512 or so page struct.
 
-Reported-by: Jan Filipcewicz <jan.filipcewicz@intel.com>
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Len Brown <lenb@kernel.org>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Signed-off-by: Chen Yu <yu.c.chen@intel.com>
----
- mm/page_alloc.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+Therer are also constantly attempts to expand struct page.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6d00f74..4f7ac30 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -66,6 +66,7 @@
- #include <linux/kthread.h>
- #include <linux/memcontrol.h>
- #include <linux/ftrace.h>
-+#include <linux/nmi.h>
- 
- #include <asm/sections.h>
- #include <asm/tlbflush.h>
-@@ -2561,8 +2562,10 @@ void mark_free_pages(struct zone *zone)
- 			unsigned long i;
- 
- 			pfn = page_to_pfn(page);
--			for (i = 0; i < (1UL << order); i++)
-+			for (i = 0; i < (1UL << order); i++) {
- 				swsusp_set_page_free(pfn_to_page(pfn + i));
-+				touch_nmi_watchdog();
-+			}
- 		}
- 	}
- 	spin_unlock_irqrestore(&zone->lock, flags);
--- 
-2.7.4
+So how about an m->n relationship? Any page (may it be 4k, 2m or 1G) has
+one page struct for each mapping that it is a member of?
+
+Maybe a the page state could consist of a base struct that describes
+the page state and then 1..n  pieces of mapping information? In the future
+other state info could be added to the end if we allow dynamic sizing of
+page structs.
+
+This would also allow the inevitable creeping page struct bloat to get
+completely out of control.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
