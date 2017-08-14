@@ -1,106 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 681C16B0292
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 17:10:20 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id w187so156427447pgb.10
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 14:10:20 -0700 (PDT)
-Received: from mail-pg0-x229.google.com (mail-pg0-x229.google.com. [2607:f8b0:400e:c05::229])
-        by mx.google.com with ESMTPS id e12si4524290pgn.770.2017.08.14.14.10.19
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CC7506B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 17:29:36 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id l30so11673174pgc.15
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 14:29:36 -0700 (PDT)
+Received: from mail-pg0-x22d.google.com (mail-pg0-x22d.google.com. [2607:f8b0:400e:c05::22d])
+        by mx.google.com with ESMTPS id t12si4675094pfi.3.2017.08.14.14.29.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Aug 2017 14:10:19 -0700 (PDT)
-Received: by mail-pg0-x229.google.com with SMTP id i12so3743782pgr.3
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 14:10:19 -0700 (PDT)
+        Mon, 14 Aug 2017 14:29:33 -0700 (PDT)
+Received: by mail-pg0-x22d.google.com with SMTP id y129so54898104pgy.4
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 14:29:33 -0700 (PDT)
+Date: Mon, 14 Aug 2017 14:29:31 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] slub: fix per memcg cache leak on css offline
+In-Reply-To: <20170812181134.25027-1-vdavydov.dev@gmail.com>
+Message-ID: <alpine.DEB.2.10.1708141429190.19280@chino.kir.corp.google.com>
+References: <20170812181134.25027-1-vdavydov.dev@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <b2fbc169-f02e-92a7-d341-5d40868fe4bd@molgen.mpg.de>
-References: <0ef258fb-57ad-277c-fa34-31f1c41f80e0@molgen.mpg.de>
- <CAM_iQpVA1gSaLZct_wAwZLxUbQoH2Nby5NRSc=PDi2LPQFtxUA@mail.gmail.com> <b2fbc169-f02e-92a7-d341-5d40868fe4bd@molgen.mpg.de>
-From: Cong Wang <xiyou.wangcong@gmail.com>
-Date: Mon, 14 Aug 2017 14:09:58 -0700
-Message-ID: <CAM_iQpUJBdjYWLgzgtsTdx5afXL3OEhBbGCo0iNWWq4LWMKPWA@mail.gmail.com>
-Subject: Re: `page allocation failure: order:0` with ixgbe under high load
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Menzel <pmenzel@molgen.mpg.de>
-Cc: linux-mm <linux-mm@kvack.org>, it+linux-mm@molgen.mpg.de
+To: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrei Vagin <avagin@gmail.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 14, 2017 at 7:18 AM, Paul Menzel <pmenzel@molgen.mpg.de> wrote:
-> Dear Cong,
->
->
-> Thank you for the response.
->
->
-> On 08/11/17 19:51, Cong Wang wrote:
->
->> On Fri, Aug 11, 2017 at 8:36 AM, Paul Menzel <pmenzel@molgen.mpg.de>
->> wrote:
->>> Or should some parameters be tuned?
->>>
->>> ```
->>> $ more /proc/sys/vm/min*
->>> ::::::::::::::
->>> /proc/sys/vm/min_free_kbytes
->>> ::::::::::::::
->>> 39726
->>
->>
->>
->> Can you try to increase this? Although it depends on your workload,
->> 38M seems too small for a host with 96+G memory.
->
->
-> Increasing the value to 128 MB did not get rid of the warning. With 256 M=
-B
-> we were unable to reproduce the warning.
+On Sat, 12 Aug 2017, Vladimir Davydov wrote:
 
+> To avoid a possible deadlock, sysfs_slab_remove() schedules an
+> asynchronous work to delete sysfs entries corresponding to the kmem
+> cache. To ensure the cache isn't freed before the work function is
+> called, it takes a reference to the cache kobject. The reference is
+> supposed to be released by the work function. However, the work function
+> (sysfs_slab_remove_workfn()) does nothing in case the cache sysfs entry
+> has already been deleted, leaking the kobject and the corresponding
+> cache. This may happen on a per memcg cache destruction, because sysfs
+> entries of a per memcg cache are deleted on memcg offline if the cache
+> is empty (see __kmemcg_cache_deactivate()).
+> 
+> The kmemleak report looks like this:
+> 
+>   unreferenced object 0xffff9f798a79f540 (size 32):
+>     comm "kworker/1:4", pid 15416, jiffies 4307432429 (age 28687.554s)
+>     hex dump (first 32 bytes):
+>       6b 6d 61 6c 6c 6f 63 2d 31 36 28 31 35 39 39 3a  kmalloc-16(1599:
+>       6e 65 77 72 6f 6f 74 29 00 23 6b c0 ff ff ff ff  newroot).#k.....
+>     backtrace:
+>       [<ffffffff9591d28a>] kmemleak_alloc+0x4a/0xa0
+>       [<ffffffff9527a378>] __kmalloc_track_caller+0x148/0x2c0
+>       [<ffffffff95499466>] kvasprintf+0x66/0xd0
+>       [<ffffffff954995a9>] kasprintf+0x49/0x70
+>       [<ffffffff952305c6>] memcg_create_kmem_cache+0xe6/0x160
+>       [<ffffffff9528eaf0>] memcg_kmem_cache_create_func+0x20/0x110
+>       [<ffffffff950cd6c5>] process_one_work+0x205/0x5d0
+>       [<ffffffff950cdade>] worker_thread+0x4e/0x3a0
+>       [<ffffffff950d5169>] kthread+0x109/0x140
+>       [<ffffffff9592b8fa>] ret_from_fork+0x2a/0x40
+>       [<ffffffffffffffff>] 0xffffffffffffffff
+>   unreferenced object 0xffff9f79b6136840 (size 416):
+>     comm "kworker/1:4", pid 15416, jiffies 4307432429 (age 28687.573s)
+>     hex dump (first 32 bytes):
+>       40 fb 80 c2 3e 33 00 00 00 00 00 40 00 00 00 00  @...>3.....@....
+>       00 00 00 00 00 00 00 00 10 00 00 00 10 00 00 00  ................
+>     backtrace:
+>       [<ffffffff9591d28a>] kmemleak_alloc+0x4a/0xa0
+>       [<ffffffff95275bc8>] kmem_cache_alloc+0x128/0x280
+>       [<ffffffff9522fedb>] create_cache+0x3b/0x1e0
+>       [<ffffffff952305f8>] memcg_create_kmem_cache+0x118/0x160
+>       [<ffffffff9528eaf0>] memcg_kmem_cache_create_func+0x20/0x110
+>       [<ffffffff950cd6c5>] process_one_work+0x205/0x5d0
+>       [<ffffffff950cdade>] worker_thread+0x4e/0x3a0
+>       [<ffffffff950d5169>] kthread+0x109/0x140
+>       [<ffffffff9592b8fa>] ret_from_fork+0x2a/0x40
+>       [<ffffffffffffffff>] 0xffffffffffffffff
+> 
+> Fix the leak by adding the missing call to kobject_put() to
+> sysfs_slab_remove_workfn().
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Reported-and-tested-by: Andrei Vagin <avagin@gmail.com>
+> Acked-by: Tejun Heo <tj@kernel.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Fixes: 3b7b314053d02 ("slub: make sysfs file removal asynchronous")
 
-Interesting. I wonder if we should just increase the hard-coded cap
-(64M) for the default min_free_kbytes, or make it configurable at
-compile-time.
-
-
->
->>> ::::::::::::::
->>> /proc/sys/vm/min_slab_ratio
->>> ::::::::::::::
->>> 5
->>> ::::::::::::::
->>> /proc/sys/vm/min_unmapped_ratio
->>> ::::::::::::::
->>> 1
->>> ```
->>>
->>> There is quite some information about this on the WWW [1], but some
->>> suggest
->>> that with recent Linux kernels, this shouldn=E2=80=99t happen, as memor=
-y get
->>> defragmented.
->>
->>
->>
->> On the other hand, the allocation order is 0 anyway. ;)
->
->
-> Right. Coherent(?) memory is not needed for an order of 0.
->
-> In our case the memory is mainly occupied by the disk(?) buffer/cache, an=
-d
-> not the real program. So there is plenty available. Shouldn=E2=80=99t the=
- Linux
-> kernel be able to deal with such situations, or is this exactly the use
-> case, which the parameter `min_free_kbytes` is for?
-
-Well, for atomic memory allocations, we can't wait for these memory
-to drain or reclaim, I think this is why min_free_kbytes exits.
-
-Atomic allocations are heavily used by networking, so the 64M cap
-is really not enough for a heavily loaded network server with a
-fast NIC.
-
-But I am not at all a MM expert. ;)
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
