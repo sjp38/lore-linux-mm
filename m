@@ -1,58 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 396536B0292
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 07:14:38 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id i192so130514508pgc.11
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 04:14:38 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id a69si4460545pli.853.2017.08.14.04.14.36
-        for <linux-mm@kvack.org>;
-        Mon, 14 Aug 2017 04:14:37 -0700 (PDT)
-Date: Mon, 14 Aug 2017 12:14:32 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH 1/2] kmemleak: Delete an error message for a failed
- memory allocation in two functions
-Message-ID: <20170814111430.lskrrg3fygpnyx6v@armageddon.cambridge.arm.com>
-References: <301bc8c9-d9f6-87be-ce1d-dc614e82b45b@users.sourceforge.net>
- <986426ab-4ca9-ee56-9712-d06c25a2ed1a@users.sourceforge.net>
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 76CD06B02B4
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 07:15:37 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id o8so4872733wrg.11
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 04:15:37 -0700 (PDT)
+Received: from mout.web.de (mout.web.de. [212.227.17.12])
+        by mx.google.com with ESMTPS id c22si3667895wmd.129.2017.08.14.04.15.36
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Aug 2017 04:15:36 -0700 (PDT)
+Subject: [PATCH 1/2] zpool: Delete an error message for a failed memory
+ allocation in zpool_create_pool()
+From: SF Markus Elfring <elfring@users.sourceforge.net>
+References: <0fec59a9-ac68-33f6-533a-adfb5fa3c380@users.sourceforge.net>
+Message-ID: <81cdf225-ebaa-19dc-30d8-80ec6cfab6cd@users.sourceforge.net>
+Date: Mon, 14 Aug 2017 13:15:34 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <986426ab-4ca9-ee56-9712-d06c25a2ed1a@users.sourceforge.net>
+In-Reply-To: <0fec59a9-ac68-33f6-533a-adfb5fa3c380@users.sourceforge.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: SF Markus Elfring <elfring@users.sourceforge.net>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, kernel-janitors@vger.kernel.org
+To: linux-mm@kvack.org, Dan Streetman <ddstreet@ieee.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, kernel-janitors@vger.kernel.org
 
-On Mon, Aug 14, 2017 at 11:35:02AM +0200, SF Markus Elfring wrote:
-> From: Markus Elfring <elfring@users.sourceforge.net>
-> Date: Mon, 14 Aug 2017 10:50:22 +0200
-> 
-> Omit an extra message for a memory allocation failure in these functions.
-> 
-> This issue was detected by using the Coccinelle software.
-> 
-> Signed-off-by: Markus Elfring <elfring@users.sourceforge.net>
-> ---
->  mm/kmemleak.c | 5 +----
->  1 file changed, 1 insertion(+), 4 deletions(-)
-> 
-> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-> index 7780cd83a495..c6c798d90b2e 100644
-> --- a/mm/kmemleak.c
-> +++ b/mm/kmemleak.c
-> @@ -555,7 +555,6 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
->  
->  	object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
->  	if (!object) {
-> -		pr_warn("Cannot allocate a kmemleak_object structure\n");
->  		kmemleak_disable();
+From: Markus Elfring <elfring@users.sourceforge.net>
+Date: Mon, 14 Aug 2017 12:57:16 +0200
 
-I don't really get what this patch is trying to achieve. Given that
-kmemleak will be disabled after this, I'd rather know why it happened.
+Omit an extra message for a memory allocation failure in this function.
 
+This issue was detected by using the Coccinelle software.
+
+Signed-off-by: Markus Elfring <elfring@users.sourceforge.net>
+---
+ mm/zpool.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/mm/zpool.c b/mm/zpool.c
+index fd3ff719c32c..fe1943f7d844 100644
+--- a/mm/zpool.c
++++ b/mm/zpool.c
+@@ -172,7 +172,6 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
+ 
+ 	zpool = kmalloc(sizeof(*zpool), gfp);
+ 	if (!zpool) {
+-		pr_err("couldn't create zpool - out of memory\n");
+ 		zpool_put_driver(driver);
+ 		return NULL;
+ 	}
 -- 
-Catalin
+2.14.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
