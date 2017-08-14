@@ -1,88 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 134C86B025F
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 12:35:39 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id p62so11615851oih.12
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 09:35:39 -0700 (PDT)
-Received: from mail-io0-x232.google.com (mail-io0-x232.google.com. [2607:f8b0:4001:c06::232])
-        by mx.google.com with ESMTPS id e14si5012481oib.377.2017.08.14.09.35.38
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Aug 2017 09:35:38 -0700 (PDT)
-Received: by mail-io0-x232.google.com with SMTP id j32so40267865iod.0
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 09:35:38 -0700 (PDT)
-Date: Mon, 14 Aug 2017 10:35:36 -0600
-From: Tycho Andersen <tycho@docker.com>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CBAA6B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 12:52:01 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id r133so143695155pgr.6
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 09:52:01 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id c8si4883393pli.272.2017.08.14.09.51.59
+        for <linux-mm@kvack.org>;
+        Mon, 14 Aug 2017 09:51:59 -0700 (PDT)
+Date: Mon, 14 Aug 2017 17:50:47 +0100
+From: Mark Rutland <mark.rutland@arm.com>
 Subject: Re: [kernel-hardening] [PATCH v5 04/10] arm64: Add __flush_tlb_one()
-Message-ID: <20170814163536.6njceqc3dip5lrlu@smitten>
+Message-ID: <20170814165047.GB23428@leverpostej>
 References: <20170809200755.11234-1-tycho@docker.com>
  <20170809200755.11234-5-tycho@docker.com>
  <20170812112603.GB16374@remoulade>
+ <20170814163536.6njceqc3dip5lrlu@smitten>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170812112603.GB16374@remoulade>
+In-Reply-To: <20170814163536.6njceqc3dip5lrlu@smitten>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
+To: Tycho Andersen <tycho@docker.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Juerg Haefliger <juerg.haefliger@hpe.com>
 
-Hi Mark,
-
-On Sat, Aug 12, 2017 at 12:26:03PM +0100, Mark Rutland wrote:
-> On Wed, Aug 09, 2017 at 02:07:49PM -0600, Tycho Andersen wrote:
-> > From: Juerg Haefliger <juerg.haefliger@hpe.com>
-> > 
-> > Add a hook for flushing a single TLB entry on arm64.
-> > 
-> > Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
-> > Tested-by: Tycho Andersen <tycho@docker.com>
-> > ---
-> >  arch/arm64/include/asm/tlbflush.h | 8 ++++++++
-> >  1 file changed, 8 insertions(+)
-> > 
-> > diff --git a/arch/arm64/include/asm/tlbflush.h b/arch/arm64/include/asm/tlbflush.h
-> > index af1c76981911..8e0c49105d3e 100644
-> > --- a/arch/arm64/include/asm/tlbflush.h
-> > +++ b/arch/arm64/include/asm/tlbflush.h
-> > @@ -184,6 +184,14 @@ static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end
-> >  	isb();
-> >  }
-> >  
-> > +static inline void __flush_tlb_one(unsigned long addr)
-> > +{
-> > +	dsb(ishst);
-> > +	__tlbi(vaae1is, addr >> 12);
-> > +	dsb(ish);
-> > +	isb();
-> > +}
+On Mon, Aug 14, 2017 at 10:35:36AM -0600, Tycho Andersen wrote:
+> Hi Mark,
 > 
-> Is this going to be called by generic code?
-
-Yes, it's called in mm/xpfo.c:xpfo_kunmap.
-
-> It would be nice if we could drop 'kernel' into the name, to make it clear this
-> is intended to affect the kernel mappings, which have different maintenance
-> requirements to user mappings.
+> On Sat, Aug 12, 2017 at 12:26:03PM +0100, Mark Rutland wrote:
+> > On Wed, Aug 09, 2017 at 02:07:49PM -0600, Tycho Andersen wrote:
+> > > +static inline void __flush_tlb_one(unsigned long addr)
+> > > +{
+> > > +	dsb(ishst);
+> > > +	__tlbi(vaae1is, addr >> 12);
+> > > +	dsb(ish);
+> > > +	isb();
+> > > +}
+> > 
+> > Is this going to be called by generic code?
 > 
-> We should be able to implement this more simply as:
+> Yes, it's called in mm/xpfo.c:xpfo_kunmap.
 > 
-> flush_tlb_kernel_page(unsigned long addr)
-> {
-> 	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
-> }
+> > It would be nice if we could drop 'kernel' into the name, to make it clear this
+> > is intended to affect the kernel mappings, which have different maintenance
+> > requirements to user mappings.
 
-It's named __flush_tlb_one after the x86 (and a few other arches)
-function of the same name. I can change it to flush_tlb_kernel_page,
-but then we'll need some x86-specific code to map the name as well.
+> It's named __flush_tlb_one after the x86 (and a few other arches)
+> function of the same name. I can change it to flush_tlb_kernel_page,
+> but then we'll need some x86-specific code to map the name as well.
+> 
+> Maybe since it's called from generic code that's warranted though?
+> I'll change the implementation for now, let me know what you want to
+> do about the name.
 
-Maybe since it's called from generic code that's warranted though?
-I'll change the implementation for now, let me know what you want to
-do about the name.
+I think it would be preferable to do so, to align with 
+flush_tlb_kernel_range(), which is an existing generic interface.
 
-Cheers,
+That said, is there any reason not to use flush_tlb_kernel_range()
+directly?
 
-Tycho
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
