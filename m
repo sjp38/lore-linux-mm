@@ -1,57 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 997936B025F
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 12:21:53 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id b184so11564234oih.9
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 09:21:53 -0700 (PDT)
-Received: from mail-io0-x22a.google.com (mail-io0-x22a.google.com. [2607:f8b0:4001:c06::22a])
-        by mx.google.com with ESMTPS id f63si5052676oic.182.2017.08.14.09.21.52
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4107F6B0292
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 12:22:22 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id c80so4109723oig.7
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 09:22:22 -0700 (PDT)
+Received: from mail-io0-x22d.google.com (mail-io0-x22d.google.com. [2607:f8b0:4001:c06::22d])
+        by mx.google.com with ESMTPS id r82si4766967oib.406.2017.08.14.09.22.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Aug 2017 09:21:52 -0700 (PDT)
-Received: by mail-io0-x22a.google.com with SMTP id g35so40018751ioi.3
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 09:21:52 -0700 (PDT)
-Date: Mon, 14 Aug 2017 10:21:50 -0600
+        Mon, 14 Aug 2017 09:22:20 -0700 (PDT)
+Received: by mail-io0-x22d.google.com with SMTP id c74so39980045iod.4
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 09:22:20 -0700 (PDT)
+Date: Mon, 14 Aug 2017 10:22:19 -0600
 From: Tycho Andersen <tycho@docker.com>
-Subject: Re: [PATCH v5 10/10] lkdtm: Add test for XPFO
-Message-ID: <20170814162150.ccq574wyt5ucuazn@smitten>
-References: <20170809200755.11234-11-tycho@docker.com>
- <201708130449.P9mhc7yi%fengguang.wu@intel.com>
+Subject: Re: [kernel-hardening] [PATCH v5 06/10] arm64/mm: Disable section
+ mappings if XPFO is enabled
+Message-ID: <20170814162219.h2lcmli677bx2lwh@smitten>
+References: <20170809200755.11234-1-tycho@docker.com>
+ <20170809200755.11234-7-tycho@docker.com>
+ <f6a42032-d4e5-f488-3d55-1da4c8a4dbaf@redhat.com>
+ <20170811211302.limmjv4rmq23b25b@smitten>
+ <20170812111733.GA16374@remoulade>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201708130449.P9mhc7yi%fengguang.wu@intel.com>
+In-Reply-To: <20170812111733.GA16374@remoulade>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Laura Abbott <labbott@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>
 
-On Sun, Aug 13, 2017 at 04:24:23AM +0800, kbuild test robot wrote:
-> Hi Juerg,
+On Sat, Aug 12, 2017 at 12:17:34PM +0100, Mark Rutland wrote:
+> Hi,
 > 
-> [auto build test ERROR on arm64/for-next/core]
-> [also build test ERROR on v4.13-rc4]
-> [cannot apply to next-20170811]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+> On Fri, Aug 11, 2017 at 03:13:02PM -0600, Tycho Andersen wrote:
+> > On Fri, Aug 11, 2017 at 10:25:14AM -0700, Laura Abbott wrote:
+> > > On 08/09/2017 01:07 PM, Tycho Andersen wrote:
+> > > > @@ -190,7 +202,7 @@ static void init_pmd(pud_t *pud, unsigned long addr, unsigned long end,
+> > > >  		next = pmd_addr_end(addr, end);
+> > > >  
+> > > >  		/* try section mapping first */
+> > > > -		if (((addr | next | phys) & ~SECTION_MASK) == 0 &&
+> > > > +		if (use_section_mapping(addr, next, phys) &&
+> > > >  		    (flags & NO_BLOCK_MAPPINGS) == 0) {
+> > > >  			pmd_set_huge(pmd, phys, prot);
+> > > >  
+> > > > 
+> > > 
+> > > There is already similar logic to disable section mappings for
+> > > debug_pagealloc at the start of map_mem, can you take advantage
+> > > of that?
+> > 
+> > You're suggesting something like this instead? Seems to work fine.
+> > 
+> > diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+> > index 38026b3ccb46..3b2c17bbbf12 100644
+> > --- a/arch/arm64/mm/mmu.c
+> > +++ b/arch/arm64/mm/mmu.c
+> > @@ -434,6 +434,8 @@ static void __init map_mem(pgd_t *pgd)
+> >  
+> >  	if (debug_pagealloc_enabled())
+> >  		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
+> > +	if (IS_ENABLED(CONFIG_XPFO))
+> > +		flags |= NO_BLOCK_MAPPINGS;
+> >  
 > 
-> url:    https://github.com/0day-ci/linux/commits/Tycho-Andersen/Add-support-for-eXclusive-Page-Frame-Ownership/20170813-035705
-> base:   https://git.kernel.org/pub/scm/linux/kernel/git/arm64/linux.git for-next/core
-> config: x86_64-randconfig-x016-201733 (attached as .config)
-> compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
-> reproduce:
->         # save the attached .config to linux build tree
->         make ARCH=x86_64 
-> 
-> All errors (new ones prefixed by >>):
-> 
->    drivers/misc/lkdtm_xpfo.c: In function 'read_user_with_flags':
-> >> drivers/misc/lkdtm_xpfo.c:31:14: error: implicit declaration of function 'user_virt_to_phys' [-Werror=implicit-function-declaration]
->      phys_addr = user_virt_to_phys(user_addr);
->                  ^~~~~~~~~~~~~~~~~
->    cc1: some warnings being treated as errors
+> IIUC, XPFO carves out individual pages just like DEBUG_PAGEALLOC, so you'll
+> also need NO_CONT_MAPPINGS.
 
-These are both the same error, looks like I forgot a dummy prototype
-in the non CONFIG_XPFO case, I'll fix it in the next version.
+Yes, thanks!
 
 Tycho
 
