@@ -1,48 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E85D26B025F
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 15:10:48 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id j194so11966605oib.15
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 12:10:48 -0700 (PDT)
-Received: from mail-it0-x22c.google.com (mail-it0-x22c.google.com. [2607:f8b0:4001:c0b::22c])
-        by mx.google.com with ESMTPS id i20si5088425oib.80.2017.08.14.12.10.48
+	by kanga.kvack.org (Postfix) with ESMTP id B3D3A6B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 16:27:30 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id k62so12211004oia.6
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 13:27:30 -0700 (PDT)
+Received: from mail-it0-x230.google.com (mail-it0-x230.google.com. [2607:f8b0:4001:c0b::230])
+        by mx.google.com with ESMTPS id i185si5412194oia.354.2017.08.14.13.27.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Aug 2017 12:10:48 -0700 (PDT)
-Received: by mail-it0-x22c.google.com with SMTP id m34so204301iti.1
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 12:10:48 -0700 (PDT)
+        Mon, 14 Aug 2017 13:27:29 -0700 (PDT)
+Received: by mail-it0-x230.google.com with SMTP id 77so1111355itj.1
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 13:27:29 -0700 (PDT)
+Date: Mon, 14 Aug 2017 14:27:27 -0600
+From: Tycho Andersen <tycho@docker.com>
+Subject: Re: [kernel-hardening] [PATCH v5 07/10] arm64/mm: Don't flush the
+ data cache if the page is unmapped by XPFO
+Message-ID: <20170814202727.5jm5ndd3nzlwftfb@smitten>
+References: <20170809200755.11234-1-tycho@docker.com>
+ <20170809200755.11234-8-tycho@docker.com>
+ <20170812115736.GC16374@remoulade>
 MIME-Version: 1.0
-In-Reply-To: <20170809200755.11234-11-tycho@docker.com>
-References: <20170809200755.11234-1-tycho@docker.com> <20170809200755.11234-11-tycho@docker.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Mon, 14 Aug 2017 12:10:47 -0700
-Message-ID: <CAGXu5jLp11wqM04L5bWbmSVZBTOYnuGNjsjTitzUOFJm=pn9Fg@mail.gmail.com>
-Subject: Re: [PATCH v5 10/10] lkdtm: Add test for XPFO
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170812115736.GC16374@remoulade>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tycho Andersen <tycho@docker.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Juerg Haefliger <juerg.haefliger@hpe.com>
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Juerg Haefliger <juerg.haefliger@hpe.com>
 
-On Wed, Aug 9, 2017 at 1:07 PM, Tycho Andersen <tycho@docker.com> wrote:
-> From: Juerg Haefliger <juerg.haefliger@hpe.com>
->
-> This test simply reads from userspace memory via the kernel's linear
-> map.
->
-> hugepages is only supported on x86 right now, hence the ifdef.
+Hi Mark,
 
-I'd prefer that the #ifdef is handled in the .c file. The result is
-that all architectures will have the XPFO_READ_USER_HUGE test, but it
-can just fail when not available. This means no changes are needed for
-lkdtm in the future and the test provides an actual test of hugepages
-coverage.
+First, thanks for taking a look!
 
--Kees
+On Sat, Aug 12, 2017 at 12:57:37PM +0100, Mark Rutland wrote:
+> On Wed, Aug 09, 2017 at 02:07:52PM -0600, Tycho Andersen wrote:
+> > From: Juerg Haefliger <juerg.haefliger@hpe.com>
+> > 
+> > If the page is unmapped by XPFO, a data cache flush results in a fatal
+> > page fault. So don't flush in that case.
+> 
+> Do you have an example callchain where that happens? We might need to shuffle
+> things around to cater for that case.
 
--- 
-Kees Cook
-Pixel Security
+Here's one from the other branch (i.e. xpfo_page_is_unmapped() is true):
+
+[   15.487293] CPU: 2 PID: 1633 Comm: plymouth Not tainted 4.13.0-rc4-c2+ #242
+[   15.487295] Hardware name: Hardkernel ODROID-C2 (DT)
+[   15.487297] Call trace:
+[   15.487313] [<ffff0000080884f0>] dump_backtrace+0x0/0x248
+[   15.487317] [<ffff00000808878c>] show_stack+0x14/0x20
+[   15.487324] [<ffff000008b3e1b8>] dump_stack+0x98/0xb8
+[   15.487329] [<ffff000008098bb4>] sync_icache_aliases+0x84/0x98
+[   15.487332] [<ffff000008098c74>] __sync_icache_dcache+0x64/0x88
+[   15.487337] [<ffff0000081d4814>] alloc_set_pte+0x4ec/0x6b8
+[   15.487342] [<ffff00000819d920>] filemap_map_pages+0x350/0x360
+[   15.487344] [<ffff0000081d4ccc>] do_fault+0x28c/0x568
+[   15.487347] [<ffff0000081d67a0>] __handle_mm_fault+0x410/0xd08
+[   15.487350] [<ffff0000081d7164>] handle_mm_fault+0xcc/0x1a8
+[   15.487352] [<ffff000008098580>] do_page_fault+0x270/0x380
+[   15.487355] [<ffff00000808128c>] do_mem_abort+0x3c/0x98
+[   15.487358] Exception stack(0xffff800061dabe20 to 0xffff800061dabf50)
+[   15.487362] be20: 0000000000000000 0000800062e19000 ffffffffffffffff 0000ffff8f64ddc8
+[   15.487365] be40: ffff800061dabe80 ffff000008238810 ffff800061d80330 0000000000000018
+[   15.487368] be60: ffffffffffffffff 0000ffff8f5ba958 ffff800061d803d0 ffff800067132e18
+[   15.487370] be80: 0000000000000000 ffff800061d80d08 0000000000000000 0000000000000019
+[   15.487373] bea0: 000000002bd3d0f0 0000000000000000 0000000000000019 ffff800067132e00
+[   15.487376] bec0: 0000000000000000 0000ffff8f657220 0000000000000000 0000000000000000
+[   15.487379] bee0: 8080808000000000 0000000000000000 0000000080808080 fefefeff6f6b6467
+[   15.487381] bf00: 7f7f7f7f7f7f7f7f 000000002bd3fb40 0101010101010101 0000000000000020
+[   15.487384] bf20: 00000000004072b0 00000000004072e0 0000000000000000 0000ffff8f6b2000
+[   15.487386] bf40: 0000ffff8f66b190 0000ffff8f576380
+[   15.487389] [<ffff000008082b74>] el0_da+0x20/0x24
+
+> > @@ -30,7 +31,9 @@ void sync_icache_aliases(void *kaddr, unsigned long len)
+> >  	unsigned long addr = (unsigned long)kaddr;
+> >  
+> >  	if (icache_is_aliasing()) {
+> > -		__clean_dcache_area_pou(kaddr, len);
+> > +		/* Don't flush if the page is unmapped by XPFO */
+> > +		if (!xpfo_page_is_unmapped(virt_to_page(kaddr)))
+> > +			__clean_dcache_area_pou(kaddr, len);
+> >  		__flush_icache_all();
+> >  	} else {
+> >  		flush_icache_range(addr, addr + len);
+> 
+> I don't think this patch is correct. If data cache maintenance is required in
+> the absence of XPFO, I don't see why it wouldn't be required in the presence of
+> XPFO.
+
+Ok. I suppose we could do re-map like we do for dma; or is there some
+re-arrangement of things you can see that would help?
+
+> I'm not immediately sure why the non-aliasing case misses data cache
+> maintenance. I couldn't spot where that happens otherwise.
+> 
+> On a more general note, in future it would be good to Cc the arm64 maintainers
+> and the linux-arm-kernel mailing list for patches affecting arm64.
+
+Yes, I thought about doing that for the series, but since it has x86 patches
+too, I didn't want to spam everyone :). I'll just add x86/arm lists to CC in
+the patches in the future. If there's some better way, let me know.
+
+Tycho
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
