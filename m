@@ -1,64 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B630D6B0292
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 04:50:46 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id u199so124767060pgb.13
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 01:50:46 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id h1si4277121pld.809.2017.08.14.01.50.45
-        for <linux-mm@kvack.org>;
-        Mon, 14 Aug 2017 01:50:45 -0700 (PDT)
-Date: Mon, 14 Aug 2017 17:50:42 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v1 2/6] fs: use on-stack-bio if backing device has
- BDI_CAP_SYNC capability
-Message-ID: <20170814085042.GG26913@bbox>
-References: <1502175024-28338-3-git-send-email-minchan@kernel.org>
- <20170808124959.GB31390@bombadil.infradead.org>
- <20170808132904.GC31390@bombadil.infradead.org>
- <20170809015113.GB32338@bbox>
- <20170809023122.GF31390@bombadil.infradead.org>
- <20170809024150.GA32471@bbox>
- <20170810030433.GG31390@bombadil.infradead.org>
- <CAA9_cmekE9_PYmNnVmiOkyH2gq5o8=uvEKnAbMWw5nBX-zE69g@mail.gmail.com>
- <20170811104615.GA14397@lst.de>
- <20c5b30a-b787-1f46-f997-7542a87033f8@kernel.dk>
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E2FD6B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 05:12:32 -0400 (EDT)
+Received: by mail-ua0-f197.google.com with SMTP id x35so39707736uax.11
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 02:12:32 -0700 (PDT)
+Received: from mail-ua0-x242.google.com (mail-ua0-x242.google.com. [2607:f8b0:400c:c08::242])
+        by mx.google.com with ESMTPS id j190si3011577vkh.249.2017.08.14.02.12.31
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Aug 2017 02:12:31 -0700 (PDT)
+Received: by mail-ua0-x242.google.com with SMTP id 80so4690282uas.4
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 02:12:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20c5b30a-b787-1f46-f997-7542a87033f8@kernel.dk>
+In-Reply-To: <20170814083105.GC26913@bbox>
+References: <1502692486-27519-1-git-send-email-zhuhui@xiaomi.com> <20170814083105.GC26913@bbox>
+From: Hui Zhu <teawater@gmail.com>
+Date: Mon, 14 Aug 2017 17:11:50 +0800
+Message-ID: <CANFwon0cB3xveRD+eqLaVXhPs9uWO+Ds+a4W8R8dPU0KH28Jfg@mail.gmail.com>
+Subject: Re: [PATCH] zsmalloc: zs_page_migrate: schedule free_work if zspage
+ is ZS_EMPTY
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, "karam . lee" <karam.lee@lge.com>, seungho1.park@lge.com, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Vishal Verma <vishal.l.verma@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, kernel-team <kernel-team@lge.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Hui Zhu <zhuhui@xiaomi.com>, "ngupta@vflare.org" <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Hi Jens,
+2017-08-14 16:31 GMT+08:00 Minchan Kim <minchan@kernel.org>:
+> Hi Hui,
+>
+> On Mon, Aug 14, 2017 at 02:34:46PM +0800, Hui Zhu wrote:
+>> After commit e2846124f9a2 ("zsmalloc: zs_page_migrate: skip unnecessary
+>> loops but not return -EBUSY if zspage is not inuse") zs_page_migrate
+>> can handle the ZS_EMPTY zspage.
+>>
+>> But it will affect the free_work free the zspage.  That will make this
+>> ZS_EMPTY zspage stay in system until another zspage wake up free_work.
+>>
+>> Make this patch let zs_page_migrate wake up free_work if need.
+>>
+>> Fixes: e2846124f9a2 ("zsmalloc: zs_page_migrate: skip unnecessary loops but not return -EBUSY if zspage is not inuse")
+>> Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
+>
+> This patch makes me remind why I didn't try to migrate empty zspage
+> as you did e2846124f9a2. I have forgotten it toally.
+>
+> We cannot guarantee when the freeing of the page happens if we use
+> deferred freeing in zs_page_migrate. However, we returns
+> MIGRATEPAGE_SUCCESS which is totally lie.
+> Without instant freeing the page, it doesn't help the migration
+> situation. No?
+>
 
-On Fri, Aug 11, 2017 at 08:26:59AM -0600, Jens Axboe wrote:
-> On 08/11/2017 04:46 AM, Christoph Hellwig wrote:
-> > On Wed, Aug 09, 2017 at 08:06:24PM -0700, Dan Williams wrote:
-> >> I like it, but do you think we should switch to sbvec[<constant>] to
-> >> preclude pathological cases where nr_pages is large?
-> > 
-> > Yes, please.
-> > 
-> > Then I'd like to see that the on-stack bio even matters for
-> > mpage_readpage / mpage_writepage.  Compared to all the buffer head
-> > overhead the bio allocation should not actually matter in practice.
-> 
-> I'm skeptical for that path, too. I also wonder how far we could go
-> with just doing a per-cpu bio recycling facility, to reduce the cost
-> of having to allocate a bio. The on-stack bio parts are fine for
-> simple use case, where simple means that the patch just special
-> cases the allocation, and doesn't have to change much else.
-> 
-> I had a patch for bio recycling and batched freeing a year or two
-> ago, I'll see if I can find and resurrect it.
+Sorry I think the reason is I didn't introduce this clear.
+After I patch e2846124f9a2.  I got some false in zs_page_isolate:
+if (get_zspage_inuse(zspage) == 0) {
+spin_unlock(&class->lock);
+return false;
+}
+The page of this zspage was migrated in before.
 
-So, you want to go with per-cpu bio recycling approach to
-remove rw_page?
+So I think e2846124f9a2 is OK that MIGRATEPAGE_SUCCESS with the "page".
+But it keep the "newpage" with a empty zspage inside system.
+Root cause is zs_page_isolate remove it from  ZS_EMPTY list but not
+call zs_page_putback "schedule_work(&pool->free_work);".  Because
+zs_page_migrate done the job without
+"schedule_work(&pool->free_work);"
 
-So, do you want me to hold this patchset?
+That is why I made the new patch.
+
+Thanks,
+Hui
+
+> I start to wonder why your patch e2846124f9a2 helped your test.
+> I will think over the issue with fresh mind after the holiday.
+>
+>> ---
+>>  mm/zsmalloc.c | 10 ++++++++--
+>>  1 file changed, 8 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+>> index 62457eb..48ce043 100644
+>> --- a/mm/zsmalloc.c
+>> +++ b/mm/zsmalloc.c
+>> @@ -2035,8 +2035,14 @@ int zs_page_migrate(struct address_space *mapping, struct page *newpage,
+>>        * Page migration is done so let's putback isolated zspage to
+>>        * the list if @page is final isolated subpage in the zspage.
+>>        */
+>> -     if (!is_zspage_isolated(zspage))
+>> -             putback_zspage(class, zspage);
+>> +     if (!is_zspage_isolated(zspage)) {
+>> +             /*
+>> +              * The page and class is locked, we cannot free zspage
+>> +              * immediately so let's defer.
+>> +              */
+>> +             if (putback_zspage(class, zspage) == ZS_EMPTY)
+>> +                     schedule_work(&pool->free_work);
+>> +     }
+>>
+>>       reset_page(page);
+>>       put_page(page);
+>> --
+>> 1.9.1
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
