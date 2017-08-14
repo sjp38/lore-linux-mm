@@ -1,82 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D4C2D6B025F
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 14:42:51 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id f72so195153751ywb.4
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 11:42:51 -0700 (PDT)
-Received: from mail-qt0-f169.google.com (mail-qt0-f169.google.com. [209.85.216.169])
-        by mx.google.com with ESMTPS id y19si1995097ywy.661.2017.08.14.11.42.50
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6165D6B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 14:51:06 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id d136so56217404qkg.11
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 11:51:06 -0700 (PDT)
+Received: from mail-qk0-f181.google.com (mail-qk0-f181.google.com. [209.85.220.181])
+        by mx.google.com with ESMTPS id g40si7332222qte.12.2017.08.14.11.51.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Aug 2017 11:42:51 -0700 (PDT)
-Received: by mail-qt0-f169.google.com with SMTP id p3so56502510qtg.2
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 11:42:50 -0700 (PDT)
-Subject: Re: [kernel-hardening] [PATCH v5 06/10] arm64/mm: Disable section
- mappings if XPFO is enabled
+        Mon, 14 Aug 2017 11:51:05 -0700 (PDT)
+Received: by mail-qk0-f181.google.com with SMTP id x191so55125484qka.5
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 11:51:05 -0700 (PDT)
+Subject: Re: [PATCH v5 02/10] mm, x86: Add support for eXclusive Page Frame
+ Ownership (XPFO)
 References: <20170809200755.11234-1-tycho@docker.com>
- <20170809200755.11234-7-tycho@docker.com>
- <f6a42032-d4e5-f488-3d55-1da4c8a4dbaf@redhat.com>
- <20170811211302.limmjv4rmq23b25b@smitten> <20170812111733.GA16374@remoulade>
- <20170814162219.h2lcmli677bx2lwh@smitten>
+ <20170809200755.11234-3-tycho@docker.com>
 From: Laura Abbott <labbott@redhat.com>
-Message-ID: <86105819-3ec6-e220-5ba3-787bbeecb6ba@redhat.com>
-Date: Mon, 14 Aug 2017 11:42:45 -0700
+Message-ID: <bab02094-0c58-fe8f-855c-d67a03d7003a@redhat.com>
+Date: Mon, 14 Aug 2017 11:51:02 -0700
 MIME-Version: 1.0
-In-Reply-To: <20170814162219.h2lcmli677bx2lwh@smitten>
+In-Reply-To: <20170809200755.11234-3-tycho@docker.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tycho Andersen <tycho@docker.com>, Mark Rutland <mark.rutland@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>
+To: Tycho Andersen <tycho@docker.com>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Juerg Haefliger <juerg.haefliger@hpe.com>
 
-On 08/14/2017 09:22 AM, Tycho Andersen wrote:
-> On Sat, Aug 12, 2017 at 12:17:34PM +0100, Mark Rutland wrote:
->> Hi,
->>
->> On Fri, Aug 11, 2017 at 03:13:02PM -0600, Tycho Andersen wrote:
->>> On Fri, Aug 11, 2017 at 10:25:14AM -0700, Laura Abbott wrote:
->>>> On 08/09/2017 01:07 PM, Tycho Andersen wrote:
->>>>> @@ -190,7 +202,7 @@ static void init_pmd(pud_t *pud, unsigned long addr, unsigned long end,
->>>>>  		next = pmd_addr_end(addr, end);
->>>>>  
->>>>>  		/* try section mapping first */
->>>>> -		if (((addr | next | phys) & ~SECTION_MASK) == 0 &&
->>>>> +		if (use_section_mapping(addr, next, phys) &&
->>>>>  		    (flags & NO_BLOCK_MAPPINGS) == 0) {
->>>>>  			pmd_set_huge(pmd, phys, prot);
->>>>>  
->>>>>
->>>>
->>>> There is already similar logic to disable section mappings for
->>>> debug_pagealloc at the start of map_mem, can you take advantage
->>>> of that?
->>>
->>> You're suggesting something like this instead? Seems to work fine.
->>>
->>> diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
->>> index 38026b3ccb46..3b2c17bbbf12 100644
->>> --- a/arch/arm64/mm/mmu.c
->>> +++ b/arch/arm64/mm/mmu.c
->>> @@ -434,6 +434,8 @@ static void __init map_mem(pgd_t *pgd)
->>>  
->>>  	if (debug_pagealloc_enabled())
->>>  		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
->>> +	if (IS_ENABLED(CONFIG_XPFO))
->>> +		flags |= NO_BLOCK_MAPPINGS;
->>>  
->>
->> IIUC, XPFO carves out individual pages just like DEBUG_PAGEALLOC, so you'll
->> also need NO_CONT_MAPPINGS.
-> 
-> Yes, thanks!
-> 
-> Tycho
-> 
+On 08/09/2017 01:07 PM, Tycho Andersen wrote:
+> diff --git a/mm/xpfo.c b/mm/xpfo.c
+> new file mode 100644
+> index 000000000000..3cd45f68b5ad
+> --- /dev/null
+> +++ b/mm/xpfo.c
+> @@ -0,0 +1,208 @@
+> +/*
+> + * Copyright (C) 2017 Hewlett Packard Enterprise Development, L.P.
+> + * Copyright (C) 2016 Brown University. All rights reserved.
+> + *
+> + * Authors:
+> + *   Juerg Haefliger <juerg.haefliger@hpe.com>
+> + *   Vasileios P. Kemerlis <vpk@cs.brown.edu>
+> + *
+> + * This program is free software; you can redistribute it and/or modify it
+> + * under the terms of the GNU General Public License version 2 as published by
+> + * the Free Software Foundation.
+> + */
+> +
+> +#include <linux/mm.h>
+> +#include <linux/module.h>
+> +#include <linux/page_ext.h>
+> +#include <linux/xpfo.h>
+> +
+> +#include <asm/tlbflush.h>
+> +
+> +/* XPFO page state flags */
+> +enum xpfo_flags {
+> +	XPFO_PAGE_USER,		/* Page is allocated to user-space */
+> +	XPFO_PAGE_UNMAPPED,	/* Page is unmapped from the linear map */
+> +};
+> +
+> +/* Per-page XPFO house-keeping data */
+> +struct xpfo {
+> +	unsigned long flags;	/* Page state */
+> +	bool inited;		/* Map counter and lock initialized */
+> +	atomic_t mapcount;	/* Counter for balancing map/unmap requests */
+> +	spinlock_t maplock;	/* Lock to serialize map/unmap requests */
+> +};
+> +
+> +DEFINE_STATIC_KEY_FALSE(xpfo_inited);
+> +
+> +static bool xpfo_disabled __initdata;
+> +
+> +static int __init noxpfo_param(char *str)
+> +{
+> +	xpfo_disabled = true;
+> +
+> +	return 0;
+> +}
+> +
+> +early_param("noxpfo", noxpfo_param);
+> +
+> +static bool __init need_xpfo(void)
+> +{
+> +	if (xpfo_disabled) {
+> +		printk(KERN_INFO "XPFO disabled\n");
+> +		return false;
+> +	}
+> +
+> +	return true;
+> +}
+> +
+> +static void init_xpfo(void)
+> +{
+> +	printk(KERN_INFO "XPFO enabled\n");
+> +	static_branch_enable(&xpfo_inited);
+> +}
+> +
+> +struct page_ext_operations page_xpfo_ops = {
+> +	.size = sizeof(struct xpfo),
+> +	.need = need_xpfo,
+> +	.init = init_xpfo,
+> +};
+> +
+> +static inline struct xpfo *lookup_xpfo(struct page *page)
+> +{
+> +	return (void *)lookup_page_ext(page) + page_xpfo_ops.offset;
+> +}
 
-Setting NO_CONT_MAPPINGS fixes the TLB conflict aborts I was seeing
-on my machine.
+lookup_page_ext can return NULL so this function and its callers
+need to account for that.
 
 Thanks,
 Laura
