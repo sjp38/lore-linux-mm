@@ -1,60 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DEDDF6B025F
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 07:50:04 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id h126so13691901wmf.10
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 04:50:04 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z2si3739902wmg.180.2017.08.14.04.50.03
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 00C7F6B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 08:04:23 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id q189so13756577wmd.6
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 05:04:22 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id m18si3753530wmc.79.2017.08.14.05.04.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 14 Aug 2017 04:50:03 -0700 (PDT)
-Date: Mon, 14 Aug 2017 13:50:01 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v6 15/15] mm: debug for raw alloctor
-Message-ID: <20170814115000.GJ19063@dhcp22.suse.cz>
-References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
- <1502138329-123460-16-git-send-email-pasha.tatashin@oracle.com>
- <20170811130831.GN30811@dhcp22.suse.cz>
- <87d84cad-f03a-88f0-7828-6d3bf7ac473c@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Aug 2017 05:04:21 -0700 (PDT)
+Date: Mon, 14 Aug 2017 13:03:49 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v4 2/4] mm, oom: cgroup-aware OOM killer
+Message-ID: <20170814120349.GA24393@castle.DHCP.thefacebook.com>
+References: <20170726132718.14806-1-guro@fb.com>
+ <20170726132718.14806-3-guro@fb.com>
+ <20170801145435.GN15774@dhcp22.suse.cz>
+ <20170801152548.GA29502@castle.dhcp.TheFacebook.com>
+ <alpine.DEB.2.10.1708081559001.54505@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <87d84cad-f03a-88f0-7828-6d3bf7ac473c@oracle.com>
+In-Reply-To: <alpine.DEB.2.10.1708081559001.54505@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <pasha.tatashin@oracle.com>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri 11-08-17 12:18:24, Pasha Tatashin wrote:
-> >>When CONFIG_DEBUG_VM is enabled, this patch sets all the memory that is
-> >>returned by memblock_virt_alloc_try_nid_raw() to ones to ensure that no
-> >>places excpect zeroed memory.
-> >
-> >Please fold this into the patch which introduces
-> >memblock_virt_alloc_try_nid_raw.
+On Tue, Aug 08, 2017 at 04:06:38PM -0700, David Rientjes wrote:
+> On Tue, 1 Aug 2017, Roman Gushchin wrote:
 > 
-> OK
+> > > To the rest of the patch. I have to say I do not quite like how it is
+> > > implemented. I was hoping for something much simpler which would hook
+> > > into oom_evaluate_task. If a task belongs to a memcg with kill-all flag
+> > > then we would update the cumulative memcg badness (more specifically the
+> > > badness of the topmost parent with kill-all flag). Memcg will then
+> > > compete with existing self contained tasks (oom_badness will have to
+> > > tell whether points belong to a task or a memcg to allow the caller to
+> > > deal with it). But it shouldn't be much more complex than that.
+> > 
+> > I'm not sure, it will be any simpler. Basically I'm doing the same:
+> > the difference is that you want to iterate over tasks and for each
+> > task traverse the memcg tree, update per-cgroup oom score and find
+> > the corresponding memcg(s) with the kill-all flag. I'm doing the opposite:
+> > traverse the cgroup tree, and for each leaf cgroup iterate over processes.
+> > 
+> > Also, please note, that even without the kill-all flag the decision is made
+> > on per-cgroup level (except tasks in the root cgroup).
+> > 
 > 
->  I am not sure CONFIG_DEBUG_VM is the
-> >best config because that tends to be enabled quite often. Maybe
-> >CONFIG_MEMBLOCK_DEBUG? Or even make it kernel command line parameter?
-> >
-> 
-> Initially, I did not want to make it CONFIG_MEMBLOCK_DEBUG because we really
-> benefit from this debugging code when VM debug is enabled, and especially
-> struct page debugging asserts which also depend on CONFIG_DEBUG_VM.
-> 
-> However, now thinking about it, I will change it to CONFIG_MEMBLOCK_DEBUG,
-> and let users decide what other debugging configs need to be enabled, as
-> this is also OK.
+> I think your implementation is preferred and is actually quite simple to 
+> follow, and I would encourage you to follow through with it.  It has a 
+> similar implementation to what we have done for years to kill a process 
+> from a leaf memcg.
 
-Actually the more I think about it the more I am convinced that a kernel
-boot parameter would be better because it doesn't need the kernel to be
-recompiled and it is a single branch in not so hot path.
--- 
-Michal Hocko
-SUSE Labs
+Hi David!
+
+Thank you for the support.
+
+> 
+> I did notice that oom_kill_memcg_victim() calls directly into 
+> __oom_kill_process(), however, so we lack the traditional oom killer 
+> output that shows memcg usage and potential tasklist.  I think we should 
+> still be dumping this information to the kernel log so that we can see a 
+> breakdown of charged memory.
+
+I think the existing output is too verbose for the case, when we kill
+a cgroup with many processes inside. But I absolutely agree, that we need
+some debug output, I'll add it in v5.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
