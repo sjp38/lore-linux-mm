@@ -1,75 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 10ABB6B025F
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 10:36:04 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id c80so3844010oig.7
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 07:36:04 -0700 (PDT)
-Received: from mail-io0-x234.google.com (mail-io0-x234.google.com. [2607:f8b0:4001:c06::234])
-        by mx.google.com with ESMTPS id w134si4541833oie.269.2017.08.14.07.36.03
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Aug 2017 07:36:03 -0700 (PDT)
-Received: by mail-io0-x234.google.com with SMTP id g71so38925564ioe.5
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 07:36:03 -0700 (PDT)
-Subject: Re: [PATCH v1 2/6] fs: use on-stack-bio if backing device has
- BDI_CAP_SYNC capability
-References: <1502175024-28338-3-git-send-email-minchan@kernel.org>
- <20170808124959.GB31390@bombadil.infradead.org>
- <20170808132904.GC31390@bombadil.infradead.org> <20170809015113.GB32338@bbox>
- <20170809023122.GF31390@bombadil.infradead.org> <20170809024150.GA32471@bbox>
- <20170810030433.GG31390@bombadil.infradead.org>
- <CAA9_cmekE9_PYmNnVmiOkyH2gq5o8=uvEKnAbMWw5nBX-zE69g@mail.gmail.com>
- <20170811104615.GA14397@lst.de>
- <20c5b30a-b787-1f46-f997-7542a87033f8@kernel.dk>
- <20170814085042.GG26913@bbox>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <51f7472a-977b-be69-2688-48f2a0fa6fb3@kernel.dk>
-Date: Mon, 14 Aug 2017 08:36:00 -0600
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C8BF06B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 10:38:11 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id r133so138010649pgr.6
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 07:38:11 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id v65si4161733pgb.727.2017.08.14.07.38.10
+        for <linux-mm@kvack.org>;
+        Mon, 14 Aug 2017 07:38:10 -0700 (PDT)
+Date: Mon, 14 Aug 2017 15:38:04 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH 1/2] kmemleak: Delete an error message for a failed
+ memory allocation in two functions
+Message-ID: <20170814143804.d66iibto5dacvifk@armageddon.cambridge.arm.com>
+References: <301bc8c9-d9f6-87be-ce1d-dc614e82b45b@users.sourceforge.net>
+ <986426ab-4ca9-ee56-9712-d06c25a2ed1a@users.sourceforge.net>
+ <20170814111430.lskrrg3fygpnyx6v@armageddon.cambridge.arm.com>
+ <20170814130220.q5w4fsbngphniqzc@mwanda>
 MIME-Version: 1.0
-In-Reply-To: <20170814085042.GG26913@bbox>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170814130220.q5w4fsbngphniqzc@mwanda>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, "karam . lee" <karam.lee@lge.com>, seungho1.park@lge.com, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Vishal Verma <vishal.l.verma@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, kernel-team <kernel-team@lge.com>
+To: Dan Carpenter <dan.carpenter@oracle.com>
+Cc: SF Markus Elfring <elfring@users.sourceforge.net>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, kernel-janitors@vger.kernel.org
 
-On 08/14/2017 02:50 AM, Minchan Kim wrote:
-> Hi Jens,
+On Mon, Aug 14, 2017 at 04:02:21PM +0300, Dan Carpenter wrote:
+> On Mon, Aug 14, 2017 at 12:14:32PM +0100, Catalin Marinas wrote:
+> > On Mon, Aug 14, 2017 at 11:35:02AM +0200, SF Markus Elfring wrote:
+> > > From: Markus Elfring <elfring@users.sourceforge.net>
+> > > Date: Mon, 14 Aug 2017 10:50:22 +0200
+> > > 
+> > > Omit an extra message for a memory allocation failure in these functions.
+> > > 
+> > > This issue was detected by using the Coccinelle software.
+> > > 
+> > > Signed-off-by: Markus Elfring <elfring@users.sourceforge.net>
+> > > ---
+> > >  mm/kmemleak.c | 5 +----
+> > >  1 file changed, 1 insertion(+), 4 deletions(-)
+> > > 
+> > > diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+> > > index 7780cd83a495..c6c798d90b2e 100644
+> > > --- a/mm/kmemleak.c
+> > > +++ b/mm/kmemleak.c
+> > > @@ -555,7 +555,6 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
+> > >  
+> > >  	object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
+> > >  	if (!object) {
+> > > -		pr_warn("Cannot allocate a kmemleak_object structure\n");
+> > >  		kmemleak_disable();
+> > 
+> > I don't really get what this patch is trying to achieve. Given that
+> > kmemleak will be disabled after this, I'd rather know why it happened.
 > 
-> On Fri, Aug 11, 2017 at 08:26:59AM -0600, Jens Axboe wrote:
->> On 08/11/2017 04:46 AM, Christoph Hellwig wrote:
->>> On Wed, Aug 09, 2017 at 08:06:24PM -0700, Dan Williams wrote:
->>>> I like it, but do you think we should switch to sbvec[<constant>] to
->>>> preclude pathological cases where nr_pages is large?
->>>
->>> Yes, please.
->>>
->>> Then I'd like to see that the on-stack bio even matters for
->>> mpage_readpage / mpage_writepage.  Compared to all the buffer head
->>> overhead the bio allocation should not actually matter in practice.
->>
->> I'm skeptical for that path, too. I also wonder how far we could go
->> with just doing a per-cpu bio recycling facility, to reduce the cost
->> of having to allocate a bio. The on-stack bio parts are fine for
->> simple use case, where simple means that the patch just special
->> cases the allocation, and doesn't have to change much else.
->>
->> I had a patch for bio recycling and batched freeing a year or two
->> ago, I'll see if I can find and resurrect it.
-> 
-> So, you want to go with per-cpu bio recycling approach to
-> remove rw_page?
-> 
-> So, do you want me to hold this patchset?
+> kmem_cache_alloc() will generate a stack trace and a bunch of more
+> useful information if it fails.  The allocation isn't likely to fail,
+> but if it does you will know.  The extra message is just wasting RAM.
 
-I don't want to hold this series up, but I do think the recycling is
-a cleaner approach since we don't need to special case anything. I
-hope I'll get some time to dust it off, retest, and post soon.
+Currently kmemleak uses __GFP_NOWARN for its own metadata allocation, so
+we wouldn't see the sl*b warnings. I don't fully remember why I went for
+this gfp flag, probably not to interfere with other messages printed by
+the allocator (kmemleak_alloc is called from within sl*b).
+
+I'm fine to drop __GFP_NOWARN and remove those extra messages.
 
 -- 
-Jens Axboe
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
