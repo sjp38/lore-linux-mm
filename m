@@ -1,58 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DDC046B025F
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 04:48:40 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id i192so125206801pgc.11
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 01:48:40 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id x1si4321218plm.825.2017.08.14.01.48.39
-        for <linux-mm@kvack.org>;
-        Mon, 14 Aug 2017 01:48:39 -0700 (PDT)
-Date: Mon, 14 Aug 2017 17:48:37 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v1 2/6] fs: use on-stack-bio if backing device has
- BDI_CAP_SYNC capability
-Message-ID: <20170814084837.GF26913@bbox>
-References: <1502175024-28338-1-git-send-email-minchan@kernel.org>
- <1502175024-28338-3-git-send-email-minchan@kernel.org>
- <20170808124959.GB31390@bombadil.infradead.org>
- <20170808132904.GC31390@bombadil.infradead.org>
- <20170809015113.GB32338@bbox>
- <20170809023122.GF31390@bombadil.infradead.org>
- <20170809024150.GA32471@bbox>
- <20170810030433.GG31390@bombadil.infradead.org>
- <CAA9_cmekE9_PYmNnVmiOkyH2gq5o8=uvEKnAbMWw5nBX-zE69g@mail.gmail.com>
- <20170811104615.GA14397@lst.de>
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 230386B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 04:50:26 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id s21so10530563oie.5
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 01:50:26 -0700 (PDT)
+Received: from mail-oi0-x241.google.com (mail-oi0-x241.google.com. [2607:f8b0:4003:c06::241])
+        by mx.google.com with ESMTPS id x193si3973434oia.323.2017.08.14.01.50.25
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Aug 2017 01:50:25 -0700 (PDT)
+Received: by mail-oi0-x241.google.com with SMTP id q70so8704341oic.2
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 01:50:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170811104615.GA14397@lst.de>
+In-Reply-To: <1502089981-21272-10-git-send-email-byungchul.park@lge.com>
+References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com> <1502089981-21272-10-git-send-email-byungchul.park@lge.com>
+From: Arnd Bergmann <arnd@arndb.de>
+Date: Mon, 14 Aug 2017 10:50:24 +0200
+Message-ID: <CAK8P3a3ABsxTaS7ZdcWNbTx7j5wFRc0h=ZVWAC_h-E+XbFv+8Q@mail.gmail.com>
+Subject: Re: [PATCH v8 09/14] lockdep: Apply crossrelease to completions
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, "karam . lee" <karam.lee@lge.com>, seungho1.park@lge.com, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, Vishal Verma <vishal.l.verma@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, kernel-team <kernel-team@lge.com>
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, walken@google.com, Boqun Feng <boqun.feng@gmail.com>, kirill@shutemov.name, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, willy@infradead.org, Nicholas Piggin <npiggin@gmail.com>, kernel-team@lge.com
 
-Hi Christoph,
+On Mon, Aug 7, 2017 at 9:12 AM, Byungchul Park <byungchul.park@lge.com> wrote:
+> Although wait_for_completion() and its family can cause deadlock, the
+> lock correctness validator could not be applied to them until now,
+> because things like complete() are usually called in a different context
+> from the waiting context, which violates lockdep's assumption.
+>
+> Thanks to CONFIG_LOCKDEP_CROSSRELEASE, we can now apply the lockdep
+> detector to those completion operations. Applied it.
+>
+> Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 
-On Fri, Aug 11, 2017 at 12:46:15PM +0200, Christoph Hellwig wrote:
-> On Wed, Aug 09, 2017 at 08:06:24PM -0700, Dan Williams wrote:
-> > I like it, but do you think we should switch to sbvec[<constant>] to
-> > preclude pathological cases where nr_pages is large?
-> 
-> Yes, please.
+This patch introduced a significant growth in kernel stack usage for a small
+set of functions. I see two new warnings for functions that get tipped over the
+1024 or 2048 byte frame size limit in linux-next (with a few other patches
+applied):
 
-Still, I don't understand how sbvec[nr_pages] with on-stack bio in
-do_mpage_readpage can help the performance.
+Before:
 
-IIUC, do_mpage_readpage works with page-base. IOW, it passes just one
-page, not multiple pages so if we use on-stack bio, we just add *a page*
-via bio_add_page and submit the bio before the function returning.
+drivers/md/dm-integrity.c: In function 'write_journal':
+drivers/md/dm-integrity.c:827:1: error: the frame size of 504 bytes is
+larger than xxx bytes [-Werror=frame-larger-than=]
+drivers/mmc/core/mmc_test.c: In function 'mmc_test_area_io_seq':
+drivers/mmc/core/mmc_test.c:1491:1: error: the frame size of 680 bytes
+is larger than 104 bytes [-Werror=frame-larger-than=]
 
-So, rather than sbvec[1], why de we need sbvec[nr_pages]?
+After:
 
-Please, let me open my eyes. :)
+drivers/md/dm-integrity.c: In function 'write_journal':
+drivers/md/dm-integrity.c:827:1: error: the frame size of 1280 bytes
+is larger than 1024 bytes [-Werror=frame-larger-than=]
+drivers/mmc/core/mmc_test.c: In function 'mmc_test_area_io_seq':
+drivers/mmc/core/mmc_test.c:1491:1: error: the frame size of 1072
+bytes is larger than 1024 bytes [-Werror=frame-larger-than=]
 
-Thanks.
+I have not checked in detail why this happens, but I'm guessing that
+there is an overall increase in stack usage with
+CONFIG_LOCKDEP_COMPLETE in functions using completions,
+and I think it would be good to try to come up with a version that doesn't
+add as much.
+
+        Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
