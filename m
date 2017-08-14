@@ -1,52 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B1996B02F3
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 16:29:50 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id g131so12228047oic.10
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 13:29:50 -0700 (PDT)
-Received: from mail-io0-x22b.google.com (mail-io0-x22b.google.com. [2607:f8b0:4001:c06::22b])
-        by mx.google.com with ESMTPS id f202si5231263oig.85.2017.08.14.13.29.49
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 48BCF6B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 17:10:03 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id z195so15226453wmz.8
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 14:10:03 -0700 (PDT)
+Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
+        by mx.google.com with ESMTPS id p59si6250457edp.426.2017.08.14.14.10.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Aug 2017 13:29:49 -0700 (PDT)
-Received: by mail-io0-x22b.google.com with SMTP id g71so42094962ioe.5
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 13:29:49 -0700 (PDT)
-Date: Mon, 14 Aug 2017 14:29:47 -0600
-From: Tycho Andersen <tycho@docker.com>
-Subject: Re: [PATCH v5 10/10] lkdtm: Add test for XPFO
-Message-ID: <20170814202947.er7uparyhplm77ei@smitten>
-References: <20170809200755.11234-1-tycho@docker.com>
- <20170809200755.11234-11-tycho@docker.com>
- <CAGXu5jLp11wqM04L5bWbmSVZBTOYnuGNjsjTitzUOFJm=pn9Fg@mail.gmail.com>
+        Mon, 14 Aug 2017 14:10:02 -0700 (PDT)
+Received: by mail-wm0-x229.google.com with SMTP id t201so2279804wmt.1
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 14:10:01 -0700 (PDT)
+Date: Tue, 15 Aug 2017 00:09:59 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: How can we share page cache pages for reflinked files?
+Message-ID: <20170814210959.r4mdv3y4rdeolyxt@node.shutemov.name>
+References: <20170810042849.GK21024@dastard>
+ <20170810161159.GI31390@bombadil.infradead.org>
+ <20170811042519.GS21024@dastard>
+ <20170811170847.GK31390@bombadil.infradead.org>
+ <20170814064838.GB21024@dastard>
+ <alpine.DEB.2.20.1708141307380.32429@nuc-kabylake>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAGXu5jLp11wqM04L5bWbmSVZBTOYnuGNjsjTitzUOFJm=pn9Fg@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.20.1708141307380.32429@nuc-kabylake>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>
+To: Christopher Lameter <cl@linux.com>
+Cc: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Aug 14, 2017 at 12:10:47PM -0700, Kees Cook wrote:
-> On Wed, Aug 9, 2017 at 1:07 PM, Tycho Andersen <tycho@docker.com> wrote:
-> > From: Juerg Haefliger <juerg.haefliger@hpe.com>
-> >
-> > This test simply reads from userspace memory via the kernel's linear
-> > map.
-> >
-> > hugepages is only supported on x86 right now, hence the ifdef.
+On Mon, Aug 14, 2017 at 01:14:57PM -0500, Christopher Lameter wrote:
+> On Mon, 14 Aug 2017, Dave Chinner wrote:
 > 
-> I'd prefer that the #ifdef is handled in the .c file. The result is
-> that all architectures will have the XPFO_READ_USER_HUGE test, but it
-> can just fail when not available. This means no changes are needed for
-> lkdtm in the future and the test provides an actual test of hugepages
-> coverage.
+> > > Use XFS+reflink+DAX on top of this loop device.  Now there's only one
+> > > copy of each page in RAM.
+> >
+> > Yes, I can see how that could work. Crazy, out of the box, abuses
+> > DAX for non-DAX purposes and uses stuff we haven't enabled yet
+> > because nobody has done the work to validate it. Full points for
+> > creativity! :)
+> 
+> Another not so crazy solution is to break the 1-1 relation between page
+> structs and pages. We already have issues with huge pages where one struct
+> page may represent 2m of memmory using 512 or so page struct.
+> 
+> Therer are also constantly attempts to expand struct page.
+> 
+> So how about an m->n relationship? Any page (may it be 4k, 2m or 1G) has
+> one page struct for each mapping that it is a member of?
+> 
+> Maybe a the page state could consist of a base struct that describes
+> the page state and then 1..n  pieces of mapping information? In the future
+> other state info could be added to the end if we allow dynamic sizing of
+> page structs.
+> 
+> This would also allow the inevitable creeping page struct bloat to get
+> completely out of control.
 
-If failing tests is okay, I think we can just drop that hunk entirely.
-Everything compiles fine, it just doesn't work :). I'll do that for
-the next version.
+Nice wish list. Add pony. :)
 
-Tycho
+Any attempt to replace struct page with something more complex will have
+severe performance implications. I'll be glad proved otherwise.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
