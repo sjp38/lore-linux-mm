@@ -1,66 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 720B46B025F
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 09:03:28 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id s132so106870272ita.6
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 06:03:28 -0700 (PDT)
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A288A6B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 09:31:31 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id l132so34026694vke.0
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 06:31:31 -0700 (PDT)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id a14si4061404pgd.77.2017.08.14.06.03.27
+        by mx.google.com with ESMTPS id 52si3571966ual.60.2017.08.14.06.31.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Aug 2017 06:03:27 -0700 (PDT)
-Date: Mon, 14 Aug 2017 16:02:21 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-Subject: Re: [PATCH 1/2] kmemleak: Delete an error message for a failed
- memory allocation in two functions
-Message-ID: <20170814130220.q5w4fsbngphniqzc@mwanda>
-References: <301bc8c9-d9f6-87be-ce1d-dc614e82b45b@users.sourceforge.net>
- <986426ab-4ca9-ee56-9712-d06c25a2ed1a@users.sourceforge.net>
- <20170814111430.lskrrg3fygpnyx6v@armageddon.cambridge.arm.com>
+        Mon, 14 Aug 2017 06:31:30 -0700 (PDT)
+Subject: Re: [v6 01/15] x86/mm: reserve only exiting low pages
+References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
+ <1502138329-123460-2-git-send-email-pasha.tatashin@oracle.com>
+ <20170811080706.GC30811@dhcp22.suse.cz>
+ <47ebf53b-ea8b-1822-a63a-3682ed2f4753@oracle.com>
+ <20170814114011.GG19063@dhcp22.suse.cz>
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <8da779a0-ade4-e43e-3b14-2686e347f8ab@oracle.com>
+Date: Mon, 14 Aug 2017 09:30:35 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170814111430.lskrrg3fygpnyx6v@armageddon.cambridge.arm.com>
+In-Reply-To: <20170814114011.GG19063@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: SF Markus Elfring <elfring@users.sourceforge.net>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, kernel-janitors@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org
 
-On Mon, Aug 14, 2017 at 12:14:32PM +0100, Catalin Marinas wrote:
-> On Mon, Aug 14, 2017 at 11:35:02AM +0200, SF Markus Elfring wrote:
-> > From: Markus Elfring <elfring@users.sourceforge.net>
-> > Date: Mon, 14 Aug 2017 10:50:22 +0200
-> > 
-> > Omit an extra message for a memory allocation failure in these functions.
-> > 
-> > This issue was detected by using the Coccinelle software.
-> > 
-> > Signed-off-by: Markus Elfring <elfring@users.sourceforge.net>
-> > ---
-> >  mm/kmemleak.c | 5 +----
-> >  1 file changed, 1 insertion(+), 4 deletions(-)
-> > 
-> > diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-> > index 7780cd83a495..c6c798d90b2e 100644
-> > --- a/mm/kmemleak.c
-> > +++ b/mm/kmemleak.c
-> > @@ -555,7 +555,6 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
-> >  
-> >  	object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
-> >  	if (!object) {
-> > -		pr_warn("Cannot allocate a kmemleak_object structure\n");
-> >  		kmemleak_disable();
+>> Correct, the pgflags asserts were triggered when we were setting reserved
+>> flags to struct page for PFN 0 in which was never initialized through
+>> __init_single_page(). The reason they were triggered is because we set all
+>> uninitialized memory to ones in one of the debug patches.
 > 
-> I don't really get what this patch is trying to achieve. Given that
-> kmemleak will be disabled after this, I'd rather know why it happened.
+> And why don't we need the same treatment for other architectures?
+> 
 
-kmem_cache_alloc() will generate a stack trace and a bunch of more
-useful information if it fails.  The allocation isn't likely to fail,
-but if it does you will know.  The extra message is just wasting RAM.
+I have not seen similar issues on other architectures. At least this low 
+memory reserve is x86 specific for BIOS purposes:
 
-regards,
-dan carpenter
+Documentation/admin-guide/kernel-parameters.txt
+3624	reservelow=	[X86]
+3625			Format: nn[K]
+3626			Set the amount of memory to reserve for BIOS at
+3627			the bottom of the address space.
 
+If there are similar cases with other architectures, they will be caught 
+by the last patch in this series, where all allocated memory is set to 
+ones, and page flags asserts will be triggered. I have boot-tested on 
+SPARC, ARM, and x86.
+
+Pasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
