@@ -1,144 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 41E826B025F
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 08:40:16 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id l2so133626160pgu.2
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 05:40:16 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id 94si4685187ple.611.2017.08.14.05.40.14
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 720B46B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 09:03:28 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id s132so106870272ita.6
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 06:03:28 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id a14si4061404pgd.77.2017.08.14.06.03.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Aug 2017 05:40:15 -0700 (PDT)
-Date: Mon, 14 Aug 2017 13:39:41 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v4 3/4] mm, oom: introduce oom_priority for memory cgroups
-Message-ID: <20170814123941.GC24393@castle.DHCP.thefacebook.com>
-References: <20170726132718.14806-1-guro@fb.com>
- <20170726132718.14806-4-guro@fb.com>
- <alpine.DEB.2.10.1708081607230.54505@chino.kir.corp.google.com>
+        Mon, 14 Aug 2017 06:03:27 -0700 (PDT)
+Date: Mon, 14 Aug 2017 16:02:21 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+Subject: Re: [PATCH 1/2] kmemleak: Delete an error message for a failed
+ memory allocation in two functions
+Message-ID: <20170814130220.q5w4fsbngphniqzc@mwanda>
+References: <301bc8c9-d9f6-87be-ce1d-dc614e82b45b@users.sourceforge.net>
+ <986426ab-4ca9-ee56-9712-d06c25a2ed1a@users.sourceforge.net>
+ <20170814111430.lskrrg3fygpnyx6v@armageddon.cambridge.arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1708081607230.54505@chino.kir.corp.google.com>
+In-Reply-To: <20170814111430.lskrrg3fygpnyx6v@armageddon.cambridge.arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: SF Markus Elfring <elfring@users.sourceforge.net>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, kernel-janitors@vger.kernel.org
 
-On Tue, Aug 08, 2017 at 04:14:50PM -0700, David Rientjes wrote:
-> On Wed, 26 Jul 2017, Roman Gushchin wrote:
-> 
-> > Introduce a per-memory-cgroup oom_priority setting: an integer number
-> > within the [-10000, 10000] range, which defines the order in which
-> > the OOM killer selects victim memory cgroups.
+On Mon, Aug 14, 2017 at 12:14:32PM +0100, Catalin Marinas wrote:
+> On Mon, Aug 14, 2017 at 11:35:02AM +0200, SF Markus Elfring wrote:
+> > From: Markus Elfring <elfring@users.sourceforge.net>
+> > Date: Mon, 14 Aug 2017 10:50:22 +0200
 > > 
-> > OOM killer prefers memory cgroups with larger priority if they are
-> > populated with elegible tasks.
+> > Omit an extra message for a memory allocation failure in these functions.
 > > 
-> > The oom_priority value is compared within sibling cgroups.
+> > This issue was detected by using the Coccinelle software.
 > > 
-> > The root cgroup has the oom_priority 0, which cannot be changed.
-> > 
-> 
-> Awesome!  Very excited to see that you implemented this suggestion and it 
-> is similar to priority based oom killing that we have done.  I think this 
-> kind of support is long overdue in the oom killer.
-> 
-> Comment inline.
-> 
-> > Signed-off-by: Roman Gushchin <guro@fb.com>
-> > Cc: Michal Hocko <mhocko@kernel.org>
-> > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: David Rientjes <rientjes@google.com>
-> > Cc: Tejun Heo <tj@kernel.org>
-> > Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > Cc: kernel-team@fb.com
-> > Cc: cgroups@vger.kernel.org
-> > Cc: linux-doc@vger.kernel.org
-> > Cc: linux-kernel@vger.kernel.org
-> > Cc: linux-mm@kvack.org
+> > Signed-off-by: Markus Elfring <elfring@users.sourceforge.net>
 > > ---
-> >  include/linux/memcontrol.h |  3 +++
-> >  mm/memcontrol.c            | 55 ++++++++++++++++++++++++++++++++++++++++++++--
-> >  2 files changed, 56 insertions(+), 2 deletions(-)
+> >  mm/kmemleak.c | 5 +----
+> >  1 file changed, 1 insertion(+), 4 deletions(-)
 > > 
-> > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> > index b21bbb0edc72..d31ac58e08ad 100644
-> > --- a/include/linux/memcontrol.h
-> > +++ b/include/linux/memcontrol.h
-> > @@ -206,6 +206,9 @@ struct mem_cgroup {
-> >  	/* cached OOM score */
-> >  	long oom_score;
+> > diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+> > index 7780cd83a495..c6c798d90b2e 100644
+> > --- a/mm/kmemleak.c
+> > +++ b/mm/kmemleak.c
+> > @@ -555,7 +555,6 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
 > >  
-> > +	/* OOM killer priority */
-> > +	short oom_priority;
-> > +
-> >  	/* handle for "memory.events" */
-> >  	struct cgroup_file events_file;
-> >  
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index ba72d1cf73d0..2c1566995077 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -2710,12 +2710,21 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
-> >  	for (;;) {
-> >  		struct cgroup_subsys_state *css;
-> >  		struct mem_cgroup *memcg = NULL;
-> > +		short prio = SHRT_MIN;
-> >  		long score = LONG_MIN;
-> >  
-> >  		css_for_each_child(css, &root->css) {
-> >  			struct mem_cgroup *iter = mem_cgroup_from_css(css);
-> >  
-> > -			if (iter->oom_score > score) {
-> > +			if (iter->oom_score == 0)
-> > +				continue;
-> > +
-> > +			if (iter->oom_priority > prio) {
-> > +				memcg = iter;
-> > +				prio = iter->oom_priority;
-> > +				score = iter->oom_score;
-> > +			} else if (iter->oom_priority == prio &&
-> > +				   iter->oom_score > score) {
-> >  				memcg = iter;
-> >  				score = iter->oom_score;
-> >  			}
+> >  	object = kmem_cache_alloc(object_cache, gfp_kmemleak_mask(gfp));
+> >  	if (!object) {
+> > -		pr_warn("Cannot allocate a kmemleak_object structure\n");
+> >  		kmemleak_disable();
 > 
-> Your tiebreaking is done based on iter->oom_score, which I suppose makes 
-> sense given that the oom killer traditionally tries to kill from the 
-> largest memory hogging process.
-> 
-> We actually tiebreak on a timestamp of memcg creation and prefer to kill 
-> from the newer memcg when iter->oom_priority is the same.  The reasoning 
-> is that we schedule jobs on a machine that have an inherent priority but 
-> is unaware of other jobs running at the same priority and so the kill 
-> decision, if based on iter->oom_score, may differ based on current memory 
-> usage.
-> 
-> I'm not necessarily arguing against using iter->oom_score, but was 
-> wondering if you would also find that tiebreaking based on a timestamp 
-> when priorities are the same is a more clear semantic to describe?  It's 
-> similar to how the system oom killer tiebreaked based on which task_struct 
-> appeared later in the tasklist when memory usage was the same.
-> 
-> Your approach makes oom killing less likely in the near term since it 
-> kills a more memory hogging memcg, but has the potential to lose less 
-> work.  A timestamp based approach loses the least amount of work by 
-> preferring to kill newer memcgs but oom killing may be more frequent if 
-> smaller child memcgs are killed.  I would argue the former is the 
-> responsibility of the user for using the same priority.
+> I don't really get what this patch is trying to achieve. Given that
+> kmemleak will be disabled after this, I'd rather know why it happened.
 
-I think we should have the same approach for cgroups and processes.
+kmem_cache_alloc() will generate a stack trace and a bunch of more
+useful information if it fails.  The allocation isn't likely to fail,
+but if it does you will know.  The extra message is just wasting RAM.
 
-We use the size-based approach for processes, and it will be really confusing
-to have something different for memory cgroups. So I'd prefer to match
-the existing behavior right now, and later, if required, extend both per-process
-and per-cgroup algorithms to support the time-based evaluation.
+regards,
+dan carpenter
 
-Thanks!
-
-Roman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
