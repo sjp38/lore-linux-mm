@@ -1,75 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BDA06B025F
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 18:09:52 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id g32so2807252wrd.8
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 15:09:52 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A28F6B025F
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 18:30:15 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id e204so2991798wma.2
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 15:30:15 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 190si1901826wmj.143.2017.08.15.15.09.50
+        by mx.google.com with ESMTPS id n186si1870221wmn.214.2017.08.15.15.30.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Aug 2017 15:09:50 -0700 (PDT)
-Date: Tue, 15 Aug 2017 15:09:47 -0700
+        Tue, 15 Aug 2017 15:30:13 -0700 (PDT)
+Date: Tue, 15 Aug 2017 15:30:10 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] swap: choose swap device according to numa node
-Message-Id: <20170815150947.9b7ccea78c5ea28ae88ba87f@linux-foundation.org>
-In-Reply-To: <20170815054944.GF2369@aaronlu.sh.intel.com>
-References: <20170814053130.GD2369@aaronlu.sh.intel.com>
-	<20170814163337.92c9f07666645366af82aba2@linux-foundation.org>
-	<20170815054944.GF2369@aaronlu.sh.intel.com>
+Subject: Re: [PATCH] mm: Reward slab shrinkers that reclaim more than they
+ were asked
+Message-Id: <20170815153010.e3cfc177af0b2c0dc421b84c@linux-foundation.org>
+In-Reply-To: <20170812113437.7397-1-chris@chris-wilson.co.uk>
+References: <20170812113437.7397-1-chris@chris-wilson.co.uk>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, "Chen, Tim C" <tim.c.chen@intel.com>, Huang Ying <ying.huang@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>
+To: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: linux-mm@kvack.org, intel-gfx@lists.freedesktop.org, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Shaohua Li <shli@fb.com>
 
-On Tue, 15 Aug 2017 13:49:45 +0800 Aaron Lu <aaron.lu@intel.com> wrote:
+On Sat, 12 Aug 2017 12:34:37 +0100 Chris Wilson <chris@chris-wilson.co.uk> wrote:
 
-> On Mon, Aug 14, 2017 at 04:33:37PM -0700, Andrew Morton wrote:
-> > On Mon, 14 Aug 2017 13:31:30 +0800 Aaron Lu <aaron.lu@intel.com> wrote:
-> > 
-> > > --- /dev/null
-> > > +++ b/Documentation/vm/swap_numa.txt
-> > > @@ -0,0 +1,18 @@
-> > > +If the system has more than one swap device and swap device has the node
-> > > +information, we can make use of this information to decide which swap
-> > > +device to use in get_swap_pages() to get better performance.
-> > > +
-> > > +The current code uses a priority based list, swap_avail_list, to decide
-> > > +which swap device to use and if multiple swap devices share the same
-> > > +priority, they are used round robin. This change here replaces the single
-> > > +global swap_avail_list with a per-numa-node list, i.e. for each numa node,
-> > > +it sees its own priority based list of available swap devices. Swap
-> > > +device's priority can be promoted on its matching node's swap_avail_list.
-> > > +
-> > > +The current swap device's priority is set as: user can set a >=0 value,
-> > > +or the system will pick one starting from -1 then downwards. The priority
-> > > +value in the swap_avail_list is the negated value of the swap device's
-> > > +due to plist being sorted from low to high. The new policy doesn't change
-> > > +the semantics for priority >=0 cases, the previous starting from -1 then
-> > > +downwards now becomes starting from -2 then downwards and -1 is reserved
-> > > +as the promoted value.
-> > 
-> > Could we please add a little "user guide" here?  Tell people how to set
-> > up their system to exploit this?  Sample /etc/fstab entries, perhaps?
-> 
-> That's a good idea.
-> 
-> How about this:
+> Some shrinkers may only be able to free a bunch of objects at a time, and
+> so free more than the requested nr_to_scan in one pass. Account for the
+> extra freed objects against the total number of objects we intend to
+> free, otherwise we may end up penalising the slab far more than intended.
 > 
 > ...
 >
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -398,6 +398,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+>  			break;
+>  		freed += ret;
+>  
+> +		nr_to_scan = max(nr_to_scan, ret);
+>  		count_vm_events(SLABS_SCANNED, nr_to_scan);
+>  		total_scan -= nr_to_scan;
+>  		scanned += nr_to_scan;
 
-Looks good.  Please send it along as a patch some time?
+Well...  kinda.  But what happens if the shrinker scanned more objects
+than requested but failed to free many of them?  Of if the shrinker
+scanned less than requested?
 
-> 
-> I'm not sure what to do...any hint?
-> Adding a pr_err() perhaps?
+We really want to return nr_scanned from the shrinker invocation. 
+Could we add a field to shrink_control for this?
 
-pr_emerg(), probably.  Would it make sense to disable all swapon()s
-after this?
+--- a/mm/vmscan.c~a
++++ a/mm/vmscan.c
+@@ -393,14 +393,15 @@ static unsigned long do_shrink_slab(stru
+ 		unsigned long nr_to_scan = min(batch_size, total_scan);
+ 
+ 		shrinkctl->nr_to_scan = nr_to_scan;
++		shrinkctl->nr_scanned = nr_to_scan;
+ 		ret = shrinker->scan_objects(shrinker, shrinkctl);
+ 		if (ret == SHRINK_STOP)
+ 			break;
+ 		freed += ret;
+ 
+-		count_vm_events(SLABS_SCANNED, nr_to_scan);
+-		total_scan -= nr_to_scan;
+-		scanned += nr_to_scan;
++		count_vm_events(SLABS_SCANNED, shrinkctl->nr_scanned);
++		total_scan -= shrinkctl->nr_scanned;
++		scanned += shrinkctl->nr_scanned;
+ 
+ 		cond_resched();
+ 	}
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
