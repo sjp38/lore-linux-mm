@@ -1,76 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 658A86B025F
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 05:18:40 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id h126so932851wmf.10
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 02:18:40 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id p35si7027757edd.172.2017.08.15.02.18.38
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 683D26B025F
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 05:33:13 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z36so590366wrb.13
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 02:33:13 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a204si968352wmh.273.2017.08.15.02.33.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Aug 2017 02:18:39 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id r77so827195wmd.2
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 02:18:38 -0700 (PDT)
-Date: Tue, 15 Aug 2017 12:18:36 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v4 3/3] fs, xfs: introduce MAP_DIRECT for creating
- block-map-sealed file ranges
-Message-ID: <20170815091836.c3xpsfgfwz7w35od@node.shutemov.name>
-References: <150277752553.23945.13932394738552748440.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150277754211.23945.458876600578531019.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 15 Aug 2017 02:33:11 -0700 (PDT)
+Date: Tue, 15 Aug 2017 11:33:07 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v6 05/15] mm: don't accessed uninitialized struct pages
+Message-ID: <20170815093306.GC29067@dhcp22.suse.cz>
+References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
+ <1502138329-123460-6-git-send-email-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <150277754211.23945.458876600578531019.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <1502138329-123460-6-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: darrick.wong@oracle.com, Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, luto@kernel.org, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, Mel Gorman <mgorman@suse.de>
 
-On Mon, Aug 14, 2017 at 11:12:22PM -0700, Dan Williams wrote:
-> MAP_DIRECT is an mmap(2) flag with the following semantics:
+[CC Mel - the original patch was
+http://lkml.kernel.org/r/1502138329-123460-6-git-send-email-pasha.tatashin@oracle.com]
+
+On Mon 07-08-17 16:38:39, Pavel Tatashin wrote:
+> In deferred_init_memmap() where all deferred struct pages are initialized
+> we have a check like this:
 > 
->   MAP_DIRECT
->   In addition to this mapping having MAP_SHARED semantics, successful
->   faults in this range may assume that the block map (logical-file-offset
->   to physical memory address) is pinned for the lifetime of the mapping.
->   Successful MAP_DIRECT faults establish mappings that bypass any kernel
->   indirections like the page-cache. All updates are carried directly
->   through to the underlying file physical blocks (modulo cpu cache
->   effects).
+>     if (page->flags) {
+>             VM_BUG_ON(page_zone(page) != zone);
+>             goto free_range;
+>     }
 > 
->   ETXTBSY is returned on attempts to change the block map (allocate blocks
->   / convert unwritten extents / break shared extents) in the mapped range.
->   Some filesystems may extend these same restrictions outside the mapped
->   range and return ETXTBSY to any file operations that might mutate the
->   block map. MAP_DIRECT faults may fail with a SIGSEGV if the filesystem
->   needs to write the block map to satisfy the fault. For example, if the
->   mapping was established over a hole in a sparse file.
-
-We had issues before with user-imposed ETXTBSY. See MAP_DENYWRITE.
-
-Are we sure it won't a source of denial-of-service attacks?
-
->   The kernel ignores attempts to mark a MAP_DIRECT mapping MAP_PRIVATE and
->   will silently fall back to MAP_SHARED semantics.
-
-Hm.. Any reason for this strage behaviour? Looks just broken to me.
-
+> This way we are checking if the current deferred page has already been
+> initialized. It works, because memory for struct pages has been zeroed, and
+> the only way flags are not zero if it went through __init_single_page()
+> before.  But, once we change the current behavior and won't zero the memory
+> in memblock allocator, we cannot trust anything inside "struct page"es
+> until they are initialized. This patch fixes this.
 > 
->   ERRORS
->   EACCES A MAP_DIRECT mapping was requested and PROT_WRITE was not set.
-> 
->   EINVAL MAP_ANONYMOUS was specified with MAP_DIRECT.
-> 
->   EOPNOTSUPP The filesystem explicitly does not support the flag
-> 
->   SIGSEGV Attempted to write a MAP_DIRECT mapping at a file offset that
->           might require block-map updates.
+> This patch defines a new accessor memblock_get_reserved_pfn_range()
+> which returns successive ranges of reserved PFNs.  deferred_init_memmap()
+> calls it to determine if a PFN and its struct page has already been
+> initialized.
 
-I think it should be SIGBUS.
+Maybe I am missing something but how can we see reserved ranges here
+when for_each_mem_pfn_range iterates over memblock.memory?
 
+The loop is rather complex but I am wondering whether the page->flags
+check is needed at all. We shouldn't have duplicated memblocks covering
+the same pfn ranges so we cannot initialize the same range multiple
+times, right? Reserved ranges are excluded altogether so how exactly can
+we see an initialized struct page? In other words, why this simply
+doesn't work?
+---
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 90e331e4c077..987a340a5bed 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1524,11 +1524,6 @@ static int __init deferred_init_memmap(void *data)
+ 				cond_resched();
+ 			}
+ 
+-			if (page->flags) {
+-				VM_BUG_ON(page_zone(page) != zone);
+-				goto free_range;
+-			}
+-
+ 			__init_single_page(page, pfn, zid, nid);
+ 			if (!free_base_page) {
+ 				free_base_page = page;
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
