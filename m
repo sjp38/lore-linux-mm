@@ -1,55 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F2E466B025F
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 08:42:53 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id m80so1444830wmd.4
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 05:42:53 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j97si7411917wrj.127.2017.08.15.05.42.52
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CB766B025F
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 08:58:23 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id n88so1171995wrb.0
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 05:58:23 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id u62si1233928wmb.159.2017.08.15.05.58.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 15 Aug 2017 05:42:52 -0700 (PDT)
-Date: Tue, 15 Aug 2017 14:42:50 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v4 3/3] fs, xfs: introduce MAP_DIRECT for creating
- block-map-sealed file ranges
-Message-ID: <20170815124250.GG27505@quack2.suse.cz>
-References: <150277752553.23945.13932394738552748440.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150277754211.23945.458876600578531019.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Aug 2017 05:58:22 -0700 (PDT)
+Date: Tue, 15 Aug 2017 13:57:50 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v5 2/4] mm, oom: cgroup-aware OOM killer
+Message-ID: <20170815125750.GB15892@castle.dhcp.TheFacebook.com>
+References: <20170814183213.12319-1-guro@fb.com>
+ <20170814183213.12319-3-guro@fb.com>
+ <alpine.DEB.2.10.1708141532300.63207@chino.kir.corp.google.com>
+ <20170815121558.GA15892@castle.dhcp.TheFacebook.com>
+ <f769d03d-5743-b794-a249-bb52b408ab0e@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <150277754211.23945.458876600578531019.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <f769d03d-5743-b794-a249-bb52b408ab0e@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: darrick.wong@oracle.com, Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, luto@kernel.org, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
+To: Aleksa Sarai <asarai@suse.de>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon 14-08-17 23:12:22, Dan Williams wrote:
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index ff151814a02d..73fdc0ada9ee 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -306,6 +306,7 @@ struct vm_area_struct {
->  	struct mm_struct *vm_mm;	/* The address space we belong to. */
->  	pgprot_t vm_page_prot;		/* Access permissions of this VMA. */
->  	unsigned long vm_flags;		/* Flags, see mm.h. */
-> +	unsigned long fs_flags;		/* fs flags, see MAP_DIRECT etc */
->  
->  	/*
->  	 * For areas with an address space and backing store,
+On Tue, Aug 15, 2017 at 10:20:18PM +1000, Aleksa Sarai wrote:
+> On 08/15/2017 10:15 PM, Roman Gushchin wrote:
+> > Generally, oom_score_adj should have a meaning only on a cgroup level,
+> > so extending it to the system level doesn't sound as a good idea.
+> 
+> But wasn't the original purpose of oom_score (and oom_score_adj) to work on
+> a system level, aka "normal" OOM? Is there some peculiarity about memcg OOM
+> that I'm missing?
 
-Ah, OK, here are VMA flags I was missing in the previous patch :) But why
-did you create separate fs_flags field for this? on 64-bit archs there's
-still space in vm_flags and frankly I don't see why we should separate
-MAP_DIRECT or MAP_SYNC from other flags? After all a difference in these
-flags must also prevent VMA merging (which you forgot to handle I think)
-and they need to be copied on split (which happens by chance even now).
+I'm sorry, if it wasn't clear from my message, it's not about
+the system-wide OOM vs the memcg-wide OOM, it's about the isolation.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+In general, decision is made on memcg level first (based on oom_priority
+and size), and only then on a task level (based on size and oom_score_adj).
+
+Oom_score_adj affects which task inside the cgroup will be killed,
+but we never compare tasks from different cgroups. This is what I mean,
+when I'm saying, that oom_score_adj should not have a system-wide meaning.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
