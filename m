@@ -1,110 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A0F96B025F
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 05:01:22 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id y192so6054167pgd.12
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 02:01:22 -0700 (PDT)
-Received: from ipmailnode02.adl6.internode.on.net (ipmailnode02.adl6.internode.on.net. [150.101.137.148])
-        by mx.google.com with ESMTP id b8si5997941plm.383.2017.08.15.02.01.19
-        for <linux-mm@kvack.org>;
-        Tue, 15 Aug 2017 02:01:20 -0700 (PDT)
-Date: Tue, 15 Aug 2017 19:01:16 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v4 0/3] MAP_DIRECT and block-map sealed files
-Message-ID: <20170815090116.GL21024@dastard>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 658A86B025F
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 05:18:40 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id h126so932851wmf.10
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 02:18:40 -0700 (PDT)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id p35si7027757edd.172.2017.08.15.02.18.38
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Aug 2017 02:18:39 -0700 (PDT)
+Received: by mail-wm0-x243.google.com with SMTP id r77so827195wmd.2
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 02:18:38 -0700 (PDT)
+Date: Tue, 15 Aug 2017 12:18:36 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v4 3/3] fs, xfs: introduce MAP_DIRECT for creating
+ block-map-sealed file ranges
+Message-ID: <20170815091836.c3xpsfgfwz7w35od@node.shutemov.name>
 References: <150277752553.23945.13932394738552748440.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <150277754211.23945.458876600578531019.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <150277752553.23945.13932394738552748440.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <150277754211.23945.458876600578531019.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
-Cc: darrick.wong@oracle.com, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, luto@kernel.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: darrick.wong@oracle.com, Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, luto@kernel.org, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
 
-On Mon, Aug 14, 2017 at 11:12:05PM -0700, Dan Williams wrote:
-> Changes since v3 [1]:
-> * Move from an fallocate(2) interface to a new mmap(2) flag and rename
->   'immutable' to 'sealed'.
+On Mon, Aug 14, 2017 at 11:12:22PM -0700, Dan Williams wrote:
+> MAP_DIRECT is an mmap(2) flag with the following semantics:
 > 
-> * Do not record the sealed state in permanent metadata it is now purely
->   a temporary state for as long as a MAP_DIRECT vma is referencing the
->   inode (Christoph)
+>   MAP_DIRECT
+>   In addition to this mapping having MAP_SHARED semantics, successful
+>   faults in this range may assume that the block map (logical-file-offset
+>   to physical memory address) is pinned for the lifetime of the mapping.
+>   Successful MAP_DIRECT faults establish mappings that bypass any kernel
+>   indirections like the page-cache. All updates are carried directly
+>   through to the underlying file physical blocks (modulo cpu cache
+>   effects).
 > 
-> * Drop the CAP_IMMUTABLE requirement, but do require a PROT_WRITE
->   mapping.
-> 
-> [1]: https://lwn.net/Articles/730570/
-> 
-> ---
-> 
-> This is the next revision of a patch series that aims to enable
-> applications that otherwise need to resort to DAX mapping a raw device
-> file to instead move to a filesystem.
-> 
-> In the course of reviewing a previous posting, Christoph said:
-> 
->     That being said I think we absolutely should support RDMA memory
->     registrations for DAX mappings.  I'm just not sure how S_IOMAP_IMMUTABLE
->     helps with that.  We'll want a MAP_SYNC | MAP_POPULATE to make sure all
->     the blocks are populated and all ptes are set up.  Second we need to
->     make sure get_user_page works, which for now means we'll need a struct
->     page mapping for the region (which will be really annoying for PCIe
->     mappings, like the upcoming NVMe persistent memory region), and we need
->     to guarantee that the extent mapping won't change while the
->     get_user_pages holds the pages inside it.  I think that is true due to
->     side effects even with the current DAX code, but we'll need to make it
->     explicit.  And maybe that's where we need to converge - "sealing" the
->     extent map makes sense as such a temporary measure that is not persisted
->     on disk, which automatically gets released when the holding process
->     exits, because we sort of already do this implicitly.  It might also
->     make sense to have explicitly breakable seals similar to what I do for
->     the pNFS blocks kernel server, as any userspace RDMA file server would
->     also need those semantics.
-> 
-> So, this is an attempt to converge on the idea that we need an explicit
-> and process-lifetime-temporary mechanism for a process to be able to
-> make assumptions about the mapping to physical page to dax-file-offset
-> relationship. The "explicitly breakable seals" aspect is not addressed
-> in these patches, but I wonder if it might be a voluntary mechanism that
-> can implemented via userfaultfd.
-> 
-> These pass a basic smoke test and are meant to just gauge 'right track'
-> / 'wrong track'. The main question it seems is whether the pinning done
-> in this patchset is too early (applies before get_user_pages()) and too
-> coarse (applies to the whole file). Perhaps this is where I discarded
-> too easily Jan's suggestion to look at Peter Z's mm_mpin() syscall [2]? On
-> the other hand, the coarseness and simple lifetime rules of MAP_DIRECT
-> make it an easy mechanism to implement and explain.
-> 
-> Another reason I kept the scope of S_IOMAP_SEALED coarsely defined was
-> to support Dave's desired use case of sealing for operating on reflinked
-> files [3].
+>   ETXTBSY is returned on attempts to change the block map (allocate blocks
+>   / convert unwritten extents / break shared extents) in the mapped range.
+>   Some filesystems may extend these same restrictions outside the mapped
+>   range and return ETXTBSY to any file operations that might mutate the
+>   block map. MAP_DIRECT faults may fail with a SIGSEGV if the filesystem
+>   needs to write the block map to satisfy the fault. For example, if the
+>   mapping was established over a hole in a sparse file.
 
-Which really needs a fcntl() interface to set/clear iomap seals.
+We had issues before with user-imposed ETXTBSY. See MAP_DENYWRITE.
 
-Which, now that I look at it, already has a bunch of "file sealing"
-commands defined which arrived in 3.17. It appears to be a special
-purpose access control interface for memfd_create() to manage shared
-access to anonymous tmpfs files and will EINVAL on any fd that
-points to a real file.
+Are we sure it won't a source of denial-of-service attacks?
 
-Oh, even more problematic:
+>   The kernel ignores attempts to mark a MAP_DIRECT mapping MAP_PRIVATE and
+>   will silently fall back to MAP_SHARED semantics.
 
-	Seals are a property of an inode. [....] Furthermore, seals
-	can never be removed, only added.
+Hm.. Any reason for this strage behaviour? Looks just broken to me.
 
-That seems somewhat difficult to reconcile with how I need
-F_SEAL_IOMAP to operate.
+> 
+>   ERRORS
+>   EACCES A MAP_DIRECT mapping was requested and PROT_WRITE was not set.
+> 
+>   EINVAL MAP_ANONYMOUS was specified with MAP_DIRECT.
+> 
+>   EOPNOTSUPP The filesystem explicitly does not support the flag
+> 
+>   SIGSEGV Attempted to write a MAP_DIRECT mapping at a file offset that
+>           might require block-map updates.
 
-/me calls it a day and goes looking for the hard liquor.....
+I think it should be SIGBUS.
 
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
