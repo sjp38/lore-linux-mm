@@ -1,90 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D3B9F6B025F
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 17:47:17 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id y129so38682431pgy.1
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 14:47:17 -0700 (PDT)
-Received: from mail-pg0-x230.google.com (mail-pg0-x230.google.com. [2607:f8b0:400e:c05::230])
-        by mx.google.com with ESMTPS id s2si6623578plk.239.2017.08.15.14.47.13
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BDA06B025F
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 18:09:52 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id g32so2807252wrd.8
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 15:09:52 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 190si1901826wmj.143.2017.08.15.15.09.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Aug 2017 14:47:13 -0700 (PDT)
-Received: by mail-pg0-x230.google.com with SMTP id u5so13344040pgn.0
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 14:47:13 -0700 (PDT)
-Date: Tue, 15 Aug 2017 14:47:10 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [v5 2/4] mm, oom: cgroup-aware OOM killer
-In-Reply-To: <20170815121558.GA15892@castle.dhcp.TheFacebook.com>
-Message-ID: <alpine.DEB.2.10.1708151435290.104516@chino.kir.corp.google.com>
-References: <20170814183213.12319-1-guro@fb.com> <20170814183213.12319-3-guro@fb.com> <alpine.DEB.2.10.1708141532300.63207@chino.kir.corp.google.com> <20170815121558.GA15892@castle.dhcp.TheFacebook.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Tue, 15 Aug 2017 15:09:50 -0700 (PDT)
+Date: Tue, 15 Aug 2017 15:09:47 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] swap: choose swap device according to numa node
+Message-Id: <20170815150947.9b7ccea78c5ea28ae88ba87f@linux-foundation.org>
+In-Reply-To: <20170815054944.GF2369@aaronlu.sh.intel.com>
+References: <20170814053130.GD2369@aaronlu.sh.intel.com>
+	<20170814163337.92c9f07666645366af82aba2@linux-foundation.org>
+	<20170815054944.GF2369@aaronlu.sh.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, "Chen, Tim C" <tim.c.chen@intel.com>, Huang Ying <ying.huang@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>
 
-On Tue, 15 Aug 2017, Roman Gushchin wrote:
+On Tue, 15 Aug 2017 13:49:45 +0800 Aaron Lu <aaron.lu@intel.com> wrote:
 
-> > I'm curious about the decision made in this conditional and how 
-> > oom_kill_memcg_member() ignores task->signal->oom_score_adj.  It means 
-> > that memory.oom_kill_all_tasks overrides /proc/pid/oom_score_adj if it 
-> > should otherwise be disabled.
+> On Mon, Aug 14, 2017 at 04:33:37PM -0700, Andrew Morton wrote:
+> > On Mon, 14 Aug 2017 13:31:30 +0800 Aaron Lu <aaron.lu@intel.com> wrote:
 > > 
-> > It's undocumented in the changelog, but I'm questioning whether it's the 
-> > right decision.  Doesn't it make sense to kill all tasks that are not oom 
-> > disabled, and allow the user to still protect certain processes by their 
-> > /proc/pid/oom_score_adj setting?  Otherwise, there's no way to do that 
-> > protection without a sibling memcg and its own reservation of memory.  I'm 
-> > thinking about a process that governs jobs inside the memcg and if there 
-> > is an oom kill, it wants to do logging and any cleanup necessary before 
-> > exiting itself.  It seems like a powerful combination if coupled with oom 
-> > notification.
+> > > --- /dev/null
+> > > +++ b/Documentation/vm/swap_numa.txt
+> > > @@ -0,0 +1,18 @@
+> > > +If the system has more than one swap device and swap device has the node
+> > > +information, we can make use of this information to decide which swap
+> > > +device to use in get_swap_pages() to get better performance.
+> > > +
+> > > +The current code uses a priority based list, swap_avail_list, to decide
+> > > +which swap device to use and if multiple swap devices share the same
+> > > +priority, they are used round robin. This change here replaces the single
+> > > +global swap_avail_list with a per-numa-node list, i.e. for each numa node,
+> > > +it sees its own priority based list of available swap devices. Swap
+> > > +device's priority can be promoted on its matching node's swap_avail_list.
+> > > +
+> > > +The current swap device's priority is set as: user can set a >=0 value,
+> > > +or the system will pick one starting from -1 then downwards. The priority
+> > > +value in the swap_avail_list is the negated value of the swap device's
+> > > +due to plist being sorted from low to high. The new policy doesn't change
+> > > +the semantics for priority >=0 cases, the previous starting from -1 then
+> > > +downwards now becomes starting from -2 then downwards and -1 is reserved
+> > > +as the promoted value.
+> > 
+> > Could we please add a little "user guide" here?  Tell people how to set
+> > up their system to exploit this?  Sample /etc/fstab entries, perhaps?
 > 
-> Good question!
-> I think, that an ability to override any oom_score_adj value and get all tasks
-> killed is more important, than an ability to kill all processes with some
-> exceptions.
+> That's a good idea.
 > 
-
-I'm disagreeing because getting all tasks killed is not necessarily 
-something that only the kernel can do.  If all processes are oom disabled, 
-that's a configuration issue done by sysadmin and the kernel should decide 
-to kill the next largest memory cgroup or lower priority memory cgroup.  
-It's not killing things like sshd that intentionally oom disable 
-themselves.
-
-You could argue that having an oom disabled process attached to these 
-memcgs in the first place is also a configuration issue, but the problem 
-is that in cgroup v2 with a restriction on processes only being attached 
-at the leaf cgroups that there is no competition for memory in this case.  
-I must assign memory resources to that sshd, or "Activity Manager" 
-described by the cgroup v1 documentation, just to prevent it from being 
-killed.
-
-I think the latter of what you describe, killing all processes with some 
-exceptions, is actually quite powerful.  I can guarantee that processes 
-that set themselves to oom disabled are really oom disabled and I don't 
-need to work around that in the cgroup hierarchy only because of this 
-caveat.  I can also oom disable my Activity Manger that wants to wait on 
-oom notification and collect the oom kill logs, raise notifications, and 
-perhaps restart the process that it manages.
-
-> In your example someone still needs to look after the remaining process,
-> and kill it after some timeout, if it will not quit by itself, right?
+> How about this:
 > 
+> ...
+>
 
-No, it can restart the process that was oom killed; or it can be sshd and 
-I can still ssh into my machine.
+Looks good.  Please send it along as a patch some time?
 
-> The special treatment of the -1000 value (without oom_kill_all_tasks)
-> is required only to not to break the existing setups.
 > 
+> I'm not sure what to do...any hint?
+> Adding a pr_err() perhaps?
 
-I think as a general principle that allowing an oom disabled process to be 
-oom killed is incorrect and if you really do want these to be killed, then 
-(1) either your oom_score_adj is already wrong or (2) you can wait on oom 
-notification and exit.
+pr_emerg(), probably.  Would it make sense to disable all swapon()s
+after this?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
