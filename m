@@ -1,51 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 47BE96B025F
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 06:06:38 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id b130so535039oii.4
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 03:06:38 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id w132si5844739oib.514.2017.08.15.03.06.36
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0382A6B025F
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 06:36:47 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id 6so2306518qts.7
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 03:36:46 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u2si7191788qkg.22.2017.08.15.03.36.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 15 Aug 2017 03:06:37 -0700 (PDT)
-Message-Id: <201708151006.v7FA6SxD079619@www262.sakura.ne.jp>
-Subject: Re: Re: Re: [PATCH 2/2] mm, oom: fix potential data corruption when
- =?ISO-2022-JP?B?b29tX3JlYXBlciByYWNlcyB3aXRoIHdyaXRlcg==?=
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Aug 2017 03:36:45 -0700 (PDT)
+Date: Tue, 15 Aug 2017 12:36:36 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH 0/2] Separate NUMA statistics from zone statistics
+Message-ID: <20170815123636.3788230c@redhat.com>
+In-Reply-To: <1502786736-21585-1-git-send-email-kemi.wang@intel.com>
+References: <1502786736-21585-1-git-send-email-kemi.wang@intel.com>
 MIME-Version: 1.0
-Date: Tue, 15 Aug 2017 19:06:28 +0900
-References: <201708142251.v7EMp3j9081456@www262.sakura.ne.jp> <20170815084143.GB29067@dhcp22.suse.cz>
-In-Reply-To: <20170815084143.GB29067@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, andrea@kernel.org, kirill@shutemov.name, oleg@redhat.com, wenwei.tww@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Kemi Wang <kemi.wang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, brouer@redhat.com
 
-Michal Hocko wrote:
-> On Tue 15-08-17 07:51:02, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> [...]
-> > > Were you able to reproduce with other filesystems?
-> > 
-> > Yes, I can reproduce this problem using both xfs and ext4 on 4.11.11-200.fc25.x86_64
-> > on Oracle VM VirtualBox on Windows.
+On Tue, 15 Aug 2017 16:45:34 +0800
+Kemi Wang <kemi.wang@intel.com> wrote:
+
+> Each page allocation updates a set of per-zone statistics with a call to
+> zone_statistics(). As discussed in 2017 MM submit, these are a substantial
+                                             ^^^^^^ should be "summit"
+> source of overhead in the page allocator and are very rarely consumed. This
+> significant overhead in cache bouncing caused by zone counters (NUMA
+> associated counters) update in parallel in multi-threaded page allocation
+> (pointed out by Dave Hansen).
+
+Hi Kemi
+
+Thanks a lot for following up on this work. A link to the MM summit slides:
+ http://people.netfilter.org/hawk/presentations/MM-summit2017/MM-summit2017-JesperBrouer.pdf
+
+> To mitigate this overhead, this patchset separates NUMA statistics from
+> zone statistics framework, and update NUMA counter threshold to a fixed
+> size of 32765, as a small threshold greatly increases the update frequency
+> of the global counter from local per cpu counter (suggested by Ying Huang).
+> The rationality is that these statistics counters don't need to be read
+> often, unlike other VM counters, so it's not a problem to use a large
+> threshold and make readers more expensive.
 > 
-> Just a quick question.
-> http://lkml.kernel.org/r/201708112053.FIG52141.tHJSOQFLOFMFOV@I-love.SAKURA.ne.jp
-> mentioned next-20170811 kernel and this one 4.11. Your original report
-> as a reply to this thread
-> http://lkml.kernel.org/r/201708072228.FAJ09347.tOOVOFFQJSHMFL@I-love.SAKURA.ne.jp
-> mentioned next-20170728. None of them seem to have this fix
-> http://lkml.kernel.org/r/20170807113839.16695-3-mhocko@kernel.org so let
-> me ask again. Have you seen an unexpected content written with that
-> patch applied?
+> With this patchset, we see 26.6% drop of CPU cycles(537-->394, see below)
+> for per single page allocation and reclaim on Jesper's page_bench03
+> benchmark. Meanwhile, this patchset keeps the same style of virtual memory
+> statistics with little end-user-visible effects (see the first patch for
+> details), except that the number of NUMA items in each cpu
+> (vm_numa_stat_diff[]) is added to zone->vm_numa_stat[] when a user *reads*
+> the value of NUMA counter to eliminate deviation.
 
-No. All non-zero non-0xFF values are without that patch applied.
-I want to confirm that that patch actually fixes non-zero non-0xFF values
-(so that we can have better patch description for that patch).
+I'm very happy to see that you found my kernel module for benchmarking useful :-)
+
+> I did an experiment of single page allocation and reclaim concurrently
+> using Jesper's page_bench03 benchmark on a 2-Socket Broadwell-based server
+> (88 processors with 126G memory) with different size of threshold of pcp
+> counter.
+> 
+> Benchmark provided by Jesper D Broucer(increase loop times to 10000000):
+                                 ^^^^^^^
+You mis-spelled my last name, it is "Brouer".
+
+> https://github.com/netoptimizer/prototype-kernel/tree/master/kernel/mm/bench
+> 
+>    Threshold   CPU cycles    Throughput(88 threads)
+>       32        799         241760478
+>       64        640         301628829
+>       125       537         358906028 <==> system by default
+>       256       468         412397590
+>       512       428         450550704
+>       4096      399         482520943
+>       20000     394         489009617
+>       30000     395         488017817
+>       32765     394(-26.6%) 488932078(+36.2%) <==> with this patchset
+>       N/A       342(-36.3%) 562900157(+56.8%) <==> disable zone_statistics
+> 
+> Kemi Wang (2):
+>   mm: Change the call sites of numa statistics items
+>   mm: Update NUMA counter threshold size
+> 
+>  drivers/base/node.c    |  22 ++++---
+>  include/linux/mmzone.h |  25 +++++---
+>  include/linux/vmstat.h |  33 ++++++++++
+>  mm/page_alloc.c        |  10 +--
+>  mm/vmstat.c            | 162 +++++++++++++++++++++++++++++++++++++++++++++++--
+>  5 files changed, 227 insertions(+), 25 deletions(-)
+> 
+
+
+
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
