@@ -1,79 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DEE396B025F
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 01:30:29 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id c80so5843194oig.7
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 22:30:29 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id g2si5783488oif.17.2017.08.14.22.30.27
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 13A2F6B025F
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 01:49:08 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id k190so102447pge.9
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 22:49:08 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id w83si5120083pfj.684.2017.08.14.22.49.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 14 Aug 2017 22:30:28 -0700 (PDT)
-Message-Id: <201708150530.v7F5UHfO096653@www262.sakura.ne.jp>
-Subject: Re: [PATCH 2/2] mm, oom: fix potential data corruption when
- =?ISO-2022-JP?B?b29tX3JlYXBlciByYWNlcyB3aXRoIHdyaXRlcg==?=
-From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Aug 2017 22:49:06 -0700 (PDT)
+Date: Tue, 15 Aug 2017 13:49:45 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: [PATCH] swap: choose swap device according to numa node
+Message-ID: <20170815054944.GF2369@aaronlu.sh.intel.com>
+References: <20170814053130.GD2369@aaronlu.sh.intel.com>
+ <20170814163337.92c9f07666645366af82aba2@linux-foundation.org>
 MIME-Version: 1.0
-Date: Tue, 15 Aug 2017 14:30:17 +0900
-References: <20170814135919.GO19063@dhcp22.suse.cz> 
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170814163337.92c9f07666645366af82aba2@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, andrea@kernel.org, kirill@shutemov.name, oleg@redhat.com, wenwei.tww@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, "Chen, Tim C" <tim.c.chen@intel.com>, Huang Ying <ying.huang@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>
 
-Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Sat 12-08-17 00:46:18, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-> > > > On Fri 11-08-17 16:54:36, Tetsuo Handa wrote:
-> > > > > Michal Hocko wrote:
-> > > > > > On Fri 11-08-17 11:28:52, Tetsuo Handa wrote:
-> > > > > > > Will you explain the mechanism why random values are written instead of zeros
-> > > > > > > so that this patch can actually fix the race problem?
-> > > > > > 
-> > > > > > I am not sure what you mean here. Were you able to see a write with an
-> > > > > > unexpected content?
-> > > > > 
-> > > > > Yes. See http://lkml.kernel.org/r/201708072228.FAJ09347.tOOVOFFQJSHMFL@I-love.SAKURA.ne.jp .
-> > > > 
-> > > > Ahh, I've missed that random part of your output. That is really strange
-> > > > because AFAICS the oom reaper shouldn't really interact here. We are
-> > > > only unmapping anonymous memory and even if a refault slips through we
-> > > > should always get zeros.
-> > > > 
-> > > > Your test case doesn't mmap MAP_PRIVATE of a file so we shouldn't even
-> > > > get any uninitialized data from a file by missing CoWed content. The
-> > > > only possible explanations would be that a page fault returned a
-> > > > non-zero data which would be a bug on its own or that a file write
-> > > > extend the file without actually writing to it which smells like a fs
-> > > > bug to me.
-> > > 
-> > > As I wrote at http://lkml.kernel.org/r/201708112053.FIG52141.tHJSOQFLOFMFOV@I-love.SAKURA.ne.jp ,
-> > > I don't think it is a fs bug.
-> > 
-> > Were you able to reproduce with other filesystems?
+On Mon, Aug 14, 2017 at 04:33:37PM -0700, Andrew Morton wrote:
+> On Mon, 14 Aug 2017 13:31:30 +0800 Aaron Lu <aaron.lu@intel.com> wrote:
 > 
-> Yes, I can reproduce this problem using both xfs and ext4 on 4.11.11-200.fc25.x86_64
-> on Oracle VM VirtualBox on Windows.
+> > --- /dev/null
+> > +++ b/Documentation/vm/swap_numa.txt
+> > @@ -0,0 +1,18 @@
+> > +If the system has more than one swap device and swap device has the node
+> > +information, we can make use of this information to decide which swap
+> > +device to use in get_swap_pages() to get better performance.
+> > +
+> > +The current code uses a priority based list, swap_avail_list, to decide
+> > +which swap device to use and if multiple swap devices share the same
+> > +priority, they are used round robin. This change here replaces the single
+> > +global swap_avail_list with a per-numa-node list, i.e. for each numa node,
+> > +it sees its own priority based list of available swap devices. Swap
+> > +device's priority can be promoted on its matching node's swap_avail_list.
+> > +
+> > +The current swap device's priority is set as: user can set a >=0 value,
+> > +or the system will pick one starting from -1 then downwards. The priority
+> > +value in the swap_avail_list is the negated value of the swap device's
+> > +due to plist being sorted from low to high. The new policy doesn't change
+> > +the semantics for priority >=0 cases, the previous starting from -1 then
+> > +downwards now becomes starting from -2 then downwards and -1 is reserved
+> > +as the promoted value.
 > 
-> I believe that this is not old data from disk, for I can reproduce this problem
-> using newly attached /dev/sdb which has never written any data (other than data
-> written by mkfs.xfs and mkfs.ext4).
+> Could we please add a little "user guide" here?  Tell people how to set
+> up their system to exploit this?  Sample /etc/fstab entries, perhaps?
+
+That's a good idea.
+
+How about this:
+
+Automatically bind swap device to numa node
+-------------------------------------------
+
+If the system has more than one swap device and swap device has the node
+information, we can make use of this information to decide which swap
+device to use in get_swap_pages() to get better performance.
+
+
+How to use this feature
+-----------------------
+
+Swap device has priority and that decides the order of it to be used. To make
+use of automatically binding, there is no need to manipulate priority settings
+for swap devices. e.g. on a 2 node machine, assume 2 swap devices swapA and
+swapB, with swapA attached to node 0 and swapB attached to node 1, are going
+to be swapped on. Simply swapping them on by doing:
+# swapon /dev/swapA
+# swapon /dev/swapB
+
+Then node 0 will use the two swap devices in the order of swapA then swapB and
+node 1 will use the two swap devices in the order of swapB then swapA. Note
+that the order of them being swapped on doesn't matter.
+
+A more complex example on a 4 node machine. Assume 6 swap devices are going to
+be swapped on: swapA and swapB are attached to node 0, swapC is attached to
+node 1, swapD and swapE are attached to node 2 and swapF is attached to node3.
+The way to swap them on is the same as above:
+# swapon /dev/swapA
+# swapon /dev/swapB
+# swapon /dev/swapC
+# swapon /dev/swapD
+# swapon /dev/swapE
+# swapon /dev/swapF
+
+Then node 0 will use them in the order of:
+swapA/swapB -> swapC -> swapD -> swapE -> swapF
+swapA and swapB will be used in a round robin mode before any other swap device.
+
+node 1 will use them in the order of:
+swapC -> swapA -> swapB -> swapD -> swapE -> swapF
+
+node 2 will use them in the order of:
+swapD/swapE -> swapA -> swapB -> swapC -> swapF
+Similaly, swapD and swapE will be used in a round robin mode before any
+other swap devices.
+
+node 3 will use them in the order of:
+swapF -> swapA -> swapB -> swapC -> swapD -> swapE
+
+
+Implementation details
+----------------------
+
+The current code uses a priority based list, swap_avail_list, to decide
+which swap device to use and if multiple swap devices share the same
+priority, they are used round robin. This change here replaces the single
+global swap_avail_list with a per-numa-node list, i.e. for each numa node,
+it sees its own priority based list of available swap devices. Swap
+device's priority can be promoted on its matching node's swap_avail_list.
+
+The current swap device's priority is set as: user can set a >=0 value,
+or the system will pick one starting from -1 then downwards. The priority
+value in the swap_avail_list is the negated value of the swap device's
+due to plist being sorted from low to high. The new policy doesn't change
+the semantics for priority >=0 cases, the previous starting from -1 then
+downwards now becomes starting from -2 then downwards and -1 is reserved
+as the promoted value. So if multiple swap devices are attached to the same
+node, they will all be promoted to priority -1 on that node's plist and will
+be used round robin before any other swap devices.
+
 > 
->   /dev/sdb /tmp ext4 rw,seclabel,relatime,data=ordered 0 0
->   
-> The garbage pattern (the last 4096 bytes) is identical for both xfs and ext4.
+> >
+> > ...
+> >
+> > +static int __init swapfile_init(void)
+> > +{
+> > +	int nid;
+> > +
+> > +	swap_avail_heads = kmalloc(nr_node_ids * sizeof(struct plist_head), GFP_KERNEL);
+> > +	if (!swap_avail_heads)
+> > +		return -ENOMEM;
+> 
+> Well, a kmalloc failure at __init time is generally considered "can't
+> happen", but if it _does_ happen, the system will later oops, I think. 
 
-I can reproduce this problem very easily using btrfs on 4.11.11-200.fc25.x86_64
-on Oracle VM VirtualBox on Windows.
+Agree.
 
-  /dev/sdb /tmp btrfs rw,seclabel,relatime,space_cache,subvolid=5,subvol=/ 0 0
+> Can we do something nicer here?
 
-The garbage pattern is identical for all xfs/ext4/btrfs.
-More complicated things a fs does, more likely to hit this problem?
-I tried ntfs but so far I am not able to reproduce this problem.
+I'm not sure what to do...any hint?
+Adding a pr_err() perhaps?
+
+> > +	for_each_node(nid)
+> > +		plist_head_init(&swap_avail_heads[nid]);
+> > +
+> > +	return 0;
+> > +}
+> > +subsys_initcall(swapfile_init);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
