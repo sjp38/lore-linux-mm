@@ -1,300 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CC9C86B02F3
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 14:16:57 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 16so29133555pgg.8
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 11:16:57 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id 71si5727721pga.0.2017.08.15.11.16.56
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D30E66B025F
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 15:05:42 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id f23so18864732pgn.15
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 12:05:42 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id s11si6430551plj.782.2017.08.15.12.05.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Aug 2017 11:16:56 -0700 (PDT)
-From: Matthew Auld <matthew.auld@intel.com>
-Subject: [PATCH 02/22] drm/i915: introduce simple gemfs
-Date: Tue, 15 Aug 2017 19:11:55 +0100
-Message-Id: <20170815181215.18310-3-matthew.auld@intel.com>
-In-Reply-To: <20170815181215.18310-1-matthew.auld@intel.com>
-References: <20170815181215.18310-1-matthew.auld@intel.com>
+        Tue, 15 Aug 2017 12:05:41 -0700 (PDT)
+Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
+References: <84c7f26182b7f4723c0fe3b34ba912a9de92b8b7.1502758114.git.tim.c.chen@linux.intel.com>
+ <CA+55aFznC1wqBSfYr8=92LGqz5-F6fHMzdXoqM4aOYx8sT1Dhg@mail.gmail.com>
+ <20170815022743.GB28715@tassilo.jf.intel.com>
+ <CA+55aFyHVV=eTtAocUrNLymQOCj55qkF58+N+Tjr2YS9TrqFow@mail.gmail.com>
+ <20170815031524.GC28715@tassilo.jf.intel.com>
+ <CA+55aFw1A1C8qUeKPUzACrsqn97UDxTP3M2SRs80aEztfU=Qbg@mail.gmail.com>
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Message-ID: <0b7b6132-a374-9636-53f9-c2e1dcec230f@linux.intel.com>
+Date: Tue, 15 Aug 2017 12:05:40 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <CA+55aFw1A1C8qUeKPUzACrsqn97UDxTP3M2SRs80aEztfU=Qbg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: intel-gfx@lists.freedesktop.org
-Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Chris Wilson <chris@chris-wilson.co.uk>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Kan Liang <kan.liang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Not a fully blown gemfs, just our very own tmpfs kernel mount. Doing so
-moves us away from the shmemfs shm_mnt, and gives us the much needed
-flexibility to do things like set our own mount options, namely huge=
-which should allow us to enable the use of transparent-huge-pages for
-our shmem backed objects.
+On 08/14/2017 08:28 PM, Linus Torvalds wrote:
+> On Mon, Aug 14, 2017 at 8:15 PM, Andi Kleen <ak@linux.intel.com> wrote:
+>> But what should we do when some other (non page) wait queue runs into the
+>> same problem?
+> 
+> Hopefully the same: root-cause it.
+> 
+> Once you have a test-case, it should generally be fairly simple to do
+> with profiles, just seeing who the caller is when ttwu() (or whatever
+> it is that ends up being the most noticeable part of the wakeup chain)
+> shows up very heavily.
 
-v2: various improvements suggested by Joonas
+We have a test case but it is a customer workload.  We'll try to get
+a bit more info.
 
-v3: move gemfs instance to i915.mm and simplify now that we have
-file_setup_with_mnt
+> 
+> And I think that ends up being true whether the "break up long chains"
+> patch goes in or not. Even if we end up allowing interrupts in the
+> middle, a long wait-queue is a problem.
+> 
+> I think the "break up long chains" thing may be the right thing
+> against actual malicious attacks, but not for any actual real
+> benchmark or load.
 
-Signed-off-by: Matthew Auld <matthew.auld@intel.com>
-Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Cc: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Kirill A. Shutemov <kirill@shutemov.name>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org
----
- drivers/gpu/drm/i915/Makefile                    |  1 +
- drivers/gpu/drm/i915/i915_drv.h                  |  3 ++
- drivers/gpu/drm/i915/i915_gem.c                  | 34 +++++++++++++++-
- drivers/gpu/drm/i915/i915_gemfs.c                | 52 ++++++++++++++++++++++++
- drivers/gpu/drm/i915/i915_gemfs.h                | 34 ++++++++++++++++
- drivers/gpu/drm/i915/selftests/mock_gem_device.c | 10 ++++-
- 6 files changed, 131 insertions(+), 3 deletions(-)
- create mode 100644 drivers/gpu/drm/i915/i915_gemfs.c
- create mode 100644 drivers/gpu/drm/i915/i915_gemfs.h
+This is a concern from our customer as we could trigger the watchdog timer
+by running user space workloads.  
 
-diff --git a/drivers/gpu/drm/i915/Makefile b/drivers/gpu/drm/i915/Makefile
-index 892f52b53060..24c3f672256b 100644
---- a/drivers/gpu/drm/i915/Makefile
-+++ b/drivers/gpu/drm/i915/Makefile
-@@ -47,6 +47,7 @@ i915-y += i915_cmd_parser.o \
- 	  i915_gem_tiling.o \
- 	  i915_gem_timeline.o \
- 	  i915_gem_userptr.o \
-+	  i915_gemfs.o \
- 	  i915_trace_points.o \
- 	  i915_vma.o \
- 	  intel_breadcrumbs.o \
-diff --git a/drivers/gpu/drm/i915/i915_drv.h b/drivers/gpu/drm/i915/i915_drv.h
-index 6c25c8520c87..5d072317df14 100644
---- a/drivers/gpu/drm/i915/i915_drv.h
-+++ b/drivers/gpu/drm/i915/i915_drv.h
-@@ -1467,6 +1467,9 @@ struct i915_gem_mm {
- 	/** Usable portion of the GTT for GEM */
- 	dma_addr_t stolen_base; /* limited to low memory (32-bit) */
- 
-+	/** tmpfs instance used for shmem backed objects */
-+	struct vfsmount *gemfs;
-+
- 	/** PPGTT used for aliasing the PPGTT with the GTT */
- 	struct i915_hw_ppgtt *aliasing_ppgtt;
- 
-diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
-index 5a3f3bb3f21d..03bff1a2ca13 100644
---- a/drivers/gpu/drm/i915/i915_gem.c
-+++ b/drivers/gpu/drm/i915/i915_gem.c
-@@ -35,6 +35,7 @@
- #include "intel_drv.h"
- #include "intel_frontbuffer.h"
- #include "intel_mocs.h"
-+#include "i915_gemfs.h"
- #include <linux/dma-fence-array.h>
- #include <linux/kthread.h>
- #include <linux/reservation.h>
-@@ -4279,6 +4280,25 @@ static const struct drm_i915_gem_object_ops i915_gem_object_ops = {
- 	.pwrite = i915_gem_object_pwrite_gtt,
- };
- 
-+static int i915_gem_object_create_shmem(struct drm_device *dev,
-+					struct drm_gem_object *obj,
-+					size_t size)
-+{
-+	struct drm_i915_private *i915 = to_i915(dev);
-+	struct file *filp;
-+
-+	drm_gem_private_object_init(dev, obj, size);
-+
-+	filp = shmem_file_setup_with_mnt(i915->mm.gemfs, "i915", size,
-+					 VM_NORESERVE);
-+	if (IS_ERR(filp))
-+		return PTR_ERR(filp);
-+
-+	obj->filp = filp;
-+
-+	return 0;
-+}
-+
- struct drm_i915_gem_object *
- i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
- {
-@@ -4303,7 +4323,7 @@ i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
- 	if (obj == NULL)
- 		return ERR_PTR(-ENOMEM);
- 
--	ret = drm_gem_object_init(&dev_priv->drm, &obj->base, size);
-+	ret = i915_gem_object_create_shmem(&dev_priv->drm, &obj->base, size);
- 	if (ret)
- 		goto fail;
- 
-@@ -4878,7 +4898,13 @@ i915_gem_load_init_fences(struct drm_i915_private *dev_priv)
- int
- i915_gem_load_init(struct drm_i915_private *dev_priv)
- {
--	int err = -ENOMEM;
-+	int err;
-+
-+	err = i915_gemfs_init(dev_priv);
-+	if (err)
-+		return err;
-+
-+	err = -ENOMEM;
- 
- 	dev_priv->objects = KMEM_CACHE(drm_i915_gem_object, SLAB_HWCACHE_ALIGN);
- 	if (!dev_priv->objects)
-@@ -4942,6 +4968,8 @@ i915_gem_load_init(struct drm_i915_private *dev_priv)
- err_objects:
- 	kmem_cache_destroy(dev_priv->objects);
- err_out:
-+	i915_gemfs_fini(dev_priv);
-+
- 	return err;
- }
- 
-@@ -4964,6 +4992,8 @@ void i915_gem_load_cleanup(struct drm_i915_private *dev_priv)
- 
- 	/* And ensure that our DESTROY_BY_RCU slabs are truly destroyed */
- 	rcu_barrier();
-+
-+	i915_gemfs_fini(dev_priv);
- }
- 
- int i915_gem_freeze(struct drm_i915_private *dev_priv)
-diff --git a/drivers/gpu/drm/i915/i915_gemfs.c b/drivers/gpu/drm/i915/i915_gemfs.c
-new file mode 100644
-index 000000000000..168d0bd98f60
---- /dev/null
-+++ b/drivers/gpu/drm/i915/i915_gemfs.c
-@@ -0,0 +1,52 @@
-+/*
-+ * Copyright A(C) 2017 Intel Corporation
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the "Software"),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom the
-+ * Software is furnished to do so, subject to the following conditions:
-+ *
-+ * The above copyright notice and this permission notice (including the next
-+ * paragraph) shall be included in all copies or substantial portions of the
-+ * Software.
-+ *
-+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
-+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-+ * IN THE SOFTWARE.
-+ *
-+ */
-+
-+#include <linux/fs.h>
-+#include <linux/mount.h>
-+
-+#include "i915_drv.h"
-+#include "i915_gemfs.h"
-+
-+int i915_gemfs_init(struct drm_i915_private *i915)
-+{
-+	struct file_system_type *type;
-+	struct vfsmount *gemfs;
-+
-+	type = get_fs_type("tmpfs");
-+	if (!type)
-+		return -ENODEV;
-+
-+	gemfs = kern_mount(type);
-+	if (IS_ERR(gemfs))
-+		return PTR_ERR(gemfs);
-+
-+	i915->mm.gemfs = gemfs;
-+
-+	return 0;
-+}
-+
-+void i915_gemfs_fini(struct drm_i915_private *i915)
-+{
-+	kern_unmount(i915->mm.gemfs);
-+}
-diff --git a/drivers/gpu/drm/i915/i915_gemfs.h b/drivers/gpu/drm/i915/i915_gemfs.h
-new file mode 100644
-index 000000000000..cca8bdc5b93e
---- /dev/null
-+++ b/drivers/gpu/drm/i915/i915_gemfs.h
-@@ -0,0 +1,34 @@
-+/*
-+ * Copyright A(C) 2017 Intel Corporation
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the "Software"),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom the
-+ * Software is furnished to do so, subject to the following conditions:
-+ *
-+ * The above copyright notice and this permission notice (including the next
-+ * paragraph) shall be included in all copies or substantial portions of the
-+ * Software.
-+ *
-+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
-+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-+ * IN THE SOFTWARE.
-+ *
-+ */
-+
-+#ifndef __I915_GEMFS_H__
-+#define __I915_GEMFS_H__
-+
-+struct drm_i915_private;
-+
-+int i915_gemfs_init(struct drm_i915_private *i915);
-+
-+void i915_gemfs_fini(struct drm_i915_private *i915);
-+
-+#endif
-diff --git a/drivers/gpu/drm/i915/selftests/mock_gem_device.c b/drivers/gpu/drm/i915/selftests/mock_gem_device.c
-index 678723430d78..4d82c978a769 100644
---- a/drivers/gpu/drm/i915/selftests/mock_gem_device.c
-+++ b/drivers/gpu/drm/i915/selftests/mock_gem_device.c
-@@ -83,6 +83,8 @@ static void mock_device_release(struct drm_device *dev)
- 	kmem_cache_destroy(i915->vmas);
- 	kmem_cache_destroy(i915->objects);
- 
-+	i915_gemfs_fini(i915);
-+
- 	drm_dev_fini(&i915->drm);
- 	put_device(&i915->drm.pdev->dev);
- }
-@@ -189,9 +191,13 @@ struct drm_i915_private *mock_gem_device(void)
- 
- 	i915->gt.awake = true;
- 
-+	err = i915_gemfs_init(i915);
-+	if (err)
-+		goto err_wq;
-+
- 	i915->objects = KMEM_CACHE(mock_object, SLAB_HWCACHE_ALIGN);
- 	if (!i915->objects)
--		goto err_wq;
-+		goto err_gemfs;
- 
- 	i915->vmas = KMEM_CACHE(i915_vma, SLAB_HWCACHE_ALIGN);
- 	if (!i915->vmas)
-@@ -249,6 +255,8 @@ struct drm_i915_private *mock_gem_device(void)
- 	kmem_cache_destroy(i915->vmas);
- err_objects:
- 	kmem_cache_destroy(i915->objects);
-+err_gemfs:
-+	i915_gemfs_fini(i915);
- err_wq:
- 	destroy_workqueue(i915->wq);
- put_device:
--- 
-2.13.4
+> 
+> I don't think we normally have cases of long wait-queues, though. At
+> least not the kinds that cause problems. The real (and valid)
+> thundering herd cases should already be using exclusive waiters that
+> only wake up one process at a time.
+> 
+> The page bit-waiting is hopefully special. As mentioned, we used to
+> have some _really_ special code for it for other reasons, and I
+> suspect you see this problem with them because we over-simplified it
+> from being a per-zone dynamically sized one (where the per-zone thing
+> caused both performance problems and actual bugs) to being that
+> "static small array".
+> 
+> So I think/hope that just re-introducing some dynamic sizing will help
+> sufficiently, and that this really is an odd and unusual case.
+
+I agree that dynamic sizing makes a lot of sense.  We'll check to
+see if additional size to the hash table helps, assuming that the
+waiters are distributed among different pages for our test case.  
+
+Thanks.
+
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
