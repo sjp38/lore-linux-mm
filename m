@@ -1,104 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0382A6B025F
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 06:36:47 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id 6so2306518qts.7
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 03:36:46 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u2si7191788qkg.22.2017.08.15.03.36.45
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D1AC6B025F
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 08:16:25 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 123so13206405pga.5
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 05:16:25 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id u20si5480284pfa.678.2017.08.15.05.16.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Aug 2017 03:36:45 -0700 (PDT)
-Date: Tue, 15 Aug 2017 12:36:36 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH 0/2] Separate NUMA statistics from zone statistics
-Message-ID: <20170815123636.3788230c@redhat.com>
-In-Reply-To: <1502786736-21585-1-git-send-email-kemi.wang@intel.com>
-References: <1502786736-21585-1-git-send-email-kemi.wang@intel.com>
+        Tue, 15 Aug 2017 05:16:24 -0700 (PDT)
+Date: Tue, 15 Aug 2017 13:15:58 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v5 2/4] mm, oom: cgroup-aware OOM killer
+Message-ID: <20170815121558.GA15892@castle.dhcp.TheFacebook.com>
+References: <20170814183213.12319-1-guro@fb.com>
+ <20170814183213.12319-3-guro@fb.com>
+ <alpine.DEB.2.10.1708141532300.63207@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1708141532300.63207@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kemi Wang <kemi.wang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, brouer@redhat.com
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, 15 Aug 2017 16:45:34 +0800
-Kemi Wang <kemi.wang@intel.com> wrote:
-
-> Each page allocation updates a set of per-zone statistics with a call to
-> zone_statistics(). As discussed in 2017 MM submit, these are a substantial
-                                             ^^^^^^ should be "summit"
-> source of overhead in the page allocator and are very rarely consumed. This
-> significant overhead in cache bouncing caused by zone counters (NUMA
-> associated counters) update in parallel in multi-threaded page allocation
-> (pointed out by Dave Hansen).
-
-Hi Kemi
-
-Thanks a lot for following up on this work. A link to the MM summit slides:
- http://people.netfilter.org/hawk/presentations/MM-summit2017/MM-summit2017-JesperBrouer.pdf
-
-> To mitigate this overhead, this patchset separates NUMA statistics from
-> zone statistics framework, and update NUMA counter threshold to a fixed
-> size of 32765, as a small threshold greatly increases the update frequency
-> of the global counter from local per cpu counter (suggested by Ying Huang).
-> The rationality is that these statistics counters don't need to be read
-> often, unlike other VM counters, so it's not a problem to use a large
-> threshold and make readers more expensive.
+On Mon, Aug 14, 2017 at 03:42:54PM -0700, David Rientjes wrote:
+> On Mon, 14 Aug 2017, Roman Gushchin wrote:
+> > +
+> > +static long oom_evaluate_memcg(struct mem_cgroup *memcg,
+> > +			       const nodemask_t *nodemask)
+> > +{
+> > +	struct css_task_iter it;
+> > +	struct task_struct *task;
+> > +	int elegible = 0;
+> > +
+> > +	css_task_iter_start(&memcg->css, 0, &it);
+> > +	while ((task = css_task_iter_next(&it))) {
+> > +		/*
+> > +		 * If there are no tasks, or all tasks have oom_score_adj set
+> > +		 * to OOM_SCORE_ADJ_MIN and oom_kill_all_tasks is not set,
+> > +		 * don't select this memory cgroup.
+> > +		 */
+> > +		if (!elegible &&
+> > +		    (memcg->oom_kill_all_tasks ||
+> > +		     task->signal->oom_score_adj != OOM_SCORE_ADJ_MIN))
+> > +			elegible = 1;
 > 
-> With this patchset, we see 26.6% drop of CPU cycles(537-->394, see below)
-> for per single page allocation and reclaim on Jesper's page_bench03
-> benchmark. Meanwhile, this patchset keeps the same style of virtual memory
-> statistics with little end-user-visible effects (see the first patch for
-> details), except that the number of NUMA items in each cpu
-> (vm_numa_stat_diff[]) is added to zone->vm_numa_stat[] when a user *reads*
-> the value of NUMA counter to eliminate deviation.
-
-I'm very happy to see that you found my kernel module for benchmarking useful :-)
-
-> I did an experiment of single page allocation and reclaim concurrently
-> using Jesper's page_bench03 benchmark on a 2-Socket Broadwell-based server
-> (88 processors with 126G memory) with different size of threshold of pcp
-> counter.
+> I'm curious about the decision made in this conditional and how 
+> oom_kill_memcg_member() ignores task->signal->oom_score_adj.  It means 
+> that memory.oom_kill_all_tasks overrides /proc/pid/oom_score_adj if it 
+> should otherwise be disabled.
 > 
-> Benchmark provided by Jesper D Broucer(increase loop times to 10000000):
-                                 ^^^^^^^
-You mis-spelled my last name, it is "Brouer".
+> It's undocumented in the changelog, but I'm questioning whether it's the 
+> right decision.  Doesn't it make sense to kill all tasks that are not oom 
+> disabled, and allow the user to still protect certain processes by their 
+> /proc/pid/oom_score_adj setting?  Otherwise, there's no way to do that 
+> protection without a sibling memcg and its own reservation of memory.  I'm 
+> thinking about a process that governs jobs inside the memcg and if there 
+> is an oom kill, it wants to do logging and any cleanup necessary before 
+> exiting itself.  It seems like a powerful combination if coupled with oom 
+> notification.
 
-> https://github.com/netoptimizer/prototype-kernel/tree/master/kernel/mm/bench
-> 
->    Threshold   CPU cycles    Throughput(88 threads)
->       32        799         241760478
->       64        640         301628829
->       125       537         358906028 <==> system by default
->       256       468         412397590
->       512       428         450550704
->       4096      399         482520943
->       20000     394         489009617
->       30000     395         488017817
->       32765     394(-26.6%) 488932078(+36.2%) <==> with this patchset
->       N/A       342(-36.3%) 562900157(+56.8%) <==> disable zone_statistics
-> 
-> Kemi Wang (2):
->   mm: Change the call sites of numa statistics items
->   mm: Update NUMA counter threshold size
-> 
->  drivers/base/node.c    |  22 ++++---
->  include/linux/mmzone.h |  25 +++++---
->  include/linux/vmstat.h |  33 ++++++++++
->  mm/page_alloc.c        |  10 +--
->  mm/vmstat.c            | 162 +++++++++++++++++++++++++++++++++++++++++++++++--
->  5 files changed, 227 insertions(+), 25 deletions(-)
-> 
+Good question!
+I think, that an ability to override any oom_score_adj value and get all tasks
+killed is more important, than an ability to kill all processes with some
+exceptions.
 
+In your example someone still needs to look after the remaining process,
+and kill it after some timeout, if it will not quit by itself, right?
 
+The special treatment of the -1000 value (without oom_kill_all_tasks)
+is required only to not to break the existing setups.
 
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  LinkedIn: http://www.linkedin.com/in/brouer
+Generally, oom_score_adj should have a meaning only on a cgroup level,
+so extending it to the system level doesn't sound as a good idea.
+
+> 
+> Also, s/elegible/eligible/
+
+Shame on me :)
+Will fix, thanks!
+
+> 
+> Otherwise, looks good!
+
+Great!
+Thank you for the reviewing and testing.
+
+Roman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
