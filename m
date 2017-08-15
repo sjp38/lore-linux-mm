@@ -1,81 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A41C6B02F3
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 08:27:05 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id y96so1068853wrc.10
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 05:27:05 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 53BD86B02B4
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 08:29:20 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k71so1066189wrc.15
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 05:29:20 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m185si1230215wmg.140.2017.08.15.05.27.04
+        by mx.google.com with ESMTPS id l68si7360427wrc.508.2017.08.15.05.29.19
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 15 Aug 2017 05:27:04 -0700 (PDT)
-Date: Tue, 15 Aug 2017 14:27:01 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v4 2/3] mm: introduce MAP_VALIDATE a mechanism for adding
- new mmap flags
-Message-ID: <20170815122701.GF27505@quack2.suse.cz>
-References: <150277752553.23945.13932394738552748440.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150277753660.23945.11500026891611444016.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Tue, 15 Aug 2017 05:29:19 -0700 (PDT)
+Date: Tue, 15 Aug 2017 14:29:16 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/2] mm, oom: fix oom_reaper fallouts
+Message-ID: <20170815122915.GF29067@dhcp22.suse.cz>
+References: <20170807113839.16695-1-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <150277753660.23945.11500026891611444016.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <20170807113839.16695-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: darrick.wong@oracle.com, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, luto@kernel.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Argangeli <andrea@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Wenwei Tao <wenwei.tww@alibaba-inc.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 14-08-17 23:12:16, Dan Williams wrote:
-> The mmap syscall suffers from the ABI anti-pattern of not validating
-> unknown flags. However, proposals like MAP_SYNC and MAP_DIRECT need a
-> mechanism to define new behavior that is known to fail on older kernels
-> without the feature. Use the fact that specifying MAP_SHARED and
-> MAP_PRIVATE at the same time is invalid as a cute hack to allow a new
-> set of validated flags to be introduced.
+On Mon 07-08-17 13:38:37, Michal Hocko wrote:
+> Hi,
+> there are two issues this patch series attempts to fix. First one is
+> something that has been broken since MMF_UNSTABLE flag introduction
+> and I guess we should backport it stable trees (patch 1). The other
+> issue has been brought up by Wenwei Tao and Tetsuo Handa has created
+> a test case to trigger it very reliably. I am not yet sure this is a
+> stable material because the test case is rather artificial. If there is
+> a demand for the stable backport I will prepare it, of course, though.
 > 
-> This also introduces the ->fmmap() file operation that is ->mmap() plus
-> flags. Each ->fmmap() implementation must fail requests when a locally
-> unsupported flag is specified.
-...
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 1104e5df39ef..bbe755d0caee 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -1674,6 +1674,7 @@ struct file_operations {
->  	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
->  	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
->  	int (*mmap) (struct file *, struct vm_area_struct *);
-> +	int (*fmmap) (struct file *, struct vm_area_struct *, unsigned long);
->  	int (*open) (struct inode *, struct file *);
->  	int (*flush) (struct file *, fl_owner_t id);
->  	int (*release) (struct inode *, struct file *);
-> @@ -1748,6 +1749,12 @@ static inline int call_mmap(struct file *file, struct vm_area_struct *vma)
->  	return file->f_op->mmap(file, vma);
->  }
->  
-> +static inline int call_fmmap(struct file *file, struct vm_area_struct *vma,
-> +		unsigned long flags)
-> +{
-> +	return file->f_op->fmmap(file, vma, flags);
-> +}
-> +
+> I hope I've done the second patch correctly but I would definitely
+> appreciate some more eyes on it. Hence CCing Andrea and Kirill. My
+> previous attempt with some more context was posted here
+> http://lkml.kernel.org/r/20170803135902.31977-1-mhocko@kernel.org
+> 
+> My testing didn't show anything unusual with these two applied on top of
+> the mmotm tree.
 
-Hum, I dislike a new file op for this when the only problem with ->mmap is
-that it misses 'flags' argument. I understand there are lots of ->mmap
-implementations out there and modifying prototype of them all is painful
-but is it so bad? Coccinelle patch for this should be rather easy...
-
-Also for MAP_SYNC I want the flag to be copied in VMA anyway so for that I
-don't need additional flags argument anyway. And I wonder how you want to
-make things work without VMA flag in case of MAP_DIRECT as well - VMAs can
-be split, partially unmapped etc. and so without VMA flag you are going to
-have hard time to detect whether there's any mapping left which blocks
-block mapping changes.
-
-								Honza
+unless anybody object can we have this merged? Whether to push this to
+the stable tree is still questionable because it requires a rather
+artificial workload to trigger the issue but if others think it would be
+better to have it backported I will prepare backports for all relevant
+stable trees.
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
