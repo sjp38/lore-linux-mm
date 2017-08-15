@@ -1,220 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DEDF6B0311
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 21:52:44 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id p48so61408834qtf.1
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 18:52:44 -0700 (PDT)
-Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
-        by mx.google.com with ESMTPS id l49si7770811qtl.22.2017.08.14.18.52.42
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 370306B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 22:27:45 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id l30so22509553pgc.15
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 19:27:45 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id p16si5531278pli.219.2017.08.14.19.27.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Aug 2017 18:52:43 -0700 (PDT)
-From: Zi Yan <zi.yan@sent.com>
-Subject: [RFC PATCH 3/4] mm: soft-offline: retry to split and soft-offline the raw error if the original THP offlining fails.
-Date: Mon, 14 Aug 2017 21:52:15 -0400
-Message-Id: <20170815015216.31827-4-zi.yan@sent.com>
-In-Reply-To: <20170815015216.31827-1-zi.yan@sent.com>
-References: <20170815015216.31827-1-zi.yan@sent.com>
+        Mon, 14 Aug 2017 19:27:44 -0700 (PDT)
+Date: Mon, 14 Aug 2017 19:27:43 -0700
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
+Message-ID: <20170815022743.GB28715@tassilo.jf.intel.com>
+References: <84c7f26182b7f4723c0fe3b34ba912a9de92b8b7.1502758114.git.tim.c.chen@linux.intel.com>
+ <CA+55aFznC1wqBSfYr8=92LGqz5-F6fHMzdXoqM4aOYx8sT1Dhg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFznC1wqBSfYr8=92LGqz5-F6fHMzdXoqM4aOYx8sT1Dhg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Zi Yan <zi.yan@cs.rutgers.edu>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Kan Liang <kan.liang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-From: Zi Yan <zi.yan@cs.rutgers.edu>
+On Mon, Aug 14, 2017 at 06:48:06PM -0700, Linus Torvalds wrote:
+> On Mon, Aug 14, 2017 at 5:52 PM, Tim Chen <tim.c.chen@linux.intel.com> wrote:
+> > We encountered workloads that have very long wake up list on large
+> > systems. A waker takes a long time to traverse the entire wake list and
+> > execute all the wake functions.
+> >
+> > We saw page wait list that are up to 3700+ entries long in tests of large
+> > 4 and 8 socket systems.  It took 0.8 sec to traverse such list during
+> > wake up.  Any other CPU that contends for the list spin lock will spin
+> > for a long time.  As page wait list is shared by many pages so it could
+> > get very long on systems with large memory.
+> 
+> I really dislike this patch.
+> 
+> The patch seems a band-aid for really horrible kernel behavior, rather
+> than fixing the underlying problem itself.
+> 
+> Now, it may well be that we do end up needing this band-aid in the
+> end, so this isn't a NAK of the patch per se. But I'd *really* like to
+> see if we can fix the underlying cause for what you see somehow..
 
-For THP soft-offline support, we first try to migrate a THP without
-splitting. If the migration fails, we split the THP and migrate the
-raw error page.
+We could try it and it may even help in this case and it may
+be a good idea in any case on such a system, but:
 
-migrate_pages() does not split a THP if the migration reason is
-MR_MEMORY_FAILURE.
+- Even with a large hash table it might be that by chance all CPUs
+will be queued up on the same page
+- There are a lot of other wait queues in the kernel and they all
+could run into a similar problem
+- I suspect it's even possible to construct it from user space
+as a kind of DoS attack
 
-Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
----
- mm/memory-failure.c | 77 +++++++++++++++++++++++++++++++++++++----------------
- mm/migrate.c        | 16 +++++++++++
- 2 files changed, 70 insertions(+), 23 deletions(-)
+Given all that I don't see any alternative to fixing wait queues somehow.
+It's just that systems are so big that now that they're starting to
+stretch the tried old primitives.
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 8a9ac6f9e1b0..c05107548d72 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1598,10 +1598,11 @@ static int soft_offline_huge_page(struct page *page, int flags)
- 	return ret;
- }
- 
--static int __soft_offline_page(struct page *page, int flags)
-+static int __soft_offline_page(struct page *page, int flags, int *split)
- {
- 	int ret;
--	unsigned long pfn = page_to_pfn(page);
-+	struct page *hpage = compound_head(page);
-+	unsigned long pfn = page_to_pfn(hpage);
- 
- 	/*
- 	 * Check PageHWPoison again inside page lock because PageHWPoison
-@@ -1609,11 +1610,11 @@ static int __soft_offline_page(struct page *page, int flags)
- 	 * memory_failure() also double-checks PageHWPoison inside page lock,
- 	 * so there's no race between soft_offline_page() and memory_failure().
- 	 */
--	lock_page(page);
--	wait_on_page_writeback(page);
--	if (PageHWPoison(page)) {
--		unlock_page(page);
--		put_hwpoison_page(page);
-+	lock_page(hpage);
-+	wait_on_page_writeback(hpage);
-+	if (PageHWPoison(hpage)) {
-+		unlock_page(hpage);
-+		put_hwpoison_page(hpage);
- 		pr_info("soft offline: %#lx page already poisoned\n", pfn);
- 		return -EBUSY;
- 	}
-@@ -1621,14 +1622,14 @@ static int __soft_offline_page(struct page *page, int flags)
- 	 * Try to invalidate first. This should work for
- 	 * non dirty unmapped page cache pages.
- 	 */
--	ret = invalidate_inode_page(page);
--	unlock_page(page);
-+	ret = invalidate_inode_page(hpage);
-+	unlock_page(hpage);
- 	/*
- 	 * RED-PEN would be better to keep it isolated here, but we
- 	 * would need to fix isolation locking first.
- 	 */
- 	if (ret == 1) {
--		put_hwpoison_page(page);
-+		put_hwpoison_page(hpage);
- 		pr_info("soft_offline: %#lx: invalidated\n", pfn);
- 		SetPageHWPoison(page);
- 		num_poisoned_pages_inc();
-@@ -1640,15 +1641,15 @@ static int __soft_offline_page(struct page *page, int flags)
- 	 * Try to migrate to a new page instead. migrate.c
- 	 * handles a large number of cases for us.
- 	 */
--	if (PageLRU(page))
--		ret = isolate_lru_page(page);
-+	if (PageLRU(hpage))
-+		ret = isolate_lru_page(hpage);
- 	else
--		ret = isolate_movable_page(page, ISOLATE_UNEVICTABLE);
-+		ret = isolate_movable_page(hpage, ISOLATE_UNEVICTABLE);
- 	/*
- 	 * Drop page reference which is came from get_any_page()
- 	 * successful isolate_lru_page() already took another one.
- 	 */
--	put_hwpoison_page(page);
-+	put_hwpoison_page(hpage);
- 	if (!ret) {
- 		LIST_HEAD(pagelist);
- 		/*
-@@ -1657,23 +1658,53 @@ static int __soft_offline_page(struct page *page, int flags)
- 		 * cannot have PAGE_MAPPING_MOVABLE.
- 		 */
- 		if (!__PageMovable(page))
--			inc_node_page_state(page, NR_ISOLATED_ANON +
--						page_is_file_cache(page));
--		list_add(&page->lru, &pagelist);
-+			mod_node_page_state(page_pgdat(hpage), NR_ISOLATED_ANON +
-+					page_is_file_cache(hpage), hpage_nr_pages(hpage));
-+retry_subpage:
-+		list_add(&hpage->lru, &pagelist);
- 		ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
- 					MIGRATE_SYNC, MR_MEMORY_FAILURE);
- 		if (ret) {
--			if (!list_empty(&pagelist))
--				putback_movable_pages(&pagelist);
--
-+			if (!list_empty(&pagelist)) {
-+				if (!PageTransHuge(hpage))
-+					putback_movable_pages(&pagelist);
-+				else {
-+					lock_page(hpage);
-+					if (split_huge_page_to_list(hpage, &pagelist)) {
-+						unlock_page(hpage);
-+						goto failed;
-+					}
-+					unlock_page(hpage);
-+
-+					if (split)
-+						*split = 1;
-+					/*
-+					 * Pull the raw error page out and put back other subpages.
-+					 * Then retry the raw error page.
-+					 */
-+					list_del(&page->lru);
-+					putback_movable_pages(&pagelist);
-+					hpage = page;
-+					goto retry_subpage;
-+				}
-+			}
-+failed:
- 			pr_info("soft offline: %#lx: migration failed %d, type %lx (%pGp)\n",
--				pfn, ret, page->flags, &page->flags);
-+				pfn, ret, hpage->flags, &hpage->flags);
- 			if (ret > 0)
- 				ret = -EIO;
- 		}
-+		/*
-+		 * Set PageHWPoison on the raw error page.
-+		 *
-+		 * If the page is a THP, PageHWPoison is set then cleared
-+		 * in its head page in migrate_pages(). So we need to set the raw error
-+		 * page here. Otherwise, setting PageHWPoison again is fine.
-+		 */
-+		SetPageHWPoison(page);
- 	} else {
- 		pr_info("soft offline: %#lx: isolation failed: %d, page count %d, type %lx (%pGp)\n",
--			pfn, ret, page_count(page), page->flags, &page->flags);
-+			pfn, ret, page_count(hpage), hpage->flags, &hpage->flags);
- 	}
- 	return ret;
- }
-@@ -1704,7 +1735,7 @@ static int soft_offline_in_use_page(struct page *page, int flags, int *split)
- 	if (PageHuge(page))
- 		ret = soft_offline_huge_page(page, flags);
- 	else
--		ret = __soft_offline_page(page, flags);
-+		ret = __soft_offline_page(page, flags, split);
- 
- 	return ret;
- }
-diff --git a/mm/migrate.c b/mm/migrate.c
-index f7b69282d216..b44df9cf72fd 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1118,6 +1118,15 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- 	}
- 
- 	if (unlikely(PageTransHuge(page) && !PageTransHuge(newpage))) {
-+		/*
-+		 * soft-offline wants to retry the raw error subpage, if the THP
-+		 * migration fails. So we do not split the THP here and exit directly.
-+		 */
-+		if (reason == MR_MEMORY_FAILURE) {
-+			rc = -ENOMEM;
-+			goto put_new;
-+		}
-+
- 		lock_page(page);
- 		rc = split_huge_page(page);
- 		unlock_page(page);
-@@ -1164,6 +1173,13 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- 			 */
- 			if (!test_set_page_hwpoison(page))
- 				num_poisoned_pages_inc();
-+
-+			/*
-+			 * Clear PageHWPoison in the head page. The caller
-+			 * is responsible for setting the raw error page.
-+			 */
-+			if (PageTransHuge(page))
-+				ClearPageHWPoison(page);
- 		}
- 	} else {
- 		if (rc != -EAGAIN) {
--- 
-2.13.2
+Now in one case (on a smaller system) we debugged we had
+
+- 4S system with 208 logical threads
+- during the test the wait queue length was 3700 entries.
+- the last CPUs queued had to wait roughly 0.8s
+
+This gives a budget of roughly 1us per wake up. 
+
+It could be that we could find some way to do "bulk wakeups" 
+in the scheduler that are much cheaper, and switch to them if
+there are a lot of entries in the wait queues. 
+
+With that it may be possible to do a wake up in less than 1us.
+
+But even with that it will be difficult to beat the scaling
+curve. If systems get bigger again (and they will be) it
+could easily break again, as the budget gets smaller and smaller.
+
+Also disabling interrupts for that long is just nasty.
+
+Given all that I still think a lock breaker of some form is needed.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
