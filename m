@@ -1,84 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D30E66B025F
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 15:05:42 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id f23so18864732pgn.15
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 12:05:42 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id s11si6430551plj.782.2017.08.15.12.05.41
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 522EF6B02B4
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 15:05:55 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id p17so2576605wmd.5
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 12:05:55 -0700 (PDT)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id f27si7484731edj.350.2017.08.15.12.05.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Aug 2017 12:05:41 -0700 (PDT)
-Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
-References: <84c7f26182b7f4723c0fe3b34ba912a9de92b8b7.1502758114.git.tim.c.chen@linux.intel.com>
- <CA+55aFznC1wqBSfYr8=92LGqz5-F6fHMzdXoqM4aOYx8sT1Dhg@mail.gmail.com>
- <20170815022743.GB28715@tassilo.jf.intel.com>
- <CA+55aFyHVV=eTtAocUrNLymQOCj55qkF58+N+Tjr2YS9TrqFow@mail.gmail.com>
- <20170815031524.GC28715@tassilo.jf.intel.com>
- <CA+55aFw1A1C8qUeKPUzACrsqn97UDxTP3M2SRs80aEztfU=Qbg@mail.gmail.com>
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Message-ID: <0b7b6132-a374-9636-53f9-c2e1dcec230f@linux.intel.com>
-Date: Tue, 15 Aug 2017 12:05:40 -0700
+        Tue, 15 Aug 2017 12:05:54 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id A0D231C150E
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 20:05:53 +0100 (IST)
+Date: Tue, 15 Aug 2017 20:05:52 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 2/2] mm: Update NUMA counter threshold size
+Message-ID: <20170815190552.ctigm5q5nd4r3z76@techsingularity.net>
+References: <1502786736-21585-1-git-send-email-kemi.wang@intel.com>
+ <1502786736-21585-3-git-send-email-kemi.wang@intel.com>
+ <20170815095819.5kjh4rrhkye3lgf2@techsingularity.net>
+ <a258ea24-6830-4907-0165-fec17ccb7f9f@linux.intel.com>
+ <20170815173050.xn5ffrsvdj4myoam@techsingularity.net>
+ <6f58040a-d273-cbd3-98ac-679add61c337@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFw1A1C8qUeKPUzACrsqn97UDxTP3M2SRs80aEztfU=Qbg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <6f58040a-d273-cbd3-98ac-679add61c337@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Kan Liang <kan.liang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Kemi Wang <kemi.wang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On 08/14/2017 08:28 PM, Linus Torvalds wrote:
-> On Mon, Aug 14, 2017 at 8:15 PM, Andi Kleen <ak@linux.intel.com> wrote:
->> But what should we do when some other (non page) wait queue runs into the
->> same problem?
+On Tue, Aug 15, 2017 at 10:51:21AM -0700, Tim Chen wrote:
+> On 08/15/2017 10:30 AM, Mel Gorman wrote:
+> > On Tue, Aug 15, 2017 at 09:55:39AM -0700, Tim Chen wrote:
 > 
-> Hopefully the same: root-cause it.
+> >>
+> >> Doubling the threshold and counter size will help, but not as much
+> >> as making them above u8 limit as seen in Kemi's data:
+> >>
+> >>       125         537         358906028 <==> system by default (base)
+> >>       256         468         412397590
+> >>       32765       394(-26.6%) 488932078(+36.2%) <==> with this patchset
+> >>
+> >> For small system making them u8 makes sense.  For larger ones the
+> >> frequent local counter overflow into the global counter still
+> >> causes a lot of cache bounce.  Kemi can perhaps collect some data
+> >> to see what is the gain from making the counters u8. 
+> >>
+> > 
+> > The same comments hold. The increase of a cache line is undesirable but
+> > there are other places where the overall cost can be reduced by special
+> > casing based on how this counter is used (always incrementing by one).
 > 
-> Once you have a test-case, it should generally be fairly simple to do
-> with profiles, just seeing who the caller is when ttwu() (or whatever
-> it is that ends up being the most noticeable part of the wakeup chain)
-> shows up very heavily.
+> Can you be more explicit of what optimization you suggest here and changes
+> to inc/dec_zone_page_state?  Seems to me like we will still overflow
+> the local counter with the same frequency unless the threshold and
+> counter size is changed.
 
-We have a test case but it is a customer workload.  We'll try to get
-a bit more info.
+One of the helpers added is __inc_zone_numa_state which doesn't have a
+symmetrical __dec_zone_numa_state because the counter is always
+incrementing. Because of this, there is little or no motivation to
+update the global value by threshold >> 1 because with both inc/dec, you
+want to avoid a corner case whereby a loop of inc/dec would do an
+overflow every time. Instead, you can always apply the full threshold
+and clear it which is fewer operations and halves the frequency at which
+the global value needs to be updated.
 
-> 
-> And I think that ends up being true whether the "break up long chains"
-> patch goes in or not. Even if we end up allowing interrupts in the
-> middle, a long wait-queue is a problem.
-> 
-> I think the "break up long chains" thing may be the right thing
-> against actual malicious attacks, but not for any actual real
-> benchmark or load.
-
-This is a concern from our customer as we could trigger the watchdog timer
-by running user space workloads.  
-
-> 
-> I don't think we normally have cases of long wait-queues, though. At
-> least not the kinds that cause problems. The real (and valid)
-> thundering herd cases should already be using exclusive waiters that
-> only wake up one process at a time.
-> 
-> The page bit-waiting is hopefully special. As mentioned, we used to
-> have some _really_ special code for it for other reasons, and I
-> suspect you see this problem with them because we over-simplified it
-> from being a per-zone dynamically sized one (where the per-zone thing
-> caused both performance problems and actual bugs) to being that
-> "static small array".
-> 
-> So I think/hope that just re-introducing some dynamic sizing will help
-> sufficiently, and that this really is an odd and unusual case.
-
-I agree that dynamic sizing makes a lot of sense.  We'll check to
-see if additional size to the hash table helps, assuming that the
-waiters are distributed among different pages for our test case.  
-
-Thanks.
-
-Tim
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
