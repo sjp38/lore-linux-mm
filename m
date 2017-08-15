@@ -1,51 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F6B46B02B4
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 04:41:49 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id 5so453027wrz.14
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 01:41:49 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f18si6797740wrc.302.2017.08.15.01.41.47
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BA786B025F
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 04:46:50 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id r133so5924230pgr.6
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 01:46:50 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id w26si5283768pfi.302.2017.08.15.01.46.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 15 Aug 2017 01:41:48 -0700 (PDT)
-Date: Tue, 15 Aug 2017 10:41:43 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Re: [PATCH 2/2] mm, oom: fix potential data corruption when
- oom_reaper races with writer
-Message-ID: <20170815084143.GB29067@dhcp22.suse.cz>
-References: <201708120046.AFI81780.OHMFtFSOFVQJOL@I-love.SAKURA.ne.jp>
- <20170814135919.GO19063@dhcp22.suse.cz>
- <201708142251.v7EMp3j9081456@www262.sakura.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201708142251.v7EMp3j9081456@www262.sakura.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Aug 2017 01:46:49 -0700 (PDT)
+From: Kemi Wang <kemi.wang@intel.com>
+Subject: [PATCH 0/2] Separate NUMA statistics from zone statistics
+Date: Tue, 15 Aug 2017 16:45:34 +0800
+Message-Id: <1502786736-21585-1-git-send-email-kemi.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: akpm@linux-foundation.org, andrea@kernel.org, kirill@shutemov.name, oleg@redhat.com, wenwei.tww@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Kemi Wang <kemi.wang@intel.com>
 
-On Tue 15-08-17 07:51:02, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-[...]
-> > Were you able to reproduce with other filesystems?
-> 
-> Yes, I can reproduce this problem using both xfs and ext4 on 4.11.11-200.fc25.x86_64
-> on Oracle VM VirtualBox on Windows.
+Each page allocation updates a set of per-zone statistics with a call to
+zone_statistics(). As discussed in 2017 MM submit, these are a substantial
+source of overhead in the page allocator and are very rarely consumed. This
+significant overhead in cache bouncing caused by zone counters (NUMA
+associated counters) update in parallel in multi-threaded page allocation
+(pointed out by Dave Hansen).
 
-Just a quick question.
-http://lkml.kernel.org/r/201708112053.FIG52141.tHJSOQFLOFMFOV@I-love.SAKURA.ne.jp
-mentioned next-20170811 kernel and this one 4.11. Your original report
-as a reply to this thread
-http://lkml.kernel.org/r/201708072228.FAJ09347.tOOVOFFQJSHMFL@I-love.SAKURA.ne.jp
-mentioned next-20170728. None of them seem to have this fix
-http://lkml.kernel.org/r/20170807113839.16695-3-mhocko@kernel.org so let
-me ask again. Have you seen an unexpected content written with that
-patch applied?
+To mitigate this overhead, this patchset separates NUMA statistics from
+zone statistics framework, and update NUMA counter threshold to a fixed
+size of 32765, as a small threshold greatly increases the update frequency
+of the global counter from local per cpu counter (suggested by Ying Huang).
+The rationality is that these statistics counters don't need to be read
+often, unlike other VM counters, so it's not a problem to use a large
+threshold and make readers more expensive.
+
+With this patchset, we see 26.6% drop of CPU cycles(537-->394, see below)
+for per single page allocation and reclaim on Jesper's page_bench03
+benchmark. Meanwhile, this patchset keeps the same style of virtual memory
+statistics with little end-user-visible effects (see the first patch for
+details), except that the number of NUMA items in each cpu
+(vm_numa_stat_diff[]) is added to zone->vm_numa_stat[] when a user *reads*
+the value of NUMA counter to eliminate deviation.
+
+I did an experiment of single page allocation and reclaim concurrently
+using Jesper's page_bench03 benchmark on a 2-Socket Broadwell-based server
+(88 processors with 126G memory) with different size of threshold of pcp
+counter.
+
+Benchmark provided by Jesper D Broucer(increase loop times to 10000000):
+https://github.com/netoptimizer/prototype-kernel/tree/master/kernel/mm/bench
+
+   Threshold   CPU cycles    Throughput(88 threads)
+      32        799         241760478
+      64        640         301628829
+      125       537         358906028 <==> system by default
+      256       468         412397590
+      512       428         450550704
+      4096      399         482520943
+      20000     394         489009617
+      30000     395         488017817
+      32765     394(-26.6%) 488932078(+36.2%) <==> with this patchset
+      N/A       342(-36.3%) 562900157(+56.8%) <==> disable zone_statistics
+
+Kemi Wang (2):
+  mm: Change the call sites of numa statistics items
+  mm: Update NUMA counter threshold size
+
+ drivers/base/node.c    |  22 ++++---
+ include/linux/mmzone.h |  25 +++++---
+ include/linux/vmstat.h |  33 ++++++++++
+ mm/page_alloc.c        |  10 +--
+ mm/vmstat.c            | 162 +++++++++++++++++++++++++++++++++++++++++++++++--
+ 5 files changed, 227 insertions(+), 25 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
