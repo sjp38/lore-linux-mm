@@ -1,47 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 01F756B02B4
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 18:31:07 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id m84so10010897qki.5
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 15:31:06 -0700 (PDT)
-Received: from mail-yw0-x22c.google.com (mail-yw0-x22c.google.com. [2607:f8b0:4002:c05::22c])
-        by mx.google.com with ESMTPS id w4si2857824ybc.314.2017.08.15.15.31.05
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 75AA36B02B4
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 18:47:42 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id y206so3022854wmd.1
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 15:47:42 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o14si1891310wmi.240.2017.08.15.15.47.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Aug 2017 15:31:05 -0700 (PDT)
-Received: by mail-yw0-x22c.google.com with SMTP id s143so12958167ywg.1
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 15:31:05 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 15 Aug 2017 15:47:40 -0700 (PDT)
+Date: Tue, 15 Aug 2017 15:47:28 -0700
+From: Davidlohr Bueso <dave@stgolabs.net>
+Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
+Message-ID: <20170815224728.GA1373@linux-80c1.suse>
+References: <84c7f26182b7f4723c0fe3b34ba912a9de92b8b7.1502758114.git.tim.c.chen@linux.intel.com>
+ <CA+55aFznC1wqBSfYr8=92LGqz5-F6fHMzdXoqM4aOYx8sT1Dhg@mail.gmail.com>
+ <20170815022743.GB28715@tassilo.jf.intel.com>
+ <CA+55aFyHVV=eTtAocUrNLymQOCj55qkF58+N+Tjr2YS9TrqFow@mail.gmail.com>
+ <20170815031524.GC28715@tassilo.jf.intel.com>
+ <CA+55aFw1A1C8qUeKPUzACrsqn97UDxTP3M2SRs80aEztfU=Qbg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrU811Ac+DpiUP8MdayA6cD3Jk+Dd0RXAqk5YM6Lj9YsDQ@mail.gmail.com>
-References: <150277752553.23945.13932394738552748440.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150277753660.23945.11500026891611444016.stgit@dwillia2-desk3.amr.corp.intel.com>
- <CALCETrU811Ac+DpiUP8MdayA6cD3Jk+Dd0RXAqk5YM6Lj9YsDQ@mail.gmail.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 15 Aug 2017 15:31:04 -0700
-Message-ID: <CAPcyv4g3xvLzQYdpeMX14amZHVZH+kbK+39Dnwv1Z_0o4R-3Yg@mail.gmail.com>
-Subject: Re: [PATCH v4 2/3] mm: introduce MAP_VALIDATE a mechanism for adding
- new mmap flags
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <CA+55aFw1A1C8qUeKPUzACrsqn97UDxTP3M2SRs80aEztfU=Qbg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andi Kleen <ak@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Kan Liang <kan.liang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Tue, Aug 15, 2017 at 9:28 AM, Andy Lutomirski <luto@kernel.org> wrote:
-> On Mon, Aug 14, 2017 at 11:12 PM, Dan Williams <dan.j.williams@intel.com> wrote:
->> The mmap syscall suffers from the ABI anti-pattern of not validating
->> unknown flags. However, proposals like MAP_SYNC and MAP_DIRECT need a
->> mechanism to define new behavior that is known to fail on older kernels
->> without the feature. Use the fact that specifying MAP_SHARED and
->> MAP_PRIVATE at the same time is invalid as a cute hack to allow a new
->> set of validated flags to be introduced.
+On Mon, 14 Aug 2017, Linus Torvalds wrote:
+
+>On Mon, Aug 14, 2017 at 8:15 PM, Andi Kleen <ak@linux.intel.com> wrote:
+>> But what should we do when some other (non page) wait queue runs into the
+>> same problem?
 >
-> While this is cute, is it actually better than a new syscall?
+>Hopefully the same: root-cause it.
 
-After playing with MAP_DIRECT defined as (MAP_SHARED|MAP_PRIVATE|0x40)
-I think a new syscall is better. It's very easy to make the mistake
-that "MAP_DIRECT" defines a single flag vs representing a multi-bit
-encoding.
+Or you can always use wake_qs; which exists _exactly_ for the issues you
+are running into. Note that Linus does not want them in general wait:
+
+https://lkml.org/lkml/2017/7/7/605
+
+... but you can always use them on your own if you really need to (ie locks,
+ipc, etc).
+
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
