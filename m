@@ -1,48 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BF8E16B025F
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 18:57:33 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id x5so8317067uai.9
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 15:57:33 -0700 (PDT)
-Received: from mail-vk0-x236.google.com (mail-vk0-x236.google.com. [2607:f8b0:400c:c05::236])
-        by mx.google.com with ESMTPS id r17si3217901uaa.404.2017.08.15.15.57.32
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 74CD06B025F
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 19:39:33 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id x189so42930004pgb.11
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 16:39:33 -0700 (PDT)
+Received: from mail-pg0-x236.google.com (mail-pg0-x236.google.com. [2607:f8b0:400e:c05::236])
+        by mx.google.com with ESMTPS id s68si5995772pgc.592.2017.08.15.16.39.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Aug 2017 15:57:32 -0700 (PDT)
-Received: by mail-vk0-x236.google.com with SMTP id d124so7169650vkf.2
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 15:57:32 -0700 (PDT)
+        Tue, 15 Aug 2017 16:39:32 -0700 (PDT)
+Received: by mail-pg0-x236.google.com with SMTP id u185so14729145pgb.1
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 16:39:31 -0700 (PDT)
+Date: Tue, 15 Aug 2017 16:39:30 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch 1/2] mm, compaction: kcompactd should not ignore pageblock
+ skip
+Message-ID: <alpine.DEB.2.10.1708151638550.106658@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFyMkd8EaozxvAZo9i3ArKh7m6HLjsUB34xnDBzXz4gowg@mail.gmail.com>
-References: <84c7f26182b7f4723c0fe3b34ba912a9de92b8b7.1502758114.git.tim.c.chen@linux.intel.com>
- <CA+55aFznC1wqBSfYr8=92LGqz5-F6fHMzdXoqM4aOYx8sT1Dhg@mail.gmail.com>
- <20170815022743.GB28715@tassilo.jf.intel.com> <CA+55aFyHVV=eTtAocUrNLymQOCj55qkF58+N+Tjr2YS9TrqFow@mail.gmail.com>
- <20170815031524.GC28715@tassilo.jf.intel.com> <CA+55aFw1A1C8qUeKPUzACrsqn97UDxTP3M2SRs80aEztfU=Qbg@mail.gmail.com>
- <20170815224728.GA1373@linux-80c1.suse> <CA+55aFyMkd8EaozxvAZo9i3ArKh7m6HLjsUB34xnDBzXz4gowg@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 15 Aug 2017 15:57:32 -0700
-Message-ID: <CA+55aFw84Cu0VZdR_Rj6b03hMYBFgt9BCnSEx+OLXDsp4dDO=g@mail.gmail.com>
-Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Kan Liang <kan.liang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Aug 15, 2017 at 3:56 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> Except they really don't actually work for this case, exactly because
-> they also simplify away "minor" details like exclusive vs
-> non-exclusive etc.
->
-> The page wait-queue very much has a mix of "wake all" and "wake one" semantics.
+Kcompactd is needlessly ignoring pageblock skip information.  It is doing
+MIGRATE_SYNC_LIGHT compaction, which is no more powerful than
+MIGRATE_SYNC compaction.
 
-Oh, and the page wait-queue really needs that key argument too, which
-is another thing that swait queue code got rid of in the name of
-simplicity.
+If compaction recently failed to isolate memory from a set of pageblocks,
+there is nothing to indicate that kcompactd will be able to do so, or
+that it is beneficial from attempting to isolate memory.
 
-So no. The swait code is absolutely _entirely_ the wrong thing to use.
+Use the pageblock skip hint to avoid rescanning pageblocks needlessly
+until that information is reset.
 
-                 Linus
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/compaction.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/mm/compaction.c b/mm/compaction.c
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1927,9 +1927,8 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+ 		.total_free_scanned = 0,
+ 		.classzone_idx = pgdat->kcompactd_classzone_idx,
+ 		.mode = MIGRATE_SYNC_LIGHT,
+-		.ignore_skip_hint = true,
++		.ignore_skip_hint = false,
+ 		.gfp_mask = GFP_KERNEL,
+-
+ 	};
+ 	trace_mm_compaction_kcompactd_wake(pgdat->node_id, cc.order,
+ 							cc.classzone_idx);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
