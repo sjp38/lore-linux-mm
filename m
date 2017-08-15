@@ -1,40 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D9DA6B025F
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 11:11:25 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id f69so11756670ioe.10
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 08:11:25 -0700 (PDT)
-Received: from resqmta-po-06v.sys.comcast.net (resqmta-po-06v.sys.comcast.net. [2001:558:fe16:19:96:114:154:165])
-        by mx.google.com with ESMTPS id a75si9466424ioa.80.2017.08.15.08.11.24
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 467586B025F
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 11:59:37 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id l2so23194394pgu.2
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 08:59:37 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id b77si5700913pfl.69.2017.08.15.08.59.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Aug 2017 08:11:24 -0700 (PDT)
-Date: Tue, 15 Aug 2017 10:11:22 -0500 (CDT)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: How can we share page cache pages for reflinked files?
-In-Reply-To: <20170814210959.r4mdv3y4rdeolyxt@node.shutemov.name>
-Message-ID: <alpine.DEB.2.20.1708151009440.8223@nuc-kabylake>
-References: <20170810042849.GK21024@dastard> <20170810161159.GI31390@bombadil.infradead.org> <20170811042519.GS21024@dastard> <20170811170847.GK31390@bombadil.infradead.org> <20170814064838.GB21024@dastard> <alpine.DEB.2.20.1708141307380.32429@nuc-kabylake>
- <20170814210959.r4mdv3y4rdeolyxt@node.shutemov.name>
+        Tue, 15 Aug 2017 08:59:32 -0700 (PDT)
+Date: Wed, 16 Aug 2017 00:01:08 +0800
+From: Chen Yu <yu.c.chen@intel.com>
+Subject: Re: [PATCH][RFC] PM / Hibernate: Feed NMI wathdog when creating
+ snapshot
+Message-ID: <20170815160107.GA2541@yu-desktop-1.sh.intel.com>
+References: <1502731156-24903-1-git-send-email-yu.c.chen@intel.com>
+ <20170815124119.GG29067@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170815124119.GG29067@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-pm@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Dan Williams <dan.j.williams@intel.com>
 
-On Tue, 15 Aug 2017, Kirill A. Shutemov wrote:
+Hi Michal,
+On Tue, Aug 15, 2017 at 02:41:19PM +0200, Michal Hocko wrote:
+> On Tue 15-08-17 01:19:16, Chen Yu wrote:
+> [...]
+> > @@ -2561,8 +2562,10 @@ void mark_free_pages(struct zone *zone)
+> >  			unsigned long i;
+> >  
+> >  			pfn = page_to_pfn(page);
+> > -			for (i = 0; i < (1UL << order); i++)
+> > +			for (i = 0; i < (1UL << order); i++) {
+> >  				swsusp_set_page_free(pfn_to_page(pfn + i));
+> > +				touch_nmi_watchdog();
+> > +			}
+> 
+> this is rather excessive. Why don't you simply call touch_nmi_watchdog
+> once per every 1000 pages? Or once per free_list entry?
+> 
+Yes, this would be less costy, previously I thought that, since touch_nmi_watchdog()
+would only update very limited amount of percpu variables and it is not costy when
+comparing with the huge loop in radix tree searching by the swsusp_set_page_free(),
+thus I put it in the deepest level in this loop, as this might be a safer place to avoid NMI.
+> Moreover why don't you need to touch_nmi_watchdog in the loop over all
+> pfns in the zone (right above this loop)?
+As the NMI was triggered when checking the free_list rather than in the loop over
+all pfns, it seems that the former has more possibility to catch a NMI if the
+latter has already taken too much time. But yes, a safer way is to feed dog
+in the latter too. I'll modify the code according to your suggestion.
 
-> > This would also allow the inevitable creeping page struct bloat to get
-> > completely out of control.
->
-> Nice wish list. Add pony. :)
->
-> Any attempt to replace struct page with something more complex will have
-> severe performance implications. I'll be glad proved otherwise.
-
-Do we care that much anymore? I have people inserting all sorts of runtime
-checks into hotpaths in the name of security.....
+Thanks,
+	Yu
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
