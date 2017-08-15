@@ -1,96 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 416796B025F
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 01:49:38 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id y96so36789wrc.10
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 22:49:38 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l197si747217wma.183.2017.08.14.22.49.36
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 15B386B025F
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 02:18:32 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id w187so1107023pgb.10
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 23:18:32 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id h62si4332951pge.162.2017.08.14.23.18.30
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 14 Aug 2017 22:49:37 -0700 (PDT)
-Date: Tue, 15 Aug 2017 07:49:33 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch] mm, oom: remove unused mmput_async
-Message-ID: <20170815054933.GA26114@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1708141733130.50317@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 14 Aug 2017 23:18:30 -0700 (PDT)
+Subject: [PATCH v4 0/3] MAP_DIRECT and block-map sealed files
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 14 Aug 2017 23:12:05 -0700
+Message-ID: <150277752553.23945.13932394738552748440.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1708141733130.50317@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: darrick.wong@oracle.com
+Cc: Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, luto@kernel.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Mon 14-08-17 17:34:32, David Rientjes wrote:
-> After "mm: oom: let oom_reap_task and exit_mmap to run concurrently", 
-> mmput_async() is no longer used.  Remove it.
-> 
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: David Rientjes <rientjes@google.com>
+Changes since v3 [1]:
+* Move from an fallocate(2) interface to a new mmap(2) flag and rename
+  'immutable' to 'sealed'.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+* Do not record the sealed state in permanent metadata it is now purely
+  a temporary state for as long as a MAP_DIRECT vma is referencing the
+  inode (Christoph)
 
-Thanks!
+* Drop the CAP_IMMUTABLE requirement, but do require a PROT_WRITE
+  mapping.
 
-> ---
->  include/linux/sched/mm.h |  6 ------
->  kernel/fork.c            | 16 ----------------
->  2 files changed, 22 deletions(-)
-> 
-> diff --git a/include/linux/sched/mm.h b/include/linux/sched/mm.h
-> --- a/include/linux/sched/mm.h
-> +++ b/include/linux/sched/mm.h
-> @@ -84,12 +84,6 @@ static inline bool mmget_not_zero(struct mm_struct *mm)
->  
->  /* mmput gets rid of the mappings and all user-space */
->  extern void mmput(struct mm_struct *);
-> -#ifdef CONFIG_MMU
-> -/* same as above but performs the slow path from the async context. Can
-> - * be called from the atomic context as well
-> - */
-> -extern void mmput_async(struct mm_struct *);
-> -#endif
->  
->  /* Grab a reference to a task's mm, if it is not already going away */
->  extern struct mm_struct *get_task_mm(struct task_struct *task);
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -925,22 +925,6 @@ void mmput(struct mm_struct *mm)
->  }
->  EXPORT_SYMBOL_GPL(mmput);
->  
-> -#ifdef CONFIG_MMU
-> -static void mmput_async_fn(struct work_struct *work)
-> -{
-> -	struct mm_struct *mm = container_of(work, struct mm_struct, async_put_work);
-> -	__mmput(mm);
-> -}
-> -
-> -void mmput_async(struct mm_struct *mm)
-> -{
-> -	if (atomic_dec_and_test(&mm->mm_users)) {
-> -		INIT_WORK(&mm->async_put_work, mmput_async_fn);
-> -		schedule_work(&mm->async_put_work);
-> -	}
-> -}
-> -#endif
-> -
->  /**
->   * set_mm_exe_file - change a reference to the mm's executable file
->   *
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+[1]: https://lwn.net/Articles/730570/
 
--- 
-Michal Hocko
-SUSE Labs
+---
+
+This is the next revision of a patch series that aims to enable
+applications that otherwise need to resort to DAX mapping a raw device
+file to instead move to a filesystem.
+
+In the course of reviewing a previous posting, Christoph said:
+
+    That being said I think we absolutely should support RDMA memory
+    registrations for DAX mappings.  I'm just not sure how S_IOMAP_IMMUTABLE
+    helps with that.  We'll want a MAP_SYNC | MAP_POPULATE to make sure all
+    the blocks are populated and all ptes are set up.  Second we need to
+    make sure get_user_page works, which for now means we'll need a struct
+    page mapping for the region (which will be really annoying for PCIe
+    mappings, like the upcoming NVMe persistent memory region), and we need
+    to guarantee that the extent mapping won't change while the
+    get_user_pages holds the pages inside it.  I think that is true due to
+    side effects even with the current DAX code, but we'll need to make it
+    explicit.  And maybe that's where we need to converge - "sealing" the
+    extent map makes sense as such a temporary measure that is not persisted
+    on disk, which automatically gets released when the holding process
+    exits, because we sort of already do this implicitly.  It might also
+    make sense to have explicitly breakable seals similar to what I do for
+    the pNFS blocks kernel server, as any userspace RDMA file server would
+    also need those semantics.
+
+So, this is an attempt to converge on the idea that we need an explicit
+and process-lifetime-temporary mechanism for a process to be able to
+make assumptions about the mapping to physical page to dax-file-offset
+relationship. The "explicitly breakable seals" aspect is not addressed
+in these patches, but I wonder if it might be a voluntary mechanism that
+can implemented via userfaultfd.
+
+These pass a basic smoke test and are meant to just gauge 'right track'
+/ 'wrong track'. The main question it seems is whether the pinning done
+in this patchset is too early (applies before get_user_pages()) and too
+coarse (applies to the whole file). Perhaps this is where I discarded
+too easily Jan's suggestion to look at Peter Z's mm_mpin() syscall [2]? On
+the other hand, the coarseness and simple lifetime rules of MAP_DIRECT
+make it an easy mechanism to implement and explain.
+
+Another reason I kept the scope of S_IOMAP_SEALED coarsely defined was
+to support Dave's desired use case of sealing for operating on reflinked
+files [3].
+
+Suggested mmap(2) man page edits are included in the changelog of patch
+3.
+
+[2]: https://lwn.net/Articles/600502/
+[3]: https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1467677.html
+
+---
+
+Dan Williams (3):
+      fs, xfs: introduce S_IOMAP_SEALED
+      mm: introduce MAP_VALIDATE a mechanism for adding new mmap flags
+      fs, xfs: introduce MAP_DIRECT for creating block-map-sealed file ranges
+
+
+ fs/attr.c                              |   10 +++
+ fs/dax.c                               |    2 +
+ fs/open.c                              |    6 ++
+ fs/read_write.c                        |    3 +
+ fs/xfs/libxfs/xfs_bmap.c               |    5 +
+ fs/xfs/xfs_bmap_util.c                 |    3 +
+ fs/xfs/xfs_file.c                      |  107 ++++++++++++++++++++++++++++++++
+ fs/xfs/xfs_inode.h                     |    1 
+ fs/xfs/xfs_ioctl.c                     |    6 ++
+ fs/xfs/xfs_super.c                     |    1 
+ include/linux/fs.h                     |    9 +++
+ include/linux/mm.h                     |    2 -
+ include/linux/mm_types.h               |    1 
+ include/linux/mman.h                   |    3 +
+ include/uapi/asm-generic/mman-common.h |    2 +
+ mm/filemap.c                           |    5 +
+ mm/mmap.c                              |   22 ++++++-
+ 17 files changed, 183 insertions(+), 5 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
