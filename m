@@ -1,52 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CB766B025F
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 08:58:23 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id n88so1171995wrb.0
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 05:58:23 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id u62si1233928wmb.159.2017.08.15.05.58.21
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 89D786B0292
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 08:58:39 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id k82so881091oih.1
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 05:58:39 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id k10si6507254oih.424.2017.08.15.05.58.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Aug 2017 05:58:22 -0700 (PDT)
-Date: Tue, 15 Aug 2017 13:57:50 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v5 2/4] mm, oom: cgroup-aware OOM killer
-Message-ID: <20170815125750.GB15892@castle.dhcp.TheFacebook.com>
-References: <20170814183213.12319-1-guro@fb.com>
- <20170814183213.12319-3-guro@fb.com>
- <alpine.DEB.2.10.1708141532300.63207@chino.kir.corp.google.com>
- <20170815121558.GA15892@castle.dhcp.TheFacebook.com>
- <f769d03d-5743-b794-a249-bb52b408ab0e@suse.de>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 15 Aug 2017 05:58:38 -0700 (PDT)
+Message-Id: <201708151258.v7FCwTsV029946@www262.sakura.ne.jp>
+Subject: Re: Re: Re: Re: [PATCH 2/2] mm, oom: fix potential data corruption when
+ =?ISO-2022-JP?B?b29tX3JlYXBlciByYWNlcyB3aXRoIHdyaXRlcg==?=
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <f769d03d-5743-b794-a249-bb52b408ab0e@suse.de>
+Date: Tue, 15 Aug 2017 21:58:29 +0900
+References: <201708151006.v7FA6SxD079619@www262.sakura.ne.jp> <20170815122621.GE29067@dhcp22.suse.cz>
+In-Reply-To: <20170815122621.GE29067@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aleksa Sarai <asarai@suse.de>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, andrea@kernel.org, kirill@shutemov.name, oleg@redhat.com, wenwei.tww@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Aug 15, 2017 at 10:20:18PM +1000, Aleksa Sarai wrote:
-> On 08/15/2017 10:15 PM, Roman Gushchin wrote:
-> > Generally, oom_score_adj should have a meaning only on a cgroup level,
-> > so extending it to the system level doesn't sound as a good idea.
+> On Tue 15-08-17 19:06:28, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > On Tue 15-08-17 07:51:02, Tetsuo Handa wrote:
+> > > > Michal Hocko wrote:
+> > > [...]
+> > > > > Were you able to reproduce with other filesystems?
+> > > > 
+> > > > Yes, I can reproduce this problem using both xfs and ext4 on 4.11.11-200.fc25.x86_64
+> > > > on Oracle VM VirtualBox on Windows.
+> > > 
+> > > Just a quick question.
+> > > http://lkml.kernel.org/r/201708112053.FIG52141.tHJSOQFLOFMFOV@I-love.SAKURA.ne.jp
+> > > mentioned next-20170811 kernel and this one 4.11. Your original report
+> > > as a reply to this thread
+> > > http://lkml.kernel.org/r/201708072228.FAJ09347.tOOVOFFQJSHMFL@I-love.SAKURA.ne.jp
+> > > mentioned next-20170728. None of them seem to have this fix
+> > > http://lkml.kernel.org/r/20170807113839.16695-3-mhocko@kernel.org so let
+> > > me ask again. Have you seen an unexpected content written with that
+> > > patch applied?
+> > 
+> > No. All non-zero non-0xFF values are without that patch applied.
+> > I want to confirm that that patch actually fixes non-zero non-0xFF values
+> > (so that we can have better patch description for that patch).
 > 
-> But wasn't the original purpose of oom_score (and oom_score_adj) to work on
-> a system level, aka "normal" OOM? Is there some peculiarity about memcg OOM
-> that I'm missing?
+> OK, so I have clearly misunderstood you. I thought that you can still
+> see corrupted content with the patch _applied_. Now I see why I couldn't
+> reproduce this...
 
-I'm sorry, if it wasn't clear from my message, it's not about
-the system-wide OOM vs the memcg-wide OOM, it's about the isolation.
+If I apply this patch, I can no longer reproduce this problem even with btrfs.
 
-In general, decision is made on memcg level first (based on oom_priority
-and size), and only then on a task level (based on size and oom_score_adj).
+-+ * and could cause a memory corruption (zero pages instead of the
+-+ * original content).
+++ * and could cause a memory corruption (random content instead of the
+++ * original content).
 
-Oom_score_adj affects which task inside the cgroup will be killed,
-but we never compare tasks from different cgroups. This is what I mean,
-when I'm saying, that oom_score_adj should not have a system-wide meaning.
+Tested-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-Thanks!
+> 
+> Now I also understand what you meant when asking for an explanation. I
+> can only speculate how we could end up with the non-zero page previously
+> but the closest match would be that the page got unmapped and reused by
+> a different path and a stalled tlb entry would leak the content. Such a
+> thing would happen if we freed the page _before_ we flushed the tlb
+> during unmap.
+> 
+> Considering that oom_reaper is relying on unmap_page_range which seems
+> to be doing the right thing wrt. flushing vs. freeing ordering (enforced
+> by the tlb_gather) I am wondering what else could go wrong but I vaguely
+> remember there were some races between THP and MADV_DONTNEED in the
+> past. Maybe we have hit an incarnation of something like that. Anyway
+> the oom_reaper doesn't try to be clever and it only calls to
+> unmap_page_range which should be safe from that context.
+> 
+> The primary bug here was that we allowed to refault an unmmaped memory
+> and that should be fixed by the patch AFAICS. If there are more issues
+> we should definitely track those down but those should be oom_reaper
+> independent because we really do not do anything special here.
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
