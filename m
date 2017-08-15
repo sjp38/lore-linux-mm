@@ -1,90 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CE2496B0292
-	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 21:48:07 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id z19so12850594oia.13
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 18:48:07 -0700 (PDT)
-Received: from mail-oi0-x231.google.com (mail-oi0-x231.google.com. [2607:f8b0:4003:c06::231])
-        by mx.google.com with ESMTPS id e136si5868501oih.252.2017.08.14.18.48.06
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A78176B025F
+	for <linux-mm@kvack.org>; Mon, 14 Aug 2017 21:52:43 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id u11so61046989qtu.10
+        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 18:52:43 -0700 (PDT)
+Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
+        by mx.google.com with ESMTPS id t44si7802409qtt.350.2017.08.14.18.52.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Aug 2017 18:48:06 -0700 (PDT)
-Received: by mail-oi0-x231.google.com with SMTP id e124so100462279oig.2
-        for <linux-mm@kvack.org>; Mon, 14 Aug 2017 18:48:06 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <84c7f26182b7f4723c0fe3b34ba912a9de92b8b7.1502758114.git.tim.c.chen@linux.intel.com>
-References: <84c7f26182b7f4723c0fe3b34ba912a9de92b8b7.1502758114.git.tim.c.chen@linux.intel.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 14 Aug 2017 18:48:06 -0700
-Message-ID: <CA+55aFznC1wqBSfYr8=92LGqz5-F6fHMzdXoqM4aOYx8sT1Dhg@mail.gmail.com>
-Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
-Content-Type: text/plain; charset="UTF-8"
+        Mon, 14 Aug 2017 18:52:42 -0700 (PDT)
+From: Zi Yan <zi.yan@sent.com>
+Subject: [RFC PATCH 0/4] mm: hwpoison: soft-offline support for thp migration
+Date: Mon, 14 Aug 2017 21:52:12 -0400
+Message-Id: <20170815015216.31827-1-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Kan Liang <kan.liang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Zi Yan <zi.yan@cs.rutgers.edu>
 
-On Mon, Aug 14, 2017 at 5:52 PM, Tim Chen <tim.c.chen@linux.intel.com> wrote:
-> We encountered workloads that have very long wake up list on large
-> systems. A waker takes a long time to traverse the entire wake list and
-> execute all the wake functions.
->
-> We saw page wait list that are up to 3700+ entries long in tests of large
-> 4 and 8 socket systems.  It took 0.8 sec to traverse such list during
-> wake up.  Any other CPU that contends for the list spin lock will spin
-> for a long time.  As page wait list is shared by many pages so it could
-> get very long on systems with large memory.
+From: Zi Yan <zi.yan@cs.rutgers.edu>
 
-I really dislike this patch.
+Hi Naoya,
 
-The patch seems a band-aid for really horrible kernel behavior, rather
-than fixing the underlying problem itself.
+Here is soft-offline support for thp migration. I need comments since it has
+an interface change (Patch 2) of soft_offline_page() and
+a behavior change (Patch 3) in migrate_pages(). soft_offline_page() is used
+in store_soft_offline_page() from drivers/base/memory.c.
 
-Now, it may well be that we do end up needing this band-aid in the
-end, so this isn't a NAK of the patch per se. But I'd *really* like to
-see if we can fix the underlying cause for what you see somehow..
+The patchset is on top of mmotm-2017-08-10-15-33.
 
-In particular, if this is about the page wait table, maybe we can just
-make the wait table bigger. IOW, are people actually waiting on the
-*same* page, or are they mainly waiting on totally different pages,
-just hashing to the same wait queue?
+The patchset is tested with:
+1. simple madvise() call program (https://github.com/x-y-z/soft-offline-test) and
+2. a local kernel change to intentionally fail allocating THPs for soft offline,
+   which makes to-be-soft-offlined THPs being split by Patch 3.
 
-Because right now that page wait table is a small fixed size, and the
-only reason it's a small fixed size is that nobody reported any issues
-with it - particularly since we now avoid the wait table entirely for
-the common cases by having that "contention" bit.
+Patch 1: obtain the size of a offlined page before it is offlined. The size is
+used as the step value of the for-loop inside madvise_inject_error().
+Originally, the for-loop used the size of offlined pages, which was OK.
+But as a THP is offlined, it is split afterwards, so the page size obtained
+after offlined is PAGE_SIZE instead of THP page size, which causes a THP being
+offlined 512 times.
 
-But it really is a *small* table. We literally have
+Patch 2: when offlining a THP, there are two situations, a) the THP is offlined
+as a whole, or b) the THP is split and only the raw error page is offlined.
+Thus, we need soft_offline_page() to tell us whether a THP is split during
+offlining, which leads to a new interface parameter.
 
-   #define PAGE_WAIT_TABLE_BITS 8
+Patch 3: as Naoya suggested, if a THP fails to be offlined as a whole, we should
+retry the raw error subpage. This patch implement it. This also requires
+migrate_pages() not splitting a THP if migration fails for MR_MEMORY_FAILURE.
 
-so it's just 256 entries. We could easily it much bigger, if we are
-actually seeing a lot of collissions.
+Patch 4: enable thp migration support for soft offline.
 
-We *used* to have a very complex per-zone thing for bit-waitiqueues,
-but that was because we got lots and lots of contention issues, and
-everybody *always* touched the wait-queues whether they waited or not
-(so being per-zone was a big deal)
+Any suggestions and comments are welcome.
 
-We got rid of all that per-zone complexity when the normal case didn't
-hit in the page wait queues at all, but we may have over-done the
-simplification a bit since nobody showed any issue.
+Thanks.
 
-In particular, we used to size the per-zone thing by amount of memory.
-We could easily re-introduce that for the new simpler page queues.
 
-The page_waitiqueue() is a simple helper function inside mm/filemap.c,
-and thanks to the per-page "do we have actual waiters" bit that we
-have now, we can actually afford to make it bigger and more complex
-now if we want to.
+Zi Yan (4):
+  mm: madvise: read loop's step size beforehand in
+    madvise_inject_error(), prepare for THP support.
+  mm: soft-offline: Change soft_offline_page() interface to tell if the
+    page is split or not.
+  mm: soft-offline: retry to split and soft-offline the raw error if the
+    original THP offlining fails.
+  mm: hwpoison: soft offline supports thp migration
 
-What happens to your load if you just make that table bigger? You can
-literally test by just changing the constant from 8 to 16 or
-something, making us use twice as many bits for hashing. A "real"
-patch would size it by amount of memory, but just for testing the
-contention on your load, you can do the hacky one-liner.
+ drivers/base/memory.c |   2 +-
+ include/linux/mm.h    |   2 +-
+ mm/madvise.c          |  24 ++++++++++--
+ mm/memory-failure.c   | 103 +++++++++++++++++++++++++++++---------------------
+ mm/migrate.c          |  16 ++++++++
+ 5 files changed, 97 insertions(+), 50 deletions(-)
 
-             Linus
+-- 
+2.13.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
