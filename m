@@ -1,103 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BD356B02B4
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 18:51:19 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id w63so2901738wrc.5
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 15:51:19 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id f65si1939207wmf.130.2017.08.15.15.51.17
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 181506B025F
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 18:54:42 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id z36so2891935wrb.13
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 15:54:42 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
+        by mx.google.com with ESMTPS id j17si2914831wrd.108.2017.08.15.15.54.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Aug 2017 15:51:17 -0700 (PDT)
-Date: Tue, 15 Aug 2017 15:51:14 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] mm,fork: introduce MADV_WIPEONFORK
-Message-Id: <20170815155114.ff9f4164eed28bf02db48fbb@linux-foundation.org>
-In-Reply-To: <20170811212829.29186-3-riel@redhat.com>
-References: <20170811212829.29186-1-riel@redhat.com>
-	<20170811212829.29186-3-riel@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 15 Aug 2017 15:54:41 -0700 (PDT)
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: quoted-printable
+From: Chris Wilson <chris@chris-wilson.co.uk>
+In-Reply-To: <20170815153010.e3cfc177af0b2c0dc421b84c@linux-foundation.org>
+References: <20170812113437.7397-1-chris@chris-wilson.co.uk>
+ <20170815153010.e3cfc177af0b2c0dc421b84c@linux-foundation.org>
+Message-ID: <150283758841.13477.1932975129094549388@mail.alporthouse.com>
+Subject: Re: [PATCH] mm: Reward slab shrinkers that reclaim more than they were asked
+Date: Tue, 15 Aug 2017 23:53:08 +0100
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: riel@redhat.com
-Cc: linux-kernel@vger.kernel.org, mhocko@kernel.org, mike.kravetz@oracle.com, linux-mm@kvack.org, fweimer@redhat.com, colm@allcosts.net, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org, kirill@shutemov.name, dave.hansen@intel.com, linux-api@vger.kernel.org, torvalds@linux-foundation.org, willy@infradead.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, intel-gfx@lists.freedesktop.org, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Shaohua Li <shli@fb.com>
 
-On Fri, 11 Aug 2017 17:28:29 -0400 riel@redhat.com wrote:
+Quoting Andrew Morton (2017-08-15 23:30:10)
+> On Sat, 12 Aug 2017 12:34:37 +0100 Chris Wilson <chris@chris-wilson.co.uk=
+> wrote:
+> =
 
-> From: Rik van Riel <riel@redhat.com>
-> 
-> Introduce MADV_WIPEONFORK semantics, which result in a VMA being
-> empty in the child process after fork. This differs from MADV_DONTFORK
-> in one important way.
-> 
-> If a child process accesses memory that was MADV_WIPEONFORK, it
-> will get zeroes. The address ranges are still valid, they are just empty.
-> 
-> If a child process accesses memory that was MADV_DONTFORK, it will
-> get a segmentation fault, since those address ranges are no longer
-> valid in the child after fork.
-> 
-> Since MADV_DONTFORK also seems to be used to allow very large
-> programs to fork in systems with strict memory overcommit restrictions,
-> changing the semantics of MADV_DONTFORK might break existing programs.
-> 
-> MADV_WIPEONFORK only works on private, anonymous VMAs.
-> 
-> The use case is libraries that store or cache information, and
-> want to know that they need to regenerate it in the child process
-> after fork.
-> 
-> Examples of this would be:
-> - systemd/pulseaudio API checks (fail after fork)
->   (replacing a getpid check, which is too slow without a PID cache)
-> - PKCS#11 API reinitialization check (mandated by specification)
-> - glibc's upcoming PRNG (reseed after fork)
-> - OpenSSL PRNG (reseed after fork)
-> 
-> The security benefits of a forking server having a re-inialized
-> PRNG in every child process are pretty obvious. However, due to
-> libraries having all kinds of internal state, and programs getting
-> compiled with many different versions of each library, it is
-> unreasonable to expect calling programs to re-initialize everything
-> manually after fork.
-> 
-> A further complication is the proliferation of clone flags,
-> programs bypassing glibc's functions to call clone directly,
-> and programs calling unshare, causing the glibc pthread_atfork
-> hook to not get called.
-> 
-> It would be better to have the kernel take care of this automatically.
+> > Some shrinkers may only be able to free a bunch of objects at a time, a=
+nd
+> > so free more than the requested nr_to_scan in one pass. Account for the
+> > extra freed objects against the total number of objects we intend to
+> > free, otherwise we may end up penalising the slab far more than intende=
+d.
+> > =
 
-I'll add "The patch also adds MADV_KEEPONFORK, to undo the effects of a
-prior MADV_WIPEONFORK." here.
+> > ...
+> >
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -398,6 +398,7 @@ static unsigned long do_shrink_slab(struct shrink_c=
+ontrol *shrinkctl,
+> >                       break;
+> >               freed +=3D ret;
+> >  =
 
-I guess it isn't worth mentioning that these things can cause VMA
-merges and splits. 
+> > +             nr_to_scan =3D max(nr_to_scan, ret);
+> >               count_vm_events(SLABS_SCANNED, nr_to_scan);
+> >               total_scan -=3D nr_to_scan;
+> >               scanned +=3D nr_to_scan;
+> =
 
-> --- a/mm/madvise.c
-> +++ b/mm/madvise.c
-> @@ -80,6 +80,17 @@ static long madvise_behavior(struct vm_area_struct *vma,
->  		}
->  		new_flags &= ~VM_DONTCOPY;
->  		break;
-> +	case MADV_WIPEONFORK:
-> +		/* MADV_WIPEONFORK is only supported on anonymous memory. */
-> +		if (vma->vm_file || vma->vm_flags & VM_SHARED) {
-> +			error = -EINVAL;
-> +			goto out;
-> +		}
-> +		new_flags |= VM_WIPEONFORK;
-> +		break;
-> +	case MADV_KEEPONFORK:
-> +		new_flags &= ~VM_WIPEONFORK;
-> +		break;
->  	case MADV_DONTDUMP:
->  		new_flags |= VM_DONTDUMP;
->  		break;
+> Well...  kinda.  But what happens if the shrinker scanned more objects
+> than requested but failed to free many of them?  Of if the shrinker
+> scanned less than requested?
+> =
 
-It seems odd to permit MADV_KEEPONFORK against other-than-anon vmas?
+> We really want to return nr_scanned from the shrinker invocation. =
+
+> Could we add a field to shrink_control for this?
+
+Yes, that will work better overall.
+-Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
