@@ -1,88 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CB196B0292
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 11:56:18 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id p62so4890676oih.12
-        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 08:56:18 -0700 (PDT)
-Received: from mail-it0-x22f.google.com (mail-it0-x22f.google.com. [2607:f8b0:4001:c0b::22f])
-        by mx.google.com with ESMTPS id x20si870182oix.459.2017.08.16.08.56.16
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 776BC6B025F
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 12:09:24 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id f23so53044907pgn.15
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 09:09:24 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id i3si653111pgo.666.2017.08.16.09.09.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Aug 2017 08:56:16 -0700 (PDT)
-Received: by mail-it0-x22f.google.com with SMTP id f16so20214183itb.0
-        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 08:56:16 -0700 (PDT)
-Subject: Re: [PATCH v1 2/6] fs: use on-stack-bio if backing device has
- BDI_CAP_SYNC capability
-References: <CAA9_cmekE9_PYmNnVmiOkyH2gq5o8=uvEKnAbMWw5nBX-zE69g@mail.gmail.com>
- <20170811104615.GA14397@lst.de>
- <20c5b30a-b787-1f46-f997-7542a87033f8@kernel.dk>
- <20170814085042.GG26913@bbox>
- <51f7472a-977b-be69-2688-48f2a0fa6fb3@kernel.dk>
- <20170814150620.GA12657@bgram>
- <51893dc5-05a3-629a-3b88-ecd8e25165d0@kernel.dk>
- <20170814153059.GA13497@bgram>
- <0c83e7af-10a4-3462-bb4c-4254adcf6f7a@kernel.dk>
- <058b4ae5-c6e9-ff32-6440-fb1e1b85b6fd@kernel.dk>
- <20170816044759.GC24294@blaptop>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <1046cd1e-35f2-2663-4886-64e6e4f2093c@kernel.dk>
-Date: Wed, 16 Aug 2017 09:56:12 -0600
-MIME-Version: 1.0
-In-Reply-To: <20170816044759.GC24294@blaptop>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Wed, 16 Aug 2017 09:09:23 -0700 (PDT)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7GG8ShM113738
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 12:09:22 -0400
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2ccnyfcxv6-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 12:09:22 -0400
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Wed, 16 Aug 2017 17:09:20 +0100
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Subject: [PATCH] mm: Remove useless vma parameter to offset_il_node
+Date: Wed, 16 Aug 2017 18:09:15 +0200
+Message-Id: <1502899755-23146-1-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, "karam . lee" <karam.lee@lge.com>, seungho1.park@lge.com, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Vishal Verma <vishal.l.verma@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, kernel-team <kernel-team@lge.com>
+To: linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@kernel.org, linux-kernel@vger.kernel.org
 
-On 08/15/2017 10:48 PM, Minchan Kim wrote:
-> Hi Jens,
-> 
-> On Mon, Aug 14, 2017 at 10:17:09AM -0600, Jens Axboe wrote:
->> On 08/14/2017 09:38 AM, Jens Axboe wrote:
->>> On 08/14/2017 09:31 AM, Minchan Kim wrote:
->>>>> Secondly, generally you don't have slow devices and fast devices
->>>>> intermingled when running workloads. That's the rare case.
->>>>
->>>> Not true. zRam is really popular swap for embedded devices where
->>>> one of low cost product has a really poor slow nand compared to
->>>> lz4/lzo [de]comression.
->>>
->>> I guess that's true for some cases. But as I said earlier, the recycling
->>> really doesn't care about this at all. They can happily coexist, and not
->>> step on each others toes.
->>
->> Dusted it off, result is here against -rc5:
->>
->> http://git.kernel.dk/cgit/linux-block/log/?h=cpu-alloc-cache
->>
->> I'd like to split the amount of units we cache and the amount of units
->> we free, right now they are both CPU_ALLOC_CACHE_SIZE. This means that
->> once we hit that count, we free all of the, and then store the one we
->> were asked to free. That always keeps 1 local, but maybe it'd make more
->> sense to cache just free CPU_ALLOC_CACHE_SIZE/2 (or something like that)
->> so that we retain more than 1 per cpu in case and app preempts when
->> sleeping for IO and the new task on that CPU then issues IO as well.
->> Probably minor.
->>
->> Ran a quick test on nullb0 with 32 sync readers. The test was O_DIRECT
->> on the block device, so I disabled the __blkdev_direct_IO_simple()
->> bypass. With the above branch, we get ~18.0M IOPS, and without we get
->> ~14M IOPS. Both ran with iostats disabled, to avoid any interference
->> from that.
-> 
-> Looks promising.
-> If recycling bio works well enough, I think we don't need to introduce
-> new split in the path for on-stack bio.
-> I will test your version on zram-swap!
+While reading the code I found that offset_il_node() has a vm_area_struct
+pointer parameter which is unused.
 
-Thanks, let me know how it goes. It's quite possible that we'll need
-a few further tweaks, but at least the basis should be there.
+Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+---
+ mm/mempolicy.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index d911fa5cb2a7..f2598578e63c 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1688,8 +1688,7 @@ unsigned int mempolicy_slab_node(void)
+  * node in pol->v.nodes (starting from n=0), wrapping around if n exceeds the
+  * number of present nodes.
+  */
+-static unsigned offset_il_node(struct mempolicy *pol,
+-			       struct vm_area_struct *vma, unsigned long n)
++static unsigned offset_il_node(struct mempolicy *pol, unsigned long n)
+ {
+ 	unsigned nnodes = nodes_weight(pol->v.nodes);
+ 	unsigned target;
+@@ -1722,7 +1721,7 @@ static inline unsigned interleave_nid(struct mempolicy *pol,
+ 		BUG_ON(shift < PAGE_SHIFT);
+ 		off = vma->vm_pgoff >> (shift - PAGE_SHIFT);
+ 		off += (addr - vma->vm_start) >> shift;
+-		return offset_il_node(pol, vma, off);
++		return offset_il_node(pol, off);
+ 	} else
+ 		return interleave_nodes(pol);
+ }
+@@ -2190,7 +2189,7 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
+ 
+ 		pgoff = vma->vm_pgoff;
+ 		pgoff += (addr - vma->vm_start) >> PAGE_SHIFT;
+-		polnid = offset_il_node(pol, vma, pgoff);
++		polnid = offset_il_node(pol, pgoff);
+ 		break;
+ 
+ 	case MPOL_PREFERRED:
 -- 
-Jens Axboe
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
