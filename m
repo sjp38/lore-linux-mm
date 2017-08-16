@@ -1,88 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 974516B025F
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 18:48:48 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id n205so963200oig.14
-        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 15:48:48 -0700 (PDT)
-Received: from mail-io0-x22f.google.com (mail-io0-x22f.google.com. [2607:f8b0:4001:c06::22f])
-        by mx.google.com with ESMTPS id p63si1125255oib.182.2017.08.16.15.48.47
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 132106B025F
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 18:50:26 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id b130so6054006oii.4
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 15:50:26 -0700 (PDT)
+Received: from mail-it0-x235.google.com (mail-it0-x235.google.com. [2607:f8b0:4001:c0b::235])
+        by mx.google.com with ESMTPS id a2si1411588oif.325.2017.08.16.15.50.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Aug 2017 15:48:47 -0700 (PDT)
-Received: by mail-io0-x22f.google.com with SMTP id o9so18048186iod.1
-        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 15:48:47 -0700 (PDT)
+        Wed, 16 Aug 2017 15:50:25 -0700 (PDT)
+Received: by mail-it0-x235.google.com with SMTP id m34so23683887iti.1
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 15:50:25 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170816224650.1089-3-labbott@redhat.com>
-References: <20170816224650.1089-1-labbott@redhat.com> <20170816224650.1089-3-labbott@redhat.com>
+In-Reply-To: <20170816224650.1089-2-labbott@redhat.com>
+References: <20170816224650.1089-1-labbott@redhat.com> <20170816224650.1089-2-labbott@redhat.com>
 From: Kees Cook <keescook@chromium.org>
-Date: Wed, 16 Aug 2017 15:48:46 -0700
-Message-ID: <CAGXu5j+pTNqoHC16LkJ5QLKHeAn6hsCcBMCk36jvd34Jd9Svtg@mail.gmail.com>
-Subject: Re: [PATCHv2 2/2] extract early boot entropy from the passed cmdline
+Date: Wed, 16 Aug 2017 15:50:24 -0700
+Message-ID: <CAGXu5jK=K5DmW=TODb6ZOd7fHqhjHjoOP2yTW-v_0jONsti4yw@mail.gmail.com>
+Subject: Re: [PATCHv2 1/2] init: Move stack canary initialization after setup_arch
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Laura Abbott <labbott@redhat.com>
-Cc: Daniel Micay <danielmicay@gmail.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Laura Abbott <lauraa@codeaurora.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Daniel Micay <danielmicay@gmail.com>
 
 On Wed, Aug 16, 2017 at 3:46 PM, Laura Abbott <labbott@redhat.com> wrote:
-> From: Daniel Micay <danielmicay@gmail.com>
+> From: Laura Abbott <lauraa@codeaurora.org>
 >
-> Existing Android bootloaders usually pass data useful as early entropy
-> on the kernel command-line. It may also be the case on other embedded
-> systems. Sample command-line from a Google Pixel running CopperheadOS:
+> Stack canary intialization involves getting a random number.
+> Getting this random number may involve accessing caches or other
+> architectural specific features which are not available until
+> after the architecture is setup. Move the stack canary initialization
+> later to accomodate this.
 >
->     console=ttyHSL0,115200,n8 androidboot.console=ttyHSL0
->     androidboot.hardware=sailfish user_debug=31 ehci-hcd.park=3
->     lpm_levels.sleep_disabled=1 cma=32M@0-0xffffffff buildvariant=user
->     veritykeyid=id:dfcb9db0089e5b3b4090a592415c28e1cb4545ab
->     androidboot.bootdevice=624000.ufshc androidboot.verifiedbootstate=yellow
->     androidboot.veritymode=enforcing androidboot.keymaster=1
->     androidboot.serialno=FA6CE0305299 androidboot.baseband=msm
->     mdss_mdp.panel=1:dsi:0:qcom,mdss_dsi_samsung_ea8064tg_1080p_cmd:1:none:cfg:single_dsi
->     androidboot.slot_suffix=_b fpsimd.fpsimd_settings=0
->     app_setting.use_app_setting=0 kernelflag=0x00000000 debugflag=0x00000000
->     androidboot.hardware.revision=PVT radioflag=0x00000000
->     radioflagex1=0x00000000 radioflagex2=0x00000000 cpumask=0x00000000
->     androidboot.hardware.ddr=4096MB,Hynix,LPDDR4 androidboot.ddrinfo=00000006
->     androidboot.ddrsize=4GB androidboot.hardware.color=GRA00
->     androidboot.hardware.ufs=32GB,Samsung androidboot.msm.hw_ver_id=268824801
->     androidboot.qf.st=2 androidboot.cid=11111111 androidboot.mid=G-2PW4100
->     androidboot.bootloader=8996-012001-1704121145
->     androidboot.oem_unlock_support=1 androidboot.fp_src=1
->     androidboot.htc.hrdump=detected androidboot.ramdump.opt=mem@2g:2g,mem@4g:2g
->     androidboot.bootreason=reboot androidboot.ramdump_enable=0 ro
->     root=/dev/dm-0 dm="system none ro,0 1 android-verity /dev/sda34"
->     rootwait skip_initramfs init=/init androidboot.wificountrycode=US
->     androidboot.boottime=1BLL:85,1BLE:669,2BLL:0,2BLE:1777,SW:6,KL:8136
->
-> Among other things, it contains a value unique to the device
-> (androidboot.serialno=FA6CE0305299), unique to the OS builds for the
-> device variant (veritykeyid=id:dfcb9db0089e5b3b4090a592415c28e1cb4545ab)
-> and timings from the bootloader stages in milliseconds
-> (androidboot.boottime=1BLL:85,1BLE:669,2BLL:0,2BLE:1777,SW:6,KL:8136).
->
-> Signed-off-by: Daniel Micay <danielmicay@gmail.com>
-> [labbott: Line-wrapped command line]
+> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
 > Signed-off-by: Laura Abbott <labbott@redhat.com>
-> ---
->  init/main.c | 1 +
->  1 file changed, 1 insertion(+)
->
-> diff --git a/init/main.c b/init/main.c
-> index 21d599eaad06..cb051aec46ef 100644
-> --- a/init/main.c
-> +++ b/init/main.c
-> @@ -533,6 +533,7 @@ asmlinkage __visible void __init start_kernel(void)
->          */
->         add_latent_entropy();
->         boot_init_stack_canary();
-> +       add_device_randomness(command_line, strlen(command_line));
 
-This should be above the add_latent_entropy() line there so the
-cmdline entropy can contribute to the canary entropy.
+Acked-by: Kees Cook <keescook@chromium.org>
 
 -Kees
 
+> ---
+> v2: Also moved add_latent_entropy per suggestion of Kees.
+> ---
+>  init/main.c | 11 +++++------
+>  1 file changed, 5 insertions(+), 6 deletions(-)
+>
+> diff --git a/init/main.c b/init/main.c
+> index 052481fbe363..21d599eaad06 100644
+> --- a/init/main.c
+> +++ b/init/main.c
+> @@ -515,12 +515,6 @@ asmlinkage __visible void __init start_kernel(void)
+>         smp_setup_processor_id();
+>         debug_objects_early_init();
+>
+> -       /*
+> -        * Set up the initial canary ASAP:
+> -        */
+> -       add_latent_entropy();
+> -       boot_init_stack_canary();
+> -
+>         cgroup_init_early();
+>
+>         local_irq_disable();
+> @@ -534,6 +528,11 @@ asmlinkage __visible void __init start_kernel(void)
+>         page_address_init();
+>         pr_notice("%s", linux_banner);
+>         setup_arch(&command_line);
+> +       /*
+> +        * Set up the the initial canary and entropy after arch
+> +        */
+> +       add_latent_entropy();
+> +       boot_init_stack_canary();
 >         mm_init_cpumask(&init_mm);
 >         setup_command_line(command_line);
 >         setup_nr_cpu_ids();
