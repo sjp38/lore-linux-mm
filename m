@@ -1,247 +1,219 @@
-From: riel@redhat.com
-Subject: [PATCH 2/2] mm,fork: introduce MADV_WIPEONFORK
-Date: Fri,  4 Aug 2017 15:01:10 -0400
-Message-ID: <20170804190110.17087-3-riel@redhat.com>
-References: <20170804190110.17087-1-riel@redhat.com>
+From: Chris Mi <chrism-VPRAkNaXOzVWk0Htik3J/w@public.gmane.org>
+Subject: [patch net-next 0/3] net/sched: Improve getting objects by
+ indexes
+Date: Tue, 15 Aug 2017 22:12:15 -0400
+Message-ID: <1502849538-14284-1-git-send-email-chrism@mellanox.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <20170804190110.17087-1-riel@redhat.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, fweimer@redhat.com, colm@allcosts.net, akpm@linux-foundation.org, rppt@linux.vnet.ibm.com, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <nbd-general-bounces-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org>
+List-Unsubscribe: <https://lists.sourceforge.net/lists/options/nbd-general>,
+ <mailto:nbd-general-request-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org?subject=unsubscribe>
+List-Archive: <http://sourceforge.net/mailarchive/forum.php?forum_name=nbd-general>
+List-Post: <mailto:nbd-general-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org>
+List-Help: <mailto:nbd-general-request-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org?subject=help>
+List-Subscribe: <https://lists.sourceforge.net/lists/listinfo/nbd-general>,
+ <mailto:nbd-general-request-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org?subject=subscribe>
+Errors-To: nbd-general-bounces-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org
+To: netdev-u79uwXL29TY76Z2rM5mHXA@public.gmane.org
+Cc: lucho-OnYtXJJ0/fesTnJN9+BGXg@public.gmane.org, sergey.senozhatsky.work-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org, snitzer-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org, wsa-z923LK4zBo2bacvFa/9K2g@public.gmane.org, markb-VPRAkNaXOzVWk0Htik3J/w@public.gmane.org, tom.leiming-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org, stefanr-MtYdepGKPcBMYopoZt5u/LNAH6kLmebB@public.gmane.org, zhi.a.wang-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org, nsekhar-l0cyMroinI0@public.gmane.org, dri-devel-PD4FTy7X32lNgt0PjOBp9y5qC8QIuHrW@public.gmane.org, bfields-uC3wQj2KruNg9hUCZPvPmw@public.gmane.org, linux-sctp-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, paulus-eUNUBHrolfbYtjvyW6yDsg@public.gmane.org, jinpu.wang-EIkl63zCoXaH+58JC4qpiA@public.gmane.org, pshelar-LZ6Gd1LRuIk@public.gmane.org, sumit.semwal-QSEj5FYQhm4dnm+yROfE0A@public.gmane.org, AlexBin.Xie-5C7GfCeVMHo@public.gmane.org, david1.zhou-5C7GfCeVMHo@public.gmane.org, linux-samsung-soc-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, maximlevitsky-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org, sudarsana.kalluru-h88ZbnxC6KDQT0dZR+AlfA@public.gmane.org, marek.vasut-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org, linux-atm-general-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org, dtwlin-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org, michel.daenzer-5C7GfCeVMHo@public.gmane.org, dledford-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org, tpmdd-devel-5NWGOfrQmneRv+LV9MX5uipxlwaOVQ5f@public.gmane.org, stern-nwvwT67g6+6dFdvTe/nMLpVzexx5G7lz@public.gmane.org, longman-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org, niranjana.vishwanathapura-ral2JQCrhuEAvxtiuMwx3w@public.gmane.org, philipp.reisner-63ez5xqkn6DQT0dZR+AlfA@public.gmane.org, shli-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org, linux-0h96xk9xTtrk1uMJSBkQmQ@public.gmane.org, ohad-Ix1uc/W3ht7QT0dZR+AlfA@public.gmane.org, pmladek-IBi9RG/b67k@public.gmane.org, dick.kennedy-dY08KVG/lbpWk0Htik3J/w@public.gmane.orglinux-
 List-Id: linux-mm.kvack.org
 
-From: Rik van Riel <riel@redhat.com>
+Using current TC code, it is very slow to insert a lot of rules.
 
-Introduce MADV_WIPEONFORK semantics, which result in a VMA being
-empty in the child process after fork. This differs from MADV_DONTFORK
-in one important way.
+In order to improve the rules update rate in TC,
+we introduced the following two changes:
+        1) changed cls_flower to use IDR to manage the filters.
+        2) changed all act_xxx modules to use IDR instead of
+           a small hash table
 
-If a child process accesses memory that was MADV_WIPEONFORK, it
-will get zeroes. The address ranges are still valid, they are just empty.
+But IDR has a limitation that it uses int. TC handle uses u32.
+To make sure there is no regression, we also changed IDR to use
+unsigned long. All clients of IDR are changed to use new IDR API.
 
-If a child process accesses memory that was MADV_DONTFORK, it will
-get a segmentation fault, since those address ranges are no longer
-valid in the child after fork.
+Chris Mi (3):
+  idr: Use unsigned long instead of int
+  net/sched: Change cls_flower to use IDR
+  net/sched: Change act_api and act_xxx modules to use IDR
 
-Since MADV_DONTFORK also seems to be used to allow very large
-programs to fork in systems with strict memory overcommit restrictions,
-changing the semantics of MADV_DONTFORK might break existing programs.
+ block/bsg.c                                     |   8 +-
+ block/genhd.c                                   |  12 +-
+ drivers/atm/nicstar.c                           |  11 +-
+ drivers/block/drbd/drbd_main.c                  |  31 +--
+ drivers/block/drbd/drbd_nl.c                    |  22 ++-
+ drivers/block/drbd/drbd_proc.c                  |   3 +-
+ drivers/block/drbd/drbd_receiver.c              |  15 +-
+ drivers/block/drbd/drbd_state.c                 |  34 ++--
+ drivers/block/drbd/drbd_worker.c                |   6 +-
+ drivers/block/loop.c                            |  17 +-
+ drivers/block/nbd.c                             |  20 +-
+ drivers/block/zram/zram_drv.c                   |   9 +-
+ drivers/char/tpm/tpm-chip.c                     |  10 +-
+ drivers/char/tpm/tpm.h                          |   2 +-
+ drivers/dca/dca-sysfs.c                         |   9 +-
+ drivers/firewire/core-cdev.c                    |  18 +-
+ drivers/firewire/core-device.c                  |  15 +-
+ drivers/gpu/drm/amd/amdgpu/amdgpu_bo_list.c     |   8 +-
+ drivers/gpu/drm/amd/amdgpu/amdgpu_ctx.c         |   9 +-
+ drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c         |   6 +-
+ drivers/gpu/drm/amd/amdgpu/amdgpu_kms.c         |   2 +-
+ drivers/gpu/drm/drm_auth.c                      |   9 +-
+ drivers/gpu/drm/drm_connector.c                 |  10 +-
+ drivers/gpu/drm/drm_context.c                   |  20 +-
+ drivers/gpu/drm/drm_dp_aux_dev.c                |  11 +-
+ drivers/gpu/drm/drm_drv.c                       |   6 +-
+ drivers/gpu/drm/drm_gem.c                       |  19 +-
+ drivers/gpu/drm/drm_info.c                      |   2 +-
+ drivers/gpu/drm/drm_mode_object.c               |  11 +-
+ drivers/gpu/drm/drm_syncobj.c                   |  18 +-
+ drivers/gpu/drm/exynos/exynos_drm_ipp.c         |  25 ++-
+ drivers/gpu/drm/i915/gvt/display.c              |   2 +-
+ drivers/gpu/drm/i915/gvt/kvmgt.c                |   2 +-
+ drivers/gpu/drm/i915/gvt/vgpu.c                 |   9 +-
+ drivers/gpu/drm/i915/i915_debugfs.c             |   6 +-
+ drivers/gpu/drm/i915/i915_gem_context.c         |   9 +-
+ drivers/gpu/drm/qxl/qxl_cmd.c                   |   8 +-
+ drivers/gpu/drm/qxl/qxl_release.c               |  14 +-
+ drivers/gpu/drm/sis/sis_mm.c                    |   8 +-
+ drivers/gpu/drm/tegra/drm.c                     |  10 +-
+ drivers/gpu/drm/tilcdc/tilcdc_slave_compat.c    |   3 +-
+ drivers/gpu/drm/vgem/vgem_fence.c               |  12 +-
+ drivers/gpu/drm/via/via_mm.c                    |   8 +-
+ drivers/gpu/drm/virtio/virtgpu_kms.c            |   5 +-
+ drivers/gpu/drm/virtio/virtgpu_vq.c             |   5 +-
+ drivers/gpu/drm/vmwgfx/vmwgfx_resource.c        |   9 +-
+ drivers/i2c/i2c-core-base.c                     |  19 +-
+ drivers/infiniband/core/cm.c                    |   8 +-
+ drivers/infiniband/core/cma.c                   |  12 +-
+ drivers/infiniband/core/rdma_core.c             |   9 +-
+ drivers/infiniband/core/sa_query.c              |  23 +--
+ drivers/infiniband/core/ucm.c                   |   7 +-
+ drivers/infiniband/core/ucma.c                  |  14 +-
+ drivers/infiniband/hw/cxgb3/iwch.c              |   4 +-
+ drivers/infiniband/hw/cxgb3/iwch.h              |   4 +-
+ drivers/infiniband/hw/cxgb4/device.c            |  18 +-
+ drivers/infiniband/hw/cxgb4/iw_cxgb4.h          |   4 +-
+ drivers/infiniband/hw/hfi1/init.c               |   9 +-
+ drivers/infiniband/hw/hfi1/vnic_main.c          |   6 +-
+ drivers/infiniband/hw/mlx4/cm.c                 |  13 +-
+ drivers/infiniband/hw/ocrdma/ocrdma_main.c      |   7 +-
+ drivers/infiniband/hw/qib/qib_init.c            |   9 +-
+ drivers/infiniband/ulp/opa_vnic/opa_vnic_vema.c |  10 +-
+ drivers/iommu/intel-svm.c                       |   9 +-
+ drivers/md/dm.c                                 |  13 +-
+ drivers/memstick/core/memstick.c                |  10 +-
+ drivers/memstick/core/ms_block.c                |   9 +-
+ drivers/memstick/core/mspro_block.c             |  12 +-
+ drivers/mfd/rtsx_pcr.c                          |   9 +-
+ drivers/misc/c2port/core.c                      |   7 +-
+ drivers/misc/cxl/context.c                      |   8 +-
+ drivers/misc/cxl/main.c                         |  15 +-
+ drivers/misc/mei/main.c                         |   8 +-
+ drivers/misc/mic/scif/scif_api.c                |  11 +-
+ drivers/misc/mic/scif/scif_ports.c              |  18 +-
+ drivers/misc/tifm_core.c                        |   9 +-
+ drivers/mtd/mtdcore.c                           |   9 +-
+ drivers/mtd/mtdcore.h                           |   2 +-
+ drivers/mtd/ubi/block.c                         |   7 +-
+ drivers/net/ppp/ppp_generic.c                   |  27 +--
+ drivers/net/tap.c                               |  10 +-
+ drivers/net/wireless/ath/ath10k/htt.h           |   3 +-
+ drivers/net/wireless/ath/ath10k/htt_tx.c        |  22 ++-
+ drivers/net/wireless/ath/ath10k/mac.c           |   2 +-
+ drivers/net/wireless/marvell/mwifiex/main.c     |  13 +-
+ drivers/net/wireless/marvell/mwifiex/wmm.c      |   2 +-
+ drivers/of/overlay.c                            |  15 +-
+ drivers/of/unittest.c                           |  25 ++-
+ drivers/power/supply/bq2415x_charger.c          |  16 +-
+ drivers/power/supply/bq27xxx_battery_i2c.c      |  15 +-
+ drivers/power/supply/ds2782_battery.c           |   9 +-
+ drivers/powercap/powercap_sys.c                 |   8 +-
+ drivers/pps/pps.c                               |  10 +-
+ drivers/rapidio/rio_cm.c                        |  17 +-
+ drivers/remoteproc/remoteproc_core.c            |   8 +-
+ drivers/rpmsg/virtio_rpmsg_bus.c                |   8 +-
+ drivers/scsi/bfa/bfad_im.c                      |   8 +-
+ drivers/scsi/ch.c                               |   8 +-
+ drivers/scsi/lpfc/lpfc_crtn.h                   |   2 +-
+ drivers/scsi/lpfc/lpfc_init.c                   |  11 +-
+ drivers/scsi/lpfc/lpfc_vport.c                  |   8 +-
+ drivers/scsi/sg.c                               |  10 +-
+ drivers/scsi/st.c                               |   8 +-
+ drivers/staging/greybus/uart.c                  |  22 +--
+ drivers/staging/unisys/visorhba/visorhba_main.c |   7 +-
+ drivers/target/iscsi/iscsi_target.c             |   7 +-
+ drivers/target/iscsi/iscsi_target_login.c       |   9 +-
+ drivers/target/target_core_device.c             |   9 +-
+ drivers/target/target_core_user.c               |  13 +-
+ drivers/tee/tee_shm.c                           |   8 +-
+ drivers/uio/uio.c                               |   9 +-
+ drivers/usb/class/cdc-acm.c                     |  24 +--
+ drivers/usb/core/devices.c                      |   2 +-
+ drivers/usb/core/hcd.c                          |   7 +-
+ drivers/usb/mon/mon_main.c                      |   3 +-
+ drivers/usb/serial/usb-serial.c                 |  11 +-
+ drivers/vfio/vfio.c                             |  15 +-
+ fs/dlm/lock.c                                   |   9 +-
+ fs/dlm/lockspace.c                              |   6 +-
+ fs/dlm/recover.c                                |  10 +-
+ fs/nfs/nfs4client.c                             |   9 +-
+ fs/nfsd/nfs4state.c                             |   8 +-
+ fs/notify/inotify/inotify_fsnotify.c            |   4 +-
+ fs/notify/inotify/inotify_user.c                |   9 +-
+ fs/ocfs2/cluster/tcp.c                          |  10 +-
+ include/linux/idr.h                             |  26 +--
+ include/linux/of.h                              |   4 +-
+ include/linux/radix-tree.h                      |   2 +-
+ include/net/9p/9p.h                             |   2 +-
+ include/net/act_api.h                           |  76 +++-----
+ ipc/msg.c                                       |   2 +-
+ ipc/sem.c                                       |   2 +-
+ ipc/shm.c                                       |   4 +-
+ ipc/util.c                                      |  17 +-
+ kernel/bpf/syscall.c                            |  20 +-
+ kernel/cgroup/cgroup.c                          |  57 +++---
+ kernel/events/core.c                            |  10 +-
+ kernel/workqueue.c                              |  15 +-
+ lib/idr.c                                       |  38 ++--
+ lib/radix-tree.c                                |   5 +-
+ mm/memcontrol.c                                 |  11 +-
+ net/9p/client.c                                 |  17 +-
+ net/9p/util.c                                   |  14 +-
+ net/core/net_namespace.c                        |  23 ++-
+ net/mac80211/cfg.c                              |  23 +--
+ net/mac80211/iface.c                            |   3 +-
+ net/mac80211/main.c                             |   2 +-
+ net/mac80211/tx.c                               |   7 +-
+ net/mac80211/util.c                             |   3 +-
+ net/netlink/genetlink.c                         |  18 +-
+ net/qrtr/qrtr.c                                 |  21 +-
+ net/rxrpc/conn_client.c                         |  15 +-
+ net/sched/act_api.c                             | 249 +++++++++++-------------
+ net/sched/act_bpf.c                             |  17 +-
+ net/sched/act_connmark.c                        |  16 +-
+ net/sched/act_csum.c                            |  16 +-
+ net/sched/act_gact.c                            |  16 +-
+ net/sched/act_ife.c                             |  20 +-
+ net/sched/act_ipt.c                             |  26 ++-
+ net/sched/act_mirred.c                          |  19 +-
+ net/sched/act_nat.c                             |  16 +-
+ net/sched/act_pedit.c                           |  18 +-
+ net/sched/act_police.c                          |  18 +-
+ net/sched/act_sample.c                          |  17 +-
+ net/sched/act_simple.c                          |  20 +-
+ net/sched/act_skbedit.c                         |  18 +-
+ net/sched/act_skbmod.c                          |  18 +-
+ net/sched/act_tunnel_key.c                      |  20 +-
+ net/sched/act_vlan.c                            |  22 +--
+ net/sched/cls_flower.c                          |  55 +++---
+ net/sctp/associola.c                            |   8 +-
+ net/tipc/server.c                               |   7 +-
+ 172 files changed, 1256 insertions(+), 1113 deletions(-)
 
-The use case is libraries that store or cache information, and
-want to know that they need to regenerate it in the child process
-after fork.
-
-Examples of this would be:
-- systemd/pulseaudio API checks (fail after fork)
-  (replacing a getpid check, which is too slow without a PID cache)
-- PKCS#11 API reinitialization check (mandated by specification)
-- glibc's upcoming PRNG (reseed after fork)
-- OpenSSL PRNG (reseed after fork)
-
-The security benefits of a forking server having a re-inialized
-PRNG in every child process are pretty obvious. However, due to
-libraries having all kinds of internal state, and programs getting
-compiled with many different versions of each library, it is
-unreasonable to expect calling programs to re-initialize everything
-manually after fork.
-
-A further complication is the proliferation of clone flags,
-programs bypassing glibc's functions to call clone directly,
-and programs calling unshare, causing the glibc pthread_atfork
-hook to not get called.
-
-It would be better to have the kernel take care of this automatically.
-
-This is similar to the OpenBSD minherit syscall with MAP_INHERIT_ZERO:
-
-    https://man.openbsd.org/minherit.2
-
-Reported-by: Florian Weimer <fweimer@redhat.com>
-Reported-by: Colm MacCártaigh <colm@allcosts.net>
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- arch/alpha/include/uapi/asm/mman.h     |  3 +++
- arch/mips/include/uapi/asm/mman.h      |  3 +++
- arch/parisc/include/uapi/asm/mman.h    |  3 +++
- arch/xtensa/include/uapi/asm/mman.h    |  3 +++
- fs/proc/task_mmu.c                     |  1 +
- include/linux/mm.h                     |  2 +-
- include/uapi/asm-generic/mman-common.h |  3 +++
- kernel/fork.c                          |  8 ++++++--
- mm/madvise.c                           |  8 ++++++++
- mm/memory.c                            | 10 ++++++++++
- 10 files changed, 41 insertions(+), 3 deletions(-)
-
-diff --git a/arch/alpha/include/uapi/asm/mman.h b/arch/alpha/include/uapi/asm/mman.h
-index 02760f6e6ca4..2a708a792882 100644
---- a/arch/alpha/include/uapi/asm/mman.h
-+++ b/arch/alpha/include/uapi/asm/mman.h
-@@ -64,6 +64,9 @@
- 					   overrides the coredump filter bits */
- #define MADV_DODUMP	17		/* Clear the MADV_NODUMP flag */
- 
-+#define MADV_WIPEONFORK 18		/* Zero memory on fork, child only */
-+#define MADV_KEEPONFORK 19		/* Undo MADV_WIPEONFORK */
-+
- /* compatibility flags */
- #define MAP_FILE	0
- 
-diff --git a/arch/mips/include/uapi/asm/mman.h b/arch/mips/include/uapi/asm/mman.h
-index 655e2fb5395b..d59c57d60d7d 100644
---- a/arch/mips/include/uapi/asm/mman.h
-+++ b/arch/mips/include/uapi/asm/mman.h
-@@ -91,6 +91,9 @@
- 					   overrides the coredump filter bits */
- #define MADV_DODUMP	17		/* Clear the MADV_NODUMP flag */
- 
-+#define MADV_WIPEONFORK 18		/* Zero memory on fork, child only */
-+#define MADV_KEEPONFORK 19		/* Undo MADV_WIPEONFORK */
-+
- /* compatibility flags */
- #define MAP_FILE	0
- 
-diff --git a/arch/parisc/include/uapi/asm/mman.h b/arch/parisc/include/uapi/asm/mman.h
-index 5979745815a5..e205e0179642 100644
---- a/arch/parisc/include/uapi/asm/mman.h
-+++ b/arch/parisc/include/uapi/asm/mman.h
-@@ -60,6 +60,9 @@
- 					   overrides the coredump filter bits */
- #define MADV_DODUMP	70		/* Clear the MADV_NODUMP flag */
- 
-+#define MADV_WIPEONFORK 71		/* Zero memory on fork, child only */
-+#define MADV_KEEPONFORK 72		/* Undo MADV_WIPEONFORK */
-+
- /* compatibility flags */
- #define MAP_FILE	0
- #define MAP_VARIABLE	0
-diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
-index 24365b30aae9..ed23e0a1b30d 100644
---- a/arch/xtensa/include/uapi/asm/mman.h
-+++ b/arch/xtensa/include/uapi/asm/mman.h
-@@ -103,6 +103,9 @@
- 					   overrides the coredump filter bits */
- #define MADV_DODUMP	17		/* Clear the MADV_NODUMP flag */
- 
-+#define MADV_WIPEONFORK 18		/* Zero memory on fork, child only */
-+#define MADV_KEEPONFORK 19		/* Undo MADV_WIPEONFORK */
-+
- /* compatibility flags */
- #define MAP_FILE	0
- 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index b836fd61ed87..2591e70216ff 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -651,6 +651,7 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
- 		[ilog2(VM_NORESERVE)]	= "nr",
- 		[ilog2(VM_HUGETLB)]	= "ht",
- 		[ilog2(VM_ARCH_1)]	= "ar",
-+		[ilog2(VM_WIPEONFORK)]	= "wf",
- 		[ilog2(VM_DONTDUMP)]	= "dd",
- #ifdef CONFIG_MEM_SOFT_DIRTY
- 		[ilog2(VM_SOFTDIRTY)]	= "sd",
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 7550eeb06ccf..58788c1b9e9d 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -189,7 +189,7 @@ extern unsigned int kobjsize(const void *objp);
- #define VM_NORESERVE	0x00200000	/* should the VM suppress accounting */
- #define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
- #define VM_ARCH_1	0x01000000	/* Architecture-specific flag */
--#define VM_ARCH_2	0x02000000
-+#define VM_WIPEONFORK	0x02000000	/* Wipe VMA contents in child. */
- #define VM_DONTDUMP	0x04000000	/* Do not include in the core dump */
- 
- #ifdef CONFIG_MEM_SOFT_DIRTY
-diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
-index 8c27db0c5c08..49e2b1d78093 100644
---- a/include/uapi/asm-generic/mman-common.h
-+++ b/include/uapi/asm-generic/mman-common.h
-@@ -58,6 +58,9 @@
- 					   overrides the coredump filter bits */
- #define MADV_DODUMP	17		/* Clear the MADV_DONTDUMP flag */
- 
-+#define MADV_WIPEONFORK 18		/* Zero memory on fork, child only */
-+#define MADV_KEEPONFORK 19		/* Undo MADV_WIPEONFORK */
-+
- /* compatibility flags */
- #define MAP_FILE	0
- 
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 17921b0390b4..2dd0d0cae3bb 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -628,7 +628,7 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
- 
- 	prev = NULL;
- 	for (mpnt = oldmm->mmap; mpnt; mpnt = mpnt->vm_next) {
--		struct file *file;
-+		struct file *file = NULL;
- 
- 		if (mpnt->vm_flags & VM_DONTCOPY) {
- 			vm_stat_account(mm, mpnt->vm_flags, -vma_pages(mpnt));
-@@ -658,7 +658,11 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
- 			goto fail_nomem_anon_vma_fork;
- 		tmp->vm_flags &= ~(VM_LOCKED | VM_LOCKONFAULT);
- 		tmp->vm_next = tmp->vm_prev = NULL;
--		file = tmp->vm_file;
-+
-+		/* With VM_WIPEONFORK, the child gets an empty VMA. */
-+		if (!(tmp->vm_flags & VM_WIPEONFORK))
-+			file = tmp->vm_file;
-+
- 		if (file) {
- 			struct inode *inode = file_inode(file);
- 			struct address_space *mapping = file->f_mapping;
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 9976852f1e1c..9e644c0ed4dc 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -80,6 +80,12 @@ static long madvise_behavior(struct vm_area_struct *vma,
- 		}
- 		new_flags &= ~VM_DONTCOPY;
- 		break;
-+	case MADV_WIPEONFORK:
-+		new_flags |= VM_WIPEONFORK;
-+		break;
-+	case MADV_KEEPONFORK:
-+		new_flags &= ~VM_WIPEONFORK;
-+		break;
- 	case MADV_DONTDUMP:
- 		new_flags |= VM_DONTDUMP;
- 		break;
-@@ -689,6 +695,8 @@ madvise_behavior_valid(int behavior)
- #endif
- 	case MADV_DONTDUMP:
- 	case MADV_DODUMP:
-+	case MADV_WIPEONFORK:
-+	case MADV_KEEPONFORK:
- #ifdef CONFIG_MEMORY_FAILURE
- 	case MADV_SOFT_OFFLINE:
- 	case MADV_HWPOISON:
-diff --git a/mm/memory.c b/mm/memory.c
-index 0e517be91a89..f9b0ad7feb57 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1134,6 +1134,16 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 			!vma->anon_vma)
- 		return 0;
- 
-+	/*
-+	 * With VM_WIPEONFORK, the child inherits the VMA from the
-+	 * parent, but not its contents.
-+	 *
-+	 * A child accessing VM_WIPEONFORK memory will see all zeroes;
-+	 * a child accessing VM_DONTCOPY memory receives a segfault.
-+	 */
-+	if (vma->vm_flags & VM_WIPEONFORK)
-+		return 0;
-+
- 	if (is_vm_hugetlb_page(vma))
- 		return copy_hugetlb_page_range(dst_mm, src_mm, vma);
- 
 -- 
-2.9.4
+1.8.3.1
+
+
+------------------------------------------------------------------------------
+Check out the vibrant tech community on one of the world's most
+engaging tech sites, Slashdot.org! http://sdm.link/slashdot
