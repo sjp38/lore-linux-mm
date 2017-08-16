@@ -1,75 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 776BC6B025F
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 12:09:24 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id f23so53044907pgn.15
-        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 09:09:24 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id i3si653111pgo.666.2017.08.16.09.09.23
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E9C946B025F
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 12:29:26 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id c13so66270067ywa.2
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 09:29:26 -0700 (PDT)
+Received: from mail-yw0-x22b.google.com (mail-yw0-x22b.google.com. [2607:f8b0:4002:c05::22b])
+        by mx.google.com with ESMTPS id b14si331958ybm.114.2017.08.16.09.29.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Aug 2017 09:09:23 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7GG8ShM113738
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 12:09:22 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ccnyfcxv6-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 12:09:22 -0400
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Wed, 16 Aug 2017 17:09:20 +0100
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: [PATCH] mm: Remove useless vma parameter to offset_il_node
-Date: Wed, 16 Aug 2017 18:09:15 +0200
-Message-Id: <1502899755-23146-1-git-send-email-ldufour@linux.vnet.ibm.com>
+        Wed, 16 Aug 2017 09:29:25 -0700 (PDT)
+Received: by mail-yw0-x22b.google.com with SMTP id s143so25836450ywg.1
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 09:29:25 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20170816111244.uxx6kvbi3cn5clqd@node.shutemov.name>
+References: <150286944610.8837.9513410258028246174.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <150286946864.8837.17147962029964281564.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20170816111244.uxx6kvbi3cn5clqd@node.shutemov.name>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 16 Aug 2017 09:29:24 -0700
+Message-ID: <CAPcyv4iFzbVMgEJen--QNnFH7uuU7PWCV6S9c3fPwDMrr3iZjA@mail.gmail.com>
+Subject: Re: [PATCH v5 4/5] fs, xfs: introduce MAP_DIRECT for creating
+ block-map-atomic file ranges
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@kernel.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Darrick J. Wong" <darrick.wong@oracle.com>, Linux API <linux-api@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
 
-While reading the code I found that offset_il_node() has a vm_area_struct
-pointer parameter which is unused.
+On Wed, Aug 16, 2017 at 4:12 AM, Kirill A. Shutemov
+<kirill@shutemov.name> wrote:
+> On Wed, Aug 16, 2017 at 12:44:28AM -0700, Dan Williams wrote:
+>> @@ -1411,6 +1422,9 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+>>
+>>                       /* fall through */
+>>               case MAP_PRIVATE:
+>> +                     if ((flags & (MAP_PRIVATE|MAP_DIRECT))
+>> +                                     == (MAP_PRIVATE|MAP_DIRECT))
+>> +                             return -EINVAL;
+>
+> We've already checked for MAP_PRIVATE in this codepath. Simple (flags &
+> MAP_DIRECT) would be enough.
 
-Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
----
- mm/mempolicy.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
-
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index d911fa5cb2a7..f2598578e63c 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1688,8 +1688,7 @@ unsigned int mempolicy_slab_node(void)
-  * node in pol->v.nodes (starting from n=0), wrapping around if n exceeds the
-  * number of present nodes.
-  */
--static unsigned offset_il_node(struct mempolicy *pol,
--			       struct vm_area_struct *vma, unsigned long n)
-+static unsigned offset_il_node(struct mempolicy *pol, unsigned long n)
- {
- 	unsigned nnodes = nodes_weight(pol->v.nodes);
- 	unsigned target;
-@@ -1722,7 +1721,7 @@ static inline unsigned interleave_nid(struct mempolicy *pol,
- 		BUG_ON(shift < PAGE_SHIFT);
- 		off = vma->vm_pgoff >> (shift - PAGE_SHIFT);
- 		off += (addr - vma->vm_start) >> shift;
--		return offset_il_node(pol, vma, off);
-+		return offset_il_node(pol, off);
- 	} else
- 		return interleave_nodes(pol);
- }
-@@ -2190,7 +2189,7 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
- 
- 		pgoff = vma->vm_pgoff;
- 		pgoff += (addr - vma->vm_start) >> PAGE_SHIFT;
--		polnid = offset_il_node(pol, vma, pgoff);
-+		polnid = offset_il_node(pol, pgoff);
- 		break;
- 
- 	case MPOL_PREFERRED:
--- 
-2.7.4
+True, willl fix.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
