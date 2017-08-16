@@ -1,124 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 615B66B025F
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 13:20:15 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id d5so18991235pfg.3
-        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 10:20:15 -0700 (PDT)
-Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
-        by mx.google.com with ESMTPS id a15si784034pfl.347.2017.08.16.10.20.13
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 919566B025F
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 13:28:46 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id n140so68762955ywd.13
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 10:28:46 -0700 (PDT)
+Received: from mail-yw0-x22e.google.com (mail-yw0-x22e.google.com. [2607:f8b0:4002:c05::22e])
+        by mx.google.com with ESMTPS id e9si335221ybf.564.2017.08.16.10.28.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Aug 2017 10:20:13 -0700 (PDT)
-Received: from epcas5p2.samsung.com (unknown [182.195.41.40])
-	by mailout3.samsung.com (KnoxPortal) with ESMTP id 20170816172011epoutp037ea267e1cdd5bba2e4dd6ae72a977ff5~bYzw-QPf42221422214epoutp03M
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 17:20:11 +0000 (GMT)
-Mime-Version: 1.0
-Subject: [PATCH v2] zswap: Zero-filled pages handling
-Reply-To: srividya.dr@samsung.com
-From: Srividya Desireddy <srividya.dr@samsung.com>
-Message-ID: <20170816172008epcms5p24e951e01951f055559210af10edf2250@epcms5p2>
-Date: Wed, 16 Aug 2017 17:20:08 +0000
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset="utf-8"
-References: <CGME20170816172008epcms5p24e951e01951f055559210af10edf2250@epcms5p2>
+        Wed, 16 Aug 2017 10:28:45 -0700 (PDT)
+Received: by mail-yw0-x22e.google.com with SMTP id s143so26815863ywg.1
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 10:28:45 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <150286946864.8837.17147962029964281564.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <150286944610.8837.9513410258028246174.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <150286946864.8837.17147962029964281564.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 16 Aug 2017 10:28:21 -0700
+Message-ID: <CAPcyv4i+GbwcqMwKscTmTAuoXnQNfqBtHsxUu-L0+NzNO2f4Lw@mail.gmail.com>
+Subject: Re: [PATCH v5 4/5] fs, xfs: introduce MAP_DIRECT for creating
+ block-map-atomic file ranges
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "ddstreet@ieee.org" <ddstreet@ieee.org>, "sergey.senozhatsky.work@gmail.com" <sergey.senozhatsky.work@gmail.com>, "sjenning@redhat.com" <sjenning@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "penberg@kernel.org" <penberg@kernel.org>, Dinakar Reddy Pathireddy <dinakar.p@samsung.com>, SHARAN ALLUR <sharan.allur@samsung.com>, JUHUN KIM <juhunkim@samsung.com>, "srividya.desireddy@gmail.com" <srividya.desireddy@gmail.com>, Sarbojit Ganguly <ganguly.s@samsung.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>
 
-
-On Thu, Jul 6, 2017 at 3:32 PM, Dan Streetman wrote:
-> On Thu, Jul 6, 2017 at 5:29 AM, Srividya Desireddy
-> wrote:
->> On Wed, Jul 6, 2017 at 10:49 AM, Sergey Senozhatsky wrote:
->>> On (07/02/17 20:28), Seth Jennings wrote:
->>>> On Sun, Jul 2, 2017 at 9:19 AM, Srividya Desireddy
->>>> > Zswap is a cache which compresses the pages that are being swapped out
->>>> > and stores them into a dynamically allocated RAM-based memory pool.
->>>> > Experiments have shown that around 10-20% of pages stored in zswap
->>>> > are zero-filled pages (i.e. contents of the page are all zeros), but
->>>> > these pages are handled as normal pages by compressing and allocating
->>>> > memory in the pool.
->>>>
->>>> I am somewhat surprised that this many anon pages are zero filled.
->>>>
->>>> If this is true, then maybe we should consider solving this at the
->>>> swap level in general, as we can de-dup zero pages in all swap
->>>> devices, not just zswap.
->>>>
->>>> That being said, this is a fair small change and I don't see anything
->>>> objectionable.  However, I do think the better solution would be to do
->>> this at a higher level.
->>>
->>
->> Thank you for your suggestion. It is a better solution to handle
->> zero-filled pages before swapping-out to zswap. Since, Zram is already
->> handles Zero pages internally, I considered to handle within Zswap.
->> In a long run, we can work on it to commonly handle zero-filled anon
->> pages.
->>
->>> zero-filled pages are just 1 case. in general, it's better
->>> to handle pages that are memset-ed with the same value (e.g.
->>> memset(page, 0x01, page_size)). which includes, but not
->>> limited to, 0x00. zram does it.
->>>
->>>         -ss
->>
->> It is a good solution to extend zero-filled pages handling to same value
->> pages. I will work on to identify the percentage of same value pages
->> excluding zero-filled pages in Zswap and will get back.
+On Wed, Aug 16, 2017 at 12:44 AM, Dan Williams <dan.j.williams@intel.com> wrote:
+> MAP_DIRECT is an mmap(2) flag with the following semantics:
 >
-> Yes, this sounds like a good modification to the patch.  Also, unless
-> anyone else disagrees, it may be good to control this with a module
-> param - in case anyone has a use case that they know won't be helped
-> by this, and the extra overhead of checking each page is wasteful.
-> Probably should default to enabled.
+>   MAP_DIRECT
+>   When specified with MAP_SHARED a successful fault in this range
+>   indicates that the kernel is maintaining the block map (user linear
+>   address to file offset to physical address relationship) in a manner
+>   that no external agent can observe any inconsistent changes. In other
+>   words, the block map of the mapping is effectively pinned, or the kernel
+>   is otherwise able to exchange a new physical extent atomically with
+>   respect to any hardware / software agent. As implied by this definition
+>   a successful fault in a MAP_DIRECT range bypasses kernel indirections
+>   like the page-cache, and all updates are carried directly through to the
+>   underlying file physical blocks (modulo cpu cache effects).
 >
->>
->> - Srividya
+>   ETXTBSY may be returned to any third party operation on the file that
+>   attempts to update the block map (allocate blocks / convert unwritten
+>   extents / break shared extents). However, whether a filesystem returns
+>   EXTBSY for a certain state of the block relative to a MAP_DIRECT mapping
+>   is filesystem and kernel version dependent.
+>
+>   Some filesystems may extend these operation restrictions outside the
+>   mapped range and return ETXTBSY to any file operations that might mutate
+>   the block map. MAP_DIRECT faults may fail with a SIGBUS if the
+>   filesystem needs to write the block map to satisfy the fault. For
+>   example, if the mapping was established over a hole in a sparse file.
+>
+>   ERRORS
+>   EACCES A MAP_DIRECT mapping was requested and PROT_WRITE was not set,
+>   or the requesting process is missing CAP_LINUX_IMMUTABLE.
+>
+>   EINVAL MAP_ANONYMOUS or MAP_PRIVATE was specified with MAP_DIRECT.
+>
+>   EOPNOTSUPP The filesystem explicitly does not support the flag
+>
+>   SIGBUS Attempted to write a MAP_DIRECT mapping at a file offset that
+>          might require block-map updates.
+>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Jeff Moyer <jmoyer@redhat.com>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: Dave Chinner <david@fromorbit.com>
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+[..]
+> diff --git a/include/linux/mman.h b/include/linux/mman.h
+> index 0e1de42c836f..7c9e3d11027f 100644
+> --- a/include/linux/mman.h
+> +++ b/include/linux/mman.h
+> @@ -7,16 +7,6 @@
+>  #include <linux/atomic.h>
+>  #include <uapi/linux/mman.h>
+>
+> -#ifndef MAP_32BIT
+> -#define MAP_32BIT 0
+> -#endif
+> -#ifndef MAP_HUGE_2MB
+> -#define MAP_HUGE_2MB 0
+> -#endif
+> -#ifndef MAP_HUGE_1GB
+> -#define MAP_HUGE_1GB 0
+> -#endif
 
-I have made changes to patch to handle pages with same-value filled.
-
-I tested on a ARM Quad Core 32-bit device with 1.5GB RAM by launching
-and relaunching different applications. After the test, out of ~64000
-pages stored in zswap, ~ 11000 pages were same-value filled pages
-(including zero-filled pages) and ~9000 pages were zero-filled pages.
-
-An average of 17% of pages(including zero-filled pages) in zswap are 
-same-value filled pages and 14% pages are zero-filled pages.
-An average of 3% of pages are same-filled non-zero pages.
-
-The below table shows the execution time profiling with the patch.
-
-                          Baseline    With patch  % Improvement
------------------------------------------------------------------
-*Zswap Store Time           26.5ms	      18ms          32%
- (of same value pages)
-*Zswap Load Time
- (of same value pages)      25.5ms      13ms          49%
------------------------------------------------------------------
-
-On Ubuntu PC with 2GB RAM, while executing kernel build and other test
-scripts and running multimedia applications, out of 360000 pages 
-stored in zswap 78000(~22%) of pages were found to be same-value filled
-pages (including zero-filled pages) and 64000(~17%) are zero-filled 
-pages. So an average of %5 of pages are same-filled non-zero pages.
-
-The below table shows the execution time profiling with the patch.
-
-                          Baseline    With patch  % Improvement
------------------------------------------------------------------
-*Zswap Store Time           91ms        74ms           19%
- (of same value pages)
-*Zswap Load Time            50ms        7.5ms          85%
- (of same value pages)
------------------------------------------------------------------
-
-*The execution times may vary with test device used.
-
-I will send this patch of handling same-value filled pages along with
-module param to control it(default being enabled).
-
- - Srividya
+This was inadvertent, we need this to build on non-x86 archs, will fix.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
