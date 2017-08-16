@@ -1,89 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B06A86B025F
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 02:38:57 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id k190so52624020pge.9
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 23:38:57 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B776E6B025F
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 03:15:46 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e74so5995720pfd.12
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 00:15:46 -0700 (PDT)
 Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id a34si105325pld.620.2017.08.15.23.38.55
+        by mx.google.com with ESMTP id q14si147778pli.588.2017.08.16.00.15.44
         for <linux-mm@kvack.org>;
-        Tue, 15 Aug 2017 23:38:56 -0700 (PDT)
-Date: Wed, 16 Aug 2017 15:37:35 +0900
+        Wed, 16 Aug 2017 00:15:45 -0700 (PDT)
+Date: Wed, 16 Aug 2017 16:14:21 +0900
 From: Byungchul Park <byungchul.park@lge.com>
 Subject: Re: [PATCH v8 00/14] lockdep: Implement crossrelease feature
-Message-ID: <20170816063735.GS20323@X58A-UD3R>
+Message-ID: <20170816071421.GT20323@X58A-UD3R>
 References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
  <20170815082020.fvfahxwx2zt4ps4i@gmail.com>
  <20170816001637.GN20323@X58A-UD3R>
  <20170816035842.p33z5st3rr2gwssh@tardis>
- <20170816043746.GQ20323@X58A-UD3R>
- <20170816054051.GA11771@tardis>
+ <20170816050506.GR20323@X58A-UD3R>
+ <20170816055808.GB11771@tardis>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170816054051.GA11771@tardis>
+In-Reply-To: <20170816055808.GB11771@tardis>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Boqun Feng <boqun.feng@gmail.com>
 Cc: Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, peterz@infradead.org, walken@google.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, willy@infradead.org, npiggin@gmail.com, kernel-team@lge.com
 
-On Wed, Aug 16, 2017 at 01:40:51PM +0800, Boqun Feng wrote:
-> > > > Worker A : acquired of wfc.work -> wait for cpu_hotplug_lock to be released
-> > > > Task   B : acquired of cpu_hotplug_lock -> wait for lock#3 to be released
-> > > > Task   C : acquired of lock#3 -> wait for completion of barr->done
-> > > 
-> > > >From the stack trace below, this barr->done is for flush_work() in
-> > > lru_add_drain_all_cpuslocked(), i.e. for work "per_cpu(lru_add_drain_work)"
-> > > 
-> > > > Worker D : wait for wfc.work to be released -> will complete barr->done
-> > > 
-> > > and this barr->done is for work "wfc.work".
-> > 
-> > I think it can be the same instance. wait_for_completion() in flush_work()
-> > e.g. at task C in my example, waits for completion which we expect to be
-> > done by a worker e.g. worker D in my example.
-> > 
-> > I think the problem is caused by a write-acquisition of wfc.work in
-> > process_one_work(). The acquisition of wfc.work should be reenterable,
-> > that is, read-acquisition, shouldn't it?
+On Wed, Aug 16, 2017 at 01:58:08PM +0800, Boqun Feng wrote:
+> > I'm not sure this caused the lockdep warning but, if they belongs to the
+> > same class even though they couldn't be the same instance as you said, I
+> > also think that is another problem and should be fixed.
 > > 
 > 
-> The only thing is that wfc.work is not a real and please see code in
-> flush_work(). And if a task C do a flush_work() for "wfc.work" with
-> lock#3 held, it needs to "acquire" wfc.work before it
-> wait_for_completion(), which is already a deadlock case:
+> My point was more like this is a false positive case, which we should
+> avoid as hard as we can, because this very case doesn't look like a
+> deadlock to me.
 > 
-> 	lock#3 -> wfc.work -> cpu_hotplug_lock -+
->           ^                                     |
-> 	  |                                     |
-> 	  +-------------------------------------+
-> 
-> , without crossrelease enabled. So the task C didn't flush work wfc.work
-> in the previous case, which implies barr->done in Task C and Worker D
-> are not the same instance.
-> 
-> Make sense?
+> Maybe the pattern above does exist in current kernel, but we need to
+> guide/adjust lockdep to find the real case showing it's happening.
 
-Thank you very much for your explanation. I misunderstood how flush_work()
-works. Yes, it seems to be led by incorrect class of completion.
+As long as they are initialized as a same class, there's no way to
+distinguish between them within lockdep.
+
+And I also think we should avoid false positive cases. Do you think
+there are many places where completions are initialized in a same place
+even though they could never be the same instance?
+
+If no, it would be better to fix it whenever we face it, as you did.
+
+If yes, we have to change it for completion, for example:
+
+1. Do not apply crossrelease into completions initialized on stack.
+
+or
+
+2. Use the full call path instead of a call site as a lockdep_map key.
+
+or
+
+3. So on.
+
+Could you let me know your opinion about it?
 
 Thanks,
 Byungchul
 
-> 
 > Regards,
 > Boqun
 > 
-> > I might be wrong... Please fix me if so.
-> > 
-> > Thank you,
-> > Byungchul
-> > 
-> > > So those two barr->done could not be the same instance, IIUC. Therefore
-> > > the deadlock case is not possible.
-> > > 
-> > > The problem here is all barr->done instances are initialized at
-> > > insert_wq_barrier() and they belongs to the same lock class, to fix
 > > > this, we need to differ barr->done with different lock classes based on
 > > > the corresponding works.
 > > > 
