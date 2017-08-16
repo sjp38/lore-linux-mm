@@ -1,132 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B69D96B025F
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 11:43:54 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id y129so65508002pgy.1
-        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 08:43:54 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id z125si638203pgb.748.2017.08.16.08.43.52
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CB196B0292
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 11:56:18 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id p62so4890676oih.12
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 08:56:18 -0700 (PDT)
+Received: from mail-it0-x22f.google.com (mail-it0-x22f.google.com. [2607:f8b0:4001:c0b::22f])
+        by mx.google.com with ESMTPS id x20si870182oix.459.2017.08.16.08.56.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Aug 2017 08:43:53 -0700 (PDT)
-Date: Wed, 16 Aug 2017 16:43:25 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v5 2/4] mm, oom: cgroup-aware OOM killer
-Message-ID: <20170816154325.GB29131@castle.DHCP.thefacebook.com>
-References: <20170814183213.12319-1-guro@fb.com>
- <20170814183213.12319-3-guro@fb.com>
- <alpine.DEB.2.10.1708141532300.63207@chino.kir.corp.google.com>
- <20170815121558.GA15892@castle.dhcp.TheFacebook.com>
- <alpine.DEB.2.10.1708151435290.104516@chino.kir.corp.google.com>
+        Wed, 16 Aug 2017 08:56:16 -0700 (PDT)
+Received: by mail-it0-x22f.google.com with SMTP id f16so20214183itb.0
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 08:56:16 -0700 (PDT)
+Subject: Re: [PATCH v1 2/6] fs: use on-stack-bio if backing device has
+ BDI_CAP_SYNC capability
+References: <CAA9_cmekE9_PYmNnVmiOkyH2gq5o8=uvEKnAbMWw5nBX-zE69g@mail.gmail.com>
+ <20170811104615.GA14397@lst.de>
+ <20c5b30a-b787-1f46-f997-7542a87033f8@kernel.dk>
+ <20170814085042.GG26913@bbox>
+ <51f7472a-977b-be69-2688-48f2a0fa6fb3@kernel.dk>
+ <20170814150620.GA12657@bgram>
+ <51893dc5-05a3-629a-3b88-ecd8e25165d0@kernel.dk>
+ <20170814153059.GA13497@bgram>
+ <0c83e7af-10a4-3462-bb4c-4254adcf6f7a@kernel.dk>
+ <058b4ae5-c6e9-ff32-6440-fb1e1b85b6fd@kernel.dk>
+ <20170816044759.GC24294@blaptop>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <1046cd1e-35f2-2663-4886-64e6e4f2093c@kernel.dk>
+Date: Wed, 16 Aug 2017 09:56:12 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1708151435290.104516@chino.kir.corp.google.com>
+In-Reply-To: <20170816044759.GC24294@blaptop>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, "karam . lee" <karam.lee@lge.com>, seungho1.park@lge.com, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Vishal Verma <vishal.l.verma@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, kernel-team <kernel-team@lge.com>
 
-On Tue, Aug 15, 2017 at 02:47:10PM -0700, David Rientjes wrote:
-> On Tue, 15 Aug 2017, Roman Gushchin wrote:
+On 08/15/2017 10:48 PM, Minchan Kim wrote:
+> Hi Jens,
 > 
-> > > I'm curious about the decision made in this conditional and how 
-> > > oom_kill_memcg_member() ignores task->signal->oom_score_adj.  It means 
-> > > that memory.oom_kill_all_tasks overrides /proc/pid/oom_score_adj if it 
-> > > should otherwise be disabled.
-> > > 
-> > > It's undocumented in the changelog, but I'm questioning whether it's the 
-> > > right decision.  Doesn't it make sense to kill all tasks that are not oom 
-> > > disabled, and allow the user to still protect certain processes by their 
-> > > /proc/pid/oom_score_adj setting?  Otherwise, there's no way to do that 
-> > > protection without a sibling memcg and its own reservation of memory.  I'm 
-> > > thinking about a process that governs jobs inside the memcg and if there 
-> > > is an oom kill, it wants to do logging and any cleanup necessary before 
-> > > exiting itself.  It seems like a powerful combination if coupled with oom 
-> > > notification.
-> > 
-> > Good question!
-> > I think, that an ability to override any oom_score_adj value and get all tasks
-> > killed is more important, than an ability to kill all processes with some
-> > exceptions.
-> > 
+> On Mon, Aug 14, 2017 at 10:17:09AM -0600, Jens Axboe wrote:
+>> On 08/14/2017 09:38 AM, Jens Axboe wrote:
+>>> On 08/14/2017 09:31 AM, Minchan Kim wrote:
+>>>>> Secondly, generally you don't have slow devices and fast devices
+>>>>> intermingled when running workloads. That's the rare case.
+>>>>
+>>>> Not true. zRam is really popular swap for embedded devices where
+>>>> one of low cost product has a really poor slow nand compared to
+>>>> lz4/lzo [de]comression.
+>>>
+>>> I guess that's true for some cases. But as I said earlier, the recycling
+>>> really doesn't care about this at all. They can happily coexist, and not
+>>> step on each others toes.
+>>
+>> Dusted it off, result is here against -rc5:
+>>
+>> http://git.kernel.dk/cgit/linux-block/log/?h=cpu-alloc-cache
+>>
+>> I'd like to split the amount of units we cache and the amount of units
+>> we free, right now they are both CPU_ALLOC_CACHE_SIZE. This means that
+>> once we hit that count, we free all of the, and then store the one we
+>> were asked to free. That always keeps 1 local, but maybe it'd make more
+>> sense to cache just free CPU_ALLOC_CACHE_SIZE/2 (or something like that)
+>> so that we retain more than 1 per cpu in case and app preempts when
+>> sleeping for IO and the new task on that CPU then issues IO as well.
+>> Probably minor.
+>>
+>> Ran a quick test on nullb0 with 32 sync readers. The test was O_DIRECT
+>> on the block device, so I disabled the __blkdev_direct_IO_simple()
+>> bypass. With the above branch, we get ~18.0M IOPS, and without we get
+>> ~14M IOPS. Both ran with iostats disabled, to avoid any interference
+>> from that.
 > 
-> I'm disagreeing because getting all tasks killed is not necessarily 
-> something that only the kernel can do.  If all processes are oom disabled, 
-> that's a configuration issue done by sysadmin and the kernel should decide 
-> to kill the next largest memory cgroup or lower priority memory cgroup.  
-> It's not killing things like sshd that intentionally oom disable 
-> themselves.
-> 
-> You could argue that having an oom disabled process attached to these 
-> memcgs in the first place is also a configuration issue, but the problem 
-> is that in cgroup v2 with a restriction on processes only being attached 
-> at the leaf cgroups that there is no competition for memory in this case.  
-> I must assign memory resources to that sshd, or "Activity Manager" 
-> described by the cgroup v1 documentation, just to prevent it from being 
-> killed.
-> 
-> I think the latter of what you describe, killing all processes with some 
-> exceptions, is actually quite powerful.  I can guarantee that processes 
-> that set themselves to oom disabled are really oom disabled and I don't 
-> need to work around that in the cgroup hierarchy only because of this 
-> caveat.  I can also oom disable my Activity Manger that wants to wait on 
-> oom notification and collect the oom kill logs, raise notifications, and 
-> perhaps restart the process that it manage.
-> 
-> > In your example someone still needs to look after the remaining process,
-> > and kill it after some timeout, if it will not quit by itself, right?
-> > 
-> 
-> No, it can restart the process that was oom killed; or it can be sshd and 
-> I can still ssh into my machine.
-> 
-> > The special treatment of the -1000 value (without oom_kill_all_tasks)
-> > is required only to not to break the existing setups.
-> > 
-> 
-> I think as a general principle that allowing an oom disabled process to be 
-> oom killed is incorrect and if you really do want these to be killed, then 
-> (1) either your oom_score_adj is already wrong or (2) you can wait on oom 
-> notification and exit.
+> Looks promising.
+> If recycling bio works well enough, I think we don't need to introduce
+> new split in the path for on-stack bio.
+> I will test your version on zram-swap!
 
-It's natural to expect that inside a container there are their own sshd,
-"activity manager" or some other stuff, which can play with oom_score_adj.
-If it can override the upper cgroup-level settings, the whole delegation model
-is broken.
+Thanks, let me know how it goes. It's quite possible that we'll need
+a few further tweaks, but at least the basis should be there.
 
-You can think about the oom_kill_all_tasks like the panic_on_oom,
-but on a cgroup level. It should _guarantee_, that in case of oom
-the whole cgroup will be destroyed completely, and will not remain
-in a non-consistent state.
-
-The model you're describing is based on a trust given to these oom-unkillable
-processes on system level. But we can't really trust some unknown processes
-inside a cgroup that they will be able to do some useful work and finish
-in a reasonable time; especially in case of a global memory shortage.
-That means someone needs to look at cgroup after each OOM and check if there
-are remaining tasks. If so, the whole functionality is useless.
-
-If some complex post-oom handling is required, it should be performed
-from another cgroup (protected by the lower oom_priority value).
-
-So, for example:
-
-root
-  |
-  A
- / \
-B   C
-
-B: oom_priority=10, oom_kill_all_tasks=1, contains workload
-C: oom_priority=0, oom_kill_all_tasks=0, contains control stuff
-
-If B is killed by OOM, an "activity manager" in C can be notified
-and perform some actions.
-
-Thanks!
-
-Roman
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
