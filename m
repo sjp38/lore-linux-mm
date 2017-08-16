@@ -1,63 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D36A46B025F
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 00:51:02 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id x189so50827716pgb.11
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 21:51:02 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id v8si7202960plg.655.2017.08.15.21.51.01
-        for <linux-mm@kvack.org>;
-        Tue, 15 Aug 2017 21:51:01 -0700 (PDT)
-Date: Wed, 16 Aug 2017 13:51:00 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2] zsmalloc: zs_page_migrate: schedule free_work if
- zspage is ZS_EMPTY
-Message-ID: <20170816045059.GD24294@blaptop>
-References: <1502704590-3129-1-git-send-email-zhuhui@xiaomi.com>
- <20170816021339.GA23451@blaptop>
- <CANFwon3kDOUKcUBmihVzSwkQ34MOGkEnAkOdHET+uv8XBoAWfQ@mail.gmail.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C3056B0292
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 00:51:40 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p20so3221882pfj.2
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 21:51:40 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id z12si6307039pgo.510.2017.08.15.21.51.38
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Aug 2017 21:51:39 -0700 (PDT)
+Date: Wed, 16 Aug 2017 12:53:21 +0800
+From: Chen Yu <yu.c.chen@intel.com>
+Subject: Re: [PATCH][RFC] PM / Hibernate: Feed NMI wathdog when creating
+ snapshot
+Message-ID: <20170816045321.GA12984@yu-desktop-1.sh.intel.com>
+References: <1502731156-24903-1-git-send-email-yu.c.chen@intel.com>
+ <20170815124119.GG29067@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CANFwon3kDOUKcUBmihVzSwkQ34MOGkEnAkOdHET+uv8XBoAWfQ@mail.gmail.com>
+In-Reply-To: <20170815124119.GG29067@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hui Zhu <teawater@gmail.com>
-Cc: Hui Zhu <zhuhui@xiaomi.com>, "ngupta@vflare.org" <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-pm@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Dan Williams <dan.j.williams@intel.com>
 
-On Wed, Aug 16, 2017 at 10:49:14AM +0800, Hui Zhu wrote:
-> Hi Minchan,
+On Tue, Aug 15, 2017 at 02:41:19PM +0200, Michal Hocko wrote:
+> On Tue 15-08-17 01:19:16, Chen Yu wrote:
+> [...]
+> > @@ -2561,8 +2562,10 @@ void mark_free_pages(struct zone *zone)
+> >  			unsigned long i;
+> >  
+> >  			pfn = page_to_pfn(page);
+> > -			for (i = 0; i < (1UL << order); i++)
+> > +			for (i = 0; i < (1UL << order); i++) {
+> >  				swsusp_set_page_free(pfn_to_page(pfn + i));
+> > +				touch_nmi_watchdog();
+> > +			}
 > 
-> 2017-08-16 10:13 GMT+08:00 Minchan Kim <minchan@kernel.org>:
-> > Hi Hui,
-> >
-> > On Mon, Aug 14, 2017 at 05:56:30PM +0800, Hui Zhu wrote:
-> >> After commit e2846124f9a2 ("zsmalloc: zs_page_migrate: skip unnecessary
-> >
-> > This patch is not merged yet so the hash is invalid.
-> > That means we may fold this patch to [1] in current mmotm.
-> >
-> > [1] zsmalloc-zs_page_migrate-skip-unnecessary-loops-but-not-return-ebusy-if-zspage-is-not-inuse-fix.patch
-> >
-> >> loops but not return -EBUSY if zspage is not inuse") zs_page_migrate
-> >> can handle the ZS_EMPTY zspage.
-> >>
-> >> But I got some false in zs_page_isolate:
-> >>       if (get_zspage_inuse(zspage) == 0) {
-> >>               spin_unlock(&class->lock);
-> >>               return false;
-> >>       }
-> >
-> > I also realized we should make zs_page_isolate succeed on empty zspage
-> > because we allow the empty zspage migration from now on.
-> > Could you send a patch for that as well?
+> this is rather excessive. Why don't you simply call touch_nmi_watchdog
+> once per every 1000 pages? Or once per free_list entry?
 > 
-> OK.  I will make a patch for that later.
-
-Please send the patch so I want to fold it to [1] before Andrew is going
-to send [1] to Linus.
-
-Thanks.
+> Moreover why don't you need to touch_nmi_watchdog in the loop over all
+> pfns in the zone (right above this loop)?
+> --
+After re-checking the code, I think we can simply disable the watchdog
+temporarily, thus to avoid feeding the watchdog in the loop.
+I'm sending another version based on this.
+Thanks,
+	Yu
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
