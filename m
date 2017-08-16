@@ -1,76 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 82C796B0292
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 07:20:22 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 83so57958391pgb.14
-        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 04:20:22 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id c2si427788pli.373.2017.08.16.04.20.21
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 39AF06B025F
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 08:34:07 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 30so5328279wrk.7
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 05:34:07 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u107si592517wrc.554.2017.08.16.05.34.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Aug 2017 04:20:21 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id c65so1118925pfl.0
-        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 04:20:21 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 16 Aug 2017 05:34:05 -0700 (PDT)
+Date: Wed, 16 Aug 2017 14:33:59 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH][RFC v2] PM / Hibernate: Disable wathdog when creating
+ snapshot
+Message-ID: <20170816123359.GC32161@dhcp22.suse.cz>
+References: <1502859218-13099-1-git-send-email-yu.c.chen@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <54351127-7222-c578-10f7-ee0dbf8f7879@users.sourceforge.net>
-References: <0fec59a9-ac68-33f6-533a-adfb5fa3c380@users.sourceforge.net> <54351127-7222-c578-10f7-ee0dbf8f7879@users.sourceforge.net>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Wed, 16 Aug 2017 07:19:40 -0400
-Message-ID: <CALZtONAL23OdgQauR28ToqVhvRz2yT9LhVq+8jm3C0g_WVMS6g@mail.gmail.com>
-Subject: Re: [PATCH 2/2] zpool: Use common error handling code in zpool_create_pool()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1502859218-13099-1-git-send-email-yu.c.chen@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: SF Markus Elfring <elfring@users.sourceforge.net>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kernel-janitors@vger.kernel.org
+To: Chen Yu <yu.c.chen@intel.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Dan Williams <dan.j.williams@intel.com>, linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 14, 2017 at 7:16 AM, SF Markus Elfring
-<elfring@users.sourceforge.net> wrote:
-> From: Markus Elfring <elfring@users.sourceforge.net>
-> Date: Mon, 14 Aug 2017 13:04:33 +0200
->
-> Add a jump target so that a bit of exception handling can be better reused
-> in this function.
->
-> Signed-off-by: Markus Elfring <elfring@users.sourceforge.net>
+On Wed 16-08-17 12:53:38, Chen Yu wrote:
+[...]
+> @@ -2537,10 +2538,15 @@ void mark_free_pages(struct zone *zone)
+>  	unsigned long flags;
+>  	unsigned int order, t;
+>  	struct page *page;
+> +	bool wd_suspended;
+>  
+>  	if (zone_is_empty(zone))
+>  		return;
+>  
+> +	wd_suspended = lockup_detector_suspend() ? false : true;
+> +	if (!wd_suspended)
+> +		pr_warn_once("Failed to disable lockup detector during hibernation.\n");
+> +
+>  	spin_lock_irqsave(&zone->lock, flags);
+>  
+>  	max_zone_pfn = zone_end_pfn(zone);
 
-Acked-by: Dan Streetman <ddstreet@ieee.org>
-
-> ---
->  mm/zpool.c | 9 ++++-----
->  1 file changed, 4 insertions(+), 5 deletions(-)
->
-> diff --git a/mm/zpool.c b/mm/zpool.c
-> index fe1943f7d844..e4634edef86d 100644
-> --- a/mm/zpool.c
-> +++ b/mm/zpool.c
-> @@ -171,10 +171,8 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
->         }
->
->         zpool = kmalloc(sizeof(*zpool), gfp);
-> -       if (!zpool) {
-> -               zpool_put_driver(driver);
-> -               return NULL;
-> -       }
-> +       if (!zpool)
-> +               goto put_driver;
->
->         zpool->driver = driver;
->         zpool->pool = driver->create(name, gfp, ops, zpool);
-> @@ -182,8 +180,9 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
->
->         if (!zpool->pool) {
->                 pr_err("couldn't create %s pool\n", type);
-> -               zpool_put_driver(driver);
->                 kfree(zpool);
-> +put_driver:
-> +               zpool_put_driver(driver);
->                 return NULL;
->         }
->
-> --
-> 2.14.0
->
+I am not maintainer of this code so I am not very familiar with the full
+context of this function but lockup_detector_suspend is just too heavy
+for the purpose you are trying to achive. Really why don't you just
+poke the watchdog every N pages?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
