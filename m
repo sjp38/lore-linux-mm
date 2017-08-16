@@ -1,81 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 124DB6B02F4
-	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 22:18:23 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id u11so12647241qtu.10
-        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 19:18:23 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s3si9809861qtg.497.2017.08.15.19.18.22
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9834F6B02F4
+	for <linux-mm@kvack.org>; Tue, 15 Aug 2017 22:32:35 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id b83so862076pfl.6
+        for <linux-mm@kvack.org>; Tue, 15 Aug 2017 19:32:35 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id 99si7060697pla.88.2017.08.15.19.32.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Aug 2017 19:18:22 -0700 (PDT)
-Message-ID: <1502849899.6577.66.camel@redhat.com>
-Subject: Re: [PATCH 2/2] mm,fork: introduce MADV_WIPEONFORK
-From: Rik van Riel <riel@redhat.com>
-Date: Tue, 15 Aug 2017 22:18:19 -0400
-In-Reply-To: <20170815155114.ff9f4164eed28bf02db48fbb@linux-foundation.org>
-References: <20170811212829.29186-1-riel@redhat.com>
-	 <20170811212829.29186-3-riel@redhat.com>
-	 <20170815155114.ff9f4164eed28bf02db48fbb@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Tue, 15 Aug 2017 19:32:34 -0700 (PDT)
+Subject: Re: [PATCH 2/2] mm: Update NUMA counter threshold size
+References: <1502786736-21585-1-git-send-email-kemi.wang@intel.com>
+ <1502786736-21585-3-git-send-email-kemi.wang@intel.com>
+ <20170815095819.5kjh4rrhkye3lgf2@techsingularity.net>
+From: kemi <kemi.wang@intel.com>
+Message-ID: <0a0324f8-5a7e-febf-03bd-b33cf11483ad@intel.com>
+Date: Wed, 16 Aug 2017 10:31:19 +0800
+MIME-Version: 1.0
+In-Reply-To: <20170815095819.5kjh4rrhkye3lgf2@techsingularity.net>
+Content-Type: text/plain; charset=UTF-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, mhocko@kernel.org, mike.kravetz@oracle.com, linux-mm@kvack.org, fweimer@redhat.com, colm@allcosts.net, keescook@chromium.org, luto@amacapital.net, wad@chromium.org, mingo@kernel.org, kirill@shutemov.name, dave.hansen@intel.com, linux-api@vger.kernel.org, torvalds@linux-foundation.org, willy@infradead.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Tue, 2017-08-15 at 15:51 -0700, Andrew Morton wrote:
-> On Fri, 11 Aug 2017 17:28:29 -0400 riel@redhat.com wrote:
+
+>>  
+>> -static inline unsigned long zone_numa_state(struct zone *zone,
+>> +static inline unsigned long zone_numa_state_snapshot(struct zone *zone,
+>>  					enum zone_numa_stat_item item)
+>>  {
+>>  	long x = atomic_long_read(&zone->vm_numa_stat[item]);
+>> +	int cpu;
+>> +
+>> +	for_each_online_cpu(cpu)
+>> +		x += per_cpu_ptr(zone->pageset, cpu)->vm_numa_stat_diff[item];
+>>  
+>>  	return x;
+>>  }
 > 
-> > A further complication is the proliferation of clone flags,
-> > programs bypassing glibc's functions to call clone directly,
-> > and programs calling unshare, causing the glibc pthread_atfork
-> > hook to not get called.
-> > 
-> > It would be better to have the kernel take care of this
-> > automatically.
+> This does not appear to be related to the current patch. It either
+> should be merged with the previous patch or stand on its own.
 > 
-> I'll add "The patch also adds MADV_KEEPONFORK, to undo the effects of
-> a
-> prior MADV_WIPEONFORK." here.
+OK. I can move it to an individual patch if it does not make anyone unhappy.
+Since it is not graceful to introduce any functionality change in first patch.
+
+>> diff --git a/mm/vmstat.c b/mm/vmstat.c
+>> index 5a7fa30..c7f50ed 100644
+>> --- a/mm/vmstat.c
+>> +++ b/mm/vmstat.c
+>> @@ -30,6 +30,8 @@
+>>  
+>>  #include "internal.h"
+>>  
+>> +#define NUMA_STAT_THRESHOLD  32765
+>> +
 > 
-> I guess it isn't worth mentioning that these things can cause VMA
-> merges and splits.A 
-
-That's the same as every other Linux specific madvise operation.
-
-> > --- a/mm/madvise.c
-> > +++ b/mm/madvise.c
-> > @@ -80,6 +80,17 @@ static long madvise_behavior(struct
-> > vm_area_struct *vma,
-> > A 		}
-> > A 		new_flags &= ~VM_DONTCOPY;
-> > A 		break;
-> > +	case MADV_WIPEONFORK:
-> > +		/* MADV_WIPEONFORK is only supported on anonymous
-> > memory. */
-> > +		if (vma->vm_file || vma->vm_flags & VM_SHARED) {
-> > +			error = -EINVAL;
-> > +			goto out;
-> > +		}
-> > +		new_flags |= VM_WIPEONFORK;
-> > +		break;
-> > +	case MADV_KEEPONFORK:
-> > +		new_flags &= ~VM_WIPEONFORK;
-> > +		break;
-> > A 	case MADV_DONTDUMP:
-> > A 		new_flags |= VM_DONTDUMP;
-> > A 		break;
+> This should be expressed in terms of the type and not a hard-coded value.
 > 
-> It seems odd to permit MADV_KEEPONFORK against other-than-anon vmas?
-
-Given that the only way to set VM_WIPEONFORK is through
-MADV_WIPEONFORK, calling MADV_KEEPONFORK on an
-other-than-anon vma would be equivalent to a noop.
-
-If new_flags == vma->vm_flags, madvise_behavior() will
-immediately exit.
+OK, Thanks. I will follow it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
