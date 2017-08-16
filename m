@@ -1,107 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DBCA6B02B4
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 19:23:18 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id f11so6133185oic.3
-        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 16:23:18 -0700 (PDT)
-Received: from mail-io0-x22f.google.com (mail-io0-x22f.google.com. [2607:f8b0:4001:c06::22f])
-        by mx.google.com with ESMTPS id 138si1477249oia.62.2017.08.16.16.23.17
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 811216B025F
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 19:42:10 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id t139so81785927ywg.6
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 16:42:10 -0700 (PDT)
+Received: from mail-yw0-x22f.google.com (mail-yw0-x22f.google.com. [2607:f8b0:4002:c05::22f])
+        by mx.google.com with ESMTPS id o10si485858ybj.538.2017.08.16.16.42.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Aug 2017 16:23:17 -0700 (PDT)
-Received: by mail-io0-x22f.google.com with SMTP id j32so18130672iod.0
-        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 16:23:17 -0700 (PDT)
+        Wed, 16 Aug 2017 16:42:09 -0700 (PDT)
+Received: by mail-yw0-x22f.google.com with SMTP id p68so32035942ywg.0
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 16:42:09 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170816231458.2299-3-labbott@redhat.com>
-References: <20170816231458.2299-1-labbott@redhat.com> <20170816231458.2299-3-labbott@redhat.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Wed, 16 Aug 2017 16:23:16 -0700
-Message-ID: <CAGXu5j+orJe-6FzZvuOiZQKM+_vnwjVmN_5_KP7+LJH_-h0MZg@mail.gmail.com>
-Subject: Re: [PATCHv3 2/2] extract early boot entropy from the passed cmdline
+In-Reply-To: <150286944610.8837.9513410258028246174.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <150286944610.8837.9513410258028246174.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 16 Aug 2017 16:42:08 -0700
+Message-ID: <CAPcyv4h64RKGWQ7Mgw7KpZVc32hm4zprryjpZKwGS171ATh+VA@mail.gmail.com>
+Subject: Re: [PATCH v5 0/5] MAP_DIRECT and block-map-atomic files
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: Daniel Micay <danielmicay@gmail.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>
 
-On Wed, Aug 16, 2017 at 4:14 PM, Laura Abbott <labbott@redhat.com> wrote:
-> From: Daniel Micay <danielmicay@gmail.com>
+On Wed, Aug 16, 2017 at 12:44 AM, Dan Williams <dan.j.williams@intel.com> wrote:
+> Changes since v4 [1]:
+> * Drop the new vma ->fs_flags field, it can be replaced by just checking
+>   ->vm_ops locally in the filesystem. This approach also allows
+>   non-MAP_DIRECT vmas to be vma_merge() capable since vmas with
+>   vm_ops->close() disable vma merging. (Jan)
 >
+> * Drop the new ->fmmap() operation, instead convert all ->mmap()
+>   implementations tree-wide to take an extra 'map_flags' parameter.
+>   (Jan)
 >
-> Existing Android bootloaders usually pass data useful as early entropy
-> on the kernel command-line. It may also be the case on other embedded
-> systems. Sample command-line from a Google Pixel running CopperheadOS:
+> * Drop the cute (MAP_SHARED|MAP_PRIVATE) hack/mechanism to add new
+>   validated flags mmap(2) and instead just define a new mmap syscall
+>   variant (sys_mmap_pgoff_strict). (Andy)
 >
->     console=ttyHSL0,115200,n8 androidboot.console=ttyHSL0
->     androidboot.hardware=sailfish user_debug=31 ehci-hcd.park=3
->     lpm_levels.sleep_disabled=1 cma=32M@0-0xffffffff buildvariant=user
->     veritykeyid=id:dfcb9db0089e5b3b4090a592415c28e1cb4545ab
->     androidboot.bootdevice=624000.ufshc androidboot.verifiedbootstate=yellow
->     androidboot.veritymode=enforcing androidboot.keymaster=1
->     androidboot.serialno=FA6CE0305299 androidboot.baseband=msm
->     mdss_mdp.panel=1:dsi:0:qcom,mdss_dsi_samsung_ea8064tg_1080p_cmd:1:none:cfg:single_dsi
->     androidboot.slot_suffix=_b fpsimd.fpsimd_settings=0
->     app_setting.use_app_setting=0 kernelflag=0x00000000 debugflag=0x00000000
->     androidboot.hardware.revision=PVT radioflag=0x00000000
->     radioflagex1=0x00000000 radioflagex2=0x00000000 cpumask=0x00000000
->     androidboot.hardware.ddr=4096MB,Hynix,LPDDR4 androidboot.ddrinfo=00000006
->     androidboot.ddrsize=4GB androidboot.hardware.color=GRA00
->     androidboot.hardware.ufs=32GB,Samsung androidboot.msm.hw_ver_id=268824801
->     androidboot.qf.st=2 androidboot.cid=11111111 androidboot.mid=G-2PW4100
->     androidboot.bootloader=8996-012001-1704121145
->     androidboot.oem_unlock_support=1 androidboot.fp_src=1
->     androidboot.htc.hrdump=detected androidboot.ramdump.opt=mem@2g:2g,mem@4g:2g
->     androidboot.bootreason=reboot androidboot.ramdump_enable=0 ro
->     root=/dev/dm-0 dm="system none ro,0 1 android-verity /dev/sda34"
->     rootwait skip_initramfs init=/init androidboot.wificountrycode=US
->     androidboot.boottime=1BLL:85,1BLE:669,2BLL:0,2BLE:1777,SW:6,KL:8136
+> * Fix the fact that MAP_PRIVATE|MAP_DIRECT would silently fallback to
+>   MAP_SHARED (addressed by the new syscall). (Kirill)
 >
-> Among other things, it contains a value unique to the device
-> (androidboot.serialno=FA6CE0305299), unique to the OS builds for the
-> device variant (veritykeyid=id:dfcb9db0089e5b3b4090a592415c28e1cb4545ab)
-> and timings from the bootloader stages in milliseconds
-> (androidboot.boottime=1BLL:85,1BLE:669,2BLL:0,2BLE:1777,SW:6,KL:8136).
+> * Require CAP_LINUX_IMMUTABLE for MAP_DIRECT to close any unforeseen
+>   denial of service for unmanaged + unprivileged MAP_DIRECT usage.
+>   (Kirill)
 >
-> Signed-off-by: Daniel Micay <danielmicay@gmail.com>
-> [labbott: Line-wrapped command line]
-> Signed-off-by: Laura Abbott <labbott@redhat.com>
-
-Acked-by: Kees Cook <keescook@chromium.org>
-
-Thanks!
-
--Kees
-
-> ---
-> v3: add_device_randomness comes before canary initialization, clarified comment.
-> ---
->  init/main.c | 2 ++
->  1 file changed, 2 insertions(+)
+> * Switch MAP_DIRECT fault failures to SIGBUS (Kirill)
 >
-> diff --git a/init/main.c b/init/main.c
-> index 21d599eaad06..ba2b3a8a2382 100644
-> --- a/init/main.c
-> +++ b/init/main.c
-> @@ -530,8 +530,10 @@ asmlinkage __visible void __init start_kernel(void)
->         setup_arch(&command_line);
->         /*
->          * Set up the the initial canary and entropy after arch
-> +        * and after adding latent and command line entropy.
->          */
->         add_latent_entropy();
-> +       add_device_randomness(command_line, strlen(command_line));
->         boot_init_stack_canary();
->         mm_init_cpumask(&init_mm);
->         setup_command_line(command_line);
-> --
-> 2.13.0
+> * Add an fcntl mechanism to allow an unprivileged process to use
+>   MAP_DIRECT on an fd setup by a privileged process.
 >
+> * Rework the MAP_DIRECT description to allow for future hardware where
+>   it may not be required to software-pin the file offset to physical
+>   address relationship.
+>
+> Given the tree-wide touches in this revision the patchset is starting to
+> feel more like -mm material than strictly xfs.
+>
+> [1]: https://lkml.org/lkml/2017/8/15/39
 
+For easier testing / evaluation of these patches I went ahead and
+rebased them to v4.13-rc5, fixed up 0-day reports from the ->mmap()
+conversion, and published a for-4.14/map-direct branch here:
 
-
--- 
-Kees Cook
-Pixel Security
+    https://git.kernel.org/pub/scm/linux/kernel/git/djbw/nvdimm.git/log/?h=for-4.14/map-direct
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
