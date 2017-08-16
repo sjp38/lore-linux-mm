@@ -1,67 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 047C76B025F
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 10:36:00 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id y96so6167679wrc.10
-        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 07:35:59 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id 92si1186235edm.381.2017.08.16.07.35.58
+	by kanga.kvack.org (Postfix) with ESMTP id 7D17A6B025F
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 10:44:17 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id n88so6243031wrb.0
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 07:44:17 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id d93si979676wma.132.2017.08.16.07.44.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Aug 2017 07:35:58 -0700 (PDT)
-Subject: Re: [PATCH v7 2/9] mm, swap: Add infrastructure for saving page
- metadata on swap
-References: <cover.1502219353.git.khalid.aziz@oracle.com>
- <cover.1502219353.git.khalid.aziz@oracle.com>
- <87ff7a44c45bd6a146102c6e6033ee7810d9ebb5.1502219353.git.khalid.aziz@oracle.com>
- <20170815.215326.1833101229202321710.davem@davemloft.net>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Message-ID: <05c64690-fa24-7104-4f1f-d98ff54863bc@oracle.com>
-Date: Wed, 16 Aug 2017 08:34:42 -0600
+        Wed, 16 Aug 2017 07:44:16 -0700 (PDT)
+Date: Wed, 16 Aug 2017 15:43:44 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v5 4/4] mm, oom, docs: describe the cgroup-aware OOM killer
+Message-ID: <20170816144344.GA29131@castle.DHCP.thefacebook.com>
+References: <20170814183213.12319-1-guro@fb.com>
+ <20170814183213.12319-5-guro@fb.com>
+ <alpine.DEB.2.10.1708141544280.63207@chino.kir.corp.google.com>
+ <20170815141350.GA4510@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.10.1708151349280.104516@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20170815.215326.1833101229202321710.davem@davemloft.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1708151349280.104516@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: akpm@linux-foundation.org, dave.hansen@linux.intel.com, arnd@arndb.de, kirill.shutemov@linux.intel.com, mhocko@suse.com, jack@suse.cz, ross.zwisler@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, dave.jiang@intel.com, willy@infradead.org, hughd@google.com, minchan@kernel.org, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, shli@fb.com, mingo@kernel.org, jmarchan@redhat.com, lstoakes@gmail.com, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, khalid@gonehiking.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 08/15/2017 10:53 PM, David Miller wrote:
-> From: Khalid Aziz <khalid.aziz@oracle.com>
-> Date: Wed,  9 Aug 2017 15:25:55 -0600
+On Tue, Aug 15, 2017 at 01:56:24PM -0700, David Rientjes wrote:
+> On Tue, 15 Aug 2017, Roman Gushchin wrote:
 > 
->> @@ -1399,6 +1399,12 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->>   				(flags & TTU_MIGRATION)) {
->>   			swp_entry_t entry;
->>   			pte_t swp_pte;
->> +
->> +			if (arch_unmap_one(mm, vma, address, pteval) < 0) {
->> +				set_pte_at(mm, address, pvmw.pte, pteval);
->> +				ret = false;
->> +				page_vma_mapped_walk_done(&pvmw);
->> +				break;
->>   			/*
->>   			 * Store the pfn of the page in a special migration
->>   			 * pte. do_swap_page() will wait until the migration
->> @@ -1410,6 +1416,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->>   			if (pte_soft_dirty(pteval))
->>   				swp_pte = pte_swp_mksoft_dirty(swp_pte);
->>   			set_pte_at(mm, address, pvmw.pte, swp_pte);
->> +			}
+> > > > diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
+> > > > index dec5afdaa36d..22108f31e09d 100644
+> > > > --- a/Documentation/cgroup-v2.txt
+> > > > +++ b/Documentation/cgroup-v2.txt
+> > > > @@ -48,6 +48,7 @@ v1 is available under Documentation/cgroup-v1/.
+> > > >         5-2-1. Memory Interface Files
+> > > >         5-2-2. Usage Guidelines
+> > > >         5-2-3. Memory Ownership
+> > > > +       5-2-4. Cgroup-aware OOM Killer
+> > > 
+> > > Random curiousness, why cgroup-aware oom killer and not memcg-aware oom 
+> > > killer?
+> > 
+> > I don't think we use the term "memcg" somewhere in v2 docs.
+> > Do you think that "Memory cgroup-aware OOM killer" is better?
+> > 
 > 
-> This basic block doesn't look right.  I think the new closing brace is
-> intended to be right after the new break; statement.  If not at the
-> very least the indentation of the existing code in there needs to be
-> adjusted.
+> I think it would be better to not describe it as its own entity, but 
+> rather a part of how the memory cgroup works, so simply describing it in 
+> section 5-2, perhaps as its own subsection, as how the oom killer works 
+> when using the memory cgroup is sufficient.  I wouldn't separate it out as 
+> a distinct cgroup feature in the documentation.
 
-Hi Dave,
+Ok I've got the idea, let me look, what I can do.
+I'll post an updated version soon.
 
-Thanks. That brace needs to move up right after break. I will fix that.
+> 
+> > > > +	cgroups.  The default is "0".
+> > > > +
+> > > > +	Defines whether the OOM killer should treat the cgroup
+> > > > +	as a single entity during the victim selection.
+> > > 
+> > > Isn't this true independent of the memory.oom_kill_all_tasks setting?  
+> > > The cgroup aware oom killer will consider memcg's as logical units when 
+> > > deciding what to kill with or without memory.oom_kill_all_tasks, right?
+> > > 
+> > > I think you cover this fact in the cgroup aware oom killer section below 
+> > > so this might result in confusion if described alongside a setting of
+> > > memory.oom_kill_all_tasks.
+> > > 
+> 
+> I assume this is fixed so that it's documented that memory cgroups are 
+> considered logical units by the oom killer and that 
+> memory.oom_kill_all_tasks is separate?  The former defines the policy on 
+> how a memory cgroup is targeted and the latter defines the mechanism it 
+> uses to free memory.
 
---
-Khalid
+Yes, I've fixed this. Thanks!
+
+> > > > +Cgroup-aware OOM Killer
+> > > > +~~~~~~~~~~~~~~~~~~~~~~~
+> > > > +
+> > > > +Cgroup v2 memory controller implements a cgroup-aware OOM killer.
+> > > > +It means that it treats memory cgroups as first class OOM entities.
+> > > > +
+> > > > +Under OOM conditions the memory controller tries to make the best
+> > > > +choise of a victim, hierarchically looking for the largest memory
+> > > > +consumer. By default, it will look for the biggest task in the
+> > > > +biggest leaf cgroup.
+> > > > +
+> > > > +Be default, all cgroups have oom_priority 0, and OOM killer will
+> > > > +chose the largest cgroup recursively on each level. For non-root
+> > > > +cgroups it's possible to change the oom_priority, and it will cause
+> > > > +the OOM killer to look athe the priority value first, and compare
+> > > > +sizes only of cgroups with equal priority.
+> > > 
+> > > Maybe some description of "largest" would be helpful here?  I think you 
+> > > could briefly describe what is accounted for in the decisionmaking.
+> > 
+> > I'm afraid that it's too implementation-defined to be described.
+> > Do you have an idea, how to describe it without going too much into details?
+> > 
+> 
+> The point is that "largest cgroup" is ambiguous here: largest in what 
+> sense?  The cgroup with the largest number of processes attached?  Using 
+> the largest amount of memory?
+> 
+> I think the documentation should clearly define that the oom killer 
+> selects the memory cgroup that has the most memory managed at each level.
+
+No problems, I'll add a clarification.
+
+Thank you!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
