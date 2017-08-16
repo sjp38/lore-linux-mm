@@ -1,60 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F10E6B025F
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 10:31:21 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id f23so50351661pgn.15
-        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 07:31:21 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id r70si620568pfe.5.2017.08.16.07.31.19
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 047C76B025F
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 10:36:00 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id y96so6167679wrc.10
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 07:35:59 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id 92si1186235edm.381.2017.08.16.07.35.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Aug 2017 07:31:19 -0700 (PDT)
-Date: Wed, 16 Aug 2017 22:33:02 +0800
-From: Chen Yu <yu.c.chen@intel.com>
-Subject: Re: [PATCH][RFC v2] PM / Hibernate: Disable wathdog when creating
- snapshot
-Message-ID: <20170816143301.GA19921@yu-desktop-1.sh.intel.com>
-References: <1502859218-13099-1-git-send-email-yu.c.chen@intel.com>
- <20170816123359.GC32161@dhcp22.suse.cz>
+        Wed, 16 Aug 2017 07:35:58 -0700 (PDT)
+Subject: Re: [PATCH v7 2/9] mm, swap: Add infrastructure for saving page
+ metadata on swap
+References: <cover.1502219353.git.khalid.aziz@oracle.com>
+ <cover.1502219353.git.khalid.aziz@oracle.com>
+ <87ff7a44c45bd6a146102c6e6033ee7810d9ebb5.1502219353.git.khalid.aziz@oracle.com>
+ <20170815.215326.1833101229202321710.davem@davemloft.net>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Message-ID: <05c64690-fa24-7104-4f1f-d98ff54863bc@oracle.com>
+Date: Wed, 16 Aug 2017 08:34:42 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170816123359.GC32161@dhcp22.suse.cz>
+In-Reply-To: <20170815.215326.1833101229202321710.davem@davemloft.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Dan Williams <dan.j.williams@intel.com>, linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org
+To: David Miller <davem@davemloft.net>
+Cc: akpm@linux-foundation.org, dave.hansen@linux.intel.com, arnd@arndb.de, kirill.shutemov@linux.intel.com, mhocko@suse.com, jack@suse.cz, ross.zwisler@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, dave.jiang@intel.com, willy@infradead.org, hughd@google.com, minchan@kernel.org, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, shli@fb.com, mingo@kernel.org, jmarchan@redhat.com, lstoakes@gmail.com, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, khalid@gonehiking.org
 
-On Wed, Aug 16, 2017 at 02:33:59PM +0200, Michal Hocko wrote:
-> On Wed 16-08-17 12:53:38, Chen Yu wrote:
-> [...]
-> > @@ -2537,10 +2538,15 @@ void mark_free_pages(struct zone *zone)
-> >  	unsigned long flags;
-> >  	unsigned int order, t;
-> >  	struct page *page;
-> > +	bool wd_suspended;
-> >  
-> >  	if (zone_is_empty(zone))
-> >  		return;
-> >  
-> > +	wd_suspended = lockup_detector_suspend() ? false : true;
-> > +	if (!wd_suspended)
-> > +		pr_warn_once("Failed to disable lockup detector during hibernation.\n");
-> > +
-> >  	spin_lock_irqsave(&zone->lock, flags);
-> >  
-> >  	max_zone_pfn = zone_end_pfn(zone);
+On 08/15/2017 10:53 PM, David Miller wrote:
+> From: Khalid Aziz <khalid.aziz@oracle.com>
+> Date: Wed,  9 Aug 2017 15:25:55 -0600
 > 
-> I am not maintainer of this code so I am not very familiar with the full
-> context of this function but lockup_detector_suspend is just too heavy
-> for the purpose you are trying to achive. Really why don't you just
-> poke the watchdog every N pages?
-OK, I'll send another version.
-Thanks,
-	Yu
-> -- 
-> Michal Hocko
-> SUSE Labs
+>> @@ -1399,6 +1399,12 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>>   				(flags & TTU_MIGRATION)) {
+>>   			swp_entry_t entry;
+>>   			pte_t swp_pte;
+>> +
+>> +			if (arch_unmap_one(mm, vma, address, pteval) < 0) {
+>> +				set_pte_at(mm, address, pvmw.pte, pteval);
+>> +				ret = false;
+>> +				page_vma_mapped_walk_done(&pvmw);
+>> +				break;
+>>   			/*
+>>   			 * Store the pfn of the page in a special migration
+>>   			 * pte. do_swap_page() will wait until the migration
+>> @@ -1410,6 +1416,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>>   			if (pte_soft_dirty(pteval))
+>>   				swp_pte = pte_swp_mksoft_dirty(swp_pte);
+>>   			set_pte_at(mm, address, pvmw.pte, swp_pte);
+>> +			}
+> 
+> This basic block doesn't look right.  I think the new closing brace is
+> intended to be right after the new break; statement.  If not at the
+> very least the indentation of the existing code in there needs to be
+> adjusted.
+
+Hi Dave,
+
+Thanks. That brace needs to move up right after break. I will fix that.
+
+--
+Khalid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
