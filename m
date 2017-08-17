@@ -1,71 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 717426B0387
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 18:06:09 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id y145so127096580ywa.9
-        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 15:06:09 -0700 (PDT)
-Received: from mail-yw0-x22d.google.com (mail-yw0-x22d.google.com. [2607:f8b0:4002:c05::22d])
-        by mx.google.com with ESMTPS id u3si1162970yba.179.2017.08.17.15.06.08
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D2286B039F
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 18:06:13 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id m19so15685984wrb.6
+        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 15:06:13 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 93si3226519wre.94.2017.08.17.15.06.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Aug 2017 15:06:08 -0700 (PDT)
-Received: by mail-yw0-x22d.google.com with SMTP id p68so49293210ywg.0
-        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 15:06:08 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20170817220240.GE2872@redhat.com>
-References: <20170817000548.32038-1-jglisse@redhat.com> <20170817143916.63fca76e4c1fd841e0afd4cf@linux-foundation.org>
- <20170817215549.GD2872@redhat.com> <CAPcyv4j0_y9BrV-Bn57yScVJ8Nicfz2e0sSmRNG_hNPoE_LSKg@mail.gmail.com>
- <20170817220240.GE2872@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 17 Aug 2017 15:06:07 -0700
-Message-ID: <CAPcyv4h6CEVe1xj6xAX6RaP__Z_YT4RMRwTJg3oaQgiDh1i0UA@mail.gmail.com>
-Subject: Re: [HMM-v25 00/19] HMM (Heterogeneous Memory Management) v25
-Content-Type: text/plain; charset="UTF-8"
+        Thu, 17 Aug 2017 15:06:11 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7HM4cip067753
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 18:06:10 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2cdcw252xf-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 18:06:10 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Thu, 17 Aug 2017 23:06:08 +0100
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Subject: [PATCH v2 10/20] mm: Introduce __lru_cache_add_active_or_unevictable
+Date: Fri, 18 Aug 2017 00:05:09 +0200
+In-Reply-To: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
+References: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
+Message-Id: <1503007519-26777-11-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>
+To: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Thu, Aug 17, 2017 at 3:02 PM, Jerome Glisse <jglisse@redhat.com> wrote:
-> On Thu, Aug 17, 2017 at 02:59:20PM -0700, Dan Williams wrote:
->> On Thu, Aug 17, 2017 at 2:55 PM, Jerome Glisse <jglisse@redhat.com> wrote:
->> > On Thu, Aug 17, 2017 at 02:39:16PM -0700, Andrew Morton wrote:
->> >> On Wed, 16 Aug 2017 20:05:29 -0400 J__r__me Glisse <jglisse@redhat.com> wrote:
->> >>
->> >> > Heterogeneous Memory Management (HMM) (description and justification)
->> >>
->> >> The patchset adds 55 kbytes to x86_64's mm/*.o and there doesn't appear
->> >> to be any way of avoiding this overhead, or of avoiding whatever
->> >> runtime overheads are added.
->> >
->> > HMM have already been integrated in couple of Red Hat kernel and AFAIK there
->> > is no runtime performance issue reported. Thought the RHEL version does not
->> > use static key as Dan asked.
->> >
->> >>
->> >> It also adds 18k to arm's mm/*.o and arm doesn't support HMM at all.
->> >>
->> >> So that's all quite a lot of bloat for systems which get no benefit from
->> >> the patchset.  What can we do to improve this situation (a lot)?
->> >
->> > I will look into why object file grow so much on arm. My guess is that the
->> > new migrate code is the bulk of that. I can hide the new page migration code
->> > behind a kernel configuration flag.
->>
->> Shouldn't we completely disable all of it unless there is a driver in
->> the kernel that selects it?
->
-> At one point people asked to be able to use the new migrate helper without
-> HMM and hence why it is not behind any HMM kconfig.
->
-> IIRC even ARM folks were interested pretty much all SOC have several DMA
-> engine that site idle and i think people where toying with the idea of using
-> this new helper to make use of them. But i can add a different kconfig to
-> hide this code and if people want to use it they will have to select it.
+The speculative page fault handler which is run without holding the
+mmap_sem is calling lru_cache_add_active_or_unevictable() but the vm_flags
+is not guaranteed to remain constant.
+Introducing __lru_cache_add_active_or_unevictable() which has the vma flags
+value parameter instead of the vma pointer.
 
-If they were interested then I would expect their use case would be
-included in this patchset so the infrastructure and at least one
-consumer can land together.
+Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+---
+ include/linux/swap.h | 11 +++++++++--
+ mm/memory.c          |  8 ++++----
+ mm/swap.c            | 12 ++++++------
+ 3 files changed, 19 insertions(+), 12 deletions(-)
+
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index d83d28e53e62..fdea932fe10f 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -285,8 +285,15 @@ extern void swap_setup(void);
+ 
+ extern void add_page_to_unevictable_list(struct page *page);
+ 
+-extern void lru_cache_add_active_or_unevictable(struct page *page,
+-						struct vm_area_struct *vma);
++extern void __lru_cache_add_active_or_unevictable(struct page *page,
++						unsigned long vma_flags);
++
++static inline void lru_cache_add_active_or_unevictable(struct page *page,
++						struct vm_area_struct *vma)
++{
++	return __lru_cache_add_active_or_unevictable(page, vma->vm_flags);
++}
++
+ 
+ /* linux/mm/vmscan.c */
+ extern unsigned long zone_reclaimable_pages(struct zone *zone);
+diff --git a/mm/memory.c b/mm/memory.c
+index 53528eeee2b3..c6b18cc87e90 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2370,7 +2370,7 @@ static int wp_page_copy(struct vm_fault *vmf)
+ 		ptep_clear_flush_notify(vma, vmf->address, vmf->pte);
+ 		page_add_new_anon_rmap(new_page, vma, vmf->address, false);
+ 		mem_cgroup_commit_charge(new_page, memcg, false, false);
+-		lru_cache_add_active_or_unevictable(new_page, vma);
++		__lru_cache_add_active_or_unevictable(new_page, vmf->vma_flags);
+ 		/*
+ 		 * We call the notify macro here because, when using secondary
+ 		 * mmu page tables (such as kvm shadow page tables), we want the
+@@ -2840,7 +2840,7 @@ int do_swap_page(struct vm_fault *vmf)
+ 	} else { /* ksm created a completely new copy */
+ 		page_add_new_anon_rmap(page, vma, vmf->address, false);
+ 		mem_cgroup_commit_charge(page, memcg, false, false);
+-		lru_cache_add_active_or_unevictable(page, vma);
++		__lru_cache_add_active_or_unevictable(page, vmf->vma_flags);
+ 	}
+ 
+ 	swap_free(entry);
+@@ -2978,7 +2978,7 @@ static int do_anonymous_page(struct vm_fault *vmf)
+ 	inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
+ 	page_add_new_anon_rmap(page, vma, vmf->address, false);
+ 	mem_cgroup_commit_charge(page, memcg, false, false);
+-	lru_cache_add_active_or_unevictable(page, vma);
++	__lru_cache_add_active_or_unevictable(page, vmf->vma_flags);
+ setpte:
+ 	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, entry);
+ 
+@@ -3230,7 +3230,7 @@ int alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
+ 		inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
+ 		page_add_new_anon_rmap(page, vma, vmf->address, false);
+ 		mem_cgroup_commit_charge(page, memcg, false, false);
+-		lru_cache_add_active_or_unevictable(page, vma);
++		__lru_cache_add_active_or_unevictable(page, vmf->vma_flags);
+ 	} else {
+ 		inc_mm_counter_fast(vma->vm_mm, mm_counter_file(page));
+ 		page_add_file_rmap(page, false);
+diff --git a/mm/swap.c b/mm/swap.c
+index 60b1d2a75852..ece0826a205b 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -470,21 +470,21 @@ void add_page_to_unevictable_list(struct page *page)
+ }
+ 
+ /**
+- * lru_cache_add_active_or_unevictable
+- * @page:  the page to be added to LRU
+- * @vma:   vma in which page is mapped for determining reclaimability
++ * __lru_cache_add_active_or_unevictable
++ * @page:	the page to be added to LRU
++ * @vma_flags:  vma in which page is mapped for determining reclaimability
+  *
+  * Place @page on the active or unevictable LRU list, depending on its
+  * evictability.  Note that if the page is not evictable, it goes
+  * directly back onto it's zone's unevictable list, it does NOT use a
+  * per cpu pagevec.
+  */
+-void lru_cache_add_active_or_unevictable(struct page *page,
+-					 struct vm_area_struct *vma)
++void __lru_cache_add_active_or_unevictable(struct page *page,
++					   unsigned long vma_flags)
+ {
+ 	VM_BUG_ON_PAGE(PageLRU(page), page);
+ 
+-	if (likely((vma->vm_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED)) {
++	if (likely((vma_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED)) {
+ 		SetPageActive(page);
+ 		lru_cache_add(page);
+ 		return;
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
