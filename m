@@ -1,92 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9411D6B025F
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 17:44:18 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id o184so7434374qkc.0
-        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 14:44:18 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f31si3794034qtd.425.2017.08.17.14.44.17
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E57D6B02B4
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 17:44:32 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id n140so127456584ywd.13
+        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 14:44:32 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id j125si1154944ywd.225.2017.08.17.14.44.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Aug 2017 14:44:17 -0700 (PDT)
-Date: Thu, 17 Aug 2017 17:44:14 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM-v25 13/19] mm/migrate: new migrate mode MIGRATE_SYNC_NO_COPY
-Message-ID: <20170817214414.GC2872@redhat.com>
-References: <20170817000548.32038-1-jglisse@redhat.com>
- <20170817000548.32038-14-jglisse@redhat.com>
- <20170817141245.93cfb315cfc598ff86928639@linux-foundation.org>
+        Thu, 17 Aug 2017 14:44:31 -0700 (PDT)
+Date: Thu, 17 Aug 2017 17:44:29 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [PATCHv3 2/2] extract early boot entropy from the passed cmdline
+Message-ID: <20170817214429.wt7zly2e3bmnlfyp@thunk.org>
+References: <20170816231458.2299-1-labbott@redhat.com>
+ <20170816231458.2299-3-labbott@redhat.com>
+ <20170817033148.ownsmbdzk2vhupme@thunk.org>
+ <1502943802.3986.38.camel@gmail.com>
+ <1503003427.1514.6.camel@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170817141245.93cfb315cfc598ff86928639@linux-foundation.org>
+In-Reply-To: <1503003427.1514.6.camel@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>
+To: Daniel Micay <danielmicay@gmail.com>
+Cc: Laura Abbott <labbott@redhat.com>, Kees Cook <keescook@chromium.org>, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Aug 17, 2017 at 02:12:45PM -0700, Andrew Morton wrote:
-> On Wed, 16 Aug 2017 20:05:42 -0400 J__r__me Glisse <jglisse@redhat.com> wrote:
+On Thu, Aug 17, 2017 at 04:57:07PM -0400, Daniel Micay wrote:
+> > I did say 'external attacker' but it could be made clearer.
 > 
-> > Introduce a new migration mode that allow to offload the copy to
-> > a device DMA engine. This changes the workflow of migration and
-> > not all address_space migratepage callback can support this. So
-> > it needs to be tested in those cases.
-> 
-> Can you please expand on this?  What additional testing must be
-> performed before we are able to merge this into mainline?
-> 
+> Er, s/say/mean to imply/
 
-No additional testing needed. I disable MIGRATE_SYNC_NO_COPY in all
-problematic migratepage() callback and i added comment in those to
-explain why (part of this patch). The commit message is unclear it
-should say that any callback that wish to support this new mode need
-to be aware of the difference in the migration flow from other mode.
+Right, that's why I had suggested modifying the first few lines of the
+commit description to read something like this:
 
-Some of this callback do extra locking while copying (aio, zsmalloc,
-balloon, ...) and for DMA to be effective you want to copy multiple
-pages in one DMA operations. But in the problematic case you can not
-easily hold the extra lock accross multiple call to this callback.
+  Feed the boot command-line as to the /dev/random entropy pool
 
-Usual flow is:
+  Existing Android bootloaders usually pass data which may not be known
+  by an external attacker on the kernel command-line.  It may also be
+  the case on other embedded systems.  Sample command-line from a Google
+  Pixel running CopperheadOS:
 
-For each page {
- 1 - lock page
- 2 - call migratepage() callback
- 3 - (extra locking in some migratepage() callback)
- 4 - migrate page state (freeze refcount, update page cache, buffer
-     head, ...)
- 5 - copy page
- 6 - (unlock any extra lock of migratepage() callback)
- 7 - return from migratepage() callback
- 8 - unlock page
-}
+(Or something like that.)
 
-The new mode MIGRATE_SYNC_NO_COPY:
- 1 - lock multiple pages
-For each page {
- 2 - call migratepage() callback
- 3 - abort in all problematic migratepage() callback
- 4 - migrate page state (freeze refcount, update page cache, buffer
-     head, ...)
-} // finished all calls to migratepage() callback
- 5 - DMA copy multiple pages
- 6 - unlock all the pages
+> I'll look into having the kernel stash some entropy in pstore soon since
+> that seems like it could be a great improvement. I'm not sure how often
+> / where it should hook into for regularly refreshing it though. Doing it
+> only on powering down isn't ideal.
 
-To support MIGRATE_SYNC_NO_COPY in the problematic case we would
-need a new callback migratepages() (for instance) that deals with
-multiple pages in one transaction.
+One thing we could do is to agree on a standard place where the
+entropy would be stashed, and then have the kernel remove it from
+being visible in /proc/cmdline.  That's not a perfect answer, since
+the user might be able to look at the command line via other
+mechanisms.  (For example, on x86, by looking at GRUB while the system
+is booting.)
 
-Because the problematic cases are not important for current usage
-i did not wanted to complexify this patchset even more for no good
-reasons.
+However, an attacker who is merely running code on the local system is
+not likely to be gain access to that value --- so it's definitely an
+improvement.
 
-I hope this clarify, the commit message and comment in migrate.h
-can probably use this extra description i just gave.
+Refreshing the entry immediately after boot, and before a clean
+shutdown would be ideal from a security perspective.  I don't know if
+there are write endurance issues with updating the pstore that
+frequently, though.
 
-Cheers,
-Jerome
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
