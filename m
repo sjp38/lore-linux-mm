@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EBFC46B02FD
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 23:38:32 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id m133so54428781pga.2
-        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 20:38:32 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 3D17C6B0311
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 23:38:37 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 85so5260043pgd.9
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 20:38:37 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id o19si1353342pgk.231.2017.08.16.20.38.31
+        by mx.google.com with ESMTPS id o19si1353342pgk.231.2017.08.16.20.38.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Aug 2017 20:38:31 -0700 (PDT)
+        Wed, 16 Aug 2017 20:38:35 -0700 (PDT)
 From: Wei Wang <wei.w.wang@intel.com>
-Subject: [PATCH v14 4/5] mm: support reporting free page blocks
-Date: Thu, 17 Aug 2017 11:26:55 +0800
-Message-Id: <1502940416-42944-5-git-send-email-wei.w.wang@intel.com>
+Subject: [PATCH v14 5/5] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
+Date: Thu, 17 Aug 2017 11:26:56 +0800
+Message-Id: <1502940416-42944-6-git-send-email-wei.w.wang@intel.com>
 In-Reply-To: <1502940416-42944-1-git-send-email-wei.w.wang@intel.com>
 References: <1502940416-42944-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,92 +20,267 @@ List-ID: <linux-mm.kvack.org>
 To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
 Cc: david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-This patch adds support to walk through the free page blocks in the
-system and report them via a callback function. Some page blocks may
-leave the free list after zone->lock is released, so it is the caller's
-responsibility to either detect or prevent the use of such pages.
+Add a new vq to report hints of guest free pages to the host.
 
 Signed-off-by: Wei Wang <wei.w.wang@intel.com>
 Signed-off-by: Liang Li <liang.z.li@intel.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Michael S. Tsirkin <mst@redhat.com>
 ---
- include/linux/mm.h |  6 ++++++
- mm/page_alloc.c    | 44 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 50 insertions(+)
+ drivers/virtio/virtio_balloon.c     | 167 +++++++++++++++++++++++++++++++-----
+ include/uapi/linux/virtio_balloon.h |   1 +
+ 2 files changed, 147 insertions(+), 21 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 46b9ac5..cd29b9f 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1835,6 +1835,12 @@ extern void free_area_init_node(int nid, unsigned long * zones_size,
- 		unsigned long zone_start_pfn, unsigned long *zholes_size);
- extern void free_initmem(void);
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index 72041b4..e6755bc 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -54,11 +54,12 @@ static struct vfsmount *balloon_mnt;
  
-+extern void walk_free_mem_block(void *opaque1,
-+				unsigned int min_order,
-+				void (*visit)(void *opaque2,
-+					      unsigned long pfn,
-+					      unsigned long nr_pages));
+ struct virtio_balloon {
+ 	struct virtio_device *vdev;
+-	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq;
++	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_page_vq;
+ 
+ 	/* The balloon servicing is delegated to a freezable workqueue. */
+ 	struct work_struct update_balloon_stats_work;
+ 	struct work_struct update_balloon_size_work;
++	struct work_struct report_free_page_work;
+ 
+ 	/* Prevent updating balloon when it is being canceled. */
+ 	spinlock_t stop_update_lock;
+@@ -90,6 +91,13 @@ struct virtio_balloon {
+ 	/* Memory statistics */
+ 	struct virtio_balloon_stat stats[VIRTIO_BALLOON_S_NR];
+ 
++	/*
++	 * Used by the device and driver to signal each other.
++	 * device->driver: start the free page report.
++	 * driver->device: end the free page report.
++	 */
++	__virtio32 report_free_page_signal;
 +
- /*
-  * Free reserved pages within range [PAGE_ALIGN(start), end & PAGE_MASK)
-  * into the buddy system. The freed pages will be poisoned with pattern
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6d00f74..a721a35 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4762,6 +4762,50 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
- 	show_swap_cache_info();
+ 	/* To register callback in oom notifier call chain */
+ 	struct notifier_block nb;
+ };
+@@ -174,6 +182,17 @@ static void send_balloon_page_sg(struct virtio_balloon *vb,
+ 	} while (unlikely(ret == -ENOSPC));
  }
  
-+/**
-+ * walk_free_mem_block - Walk through the free page blocks in the system
-+ * @opaque1: the context passed from the caller
-+ * @min_order: the minimum order of free lists to check
-+ * @visit: the callback function given by the caller
-+ *
-+ * The function is used to walk through the free page blocks in the system,
-+ * and each free page block is reported to the caller via the @visit callback.
-+ * Please note:
-+ * 1) The function is used to report hints of free pages, so the caller should
-+ * not use those reported pages after the callback returns.
-+ * 2) The callback is invoked with the zone->lock being held, so it should not
-+ * block and should finish as soon as possible.
-+ */
-+void walk_free_mem_block(void *opaque1,
-+			 unsigned int min_order,
-+			 void (*visit)(void *opaque2,
-+				       unsigned long pfn,
-+				       unsigned long nr_pages))
++static void send_free_page_sg(struct virtqueue *vq, void *addr, uint32_t size)
 +{
-+	struct zone *zone;
-+	struct page *page;
-+	struct list_head *list;
-+	unsigned int order;
-+	enum migratetype mt;
-+	unsigned long pfn, flags;
++	unsigned int len;
 +
-+	for_each_populated_zone(zone) {
-+		for (order = MAX_ORDER - 1;
-+		     order < MAX_ORDER && order >= min_order; order--) {
-+			for (mt = 0; mt < MIGRATE_TYPES; mt++) {
-+				spin_lock_irqsave(&zone->lock, flags);
-+				list = &zone->free_area[order].free_list[mt];
-+				list_for_each_entry(page, list, lru) {
-+					pfn = page_to_pfn(page);
-+					visit(opaque1, pfn, 1 << order);
-+				}
-+				spin_unlock_irqrestore(&zone->lock, flags);
-+			}
-+		}
++	add_one_sg(vq, addr, size);
++	virtqueue_kick(vq);
++	/* Release entries if there are */
++	while (virtqueue_get_buf(vq, &len))
++		;
++}
++
+ /*
+  * Send balloon pages in sgs to host. The balloon pages are recorded in the
+  * page xbitmap. Each bit in the bitmap corresponds to a page of PAGE_SIZE.
+@@ -511,42 +530,143 @@ static void update_balloon_size_func(struct work_struct *work)
+ 		queue_work(system_freezable_wq, work);
+ }
+ 
++static void virtio_balloon_send_free_pages(void *opaque, unsigned long pfn,
++					   unsigned long nr_pages)
++{
++	struct virtio_balloon *vb = (struct virtio_balloon *)opaque;
++	void *addr = (void *)pfn_to_kaddr(pfn);
++	uint32_t len = nr_pages << PAGE_SHIFT;
++
++	send_free_page_sg(vb->free_page_vq, addr, len);
++}
++
++static void report_free_page_completion(struct virtio_balloon *vb)
++{
++	struct virtqueue *vq = vb->free_page_vq;
++	struct scatterlist sg;
++	unsigned int len;
++	int ret;
++
++	sg_init_one(&sg, &vb->report_free_page_signal, sizeof(__virtio32));
++retry:
++	ret = virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL);
++	virtqueue_kick(vq);
++	if (unlikely(ret == -ENOSPC)) {
++		wait_event(vb->acked, virtqueue_get_buf(vq, &len));
++		goto retry;
 +	}
 +}
-+EXPORT_SYMBOL_GPL(walk_free_mem_block);
 +
- static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
++static void report_free_page(struct work_struct *work)
++{
++	struct virtio_balloon *vb;
++
++	vb = container_of(work, struct virtio_balloon, report_free_page_work);
++	walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
++	report_free_page_completion(vb);
++}
++
++static void free_page_request(struct virtqueue *vq)
++{
++	struct virtio_balloon *vb = vq->vdev->priv;
++
++	queue_work(system_freezable_wq, &vb->report_free_page_work);
++}
++
+ static int init_vqs(struct virtio_balloon *vb)
  {
- 	zoneref->zone = zone;
+-	struct virtqueue *vqs[3];
+-	vq_callback_t *callbacks[] = { balloon_ack, balloon_ack, stats_request };
+-	static const char * const names[] = { "inflate", "deflate", "stats" };
+-	int err, nvqs;
++	struct virtqueue **vqs;
++	vq_callback_t **callbacks;
++	const char **names;
++	struct scatterlist sg;
++	int i, nvqs, err = -ENOMEM;
++
++	/* Inflateq and deflateq are used unconditionally */
++	nvqs = 2;
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ))
++		nvqs++;
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_VQ))
++		nvqs++;
++
++	/* Allocate space for find_vqs parameters */
++	vqs = kcalloc(nvqs, sizeof(*vqs), GFP_KERNEL);
++	if (!vqs)
++		goto err_vq;
++	callbacks = kmalloc_array(nvqs, sizeof(*callbacks), GFP_KERNEL);
++	if (!callbacks)
++		goto err_callback;
++	names = kmalloc_array(nvqs, sizeof(*names), GFP_KERNEL);
++	if (!names)
++		goto err_names;
++
++	callbacks[0] = balloon_ack;
++	names[0] = "inflate";
++	callbacks[1] = balloon_ack;
++	names[1] = "deflate";
++
++	i = 2;
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
++		callbacks[i] = stats_request;
++		names[i] = "stats";
++		i++;
++	}
+ 
+-	/*
+-	 * We expect two virtqueues: inflate and deflate, and
+-	 * optionally stat.
+-	 */
+-	nvqs = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ) ? 3 : 2;
+-	err = virtio_find_vqs(vb->vdev, nvqs, vqs, callbacks, names, NULL);
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_VQ)) {
++		callbacks[i] = free_page_request;
++		names[i] = "free_page_vq";
++	}
++
++	err = vb->vdev->config->find_vqs(vb->vdev, nvqs, vqs, callbacks, names,
++					 NULL, NULL);
+ 	if (err)
+-		return err;
++		goto err_find;
+ 
+ 	vb->inflate_vq = vqs[0];
+ 	vb->deflate_vq = vqs[1];
++	i = 2;
+ 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+-		struct scatterlist sg;
+-		unsigned int num_stats;
+-		vb->stats_vq = vqs[2];
+-
++		vb->stats_vq = vqs[i++];
+ 		/*
+ 		 * Prime this virtqueue with one buffer so the hypervisor can
+ 		 * use it to signal us later (it can't be broken yet!).
+ 		 */
+-		num_stats = update_balloon_stats(vb);
+-
+-		sg_init_one(&sg, vb->stats, sizeof(vb->stats[0]) * num_stats);
++		sg_init_one(&sg, vb->stats, sizeof(vb->stats));
+ 		if (virtqueue_add_outbuf(vb->stats_vq, &sg, 1, vb, GFP_KERNEL)
+-		    < 0)
+-			BUG();
++		    < 0) {
++			dev_warn(&vb->vdev->dev, "%s: add stat_vq failed\n",
++				 __func__);
++			goto err_find;
++		}
+ 		virtqueue_kick(vb->stats_vq);
+ 	}
++
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_VQ)) {
++		vb->free_page_vq = vqs[i];
++		vb->report_free_page_signal = 0;
++		sg_init_one(&sg, &vb->report_free_page_signal,
++			    sizeof(__virtio32));
++		if (virtqueue_add_outbuf(vb->free_page_vq, &sg, 1, vb,
++					 GFP_KERNEL) < 0) {
++			dev_warn(&vb->vdev->dev, "%s: add signal buf failed\n",
++				 __func__);
++			goto err_find;
++		}
++		virtqueue_kick(vb->free_page_vq);
++	}
++
++	kfree(names);
++	kfree(callbacks);
++	kfree(vqs);
+ 	return 0;
++
++err_find:
++	kfree(names);
++err_names:
++	kfree(callbacks);
++err_callback:
++	kfree(vqs);
++err_vq:
++	return err;
+ }
+ 
+ #ifdef CONFIG_BALLOON_COMPACTION
+@@ -675,6 +795,9 @@ static int virtballoon_probe(struct virtio_device *vdev)
+ 	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_SG))
+ 		xb_init(&vb->page_xb);
+ 
++	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_VQ))
++		INIT_WORK(&vb->report_free_page_work, report_free_page);
++
+ 	vb->nb.notifier_call = virtballoon_oom_notify;
+ 	vb->nb.priority = VIRTBALLOON_OOM_NOTIFY_PRIORITY;
+ 	err = register_oom_notifier(&vb->nb);
+@@ -739,6 +862,7 @@ static void virtballoon_remove(struct virtio_device *vdev)
+ 	spin_unlock_irq(&vb->stop_update_lock);
+ 	cancel_work_sync(&vb->update_balloon_size_work);
+ 	cancel_work_sync(&vb->update_balloon_stats_work);
++	cancel_work_sync(&vb->report_free_page_work);
+ 
+ 	remove_common(vb);
+ #ifdef CONFIG_BALLOON_COMPACTION
+@@ -792,6 +916,7 @@ static unsigned int features[] = {
+ 	VIRTIO_BALLOON_F_STATS_VQ,
+ 	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
+ 	VIRTIO_BALLOON_F_SG,
++	VIRTIO_BALLOON_F_FREE_PAGE_VQ,
+ };
+ 
+ static struct virtio_driver virtio_balloon_driver = {
+diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
+index 37780a7..8214f84 100644
+--- a/include/uapi/linux/virtio_balloon.h
++++ b/include/uapi/linux/virtio_balloon.h
+@@ -35,6 +35,7 @@
+ #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
+ #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
+ #define VIRTIO_BALLOON_F_SG		3 /* Use sg instead of PFN lists */
++#define VIRTIO_BALLOON_F_FREE_PAGE_VQ	4 /* Virtqueue to report free pages */
+ 
+ /* Size of a PFN in the balloon interface. */
+ #define VIRTIO_BALLOON_PFN_SHIFT 12
 -- 
 2.7.4
 
