@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D32776B02F4
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 05:10:07 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id y44so8309185wrd.13
-        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 02:10:07 -0700 (PDT)
-Received: from mail-wr0-x242.google.com (mail-wr0-x242.google.com. [2a00:1450:400c:c0c::242])
-        by mx.google.com with ESMTPS id z2si2712750edl.466.2017.08.17.02.10.06
+	by kanga.kvack.org (Postfix) with ESMTP id 4DA416B02FD
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 05:17:10 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id o8so11807471wrg.11
+        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 02:17:10 -0700 (PDT)
+Received: from mail-wr0-x241.google.com (mail-wr0-x241.google.com. [2a00:1450:400c:c0c::241])
+        by mx.google.com with ESMTPS id y28si2870518edi.306.2017.08.17.02.17.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Aug 2017 02:10:06 -0700 (PDT)
-Received: by mail-wr0-x242.google.com with SMTP id y67so7268757wrb.3
-        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 02:10:06 -0700 (PDT)
-Date: Thu, 17 Aug 2017 11:10:03 +0200
+        Thu, 17 Aug 2017 02:17:08 -0700 (PDT)
+Received: by mail-wr0-x241.google.com with SMTP id n88so7310091wrb.0
+        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 02:17:08 -0700 (PDT)
+Date: Thu, 17 Aug 2017 11:17:05 +0200
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCHv4 09/14] x86/mm: Handle boot-time paging mode switching
- at early boot
-Message-ID: <20170817091003.qls64kolj7iec3qc@gmail.com>
+Subject: Re: [PATCHv4 11/14] x86/mm: Replace compile-time checks for 5-level
+ with runtime-time
+Message-ID: <20170817091705.5np3utcqeia5em4x@gmail.com>
 References: <20170808125415.78842-1-kirill.shutemov@linux.intel.com>
- <20170808125415.78842-10-kirill.shutemov@linux.intel.com>
+ <20170808125415.78842-12-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170808125415.78842-10-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170808125415.78842-12-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
@@ -30,54 +30,29 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-fo
 
 * Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
 
-> This patch adds detection of 5-level paging at boot-time and adjusts
-> virtual memory layout and folds p4d page table layer if needed.
-> 
-> We have to make X86_5LEVEL dependant on SPARSEMEM_VMEMMAP.
-> !SPARSEMEM_VMEMMAP configuration doesn't work well with variable
-> MAX_PHYSMEM_BITS.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  arch/x86/Kconfig                        |  1 +
->  arch/x86/boot/compressed/kaslr.c        | 13 +++++--
->  arch/x86/entry/entry_64.S               | 12 +++++++
->  arch/x86/include/asm/page_64_types.h    | 13 +++----
->  arch/x86/include/asm/pgtable_64_types.h | 35 +++++++++++--------
->  arch/x86/include/asm/processor.h        |  2 +-
->  arch/x86/include/asm/sparsemem.h        |  9 ++---
->  arch/x86/kernel/head64.c                | 60 ++++++++++++++++++++++++++-------
->  arch/x86/kernel/head_64.S               | 18 ++++++----
->  arch/x86/kernel/setup.c                 |  5 ++-
->  arch/x86/mm/dump_pagetables.c           |  8 +++--
->  arch/x86/mm/kaslr.c                     | 13 ++++---
->  12 files changed, 129 insertions(+), 60 deletions(-)
+> --- a/arch/x86/mm/fault.c
+> +++ b/arch/x86/mm/fault.c
+> @@ -459,7 +459,7 @@ static noinline int vmalloc_fault(unsigned long address)
+>  	if (pgd_none(*pgd)) {
+>  		set_pgd(pgd, *pgd_ref);
+>  		arch_flush_lazy_mmu_mode();
+> -	} else if (CONFIG_PGTABLE_LEVELS > 4) {
+> +	} else if (!p4d_folded) {
 
-Please also split this patch up some more, into as many individual (but 
-bisectable) changes as possible.
+BTW: the new name is worse I think, not just the cryptic 'p4d' acronym that will 
+generally be much less well known than '5 level page tables', but also the logic 
+inversion from common usage patterns that generally want to do something if the 
+'fifth level is not folded' i.e. if 'the fifth level is enabled'.
 
-> diff --git a/arch/x86/include/asm/sparsemem.h b/arch/x86/include/asm/sparsemem.h
-> index 1f5bee2c202f..ba67afd870b7 100644
-> --- a/arch/x86/include/asm/sparsemem.h
-> +++ b/arch/x86/include/asm/sparsemem.h
-> @@ -26,13 +26,8 @@
->  # endif
->  #else /* CONFIG_X86_32 */
->  # define SECTION_SIZE_BITS	27 /* matt - 128 is convenient right now */
-> -# ifdef CONFIG_X86_5LEVEL
-> -#  define MAX_PHYSADDR_BITS	52
-> -#  define MAX_PHYSMEM_BITS	52
-> -# else
-> -#  define MAX_PHYSADDR_BITS	44
-> -#  define MAX_PHYSMEM_BITS	46
-> -# endif
-> +# define MAX_PHYSADDR_BITS	(p4d_folded ? 44 : 52)
-> +# define MAX_PHYSMEM_BITS	(p4d_folded ? 46 : 52)
->  #endif
+How about calling it 'pgtable_l5_enabled'? The switch tells us that the fifth 
+level of our page tables is enabled. Harmonizes with '5 level paging support'. It 
+also won't have the logic inversion but can be used directly:
 
-The kernel code size impact of these de-constification changes should be measured, 
-double checked and documented as well. We are adding all kinds of overhead to 
-(what I expect to be) commonly used kernels, let's do it carefully.
+	} else if (pgtable_l5_enabled) {
+
+( In theory we could use that nomenclature for PAE as well, 'pgtable_l3_enabled', 
+  or so - although PAE is special in more ways than just one more level, so it 
+  might not be practical. )
 
 Thanks,
 
