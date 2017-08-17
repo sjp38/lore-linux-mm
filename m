@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AD896B02B4
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 18:05:40 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id t80so137626313pgb.0
-        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 15:05:40 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id o30si2789676pli.1015.2017.08.17.15.05.39
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 27DF36B02C3
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 18:05:45 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id z91so10033988wrc.4
+        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 15:05:45 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id v67si21335wmb.1.2017.08.17.15.05.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Aug 2017 15:05:39 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7HM3tUr044179
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 18:05:38 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2cdkkpr3t2-1
+        Thu, 17 Aug 2017 15:05:43 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7HM3ucK110544
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 18:05:42 -0400
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2cdg4qtqqp-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 18:05:38 -0400
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 18:05:42 -0400
 Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Thu, 17 Aug 2017 23:05:36 +0100
+	Thu, 17 Aug 2017 23:05:40 +0100
 From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: [PATCH v2 01/20] mm: Dont assume page-table invariance during faults
-Date: Fri, 18 Aug 2017 00:05:00 +0200
+Subject: [PATCH v2 02/20] mm: Prepare for FAULT_FLAG_SPECULATIVE
+Date: Fri, 18 Aug 2017 00:05:01 +0200
 In-Reply-To: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
 References: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
-Message-Id: <1503007519-26777-2-git-send-email-ldufour@linux.vnet.ibm.com>
+Message-Id: <1503007519-26777-3-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>
@@ -33,62 +33,173 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, 
 
 From: Peter Zijlstra <peterz@infradead.org>
 
-One of the side effects of speculating on faults (without holding
-mmap_sem) is that we can race with free_pgtables() and therefore we
-cannot assume the page-tables will stick around.
+When speculating faults (without holding mmap_sem) we need to validate
+that the vma against which we loaded pages is still valid when we're
+ready to install the new PTE.
 
-Remove the reliance on the pte pointer.
+Therefore, replace the pte_offset_map_lock() calls that (re)take the
+PTL with pte_map_lock() which can fail in case we find the VMA changed
+since we started the fault.
 
 Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
----
- mm/memory.c | 27 ---------------------------
- 1 file changed, 27 deletions(-)
 
+[Port to 4.12 kernel]
+[Remove the comment about the fault_env structure which has been
+ implemented as the vm_fault structure in the kernel]
+Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+---
+ include/linux/mm.h |  1 +
+ mm/memory.c        | 55 ++++++++++++++++++++++++++++++++++++++----------------
+ 2 files changed, 40 insertions(+), 16 deletions(-)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 46b9ac5e8569..8763ec96dc78 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -286,6 +286,7 @@ extern pgprot_t protection_map[16];
+ #define FAULT_FLAG_USER		0x40	/* The fault originated in userspace */
+ #define FAULT_FLAG_REMOTE	0x80	/* faulting for non current tsk/mm */
+ #define FAULT_FLAG_INSTRUCTION  0x100	/* The fault was during an instruction fetch */
++#define FAULT_FLAG_SPECULATIVE	0x200	/* Speculative fault, not holding mmap_sem */
+ 
+ #define FAULT_FLAG_TRACE \
+ 	{ FAULT_FLAG_WRITE,		"WRITE" }, \
 diff --git a/mm/memory.c b/mm/memory.c
-index e158f7ac6730..36609c082256 100644
+index 36609c082256..3ed1b00ca841 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -2131,30 +2131,6 @@ int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
+@@ -2269,6 +2269,12 @@ static inline void wp_page_reuse(struct vm_fault *vmf)
+ 	pte_unmap_unlock(vmf->pte, vmf->ptl);
  }
- EXPORT_SYMBOL_GPL(apply_to_page_range);
  
--/*
-- * handle_pte_fault chooses page fault handler according to an entry which was
-- * read non-atomically.  Before making any commitment, on those architectures
-- * or configurations (e.g. i386 with PAE) which might give a mix of unmatched
-- * parts, do_swap_page must check under lock before unmapping the pte and
-- * proceeding (but do_wp_page is only called after already making such a check;
-- * and do_anonymous_page can safely check later on).
-- */
--static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
--				pte_t *page_table, pte_t orig_pte)
--{
--	int same = 1;
--#if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
--	if (sizeof(pte_t) > sizeof(unsigned long)) {
--		spinlock_t *ptl = pte_lockptr(mm, pmd);
--		spin_lock(ptl);
--		same = pte_same(*page_table, orig_pte);
--		spin_unlock(ptl);
--	}
--#endif
--	pte_unmap(page_table);
--	return same;
--}
--
- static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
++static bool pte_map_lock(struct vm_fault *vmf)
++{
++	vmf->pte = pte_offset_map_lock(vmf->vma->vm_mm, vmf->pmd, vmf->address, &vmf->ptl);
++	return true;
++}
++
+ /*
+  * Handle the case of a page which we actually need to copy to a new page.
+  *
+@@ -2296,6 +2302,7 @@ static int wp_page_copy(struct vm_fault *vmf)
+ 	const unsigned long mmun_start = vmf->address & PAGE_MASK;
+ 	const unsigned long mmun_end = mmun_start + PAGE_SIZE;
+ 	struct mem_cgroup *memcg;
++	int ret = VM_FAULT_OOM;
+ 
+ 	if (unlikely(anon_vma_prepare(vma)))
+ 		goto oom;
+@@ -2323,7 +2330,11 @@ static int wp_page_copy(struct vm_fault *vmf)
+ 	/*
+ 	 * Re-check the pte - we dropped the lock
+ 	 */
+-	vmf->pte = pte_offset_map_lock(mm, vmf->pmd, vmf->address, &vmf->ptl);
++	if (!pte_map_lock(vmf)) {
++		mem_cgroup_cancel_charge(new_page, memcg, false);
++		ret = VM_FAULT_RETRY;
++		goto oom_free_new;
++	}
+ 	if (likely(pte_same(*vmf->pte, vmf->orig_pte))) {
+ 		if (old_page) {
+ 			if (!PageAnon(old_page)) {
+@@ -2411,7 +2422,7 @@ static int wp_page_copy(struct vm_fault *vmf)
+ oom:
+ 	if (old_page)
+ 		put_page(old_page);
+-	return VM_FAULT_OOM;
++	return ret;
+ }
+ 
+ /**
+@@ -2432,8 +2443,8 @@ static int wp_page_copy(struct vm_fault *vmf)
+ int finish_mkwrite_fault(struct vm_fault *vmf)
  {
- 	debug_dma_assert_idle(src);
-@@ -2711,9 +2687,6 @@ int do_swap_page(struct vm_fault *vmf)
- 	int exclusive = 0;
- 	int ret = 0;
+ 	WARN_ON_ONCE(!(vmf->vma->vm_flags & VM_SHARED));
+-	vmf->pte = pte_offset_map_lock(vmf->vma->vm_mm, vmf->pmd, vmf->address,
+-				       &vmf->ptl);
++	if (!pte_map_lock(vmf))
++		return VM_FAULT_RETRY;
+ 	/*
+ 	 * We might have raced with another page fault while we released the
+ 	 * pte_offset_map_lock.
+@@ -2551,8 +2562,11 @@ static int do_wp_page(struct vm_fault *vmf)
+ 			get_page(vmf->page);
+ 			pte_unmap_unlock(vmf->pte, vmf->ptl);
+ 			lock_page(vmf->page);
+-			vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd,
+-					vmf->address, &vmf->ptl);
++			if (!pte_map_lock(vmf)) {
++				unlock_page(vmf->page);
++				put_page(vmf->page);
++				return VM_FAULT_RETRY;
++			}
+ 			if (!pte_same(*vmf->pte, vmf->orig_pte)) {
+ 				unlock_page(vmf->page);
+ 				pte_unmap_unlock(vmf->pte, vmf->ptl);
+@@ -2710,8 +2724,10 @@ int do_swap_page(struct vm_fault *vmf)
+ 			 * Back out if somebody else faulted in this pte
+ 			 * while we released the pte lock.
+ 			 */
+-			vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd,
+-					vmf->address, &vmf->ptl);
++			if (!pte_map_lock(vmf)) {
++				delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
++				return VM_FAULT_RETRY;
++			}
+ 			if (likely(pte_same(*vmf->pte, vmf->orig_pte)))
+ 				ret = VM_FAULT_OOM;
+ 			delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+@@ -2767,8 +2783,11 @@ int do_swap_page(struct vm_fault *vmf)
+ 	/*
+ 	 * Back out if somebody else already faulted in this pte.
+ 	 */
+-	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, vmf->address,
+-			&vmf->ptl);
++	if (!pte_map_lock(vmf)) {
++		ret = VM_FAULT_RETRY;
++		mem_cgroup_cancel_charge(page, memcg, false);
++		goto out_page;
++	}
+ 	if (unlikely(!pte_same(*vmf->pte, vmf->orig_pte)))
+ 		goto out_nomap;
  
--	if (!pte_unmap_same(vma->vm_mm, vmf->pmd, vmf->pte, vmf->orig_pte))
--		goto out;
--
- 	entry = pte_to_swp_entry(vmf->orig_pte);
- 	if (unlikely(non_swap_entry(entry))) {
- 		if (is_migration_entry(entry)) {
+@@ -2894,8 +2913,8 @@ static int do_anonymous_page(struct vm_fault *vmf)
+ 			!mm_forbids_zeropage(vma->vm_mm)) {
+ 		entry = pte_mkspecial(pfn_pte(my_zero_pfn(vmf->address),
+ 						vma->vm_page_prot));
+-		vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd,
+-				vmf->address, &vmf->ptl);
++		if (!pte_map_lock(vmf))
++			return VM_FAULT_RETRY;
+ 		if (!pte_none(*vmf->pte))
+ 			goto unlock;
+ 		/* Deliver the page fault to userland, check inside PT lock */
+@@ -2927,8 +2946,11 @@ static int do_anonymous_page(struct vm_fault *vmf)
+ 	if (vma->vm_flags & VM_WRITE)
+ 		entry = pte_mkwrite(pte_mkdirty(entry));
+ 
+-	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, vmf->address,
+-			&vmf->ptl);
++	if (!pte_map_lock(vmf)) {
++		mem_cgroup_cancel_charge(page, memcg, false);
++		put_page(page);
++		return VM_FAULT_RETRY;
++	}
+ 	if (!pte_none(*vmf->pte))
+ 		goto release;
+ 
+@@ -3048,8 +3070,9 @@ static int pte_alloc_one_map(struct vm_fault *vmf)
+ 	 * pte_none() under vmf->ptl protection when we return to
+ 	 * alloc_set_pte().
+ 	 */
+-	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, vmf->address,
+-			&vmf->ptl);
++	if (!pte_map_lock(vmf))
++		return VM_FAULT_RETRY;
++
+ 	return 0;
+ }
+ 
 -- 
 2.7.4
 
