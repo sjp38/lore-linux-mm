@@ -1,223 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B0A36B025F
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 14:03:19 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id x189so126693555pgb.11
-        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 11:03:19 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id c63si2398932pfe.580.2017.08.17.11.03.17
-        for <linux-mm@kvack.org>;
-        Thu, 17 Aug 2017 11:03:17 -0700 (PDT)
-Date: Thu, 17 Aug 2017 19:03:11 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v6 4/9] arm64: hugetlb: Add break-before-make logic for
- contiguous entries
-Message-ID: <20170817180311.uwrz64g3bkwfdkrn@armageddon.cambridge.arm.com>
-References: <20170810170906.30772-1-punit.agrawal@arm.com>
- <20170810170906.30772-5-punit.agrawal@arm.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 824066B025F
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 16:18:53 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id m133so96998147pga.2
+        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 13:18:53 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id b60si869738pli.437.2017.08.17.13.18.51
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Aug 2017 13:18:52 -0700 (PDT)
+From: "Liang, Kan" <kan.liang@intel.com>
+Subject: RE: [PATCH 1/2] sched/wait: Break up long wake list walk
+Date: Thu, 17 Aug 2017 20:18:43 +0000
+Message-ID: <37D7C6CF3E00A74B8858931C1DB2F0775378761B@SHSMSX103.ccr.corp.intel.com>
+References: <84c7f26182b7f4723c0fe3b34ba912a9de92b8b7.1502758114.git.tim.c.chen@linux.intel.com>
+ <CA+55aFznC1wqBSfYr8=92LGqz5-F6fHMzdXoqM4aOYx8sT1Dhg@mail.gmail.com>
+ <37D7C6CF3E00A74B8858931C1DB2F07753786CE9@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFwzTMrZwh7TE_VeZt8gx5Syoop-kA=Xqs56=FkyakrM6g@mail.gmail.com>
+In-Reply-To: <CA+55aFwzTMrZwh7TE_VeZt8gx5Syoop-kA=Xqs56=FkyakrM6g@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170810170906.30772-5-punit.agrawal@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Punit Agrawal <punit.agrawal@arm.com>
-Cc: will.deacon@arm.com, mark.rutland@arm.com, linux-mm@kvack.org, David Woods <dwoods@mellanox.com>, linux-arm-kernel@lists.infradead.org, Steve Capper <steve.capper@arm.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes
+ Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 10, 2017 at 06:09:01PM +0100, Punit Agrawal wrote:
-> --- a/arch/arm64/mm/hugetlbpage.c
-> +++ b/arch/arm64/mm/hugetlbpage.c
-> @@ -68,6 +68,62 @@ static int find_num_contig(struct mm_struct *mm, unsigned long addr,
->  	return CONT_PTES;
->  }
->  
-> +/*
-> + * Changing some bits of contiguous entries requires us to follow a
-> + * Break-Before-Make approach, breaking the whole contiguous set
-> + * before we can change any entries. See ARM DDI 0487A.k_iss10775,
-> + * "Misprogramming of the Contiguous bit", page D4-1762.
-> + *
-> + * This helper performs the break step.
-> + */
-> +static pte_t get_clear_flush(struct mm_struct *mm,
-> +			     unsigned long addr,
-> +			     pte_t *ptep,
-> +			     unsigned long pgsize,
-> +			     unsigned long ncontig)
-> +{
-> +	unsigned long i, saddr = addr;
-> +	struct vm_area_struct vma = { .vm_mm = mm };
-> +	pte_t orig_pte = huge_ptep_get(ptep);
-> +
-> +	/*
-> +	 * If we already have a faulting entry then we don't need
-> +	 * to break before make (there won't be a tlb entry cached).
-> +	 */
-> +	if (!pte_present(orig_pte))
-> +		return orig_pte;
-
-I first thought we could relax this check to pte_valid() as we don't
-care about the PROT_NONE case for hardware page table updates. However,
-I realised that we call this where we expect the pte to be entirely
-cleared but we simply skip it if !present (e.g. swap entry). Is this
-correct?
-
-> +
-> +	for (i = 0; i < ncontig; i++, addr += pgsize, ptep++) {
-> +		pte_t pte = ptep_get_and_clear(mm, addr, ptep);
-> +
-> +		/*
-> +		 * If HW_AFDBM is enabled, then the HW could turn on
-> +		 * the dirty bit for any page in the set, so check
-> +		 * them all.  All hugetlb entries are already young.
-> +		 */
-> +		if (IS_ENABLED(CONFIG_ARM64_HW_AFDBM) && pte_dirty(pte))
-> +			orig_pte = pte_mkdirty(orig_pte);
-> +	}
-> +
-> +	flush_tlb_range(&vma, saddr, addr);
-> +	return orig_pte;
-> +}
-
-It would be better if you do something like
-
-	bool valid = pte_valid(org_pte);
-	...
-	if (valid)
-		flush_tlb_range(...);
-
-> +
-> +static void clear_flush(struct mm_struct *mm,
-> +			     unsigned long addr,
-> +			     pte_t *ptep,
-> +			     unsigned long pgsize,
-> +			     unsigned long ncontig)
-> +{
-> +	unsigned long i, saddr = addr;
-> +	struct vm_area_struct vma = { .vm_mm = mm };
-> +
-> +	for (i = 0; i < ncontig; i++, addr += pgsize, ptep++)
-> +		pte_clear(mm, addr, ptep);
-> +
-> +	flush_tlb_range(&vma, saddr, addr);
-> +}
-> +
->  void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
->  			    pte_t *ptep, pte_t pte)
->  {
-> @@ -93,6 +149,8 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
->  	dpfn = pgsize >> PAGE_SHIFT;
->  	hugeprot = pte_pgprot(pte);
->  
-> +	clear_flush(mm, addr, ptep, pgsize, ncontig);
-> +
->  	for (i = 0; i < ncontig; i++, ptep++, addr += pgsize, pfn += dpfn) {
->  		pr_debug("%s: set pte %p to 0x%llx\n", __func__, ptep,
->  			 pte_val(pfn_pte(pfn, hugeprot)));
-> @@ -194,7 +252,7 @@ pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
->  pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
->  			      unsigned long addr, pte_t *ptep)
->  {
-> -	int ncontig, i;
-> +	int ncontig;
->  	size_t pgsize;
->  	pte_t orig_pte = huge_ptep_get(ptep);
->  
-> @@ -202,17 +260,8 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
->  		return ptep_get_and_clear(mm, addr, ptep);
->  
->  	ncontig = find_num_contig(mm, addr, ptep, &pgsize);
-> -	for (i = 0; i < ncontig; i++, addr += pgsize, ptep++) {
-> -		/*
-> -		 * If HW_AFDBM is enabled, then the HW could
-> -		 * turn on the dirty bit for any of the page
-> -		 * in the set, so check them all.
-> -		 */
-> -		if (pte_dirty(ptep_get_and_clear(mm, addr, ptep)))
-> -			orig_pte = pte_mkdirty(orig_pte);
-> -	}
->  
-> -	return orig_pte;
-> +	return get_clear_flush(mm, addr, ptep, pgsize, ncontig);
->  }
-
-E.g. here you don't always clear the pte if a swap entry.
-
->  
->  int huge_ptep_set_access_flags(struct vm_area_struct *vma,
-> @@ -222,6 +271,7 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
->  	int ncontig, i, changed = 0;
->  	size_t pgsize = 0;
->  	unsigned long pfn = pte_pfn(pte), dpfn;
-> +	pte_t orig_pte;
->  	pgprot_t hugeprot;
->  
->  	if (!pte_cont(pte))
-> @@ -229,12 +279,18 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
->  
->  	ncontig = find_num_contig(vma->vm_mm, addr, ptep, &pgsize);
->  	dpfn = pgsize >> PAGE_SHIFT;
-> -	hugeprot = pte_pgprot(pte);
->  
-> -	for (i = 0; i < ncontig; i++, ptep++, addr += pgsize, pfn += dpfn) {
-> -		changed |= ptep_set_access_flags(vma, addr, ptep,
-> -				pfn_pte(pfn, hugeprot), dirty);
-> -	}
-> +	orig_pte = get_clear_flush(vma->vm_mm, addr, ptep, pgsize, ncontig);
-> +	if (!pte_same(orig_pte, pte))
-> +		changed = 1;
-> +
-> +	/* Make sure we don't lose the dirty state */
-> +	if (pte_dirty(orig_pte))
-> +		pte = pte_mkdirty(pte);
-> +
-> +	hugeprot = pte_pgprot(pte);
-> +	for (i = 0; i < ncontig; i++, ptep++, addr += pgsize, pfn += dpfn)
-> +		set_pte_at(vma->vm_mm, addr, ptep, pfn_pte(pfn, hugeprot));
->  
->  	return changed;
->  }
-> @@ -244,6 +300,9 @@ void huge_ptep_set_wrprotect(struct mm_struct *mm,
->  {
->  	int ncontig, i;
->  	size_t pgsize;
-> +	pte_t pte = pte_wrprotect(huge_ptep_get(ptep)), orig_pte;
-
-I'm not particularly fond of too many function calls in the variable
-initialisation part. I would rather keep pte_wrprotect further down
-where you also make it "dirty".
-
-> +	unsigned long pfn = pte_pfn(pte), dpfn;
-> +	pgprot_t hugeprot;
->  
->  	if (!pte_cont(*ptep)) {
->  		ptep_set_wrprotect(mm, addr, ptep);
-> @@ -251,14 +310,21 @@ void huge_ptep_set_wrprotect(struct mm_struct *mm,
->  	}
->  
->  	ncontig = find_num_contig(mm, addr, ptep, &pgsize);
-> -	for (i = 0; i < ncontig; i++, ptep++, addr += pgsize)
-> -		ptep_set_wrprotect(mm, addr, ptep);
-> +	dpfn = pgsize >> PAGE_SHIFT;
-> +
-> +	orig_pte = get_clear_flush(mm, addr, ptep, pgsize, ncontig);
-
-Can you not use just set pte here instead of deriving it from *ptep
-early on?
-
-	pte = get_clear_flush(mm, addr, ptep, pgsize, ncontig);
-	pte = pte_wrprotect(pte);
-
-> +	if (pte_dirty(orig_pte))
-> +		pte = pte_mkdirty(pte);
-> +
-> +	hugeprot = pte_pgprot(pte);
-> +	for (i = 0; i < ncontig; i++, ptep++, addr += pgsize, pfn += dpfn)
-> +		set_pte_at(mm, addr, ptep, pfn_pte(pfn, hugeprot));
->  }
-
--- 
-Catalin
+DQoNCj4gPiBIZXJlIGlzIHRoZSB3YWtlX3VwX3BhZ2VfYml0IGNhbGwgc3RhY2sgd2hlbiB0aGUg
+d29ya2Fyb3VuZCBpcyBydW5uaW5nLA0KPiB3aGljaA0KPiA+IGlzIGNvbGxlY3RlZCBieSBwZXJm
+IHJlY29yZCAtZyAtYSAtZSBwcm9iZTp3YWtlX3VwX3BhZ2VfYml0IC0tIHNsZWVwIDEwDQo+IA0K
+PiBJdCdzIGFjdHVhbGx5IG5vdCByZWFsbHkgd2FrZV91cF9wYWdlX2JpdCgpIHRoYXQgaXMgYWxs
+IHRoYXQNCj4gaW50ZXJlc3RpbmcsIGl0IHdvdWxkIGJlIG1vcmUgaW50ZXJlc3RpbmcgdG8gc2Vl
+IHdoaWNoIHBhdGggaXQgaXMgdGhhdA0KPiAqYWRkcyogdGhlIGVudHJpZXMuDQo+IA0KPiBTbyBp
+dCdzIG1haW5seSB3YWl0X29uX3BhZ2VfYml0X2NvbW1vbigpLCBidXQgYWxzbw0KPiBhZGRfcGFn
+ZV93YWl0X3F1ZXVlKCkuDQo+IA0KPiBDYW4geW91IGdldCB0aGF0IGNhbGwgc3RhY2sgaW5zdGVh
+ZCAob3IgaW4gYWRkaXRpb24gdG8pPw0KPiANCg0KSGVyZSBpcyB0aGUgY2FsbCBzdGFjayBvZiB3
+YWl0X29uX3BhZ2VfYml0X2NvbW1vbg0Kd2hlbiB0aGUgcXVldWUgaXMgbG9uZyAoZW50cmllcyA+
+MTAwMCkuDQoNCiMgT3ZlcmhlYWQgIFRyYWNlIG91dHB1dCAgICAgIA0KIyAuLi4uLi4uLiAgLi4u
+Li4uLi4uLi4uLi4uLi4uDQojDQogICAxMDAuMDAlICAoZmZmZmZmZmY5MzFhZWZjYSkNCiAgICAg
+ICAgICAgIHwNCiAgICAgICAgICAgIC0tLXdhaXRfb25fcGFnZV9iaXQNCiAgICAgICAgICAgICAg
+IF9fbWlncmF0aW9uX2VudHJ5X3dhaXQNCiAgICAgICAgICAgICAgIG1pZ3JhdGlvbl9lbnRyeV93
+YWl0DQogICAgICAgICAgICAgICBkb19zd2FwX3BhZ2UNCiAgICAgICAgICAgICAgIF9faGFuZGxl
+X21tX2ZhdWx0DQogICAgICAgICAgICAgICBoYW5kbGVfbW1fZmF1bHQNCiAgICAgICAgICAgICAg
+IF9fZG9fcGFnZV9mYXVsdA0KICAgICAgICAgICAgICAgZG9fcGFnZV9mYXVsdA0KICAgICAgICAg
+ICAgICAgcGFnZV9mYXVsdA0KICAgICAgICAgICAgICAgfCAgICAgICAgICANCiAgICAgICAgICAg
+ICAgIHwtLTIxLjg5JS0tMHgxMjNhMg0KICAgICAgICAgICAgICAgfCAgICAgICAgICBzdGFydF90
+aHJlYWQNCiAgICAgICAgICAgICAgIHwgICAgICAgICAgDQogICAgICAgICAgICAgICB8LS0yMS42
+NCUtLTB4MTIzNTINCiAgICAgICAgICAgICAgIHwgICAgICAgICAgc3RhcnRfdGhyZWFkDQogICAg
+ICAgICAgICAgICB8ICAgICAgICAgIA0KICAgICAgICAgICAgICAgfC0tMjAuOTAlLS1faW50X2Zy
+ZWUNCiAgICAgICAgICAgICAgIHwgICAgICAgICAgfCAgICAgICAgICANCiAgICAgICAgICAgICAg
+IHwgICAgICAgICAgIC0tMjAuNDQlLS0wDQogICAgICAgICAgICAgICB8ICAgICAgICAgIA0KICAg
+ICAgICAgICAgICAgfC0tNy4zNCUtLTB4MTI3YTkNCiAgICAgICAgICAgICAgIHwgICAgICAgICAg
+c3RhcnRfdGhyZWFkDQogICAgICAgICAgICAgICB8ICAgICAgICAgIA0KICAgICAgICAgICAgICAg
+fC0tNi44NCUtLTB4MTI3ZGYNCiAgICAgICAgICAgICAgIHwgICAgICAgICAgc3RhcnRfdGhyZWFk
+DQogICAgICAgICAgICAgICB8ICAgICAgICAgIA0KICAgICAgICAgICAgICAgfC0tNi42NSUtLTB4
+MTIyMDUNCiAgICAgICAgICAgICAgIHwgICAgICAgICAgMHgxMjA2ZA0KICAgICAgICAgICAgICAg
+fCAgICAgICAgICAweDExZjg1DQogICAgICAgICAgICAgICB8ICAgICAgICAgIDB4MTFhMDUNCiAg
+ICAgICAgICAgICAgIHwgICAgICAgICAgMHgxMDMwMg0KICAgICAgICAgICAgICAgfCAgICAgICAg
+ICB8ICAgICAgICAgIA0KICAgICAgICAgICAgICAgfCAgICAgICAgICAgLS02LjYyJS0tMHhhOGVl
+DQogICAgICAgICAgICAgICB8ICAgICAgICAgICAgICAgICAgICAgfCAgICAgICAgICANCiAgICAg
+ICAgICAgICAgIHwgICAgICAgICAgICAgICAgICAgICAgLS01LjIyJS0tMHgzYWY1DQogICAgICAg
+ICAgICAgICB8ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBfX2xpYmNfc3RhcnRfbWFp
+bg0KICAgICAgICAgICAgICAgfCAgICAgICAgICANCiAgICAgICAgICAgICAgIHwtLTUuNDAlLS0w
+eDEyODRiDQogICAgICAgICAgICAgICB8ICAgICAgICAgIHN0YXJ0X3RocmVhZA0KICAgICAgICAg
+ICAgICAgfCAgICAgICAgICANCiAgICAgICAgICAgICAgIHwtLTMuMTQlLS0weDEyODgxDQogICAg
+ICAgICAgICAgICB8ICAgICAgICAgIHN0YXJ0X3RocmVhZA0KICAgICAgICAgICAgICAgfCAgICAg
+ICAgICANCiAgICAgICAgICAgICAgIHwtLTMuMDIlLS0weDEyNzczDQogICAgICAgICAgICAgICB8
+ICAgICAgICAgIHN0YXJ0X3RocmVhZA0KICAgICAgICAgICAgICAgfCAgICAgICAgICANCiAgICAg
+ICAgICAgICAgICAtLTIuOTclLS0weDEyODE1DQogICAgICAgICAgICAgICAgICAgICAgICAgIHN0
+YXJ0X3RocmVhZA0KDQpUaGFua3MsDQpLYW4NCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
