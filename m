@@ -1,69 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AFCE26B02F3
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 19:32:19 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id 41so72749096iop.2
-        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 16:32:19 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id w70si2587416pgw.626.2017.08.17.16.32.18
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DCF676B02F3
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 19:42:46 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id 5so16077498wrz.14
+        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 16:42:46 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id k19si842633wre.0.2017.08.17.16.42.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Aug 2017 16:32:18 -0700 (PDT)
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [PATCH-resend] mm/hwpoison: Clear PRESENT bit for kernel 1:1
- mappings of poison pages
-Date: Thu, 17 Aug 2017 23:32:16 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F61342363@ORSMSX114.amr.corp.intel.com>
-References: <CAPcyv4gC_6TpwVSjuOzxrz3OdVZCVWD0QVWhBzAuOxUNHJHRMQ@mail.gmail.com>
-	<20170816171803.28342-1-tony.luck@intel.com>
- <20170817150942.017f87537b6cbb48e9cfc082@linux-foundation.org>
-In-Reply-To: <20170817150942.017f87537b6cbb48e9cfc082@linux-foundation.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Thu, 17 Aug 2017 16:42:45 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7HNd4MR124876
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 19:42:44 -0400
+Received: from e15.ny.us.ibm.com (e15.ny.us.ibm.com [129.33.205.205])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2cdhun0tnt-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 19:42:44 -0400
+Received: from localhost
+	by e15.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Thu, 17 Aug 2017 19:42:43 -0400
+Date: Thu, 17 Aug 2017 16:42:31 -0700
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [RFC v6 21/62] powerpc: introduce execute-only pkey
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com>
+ <1500177424-13695-22-git-send-email-linuxram@us.ibm.com>
+ <87shhgdx5i.fsf@linux.vnet.ibm.com>
+ <87d18fu6o1.fsf@concordia.ellerman.id.au>
+ <87d18fw9it.fsf@linux.vnet.ibm.com>
+ <871sous3xd.fsf@concordia.ellerman.id.au>
+ <20170817233555.GC5427@ram.oc3035372033.ibm.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170817233555.GC5427@ram.oc3035372033.ibm.com>
+Message-Id: <20170817234231.GA5445@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Borislav Petkov <bp@suse.de>, "Hansen, Dave" <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Elliott, Robert (Persistent
- Memory)" <elliott@hpe.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>, linux-arch@vger.kernel.org, corbet@lwn.net, arnd@arndb.de, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org, dave.hansen@intel.com, mingo@redhat.com, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, linux-kselftest@vger.kernel.org, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, khandual@linux.vnet.ibm.com
 
-> It's unclear (to lil ole me) what the end-user-visible effects of this
-> are.
->
-> Could we please have a description of that?  So a) people can
-> understand your decision to cc:stable and b) people whose kernels are
-> misbehaving can use your description to decide whether your patch might
-> fix the issue their users are reporting.
+On Thu, Aug 17, 2017 at 04:35:55PM -0700, Ram Pai wrote:
+> On Wed, Aug 02, 2017 at 07:40:46PM +1000, Michael Ellerman wrote:
+> > Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com> writes:
+> > 
+> > > Michael Ellerman <mpe@ellerman.id.au> writes:
+> > >
+> > >> Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com> writes:
+> > >>> Ram Pai <linuxram@us.ibm.com> writes:
+> > >> ...
+> > >>>> +
+> > >>>> +	/* We got one, store it and use it from here on out */
+> > >>>> +	if (need_to_set_mm_pkey)
+> > >>>> +		mm->context.execute_only_pkey = execute_only_pkey;
+> > >>>> +	return execute_only_pkey;
+> > >>>> +}
+> > >>>
+> > >>> If you follow the code flow in __execute_only_pkey, the AMR and UAMOR
+> > >>> are read 3 times in total, and AMR is written twice. IAMR is read and
+> > >>> written twice. Since they are SPRs and access to them is slow (or isn't
+> > >>> it?),
+> > >>
+> > >> SPRs read/writes are slow, but they're not *that* slow in comparison to
+> > >> a system call (which I think is where this code is being called?).
+> > >
+> > > Yes, this code runs on mprotect and mmap syscalls if the memory is
+> > > requested to have execute but not read nor write permissions.
+> > 
+> > Yep. That's not in the fast path for key usage, ie. the fast path is
+> > userspace changing the AMR itself, and the overhead of a syscall is
+> > already hundreds of cycles.
+> > 
+> > >> So we should try to avoid too many SPR read/writes, but at the same time
+> > >> we can accept more than the minimum if it makes the code much easier to
+> > >> follow.
+> > >
+> > > Ok. Ram had asked me to suggest a way to optimize the SPR reads and
+> > > writes and I came up with the patch below. Do you think it's worth it?
+> > 
+> > At a glance no I don't think it is. Sorry you spent that much time on it.
+> > 
+> > I think we can probably reduce the number of SPR accesses without
+> > needing to go to that level of complexity.
+> > 
+> > But don't throw the patch away, I may eat my words once I have the full
+> > series applied and am looking at it hard - at the moment I'm just
+> > reviewing the patches piecemeal as I get time.
+> 
 
-Ingo already applied this to the tip tree, so too late to fix the commit me=
-ssage :-(
+Thiago's patch does save some cycles. I dont feel like throwing his
+work. I agree, It should be considered after applying all the patches. 
+ 
+RP
 
-A very, very, unlucky end user with a system that supports machine check re=
-covery
-(Xeon E7, or Xeon-SP-platinum) that has recovered from one or more uncorrec=
-ted
-memory errors (lucky so far) might find a subsequent uncorrected memory err=
-or flagged
-as fatal because the machine check bank that should log the error is alread=
-y occupied
-by a log caused by a speculative access to one of the earlier uncorrected e=
-rrors (the
-unlucky part).
-
-We haven't seen this happen at the Linux OS level, but it is a theoretical =
-possibility.
-[Some BIOS that map physical memory 1:1 have seen this when doing eMCA proc=
-essing
-for the first error ... as soon as they load the address of the error from =
-the MCi_ADDR
-register they are vulnerable to some speculative access dereferencing the r=
-egister with=20
-the address and setting the overflow bit in the machine check bank that sti=
-ll holds the
-original log].
-
--Tony
+-- 
+Ram Pai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
