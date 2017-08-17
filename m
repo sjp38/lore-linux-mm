@@ -1,144 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 21D0D6B025F
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 00:03:06 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id f23so78334543pgn.15
-        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 21:03:06 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id i1si1599381pld.128.2017.08.16.21.03.04
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E23536B025F
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 00:23:25 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id p62so6753851oih.12
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 21:23:25 -0700 (PDT)
+Received: from mail-io0-x241.google.com (mail-io0-x241.google.com. [2607:f8b0:4001:c06::241])
+        by mx.google.com with ESMTPS id u206si1815319oig.411.2017.08.16.21.23.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Aug 2017 21:03:04 -0700 (PDT)
-From: Chen Yu <yu.c.chen@intel.com>
-Subject: [PATCH][RFC v3] PM / Hibernate: Feed the wathdog when creating snapshot
-Date: Thu, 17 Aug 2017 12:04:34 +0800
-Message-Id: <1502942674-25773-1-git-send-email-yu.c.chen@intel.com>
+        Wed, 16 Aug 2017 21:23:24 -0700 (PDT)
+Received: by mail-io0-x241.google.com with SMTP id c74so3427286iod.4
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 21:23:24 -0700 (PDT)
+Message-ID: <1502943802.3986.38.camel@gmail.com>
+Subject: Re: [PATCHv3 2/2] extract early boot entropy from the passed cmdline
+From: Daniel Micay <danielmicay@gmail.com>
+Date: Thu, 17 Aug 2017 00:23:22 -0400
+In-Reply-To: <20170817033148.ownsmbdzk2vhupme@thunk.org>
+References: <20170816231458.2299-1-labbott@redhat.com>
+	 <20170816231458.2299-3-labbott@redhat.com>
+	 <20170817033148.ownsmbdzk2vhupme@thunk.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Chen Yu <yu.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Dan Williams <dan.j.williams@intel.com>, linux-kernel@vger.kernel.org
+To: Theodore Ts'o <tytso@mit.edu>, Laura Abbott <labbott@redhat.com>
+Cc: Kees Cook <keescook@chromium.org>, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-There is a problem that when counting the pages for creating
-the hibernation snapshot will take significant amount of
-time, especially on system with large memory. Since the counting
-job is performed with irq disabled, this might lead to NMI lockup.
-The following warning were found on a system with 1.5TB DRAM:
+On Wed, 2017-08-16 at 23:31 -0400, Theodore Ts'o wrote:
+> On Wed, Aug 16, 2017 at 04:14:58PM -0700, Laura Abbott wrote:
+> > From: Daniel Micay <danielmicay@gmail.com>
+> > 
+> > Existing Android bootloaders usually pass data useful as early
+> > entropy
+> > on the kernel command-line. It may also be the case on other
+> > embedded
+> > systems.....
+> 
+> May I suggest a slight adjustment to the beginning commit description?
+> 
+>    Feed the boot command-line as to the /dev/random entropy pool
+> 
+>    Existing Android bootloaders usually pass data which may not be
+>    known by an external attacker on the kernel command-line.  It may
+>    also be the case on other embedded systems.  Sample command-line
+>    from a Google Pixel running CopperheadOS....
+> 
+> The idea here is to if anything, err on the side of under-promising
+> the amount of security we can guarantee that this technique will
+> provide.  For example, how hard is it really for an attacker who has
+> an APK installed locally to get the device serial number?  Or the OS
+> version?  And how much variability is there in the bootloader stages
+> in milliseconds?
 
-[ 1124.758184] Freezing user space processes ... (elapsed 0.002 seconds) done.
-[ 1124.768721] OOM killer disabled.
-[ 1124.847009] PM: Preallocating image memory...
-[ 1139.392042] NMI watchdog: Watchdog detected hard LOCKUP on cpu 27
-[ 1139.392076] CPU: 27 PID: 3128 Comm: systemd-sleep Not tainted 4.13.0-0.rc2.git0.1.fc27.x86_64 #1
-[ 1139.392077] task: ffff9f01971ac000 task.stack: ffffb1a3f325c000
-[ 1139.392083] RIP: 0010:memory_bm_find_bit+0xf4/0x100
-[ 1139.392084] RSP: 0018:ffffb1a3f325fc20 EFLAGS: 00000006
-[ 1139.392084] RAX: 0000000000000000 RBX: 0000000013b83000 RCX: ffff9fbe89caf000
-[ 1139.392085] RDX: ffffb1a3f325fc30 RSI: 0000000000003200 RDI: ffff9fbeaffffe80
-[ 1139.392085] RBP: ffffb1a3f325fc40 R08: 0000000013b80000 R09: ffff9fbe89c54878
-[ 1139.392085] R10: ffffb1a3f325fc2c R11: 0000000013b83200 R12: 0000000000000400
-[ 1139.392086] R13: fffffd552e0c0000 R14: ffff9fc1bffd31e0 R15: 0000000000000202
-[ 1139.392086] FS:  00007f3189704180(0000) GS:ffff9fbec8ec0000(0000) knlGS:0000000000000000
-[ 1139.392087] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[ 1139.392087] CR2: 00000085da0f7398 CR3: 000001771cf9a000 CR4: 00000000007406e0
-[ 1139.392088] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[ 1139.392088] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-[ 1139.392088] PKRU: 55555554
-[ 1139.392089] Call Trace:
-[ 1139.392092]  ? memory_bm_set_bit+0x29/0x60
-[ 1139.392094]  swsusp_set_page_free+0x2b/0x30
-[ 1139.392098]  mark_free_pages+0x147/0x1c0
-[ 1139.392099]  count_data_pages+0x41/0xa0
-[ 1139.392101]  hibernate_preallocate_memory+0x80/0x450
-[ 1139.392102]  hibernation_snapshot+0x58/0x410
-[ 1139.392103]  hibernate+0x17c/0x310
-[ 1139.392104]  state_store+0xdf/0xf0
-[ 1139.392107]  kobj_attr_store+0xf/0x20
-[ 1139.392111]  sysfs_kf_write+0x37/0x40
-[ 1139.392113]  kernfs_fop_write+0x11c/0x1a0
-[ 1139.392117]  __vfs_write+0x37/0x170
-[ 1139.392121]  ? handle_mm_fault+0xd8/0x230
-[ 1139.392122]  vfs_write+0xb1/0x1a0
-[ 1139.392123]  SyS_write+0x55/0xc0
-[ 1139.392126]  entry_SYSCALL_64_fastpath+0x1a/0xa5
+The serial number is currently accessible to local apps up until Android
+7.x so it doesn't have value if the adversary has local access. Access
+to it without the READ_PHONE_STATE permission is being removed for apps
+targeting Android 8.0 and will presumably be restructed for all apps at
+some point in the future:
 
-So avoid the NMI lockup by feeding the watchdog every 1000 pages.
+https://android-developers.googleblog.com/2017/04/changes-to-device-identifiers-in.html
 
-Reported-by: Jan Filipcewicz <jan.filipcewicz@intel.com>
-Suggested-by: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Len Brown <lenb@kernel.org>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-kernel@vger.kernel.org
-Signed-off-by: Chen Yu <yu.c.chen@intel.com>
----
- mm/page_alloc.c | 16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
+Some bootloader stages vary a bit in time each boot. There's not much
+variance or measurement precision so there's only a small amount of
+entropy from this. The ones that consistently vary in timing do so
+independently from each other so that helps a bit. Also worth noting
+that before Android 8.0+, local apps can access the boot times since
+it's written to a system property. After Android 8.0+, all that stuff is
+inaccessible to them (no permission to get them) since there's a
+whitelisting model for system property access.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6d00f74..0266eb6 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -66,6 +66,7 @@
- #include <linux/kthread.h>
- #include <linux/memcontrol.h>
- #include <linux/ftrace.h>
-+#include <linux/nmi.h>
- 
- #include <asm/sections.h>
- #include <asm/tlbflush.h>
-@@ -2531,11 +2532,14 @@ void drain_all_pages(struct zone *zone)
- 
- #ifdef CONFIG_HIBERNATION
- 
-+/* Touch watchdog for every WD_INTERVAL_PAGE pages. */
-+#define WD_INTERVAL_PAGE	1000
-+
- void mark_free_pages(struct zone *zone)
- {
- 	unsigned long pfn, max_zone_pfn;
- 	unsigned long flags;
--	unsigned int order, t;
-+	unsigned int order, t, page_num = 0;
- 	struct page *page;
- 
- 	if (zone_is_empty(zone))
-@@ -2548,6 +2552,9 @@ void mark_free_pages(struct zone *zone)
- 		if (pfn_valid(pfn)) {
- 			page = pfn_to_page(pfn);
- 
-+			if (!((page_num++) % WD_INTERVAL_PAGE))
-+				touch_nmi_watchdog();
-+
- 			if (page_zone(page) != zone)
- 				continue;
- 
-@@ -2555,14 +2562,19 @@ void mark_free_pages(struct zone *zone)
- 				swsusp_unset_page_free(page);
- 		}
- 
-+	page_num = 0;
-+
- 	for_each_migratetype_order(order, t) {
- 		list_for_each_entry(page,
- 				&zone->free_area[order].free_list[t], lru) {
- 			unsigned long i;
- 
- 			pfn = page_to_pfn(page);
--			for (i = 0; i < (1UL << order); i++)
-+			for (i = 0; i < (1UL << order); i++) {
-+				if (!((page_num++) % WD_INTERVAL_PAGE))
-+					touch_nmi_watchdog();
- 				swsusp_set_page_free(pfn_to_page(pfn + i));
-+			}
- 		}
- 	}
- 	spin_unlock_irqrestore(&zone->lock, flags);
--- 
-2.7.4
+> I think we should definitely do this.  So this is more of a request to
+> be very careful what we promise in the commit description, not an
+> objection to the change itself.
+
+I did say 'external attacker' but it could be made clearer. It's
+primarily aimed at getting a tiny bit of extra entropy for the kernel
+stack canary and other probabilistic exploit mitigations set up in early
+boot. On non-x86 archs, i.e. 99.9% of Android devices, the kernel stack
+canary remains the same after it's set up in that early boot code.
+
+Android devices almost all have a hardware RNG and Android init blocks
+until a fair bit of data is read from it along with restoring entropy
+that's regularly saved while running, but unfortunately that's not
+available at this point in the boot process.
+
+The kernel could save / restore entropy using pstore (which at least
+Nexus / Pixel devices have - not sure about others). I don't know how
+early that could feasibly be done. Ideally it would do that combined
+with early usage of the hwrng.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
