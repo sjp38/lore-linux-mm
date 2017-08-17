@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EC1A66B037C
-	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 20:06:06 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id c2so24889213qkb.10
-        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 17:06:06 -0700 (PDT)
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 21C746B037C
+	for <linux-mm@kvack.org>; Wed, 16 Aug 2017 20:06:12 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id s26so26450884qts.8
+        for <linux-mm@kvack.org>; Wed, 16 Aug 2017 17:06:12 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r55si1899072qtc.252.2017.08.16.17.06.05
+        by mx.google.com with ESMTPS id l188si1861128qkc.46.2017.08.16.17.06.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Aug 2017 17:06:06 -0700 (PDT)
+        Wed, 16 Aug 2017 17:06:11 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [HMM-v25 08/19] mm/ZONE_DEVICE: special case put_page() for device private pages v4
-Date: Wed, 16 Aug 2017 20:05:37 -0400
-Message-Id: <20170817000548.32038-9-jglisse@redhat.com>
+Subject: [HMM-v25 10/19] mm/memcontrol: support MEMORY_DEVICE_PRIVATE v4
+Date: Wed, 16 Aug 2017 20:05:39 -0400
+Message-Id: <20170817000548.32038-11-jglisse@redhat.com>
 In-Reply-To: <20170817000548.32038-1-jglisse@redhat.com>
 References: <20170817000548.32038-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,193 +21,184 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
 
-A ZONE_DEVICE page that reach a refcount of 1 is free ie no longer
-have any user. For device private pages this is important to catch
-and thus we need to special case put_page() for this.
+HMM pages (private or public device pages) are ZONE_DEVICE page and
+thus need special handling when it comes to lru or refcount. This
+patch make sure that memcontrol properly handle those when it face
+them. Those pages are use like regular pages in a process address
+space either as anonymous page or as file back page. So from memcg
+point of view we want to handle them like regular page for now at
+least.
 
 Changed since v3:
-  - clear page mapping field
+  - remove public support and move those chunk to separate patch
 Changed since v2:
-  - clear page active and waiters
+  - s/host/public
 Changed since v1:
-  - use static key to disable special code path in put_page() by
-    default
-  - uninline put_zone_device_private_page()
-  - fix build issues with some kernel config related to header
-    inter-dependency
+  - s/public/host
+  - add comments explaining how device memory behave and why
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Acked-by: Balbir Singh <bsingharora@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: cgroups@vger.kernel.org
 ---
- include/linux/memremap.h | 13 +++++++++++++
- include/linux/mm.h       | 31 ++++++++++++++++++++++---------
- kernel/memremap.c        | 25 ++++++++++++++++++++++++-
- mm/hmm.c                 |  8 ++++++++
- 4 files changed, 67 insertions(+), 10 deletions(-)
+ kernel/memremap.c |  1 +
+ mm/memcontrol.c   | 52 ++++++++++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 49 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-index 8e164ec9eed0..8aa6b82679e2 100644
---- a/include/linux/memremap.h
-+++ b/include/linux/memremap.h
-@@ -126,6 +126,14 @@ struct dev_pagemap {
- void *devm_memremap_pages(struct device *dev, struct resource *res,
- 		struct percpu_ref *ref, struct vmem_altmap *altmap);
- struct dev_pagemap *find_dev_pagemap(resource_size_t phys);
-+
-+static inline bool is_zone_device_page(const struct page *page);
-+
-+static inline bool is_device_private_page(const struct page *page)
-+{
-+	return is_zone_device_page(page) &&
-+		page->pgmap->type == MEMORY_DEVICE_PRIVATE;
-+}
- #else
- static inline void *devm_memremap_pages(struct device *dev,
- 		struct resource *res, struct percpu_ref *ref,
-@@ -144,6 +152,11 @@ static inline struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
- {
- 	return NULL;
- }
-+
-+static inline bool is_device_private_page(const struct page *page)
-+{
-+	return false;
-+}
- #endif
- 
- /**
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a59e149b958a..515d4ae611b2 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -23,6 +23,7 @@
- #include <linux/page_ext.h>
- #include <linux/err.h>
- #include <linux/page_ref.h>
-+#include <linux/memremap.h>
- 
- struct mempolicy;
- struct anon_vma;
-@@ -788,25 +789,25 @@ static inline bool is_zone_device_page(const struct page *page)
- {
- 	return page_zonenum(page) == ZONE_DEVICE;
- }
--
--static inline bool is_device_private_page(const struct page *page)
--{
--	/* See MEMORY_DEVICE_PRIVATE in include/linux/memory_hotplug.h */
--	return ((page_zonenum(page) == ZONE_DEVICE) &&
--		(page->pgmap->type == MEMORY_DEVICE_PRIVATE));
--}
- #else
- static inline bool is_zone_device_page(const struct page *page)
- {
- 	return false;
- }
-+#endif
- 
--static inline bool is_device_private_page(const struct page *page)
-+#ifdef CONFIG_DEVICE_PRIVATE
-+void put_zone_device_private_page(struct page *page);
-+#else
-+static inline void put_zone_device_private_page(struct page *page)
- {
--	return false;
- }
- #endif
- 
-+static inline bool is_device_private_page(const struct page *page);
-+
-+DECLARE_STATIC_KEY_FALSE(device_private_key);
-+
- static inline void get_page(struct page *page)
- {
- 	page = compound_head(page);
-@@ -822,6 +823,18 @@ static inline void put_page(struct page *page)
- {
- 	page = compound_head(page);
- 
-+	/*
-+	 * For private device pages we need to catch refcount transition from
-+	 * 2 to 1, when refcount reach one it means the private device page is
-+	 * free and we need to inform the device driver through callback. See
-+	 * include/linux/memremap.h and HMM for details.
-+	 */
-+	if (static_branch_unlikely(&device_private_key) &&
-+	    unlikely(is_device_private_page(page))) {
-+		put_zone_device_private_page(page);
-+		return;
-+	}
-+
- 	if (put_page_testzero(page))
- 		__put_page(page);
- }
 diff --git a/kernel/memremap.c b/kernel/memremap.c
-index d3241f51c1f0..398630c1fba3 100644
+index 398630c1fba3..f42d7483e886 100644
 --- a/kernel/memremap.c
 +++ b/kernel/memremap.c
-@@ -11,7 +11,6 @@
-  * General Public License for more details.
-  */
- #include <linux/radix-tree.h>
--#include <linux/memremap.h>
- #include <linux/device.h>
- #include <linux/types.h>
- #include <linux/pfn_t.h>
-@@ -476,3 +475,27 @@ struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
- 	return pgmap ? pgmap->altmap : NULL;
+@@ -492,6 +492,7 @@ void put_zone_device_private_page(struct page *page)
+ 		__ClearPageWaiters(page);
+ 
+ 		page->mapping = NULL;
++		mem_cgroup_uncharge(page);
+ 
+ 		page->pgmap->page_free(page, page->pgmap->data);
+ 	} else if (!count)
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 604fb3ca8028..977d1cf3493a 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4407,12 +4407,13 @@ enum mc_target_type {
+ 	MC_TARGET_NONE = 0,
+ 	MC_TARGET_PAGE,
+ 	MC_TARGET_SWAP,
++	MC_TARGET_DEVICE,
+ };
+ 
+ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
+ 						unsigned long addr, pte_t ptent)
+ {
+-	struct page *page = vm_normal_page(vma, addr, ptent);
++	struct page *page = _vm_normal_page(vma, addr, ptent, true);
+ 
+ 	if (!page || !page_mapped(page))
+ 		return NULL;
+@@ -4429,7 +4430,7 @@ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
+ 	return page;
  }
- #endif /* CONFIG_ZONE_DEVICE */
-+
-+
-+#ifdef CONFIG_DEVICE_PRIVATE
-+void put_zone_device_private_page(struct page *page)
-+{
-+	int count = page_ref_dec_return(page);
+ 
+-#ifdef CONFIG_SWAP
++#if defined(CONFIG_SWAP) || defined(CONFIG_DEVICE_PRIVATE)
+ static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
+ 			pte_t ptent, swp_entry_t *entry)
+ {
+@@ -4438,6 +4439,23 @@ static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
+ 
+ 	if (!(mc.flags & MOVE_ANON) || non_swap_entry(ent))
+ 		return NULL;
 +
 +	/*
-+	 * If refcount is 1 then page is freed and refcount is stable as nobody
-+	 * holds a reference on the page.
++	 * Handle MEMORY_DEVICE_PRIVATE which are ZONE_DEVICE page belonging to
++	 * a device and because they are not accessible by CPU they are store
++	 * as special swap entry in the CPU page table.
 +	 */
-+	if (count == 1) {
-+		/* Clear Active bit in case of parallel mark_page_accessed */
-+		__ClearPageActive(page);
-+		__ClearPageWaiters(page);
++	if (is_device_private_entry(ent)) {
++		page = device_private_entry_to_page(ent);
++		/*
++		 * MEMORY_DEVICE_PRIVATE means ZONE_DEVICE page and which have
++		 * a refcount of 1 when free (unlike normal page)
++		 */
++		if (!page_ref_add_unless(page, 1, 1))
++			return NULL;
++		return page;
++	}
 +
-+		page->mapping = NULL;
-+
-+		page->pgmap->page_free(page, page->pgmap->data);
-+	} else if (!count)
-+		__put_page(page);
-+}
-+EXPORT_SYMBOL(put_zone_device_private_page);
-+#endif /* CONFIG_DEVICE_PRIVATE */
-diff --git a/mm/hmm.c b/mm/hmm.c
-index 91592dae364e..e615f337110a 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -25,9 +25,17 @@
- #include <linux/sched.h>
- #include <linux/swapops.h>
- #include <linux/hugetlb.h>
-+#include <linux/jump_label.h>
- #include <linux/mmu_notifier.h>
+ 	/*
+ 	 * Because lookup_swap_cache() updates some statistics counter,
+ 	 * we call find_get_page() with swapper_space directly.
+@@ -4598,6 +4616,12 @@ static int mem_cgroup_move_account(struct page *page,
+  *   2(MC_TARGET_SWAP): if the swap entry corresponding to this pte is a
+  *     target for charge migration. if @target is not NULL, the entry is stored
+  *     in target->ent.
++ *   3(MC_TARGET_DEVICE): like MC_TARGET_PAGE  but page is MEMORY_DEVICE_PRIVATE
++ *     (so ZONE_DEVICE page and thus not on the lru). For now we such page is
++ *     charge like a regular page would be as for all intent and purposes it is
++ *     just special memory taking the place of a regular page.
++ *
++ *     See Documentations/vm/hmm.txt and include/linux/hmm.h
+  *
+  * Called with pte lock held.
+  */
+@@ -4626,6 +4650,8 @@ static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
+ 		 */
+ 		if (page->mem_cgroup == mc.from) {
+ 			ret = MC_TARGET_PAGE;
++			if (is_device_private_page(page))
++				ret = MC_TARGET_DEVICE;
+ 			if (target)
+ 				target->page = page;
+ 		}
+@@ -4693,6 +4719,11 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
  
+ 	ptl = pmd_trans_huge_lock(pmd, vma);
+ 	if (ptl) {
++		/*
++		 * Note their can not be MC_TARGET_DEVICE for now as we do not
++		 * support transparent huge page with MEMORY_DEVICE_PUBLIC or
++		 * MEMORY_DEVICE_PRIVATE but this might change.
++		 */
+ 		if (get_mctgt_type_thp(vma, addr, *pmd, NULL) == MC_TARGET_PAGE)
+ 			mc.precharge += HPAGE_PMD_NR;
+ 		spin_unlock(ptl);
+@@ -4908,6 +4939,14 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+ 				putback_lru_page(page);
+ 			}
+ 			put_page(page);
++		} else if (target_type == MC_TARGET_DEVICE) {
++			page = target.page;
++			if (!mem_cgroup_move_account(page, true,
++						     mc.from, mc.to)) {
++				mc.precharge -= HPAGE_PMD_NR;
++				mc.moved_charge += HPAGE_PMD_NR;
++			}
++			put_page(page);
+ 		}
+ 		spin_unlock(ptl);
+ 		return 0;
+@@ -4919,12 +4958,16 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+ 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+ 	for (; addr != end; addr += PAGE_SIZE) {
+ 		pte_t ptent = *(pte++);
++		bool device = false;
+ 		swp_entry_t ent;
  
-+/*
-+ * Device private memory see HMM (Documentation/vm/hmm.txt) or hmm.h
-+ */
-+DEFINE_STATIC_KEY_FALSE(device_private_key);
-+EXPORT_SYMBOL(device_private_key);
-+
-+
- #ifdef CONFIG_HMM
- static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
+ 		if (!mc.precharge)
+ 			break;
  
+ 		switch (get_mctgt_type(vma, addr, ptent, &target)) {
++		case MC_TARGET_DEVICE:
++			device = true;
++			/* fall through */
+ 		case MC_TARGET_PAGE:
+ 			page = target.page;
+ 			/*
+@@ -4935,7 +4978,7 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+ 			 */
+ 			if (PageTransCompound(page))
+ 				goto put;
+-			if (isolate_lru_page(page))
++			if (!device && isolate_lru_page(page))
+ 				goto put;
+ 			if (!mem_cgroup_move_account(page, false,
+ 						mc.from, mc.to)) {
+@@ -4943,7 +4986,8 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+ 				/* we uncharge from mc.from later. */
+ 				mc.moved_charge++;
+ 			}
+-			putback_lru_page(page);
++			if (!device)
++				putback_lru_page(page);
+ put:			/* get_mctgt_type() gets the page */
+ 			put_page(page);
+ 			break;
 -- 
 2.13.4
 
