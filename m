@@ -1,100 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A5A416B02F4
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 18:30:31 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id s143so127374041ywg.3
-        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 15:30:31 -0700 (PDT)
-Received: from g9t5008.houston.hpe.com (g9t5008.houston.hpe.com. [15.241.48.72])
-        by mx.google.com with ESMTPS id y21si39648ywd.702.2017.08.17.15.30.30
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E7A56B0491
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 18:44:12 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id k80so12309852wrc.15
+        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 15:44:12 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id u19si2522041wrg.502.2017.08.17.15.44.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Aug 2017 15:30:30 -0700 (PDT)
-From: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
-Subject: RE: [PATCH-resend] mm/hwpoison: Clear PRESENT bit for kernel 1:1
- mappings of poison pages
-Date: Thu, 17 Aug 2017 22:29:48 +0000
-Message-ID: <AT5PR84MB0082647C725926CC932904B0AB830@AT5PR84MB0082.NAMPRD84.PROD.OUTLOOK.COM>
-References: <CAPcyv4gC_6TpwVSjuOzxrz3OdVZCVWD0QVWhBzAuOxUNHJHRMQ@mail.gmail.com>
-	<20170816171803.28342-1-tony.luck@intel.com>
- <20170817150942.017f87537b6cbb48e9cfc082@linux-foundation.org>
-In-Reply-To: <20170817150942.017f87537b6cbb48e9cfc082@linux-foundation.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        Thu, 17 Aug 2017 15:44:10 -0700 (PDT)
+Date: Thu, 17 Aug 2017 15:44:08 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] swap: choose swap device according to numa node
+Message-Id: <20170817154408.66c37d2d84eccdb102b9e04c@linux-foundation.org>
+In-Reply-To: <20170816024439.GA10925@aaronlu.sh.intel.com>
+References: <20170814053130.GD2369@aaronlu.sh.intel.com>
+	<20170814163337.92c9f07666645366af82aba2@linux-foundation.org>
+	<20170815054944.GF2369@aaronlu.sh.intel.com>
+	<20170815150947.9b7ccea78c5ea28ae88ba87f@linux-foundation.org>
+	<20170816024439.GA10925@aaronlu.sh.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "Luck, Tony" <tony.luck@intel.com>
-Cc: Borislav Petkov <bp@suse.de>, Dave Hansen <dave.hansen@intel.com>, Naoya
- Horiguchi <n-horiguchi@ah.jp.nec.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Aaron Lu <aaron.lu@intel.com>
+Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, "Chen, Tim C" <tim.c.chen@intel.com>, Huang Ying <ying.huang@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>
 
+On Wed, 16 Aug 2017 10:44:40 +0800 Aaron Lu <aaron.lu@intel.com> wrote:
 
+> 
+> If the system has more than one swap device and swap device has the node
+> information, we can make use of this information to decide which swap
+> device to use in get_swap_pages() to get better performance.
+> 
+> The current code uses a priority based list, swap_avail_list, to decide
+> which swap device to use and if multiple swap devices share the same
+> priority, they are used round robin.  This patch changes the previous
+> single global swap_avail_list into a per-numa-node list, i.e.  for each
+> numa node, it sees its own priority based list of available swap devices.
+> Swap device's priority can be promoted on its matching node's
+> swap_avail_list.
+> 
+> The current swap device's priority is set as: user can set a >=0 value, or
+> the system will pick one starting from -1 then downwards.  The priority
+> value in the swap_avail_list is the negated value of the swap device's due
+> to plist being sorted from low to high.  The new policy doesn't change the
+> semantics for priority >=0 cases, the previous starting from -1 then
+> downwards now becomes starting from -2 then downwards and -1 is reserved
+> as the promoted value.
+> 
+> ...
+>
+> +static int __init swapfile_init(void)
+> +{
+> +	int nid;
+> +
+> +	swap_avail_heads = kmalloc(nr_node_ids * sizeof(struct plist_head), GFP_KERNEL);
 
-> -----Original Message-----
-> From: Andrew Morton [mailto:akpm@linux-foundation.org]
-> Sent: Thursday, August 17, 2017 5:10 PM
-> To: Luck, Tony <tony.luck@intel.com>
-> Cc: Borislav Petkov <bp@suse.de>; Dave Hansen <dave.hansen@intel.com>;
-> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>; Elliott, Robert (Persistent
-> Memory) <elliott@hpe.com>; x86@kernel.org; linux-mm@kvack.org; linux-
-> kernel@vger.kernel.org
-> Subject: Re: [PATCH-resend] mm/hwpoison: Clear PRESENT bit for kernel 1:1
-> mappings of poison pages
->=20
-> On Wed, 16 Aug 2017 10:18:03 -0700 "Luck, Tony" <tony.luck@intel.com>
-> wrote:
->=20
-> > Speculative processor accesses may reference any memory that has a
-> > valid page table entry.  While a speculative access won't generate
-> > a machine check, it will log the error in a machine check bank. That
-> > could cause escalation of a subsequent error since the overflow bit
-> > will be then set in the machine check bank status register.
-> >
-> > Code has to be double-plus-tricky to avoid mentioning the 1:1 virtual
-> > address of the page we want to map out otherwise we may trigger the
-> > very problem we are trying to avoid.  We use a non-canonical address
-> > that passes through the usual Linux table walking code to get to the
-> > same "pte".
-> >
-> > Thanks to Dave Hansen for reviewing several iterations of this.
->=20
-> It's unclear (to lil ole me) what the end-user-visible effects of this
-> are.
->=20
-> Could we please have a description of that?  So a) people can
-> understand your decision to cc:stable and b) people whose kernels are
-> misbehaving can use your description to decide whether your patch might
-> fix the issue their users are reporting.
+I suppose we should use kmalloc_array(), as someone wrote it for us.
 
-In general, the system is subject to halting due to uncorrectable
-memory errors at addresses that software is not even accessing. =20
+--- a/mm/swapfile.c~swap-choose-swap-device-according-to-numa-node-v2-fix
++++ a/mm/swapfile.c
+@@ -3700,7 +3700,8 @@ static int __init swapfile_init(void)
+ {
+ 	int nid;
+ 
+-	swap_avail_heads = kmalloc(nr_node_ids * sizeof(struct plist_head), GFP_KERNEL);
++	swap_avail_heads = kmalloc_array(nr_node_ids, sizeof(struct plist_head),
++					 GFP_KERNEL);
+ 	if (!swap_avail_heads) {
+ 		pr_emerg("Not enough memory for swap heads, swap is disabled\n");
+ 		return -ENOMEM;
 
-The first error doesn't cause the crash, but if a second error happens
-before the machine check handler services the first one, it'll find
-the Overflow bit set and won't know what errors or how many errors
-happened (e.g., it might have been problems in an instruction fetch,
-and the instructions the CPU is slated to run are bogus).  Halting is=20
-the only safe thing to do.
+> +	if (!swap_avail_heads) {
+> +		pr_emerg("Not enough memory for swap heads, swap is disabled\n");
 
-For persistent memory, the BIOS reports known-bad addresses in the
-ACPI ARS (address range scrub) table.  They are likely to keep
-reappearing every boot since it is persistent memory, so you can't
-just reboot and hope they go away.  Software is supposed to avoid
-reading those addresses until it fixes them (e.g., writes new data
-to those locations).  Even if it follows this rule, the system can
-still crash due to speculative reads (e.g., prefetches) touching
-those addresses.
+checkpatch tells us that the "Not enough memory" is a bit redundant, as
+the memory allocator would have already warned.  So it's sufficient to
+additionally say only "swap is disabled" here.  But it's hardly worth
+changing.
 
-Tony's patch marks those addresses in the page tables so the CPU
-won't speculatively try to read them.
-
----
-Robert Elliott, HPE Persistent Memory
-
-
-
-
-
+> +		return -ENOMEM;
+> +	}
+> +
+> +	for_each_node(nid)
+> +		plist_head_init(&swap_avail_heads[nid]);
+> +
+> +	return 0;
+> +}
+> +subsys_initcall(swapfile_init);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
