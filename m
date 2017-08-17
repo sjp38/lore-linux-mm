@@ -1,71 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E57D6B02B4
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 17:44:32 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id n140so127456584ywd.13
-        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 14:44:32 -0700 (PDT)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id j125si1154944ywd.225.2017.08.17.14.44.31
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3841E6B025F
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 17:55:54 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id o124so38441664qke.9
+        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 14:55:54 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k31si3866973qte.266.2017.08.17.14.55.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Aug 2017 14:44:31 -0700 (PDT)
-Date: Thu, 17 Aug 2017 17:44:29 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: [PATCHv3 2/2] extract early boot entropy from the passed cmdline
-Message-ID: <20170817214429.wt7zly2e3bmnlfyp@thunk.org>
-References: <20170816231458.2299-1-labbott@redhat.com>
- <20170816231458.2299-3-labbott@redhat.com>
- <20170817033148.ownsmbdzk2vhupme@thunk.org>
- <1502943802.3986.38.camel@gmail.com>
- <1503003427.1514.6.camel@gmail.com>
+        Thu, 17 Aug 2017 14:55:53 -0700 (PDT)
+Date: Thu, 17 Aug 2017 17:55:50 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [HMM-v25 00/19] HMM (Heterogeneous Memory Management) v25
+Message-ID: <20170817215549.GD2872@redhat.com>
+References: <20170817000548.32038-1-jglisse@redhat.com>
+ <20170817143916.63fca76e4c1fd841e0afd4cf@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <1503003427.1514.6.camel@gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170817143916.63fca76e4c1fd841e0afd4cf@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Micay <danielmicay@gmail.com>
-Cc: Laura Abbott <labbott@redhat.com>, Kees Cook <keescook@chromium.org>, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>
 
-On Thu, Aug 17, 2017 at 04:57:07PM -0400, Daniel Micay wrote:
-> > I did say 'external attacker' but it could be made clearer.
+On Thu, Aug 17, 2017 at 02:39:16PM -0700, Andrew Morton wrote:
+> On Wed, 16 Aug 2017 20:05:29 -0400 J__r__me Glisse <jglisse@redhat.com> wrote:
 > 
-> Er, s/say/mean to imply/
+> > Heterogeneous Memory Management (HMM) (description and justification)
+> 
+> The patchset adds 55 kbytes to x86_64's mm/*.o and there doesn't appear
+> to be any way of avoiding this overhead, or of avoiding whatever
+> runtime overheads are added.
 
-Right, that's why I had suggested modifying the first few lines of the
-commit description to read something like this:
+HMM have already been integrated in couple of Red Hat kernel and AFAIK there
+is no runtime performance issue reported. Thought the RHEL version does not
+use static key as Dan asked.
 
-  Feed the boot command-line as to the /dev/random entropy pool
+> 
+> It also adds 18k to arm's mm/*.o and arm doesn't support HMM at all.
+> 
+> So that's all quite a lot of bloat for systems which get no benefit from
+> the patchset.  What can we do to improve this situation (a lot)?
 
-  Existing Android bootloaders usually pass data which may not be known
-  by an external attacker on the kernel command-line.  It may also be
-  the case on other embedded systems.  Sample command-line from a Google
-  Pixel running CopperheadOS:
+I will look into why object file grow so much on arm. My guess is that the
+new migrate code is the bulk of that. I can hide the new page migration code
+behind a kernel configuration flag.
 
-(Or something like that.)
-
-> I'll look into having the kernel stash some entropy in pstore soon since
-> that seems like it could be a great improvement. I'm not sure how often
-> / where it should hook into for regularly refreshing it though. Doing it
-> only on powering down isn't ideal.
-
-One thing we could do is to agree on a standard place where the
-entropy would be stashed, and then have the kernel remove it from
-being visible in /proc/cmdline.  That's not a perfect answer, since
-the user might be able to look at the command line via other
-mechanisms.  (For example, on x86, by looking at GRUB while the system
-is booting.)
-
-However, an attacker who is merely running code on the local system is
-not likely to be gain access to that value --- so it's definitely an
-improvement.
-
-Refreshing the entry immediately after boot, and before a clean
-shutdown would be ideal from a security perspective.  I don't know if
-there are write endurance issues with updating the pstore that
-frequently, though.
-
-						- Ted
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
