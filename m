@@ -1,51 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 40ABF6B025F
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 09:58:14 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id x43so13286355wrb.9
-        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 06:58:14 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f127si2853826wmf.87.2017.08.17.06.58.12
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C7A9C6B025F
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 11:29:14 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id c13so112148705ywa.2
+        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 08:29:14 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id l6si958553ywl.66.2017.08.17.08.29.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 17 Aug 2017 06:58:12 -0700 (PDT)
-Date: Thu, 17 Aug 2017 15:58:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Re: Re: Re: [PATCH 2/2] mm, oom: fix potential data corruption
- when oom_reaper races with writer
-Message-ID: <20170817135810.GB17786@dhcp22.suse.cz>
-References: <201708151006.v7FA6SxD079619@www262.sakura.ne.jp>
- <20170815122621.GE29067@dhcp22.suse.cz>
- <201708151258.v7FCwTsV029946@www262.sakura.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Aug 2017 08:29:12 -0700 (PDT)
+Subject: Re: [v6 05/15] mm: don't accessed uninitialized struct pages
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+References: <1502138329-123460-1-git-send-email-pasha.tatashin@oracle.com>
+ <1502138329-123460-6-git-send-email-pasha.tatashin@oracle.com>
+ <20170811093746.GF30811@dhcp22.suse.cz>
+ <8444cb2b-b134-e9fc-a458-1ba7b22a8df1@oracle.com>
+ <20170814114755.GI19063@dhcp22.suse.cz>
+ <e339a33c-d16b-91bd-5df0-18f5ec03d52b@oracle.com>
+Message-ID: <139b7d83-12a3-d584-0461-d01a79df5d2b@oracle.com>
+Date: Thu, 17 Aug 2017 11:28:23 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201708151258.v7FCwTsV029946@www262.sakura.ne.jp>
+In-Reply-To: <e339a33c-d16b-91bd-5df0-18f5ec03d52b@oracle.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: akpm@linux-foundation.org, andrea@kernel.org, kirill@shutemov.name, oleg@redhat.com, wenwei.tww@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org
 
-On Tue 15-08-17 21:58:29, Tetsuo Handa wrote:
-[...]
-> If I apply this patch, I can no longer reproduce this problem even with btrfs.
+Hi Michal,
+
+I've been looking through this code again, and I think your suggestion 
+will work. I did not realize this iterator already exist:
+
+for_each_free_mem_range() basically iterates through (memory && !reserved)
+
+This is exactly what we need here. So, I will update this patch to use 
+this iterator, which will simplify it.
+
+Pasha
+
+On 08/14/2017 09:51 AM, Pasha Tatashin wrote:
+>>> mem_init()
+>>>   free_all_bootmem()
+>>>    free_low_memory_core_early()
+>>>     for_each_reserved_mem_region()
+>>>      reserve_bootmem_region()
+>>>       init_reserved_page() <- if this is deferred reserved page
+>>>        __init_single_pfn()
+>>>         __init_single_page()
+>>>
+>>> So, currently, we are using the value of page->flags to figure out if 
+>>> this
+>>> page has been initialized while being part of deferred page, but this 
+>>> is not
+>>> going to work for this project, as we do not zero the memory that is 
+>>> backing
+>>> the struct pages, and size the value of page->flags can be anything.
+>>
+>> True, this is the initialization part I've missed in one of the previous
+>> patches already. Would it be possible to only iterate over !reserved
+>> memory blocks instead? Now that we discard all the metadata later it
+>> should be quite easy to do for_each_memblock_type, no?
 > 
-> -+ * and could cause a memory corruption (zero pages instead of the
-> -+ * original content).
-> ++ * and could cause a memory corruption (random content instead of the
-> ++ * original content).
-
-If anything then I would word it this way
-
-and could cause a memory corruption (zero pages for refaults but even a
-random content has been observed but never explained properly)
-
-> Tested-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-
-Thanks
--- 
-Michal Hocko
-SUSE Labs
+> Hi Michal,
+> 
+> Clever suggestion to add a new iterator to go through unreserved 
+> existing memory, I do not think there is this iterator available, so it 
+> would need to be implemented, using similar approach to what I have done 
+> with a call back.
+> 
+> However, there is a different reason, why I took this current approach.
+> 
+> Daniel Jordan is working on a ktask support:
+> https://lkml.org/lkml/2017/7/14/666
+> 
+> He and I discussed on how to multi-thread struct pages initialization 
+> within memory nodes using ktasks. Having this callback interface makes 
+> that multi-threading quiet easy, improving the boot performance further, 
+> with his prototype we saw x4-6 improvements (using 4-8 threads per 
+> node). Reducing the total time it takes to initialize all struct pages 
+> on machines with terabytes of memory to less than one second.
+> 
+> Pasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
