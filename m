@@ -1,76 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 824066B025F
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 16:18:53 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id m133so96998147pga.2
-        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 13:18:53 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id b60si869738pli.437.2017.08.17.13.18.51
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AC4CC6B025F
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 16:44:42 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id g131so9892604oic.10
+        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 13:44:42 -0700 (PDT)
+Received: from mail-oi0-x232.google.com (mail-oi0-x232.google.com. [2607:f8b0:4003:c06::232])
+        by mx.google.com with ESMTPS id f189si3278305oig.443.2017.08.17.13.44.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Aug 2017 13:18:52 -0700 (PDT)
-From: "Liang, Kan" <kan.liang@intel.com>
-Subject: RE: [PATCH 1/2] sched/wait: Break up long wake list walk
-Date: Thu, 17 Aug 2017 20:18:43 +0000
-Message-ID: <37D7C6CF3E00A74B8858931C1DB2F0775378761B@SHSMSX103.ccr.corp.intel.com>
+        Thu, 17 Aug 2017 13:44:41 -0700 (PDT)
+Received: by mail-oi0-x232.google.com with SMTP id f11so78548391oic.0
+        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 13:44:41 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <37D7C6CF3E00A74B8858931C1DB2F0775378761B@SHSMSX103.ccr.corp.intel.com>
 References: <84c7f26182b7f4723c0fe3b34ba912a9de92b8b7.1502758114.git.tim.c.chen@linux.intel.com>
  <CA+55aFznC1wqBSfYr8=92LGqz5-F6fHMzdXoqM4aOYx8sT1Dhg@mail.gmail.com>
  <37D7C6CF3E00A74B8858931C1DB2F07753786CE9@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFwzTMrZwh7TE_VeZt8gx5Syoop-kA=Xqs56=FkyakrM6g@mail.gmail.com>
-In-Reply-To: <CA+55aFwzTMrZwh7TE_VeZt8gx5Syoop-kA=Xqs56=FkyakrM6g@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+ <CA+55aFwzTMrZwh7TE_VeZt8gx5Syoop-kA=Xqs56=FkyakrM6g@mail.gmail.com> <37D7C6CF3E00A74B8858931C1DB2F0775378761B@SHSMSX103.ccr.corp.intel.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 17 Aug 2017 13:44:40 -0700
+Message-ID: <CA+55aFy_RNx5TQ8esjPPOKuW-o+fXbZgWapau2MHyexcAZtqsw@mail.gmail.com>
+Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes
- Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: "Liang, Kan" <kan.liang@intel.com>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-DQoNCj4gPiBIZXJlIGlzIHRoZSB3YWtlX3VwX3BhZ2VfYml0IGNhbGwgc3RhY2sgd2hlbiB0aGUg
-d29ya2Fyb3VuZCBpcyBydW5uaW5nLA0KPiB3aGljaA0KPiA+IGlzIGNvbGxlY3RlZCBieSBwZXJm
-IHJlY29yZCAtZyAtYSAtZSBwcm9iZTp3YWtlX3VwX3BhZ2VfYml0IC0tIHNsZWVwIDEwDQo+IA0K
-PiBJdCdzIGFjdHVhbGx5IG5vdCByZWFsbHkgd2FrZV91cF9wYWdlX2JpdCgpIHRoYXQgaXMgYWxs
-IHRoYXQNCj4gaW50ZXJlc3RpbmcsIGl0IHdvdWxkIGJlIG1vcmUgaW50ZXJlc3RpbmcgdG8gc2Vl
-IHdoaWNoIHBhdGggaXQgaXMgdGhhdA0KPiAqYWRkcyogdGhlIGVudHJpZXMuDQo+IA0KPiBTbyBp
-dCdzIG1haW5seSB3YWl0X29uX3BhZ2VfYml0X2NvbW1vbigpLCBidXQgYWxzbw0KPiBhZGRfcGFn
-ZV93YWl0X3F1ZXVlKCkuDQo+IA0KPiBDYW4geW91IGdldCB0aGF0IGNhbGwgc3RhY2sgaW5zdGVh
-ZCAob3IgaW4gYWRkaXRpb24gdG8pPw0KPiANCg0KSGVyZSBpcyB0aGUgY2FsbCBzdGFjayBvZiB3
-YWl0X29uX3BhZ2VfYml0X2NvbW1vbg0Kd2hlbiB0aGUgcXVldWUgaXMgbG9uZyAoZW50cmllcyA+
-MTAwMCkuDQoNCiMgT3ZlcmhlYWQgIFRyYWNlIG91dHB1dCAgICAgIA0KIyAuLi4uLi4uLiAgLi4u
-Li4uLi4uLi4uLi4uLi4uDQojDQogICAxMDAuMDAlICAoZmZmZmZmZmY5MzFhZWZjYSkNCiAgICAg
-ICAgICAgIHwNCiAgICAgICAgICAgIC0tLXdhaXRfb25fcGFnZV9iaXQNCiAgICAgICAgICAgICAg
-IF9fbWlncmF0aW9uX2VudHJ5X3dhaXQNCiAgICAgICAgICAgICAgIG1pZ3JhdGlvbl9lbnRyeV93
-YWl0DQogICAgICAgICAgICAgICBkb19zd2FwX3BhZ2UNCiAgICAgICAgICAgICAgIF9faGFuZGxl
-X21tX2ZhdWx0DQogICAgICAgICAgICAgICBoYW5kbGVfbW1fZmF1bHQNCiAgICAgICAgICAgICAg
-IF9fZG9fcGFnZV9mYXVsdA0KICAgICAgICAgICAgICAgZG9fcGFnZV9mYXVsdA0KICAgICAgICAg
-ICAgICAgcGFnZV9mYXVsdA0KICAgICAgICAgICAgICAgfCAgICAgICAgICANCiAgICAgICAgICAg
-ICAgIHwtLTIxLjg5JS0tMHgxMjNhMg0KICAgICAgICAgICAgICAgfCAgICAgICAgICBzdGFydF90
-aHJlYWQNCiAgICAgICAgICAgICAgIHwgICAgICAgICAgDQogICAgICAgICAgICAgICB8LS0yMS42
-NCUtLTB4MTIzNTINCiAgICAgICAgICAgICAgIHwgICAgICAgICAgc3RhcnRfdGhyZWFkDQogICAg
-ICAgICAgICAgICB8ICAgICAgICAgIA0KICAgICAgICAgICAgICAgfC0tMjAuOTAlLS1faW50X2Zy
-ZWUNCiAgICAgICAgICAgICAgIHwgICAgICAgICAgfCAgICAgICAgICANCiAgICAgICAgICAgICAg
-IHwgICAgICAgICAgIC0tMjAuNDQlLS0wDQogICAgICAgICAgICAgICB8ICAgICAgICAgIA0KICAg
-ICAgICAgICAgICAgfC0tNy4zNCUtLTB4MTI3YTkNCiAgICAgICAgICAgICAgIHwgICAgICAgICAg
-c3RhcnRfdGhyZWFkDQogICAgICAgICAgICAgICB8ICAgICAgICAgIA0KICAgICAgICAgICAgICAg
-fC0tNi44NCUtLTB4MTI3ZGYNCiAgICAgICAgICAgICAgIHwgICAgICAgICAgc3RhcnRfdGhyZWFk
-DQogICAgICAgICAgICAgICB8ICAgICAgICAgIA0KICAgICAgICAgICAgICAgfC0tNi42NSUtLTB4
-MTIyMDUNCiAgICAgICAgICAgICAgIHwgICAgICAgICAgMHgxMjA2ZA0KICAgICAgICAgICAgICAg
-fCAgICAgICAgICAweDExZjg1DQogICAgICAgICAgICAgICB8ICAgICAgICAgIDB4MTFhMDUNCiAg
-ICAgICAgICAgICAgIHwgICAgICAgICAgMHgxMDMwMg0KICAgICAgICAgICAgICAgfCAgICAgICAg
-ICB8ICAgICAgICAgIA0KICAgICAgICAgICAgICAgfCAgICAgICAgICAgLS02LjYyJS0tMHhhOGVl
-DQogICAgICAgICAgICAgICB8ICAgICAgICAgICAgICAgICAgICAgfCAgICAgICAgICANCiAgICAg
-ICAgICAgICAgIHwgICAgICAgICAgICAgICAgICAgICAgLS01LjIyJS0tMHgzYWY1DQogICAgICAg
-ICAgICAgICB8ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBfX2xpYmNfc3RhcnRfbWFp
-bg0KICAgICAgICAgICAgICAgfCAgICAgICAgICANCiAgICAgICAgICAgICAgIHwtLTUuNDAlLS0w
-eDEyODRiDQogICAgICAgICAgICAgICB8ICAgICAgICAgIHN0YXJ0X3RocmVhZA0KICAgICAgICAg
-ICAgICAgfCAgICAgICAgICANCiAgICAgICAgICAgICAgIHwtLTMuMTQlLS0weDEyODgxDQogICAg
-ICAgICAgICAgICB8ICAgICAgICAgIHN0YXJ0X3RocmVhZA0KICAgICAgICAgICAgICAgfCAgICAg
-ICAgICANCiAgICAgICAgICAgICAgIHwtLTMuMDIlLS0weDEyNzczDQogICAgICAgICAgICAgICB8
-ICAgICAgICAgIHN0YXJ0X3RocmVhZA0KICAgICAgICAgICAgICAgfCAgICAgICAgICANCiAgICAg
-ICAgICAgICAgICAtLTIuOTclLS0weDEyODE1DQogICAgICAgICAgICAgICAgICAgICAgICAgIHN0
-YXJ0X3RocmVhZA0KDQpUaGFua3MsDQpLYW4NCg==
+On Thu, Aug 17, 2017 at 1:18 PM, Liang, Kan <kan.liang@intel.com> wrote:
+>
+> Here is the call stack of wait_on_page_bit_common
+> when the queue is long (entries >1000).
+>
+> # Overhead  Trace output
+> # ........  ..................
+> #
+>    100.00%  (ffffffff931aefca)
+>             |
+>             ---wait_on_page_bit
+>                __migration_entry_wait
+>                migration_entry_wait
+>                do_swap_page
+>                __handle_mm_fault
+>                handle_mm_fault
+>                __do_page_fault
+>                do_page_fault
+>                page_fault
+
+Hmm. Ok, so it does seem to very much be related to migration. Your
+wake_up_page_bit() profile made me suspect that, but this one seems to
+pretty much confirm it.
+
+So it looks like that wait_on_page_locked() thing in
+__migration_entry_wait(), and what probably happens is that your load
+ends up triggering a lot of migration (or just migration of a very hot
+page), and then *every* thread ends up waiting for whatever page that
+ended up getting migrated.
+
+And so the wait queue for that page grows hugely long.
+
+Looking at the other profile, the thing that is locking the page (that
+everybody then ends up waiting on) would seem to be
+migrate_misplaced_transhuge_page(), so this is _presumably_ due to
+NUMA balancing.
+
+Does the problem go away if you disable the NUMA balancing code?
+
+Adding Mel and Kirill to the participants, just to make them aware of
+the issue, and just because their names show up when I look at blame.
+
+              Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
