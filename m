@@ -1,55 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 721616B04A2
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 18:09:46 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id y44so12269643wrd.13
-        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 15:09:46 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D11C46B02F3
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 18:16:28 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id 5so15703419wrz.14
+        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 15:16:28 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 135si22432wmg.66.2017.08.17.15.09.44
+        by mx.google.com with ESMTPS id 134si20295wmt.177.2017.08.17.15.16.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Aug 2017 15:09:45 -0700 (PDT)
-Date: Thu, 17 Aug 2017 15:09:42 -0700
+        Thu, 17 Aug 2017 15:16:27 -0700 (PDT)
+Date: Thu, 17 Aug 2017 15:16:24 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH-resend] mm/hwpoison: Clear PRESENT bit for kernel 1:1
- mappings of poison pages
-Message-Id: <20170817150942.017f87537b6cbb48e9cfc082@linux-foundation.org>
-In-Reply-To: <20170816171803.28342-1-tony.luck@intel.com>
-References: <CAPcyv4gC_6TpwVSjuOzxrz3OdVZCVWD0QVWhBzAuOxUNHJHRMQ@mail.gmail.com>
-	<20170816171803.28342-1-tony.luck@intel.com>
+Subject: Re: [HMM-v25 00/19] HMM (Heterogeneous Memory Management) v25
+Message-Id: <20170817151624.7145db67fd3b868eff26fd05@linux-foundation.org>
+In-Reply-To: <CAPcyv4j0_y9BrV-Bn57yScVJ8Nicfz2e0sSmRNG_hNPoE_LSKg@mail.gmail.com>
+References: <20170817000548.32038-1-jglisse@redhat.com>
+	<20170817143916.63fca76e4c1fd841e0afd4cf@linux-foundation.org>
+	<20170817215549.GD2872@redhat.com>
+	<CAPcyv4j0_y9BrV-Bn57yScVJ8Nicfz2e0sSmRNG_hNPoE_LSKg@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Borislav Petkov <bp@suse.de>, Dave Hansen <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>
 
-On Wed, 16 Aug 2017 10:18:03 -0700 "Luck, Tony" <tony.luck@intel.com> wrote:
+On Thu, 17 Aug 2017 14:59:20 -0700 Dan Williams <dan.j.williams@intel.com> wrote:
 
-> Speculative processor accesses may reference any memory that has a
-> valid page table entry.  While a speculative access won't generate
-> a machine check, it will log the error in a machine check bank. That
-> could cause escalation of a subsequent error since the overflow bit
-> will be then set in the machine check bank status register.
+> On Thu, Aug 17, 2017 at 2:55 PM, Jerome Glisse <jglisse@redhat.com> wrote:
+> > On Thu, Aug 17, 2017 at 02:39:16PM -0700, Andrew Morton wrote:
+> >> On Wed, 16 Aug 2017 20:05:29 -0400 J__r__me Glisse <jglisse@redhat.com> wrote:
+> >>
+> >> > Heterogeneous Memory Management (HMM) (description and justification)
+> >>
+> >> The patchset adds 55 kbytes to x86_64's mm/*.o and there doesn't appear
+> >> to be any way of avoiding this overhead, or of avoiding whatever
+> >> runtime overheads are added.
+> >
+> > HMM have already been integrated in couple of Red Hat kernel and AFAIK there
+> > is no runtime performance issue reported. Thought the RHEL version does not
+> > use static key as Dan asked.
+> >
+> >>
+> >> It also adds 18k to arm's mm/*.o and arm doesn't support HMM at all.
+> >>
+> >> So that's all quite a lot of bloat for systems which get no benefit from
+> >> the patchset.  What can we do to improve this situation (a lot)?
+> >
+> > I will look into why object file grow so much on arm. My guess is that the
+> > new migrate code is the bulk of that. I can hide the new page migration code
+> > behind a kernel configuration flag.
 > 
-> Code has to be double-plus-tricky to avoid mentioning the 1:1 virtual
-> address of the page we want to map out otherwise we may trigger the
-> very problem we are trying to avoid.  We use a non-canonical address
-> that passes through the usual Linux table walking code to get to the
-> same "pte".
-> 
-> Thanks to Dave Hansen for reviewing several iterations of this.
+> Shouldn't we completely disable all of it unless there is a driver in
+> the kernel that selects it?
 
-It's unclear (to lil ole me) what the end-user-visible effects of this
-are.
+That would be typical (and nice).
 
-Could we please have a description of that?  So a) people can
-understand your decision to cc:stable and b) people whose kernels are
-misbehaving can use your description to decide whether your patch might
-fix the issue their users are reporting.
-
-Thanks.
+I'm not sure that Red Hat's decision is a broad enough guide here. 
+Someone who is using Linux to make a cash register or a thermostat
+faces different tradeoffs...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
