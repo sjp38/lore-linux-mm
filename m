@@ -1,169 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C8A126B0497
-	for <linux-mm@kvack.org>; Fri, 18 Aug 2017 14:26:59 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id p13so9291931qtp.1
-        for <linux-mm@kvack.org>; Fri, 18 Aug 2017 11:26:59 -0700 (PDT)
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D950C6B0499
+	for <linux-mm@kvack.org>; Fri, 18 Aug 2017 14:41:51 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id m68so24183165qkf.7
+        for <linux-mm@kvack.org>; Fri, 18 Aug 2017 11:41:51 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g123si5697364qkd.142.2017.08.18.11.26.58
+        by mx.google.com with ESMTPS id p2si6036322qtd.469.2017.08.18.11.41.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Aug 2017 11:26:58 -0700 (PDT)
-Date: Fri, 18 Aug 2017 21:26:51 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v14 5/5] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
-Message-ID: <20170818211119-mutt-send-email-mst@kernel.org>
-References: <1502940416-42944-1-git-send-email-wei.w.wang@intel.com>
- <1502940416-42944-6-git-send-email-wei.w.wang@intel.com>
- <20170818045519-mutt-send-email-mst@kernel.org>
- <5996A845.4010405@intel.com>
+        Fri, 18 Aug 2017 11:41:50 -0700 (PDT)
+Date: Fri, 18 Aug 2017 20:41:45 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: +
+ mm-oom-let-oom_reap_task-and-exit_mmap-to-run-concurrently.patch added to
+ -mm tree
+Message-ID: <20170818184145.GF5066@redhat.com>
+References: <59936823.CQNWQErWJ8EAIG3q%akpm@linux-foundation.org>
+ <20170816132329.GA32169@dhcp22.suse.cz>
+ <20170817171240.GB5066@redhat.com>
+ <20170818070444.GA9004@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5996A845.4010405@intel.com>
+In-Reply-To: <20170818070444.GA9004@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, hughd@google.com, kirill@shutemov.name, oleg@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, rientjes@google.com, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Aug 18, 2017 at 04:41:41PM +0800, Wei Wang wrote:
-> On 08/18/2017 10:13 AM, Michael S. Tsirkin wrote:
-> > On Thu, Aug 17, 2017 at 11:26:56AM +0800, Wei Wang wrote:
-> > > Add a new vq to report hints of guest free pages to the host.
-> > Please add some text here explaining the report_free_page_signal
-> > thing.
-> > 
-> > 
-> > I also really think we need some kind of ID in the
-> > buffer to do a handshake. whenever id changes you
-> > add another outbuf.
-> 
-> Please let me introduce the current design first:
-> 1) device put the signal buf to the vq and notify the driver (we need
-> a buffer because currently the device can't notify when the vq is empty);
-> 
-> 2) the driver starts the report of free page blocks via inbuf;
-> 
-> 3) the driver adds an the signal buf via outbuf to tell the device all are
-> reported.
-> 
-> 
-> Could you please elaborate more on the usage of ID?
+On Fri, Aug 18, 2017 at 09:04:44AM +0200, Michal Hocko wrote:
+> I dunno. This doesn't make any difference in the generated code for
+> me (with gcc 6.4). If anything we might wan't to putt unlikely inside
 
-While driver is free to maintain at most one buffer in flight
-the design must work with pipelined requests as that
-is important for performance.
+That's fine, this is just in case the code surrounding the check
+changes in the future. It's not like we should remove unlikely/likely
+if the emitted bytecode doesn't change.
 
-So host might be able to request the reporting twice.
-How does it know what is the report in response to?
+> tsk_is_oom_victim. Or even go further and use a jump label to get any
 
-If we put an id in request and in response, then that fixes it.
+I don't think it's necessarily the best to put it inside
+tsk_is_oom_victim, even if currently it would be the same.
 
+All it matters for likely unlikely is not to risk to ever get it
+wrong. If unsure it's better to leave it alone.
 
-So there's a vq used for requesting free page reports.
-driver does add_inbuf( &device->id).
+We can't be sure all future callers of tsk_is_oom_victim will always
+be unlikely to get a true retval. All we can be sure is that this
+specific caller will get a false retval 100% of the time, in all
+workloads where performance can matter.
 
-Then when it starts reporting it does
+> conditional paths out of way.
 
+Using a jump label won't allocate memory so I tend to believe it would
+be safe to run them here. However before worrying at the exit path, I
+think the first target of optimization would be the MMF_UNSTABLE
+checks, those are in the page fault fast paths and they end up run
+infinitely more frequently than this single branch in exit.
 
-add_outbuf(&device->id)
+I'm guilty of adding a branch to the page fault myself to check for
+userfaultfd_missing(vma) (and such one is not even unlikely, as it
+depends on the workload if it is), but without userfaultfd there are
+things that just aren't possible with the standard
+mmap/mprotect/SIGSEGV legacy API. So there's no way around it, unless
+we run stop machine on s390 or 2*NR_CPUs IPIs on x86 every time
+somebody calls UFFDIO_REGISTER/UNREGISTER which may introduce
+unexpected latencies on large SMP systems (furthermore I made sure
+CONFIG_USERFAULTFD=n would completely eliminate the branch at build
+time, see the "return false" inline).
 
-followed by pages.
+So what would you think about the simplest approach to the
+MMF_UNSTABLE issue, that is to add a build time CONFIG_OOM_REAPER=y
+option for the OOM reaper so those branches are optimized away at
+build time (and the above one too, and perhaps the MMF_OOM_SKIP
+set_bit too) if it's ok to disable the OOM reaper as well and increase
+the risk an OOM hang? (it's years I didn't hit an OOM hang in my
+desktop even before OOM reaper was introduced). It could be default
+enabled of course.
 
+I'd be curious to be able to still test what happens to the VM when
+the OOM reaper is off, so if nothing else it would be a debug option,
+because it'd also help to reproduce more easily those
+filesystem-kernel-thread induced hangs that would still happen if the
+OOM reaper cannot run because some other process is trying to take the
+mmap_sem for writing. A down_read_trylock_unfair would go a long way
+to reduce the likelyhood to run into that. The kernel CI exercising
+multiple configs would then also autonomously CC us on a report if
+those branches are a measurable issue so it'll be easier to tell if
+the migration entry conversion or static key is worth it for
+MMF_UNSTABLE.
 
-Also if device->id changes it knows it should restart
-reporting from beginning.
-
-
-
-
-
-
-> > > +retry:
-> > > +	ret = virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL);
-> > > +	virtqueue_kick(vq);
-> > > +	if (unlikely(ret == -ENOSPC)) {
-> > what if there's another error?
-> 
-> Another error is -EIO, how about disabling the free page report feature?
-> (I also saw it isn't handled in many other virtio devices e.g. virtio-net)
-> 
-> > > +		wait_event(vb->acked, virtqueue_get_buf(vq, &len));
-> > > +		goto retry;
-> > > +	}
-> > what is this trickery doing? needs more comments or
-> > a simplification.
-> 
-> Just this:
-> if the vq is full, blocking wait till an entry gets released, then retry.
-> This is the
-> final one, which puts the signal buf to the vq to signify the end of the
-> report and
-> the mm lock is not held here, so it is fine to block.
-> 
-
-But why do you kick here on failure? I would understand it if you
-did not kick when adding pages, as it is I don't understand.
-
-
-Also pls rewrite this with a for or while loop for clarity.
-
-
-> > 
-> > 
-> > > +}
-> > > +
-> > > +static void report_free_page(struct work_struct *work)
-> > > +{
-> > > +	struct virtio_balloon *vb;
-> > > +
-> > > +	vb = container_of(work, struct virtio_balloon, report_free_page_work);
-> > > +	walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
-> > That's a lot of work here. And system_wq documentation says:
-> >   *
-> >   * system_wq is the one used by schedule[_delayed]_work[_on]().
-> >   * Multi-CPU multi-threaded.  There are users which expect relatively
-> >   * short queue flush time.  Don't queue works which can run for too
-> >   * long.
-> > 
-> > You might want to create your own wq, maybe even with WQ_CPU_INTENSIVE.
-> 
-> Thanks for the reminder. If not creating a new wq, how about
-> system_unbound_wq?
-
-I don't think that one's freezeable. 
-
-> The first round of live migration needs the free pages, in that way we can
-> have the
-> pages reported to the hypervisor quicker.
-
-The reason people call it *live* migration is because tasks keep
-running. If you pin VCPUs with maintainance tasks it becomes pointless.
-
-Maybe we need to set a special wq which will create idle
-class threads. Does not seem to be supported but not hard to do.
-
-> > 
-> > > +	report_free_page_completion(vb);
-> > So first you get list of pages, then an outbuf telling you
-> > what they are in end of.  I think it's backwards.
-> > Add an outbuf first followed by inbufs that tell you
-> > what they are.
-> 
-> 
-> If we have the signal filled with those flags like
-> VIRTIO_BALLOON_F_FREE_PAGE_REPORT_START,
-> Probably not necessary to have an inbuf followed by an outbuf, right?
-> 
-> 
-> Best,
-> Wei
-
-You really should document the messages in the commit log
-and in the header.
-
--- 
-MST
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
