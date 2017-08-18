@@ -1,67 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 297046B02F3
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 20:42:28 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id y190so143436890pgb.3
-        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 17:42:28 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id p19si2685563pgk.10.2017.08.17.17.42.26
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 551656B025F
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 21:20:19 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id v17so133597314ywh.15
+        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 18:20:19 -0700 (PDT)
+Received: from mail-yw0-x230.google.com (mail-yw0-x230.google.com. [2607:f8b0:4002:c05::230])
+        by mx.google.com with ESMTPS id w5si1209303ywe.213.2017.08.17.18.20.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Aug 2017 17:42:26 -0700 (PDT)
-Date: Fri, 18 Aug 2017 08:43:11 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [PATCH v2] swap: choose swap device according to numa node
-Message-ID: <20170818004311.GB1996@intel.com>
-References: <20170814053130.GD2369@aaronlu.sh.intel.com>
- <20170814163337.92c9f07666645366af82aba2@linux-foundation.org>
- <20170815054944.GF2369@aaronlu.sh.intel.com>
- <20170815150947.9b7ccea78c5ea28ae88ba87f@linux-foundation.org>
- <20170816024439.GA10925@aaronlu.sh.intel.com>
- <20170817154408.66c37d2d84eccdb102b9e04c@linux-foundation.org>
+        Thu, 17 Aug 2017 18:20:18 -0700 (PDT)
+Received: by mail-yw0-x230.google.com with SMTP id s143so51022588ywg.1
+        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 18:20:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170817154408.66c37d2d84eccdb102b9e04c@linux-foundation.org>
+In-Reply-To: <20170818011023.181465-1-shakeelb@google.com>
+References: <20170818011023.181465-1-shakeelb@google.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Thu, 17 Aug 2017 18:20:17 -0700
+Message-ID: <CALvZod444NZaw9wcdSMs5Y60a0cV4j9SEt-TLBJT34OJ_yg3CQ@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm: fadvise: avoid fadvise for fs without backing device
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, "Chen, Tim C" <tim.c.chen@intel.com>, Huang Ying <ying.huang@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Vlastimil Babka <vbabka@suse.cz>
+Cc: Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Shakeel Butt <shakeelb@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 17, 2017 at 03:44:08PM -0700, Andrew Morton wrote:
-> On Wed, 16 Aug 2017 10:44:40 +0800 Aaron Lu <aaron.lu@intel.com> wrote:
-> > ...
-> >
-> > +static int __init swapfile_init(void)
-> > +{
-> > +	int nid;
-> > +
-> > +	swap_avail_heads = kmalloc(nr_node_ids * sizeof(struct plist_head), GFP_KERNEL);
-> 
-> I suppose we should use kmalloc_array(), as someone wrote it for us.
-> 
-> --- a/mm/swapfile.c~swap-choose-swap-device-according-to-numa-node-v2-fix
-> +++ a/mm/swapfile.c
-> @@ -3700,7 +3700,8 @@ static int __init swapfile_init(void)
->  {
->  	int nid;
->  
-> -	swap_avail_heads = kmalloc(nr_node_ids * sizeof(struct plist_head), GFP_KERNEL);
-> +	swap_avail_heads = kmalloc_array(nr_node_ids, sizeof(struct plist_head),
-> +					 GFP_KERNEL);
->  	if (!swap_avail_heads) {
->  		pr_emerg("Not enough memory for swap heads, swap is disabled\n");
->  		return -ENOMEM;
-> 
-> > +	if (!swap_avail_heads) {
-> > +		pr_emerg("Not enough memory for swap heads, swap is disabled\n");
-> 
-> checkpatch tells us that the "Not enough memory" is a bit redundant, as
-> the memory allocator would have already warned.  So it's sufficient to
-> additionally say only "swap is disabled" here.  But it's hardly worth
-> changing.
++linux-mm, linux-kernel
 
-Thanks Andrew for taking care of this.
+On Thu, Aug 17, 2017 at 6:10 PM, Shakeel Butt <shakeelb@google.com> wrote:
+> The fadvise() manpage is silent on fadvise()'s effect on
+> memory-based filesystems (shmem, hugetlbfs & ramfs) and pseudo
+> file systems (procfs, sysfs, kernfs). The current implementaion
+> of fadvise is mostly a noop for such filesystems except for
+> FADV_DONTNEED which will trigger expensive remote LRU cache
+> draining. This patch makes the noop of fadvise() on such file
+> systems very explicit.
+>
+> However this change has two side effects for ramfs and one for
+> tmpfs. First fadvise(FADV_DONTNEED) can remove the unmapped clean
+> zero'ed pages of ramfs (allocated through read, readahead & read
+> fault) and tmpfs (allocated through read fault). Also
+> fadvise(FADV_WILLNEED) on create such clean zero'ed pages for
+> ramfs. This change removes these two interfaces.
+>
+> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+> ---
+>  mm/fadvise.c | 6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
+>
+> diff --git a/mm/fadvise.c b/mm/fadvise.c
+> index a43013112581..702f239cd6db 100644
+> --- a/mm/fadvise.c
+> +++ b/mm/fadvise.c
+> @@ -52,7 +52,9 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
+>                 goto out;
+>         }
+>
+> -       if (IS_DAX(inode)) {
+> +       bdi = inode_to_bdi(mapping->host);
+> +
+> +       if (IS_DAX(inode) || (bdi == &noop_backing_dev_info)) {
+>                 switch (advice) {
+>                 case POSIX_FADV_NORMAL:
+>                 case POSIX_FADV_RANDOM:
+> @@ -75,8 +77,6 @@ SYSCALL_DEFINE4(fadvise64_64, int, fd, loff_t, offset, loff_t, len, int, advice)
+>         else
+>                 endbyte--;              /* inclusive */
+>
+> -       bdi = inode_to_bdi(mapping->host);
+> -
+>         switch (advice) {
+>         case POSIX_FADV_NORMAL:
+>                 f.file->f_ra.ra_pages = bdi->ra_pages;
+> --
+> 2.14.1.480.gb18f417b89-goog
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
