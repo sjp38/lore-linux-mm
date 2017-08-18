@@ -1,60 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C95476B0491
-	for <linux-mm@kvack.org>; Fri, 18 Aug 2017 13:48:25 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id k82so13393878oih.1
-        for <linux-mm@kvack.org>; Fri, 18 Aug 2017 10:48:25 -0700 (PDT)
-Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com. [2607:f8b0:4003:c06::22c])
-        by mx.google.com with ESMTPS id a10si4711205oib.276.2017.08.18.10.48.24
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 713766B0493
+	for <linux-mm@kvack.org>; Fri, 18 Aug 2017 14:11:03 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id i19so52952911qte.5
+        for <linux-mm@kvack.org>; Fri, 18 Aug 2017 11:11:03 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m33si5921232qtc.163.2017.08.18.11.11.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Aug 2017 10:48:24 -0700 (PDT)
-Received: by mail-oi0-x22c.google.com with SMTP id f11so103711988oic.0
-        for <linux-mm@kvack.org>; Fri, 18 Aug 2017 10:48:24 -0700 (PDT)
+        Fri, 18 Aug 2017 11:11:02 -0700 (PDT)
+Date: Fri, 18 Aug 2017 21:10:55 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v14 5/5] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
+Message-ID: <20170818202337-mutt-send-email-mst@kernel.org>
+References: <1502940416-42944-1-git-send-email-wei.w.wang@intel.com>
+ <1502940416-42944-6-git-send-email-wei.w.wang@intel.com>
+ <20170818052301-mutt-send-email-mst@kernel.org>
+ <5996A6F6.2050405@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <37D7C6CF3E00A74B8858931C1DB2F07753787AE4@SHSMSX103.ccr.corp.intel.com>
-References: <84c7f26182b7f4723c0fe3b34ba912a9de92b8b7.1502758114.git.tim.c.chen@linux.intel.com>
- <CA+55aFznC1wqBSfYr8=92LGqz5-F6fHMzdXoqM4aOYx8sT1Dhg@mail.gmail.com>
- <37D7C6CF3E00A74B8858931C1DB2F07753786CE9@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFwzTMrZwh7TE_VeZt8gx5Syoop-kA=Xqs56=FkyakrM6g@mail.gmail.com>
- <37D7C6CF3E00A74B8858931C1DB2F0775378761B@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFy_RNx5TQ8esjPPOKuW-o+fXbZgWapau2MHyexcAZtqsw@mail.gmail.com>
- <20170818122339.24grcbzyhnzmr4qw@techsingularity.net> <37D7C6CF3E00A74B8858931C1DB2F077537879BB@SHSMSX103.ccr.corp.intel.com>
- <20170818144622.oabozle26hasg5yo@techsingularity.net> <37D7C6CF3E00A74B8858931C1DB2F07753787AE4@SHSMSX103.ccr.corp.intel.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 18 Aug 2017 10:48:23 -0700
-Message-ID: <CA+55aFxZjjqUM4kPvNEeZahPovBHFATiwADj-iPTDN0-jnU67Q@mail.gmail.com>
-Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5996A6F6.2050405@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Liang, Kan" <kan.liang@intel.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On Fri, Aug 18, 2017 at 9:53 AM, Liang, Kan <kan.liang@intel.com> wrote:
->
->> On Fri, Aug 18, 2017 Mel Gorman wrote:
->>
->> That indicates that it may be a hot page and it's possible that the page is
->> locked for a short time but waiters accumulate.  What happens if you leave
->> NUMA balancing enabled but disable THP?
->
-> No, disabling THP doesn't help the case.
+On Fri, Aug 18, 2017 at 04:36:06PM +0800, Wei Wang wrote:
+> On 08/18/2017 10:28 AM, Michael S. Tsirkin wrote:
+> > On Thu, Aug 17, 2017 at 11:26:56AM +0800, Wei Wang wrote:
+> > > Add a new vq to report hints of guest free pages to the host.
+> > > 
+> > > Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+> > > Signed-off-by: Liang Li <liang.z.li@intel.com>
+> > > ---
+> > >   drivers/virtio/virtio_balloon.c     | 167 +++++++++++++++++++++++++++++++-----
+> > >   include/uapi/linux/virtio_balloon.h |   1 +
+> > >   2 files changed, 147 insertions(+), 21 deletions(-)
+> > > 
+> > > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> > > index 72041b4..e6755bc 100644
+> > > --- a/drivers/virtio/virtio_balloon.c
+> > > +++ b/drivers/virtio/virtio_balloon.c
+> > > @@ -54,11 +54,12 @@ static struct vfsmount *balloon_mnt;
+> > >   struct virtio_balloon {
+> > >   	struct virtio_device *vdev;
+> > > -	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq;
+> > > +	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_page_vq;
+> > >   	/* The balloon servicing is delegated to a freezable workqueue. */
+> > >   	struct work_struct update_balloon_stats_work;
+> > >   	struct work_struct update_balloon_size_work;
+> > > +	struct work_struct report_free_page_work;
+> > >   	/* Prevent updating balloon when it is being canceled. */
+> > >   	spinlock_t stop_update_lock;
+> > > @@ -90,6 +91,13 @@ struct virtio_balloon {
+> > >   	/* Memory statistics */
+> > >   	struct virtio_balloon_stat stats[VIRTIO_BALLOON_S_NR];
+> > > +	/*
+> > > +	 * Used by the device and driver to signal each other.
+> > > +	 * device->driver: start the free page report.
+> > > +	 * driver->device: end the free page report.
+> > > +	 */
+> > > +	__virtio32 report_free_page_signal;
+> > > +
+> > >   	/* To register callback in oom notifier call chain */
+> > >   	struct notifier_block nb;
+> > >   };
+> > > @@ -174,6 +182,17 @@ static void send_balloon_page_sg(struct virtio_balloon *vb,
+> > >   	} while (unlikely(ret == -ENOSPC));
+> > >   }
+> > > +static void send_free_page_sg(struct virtqueue *vq, void *addr, uint32_t size)
+> > > +{
+> > > +	unsigned int len;
+> > > +
+> > > +	add_one_sg(vq, addr, size);
+> > > +	virtqueue_kick(vq);
+> > > +	/* Release entries if there are */
+> > > +	while (virtqueue_get_buf(vq, &len))
+> > > +		;
+> > > +}
+> > > +
+> > >   /*
+> > >    * Send balloon pages in sgs to host. The balloon pages are recorded in the
+> > >    * page xbitmap. Each bit in the bitmap corresponds to a page of PAGE_SIZE.
+> > > @@ -511,42 +530,143 @@ static void update_balloon_size_func(struct work_struct *work)
+> > >   		queue_work(system_freezable_wq, work);
+> > >   }
+> > > +static void virtio_balloon_send_free_pages(void *opaque, unsigned long pfn,
+> > > +					   unsigned long nr_pages)
+> > > +{
+> > > +	struct virtio_balloon *vb = (struct virtio_balloon *)opaque;
+> > > +	void *addr = (void *)pfn_to_kaddr(pfn);
+> > > +	uint32_t len = nr_pages << PAGE_SHIFT;
+> > > +
+> > > +	send_free_page_sg(vb->free_page_vq, addr, len);
+> > > +}
+> > > +
+> > > +static void report_free_page_completion(struct virtio_balloon *vb)
+> > > +{
+> > > +	struct virtqueue *vq = vb->free_page_vq;
+> > > +	struct scatterlist sg;
+> > > +	unsigned int len;
+> > > +	int ret;
+> > > +
+> > > +	sg_init_one(&sg, &vb->report_free_page_signal, sizeof(__virtio32));
+> > > +retry:
+> > > +	ret = virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL);
+> > > +	virtqueue_kick(vq);
+> > > +	if (unlikely(ret == -ENOSPC)) {
+> > > +		wait_event(vb->acked, virtqueue_get_buf(vq, &len));
+> > > +		goto retry;
+> > > +	}
+> > > +}
+> > So the annoying thing here is that once this starts going,
+> > it will keep sending free pages from the list even if
+> > host is no longer interested. There should be a way
+> > for host to tell guest "stop" or "start from the beginning".
+> 
+> This can be achieved via two output signal buf here:
+> signal_buf_start: filled with VIRTIO_BALLOON_F_FREE_PAGE_REPORT_START
+> signal_buf_end: filled with VIRTIO_BALLOON_F_FREE_PAGE_REPORT_END
+> 
+> The device holds both, and can put one of them to the vq and notify.
 
-Interesting.  That particular code sequence should only be active for
-THP. What does the profile look like with THP disabled but with NUMA
-balancing still enabled?
+Do you mean device writes start and end in the buf? then it's an inbuf
+not an outbuf.
 
-Just asking because maybe that different call chain could give us some
-other ideas of what the commonality here is that triggers out
-behavioral problem.
+> 
+> 
+> > 
+> > It's the result of using same vq for guest to host and
+> > host to guest communication, and I think it's not a great idea.
+> > I'd reuse stats vq for host to guest requests maybe.
+> > 
+> 
+> 
+> As we discussed before, we can't have a vq interleave the report of stats
+> and free pages.
+> The vq will be locked when one command is in use. So, when live migration
+> starts, the
+> periodically reported stats will be delayed.
 
-I was really hoping that we'd root-cause this and have a solution (and
-then apply Tim's patch as a "belt and suspenders" kind of thing), but
-it's starting to smell like we may have to apply Tim's patch as a
-band-aid, and try to figure out what the trigger is longer-term.
 
-                 Linus
+
+
+
+
+> Would this be OK? Or would you
+> like to have
+> one host to guest vq, and multiple host to guest vqs? That is,
+> 
+> - host to guest:
+> CMD_VQ
+> 
+> - guest to host:
+> STATS_REPORT_VQ
+> FREE_PAGE_VQ
+> 
+> 
+> Best,
+> Wei
+> 
+
+Point is stats report vq is also host to guest.
+So I think it can be combined with CMD VQ.
+If it's too hard a separate vq isn't too bad though.
+
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
