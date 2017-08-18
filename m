@@ -1,173 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 39DBD6B025F
-	for <linux-mm@kvack.org>; Fri, 18 Aug 2017 09:46:56 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id d24so4539216wmi.0
-        for <linux-mm@kvack.org>; Fri, 18 Aug 2017 06:46:56 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r137si1243203wmg.249.2017.08.18.06.46.54
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 18 Aug 2017 06:46:54 -0700 (PDT)
-Date: Fri, 18 Aug 2017 15:46:50 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v14 4/5] mm: support reporting free page blocks
-Message-ID: <20170818134650.GC18499@dhcp22.suse.cz>
-References: <1502940416-42944-1-git-send-email-wei.w.wang@intel.com>
- <1502940416-42944-5-git-send-email-wei.w.wang@intel.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 377646B025F
+	for <linux-mm@kvack.org>; Fri, 18 Aug 2017 09:49:46 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id r133so170329773pgr.6
+        for <linux-mm@kvack.org>; Fri, 18 Aug 2017 06:49:46 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g3si4020131plk.281.2017.08.18.06.49.44
+        for <linux-mm@kvack.org>;
+        Fri, 18 Aug 2017 06:49:45 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH v6 5/9] arm64: hugetlb: Handle swap entries in huge_pte_offset() for contiguous hugepages
+References: <20170810170906.30772-1-punit.agrawal@arm.com>
+	<20170810170906.30772-6-punit.agrawal@arm.com>
+	<20170818112015.2cvkb7y3gkozz5ip@armageddon.cambridge.arm.com>
+Date: Fri, 18 Aug 2017 14:49:41 +0100
+In-Reply-To: <20170818112015.2cvkb7y3gkozz5ip@armageddon.cambridge.arm.com>
+	(Catalin Marinas's message of "Fri, 18 Aug 2017 12:20:16 +0100")
+Message-ID: <87inhlnfyi.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1502940416-42944-5-git-send-email-wei.w.wang@intel.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: will.deacon@arm.com, mark.rutland@arm.com, David Woods <dwoods@mellanox.com>, steve.capper@arm.com, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
 
-On Thu 17-08-17 11:26:55, Wei Wang wrote:
-> This patch adds support to walk through the free page blocks in the
-> system and report them via a callback function. Some page blocks may
-> leave the free list after zone->lock is released, so it is the caller's
-> responsibility to either detect or prevent the use of such pages.
+Catalin Marinas <catalin.marinas@arm.com> writes:
 
-This could see more details to be honest. Especially the usecase you are
-going to use this for. This will help us to understand the motivation
-in future when the current user might be gone a new ones largely diverge
-into a different usage. This wouldn't be the first time I have seen
-something like that.
+> On Thu, Aug 10, 2017 at 06:09:02PM +0100, Punit Agrawal wrote:
+>> diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
+>> index d3a6713048a2..09e79785c019 100644
+>> --- a/arch/arm64/mm/hugetlbpage.c
+>> +++ b/arch/arm64/mm/hugetlbpage.c
+>> @@ -210,6 +210,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
+>>  	pgd_t *pgd;
+>>  	pud_t *pud;
+>>  	pmd_t *pmd;
+>> +	pte_t *pte;
+>>  
+>>  	pgd = pgd_offset(mm, addr);
+>>  	pr_debug("%s: addr:0x%lx pgd:%p\n", __func__, addr, pgd);
+>> @@ -217,19 +218,29 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
+>>  		return NULL;
+>>  
+>>  	pud = pud_offset(pgd, addr);
+>> -	if (pud_none(*pud))
+>> +	if (pud_none(*pud) && sz != PUD_SIZE)
+>>  		return NULL;
+>>  	/* swap or huge page */
+>>  	if (!pud_present(*pud) || pud_huge(*pud))
+>>  		return (pte_t *)pud;
+>>  	/* table; check the next level */
+>
+> So if sz == PUD_SIZE and we have pud_none(*pud) == true, it returns the
+> pud. Isn't this different from what you proposed for the generic
+> huge_pte_offset()? [1]
 
-> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> Signed-off-by: Liang Li <liang.z.li@intel.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Michael S. Tsirkin <mst@redhat.com>
-> ---
->  include/linux/mm.h |  6 ++++++
->  mm/page_alloc.c    | 44 ++++++++++++++++++++++++++++++++++++++++++++
->  2 files changed, 50 insertions(+)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 46b9ac5..cd29b9f 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1835,6 +1835,12 @@ extern void free_area_init_node(int nid, unsigned long * zones_size,
->  		unsigned long zone_start_pfn, unsigned long *zholes_size);
->  extern void free_initmem(void);
->  
-> +extern void walk_free_mem_block(void *opaque1,
-> +				unsigned int min_order,
-> +				void (*visit)(void *opaque2,
-> +					      unsigned long pfn,
-> +					      unsigned long nr_pages));
-> +
->  /*
->   * Free reserved pages within range [PAGE_ALIGN(start), end & PAGE_MASK)
->   * into the buddy system. The freed pages will be poisoned with pattern
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 6d00f74..a721a35 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4762,6 +4762,50 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
->  	show_swap_cache_info();
->  }
->  
-> +/**
-> + * walk_free_mem_block - Walk through the free page blocks in the system
-> + * @opaque1: the context passed from the caller
-> + * @min_order: the minimum order of free lists to check
-> + * @visit: the callback function given by the caller
+I think I missed this case in the generic version.
 
-The original suggestion for using visit was motivated by a visit design
-pattern but I can see how this can be confusing. Maybe a more explicit
-name wold be better. What about report_free_range.
+As hugetlb_fault() deals with p*d_none() entries by calling
+hugetlb_no_page(), the thinking was that returning the p*d saves us an
+extra round trip by avoiding the call to huge_pte_alloc().
 
-> + *
-> + * The function is used to walk through the free page blocks in the system,
-> + * and each free page block is reported to the caller via the @visit callback.
-> + * Please note:
-> + * 1) The function is used to report hints of free pages, so the caller should
-> + * not use those reported pages after the callback returns.
-> + * 2) The callback is invoked with the zone->lock being held, so it should not
-> + * block and should finish as soon as possible.
+>
+>>  
+>> +	if (sz == CONT_PMD_SIZE)
+>> +		addr &= CONT_PMD_MASK;
+>> +
+>>  	pmd = pmd_offset(pud, addr);
+>> -	if (pmd_none(*pmd))
+>> +	if (pmd_none(*pmd) &&
+>> +	    !(sz == PMD_SIZE || sz == CONT_PMD_SIZE))
+>>  		return NULL;
+>
+> Again, if sz == PMD_SIZE, you no longer return NULL. The generic
+> proposal in [1] looks like:
+>
+> 	if (pmd_none(*pmd))
+> 		return NULL;
+>
+> and that's even when sz == PMD_SIZE.
+>
+> Anyway, I think we need to push for [1] again to be accepted before we
+> go ahead with these changes.
 
-I think that the explicit note about zone->lock is not really need. This
-can change in future and I would even bet that somebody might rely on
-the lock being held for some purpose and silently get broken with the
-change. Instead I would much rather see something like the following:
-"
-Please note that there are no locking guarantees for the callback and
-that the reported pfn range might be freed or disappear after the
-callback returns so the caller has to be very careful how it is used.
+[1] is already queued in Andrew's tree. I'll send an update - hopefully
+it can be picked up for the next merge.
 
-The callback itself must not sleep or perform any operations which would
-require any memory allocations directly (not even GFP_NOWAIT/GFP_ATOMIC)
-or via any lock dependency. It is generally advisable to implement
-the callback as simple as possible and defer any heavy lifting to a
-different context.
-
-There is no guarantee that each free range will be reported only once
-during one walk_free_mem_block invocation.
-
-pfn_to_page on the given range is strongly discouraged and if there is
-an absolute need for that make sure to contact MM people to discuss
-potential problems.
-
-The function itself might sleep so it cannot be called from atomic
-contexts.
-
-In general low orders tend to be very volatile and so it makes more
-sense to query larger ones for various optimizations which like
-ballooning etc... This will reduce the overhead as well.
-"
-
-> + */
-> +void walk_free_mem_block(void *opaque1,
-> +			 unsigned int min_order,
-
-make the order int and...
-> +			 void (*visit)(void *opaque2,
-> +				       unsigned long pfn,
-> +				       unsigned long nr_pages))
-> +{
-> +	struct zone *zone;
-> +	struct page *page;
-> +	struct list_head *list;
-> +	unsigned int order;
-> +	enum migratetype mt;
-> +	unsigned long pfn, flags;
-> +
-> +	for_each_populated_zone(zone) {
-> +		for (order = MAX_ORDER - 1;
-> +		     order < MAX_ORDER && order >= min_order; order--) {
-
-you will not need the underflow check which is just ugly
-
-> +			for (mt = 0; mt < MIGRATE_TYPES; mt++) {
-> +				spin_lock_irqsave(&zone->lock, flags);
-> +				list = &zone->free_area[order].free_list[mt];
-> +				list_for_each_entry(page, list, lru) {
-> +					pfn = page_to_pfn(page);
-> +					visit(opaque1, pfn, 1 << order);
-> +				}
-> +				spin_unlock_irqrestore(&zone->lock, flags);
-
-				cond_resched();
-> +			}
-> +		}
-> +	}
-> +}
-> +EXPORT_SYMBOL_GPL(walk_free_mem_block);
-> +
->  static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
->  {
->  	zoneref->zone = zone;
-> -- 
-> 2.7.4
-
-Other than that this looks _much_ more reasonable than previous
-versions.
--- 
-Michal Hocko
-SUSE Labs
+>
+> [1] http://lkml.kernel.org/r/20170725154114.24131-2-punit.agrawal@arm.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
