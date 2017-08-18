@@ -1,101 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DCF676B02F3
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 19:42:46 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 5so16077498wrz.14
-        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 16:42:46 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C80FF6B02F3
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 20:25:27 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id b65so16258586wrd.1
+        for <linux-mm@kvack.org>; Thu, 17 Aug 2017 17:25:27 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id k19si842633wre.0.2017.08.17.16.42.45
+        by mx.google.com with ESMTPS id c20si3347268wre.400.2017.08.17.17.25.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Aug 2017 16:42:45 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7HNd4MR124876
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 19:42:44 -0400
-Received: from e15.ny.us.ibm.com (e15.ny.us.ibm.com [129.33.205.205])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2cdhun0tnt-1
+        Thu, 17 Aug 2017 17:25:26 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7I0O0I6027658
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 20:25:24 -0400
+Received: from e31.co.us.ibm.com (e31.co.us.ibm.com [32.97.110.149])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2cdhumjet4-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 19:42:44 -0400
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2017 20:25:24 -0400
 Received: from localhost
-	by e15.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Thu, 17 Aug 2017 19:42:43 -0400
-Date: Thu, 17 Aug 2017 16:42:31 -0700
+	Thu, 17 Aug 2017 18:25:23 -0600
+Date: Thu, 17 Aug 2017 17:25:12 -0700
 From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [RFC v6 21/62] powerpc: introduce execute-only pkey
+Subject: Re: [RFC v7 26/25] mm/mprotect, powerpc/mm/pkeys, x86/mm/pkeys: Add
+ sysfs interface
 Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com>
- <1500177424-13695-22-git-send-email-linuxram@us.ibm.com>
- <87shhgdx5i.fsf@linux.vnet.ibm.com>
- <87d18fu6o1.fsf@concordia.ellerman.id.au>
- <87d18fw9it.fsf@linux.vnet.ibm.com>
- <871sous3xd.fsf@concordia.ellerman.id.au>
- <20170817233555.GC5427@ram.oc3035372033.ibm.com>
+References: <1501459946-11619-1-git-send-email-linuxram@us.ibm.com>
+ <20170811173443.6227-1-bauerman@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170817233555.GC5427@ram.oc3035372033.ibm.com>
-Message-Id: <20170817234231.GA5445@ram.oc3035372033.ibm.com>
+In-Reply-To: <20170811173443.6227-1-bauerman@linux.vnet.ibm.com>
+Message-Id: <20170818002512.GE5427@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>, linux-arch@vger.kernel.org, corbet@lwn.net, arnd@arndb.de, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org, dave.hansen@intel.com, mingo@redhat.com, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, linux-kselftest@vger.kernel.org, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, khandual@linux.vnet.ibm.com
+To: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, x86@kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Haren Myneni <hbabu@us.ibm.com>, Michal Hocko <mhocko@kernel.org>
 
-On Thu, Aug 17, 2017 at 04:35:55PM -0700, Ram Pai wrote:
-> On Wed, Aug 02, 2017 at 07:40:46PM +1000, Michael Ellerman wrote:
-> > Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com> writes:
-> > 
-> > > Michael Ellerman <mpe@ellerman.id.au> writes:
-> > >
-> > >> Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com> writes:
-> > >>> Ram Pai <linuxram@us.ibm.com> writes:
-> > >> ...
-> > >>>> +
-> > >>>> +	/* We got one, store it and use it from here on out */
-> > >>>> +	if (need_to_set_mm_pkey)
-> > >>>> +		mm->context.execute_only_pkey = execute_only_pkey;
-> > >>>> +	return execute_only_pkey;
-> > >>>> +}
-> > >>>
-> > >>> If you follow the code flow in __execute_only_pkey, the AMR and UAMOR
-> > >>> are read 3 times in total, and AMR is written twice. IAMR is read and
-> > >>> written twice. Since they are SPRs and access to them is slow (or isn't
-> > >>> it?),
-> > >>
-> > >> SPRs read/writes are slow, but they're not *that* slow in comparison to
-> > >> a system call (which I think is where this code is being called?).
-> > >
-> > > Yes, this code runs on mprotect and mmap syscalls if the memory is
-> > > requested to have execute but not read nor write permissions.
-> > 
-> > Yep. That's not in the fast path for key usage, ie. the fast path is
-> > userspace changing the AMR itself, and the overhead of a syscall is
-> > already hundreds of cycles.
-> > 
-> > >> So we should try to avoid too many SPR read/writes, but at the same time
-> > >> we can accept more than the minimum if it makes the code much easier to
-> > >> follow.
-> > >
-> > > Ok. Ram had asked me to suggest a way to optimize the SPR reads and
-> > > writes and I came up with the patch below. Do you think it's worth it?
-> > 
-> > At a glance no I don't think it is. Sorry you spent that much time on it.
-> > 
-> > I think we can probably reduce the number of SPR accesses without
-> > needing to go to that level of complexity.
-> > 
-> > But don't throw the patch away, I may eat my words once I have the full
-> > series applied and am looking at it hard - at the moment I'm just
-> > reviewing the patches piecemeal as I get time.
+On Fri, Aug 11, 2017 at 02:34:43PM -0300, Thiago Jung Bauermann wrote:
+> Expose useful information for programs using memory protection keys.
+> Provide implementation for powerpc and x86.
+> 
+> On a powerpc system with pkeys support, here is what is shown:
+> 
+> $ head /sys/kernel/mm/protection_keys/*
+> ==> /sys/kernel/mm/protection_keys/disable_execute_supported <==
+> true
+
+We should not just call out disable_execute_supported.
+disable_access_supported and disable_write_supported should also 
+be called out.
+
+> 
+> ==> /sys/kernel/mm/protection_keys/total_keys <==
+> 32
 > 
 
-Thiago's patch does save some cycles. I dont feel like throwing his
-work. I agree, It should be considered after applying all the patches. 
- 
-RP
+> ==> /sys/kernel/mm/protection_keys/usable_keys <==
+> 30
 
--- 
-Ram Pai
+This is little nebulous.  It depends on how we define
+usable as.  Is it the number of keys that are available
+to the app?  If that is the case that value is dynamic.
+Sometime the OS steals one key for execute-only key.
+And anything that is dynamic can be inherently racy.
+So I think we should define 'usable' as guaranteed number
+of keys available to the app and display a value that is
+one less than what is available.
+
+in the above example the value should be 29.
+
+RP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
