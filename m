@@ -1,399 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A88366B02B4
-	for <linux-mm@kvack.org>; Fri, 18 Aug 2017 10:28:53 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id c15so28386760qta.14
-        for <linux-mm@kvack.org>; Fri, 18 Aug 2017 07:28:53 -0700 (PDT)
-Received: from mail-qt0-x244.google.com (mail-qt0-x244.google.com. [2607:f8b0:400d:c0d::244])
-        by mx.google.com with ESMTPS id w16si5339214qtc.83.2017.08.18.07.28.52
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3159A6B025F
+	for <linux-mm@kvack.org>; Fri, 18 Aug 2017 10:46:26 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id p8so3033528wrf.6
+        for <linux-mm@kvack.org>; Fri, 18 Aug 2017 07:46:26 -0700 (PDT)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id e44si5754820ede.198.2017.08.18.07.46.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Aug 2017 07:28:52 -0700 (PDT)
-Received: by mail-qt0-x244.google.com with SMTP id c15so9065775qta.3
-        for <linux-mm@kvack.org>; Fri, 18 Aug 2017 07:28:52 -0700 (PDT)
-From: josef@toxicpanda.com
-Subject: [PATCH 2/2][RESEND] mm: make kswapd try harder to keep active pages in cache
-Date: Fri, 18 Aug 2017 10:28:48 -0400
-Message-Id: <1503066528-1833-2-git-send-email-jbacik@fb.com>
-In-Reply-To: <1503066528-1833-1-git-send-email-jbacik@fb.com>
-References: <1503066528-1833-1-git-send-email-jbacik@fb.com>
+        Fri, 18 Aug 2017 07:46:23 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 550D01C1FEE
+	for <linux-mm@kvack.org>; Fri, 18 Aug 2017 15:46:23 +0100 (IST)
+Date: Fri, 18 Aug 2017 15:46:22 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
+Message-ID: <20170818144622.oabozle26hasg5yo@techsingularity.net>
+References: <84c7f26182b7f4723c0fe3b34ba912a9de92b8b7.1502758114.git.tim.c.chen@linux.intel.com>
+ <CA+55aFznC1wqBSfYr8=92LGqz5-F6fHMzdXoqM4aOYx8sT1Dhg@mail.gmail.com>
+ <37D7C6CF3E00A74B8858931C1DB2F07753786CE9@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFwzTMrZwh7TE_VeZt8gx5Syoop-kA=Xqs56=FkyakrM6g@mail.gmail.com>
+ <37D7C6CF3E00A74B8858931C1DB2F0775378761B@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFy_RNx5TQ8esjPPOKuW-o+fXbZgWapau2MHyexcAZtqsw@mail.gmail.com>
+ <20170818122339.24grcbzyhnzmr4qw@techsingularity.net>
+ <37D7C6CF3E00A74B8858931C1DB2F077537879BB@SHSMSX103.ccr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <37D7C6CF3E00A74B8858931C1DB2F077537879BB@SHSMSX103.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: minchan@kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, kernel-team@fb.com
-Cc: Josef Bacik <jbacik@fb.com>
+To: "Liang, Kan" <kan.liang@intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-From: Josef Bacik <jbacik@fb.com>
+On Fri, Aug 18, 2017 at 02:20:38PM +0000, Liang, Kan wrote:
+> > Nothing fancy other than needing a comment if it works.
+> > 
+> 
+> No, the patch doesn't work.
+> 
 
-While testing slab reclaim I noticed that if we were running a workload
-that used most of the system memory for it's working set and we start
-putting a lot of reclaimable slab pressure on the system (think find /,
-or some other silliness), we will happily evict the active pages over
-the slab cache.  This is kind of backwards as we want to do all that we
-can to keep the active working set in memory, and instead evict these
-short lived objects.  The same thing occurs when say you do a yum
-update of a few packages while your working set takes up most of RAM,
-you end up with inactive lists being relatively small and so we reclaim
-active pages even though we could reclaim these short lived inactive
-pages.
+That indicates that it may be a hot page and it's possible that the page is
+locked for a short time but waiters accumulate.  What happens if you leave
+NUMA balancing enabled but disable THP?  Waiting on migration entries also
+uses wait_on_page_locked so it would be interesting to know if the problem
+is specific to THP.
 
-My approach here is twofold.  First, keep track of the difference in
-inactive and slab pages since the last time kswapd ran.  In the first
-run this will just be the overall counts of inactive and slab, but for
-each subsequent run we'll have a good idea of where the memory pressure
-is coming from.  Then we use this information to put pressure on either
-the inactive lists or the slab caches, depending on where the pressure
-is coming from.
+Can you tell me what this workload is doing? I want to see if it's something
+like many threads pounding on a limited number of pages very quickly. If
+it's many threads working on private data, it would also be important to
+know how each buffers threads are aligned, particularly if the buffers
+are smaller than a THP or base page size. For example, if each thread is
+operating on a base page sized buffer then disabling THP would side-step
+the problem but THP would be false sharing between multiple threads.
 
-I have two tests I was using to watch either side of this problem.  The
-first test kept 2 files that took up 3/4 of the memory, and then started
-creating a bunch of empty files.  Without this patch we would have to
-re-read both files in their entirety at least 3 times during the run.
-With this patch the active pages are never evicted.
 
-The second test was a test that would read and stat all the files in a
-directory, which again would take up about 3/4 of the memory with slab
-cache.  Then I cat'ed a 100gib file into /dev/null and checked to see if
-any of the files were evicted and verified that none of the files were
-evicted.
-
-Signed-off-by: Josef Bacik <jbacik@fb.com>
----
- mm/vmscan.c | 172 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 158 insertions(+), 14 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 608dfe6..d6ba41b 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -110,11 +110,20 @@ struct scan_control {
- 	/* One of the zones is ready for compaction */
- 	unsigned int compaction_ready:1;
- 
-+	/* Only reclaim inactive page cache or slab. */
-+	unsigned int inactive_only:1;
-+
- 	/* Incremented by the number of inactive pages that were scanned */
- 	unsigned long nr_scanned;
- 
- 	/* Number of pages freed so far during a call to shrink_zones() */
- 	unsigned long nr_reclaimed;
-+
-+	/* Number of inactive pages added since last kswapd run. */
-+	unsigned long inactive_diff;
-+
-+	/* Number of slab pages added since last kswapd run. */
-+	unsigned long slab_diff;
- };
- 
- #ifdef ARCH_HAS_PREFETCH
-@@ -306,7 +315,8 @@ EXPORT_SYMBOL(unregister_shrinker);
- #define SHRINK_BATCH 128
- 
- static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
--				    struct shrinker *shrinker, int priority)
-+				    struct shrinker *shrinker, int priority,
-+				    unsigned long *slab_scanned)
- {
- 	unsigned long freed = 0;
- 	unsigned long long delta;
-@@ -405,6 +415,9 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
- 		next_deferred -= scanned;
- 	else
- 		next_deferred = 0;
-+	if (slab_scanned)
-+		(*slab_scanned) += scanned;
-+
- 	/*
- 	 * move the unused scan count back into the shrinker in a
- 	 * manner that handles concurrent updates. If we exhausted the
-@@ -444,7 +457,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
-  */
- static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 				 struct mem_cgroup *memcg,
--				 int priority)
-+				 int priority, unsigned long *slab_scanned)
- {
- 	struct shrinker *shrinker;
- 	unsigned long freed = 0;
-@@ -482,7 +495,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 		if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
- 			sc.nid = 0;
- 
--		freed += do_shrink_slab(&sc, shrinker, priority);
-+		freed += do_shrink_slab(&sc, shrinker, priority, slab_scanned);
- 	}
- 
- 	up_read(&shrinker_rwsem);
-@@ -500,7 +513,7 @@ void drop_slab_node(int nid)
- 
- 		freed = 0;
- 		do {
--			freed += shrink_slab(GFP_KERNEL, nid, memcg, 0);
-+			freed += shrink_slab(GFP_KERNEL, nid, memcg, 0, NULL);
- 		} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)) != NULL);
- 	} while (freed > 10);
- }
-@@ -2149,6 +2162,7 @@ enum scan_balance {
- 	SCAN_FRACT,
- 	SCAN_ANON,
- 	SCAN_FILE,
-+	SCAN_INACTIVE,
- };
- 
- /*
-@@ -2175,6 +2189,11 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 	unsigned long ap, fp;
- 	enum lru_list lru;
- 
-+	if (sc->inactive_only) {
-+		scan_balance = SCAN_INACTIVE;
-+		goto out;
-+	}
-+
- 	/* If we have no swap space, do not bother scanning anon pages. */
- 	if (!sc->may_swap || mem_cgroup_get_nr_swap_pages(memcg) <= 0) {
- 		scan_balance = SCAN_FILE;
-@@ -2348,6 +2367,14 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
- 				scan = 0;
- 			}
- 			break;
-+		case SCAN_INACTIVE:
-+			if (file && !is_active_lru(lru)) {
-+				scan = max(scan, sc->nr_to_reclaim);
-+			} else {
-+				size = 0;
-+				scan = 0;
-+			}
-+			break;
- 		default:
- 			/* Look ma, no brain */
- 			BUG();
-@@ -2565,7 +2592,61 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- {
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	unsigned long nr_reclaimed, nr_scanned;
-+	unsigned long greclaim = 1, gslab = 1, total_high_wmark = 0, nr_inactive;
-+	int priority_adj = 1;
- 	bool reclaimable = false;
-+	bool skip_slab = false;
-+
-+	if (global_reclaim(sc)) {
-+		int z;
-+		for (z = 0; z < MAX_NR_ZONES; z++) {
-+			struct zone *zone = &pgdat->node_zones[z];
-+			if (!managed_zone(zone))
-+				continue;
-+			total_high_wmark += high_wmark_pages(zone);
-+		}
-+		nr_inactive = node_page_state(pgdat, NR_INACTIVE_FILE);
-+		gslab = node_page_state(pgdat, NR_SLAB_RECLAIMABLE);
-+		greclaim = pgdat_reclaimable_pages(pgdat);
-+	} else {
-+		struct lruvec *lruvec =
-+			mem_cgroup_lruvec(pgdat, sc->target_mem_cgroup);
-+		total_high_wmark = sc->nr_to_reclaim;
-+		nr_inactive = lruvec_page_state(lruvec, NR_INACTIVE_FILE);
-+		gslab = lruvec_page_state(lruvec, NR_SLAB_RECLAIMABLE);
-+	}
-+
-+	/*
-+	 * If we don't have a lot of inactive or slab pages then there's no
-+	 * point in trying to free them exclusively, do the normal scan stuff.
-+	 */
-+	if (nr_inactive + gslab < total_high_wmark)
-+		sc->inactive_only = 0;
-+
-+	/*
-+	 * We still want to slightly prefer slab over inactive, so if the
-+	 * inactive on this node is large enough and what is pushing us into
-+	 * reclaim territory then limit our flushing to the inactive list for
-+	 * the first go around.
-+	 *
-+	 * The idea is that with a memcg configured system we will still reclaim
-+	 * memcg aware shrinkers, which includes the super block shrinkers.  So
-+	 * if our steady state is keeping fs objects in cache for our workload
-+	 * we'll still put a certain amount of pressure on them anyway.  To
-+	 * avoid evicting things we actually care about we want to skip slab
-+	 * reclaim altogether.
-+	 *
-+	 * However we still want to account for slab and inactive growing at the
-+	 * same rate, so if that is the case just carry on shrinking inactive
-+	 * and slab together.
-+	 */
-+	if (nr_inactive > total_high_wmark &&
-+	    sc->inactive_diff > sc->slab_diff) {
-+		unsigned long tmp = sc->inactive_diff >> 1;
-+
-+		if (tmp >= sc->slab_diff)
-+			skip_slab = true;
-+	}
- 
- 	do {
- 		struct mem_cgroup *root = sc->target_mem_cgroup;
-@@ -2574,6 +2655,8 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 			.priority = sc->priority,
- 		};
- 		unsigned long node_lru_pages = 0;
-+		unsigned long slab_reclaimed = 0;
-+		unsigned long slab_scanned = 0;
- 		struct mem_cgroup *memcg;
- 
- 		nr_reclaimed = sc->nr_reclaimed;
-@@ -2598,9 +2681,16 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 			shrink_node_memcg(pgdat, memcg, sc, &lru_pages);
- 			node_lru_pages += lru_pages;
- 
--			if (memcg)
--				shrink_slab(sc->gfp_mask, pgdat->node_id,
--					    memcg, sc->priority);
-+			if (memcg && !skip_slab) {
-+				int priority = sc->priority;
-+				if (sc->inactive_only)
-+					priority -= priority_adj;
-+				priority = max(0, priority);
-+				slab_reclaimed +=
-+					shrink_slab(sc->gfp_mask,
-+						    pgdat->node_id, memcg,
-+						    priority, &slab_scanned);
-+			}
- 
- 			/* Record the group's reclaim efficiency */
- 			vmpressure(sc->gfp_mask, memcg, false,
-@@ -2624,9 +2714,16 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 			}
- 		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
- 
--		if (global_reclaim(sc))
--			shrink_slab(sc->gfp_mask, pgdat->node_id, NULL,
--				    sc->priority);
-+		if (!skip_slab && global_reclaim(sc)) {
-+			int priority = sc->priority;
-+			if (sc->inactive_only)
-+				priority -= priority_adj;
-+			priority = max(0, priority);
-+			slab_reclaimed +=
-+				shrink_slab(sc->gfp_mask, pgdat->node_id, NULL,
-+					    priority, &slab_scanned);
-+		}
-+
- 
- 		/*
- 		 * Record the subtree's reclaim efficiency. The reclaimed
-@@ -2645,9 +2742,28 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 			reclaim_state->reclaimed_slab = 0;
- 		}
- 
--		if (sc->nr_reclaimed - nr_reclaimed)
-+		if (sc->nr_reclaimed - nr_reclaimed) {
- 			reclaimable = true;
-+		} else if (sc->inactive_only && !skip_slab) {
-+			unsigned long percent = 0;
- 
-+			/*
-+			 * We didn't reclaim anything this go around, so the
-+			 * inactive list is likely spent.  If we're reclaiming
-+			 * less than half of the objects in slab that we're
-+			 * scanning then just stop doing the inactive only scan.
-+			 * Otherwise ramp up the pressure on the slab caches
-+			 * hoping that eventually we'll start freeing enough
-+			 * objects to reclaim space.
-+			 */
-+			if (slab_scanned)
-+				percent = slab_reclaimed * 100 / slab_scanned;
-+			if (percent < 50)
-+				sc->inactive_only = 0;
-+			else
-+				priority_adj++;
-+		}
-+		skip_slab = false;
- 	} while (should_continue_reclaim(pgdat, sc->nr_reclaimed - nr_reclaimed,
- 					 sc->nr_scanned - nr_scanned, sc));
- 
-@@ -3290,7 +3406,8 @@ static bool kswapd_shrink_node(pg_data_t *pgdat,
-  * or lower is eligible for reclaim until at least one usable zone is
-  * balanced.
-  */
--static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
-+static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx,
-+			 unsigned long inactive_diff, unsigned long slab_diff)
- {
- 	int i;
- 	unsigned long nr_soft_reclaimed;
-@@ -3303,6 +3420,9 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
- 		.may_writepage = !laptop_mode,
- 		.may_unmap = 1,
- 		.may_swap = 1,
-+		.inactive_only = 1,
-+		.inactive_diff = inactive_diff,
-+		.slab_diff = slab_diff,
- 	};
- 	count_vm_event(PAGEOUTRUN);
- 
-@@ -3522,7 +3642,7 @@ static int kswapd(void *p)
- 	unsigned int classzone_idx = MAX_NR_ZONES - 1;
- 	pg_data_t *pgdat = (pg_data_t*)p;
- 	struct task_struct *tsk = current;
--
-+	unsigned long nr_slab = 0, nr_inactive = 0;
- 	struct reclaim_state reclaim_state = {
- 		.reclaimed_slab = 0,
- 	};
-@@ -3552,6 +3672,7 @@ static int kswapd(void *p)
- 	pgdat->kswapd_order = 0;
- 	pgdat->kswapd_classzone_idx = MAX_NR_ZONES;
- 	for ( ; ; ) {
-+		unsigned long slab_diff, inactive_diff;
- 		bool ret;
- 
- 		alloc_order = reclaim_order = pgdat->kswapd_order;
-@@ -3579,6 +3700,23 @@ static int kswapd(void *p)
- 			continue;
- 
- 		/*
-+		 * We want to know where we're adding pages so we can make
-+		 * smarter decisions about where we're going to put pressure
-+		 * when shrinking.
-+		 */
-+		slab_diff = sum_zone_node_page_state(pgdat->node_id,
-+						     NR_SLAB_RECLAIMABLE);
-+		inactive_diff = node_page_state(pgdat, NR_INACTIVE_FILE);
-+		if (nr_slab > slab_diff)
-+			slab_diff = 0;
-+		else
-+			slab_diff -= nr_slab;
-+		if (inactive_diff < nr_inactive)
-+			inactive_diff = 0;
-+		else
-+			inactive_diff -= nr_inactive;
-+
-+		/*
- 		 * Reclaim begins at the requested order but if a high-order
- 		 * reclaim fails then kswapd falls back to reclaiming for
- 		 * order-0. If that happens, kswapd will consider sleeping
-@@ -3588,7 +3726,11 @@ static int kswapd(void *p)
- 		 */
- 		trace_mm_vmscan_kswapd_wake(pgdat->node_id, classzone_idx,
- 						alloc_order);
--		reclaim_order = balance_pgdat(pgdat, alloc_order, classzone_idx);
-+		reclaim_order = balance_pgdat(pgdat, alloc_order, classzone_idx,
-+					      inactive_diff, slab_diff);
-+		nr_inactive = node_page_state(pgdat, NR_INACTIVE_FILE);
-+		nr_slab = sum_zone_node_page_state(pgdat->node_id,
-+						   NR_SLAB_RECLAIMABLE);
- 		if (reclaim_order < alloc_order)
- 			goto kswapd_try_sleep;
- 	}
-@@ -3840,6 +3982,8 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
- 		.may_unmap = !!(node_reclaim_mode & RECLAIM_UNMAP),
- 		.may_swap = 1,
- 		.reclaim_idx = gfp_zone(gfp_mask),
-+		.slab_diff = 1,
-+		.inactive_diff = 1,
- 	};
- 
- 	cond_resched();
 -- 
-2.7.4
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
