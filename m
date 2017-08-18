@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C1AF6B02FD
-	for <linux-mm@kvack.org>; Fri, 18 Aug 2017 12:45:08 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id q6so68735236pgs.7
-        for <linux-mm@kvack.org>; Fri, 18 Aug 2017 09:45:08 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id m66si2849740pfa.99.2017.08.18.09.45.07
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 056A06B0313
+	for <linux-mm@kvack.org>; Fri, 18 Aug 2017 12:53:35 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id y129so181576141pgy.1
+        for <linux-mm@kvack.org>; Fri, 18 Aug 2017 09:53:34 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id 99si4159157pla.88.2017.08.18.09.53.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Aug 2017 09:45:07 -0700 (PDT)
-Date: Fri, 18 Aug 2017 09:45:06 -0700
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
-Message-ID: <20170818164506.GO28715@tassilo.jf.intel.com>
+        Fri, 18 Aug 2017 09:53:34 -0700 (PDT)
+From: "Liang, Kan" <kan.liang@intel.com>
+Subject: RE: [PATCH 1/2] sched/wait: Break up long wake list walk
+Date: Fri, 18 Aug 2017 16:53:30 +0000
+Message-ID: <37D7C6CF3E00A74B8858931C1DB2F07753787AE4@SHSMSX103.ccr.corp.intel.com>
 References: <84c7f26182b7f4723c0fe3b34ba912a9de92b8b7.1502758114.git.tim.c.chen@linux.intel.com>
  <CA+55aFznC1wqBSfYr8=92LGqz5-F6fHMzdXoqM4aOYx8sT1Dhg@mail.gmail.com>
  <37D7C6CF3E00A74B8858931C1DB2F07753786CE9@SHSMSX103.ccr.corp.intel.com>
@@ -22,25 +22,57 @@ References: <84c7f26182b7f4723c0fe3b34ba912a9de92b8b7.1502758114.git.tim.c.chen@
  <20170818122339.24grcbzyhnzmr4qw@techsingularity.net>
  <37D7C6CF3E00A74B8858931C1DB2F077537879BB@SHSMSX103.ccr.corp.intel.com>
  <20170818144622.oabozle26hasg5yo@techsingularity.net>
- <e876c71a-702d-adc5-e043-658de3b462c3@linux.intel.com>
+In-Reply-To: <20170818144622.oabozle26hasg5yo@techsingularity.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e876c71a-702d-adc5-e043-658de3b462c3@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, "Liang, Kan" <kan.liang@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-> Still, I don't think this problem is THP specific.  If there is a hot
-> regular page getting migrated, we'll also see many threads get
-> queued up quickly.  THP may have made the problem worse as migrating
-> it takes a longer time, meaning more threads could get queued up.
 
-Also THP probably makes more threads collide because the pages are larger.
-But still it can all happen even without THP.
 
--Andi
+> On Fri, Aug 18, 2017 at 02:20:38PM +0000, Liang, Kan wrote:
+> > > Nothing fancy other than needing a comment if it works.
+> > >
+> >
+> > No, the patch doesn't work.
+> >
+>=20
+> That indicates that it may be a hot page and it's possible that the page =
+is
+> locked for a short time but waiters accumulate.  What happens if you leav=
+e
+> NUMA balancing enabled but disable THP? =20
+
+No, disabling THP doesn't help the case.
+
+Thanks,
+Kan
+
+> Waiting on migration entries also
+> uses wait_on_page_locked so it would be interesting to know if the proble=
+m
+> is specific to THP.
+>=20
+> Can you tell me what this workload is doing? I want to see if it's someth=
+ing
+> like many threads pounding on a limited number of pages very quickly. If =
+it's
+> many threads working on private data, it would also be important to know
+> how each buffers threads are aligned, particularly if the buffers are sma=
+ller
+> than a THP or base page size. For example, if each thread is operating on=
+ a
+> base page sized buffer then disabling THP would side-step the problem but
+> THP would be false sharing between multiple threads.
+>=20
+>=20
+> --
+> Mel Gorman
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
