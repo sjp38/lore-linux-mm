@@ -1,77 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C4DD6B025F
-	for <linux-mm@kvack.org>; Fri, 18 Aug 2017 03:04:50 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 49so17788023wrw.12
-        for <linux-mm@kvack.org>; Fri, 18 Aug 2017 00:04:50 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j185si686473wma.84.2017.08.18.00.04.47
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BA4D56B02C3
+	for <linux-mm@kvack.org>; Fri, 18 Aug 2017 03:37:15 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id s14so156771998pgs.4
+        for <linux-mm@kvack.org>; Fri, 18 Aug 2017 00:37:15 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id 64si3426297ply.683.2017.08.18.00.37.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 18 Aug 2017 00:04:47 -0700 (PDT)
-Date: Fri, 18 Aug 2017 09:04:44 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: +
- mm-oom-let-oom_reap_task-and-exit_mmap-to-run-concurrently.patch added to
- -mm tree
-Message-ID: <20170818070444.GA9004@dhcp22.suse.cz>
-References: <59936823.CQNWQErWJ8EAIG3q%akpm@linux-foundation.org>
- <20170816132329.GA32169@dhcp22.suse.cz>
- <20170817171240.GB5066@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 18 Aug 2017 00:37:14 -0700 (PDT)
+Message-ID: <599699AF.1090705@intel.com>
+Date: Fri, 18 Aug 2017 15:39:27 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170817171240.GB5066@redhat.com>
+Subject: Re: [PATCH v14 3/5] virtio-balloon: VIRTIO_BALLOON_F_SG
+References: <1502940416-42944-1-git-send-email-wei.w.wang@intel.com> <1502940416-42944-4-git-send-email-wei.w.wang@intel.com> <20170818051451-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20170818051451-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: akpm@linux-foundation.org, hughd@google.com, kirill@shutemov.name, oleg@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, rientjes@google.com, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On Thu 17-08-17 19:12:40, Andrea Arcangeli wrote:
-> On Wed, Aug 16, 2017 at 03:23:29PM +0200, Michal Hocko wrote:
-> > Reviewed-by: Michal Hocko <mhocko@suse.com>
-> 
-> Thanks for the review!
-> 
-> There's this further possible microoptimization that can be folded on top.
-> 
-> >From 76bf017f923581d15fe01249af92b0d757752a9f Mon Sep 17 00:00:00 2001
-> From: Andrea Arcangeli <aarcange@redhat.com>
-> Date: Thu, 17 Aug 2017 18:39:46 +0200
-> Subject: [PATCH 1/1] mm: oom: let oom_reap_task and exit_mmap run
->  concurrently, add unlikely
-> 
-> Microoptimization to fold before merging.
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
->  mm/mmap.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 013170e5c8a4..ab0026a8acc4 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -3003,7 +3003,7 @@ void exit_mmap(struct mm_struct *mm)
->  	unmap_vmas(&tlb, vma, 0, -1);
->  
->  	set_bit(MMF_OOM_SKIP, &mm->flags);
-> -	if (tsk_is_oom_victim(current)) {
-> +	if (unlikely(tsk_is_oom_victim(current))) {
+On 08/18/2017 10:22 AM, Michael S. Tsirkin wrote:
+> +static void send_balloon_page_sg(struct virtio_balloon *vb,
+> +				 struct virtqueue *vq,
+> +				 void *addr,
+> +				 uint32_t size)
+> +{
+> +	unsigned int len;
+> +	int ret;
+> +
+> +	do {
+> +		ret = add_one_sg(vq, addr, size);
+> +		virtqueue_kick(vq);
+> +		wait_event(vb->acked, virtqueue_get_buf(vq, &len));
+> +		/*
+> +		 * It is uncommon to see the vq is full, because the sg is sent
+> +		 * one by one and the device is able to handle it in time. But
+> +		 * if that happens, we go back to retry after an entry gets
+> +		 * released.
+> +		 */
+> Why send one by one though? Why not batch some s/gs and wait for all
+> of them to be completed? If memory if fragmented, waiting every time is
+> worse than what we have now (VIRTIO_BALLOON_ARRAY_PFNS_MAX at a time).
+>
 
-I dunno. This doesn't make any difference in the generated code for
-me (with gcc 6.4). If anything we might wan't to putt unlikely inside
-tsk_is_oom_victim. Or even go further and use a jump label to get any
-conditional paths out of way.
+OK, I'll do batching in some fashion.
 
->  		/*
->  		 * Wait for oom_reap_task() to stop working on this
->  		 * mm. Because MMF_OOM_SKIP is already set before
-> 
 
--- 
-Michal Hocko
-SUSE Labs
+Best,
+Wei
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
