@@ -1,67 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BF9C06B04A9
-	for <linux-mm@kvack.org>; Fri, 18 Aug 2017 16:34:39 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id s21so13863553oie.5
-        for <linux-mm@kvack.org>; Fri, 18 Aug 2017 13:34:39 -0700 (PDT)
-Received: from mail-oi0-x243.google.com (mail-oi0-x243.google.com. [2607:f8b0:4003:c06::243])
-        by mx.google.com with ESMTPS id k129si5212397oih.103.2017.08.18.13.34.38
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A0196B04AC
+	for <linux-mm@kvack.org>; Fri, 18 Aug 2017 17:03:05 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id i66so5635546wmg.12
+        for <linux-mm@kvack.org>; Fri, 18 Aug 2017 14:03:05 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o20si4954370wro.120.2017.08.18.14.03.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Aug 2017 13:34:38 -0700 (PDT)
-Received: by mail-oi0-x243.google.com with SMTP id v11so10365185oif.1
-        for <linux-mm@kvack.org>; Fri, 18 Aug 2017 13:34:38 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <37D7C6CF3E00A74B8858931C1DB2F07753787CCE@SHSMSX103.ccr.corp.intel.com>
-References: <84c7f26182b7f4723c0fe3b34ba912a9de92b8b7.1502758114.git.tim.c.chen@linux.intel.com>
- <CA+55aFznC1wqBSfYr8=92LGqz5-F6fHMzdXoqM4aOYx8sT1Dhg@mail.gmail.com>
- <37D7C6CF3E00A74B8858931C1DB2F07753786CE9@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFwzTMrZwh7TE_VeZt8gx5Syoop-kA=Xqs56=FkyakrM6g@mail.gmail.com>
- <37D7C6CF3E00A74B8858931C1DB2F0775378761B@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFy_RNx5TQ8esjPPOKuW-o+fXbZgWapau2MHyexcAZtqsw@mail.gmail.com>
- <20170818122339.24grcbzyhnzmr4qw@techsingularity.net> <37D7C6CF3E00A74B8858931C1DB2F077537879BB@SHSMSX103.ccr.corp.intel.com>
- <20170818144622.oabozle26hasg5yo@techsingularity.net> <37D7C6CF3E00A74B8858931C1DB2F07753787AE4@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFxZjjqUM4kPvNEeZahPovBHFATiwADj-iPTDN0-jnU67Q@mail.gmail.com> <37D7C6CF3E00A74B8858931C1DB2F07753787CCE@SHSMSX103.ccr.corp.intel.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 18 Aug 2017 13:34:37 -0700
-Message-ID: <CA+55aFxuO1r1riZ=5dO9NtvWOhGQdKHfhfCTuahoOTjN_yd6UA@mail.gmail.com>
-Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
-Content-Type: text/plain; charset="UTF-8"
+        Fri, 18 Aug 2017 14:03:03 -0700 (PDT)
+Date: Fri, 18 Aug 2017 14:03:00 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [memcg:since-4.12 539/540] mm/compaction.c:469:8: error:
+ implicit declaration of function 'pageblock_skip_persistent'
+Message-Id: <20170818140300.d97c99cc5bd60c0f924a6e9a@linux-foundation.org>
+In-Reply-To: <fac0ae1a-7de3-bb98-53c8-f63f205f5c04@redhat.com>
+References: <201708190034.TmrRSDV7%fengguang.wu@intel.com>
+	<fac0ae1a-7de3-bb98-53c8-f63f205f5c04@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Liang, Kan" <kan.liang@intel.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Waiman Long <longman@redhat.com>
+Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>
 
-On Fri, Aug 18, 2017 at 1:29 PM, Liang, Kan <kan.liang@intel.com> wrote:
-> Here is the profiling with THP disabled for wait_on_page_bit_common and
-> wake_up_page_bit.
->
->
-> The call stack of wait_on_page_bit_common
-> # Overhead  Trace output
-> # ........  ..................
-> #
->    100.00%  (ffffffff821aefca)
->             |
->             ---wait_on_page_bit
->                __migration_entry_wait
->                migration_entry_wait
->                do_swap_page
+On Fri, 18 Aug 2017 12:57:48 -0400 Waiman Long <longman@redhat.com> wrote:
 
-Ok, so it really is exactly the same thing, just for a regular page,
-and there is absolutely nothing huge-page specific to this.
+> On 08/18/2017 12:42 PM, kbuild test robot wrote:
+> > tree:   https://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-4.12
+> > head:   ba5e8c23db5729ebdbafad983b07434c829cf5b6
+> > commit: 500539d3686a835f6a9740ffc38bed5d74951a64 [539/540] debugobjects: make kmemleak ignore debug objects
+> > config: i386-randconfig-s0-08141822 (attached as .config)
+> > compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+> > reproduce:
+> >         git checkout 500539d3686a835f6a9740ffc38bed5d74951a64
+> >         # save the attached .config to linux build tree
+> >         make ARCH=i386 
+> >
+> > All errors (new ones prefixed by >>):
+> >
+> >    mm/compaction.c: In function 'isolate_freepages_block':
+> >>> mm/compaction.c:469:8: error: implicit declaration of function 'pageblock_skip_persistent' [-Werror=implicit-function-declaration]
+> >        if (pageblock_skip_persistent(page, order)) {
+> >            ^~~~~~~~~~~~~~~~~~~~~~~~~
+> >>> mm/compaction.c:470:5: error: implicit declaration of function 'set_pageblock_skip' [-Werror=implicit-function-declaration]
+> >         set_pageblock_skip(page);
+> >         ^~~~~~~~~~~~~~~~~~
+> >    cc1: some warnings being treated as errors
+> >
+> > vim +/pageblock_skip_persistent +469 mm/compaction.c
+> 
+> It is not me. My patch doesn't touch any header file and
+> mm/compaction.c. So it can't cause this kind of errors.
+> 
 
-Thanks.
+Yes, that's wrong.  It's David's "mm, compaction: persistently skip
+hugetlbfs pageblocks".  I'll do this:
 
-If you can test that (hacky, ugly) yield() patch, just to see how it
-behaves (maybe it degrades performance horribly even if it then avoids
-the long wait queues), that would be lovely.
 
-Does the load actually have some way of measuring performance? Because
-with the yield(), I'd hope that all the wait_on_page_bit() stuff is
-all gone, but it might just *perform* horribly badly.
+--- a/mm/compaction.c~mm-compaction-persistently-skip-hugetlbfs-pageblocks-fix
++++ a/mm/compaction.c
+@@ -327,6 +327,11 @@ static void update_pageblock_skip(struct
+ 			bool migrate_scanner)
+ {
+ }
++
++static bool pageblock_skip_persistent(struct page *page, unsigned int order)
++{
++	return false;
++}
+ #endif /* CONFIG_COMPACTION */
+ 
+ /*
+--- a/include/linux/pageblock-flags.h~mm-compaction-persistently-skip-hugetlbfs-pageblocks-fix
++++ a/include/linux/pageblock-flags.h
+@@ -96,6 +96,8 @@ void set_pfnblock_flags_mask(struct page
+ #define set_pageblock_skip(page) \
+ 			set_pageblock_flags_group(page, 1, PB_migrate_skip,  \
+ 							PB_migrate_skip)
++#else
++#define set_pageblock_skip(page) do { } while (0)
+ #endif /* CONFIG_COMPACTION */
+ 
+ #endif	/* PAGEBLOCK_FLAGS_H */
 
-                      Linus
+Those macros in pageblock-flags.h are obnoxious and reference their
+args multiple times.  I'll see what happens if they're turned into C
+functions...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
