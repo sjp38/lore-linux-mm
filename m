@@ -1,64 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E2836B04BE
-	for <linux-mm@kvack.org>; Sat, 19 Aug 2017 09:34:03 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id g131so15746751oic.10
-        for <linux-mm@kvack.org>; Sat, 19 Aug 2017 06:34:03 -0700 (PDT)
-Received: from mail-oi0-x243.google.com (mail-oi0-x243.google.com. [2607:f8b0:4003:c06::243])
-        by mx.google.com with ESMTPS id y79si6512276oia.515.2017.08.19.06.34.02
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 28D286B04C6
+	for <linux-mm@kvack.org>; Sat, 19 Aug 2017 15:10:13 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id r133so218384067pgr.6
+        for <linux-mm@kvack.org>; Sat, 19 Aug 2017 12:10:13 -0700 (PDT)
+Received: from out03.mta.xmission.com (out03.mta.xmission.com. [166.70.13.233])
+        by mx.google.com with ESMTPS id o29si5731221pli.228.2017.08.19.12.10.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 19 Aug 2017 06:34:02 -0700 (PDT)
-Received: by mail-oi0-x243.google.com with SMTP id e124so11824098oig.0
-        for <linux-mm@kvack.org>; Sat, 19 Aug 2017 06:34:02 -0700 (PDT)
+        Sat, 19 Aug 2017 12:10:12 -0700 (PDT)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <1500177424-13695-1-git-send-email-linuxram@us.ibm.com>
+	<1500177424-13695-36-git-send-email-linuxram@us.ibm.com>
+Date: Sat, 19 Aug 2017 14:09:58 -0500
+In-Reply-To: <1500177424-13695-36-git-send-email-linuxram@us.ibm.com> (Ram
+	Pai's message of "Sat, 15 Jul 2017 20:56:37 -0700")
+Message-ID: <87d17rnzll.fsf@xmission.com>
 MIME-Version: 1.0
-In-Reply-To: <CAK8P3a2+OdPX-uvRjhycX1NYNC_cBPv_bxJHcoh1ue2y7UX+Tg@mail.gmail.com>
-References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
- <1502089981-21272-10-git-send-email-byungchul.park@lge.com>
- <CAK8P3a3ABsxTaS7ZdcWNbTx7j5wFRc0h=ZVWAC_h-E+XbFv+8Q@mail.gmail.com>
- <20170818234348.GE11771@tardis> <CAK8P3a2+OdPX-uvRjhycX1NYNC_cBPv_bxJHcoh1ue2y7UX+Tg@mail.gmail.com>
-From: Arnd Bergmann <arnd@arndb.de>
-Date: Sat, 19 Aug 2017 15:34:01 +0200
-Message-ID: <CAK8P3a3TfZ=_tm0CUC5aKtf5PDwscLYsAN9Tbs2v0iJN5Jz-Rw@mail.gmail.com>
-Subject: Re: [PATCH v8 09/14] lockdep: Apply crossrelease to completions
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
+Subject: Re: [RFC v6 35/62] powerpc: Deliver SEGV signal on pkey violation
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boqun Feng <boqun.feng@gmail.com>
-Cc: Byungchul Park <byungchul.park@lge.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Michel Lespinasse <walken@google.com>, kirill@shutemov.name, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, willy@infradead.org, Nicholas Piggin <npiggin@gmail.com>, kernel-team@lge.com
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, dave.hansen@intel.com, hbabu@us.ibm.com, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com, mhocko@kernel.org
 
-On Sat, Aug 19, 2017 at 2:51 PM, Arnd Bergmann <arnd@arndb.de> wrote:
+Ram Pai <linuxram@us.ibm.com> writes:
 
->> --- a/include/linux/completion.h
->> +++ b/include/linux/completion.h
->> @@ -74,7 +74,7 @@ static inline void complete_release_commit(struct completion *x) {}
->>  #endif
->>
->>  #define COMPLETION_INITIALIZER_ONSTACK(work) \
->> -       ({ init_completion(&work); work; })
->> +       (*({ init_completion(&work); &work; }))
->>
->>  /**
->>   * DECLARE_COMPLETION - declare and initialize a completion structure
->
-> Nice hack. Any idea why that's different to the compiler?
->
-> I've applied that one to my test tree now, and reverted my own patch,
-> will let you know if anything else shows up. I think we probably want
-> to merge both patches to mainline.
+> diff --git a/arch/powerpc/kernel/traps.c b/arch/powerpc/kernel/traps.c
+> index d4e545d..fe1e7c7 100644
+> --- a/arch/powerpc/kernel/traps.c
+> +++ b/arch/powerpc/kernel/traps.c
+> @@ -20,6 +20,7 @@
+>  #include <linux/sched/debug.h>
+>  #include <linux/kernel.h>
+>  #include <linux/mm.h>
+> +#include <linux/pkeys.h>
+>  #include <linux/stddef.h>
+>  #include <linux/unistd.h>
+>  #include <linux/ptrace.h>
+> @@ -247,6 +248,15 @@ void user_single_step_siginfo(struct task_struct *tsk,
+>  	info->si_addr = (void __user *)regs->nip;
+>  }
+>  
+> +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
+> +static void fill_sig_info_pkey(int si_code, siginfo_t *info, unsigned long addr)
+> +{
+> +	if (si_code != SEGV_PKUERR)
+> +		return;
 
-There is apparently one user of COMPLETION_INITIALIZER_ONSTACK
-that causes a regression with the patch above:
+Given that SEGV_PKUERR is a signal specific si_code this test is
+insufficient to detect an pkey error.  You also need to check
+that signr == SIGSEGV
 
-drivers/acpi/nfit/core.c: In function 'acpi_nfit_flush_probe':
-include/linux/completion.h:77:3: error: value computed is not used
-[-Werror=unused-value]
-  (*({ init_completion(&work); &work; }))
+> +	info->si_pkey = get_paca()->paca_pkey;
+> +}
+> +#endif /* CONFIG_PPC64_MEMORY_PROTECTION_KEYS */
+> +
+>  void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
+>  {
+>  	siginfo_t info;
+> @@ -274,6 +284,11 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
+>  	info.si_signo = signr;
+>  	info.si_code = code;
+>  	info.si_addr = (void __user *) addr;
+> +
+> +#ifdef CONFIG_PPC64_MEMORY_PROTECTION_KEYS
+> +	fill_sig_info_pkey(code, &info, addr);
+> +#endif /* CONFIG_PPC64_MEMORY_PROTECTION_KEYS */
+> +
+>  	force_sig_info(signr, &info, current);
+>  }
 
-It would be trivial to convert to init_completion(), which seems to be
-what was intended there.
-
-        Arnd
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
