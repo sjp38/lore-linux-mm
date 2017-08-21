@@ -1,52 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D56A6B04DA
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 04:56:17 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id u1so7716650pgq.9
-        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 01:56:17 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id l59si7733986plb.811.2017.08.21.01.56.14
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 073626B04E7
+	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 05:48:08 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id q49so9485261wrb.14
+        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 02:48:07 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id 204si5624985wmx.93.2017.08.21.02.48.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Aug 2017 01:56:14 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7L8sh8G130938
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 04:56:14 -0400
-Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2cft97xacy-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 04:56:14 -0400
-Received: from localhost
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Mon, 21 Aug 2017 18:56:11 +1000
-Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
-	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v7L8u0Go34013206
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 18:56:08 +1000
-Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
-	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v7L8tZVf003771
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 18:55:36 +1000
-Subject: Re: [PATCH v2 17/20] perf: Add a speculative page fault sw event
-References: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1503007519-26777-18-git-send-email-ldufour@linux.vnet.ibm.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Mon, 21 Aug 2017 14:25:11 +0530
+        Mon, 21 Aug 2017 02:48:06 -0700 (PDT)
+Date: Mon, 21 Aug 2017 10:46:56 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v5 2/4] mm, oom: cgroup-aware OOM killer
+Message-ID: <20170821094656.GA13899@castle.dhcp.TheFacebook.com>
+References: <20170814183213.12319-1-guro@fb.com>
+ <20170814183213.12319-3-guro@fb.com>
+ <alpine.DEB.2.10.1708141532300.63207@chino.kir.corp.google.com>
+ <20170815121558.GA15892@castle.dhcp.TheFacebook.com>
+ <alpine.DEB.2.10.1708151435290.104516@chino.kir.corp.google.com>
+ <20170816154325.GB29131@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.10.1708201741330.117182@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <1503007519-26777-18-git-send-email-ldufour@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <cd2f451d-c6d6-1ff5-b7d9-d3d0937ae056@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1708201741330.117182@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 08/18/2017 03:35 AM, Laurent Dufour wrote:
-> Add a new software event to count succeeded speculative page faults.
+On Sun, Aug 20, 2017 at 05:50:27PM -0700, David Rientjes wrote:
+> On Wed, 16 Aug 2017, Roman Gushchin wrote:
 > 
-> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> > It's natural to expect that inside a container there are their own sshd,
+> > "activity manager" or some other stuff, which can play with oom_score_adj.
+> > If it can override the upper cgroup-level settings, the whole delegation model
+> > is broken.
+> > 
+> 
+> I don't think any delegation model related to core cgroups or memory 
+> cgroup is broken, I think it's based on how memory.oom_kill_all_tasks is 
+> defined.  It could very well behave as memory.oom_kill_all_eligible_tasks 
+> when enacted upon.
+> 
+> > You can think about the oom_kill_all_tasks like the panic_on_oom,
+> > but on a cgroup level. It should _guarantee_, that in case of oom
+> > the whole cgroup will be destroyed completely, and will not remain
+> > in a non-consistent state.
+> > 
+> 
+> Only CAP_SYS_ADMIN has this ability to set /proc/pid/oom_score_adj to
 
-Should be merged with the next patch.
+CAP_SYS_RESOURCE
+
+> OOM_SCORE_ADJ_MIN, so it preserves the ability to change that setting, if 
+> needed, when it sets memory.oom_kill_all_tasks.  If a user gains 
+> permissions to change memory.oom_kill_all_tasks, I disagree it should 
+> override the CAP_SYS_ADMIN setting of /proc/pid/oom_score_adj.
+> 
+> I would prefer not to exclude oom disabled processes to their own sibling 
+> cgroups because they would require their own reservation with cgroup v2 
+> and it makes the single hierarchy model much more difficult to arrange 
+> alongside cpusets, for example.
+> 
+> > The model you're describing is based on a trust given to these oom-unkillable
+> > processes on system level. But we can't really trust some unknown processes
+> > inside a cgroup that they will be able to do some useful work and finish
+> > in a reasonable time; especially in case of a global memory shortage.
+> 
+> Yes, we prefer to panic instead of sshd, for example, being oom killed.
+> We trust that sshd, as well as our own activity manager and security 
+> daemons are trusted to do useful work and that we never want the kernel to 
+> do this.  I'm not sure why you are describing processes that CAP_SYS_ADMIN 
+> has set to be oom disabled as unknown processes.
+> 
+> I'd be interested in hearing the opinions of others related to a per-memcg 
+> knob being allowed to override the setting of the sysadmin.
+
+Sure, me too.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
