@@ -1,158 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 78545280310
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 08:57:50 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id q3so66324384pgr.3
-        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 05:57:50 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id q8si8197874plk.491.2017.08.21.05.57.48
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E72B3280310
+	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 09:02:24 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id z96so20695031wrb.5
+        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 06:02:24 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id a58si37257edc.533.2017.08.21.06.02.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 21 Aug 2017 05:57:48 -0700 (PDT)
-Subject: Re: [PATCH v2] mm, oom: task_will_free_mem(current) should ignore MMF_OOM_SKIP for once.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1501718104-8099-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<201708191523.BJH90621.MHOOFFQSOLJFtV@I-love.SAKURA.ne.jp>
-	<20170821084307.GB25956@dhcp22.suse.cz>
-	<201708212041.GAJ05272.VOMOJOFSQLFtHF@I-love.SAKURA.ne.jp>
-	<20170821121022.GF25956@dhcp22.suse.cz>
-In-Reply-To: <20170821121022.GF25956@dhcp22.suse.cz>
-Message-Id: <201708212157.DFB00801.tLMOFFSOOVQFJH@I-love.SAKURA.ne.jp>
-Date: Mon, 21 Aug 2017 21:57:44 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 21 Aug 2017 06:02:23 -0700 (PDT)
+Date: Mon, 21 Aug 2017 09:02:18 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: kernel panic on null pointer on page->mem_cgroup
+Message-ID: <20170821130218.GA1371@cmpxchg.org>
+References: <20170808010150.4155-1-bradleybolen@gmail.com>
+ <20170808162122.GA14689@cmpxchg.org>
+ <20170808165601.GA7693@jaegeuk-macbookpro.roam.corp.google.com>
+ <20170808173704.GA22887@cmpxchg.org>
+ <CADvgSZSn1v-tTpa07ebqr19heQbkzbavdPM_nbRNR1WF-EBnFw@mail.gmail.com>
+ <20170808200849.GA1104@cmpxchg.org>
+ <20170809014459.GB7693@jaegeuk-macbookpro.roam.corp.google.com>
+ <CADvgSZSNn7N3R7+jjeCgns2ZEPtYc6c3MWmkkQ3PA+0LHO_MfA@mail.gmail.com>
+ <20170809183825.GA26387@cmpxchg.org>
+ <20170810115605.GQ23863@dhcp22.suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170810115605.GQ23863@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, mjaggi@caviumnetworks.com, oleg@redhat.com, vdavydov.dev@gmail.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Brad Bolen <bradleybolen@gmail.com>, Jaegeuk Kim <jaegeuk@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Michal Hocko wrote:
-> On Mon 21-08-17 20:41:52, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Sat 19-08-17 15:23:19, Tetsuo Handa wrote:
-> > > > Tetsuo Handa wrote at http://lkml.kernel.org/r/201708102328.ACD34352.OHFOLJMQVSFOFt@I-love.SAKURA.ne.jp :
-> > > > > Michal Hocko wrote:
-> > > > > > On Thu 10-08-17 21:10:30, Tetsuo Handa wrote:
-> > > > > > > Michal Hocko wrote:
-> > > > > > > > On Tue 08-08-17 11:14:50, Tetsuo Handa wrote:
-> > > > > > > > > Michal Hocko wrote:
-> > > > > > > > > > On Sat 05-08-17 10:02:55, Tetsuo Handa wrote:
-> > > > > > > > > > > Michal Hocko wrote:
-> > > > > > > > > > > > On Wed 26-07-17 20:33:21, Tetsuo Handa wrote:
-> > > > > > > > > > > > > My question is, how can users know it if somebody was OOM-killed needlessly
-> > > > > > > > > > > > > by allowing MMF_OOM_SKIP to race.
-> > > > > > > > > > > > 
-> > > > > > > > > > > > Is it really important to know that the race is due to MMF_OOM_SKIP?
-> > > > > > > > > > > 
-> > > > > > > > > > > Yes, it is really important. Needlessly selecting even one OOM victim is
-> > > > > > > > > > > a pain which is difficult to explain to and persuade some of customers.
-> > > > > > > > > > 
-> > > > > > > > > > How is this any different from a race with a task exiting an releasing
-> > > > > > > > > > some memory after we have crossed the point of no return and will kill
-> > > > > > > > > > something?
-> > > > > > > > > 
-> > > > > > > > > I'm not complaining about an exiting task releasing some memory after we have
-> > > > > > > > > crossed the point of no return.
-> > > > > > > > > 
-> > > > > > > > > What I'm saying is that we can postpone "the point of no return" if we ignore
-> > > > > > > > > MMF_OOM_SKIP for once (both this "oom_reaper: close race without using oom_lock"
-> > > > > > > > > thread and "mm, oom: task_will_free_mem(current) should ignore MMF_OOM_SKIP for
-> > > > > > > > > once." thread). These are race conditions we can avoid without crystal ball.
-> > > > > > > > 
-> > > > > > > > If those races are really that common than we can handle them even
-> > > > > > > > without "try once more" tricks. Really this is just an ugly hack. If you
-> > > > > > > > really care then make sure that we always try to allocate from memory
-> > > > > > > > reserves before going down the oom path. In other words, try to find a
-> > > > > > > > robust solution rather than tweaks around a problem.
-> > > > > > > 
-> > > > > > > Since your "mm, oom: allow oom reaper to race with exit_mmap" patch removes
-> > > > > > > oom_lock serialization from the OOM reaper, possibility of calling out_of_memory()
-> > > > > > > due to successful mutex_trylock(&oom_lock) would increase when the OOM reaper set
-> > > > > > > MMF_OOM_SKIP quickly.
-> > > > > > > 
-> > > > > > > What if task_is_oom_victim(current) became true and MMF_OOM_SKIP was set
-> > > > > > > on current->mm between after __gfp_pfmemalloc_flags() returned 0 and before
-> > > > > > > out_of_memory() is called (due to successful mutex_trylock(&oom_lock)) ?
-> > > > > > > 
-> > > > > > > Excuse me? Are you suggesting to try memory reserves before
-> > > > > > > task_is_oom_victim(current) becomes true?
-> > > > > > 
-> > > > > > No what I've tried to say is that if this really is a real problem,
-> > > > > > which I am not sure about, then the proper way to handle that is to
-> > > > > > attempt to allocate from memory reserves for an oom victim. I would be
-> > > > > > even willing to take the oom_lock back into the oom reaper path if the
-> > > > > > former turnes out to be awkward to implement. But all this assumes this
-> > > > > > is a _real_ problem.
-> > > > > 
-> > > > > Aren't we back to square one? My question is, how can users know it if
-> > > > > somebody was OOM-killed needlessly by allowing MMF_OOM_SKIP to race.
-> > > > > 
-> > > > > You don't want to call get_page_from_freelist() from out_of_memory(), do you?
-> > > > > But without passing a flag "whether get_page_from_freelist() with memory reserves
-> > > > > was already attempted if current thread is an OOM victim" to task_will_free_mem()
-> > > > > in out_of_memory() and a flag "whether get_page_from_freelist() without memory
-> > > > > reserves was already attempted if current thread is not an OOM victim" to
-> > > > > test_bit(MMF_OOM_SKIP) in oom_evaluate_task(), we won't be able to know
-> > > > > if somebody was OOM-killed needlessly by allowing MMF_OOM_SKIP to race.
-> > > > 
-> > > > Michal, I did not get your answer, and your "mm, oom: do not rely on
-> > > > TIF_MEMDIE for memory reserves access" did not help solving this problem.
-> > > > (I confirmed it by reverting your "mm, oom: allow oom reaper to race with
-> > > > exit_mmap" and applying Andrea's "mm: oom: let oom_reap_task and exit_mmap
-> > > > run concurrently" and this patch on top of linux-next-20170817.)
-> > > 
-> > > By "this patch" you probably mean a BUG_ON(tsk_is_oom_victim) somewhere
-> > > in task_will_free_mem right? I do not see anything like that in you
-> > > email.
-> > 
-> > I wrote
-> > 
-> >   You can confirm it by adding "BUG_ON(1);" at "task->oom_kill_free_check_raced = 1;"
-> >   of this patch.
-> > 
-> > in the patch description.
+On Thu, Aug 10, 2017 at 01:56:05PM +0200, Michal Hocko wrote:
+> On Wed 09-08-17 14:38:25, Johannes Weiner wrote:
+> > The issue is that writeback doesn't hold a page reference and the page
+> > might get freed after PG_writeback is cleared (and the mapping is
+> > unlocked) in test_clear_page_writeback(). The stat functions looking
+> > up the page's node or zone are safe, as those attributes are static
+> > across allocation and free cycles. But page->mem_cgroup is not, and it
+> > will get cleared if we race with truncation or migration.
 > 
-> Ahh, OK so it was in the changelog. Your wording suggested a debugging
-> patch which you forgot to add.
->  
-> > > 
-> > > > [  204.413605] Out of memory: Kill process 9286 (a.out) score 930 or sacrifice child
-> > > > [  204.416241] Killed process 9286 (a.out) total-vm:4198476kB, anon-rss:72kB, file-rss:0kB, shmem-rss:3465520kB
-> > > > [  204.419783] oom_reaper: reaped process 9286 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:3465720kB
-> > > > [  204.455864] ------------[ cut here ]------------
-> > > > [  204.457921] kernel BUG at mm/oom_kill.c:786!
-> > > > 
-> > > > Therefore, I propose this patch for inclusion.
-> > > 
-> > > i've already told you that this is a wrong approach to handle a possible
-> > > race and offered you an alternative. I realy fail to see why you keep
-> > > reposting it. So to make myself absolutely clear
-> > > 
-> > > Nacked-by: Michal Hocko <mhocko@suse.com> to the patch below.
-> > 
-> > Where is your alternative?
-> 
-> Sigh... Let me repeat for the last time (this whole thread is largely a
-> waste of time to be honest). Find a _robust_ solution rather than
-> fiddling with try-once-more kind of hacks. E.g. do an allocation attempt
-> _before_ we do any disruptive action (aka kill a victim). This would
-> help other cases when we race with an exiting tasks or somebody managed
-> to free memory while we were selecting an oom victim which can take
-> quite some time.
+> Is there anything that prevents us from holding a reference on a page
+> under writeback?
 
-I did not get your answer to my question:
+Hm, I'm hesitant to add redundant life-time management to the page
+there just for memcg, which is not always configured in.
 
-  You don't want to call get_page_from_freelist() from out_of_memory(), do you?
+Pinning the memcg instead is slightly more complex, but IMO has the
+complexity in a preferrable place.
 
-Since David Rientjes wrote "how sloppy this would be because it's blurring
-the line between oom killer and page allocator." and you responded as
-"Yes the layer violation is definitely not nice." at
-http://lkml.kernel.org/r/20160129152307.GF32174@dhcp22.suse.cz ,
-I assumed that you don't want to call get_page_from_freelist() from out_of_memory().
-
-But now, you are suggesting to do an allocation attempt _before_ we do any disruptive action.
-Did you change your mind to accept calling get_page_from_freelist() from out_of_memory() ?
-If yes, I will try to write such patch.
+Would you agree?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
