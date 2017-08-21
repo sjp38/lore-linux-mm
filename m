@@ -1,119 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 382A62803A1
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 03:29:41 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id b8so32468701pgn.10
-        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 00:29:41 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id t19si3826477pfj.572.2017.08.21.00.29.39
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C74342803A1
+	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 03:46:42 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id m15so68086548pgr.7
+        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 00:46:42 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id a65si6810964pge.603.2017.08.21.00.46.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Aug 2017 00:29:40 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7L7SwLq006607
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 03:29:39 -0400
-Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com [202.81.31.147])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2cfttvgwg1-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 03:29:39 -0400
-Received: from localhost
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Mon, 21 Aug 2017 17:29:36 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v7L7TYf033947732
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 17:29:34 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v7L7TX1u020832
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 17:29:34 +1000
-Subject: Re: [PATCH v2 19/20] x86/mm: Add speculative pagefault handling
-References: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1503007519-26777-20-git-send-email-ldufour@linux.vnet.ibm.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Mon, 21 Aug 2017 12:59:24 +0530
+        Mon, 21 Aug 2017 00:46:41 -0700 (PDT)
+Date: Mon, 21 Aug 2017 15:48:17 +0800
+From: Chen Yu <yu.c.chen@intel.com>
+Subject: Re: [PATCH][RFC v4] PM / Hibernate: Feed the wathdog when creating
+ snapshot
+Message-ID: <20170821074817.GA10861@yu-desktop-1.sh.intel.com>
+References: <1503138086-19174-1-git-send-email-yu.c.chen@intel.com>
+ <20170821064709.GE13724@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1503007519-26777-20-git-send-email-ldufour@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <dbaaf637-9f22-eba0-63a5-7bd83f810e4f@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170821064709.GE13724@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Dan Williams <dan.j.williams@intel.com>, linux-kernel@vger.kernel.org
 
-On 08/18/2017 03:35 AM, Laurent Dufour wrote:
-> From: Peter Zijlstra <peterz@infradead.org>
+On Mon, Aug 21, 2017 at 08:47:09AM +0200, Michal Hocko wrote:
+> On Sat 19-08-17 18:21:26, Chen Yu wrote:
+> > There is a problem that when counting the pages for creating
+> > the hibernation snapshot will take significant amount of
+> > time, especially on system with large memory. Since the counting
+> > job is performed with irq disabled, this might lead to NMI lockup.
+> > The following warning were found on a system with 1.5TB DRAM:
+> > 
+> > [ 1124.758184] Freezing user space processes ... (elapsed 0.002 seconds) done.
+> > [ 1124.768721] OOM killer disabled.
+> > [ 1124.847009] PM: Preallocating image memory...
+> > [ 1139.392042] NMI watchdog: Watchdog detected hard LOCKUP on cpu 27
+> > [ 1139.392076] CPU: 27 PID: 3128 Comm: systemd-sleep Not tainted 4.13.0-0.rc2.git0.1.fc27.x86_64 #1
+> > [ 1139.392077] task: ffff9f01971ac000 task.stack: ffffb1a3f325c000
+> > [ 1139.392083] RIP: 0010:memory_bm_find_bit+0xf4/0x100
+> > [ 1139.392084] RSP: 0018:ffffb1a3f325fc20 EFLAGS: 00000006
+> > [ 1139.392084] RAX: 0000000000000000 RBX: 0000000013b83000 RCX: ffff9fbe89caf000
+> > [ 1139.392085] RDX: ffffb1a3f325fc30 RSI: 0000000000003200 RDI: ffff9fbeaffffe80
+> > [ 1139.392085] RBP: ffffb1a3f325fc40 R08: 0000000013b80000 R09: ffff9fbe89c54878
+> > [ 1139.392085] R10: ffffb1a3f325fc2c R11: 0000000013b83200 R12: 0000000000000400
+> > [ 1139.392086] R13: fffffd552e0c0000 R14: ffff9fc1bffd31e0 R15: 0000000000000202
+> > [ 1139.392086] FS:  00007f3189704180(0000) GS:ffff9fbec8ec0000(0000) knlGS:0000000000000000
+> > [ 1139.392087] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> > [ 1139.392087] CR2: 00000085da0f7398 CR3: 000001771cf9a000 CR4: 00000000007406e0
+> > [ 1139.392088] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> > [ 1139.392088] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> > [ 1139.392088] PKRU: 55555554
+> > [ 1139.392089] Call Trace:
+> > [ 1139.392092]  ? memory_bm_set_bit+0x29/0x60
+> > [ 1139.392094]  swsusp_set_page_free+0x2b/0x30
+> > [ 1139.392098]  mark_free_pages+0x147/0x1c0
+> > [ 1139.392099]  count_data_pages+0x41/0xa0
+> > [ 1139.392101]  hibernate_preallocate_memory+0x80/0x450
+> > [ 1139.392102]  hibernation_snapshot+0x58/0x410
+> > [ 1139.392103]  hibernate+0x17c/0x310
+> > [ 1139.392104]  state_store+0xdf/0xf0
+> > [ 1139.392107]  kobj_attr_store+0xf/0x20
+> > [ 1139.392111]  sysfs_kf_write+0x37/0x40
+> > [ 1139.392113]  kernfs_fop_write+0x11c/0x1a0
+> > [ 1139.392117]  __vfs_write+0x37/0x170
+> > [ 1139.392121]  ? handle_mm_fault+0xd8/0x230
+> > [ 1139.392122]  vfs_write+0xb1/0x1a0
+> > [ 1139.392123]  SyS_write+0x55/0xc0
+> > [ 1139.392126]  entry_SYSCALL_64_fastpath+0x1a/0xa5
+> > ...
+> > [ 1144.690405] done (allocated 6590003 pages)
+> > [ 1144.694971] PM: Allocated 26360012 kbytes in 19.89 seconds (1325.28 MB/s)
+> > 
+> > It has taken nearly 20 seconds(2.10GHz CPU) thus the NMI lockup
+> > was triggered. In case the timeout of the NMI watch dog has been
+> > set to 1 second, a safe interval should be 6590003/20 = 320k pages
+> > in theory. However there might also be some platforms running at a
+> > lower frequency, so feed the watchdog every 100k pages.
+> > 
+> > Reported-by: Jan Filipcewicz <jan.filipcewicz@intel.com>
+> > Suggested-by: Michal Hocko <mhocko@kernel.org>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Michal Hocko <mhocko@kernel.org>
+> > Cc: Mel Gorman <mgorman@techsingularity.net>
+> > Cc: Vlastimil Babka <vbabka@suse.cz>
+> > Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+> > Cc: Len Brown <lenb@kernel.org>
+> > Cc: Dan Williams <dan.j.williams@intel.com>
+> > Cc: linux-kernel@vger.kernel.org
+> > Signed-off-by: Chen Yu <yu.c.chen@intel.com>
 > 
-> Try a speculative fault before acquiring mmap_sem, if it returns with
-> VM_FAULT_RETRY continue with the mmap_sem acquisition and do the
-> traditional fault.
+> OK, this looks better. Feel free to add
+> Reviewed-by: Michal Hocko <mhocko@suse.com>
+>
+Thanks!
+
+Yu
+> > ---
+> >  mm/page_alloc.c | 14 ++++++++++++--
+> >  1 file changed, 12 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 6d00f74..543726a 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -66,6 +66,7 @@
+> >  #include <linux/kthread.h>
+> >  #include <linux/memcontrol.h>
+> >  #include <linux/ftrace.h>
+> > +#include <linux/nmi.h>
+> >  
+> >  #include <asm/sections.h>
+> >  #include <asm/tlbflush.h>
+> > @@ -2531,9 +2532,12 @@ void drain_all_pages(struct zone *zone)
+> >  
+> >  #ifdef CONFIG_HIBERNATION
+> >  
+> > +/* Touch watchdog for every WD_INTERVAL_PAGE pages. */
+> > +#define WD_INTERVAL_PAGE	(100*1024)
+> > +
+> >  void mark_free_pages(struct zone *zone)
+> >  {
+> > -	unsigned long pfn, max_zone_pfn;
+> > +	unsigned long pfn, max_zone_pfn, page_num = 0;
+> >  	unsigned long flags;
+> >  	unsigned int order, t;
+> >  	struct page *page;
+> > @@ -2548,6 +2552,9 @@ void mark_free_pages(struct zone *zone)
+> >  		if (pfn_valid(pfn)) {
+> >  			page = pfn_to_page(pfn);
+> >  
+> > +			if (!((page_num++) % WD_INTERVAL_PAGE))
+> > +				touch_nmi_watchdog();
+> > +
+> >  			if (page_zone(page) != zone)
+> >  				continue;
+> >  
+> > @@ -2561,8 +2568,11 @@ void mark_free_pages(struct zone *zone)
+> >  			unsigned long i;
+> >  
+> >  			pfn = page_to_pfn(page);
+> > -			for (i = 0; i < (1UL << order); i++)
+> > +			for (i = 0; i < (1UL << order); i++) {
+> > +				if (!((page_num++) % WD_INTERVAL_PAGE))
+> > +					touch_nmi_watchdog();
+> >  				swsusp_set_page_free(pfn_to_page(pfn + i));
+> > +			}
+> >  		}
+> >  	}
+> >  	spin_unlock_irqrestore(&zone->lock, flags);
+> > -- 
+> > 2.7.4
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
-> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-> 
-> [Clearing of FAULT_FLAG_ALLOW_RETRY is now done in
->  handle_speculative_fault()]
-> [Retry with usual fault path in the case VM_ERROR is returned by
->  handle_speculative_fault(). This allows signal to be delivered]
-> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-> ---
->  arch/x86/include/asm/pgtable_types.h |  7 +++++++
->  arch/x86/mm/fault.c                  | 19 +++++++++++++++++++
->  2 files changed, 26 insertions(+)
-> 
-> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-> index bf9638e1ee42..4fd2693a037e 100644
-> --- a/arch/x86/include/asm/pgtable_types.h
-> +++ b/arch/x86/include/asm/pgtable_types.h
-> @@ -234,6 +234,13 @@ enum page_cache_mode {
->  #define PGD_IDENT_ATTR	 0x001		/* PRESENT (no other attributes) */
->  #endif
->  
-> +/*
-> + * Advertise that we call the Speculative Page Fault handler.
-> + */
-> +#ifdef CONFIG_X86_64
-> +#define __HAVE_ARCH_CALL_SPF
-> +#endif
-> +
->  #ifdef CONFIG_X86_32
->  # include <asm/pgtable_32_types.h>
->  #else
-> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-> index 2a1fa10c6a98..4c070b9a4362 100644
-> --- a/arch/x86/mm/fault.c
-> +++ b/arch/x86/mm/fault.c
-> @@ -1365,6 +1365,24 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code,
->  	if (error_code & PF_INSTR)
->  		flags |= FAULT_FLAG_INSTRUCTION;
->  
-> +#ifdef __HAVE_ARCH_CALL_SPF
-> +	if (error_code & PF_USER) {
-> +		fault = handle_speculative_fault(mm, address, flags);
-> +
-> +		/*
-> +		 * We also check against VM_FAULT_ERROR because we have to
-> +		 * raise a signal by calling later mm_fault_error() which
-> +		 * requires the vma pointer to be set. So in that case,
-> +		 * we fall through the normal path.
-
-Cant mm_fault_error() be called inside handle_speculative_fault() ?
-Falling through the normal page fault path again just to raise a
-signal seems overkill. Looking into mm_fault_error(), it seems they
-are different for x86 and powerpc.
-
-X86:
-
-mm_fault_error(struct pt_regs *regs, unsigned long error_code,
-               unsigned long address, struct vm_area_struct *vma,
-               unsigned int fault)
-
-powerpc:
-
-mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
-
-Even in case of X86, I guess we would have reference to the faulting
-VMA (after the SRCU search) which can be used to call this function
-directly.
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
