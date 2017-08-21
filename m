@@ -1,46 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A8FD6B04F0
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 17:40:50 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id q53so30919539qtq.15
-        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 14:40:50 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f62si11737882qtd.470.2017.08.21.14.40.49
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D2D756B04F2
+	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 17:41:53 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id b14so9087287wrd.11
+        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 14:41:53 -0700 (PDT)
+Received: from mail-wr0-x236.google.com (mail-wr0-x236.google.com. [2a00:1450:400c:c0c::236])
+        by mx.google.com with ESMTPS id y43si1646035edd.48.2017.08.21.14.41.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Aug 2017 14:40:49 -0700 (PDT)
-Message-ID: <1503351645.6577.76.camel@redhat.com>
-Subject: Re: [RFC PATCH 0/6] proactive kcompactd
-From: Rik van Riel <riel@redhat.com>
-Date: Mon, 21 Aug 2017 17:40:45 -0400
-In-Reply-To: <20170821141014.GC1371@cmpxchg.org>
-References: <20170727160701.9245-1-vbabka@suse.cz>
-	 <alpine.DEB.2.10.1708091353500.1218@chino.kir.corp.google.com>
-	 <20170821141014.GC1371@cmpxchg.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Mon, 21 Aug 2017 14:41:52 -0700 (PDT)
+Received: by mail-wr0-x236.google.com with SMTP id z91so108004298wrc.4
+        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 14:41:52 -0700 (PDT)
+Date: Tue, 22 Aug 2017 00:41:50 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [patch] fs, proc: unconditional cond_resched when reading smaps
+Message-ID: <20170821214150.pgv3ulpicnacslak@node.shutemov.name>
+References: <alpine.DEB.2.10.1708211405520.131071@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1708211405520.131071@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 2017-08-21 at 10:10 -0400, Johannes Weiner wrote:
+On Mon, Aug 21, 2017 at 02:06:45PM -0700, David Rientjes wrote:
+> If there are large numbers of hugepages to iterate while reading
+> /proc/pid/smaps, the page walk never does cond_resched().  On archs
+> without split pmd locks, there can be significant and observable
+> contention on mm->page_table_lock which cause lengthy delays without
+> rescheduling.
 > 
-> I've been toying around with the below patch. It adds a free page
-> bitmap, allowing the free scanner to quickly skip over the vast areas
-> of used memory. I don't have good data on skip-efficiency at higher
-> uptimes and the resulting fragmentation yet. The overhead added to
-> the
-> page allocator is concerning, but I cannot think of a better way to
-> make the search more efficient. What do you guys think?
+> Always reschedule in smaps_pte_range() if necessary since the pagewalk
+> iteration can be expensive.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  fs/proc/task_mmu.c | 5 +++--
+>  1 file changed, 3 insertions(+), 2 deletions(-)
+> 
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -599,11 +599,11 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+>  	if (ptl) {
+>  		smaps_pmd_entry(pmd, addr, walk);
+>  		spin_unlock(ptl);
+> -		return 0;
+> +		goto out;
+>  	}
+>  
+>  	if (pmd_trans_unstable(pmd))
+> -		return 0;
+> +		goto out;
+>  	/*
+>  	 * The mmap_sem held all the way back in m_start() is what
+>  	 * keeps khugepaged out of here and from collapsing things
+> @@ -613,6 +613,7 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+>  	for (; addr != end; pte++, addr += PAGE_SIZE)
+>  		smaps_pte_entry(pte, addr, walk);
+>  	pte_unmap_unlock(pte - 1, ptl);
+> +out:
+>  	cond_resched();
+>  	return 0;
+>  }
 
-Michael Tsirkin and I have been thinking about using a bitmap
-to allow KVM guests to tell the host which pages are free (and
-could be discarded by the host).
+Maybe just call cond_resched() at the beginning of the function and don't
+bother with gotos?
 
-Having multiple users for the bitmap makes having one much more
-compelling...
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
