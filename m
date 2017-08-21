@@ -1,167 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C74342803A1
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 03:46:42 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id m15so68086548pgr.7
-        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 00:46:42 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id a65si6810964pge.603.2017.08.21.00.46.40
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 457182803A1
+	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 04:30:12 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id p14so19245935wrg.8
+        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 01:30:12 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v8si8897550wrd.130.2017.08.21.01.30.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Aug 2017 00:46:41 -0700 (PDT)
-Date: Mon, 21 Aug 2017 15:48:17 +0800
-From: Chen Yu <yu.c.chen@intel.com>
-Subject: Re: [PATCH][RFC v4] PM / Hibernate: Feed the wathdog when creating
- snapshot
-Message-ID: <20170821074817.GA10861@yu-desktop-1.sh.intel.com>
-References: <1503138086-19174-1-git-send-email-yu.c.chen@intel.com>
- <20170821064709.GE13724@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 21 Aug 2017 01:30:10 -0700 (PDT)
+Date: Mon, 21 Aug 2017 10:30:08 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: +
+ mm-oom-let-oom_reap_task-and-exit_mmap-to-run-concurrently.patch added to
+ -mm tree
+Message-ID: <20170821083008.GA25956@dhcp22.suse.cz>
+References: <59936823.CQNWQErWJ8EAIG3q%akpm@linux-foundation.org>
+ <20170816132329.GA32169@dhcp22.suse.cz>
+ <20170817171240.GB5066@redhat.com>
+ <20170818070444.GA9004@dhcp22.suse.cz>
+ <20170818184145.GF5066@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170821064709.GE13724@dhcp22.suse.cz>
+In-Reply-To: <20170818184145.GF5066@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Dan Williams <dan.j.williams@intel.com>, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: akpm@linux-foundation.org, hughd@google.com, kirill@shutemov.name, oleg@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, rientjes@google.com, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Aug 21, 2017 at 08:47:09AM +0200, Michal Hocko wrote:
-> On Sat 19-08-17 18:21:26, Chen Yu wrote:
-> > There is a problem that when counting the pages for creating
-> > the hibernation snapshot will take significant amount of
-> > time, especially on system with large memory. Since the counting
-> > job is performed with irq disabled, this might lead to NMI lockup.
-> > The following warning were found on a system with 1.5TB DRAM:
-> > 
-> > [ 1124.758184] Freezing user space processes ... (elapsed 0.002 seconds) done.
-> > [ 1124.768721] OOM killer disabled.
-> > [ 1124.847009] PM: Preallocating image memory...
-> > [ 1139.392042] NMI watchdog: Watchdog detected hard LOCKUP on cpu 27
-> > [ 1139.392076] CPU: 27 PID: 3128 Comm: systemd-sleep Not tainted 4.13.0-0.rc2.git0.1.fc27.x86_64 #1
-> > [ 1139.392077] task: ffff9f01971ac000 task.stack: ffffb1a3f325c000
-> > [ 1139.392083] RIP: 0010:memory_bm_find_bit+0xf4/0x100
-> > [ 1139.392084] RSP: 0018:ffffb1a3f325fc20 EFLAGS: 00000006
-> > [ 1139.392084] RAX: 0000000000000000 RBX: 0000000013b83000 RCX: ffff9fbe89caf000
-> > [ 1139.392085] RDX: ffffb1a3f325fc30 RSI: 0000000000003200 RDI: ffff9fbeaffffe80
-> > [ 1139.392085] RBP: ffffb1a3f325fc40 R08: 0000000013b80000 R09: ffff9fbe89c54878
-> > [ 1139.392085] R10: ffffb1a3f325fc2c R11: 0000000013b83200 R12: 0000000000000400
-> > [ 1139.392086] R13: fffffd552e0c0000 R14: ffff9fc1bffd31e0 R15: 0000000000000202
-> > [ 1139.392086] FS:  00007f3189704180(0000) GS:ffff9fbec8ec0000(0000) knlGS:0000000000000000
-> > [ 1139.392087] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> > [ 1139.392087] CR2: 00000085da0f7398 CR3: 000001771cf9a000 CR4: 00000000007406e0
-> > [ 1139.392088] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> > [ 1139.392088] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> > [ 1139.392088] PKRU: 55555554
-> > [ 1139.392089] Call Trace:
-> > [ 1139.392092]  ? memory_bm_set_bit+0x29/0x60
-> > [ 1139.392094]  swsusp_set_page_free+0x2b/0x30
-> > [ 1139.392098]  mark_free_pages+0x147/0x1c0
-> > [ 1139.392099]  count_data_pages+0x41/0xa0
-> > [ 1139.392101]  hibernate_preallocate_memory+0x80/0x450
-> > [ 1139.392102]  hibernation_snapshot+0x58/0x410
-> > [ 1139.392103]  hibernate+0x17c/0x310
-> > [ 1139.392104]  state_store+0xdf/0xf0
-> > [ 1139.392107]  kobj_attr_store+0xf/0x20
-> > [ 1139.392111]  sysfs_kf_write+0x37/0x40
-> > [ 1139.392113]  kernfs_fop_write+0x11c/0x1a0
-> > [ 1139.392117]  __vfs_write+0x37/0x170
-> > [ 1139.392121]  ? handle_mm_fault+0xd8/0x230
-> > [ 1139.392122]  vfs_write+0xb1/0x1a0
-> > [ 1139.392123]  SyS_write+0x55/0xc0
-> > [ 1139.392126]  entry_SYSCALL_64_fastpath+0x1a/0xa5
-> > ...
-> > [ 1144.690405] done (allocated 6590003 pages)
-> > [ 1144.694971] PM: Allocated 26360012 kbytes in 19.89 seconds (1325.28 MB/s)
-> > 
-> > It has taken nearly 20 seconds(2.10GHz CPU) thus the NMI lockup
-> > was triggered. In case the timeout of the NMI watch dog has been
-> > set to 1 second, a safe interval should be 6590003/20 = 320k pages
-> > in theory. However there might also be some platforms running at a
-> > lower frequency, so feed the watchdog every 100k pages.
-> > 
-> > Reported-by: Jan Filipcewicz <jan.filipcewicz@intel.com>
-> > Suggested-by: Michal Hocko <mhocko@kernel.org>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: Michal Hocko <mhocko@kernel.org>
-> > Cc: Mel Gorman <mgorman@techsingularity.net>
-> > Cc: Vlastimil Babka <vbabka@suse.cz>
-> > Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-> > Cc: Len Brown <lenb@kernel.org>
-> > Cc: Dan Williams <dan.j.williams@intel.com>
-> > Cc: linux-kernel@vger.kernel.org
-> > Signed-off-by: Chen Yu <yu.c.chen@intel.com>
+On Fri 18-08-17 20:41:45, Andrea Arcangeli wrote:
+> On Fri, Aug 18, 2017 at 09:04:44AM +0200, Michal Hocko wrote:
+> > I dunno. This doesn't make any difference in the generated code for
+> > me (with gcc 6.4). If anything we might wan't to putt unlikely inside
 > 
-> OK, this looks better. Feel free to add
-> Reviewed-by: Michal Hocko <mhocko@suse.com>
->
-Thanks!
+> That's fine, this is just in case the code surrounding the check
+> changes in the future. It's not like we should remove unlikely/likely
+> if the emitted bytecode doesn't change.
+> 
+> > tsk_is_oom_victim. Or even go further and use a jump label to get any
+> 
+> I don't think it's necessarily the best to put it inside
+> tsk_is_oom_victim, even if currently it would be the same.
+> 
+> All it matters for likely unlikely is not to risk to ever get it
+> wrong. If unsure it's better to leave it alone.
+> 
+> We can't be sure all future callers of tsk_is_oom_victim will always
+> be unlikely to get a true retval. All we can be sure is that this
+> specific caller will get a false retval 100% of the time, in all
+> workloads where performance can matter.
 
-Yu
-> > ---
-> >  mm/page_alloc.c | 14 ++++++++++++--
-> >  1 file changed, 12 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 6d00f74..543726a 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -66,6 +66,7 @@
-> >  #include <linux/kthread.h>
-> >  #include <linux/memcontrol.h>
-> >  #include <linux/ftrace.h>
-> > +#include <linux/nmi.h>
-> >  
-> >  #include <asm/sections.h>
-> >  #include <asm/tlbflush.h>
-> > @@ -2531,9 +2532,12 @@ void drain_all_pages(struct zone *zone)
-> >  
-> >  #ifdef CONFIG_HIBERNATION
-> >  
-> > +/* Touch watchdog for every WD_INTERVAL_PAGE pages. */
-> > +#define WD_INTERVAL_PAGE	(100*1024)
-> > +
-> >  void mark_free_pages(struct zone *zone)
-> >  {
-> > -	unsigned long pfn, max_zone_pfn;
-> > +	unsigned long pfn, max_zone_pfn, page_num = 0;
-> >  	unsigned long flags;
-> >  	unsigned int order, t;
-> >  	struct page *page;
-> > @@ -2548,6 +2552,9 @@ void mark_free_pages(struct zone *zone)
-> >  		if (pfn_valid(pfn)) {
-> >  			page = pfn_to_page(pfn);
-> >  
-> > +			if (!((page_num++) % WD_INTERVAL_PAGE))
-> > +				touch_nmi_watchdog();
-> > +
-> >  			if (page_zone(page) != zone)
-> >  				continue;
-> >  
-> > @@ -2561,8 +2568,11 @@ void mark_free_pages(struct zone *zone)
-> >  			unsigned long i;
-> >  
-> >  			pfn = page_to_pfn(page);
-> > -			for (i = 0; i < (1UL << order); i++)
-> > +			for (i = 0; i < (1UL << order); i++) {
-> > +				if (!((page_num++) % WD_INTERVAL_PAGE))
-> > +					touch_nmi_watchdog();
-> >  				swsusp_set_page_free(pfn_to_page(pfn + i));
-> > +			}
-> >  		}
-> >  	}
-> >  	spin_unlock_irqrestore(&zone->lock, flags);
-> > -- 
-> > 2.7.4
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Cosindering that it is highly unlikely to meet an OOM victim I would
+consider unlikely as always applicable. Even if this is something in the
+oom proper then it is a) a cold path so a misprediction doesn't matter
+and b) even then it is highly unlikely to meet a victim because oom
+victims should almost always be a minority.
+
+> > conditional paths out of way.
 > 
-> -- 
-> Michal Hocko
-> SUSE Labs
+> Using a jump label won't allocate memory so I tend to believe it would
+> be safe to run them here. However before worrying at the exit path, I
+> think the first target of optimization would be the MMF_UNSTABLE
+> checks, those are in the page fault fast paths and they end up run
+> infinitely more frequently than this single branch in exit.
+
+Yes that is true.
+
+[...]
+> So what would you think about the simplest approach to the
+> MMF_UNSTABLE issue, that is to add a build time CONFIG_OOM_REAPER=y
+> option for the OOM reaper so those branches are optimized away at
+> build time (and the above one too, and perhaps the MMF_OOM_SKIP
+> set_bit too) if it's ok to disable the OOM reaper as well and increase
+> the risk an OOM hang? (it's years I didn't hit an OOM hang in my
+> desktop even before OOM reaper was introduced). It could be default
+> enabled of course.
+
+I really do hate how many config options we have already and adding more
+on top doesn't look like an improvement to me. Jump labels sound like
+a much better way forward. Or do you see any potential disadvantage?
+
+> I'd be curious to be able to still test what happens to the VM when
+> the OOM reaper is off, so if nothing else it would be a debug option,
+> because it'd also help to reproduce more easily those
+
+The same could be achieved with a kernel command line option which would
+be a smaller patch, easier to maintain in future and also wouldn't
+further increase the config space fragmentation.
+
+> filesystem-kernel-thread induced hangs that would still happen if the
+> OOM reaper cannot run because some other process is trying to take the
+> mmap_sem for writing. A down_read_trylock_unfair would go a long way
+> to reduce the likelyhood to run into that. The kernel CI exercising
+> multiple configs would then also autonomously CC us on a report if
+> those branches are a measurable issue so it'll be easier to tell if
+> the migration entry conversion or static key is worth it for
+> MMF_UNSTABLE.
+
+While this sounds like an interesting exercise I am not convinced it
+justifies the new config option.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
