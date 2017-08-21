@@ -1,52 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DE316B04CD
-	for <linux-mm@kvack.org>; Sun, 20 Aug 2017 08:15:26 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id a2so32276598pfj.12
-        for <linux-mm@kvack.org>; Sun, 20 Aug 2017 05:15:26 -0700 (PDT)
-Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
-        by mx.google.com with ESMTPS id z73si6053674pfi.507.2017.08.20.05.15.25
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 94742280310
+	for <linux-mm@kvack.org>; Sun, 20 Aug 2017 20:36:45 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id q10so144883229pgc.15
+        for <linux-mm@kvack.org>; Sun, 20 Aug 2017 17:36:45 -0700 (PDT)
+Received: from mail-pg0-x22a.google.com (mail-pg0-x22a.google.com. [2607:f8b0:400e:c05::22a])
+        by mx.google.com with ESMTPS id o27si5301920pgn.123.2017.08.20.17.36.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 20 Aug 2017 05:15:25 -0700 (PDT)
-Received: by mail-pg0-x241.google.com with SMTP id 123so19966954pga.5
-        for <linux-mm@kvack.org>; Sun, 20 Aug 2017 05:15:25 -0700 (PDT)
-Date: Sun, 20 Aug 2017 21:11:55 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH v2 14/20] mm: Provide speculative fault infrastructure
-Message-ID: <20170820121155.GA624@tigerII.localdomain>
-References: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1503007519-26777-15-git-send-email-ldufour@linux.vnet.ibm.com>
+        Sun, 20 Aug 2017 17:36:44 -0700 (PDT)
+Received: by mail-pg0-x22a.google.com with SMTP id m133so7268592pga.5
+        for <linux-mm@kvack.org>; Sun, 20 Aug 2017 17:36:44 -0700 (PDT)
+Date: Sun, 20 Aug 2017 17:36:41 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch -mm] mm, compaction: persistently skip hugetlbfs pageblocks
+ fix
+In-Reply-To: <20170818084912.GA18513@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1708201734390.117182@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1708151638550.106658@chino.kir.corp.google.com> <alpine.DEB.2.10.1708151639130.106658@chino.kir.corp.google.com> <20170818084912.GA18513@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1503007519-26777-15-git-send-email-ldufour@linux.vnet.ibm.com>
+Content-Type: MULTIPART/MIXED; BOUNDARY="1113868975-761508760-1503275802=:117182"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On (08/18/17 00:05), Laurent Dufour wrote:
-[..]
-> +	/*
-> +	 * MPOL_INTERLEAVE implies additional check in mpol_misplaced() which
-> +	 * are not compatible with the speculative page fault processing.
-> +	 */
-> +	pol = __get_vma_policy(vma, address);
-> +	if (!pol)
-> +		pol = get_task_policy(current);
-> +	if (pol && pol->mode == MPOL_INTERLEAVE)
-> +		goto unlock;
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-include/linux/mempolicy.h defines
+--1113868975-761508760-1503275802=:117182
+Content-Type: TEXT/PLAIN; charset=UTF-8
+Content-Transfer-Encoding: 8BIT
 
-struct mempolicy *get_task_policy(struct task_struct *p);
-struct mempolicy *__get_vma_policy(struct vm_area_struct *vma,
-		unsigned long addr);
+Fix build:
 
-only for CONFIG_NUMA configs.
+mm/compaction.c: In function a??isolate_freepages_blocka??:
+mm/compaction.c:469:4: error: implicit declaration of function a??pageblock_skip_persistenta?? [-Werror=implicit-function-declaration]
+    if (pageblock_skip_persistent(page, order)) {
+    ^
+mm/compaction.c:470:5: error: implicit declaration of function a??set_pageblock_skipa?? [-Werror=implicit-function-declaration]
+     set_pageblock_skip(page);
+     ^
 
-	-ss
+CMA doesn't guarantee pageblock skip will get reset when migration and 
+freeing scanners meet, and pageblock skip is a CONFIG_COMPACTION only 
+feature, so disable it when CONFIG_COMPACTION=n.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ include/linux/pageblock-flags.h | 11 +++++++++++
+ mm/compaction.c                 |  8 +++++++-
+ 2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/pageblock-flags.h b/include/linux/pageblock-flags.h
+--- a/include/linux/pageblock-flags.h
++++ b/include/linux/pageblock-flags.h
+@@ -96,6 +96,17 @@ void set_pfnblock_flags_mask(struct page *page,
+ #define set_pageblock_skip(page) \
+ 			set_pageblock_flags_group(page, 1, PB_migrate_skip,  \
+ 							PB_migrate_skip)
++#else
++static inline bool get_pageblock_skip(struct page *page)
++{
++	return false;
++}
++static inline void clear_pageblock_skip(struct page *page)
++{
++}
++static inline void set_pageblock_skip(struct page *page)
++{
++}
+ #endif /* CONFIG_COMPACTION */
+ 
+ #endif	/* PAGEBLOCK_FLAGS_H */
+diff --git a/mm/compaction.c b/mm/compaction.c
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -322,7 +322,13 @@ static inline bool isolation_suitable(struct compact_control *cc,
+ 	return true;
+ }
+ 
+-static void update_pageblock_skip(struct compact_control *cc,
++static inline bool pageblock_skip_persistent(struct page *page,
++					     unsigned int order)
++{
++	return false;
++}
++
++static inline void update_pageblock_skip(struct compact_control *cc,
+ 			struct page *page, unsigned long nr_isolated,
+ 			bool migrate_scanner)
+ {
+--1113868975-761508760-1503275802=:117182--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
