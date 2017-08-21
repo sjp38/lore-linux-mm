@@ -1,143 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ABC372803DB
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 11:06:55 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id c125so17206019ioc.4
-        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 08:06:55 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id m16si4896500pli.707.2017.08.21.08.06.54
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E0BB82803E9
+	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 11:23:19 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id p14so21408073wrg.8
+        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 08:23:19 -0700 (PDT)
+Received: from mail-wr0-x243.google.com (mail-wr0-x243.google.com. [2a00:1450:400c:c0c::243])
+        by mx.google.com with ESMTPS id m1si11811428eda.34.2017.08.21.08.23.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Aug 2017 08:06:54 -0700 (PDT)
-From: Chen Yu <yu.c.chen@intel.com>
-Subject: [PATCH] PM / Hibernate: Feed the wathdog when creating snapshot
-Date: Mon, 21 Aug 2017 23:08:18 +0800
-Message-Id: <1503328098-5120-1-git-send-email-yu.c.chen@intel.com>
+        Mon, 21 Aug 2017 08:23:18 -0700 (PDT)
+Received: by mail-wr0-x243.google.com with SMTP id p8so15559264wrf.2
+        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 08:23:18 -0700 (PDT)
+Date: Mon, 21 Aug 2017 18:23:09 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv4 08/14] x86/mm: Make PGDIR_SHIFT and PTRS_PER_P4D
+ variable
+Message-ID: <20170821152309.c4upa6rokozynjti@node.shutemov.name>
+References: <20170808125415.78842-1-kirill.shutemov@linux.intel.com>
+ <20170808125415.78842-9-kirill.shutemov@linux.intel.com>
+ <20170817090038.lfhmuk7hpuw2zzwo@gmail.com>
+ <20170817105418.gpcxazmpmx4aaxyz@node.shutemov.name>
+ <20170817111005.asebivpywpeyevfq@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170817111005.asebivpywpeyevfq@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Chen Yu <yu.c.chen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, Dan Williams <dan.j.williams@intel.com>, linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-There is a problem that when counting the pages for creating
-the hibernation snapshot will take significant amount of
-time, especially on system with large memory. Since the counting
-job is performed with irq disabled, this might lead to NMI lockup.
-The following warning were found on a system with 1.5TB DRAM:
+On Thu, Aug 17, 2017 at 01:10:05PM +0200, Ingo Molnar wrote:
+> 
+> * Kirill A. Shutemov <kirill@shutemov.name> wrote:
+> 
+> > On Thu, Aug 17, 2017 at 11:00:38AM +0200, Ingo Molnar wrote:
+> > > 
+> > > * Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
+> > > 
+> > > > For boot-time switching between 4- and 5-level paging we need to be able
+> > > > to fold p4d page table level at runtime. It requires variable
+> > > > PGDIR_SHIFT and PTRS_PER_P4D.
+> > > > 
+> > > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > > ---
+> > > >  arch/x86/boot/compressed/kaslr.c        |  5 +++++
+> > > >  arch/x86/include/asm/pgtable_32.h       |  2 ++
+> > > >  arch/x86/include/asm/pgtable_32_types.h |  2 ++
+> > > >  arch/x86/include/asm/pgtable_64_types.h | 15 +++++++++++++--
+> > > >  arch/x86/kernel/head64.c                |  9 ++++++++-
+> > > >  arch/x86/mm/dump_pagetables.c           | 12 +++++-------
+> > > >  arch/x86/mm/init_64.c                   |  2 +-
+> > > >  arch/x86/mm/kasan_init_64.c             |  2 +-
+> > > >  arch/x86/platform/efi/efi_64.c          |  4 ++--
+> > > >  include/asm-generic/5level-fixup.h      |  1 +
+> > > >  include/asm-generic/pgtable-nop4d.h     |  1 +
+> > > >  include/linux/kasan.h                   |  2 +-
+> > > >  mm/kasan/kasan_init.c                   |  2 +-
+> > > >  13 files changed, 43 insertions(+), 16 deletions(-)
+> > > 
+> > > So I'm wondering what the code generation effect of this is - what's the 
+> > > before/after vmlinux size?
+> > > 
+> > > My guess is that the effect should be very small, as these constants are not 
+> > > widely used - but I'm only guessing and could be wrong.
+> > 
+> > This change increase vmlinux size for defconfig + X86_5LEVEL=y by ~4k or
+> > 0.01%.
+> 
+> Please add this info to one of the changelogs.
+> 
+> BTW., some of that might be won back via the later optimizations, right?
 
-[ 1124.758184] Freezing user space processes ... (elapsed 0.002 seconds) done.
-[ 1124.768721] OOM killer disabled.
-[ 1124.847009] PM: Preallocating image memory...
-[ 1139.392042] NMI watchdog: Watchdog detected hard LOCKUP on cpu 27
-[ 1139.392076] CPU: 27 PID: 3128 Comm: systemd-sleep Not tainted 4.13.0-0.rc2.git0.1.fc27.x86_64 #1
-[ 1139.392077] task: ffff9f01971ac000 task.stack: ffffb1a3f325c000
-[ 1139.392083] RIP: 0010:memory_bm_find_bit+0xf4/0x100
-[ 1139.392084] RSP: 0018:ffffb1a3f325fc20 EFLAGS: 00000006
-[ 1139.392084] RAX: 0000000000000000 RBX: 0000000013b83000 RCX: ffff9fbe89caf000
-[ 1139.392085] RDX: ffffb1a3f325fc30 RSI: 0000000000003200 RDI: ffff9fbeaffffe80
-[ 1139.392085] RBP: ffffb1a3f325fc40 R08: 0000000013b80000 R09: ffff9fbe89c54878
-[ 1139.392085] R10: ffffb1a3f325fc2c R11: 0000000013b83200 R12: 0000000000000400
-[ 1139.392086] R13: fffffd552e0c0000 R14: ffff9fc1bffd31e0 R15: 0000000000000202
-[ 1139.392086] FS:  00007f3189704180(0000) GS:ffff9fbec8ec0000(0000) knlGS:0000000000000000
-[ 1139.392087] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[ 1139.392087] CR2: 00000085da0f7398 CR3: 000001771cf9a000 CR4: 00000000007406e0
-[ 1139.392088] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[ 1139.392088] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-[ 1139.392088] PKRU: 55555554
-[ 1139.392089] Call Trace:
-[ 1139.392092]  ? memory_bm_set_bit+0x29/0x60
-[ 1139.392094]  swsusp_set_page_free+0x2b/0x30
-[ 1139.392098]  mark_free_pages+0x147/0x1c0
-[ 1139.392099]  count_data_pages+0x41/0xa0
-[ 1139.392101]  hibernate_preallocate_memory+0x80/0x450
-[ 1139.392102]  hibernation_snapshot+0x58/0x410
-[ 1139.392103]  hibernate+0x17c/0x310
-[ 1139.392104]  state_store+0xdf/0xf0
-[ 1139.392107]  kobj_attr_store+0xf/0x20
-[ 1139.392111]  sysfs_kf_write+0x37/0x40
-[ 1139.392113]  kernfs_fop_write+0x11c/0x1a0
-[ 1139.392117]  __vfs_write+0x37/0x170
-[ 1139.392121]  ? handle_mm_fault+0xd8/0x230
-[ 1139.392122]  vfs_write+0xb1/0x1a0
-[ 1139.392123]  SyS_write+0x55/0xc0
-[ 1139.392126]  entry_SYSCALL_64_fastpath+0x1a/0xa5
-...
-[ 1144.690405] done (allocated 6590003 pages)
-[ 1144.694971] PM: Allocated 26360012 kbytes in 19.89 seconds (1325.28 MB/s)
+Sorry, but no. Just chacked. Introducing alternatives increases .text
+segment size by about 4k.
 
-It has taken nearly 20 seconds(2.10GHz CPU) thus the NMI lockup
-was triggered. In case the timeout of the NMI watch dog has been
-set to 1 second, a safe interval should be 6590003/20 = 320k pages
-in theory. However there might also be some platforms running at a
-lower frequency, so feed the watchdog every 100k pages.
-
-Reported-by: Jan Filipcewicz <jan.filipcewicz@intel.com>
-Suggested-by: Michal Hocko <mhocko@suse.com>
-Reviewed-by: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Len Brown <lenb@kernel.org>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-pm@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
-Signed-off-by: Chen Yu <yu.c.chen@intel.com>
----
- mm/page_alloc.c | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6d00f74..543726a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -66,6 +66,7 @@
- #include <linux/kthread.h>
- #include <linux/memcontrol.h>
- #include <linux/ftrace.h>
-+#include <linux/nmi.h>
- 
- #include <asm/sections.h>
- #include <asm/tlbflush.h>
-@@ -2531,9 +2532,12 @@ void drain_all_pages(struct zone *zone)
- 
- #ifdef CONFIG_HIBERNATION
- 
-+/* Touch watchdog for every WD_INTERVAL_PAGE pages. */
-+#define WD_INTERVAL_PAGE	(100*1024)
-+
- void mark_free_pages(struct zone *zone)
- {
--	unsigned long pfn, max_zone_pfn;
-+	unsigned long pfn, max_zone_pfn, page_num = 0;
- 	unsigned long flags;
- 	unsigned int order, t;
- 	struct page *page;
-@@ -2548,6 +2552,9 @@ void mark_free_pages(struct zone *zone)
- 		if (pfn_valid(pfn)) {
- 			page = pfn_to_page(pfn);
- 
-+			if (!((page_num++) % WD_INTERVAL_PAGE))
-+				touch_nmi_watchdog();
-+
- 			if (page_zone(page) != zone)
- 				continue;
- 
-@@ -2561,8 +2568,11 @@ void mark_free_pages(struct zone *zone)
- 			unsigned long i;
- 
- 			pfn = page_to_pfn(page);
--			for (i = 0; i < (1UL << order); i++)
-+			for (i = 0; i < (1UL << order); i++) {
-+				if (!((page_num++) % WD_INTERVAL_PAGE))
-+					touch_nmi_watchdog();
- 				swsusp_set_page_free(pfn_to_page(pfn + i));
-+			}
- 		}
- 	}
- 	spin_unlock_irqrestore(&zone->lock, flags);
 -- 
-2.7.4
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
