@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AC416280402
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 11:29:34 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id t3so44197432pgt.5
-        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 08:29:34 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id l191si2651744pgd.289.2017.08.21.08.29.33
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 17A28280405
+	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 11:29:35 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id q3so72844152pgr.3
+        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 08:29:35 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id t76si7342978pgc.539.2017.08.21.08.29.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 21 Aug 2017 08:29:33 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv5 14/19] x86/mm: Fold p4d page table layer at runtime
-Date: Mon, 21 Aug 2017 18:29:11 +0300
-Message-Id: <20170821152916.40124-15-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5 13/19] x86/mm: Make early boot code support boot-time switching of paging modes
+Date: Mon, 21 Aug 2017 18:29:10 +0300
+Message-Id: <20170821152916.40124-14-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170821152916.40124-1-kirill.shutemov@linux.intel.com>
 References: <20170821152916.40124-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,109 +20,134 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Dmitry Safonov <dsafonov@virtuozzo.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-This patch changes page table helpers to fold p4d at runtime.
-The logic is the same as in <asm-generic/pgtable-nop4d.h>.
+Early boot code, that setup page table should be able to initialize page
+tables for both 4- and 5-level paging modes.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/paravirt.h | 10 ++++++----
- arch/x86/include/asm/pgalloc.h  |  5 ++++-
- arch/x86/include/asm/pgtable.h  | 10 +++++++++-
- 3 files changed, 19 insertions(+), 6 deletions(-)
+ arch/x86/kernel/head64.c  | 33 +++++++++++++++++++++------------
+ arch/x86/kernel/head_64.S | 10 ++++------
+ 2 files changed, 25 insertions(+), 18 deletions(-)
 
-diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
-index 9ccac1926587..be729bcac1c2 100644
---- a/arch/x86/include/asm/paravirt.h
-+++ b/arch/x86/include/asm/paravirt.h
-@@ -606,14 +606,16 @@ static inline p4dval_t p4d_val(p4d_t p4d)
- 
- static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
- {
--	pgdval_t val = native_pgd_val(pgd);
--
--	PVOP_VCALL2(pv_mmu_ops.set_pgd, pgdp, val);
-+	if (pgtable_l5_enabled)
-+		PVOP_VCALL2(pv_mmu_ops.set_pgd, pgdp, native_pgd_val(pgd));
-+	else
-+		set_p4d((p4d_t *)(pgdp), (p4d_t) { pgd.pgd });
+diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
+index f013b0732c96..8a44b3d06261 100644
+--- a/arch/x86/kernel/head64.c
++++ b/arch/x86/kernel/head64.c
+@@ -74,13 +74,13 @@ static unsigned int __head *fixup_int(void *ptr, unsigned long physaddr)
+ 	return fixup_pointer(ptr, physaddr);
  }
  
- static inline void pgd_clear(pgd_t *pgdp)
+-static void __head check_la57_support(unsigned long physaddr)
++static bool __head check_la57_support(unsigned long physaddr)
  {
--	set_pgd(pgdp, __pgd(0));
-+	if (pgtable_l5_enabled)
-+		set_pgd(pgdp, __pgd(0));
- }
+ 	if (native_cpuid_eax(0) < 7)
+-		return;
++		return false;
  
- #endif  /* CONFIG_PGTABLE_LEVELS == 5 */
-diff --git a/arch/x86/include/asm/pgalloc.h b/arch/x86/include/asm/pgalloc.h
-index b2d0cd8288aa..1ce12afcfb04 100644
---- a/arch/x86/include/asm/pgalloc.h
-+++ b/arch/x86/include/asm/pgalloc.h
-@@ -155,6 +155,8 @@ static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
- #if CONFIG_PGTABLE_LEVELS > 4
- static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, p4d_t *p4d)
- {
-+	if (!pgtable_l5_enabled)
-+		return;
- 	paravirt_alloc_p4d(mm, __pa(p4d) >> PAGE_SHIFT);
- 	set_pgd(pgd, __pgd(_PAGE_TABLE | __pa(p4d)));
- }
-@@ -179,7 +181,8 @@ extern void ___p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d);
- static inline void __p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d,
- 				  unsigned long address)
- {
--	___p4d_free_tlb(tlb, p4d);
-+	if (pgtable_l5_enabled)
-+		___p4d_free_tlb(tlb, p4d);
- }
+ 	if (!(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31))))
+-		return;
++		return false;
  
- #endif	/* CONFIG_PGTABLE_LEVELS > 4 */
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index bbeae4a2bd01..9a157b98080f 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -65,7 +65,7 @@ extern pmdval_t early_pmd_flags;
+ 	*fixup_int(&pgtable_l5_enabled, physaddr) = 1;
+ 	*fixup_int(&pgdir_shift, physaddr) = 48;
+@@ -89,24 +89,28 @@ static void __head check_la57_support(unsigned long physaddr)
+ 	*fixup_long(&vmalloc_base, physaddr) = __VMALLOC_BASE57;
+ 	*fixup_long(&vmemmap_base, physaddr) = __VMEMMAP_BASE57;
  
- #ifndef __PAGETABLE_P4D_FOLDED
- #define set_pgd(pgdp, pgd)		native_set_pgd(pgdp, pgd)
--#define pgd_clear(pgd)			native_pgd_clear(pgd)
-+#define pgd_clear(pgd)			(pgtable_l5_enabled ? native_pgd_clear(pgd) : 0)
+-	return;
++	return true;
+ }
+ #else
+-static void __head check_la57_support(unsigned long physaddr) {}
++static bool __head check_la57_support(unsigned long physaddr)
++{
++	return false;
++}
  #endif
  
- #ifndef set_p4d
-@@ -861,6 +861,8 @@ static inline unsigned long p4d_index(unsigned long address)
- #if CONFIG_PGTABLE_LEVELS > 4
- static inline int pgd_present(pgd_t pgd)
+ unsigned long __head __startup_64(unsigned long physaddr,
+ 				  struct boot_params *bp)
  {
-+	if (!pgtable_l5_enabled)
-+		return 1;
- 	return pgd_flags(pgd) & _PAGE_PRESENT;
- }
+-	unsigned long load_delta;
++	unsigned long load_delta, *p;
+ 	unsigned long pgtable_flags;
+ 	pgdval_t *pgd;
+ 	p4dval_t *p4d;
+ 	pudval_t *pud;
+ 	pmdval_t *pmd, pmd_entry;
++	bool la57;
+ 	int i;
  
-@@ -878,16 +880,22 @@ static inline unsigned long pgd_page_vaddr(pgd_t pgd)
- /* to find an entry in a page-table-directory. */
- static inline p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
- {
-+	if (!pgtable_l5_enabled)
-+		return (p4d_t *)pgd;
- 	return (p4d_t *)pgd_page_vaddr(*pgd) + p4d_index(address);
- }
+-	check_la57_support(physaddr);
++	la57 = check_la57_support(physaddr);
  
- static inline int pgd_bad(pgd_t pgd)
- {
-+	if (!pgtable_l5_enabled)
-+		return 0;
- 	return (pgd_flags(pgd) & ~_PAGE_USER) != _KERNPG_TABLE;
- }
+ 	/* Is the address too large? */
+ 	if (physaddr >> MAX_PHYSMEM_BITS)
+@@ -131,9 +135,14 @@ unsigned long __head __startup_64(unsigned long physaddr,
+ 	/* Fixup the physical addresses in the page table */
  
- static inline int pgd_none(pgd_t pgd)
- {
+ 	pgd = fixup_pointer(&early_top_pgt, physaddr);
+-	pgd[pgd_index(__START_KERNEL_map)] += load_delta;
+-
+-	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
++	p = pgd + pgd_index(__START_KERNEL_map);
++	if (la57)
++		*p = (unsigned long)level4_kernel_pgt;
++	else
++		*p = (unsigned long)level3_kernel_pgt;
++	*p += _PAGE_TABLE_NOENC - __START_KERNEL_map + load_delta;
++
++	if (la57) {
+ 		p4d = fixup_pointer(&level4_kernel_pgt, physaddr);
+ 		p4d[511] += load_delta;
+ 	}
+@@ -156,7 +165,7 @@ unsigned long __head __startup_64(unsigned long physaddr,
+ 	pmd = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
+ 	pgtable_flags = _KERNPG_TABLE_NOENC + sme_get_me_mask();
+ 
+-	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
++	if (la57) {
+ 		p4d = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
+ 
+ 		i = (physaddr >> PGDIR_SHIFT) % PTRS_PER_PGD;
+@@ -253,7 +262,7 @@ int __init __early_make_pgtable(unsigned long address, pmdval_t pmd)
+ 	 * critical -- __PAGE_OFFSET would point us back into the dynamic
+ 	 * range and we might end up looping forever...
+ 	 */
+-	if (!IS_ENABLED(CONFIG_X86_5LEVEL))
 +	if (!pgtable_l5_enabled)
-+		return 0;
- 	/*
- 	 * There is no need to do a workaround for the KNL stray
- 	 * A/D bit erratum here.  PGDs only point to page tables
+ 		p4d_p = pgd_p;
+ 	else if (pgd)
+ 		p4d_p = (p4dval_t *)((pgd & PTE_PFN_MASK) + __START_KERNEL_map - phys_base);
+diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
+index a8409cd23b35..49f8bb43d107 100644
+--- a/arch/x86/kernel/head_64.S
++++ b/arch/x86/kernel/head_64.S
+@@ -121,7 +121,10 @@ ENTRY(secondary_startup_64)
+ 	/* Enable PAE mode, PGE and LA57 */
+ 	movl	$(X86_CR4_PAE | X86_CR4_PGE), %ecx
+ #ifdef CONFIG_X86_5LEVEL
++	testl	$1, pgtable_l5_enabled(%rip)
++	jz	1f
+ 	orl	$X86_CR4_LA57, %ecx
++1:
+ #endif
+ 	movq	%rcx, %cr4
+ 
+@@ -350,12 +353,7 @@ GLOBAL(name)
+ 
+ 	__INITDATA
+ NEXT_PAGE(early_top_pgt)
+-	.fill	511,8,0
+-#ifdef CONFIG_X86_5LEVEL
+-	.quad	level4_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
+-#else
+-	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
+-#endif
++	.fill	512,8,0
+ 
+ NEXT_PAGE(early_dynamic_pgts)
+ 	.fill	512*EARLY_DYNAMIC_PAGE_TABLES,8,0
 -- 
 2.14.1
 
