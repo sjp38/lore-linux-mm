@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 62046280405
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 11:30:30 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id y129so288878788pgy.1
-        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 08:30:30 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id d127si3724566pga.4.2017.08.21.08.30.28
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id ED851280405
+	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 11:30:38 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id m15so85528442pgr.7
+        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 08:30:38 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id 33si8023873plk.1031.2017.08.21.08.30.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Aug 2017 08:30:28 -0700 (PDT)
+        Mon, 21 Aug 2017 08:30:37 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv5 06/19] x86/boot/compressed/64: Detect and handle 5-level paging at boot-time
-Date: Mon, 21 Aug 2017 18:29:03 +0300
-Message-Id: <20170821152916.40124-7-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv5 18/19] x86/mm: Redefine some of page table helpers as macros
+Date: Mon, 21 Aug 2017 18:29:15 +0300
+Message-Id: <20170821152916.40124-19-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170821152916.40124-1-kirill.shutemov@linux.intel.com>
 References: <20170821152916.40124-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,56 +20,158 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Dmitry Safonov <dsafonov@virtuozzo.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-This patch prepare decompression code to boot-time switching between 4-
-and 5-level paging.
+This is preparation for the next patch, which would change
+pgtable_l5_enabled to be cpu_feature_enabled(X86_FEATURE_LA57).
+
+The change makes PTE_FLAGS_MASK and other things to be dependent on
+cpu_feature_enabled() definition from cpufeature.h. And cpufeature.h
+depends on pgtable_types.h
+
+Let's re-define some of helpers as macros to break this dependency loop.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/boot/compressed/head_64.S | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ arch/x86/include/asm/paravirt.h      | 23 +++++++------
+ arch/x86/include/asm/pgtable_types.h | 67 +++++++++---------------------------
+ 2 files changed, 29 insertions(+), 61 deletions(-)
 
-diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
-index fbf4c32d0b62..2e362aea3319 100644
---- a/arch/x86/boot/compressed/head_64.S
-+++ b/arch/x86/boot/compressed/head_64.S
-@@ -347,6 +347,28 @@ preferred_addr:
- 	leaq	boot_stack_end(%rbx), %rsp
+diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
+index be729bcac1c2..4ae378944514 100644
+--- a/arch/x86/include/asm/paravirt.h
++++ b/arch/x86/include/asm/paravirt.h
+@@ -604,19 +604,22 @@ static inline p4dval_t p4d_val(p4d_t p4d)
+ 	return PVOP_CALLEE1(p4dval_t, pv_mmu_ops.p4d_val, p4d.p4d);
+ }
  
- #ifdef CONFIG_X86_5LEVEL
-+	/* Preserve rbx across cpuid */
-+	movq	%rbx, %r8
+-static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
++static inline void __set_pgd(pgd_t *pgdp, pgd_t pgd)
+ {
+-	if (pgtable_l5_enabled)
+-		PVOP_VCALL2(pv_mmu_ops.set_pgd, pgdp, native_pgd_val(pgd));
+-	else
+-		set_p4d((p4d_t *)(pgdp), (p4d_t) { pgd.pgd });
++	PVOP_VCALL2(pv_mmu_ops.set_pgd, pgdp, native_pgd_val(pgd));
+ }
+ 
+-static inline void pgd_clear(pgd_t *pgdp)
+-{
+-	if (pgtable_l5_enabled)
+-		set_pgd(pgdp, __pgd(0));
+-}
++#define set_pgd(pgdp, pgdval) do {					\
++	if (pgtable_l5_enabled)						\
++		__set_pgd(pgdp, pgdval);				\
++	else								\
++		set_p4d((p4d_t *)(pgdp), (p4d_t) { (pgdval).pgd });	\
++} while (0)
 +
-+	/* Check if leaf 7 is supported */
-+	movl	$0, %eax
-+	cpuid
-+	cmpl	$7, %eax
-+	jb	lvl5
-+
-+	/*
-+	 * Check if la57 is supported.
-+	 * The feature is enumerated with CPUID.(EAX=07H, ECX=0):ECX[bit 16]
-+	 */
-+	movl	$7, %eax
-+	movl	$0, %ecx
-+	cpuid
-+	andl	$(1 << 16), %ecx
-+	jz	lvl5
-+
-+	/* Restore rbx */
-+	movq	%r8, %rbx
-+
- 	/* Check if 5-level paging has already enabled */
- 	movq	%cr4, %rax
- 	testl	$X86_CR4_LA57, %eax
-@@ -386,6 +408,8 @@ preferred_addr:
- 	pushq	%rax
- 	lretq
- lvl5:
-+	/* Restore rbx */
-+	movq	%r8, %rbx
++#define pgd_clear(pgdp) do {						\
++	if (pgtable_l5_enabled)						\
++		set_pgd(pgdp, __pgd(0));				\
++} while (0)
+ 
+ #endif  /* CONFIG_PGTABLE_LEVELS == 5 */
+ 
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index 399261ce904c..ece3ad5215ad 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -290,10 +290,7 @@ static inline pgdval_t native_pgd_val(pgd_t pgd)
+ 	return pgd.pgd;
+ }
+ 
+-static inline pgdval_t pgd_flags(pgd_t pgd)
+-{
+-	return native_pgd_val(pgd) & PTE_FLAGS_MASK;
+-}
++#define pgd_flags(pgd) (native_pgd_val(pgd) & PTE_FLAGS_MASK)
+ 
+ #if CONFIG_PGTABLE_LEVELS > 4
+ typedef struct { p4dval_t p4d; } p4d_t;
+@@ -363,57 +360,28 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
+ }
  #endif
  
- 	/* Zero EFLAGS */
+-static inline p4dval_t p4d_pfn_mask(p4d_t p4d)
+-{
+-	/* No 512 GiB huge pages yet */
+-	return PTE_PFN_MASK;
+-}
++/* No 512 GiB huge pages yet */
++#define p4d_pfn_mask(p4d) PTE_PFN_MASK
+ 
+-static inline p4dval_t p4d_flags_mask(p4d_t p4d)
+-{
+-	return ~p4d_pfn_mask(p4d);
+-}
++#define p4d_flags_mask(p4d) (~p4d_pfn_mask(p4d))
+ 
+-static inline p4dval_t p4d_flags(p4d_t p4d)
+-{
+-	return native_p4d_val(p4d) & p4d_flags_mask(p4d);
+-}
++#define p4d_flags(p4d) (native_p4d_val(p4d) & p4d_flags_mask(p4d))
+ 
+-static inline pudval_t pud_pfn_mask(pud_t pud)
+-{
+-	if (native_pud_val(pud) & _PAGE_PSE)
+-		return PHYSICAL_PUD_PAGE_MASK;
+-	else
+-		return PTE_PFN_MASK;
+-}
++#define pud_pfn_mask(pud) \
++	(native_pud_val(pud) & _PAGE_PSE ? \
++	 PHYSICAL_PUD_PAGE_MASK : PTE_PFN_MASK)
+ 
+-static inline pudval_t pud_flags_mask(pud_t pud)
+-{
+-	return ~pud_pfn_mask(pud);
+-}
++#define pud_flags_mask(pud) (~pud_pfn_mask(pud))
+ 
+-static inline pudval_t pud_flags(pud_t pud)
+-{
+-	return native_pud_val(pud) & pud_flags_mask(pud);
+-}
++#define pud_flags(pud) (native_pud_val(pud) & pud_flags_mask(pud))
+ 
+-static inline pmdval_t pmd_pfn_mask(pmd_t pmd)
+-{
+-	if (native_pmd_val(pmd) & _PAGE_PSE)
+-		return PHYSICAL_PMD_PAGE_MASK;
+-	else
+-		return PTE_PFN_MASK;
+-}
++#define pmd_pfn_mask(pmd) \
++	(native_pmd_val(pmd) & _PAGE_PSE ? \
++	 PHYSICAL_PMD_PAGE_MASK : PTE_PFN_MASK)
+ 
+-static inline pmdval_t pmd_flags_mask(pmd_t pmd)
+-{
+-	return ~pmd_pfn_mask(pmd);
+-}
++#define pmd_flags_mask(pmd) (~pmd_pfn_mask(pmd))
+ 
+-static inline pmdval_t pmd_flags(pmd_t pmd)
+-{
+-	return native_pmd_val(pmd) & pmd_flags_mask(pmd);
+-}
++#define pmd_flags(pmd) (native_pmd_val(pmd) & pmd_flags_mask(pmd))
+ 
+ static inline pte_t native_make_pte(pteval_t val)
+ {
+@@ -425,10 +393,7 @@ static inline pteval_t native_pte_val(pte_t pte)
+ 	return pte.pte;
+ }
+ 
+-static inline pteval_t pte_flags(pte_t pte)
+-{
+-	return native_pte_val(pte) & PTE_FLAGS_MASK;
+-}
++#define pte_flags(pte) (native_pte_val(pte) & PTE_FLAGS_MASK)
+ 
+ #define pgprot_val(x)	((x).pgprot)
+ #define __pgprot(x)	((pgprot_t) { (x) } )
 -- 
 2.14.1
 
