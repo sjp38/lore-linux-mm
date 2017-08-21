@@ -1,174 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EAF5280422
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 14:32:37 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z96so22409195wrb.5
-        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 11:32:37 -0700 (PDT)
-Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
-        by mx.google.com with ESMTPS id b2si11981363ede.103.2017.08.21.11.32.35
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9439E280422
+	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 14:35:10 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id a7so11513038pgn.9
+        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 11:35:10 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id a64si7546427pgc.582.2017.08.21.11.35.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Aug 2017 11:32:35 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 27C0B1C16CB
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 19:32:35 +0100 (IST)
-Date: Mon, 21 Aug 2017 19:32:34 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
-Message-ID: <20170821183234.kzennaaw2zt2rbwz@techsingularity.net>
-References: <CA+55aFwzTMrZwh7TE_VeZt8gx5Syoop-kA=Xqs56=FkyakrM6g@mail.gmail.com>
- <37D7C6CF3E00A74B8858931C1DB2F0775378761B@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFy_RNx5TQ8esjPPOKuW-o+fXbZgWapau2MHyexcAZtqsw@mail.gmail.com>
- <20170818122339.24grcbzyhnzmr4qw@techsingularity.net>
- <37D7C6CF3E00A74B8858931C1DB2F077537879BB@SHSMSX103.ccr.corp.intel.com>
- <20170818144622.oabozle26hasg5yo@techsingularity.net>
- <37D7C6CF3E00A74B8858931C1DB2F07753787AE4@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFxZjjqUM4kPvNEeZahPovBHFATiwADj-iPTDN0-jnU67Q@mail.gmail.com>
- <20170818185455.qol3st2nynfa47yc@techsingularity.net>
- <CA+55aFwX0yrUPULrDxTWVCg5c6DKh-yCG84NXVxaptXNQ4O_kA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <CA+55aFwX0yrUPULrDxTWVCg5c6DKh-yCG84NXVxaptXNQ4O_kA@mail.gmail.com>
+        Mon, 21 Aug 2017 11:35:09 -0700 (PDT)
+From: Matthew Auld <matthew.auld@intel.com>
+Subject: [PATCH 01/23] mm/shmem: introduce shmem_file_setup_with_mnt
+Date: Mon, 21 Aug 2017 19:34:41 +0100
+Message-Id: <20170821183503.12246-2-matthew.auld@intel.com>
+In-Reply-To: <20170821183503.12246-1-matthew.auld@intel.com>
+References: <20170821183503.12246-1-matthew.auld@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: "Liang, Kan" <kan.liang@intel.com>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: intel-gfx@lists.freedesktop.org
+Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Chris Wilson <chris@chris-wilson.co.uk>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-On Fri, Aug 18, 2017 at 12:14:12PM -0700, Linus Torvalds wrote:
-> On Fri, Aug 18, 2017 at 11:54 AM, Mel Gorman
-> <mgorman@techsingularity.net> wrote:
-> >
-> > One option to mitigate (but not eliminate) the problem is to record when
-> > the page lock is contended and pass in TNF_PAGE_CONTENDED (new flag) to
-> > task_numa_fault().
-> 
-> Well, finding it contended is fairly easy - just look at the page wait
-> queue, and if it's not empty, assume it's due to contention.
-> 
+We are planning to use our own tmpfs mnt in i915 in place of the
+shm_mnt, such that we can control the mount options, in particular
+huge=, which we require to support huge-gtt-pages. So rather than roll
+our own version of __shmem_file_setup, it would be preferred if we could
+just give shmem our mnt, and let it do the rest.
 
-Yes.
+Signed-off-by: Matthew Auld <matthew.auld@intel.com>
+Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+Cc: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Kirill A. Shutemov <kirill@shutemov.name>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reviewed-by: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+---
+ include/linux/shmem_fs.h |  2 ++
+ mm/shmem.c               | 30 ++++++++++++++++++++++--------
+ 2 files changed, 24 insertions(+), 8 deletions(-)
 
-> I also wonder if we could be even *more* hacky, and in the whole
-> __migration_entry_wait() path, change the logic from:
-> 
->  - wait on page lock before retrying the fault
-> 
-> to
-> 
->  - yield()
-> 
-> which is hacky, but there's a rationale for it:
-> 
->  (a) avoid the crazy long wait queues ;)
-> 
->  (b) we know that migration is *supposed* to be CPU-bound (not IO
-> bound), so yielding the CPU and retrying may just be the right thing
-> to do.
-> 
-
-Potentially. I spent a few hours trying to construct a test case that
-would migrate constantly that could be used as a basis for evaluating a
-patch or alternative. Unfortunately it was not as easy as I thought and
-I still have to construct a case that causes migration storms that would
-result in multiple threads waiting on a single page.
-
-> Because that code sequence doesn't actually depend on
-> "wait_on_page_lock()" for _correctness_ anyway, afaik. Anybody who
-> does "migration_entry_wait()" _has_ to retry anyway, since the page
-> table contents may have changed by waiting.
-> 
-> So I'm not proud of the attached patch, and I don't think it's really
-> acceptable as-is, but maybe it's worth testing? And maybe it's
-> arguably no worse than what we have now?
-> 
-> Comments?
-> 
-
-The transhuge migration path for numa balancing doesn't go through the
-migration_entry_wait patch despite similarly named functions that suggest
-it does so this may only has the most effect when THP is disabled. It's
-worth trying anyway.
-
-Covering both paths would be something like the patch below which spins
-until the page is unlocked or it should reschedule. It's not even boot
-tested as I spent what time I had on the test case that I hoped would be
-able to prove it really works.
-
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 79b36f57c3ba..31cda1288176 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -517,6 +517,13 @@ static inline void wait_on_page_locked(struct page *page)
- 		wait_on_page_bit(compound_head(page), PG_locked);
- }
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index a7d6bd2a918f..27de676f0b63 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -53,6 +53,8 @@ extern struct file *shmem_file_setup(const char *name,
+ 					loff_t size, unsigned long flags);
+ extern struct file *shmem_kernel_file_setup(const char *name, loff_t size,
+ 					    unsigned long flags);
++extern struct file *shmem_file_setup_with_mnt(struct vfsmount *mnt,
++		const char *name, loff_t size, unsigned long flags);
+ extern int shmem_zero_setup(struct vm_area_struct *);
+ extern unsigned long shmem_get_unmapped_area(struct file *, unsigned long addr,
+ 		unsigned long len, unsigned long pgoff, unsigned long flags);
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 6540e5982444..0975e65ea61c 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -4141,7 +4141,7 @@ static const struct dentry_operations anon_ops = {
+ 	.d_dname = simple_dname
+ };
  
-+void __spinwait_on_page_locked(struct page *page);
-+static inline void spinwait_on_page_locked(struct page *page)
-+{
-+	if (PageLocked(page))
-+		__spinwait_on_page_locked(page);
-+}
-+
- static inline int wait_on_page_locked_killable(struct page *page)
+-static struct file *__shmem_file_setup(const char *name, loff_t size,
++static struct file *__shmem_file_setup(struct vfsmount *mnt, const char *name, loff_t size,
+ 				       unsigned long flags, unsigned int i_flags)
  {
- 	if (!PageLocked(page))
-diff --git a/mm/filemap.c b/mm/filemap.c
-index a49702445ce0..c9d6f49614bc 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1210,6 +1210,15 @@ int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
- 	}
+ 	struct file *res;
+@@ -4150,8 +4150,8 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
+ 	struct super_block *sb;
+ 	struct qstr this;
+ 
+-	if (IS_ERR(shm_mnt))
+-		return ERR_CAST(shm_mnt);
++	if (IS_ERR(mnt))
++		return ERR_CAST(mnt);
+ 
+ 	if (size < 0 || size > MAX_LFS_FILESIZE)
+ 		return ERR_PTR(-EINVAL);
+@@ -4163,8 +4163,8 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
+ 	this.name = name;
+ 	this.len = strlen(name);
+ 	this.hash = 0; /* will go */
+-	sb = shm_mnt->mnt_sb;
+-	path.mnt = mntget(shm_mnt);
++	sb = mnt->mnt_sb;
++	path.mnt = mntget(mnt);
+ 	path.dentry = d_alloc_pseudo(sb, &this);
+ 	if (!path.dentry)
+ 		goto put_memory;
+@@ -4209,7 +4209,7 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
+  */
+ struct file *shmem_kernel_file_setup(const char *name, loff_t size, unsigned long flags)
+ {
+-	return __shmem_file_setup(name, size, flags, S_PRIVATE);
++	return __shmem_file_setup(shm_mnt, name, size, flags, S_PRIVATE);
  }
  
-+void __spinwait_on_page_locked(struct page *page)
-+{
-+	do {
-+		cpu_relax();
-+	} while (PageLocked(page) && !cond_resched());
-+
-+	wait_on_page_locked(page);
-+}
-+
  /**
-  * page_cache_next_hole - find the next hole (not-present entry)
-  * @mapping: mapping
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 90731e3b7e58..c7025c806420 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1443,7 +1443,7 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
- 		if (!get_page_unless_zero(page))
- 			goto out_unlock;
- 		spin_unlock(vmf->ptl);
--		wait_on_page_locked(page);
-+		spinwait_on_page_locked(page);
- 		put_page(page);
- 		goto out;
- 	}
-@@ -1480,7 +1480,7 @@ int do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
- 		if (!get_page_unless_zero(page))
- 			goto out_unlock;
- 		spin_unlock(vmf->ptl);
--		wait_on_page_locked(page);
-+		spinwait_on_page_locked(page);
- 		put_page(page);
- 		goto out;
- 	}
-diff --git a/mm/migrate.c b/mm/migrate.c
-index e84eeb4e4356..9b6c3fc5beac 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -308,7 +308,7 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
- 	if (!get_page_unless_zero(page))
- 		goto out;
- 	pte_unmap_unlock(ptep, ptl);
--	wait_on_page_locked(page);
-+	spinwait_on_page_locked(page);
- 	put_page(page);
- 	return;
- out:
-
+@@ -4220,11 +4220,25 @@ struct file *shmem_kernel_file_setup(const char *name, loff_t size, unsigned lon
+  */
+ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags)
+ {
+-	return __shmem_file_setup(name, size, flags, 0);
++	return __shmem_file_setup(shm_mnt, name, size, flags, 0);
+ }
+ EXPORT_SYMBOL_GPL(shmem_file_setup);
+ 
+ /**
++ * shmem_file_setup_with_mnt - get an unlinked file living in tmpfs
++ * @mnt: the tmpfs mount where the file will be created
++ * @name: name for dentry (to be seen in /proc/<pid>/maps
++ * @size: size to be set for the file
++ * @flags: VM_NORESERVE suppresses pre-accounting of the entire object size
++ */
++struct file *shmem_file_setup_with_mnt(struct vfsmount *mnt, const char *name,
++				       loff_t size, unsigned long flags)
++{
++	return __shmem_file_setup(mnt, name, size, flags, 0);
++}
++EXPORT_SYMBOL_GPL(shmem_file_setup_with_mnt);
++
++/**
+  * shmem_zero_setup - setup a shared anonymous mapping
+  * @vma: the vma to be mmapped is prepared by do_mmap_pgoff
+  */
+@@ -4239,7 +4253,7 @@ int shmem_zero_setup(struct vm_area_struct *vma)
+ 	 * accessible to the user through its mapping, use S_PRIVATE flag to
+ 	 * bypass file security, in the same way as shmem_kernel_file_setup().
+ 	 */
+-	file = __shmem_file_setup("dev/zero", size, vma->vm_flags, S_PRIVATE);
++	file = shmem_kernel_file_setup("dev/zero", size, vma->vm_flags);
+ 	if (IS_ERR(file))
+ 		return PTR_ERR(file);
+ 
+-- 
+2.13.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
