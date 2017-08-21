@@ -1,85 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 073626B04E7
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 05:48:08 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id q49so9485261wrb.14
-        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 02:48:07 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id 204si5624985wmx.93.2017.08.21.02.48.05
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 420AB6B04DB
+	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 07:42:04 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id u1so13410840pgq.9
+        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 04:42:04 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id t10si657518pge.766.2017.08.21.04.42.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Aug 2017 02:48:06 -0700 (PDT)
-Date: Mon, 21 Aug 2017 10:46:56 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v5 2/4] mm, oom: cgroup-aware OOM killer
-Message-ID: <20170821094656.GA13899@castle.dhcp.TheFacebook.com>
-References: <20170814183213.12319-1-guro@fb.com>
- <20170814183213.12319-3-guro@fb.com>
- <alpine.DEB.2.10.1708141532300.63207@chino.kir.corp.google.com>
- <20170815121558.GA15892@castle.dhcp.TheFacebook.com>
- <alpine.DEB.2.10.1708151435290.104516@chino.kir.corp.google.com>
- <20170816154325.GB29131@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.10.1708201741330.117182@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1708201741330.117182@chino.kir.corp.google.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 21 Aug 2017 04:42:02 -0700 (PDT)
+Subject: Re: [PATCH v2] mm, oom: task_will_free_mem(current) should ignore MMF_OOM_SKIP for once.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1501718104-8099-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<201708191523.BJH90621.MHOOFFQSOLJFtV@I-love.SAKURA.ne.jp>
+	<20170821084307.GB25956@dhcp22.suse.cz>
+In-Reply-To: <20170821084307.GB25956@dhcp22.suse.cz>
+Message-Id: <201708212041.GAJ05272.VOMOJOFSQLFtHF@I-love.SAKURA.ne.jp>
+Date: Mon, 21 Aug 2017 20:41:52 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: mhocko@suse.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, mjaggi@caviumnetworks.com, oleg@redhat.com, vdavydov@virtuozzo.com
 
-On Sun, Aug 20, 2017 at 05:50:27PM -0700, David Rientjes wrote:
-> On Wed, 16 Aug 2017, Roman Gushchin wrote:
-> 
-> > It's natural to expect that inside a container there are their own sshd,
-> > "activity manager" or some other stuff, which can play with oom_score_adj.
-> > If it can override the upper cgroup-level settings, the whole delegation model
-> > is broken.
+Michal Hocko wrote:
+> On Sat 19-08-17 15:23:19, Tetsuo Handa wrote:
+> > Tetsuo Handa wrote at http://lkml.kernel.org/r/201708102328.ACD34352.OHFOLJMQVSFOFt@I-love.SAKURA.ne.jp :
+> > > Michal Hocko wrote:
+> > > > On Thu 10-08-17 21:10:30, Tetsuo Handa wrote:
+> > > > > Michal Hocko wrote:
+> > > > > > On Tue 08-08-17 11:14:50, Tetsuo Handa wrote:
+> > > > > > > Michal Hocko wrote:
+> > > > > > > > On Sat 05-08-17 10:02:55, Tetsuo Handa wrote:
+> > > > > > > > > Michal Hocko wrote:
+> > > > > > > > > > On Wed 26-07-17 20:33:21, Tetsuo Handa wrote:
+> > > > > > > > > > > My question is, how can users know it if somebody was OOM-killed needlessly
+> > > > > > > > > > > by allowing MMF_OOM_SKIP to race.
+> > > > > > > > > > 
+> > > > > > > > > > Is it really important to know that the race is due to MMF_OOM_SKIP?
+> > > > > > > > > 
+> > > > > > > > > Yes, it is really important. Needlessly selecting even one OOM victim is
+> > > > > > > > > a pain which is difficult to explain to and persuade some of customers.
+> > > > > > > > 
+> > > > > > > > How is this any different from a race with a task exiting an releasing
+> > > > > > > > some memory after we have crossed the point of no return and will kill
+> > > > > > > > something?
+> > > > > > > 
+> > > > > > > I'm not complaining about an exiting task releasing some memory after we have
+> > > > > > > crossed the point of no return.
+> > > > > > > 
+> > > > > > > What I'm saying is that we can postpone "the point of no return" if we ignore
+> > > > > > > MMF_OOM_SKIP for once (both this "oom_reaper: close race without using oom_lock"
+> > > > > > > thread and "mm, oom: task_will_free_mem(current) should ignore MMF_OOM_SKIP for
+> > > > > > > once." thread). These are race conditions we can avoid without crystal ball.
+> > > > > > 
+> > > > > > If those races are really that common than we can handle them even
+> > > > > > without "try once more" tricks. Really this is just an ugly hack. If you
+> > > > > > really care then make sure that we always try to allocate from memory
+> > > > > > reserves before going down the oom path. In other words, try to find a
+> > > > > > robust solution rather than tweaks around a problem.
+> > > > > 
+> > > > > Since your "mm, oom: allow oom reaper to race with exit_mmap" patch removes
+> > > > > oom_lock serialization from the OOM reaper, possibility of calling out_of_memory()
+> > > > > due to successful mutex_trylock(&oom_lock) would increase when the OOM reaper set
+> > > > > MMF_OOM_SKIP quickly.
+> > > > > 
+> > > > > What if task_is_oom_victim(current) became true and MMF_OOM_SKIP was set
+> > > > > on current->mm between after __gfp_pfmemalloc_flags() returned 0 and before
+> > > > > out_of_memory() is called (due to successful mutex_trylock(&oom_lock)) ?
+> > > > > 
+> > > > > Excuse me? Are you suggesting to try memory reserves before
+> > > > > task_is_oom_victim(current) becomes true?
+> > > > 
+> > > > No what I've tried to say is that if this really is a real problem,
+> > > > which I am not sure about, then the proper way to handle that is to
+> > > > attempt to allocate from memory reserves for an oom victim. I would be
+> > > > even willing to take the oom_lock back into the oom reaper path if the
+> > > > former turnes out to be awkward to implement. But all this assumes this
+> > > > is a _real_ problem.
+> > > 
+> > > Aren't we back to square one? My question is, how can users know it if
+> > > somebody was OOM-killed needlessly by allowing MMF_OOM_SKIP to race.
+> > > 
+> > > You don't want to call get_page_from_freelist() from out_of_memory(), do you?
+> > > But without passing a flag "whether get_page_from_freelist() with memory reserves
+> > > was already attempted if current thread is an OOM victim" to task_will_free_mem()
+> > > in out_of_memory() and a flag "whether get_page_from_freelist() without memory
+> > > reserves was already attempted if current thread is not an OOM victim" to
+> > > test_bit(MMF_OOM_SKIP) in oom_evaluate_task(), we won't be able to know
+> > > if somebody was OOM-killed needlessly by allowing MMF_OOM_SKIP to race.
 > > 
+> > Michal, I did not get your answer, and your "mm, oom: do not rely on
+> > TIF_MEMDIE for memory reserves access" did not help solving this problem.
+> > (I confirmed it by reverting your "mm, oom: allow oom reaper to race with
+> > exit_mmap" and applying Andrea's "mm: oom: let oom_reap_task and exit_mmap
+> > run concurrently" and this patch on top of linux-next-20170817.)
 > 
-> I don't think any delegation model related to core cgroups or memory 
-> cgroup is broken, I think it's based on how memory.oom_kill_all_tasks is 
-> defined.  It could very well behave as memory.oom_kill_all_eligible_tasks 
-> when enacted upon.
+> By "this patch" you probably mean a BUG_ON(tsk_is_oom_victim) somewhere
+> in task_will_free_mem right? I do not see anything like that in you
+> email.
+
+I wrote
+
+  You can confirm it by adding "BUG_ON(1);" at "task->oom_kill_free_check_raced = 1;"
+  of this patch.
+
+in the patch description.
+
 > 
-> > You can think about the oom_kill_all_tasks like the panic_on_oom,
-> > but on a cgroup level. It should _guarantee_, that in case of oom
-> > the whole cgroup will be destroyed completely, and will not remain
-> > in a non-consistent state.
+> > [  204.413605] Out of memory: Kill process 9286 (a.out) score 930 or sacrifice child
+> > [  204.416241] Killed process 9286 (a.out) total-vm:4198476kB, anon-rss:72kB, file-rss:0kB, shmem-rss:3465520kB
+> > [  204.419783] oom_reaper: reaped process 9286 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:3465720kB
+> > [  204.455864] ------------[ cut here ]------------
+> > [  204.457921] kernel BUG at mm/oom_kill.c:786!
 > > 
+> > Therefore, I propose this patch for inclusion.
 > 
-> Only CAP_SYS_ADMIN has this ability to set /proc/pid/oom_score_adj to
+> i've already told you that this is a wrong approach to handle a possible
+> race and offered you an alternative. I realy fail to see why you keep
+> reposting it. So to make myself absolutely clear
+> 
+> Nacked-by: Michal Hocko <mhocko@suse.com> to the patch below.
 
-CAP_SYS_RESOURCE
-
-> OOM_SCORE_ADJ_MIN, so it preserves the ability to change that setting, if 
-> needed, when it sets memory.oom_kill_all_tasks.  If a user gains 
-> permissions to change memory.oom_kill_all_tasks, I disagree it should 
-> override the CAP_SYS_ADMIN setting of /proc/pid/oom_score_adj.
-> 
-> I would prefer not to exclude oom disabled processes to their own sibling 
-> cgroups because they would require their own reservation with cgroup v2 
-> and it makes the single hierarchy model much more difficult to arrange 
-> alongside cpusets, for example.
-> 
-> > The model you're describing is based on a trust given to these oom-unkillable
-> > processes on system level. But we can't really trust some unknown processes
-> > inside a cgroup that they will be able to do some useful work and finish
-> > in a reasonable time; especially in case of a global memory shortage.
-> 
-> Yes, we prefer to panic instead of sshd, for example, being oom killed.
-> We trust that sshd, as well as our own activity manager and security 
-> daemons are trusted to do useful work and that we never want the kernel to 
-> do this.  I'm not sure why you are describing processes that CAP_SYS_ADMIN 
-> has set to be oom disabled as unknown processes.
-> 
-> I'd be interested in hearing the opinions of others related to a per-memcg 
-> knob being allowed to override the setting of the sysadmin.
-
-Sure, me too.
-
-Thanks!
+Where is your alternative?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
