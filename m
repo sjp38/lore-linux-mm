@@ -1,64 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B596280310
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 09:18:56 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id z91so25042073wrc.4
-        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 06:18:56 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 9DEC56B04B5
+	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 09:23:50 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id r79so13490285wrb.0
+        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 06:23:50 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m10si9637989wrb.254.2017.08.21.06.18.54
+        by mx.google.com with ESMTPS id 67si10291883wrc.395.2017.08.21.06.23.49
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 21 Aug 2017 06:18:54 -0700 (PDT)
-Date: Mon, 21 Aug 2017 15:18:52 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH v2] mm, oom: task_will_free_mem(current) should ignore
- MMF_OOM_SKIP for once.
-Message-ID: <20170821131851.GJ25956@dhcp22.suse.cz>
-References: <1501718104-8099-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <201708191523.BJH90621.MHOOFFQSOLJFtV@I-love.SAKURA.ne.jp>
- <20170821084307.GB25956@dhcp22.suse.cz>
- <201708212041.GAJ05272.VOMOJOFSQLFtHF@I-love.SAKURA.ne.jp>
- <20170821121022.GF25956@dhcp22.suse.cz>
- <201708212157.DFB00801.tLMOFFSOOVQFJH@I-love.SAKURA.ne.jp>
+        Mon, 21 Aug 2017 06:23:49 -0700 (PDT)
+Date: Mon, 21 Aug 2017 15:23:45 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: kernel panic on null pointer on page->mem_cgroup
+Message-ID: <20170821132345.GK25956@dhcp22.suse.cz>
+References: <20170808162122.GA14689@cmpxchg.org>
+ <20170808165601.GA7693@jaegeuk-macbookpro.roam.corp.google.com>
+ <20170808173704.GA22887@cmpxchg.org>
+ <CADvgSZSn1v-tTpa07ebqr19heQbkzbavdPM_nbRNR1WF-EBnFw@mail.gmail.com>
+ <20170808200849.GA1104@cmpxchg.org>
+ <20170809014459.GB7693@jaegeuk-macbookpro.roam.corp.google.com>
+ <CADvgSZSNn7N3R7+jjeCgns2ZEPtYc6c3MWmkkQ3PA+0LHO_MfA@mail.gmail.com>
+ <20170809183825.GA26387@cmpxchg.org>
+ <20170810115605.GQ23863@dhcp22.suse.cz>
+ <20170821130218.GA1371@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201708212157.DFB00801.tLMOFFSOOVQFJH@I-love.SAKURA.ne.jp>
+In-Reply-To: <20170821130218.GA1371@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, mjaggi@caviumnetworks.com, oleg@redhat.com, vdavydov.dev@gmail.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Brad Bolen <bradleybolen@gmail.com>, Jaegeuk Kim <jaegeuk@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon 21-08-17 21:57:44, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-[...]
-> > Sigh... Let me repeat for the last time (this whole thread is largely a
-> > waste of time to be honest). Find a _robust_ solution rather than
-> > fiddling with try-once-more kind of hacks. E.g. do an allocation attempt
-> > _before_ we do any disruptive action (aka kill a victim). This would
-> > help other cases when we race with an exiting tasks or somebody managed
-> > to free memory while we were selecting an oom victim which can take
-> > quite some time.
+On Mon 21-08-17 09:02:18, Johannes Weiner wrote:
+> On Thu, Aug 10, 2017 at 01:56:05PM +0200, Michal Hocko wrote:
+> > On Wed 09-08-17 14:38:25, Johannes Weiner wrote:
+> > > The issue is that writeback doesn't hold a page reference and the page
+> > > might get freed after PG_writeback is cleared (and the mapping is
+> > > unlocked) in test_clear_page_writeback(). The stat functions looking
+> > > up the page's node or zone are safe, as those attributes are static
+> > > across allocation and free cycles. But page->mem_cgroup is not, and it
+> > > will get cleared if we race with truncation or migration.
+> > 
+> > Is there anything that prevents us from holding a reference on a page
+> > under writeback?
 > 
-> I did not get your answer to my question:
+> Hm, I'm hesitant to add redundant life-time management to the page
+> there just for memcg, which is not always configured in.
 > 
->   You don't want to call get_page_from_freelist() from out_of_memory(), do you?
-> 
-> Since David Rientjes wrote "how sloppy this would be because it's blurring
-> the line between oom killer and page allocator." and you responded as
-> "Yes the layer violation is definitely not nice." at
-> http://lkml.kernel.org/r/20160129152307.GF32174@dhcp22.suse.cz ,
-> I assumed that you don't want to call get_page_from_freelist() from out_of_memory().
+> Pinning the memcg instead is slightly more complex, but IMO has the
+> complexity in a preferrable place.
 
-Yes that would be a layering violation and I do not like that very much.
-And that is why I keep repeating that this is something to handle only _if_
-the problem is real and happens with _sensible_ workloads so often that
-we really have to care. If this happens only under oom stress testing
-then I would be tempted to not care all that much.
+If that is the single place that needs such a special handling and it is
+very likely to stay that way then the additional complexity is probably
+justified. I am just worried that this is really subtle and history
+tells us that such a code usually kicks us back later.
+ 
+> Would you agree?
 
-Please try to understand that OOM killer will never be perfect and
-adding more kludges and hacks make it more fragile so each additional
-heuristic should be considered carefully.
+Well, I was not objecting to the patch. It seems correct I am just
+worried a robust fix would be preferable. And a clear object life time
+sounds like a more robust thing to do.
 -- 
 Michal Hocko
 SUSE Labs
