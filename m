@@ -1,65 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 911FF280310
-	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 09:08:56 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id r79so13423166wrb.0
-        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 06:08:56 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id y46si11386589edd.121.2017.08.21.06.08.54
+	by kanga.kvack.org (Postfix) with ESMTP id 1B596280310
+	for <linux-mm@kvack.org>; Mon, 21 Aug 2017 09:18:56 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z91so25042073wrc.4
+        for <linux-mm@kvack.org>; Mon, 21 Aug 2017 06:18:56 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m10si9637989wrb.254.2017.08.21.06.18.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 21 Aug 2017 06:08:55 -0700 (PDT)
-Date: Mon, 21 Aug 2017 09:08:48 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: memcg Can't context between v1 and v2 because css->refcnt not
- released
-Message-ID: <20170821130848.GB1371@cmpxchg.org>
-References: <CADK2BfzM9V=C3Kk6v714K3NVX58Q6pEaAMiHDGSyr6PakC2O=w@mail.gmail.com>
- <20170810071059.GC23863@dhcp22.suse.cz>
- <CADK2BfwC3WDGwoDPSjX1UpwP-4fDz5fSBjdENbxn5XQL8y3K3A@mail.gmail.com>
- <20170810081920.GG23863@dhcp22.suse.cz>
- <CADK2BfxJim8MvLPY497a+JAK2t9OTq+f1BY0o4qK0ihaWsoEMQ@mail.gmail.com>
- <CADK2BfzarAEQz=_Um23mywmdRvhNbe5OL_7k13XD3D5==nn0qg@mail.gmail.com>
- <CADK2Bfwxp3gSDrYXAxhgoYne2T=1_RyPXqQt_cGHz86dfWgsqg@mail.gmail.com>
- <20170810103405.GL23863@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 21 Aug 2017 06:18:54 -0700 (PDT)
+Date: Mon, 21 Aug 2017 15:18:52 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH v2] mm, oom: task_will_free_mem(current) should ignore
+ MMF_OOM_SKIP for once.
+Message-ID: <20170821131851.GJ25956@dhcp22.suse.cz>
+References: <1501718104-8099-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <201708191523.BJH90621.MHOOFFQSOLJFtV@I-love.SAKURA.ne.jp>
+ <20170821084307.GB25956@dhcp22.suse.cz>
+ <201708212041.GAJ05272.VOMOJOFSQLFtHF@I-love.SAKURA.ne.jp>
+ <20170821121022.GF25956@dhcp22.suse.cz>
+ <201708212157.DFB00801.tLMOFFSOOVQFJH@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170810103405.GL23863@dhcp22.suse.cz>
+In-Reply-To: <201708212157.DFB00801.tLMOFFSOOVQFJH@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: wang Yu <yuwang668899@gmail.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, mjaggi@caviumnetworks.com, oleg@redhat.com, vdavydov.dev@gmail.com
 
-On Thu, Aug 10, 2017 at 12:34:06PM +0200, Michal Hocko wrote:
-> [restoring the CC list]
+On Mon 21-08-17 21:57:44, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+[...]
+> > Sigh... Let me repeat for the last time (this whole thread is largely a
+> > waste of time to be honest). Find a _robust_ solution rather than
+> > fiddling with try-once-more kind of hacks. E.g. do an allocation attempt
+> > _before_ we do any disruptive action (aka kill a victim). This would
+> > help other cases when we race with an exiting tasks or somebody managed
+> > to free memory while we were selecting an oom victim which can take
+> > quite some time.
 > 
-> On Thu 10-08-17 17:57:38, wang Yu wrote:
-> > 2017-08-10 17:28 GMT+08:00 wang Yu <yuwang668899@gmail.com>:
-> [...]
-> > > after drop caches, memory.stat  shows not pages belong the group, but
-> > > memory.usage_in_bytes not zero, so maybe other pages
-> > > has wrong to belong this group
-> >
-> > after drop cache, there maybe have kmem pages ,e.g. slab
-> > it can't free both drop cache or tasks free,
-> > so back this problem, without mem_cgroup_reparent_charges,
-> > cgroup v1 can't umount , and cgroup v2 can't mount
+> I did not get your answer to my question:
 > 
-> Ohh, right. It is true that there is no explicit control over kmem page
-> life time. I am afraid this is something non-trivial to address though.
-> I am not sure swithing between cgroup versions is a strong enough use
-> case to implement something like that but you can definitely try to do
-> that.
+>   You don't want to call get_page_from_freelist() from out_of_memory(), do you?
+> 
+> Since David Rientjes wrote "how sloppy this would be because it's blurring
+> the line between oom killer and page allocator." and you responded as
+> "Yes the layer violation is definitely not nice." at
+> http://lkml.kernel.org/r/20160129152307.GF32174@dhcp22.suse.cz ,
+> I assumed that you don't want to call get_page_from_freelist() from out_of_memory().
 
-Pretty much.
+Yes that would be a layering violation and I do not like that very much.
+And that is why I keep repeating that this is something to handle only _if_
+the problem is real and happens with _sensible_ workloads so often that
+we really have to care. If this happens only under oom stress testing
+then I would be tempted to not care all that much.
 
-The idea was being able to switch after bootup to make interaction
-with the init system easier (automatic mounts etc.), not that you can
-switch back and forth between using v1 and v2 controllers.
-
-Once the controller has been used and accumulated state, switching
-controller versions is no longer supported.
+Please try to understand that OOM killer will never be perfect and
+adding more kludges and hacks make it more fragile so each additional
+heuristic should be considered carefully.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
