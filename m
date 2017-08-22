@@ -1,321 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C0FC2806D2
-	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 08:46:02 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id d12so258545497pgt.8
-        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 05:46:02 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id q6si8691249pgn.509.2017.08.22.05.46.00
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 850172806D2
+	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 09:04:14 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id z12so23620838lfd.8
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 06:04:14 -0700 (PDT)
+Received: from cloudserver094114.home.net.pl (cloudserver094114.home.net.pl. [79.96.170.134])
+        by mx.google.com with ESMTPS id f10si5991015lfa.369.2017.08.22.06.04.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Aug 2017 05:46:00 -0700 (PDT)
-From: =?UTF-8?q?=C5=81ukasz=20Daniluk?= <lukasz.daniluk@intel.com>
-Subject: [PATCH 3/3] mm: Add helper rbtree to search for next cache color
-Date: Tue, 22 Aug 2017 14:45:33 +0200
-Message-Id: <20170822124533.11692-4-lukasz.daniluk@intel.com>
-In-Reply-To: <20170822124533.11692-1-lukasz.daniluk@intel.com>
-References: <20170822124533.11692-1-lukasz.daniluk@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 22 Aug 2017 06:04:12 -0700 (PDT)
+From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Subject: Re: [PATCH][v2] PM / Hibernate: Feed the wathdog when creating snapshot
+Date: Tue, 22 Aug 2017 14:55:39 +0200
+Message-ID: <1595884.XH9dSsijkg@aspire.rjw.lan>
+In-Reply-To: <1503372002-13310-1-git-send-email-yu.c.chen@intel.com>
+References: <1503372002-13310-1-git-send-email-yu.c.chen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: dave.hansen@intel.com, lukasz.anaczkowski@intel.com, =?UTF-8?q?=C5=81ukasz=20Daniluk?= <lukasz.daniluk@intel.com>
+To: Chen Yu <yu.c.chen@intel.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Len Brown <lenb@kernel.org>, Dan Williams <dan.j.williams@intel.com>, linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Before this patch search for next available cache color was done
-linearly. This kind of search is problematic if the contents are sparse
-or there are no contents at all.
+On Tuesday, August 22, 2017 5:20:02 AM CEST Chen Yu wrote:
+> There is a problem that when counting the pages for creating
+> the hibernation snapshot will take significant amount of
+> time, especially on system with large memory. Since the counting
+> job is performed with irq disabled, this might lead to NMI lockup.
+> The following warning were found on a system with 1.5TB DRAM:
+> 
+> [ 1124.758184] Freezing user space processes ... (elapsed 0.002 seconds) done.
+> [ 1124.768721] OOM killer disabled.
+> [ 1124.847009] PM: Preallocating image memory...
+> [ 1139.392042] NMI watchdog: Watchdog detected hard LOCKUP on cpu 27
+> [ 1139.392076] CPU: 27 PID: 3128 Comm: systemd-sleep Not tainted 4.13.0-0.rc2.git0.1.fc27.x86_64 #1
+> [ 1139.392077] task: ffff9f01971ac000 task.stack: ffffb1a3f325c000
+> [ 1139.392083] RIP: 0010:memory_bm_find_bit+0xf4/0x100
+> [ 1139.392084] RSP: 0018:ffffb1a3f325fc20 EFLAGS: 00000006
+> [ 1139.392084] RAX: 0000000000000000 RBX: 0000000013b83000 RCX: ffff9fbe89caf000
+> [ 1139.392085] RDX: ffffb1a3f325fc30 RSI: 0000000000003200 RDI: ffff9fbeaffffe80
+> [ 1139.392085] RBP: ffffb1a3f325fc40 R08: 0000000013b80000 R09: ffff9fbe89c54878
+> [ 1139.392085] R10: ffffb1a3f325fc2c R11: 0000000013b83200 R12: 0000000000000400
+> [ 1139.392086] R13: fffffd552e0c0000 R14: ffff9fc1bffd31e0 R15: 0000000000000202
+> [ 1139.392086] FS:  00007f3189704180(0000) GS:ffff9fbec8ec0000(0000) knlGS:0000000000000000
+> [ 1139.392087] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [ 1139.392087] CR2: 00000085da0f7398 CR3: 000001771cf9a000 CR4: 00000000007406e0
+> [ 1139.392088] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> [ 1139.392088] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> [ 1139.392088] PKRU: 55555554
+> [ 1139.392089] Call Trace:
+> [ 1139.392092]  ? memory_bm_set_bit+0x29/0x60
+> [ 1139.392094]  swsusp_set_page_free+0x2b/0x30
+> [ 1139.392098]  mark_free_pages+0x147/0x1c0
+> [ 1139.392099]  count_data_pages+0x41/0xa0
+> [ 1139.392101]  hibernate_preallocate_memory+0x80/0x450
+> [ 1139.392102]  hibernation_snapshot+0x58/0x410
+> [ 1139.392103]  hibernate+0x17c/0x310
+> [ 1139.392104]  state_store+0xdf/0xf0
+> [ 1139.392107]  kobj_attr_store+0xf/0x20
+> [ 1139.392111]  sysfs_kf_write+0x37/0x40
+> [ 1139.392113]  kernfs_fop_write+0x11c/0x1a0
+> [ 1139.392117]  __vfs_write+0x37/0x170
+> [ 1139.392121]  ? handle_mm_fault+0xd8/0x230
+> [ 1139.392122]  vfs_write+0xb1/0x1a0
+> [ 1139.392123]  SyS_write+0x55/0xc0
+> [ 1139.392126]  entry_SYSCALL_64_fastpath+0x1a/0xa5
+> ...
+> [ 1144.690405] done (allocated 6590003 pages)
+> [ 1144.694971] PM: Allocated 26360012 kbytes in 19.89 seconds (1325.28 MB/s)
+> 
+> It has taken nearly 20 seconds(2.10GHz CPU) thus the NMI lockup
+> was triggered. In case the timeout of the NMI watch dog has been
+> set to 1 second, a safe interval should be 6590003/20 = 320k pages
+> in theory. However there might also be some platforms running at a
+> lower frequency, so feed the watchdog every 128k pages(per Andrew's
+> suggestion, this should avoid the modulus operation).
+> 
+> Reported-by: Jan Filipcewicz <jan.filipcewicz@intel.com>
+> Suggested-by: Michal Hocko <mhocko@suse.com>
+> Reviewed-by: Michal Hocko <mhocko@suse.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+> Cc: Len Brown <lenb@kernel.org>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: linux-pm@vger.kernel.org
+> Cc: linux-kernel@vger.kernel.org
+> Signed-off-by: Chen Yu <yu.c.chen@intel.com>
+> ---
+> v2: Use an interval of 128k instead of 100k to
+>     avoid the modulus operation.
+> --
+>  mm/page_alloc.c | 17 +++++++++++++++--
+>  1 file changed, 15 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 1bad301..3cf4201 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -66,6 +66,7 @@
+>  #include <linux/kthread.h>
+>  #include <linux/memcontrol.h>
+>  #include <linux/ftrace.h>
+> +#include <linux/nmi.h>
+>  
+>  #include <asm/sections.h>
+>  #include <asm/tlbflush.h>
+> @@ -2535,9 +2536,15 @@ void drain_all_pages(struct zone *zone)
+>  
+>  #ifdef CONFIG_HIBERNATION
+>  
+> +/*
+> + * Touch the watchdog for every WD_INTERVAL_PAGE pages,
+> + * choose a power of 2 to avoid the modulus operation.
+> + */
+> +#define WD_INTERVAL_PAGE	(128*1024)
 
-This patch aims to fix this problem by arranging the free_lists that
-take part in cache aware allocations in the RB tree structure.
+Sort of on a second thought I would define
 
-In order for the solution to work properly, space for free_lists and RB
-tree nodes has to be allocated. Required space is 5 pointers per color
-(struct rb_node, struct list_head).
+#define WD_PAGE_COUNT		(128*1024)
 
-Cost of the solution with RB tree helpers can be estimated as:
-5 * MIGRATE_TYPES * cache_colors(order), per zone per node, for each
-order that we wish to be affected. For example 16GB cache with only
-order 10 enabled requires 160KB per zone type, migratetype, node; whereas
-enabling this feature for order 9 will bump this number up to 480KB per
-zone type, migratetype.
+and then ->
 
-Signed-off-by: A?ukasz Daniluk <lukasz.daniluk@intel.com>
----
- include/linux/mmzone.h |   5 +-
- mm/page_alloc.c        | 155 ++++++++++++++++++++++++++++++++++++++++---------
- 2 files changed, 130 insertions(+), 30 deletions(-)
+> +
+>  void mark_free_pages(struct zone *zone)
+>  {
+> -	unsigned long pfn, max_zone_pfn;
+> +	unsigned long pfn, max_zone_pfn, page_num = 0;
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index d10a5421b18b..cda726854078 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -6,6 +6,7 @@
- 
- #include <linux/spinlock.h>
- #include <linux/list.h>
-+#include <linux/rbtree.h>
- #include <linux/wait.h>
- #include <linux/bitops.h>
- #include <linux/cache.h>
-@@ -93,9 +94,11 @@ extern int page_group_by_mobility_disabled;
- 	get_pfnblock_flags_mask(page, page_to_pfn(page),		\
- 			PB_migrate_end, MIGRATETYPE_MASK)
- 
-+struct cache_color;
- struct free_area {
- 	struct list_head	free_list[MIGRATE_TYPES];
--	struct list_head	*colored_free_list[MIGRATE_TYPES];
-+	struct rb_root		cache_colored_free_lists[MIGRATE_TYPES];
-+	struct cache_color	*cache_colors[MIGRATE_TYPES];
- 	unsigned long		next_color[MIGRATE_TYPES];
- 	unsigned long		nr_free;
- };
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 3718b49032c2..da1431c4703c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -290,6 +290,10 @@ int page_group_by_mobility_disabled __read_mostly;
- 
- int cache_color_min_order __read_mostly = MAX_ORDER - 1;
- 
-+struct cache_color {
-+	struct list_head	free_list;
-+	struct rb_node		rb_tree_node;
-+};
- 
- /*
-  * cache_size - size of cache (in bytes)
-@@ -323,18 +327,102 @@ static inline unsigned long page_cache_color(struct page *page, int order)
- 		/ (PAGE_SIZE * ORDER_NR_PAGES(order));
- }
- 
-+static inline unsigned long get_cache_color(struct cache_color *cc,
-+				struct free_area *area, int migratetype)
-+{
-+	return cc - area->cache_colors[migratetype];
-+}
-+
-+/*
-+ * Returns pointer to cache_color structure that has first available color
-+ * after color passed as argument, or NULL, if no such structure was found.
-+ */
-+static inline struct cache_color *cache_color_area_find_next(
-+					struct free_area *area,
-+					int migratetype, unsigned long color)
-+{
-+	struct rb_root *root = &area->cache_colored_free_lists[migratetype];
-+	struct rb_node *node = root->rb_node;
-+	struct cache_color *ret = NULL;
-+
-+	while (node) {
-+		struct cache_color *cc =
-+			rb_entry(node, struct cache_color, rb_tree_node);
-+		unsigned long cc_color =
-+			get_cache_color(cc, area, migratetype);
-+
-+		if (cc_color < color) {
-+			node = node->rb_right;
-+		} else if (cc_color > color) {
-+			ret = cc;
-+			node = node->rb_left;
-+		} else {
-+			return cc;
-+		}
-+	}
-+
-+	return ret;
-+}
-+
-+/*
-+ * Inserts cache_color structure into RB tree associated with migratetype in
-+ * area, in case the color was absent from the tree.
-+ */
-+static inline void cache_color_area_insert(struct free_area *area,
-+					int migratetype, struct cache_color *cc)
-+{
-+	struct rb_root *root = &area->cache_colored_free_lists[migratetype];
-+	struct rb_node **new = &(root->rb_node), *parent = NULL;
-+	unsigned long cc_color = get_cache_color(cc, area, migratetype);
-+
-+	while (*new) {
-+		struct cache_color *this =
-+			rb_entry(*new, struct cache_color, rb_tree_node);
-+		unsigned long this_color =
-+			get_cache_color(this, area, migratetype);
-+
-+		parent = *new;
-+		if (this_color < cc_color)
-+			new = &((*new)->rb_right);
-+		else if (this_color > cc_color)
-+			new = &((*new)->rb_left);
-+		else
-+			return;
-+	}
-+
-+	rb_link_node(&cc->rb_tree_node, parent, new);
-+	rb_insert_color(&cc->rb_tree_node, root);
-+}
-+
- /*
-  * Returns color of first non-empty free_list for purpose of cache color
-  * allocations in specified range (start until end-1).
-  */
--static inline unsigned long cache_color_find_nonempty(struct free_area *area,
--			int migratetype, unsigned long start, unsigned long end)
--{
--	unsigned long color;
--
--	for (color = start; color < end; ++color)
--		if (!list_empty(&area->colored_free_list[migratetype][color]))
--			break;
-+static inline unsigned long cache_color_find_nonempty(
-+		struct free_area *area, int migratetype,
-+		unsigned long start, unsigned long end, bool delete_empty)
-+{
-+	unsigned long color = start;
-+	struct cache_color *cc;
-+
-+	while (color < end) {
-+		struct rb_root *root =
-+			&area->cache_colored_free_lists[migratetype];
-+		unsigned long cc_color;
-+
-+		cc = cache_color_area_find_next(area, migratetype, color);
-+		if (!cc)
-+			return end;
-+
-+		cc_color = get_cache_color(cc, area, migratetype);
-+		if (list_empty(&cc->free_list)) {
-+			if (delete_empty)
-+				rb_erase(&cc->rb_tree_node, root);
-+			color = cc_color + 1;
-+		} else {
-+			return cc_color;
-+		}
-+	}
- 
- 	return color;
- }
-@@ -353,17 +441,23 @@ static inline struct list_head *cache_color_area_get_free_list(
- 	unsigned long current_color = area->next_color[migratetype];
- 
- 	if (page) {
-+		struct cache_color *cc;
-+
- 		color = page_cache_color(page, order);
--		return &area->colored_free_list[migratetype][color];
-+		cc = &area->cache_colors[migratetype][color];
-+
-+		if (list_empty(&cc->free_list))
-+			cache_color_area_insert(area, migratetype, cc);
-+
-+		return &cc->free_list;
- 	}
- 
- 	color = cache_color_find_nonempty(area, migratetype, current_color,
--					cache_colors(order));
--
-+					cache_colors(order), true);
- 
- 	if (color == cache_colors(order))
- 		color = cache_color_find_nonempty(area, migratetype, 0,
--						current_color);
-+						current_color, true);
- 
- 	current_color = color + 1;
- 	if (current_color >= cache_colors(order))
-@@ -371,14 +465,14 @@ static inline struct list_head *cache_color_area_get_free_list(
- 
- 	area->next_color[migratetype] = current_color;
- 
--	return &area->colored_free_list[migratetype][color];
-+	return &area->cache_colors[migratetype][color].free_list;
- }
- 
- static inline bool cache_color_area_empty(struct free_area *area, int order,
- 					int migratetype)
- {
- 	return cache_color_find_nonempty(area, migratetype, 0,
--				cache_colors(order)) == cache_colors(order);
-+			cache_colors(order), false) == cache_colors(order);
- }
- 
- 
-@@ -386,12 +480,17 @@ static inline unsigned long cache_color_area_free_count(struct free_area *area,
- 						int order, int migratetype)
- {
- 	unsigned long count = 0;
--	unsigned long color;
- 	struct list_head *lh;
-+	struct rb_node *node;
- 
--	for (color = 0; color < cache_colors(order); ++color)
--		list_for_each(lh, &area->colored_free_list[migratetype][color])
-+	for (node = rb_first(&area->cache_colored_free_lists[migratetype]);
-+			node; node = rb_next(node)) {
-+		struct cache_color *cc =
-+			rb_entry(node, struct cache_color, rb_tree_node);
-+
-+		list_for_each(lh, &cc->free_list)
- 			++count;
-+	}
- 
- 	return count;
- }
-@@ -435,7 +534,7 @@ unsigned long area_free_count(struct free_area *area, int order,
-  */
- static __ref void *cache_color_alloc_lists(struct zone *zone, int order)
- {
--	const size_t size = sizeof(struct list_head) * cache_colors(order);
-+	const size_t size = sizeof(struct cache_color) * cache_colors(order);
- 
- 	return alloc_bootmem_pages_node(zone->zone_pgdat, size);
- }
-@@ -2776,12 +2875,11 @@ void mark_free_pages(struct zone *zone)
- 
- 		if (cache_color_used(order)) {
- 			unsigned long color;
--			struct list_head *colored_lists =
--					area->colored_free_list[t];
-+			struct cache_color *ccs = area->cache_colors[t];
- 
- 			for (color = 0; color < cache_colors(order); ++color)
- 				list_for_each_entry(page,
--						&colored_lists[color], lru)
-+						&ccs[color].free_list, lru)
- 					mark_free_page(page, order);
- 		} else {
- 			list_for_each_entry(page, &area->free_list[t], lru)
-@@ -5680,18 +5778,17 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- static void __meminit zone_init_cache_color(struct zone *zone, int order,
- 						int migratetype)
- {
--	unsigned long c;
-+	unsigned long color;
- 	struct free_area *area = &zone->free_area[order];
--
--	if (!cache_color_used(order))
--		return;
-+	struct cache_color **ccs = &area->cache_colors[migratetype];
- 
- 	area->next_color[migratetype] = 0;
--	area->colored_free_list[migratetype] =
--		cache_color_alloc_lists(zone, order);
-+	area->cache_colored_free_lists[migratetype] = RB_ROOT;
- 
--	for (c = 0; c < cache_colors(order); ++c)
--		INIT_LIST_HEAD(&area->colored_free_list[migratetype][c]);
-+	*ccs = cache_color_alloc_lists(zone, order);
-+
-+	for (color = 0; color < cache_colors(order); ++color)
-+		INIT_LIST_HEAD(&(*ccs)[color].free_list);
- }
- 
- static void __meminit zone_init_free_lists(struct zone *zone)
--- 
-2.13.3
++	unsigned long pfn, max_zone_pfn, page_count = WD_PAGE_COUNT;
+
+>  	unsigned long flags;
+>  	unsigned int order, t;
+>  	struct page *page;
+> @@ -2552,6 +2559,9 @@ void mark_free_pages(struct zone *zone)
+>  		if (pfn_valid(pfn)) {
+>  			page = pfn_to_page(pfn);
+>  
+> +			if (!((page_num++) % WD_INTERVAL_PAGE))
+> +				touch_nmi_watchdog();
+> +
+
+->
+
+	if (!--page_count) {
+		touch_nmi_watchdog();
+		page_count = WD_PAGE_COUNT;
+	}
+
+>  			if (page_zone(page) != zone)
+>  				continue;
+>  
+> @@ -2565,8 +2575,11 @@ void mark_free_pages(struct zone *zone)
+>  			unsigned long i;
+>  
+>  			pfn = page_to_pfn(page);
+> -			for (i = 0; i < (1UL << order); i++)
+> +			for (i = 0; i < (1UL << order); i++) {
+> +				if (!((page_num++) % WD_INTERVAL_PAGE))
+> +					touch_nmi_watchdog();
+
+And analogously here.
+
+>  				swsusp_set_page_free(pfn_to_page(pfn + i));
+> +			}
+>  		}
+>  	}
+>  	spin_unlock_irqrestore(&zone->lock, flags);
+> 
+
+And you may want to touch the watchdog at the end too in case
+page_count is small then.
+
+Thanks,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
