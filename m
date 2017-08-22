@@ -1,49 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1132528070C
-	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 16:59:02 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id a79so8986455oii.7
-        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 13:59:02 -0700 (PDT)
-Received: from mail-oi0-x22d.google.com (mail-oi0-x22d.google.com. [2607:f8b0:4003:c06::22d])
-        by mx.google.com with ESMTPS id m203si2602914oib.216.2017.08.22.13.59.01
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E16F280730
+	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 17:08:57 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id 1so2425962ioy.9
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 14:08:57 -0700 (PDT)
+Received: from resqmta-po-03v.sys.comcast.net (resqmta-po-03v.sys.comcast.net. [2001:558:fe16:19:96:114:154:162])
+        by mx.google.com with ESMTPS id z78si9322970ioi.40.2017.08.22.14.08.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Aug 2017 13:59:01 -0700 (PDT)
-Received: by mail-oi0-x22d.google.com with SMTP id r200so62388362oie.2
-        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 13:59:01 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20170822205316.GS32112@worktop.programming.kicks-ass.net>
-References: <37D7C6CF3E00A74B8858931C1DB2F07753787AE4@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFxZjjqUM4kPvNEeZahPovBHFATiwADj-iPTDN0-jnU67Q@mail.gmail.com>
- <20170818185455.qol3st2nynfa47yc@techsingularity.net> <CA+55aFwX0yrUPULrDxTWVCg5c6DKh-yCG84NXVxaptXNQ4O_kA@mail.gmail.com>
- <20170821183234.kzennaaw2zt2rbwz@techsingularity.net> <37D7C6CF3E00A74B8858931C1DB2F07753788B58@SHSMSX103.ccr.corp.intel.com>
- <37D7C6CF3E00A74B8858931C1DB2F0775378A24A@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFy=4y0fq9nL2WR1x8vwzJrDOdv++r036LXpR=6Jx8jpzg@mail.gmail.com>
- <37D7C6CF3E00A74B8858931C1DB2F0775378A377@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFwavpFfKNW9NVgNhLggqhii-guc5aX1X5fxrPK+==id0g@mail.gmail.com> <20170822205316.GS32112@worktop.programming.kicks-ass.net>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 22 Aug 2017 13:58:59 -0700
-Message-ID: <CA+55aFxJ4x3przA6acW5qGZ-+MWSYTw0h6UjWH-D1xHcb9gnZw@mail.gmail.com>
+        Tue, 22 Aug 2017 14:08:56 -0700 (PDT)
+Date: Tue, 22 Aug 2017 16:08:52 -0500 (CDT)
+From: Christopher Lameter <cl@linux.com>
 Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20170822193714.GZ28715@tassilo.jf.intel.com>
+Message-ID: <alpine.DEB.2.20.1708221605220.18344@nuc-kabylake>
+References: <37D7C6CF3E00A74B8858931C1DB2F07753787AE4@SHSMSX103.ccr.corp.intel.com> <CA+55aFxZjjqUM4kPvNEeZahPovBHFATiwADj-iPTDN0-jnU67Q@mail.gmail.com> <20170818185455.qol3st2nynfa47yc@techsingularity.net> <CA+55aFwX0yrUPULrDxTWVCg5c6DKh-yCG84NXVxaptXNQ4O_kA@mail.gmail.com>
+ <20170821183234.kzennaaw2zt2rbwz@techsingularity.net> <37D7C6CF3E00A74B8858931C1DB2F07753788B58@SHSMSX103.ccr.corp.intel.com> <37D7C6CF3E00A74B8858931C1DB2F0775378A24A@SHSMSX103.ccr.corp.intel.com> <CA+55aFy=4y0fq9nL2WR1x8vwzJrDOdv++r036LXpR=6Jx8jpzg@mail.gmail.com>
+ <20170822190828.GO32112@worktop.programming.kicks-ass.net> <CA+55aFzPt401xpRzd6Qu-WuDNGneR_m7z25O=0YspNi+cLRb8w@mail.gmail.com> <20170822193714.GZ28715@tassilo.jf.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: "Liang, Kan" <kan.liang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andi Kleen <ak@linux.intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, "Liang, Kan" <kan.liang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Tue, Aug 22, 2017 at 1:53 PM, Peter Zijlstra <peterz@infradead.org> wrote:
+On Tue, 22 Aug 2017, Andi Kleen wrote:
+
+> We only see it on 4S+ today. But systems are always getting larger,
+> so what's a large system today, will be a normal medium scale system
+> tomorrow.
 >
-> So _the_ problem with yield() is when you hit this with a RT task it
-> will busy spin and possibly not allow the task that actually has the
-> lock to make progress at all.
+> BTW we also collected PT traces for the long hang cases, but it was
+> hard to find a consistent pattern in them.
 
-I thought we had explicitly defined yield() to not do that.
+Hmmm... Maybe it would be wise to limit the pages autonuma can migrate?
 
-But I guess we could make this yielding behavior depend on a few more
-heuristics. So do the yield only when there is contention, and when
-it's a non-RT task.
-
-          Linus
+If a page has more than 50 refcounts or so then dont migrate it. I think
+high number of refcounts and a high frequewncy of calls are reached in
+particular for pages of the c library. Attempting to migrate those does
+not make much sense anyways because the load may shift and another
+function may become popular. We may end up shifting very difficult to
+migrate pages back and forth.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
