@@ -1,108 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 872B82806E4
-	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 11:35:25 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id o82so74457661pfj.11
-        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 08:35:25 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0137.outbound.protection.outlook.com. [104.47.2.137])
-        by mx.google.com with ESMTPS id u59si9896450plb.848.2017.08.22.08.35.23
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 22 Aug 2017 08:35:24 -0700 (PDT)
-Subject: Re: [PATCH 2/2][RESEND] mm: make kswapd try harder to keep active
- pages in cache
-References: <1503066528-1833-1-git-send-email-jbacik@fb.com>
- <1503066528-1833-2-git-send-email-jbacik@fb.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <ac46d1df-7a5c-1a36-cf5e-cede3069f4cd@virtuozzo.com>
-Date: Tue, 22 Aug 2017 18:38:01 +0300
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C95762806E4
+	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 12:18:10 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id r133so324983625pgr.6
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 09:18:10 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id o33si9879311plb.1041.2017.08.22.09.18.08
+        for <linux-mm@kvack.org>;
+        Tue, 22 Aug 2017 09:18:09 -0700 (PDT)
+From: Punit Agrawal <punit.agrawal@arm.com>
+Subject: Re: [PATCH v7 5/9] arm64: hugetlb: Handle swap entries in huge_pte_offset() for contiguous hugepages
+References: <20170822104249.2189-1-punit.agrawal@arm.com>
+	<20170822104249.2189-6-punit.agrawal@arm.com>
+	<a54aff75-f79b-b40d-c66f-6730aaccbd39@arm.com>
+	<87wp5vmzpn.fsf@e105922-lin.cambridge.arm.com>
+	<b6a305a2-6653-b20c-66ae-bac7d0b70242@arm.com>
+Date: Tue, 22 Aug 2017 17:18:04 +0100
+In-Reply-To: <b6a305a2-6653-b20c-66ae-bac7d0b70242@arm.com> (Julien Thierry's
+	message of "Tue, 22 Aug 2017 16:01:56 +0100")
+Message-ID: <87inhfmv9f.fsf@e105922-lin.cambridge.arm.com>
 MIME-Version: 1.0
-In-Reply-To: <1503066528-1833-2-git-send-email-jbacik@fb.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: josef@toxicpanda.com
-Cc: minchan@kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, kernel-team@fb.com, Josef Bacik <jbacik@fb.com>
+To: Julien Thierry <julien.thierry@arm.com>
+Cc: will.deacon@arm.com, catalin.marinas@arm.com, mark.rutland@arm.com, David Woods <dwoods@mellanox.com>, steve.capper@arm.com, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
 
-On 08/18/2017 05:28 PM, josef@toxicpanda.com wrote:
+Julien Thierry <julien.thierry@arm.com> writes:
 
-> @@ -3552,6 +3672,7 @@ static int kswapd(void *p)
->  	pgdat->kswapd_order = 0;
->  	pgdat->kswapd_classzone_idx = MAX_NR_ZONES;
->  	for ( ; ; ) {
-> +		unsigned long slab_diff, inactive_diff;
->  		bool ret;
->  
->  		alloc_order = reclaim_order = pgdat->kswapd_order;
-> @@ -3579,6 +3700,23 @@ static int kswapd(void *p)
->  			continue;
->  
->  		/*
-> +		 * We want to know where we're adding pages so we can make
-> +		 * smarter decisions about where we're going to put pressure
-> +		 * when shrinking.
-> +		 */
-> +		slab_diff = sum_zone_node_page_state(pgdat->node_id,
-> +						     NR_SLAB_RECLAIMABLE);
+> On 22/08/17 15:41, Punit Agrawal wrote:
+>> Julien Thierry <julien.thierry@arm.com> writes:
+>>
+>>> Hi Punit,
+>>>
+>>> On 22/08/17 11:42, Punit Agrawal wrote:
+>>>> huge_pte_offset() was updated to correctly handle swap entries for
+>>>> hugepages. With the addition of the size parameter, it is now possible
+>>>> to disambiguate whether the request is for a regular hugepage or a
+>>>> contiguous hugepage.
+>>>>
+>>>> Fix huge_pte_offset() for contiguous hugepages by using the size to find
+>>>> the correct page table entry.
+>>>>
+>>>> Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
+>>>> Cc: David Woods <dwoods@mellanox.com>
+>>>> ---
+>>>>    arch/arm64/mm/hugetlbpage.c | 21 ++++++++++++++++-----
+>>>>    1 file changed, 16 insertions(+), 5 deletions(-)
+>>>>
+>>>> diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
+>>>> index 594232598cac..b95e24dc3477 100644
+>>>> --- a/arch/arm64/mm/hugetlbpage.c
+>>>> +++ b/arch/arm64/mm/hugetlbpage.c
+>>>> @@ -214,6 +214,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
+>>>>    	pgd_t *pgd;
+>>>>    	pud_t *pud;
+>>>>    	pmd_t *pmd;
+>>>> +	pte_t *pte;
+>>>>      	pgd = pgd_offset(mm, addr);
+>>>>    	pr_debug("%s: addr:0x%lx pgd:%p\n", __func__, addr, pgd);
+>>>> @@ -221,19 +222,29 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
+>>>>    		return NULL;
+>>>>      	pud = pud_offset(pgd, addr);
+>>>> -	if (pud_none(*pud))
+>>>> +	if (sz != PUD_SIZE && pud_none(*pud))
+>>>>    		return NULL;
+>>>> -	/* swap or huge page */
+>>>> -	if (!pud_present(*pud) || pud_huge(*pud))
+>>>> +	/* hugepage or swap? */
+>>>> +	if (pud_huge(*pud) || !pud_present(*pud))
+>>>>    		return (pte_t *)pud;
+>>>>    	/* table; check the next level */
+>>>>    +	if (sz == CONT_PMD_SIZE)
+>>>> +		addr &= CONT_PMD_MASK;
+>>>> +
+>>>>    	pmd = pmd_offset(pud, addr);
+>>>> -	if (pmd_none(*pmd))
+>>>> +	if (!(sz == PMD_SIZE || sz == CONT_PMD_SIZE) &&
+>>>> +	    pmd_none(*pmd))
+>>>>    		return NULL;
+>>>> -	if (!pmd_present(*pmd) || pmd_huge(*pmd))
+>>>> +	if (pmd_huge(*pmd) || !pmd_present(*pmd))
+>>>>    		return (pte_t *)pmd;
+>>>>    +	if (sz == CONT_PTE_SIZE) {
+>>>> +		pte = pte_offset_kernel(
+>>>> +			pmd, (addr & CONT_PTE_MASK));
+>>>> +		return pte;
+>>>
+>>> Nit: Looks like this is the only place the new variable pte is
+>>> used. Since we don't need to test its value, why not just write:
+>>> 	return pte_offset_kernel(pmd, (addr & CONT_PTE_MASK));
+>>>
+>>> and get rid of the pte variable?
+>>
+>> There is no benefit to getting rid of "pte" other than conciseness of
+>> the patch. Having an explicit identifier helps highlight the level of
+>> the page tables we are accessing.
+>>
+>> And we always want to prioritise readability vs conciseness of the
+>> patch, no?
+>>
+>
+> I agree, but I feel here it is more redundancy than increase of
+> readability, because we know pte_offset_kernel returns the address of
+> a pte, no? (otherwise I feel a comment would fit better than a
+> variable).
+>
+> Also, we end up with a variable declared in one scope where it is not
+> used, and it is referenced in a single inner scope, which seems a bit
+> odd to me. Might make the reader pointlessly wonder where else it is
+> used.
 
-This should be node_page_state().
+I would've thought looking at the function makes the variable usage
+quite clear. But I think at this stage we are disagreeing over personal
+preferences rather than any real issues (imho) with the code.
 
-sum_zone_node_page_state() counts sum of zone_stat_item counter across node, but
-NR_SLAB_RECLAIMABLE is node_stat_item counter. So in fact you'll get NR_ZONE_UNEVICTABLE here,
-(since value of NR_ZONE_UNEVICTABLE equals to NR_SLAB_RECLAIMABLE).
+If you feel strongly about this, I can update the code if there is a
+need for another version. But I am reluctant to send a new version just
+for this change.
 
-
-> +		inactive_diff = node_page_state(pgdat, NR_INACTIVE_FILE);
-> +		if (nr_slab > slab_diff)
-> +			slab_diff = 0;
-> +		else
-> +			slab_diff -= nr_slab;
-> +		if (inactive_diff < nr_inactive)
-> +			inactive_diff = 0;
-> +		else
-> +			inactive_diff -= nr_inactive;
-> +
-> +		/*
->  		 * Reclaim begins at the requested order but if a high-order
->  		 * reclaim fails then kswapd falls back to reclaiming for
->  		 * order-0. If that happens, kswapd will consider sleeping
-> @@ -3588,7 +3726,11 @@ static int kswapd(void *p)
->  		 */
->  		trace_mm_vmscan_kswapd_wake(pgdat->node_id, classzone_idx,
->  						alloc_order);
-> -		reclaim_order = balance_pgdat(pgdat, alloc_order, classzone_idx);
-> +		reclaim_order = balance_pgdat(pgdat, alloc_order, classzone_idx,
-> +					      inactive_diff, slab_diff);
-> +		nr_inactive = node_page_state(pgdat, NR_INACTIVE_FILE);
-> +		nr_slab = sum_zone_node_page_state(pgdat->node_id,
-> +						   NR_SLAB_RECLAIMABLE);
-
-ditto.
-
->  		if (reclaim_order < alloc_order)
->  			goto kswapd_try_sleep;
->  	}
-> @@ -3840,6 +3982,8 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
->  		.may_unmap = !!(node_reclaim_mode & RECLAIM_UNMAP),
->  		.may_swap = 1,
->  		.reclaim_idx = gfp_zone(gfp_mask),
-> +		.slab_diff = 1,
-> +		.inactive_diff = 1,
-
-The only place where __node_reclaim() may use these fields is in the shrink_node():
-
-		if (nr_inactive > total_high_wmark &&
-		    sc->inactive_diff > sc->slab_diff) {
-
-Obviously 1 vs 0 doesn't make any difference here. This makes we wonder, why are these fields initialized to 1?
-
-
->  	};
->  
->  	cond_resched();
-> 
+Thanks,
+Punit
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
