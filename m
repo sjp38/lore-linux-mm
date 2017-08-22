@@ -1,76 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B728028070C
-	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 16:57:18 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id b8so96706134pgn.10
-        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 13:57:18 -0700 (PDT)
-Received: from mail-pg0-x229.google.com (mail-pg0-x229.google.com. [2607:f8b0:400e:c05::229])
-        by mx.google.com with ESMTPS id o1si10237979pld.315.2017.08.22.13.57.16
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1132528070C
+	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 16:59:02 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id a79so8986455oii.7
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 13:59:02 -0700 (PDT)
+Received: from mail-oi0-x22d.google.com (mail-oi0-x22d.google.com. [2607:f8b0:4003:c06::22d])
+        by mx.google.com with ESMTPS id m203si2602914oib.216.2017.08.22.13.59.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Aug 2017 13:57:16 -0700 (PDT)
-Received: by mail-pg0-x229.google.com with SMTP id m133so37280075pga.5
-        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 13:57:16 -0700 (PDT)
-Date: Tue, 22 Aug 2017 13:57:14 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH 0/6] proactive kcompactd
-In-Reply-To: <20170821141014.GC1371@cmpxchg.org>
-Message-ID: <alpine.DEB.2.10.1708221351510.45189@chino.kir.corp.google.com>
-References: <20170727160701.9245-1-vbabka@suse.cz> <alpine.DEB.2.10.1708091353500.1218@chino.kir.corp.google.com> <20170821141014.GC1371@cmpxchg.org>
+        Tue, 22 Aug 2017 13:59:01 -0700 (PDT)
+Received: by mail-oi0-x22d.google.com with SMTP id r200so62388362oie.2
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 13:59:01 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20170822205316.GS32112@worktop.programming.kicks-ass.net>
+References: <37D7C6CF3E00A74B8858931C1DB2F07753787AE4@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFxZjjqUM4kPvNEeZahPovBHFATiwADj-iPTDN0-jnU67Q@mail.gmail.com>
+ <20170818185455.qol3st2nynfa47yc@techsingularity.net> <CA+55aFwX0yrUPULrDxTWVCg5c6DKh-yCG84NXVxaptXNQ4O_kA@mail.gmail.com>
+ <20170821183234.kzennaaw2zt2rbwz@techsingularity.net> <37D7C6CF3E00A74B8858931C1DB2F07753788B58@SHSMSX103.ccr.corp.intel.com>
+ <37D7C6CF3E00A74B8858931C1DB2F0775378A24A@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFy=4y0fq9nL2WR1x8vwzJrDOdv++r036LXpR=6Jx8jpzg@mail.gmail.com>
+ <37D7C6CF3E00A74B8858931C1DB2F0775378A377@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFwavpFfKNW9NVgNhLggqhii-guc5aX1X5fxrPK+==id0g@mail.gmail.com> <20170822205316.GS32112@worktop.programming.kicks-ass.net>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 22 Aug 2017 13:58:59 -0700
+Message-ID: <CA+55aFxJ4x3przA6acW5qGZ-+MWSYTw0h6UjWH-D1xHcb9gnZw@mail.gmail.com>
+Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: "Liang, Kan" <kan.liang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Mon, 21 Aug 2017, Johannes Weiner wrote:
+On Tue, Aug 22, 2017 at 1:53 PM, Peter Zijlstra <peterz@infradead.org> wrote:
+>
+> So _the_ problem with yield() is when you hit this with a RT task it
+> will busy spin and possibly not allow the task that actually has the
+> lock to make progress at all.
 
-> > I think I would have liked to have seen "less proactive" :)
-> > 
-> > Kcompactd currently has the problem that it is MIGRATE_SYNC_LIGHT so it 
-> > continues until it can defragment memory.  On a host with 128GB of memory 
-> > and 100GB of it sitting in a hugetlb pool, we constantly get kcompactd 
-> > wakeups for order-2 memory allocation.  The stats are pretty bad:
-> > 
-> > compact_migrate_scanned 2931254031294 
-> > compact_free_scanned    102707804816705 
-> > compact_isolated        1309145254 
-> > 
-> > 0.0012% of memory scanned is ever actually isolated.  We constantly see 
-> > very high cpu for compaction_alloc() because kcompactd is almost always 
-> > running in the background and iterating most memory completely needlessly 
-> > (define needless as 0.0012% of memory scanned being isolated).
-> 
-> The free page scanner will inevitably wade through mostly used memory,
-> but 0.0012% is lower than what systems usually have free. I'm guessing
-> this is because of concurrent allocation & free cycles racing with the
-> scanner? There could also be an issue with how we do partial scans.
-> 
+I thought we had explicitly defined yield() to not do that.
 
-More than 90% of this system's memory is in the hugetlbfs pool so the 
-freeing scanner needlessly scans over it.  Because kcompactd does 
-MIGRATE_SYNC_LIGHT compaction, it doesn't stop iterating until the 
-allocation is successful at pgdat->kcompactd_max_order or the migration 
-and freeing scanners meet.  This is normally all memory.
+But I guess we could make this yielding behavior depend on a few more
+heuristics. So do the yield only when there is contention, and when
+it's a non-RT task.
 
-Because of MIGRATE_SYNC_LIGHT, kcompactd does respect deferred compaction 
-and will avoid doing compaction at all for the next 
-1 << COMPACT_MAX_DEFER_SHIFT wakeups, but while the rest of userspace not 
-mapping hugetlbfs memory tries to fault thp, this happens almost nonstop 
-at 100% of cpu.
-
-Although this might not be a typical configuration, it can easily be used 
-to demonstrate how inefficient kcompactd behaves under load when a small 
-amount of memory is free or cannot be isolated because its pinned.  
-vm.extfrag_threshold isn't an adequate solution.
-
-> Anyway, we've also noticed scalability issues with the current scanner
-> on 128G and 256G machines. Even with a better efficiency - finding the
-> 1% of free memory, that's still a ton of linear search space.
-> 
-
-Agreed.
+          Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
