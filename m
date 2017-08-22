@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C22128070C
-	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 14:56:43 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id c196so142621itc.2
-        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 11:56:43 -0700 (PDT)
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 71A3E28070C
+	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 15:08:38 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id g33so564078ioj.2
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 12:08:38 -0700 (PDT)
 Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id e137si15554886ioe.229.2017.08.22.11.56.41
+        by mx.google.com with ESMTPS id o73si15415733iod.170.2017.08.22.12.08.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Aug 2017 11:56:42 -0700 (PDT)
-Date: Tue, 22 Aug 2017 20:56:24 +0200
+        Tue, 22 Aug 2017 12:08:37 -0700 (PDT)
+Date: Tue, 22 Aug 2017 21:08:28 +0200
 From: Peter Zijlstra <peterz@infradead.org>
 Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
-Message-ID: <20170822185624.GN32112@worktop.programming.kicks-ass.net>
+Message-ID: <20170822190828.GO32112@worktop.programming.kicks-ass.net>
 References: <37D7C6CF3E00A74B8858931C1DB2F077537879BB@SHSMSX103.ccr.corp.intel.com>
  <20170818144622.oabozle26hasg5yo@techsingularity.net>
  <37D7C6CF3E00A74B8858931C1DB2F07753787AE4@SHSMSX103.ccr.corp.intel.com>
@@ -33,30 +33,19 @@ To: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: "Liang, Kan" <kan.liang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
 On Tue, Aug 22, 2017 at 11:19:12AM -0700, Linus Torvalds wrote:
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index a49702445ce0..75c29a1f90fb 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -991,13 +991,11 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
->  			}
->  		}
->  
-> -		if (lock) {
-> -			if (!test_and_set_bit_lock(bit_nr, &page->flags))
-> -				break;
-> -		} else {
-> -			if (!test_bit(bit_nr, &page->flags))
-> -				break;
-> -		}
-> +		if (!lock)
-> +			break;
-> +
-> +		if (!test_and_set_bit_lock(bit_nr, &page->flags))
-> +			break;
->  	}
+> And since everybody touches it, as a result everybody eventually
+> thinks that page should be migrated to their NUMA node.
 
-Won't we now prematurely terminate the wait when we get a spurious
-wakeup?
+So that migration stuff has a filter on, we need two consecutive numa
+faults from the same page_cpupid 'hash', see
+should_numa_migrate_memory().
+
+And since this appears to be anonymous memory (no THP) this is all a
+single address space. However, we don't appear to invalidate TLBs when
+we upgrade the PTE protection bits (not strictly required of course), so
+we can have multiple CPUs trip over the same 'old' NUMA PTE.
+
+Still, generating such a migration storm would be fairly tricky I think.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
