@@ -1,234 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 88B362806F4
-	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 13:23:53 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id b8so92382502pgn.10
-        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 10:23:53 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id g1si10022408pld.694.2017.08.22.10.23.51
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CAB72806E3
+	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 13:50:38 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id p67so16488495wrb.10
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 10:50:38 -0700 (PDT)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id c30si2546645edc.316.2017.08.22.10.50.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Aug 2017 10:23:51 -0700 (PDT)
-From: "Liang, Kan" <kan.liang@intel.com>
-Subject: RE: [PATCH 1/2] sched/wait: Break up long wake list walk
-Date: Tue, 22 Aug 2017 17:23:47 +0000
-Message-ID: <37D7C6CF3E00A74B8858931C1DB2F0775378A24A@SHSMSX103.ccr.corp.intel.com>
-References: <CA+55aFwzTMrZwh7TE_VeZt8gx5Syoop-kA=Xqs56=FkyakrM6g@mail.gmail.com>
- <37D7C6CF3E00A74B8858931C1DB2F0775378761B@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFy_RNx5TQ8esjPPOKuW-o+fXbZgWapau2MHyexcAZtqsw@mail.gmail.com>
- <20170818122339.24grcbzyhnzmr4qw@techsingularity.net>
- <37D7C6CF3E00A74B8858931C1DB2F077537879BB@SHSMSX103.ccr.corp.intel.com>
- <20170818144622.oabozle26hasg5yo@techsingularity.net>
- <37D7C6CF3E00A74B8858931C1DB2F07753787AE4@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFxZjjqUM4kPvNEeZahPovBHFATiwADj-iPTDN0-jnU67Q@mail.gmail.com>
- <20170818185455.qol3st2nynfa47yc@techsingularity.net>
- <CA+55aFwX0yrUPULrDxTWVCg5c6DKh-yCG84NXVxaptXNQ4O_kA@mail.gmail.com>
- <20170821183234.kzennaaw2zt2rbwz@techsingularity.net>
- <37D7C6CF3E00A74B8858931C1DB2F07753788B58@SHSMSX103.ccr.corp.intel.com>
-In-Reply-To: <37D7C6CF3E00A74B8858931C1DB2F07753788B58@SHSMSX103.ccr.corp.intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Tue, 22 Aug 2017 10:50:36 -0700 (PDT)
+Received: by mail-wm0-x243.google.com with SMTP id q189so9257879wmd.0
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 10:50:36 -0700 (PDT)
+Date: Tue, 22 Aug 2017 20:50:32 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv5 01/19] mm/sparsemem: Allocate mem_section at runtime
+ for SPARSEMEM_EXTREME
+Message-ID: <20170822175032.jybf4q35s5lxrfun@node.shutemov.name>
+References: <20170821152916.40124-1-kirill.shutemov@linux.intel.com>
+ <20170821152916.40124-2-kirill.shutemov@linux.intel.com>
+ <20170822162826.umma52xs6qotz2l2@pd.tnic>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170822162826.umma52xs6qotz2l2@pd.tnic>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Mel Gorman' <mgorman@techsingularity.net>, 'Linus Torvalds' <torvalds@linux-foundation.org>
-Cc: 'Mel Gorman' <mgorman@suse.de>, "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, 'Tim Chen' <tim.c.chen@linux.intel.com>, 'Peter Zijlstra' <peterz@infradead.org>, 'Ingo Molnar' <mingo@elte.hu>, 'Andi Kleen' <ak@linux.intel.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Jan Kara' <jack@suse.cz>, 'linux-mm' <linux-mm@kvack.org>, 'Linux Kernel Mailing List' <linux-kernel@vger.kernel.org>
+To: Borislav Petkov <bp@suse.de>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Dmitry Safonov <dsafonov@virtuozzo.com>, Cyrill Gorcunov <gorcunov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Tue, Aug 22, 2017 at 06:28:26PM +0200, Borislav Petkov wrote:
+> On Mon, Aug 21, 2017 at 06:28:58PM +0300, Kirill A. Shutemov wrote:
+> > Size of mem_section array depends on size of physical address space.
+> > 
+> > In preparation for boot-time switching between paging modes on x86-64
+> > we need to make allocation of mem_section dynamic.
+> > 
+> > The patch allocates the array on the first call to
+> > sparse_memory_present_with_active_regions().
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > ---
+> >  include/linux/mmzone.h |  6 +++++-
+> >  mm/page_alloc.c        | 10 ++++++++++
+> >  mm/sparse.c            | 17 +++++++++++------
+> >  3 files changed, 26 insertions(+), 7 deletions(-)
+> 
+> This patch needs running through checkpatch:
+> 
+> ERROR: code indent should use tabs where possible
+> #53: FILE: include/linux/mmzone.h:1148:
+> +        if (!mem_section)$
+> 
+> WARNING: please, no spaces at the start of a line
+> #53: FILE: include/linux/mmzone.h:1148:
+> +        if (!mem_section)$
+> 
+> ERROR: code indent should use tabs where possible
+> #54: FILE: include/linux/mmzone.h:1149:
+> +                return NULL;$
+> 
+> WARNING: please, no spaces at the start of a line
+> #54: FILE: include/linux/mmzone.h:1149:
+> +                return NULL;$
+> 
+> ERROR: "foo* bar" should be "foo *bar"
+> #99: FILE: mm/sparse.c:106:
+> +       struct mem_section* root = NULL;
+> 
+> ERROR: do not initialise statics to 0
+> #118: FILE: mm/sparse.c:335:
+> +       static unsigned long old_usemap_snr = 0;
+> 
+> ERROR: do not initialise statics to 0
+> #119: FILE: mm/sparse.c:336:
+> +       static unsigned long old_pgdat_snr = 0;
+> 
+> You should integrate it into your patch creation workflow.
 
-> > Covering both paths would be something like the patch below which
-> > spins until the page is unlocked or it should reschedule. It's not
-> > even boot tested as I spent what time I had on the test case that I
-> > hoped would be able to prove it really works.
->=20
-> I will give it a try.
+Sorry for this.
 
-Although the patch doesn't trigger watchdog, the spin lock wait time
-is not small (0.45s).
-It may get worse again on larger systems.
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index fc14b8b3f6ce..9799c2c58ce6 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -1137,13 +1137,17 @@ struct mem_section {
+> >  #define SECTION_ROOT_MASK	(SECTIONS_PER_ROOT - 1)
+> >  
+> >  #ifdef CONFIG_SPARSEMEM_EXTREME
+> > -extern struct mem_section *mem_section[NR_SECTION_ROOTS];
+> > +extern struct mem_section **mem_section;
+> >  #else
+> >  extern struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT];
+> >  #endif
+> >  
+> >  static inline struct mem_section *__nr_to_section(unsigned long nr)
+> >  {
+> > +#ifdef CONFIG_SPARSEMEM_EXTREME
+> > +        if (!mem_section)
+> > +                return NULL;
+> > +#endif
+> >  	if (!mem_section[SECTION_NR_TO_ROOT(nr)])
+> >  		return NULL;
+> >  	return &mem_section[SECTION_NR_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 6d30e914afb6..639fd2dce0c4 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -5681,6 +5681,16 @@ void __init sparse_memory_present_with_active_regions(int nid)
+> >  	unsigned long start_pfn, end_pfn;
+> >  	int i, this_nid;
+> >  
+> > +#ifdef CONFIG_SPARSEMEM_EXTREME
+> > +	if (!mem_section) {
+> 
+> Any chance this ifdeffery and above can use IS_ENABLED() instead?
 
+Unfortunately, no.
 
-Irqsoff ftrace result.
-# tracer: irqsoff
-#
-# irqsoff latency trace v1.1.5 on 4.13.0-rc4+
-# --------------------------------------------------------------------
-# latency: 451753 us, #4/4, CPU#159 | (M:desktop VP:0, KP:0, SP:0 HP:0 #P:2=
-24)
-#    -----------------
-#    | task: fjsctest-233851 (uid:0 nice:0 policy:0 rt_prio:0)
-#    -----------------
-#  =3D> started at: wake_up_page_bit
-#  =3D> ended at:   wake_up_page_bit
-#
-#
-#                  _------=3D> CPU#           =20
-#                 / _-----=3D> irqs-off       =20
-#                | / _----=3D> need-resched   =20
-#                || / _---=3D> hardirq/softirq=20
-#                ||| / _--=3D> preempt-depth  =20
-#                |||| /     delay           =20
-#  cmd     pid   ||||| time  |   caller     =20
-#     \   /      |||||  \    |   /        =20
-   <...>-233851 159d...    0us@: _raw_spin_lock_irqsave <-wake_up_page_bit
-   <...>-233851 159dN.. 451726us+: _raw_spin_unlock_irqrestore <-wake_up_pa=
-ge_bit
-   <...>-233851 159dN.. 451754us!: trace_hardirqs_on <-wake_up_page_bit
-   <...>-233851 159dN.. 451873us : <stack trace>
- =3D> unlock_page
- =3D> migrate_pages
- =3D> migrate_misplaced_page
- =3D> __handle_mm_fault
- =3D> handle_mm_fault
- =3D> __do_page_fault
- =3D> do_page_fault
- =3D> page_fault
+This case cannot be changed to IS_ENABLED() as we don't define mem_section
+and NR_SECTION_ROOTS for !SPARSEMEM.
 
+The case above cannot be changed as GCC would complain in case of
+!SPARSEMEM_EXTREME:
 
-The call stack of wait_on_page_bit_common
+warning: the address of a??mem_sectiona?? will always evaluate as a??truea?? 
 
-   100.00%  (ffffffff971b252b)
-            |
-            ---__spinwait_on_page_locked
-               |         =20
-               |--96.81%--__migration_entry_wait
-               |          migration_entry_wait
-               |          do_swap_page
-               |          __handle_mm_fault
-               |          handle_mm_fault
-               |          __do_page_fault
-               |          do_page_fault
-               |          page_fault
-               |          |         =20
-               |          |--22.49%--0x123a2
-               |          |          |         =20
-               |          |           --22.34%--start_thread
-               |          |         =20
-               |          |--15.69%--0x127bc
-               |          |          |         =20
-               |          |           --13.20%--start_thread
-               |          |         =20
-               |          |--13.48%--0x12352
-               |          |          |         =20
-               |          |           --11.74%--start_thread
-               |          |         =20
-               |          |--13.43%--0x127f2
-               |          |          |         =20
-               |          |           --11.25%--start_thread
-               |          |         =20
-               |          |--10.03%--0x1285e
-               |          |          |         =20
-               |          |           --8.59%--start_thread
-               |          |         =20
-               |          |--5.90%--0x12894
-               |          |          |         =20
-               |          |           --5.03%--start_thread
-               |          |         =20
-               |          |--5.66%--0x12828
-               |          |          |         =20
-               |          |           --4.81%--start_thread
-               |          |         =20
-               |          |--5.17%--0x1233c
-               |          |          |         =20
-               |          |           --4.46%--start_thread
-               |          |         =20
-               |           --4.72%--0x2b788
-               |                     |         =20
-               |                      --4.72%--0x127a2
-               |                                start_thread
-               |         =20
-                --3.19%--do_huge_pmd_numa_page
-                          __handle_mm_fault
-                          handle_mm_fault
-                          __do_page_fault
-                          do_page_fault
-                          page_fault
-                          0x2b788
-                          0x127a2
-                          start_thread
-
-
->=20
-> >
-> > diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h index
-> > 79b36f57c3ba..31cda1288176 100644
-> > --- a/include/linux/pagemap.h
-> > +++ b/include/linux/pagemap.h
-> > @@ -517,6 +517,13 @@ static inline void wait_on_page_locked(struct
-> > page
-> > *page)
-> >  		wait_on_page_bit(compound_head(page), PG_locked);  }
-> >
-> > +void __spinwait_on_page_locked(struct page *page); static inline void
-> > +spinwait_on_page_locked(struct page *page) {
-> > +	if (PageLocked(page))
-> > +		__spinwait_on_page_locked(page);
-> > +}
-> > +
-> >  static inline int wait_on_page_locked_killable(struct page *page)  {
-> >  	if (!PageLocked(page))
-> > diff --git a/mm/filemap.c b/mm/filemap.c index
-> > a49702445ce0..c9d6f49614bc 100644
-> > --- a/mm/filemap.c
-> > +++ b/mm/filemap.c
-> > @@ -1210,6 +1210,15 @@ int __lock_page_or_retry(struct page *page,
-> > struct mm_struct *mm,
-> >  	}
-> >  }
-> >
-> > +void __spinwait_on_page_locked(struct page *page) {
-> > +	do {
-> > +		cpu_relax();
-> > +	} while (PageLocked(page) && !cond_resched());
-> > +
-> > +	wait_on_page_locked(page);
-> > +}
-> > +
-> >  /**
-> >   * page_cache_next_hole - find the next hole (not-present entry)
-> >   * @mapping: mapping
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c index
-> > 90731e3b7e58..c7025c806420 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -1443,7 +1443,7 @@ int do_huge_pmd_numa_page(struct vm_fault
-> *vmf,
-> > pmd_t pmd)
-> >  		if (!get_page_unless_zero(page))
-> >  			goto out_unlock;
-> >  		spin_unlock(vmf->ptl);
-> > -		wait_on_page_locked(page);
-> > +		spinwait_on_page_locked(page);
-> >  		put_page(page);
-> >  		goto out;
-> >  	}
-> > @@ -1480,7 +1480,7 @@ int do_huge_pmd_numa_page(struct vm_fault
-> *vmf,
-> > pmd_t pmd)
-> >  		if (!get_page_unless_zero(page))
-> >  			goto out_unlock;
-> >  		spin_unlock(vmf->ptl);
-> > -		wait_on_page_locked(page);
-> > +		spinwait_on_page_locked(page);
-> >  		put_page(page);
-> >  		goto out;
-> >  	}
-> > diff --git a/mm/migrate.c b/mm/migrate.c index
-> > e84eeb4e4356..9b6c3fc5beac 100644
-> > --- a/mm/migrate.c
-> > +++ b/mm/migrate.c
-> > @@ -308,7 +308,7 @@ void __migration_entry_wait(struct mm_struct
-> *mm,
-> > pte_t *ptep,
-> >  	if (!get_page_unless_zero(page))
-> >  		goto out;
-> >  	pte_unmap_unlock(ptep, ptl);
-> > -	wait_on_page_locked(page);
-> > +	spinwait_on_page_locked(page);
-> >  	put_page(page);
-> >  	return;
-> >  out:
-> >
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
