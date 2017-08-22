@@ -1,85 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B35312803D0
-	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 08:29:35 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u191so154835831pgc.13
-        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 05:29:35 -0700 (PDT)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00127.outbound.protection.outlook.com. [40.107.0.127])
-        by mx.google.com with ESMTPS id f30si1283920plj.726.2017.08.22.05.29.34
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AD402803D0
+	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 08:45:59 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id t3so79854645pgt.5
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 05:45:59 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id q6si8691249pgn.509.2017.08.22.05.45.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 22 Aug 2017 05:29:34 -0700 (PDT)
-Subject: [PATCH 3/3] mm: Count list_lru_one::nr_items lockless
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Date: Tue, 22 Aug 2017 15:29:35 +0300
-Message-ID: <150340497499.3845.3045559119569209195.stgit@localhost.localdomain>
-In-Reply-To: <150340381428.3845.6099251634440472539.stgit@localhost.localdomain>
-References: <150340381428.3845.6099251634440472539.stgit@localhost.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Aug 2017 05:45:56 -0700 (PDT)
+From: =?UTF-8?q?=C5=81ukasz=20Daniluk?= <lukasz.daniluk@intel.com>
+Subject: [PATCH 0/3] mm: Add cache coloring mechanism
+Date: Tue, 22 Aug 2017 14:45:30 +0200
+Message-Id: <20170822124533.11692-1-lukasz.daniluk@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: apolyakov@beget.ru, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ktkhai@virtuozzo.com, vdavydov.dev@gmail.com, aryabinin@virtuozzo.com, akpm@linux-foundation.org
+To: linux-mm@kvack.org
+Cc: dave.hansen@intel.com, lukasz.anaczkowski@intel.com, =?UTF-8?q?=C5=81ukasz=20Daniluk?= <lukasz.daniluk@intel.com>
 
-During the reclaiming slab of a memcg, shrink_slab iterates
-over all registered shrinkers in the system, and tries to count
-and consume objects related to the cgroup. In case of memory
-pressure, this behaves bad: I observe high system time and
-time spent in list_lru_count_one() for many processes on RHEL7
-kernel (collected via $perf record --call-graph fp -j k -a):
+This patch series adds cache coloring mechanism that works along buddy
+allocator. The solution is opt-in, disabled by default minimally
+interferes with default allocation paths due to added if statements.
 
-0,50%  nixstatsagent  [kernel.vmlinux]  [k] _raw_spin_lock                [k] _raw_spin_lock
-0,26%  nixstatsagent  [kernel.vmlinux]  [k] shrink_slab                   [k] shrink_slab
-0,23%  nixstatsagent  [kernel.vmlinux]  [k] super_cache_count             [k] super_cache_count
-0,15%  nixstatsagent  [kernel.vmlinux]  [k] __list_lru_count_one.isra.2   [k] _raw_spin_lock
-0,15%  nixstatsagent  [kernel.vmlinux]  [k] list_lru_count_one            [k] __list_lru_count_one.isra.2
+Why would such patches be needed? Big caches with low associativity
+(direct mapped caches, 2-way associative) will benefit from the solution
+the most - it allows for near constant performance through the lifetime
+of a system, despite the allocations and deallocations happening and
+reordering buddy lists.
 
-0,94%  mysqld         [kernel.vmlinux]  [k] _raw_spin_lock                [k] _raw_spin_lock
-0,57%  mysqld         [kernel.vmlinux]  [k] shrink_slab                   [k] shrink_slab
-0,51%  mysqld         [kernel.vmlinux]  [k] super_cache_count             [k] super_cache_count
-0,32%  mysqld         [kernel.vmlinux]  [k] __list_lru_count_one.isra.2   [k] _raw_spin_lock
-0,32%  mysqld         [kernel.vmlinux]  [k] list_lru_count_one            [k] __list_lru_count_one.isra.2
+On KNL system, the STREAM benchmark with problem size resulting in its
+internal arrays being of 16GB size will yield bandwidth performance of
+336GB/s after fresh boot. With cache coloring patches applied and
+enabled, this performance stays near constant (most 1.5% drop observed),
+despite running benchmark multiple times with varying sizes over course
+of days.  Without these patches however, the bandwidth when using such
+allocations drops to 117GB/s - over 65% of irrecoverable performance
+penalty. Workloads that exceed set cache size suffer from decreased
+randomization of allocations with cache coloring enabled, but effect of
+cache usage disappears roughly at the same allocation size.
 
-0,73%  sshd           [kernel.vmlinux]  [k] _raw_spin_lock                [k] _raw_spin_lock
-0,35%  sshd           [kernel.vmlinux]  [k] shrink_slab                   [k] shrink_slab
-0,32%  sshd           [kernel.vmlinux]  [k] super_cache_count             [k] super_cache_count
-0,21%  sshd           [kernel.vmlinux]  [k] __list_lru_count_one.isra.2   [k] _raw_spin_lock
-0,21%  sshd           [kernel.vmlinux]  [k] list_lru_count_one            [k] __list_lru_count_one.isra.2
+Solution is divided into three patches. First patch is a preparatory one
+that provides interface for retrieving (information about) free lists
+contained by particular free_area structure.  Second one (parallel
+structure keeping separate list_heads for each cache color in a given
+context) shows general solution overview and is working as it is.
+However, it has serious performance implications with bigger caches due
+to linear search for next color to be used during allocations. Third
+patch (sorting list_heads using RB trees) aims to improve solution's
+performance by replacing linear search for next color with searching in
+RB tree. While improving computational performance, it imposes increased
+memory cost of the solution.
 
-This patch aims to make super_cache_count() more effective. It
-makes __list_lru_count_one() count nr_items lockless to minimize
-overhead introducing by locking operation, and to make parallel
-reclaims more scalable.
+A?ukasz Daniluk (3):
+  mm: move free_list selection to dedicated functions
+  mm: Add page colored allocation path
+  mm: Add helper rbtree to search for next cache color
 
-The lock won't be taken on shrinker::count_objects(),
-it would be taken only for the real shrink by the thread,
-who realizes it.
+ Documentation/admin-guide/kernel-parameters.txt |   8 +
+ include/linux/mmzone.h                          |  12 +-
+ mm/compaction.c                                 |   4 +-
+ mm/page_alloc.c                                 | 381 ++++++++++++++++++++++--
+ mm/vmstat.c                                     |  10 +-
+ 5 files changed, 383 insertions(+), 32 deletions(-)
 
-https://jira.sw.ru/browse/PSBM-69296
-
-Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
----
- mm/list_lru.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/list_lru.c b/mm/list_lru.c
-index 2db3cdadb577..8d1d2db5f4fb 100644
---- a/mm/list_lru.c
-+++ b/mm/list_lru.c
-@@ -177,10 +177,10 @@ static unsigned long __list_lru_count_one(struct list_lru *lru,
- 	struct list_lru_one *l;
- 	unsigned long count;
- 
--	spin_lock(&nlru->lock);
-+	rcu_read_lock();
- 	l = list_lru_from_memcg_idx(nlru, memcg_idx);
- 	count = l->nr_items;
--	spin_unlock(&nlru->lock);
-+	rcu_read_unlock();
- 
- 	return count;
- }
+-- 
+2.13.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
