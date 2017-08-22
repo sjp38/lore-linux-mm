@@ -1,94 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F7DA2806D2
-	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 09:55:03 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id p14so27362704wrg.8
-        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 06:55:03 -0700 (PDT)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
-        by mx.google.com with ESMTPS id p88si7832812wmf.209.2017.08.22.06.55.01
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Aug 2017 06:55:01 -0700 (PDT)
-From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: [PATCH 1/2] mm: Track actual nr_scanned during shrink_slab()
-Date: Tue, 22 Aug 2017 14:53:24 +0100
-Message-Id: <20170822135325.9191-1-chris@chris-wilson.co.uk>
-In-Reply-To: <20170815153010.e3cfc177af0b2c0dc421b84c@linux-foundation.org>
-References: <20170815153010.e3cfc177af0b2c0dc421b84c@linux-foundation.org>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5969B280300
+	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 10:15:06 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id x137so72664814pfd.14
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 07:15:06 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 71si9014989pfy.79.2017.08.22.07.15.04
+        for <linux-mm@kvack.org>;
+        Tue, 22 Aug 2017 07:15:04 -0700 (PDT)
+Subject: Re: [PATCH v7 5/9] arm64: hugetlb: Handle swap entries in
+ huge_pte_offset() for contiguous hugepages
+References: <20170822104249.2189-1-punit.agrawal@arm.com>
+ <20170822104249.2189-6-punit.agrawal@arm.com>
+From: Julien Thierry <julien.thierry@arm.com>
+Message-ID: <a54aff75-f79b-b40d-c66f-6730aaccbd39@arm.com>
+Date: Tue, 22 Aug 2017 15:14:59 +0100
+MIME-Version: 1.0
+In-Reply-To: <20170822104249.2189-6-punit.agrawal@arm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: intel-gfx@lists.freedesktop.org, Chris Wilson <chris@chris-wilson.co.uk>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Shaohua Li <shli@fb.com>
+To: Punit Agrawal <punit.agrawal@arm.com>, will.deacon@arm.com, catalin.marinas@arm.com
+Cc: mark.rutland@arm.com, David Woods <dwoods@mellanox.com>, steve.capper@arm.com, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
 
-Some shrinkers may only be able to free a bunch of objects at a time, and
-so free more than the requested nr_to_scan in one pass. Whilst other
-shrinkers may find themselves even unable to scan as many objects as
-they counted, and so underreport. Account for the extra freed/scanned
-objects against the total number of objects we intend to scan, otherwise
-we may end up penalising the slab far more than intended. Similarly,
-we want to add the underperforming scan to the deferred pass so that we
-try harder and harder in future passes.
+Hi Punit,
 
-v2: Andrew's shrinkctl->nr_scanned
+On 22/08/17 11:42, Punit Agrawal wrote:
+> huge_pte_offset() was updated to correctly handle swap entries for
+> hugepages. With the addition of the size parameter, it is now possible
+> to disambiguate whether the request is for a regular hugepage or a
+> contiguous hugepage.
+> 
+> Fix huge_pte_offset() for contiguous hugepages by using the size to find
+> the correct page table entry.
+> 
+> Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
+> Cc: David Woods <dwoods@mellanox.com>
+> ---
+>   arch/arm64/mm/hugetlbpage.c | 21 ++++++++++++++++-----
+>   1 file changed, 16 insertions(+), 5 deletions(-)
+> 
+> diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
+> index 594232598cac..b95e24dc3477 100644
+> --- a/arch/arm64/mm/hugetlbpage.c
+> +++ b/arch/arm64/mm/hugetlbpage.c
+> @@ -214,6 +214,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
+>   	pgd_t *pgd;
+>   	pud_t *pud;
+>   	pmd_t *pmd;
+> +	pte_t *pte;
+>   
+>   	pgd = pgd_offset(mm, addr);
+>   	pr_debug("%s: addr:0x%lx pgd:%p\n", __func__, addr, pgd);
+> @@ -221,19 +222,29 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
+>   		return NULL;
+>   
+>   	pud = pud_offset(pgd, addr);
+> -	if (pud_none(*pud))
+> +	if (sz != PUD_SIZE && pud_none(*pud))
+>   		return NULL;
+> -	/* swap or huge page */
+> -	if (!pud_present(*pud) || pud_huge(*pud))
+> +	/* hugepage or swap? */
+> +	if (pud_huge(*pud) || !pud_present(*pud))
+>   		return (pte_t *)pud;
+>   	/* table; check the next level */
+>   
+> +	if (sz == CONT_PMD_SIZE)
+> +		addr &= CONT_PMD_MASK;
+> +
+>   	pmd = pmd_offset(pud, addr);
+> -	if (pmd_none(*pmd))
+> +	if (!(sz == PMD_SIZE || sz == CONT_PMD_SIZE) &&
+> +	    pmd_none(*pmd))
+>   		return NULL;
+> -	if (!pmd_present(*pmd) || pmd_huge(*pmd))
+> +	if (pmd_huge(*pmd) || !pmd_present(*pmd))
+>   		return (pte_t *)pmd;
+>   
+> +	if (sz == CONT_PTE_SIZE) {
+> +		pte = pte_offset_kernel(
+> +			pmd, (addr & CONT_PTE_MASK));
+> +		return pte;
 
-Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Shaohua Li <shli@fb.com>
-Cc: linux-mm@kvack.org
----
- include/linux/shrinker.h | 7 +++++++
- mm/vmscan.c              | 7 ++++---
- 2 files changed, 11 insertions(+), 3 deletions(-)
+Nit: Looks like this is the only place the new variable pte is used. 
+Since we don't need to test its value, why not just write:
+	return pte_offset_kernel(pmd, (addr & CONT_PTE_MASK));
 
-diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-index 4fcacd915d45..51d189615bda 100644
---- a/include/linux/shrinker.h
-+++ b/include/linux/shrinker.h
-@@ -18,6 +18,13 @@ struct shrink_control {
- 	 */
- 	unsigned long nr_to_scan;
- 
-+	/*
-+	 * How many objects did scan_objects process?
-+	 * This defaults to nr_to_scan before every call, but the callee
-+	 * should track its actual progress.
-+	 */
-+	unsigned long nr_scanned;
-+
- 	/* current node being shrunk (for NUMA aware shrinkers) */
- 	int nid;
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a1af041930a6..339b8fc95fc9 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -393,14 +393,15 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
- 		unsigned long nr_to_scan = min(batch_size, total_scan);
- 
- 		shrinkctl->nr_to_scan = nr_to_scan;
-+		shrinkctl->nr_scanned = nr_to_scan;
- 		ret = shrinker->scan_objects(shrinker, shrinkctl);
- 		if (ret == SHRINK_STOP)
- 			break;
- 		freed += ret;
- 
--		count_vm_events(SLABS_SCANNED, nr_to_scan);
--		total_scan -= nr_to_scan;
--		scanned += nr_to_scan;
-+		count_vm_events(SLABS_SCANNED, shrinkctl->nr_scanned);
-+		total_scan -= shrinkctl->nr_scanned;
-+		scanned += shrinkctl->nr_scanned;
- 
- 		cond_resched();
- 	}
+and get rid of the pte variable?
+
+Cheers,
+
 -- 
-2.14.1
+Julien Thierry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
