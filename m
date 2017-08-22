@@ -1,257 +1,276 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 58FEF28071E
-	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 15:34:10 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id k186so6488586lfe.6
-        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 12:34:10 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l9sor357358lfg.14.2017.08.22.12.34.08
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FC2328071E
+	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 15:35:42 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id 57so34523309qtu.4
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 12:35:42 -0700 (PDT)
+Received: from mail-qt0-x243.google.com (mail-qt0-x243.google.com. [2607:f8b0:400d:c0d::243])
+        by mx.google.com with ESMTPS id z66si14854623qkb.286.2017.08.22.12.35.41
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 22 Aug 2017 12:34:08 -0700 (PDT)
-Date: Tue, 22 Aug 2017 22:34:05 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH 2/3] mm: Make list_lru_node::memcg_lrus RCU protected
-Message-ID: <20170822193405.qxixggl3kwlmronh@esperanza>
-References: <150340381428.3845.6099251634440472539.stgit@localhost.localdomain>
- <150340496641.3845.291357513974178821.stgit@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <150340496641.3845.291357513974178821.stgit@localhost.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Aug 2017 12:35:41 -0700 (PDT)
+Received: by mail-qt0-x243.google.com with SMTP id 57so8189646qtu.0
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 12:35:41 -0700 (PDT)
+From: josef@toxicpanda.com
+Subject: [PATCH 1/2] mm: use sc->priority for slab shrink targets
+Date: Tue, 22 Aug 2017 15:35:38 -0400
+Message-Id: <1503430539-2878-1-git-send-email-jbacik@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: apolyakov@beget.ru, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aryabinin@virtuozzo.com, akpm@linux-foundation.org
+To: minchan@kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, kernel-team@fb.com, aryabinin@virtuozzo.com
+Cc: Josef Bacik <jbacik@fb.com>
 
-Hello Kirill,
+From: Josef Bacik <jbacik@fb.com>
 
-On Tue, Aug 22, 2017 at 03:29:26PM +0300, Kirill Tkhai wrote:
-> The array list_lru_node::memcg_lrus::list_lru_one[] only grows,
-> and it never shrinks. The growths happens in memcg_update_list_lru_node(),
-> and old array's members remain the same after it.
-> 
-> So, the access to the array's members may become RCU protected,
-> and it's possible to avoid using list_lru_node::lock to dereference it.
-> This will be used to get list's nr_items in next patch lockless.
-> 
-> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+Previously we were using the ratio of the number of lru pages scanned to
+the number of eligible lru pages to determine the number of slab objects
+to scan.  The problem with this is that these two things have nothing to
+do with each other, so in slab heavy work loads where there is little to
+no page cache we can end up with the pages scanned being a very low
+number.  This means that we reclaim next to no slab pages and waste a
+lot of time reclaiming small amounts of space.
 
-The patch looks very nice. A few really minor comments below.
+Instead use sc->priority in the same way we use it to determine scan
+amounts for the lru's.  This generally equates to pages.  Consider the
+following
 
-First, I don't think it's worth splitting this patch in three: patch #1
-introduces a structure member that is only used in patch #2, while patch
-#2 adds RCU protection, but nobody benefits from it until patch #3 is
-applied. Since patches #1 and #3 are tiny, why don't you fold them in
-patch #2?
+slab_pages = (nr_objects * object_size) / PAGE_SIZE
 
-> diff --git a/mm/list_lru.c b/mm/list_lru.c
-> @@ -42,24 +42,30 @@ static void list_lru_unregister(struct list_lru *lru)
->  #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
->  static inline bool list_lru_memcg_aware(struct list_lru *lru)
->  {
-> +	struct list_lru_memcg *memcg_lrus;
->  	/*
->  	 * This needs node 0 to be always present, even
->  	 * in the systems supporting sparse numa ids.
-> +	 *
-> +	 * Here we only check the pointer is not NULL,
-> +	 * so RCU lock is not need.
->  	 */
-> -	return !!lru->node[0].memcg_lrus;
-> +	memcg_lrus = rcu_dereference_check(lru->node[0].memcg_lrus, true);
-> +	return !!memcg_lrus;
+What we would like to do is
 
-IIRC you don't need rcu_dereference() here, because you don't actually
-dereference anything. The compiler shouldn't complain if you leaved this
-as is.
+scan = slab_pages >> sc->priority
 
->  }
->  
->  static inline struct list_lru_one *
->  list_lru_from_memcg_idx(struct list_lru_node *nlru, int idx)
->  {
-> +	struct list_lru_memcg *memcg_lrus;
->  	/*
-> -	 * The lock protects the array of per cgroup lists from relocation
-> -	 * (see memcg_update_list_lru_node).
-> +	 * Either lock and RCU protects the array of per cgroup lists
+but we don't know the number of slab pages each shrinker controls, only
+the objects.  However say that theoretically we knew how many pages a
+shrinker controlled, we'd still have to convert this to objects, which
+would look like the following
 
-Typo: s/and/or/
+scan = shrinker_pages >> sc->priority
+scan_objects = (PAGE_SIZE / object_size) * scan
 
-> +	 * from relocation (see memcg_update_list_lru_node).
->  	 */
-> -	lockdep_assert_held(&nlru->lock);
-> -	if (nlru->memcg_lrus && idx >= 0)
-> -		return nlru->memcg_lrus->lru[idx];
-> -
-> +	memcg_lrus = rcu_dereference_check(nlru->memcg_lrus,
-> +					   lockdep_is_held(&nlru->lock));
-> +	if (memcg_lrus && idx >= 0)
-> +		return memcg_lrus->lru[idx];
->  	return &nlru->lru;
->  }
->  
-> @@ -76,9 +82,12 @@ static __always_inline struct mem_cgroup *mem_cgroup_from_kmem(void *ptr)
->  static inline struct list_lru_one *
->  list_lru_from_kmem(struct list_lru_node *nlru, void *ptr)
->  {
-> +	struct list_lru_memcg *memcg_lrus;
->  	struct mem_cgroup *memcg;
->  
-> -	if (!nlru->memcg_lrus)
-> +	/* Here we only check the pointer is not NULL, so RCU lock isn't need */
-> +	memcg_lrus = rcu_dereference_check(nlru->memcg_lrus, true);
-> +	if (!memcg_lrus)
+or written another way
 
-Again, rcu_dereference() is redundant.
+scan_objects = (shrinker_pages >> sc->priority) *
+		(PAGE_SIZE / object_size)
 
->  		return &nlru->lru;
->  
->  	memcg = mem_cgroup_from_kmem(ptr);
-> @@ -323,25 +332,33 @@ static int __memcg_init_list_lru_node(struct list_lru_memcg *memcg_lrus,
->  
->  static int memcg_init_list_lru_node(struct list_lru_node *nlru)
->  {
-> +	struct list_lru_memcg *memcg_lrus;
->  	int size = memcg_nr_cache_ids;
->  
-> -	nlru->memcg_lrus = kmalloc(sizeof(struct list_lru_memcg) +
-> -				   size * sizeof(void *), GFP_KERNEL);
-> -	if (!nlru->memcg_lrus)
-> +	memcg_lrus = kmalloc(sizeof(*memcg_lrus) +
-> +			     size * sizeof(void *), GFP_KERNEL);
-> +	if (!memcg_lrus)
->  		return -ENOMEM;
->  
-> -	if (__memcg_init_list_lru_node(nlru->memcg_lrus, 0, size)) {
-> -		kfree(nlru->memcg_lrus);
-> +	if (__memcg_init_list_lru_node(memcg_lrus, 0, size)) {
-> +		kfree(memcg_lrus);
->  		return -ENOMEM;
->  	}
-> +	rcu_assign_pointer(nlru->memcg_lrus, memcg_lrus);
+which can thus be written
 
-You don't need a memory barrier here, so RCU_INIT_POINTER() would fit
-better.
+scan_objects = ((shrinker_pages * PAGE_SIZE) / object_size) >>
+		sc->priority
 
->  
->  	return 0;
->  }
->  
->  static void memcg_destroy_list_lru_node(struct list_lru_node *nlru)
->  {
-> -	__memcg_destroy_list_lru_node(nlru->memcg_lrus, 0, memcg_nr_cache_ids);
-> -	kfree(nlru->memcg_lrus);
-> +	struct list_lru_memcg *memcg_lrus;
-> +	/*
-> +	 * This is called when shrinker has already been unregistered,
+which is just
 
-> +	 * and nobody can use it. So, it's not need to use kfree_rcu().
+scan_objects = nr_objects >> sc->priority
 
-Typo: s/it's not need/there's no need/
+We don't need to know exactly how many pages each shrinker represents,
+it's objects are all the information we need.  Making this change allows
+us to place an appropriate amount of pressure on the shrinker pools for
+their relative size.
 
-> +	 */
-> +	memcg_lrus = rcu_dereference_check(nlru->memcg_lrus, true);
+Signed-off-by: Josef Bacik <jbacik@fb.com>
+---
+ include/trace/events/vmscan.h | 23 ++++++++++------------
+ mm/vmscan.c                   | 46 +++++++++++--------------------------------
+ 2 files changed, 22 insertions(+), 47 deletions(-)
 
-IIRC there's rcu_dereference_protected() for cases when you don't
-expect any changes to an __rcu variable. Let's use it instead of
-rcu_dereference_check() where appropriate.
-
-> +	__memcg_destroy_list_lru_node(memcg_lrus, 0, memcg_nr_cache_ids);
-> +	kfree(memcg_lrus);
->  }
->  
->  static int memcg_update_list_lru_node(struct list_lru_node *nlru,
-> @@ -350,8 +367,10 @@ static int memcg_update_list_lru_node(struct list_lru_node *nlru,
->  	struct list_lru_memcg *old, *new;
->  
->  	BUG_ON(old_size > new_size);
-> +	lockdep_assert_held(&list_lrus_mutex);
->  
-> -	old = nlru->memcg_lrus;
-> +	/* list_lrus_mutex is held, nobody can change memcg_lrus. Silence RCU */
-
-> +	old = rcu_dereference_check(nlru->memcg_lrus, true);
-
-s/rcu_dereference_check/rcu_dereference_protected/
-
->  	new = kmalloc(sizeof(*new) + new_size * sizeof(void *), GFP_KERNEL);
->  	if (!new)
->  		return -ENOMEM;
-> @@ -364,26 +383,31 @@ static int memcg_update_list_lru_node(struct list_lru_node *nlru,
->  	memcpy(&new->lru, &old->lru, old_size * sizeof(void *));
->  
->  	/*
-> -	 * The lock guarantees that we won't race with a reader
-> -	 * (see list_lru_from_memcg_idx).
-
-> +	 * The locking below allows the readers, that already take nlru->lock,
-> +	 * not to use additional rcu_read_lock()/rcu_read_unlock() pair.
-
-Rephrase a little bit?
-
-    The locking below allows readers that hold nlru->lock avoid taking
-    rcu_read_lock (see list_lru_from_memcg_idx).
-
->  	 *
->  	 * Since list_lru_{add,del} may be called under an IRQ-safe lock,
->  	 * we have to use IRQ-safe primitives here to avoid deadlock.
->  	 */
->  	spin_lock_irq(&nlru->lock);
-> -	nlru->memcg_lrus = new;
-> +	rcu_assign_pointer(nlru->memcg_lrus, new);
->  	spin_unlock_irq(&nlru->lock);
->  
-> -	kfree(old);
-> +	kfree_rcu(old, rcu);
->  	return 0;
->  }
->  
->  static void memcg_cancel_update_list_lru_node(struct list_lru_node *nlru,
->  					      int old_size, int new_size)
->  {
-> +	struct list_lru_memcg *memcg_lrus;
-> +
-> +	lockdep_assert_held(&list_lrus_mutex);
-> +	memcg_lrus = rcu_dereference_check(nlru->memcg_lrus, true);
-
-s/rcu_dereference_check/rcu_dereference_protected/
-
-> +
->  	/* do not bother shrinking the array back to the old size, because we
->  	 * cannot handle allocation failures here */
-> -	__memcg_destroy_list_lru_node(nlru->memcg_lrus, old_size, new_size);
-> +	__memcg_destroy_list_lru_node(memcg_lrus, old_size, new_size);
->  }
->  
->  static int memcg_init_list_lru(struct list_lru *lru, bool memcg_aware)
-> @@ -400,7 +424,7 @@ static int memcg_init_list_lru(struct list_lru *lru, bool memcg_aware)
->  	return 0;
->  fail:
->  	for (i = i - 1; i >= 0; i--) {
-> -		if (!lru->node[i].memcg_lrus)
-> +		if (!rcu_dereference_check(lru->node[i].memcg_lrus, true))
-
-No need in rcu_dereference() here as you don't actually dereference
-anything.
-
->  			continue;
->  		memcg_destroy_list_lru_node(&lru->node[i]);
->  	}
-> @@ -434,7 +458,7 @@ static int memcg_update_list_lru(struct list_lru *lru,
->  	return 0;
->  fail:
->  	for (i = i - 1; i >= 0; i--) {
-> -		if (!lru->node[i].memcg_lrus)
-> +		if (!rcu_dereference_check(lru->node[i].memcg_lrus, true))
-
-Ditto.
-
->  			continue;
->  
->  		memcg_cancel_update_list_lru_node(&lru->node[i],
-> 
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+index 27e8a5c..8c5a00a 100644
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -187,12 +187,12 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_re
+ 
+ TRACE_EVENT(mm_shrink_slab_start,
+ 	TP_PROTO(struct shrinker *shr, struct shrink_control *sc,
+-		long nr_objects_to_shrink, unsigned long pgs_scanned,
+-		unsigned long lru_pgs, unsigned long cache_items,
+-		unsigned long long delta, unsigned long total_scan),
++		long nr_objects_to_shrink, unsigned long cache_items,
++		unsigned long long delta, unsigned long total_scan,
++		int priority),
+ 
+-	TP_ARGS(shr, sc, nr_objects_to_shrink, pgs_scanned, lru_pgs,
+-		cache_items, delta, total_scan),
++	TP_ARGS(shr, sc, nr_objects_to_shrink, cache_items, delta, total_scan,
++		priority),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(struct shrinker *, shr)
+@@ -200,11 +200,10 @@ TRACE_EVENT(mm_shrink_slab_start,
+ 		__field(int, nid)
+ 		__field(long, nr_objects_to_shrink)
+ 		__field(gfp_t, gfp_flags)
+-		__field(unsigned long, pgs_scanned)
+-		__field(unsigned long, lru_pgs)
+ 		__field(unsigned long, cache_items)
+ 		__field(unsigned long long, delta)
+ 		__field(unsigned long, total_scan)
++		__field(int, priority)
+ 	),
+ 
+ 	TP_fast_assign(
+@@ -213,24 +212,22 @@ TRACE_EVENT(mm_shrink_slab_start,
+ 		__entry->nid = sc->nid;
+ 		__entry->nr_objects_to_shrink = nr_objects_to_shrink;
+ 		__entry->gfp_flags = sc->gfp_mask;
+-		__entry->pgs_scanned = pgs_scanned;
+-		__entry->lru_pgs = lru_pgs;
+ 		__entry->cache_items = cache_items;
+ 		__entry->delta = delta;
+ 		__entry->total_scan = total_scan;
++		__entry->priority = priority;
+ 	),
+ 
+-	TP_printk("%pF %p: nid: %d objects to shrink %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
++	TP_printk("%pF %p: nid: %d objects to shrink %ld gfp_flags %s cache items %ld delta %lld total_scan %ld priority %d",
+ 		__entry->shrink,
+ 		__entry->shr,
+ 		__entry->nid,
+ 		__entry->nr_objects_to_shrink,
+ 		show_gfp_flags(__entry->gfp_flags),
+-		__entry->pgs_scanned,
+-		__entry->lru_pgs,
+ 		__entry->cache_items,
+ 		__entry->delta,
+-		__entry->total_scan)
++		__entry->total_scan,
++		__entry->priority)
+ );
+ 
+ TRACE_EVENT(mm_shrink_slab_end,
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 734e8d3..608dfe6 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -306,9 +306,7 @@ EXPORT_SYMBOL(unregister_shrinker);
+ #define SHRINK_BATCH 128
+ 
+ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+-				    struct shrinker *shrinker,
+-				    unsigned long nr_scanned,
+-				    unsigned long nr_eligible)
++				    struct shrinker *shrinker, int priority)
+ {
+ 	unsigned long freed = 0;
+ 	unsigned long long delta;
+@@ -333,9 +331,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
+ 
+ 	total_scan = nr;
+-	delta = (4 * nr_scanned) / shrinker->seeks;
+-	delta *= freeable;
+-	do_div(delta, nr_eligible + 1);
++	delta = freeable >> priority;
++	delta = (4 * freeable) / shrinker->seeks;
+ 	total_scan += delta;
+ 	if (total_scan < 0) {
+ 		pr_err("shrink_slab: %pF negative objects to delete nr=%ld\n",
+@@ -369,8 +366,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 		total_scan = freeable * 2;
+ 
+ 	trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
+-				   nr_scanned, nr_eligible,
+-				   freeable, delta, total_scan);
++				   freeable, delta, total_scan, priority);
+ 
+ 	/*
+ 	 * Normally, we should not scan less than batch_size objects in one
+@@ -429,8 +425,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+  * @gfp_mask: allocation context
+  * @nid: node whose slab caches to target
+  * @memcg: memory cgroup whose slab caches to target
+- * @nr_scanned: pressure numerator
+- * @nr_eligible: pressure denominator
++ * @priority: the reclaim priority
+  *
+  * Call the shrink functions to age shrinkable caches.
+  *
+@@ -442,20 +437,14 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+  * objects from the memory cgroup specified. Otherwise, only unaware
+  * shrinkers are called.
+  *
+- * @nr_scanned and @nr_eligible form a ratio that indicate how much of
+- * the available objects should be scanned.  Page reclaim for example
+- * passes the number of pages scanned and the number of pages on the
+- * LRU lists that it considered on @nid, plus a bias in @nr_scanned
+- * when it encountered mapped pages.  The ratio is further biased by
+- * the ->seeks setting of the shrink function, which indicates the
+- * cost to recreate an object relative to that of an LRU page.
++ * @priority is sc->priority, we take the number of objects and >> by priority
++ * in order to get the scan target.
+  *
+  * Returns the number of reclaimed slab objects.
+  */
+ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 				 struct mem_cgroup *memcg,
+-				 unsigned long nr_scanned,
+-				 unsigned long nr_eligible)
++				 int priority)
+ {
+ 	struct shrinker *shrinker;
+ 	unsigned long freed = 0;
+@@ -463,9 +452,6 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 	if (memcg && (!memcg_kmem_enabled() || !mem_cgroup_online(memcg)))
+ 		return 0;
+ 
+-	if (nr_scanned == 0)
+-		nr_scanned = SWAP_CLUSTER_MAX;
+-
+ 	if (!down_read_trylock(&shrinker_rwsem)) {
+ 		/*
+ 		 * If we would return 0, our callers would understand that we
+@@ -496,7 +482,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 		if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
+ 			sc.nid = 0;
+ 
+-		freed += do_shrink_slab(&sc, shrinker, nr_scanned, nr_eligible);
++		freed += do_shrink_slab(&sc, shrinker, priority);
+ 	}
+ 
+ 	up_read(&shrinker_rwsem);
+@@ -514,8 +500,7 @@ void drop_slab_node(int nid)
+ 
+ 		freed = 0;
+ 		do {
+-			freed += shrink_slab(GFP_KERNEL, nid, memcg,
+-					     1000, 1000);
++			freed += shrink_slab(GFP_KERNEL, nid, memcg, 0);
+ 		} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)) != NULL);
+ 	} while (freed > 10);
+ }
+@@ -2610,14 +2595,12 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 
+ 			reclaimed = sc->nr_reclaimed;
+ 			scanned = sc->nr_scanned;
+-
+ 			shrink_node_memcg(pgdat, memcg, sc, &lru_pages);
+ 			node_lru_pages += lru_pages;
+ 
+ 			if (memcg)
+ 				shrink_slab(sc->gfp_mask, pgdat->node_id,
+-					    memcg, sc->nr_scanned - scanned,
+-					    lru_pages);
++					    memcg, sc->priority);
+ 
+ 			/* Record the group's reclaim efficiency */
+ 			vmpressure(sc->gfp_mask, memcg, false,
+@@ -2641,14 +2624,9 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 			}
+ 		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
+ 
+-		/*
+-		 * Shrink the slab caches in the same proportion that
+-		 * the eligible LRU pages were scanned.
+-		 */
+ 		if (global_reclaim(sc))
+ 			shrink_slab(sc->gfp_mask, pgdat->node_id, NULL,
+-				    sc->nr_scanned - nr_scanned,
+-				    node_lru_pages);
++				    sc->priority);
+ 
+ 		/*
+ 		 * Record the subtree's reclaim efficiency. The reclaimed
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
