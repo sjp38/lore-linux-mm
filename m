@@ -1,83 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A7CC2803D0
-	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 06:44:51 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id m133so285353931pga.2
-        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 03:44:51 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id n7si8533210pga.341.2017.08.22.03.44.50
-        for <linux-mm@kvack.org>;
-        Tue, 22 Aug 2017 03:44:50 -0700 (PDT)
-From: Punit Agrawal <punit.agrawal@arm.com>
-Subject: [PATCH v7 9/9] arm64: hugetlb: Cleanup setup_hugepagesz
-Date: Tue, 22 Aug 2017 11:42:49 +0100
-Message-Id: <20170822104249.2189-10-punit.agrawal@arm.com>
-In-Reply-To: <20170822104249.2189-1-punit.agrawal@arm.com>
-References: <20170822104249.2189-1-punit.agrawal@arm.com>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B3082803D0
+	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 08:29:11 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 83so321285088pgb.14
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 05:29:11 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0138.outbound.protection.outlook.com. [104.47.0.138])
+        by mx.google.com with ESMTPS id s12si9328774plj.541.2017.08.22.05.29.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 22 Aug 2017 05:29:09 -0700 (PDT)
+Subject: [PATCH 0/3] Make count list_lru_one::nr_items lockless
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Date: Tue, 22 Aug 2017 15:29:08 +0300
+Message-ID: <150340381428.3845.6099251634440472539.stgit@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: will.deacon@arm.com, catalin.marinas@arm.com
-Cc: Steve Capper <steve.capper@arm.com>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, mark.rutland@arm.com, David Woods <dwoods@mellanox.com>, stable@vger.kernel.org, Punit Agrawal <punit.agrawal@arm.com>
+To: apolyakov@beget.ru, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ktkhai@virtuozzo.com, vdavydov.dev@gmail.com, aryabinin@virtuozzo.com, akpm@linux-foundation.org
 
-From: Steve Capper <steve.capper@arm.com>
+This series aims to improve scalability of list_lru shrinking
+and to make list_lru_count_one() working more effective.
 
-Replace a lot of if statements with switch and case labels to make it
-much clearer which huge page sizes are supported.
+On RHEL7 3.10 kernel I observe high system time usage and time
+spent in super_cache_count() during slab shrinking:
 
-Also, we prevent PUD_SIZE from being used on systems not running with
-4KB PAGE_SIZE. Before if one supplied PUD_SIZE in these circumstances,
-then unusuable huge page sizes would be in use.
+0,94%  mysqld         [kernel.vmlinux]  [k] _raw_spin_lock                [k] _raw_spin_lock
+0,57%  mysqld         [kernel.vmlinux]  [k] shrink_slab                   [k] shrink_slab
+0,51%  mysqld         [kernel.vmlinux]  [k] super_cache_count             [k] super_cache_count
+0,32%  mysqld         [kernel.vmlinux]  [k] __list_lru_count_one.isra.2   [k] _raw_spin_lock
+0,32%  mysqld         [kernel.vmlinux]  [k] list_lru_count_one            [k] __list_lru_count_one.isra.2
 
-Fixes: 084bd29810a5 ("ARM64: mm: HugeTLB support.")
-Cc: David Woods <dwoods@mellanox.com>
-Cc: <stable@vger.kernel.org>
-Signed-off-by: Steve Capper <steve.capper@arm.com>
-Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
-Reviewed-by: Mark Rutland <mark.rutland@arm.com>
+(percentage of all node time; collected via $perf record --call-graph fp -j k -a).
+It's an example, how the processes traces look like. And many processes spend time
+in the above.
+
+There is a node with many containers (more, than 200), and (as it's usually happen)
+containers have no free memory (cache is actively used). Since shrink_slab() iterates
+all superblocks, and it happens frequently, the shrink scales badly, and node spends
+in sys more than 90% of time.
+
+The patchset makes list_lru_count_one() lockless via RCU technics. Patch [1/3]
+adds a new rcu field to struct list_lru_memcg and makes functions account its
+size during allocations. Patch [2/3] makes list_lru_node::memcg_lrus RCU-protected
+and RCU-accessible. Patch [3/3] removes the lock and adds rcu read protection
+into __list_lru_count_one().
+
 ---
- arch/arm64/mm/hugetlbpage.c | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
 
-diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
-index b5e9c5b5e897..19f6604018dd 100644
---- a/arch/arm64/mm/hugetlbpage.c
-+++ b/arch/arm64/mm/hugetlbpage.c
-@@ -406,20 +406,20 @@ static __init int setup_hugepagesz(char *opt)
- {
- 	unsigned long ps = memparse(opt, &opt);
- 
--	if (ps == PMD_SIZE) {
--		hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT);
--	} else if (ps == PUD_SIZE) {
--		hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
--	} else if (ps == (PAGE_SIZE * CONT_PTES)) {
--		hugetlb_add_hstate(CONT_PTE_SHIFT);
--	} else if (ps == (PMD_SIZE * CONT_PMDS)) {
--		hugetlb_add_hstate((PMD_SHIFT + CONT_PMD_SHIFT) - PAGE_SHIFT);
--	} else {
--		hugetlb_bad_size();
--		pr_err("hugepagesz: Unsupported page size %lu K\n", ps >> 10);
--		return 0;
-+	switch (ps) {
-+#ifdef CONFIG_ARM64_4K_PAGES
-+	case PUD_SIZE:
-+#endif
-+	case PMD_SIZE * CONT_PMDS:
-+	case PMD_SIZE:
-+	case PAGE_SIZE * CONT_PTES:
-+		hugetlb_add_hstate(ilog2(ps) - PAGE_SHIFT);
-+		return 1;
- 	}
--	return 1;
-+
-+	hugetlb_bad_size();
-+	pr_err("hugepagesz: Unsupported page size %lu K\n", ps >> 10);
-+	return 0;
- }
- __setup("hugepagesz=", setup_hugepagesz);
- 
--- 
-2.13.2
+Kirill Tkhai (3):
+      mm: Add rcu field to struct list_lru_memcg
+      mm: Make list_lru_node::memcg_lrus RCU protected
+      mm: Count list_lru_one::nr_items lockless
+
+
+ include/linux/list_lru.h |    3 +-
+ mm/list_lru.c            |   77 ++++++++++++++++++++++++++++++----------------
+ 2 files changed, 53 insertions(+), 27 deletions(-)
+
+--
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
