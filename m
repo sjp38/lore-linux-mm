@@ -1,139 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 612B02806E4
-	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 12:21:08 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 83so326283572pgb.14
-        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 09:21:08 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id e3si9083424pga.511.2017.08.22.09.21.06
-        for <linux-mm@kvack.org>;
-        Tue, 22 Aug 2017 09:21:07 -0700 (PDT)
-Subject: Re: [PATCH v7 5/9] arm64: hugetlb: Handle swap entries in
- huge_pte_offset() for contiguous hugepages
-References: <20170822104249.2189-1-punit.agrawal@arm.com>
- <20170822104249.2189-6-punit.agrawal@arm.com>
- <a54aff75-f79b-b40d-c66f-6730aaccbd39@arm.com>
- <87wp5vmzpn.fsf@e105922-lin.cambridge.arm.com>
- <b6a305a2-6653-b20c-66ae-bac7d0b70242@arm.com>
- <87inhfmv9f.fsf@e105922-lin.cambridge.arm.com>
-From: Julien Thierry <julien.thierry@arm.com>
-Message-ID: <010915f9-2322-1add-bf9a-dc0e830d6548@arm.com>
-Date: Tue, 22 Aug 2017 17:21:02 +0100
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A62142806E4
+	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 12:28:33 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id z132so219430wmg.7
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 09:28:33 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n17si4130181wrb.347.2017.08.22.09.28.31
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 22 Aug 2017 09:28:32 -0700 (PDT)
+Date: Tue, 22 Aug 2017 18:28:26 +0200
+From: Borislav Petkov <bp@suse.de>
+Subject: Re: [PATCHv5 01/19] mm/sparsemem: Allocate mem_section at runtime
+ for SPARSEMEM_EXTREME
+Message-ID: <20170822162826.umma52xs6qotz2l2@pd.tnic>
+References: <20170821152916.40124-1-kirill.shutemov@linux.intel.com>
+ <20170821152916.40124-2-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <87inhfmv9f.fsf@e105922-lin.cambridge.arm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170821152916.40124-2-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Punit Agrawal <punit.agrawal@arm.com>
-Cc: will.deacon@arm.com, catalin.marinas@arm.com, mark.rutland@arm.com, David Woods <dwoods@mellanox.com>, steve.capper@arm.com, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Dmitry Safonov <dsafonov@virtuozzo.com>, Cyrill Gorcunov <gorcunov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-
-
-On 22/08/17 17:18, Punit Agrawal wrote:
-> Julien Thierry <julien.thierry@arm.com> writes:
+On Mon, Aug 21, 2017 at 06:28:58PM +0300, Kirill A. Shutemov wrote:
+> Size of mem_section array depends on size of physical address space.
 > 
->> On 22/08/17 15:41, Punit Agrawal wrote:
->>> Julien Thierry <julien.thierry@arm.com> writes:
->>>
->>>> Hi Punit,
->>>>
->>>> On 22/08/17 11:42, Punit Agrawal wrote:
->>>>> huge_pte_offset() was updated to correctly handle swap entries for
->>>>> hugepages. With the addition of the size parameter, it is now possible
->>>>> to disambiguate whether the request is for a regular hugepage or a
->>>>> contiguous hugepage.
->>>>>
->>>>> Fix huge_pte_offset() for contiguous hugepages by using the size to find
->>>>> the correct page table entry.
->>>>>
->>>>> Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
->>>>> Cc: David Woods <dwoods@mellanox.com>
->>>>> ---
->>>>>     arch/arm64/mm/hugetlbpage.c | 21 ++++++++++++++++-----
->>>>>     1 file changed, 16 insertions(+), 5 deletions(-)
->>>>>
->>>>> diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
->>>>> index 594232598cac..b95e24dc3477 100644
->>>>> --- a/arch/arm64/mm/hugetlbpage.c
->>>>> +++ b/arch/arm64/mm/hugetlbpage.c
->>>>> @@ -214,6 +214,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
->>>>>     	pgd_t *pgd;
->>>>>     	pud_t *pud;
->>>>>     	pmd_t *pmd;
->>>>> +	pte_t *pte;
->>>>>       	pgd = pgd_offset(mm, addr);
->>>>>     	pr_debug("%s: addr:0x%lx pgd:%p\n", __func__, addr, pgd);
->>>>> @@ -221,19 +222,29 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
->>>>>     		return NULL;
->>>>>       	pud = pud_offset(pgd, addr);
->>>>> -	if (pud_none(*pud))
->>>>> +	if (sz != PUD_SIZE && pud_none(*pud))
->>>>>     		return NULL;
->>>>> -	/* swap or huge page */
->>>>> -	if (!pud_present(*pud) || pud_huge(*pud))
->>>>> +	/* hugepage or swap? */
->>>>> +	if (pud_huge(*pud) || !pud_present(*pud))
->>>>>     		return (pte_t *)pud;
->>>>>     	/* table; check the next level */
->>>>>     +	if (sz == CONT_PMD_SIZE)
->>>>> +		addr &= CONT_PMD_MASK;
->>>>> +
->>>>>     	pmd = pmd_offset(pud, addr);
->>>>> -	if (pmd_none(*pmd))
->>>>> +	if (!(sz == PMD_SIZE || sz == CONT_PMD_SIZE) &&
->>>>> +	    pmd_none(*pmd))
->>>>>     		return NULL;
->>>>> -	if (!pmd_present(*pmd) || pmd_huge(*pmd))
->>>>> +	if (pmd_huge(*pmd) || !pmd_present(*pmd))
->>>>>     		return (pte_t *)pmd;
->>>>>     +	if (sz == CONT_PTE_SIZE) {
->>>>> +		pte = pte_offset_kernel(
->>>>> +			pmd, (addr & CONT_PTE_MASK));
->>>>> +		return pte;
->>>>
->>>> Nit: Looks like this is the only place the new variable pte is
->>>> used. Since we don't need to test its value, why not just write:
->>>> 	return pte_offset_kernel(pmd, (addr & CONT_PTE_MASK));
->>>>
->>>> and get rid of the pte variable?
->>>
->>> There is no benefit to getting rid of "pte" other than conciseness of
->>> the patch. Having an explicit identifier helps highlight the level of
->>> the page tables we are accessing.
->>>
->>> And we always want to prioritise readability vs conciseness of the
->>> patch, no?
->>>
->>
->> I agree, but I feel here it is more redundancy than increase of
->> readability, because we know pte_offset_kernel returns the address of
->> a pte, no? (otherwise I feel a comment would fit better than a
->> variable).
->>
->> Also, we end up with a variable declared in one scope where it is not
->> used, and it is referenced in a single inner scope, which seems a bit
->> odd to me. Might make the reader pointlessly wonder where else it is
->> used.
+> In preparation for boot-time switching between paging modes on x86-64
+> we need to make allocation of mem_section dynamic.
 > 
-> I would've thought looking at the function makes the variable usage
-> quite clear. But I think at this stage we are disagreeing over personal
-> preferences rather than any real issues (imho) with the code.
+> The patch allocates the array on the first call to
+> sparse_memory_present_with_active_regions().
 > 
-> If you feel strongly about this, I can update the code if there is a
-> need for another version. But I am reluctant to send a new version just
-> for this change.
-> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  include/linux/mmzone.h |  6 +++++-
+>  mm/page_alloc.c        | 10 ++++++++++
+>  mm/sparse.c            | 17 +++++++++++------
+>  3 files changed, 26 insertions(+), 7 deletions(-)
 
-Fair enough, it was just nitpicking.
+This patch needs running through checkpatch:
 
-Rest of the patchset looks good from my understanding.
+ERROR: code indent should use tabs where possible
+#53: FILE: include/linux/mmzone.h:1148:
++        if (!mem_section)$
 
-Cheers,
+WARNING: please, no spaces at the start of a line
+#53: FILE: include/linux/mmzone.h:1148:
++        if (!mem_section)$
+
+ERROR: code indent should use tabs where possible
+#54: FILE: include/linux/mmzone.h:1149:
++                return NULL;$
+
+WARNING: please, no spaces at the start of a line
+#54: FILE: include/linux/mmzone.h:1149:
++                return NULL;$
+
+ERROR: "foo* bar" should be "foo *bar"
+#99: FILE: mm/sparse.c:106:
++       struct mem_section* root = NULL;
+
+ERROR: do not initialise statics to 0
+#118: FILE: mm/sparse.c:335:
++       static unsigned long old_usemap_snr = 0;
+
+ERROR: do not initialise statics to 0
+#119: FILE: mm/sparse.c:336:
++       static unsigned long old_pgdat_snr = 0;
+
+You should integrate it into your patch creation workflow.
+
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index fc14b8b3f6ce..9799c2c58ce6 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -1137,13 +1137,17 @@ struct mem_section {
+>  #define SECTION_ROOT_MASK	(SECTIONS_PER_ROOT - 1)
+>  
+>  #ifdef CONFIG_SPARSEMEM_EXTREME
+> -extern struct mem_section *mem_section[NR_SECTION_ROOTS];
+> +extern struct mem_section **mem_section;
+>  #else
+>  extern struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT];
+>  #endif
+>  
+>  static inline struct mem_section *__nr_to_section(unsigned long nr)
+>  {
+> +#ifdef CONFIG_SPARSEMEM_EXTREME
+> +        if (!mem_section)
+> +                return NULL;
+> +#endif
+>  	if (!mem_section[SECTION_NR_TO_ROOT(nr)])
+>  		return NULL;
+>  	return &mem_section[SECTION_NR_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 6d30e914afb6..639fd2dce0c4 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5681,6 +5681,16 @@ void __init sparse_memory_present_with_active_regions(int nid)
+>  	unsigned long start_pfn, end_pfn;
+>  	int i, this_nid;
+>  
+> +#ifdef CONFIG_SPARSEMEM_EXTREME
+> +	if (!mem_section) {
+
+Any chance this ifdeffery and above can use IS_ENABLED() instead?
+
+> +		unsigned long size, align;
+> +
+> +		size = sizeof(struct mem_section) * NR_SECTION_ROOTS;
+> +		align = 1 << (INTERNODE_CACHE_SHIFT);
+> +		mem_section = memblock_virt_alloc(size, align);
+> +	}
+> +#endif
 
 -- 
-Julien Thierry
+Regards/Gruss,
+    Boris.
+
+SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
