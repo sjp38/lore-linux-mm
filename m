@@ -1,73 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 594B0280725
-	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 15:47:30 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id f7so17087078lfg.12
-        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 12:47:30 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k203sor735713lfg.4.2017.08.22.12.47.28
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 174B9280725
+	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 15:55:42 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id d12so267674616pgt.8
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 12:55:42 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id z95si5255233plh.865.2017.08.22.12.55.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 22 Aug 2017 12:47:28 -0700 (PDT)
-Date: Tue, 22 Aug 2017 22:47:25 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [PATCH 3/3] mm: Count list_lru_one::nr_items lockless
-Message-ID: <20170822194725.ik3xwxu67wcthisb@esperanza>
-References: <150340381428.3845.6099251634440472539.stgit@localhost.localdomain>
- <150340497499.3845.3045559119569209195.stgit@localhost.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Aug 2017 12:55:41 -0700 (PDT)
+From: "Liang, Kan" <kan.liang@intel.com>
+Subject: RE: [PATCH 1/2] sched/wait: Break up long wake list walk
+Date: Tue, 22 Aug 2017 19:55:37 +0000
+Message-ID: <37D7C6CF3E00A74B8858931C1DB2F0775378A377@SHSMSX103.ccr.corp.intel.com>
+References: <CA+55aFwzTMrZwh7TE_VeZt8gx5Syoop-kA=Xqs56=FkyakrM6g@mail.gmail.com>
+ <37D7C6CF3E00A74B8858931C1DB2F0775378761B@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFy_RNx5TQ8esjPPOKuW-o+fXbZgWapau2MHyexcAZtqsw@mail.gmail.com>
+ <20170818122339.24grcbzyhnzmr4qw@techsingularity.net>
+ <37D7C6CF3E00A74B8858931C1DB2F077537879BB@SHSMSX103.ccr.corp.intel.com>
+ <20170818144622.oabozle26hasg5yo@techsingularity.net>
+ <37D7C6CF3E00A74B8858931C1DB2F07753787AE4@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFxZjjqUM4kPvNEeZahPovBHFATiwADj-iPTDN0-jnU67Q@mail.gmail.com>
+ <20170818185455.qol3st2nynfa47yc@techsingularity.net>
+ <CA+55aFwX0yrUPULrDxTWVCg5c6DKh-yCG84NXVxaptXNQ4O_kA@mail.gmail.com>
+ <20170821183234.kzennaaw2zt2rbwz@techsingularity.net>
+ <37D7C6CF3E00A74B8858931C1DB2F07753788B58@SHSMSX103.ccr.corp.intel.com>
+ <37D7C6CF3E00A74B8858931C1DB2F0775378A24A@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFy=4y0fq9nL2WR1x8vwzJrDOdv++r036LXpR=6Jx8jpzg@mail.gmail.com>
+In-Reply-To: <CA+55aFy=4y0fq9nL2WR1x8vwzJrDOdv++r036LXpR=6Jx8jpzg@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <150340497499.3845.3045559119569209195.stgit@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: apolyakov@beget.ru, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aryabinin@virtuozzo.com, akpm@linux-foundation.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo
+ Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Tue, Aug 22, 2017 at 03:29:35PM +0300, Kirill Tkhai wrote:
-> During the reclaiming slab of a memcg, shrink_slab iterates
-> over all registered shrinkers in the system, and tries to count
-> and consume objects related to the cgroup. In case of memory
-> pressure, this behaves bad: I observe high system time and
-> time spent in list_lru_count_one() for many processes on RHEL7
-> kernel (collected via $perf record --call-graph fp -j k -a):
-> 
-> 0,50%  nixstatsagent  [kernel.vmlinux]  [k] _raw_spin_lock                [k] _raw_spin_lock
-> 0,26%  nixstatsagent  [kernel.vmlinux]  [k] shrink_slab                   [k] shrink_slab
-> 0,23%  nixstatsagent  [kernel.vmlinux]  [k] super_cache_count             [k] super_cache_count
-> 0,15%  nixstatsagent  [kernel.vmlinux]  [k] __list_lru_count_one.isra.2   [k] _raw_spin_lock
-> 0,15%  nixstatsagent  [kernel.vmlinux]  [k] list_lru_count_one            [k] __list_lru_count_one.isra.2
-> 
-> 0,94%  mysqld         [kernel.vmlinux]  [k] _raw_spin_lock                [k] _raw_spin_lock
-> 0,57%  mysqld         [kernel.vmlinux]  [k] shrink_slab                   [k] shrink_slab
-> 0,51%  mysqld         [kernel.vmlinux]  [k] super_cache_count             [k] super_cache_count
-> 0,32%  mysqld         [kernel.vmlinux]  [k] __list_lru_count_one.isra.2   [k] _raw_spin_lock
-> 0,32%  mysqld         [kernel.vmlinux]  [k] list_lru_count_one            [k] __list_lru_count_one.isra.2
-> 
-> 0,73%  sshd           [kernel.vmlinux]  [k] _raw_spin_lock                [k] _raw_spin_lock
-> 0,35%  sshd           [kernel.vmlinux]  [k] shrink_slab                   [k] shrink_slab
-> 0,32%  sshd           [kernel.vmlinux]  [k] super_cache_count             [k] super_cache_count
-> 0,21%  sshd           [kernel.vmlinux]  [k] __list_lru_count_one.isra.2   [k] _raw_spin_lock
-> 0,21%  sshd           [kernel.vmlinux]  [k] list_lru_count_one            [k] __list_lru_count_one.isra.2
-
-It would be nice to see how this is improved by this patch.
-Can you try to record the traces on the vanilla kernel with
-and without this patch?
-
-> 
-> This patch aims to make super_cache_count() more effective. It
-> makes __list_lru_count_one() count nr_items lockless to minimize
-> overhead introducing by locking operation, and to make parallel
-> reclaims more scalable.
-> 
-> The lock won't be taken on shrinker::count_objects(),
-> it would be taken only for the real shrink by the thread,
-> who realizes it.
-> 
-
-> https://jira.sw.ru/browse/PSBM-69296
-
-Not relevant.
+IA0KPiBTbyBJIHByb3Bvc2UgdGVzdGluZyB0aGUgYXR0YWNoZWQgdHJpdmlhbCBwYXRjaC4gDQoN
+Ckl0IGRvZXNu4oCZdCB3b3JrLiANClRoZSBjYWxsIHN0YWNrIGlzIHRoZSBzYW1lLg0KDQogICAx
+MDAuMDAlICAoZmZmZmZmZmY4MjFhZjE0MCkNCiAgICAgICAgICAgIHwNCiAgICAgICAgICAgIC0t
+LXdhaXRfb25fcGFnZV9iaXQNCiAgICAgICAgICAgICAgIF9fbWlncmF0aW9uX2VudHJ5X3dhaXQN
+CiAgICAgICAgICAgICAgIG1pZ3JhdGlvbl9lbnRyeV93YWl0DQogICAgICAgICAgICAgICBkb19z
+d2FwX3BhZ2UNCiAgICAgICAgICAgICAgIF9faGFuZGxlX21tX2ZhdWx0DQogICAgICAgICAgICAg
+ICBoYW5kbGVfbW1fZmF1bHQNCiAgICAgICAgICAgICAgIF9fZG9fcGFnZV9mYXVsdA0KICAgICAg
+ICAgICAgICAgZG9fcGFnZV9mYXVsdA0KICAgICAgICAgICAgICAgcGFnZV9mYXVsdA0KICAgICAg
+ICAgICAgICAgfA0KICAgICAgICAgICAgICAgfC0tNDAuNjIlLS0weDEyM2EyDQogICAgICAgICAg
+ICAgICB8ICAgICAgICAgIHN0YXJ0X3RocmVhZA0KICAgICAgICAgICAgICAgfA0KDQoNCj4gSXQg
+bWF5IG5vdCBkbyBhbnl0aGluZyBhdCBhbGwuDQo+IEJ1dCB0aGUgZXhpc3RpbmcgY29kZSBpcyBh
+Y3R1YWxseSBkb2luZyBleHRyYSB3b3JrIGp1c3QgdG8gYmUgZnJhZ2lsZSwgaW4gY2FzZSB0aGUN
+Cj4gc2NlbmFyaW8gYWJvdmUgY2FuIGhhcHBlbi4NCj4gDQo+IENvbW1lbnRzPw0KPiANCj4gICAg
+ICAgICAgICAgICAgIExpbnVzDQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
