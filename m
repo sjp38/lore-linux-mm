@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 522166B04D4
-	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 08:04:00 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id m68so12609060pfj.10
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 05:04:00 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id o10si371037pgf.334.2017.08.23.05.03.58
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D4F16B04D5
+	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 08:04:03 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id o82so12510599pfj.11
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 05:04:03 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id u91si986989plb.1010.2017.08.23.05.03.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Aug 2017 05:03:58 -0700 (PDT)
+        Wed, 23 Aug 2017 05:03:55 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 19/19] x86/mm: Offset boot-time paging mode switching cost
-Date: Wed, 23 Aug 2017 15:03:32 +0300
-Message-Id: <20170823120332.2288-20-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 16/19] x86/mm: Allow to boot without la57 if CONFIG_X86_5LEVEL=y
+Date: Wed, 23 Aug 2017 15:03:29 +0300
+Message-Id: <20170823120332.2288-17-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170823120332.2288-1-kirill.shutemov@linux.intel.com>
 References: <20170823120332.2288-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,195 +20,82 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-By this point we have functioning boot-time switching between 4- and
-5-level paging mode. But naive approach comes with cost.
+All pieces of the puzzle are in place and we can now allow to boot with
+CONFIG_X86_5LEVEL=y on a machine without la57 support.
 
-Numbers below are for kernel build, allmodconfig, 5 times.
+Kernel will detect that la57 is missing and fold p4d at runtime.
 
-CONFIG_X86_5LEVEL=n:
+Update documentation and Kconfig option description to reflect the
+change.
 
- Performance counter stats for 'sh -c make -j100 -B -k >/dev/null' (5 runs):
-
-   17308719.892691      task-clock:u (msec)       #   26.772 CPUs utilized            ( +-  0.11% )
-                 0      context-switches:u        #    0.000 K/sec
-                 0      cpu-migrations:u          #    0.000 K/sec
-       331,993,164      page-faults:u             #    0.019 M/sec                    ( +-  0.01% )
-43,614,978,867,455      cycles:u                  #    2.520 GHz                      ( +-  0.01% )
-39,371,534,575,126      stalled-cycles-frontend:u #   90.27% frontend cycles idle     ( +-  0.09% )
-28,363,350,152,428      instructions:u            #    0.65  insn per cycle
-                                                  #    1.39  stalled cycles per insn  ( +-  0.00% )
- 6,316,784,066,413      branches:u                #  364.948 M/sec                    ( +-  0.00% )
-   250,808,144,781      branch-misses:u           #    3.97% of all branches          ( +-  0.01% )
-
-     646.531974142 seconds time elapsed                                          ( +-  1.15% )
-
-CONFIG_X86_5LEVEL=y:
-
- Performance counter stats for 'sh -c make -j100 -B -k >/dev/null' (5 runs):
-
-   17411536.780625      task-clock:u (msec)       #   26.426 CPUs utilized            ( +-  0.10% )
-                 0      context-switches:u        #    0.000 K/sec
-                 0      cpu-migrations:u          #    0.000 K/sec
-       331,868,663      page-faults:u             #    0.019 M/sec                    ( +-  0.01% )
-43,865,909,056,301      cycles:u                  #    2.519 GHz                      ( +-  0.01% )
-39,740,130,365,581      stalled-cycles-frontend:u #   90.59% frontend cycles idle     ( +-  0.05% )
-28,363,358,997,959      instructions:u            #    0.65  insn per cycle
-                                                  #    1.40  stalled cycles per insn  ( +-  0.00% )
- 6,316,784,937,460      branches:u                #  362.793 M/sec                    ( +-  0.00% )
-   251,531,919,485      branch-misses:u           #    3.98% of all branches          ( +-  0.00% )
-
-     658.886307752 seconds time elapsed                                          ( +-  0.92% )
-The patch tries to fix the performance regression by using
-
-!cpu_feature_enabled(X86_FEATURE_LA57) instead of pgtable_l5_enabled in
-all hot code paths. These will statically patch the target code for
-additional performance.
-
-CONFIG_X86_5LEVEL=y + the patch:
-
- Performance counter stats for 'sh -c make -j100 -B -k >/dev/null' (5 runs):
-
-   17381990.268506      task-clock:u (msec)       #   26.907 CPUs utilized            ( +-  0.19% )
-                 0      context-switches:u        #    0.000 K/sec
-                 0      cpu-migrations:u          #    0.000 K/sec
-       331,862,625      page-faults:u             #    0.019 M/sec                    ( +-  0.01% )
-43,697,726,320,051      cycles:u                  #    2.514 GHz                      ( +-  0.03% )
-39,480,408,690,401      stalled-cycles-frontend:u #   90.35% frontend cycles idle     ( +-  0.05% )
-28,363,394,221,388      instructions:u            #    0.65  insn per cycle
-                                                  #    1.39  stalled cycles per insn  ( +-  0.00% )
- 6,316,794,985,573      branches:u                #  363.410 M/sec                    ( +-  0.00% )
-   251,013,232,547      branch-misses:u           #    3.97% of all branches          ( +-  0.01% )
-
-     645.991174661 seconds time elapsed                                          ( +-  1.19% )
-
-Unfortunately, this approach doesn't help with text size:
-
-  vmlinux.before .text size:	9798404
-  vmlinux.after .text size:	9802566
-
-The .text section is increased by about 4k. Not sure if we can do anything
-about this.
-
-Signed-off-by: Kirill A. Shuemov <kirill.shutemov@linux.intel.com>
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/boot/compressed/misc.h         |  5 +++++
- arch/x86/entry/entry_64.S               | 11 ++---------
- arch/x86/include/asm/pgtable_64_types.h |  5 ++++-
- arch/x86/kernel/head64.c                |  9 +++++++--
- arch/x86/kernel/head_64.S               |  2 +-
- arch/x86/mm/kasan_init_64.c             |  6 ++++++
- 6 files changed, 25 insertions(+), 13 deletions(-)
+ Documentation/x86/x86_64/5level-paging.txt | 9 +++------
+ arch/x86/Kconfig                           | 4 ++--
+ arch/x86/include/asm/required-features.h   | 8 +-------
+ 3 files changed, 6 insertions(+), 15 deletions(-)
 
-diff --git a/arch/x86/boot/compressed/misc.h b/arch/x86/boot/compressed/misc.h
-index 766a5211f827..5604f08aa405 100644
---- a/arch/x86/boot/compressed/misc.h
-+++ b/arch/x86/boot/compressed/misc.h
-@@ -11,6 +11,11 @@
- #undef CONFIG_PARAVIRT_SPINLOCKS
- #undef CONFIG_KASAN
+diff --git a/Documentation/x86/x86_64/5level-paging.txt b/Documentation/x86/x86_64/5level-paging.txt
+index 087251a0d99c..2432a5ef86d9 100644
+--- a/Documentation/x86/x86_64/5level-paging.txt
++++ b/Documentation/x86/x86_64/5level-paging.txt
+@@ -20,12 +20,9 @@ Documentation/x86/x86_64/mm.txt
  
-+#ifdef CONFIG_X86_5LEVEL
-+/* cpu_feature_enabled() cannot be used that early */
-+#define pgtable_l5_enabled __pgtable_l5_enabled
-+#endif
-+
- #include <linux/linkage.h>
- #include <linux/screen_info.h>
- #include <linux/elf.h>
-diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
-index 5f879ac3360c..4cc84539a8d4 100644
---- a/arch/x86/entry/entry_64.S
-+++ b/arch/x86/entry/entry_64.S
-@@ -269,15 +269,8 @@ return_from_SYSCALL_64:
- 	 * depending on paging mode) in the address.
- 	 */
- #ifdef CONFIG_X86_5LEVEL
--	testl	$1, pgtable_l5_enabled(%rip)
--	jz	1f
--	shl	$(64 - 57), %rcx
--	sar	$(64 - 57), %rcx
--	jmp	2f
--1:
--	shl	$(64 - 48), %rcx
--	sar	$(64 - 48), %rcx
--2:
-+	ALTERNATIVE "shl $(64 - 48), %rcx; sar $(64 - 48), %rcx", \
-+		"shl $(64 - 57), %rcx; sar $(64 - 57), %rcx", X86_FEATURE_LA57
- #else
- 	shl	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
- 	sar	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index fa9f8b6592fa..0efb46fa1052 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -20,7 +20,10 @@ typedef unsigned long	pgprotval_t;
- typedef struct { pteval_t pte; } pte_t;
+ CONFIG_X86_5LEVEL=y enables the feature.
  
- #ifdef CONFIG_X86_5LEVEL
--extern unsigned int pgtable_l5_enabled;
-+extern unsigned int __pgtable_l5_enabled;
-+#ifndef pgtable_l5_enabled
-+#define pgtable_l5_enabled (cpu_feature_enabled(X86_FEATURE_LA57))
-+#endif
- #else
- #define pgtable_l5_enabled 0
+-So far, a kernel compiled with the option enabled will be able to boot
+-only on machines that supports the feature -- see for 'la57' flag in
+-/proc/cpuinfo.
+-
+-The plan is to implement boot-time switching between 4- and 5-level paging
+-in the future.
++Kernel with CONFIG_X86_5LEVEL=y still able to boot on 4-level hardware.
++In this case additional page table level -- p4d -- will be folded at
++runtime.
+ 
+ == User-space and large virtual address space ==
+ 
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 1e48d2fd8db9..c88db538f3b3 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1411,8 +1411,8 @@ config X86_5LEVEL
+ 
+ 	  It will be supported by future Intel CPUs.
+ 
+-	  Note: a kernel with this option enabled can only be booted
+-	  on machines that support the feature.
++	  A kernel with the option enabled can be booted on machines that
++	  support 4- or 5-level paging.
+ 
+ 	  See Documentation/x86/x86_64/5level-paging.txt for more
+ 	  information.
+diff --git a/arch/x86/include/asm/required-features.h b/arch/x86/include/asm/required-features.h
+index d91ba04dd007..fac9a5c0abe9 100644
+--- a/arch/x86/include/asm/required-features.h
++++ b/arch/x86/include/asm/required-features.h
+@@ -53,12 +53,6 @@
+ # define NEED_MOVBE	0
  #endif
-diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
-index 5ff783ae530e..e100dcaf6b4d 100644
---- a/arch/x86/kernel/head64.c
-+++ b/arch/x86/kernel/head64.c
-@@ -31,6 +31,11 @@
- #include <asm/microcode.h>
- #include <asm/kasan.h>
  
-+#ifdef CONFIG_X86_5LEVEL
-+#undef pgtable_l5_enabled
-+#define pgtable_l5_enabled __pgtable_l5_enabled
-+#endif
-+
- /*
-  * Manage page tables very early on.
-  */
-@@ -39,8 +44,8 @@ static unsigned int __initdata next_early_pgt;
- pmdval_t early_pmd_flags = __PAGE_KERNEL_LARGE & ~(_PAGE_GLOBAL | _PAGE_NX);
+-#ifdef CONFIG_X86_5LEVEL
+-# define NEED_LA57	(1<<(X86_FEATURE_LA57 & 31))
+-#else
+-# define NEED_LA57	0
+-#endif
+-
+ #ifdef CONFIG_X86_64
+ #ifdef CONFIG_PARAVIRT
+ /* Paravirtualized systems may not have PSE or PGE available */
+@@ -104,7 +98,7 @@
+ #define REQUIRED_MASK13	0
+ #define REQUIRED_MASK14	0
+ #define REQUIRED_MASK15	0
+-#define REQUIRED_MASK16	(NEED_LA57)
++#define REQUIRED_MASK16	0
+ #define REQUIRED_MASK17	0
+ #define REQUIRED_MASK_CHECK BUILD_BUG_ON_ZERO(NCAPINTS != 18)
  
- #ifdef CONFIG_X86_5LEVEL
--unsigned int pgtable_l5_enabled __read_mostly;
--EXPORT_SYMBOL(pgtable_l5_enabled);
-+unsigned int __pgtable_l5_enabled __read_mostly;
-+EXPORT_SYMBOL(__pgtable_l5_enabled);
- unsigned int pgdir_shift __read_mostly = 39;
- EXPORT_SYMBOL(pgdir_shift);
- unsigned int ptrs_per_p4d __read_mostly = 1;
-diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
-index e137f2665fc2..8a1fe9b63c03 100644
---- a/arch/x86/kernel/head_64.S
-+++ b/arch/x86/kernel/head_64.S
-@@ -121,7 +121,7 @@ ENTRY(secondary_startup_64)
- 	/* Enable PAE mode, PGE and LA57 */
- 	movl	$(X86_CR4_PAE | X86_CR4_PGE), %ecx
- #ifdef CONFIG_X86_5LEVEL
--	testl	$1, pgtable_l5_enabled(%rip)
-+	testl	$1, __pgtable_l5_enabled(%rip)
- 	jz	1f
- 	orl	$X86_CR4_LA57, %ecx
- 1:
-diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
-index 9173ce1feba0..230e4ea1d3ae 100644
---- a/arch/x86/mm/kasan_init_64.c
-+++ b/arch/x86/mm/kasan_init_64.c
-@@ -1,5 +1,11 @@
- #define DISABLE_BRANCH_PROFILING
- #define pr_fmt(fmt) "kasan: " fmt
-+
-+#ifdef CONFIG_X86_5LEVEL
-+/* Too early to use cpu_feature_enabled() */
-+#define pgtable_l5_enabled __pgtable_l5_enabled
-+#endif
-+
- #include <linux/bootmem.h>
- #include <linux/kasan.h>
- #include <linux/kdebug.h>
 -- 
 2.14.1
 
