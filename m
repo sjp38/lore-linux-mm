@@ -1,49 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F1B12803FE
-	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 19:31:27 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id q16so19378027pgc.15
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 16:31:27 -0700 (PDT)
-Received: from mail-pg0-x232.google.com (mail-pg0-x232.google.com. [2607:f8b0:400e:c05::232])
-        by mx.google.com with ESMTPS id b5si1829769ple.560.2017.08.23.16.31.26
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 10D972803FE
+	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 19:46:18 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id r133so19967842pgr.6
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 16:46:18 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id q132si1707518pgq.493.2017.08.23.16.46.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Aug 2017 16:31:26 -0700 (PDT)
-Received: by mail-pg0-x232.google.com with SMTP id u191so7040657pgc.2
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 16:31:26 -0700 (PDT)
-Date: Wed, 23 Aug 2017 16:31:24 -0700
-From: Matthias Kaehlcke <mka@chromium.org>
-Subject: Re: [PATCH] mm/zsmalloc: Change stat type parameter to int
-Message-ID: <20170823233124.GF173745@google.com>
-References: <20170731175000.56538-1-mka@chromium.org>
- <20170801073014.GA513@jagdpanzerIV.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 23 Aug 2017 16:46:16 -0700 (PDT)
+Date: Thu, 24 Aug 2017 09:46:13 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: mmotm 2017-08-23-16-26 uploaded
+Message-ID: <20170824094613.7873bf32@canb.auug.org.au>
+In-Reply-To: <599e0f5f.qB5Zs5tdsBajmNob%akpm@linux-foundation.org>
+References: <599e0f5f.qB5Zs5tdsBajmNob%akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20170801073014.GA513@jagdpanzerIV.localdomain>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Doug Anderson <dianders@chromium.org>
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, mhocko@suse.cz, broonie@kernel.org
 
-El Tue, Aug 01, 2017 at 04:30:14PM +0900 Sergey Senozhatsky ha dit:
+Hi Andrew,
 
-> On (07/31/17 10:50), Matthias Kaehlcke wrote:
-> > zs_stat_inc/dec/get() uses enum zs_stat_type for the stat type, however
-> > some callers pass an enum fullness_group value. Change the type to int
-> > to reflect the actual use of the functions and get rid of
-> > 'enum-conversion' warnings
-> > 
-> > Signed-off-by: Matthias Kaehlcke <mka@chromium.org>
-> 
-> Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+On Wed, 23 Aug 2017 16:27:27 -0700 akpm@linux-foundation.org wrote:
+>
+> * mm-page_alloc-rip-out-zonelist_order_zone-fix.patch
 
-Ping, it seems this one went under Andrew's radar. Mea culpa for not
-putting him in cc: in the first place.
+That patch has an "Author:" line instead of a "From:" line ("git am" objects).
 
-Thanks
+Otherwise looks good.
 
-Matthias
+-- 
+Cheers,
+Stephen Rothwell
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
