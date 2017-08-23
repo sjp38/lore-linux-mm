@@ -1,157 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 212C1280757
-	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 05:31:48 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id c67so9939503pfj.7
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 02:31:48 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id h125si756343pgc.280.2017.08.23.02.31.46
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 80B02280757
+	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 06:02:24 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id y15so10600255pgc.3
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 03:02:24 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id o12si857588plg.134.2017.08.23.03.02.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Aug 2017 02:31:46 -0700 (PDT)
-Message-ID: <1503480688.6276.4.camel@linux.intel.com>
-Subject: Re: [PATCH 01/23] mm/shmem: introduce shmem_file_setup_with_mnt
-From: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Date: Wed, 23 Aug 2017 12:31:28 +0300
-In-Reply-To: <20170821183503.12246-2-matthew.auld@intel.com>
-References: <20170821183503.12246-1-matthew.auld@intel.com>
-	 <20170821183503.12246-2-matthew.auld@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Wed, 23 Aug 2017 03:02:23 -0700 (PDT)
+From: =?UTF-8?q?=C5=81ukasz=20Daniluk?= <lukasz.daniluk@intel.com>
+Subject: [RESEND PATCH 0/3] mm: Add cache coloring mechanism
+Date: Wed, 23 Aug 2017 12:02:02 +0200
+Message-Id: <20170823100205.17311-1-lukasz.daniluk@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Auld <matthew.auld@intel.com>, intel-gfx@lists.freedesktop.org, Chris Wilson <chris@chris-wilson.co.uk>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: dave.hansen@intel.com, lukasz.anaczkowski@intel.com, =?UTF-8?q?=C5=81ukasz=20Daniluk?= <lukasz.daniluk@intel.com>
 
-Hi Andrew,
+Patches resend with Linux Kernel Mailing List added correctly this time.
 
-This patch has been floating around for a while now Acked and without
-further comments. It is blocking us from merging huge page support to
-drm/i915.
+This patch series adds cache coloring mechanism that works along buddy
+allocator. The solution is opt-in, disabled by default minimally
+interferes with default allocation paths due to added if statements.
 
-Would you mind merging it, or prodding the right people to get it in?
+Why would such patches be needed? Big caches with low associativity
+(direct mapped caches, 2-way associative) will benefit from the solution
+the most - it allows for near constant performance through the lifetime
+of a system, despite the allocations and deallocations happening and
+reordering buddy lists.
 
-Regards, Joonas
+On KNL system, the STREAM benchmark with problem size resulting in its
+internal arrays being of 16GB size will yield bandwidth performance of
+336GB/s after fresh boot. With cache coloring patches applied and
+enabled, this performance stays near constant (most 1.5% drop observed),
+despite running benchmark multiple times with varying sizes over course
+of days.  Without these patches however, the bandwidth when using such
+allocations drops to 117GB/s - over 65% of irrecoverable performance
+penalty. Workloads that exceed set cache size suffer from decreased
+randomization of allocations with cache coloring enabled, but effect of
+cache usage disappears roughly at the same allocation size.
 
-On Mon, 2017-08-21 at 19:34 +0100, Matthew Auld wrote:
-> We are planning to use our own tmpfs mnt in i915 in place of the
-> shm_mnt, such that we can control the mount options, in particular
-> huge=, which we require to support huge-gtt-pages. So rather than roll
-> our own version of __shmem_file_setup, it would be preferred if we could
-> just give shmem our mnt, and let it do the rest.
-> 
-> Signed-off-by: Matthew Auld <matthew.auld@intel.com>
-> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-> Cc: Chris Wilson <chris@chris-wilson.co.uk>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Kirill A. Shutemov <kirill@shutemov.name>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: linux-mm@kvack.org
-> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reviewed-by: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-> ---
->  include/linux/shmem_fs.h |  2 ++
->  mm/shmem.c               | 30 ++++++++++++++++++++++--------
->  2 files changed, 24 insertions(+), 8 deletions(-)
-> 
-> diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-> index a7d6bd2a918f..27de676f0b63 100644
-> --- a/include/linux/shmem_fs.h
-> +++ b/include/linux/shmem_fs.h
-> @@ -53,6 +53,8 @@ extern struct file *shmem_file_setup(const char *name,
->  					loff_t size, unsigned long flags);
->  extern struct file *shmem_kernel_file_setup(const char *name, loff_t size,
->  					    unsigned long flags);
-> +extern struct file *shmem_file_setup_with_mnt(struct vfsmount *mnt,
-> +		const char *name, loff_t size, unsigned long flags);
->  extern int shmem_zero_setup(struct vm_area_struct *);
->  extern unsigned long shmem_get_unmapped_area(struct file *, unsigned long addr,
->  		unsigned long len, unsigned long pgoff, unsigned long flags);
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 6540e5982444..0975e65ea61c 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -4141,7 +4141,7 @@ static const struct dentry_operations anon_ops = {
->  	.d_dname = simple_dname
->  };
->  
-> -static struct file *__shmem_file_setup(const char *name, loff_t size,
-> +static struct file *__shmem_file_setup(struct vfsmount *mnt, const char *name, loff_t size,
->  				       unsigned long flags, unsigned int i_flags)
->  {
->  	struct file *res;
-> @@ -4150,8 +4150,8 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
->  	struct super_block *sb;
->  	struct qstr this;
->  
-> -	if (IS_ERR(shm_mnt))
-> -		return ERR_CAST(shm_mnt);
-> +	if (IS_ERR(mnt))
-> +		return ERR_CAST(mnt);
->  
->  	if (size < 0 || size > MAX_LFS_FILESIZE)
->  		return ERR_PTR(-EINVAL);
-> @@ -4163,8 +4163,8 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
->  	this.name = name;
->  	this.len = strlen(name);
->  	this.hash = 0; /* will go */
-> -	sb = shm_mnt->mnt_sb;
-> -	path.mnt = mntget(shm_mnt);
-> +	sb = mnt->mnt_sb;
-> +	path.mnt = mntget(mnt);
->  	path.dentry = d_alloc_pseudo(sb, &this);
->  	if (!path.dentry)
->  		goto put_memory;
-> @@ -4209,7 +4209,7 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
->   */
->  struct file *shmem_kernel_file_setup(const char *name, loff_t size, unsigned long flags)
->  {
-> -	return __shmem_file_setup(name, size, flags, S_PRIVATE);
-> +	return __shmem_file_setup(shm_mnt, name, size, flags, S_PRIVATE);
->  }
->  
->  /**
-> @@ -4220,11 +4220,25 @@ struct file *shmem_kernel_file_setup(const char *name, loff_t size, unsigned lon
->   */
->  struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags)
->  {
-> -	return __shmem_file_setup(name, size, flags, 0);
-> +	return __shmem_file_setup(shm_mnt, name, size, flags, 0);
->  }
->  EXPORT_SYMBOL_GPL(shmem_file_setup);
->  
->  /**
-> + * shmem_file_setup_with_mnt - get an unlinked file living in tmpfs
-> + * @mnt: the tmpfs mount where the file will be created
-> + * @name: name for dentry (to be seen in /proc/<pid>/maps
-> + * @size: size to be set for the file
-> + * @flags: VM_NORESERVE suppresses pre-accounting of the entire object size
-> + */
-> +struct file *shmem_file_setup_with_mnt(struct vfsmount *mnt, const char *name,
-> +				       loff_t size, unsigned long flags)
-> +{
-> +	return __shmem_file_setup(mnt, name, size, flags, 0);
-> +}
-> +EXPORT_SYMBOL_GPL(shmem_file_setup_with_mnt);
-> +
-> +/**
->   * shmem_zero_setup - setup a shared anonymous mapping
->   * @vma: the vma to be mmapped is prepared by do_mmap_pgoff
->   */
-> @@ -4239,7 +4253,7 @@ int shmem_zero_setup(struct vm_area_struct *vma)
->  	 * accessible to the user through its mapping, use S_PRIVATE flag to
->  	 * bypass file security, in the same way as shmem_kernel_file_setup().
->  	 */
-> -	file = __shmem_file_setup("dev/zero", size, vma->vm_flags, S_PRIVATE);
-> +	file = shmem_kernel_file_setup("dev/zero", size, vma->vm_flags);
->  	if (IS_ERR(file))
->  		return PTR_ERR(file);
->  
+Solution is divided into three patches. First patch is a preparatory one
+that provides interface for retrieving (information about) free lists
+contained by particular free_area structure.  Second one (parallel
+structure keeping separate list_heads for each cache color in a given
+context) shows general solution overview and is working as it is.
+However, it has serious performance implications with bigger caches due
+to linear search for next color to be used during allocations. Third
+patch (sorting list_heads using RB trees) aims to improve solution's
+performance by replacing linear search for next color with searching in
+RB tree. While improving computational performance, it imposes increased
+memory cost of the solution.
+
+
+A?ukasz Daniluk (3):
+  mm: move free_list selection to dedicated functions
+  mm: Add page colored allocation path
+  mm: Add helper rbtree to search for next cache color
+
+ Documentation/admin-guide/kernel-parameters.txt |   8 +
+ include/linux/mmzone.h                          |  12 +-
+ mm/compaction.c                                 |   4 +-
+ mm/page_alloc.c                                 | 381 ++++++++++++++++++++++--
+ mm/vmstat.c                                     |  10 +-
+ 5 files changed, 383 insertions(+), 32 deletions(-)
+
 -- 
-Joonas Lahtinen
-Open Source Technology Center
-Intel Corporation
+2.13.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
