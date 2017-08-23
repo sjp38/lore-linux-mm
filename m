@@ -1,154 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BB4A280757
-	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 04:41:07 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id q49so1474889wrb.14
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 01:41:07 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b62si965020wme.222.2017.08.23.01.41.01
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 212C1280757
+	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 05:31:48 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id c67so9939503pfj.7
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 02:31:48 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id h125si756343pgc.280.2017.08.23.02.31.46
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 23 Aug 2017 01:41:01 -0700 (PDT)
-Subject: Re: [patch 2/2] mm, compaction: persistently skip hugetlbfs
- pageblocks
-References: <alpine.DEB.2.10.1708151638550.106658@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1708151639130.106658@chino.kir.corp.google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <fa162335-a36d-153a-7b5d-1d9c2d57aebc@suse.cz>
-Date: Wed, 23 Aug 2017 10:41:00 +0200
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1708151639130.106658@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Aug 2017 02:31:46 -0700 (PDT)
+Message-ID: <1503480688.6276.4.camel@linux.intel.com>
+Subject: Re: [PATCH 01/23] mm/shmem: introduce shmem_file_setup_with_mnt
+From: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+Date: Wed, 23 Aug 2017 12:31:28 +0300
+In-Reply-To: <20170821183503.12246-2-matthew.auld@intel.com>
+References: <20170821183503.12246-1-matthew.auld@intel.com>
+	 <20170821183503.12246-2-matthew.auld@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Auld <matthew.auld@intel.com>, intel-gfx@lists.freedesktop.org, Chris Wilson <chris@chris-wilson.co.uk>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-On 08/16/2017 01:39 AM, David Rientjes wrote:
-> It is pointless to migrate hugetlb memory as part of memory compaction if
-> the hugetlb size is equal to the pageblock order.  No defragmentation is
-> occurring in this condition.
+Hi Andrew,
+
+This patch has been floating around for a while now Acked and without
+further comments. It is blocking us from merging huge page support to
+drm/i915.
+
+Would you mind merging it, or prodding the right people to get it in?
+
+Regards, Joonas
+
+On Mon, 2017-08-21 at 19:34 +0100, Matthew Auld wrote:
+> We are planning to use our own tmpfs mnt in i915 in place of the
+> shm_mnt, such that we can control the mount options, in particular
+> huge=, which we require to support huge-gtt-pages. So rather than roll
+> our own version of __shmem_file_setup, it would be preferred if we could
+> just give shmem our mnt, and let it do the rest.
 > 
-> It is also pointless to for the freeing scanner to scan a pageblock where
-> a hugetlb page is pinned.  Unconditionally skip these pageblocks, and do
-> so peristently so that they are not rescanned until it is observed that
-> these hugepages are no longer pinned.
-> 
-> It would also be possible to do this by involving the hugetlb subsystem
-> in marking pageblocks to no longer be skipped when they hugetlb pages are
-> freed.  This is a simple solution that doesn't involve any additional
-> subsystems in pageblock skip manipulation.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Matthew Auld <matthew.auld@intel.com>
+> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+> Cc: Chris Wilson <chris@chris-wilson.co.uk>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Cc: Kirill A. Shutemov <kirill@shutemov.name>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: linux-mm@kvack.org
+> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reviewed-by: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
 > ---
->  mm/compaction.c | 48 +++++++++++++++++++++++++++++++++++++-----------
->  1 file changed, 37 insertions(+), 11 deletions(-)
+>  include/linux/shmem_fs.h |  2 ++
+>  mm/shmem.c               | 30 ++++++++++++++++++++++--------
+>  2 files changed, 24 insertions(+), 8 deletions(-)
 > 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -217,6 +217,20 @@ static void reset_cached_positions(struct zone *zone)
->  				pageblock_start_pfn(zone_end_pfn(zone) - 1);
+> diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+> index a7d6bd2a918f..27de676f0b63 100644
+> --- a/include/linux/shmem_fs.h
+> +++ b/include/linux/shmem_fs.h
+> @@ -53,6 +53,8 @@ extern struct file *shmem_file_setup(const char *name,
+>  					loff_t size, unsigned long flags);
+>  extern struct file *shmem_kernel_file_setup(const char *name, loff_t size,
+>  					    unsigned long flags);
+> +extern struct file *shmem_file_setup_with_mnt(struct vfsmount *mnt,
+> +		const char *name, loff_t size, unsigned long flags);
+>  extern int shmem_zero_setup(struct vm_area_struct *);
+>  extern unsigned long shmem_get_unmapped_area(struct file *, unsigned long addr,
+>  		unsigned long len, unsigned long pgoff, unsigned long flags);
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 6540e5982444..0975e65ea61c 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -4141,7 +4141,7 @@ static const struct dentry_operations anon_ops = {
+>  	.d_dname = simple_dname
+>  };
+>  
+> -static struct file *__shmem_file_setup(const char *name, loff_t size,
+> +static struct file *__shmem_file_setup(struct vfsmount *mnt, const char *name, loff_t size,
+>  				       unsigned long flags, unsigned int i_flags)
+>  {
+>  	struct file *res;
+> @@ -4150,8 +4150,8 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
+>  	struct super_block *sb;
+>  	struct qstr this;
+>  
+> -	if (IS_ERR(shm_mnt))
+> -		return ERR_CAST(shm_mnt);
+> +	if (IS_ERR(mnt))
+> +		return ERR_CAST(mnt);
+>  
+>  	if (size < 0 || size > MAX_LFS_FILESIZE)
+>  		return ERR_PTR(-EINVAL);
+> @@ -4163,8 +4163,8 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
+>  	this.name = name;
+>  	this.len = strlen(name);
+>  	this.hash = 0; /* will go */
+> -	sb = shm_mnt->mnt_sb;
+> -	path.mnt = mntget(shm_mnt);
+> +	sb = mnt->mnt_sb;
+> +	path.mnt = mntget(mnt);
+>  	path.dentry = d_alloc_pseudo(sb, &this);
+>  	if (!path.dentry)
+>  		goto put_memory;
+> @@ -4209,7 +4209,7 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
+>   */
+>  struct file *shmem_kernel_file_setup(const char *name, loff_t size, unsigned long flags)
+>  {
+> -	return __shmem_file_setup(name, size, flags, S_PRIVATE);
+> +	return __shmem_file_setup(shm_mnt, name, size, flags, S_PRIVATE);
 >  }
 >  
-> +/*
-> + * Hugetlbfs pages should consistenly be skipped until updated by the hugetlb
-> + * subsystem.  It is always pointless to compact pages of pageblock_order and
-> + * the free scanner can reconsider when no longer huge.
+>  /**
+> @@ -4220,11 +4220,25 @@ struct file *shmem_kernel_file_setup(const char *name, loff_t size, unsigned lon
+>   */
+>  struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags)
+>  {
+> -	return __shmem_file_setup(name, size, flags, 0);
+> +	return __shmem_file_setup(shm_mnt, name, size, flags, 0);
+>  }
+>  EXPORT_SYMBOL_GPL(shmem_file_setup);
+>  
+>  /**
+> + * shmem_file_setup_with_mnt - get an unlinked file living in tmpfs
+> + * @mnt: the tmpfs mount where the file will be created
+> + * @name: name for dentry (to be seen in /proc/<pid>/maps
+> + * @size: size to be set for the file
+> + * @flags: VM_NORESERVE suppresses pre-accounting of the entire object size
 > + */
-> +static bool pageblock_skip_persistent(struct page *page, unsigned int order)
+> +struct file *shmem_file_setup_with_mnt(struct vfsmount *mnt, const char *name,
+> +				       loff_t size, unsigned long flags)
 > +{
-> +	if (!PageHuge(page))
-> +		return false;
-> +	if (order != pageblock_order)
-> +		return false;
-> +	return true;
-
-Why just HugeTLBfs? There's also no point in migrating/finding free
-pages in THPs. Actually, any compound page of pageblock order?
-
+> +	return __shmem_file_setup(mnt, name, size, flags, 0);
 > +}
+> +EXPORT_SYMBOL_GPL(shmem_file_setup_with_mnt);
 > +
->  /*
->   * This function is called to clear all cached information on pageblocks that
->   * should be skipped for page isolation when the migrate and free page scanner
-> @@ -241,6 +255,8 @@ static void __reset_isolation_suitable(struct zone *zone)
->  			continue;
->  		if (zone != page_zone(page))
->  			continue;
-> +		if (pageblock_skip_persistent(page, compound_order(page)))
-> +			continue;
-
-I like the idea of how persistency is achieved by rechecking in the reset.
-
+> +/**
+>   * shmem_zero_setup - setup a shared anonymous mapping
+>   * @vma: the vma to be mmapped is prepared by do_mmap_pgoff
+>   */
+> @@ -4239,7 +4253,7 @@ int shmem_zero_setup(struct vm_area_struct *vma)
+>  	 * accessible to the user through its mapping, use S_PRIVATE flag to
+>  	 * bypass file security, in the same way as shmem_kernel_file_setup().
+>  	 */
+> -	file = __shmem_file_setup("dev/zero", size, vma->vm_flags, S_PRIVATE);
+> +	file = shmem_kernel_file_setup("dev/zero", size, vma->vm_flags);
+>  	if (IS_ERR(file))
+>  		return PTR_ERR(file);
 >  
->  		clear_pageblock_skip(page);
->  	}
-> @@ -448,13 +464,15 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->  		 * and the only danger is skipping too much.
->  		 */
->  		if (PageCompound(page)) {
-> -			unsigned int comp_order = compound_order(page);
-> -
-> -			if (likely(comp_order < MAX_ORDER)) {
-> -				blockpfn += (1UL << comp_order) - 1;
-> -				cursor += (1UL << comp_order) - 1;
-> +			const unsigned int order = compound_order(page);
-> +
-> +			if (pageblock_skip_persistent(page, order)) {
-> +				set_pageblock_skip(page);
-> +				blockpfn = end_pfn;
-> +			} else if (likely(order < MAX_ORDER)) {
-> +				blockpfn += (1UL << order) - 1;
-> +				cursor += (1UL << order) - 1;
->  			}
-
-Is this new code (and below) really necessary? The existing code should
-already lead to skip bit being set via update_pageblock_skip()?
-
-Thanks,
-Vlastimil
-
-> -
->  			goto isolate_fail;
->  		}
->  
-> @@ -771,11 +789,13 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
->  		 * danger is skipping too much.
->  		 */
->  		if (PageCompound(page)) {
-> -			unsigned int comp_order = compound_order(page);
-> -
-> -			if (likely(comp_order < MAX_ORDER))
-> -				low_pfn += (1UL << comp_order) - 1;
-> +			const unsigned int order = compound_order(page);
->  
-> +			if (pageblock_skip_persistent(page, order)) {
-> +				set_pageblock_skip(page);
-> +				low_pfn = end_pfn;
-> +			} else if (likely(order < MAX_ORDER))
-> +				low_pfn += (1UL << order) - 1;
->  			goto isolate_fail;
->  		}
->  
-> @@ -837,7 +857,13 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
->  			 * is safe to read and it's 0 for tail pages.
->  			 */
->  			if (unlikely(PageCompound(page))) {
-> -				low_pfn += (1UL << compound_order(page)) - 1;
-> +				const unsigned int order = compound_order(page);
-> +
-> +				if (pageblock_skip_persistent(page, order)) {
-> +					set_pageblock_skip(page);
-> +					low_pfn = end_pfn;
-> +				} else
-> +					low_pfn += (1UL << order) - 1;
->  				goto isolate_fail;
->  			}
->  		}
-> 
+-- 
+Joonas Lahtinen
+Open Source Technology Center
+Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
