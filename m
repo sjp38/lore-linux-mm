@@ -1,71 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DC1B62803BE
-	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 16:55:19 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id a186so13670364pge.8
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 13:55:19 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id i12si1594191pfi.42.2017.08.23.13.55.18
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5575C6B04A5
+	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 17:15:57 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id b8so14722597pgn.10
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 14:15:57 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id j6si1600310pfc.471.2017.08.23.14.15.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Aug 2017 13:55:18 -0700 (PDT)
-From: "Liang, Kan" <kan.liang@intel.com>
-Subject: RE: [PATCH 1/2] sched/wait: Break up long wake list walk
-Date: Wed, 23 Aug 2017 20:55:15 +0000
-Message-ID: <37D7C6CF3E00A74B8858931C1DB2F0775378EC56@shsmsx102.ccr.corp.intel.com>
-References: <CA+55aFwzTMrZwh7TE_VeZt8gx5Syoop-kA=Xqs56=FkyakrM6g@mail.gmail.com>
- <37D7C6CF3E00A74B8858931C1DB2F077537879BB@SHSMSX103.ccr.corp.intel.com>
- <20170818144622.oabozle26hasg5yo@techsingularity.net>
- <37D7C6CF3E00A74B8858931C1DB2F07753787AE4@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFxZjjqUM4kPvNEeZahPovBHFATiwADj-iPTDN0-jnU67Q@mail.gmail.com>
- <20170818185455.qol3st2nynfa47yc@techsingularity.net>
- <CA+55aFwX0yrUPULrDxTWVCg5c6DKh-yCG84NXVxaptXNQ4O_kA@mail.gmail.com>
- <20170821183234.kzennaaw2zt2rbwz@techsingularity.net>
- <37D7C6CF3E00A74B8858931C1DB2F07753788B58@SHSMSX103.ccr.corp.intel.com>
- <37D7C6CF3E00A74B8858931C1DB2F0775378A24A@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFy=4y0fq9nL2WR1x8vwzJrDOdv++r036LXpR=6Jx8jpzg@mail.gmail.com>
- <37D7C6CF3E00A74B8858931C1DB2F0775378A377@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFwavpFfKNW9NVgNhLggqhii-guc5aX1X5fxrPK+==id0g@mail.gmail.com>
- <37D7C6CF3E00A74B8858931C1DB2F0775378A8AB@SHSMSX103.ccr.corp.intel.com>
- <6e8b81de-e985-9222-29c5-594c6849c351@linux.intel.com>
- <CA+55aFzbom=qFc2pYk07XhiMBn083EXugSUHmSVbTuu8eJtHVQ@mail.gmail.com>
-In-Reply-To: <CA+55aFzbom=qFc2pYk07XhiMBn083EXugSUHmSVbTuu8eJtHVQ@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        Wed, 23 Aug 2017 14:15:56 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id 189so820028pgj.0
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 14:15:55 -0700 (PDT)
+From: Eric Biggers <ebiggers3@gmail.com>
+Subject: [PATCH] fork: fix incorrect fput of ->exe_file causing use-after-free
+Date: Wed, 23 Aug 2017 14:14:08 -0700
+Message-Id: <20170823211408.31198-1-ebiggers3@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes
- Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Ingo Molnar <mingo@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org, Eric Biggers <ebiggers@google.com>
 
-PiANCj4gT24gV2VkLCBBdWcgMjMsIDIwMTcgYXQgODo1OCBBTSwgVGltIENoZW4gPHRpbS5jLmNo
-ZW5AbGludXguaW50ZWwuY29tPg0KPiB3cm90ZToNCj4gPg0KPiA+IFdpbGwgeW91IHN0aWxsIGNv
-bnNpZGVyIHRoZSBvcmlnaW5hbCBwYXRjaCBhcyBhIGZhaWwgc2FmZSBtZWNoYW5pc20/DQo+IA0K
-PiBJIGRvbid0IHRoaW5rIHdlIGhhdmUgbXVjaCBjaG9pY2UsIGFsdGhvdWdoIEkgd291bGQgKnJl
-YWxseSogd2FudCB0byBnZXQgdGhpcw0KPiByb290LWNhdXNlZCByYXRoZXIgdGhhbiBqdXN0IHBh
-cGVyaW5nIG92ZXIgdGhlIHN5bXB0b21zLg0KPiANCj4gTWF5YmUgc3RpbGwgd29ydGggdGVzdGlu
-ZyB0aGF0ICJzY2hlZC9udW1hOiBTY2FsZSBzY2FuIHBlcmlvZCB3aXRoIHRhc2tzIGluDQo+IGdy
-b3VwIGFuZCBzaGFyZWQvcHJpdmF0ZSIgcGF0Y2ggdGhhdCBNZWwgbWVudGlvbmVkLg0KDQpUaGUg
-cGF0Y2ggZG9lc27igJl0IGhlbHAgb24gb3VyIGxvYWQuDQoNClRoYW5rcywNCkthbg0KPiANCj4g
-SW4gZmFjdCwgbG9va2luZyBhdCB0aGF0IHBhdGNoIGRlc2NyaXB0aW9uLCBpdCBkb2VzIHNlZW0g
-dG8gbWF0Y2ggdGhpcyBwYXJ0aWN1bGFyDQo+IGxvYWQgYSBsb3QuIFF1b3RpbmcgZnJvbSB0aGUg
-Y29tbWl0IG1lc3NhZ2U6DQo+IA0KPiAgICJSdW5uaW5nIDgwIHRhc2tzIGluIHRoZSBzYW1lIGdy
-b3VwLCBvciBhcyB0aHJlYWRzIG9mIHRoZSBzYW1lIHByb2Nlc3MsDQo+ICAgIHJlc3VsdHMgaW4g
-dGhlIG1lbW9yeSBnZXR0aW5nIHNjYW5uZWQgODB4IGFzIGZhc3QgYXMgaXQgd291bGQgYmUgaWYg
-YQ0KPiAgICBzaW5nbGUgdGFzayB3YXMgdXNpbmcgdGhlIG1lbW9yeS4NCj4gDQo+ICAgIFRoaXMg
-cmVhbGx5IGh1cnRzIHNvbWUgd29ya2xvYWRzIg0KPiANCj4gU28gaWYgODAgdGhyZWFkcyBjYXVz
-ZXMgODB4IGFzIG11Y2ggc2Nhbm5pbmcsIGEgZmV3IHRob3VzYW5kIHRocmVhZHMgbWlnaHQNCj4g
-aW5kZWVkIGJlIHJlYWxseSByZWFsbHkgYmFkLg0KPiANCj4gU28gb25jZSBtb3JlIHVudG8gdGhl
-IGJyZWFjaCwgZGVhciBmcmllbmRzLCBvbmNlIG1vcmUuDQo+IA0KPiBQbGVhc2UuDQo+IA0KPiBU
-aGUgcGF0Y2ggZ290IGFwcGxpZWQgdG8gLXRpcCBhcyBjb21taXQgYjVkZDc3YzhiZGFkLCBhbmQg
-Y2FuIGJlDQo+IGRvd25sb2FkZWQgaGVyZToNCj4gDQo+IA0KPiBodHRwczovL2dpdC5rZXJuZWwu
-b3JnL3B1Yi9zY20vbGludXgva2VybmVsL2dpdC90aXAvdGlwLmdpdC9jb21taXQvP2lkPWI1ZGQN
-Cj4gNzdjOGJkYWRhN2I2MjYyZDBjYmEwMmE2ZWQ1MjViZjRlNmUxDQo+IA0KPiAoSG1tLiBJdCBz
-YXlzIGl0J3MgY2MnZCB0byBtZSwgYnV0IEkgbmV2ZXIgbm90aWNlZCB0aGF0IHBhdGNoIHNpbXBs
-eSBiZWNhdXNlIGl0DQo+IHdhcyBpbiBhIGJpZyBncm91cCBvZiBvdGhlciAtdGlwIGNvbW1pdHMu
-LiBPaCB3ZWxsKS4NCj4gDQo+ICAgICAgICAgICBMaW51cw0K
+From: Eric Biggers <ebiggers@google.com>
+
+Commit 7c051267931a ("mm, fork: make dup_mmap wait for mmap_sem for
+write killable") made it possible to kill a forking task while it is
+waiting to acquire its ->mmap_sem for write, in dup_mmap().  However, it
+was overlooked that this introduced an new error path before a reference
+is taken on the mm_struct's ->exe_file.  Since the ->exe_file of the new
+mm_struct was already set to the old ->exe_file by the memcpy() in
+dup_mm(), it was possible for the mmput() in the error path of dup_mm()
+to drop a reference to ->exe_file which was never taken.  This caused
+the struct file to later be freed prematurely.
+
+Fix it by updating mm_init() to NULL out the ->exe_file, in the same
+place it clears other things like the list of mmaps.
+
+This bug was found by syzkaller.  It can be reproduced using the
+following C program:
+
+    #define _GNU_SOURCE
+    #include <pthread.h>
+    #include <stdlib.h>
+    #include <sys/mman.h>
+    #include <sys/syscall.h>
+    #include <sys/wait.h>
+    #include <unistd.h>
+
+    static void *mmap_thread(void *_arg)
+    {
+        for (;;) {
+            mmap(NULL, 0x1000000, PROT_READ,
+                 MAP_POPULATE|MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+        }
+    }
+
+    static void *fork_thread(void *_arg)
+    {
+        usleep(rand() % 10000);
+        fork();
+    }
+
+    int main(void)
+    {
+        fork();
+        fork();
+        fork();
+        for (;;) {
+            if (fork() == 0) {
+                pthread_t t;
+
+                pthread_create(&t, NULL, mmap_thread, NULL);
+                pthread_create(&t, NULL, fork_thread, NULL);
+                usleep(rand() % 10000);
+                syscall(__NR_exit_group, 0);
+            }
+            wait(NULL);
+        }
+    }
+
+No special kernel config options are needed.  It usually causes a NULL
+pointer dereference in __remove_shared_vm_struct() during exit, or in
+dup_mmap() (which is usually inlined into copy_process()) during fork.
+Both are due to a vm_area_struct's ->vm_file being used after it's
+already been freed.
+
+Fixes: 7c051267931a ("mm, fork: make dup_mmap wait for mmap_sem for write killable")
+Google-Bug-Id: 64772007
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: stable@vger.kernel.org # v4.7+
+Signed-off-by: Eric Biggers <ebiggers@google.com>
+---
+ kernel/fork.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/kernel/fork.c b/kernel/fork.c
+index e075b7780421..cbbea277b3fb 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -806,6 +806,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
+ 	mm_init_cpumask(mm);
+ 	mm_init_aio(mm);
+ 	mm_init_owner(mm, p);
++	RCU_INIT_POINTER(mm->exe_file, NULL);
+ 	mmu_notifier_mm_init(mm);
+ 	init_tlb_flush_pending(mm);
+ #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
+-- 
+2.14.1.342.g6490525c54-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
