@@ -1,81 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E14F280757
-	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 04:28:53 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id p8so1468261wrf.6
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 01:28:53 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id o20si862059wrf.294.2017.08.23.01.28.51
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BB4A280757
+	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 04:41:07 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id q49so1474889wrb.14
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 01:41:07 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b62si965020wme.222.2017.08.23.01.41.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Aug 2017 01:28:52 -0700 (PDT)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7N8Sl72118956
-	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 04:28:51 -0400
-Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ch4qj5b9v-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 04:28:50 -0400
-Received: from localhost
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 23 Aug 2017 18:28:44 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v7N8SgRN39976980
-	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 18:28:42 +1000
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v7N8SXLG018701
-	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 18:28:33 +1000
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [PATCH] mm/page_fault: Remove reduntant check for write access
-Date: Wed, 23 Aug 2017 13:58:39 +0530
-Message-Id: <20170823082839.1812-1-khandual@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 23 Aug 2017 01:41:01 -0700 (PDT)
+Subject: Re: [patch 2/2] mm, compaction: persistently skip hugetlbfs
+ pageblocks
+References: <alpine.DEB.2.10.1708151638550.106658@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1708151639130.106658@chino.kir.corp.google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <fa162335-a36d-153a-7b5d-1d9c2d57aebc@suse.cz>
+Date: Wed, 23 Aug 2017 10:41:00 +0200
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.10.1708151639130.106658@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org
+To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Flags argument has been copied into vmf.flags and it does not
-seem to have changed in between. Hence a single write access
-check can be used for both PUD and PMD.
+On 08/16/2017 01:39 AM, David Rientjes wrote:
+> It is pointless to migrate hugetlb memory as part of memory compaction if
+> the hugetlb size is equal to the pageblock order.  No defragmentation is
+> occurring in this condition.
+> 
+> It is also pointless to for the freeing scanner to scan a pageblock where
+> a hugetlb page is pinned.  Unconditionally skip these pageblocks, and do
+> so peristently so that they are not rescanned until it is observed that
+> these hugepages are no longer pinned.
+> 
+> It would also be possible to do this by involving the hugetlb subsystem
+> in marking pageblocks to no longer be skipped when they hugetlb pages are
+> freed.  This is a simple solution that doesn't involve any additional
+> subsystems in pageblock skip manipulation.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  mm/compaction.c | 48 +++++++++++++++++++++++++++++++++++++-----------
+>  1 file changed, 37 insertions(+), 11 deletions(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -217,6 +217,20 @@ static void reset_cached_positions(struct zone *zone)
+>  				pageblock_start_pfn(zone_end_pfn(zone) - 1);
+>  }
+>  
+> +/*
+> + * Hugetlbfs pages should consistenly be skipped until updated by the hugetlb
+> + * subsystem.  It is always pointless to compact pages of pageblock_order and
+> + * the free scanner can reconsider when no longer huge.
+> + */
+> +static bool pageblock_skip_persistent(struct page *page, unsigned int order)
+> +{
+> +	if (!PageHuge(page))
+> +		return false;
+> +	if (order != pageblock_order)
+> +		return false;
+> +	return true;
 
-Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
----
- mm/memory.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+Why just HugeTLBfs? There's also no point in migrating/finding free
+pages in THPs. Actually, any compound page of pageblock order?
 
-diff --git a/mm/memory.c b/mm/memory.c
-index fe2fba2..c62236d 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3802,6 +3802,7 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
- 		.pgoff = linear_page_index(vma, address),
- 		.gfp_mask = __get_fault_gfp_mask(vma),
- 	};
-+	unsigned int dirty = flags & FAULT_FLAG_WRITE;
- 	struct mm_struct *mm = vma->vm_mm;
- 	pgd_t *pgd;
- 	p4d_t *p4d;
-@@ -3824,7 +3825,6 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
- 
- 		barrier();
- 		if (pud_trans_huge(orig_pud) || pud_devmap(orig_pud)) {
--			unsigned int dirty = flags & FAULT_FLAG_WRITE;
- 
- 			/* NUMA case for anonymous PUDs would go here */
- 
-@@ -3854,8 +3854,7 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
- 			if (pmd_protnone(orig_pmd) && vma_is_accessible(vma))
- 				return do_huge_pmd_numa_page(&vmf, orig_pmd);
- 
--			if ((vmf.flags & FAULT_FLAG_WRITE) &&
--					!pmd_write(orig_pmd)) {
-+			if (dirty && !pmd_write(orig_pmd)) {
- 				ret = wp_huge_pmd(&vmf, orig_pmd);
- 				if (!(ret & VM_FAULT_FALLBACK))
- 					return ret;
--- 
-1.8.5.2
+> +}
+> +
+>  /*
+>   * This function is called to clear all cached information on pageblocks that
+>   * should be skipped for page isolation when the migrate and free page scanner
+> @@ -241,6 +255,8 @@ static void __reset_isolation_suitable(struct zone *zone)
+>  			continue;
+>  		if (zone != page_zone(page))
+>  			continue;
+> +		if (pageblock_skip_persistent(page, compound_order(page)))
+> +			continue;
+
+I like the idea of how persistency is achieved by rechecking in the reset.
+
+>  
+>  		clear_pageblock_skip(page);
+>  	}
+> @@ -448,13 +464,15 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+>  		 * and the only danger is skipping too much.
+>  		 */
+>  		if (PageCompound(page)) {
+> -			unsigned int comp_order = compound_order(page);
+> -
+> -			if (likely(comp_order < MAX_ORDER)) {
+> -				blockpfn += (1UL << comp_order) - 1;
+> -				cursor += (1UL << comp_order) - 1;
+> +			const unsigned int order = compound_order(page);
+> +
+> +			if (pageblock_skip_persistent(page, order)) {
+> +				set_pageblock_skip(page);
+> +				blockpfn = end_pfn;
+> +			} else if (likely(order < MAX_ORDER)) {
+> +				blockpfn += (1UL << order) - 1;
+> +				cursor += (1UL << order) - 1;
+>  			}
+
+Is this new code (and below) really necessary? The existing code should
+already lead to skip bit being set via update_pageblock_skip()?
+
+Thanks,
+Vlastimil
+
+> -
+>  			goto isolate_fail;
+>  		}
+>  
+> @@ -771,11 +789,13 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+>  		 * danger is skipping too much.
+>  		 */
+>  		if (PageCompound(page)) {
+> -			unsigned int comp_order = compound_order(page);
+> -
+> -			if (likely(comp_order < MAX_ORDER))
+> -				low_pfn += (1UL << comp_order) - 1;
+> +			const unsigned int order = compound_order(page);
+>  
+> +			if (pageblock_skip_persistent(page, order)) {
+> +				set_pageblock_skip(page);
+> +				low_pfn = end_pfn;
+> +			} else if (likely(order < MAX_ORDER))
+> +				low_pfn += (1UL << order) - 1;
+>  			goto isolate_fail;
+>  		}
+>  
+> @@ -837,7 +857,13 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+>  			 * is safe to read and it's 0 for tail pages.
+>  			 */
+>  			if (unlikely(PageCompound(page))) {
+> -				low_pfn += (1UL << compound_order(page)) - 1;
+> +				const unsigned int order = compound_order(page);
+> +
+> +				if (pageblock_skip_persistent(page, order)) {
+> +					set_pageblock_skip(page);
+> +					low_pfn = end_pfn;
+> +				} else
+> +					low_pfn += (1UL << order) - 1;
+>  				goto isolate_fail;
+>  			}
+>  		}
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
