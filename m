@@ -1,51 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 884762803FE
-	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 18:35:00 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id m85so1392367wma.1
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 15:35:00 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id m3si445198wmb.155.2017.08.23.15.34.59
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BD942803FE
+	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 19:13:30 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id b8so18936146pgn.10
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 16:13:30 -0700 (PDT)
+Received: from mail-pg0-x234.google.com (mail-pg0-x234.google.com. [2607:f8b0:400e:c05::234])
+        by mx.google.com with ESMTPS id m80si1745420pfj.129.2017.08.23.16.13.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Aug 2017 15:34:59 -0700 (PDT)
-Date: Wed, 23 Aug 2017 15:34:56 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 01/23] mm/shmem: introduce shmem_file_setup_with_mnt
-Message-Id: <20170823153456.b3c50e1ec109fd69f672b348@linux-foundation.org>
-In-Reply-To: <1503480688.6276.4.camel@linux.intel.com>
-References: <20170821183503.12246-1-matthew.auld@intel.com>
-	<20170821183503.12246-2-matthew.auld@intel.com>
-	<1503480688.6276.4.camel@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 23 Aug 2017 16:13:29 -0700 (PDT)
+Received: by mail-pg0-x234.google.com with SMTP id 83so6806609pgb.3
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 16:13:29 -0700 (PDT)
+Date: Wed, 23 Aug 2017 16:13:26 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [v5 2/4] mm, oom: cgroup-aware OOM killer
+In-Reply-To: <20170823174603.GA26190@castle.DHCP.thefacebook.com>
+Message-ID: <alpine.DEB.2.10.1708231611390.68096@chino.kir.corp.google.com>
+References: <20170814183213.12319-1-guro@fb.com> <20170814183213.12319-3-guro@fb.com> <20170822170344.GA13547@cmpxchg.org> <20170823162031.GA13578@castle.dhcp.TheFacebook.com> <20170823172441.GA29085@cmpxchg.org>
+ <20170823174603.GA26190@castle.DHCP.thefacebook.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Cc: Matthew Auld <matthew.auld@intel.com>, intel-gfx@lists.freedesktop.org, Chris Wilson <chris@chris-wilson.co.uk>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, 23 Aug 2017 12:31:28 +0300 Joonas Lahtinen <joonas.lahtinen@linux.intel.com> wrote:
+On Wed, 23 Aug 2017, Roman Gushchin wrote:
 
-> This patch has been floating around for a while now Acked and without
-> further comments. It is blocking us from merging huge page support to
-> drm/i915.
+> > It's better to have newbies consult the documentation once than making
+> > everybody deal with long and cumbersome names for the rest of time.
+> > 
+> > Like 'ls' being better than 'read_and_print_directory_contents'.
 > 
-> Would you mind merging it, or prodding the right people to get it in?
+> I don't think it's a good argument here: realistically, nobody will type
+> the knob's name often. Your option is shorter only by 3 characters :)
 > 
-> Regards, Joonas
+> Anyway, I'm ok with memory.oom_group too, if everybody else prefer it.
+> Michal, David?
+> What's your opinion?
 > 
-> On Mon, 2017-08-21 at 19:34 +0100, Matthew Auld wrote:
-> > We are planning to use our own tmpfs mnt in i915 in place of the
-> > shm_mnt, such that we can control the mount options, in particular
-> > huge=, which we require to support huge-gtt-pages. So rather than roll
-> > our own version of __shmem_file_setup, it would be preferred if we could
-> > just give shmem our mnt, and let it do the rest.
 
-hm, it's a bit odd.  I'm having trouble locating the code which handles
-huge=within_size (and any other options?).  What other approaches were
-considered?  Was it not feasible to add i915-specific mount options to
-mm/shmem.c (for example?).
+I'm probably the worst person in the world for succinctly naming stuff, 
+but I at least think the knob should have the word "kill" in it to 
+describe the behavior.  ("oom_group", out of memory group, what exactly is 
+that?)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
