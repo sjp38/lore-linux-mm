@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DCA56B04EF
-	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 08:04:53 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id g13so12405893pfm.15
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 05:04:53 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id a67si966218pgc.190.2017.08.23.05.04.52
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A09D6B04F1
+	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 08:05:14 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id e2so13579919pgf.7
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 05:05:14 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id s11si1033205plj.782.2017.08.23.05.05.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Aug 2017 05:04:52 -0700 (PDT)
+        Wed, 23 Aug 2017 05:05:13 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 10/19] x86/mm: Make __PHYSICAL_MASK_SHIFT and __VIRTUAL_MASK_SHIFT dynamic
-Date: Wed, 23 Aug 2017 15:03:23 +0300
-Message-Id: <20170823120332.2288-11-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 09/19] x86/mm: Make MAX_PHYSADDR_BITS and MAX_PHYSMEM_BITS dynamic
+Date: Wed, 23 Aug 2017 15:03:22 +0300
+Message-Id: <20170823120332.2288-10-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170823120332.2288-1-kirill.shutemov@linux.intel.com>
 References: <20170823120332.2288-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -21,114 +21,94 @@ To: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.or
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
 For boot-time switching between paging modes, we need to be able to
-adjust physical and virtual mask shifts.
+adjust size of physical address space at runtime.
 
-It has significant effect on kernel image size:
+As part of making physical address space size variable, we have to make
+X86_5LEVEL dependent on SPARSEMEM_VMEMMAP. !SPARSEMEM_VMEMMAP
+configuration doesn't work well with variable MAX_PHYSMEM_BITS.
+
+Affect on kernel image size:
 
    text    data     bss     dec     hex filename
-10710666        4880000  860160 16450826         fb050a vmlinux.before
-10735996        4880000  860160 16476156         fb67fc vmlinux.after
-
-The change is mostly due to __PHYSICAL_MASK_SHIFT change: the value is
-used in pte_pfn() and many other page table manipulation routines
-(directly or indirectly).
+10710340        4880000  860160 16450500         fb03c4 vmlinux.before
+10710666        4880000  860160 16450826         fb050a vmlinux.after
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/entry/entry_64.S            | 12 ++++++++++++
- arch/x86/include/asm/page_64_types.h |  4 ++--
- arch/x86/mm/dump_pagetables.c        |  8 ++++++--
- arch/x86/mm/kaslr.c                  |  4 +++-
- 4 files changed, 23 insertions(+), 5 deletions(-)
+ arch/x86/Kconfig                        | 1 +
+ arch/x86/include/asm/pgtable_64_types.h | 2 +-
+ arch/x86/include/asm/sparsemem.h        | 9 ++-------
+ arch/x86/kernel/setup.c                 | 5 ++---
+ 4 files changed, 6 insertions(+), 11 deletions(-)
 
-diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
-index ca0b250eefc4..5f879ac3360c 100644
---- a/arch/x86/entry/entry_64.S
-+++ b/arch/x86/entry/entry_64.S
-@@ -268,8 +268,20 @@ return_from_SYSCALL_64:
- 	 * Change top bits to match most significant bit (47th or 56th bit
- 	 * depending on paging mode) in the address.
- 	 */
-+#ifdef CONFIG_X86_5LEVEL
-+	testl	$1, pgtable_l5_enabled(%rip)
-+	jz	1f
-+	shl	$(64 - 57), %rcx
-+	sar	$(64 - 57), %rcx
-+	jmp	2f
-+1:
-+	shl	$(64 - 48), %rcx
-+	sar	$(64 - 48), %rcx
-+2:
-+#else
- 	shl	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
- 	sar	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
-+#endif
- 
- 	/* If this changed %rcx, it was not canonical */
- 	cmpq	%rcx, %r11
-diff --git a/arch/x86/include/asm/page_64_types.h b/arch/x86/include/asm/page_64_types.h
-index 0126d6bc2eb1..79d2180ffdec 100644
---- a/arch/x86/include/asm/page_64_types.h
-+++ b/arch/x86/include/asm/page_64_types.h
-@@ -52,8 +52,8 @@
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 9067a0a9a166..1e48d2fd8db9 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1403,6 +1403,7 @@ config X86_PAE
+ config X86_5LEVEL
+ 	bool "Enable 5-level page tables support"
+ 	depends on X86_64
++	depends on SPARSEMEM_VMEMMAP
+ 	---help---
+ 	  5-level paging enables access to larger address space:
+ 	  upto 128 PiB of virtual address space and 4 PiB of
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index 163a049bbb56..51364e705b35 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -86,7 +86,7 @@ extern unsigned int ptrs_per_p4d;
+ #define PGDIR_MASK	(~(PGDIR_SIZE - 1))
  
  /* See Documentation/x86/x86_64/mm.txt for a description of the memory map. */
+-#define MAXMEM		_AC(__AC(1, UL) << MAX_PHYSMEM_BITS, UL)
++#define MAXMEM		(1UL << MAX_PHYSMEM_BITS)
  #ifdef CONFIG_X86_5LEVEL
--#define __PHYSICAL_MASK_SHIFT	52
--#define __VIRTUAL_MASK_SHIFT	56
-+#define __PHYSICAL_MASK_SHIFT	(pgtable_l5_enabled ? 52 : 46)
-+#define __VIRTUAL_MASK_SHIFT	(pgtable_l5_enabled ? 56 : 47)
- #else
- #define __PHYSICAL_MASK_SHIFT	46
- #define __VIRTUAL_MASK_SHIFT	47
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index 2eabd07ae2d2..a1d983a45ab0 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -82,8 +82,8 @@ static struct addr_marker address_markers[] = {
- 	{ 0/* VMALLOC_START */, "vmalloc() Area" },
- 	{ 0/* VMEMMAP_START */, "Vmemmap" },
- #ifdef CONFIG_KASAN
--	{ KASAN_SHADOW_START,	"KASAN shadow" },
--	{ KASAN_SHADOW_END,	"KASAN shadow end" },
-+	{ 0/* KASAN_SHADOW_START */,	"KASAN shadow" },
-+	{ 0/* KASAN_SHADOW_END */,	"KASAN shadow end" },
+ #define VMALLOC_SIZE_TB _AC(16384, UL)
+ #define __VMALLOC_BASE	_AC(0xff92000000000000, UL)
+diff --git a/arch/x86/include/asm/sparsemem.h b/arch/x86/include/asm/sparsemem.h
+index 1f5bee2c202f..b857715633de 100644
+--- a/arch/x86/include/asm/sparsemem.h
++++ b/arch/x86/include/asm/sparsemem.h
+@@ -26,13 +26,8 @@
+ # endif
+ #else /* CONFIG_X86_32 */
+ # define SECTION_SIZE_BITS	27 /* matt - 128 is convenient right now */
+-# ifdef CONFIG_X86_5LEVEL
+-#  define MAX_PHYSADDR_BITS	52
+-#  define MAX_PHYSMEM_BITS	52
+-# else
+-#  define MAX_PHYSADDR_BITS	44
+-#  define MAX_PHYSMEM_BITS	46
+-# endif
++# define MAX_PHYSADDR_BITS	(pgtable_l5_enabled ? 52 : 44)
++# define MAX_PHYSMEM_BITS	(pgtable_l5_enabled ? 52 : 46)
  #endif
- # ifdef CONFIG_X86_ESPFIX64
- 	{ ESPFIX_BASE_ADDR,	"ESPfix Area", 16 },
-@@ -515,6 +515,10 @@ static int __init pt_dump_init(void)
- 	address_markers[LOW_KERNEL_NR].start_address = PAGE_OFFSET;
- 	address_markers[VMALLOC_START_NR].start_address = VMALLOC_START;
- 	address_markers[VMEMMAP_START_NR].start_address = VMEMMAP_START;
-+#ifdef CONFIG_KASAN
-+	address_markers[KASAN_SHADOW_START_NR].start_address = KASAN_SHADOW_START;
-+	address_markers[KASAN_SHADOW_END_NR].start_address = KASAN_SHADOW_END;
-+#endif
- #endif
- #ifdef CONFIG_X86_32
- 	address_markers[VMALLOC_START_NR].start_address = VMALLOC_START;
-diff --git a/arch/x86/mm/kaslr.c b/arch/x86/mm/kaslr.c
-index e6420b18f6e0..5597dd0635dd 100644
---- a/arch/x86/mm/kaslr.c
-+++ b/arch/x86/mm/kaslr.c
-@@ -62,7 +62,7 @@ static __initdata struct kaslr_memory_region {
- 	unsigned long *base;
- 	unsigned long size_tb;
- } kaslr_regions[] = {
--	{ &page_offset_base, 1 << (__PHYSICAL_MASK_SHIFT - TB_SHIFT) /* Maximum */ },
-+	{ &page_offset_base, 0 },
- 	{ &vmalloc_base, VMALLOC_SIZE_TB },
- 	{ &vmemmap_base, 1 },
- };
-@@ -106,6 +106,8 @@ void __init kernel_randomize_memory(void)
- 	if (!kaslr_memory_enabled())
- 		return;
  
-+	kaslr_regions[0].size_tb = 1 << (__PHYSICAL_MASK_SHIFT - TB_SHIFT);
-+
+ #endif /* CONFIG_SPARSEMEM */
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index 022ebddb3734..10e6dd1cb948 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -202,9 +202,7 @@ struct ist_info ist_info;
+ #endif
+ 
+ #else
+-struct cpuinfo_x86 boot_cpu_data __read_mostly = {
+-	.x86_phys_bits = MAX_PHYSMEM_BITS,
+-};
++struct cpuinfo_x86 boot_cpu_data __read_mostly;
+ EXPORT_SYMBOL(boot_cpu_data);
+ #endif
+ 
+@@ -892,6 +890,7 @@ void __init setup_arch(char **cmdline_p)
+ 	__flush_tlb_all();
+ #else
+ 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
++	boot_cpu_data.x86_phys_bits = MAX_PHYSMEM_BITS;
+ #endif
+ 
  	/*
- 	 * Update Physical memory mapping to available and
- 	 * add padding if needed (especially for memory hotplug support).
 -- 
 2.14.1
 
