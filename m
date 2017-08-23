@@ -1,75 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BEE4E6B0504
-	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 19:19:32 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id a186so1601980pge.8
-        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 16:19:32 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id i186si67071pfb.657.2017.08.22.16.19.31
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 65B6D280749
+	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 20:25:03 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id q72so3857471ywg.15
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 17:25:03 -0700 (PDT)
+Received: from mail-yw0-x232.google.com (mail-yw0-x232.google.com. [2607:f8b0:4002:c05::232])
+        by mx.google.com with ESMTPS id f5si62177ybk.750.2017.08.22.17.25.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Aug 2017 16:19:31 -0700 (PDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 0/2] Separate NUMA statistics from zone statistics
-References: <1502786736-21585-1-git-send-email-kemi.wang@intel.com>
-	<alpine.DEB.2.20.1708221620060.18344@nuc-kabylake>
-Date: Tue, 22 Aug 2017 16:19:30 -0700
-In-Reply-To: <alpine.DEB.2.20.1708221620060.18344@nuc-kabylake> (Christopher
-	Lameter's message of "Tue, 22 Aug 2017 16:22:40 -0500 (CDT)")
-Message-ID: <874lszi41p.fsf@firstfloor.org>
+        Tue, 22 Aug 2017 17:25:01 -0700 (PDT)
+Received: by mail-yw0-x232.google.com with SMTP id s143so1474518ywg.1
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 17:25:01 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <CALvZod6q=6vVOjsKNX9ktpRpcv_Dhj=Zo3L8SPVvRW2SrgfCDw@mail.gmail.com>
+References: <20170818011023.181465-1-shakeelb@google.com> <CALvZod444NZaw9wcdSMs5Y60a0cV4j9SEt-TLBJT34OJ_yg3CQ@mail.gmail.com>
+ <20170818143450.7584a3f86abf96f4c43fccd0@linux-foundation.org> <CALvZod6q=6vVOjsKNX9ktpRpcv_Dhj=Zo3L8SPVvRW2SrgfCDw@mail.gmail.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Tue, 22 Aug 2017 17:25:00 -0700
+Message-ID: <CALvZod73huYukNBUvn3XS40V4SQYk4H5_Jhv4Qp0446-d4P0rg@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm: fadvise: avoid fadvise for fs without backing device
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Kemi Wang <kemi.wang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Dave <dave.hansen@linux.intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Christopher Lameter <cl@linux.com> writes:
-
-> Can we simple get rid of the stats or make then configurable (off by
-> defaut)? I agree they are rarely used and have been rarely used in the past.
+>> It doesn't sound like a risky change to me, although perhaps someone is
+>> depending on the current behaviour for obscure reasons, who knows.
+>>
+>> What are the reasons for this change?  Is the current behaviour causing
+>> some sort of problem for someone?
 >
-> Maybe some instrumentation for perf etc will allow
-> similar statistics these days? Thus its possible to drop them?
+> Yes, one of our generic library does fadvise(FADV_DONTNEED). Recently
+> we observed high latency in fadvise() and notice that the users have
+> started using tmpfs files and the latency was due to expensive remote
+> LRU cache draining. For normal tmpfs files (have data written on
+> them), fadvise(FADV_DONTNEED) will always trigger the un-needed remote
+> cache draining.
 >
-> The space in the pcp pageset is precious and we should strive to use no
-> more than a cacheline for the diffs.
 
-The statistics are useful and we need them sometimes. And more and more
-runtime switches are a pain -- if you need them they would be likely
-turned off. The key is just to make them cheap enough that they're not a
-problem.
+Hi Andrew, do you have more comments or concerns?
 
-The only problem was just that that the standard vmstats which are
-optimized for readers too are too expensive for them.
-
-The motivation for the patch was that the frequent atomics
-were proven to slow the allocator down, and Kemi's patch
-fixed it and he has shown it with lots of data.
-
-I don't really see the point of so much discussion about a single cache
-line.
-
-There are lots of cache lines used all over the VM. Why is this one
-special? Adding one more shouldn't be that bad.
-
-But there's no data at all that touching another cache line
-here is a problem.
-
-It's next to an already touched cache line, so it's highly
-likely that a prefetcher would catch it anyways.
-
-I can see the point of worrying about over all cache line foot print
-("death of a thousand cuts") but the right way to address problems like
-this is use a profiler in a realistic workload and systematically
-look at the code who actually has cache misses. And I bet we would
-find quite a few that could be easily avoided and have real
-payoff. I would really surprise me if it was this cache line.
-
-But blocking real demonstrated improvements over a theoretical
-cache line doesn't really help.
-
--Andi
+>>
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
