@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A09D6B04F1
-	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 08:05:14 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id e2so13579919pgf.7
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 05:05:14 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id s11si1033205plj.782.2017.08.23.05.05.13
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A9C66B04F4
+	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 08:05:23 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id m67so12715207pfg.3
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 05:05:23 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id 92si1044698plw.203.2017.08.23.05.05.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Aug 2017 05:05:13 -0700 (PDT)
+        Wed, 23 Aug 2017 05:05:21 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 09/19] x86/mm: Make MAX_PHYSADDR_BITS and MAX_PHYSMEM_BITS dynamic
-Date: Wed, 23 Aug 2017 15:03:22 +0300
-Message-Id: <20170823120332.2288-10-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 08/19] x86/mm: Make PGDIR_SHIFT and PTRS_PER_P4D variable
+Date: Wed, 23 Aug 2017 15:03:21 +0300
+Message-Id: <20170823120332.2288-9-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170823120332.2288-1-kirill.shutemov@linux.intel.com>
 References: <20170823120332.2288-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,95 +20,278 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For boot-time switching between paging modes, we need to be able to
-adjust size of physical address space at runtime.
+For boot-time switching between 4- and 5-level paging we need to be able
+to fold p4d page table level at runtime. It requires variable
+PGDIR_SHIFT and PTRS_PER_P4D.
 
-As part of making physical address space size variable, we have to make
-X86_5LEVEL dependent on SPARSEMEM_VMEMMAP. !SPARSEMEM_VMEMMAP
-configuration doesn't work well with variable MAX_PHYSMEM_BITS.
-
-Affect on kernel image size:
+The change doesn't affect the kernel image size much:
 
    text    data     bss     dec     hex filename
-10710340        4880000  860160 16450500         fb03c4 vmlinux.before
-10710666        4880000  860160 16450826         fb050a vmlinux.after
+10710172        4879964  860160 16450296         fb02f8 vmlinux.before
+10710340        4880000  860160 16450500         fb03c4 vmlinux.after
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/Kconfig                        | 1 +
- arch/x86/include/asm/pgtable_64_types.h | 2 +-
- arch/x86/include/asm/sparsemem.h        | 9 ++-------
- arch/x86/kernel/setup.c                 | 5 ++---
- 4 files changed, 6 insertions(+), 11 deletions(-)
+ arch/x86/boot/compressed/kaslr.c        |  6 ++++++
+ arch/x86/include/asm/pgtable_32.h       |  2 ++
+ arch/x86/include/asm/pgtable_32_types.h |  2 ++
+ arch/x86/include/asm/pgtable_64_types.h | 15 +++++++++++++--
+ arch/x86/kernel/head64.c                | 11 ++++++++++-
+ arch/x86/mm/dump_pagetables.c           | 12 +++++-------
+ arch/x86/mm/init_64.c                   |  2 +-
+ arch/x86/mm/kasan_init_64.c             |  2 +-
+ arch/x86/platform/efi/efi_64.c          |  4 ++--
+ include/asm-generic/5level-fixup.h      |  1 +
+ include/asm-generic/pgtable-nop4d.h     |  1 +
+ include/linux/kasan.h                   |  2 +-
+ mm/kasan/kasan_init.c                   |  2 +-
+ 13 files changed, 46 insertions(+), 16 deletions(-)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 9067a0a9a166..1e48d2fd8db9 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1403,6 +1403,7 @@ config X86_PAE
- config X86_5LEVEL
- 	bool "Enable 5-level page tables support"
- 	depends on X86_64
-+	depends on SPARSEMEM_VMEMMAP
- 	---help---
- 	  5-level paging enables access to larger address space:
- 	  upto 128 PiB of virtual address space and 4 PiB of
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 163a049bbb56..51364e705b35 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -86,7 +86,7 @@ extern unsigned int ptrs_per_p4d;
+diff --git a/arch/x86/boot/compressed/kaslr.c b/arch/x86/boot/compressed/kaslr.c
+index 7de23bb279ce..46eb4ded9a01 100644
+--- a/arch/x86/boot/compressed/kaslr.c
++++ b/arch/x86/boot/compressed/kaslr.c
+@@ -45,6 +45,12 @@
+ #define STATIC
+ #include <linux/decompress/mm.h>
+ 
++#ifdef CONFIG_X86_5LEVEL
++unsigned int pgtable_l5_enabled __read_mostly = 1;
++unsigned int pgdir_shift __read_mostly = 48;
++unsigned int ptrs_per_p4d __read_mostly = 512;
++#endif
++
+ extern unsigned long get_cmd_line_ptr(void);
+ 
+ /* Simplified build-specific string for starting entropy. */
+diff --git a/arch/x86/include/asm/pgtable_32.h b/arch/x86/include/asm/pgtable_32.h
+index bfab55675c16..9c3c811347b0 100644
+--- a/arch/x86/include/asm/pgtable_32.h
++++ b/arch/x86/include/asm/pgtable_32.h
+@@ -32,6 +32,8 @@ static inline void pgtable_cache_init(void) { }
+ static inline void check_pgt_cache(void) { }
+ void paging_init(void);
+ 
++static inline int pgd_large(pgd_t pgd) { return 0; }
++
+ /*
+  * Define this if things work differently on an i386 and an i486:
+  * it will (on an i486) warn about kernel memory accesses that are
+diff --git a/arch/x86/include/asm/pgtable_32_types.h b/arch/x86/include/asm/pgtable_32_types.h
+index 9fb2f2bc8245..eab5418d82d2 100644
+--- a/arch/x86/include/asm/pgtable_32_types.h
++++ b/arch/x86/include/asm/pgtable_32_types.h
+@@ -14,6 +14,8 @@
+ # include <asm/pgtable-2level_types.h>
+ #endif
+ 
++#define pgtable_l5_enabled 0
++
+ #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
  #define PGDIR_MASK	(~(PGDIR_SIZE - 1))
  
- /* See Documentation/x86/x86_64/mm.txt for a description of the memory map. */
--#define MAXMEM		_AC(__AC(1, UL) << MAX_PHYSMEM_BITS, UL)
-+#define MAXMEM		(1UL << MAX_PHYSMEM_BITS)
- #ifdef CONFIG_X86_5LEVEL
- #define VMALLOC_SIZE_TB _AC(16384, UL)
- #define __VMALLOC_BASE	_AC(0xff92000000000000, UL)
-diff --git a/arch/x86/include/asm/sparsemem.h b/arch/x86/include/asm/sparsemem.h
-index 1f5bee2c202f..b857715633de 100644
---- a/arch/x86/include/asm/sparsemem.h
-+++ b/arch/x86/include/asm/sparsemem.h
-@@ -26,13 +26,8 @@
- # endif
- #else /* CONFIG_X86_32 */
- # define SECTION_SIZE_BITS	27 /* matt - 128 is convenient right now */
--# ifdef CONFIG_X86_5LEVEL
--#  define MAX_PHYSADDR_BITS	52
--#  define MAX_PHYSMEM_BITS	52
--# else
--#  define MAX_PHYSADDR_BITS	44
--#  define MAX_PHYSMEM_BITS	46
--# endif
-+# define MAX_PHYSADDR_BITS	(pgtable_l5_enabled ? 52 : 44)
-+# define MAX_PHYSMEM_BITS	(pgtable_l5_enabled ? 52 : 46)
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index a9f77ead7088..163a049bbb56 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -19,6 +19,15 @@ typedef unsigned long	pgprotval_t;
+ 
+ typedef struct { pteval_t pte; } pte_t;
+ 
++#ifdef CONFIG_X86_5LEVEL
++extern unsigned int pgtable_l5_enabled;
++#else
++#define pgtable_l5_enabled 0
++#endif
++
++extern unsigned int pgdir_shift;
++extern unsigned int ptrs_per_p4d;
++
+ #endif	/* !__ASSEMBLY__ */
+ 
+ #define SHARED_KERNEL_PMD	0
+@@ -28,14 +37,15 @@ typedef struct { pteval_t pte; } pte_t;
+ /*
+  * PGDIR_SHIFT determines what a top-level page table entry can map
+  */
+-#define PGDIR_SHIFT	48
++#define PGDIR_SHIFT	pgdir_shift
+ #define PTRS_PER_PGD	512
+ 
+ /*
+  * 4th level page in 5-level paging case
+  */
+ #define P4D_SHIFT	39
+-#define PTRS_PER_P4D	512
++#define __PTRS_PER_P4D	512
++#define PTRS_PER_P4D	ptrs_per_p4d
+ #define P4D_SIZE	(_AC(1, UL) << P4D_SHIFT)
+ #define P4D_MASK	(~(P4D_SIZE - 1))
+ 
+@@ -46,6 +56,7 @@ typedef struct { pteval_t pte; } pte_t;
+  */
+ #define PGDIR_SHIFT	39
+ #define PTRS_PER_PGD	512
++#define __PTRS_PER_P4D	1
+ 
+ #endif /* CONFIG_X86_5LEVEL */
+ 
+diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
+index e0fa29ccb845..8ffd33d8d3c5 100644
+--- a/arch/x86/kernel/head64.c
++++ b/arch/x86/kernel/head64.c
+@@ -38,6 +38,15 @@ extern pmd_t early_dynamic_pgts[EARLY_DYNAMIC_PAGE_TABLES][PTRS_PER_PMD];
+ static unsigned int __initdata next_early_pgt;
+ pmdval_t early_pmd_flags = __PAGE_KERNEL_LARGE & ~(_PAGE_GLOBAL | _PAGE_NX);
+ 
++#ifdef CONFIG_X86_5LEVEL
++unsigned int pgtable_l5_enabled __read_mostly = 1;
++EXPORT_SYMBOL(pgtable_l5_enabled);
++unsigned int pgdir_shift __read_mostly = 48;
++EXPORT_SYMBOL(pgdir_shift);
++unsigned int ptrs_per_p4d __read_mostly = 512;
++EXPORT_SYMBOL(ptrs_per_p4d);
++#endif
++
+ #if defined(CONFIG_RANDOMIZE_MEMORY) || defined(CONFIG_X86_5LEVEL)
+ unsigned long page_offset_base __read_mostly = __PAGE_OFFSET_BASE;
+ EXPORT_SYMBOL(page_offset_base);
+@@ -332,7 +341,7 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
+ 	BUILD_BUG_ON((__START_KERNEL_map & ~PMD_MASK) != 0);
+ 	BUILD_BUG_ON((MODULES_VADDR & ~PMD_MASK) != 0);
+ 	BUILD_BUG_ON(!(MODULES_VADDR > __START_KERNEL));
+-	BUILD_BUG_ON(!(((MODULES_END - 1) & PGDIR_MASK) ==
++	MAYBE_BUILD_BUG_ON(!(((MODULES_END - 1) & PGDIR_MASK) ==
+ 				(__START_KERNEL & PGDIR_MASK)));
+ 	BUILD_BUG_ON(__fix_to_virt(__end_of_fixed_addresses) <= MODULES_END);
+ 
+diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+index 5e3ac6fe6c9e..2eabd07ae2d2 100644
+--- a/arch/x86/mm/dump_pagetables.c
++++ b/arch/x86/mm/dump_pagetables.c
+@@ -399,14 +399,15 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st, p4d_t addr,
+ #define p4d_none(a)  pud_none(__pud(p4d_val(a)))
  #endif
  
- #endif /* CONFIG_SPARSEMEM */
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index 022ebddb3734..10e6dd1cb948 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -202,9 +202,7 @@ struct ist_info ist_info;
- #endif
+-#if PTRS_PER_P4D > 1
+-
+ static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr, unsigned long P)
+ {
+ 	int i;
+ 	p4d_t *start, *p4d_start;
+ 	pgprotval_t prot;
  
- #else
--struct cpuinfo_x86 boot_cpu_data __read_mostly = {
--	.x86_phys_bits = MAX_PHYSMEM_BITS,
--};
-+struct cpuinfo_x86 boot_cpu_data __read_mostly;
- EXPORT_SYMBOL(boot_cpu_data);
- #endif
++	if (PTRS_PER_P4D == 1)
++		return walk_pud_level(m, st, __p4d(pgd_val(addr)), P);
++
+ 	p4d_start = start = (p4d_t *)pgd_page_vaddr(addr);
  
-@@ -892,6 +890,7 @@ void __init setup_arch(char **cmdline_p)
- 	__flush_tlb_all();
- #else
- 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
-+	boot_cpu_data.x86_phys_bits = MAX_PHYSMEM_BITS;
- #endif
+ 	for (i = 0; i < PTRS_PER_P4D; i++) {
+@@ -426,11 +427,8 @@ static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
+ 	}
+ }
  
- 	/*
+-#else
+-#define walk_p4d_level(m,s,a,p) walk_pud_level(m,s,__p4d(pgd_val(a)),p)
+-#define pgd_large(a) p4d_large(__p4d(pgd_val(a)))
+-#define pgd_none(a)  p4d_none(__p4d(pgd_val(a)))
+-#endif
++#define pgd_large(a) (pgtable_l5_enabled ? pgd_large(a) : p4d_large(__p4d(pgd_val(a))))
++#define pgd_none(a)  (pgtable_l5_enabled ? pgd_none(a) : pgd_none(a))
+ 
+ static inline bool is_hypervisor_range(int idx)
+ {
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 136422d7d539..649b8df485ad 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -143,7 +143,7 @@ void sync_global_pgds(unsigned long start, unsigned long end)
+ 		 * With folded p4d, pgd_none() is always false, we need to
+ 		 * handle synchonization on p4d level.
+ 		 */
+-		BUILD_BUG_ON(pgd_none(*pgd_ref));
++		MAYBE_BUILD_BUG_ON(pgd_none(*pgd_ref));
+ 		p4d_ref = p4d_offset(pgd_ref, addr);
+ 
+ 		if (p4d_none(*p4d_ref))
+diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+index f6b4db2647b5..e1e2cca88567 100644
+--- a/arch/x86/mm/kasan_init_64.c
++++ b/arch/x86/mm/kasan_init_64.c
+@@ -15,7 +15,7 @@
+ 
+ extern struct range pfn_mapped[E820_MAX_ENTRIES];
+ 
+-static p4d_t tmp_p4d_table[PTRS_PER_P4D] __initdata __aligned(PAGE_SIZE);
++static p4d_t tmp_p4d_table[__PTRS_PER_P4D] __initdata __aligned(PAGE_SIZE);
+ 
+ static int __init map_range(struct range *range)
+ {
+diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c
+index 12e83888e5b9..970a0f5f787d 100644
+--- a/arch/x86/platform/efi/efi_64.c
++++ b/arch/x86/platform/efi/efi_64.c
+@@ -249,8 +249,8 @@ void efi_sync_low_kernel_mappings(void)
+ 	 * only span a single PGD entry and that the entry also maps
+ 	 * other important kernel regions.
+ 	 */
+-	BUILD_BUG_ON(pgd_index(EFI_VA_END) != pgd_index(MODULES_END));
+-	BUILD_BUG_ON((EFI_VA_START & PGDIR_MASK) !=
++	MAYBE_BUILD_BUG_ON(pgd_index(EFI_VA_END) != pgd_index(MODULES_END));
++	MAYBE_BUILD_BUG_ON((EFI_VA_START & PGDIR_MASK) !=
+ 			(EFI_VA_END & PGDIR_MASK));
+ 
+ 	pgd_efi = efi_pgd + pgd_index(PAGE_OFFSET);
+diff --git a/include/asm-generic/5level-fixup.h b/include/asm-generic/5level-fixup.h
+index b5ca82dc4175..e9fcfc6b2518 100644
+--- a/include/asm-generic/5level-fixup.h
++++ b/include/asm-generic/5level-fixup.h
+@@ -7,6 +7,7 @@
+ #define P4D_SHIFT			PGDIR_SHIFT
+ #define P4D_SIZE			PGDIR_SIZE
+ #define P4D_MASK			PGDIR_MASK
++#define __PTRS_PER_P4D			1
+ #define PTRS_PER_P4D			1
+ 
+ #define p4d_t				pgd_t
+diff --git a/include/asm-generic/pgtable-nop4d.h b/include/asm-generic/pgtable-nop4d.h
+index de364ecb8df6..99cb2fa61cef 100644
+--- a/include/asm-generic/pgtable-nop4d.h
++++ b/include/asm-generic/pgtable-nop4d.h
+@@ -8,6 +8,7 @@
+ typedef struct { pgd_t pgd; } p4d_t;
+ 
+ #define P4D_SHIFT	PGDIR_SHIFT
++#define __PTRS_PER_P4D	1
+ #define PTRS_PER_P4D	1
+ #define P4D_SIZE	(1UL << P4D_SHIFT)
+ #define P4D_MASK	(~(P4D_SIZE-1))
+diff --git a/include/linux/kasan.h b/include/linux/kasan.h
+index a5c7046f26b4..d27787ab2b84 100644
+--- a/include/linux/kasan.h
++++ b/include/linux/kasan.h
+@@ -19,7 +19,7 @@ extern unsigned char kasan_zero_page[PAGE_SIZE];
+ extern pte_t kasan_zero_pte[PTRS_PER_PTE];
+ extern pmd_t kasan_zero_pmd[PTRS_PER_PMD];
+ extern pud_t kasan_zero_pud[PTRS_PER_PUD];
+-extern p4d_t kasan_zero_p4d[PTRS_PER_P4D];
++extern p4d_t kasan_zero_p4d[__PTRS_PER_P4D];
+ 
+ void kasan_populate_zero_shadow(const void *shadow_start,
+ 				const void *shadow_end);
+diff --git a/mm/kasan/kasan_init.c b/mm/kasan/kasan_init.c
+index 554e4c0f23a2..419e0d33f9be 100644
+--- a/mm/kasan/kasan_init.c
++++ b/mm/kasan/kasan_init.c
+@@ -31,7 +31,7 @@
+ unsigned char kasan_zero_page[PAGE_SIZE] __page_aligned_bss;
+ 
+ #if CONFIG_PGTABLE_LEVELS > 4
+-p4d_t kasan_zero_p4d[PTRS_PER_P4D] __page_aligned_bss;
++p4d_t kasan_zero_p4d[__PTRS_PER_P4D] __page_aligned_bss;
+ #endif
+ #if CONFIG_PGTABLE_LEVELS > 3
+ pud_t kasan_zero_pud[PTRS_PER_PUD] __page_aligned_bss;
 -- 
 2.14.1
 
