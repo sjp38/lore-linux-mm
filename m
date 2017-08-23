@@ -1,114 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D9E528038B
-	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 10:43:14 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id r187so2205092pfr.8
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 07:43:14 -0700 (PDT)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id l9si1163237pgs.254.2017.08.23.07.43.11
+	by kanga.kvack.org (Postfix) with ESMTP id D457328038B
+	for <linux-mm@kvack.org>; Wed, 23 Aug 2017 10:50:10 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id f86so2388616pfj.5
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 07:50:10 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id m2si1134307pge.838.2017.08.23.07.50.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Aug 2017 07:43:11 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id r62so229099pfj.4
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 07:43:11 -0700 (PDT)
-Date: Wed, 23 Aug 2017 22:43:37 +0800
-From: Boqun Feng <boqun.feng@gmail.com>
-Subject: Re: [PATCH v8 09/14] lockdep: Apply crossrelease to completions
-Message-ID: <20170823144140.GK11771@tardis>
-References: <1502089981-21272-1-git-send-email-byungchul.park@lge.com>
- <1502089981-21272-10-git-send-email-byungchul.park@lge.com>
- <CAK8P3a3ABsxTaS7ZdcWNbTx7j5wFRc0h=ZVWAC_h-E+XbFv+8Q@mail.gmail.com>
- <20170818234348.GE11771@tardis>
- <CAK8P3a2+OdPX-uvRjhycX1NYNC_cBPv_bxJHcoh1ue2y7UX+Tg@mail.gmail.com>
- <CAK8P3a3TfZ=_tm0CUC5aKtf5PDwscLYsAN9Tbs2v0iJN5Jz-Rw@mail.gmail.com>
+        Wed, 23 Aug 2017 07:50:09 -0700 (PDT)
+From: "Liang, Kan" <kan.liang@intel.com>
+Subject: RE: [PATCH 1/2] sched/wait: Break up long wake list walk
+Date: Wed, 23 Aug 2017 14:49:31 +0000
+Message-ID: <37D7C6CF3E00A74B8858931C1DB2F0775378A8AB@SHSMSX103.ccr.corp.intel.com>
+References: <CA+55aFwzTMrZwh7TE_VeZt8gx5Syoop-kA=Xqs56=FkyakrM6g@mail.gmail.com>
+ <37D7C6CF3E00A74B8858931C1DB2F0775378761B@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFy_RNx5TQ8esjPPOKuW-o+fXbZgWapau2MHyexcAZtqsw@mail.gmail.com>
+ <20170818122339.24grcbzyhnzmr4qw@techsingularity.net>
+ <37D7C6CF3E00A74B8858931C1DB2F077537879BB@SHSMSX103.ccr.corp.intel.com>
+ <20170818144622.oabozle26hasg5yo@techsingularity.net>
+ <37D7C6CF3E00A74B8858931C1DB2F07753787AE4@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFxZjjqUM4kPvNEeZahPovBHFATiwADj-iPTDN0-jnU67Q@mail.gmail.com>
+ <20170818185455.qol3st2nynfa47yc@techsingularity.net>
+ <CA+55aFwX0yrUPULrDxTWVCg5c6DKh-yCG84NXVxaptXNQ4O_kA@mail.gmail.com>
+ <20170821183234.kzennaaw2zt2rbwz@techsingularity.net>
+ <37D7C6CF3E00A74B8858931C1DB2F07753788B58@SHSMSX103.ccr.corp.intel.com>
+ <37D7C6CF3E00A74B8858931C1DB2F0775378A24A@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFy=4y0fq9nL2WR1x8vwzJrDOdv++r036LXpR=6Jx8jpzg@mail.gmail.com>
+ <37D7C6CF3E00A74B8858931C1DB2F0775378A377@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFwavpFfKNW9NVgNhLggqhii-guc5aX1X5fxrPK+==id0g@mail.gmail.com>
+In-Reply-To: <CA+55aFwavpFfKNW9NVgNhLggqhii-guc5aX1X5fxrPK+==id0g@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="oxV4ZoPwBLqAyY+a"
-Content-Disposition: inline
-In-Reply-To: <CAK8P3a3TfZ=_tm0CUC5aKtf5PDwscLYsAN9Tbs2v0iJN5Jz-Rw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Byungchul Park <byungchul.park@lge.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Michel Lespinasse <walken@google.com>, kirill@shutemov.name, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, willy@infradead.org, Nicholas Piggin <npiggin@gmail.com>, kernel-team@lge.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo
+ Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-
---oxV4ZoPwBLqAyY+a
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-On Sat, Aug 19, 2017 at 03:34:01PM +0200, Arnd Bergmann wrote:
-> On Sat, Aug 19, 2017 at 2:51 PM, Arnd Bergmann <arnd@arndb.de> wrote:
->=20
-> >> --- a/include/linux/completion.h
-> >> +++ b/include/linux/completion.h
-> >> @@ -74,7 +74,7 @@ static inline void complete_release_commit(struct co=
-mpletion *x) {}
-> >>  #endif
-> >>
-> >>  #define COMPLETION_INITIALIZER_ONSTACK(work) \
-> >> -       ({ init_completion(&work); work; })
-> >> +       (*({ init_completion(&work); &work; }))
-> >>
-> >>  /**
-> >>   * DECLARE_COMPLETION - declare and initialize a completion structure
-> >
-> > Nice hack. Any idea why that's different to the compiler?
-> >
-
-So I find this link:
-
-	https://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html
-
-it says:
-
-"In G++, the result value of a statement expression undergoes array and
-function pointer decay, and is returned by value to the enclosing
-expression. "
-
-I think this is why the temporary variable is constructed(or at least
-allocated). Lemme put this in my commit log.
-
-> > I've applied that one to my test tree now, and reverted my own patch,
-> > will let you know if anything else shows up. I think we probably want
-> > to merge both patches to mainline.
->=20
-> There is apparently one user of COMPLETION_INITIALIZER_ONSTACK
-> that causes a regression with the patch above:
->=20
-> drivers/acpi/nfit/core.c: In function 'acpi_nfit_flush_probe':
-> include/linux/completion.h:77:3: error: value computed is not used
-> [-Werror=3Dunused-value]
->   (*({ init_completion(&work); &work; }))
->=20
-> It would be trivial to convert to init_completion(), which seems to be
-> what was intended there.
->=20
-
-Thanks. Will send the conversion as a separate patch along with my
-patch.
-
-Regards,
-Boqun
-
->         Arnd
-
---oxV4ZoPwBLqAyY+a
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEj5IosQTPz8XU1wRHSXnow7UH+rgFAlmdlJQACgkQSXnow7UH
-+rhoPwgAmloWiwRZC9y/pNE3ay7U2sD72j+EIrV0ksMlIBBZThT+FLO94T71M2qB
-xFip80IMlC9LTd1nE3Df5kMimkqUHFKxd6Uoq99zJvAlGJQpS1A1BkjWQ6owDF2+
-lqOM3R8hGAu/o5f9zkpqyn4tk0Mmqu2IS88UqRpK5ldKDA2DwquAwvuIMRdaVmVO
-fuhYiLJ4VhQazW/MBDCkIsUmhWX/MY1C4utsqpQVIgTx7EPcSSdc814SdH2Gmps4
-5ArqvMiiABlObLjAqJLtnDNsb497CLratEODHqofOFDAbsTtXVOwHT80dchla+OI
-RSPprooAmg6CEn2d+B9sMm60eIO+oQ==
-=j42v
------END PGP SIGNATURE-----
-
---oxV4ZoPwBLqAyY+a--
+PiBPbiBUdWUsIEF1ZyAyMiwgMjAxNyBhdCAxMjo1NSBQTSwgTGlhbmcsIEthbiA8a2FuLmxpYW5n
+QGludGVsLmNvbT4gd3JvdGU6DQo+ID4NCj4gPj4gU28gSSBwcm9wb3NlIHRlc3RpbmcgdGhlIGF0
+dGFjaGVkIHRyaXZpYWwgcGF0Y2guDQo+ID4NCj4gPiBJdCBkb2VzbuKAmXQgd29yay4NCj4gPiBU
+aGUgY2FsbCBzdGFjayBpcyB0aGUgc2FtZS4NCj4gDQo+IFNvIEkgd291bGQgaGF2ZSBleHBlY3Rl
+ZCB0aGUgc3RhY2sgdHJhY2UgdG8gYmUgdGhlIHNhbWUsIGFuZCBJIHdvdWxkIGV2ZW4NCj4gZXhw
+ZWN0IHRoZSBDUFUgdXNhZ2UgdG8gYmUgZmFpcmx5IHNpbWlsYXIsIGJlY2F1c2UgeW91J2Qgc2Vl
+IHJlcGVhdGluZyBmcm9tDQo+IHRoZSBjYWxsZXJzICh0YWtpbmcgdGhlIGZhdWx0IGFnYWluIGlm
+IHRoZSBwYWdlIGlzIC0gb25jZSBhZ2FpbiAtIGJlaW5nIG1pZ3JhdGVkKS4NCj4gDQo+IEJ1dCBJ
+IHdhcyBob3BpbmcgdGhhdCB0aGUgd2FpdCBxdWV1ZXMgd291bGQgYmUgc2hvcnRlciBiZWNhdXNl
+IHRoZSBsb29wIGZvcg0KPiB0aGUgcmV0cnkgd291bGQgYmUgYmlnZ2VyLg0KPiANCj4gT2ggd2Vs
+bC4NCj4gDQo+IEknbSBzbGlnaHRseSBvdXQgb2YgaWRlYXMuIEFwcGFyZW50bHkgdGhlIHlpZWxk
+KCkgd29ya2VkIG9rIChhcGFydCBmcm9tIG5vdA0KPiBjYXRjaGluZyBhbGwgY2FzZXMpLCBhbmQg
+bWF5YmUgd2UgY291bGQgZG8gYSB2ZXJzaW9uIHRoYXQgd2FpdHMgb24gdGhlIHBhZ2UNCj4gYml0
+IGluIHRoZSBub24tY29udGVuZGVkIGNhc2UsIGJ1dCB5aWVsZHMgdW5kZXIgY29udGVudGlvbj8N
+Cj4gDQo+IElPVywgbWF5YmUgdGhpcyBpcyB0aGUgYmVzdCB3ZSBjYW4gZG8gZm9yIG5vdz8gSW50
+cm9kdWNpbmcgdGhhdA0KPiAid2FpdF9vbl9wYWdlX21pZ3JhdGlvbigpIiBoZWxwZXIgbWlnaHQg
+YWxsb3cgdXMgdG8gdHdlYWsgdGhpcyBhIGJpdCBhcw0KPiBwZW9wbGUgY29tZSB1cCB3aXRoIGJl
+dHRlciBpZGVhcy4uDQoNClRoZSAid2FpdF9vbl9wYWdlX21pZ3JhdGlvbigpIiBoZWxwZXIgd29y
+a3Mgd2VsbCBpbiB0aGUgb3Zlcm5pZ2h0IHRlc3RpbmcuDQoNClRoYW5rcywNCkthbg0KDQo+IA0K
+PiBBbmQgdGhlbiBhZGQgVGltJ3MgcGF0Y2ggZm9yIHRoZSBnZW5lcmFsIHdvcnN0LWNhc2UganVz
+dCBpbiBjYXNlPw0KPiANCj4gICAgICAgICAgICAgIExpbnVzDQoNCg0KDQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
