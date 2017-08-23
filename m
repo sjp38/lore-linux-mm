@@ -1,48 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 65B6D280749
-	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 20:25:03 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id q72so3857471ywg.15
-        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 17:25:03 -0700 (PDT)
-Received: from mail-yw0-x232.google.com (mail-yw0-x232.google.com. [2607:f8b0:4002:c05::232])
-        by mx.google.com with ESMTPS id f5si62177ybk.750.2017.08.22.17.25.01
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 36E8D28074D
+	for <linux-mm@kvack.org>; Tue, 22 Aug 2017 21:15:49 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id e2so3524504pgf.7
+        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 18:15:49 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id w14si187532pfl.677.2017.08.22.18.15.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Aug 2017 17:25:01 -0700 (PDT)
-Received: by mail-yw0-x232.google.com with SMTP id s143so1474518ywg.1
-        for <linux-mm@kvack.org>; Tue, 22 Aug 2017 17:25:01 -0700 (PDT)
+        Tue, 22 Aug 2017 18:15:47 -0700 (PDT)
+From: kemi <kemi.wang@intel.com>
+Subject: Re: [PATCH 0/2] Separate NUMA statistics from zone statistics
+References: <1502786736-21585-1-git-send-email-kemi.wang@intel.com>
+ <alpine.DEB.2.20.1708221620060.18344@nuc-kabylake>
+Message-ID: <403c809c-cd37-db66-5f33-3ea6b6bee52d@intel.com>
+Date: Wed, 23 Aug 2017 09:14:17 +0800
 MIME-Version: 1.0
-In-Reply-To: <CALvZod6q=6vVOjsKNX9ktpRpcv_Dhj=Zo3L8SPVvRW2SrgfCDw@mail.gmail.com>
-References: <20170818011023.181465-1-shakeelb@google.com> <CALvZod444NZaw9wcdSMs5Y60a0cV4j9SEt-TLBJT34OJ_yg3CQ@mail.gmail.com>
- <20170818143450.7584a3f86abf96f4c43fccd0@linux-foundation.org> <CALvZod6q=6vVOjsKNX9ktpRpcv_Dhj=Zo3L8SPVvRW2SrgfCDw@mail.gmail.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Tue, 22 Aug 2017 17:25:00 -0700
-Message-ID: <CALvZod73huYukNBUvn3XS40V4SQYk4H5_Jhv4Qp0446-d4P0rg@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm: fadvise: avoid fadvise for fs without backing device
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <alpine.DEB.2.20.1708221620060.18344@nuc-kabylake>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christopher Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
->> It doesn't sound like a risky change to me, although perhaps someone is
->> depending on the current behaviour for obscure reasons, who knows.
->>
->> What are the reasons for this change?  Is the current behaviour causing
->> some sort of problem for someone?
+
+
+On 2017a1'08ae??23ae?JPY 05:22, Christopher Lameter wrote:
+> Can we simple get rid of the stats or make then configurable (off by
+> defaut)? I agree they are rarely used and have been rarely used in the past.
+> 
+
+I agree that we can make numa stats as well as other stats items that are rarely
+used configurable. Perhaps we can introduce a general mechanism to hide such unimportant
+stats(suggested by *Dave Hansen* initially), it works like this:
+
+when performance is not important and when you want all tooling to work, you set:
+
+	sysctl vm.strict_stats=1
+
+but if you can tolerate some possible tool breakage and some decreased
+counter precision, you can do:
+
+	sysctl vm.strict_stats=0
+
+What's your idea for that? I can help to implement it later.
+
+But it may not a good idea to simply get rid of such kinds of stats.
+
+> Maybe some instrumentation for perf etc will allow
+> similar statistics these days? Thus its possible to drop them?
+> 
+> The space in the pcp pageset is precious and we should strive to use no
+> more than a cacheline for the diffs.
+> 
+> 
+
+Andi has helped to explain it very clearly. Thanks very much.
+
+For 64-bit OS:
+                                     base       with this patch(even include numa_threshold)
+sizeof(struct per_cpu_pageset)	      88 		96
+
+Copy the discussion before from another email thread in case you missed it:
+
+> Hi Mel
+>   I am refreshing this patch. Would you pls be more explicit of what "that
+> structure" indicates. 
+>   If you mean "struct per_cpu_pageset", for 64 bits machine, this structure
+> still occupies two caches line after extending s8 to s16/u16, that should
+> not be a problem.
+
+You're right, I was in error. I miscalculated badly initially. It still
+fits in as expected.
+
+> For 32 bits machine, we probably does not need to extend
+> the size of vm_numa_stat_diff[] since 32 bits OS nearly not be used in large
+> numa system, and s8/u8 is large enough for it, in this case, we can keep the 
+> same size of "struct per_cpu_pageset".
 >
-> Yes, one of our generic library does fadvise(FADV_DONTNEED). Recently
-> we observed high latency in fadvise() and notice that the users have
-> started using tmpfs files and the latency was due to expensive remote
-> LRU cache draining. For normal tmpfs files (have data written on
-> them), fadvise(FADV_DONTNEED) will always trigger the un-needed remote
-> cache draining.
->
 
-Hi Andrew, do you have more comments or concerns?
+I don't believe it's worth the complexity of making this
+bitness-specific. 32-bit takes penalties in other places and besides,
+32-bit does not necessarily mean a change in cache line size.
 
->>
->>
+Fortunately, I think you should still be able to gain a bit more with
+some special casing the fact it's always incrementing and always do full
+spill of the counters instead of half. If so, then using u16 instead of
+s16 should also reduce the update frequency. However, if you find it's
+too complex and the gain is too marginal then I'll ack without it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
