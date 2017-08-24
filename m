@@ -1,75 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2706028085D
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 08:04:42 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id r197so2999553iod.5
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 05:04:42 -0700 (PDT)
-Received: from mail-it0-x243.google.com (mail-it0-x243.google.com. [2607:f8b0:4001:c0b::243])
-        by mx.google.com with ESMTPS id s75si3616745ioe.370.2017.08.24.05.04.40
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E784D28085D
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 08:10:57 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id 34so587181wrj.5
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 05:10:57 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 189si3216606wmi.20.2017.08.24.05.10.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Aug 2017 05:04:40 -0700 (PDT)
-Received: by mail-it0-x243.google.com with SMTP id z129so1490876itc.3
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 05:04:40 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 24 Aug 2017 05:10:56 -0700 (PDT)
+Date: Thu, 24 Aug 2017 14:10:54 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v6 3/4] mm, oom: introduce oom_priority for memory cgroups
+Message-ID: <20170824121054.GI5943@dhcp22.suse.cz>
+References: <20170823165201.24086-1-guro@fb.com>
+ <20170823165201.24086-4-guro@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <20170823153456.b3c50e1ec109fd69f672b348@linux-foundation.org>
-References: <20170821183503.12246-1-matthew.auld@intel.com>
- <20170821183503.12246-2-matthew.auld@intel.com> <1503480688.6276.4.camel@linux.intel.com>
- <20170823153456.b3c50e1ec109fd69f672b348@linux-foundation.org>
-From: Matthew Auld <matthew.william.auld@gmail.com>
-Date: Thu, 24 Aug 2017 13:04:09 +0100
-Message-ID: <CAM0jSHMiOKGEEsuxUuX5ayD_eAVByQZaCsE8rs8_XPopxnbcfg@mail.gmail.com>
-Subject: Re: [Intel-gfx] [PATCH 01/23] mm/shmem: introduce shmem_file_setup_with_mnt
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170823165201.24086-4-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, linux-mm@kvack.org, Intel Graphics Development <intel-gfx@lists.freedesktop.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Matthew Auld <matthew.auld@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 23 August 2017 at 23:34, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Wed, 23 Aug 2017 12:31:28 +0300 Joonas Lahtinen <joonas.lahtinen@linux.intel.com> wrote:
->
->> This patch has been floating around for a while now Acked and without
->> further comments. It is blocking us from merging huge page support to
->> drm/i915.
->>
->> Would you mind merging it, or prodding the right people to get it in?
->>
->> Regards, Joonas
->>
->> On Mon, 2017-08-21 at 19:34 +0100, Matthew Auld wrote:
->> > We are planning to use our own tmpfs mnt in i915 in place of the
->> > shm_mnt, such that we can control the mount options, in particular
->> > huge=, which we require to support huge-gtt-pages. So rather than roll
->> > our own version of __shmem_file_setup, it would be preferred if we could
->> > just give shmem our mnt, and let it do the rest.
->
-> hm, it's a bit odd.  I'm having trouble locating the code which handles
-> huge=within_size (and any other options?).
+On Wed 23-08-17 17:52:00, Roman Gushchin wrote:
+> Introduce a per-memory-cgroup oom_priority setting: an integer number
+> within the [-10000, 10000] range, which defines the order in which
+> the OOM killer selects victim memory cgroups.
 
-See here https://patchwork.freedesktop.org/patch/172771/, currently we
-only care about huge=within_size.
+Why do we need a range here?
 
-> What other approaches were considered?
+> OOM killer prefers memory cgroups with larger priority if they are
+> populated with eligible tasks.
 
-We also tried https://patchwork.freedesktop.org/patch/156528/, where
-it was suggested that we mount our own tmpfs instance.
+So this is basically orthogonal to the score based selection and the
+real size is only the tiebreaker for same priorities? Could you describe
+the usecase? Becasuse to me this sounds like a separate oom killer
+strategy. I can imagine somebody might be interested (e.g. always kill
+the oldest memcgs...) but an explicit range wouldn't fly with such a
+usecase very well.
 
-Following from that we now have our own tmps mnt mounted with
-huge=within_size. With this patch we avoid having to roll our own
-__shmem_file_setup like in
-https://patchwork.freedesktop.org/patch/163024/.
+That brings me back to my original suggestion. Wouldn't a "register an
+oom strategy" approach much better than blending things together and
+then have to wrap heads around different combinations of tunables?
 
-> Was it not feasible to add i915-specific mount options to
-> mm/shmem.c (for example?).
+[...]
+> @@ -2760,7 +2761,12 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+>  			if (iter->oom_score == 0)
+>  				continue;
+>  
+> -			if (iter->oom_score > score) {
+> +			if (iter->oom_priority > prio) {
+> +				memcg = iter;
+> +				prio = iter->oom_priority;
+> +				score = iter->oom_score;
+> +			} else if (iter->oom_priority == prio &&
+> +				   iter->oom_score > score) {
+>  				memcg = iter;
+>  				score = iter->oom_score;
+>  			}
 
-Hmm, I think within_size should suffice for our needs.
-
->
-> _______________________________________________
-> Intel-gfx mailing list
-> Intel-gfx@lists.freedesktop.org
-> https://lists.freedesktop.org/mailman/listinfo/intel-gfx
+Just a minor thing. Why do we even have to calculate oom_score when we
+use it only as a tiebreaker?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
