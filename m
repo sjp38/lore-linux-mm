@@ -1,71 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E784D28085D
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 08:10:57 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 34so587181wrj.5
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 05:10:57 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4488428085D
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 08:21:15 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 99so628739wrl.6
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 05:21:15 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 189si3216606wmi.20.2017.08.24.05.10.56
+        by mx.google.com with ESMTPS id 72si3356562wms.11.2017.08.24.05.21.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 24 Aug 2017 05:10:56 -0700 (PDT)
-Date: Thu, 24 Aug 2017 14:10:54 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v6 3/4] mm, oom: introduce oom_priority for memory cgroups
-Message-ID: <20170824121054.GI5943@dhcp22.suse.cz>
-References: <20170823165201.24086-1-guro@fb.com>
- <20170823165201.24086-4-guro@fb.com>
+        Thu, 24 Aug 2017 05:21:09 -0700 (PDT)
+Subject: Re: [PATCH v1 1/1] mm: Reversed logic in memblock_discard
+References: <1503511441-95478-1-git-send-email-pasha.tatashin@oracle.com>
+ <1503511441-95478-2-git-send-email-pasha.tatashin@oracle.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <398b8217-4d67-4a9d-26c3-872dbd575dce@suse.cz>
+Date: Thu, 24 Aug 2017 14:21:07 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170823165201.24086-4-guro@fb.com>
+In-Reply-To: <1503511441-95478-2-git-send-email-pasha.tatashin@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Pavel Tatashin <pasha.tatashin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, terraluna977@gmail.com, stable <stable@vger.kernel.org>
 
-On Wed 23-08-17 17:52:00, Roman Gushchin wrote:
-> Introduce a per-memory-cgroup oom_priority setting: an integer number
-> within the [-10000, 10000] range, which defines the order in which
-> the OOM killer selects victim memory cgroups.
++CC stable
 
-Why do we need a range here?
+On 08/23/2017 08:04 PM, Pavel Tatashin wrote:
+> In recently introduced memblock_discard() there is a reversed logic bug.
+> Memory is freed of static array instead of dynamically allocated one.
+> 
+> Fixes: 3010f876500f ("mm: discard memblock data later")
 
-> OOM killer prefers memory cgroups with larger priority if they are
-> populated with eligible tasks.
+That patch was CC'd stable. So this one should be too. Looks like it the
+original patch wasn't yet included in a stable release, so we can avoid
+breakage.
 
-So this is basically orthogonal to the score based selection and the
-real size is only the tiebreaker for same priorities? Could you describe
-the usecase? Becasuse to me this sounds like a separate oom killer
-strategy. I can imagine somebody might be interested (e.g. always kill
-the oldest memcgs...) but an explicit range wouldn't fly with such a
-usecase very well.
-
-That brings me back to my original suggestion. Wouldn't a "register an
-oom strategy" approach much better than blending things together and
-then have to wrap heads around different combinations of tunables?
-
-[...]
-> @@ -2760,7 +2761,12 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
->  			if (iter->oom_score == 0)
->  				continue;
+> Reported-and-tested-by: Woody Suwalski <terraluna977@gmail.com>
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> ---
+>  mm/memblock.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index bf14aea6ab70..91205780e6b1 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -299,7 +299,7 @@ void __init memblock_discard(void)
+>  		__memblock_free_late(addr, size);
+>  	}
 >  
-> -			if (iter->oom_score > score) {
-> +			if (iter->oom_priority > prio) {
-> +				memcg = iter;
-> +				prio = iter->oom_priority;
-> +				score = iter->oom_score;
-> +			} else if (iter->oom_priority == prio &&
-> +				   iter->oom_score > score) {
->  				memcg = iter;
->  				score = iter->oom_score;
->  			}
-
-Just a minor thing. Why do we even have to calculate oom_score when we
-use it only as a tiebreaker?
--- 
-Michal Hocko
-SUSE Labs
+> -	if (memblock.memory.regions == memblock_memory_init_regions) {
+> +	if (memblock.memory.regions != memblock_memory_init_regions) {
+>  		addr = __pa(memblock.memory.regions);
+>  		size = PAGE_ALIGN(sizeof(struct memblock_region) *
+>  				  memblock.memory.max);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
