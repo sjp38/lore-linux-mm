@@ -1,119 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C37CC280852
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 04:55:56 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k80so2962346wrc.15
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 01:55:56 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D1A22280852
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 05:30:54 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id a110so130796wrc.1
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 02:30:54 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 34si2882629wrf.313.2017.08.24.01.55.54
+        by mx.google.com with ESMTPS id 34si2936984wrf.313.2017.08.24.02.30.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 24 Aug 2017 01:55:55 -0700 (PDT)
-Date: Thu, 24 Aug 2017 10:55:53 +0200
+        Thu, 24 Aug 2017 02:30:52 -0700 (PDT)
+Date: Thu, 24 Aug 2017 11:30:50 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH RFC v2] Add /proc/pid/smaps_rollup
-Message-ID: <20170824085553.GB5943@dhcp22.suse.cz>
-References: <20170808132554.141143-1-dancol@google.com>
- <20170810001557.147285-1-dancol@google.com>
- <20170810043831.GB2249@bbox>
- <20170810084617.GI23863@dhcp22.suse.cz>
- <r0251soju3fo.fsf@dancol.org>
- <20170810105852.GM23863@dhcp22.suse.cz>
- <CAPz6YkUNu1uH057ENuH+Umq5J=J24my0p91mvYMtEb4Vy6Dhqg@mail.gmail.com>
- <CAEe=SxkgPUEkHdQm+M49EBc_Y_bEnNbe5fed3yALUx2eUbMrGQ@mail.gmail.com>
+Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
+ ZONE_MOVABLE request
+Message-ID: <20170824093050.GD5943@dhcp22.suse.cz>
+References: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAEe=SxkgPUEkHdQm+M49EBc_Y_bEnNbe5fed3yALUx2eUbMrGQ@mail.gmail.com>
+In-Reply-To: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Murray <timmurray@google.com>
-Cc: Sonny Rao <sonnyrao@chromium.org>, Daniel Colascione <dancol@google.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Joel Fernandes <joelaf@google.com>, Al Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, Robert Foss <robert.foss@collabora.com>, linux-api@vger.kernel.org, Luigi Semenzato <semenzato@google.com>
+To: js1304@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Sorry for a late reply
-
-On Thu 10-08-17 12:17:07, Tim Murray wrote:
-> I've looked into this a fair bit on the Android side, so I can provide
-> some context. There are two main reasons why Android gathers PSS
-> information:
+On Thu 24-08-17 14:45:46, Joonsoo Kim wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> 1. Android devices can show the user the amount of memory used per
-> application via the settings app. This is a less important use case.
+> Freepage on ZONE_HIGHMEM doesn't work for kernel memory so it's not that
+> important to reserve. When ZONE_MOVABLE is used, this problem would
+> theorectically cause to decrease usable memory for GFP_HIGHUSER_MOVABLE
+> allocation request which is mainly used for page cache and anon page
+> allocation. So, fix it.
 
-yes
+I do not really understand what is the problem you are trying to fix.
+Yes the memory is reserved for a higher priority consumer and that is
+deliberate AFAICT. Just consider that an OOM victim wants to make
+further progress and rely on memory reserve while doing
+GFP_HIGHUSER_MOVABLE request.
 
-> 2. We log PSS to help identify leaks in applications. We have found an
-> enormous number of bugs (in the Android platform, in Google's own
-> apps, and in third-party applications) using this data.
+So what is the real problem you are trying to address here?
+
+> And, defining sysctl_lowmem_reserve_ratio array by MAX_NR_ZONES - 1 size
+> makes code complex. For example, if there is highmem system, following
+> reserve ratio is activated for *NORMAL ZONE* which would be easyily
+> misleading people.
 > 
-> To do this, system_server (the main process in Android userspace) will
-> sample the PSS of a process three seconds after it changes state (for
-> example, app is launched and becomes the foreground application) and
-> about every ten minutes after that. The net result is that PSS
-> collection is regularly running on at least one process in the system
-> (usually a few times a minute while the screen is on, less when screen
-> is off due to suspend). PSS of a process is an incredibly useful stat
-> to track, and we aren't going to get rid of it. We've looked at some
-> very hacky approaches using RSS ("take the RSS of the target process,
-> subtract the RSS of the zygote process that is the parent of all
-> Android apps") to reduce the accounting time, but it regularly
-> overestimated the memory used by 20+ percent. Accordingly, I don't
-> think that there's a good alternative to using PSS.
-
-Even if the RSS overestimates this shouldn't hide a memory leak, no?
-
-> We started looking into PSS collection performance after we noticed
-> random frequency spikes while a phone's screen was off; occasionally,
-> one of the CPU clusters would ramp to a high frequency because there
-> was 200-300ms of constant CPU work from a single thread in the main
-> Android userspace process. The work causing the spike (which is
-> reasonable governor behavior given the amount of CPU time needed) was
-> always PSS collection. As a result, Android is burning more power than
-> we should be on PSS collection.
-
-Yes, this really sucks but we are revolving around the same point. It
-really sucks that we burn so much time just copying the output to the
-userspace when the real stuff (vma walk and pte walk) has to be done
-anyway. AFAIR I could reduce the overhead by using more appropriate
-seq_* functions but maybe we can do even better.
-
-> The other issue (and why I'm less sure about improving smaps as a
-> long-term solution) is that the number of VMAs per process has
-> increased significantly from release to release. After trying to
-> figure out why we were seeing these 200-300ms PSS collection times on
-> Android O but had not noticed it in previous versions, we found that
-> the number of VMAs in the main system process increased by 50% from
-> Android N to Android O (from ~1800 to ~2700) and varying increases in
-> every userspace process. Android M to N also had an increase in the
-> number of VMAs, although not as much. I'm not sure why this is
-> increasing so much over time, but thinking about ASLR and ways to make
-> ASLR better, I expect that this will continue to increase going
-> forward. I would not be surprised if we hit 5000 VMAs on the main
-> Android process (system_server) by 2020.
-
-The thing is, however, that the larger amount of VMAs will also mean
-more work on the kernel side. The data collection has to be done anyway.
- 
-> If we assume that the number of VMAs is going to increase over time,
-> then doing anything we can do to reduce the overhead of each VMA
-> during PSS collection seems like the right way to go, and that means
-> outputting an aggregate statistic (to avoid whatever overhead there is
-> per line in writing smaps and in reading each line from userspace).
+>  #ifdef CONFIG_HIGHMEM
+>  32
+>  #endif
 > 
-> Also, Dan sent me some numbers from his benchmark measuring PSS on
-> system_server (the big Android process) using smaps vs smaps_rollup:
+> This patch also fix this situation by defining sysctl_lowmem_reserve_ratio
+> array by MAX_NR_ZONES and place "#ifdef" to right place.
 > 
-> using smaps:
-> iterations:1000 pid:1163 pss:220023808
->  0m29.46s real 0m08.28s user 0m20.98s system
+> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>  include/linux/mmzone.h |  2 +-
+>  mm/page_alloc.c        | 11 ++++++-----
+>  2 files changed, 7 insertions(+), 6 deletions(-)
 > 
-> using smaps_rollup:
-> iterations:1000 pid:1163 pss:220702720
->  0m04.39s real 0m00.03s user 0m04.31s system
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index e7e92c8..e5f134b 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -882,7 +882,7 @@ int min_free_kbytes_sysctl_handler(struct ctl_table *, int,
+>  					void __user *, size_t *, loff_t *);
+>  int watermark_scale_factor_sysctl_handler(struct ctl_table *, int,
+>  					void __user *, size_t *, loff_t *);
+> -extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
+> +extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES];
+>  int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int,
+>  					void __user *, size_t *, loff_t *);
+>  int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *, int,
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 90b1996..6faa53d 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -202,17 +202,18 @@ static void __free_pages_ok(struct page *page, unsigned int order);
+>   * TBD: should special case ZONE_DMA32 machines here - in those we normally
+>   * don't need any ZONE_NORMAL reservation
+>   */
+> -int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
+> +int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES] = {
+>  #ifdef CONFIG_ZONE_DMA
+> -	 256,
+> +	[ZONE_DMA] = 256,
+>  #endif
+>  #ifdef CONFIG_ZONE_DMA32
+> -	 256,
+> +	[ZONE_DMA32] = 256,
+>  #endif
+> +	[ZONE_NORMAL] = 32,
+>  #ifdef CONFIG_HIGHMEM
+> -	 32,
+> +	[ZONE_HIGHMEM] = INT_MAX,
+>  #endif
+> -	 32,
+> +	[ZONE_MOVABLE] = INT_MAX,
+>  };
+>  
+>  EXPORT_SYMBOL(totalram_pages);
+> -- 
+> 2.7.4
+> 
 
-I would assume we would do all we can to reduce this kernel->user
-overhead first before considering a new user visible file. I haven't
-seen any attempts except from the low hanging fruid I have tried.
 -- 
 Michal Hocko
 SUSE Labs
