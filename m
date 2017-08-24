@@ -1,42 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D876280704
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 02:54:23 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id m19so2640992wrm.12
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 23:54:23 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BC654280704
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 03:01:55 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 184so2248344wmi.12
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 00:01:55 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 24si2997156wrw.341.2017.08.23.23.54.21
+        by mx.google.com with ESMTPS id 16si2981733wrx.316.2017.08.24.00.01.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 23 Aug 2017 23:54:22 -0700 (PDT)
-Date: Thu, 24 Aug 2017 08:54:18 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: +
- fork-fix-incorrect-fput-of-exe_file-causing-use-after-free.patch added to
- -mm tree
-Message-ID: <20170824065418.GF29811@dhcp22.suse.cz>
-References: <599df6ce.5uMYbFyhgGY+BGEb%akpm@linux-foundation.org>
- <20170824062323.GB29811@dhcp22.suse.cz>
+        Thu, 24 Aug 2017 00:01:54 -0700 (PDT)
+Subject: Re: [PATCH 1/4] mm, page_owner: make init_pages_in_zone() faster
+From: Vlastimil Babka <vbabka@suse.cz>
+References: <20170720134029.25268-1-vbabka@suse.cz>
+ <20170720134029.25268-2-vbabka@suse.cz>
+ <20170724123843.GH25221@dhcp22.suse.cz>
+ <483227ce-6786-f04b-72d1-dba18e06ccaa@suse.cz>
+Message-ID: <cf8d0c4f-0e1e-14ee-8dae-a1f71099b887@suse.cz>
+Date: Thu, 24 Aug 2017 09:01:52 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170824062323.GB29811@dhcp22.suse.cz>
+In-Reply-To: <483227ce-6786-f04b-72d1-dba18e06ccaa@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: ebiggers@google.com, dvyukov@google.com, koct9i@gmail.com, mingo@kernel.org, oleg@redhat.com, peterz@infradead.org, stable@vger.kernel.org, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Yang Shi <yang.shi@linaro.org>, Laura Abbott <labbott@redhat.com>, Vinayak Menon <vinmenon@codeaurora.org>, zhong jiang <zhongjiang@huawei.com>
 
-On Thu 24-08-17 08:23:23, Michal Hocko wrote:
-> I do not see this email neither on lkml nor linux-mm mailing lists.
-> Strange
+On 08/23/2017 08:47 AM, Vlastimil Babka wrote:
+> On 07/24/2017 02:38 PM, Michal Hocko wrote:
+>>
+>> Do we need to duplicated a part of __set_page_owner? Can we pull out
+>> both owner and handle out __set_page_owner?
+> 
+> I wanted to avoid overhead in __set_page_owner() by introducing extra
+> shared function, but I'll check if that can be helped.
 
-Nothing strange just my filters fooled me. Sorry about the confusion.
--- 
-Michal Hocko
-SUSE Labs
+Ok, here's a -fix for that.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+----8<----
