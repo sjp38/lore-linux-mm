@@ -1,71 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 42DC66B04BA
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 02:37:00 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id z193so8505868pgd.7
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 23:37:00 -0700 (PDT)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id q1si2277386pga.789.2017.08.23.23.36.59
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A26A3280704
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 02:53:54 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id w14so2687617wrc.3
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 23:53:54 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w194si2707874wme.82.2017.08.23.23.53.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Aug 2017 23:36:59 -0700 (PDT)
-Received: by mail-pg0-x242.google.com with SMTP id u9so2561900pgn.5
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 23:36:59 -0700 (PDT)
-From: js1304@gmail.com
-Subject: [PATCH 3/3] ARM: CMA: avoid double mapping to the CMA area if CONFIG_HIGHMEM = y
-Date: Thu, 24 Aug 2017 15:36:33 +0900
-Message-Id: <1503556593-10720-4-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1503556593-10720-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1503556593-10720-1-git-send-email-iamjoonsoo.kim@lge.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 23 Aug 2017 23:53:53 -0700 (PDT)
+Date: Thu, 24 Aug 2017 08:53:50 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: + mm-madvise-fix-freeing-of-locked-page-with-madv_free.patch
+ added to -mm tree
+Message-ID: <20170824065349.GE29811@dhcp22.suse.cz>
+References: <599df681.NreP1dR3/HGSfpCe%akpm@linux-foundation.org>
+ <20170824060957.GA29811@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170824060957.GA29811@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: akpm@linux-foundation.org
+Cc: ebiggers@google.com, aarcange@redhat.com, dvyukov@google.com, hughd@google.com, minchan@kernel.org, rientjes@google.com, stable@vger.kernel.org, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Thu 24-08-17 08:09:57, Michal Hocko wrote:
+> Hmm, I do not see this neither in linux-mm nor LKML. Strange
 
-CMA area is now managed by the separate zone, ZONE_MOVABLE,
-to fix many MM related problems. In this implementation, if
-CONFIG_HIGHMEM = y, then ZONE_MOVABLE is considered as HIGHMEM and
-the memory of the CMA area is also considered as HIGHMEM.
-That means that they are considered as the page without direct mapping.
-However, CMA area could be in a lowmem and the memory could have
-direct mapping.
-
-In ARM, when establishing a new mapping for DMA, direct mapping should
-be cleared since two mapping with different cache policy could cause
-unknown problem. With this patch, PageHighmem() for the CMA memory
-located in lowmem returns true so that the function for DMA mapping
-cannot notice whether it needs to clear direct mapping or not, correctly.
-To handle this situation, this patch always clears direct mapping
-for such CMA memory.
-
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- arch/arm/mm/dma-mapping.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
-
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index fcf1473..38f0fde 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -513,7 +513,13 @@ void __init dma_contiguous_remap(void)
- 		flush_tlb_kernel_range(__phys_to_virt(start),
- 				       __phys_to_virt(end));
- 
--		iotable_init(&map, 1);
-+		/*
-+		 * For highmem system, all the memory in CMA region will be
-+		 * considered as highmem even if it's physical address belong
-+		 * to lowmem. Therefore, re-mapping isn't required.
-+		 */
-+		if (!IS_ENABLED(CONFIG_HIGHMEM))
-+			iotable_init(&map, 1);
- 	}
- }
- 
+Not strange, just my filters fooled me. Sorry about the confusion.
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
