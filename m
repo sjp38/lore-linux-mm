@@ -1,49 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D374D440846
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 12:58:45 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id y15so103438pgc.9
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 09:58:45 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id x6si3106547pfk.446.2017.08.24.09.58.43
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F80B440846
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 12:59:39 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id t3so109063pgt.8
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 09:59:39 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id i128si3132176pfg.54.2017.08.24.09.59.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Aug 2017 09:58:43 -0700 (PDT)
-Date: Thu, 24 Aug 2017 09:58:38 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH v6 1/5] vfs: add flags parameter to ->mmap() in 'struct
- file_operations'
-Message-ID: <20170824165838.GB3121@infradead.org>
-References: <150353211413.5039.5228914877418362329.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150353211985.5039.4333061601382775843.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Thu, 24 Aug 2017 09:59:37 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id a7so42801pgn.4
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 09:59:37 -0700 (PDT)
+Date: Thu, 24 Aug 2017 09:59:35 -0700
+From: Eric Biggers <ebiggers3@gmail.com>
+Subject: Re: [PATCH] fork: fix incorrect fput of ->exe_file causing
+ use-after-free
+Message-ID: <20170824165935.GA21624@gmail.com>
+References: <20170823211408.31198-1-ebiggers3@gmail.com>
+ <20170824132041.GA22882@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <150353211985.5039.4333061601382775843.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <20170824132041.GA22882@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, David Airlie <airlied@linux.ie>, linux-api@vger.kernel.org, Takashi Iwai <tiwai@suse.com>, dri-devel@lists.freedesktop.org, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, Julia Lawall <julia.lawall@lip6.fr>, luto@kernel.org, linux-fsdevel@vger.kernel.org, Daniel Vetter <daniel.vetter@intel.com>, linux-mm@kvack.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Ingo Molnar <mingo@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Michal Hocko <mhocko@suse.com>, Peter Zijlstra <peterz@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org, Eric Biggers <ebiggers@google.com>
 
-On Wed, Aug 23, 2017 at 04:48:40PM -0700, Dan Williams wrote:
-> We are running running short of vma->vm_flags. We can avoid needing a
-> new VM_* flag in some cases if the original @flags submitted to mmap(2)
-> is made available to the ->mmap() 'struct file_operations'
-> implementation. For example, the proposed addition of MAP_DIRECT can be
-> implemented without taking up a new vm_flags bit. Another motivation to
-> avoid vm_flags is that they appear in /proc/$pid/smaps, and we have seen
-> software that tries to dangerously (TOCTOU) read smaps to infer the
-> behavior of a virtual address range.
+On Thu, Aug 24, 2017 at 03:20:41PM +0200, Oleg Nesterov wrote:
+> On 08/23, Eric Biggers wrote:
+> >
+> > From: Eric Biggers <ebiggers@google.com>
+> >
+> > Commit 7c051267931a ("mm, fork: make dup_mmap wait for mmap_sem for
+> > write killable") made it possible to kill a forking task while it is
+> > waiting to acquire its ->mmap_sem for write, in dup_mmap().  However, it
+> > was overlooked that this introduced an new error path before a reference
+> > is taken on the mm_struct's ->exe_file.
 > 
-> This conversion was performed by the following semantic patch. There
-> were a few manual edits for oddities like proc_reg_mmap.
-> 
-> Thanks to Julia for helping me with coccinelle iteration to cover cases
-> where the mmap routine is defined in a separate file from the 'struct
-> file_operations' instance that consumes it.
+> Hmm. Unless I am totally confused, the same problem with mm->exol_area?
+> I'll recheck....
 
-How are we going to check that an instance actually supports any
-of those flags?
+I'm not sure what you mean by ->exol_area.
+
+> 
+> > --- a/kernel/fork.c
+> > +++ b/kernel/fork.c
+> > @@ -806,6 +806,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
+> >  	mm_init_cpumask(mm);
+> >  	mm_init_aio(mm);
+> >  	mm_init_owner(mm, p);
+> > +	RCU_INIT_POINTER(mm->exe_file, NULL);
+> 
+> Can't we simply move
+> 
+> 	RCU_INIT_POINTER(mm->exe_file, get_mm_exe_file(oldmm));
+> 
+> from dup_mmap() here? Afaics this doesn't need mmap_sem.
+> 
+
+Two problems, even assuming that get_mm_exe_file() doesn't require mmap_sem:
+
+- If mm_alloc_pgd() or init_new_context() in mm_init() fails, mm_init() doesn't
+  do the full mmput(), so the file reference would not be dropped.  So it would
+  need to be changed to drop the file reference too.
+
+- The file would also be set when called from mm_alloc() which is used when
+  exec'ing a new task.  *Maybe* it would be safe to do temporarily, but it's
+  pointless because ->exe_file will be set later by flush_old_exec().
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
