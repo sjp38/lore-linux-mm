@@ -1,221 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FBD9440846
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 09:25:36 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id m7so3090590pga.8
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 06:25:36 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id p64si2738364pga.259.2017.08.24.06.25.33
+	by kanga.kvack.org (Postfix) with ESMTP id 72B3E440846
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 09:27:37 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id l189so3245811pga.7
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 06:27:37 -0700 (PDT)
+Received: from mail-pg0-x244.google.com (mail-pg0-x244.google.com. [2607:f8b0:400e:c05::244])
+        by mx.google.com with ESMTPS id 102si2001508pld.196.2017.08.24.06.27.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 24 Aug 2017 06:25:34 -0700 (PDT)
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [RFC PATCH 2/2] mm,oom: Try last second allocation after selecting an OOM victim.
-Date: Thu, 24 Aug 2017 21:18:26 +0900
-Message-Id: <1503577106-9196-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-In-Reply-To: <1503577106-9196-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1503577106-9196-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Aug 2017 06:27:36 -0700 (PDT)
+Received: by mail-pg0-x244.google.com with SMTP id p14so3931005pgd.1
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 06:27:36 -0700 (PDT)
+Date: Thu, 24 Aug 2017 21:28:01 +0800
+From: Boqun Feng <boqun.feng@gmail.com>
+Subject: Re: [PATCH 1/2] nfit: Use init_completion() in
+ acpi_nfit_flush_probe()
+Message-ID: <20170824132801.GM11771@tardis>
+References: <20170823152542.5150-1-boqun.feng@gmail.com>
+ <20170823152542.5150-2-boqun.feng@gmail.com>
+ <alpine.DEB.2.20.1708241507160.1860@nanos>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="yiup30KVCQiHUZFC"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1708241507160.1860@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Manish Jaggi <mjaggi@caviumnetworks.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, walken@google.com, Byungchul Park <byungchul.park@lge.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, willy@infradead.org, Nicholas Piggin <npiggin@gmail.com>, kernel-team@lge.com, Dan Williams <dan.j.williams@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, linux-nvdimm@lists.01.org, linux-acpi@vger.kernel.org
 
-Manish Jaggi noticed that running LTP oom01/oom02 ltp tests with high core
-count causes random kernel panics when an OOM victim which consumed memory
-in a way the OOM reaper does not help was selected by the OOM killer [1].
 
-Since commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
-oom_reaped tasks") changed task_will_free_mem(current) in out_of_memory()
-to return false as soon as MMF_OOM_SKIP is set, many threads sharing the
-victim's mm were not able to try allocation from memory reserves after the
-OOM reaper gave up reclaiming memory.
+--yiup30KVCQiHUZFC
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-I proposed a patch which alllows task_will_free_mem(current) in
-out_of_memory() to ignore MMF_OOM_SKIP for once so that all OOM victim
-threads are guaranteed to have tried ALLOC_OOM allocation attempt before
-start selecting next OOM victims [2], for Michal Hocko did not like
-calling get_page_from_freelist() from the OOM killer which is a layer
-violation [3]. But now, Michal thinks that calling get_page_from_freelist()
-after task_will_free_mem(current) test is better than allowing
-task_will_free_mem(current) to ignore MMF_OOM_SKIP for once [4], for
-this would help other cases when we race with an exiting tasks or somebody
-managed to free memory while we were selecting an OOM victim which can take
-quite some time.
+On Thu, Aug 24, 2017 at 03:07:42PM +0200, Thomas Gleixner wrote:
+> On Wed, 23 Aug 2017, Boqun Feng wrote:
+>=20
+> > There is no need to use COMPLETION_INITIALIZER_ONSTACK() in
+> > acpi_nfit_flush_probe(), replace it with init_completion().
+>=20
+> You completely fail to explain WHY.
+>=20
 
-Thus, this patch brings "struct alloc_context" into the OOM killer layer
-and does really last second get_page_from_freelist() attempt inside
-oom_kill_process(). This patch calls whole __alloc_pages_slowpath() than
-cherry-picks get_page_from_freelist() call, for we need to try ALLOC_OOM
-allocation if task_is_oom_victim(current) == true (because
-task_will_free_mem(current) not to ignore MMF_OOM_SKIP might have prevented
-current thread from trying ALLOC_OOM allocation).
+I thought COMPLETION_INITIALIZER_ONSTACK() should only use in assigment
+or compound literals, so the usage here is obviously wrong, but seems
+I was wrong?
 
-Although this patch tries to close all possible races which lead to
-premature OOM killer invocation, compared to approaches which preserves
-the layer and retry __alloc_pages_slowpath() without oom_lock held (e.g.
-[2]), there are two races which cannot be closed by this patch.
+Ingo,
 
-  (1) Since we cannot use direct reclaim for this allocation attempt due to
-      oom_lock already held, an OOM victim will be prematurely killed which
-      could have been avoided if direct reclaim with oom_lock released was
-      used.
+Is the usage of COMPLETION_INITIALIZER_ONSTACK() correct? If not,
+I could rephrase my commit log saying this is a fix for wrong usage of
+COMPLETION_INITIALIZER_ONSTACK(), otherwise, I will rewrite the commit
+indicating this patch is a necessary dependency for patch #2. Thanks!
 
-  (2) Since we call panic() before calling oom_kill_process() when there is
-      no killable process, panic() will be prematurely called which could
-      have been avoided if [2] is used. For example, if a multithreaded
-      application running with a dedicated CPUs/memory was OOM-killed, we
-      can wait until ALLOC_OOM allocation fails to solve OOM situation.
+Regards,
+Boqun
 
-Which approach should we take (this patch and/or [2]) ?
+> Thanks,
+>=20
+> 	tglx
+>=20
+> =20
+> > Signed-off-by: Boqun Feng <boqun.feng@gmail.com>
+> > ---
+> >  drivers/acpi/nfit/core.c | 2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> >=20
+> > diff --git a/drivers/acpi/nfit/core.c b/drivers/acpi/nfit/core.c
+> > index 19182d091587..1893e416e7c0 100644
+> > --- a/drivers/acpi/nfit/core.c
+> > +++ b/drivers/acpi/nfit/core.c
+> > @@ -2884,7 +2884,7 @@ static int acpi_nfit_flush_probe(struct nvdimm_bu=
+s_descriptor *nd_desc)
+> >  	 * need to be interruptible while waiting.
+> >  	 */
+> >  	INIT_WORK_ONSTACK(&flush.work, flush_probe);
+> > -	COMPLETION_INITIALIZER_ONSTACK(flush.cmp);
+> > +	init_completion(&flush.cmp);
+> >  	queue_work(nfit_wq, &flush.work);
+> >  	mutex_unlock(&acpi_desc->init_mutex);
+> > =20
+> > --=20
+> > 2.14.1
+> >=20
+> >=20
 
-[1] http://lkml.kernel.org/r/e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com
-[2] http://lkml.kernel.org/r/201708191523.BJH90621.MHOOFFQSOLJFtV@I-love.SAKURA.ne.jp
-[3] http://lkml.kernel.org/r/20160129152307.GF32174@dhcp22.suse.cz
-[4] http://lkml.kernel.org/r/20170821131851.GJ25956@dhcp22.suse.cz
+--yiup30KVCQiHUZFC
+Content-Type: application/pgp-signature; name="signature.asc"
 
-Fixes: 696453e66630ad45 ("mm, oom: task_will_free_mem should skip oom_reaped tasks")
-Reported-by: Manish Jaggi <mjaggi@caviumnetworks.com>
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Vlastimil Babka <vbabka@suse.cz>
----
- include/linux/oom.h | 13 +++++++++++++
- mm/oom_kill.c       | 13 +++++++++++++
- mm/page_alloc.c     | 27 +++++++++++++++++++++------
- 3 files changed, 47 insertions(+), 6 deletions(-)
+-----BEGIN PGP SIGNATURE-----
 
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index 76aac4c..eb92aa8 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -13,6 +13,8 @@
- struct notifier_block;
- struct mem_cgroup;
- struct task_struct;
-+struct alloc_context;
-+struct page;
- 
- /*
-  * Details of the page allocation that triggered the oom killer that are used to
-@@ -37,6 +39,15 @@ struct oom_control {
- 	 */
- 	const int order;
- 
-+	/* Context for really last second allocation attempt. */
-+	struct alloc_context *ac;
-+	/*
-+	 * Set by the OOM killer if ac != NULL and last second allocation
-+	 * attempt succeeded. If ac != NULL, the caller must check for
-+	 * page != NULL.
-+	 */
-+	struct page *page;
-+
- 	/* Used by oom implementation, do not set */
- 	unsigned long totalpages;
- 	struct task_struct *chosen;
-@@ -101,6 +112,8 @@ extern unsigned long oom_badness(struct task_struct *p,
- 
- extern struct task_struct *find_lock_task_mm(struct task_struct *p);
- 
-+extern struct page *alloc_pages_before_oomkill(struct oom_control *oc);
-+
- /* sysctls */
- extern int sysctl_oom_dump_tasks;
- extern int sysctl_oom_kill_allocating_task;
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 99736e0..fe1aa30 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -832,6 +832,19 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
- 	}
- 	task_unlock(p);
- 
-+	/*
-+	 * Try really last second allocation attempt after we selected an OOM
-+	 * victim, for somebody might have managed to free memory while we were
-+	 * selecting an OOM victim which can take quite some time.
-+	 */
-+	if (oc->ac) {
-+		oc->page = alloc_pages_before_oomkill(oc);
-+		if (oc->page) {
-+			put_task_struct(p);
-+			return;
-+		}
-+	}
-+
- 	if (__ratelimit(&oom_rs))
- 		dump_header(oc, p);
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 788318f..90b2de9 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3277,7 +3277,8 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 
- static inline struct page *
- __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
--	const struct alloc_context *ac, unsigned long *did_some_progress)
-+		      struct alloc_context *ac,
-+		      unsigned long *did_some_progress)
- {
- 	struct oom_control oc = {
- 		.zonelist = ac->zonelist,
-@@ -3285,6 +3286,7 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 		.memcg = NULL,
- 		.gfp_mask = gfp_mask,
- 		.order = order,
-+		.ac = ac,
- 	};
- 	struct page *page;
- 
-@@ -3347,16 +3349,17 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 		goto out;
- 
- 	/* Exhausted what can be done so it's blamo time */
--	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
-+	if (out_of_memory(&oc)) {
-+		*did_some_progress = 1;
-+		page = oc.page;
-+	} else if (WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
- 		*did_some_progress = 1;
--
- 		/*
- 		 * Help non-failing allocations by giving them access to memory
- 		 * reserves
- 		 */
--		if (gfp_mask & __GFP_NOFAIL)
--			page = __alloc_pages_cpuset_fallback(gfp_mask, order,
--					ALLOC_NO_WATERMARKS, ac);
-+		page = __alloc_pages_cpuset_fallback(gfp_mask, order,
-+						     ALLOC_NO_WATERMARKS, ac);
- 	}
- out:
- 	mutex_unlock(&oom_lock);
-@@ -4126,6 +4129,18 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
- 	return page;
- }
- 
-+struct page *alloc_pages_before_oomkill(struct oom_control *oc)
-+{
-+	/*
-+	 * Make sure that this allocation attempt shall not depend on
-+	 * __GFP_DIRECT_RECLAIM && !__GFP_NORETRY allocation, for the caller is
-+	 * already holding oom_lock.
-+	 */
-+	return __alloc_pages_slowpath((oc->gfp_mask | __GFP_NOWARN) &
-+				      ~(__GFP_DIRECT_RECLAIM | __GFP_NOFAIL),
-+				      oc->order, oc->ac);
-+}
-+
- static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
- 		int preferred_nid, nodemask_t *nodemask,
- 		struct alloc_context *ac, gfp_t *alloc_mask,
--- 
-1.8.3.1
+iQEzBAABCAAdFiEEj5IosQTPz8XU1wRHSXnow7UH+rgFAlme1F4ACgkQSXnow7UH
++riYqgf5AW2ZDU/nzQsIVp6pflQHE+Vmeo+9XJ8X5xi91KucmViBHiISKjAVAOud
+rd0FKnQ47izCMLtq59xMIX264pCXMUubJCZt0z5cx1qkdKqnV6rlHcSuBKNaymtN
+8K8Ltc4sHyb0exHHm0qEZG3Xn9WWkTALD/ycIe9vEQLyJYnMzMyXuQSMhzEitJTv
+nuiRjwK3RRxAeO7u+YM0WErwPxJaSBLmvEvfWhJ/ix+zL9znUamzN1SPPgoDKM2i
+5etOuF0yRsnfRv/VYEL8g89EV71614l+90O6bX4Goe/VoKWeuSLzdeuJAhhPZxLT
+Uag5q2+b3h8uLp+WtkKNgnmeBW/N7A==
+=O+8J
+-----END PGP SIGNATURE-----
+
+--yiup30KVCQiHUZFC--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
