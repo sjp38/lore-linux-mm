@@ -1,92 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3847F28084A
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 03:20:25 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id t3so32953610pgt.5
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 00:20:25 -0700 (PDT)
-Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
-        by mx.google.com with ESMTPS id b1si2614833plm.462.2017.08.24.00.20.23
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 99FA628084D
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 03:22:31 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id q16so32871709pgc.15
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 00:22:31 -0700 (PDT)
+Received: from mail-pg0-x230.google.com (mail-pg0-x230.google.com. [2607:f8b0:400e:c05::230])
+        by mx.google.com with ESMTPS id u1si2476222plk.370.2017.08.24.00.22.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Aug 2017 00:20:23 -0700 (PDT)
-Received: by mail-pg0-x242.google.com with SMTP id m7so2716336pga.3
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 00:20:23 -0700 (PDT)
-From: js1304@gmail.com
-Subject: [PATCH] mm/mlock: use page_zone() instead of page_zone_id()
-Date: Thu, 24 Aug 2017 16:20:11 +0900
-Message-Id: <1503559211-10259-1-git-send-email-iamjoonsoo.kim@lge.com>
+        Thu, 24 Aug 2017 00:22:30 -0700 (PDT)
+Received: by mail-pg0-x230.google.com with SMTP id s14so12779032pgs.1
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 00:22:30 -0700 (PDT)
+Date: Thu, 24 Aug 2017 16:22:20 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 2/2][v2] mm: make kswapd try harder to keep active pages
+ in cache
+Message-ID: <20170824072220.GB20463@bgram>
+References: <1503430539-2878-1-git-send-email-jbacik@fb.com>
+ <1503430539-2878-2-git-send-email-jbacik@fb.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1503430539-2878-2-git-send-email-jbacik@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: josef@toxicpanda.com
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, kernel-team@fb.com, aryabinin@virtuozzo.com, Josef Bacik <jbacik@fb.com>
 
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Tue, Aug 22, 2017 at 03:35:39PM -0400, josef@toxicpanda.com wrote:
+> From: Josef Bacik <jbacik@fb.com>
+> 
+> While testing slab reclaim I noticed that if we were running a workload
+> that used most of the system memory for it's working set and we start
+> putting a lot of reclaimable slab pressure on the system (think find /,
+> or some other silliness), we will happily evict the active pages over
+> the slab cache.  This is kind of backwards as we want to do all that we
+> can to keep the active working set in memory, and instead evict these
+> short lived objects.  The same thing occurs when say you do a yum
+> update of a few packages while your working set takes up most of RAM,
+> you end up with inactive lists being relatively small and so we reclaim
+> active pages even though we could reclaim these short lived inactive
+> pages.
 
-page_zone_id() is a specialized function to compare the zone for the pages
-that are within the section range. If the section of the pages are
-different, page_zone_id() can be different even if their zone is the same.
-This wrong usage doesn't cause any actual problem since
-__munlock_pagevec_fill() would be called again with failed index. However,
-it's better to use more appropriate function here.
+The fundament problem is we cannot identify what are working set and
+short-lived objects in adavnce without enough aging so such workload
+transition in a short time is really hard to catch up.
 
-This patch is also preparation for futher change about page_zone_id().
+A idea in my mind is to create two level list(active, inactive list)
+like LRU pages. Then, starts objects inactive list and doesn't promote
+the object into active list unless it touches.
 
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- mm/mlock.c | 10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
+Once we see refault of page cache, it would be a good signal to
+accelerate slab shrinking. Or, reclaim shrinker's inactive list firstly
+before the shrinking page cache active list.
+Same way have been used for page cache's inactive list to prevent
+anonymous page reclaiming. See get_scan_count.
 
-diff --git a/mm/mlock.c b/mm/mlock.c
-index b562b55..dfc6f19 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -365,8 +365,8 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
-  * @start + PAGE_SIZE when no page could be added by the pte walk.
-  */
- static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
--		struct vm_area_struct *vma, int zoneid,	unsigned long start,
--		unsigned long end)
-+			struct vm_area_struct *vma, struct zone *zone,
-+			unsigned long start, unsigned long end)
- {
- 	pte_t *pte;
- 	spinlock_t *ptl;
-@@ -394,7 +394,7 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
- 		 * Break if page could not be obtained or the page's node+zone does not
- 		 * match
- 		 */
--		if (!page || page_zone_id(page) != zoneid)
-+		if (!page || page_zone(page) != zone)
- 			break;
- 
- 		/*
-@@ -446,7 +446,6 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
- 		unsigned long page_increm;
- 		struct pagevec pvec;
- 		struct zone *zone;
--		int zoneid;
- 
- 		pagevec_init(&pvec, 0);
- 		/*
-@@ -481,7 +480,6 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
- 				 */
- 				pagevec_add(&pvec, page);
- 				zone = page_zone(page);
--				zoneid = page_zone_id(page);
- 
- 				/*
- 				 * Try to fill the rest of pagevec using fast
-@@ -490,7 +488,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
- 				 * pagevec.
- 				 */
- 				start = __munlock_pagevec_fill(&pvec, vma,
--						zoneid, start, end);
-+						zone, start, end);
- 				__munlock_pagevec(&pvec, zone);
- 				goto next;
- 			}
--- 
-2.7.4
+It's non trivial but worth to try if system with heavy slab objects
+would be popular, IMHO.
+
+> 
+> My approach here is twofold.  First, keep track of the difference in
+> inactive and slab pages since the last time kswapd ran.  In the first
+> run this will just be the overall counts of inactive and slab, but for
+> each subsequent run we'll have a good idea of where the memory pressure
+> is coming from.  Then we use this information to put pressure on either
+> the inactive lists or the slab caches, depending on where the pressure
+> is coming from.
+
+I don't like this idea.
+
+The pressure should be fair if possible and victim decision should come
+from the aging. If we want to put more pressure, it should come from
+some feedback loop. And I don't think diff of allocation would be a good
+factor for that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
