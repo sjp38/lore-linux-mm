@@ -1,117 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 180AE6B04C4
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 05:42:02 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id m1so123160wmd.3
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 02:42:02 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j38si3019899wre.521.2017.08.24.02.42.00
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C7F92803B4
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 06:01:23 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 141so622433pgb.14
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 03:01:23 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id e84si2545920pfh.35.2017.08.24.03.01.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 24 Aug 2017 02:42:00 -0700 (PDT)
-Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
- ZONE_MOVABLE request
-References: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <e919c65e-bc2f-6b3b-41fc-3589590a84ac@suse.cz>
-Date: Thu, 24 Aug 2017 11:41:58 +0200
-MIME-Version: 1.0
-In-Reply-To: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Aug 2017 03:01:17 -0700 (PDT)
+From: Kemi Wang <kemi.wang@intel.com>
+Subject: [PATCH v2 0/3] Separate NUMA statistics from zone statistics
+Date: Thu, 24 Aug 2017 17:59:58 +0800
+Message-Id: <1503568801-21305-1-git-send-email-kemi.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>
+Cc: Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Kemi Wang <kemi.wang@intel.com>
 
-On 08/24/2017 07:45 AM, js1304@gmail.com wrote:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> 
-> Freepage on ZONE_HIGHMEM doesn't work for kernel memory so it's not that
-> important to reserve. When ZONE_MOVABLE is used, this problem would
-> theorectically cause to decrease usable memory for GFP_HIGHUSER_MOVABLE
-> allocation request which is mainly used for page cache and anon page
-> allocation. So, fix it.
-> 
-> And, defining sysctl_lowmem_reserve_ratio array by MAX_NR_ZONES - 1 size
-> makes code complex. For example, if there is highmem system, following
-> reserve ratio is activated for *NORMAL ZONE* which would be easyily
-> misleading people.
-> 
->  #ifdef CONFIG_HIGHMEM
->  32
->  #endif
-> 
-> This patch also fix this situation by defining sysctl_lowmem_reserve_ratio
-> array by MAX_NR_ZONES and place "#ifdef" to right place.
-> 
-> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Each page allocation updates a set of per-zone statistics with a call to
+zone_statistics(). As discussed in 2017 MM summit, these are a substantial
+source of overhead in the page allocator and are very rarely consumed. This
+significant overhead in cache bouncing caused by zone counters (NUMA
+associated counters) update in parallel in multi-threaded page allocation
+(pointed out by Dave Hansen).
 
-Looks like I did that almost year ago, so definitely had to refresh my
-memory now :)
+A link to the MM summit slides:
+http://people.netfilter.org/hawk/presentations/MM-summit2017/MM-summit2017
+-JesperBrouer.pdf
 
-Anyway now I looked more thoroughly and noticed that this change leaks
-into the reported sysctl. On a 64bit system with ZONE_MOVABLE:
+To mitigate this overhead, this patchset separates NUMA statistics from
+zone statistics framework, and update NUMA counter threshold to a fixed
+size of MAX_U16 - 2, as a small threshold greatly increases the update
+frequency of the global counter from local per cpu counter (suggested by
+Ying Huang). The rationality is that these statistics counters don't need
+to be read often, unlike other VM counters, so it's not a problem to use a
+large threshold and make readers more expensive.
 
-before the patch:
-vm.lowmem_reserve_ratio = 256   256     32
+With this patchset, we see 31.3% drop of CPU cycles(537-->369, see below)
+for per single page allocation and reclaim on Jesper's page_bench03
+benchmark. Meanwhile, this patchset keeps the same style of virtual memory
+statistics with little end-user-visible effects (only move the numa stats
+to show behind zone page stats, see the first patch for details).
 
-after the patch:
-vm.lowmem_reserve_ratio = 256   256     32      2147483647
+I did an experiment of single page allocation and reclaim concurrently
+using Jesper's page_bench03 benchmark on a 2-Socket Broadwell-based server
+(88 processors with 126G memory) with different size of threshold of pcp
+counter.
 
-So if we indeed remove HIGHMEM from protection (c.f. Michal's mail), we
-should do that differently than with the INT_MAX trick, IMHO.
+Benchmark provided by Jesper D Brouer(increase loop times to 10000000):
+https://github.com/netoptimizer/prototype-kernel/tree/master/kernel/mm/
+bench
 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->  include/linux/mmzone.h |  2 +-
->  mm/page_alloc.c        | 11 ++++++-----
->  2 files changed, 7 insertions(+), 6 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index e7e92c8..e5f134b 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -882,7 +882,7 @@ int min_free_kbytes_sysctl_handler(struct ctl_table *, int,
->  					void __user *, size_t *, loff_t *);
->  int watermark_scale_factor_sysctl_handler(struct ctl_table *, int,
->  					void __user *, size_t *, loff_t *);
-> -extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
-> +extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES];
->  int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int,
->  					void __user *, size_t *, loff_t *);
->  int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *, int,
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 90b1996..6faa53d 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -202,17 +202,18 @@ static void __free_pages_ok(struct page *page, unsigned int order);
->   * TBD: should special case ZONE_DMA32 machines here - in those we normally
->   * don't need any ZONE_NORMAL reservation
->   */
-> -int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
-> +int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES] = {
->  #ifdef CONFIG_ZONE_DMA
-> -	 256,
-> +	[ZONE_DMA] = 256,
->  #endif
->  #ifdef CONFIG_ZONE_DMA32
-> -	 256,
-> +	[ZONE_DMA32] = 256,
->  #endif
-> +	[ZONE_NORMAL] = 32,
->  #ifdef CONFIG_HIGHMEM
-> -	 32,
-> +	[ZONE_HIGHMEM] = INT_MAX,
->  #endif
-> -	 32,
-> +	[ZONE_MOVABLE] = INT_MAX,
->  };
->  
->  EXPORT_SYMBOL(totalram_pages);
-> 
+   Threshold   CPU cycles    Throughput(88 threads)
+      32        799         241760478
+      64        640         301628829
+      125       537         358906028 <==> system by default
+      256       468         412397590
+      512       428         450550704
+      4096      399         482520943
+      20000     394         489009617
+      30000     395         488017817
+      65533     369(-31.3%) 521661345(+45.3%) <==> with this patchset
+      N/A       342(-36.3%) 562900157(+56.8%) <==> disable zone_statistics
+
+Kemi Wang (3):
+  mm: Change the call sites of numa statistics items
+  mm: Update NUMA counter threshold size
+  mm: Consider the number in local CPUs when *reads* NUMA stats
+
+ drivers/base/node.c    |  22 ++++---
+ include/linux/mmzone.h |  24 +++++---
+ include/linux/vmstat.h |  33 +++++++++++
+ mm/page_alloc.c        |  10 ++--
+ mm/vmstat.c            | 152 +++++++++++++++++++++++++++++++++++++++++++++++--
+ 5 files changed, 217 insertions(+), 24 deletions(-)
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
