@@ -1,164 +1,461 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D88122806E4
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 02:24:35 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id y129so31510569pgy.1
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 23:24:35 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id m1si2282724pgc.178.2017.08.23.23.24.33
-        for <linux-mm@kvack.org>;
-        Wed, 23 Aug 2017 23:24:34 -0700 (PDT)
-Date: Thu, 24 Aug 2017 15:24:57 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH 0/6] proactive kcompactd
-Message-ID: <20170824062457.GA24656@js1304-P5Q-DELUXE>
-References: <20170727160701.9245-1-vbabka@suse.cz>
- <alpine.DEB.2.10.1708091353500.1218@chino.kir.corp.google.com>
- <20170821141014.GC1371@cmpxchg.org>
- <20170823053612.GA19689@js1304-P5Q-DELUXE>
- <502d438b-7167-5b78-c66c-0e1b47ba2434@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <502d438b-7167-5b78-c66c-0e1b47ba2434@suse.cz>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E5B06B04B8
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 02:36:52 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id t193so31910030pgc.0
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 23:36:52 -0700 (PDT)
+Received: from mail-pg0-x231.google.com (mail-pg0-x231.google.com. [2607:f8b0:400e:c05::231])
+        by mx.google.com with ESMTPS id r70si2314150pfe.5.2017.08.23.23.36.50
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Aug 2017 23:36:50 -0700 (PDT)
+Received: by mail-pg0-x231.google.com with SMTP id 83so12199674pgb.3
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 23:36:50 -0700 (PDT)
+From: js1304@gmail.com
+Subject: [PATCH 1/3] mm/cma: manage the memory of the CMA area by using the ZONE_MOVABLE
+Date: Thu, 24 Aug 2017 15:36:31 +0900
+Message-Id: <1503556593-10720-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1503556593-10720-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1503556593-10720-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Wed, Aug 23, 2017 at 10:12:14AM +0200, Vlastimil Babka wrote:
-> On 08/23/2017 07:36 AM, Joonsoo Kim wrote:
-> > On Mon, Aug 21, 2017 at 10:10:14AM -0400, Johannes Weiner wrote:
-> >> On Wed, Aug 09, 2017 at 01:58:42PM -0700, David Rientjes wrote:
-> >>> On Thu, 27 Jul 2017, Vlastimil Babka wrote:
-> >>>
-> >>>> As we discussed at last LSF/MM [1], the goal here is to shift more compaction
-> >>>> work to kcompactd, which currently just makes a single high-order page
-> >>>> available and then goes to sleep. The last patch, evolved from the initial RFC
-> >>>> [2] does this by recording for each order > 0 how many allocations would have
-> >>>> potentially be able to skip direct compaction, if the memory wasn't fragmented.
-> >>>> Kcompactd then tries to compact as long as it takes to make that many
-> >>>> allocations satisfiable. This approach avoids any hooks in allocator fast
-> >>>> paths. There are more details to this, see the last patch.
-> >>>>
-> >>>
-> >>> I think I would have liked to have seen "less proactive" :)
-> >>>
-> >>> Kcompactd currently has the problem that it is MIGRATE_SYNC_LIGHT so it 
-> >>> continues until it can defragment memory.  On a host with 128GB of memory 
-> >>> and 100GB of it sitting in a hugetlb pool, we constantly get kcompactd 
-> >>> wakeups for order-2 memory allocation.  The stats are pretty bad:
-> >>>
-> >>> compact_migrate_scanned 2931254031294 
-> >>> compact_free_scanned    102707804816705 
-> >>> compact_isolated        1309145254 
-> >>>
-> >>> 0.0012% of memory scanned is ever actually isolated.  We constantly see 
-> >>> very high cpu for compaction_alloc() because kcompactd is almost always 
-> >>> running in the background and iterating most memory completely needlessly 
-> >>> (define needless as 0.0012% of memory scanned being isolated).
-> >>
-> >> The free page scanner will inevitably wade through mostly used memory,
-> >> but 0.0012% is lower than what systems usually have free. I'm guessing
-> >> this is because of concurrent allocation & free cycles racing with the
-> >> scanner? There could also be an issue with how we do partial scans.
-> >>
-> >> Anyway, we've also noticed scalability issues with the current scanner
-> >> on 128G and 256G machines. Even with a better efficiency - finding the
-> >> 1% of free memory, that's still a ton of linear search space.
-> >>
-> >> I've been toying around with the below patch. It adds a free page
-> >> bitmap, allowing the free scanner to quickly skip over the vast areas
-> >> of used memory. I don't have good data on skip-efficiency at higher
-> >> uptimes and the resulting fragmentation yet. The overhead added to the
-> >> page allocator is concerning, but I cannot think of a better way to
-> >> make the search more efficient. What do you guys think?
-> > 
-> > Hello, Johannes.
-> > 
-> > I think that the best solution is that the compaction doesn't do linear
-> > scan completely. Vlastimil already have suggested that idea.
-> 
-> I was going to bring this up here, thanks :)
-> 
-> > mm, compaction: direct freepage allocation for async direct
-> > compaction
-> > 
-> > lkml.kernel.org/r/<1459414236-9219-5-git-send-email-vbabka@suse.cz>
-> > 
-> > It uses the buddy allocator to get a freepage so there is no linear
-> > scan. It would completely remove scalability issue.
-> 
-> Another big advantage is that migration scanner would get to see the
-> whole zone, and not be biased towards the first 1/3 until it meets the
-> free scanner. And another advantage is that we wouldn't be splitting
-> free pages needlessly.
-> 
-> > Unfortunately, he applied this idea only to async compaction since
-> > changing the other compaction mode will probably cause long term
-> > fragmentation. And, I disagreed with that idea at that time since
-> > different compaction logic for different compaction mode would make
-> > the system more unpredicatable.
-> > 
-> > I doubt long term fragmentation is a real issue in practice. We loses
-> > too much things to prevent long term fragmentation. I think that it's
-> > the time to fix up the real issue (yours and David's) by giving up the
-> > solution for long term fragmentation.
-> 
-> I'm now also more convinced that this direction should be pursued, and
-> wanted to get to it after the proactive kcompactd part. My biggest
-> concern is that freelists can give us the pages from the same block that
-> we (or somebody else) is trying to compact (migrate away). Isolating
-> (i.e. MIGRATE_ISOLATE) the block first would work, but the overhead of
-> the isolation could be significant. But I have some alternative ideas
-> that could be tried.
-> 
-> > If someone doesn't agree with above solution, your approach looks the
-> > second best to me. Though, there is something to optimize.
-> > 
-> > I think that we don't need to be precise to track the pageblock's
-> > freepage state. Compaction is a far rare event compared to page
-> > allocation so compaction could be tolerate with false positive.
-> > 
-> > So, my suggestion is:
-> > 
-> > 1) Use 1 bit for the pageblock. Reusing PB_migrate_skip looks the best
-> > to me.
-> 
-> Wouldn't the reusing cripple the original use for the migration scanner?
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-I think that there is no serious problem. Problem happens if we set
-PB_migrate_skip wrongly. Consider following two cases that set
-PB_migrate_skip.
+0. History
 
-1) migration scanner find that whole pages in the pageblock is pinned.
--> set skip -> it is cleared after one of the page is freed. No
+This patchset is the follow-up of the discussion about the
+"Introduce ZONE_CMA (v7)" [1]. Please reference it if more information
+is needed.
+
+1. What does this patch do?
+
+This patch changes the management way for the memory of the CMA area
+in the MM subsystem. Currently, The memory of the CMA area is managed
+by the zone where their pfn is belong to. However, this approach has
+some problems since MM subsystem doesn't have enough logic to handle
+the situation that different characteristic memories are in a single zone.
+To solve this issue, this patch try to manage all the memory of
+the CMA area by using the MOVABLE zone. In MM subsystem's point of view,
+characteristic of the memory on the MOVABLE zone and the memory of
+the CMA area are the same. So, managing the memory of the CMA area
+by using the MOVABLE zone will not have any problem.
+
+2. Motivation
+
+There are some problems with current approach. See following.
+Although these problem would not be inherent and it could be fixed without
+this conception change, it requires many hooks addition in various
+code path and it would be intrusive to core MM and would be really
+error-prone. Therefore, I try to solve them with this new approach.
+Anyway, following is the problems of the current implementation.
+
+o CMA memory utilization
+
+First, following is the freepage calculation logic in MM.
+
+- For movable allocation: freepage = total freepage
+- For unmovable allocation: freepage = total freepage - CMA freepage
+
+Freepages on the CMA area is used after the normal freepages in the zone
+where the memory of the CMA area is belong to are exhausted. At that moment
+that the number of the normal freepages is zero, so
+
+- For movable allocation: freepage = total freepage = CMA freepage
+- For unmovable allocation: freepage = 0
+
+If unmovable allocation comes at this moment, allocation request would
+fail to pass the watermark check and reclaim is started. After reclaim,
+there would exist the normal freepages so freepages on the CMA areas
+would not be used.
+
+FYI, there is another attempt [2] trying to solve this problem in lkml.
+And, as far as I know, Qualcomm also has out-of-tree solution for this
 problem.
 
-There is a possibility that temporary pinned page is unpinned and we
-miss this pageblock but it would be minor case.
+o useless reclaim
 
-2) migration scanner find that whole pages in the pageblock are free.
--> set skip -> we can miss the pageblock for a long time.
+There is no logic to distinguish CMA pages in the reclaim path. Hence,
+CMA page is reclaimed even if the system just needs the page that can
+be usable for the kernel allocation.
 
-We need to fix 2) case in order to reuse PB_migrate_skip. I guess that
-just counting the number of freepage in isolate_migratepages_block()
-and considering it to not set PB_migrate_skip will work.
+o atomic allocation failure
 
-> 
-> > 2) Mark PB_migrate_skip only in free path and only when needed.
-> > Unmark it in compaction if freepage scan fails in that pageblock.
-> > In compaction, skip the pageblock if PB_migrate_skip is set. It means
-> > that there is no freepage in the pageblock.
-> > 
-> > Following is some code about my suggestion.
-> 
-> Otherwise is sounds like it could work until the direct allocation
-> approach is fully developed (or turns out to be infeasible).
+This is also related to the fallback allocation policy for the memory
+of the CMA area. Consider the situation that the number of the normal
+freepages is *zero* since the bunch of the movable allocation requests
+come. Kswapd would not be woken up due to following freepage calculation
+logic.
 
-Agreed.
+- For movable allocation: freepage = total freepage = CMA freepage
 
-Thanks.
+If atomic unmovable allocation request comes at this moment, it would
+fails due to following logic.
+
+- For unmovable allocation: freepage = total freepage - CMA freepage = 0
+
+It was reported by Aneesh [3].
+
+o useless compaction
+
+Usual high-order allocation request is unmovable allocation request and
+it cannot be served from the memory of the CMA area. In compaction,
+migration scanner try to migrate the page in the CMA area and make
+high-order page there. As mentioned above, it cannot be usable
+for the unmovable allocation request so it's just waste.
+
+3. Current approach and new approach
+
+Current approach is that the memory of the CMA area is managed by the zone
+where their pfn is belong to. However, these memory should be
+distinguishable since they have a strong limitation. So, they are marked
+as MIGRATE_CMA in pageblock flag and handled specially. However,
+as mentioned in section 2, the MM subsystem doesn't have enough logic
+to deal with this special pageblock so many problems raised.
+
+New approach is that the memory of the CMA area is managed by
+the MOVABLE zone. MM already have enough logic to deal with special zone
+like as HIGHMEM and MOVABLE zone. So, managing the memory of the CMA area
+by the MOVABLE zone just naturally work well because constraints
+for the memory of the CMA area that the memory should always be migratable
+is the same with the constraint for the MOVABLE zone.
+
+There is one side-effect for the usability of the memory of the CMA area.
+The use of MOVABLE zone is only allowed for a request with GFP_HIGHMEM &&
+GFP_MOVABLE so now the memory of the CMA area is also only allowed for
+this gfp flag. Before this patchset, a request with GFP_MOVABLE can use
+them. IMO, It would not be a big issue since most of GFP_MOVABLE request
+also has GFP_HIGHMEM flag. For example, file cache page and anonymous page.
+However, file cache page for blockdev file is an exception. Request for it
+has no GFP_HIGHMEM flag. There is pros and cons on this exception.
+In my experience, blockdev file cache pages are one of the top reason
+that causes cma_alloc() to fail temporarily. So, we can get more guarantee
+of cma_alloc() success by discarding this case.
+
+Note that there is no change in admin POV since this patchset is just
+for internal implementation change in MM subsystem. Just one minor
+difference for admin is that the memory stat for CMA area will be printed
+in the MOVABLE zone. That's all.
+
+4. Result
+
+Following is the experimental result related to utilization problem.
+
+8 CPUs, 1024 MB, VIRTUAL MACHINE
+make -j16
+
+<Before>
+CMA area:               0 MB            512 MB
+Elapsed-time:           92.4		186.5
+pswpin:                 82		18647
+pswpout:                160		69839
+
+<After>
+CMA        :            0 MB            512 MB
+Elapsed-time:           93.1		93.4
+pswpin:                 84		46
+pswpout:                183		92
+
+[1]: lkml.kernel.org/r/1491880640-9944-1-git-send-email-iamjoonsoo.kim@lge.com
+[2]: https://lkml.org/lkml/2014/10/15/623
+[3]: http://www.spinics.net/lists/linux-mm/msg100562.html
+
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+ include/linux/memory_hotplug.h |  3 --
+ include/linux/mm.h             |  1 +
+ mm/cma.c                       | 83 ++++++++++++++++++++++++++++++++++++------
+ mm/internal.h                  |  3 ++
+ mm/page_alloc.c                | 55 +++++++++++++++++++++++++---
+ 5 files changed, 126 insertions(+), 19 deletions(-)
+
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 0995e1a..fb94608 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -230,9 +230,6 @@ void put_online_mems(void);
+ void mem_hotplug_begin(void);
+ void mem_hotplug_done(void);
+ 
+-extern void set_zone_contiguous(struct zone *zone);
+-extern void clear_zone_contiguous(struct zone *zone);
+-
+ #else /* ! CONFIG_MEMORY_HOTPLUG */
+ #define pfn_to_online_page(pfn)			\
+ ({						\
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index deb9c70..d4daadc 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2049,6 +2049,7 @@ extern void setup_per_cpu_pageset(void);
+ 
+ extern void zone_pcp_update(struct zone *zone);
+ extern void zone_pcp_reset(struct zone *zone);
++extern void setup_zone_pageset(struct zone *zone);
+ 
+ /* page_alloc.c */
+ extern int min_free_kbytes;
+diff --git a/mm/cma.c b/mm/cma.c
+index c0da318..a8ababb 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -38,6 +38,7 @@
+ #include <trace/events/cma.h>
+ 
+ #include "cma.h"
++#include "internal.h"
+ 
+ struct cma cma_areas[MAX_CMA_AREAS];
+ unsigned cma_area_count;
+@@ -108,23 +109,25 @@ static int __init cma_activate_area(struct cma *cma)
+ 	if (!cma->bitmap)
+ 		return -ENOMEM;
+ 
+-	WARN_ON_ONCE(!pfn_valid(pfn));
+-	zone = page_zone(pfn_to_page(pfn));
+-
+ 	do {
+ 		unsigned j;
+ 
+ 		base_pfn = pfn;
++		if (!pfn_valid(base_pfn))
++			goto err;
++
++		zone = page_zone(pfn_to_page(base_pfn));
+ 		for (j = pageblock_nr_pages; j; --j, pfn++) {
+-			WARN_ON_ONCE(!pfn_valid(pfn));
++			if (!pfn_valid(pfn))
++				goto err;
++
+ 			/*
+-			 * alloc_contig_range requires the pfn range
+-			 * specified to be in the same zone. Make this
+-			 * simple by forcing the entire CMA resv range
+-			 * to be in the same zone.
++			 * In init_cma_reserved_pageblock(), present_pages
++			 * is adjusted with assumption that all pages in
++			 * the pageblock come from a single zone.
+ 			 */
+ 			if (page_zone(pfn_to_page(pfn)) != zone)
+-				goto not_in_zone;
++				goto err;
+ 		}
+ 		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
+ 	} while (--i);
+@@ -138,7 +141,7 @@ static int __init cma_activate_area(struct cma *cma)
+ 
+ 	return 0;
+ 
+-not_in_zone:
++err:
+ 	pr_err("CMA area %s could not be activated\n", cma->name);
+ 	kfree(cma->bitmap);
+ 	cma->count = 0;
+@@ -148,6 +151,41 @@ static int __init cma_activate_area(struct cma *cma)
+ static int __init cma_init_reserved_areas(void)
+ {
+ 	int i;
++	struct zone *zone;
++	pg_data_t *pgdat;
++
++	if (!cma_area_count)
++		return 0;
++
++	for_each_online_pgdat(pgdat) {
++		unsigned long start_pfn = UINT_MAX, end_pfn = 0;
++
++		zone = &pgdat->node_zones[ZONE_MOVABLE];
++
++		/*
++		 * In this case, we cannot adjust the zone range
++		 * since it is now maximum node span and we don't
++		 * know original zone range.
++		 */
++		if (populated_zone(zone))
++			continue;
++
++		for (i = 0; i < cma_area_count; i++) {
++			if (pfn_to_nid(cma_areas[i].base_pfn) !=
++				pgdat->node_id)
++				continue;
++
++			start_pfn = min(start_pfn, cma_areas[i].base_pfn);
++			end_pfn = max(end_pfn, cma_areas[i].base_pfn +
++						cma_areas[i].count);
++		}
++
++		if (!end_pfn)
++			continue;
++
++		zone->zone_start_pfn = start_pfn;
++		zone->spanned_pages = end_pfn - start_pfn;
++	}
+ 
+ 	for (i = 0; i < cma_area_count; i++) {
+ 		int ret = cma_activate_area(&cma_areas[i]);
+@@ -156,9 +194,32 @@ static int __init cma_init_reserved_areas(void)
+ 			return ret;
+ 	}
+ 
++	/*
++	 * Reserved pages for ZONE_MOVABLE are now activated and
++	 * this would change ZONE_MOVABLE's managed page counter and
++	 * the other zones' present counter. We need to re-calculate
++	 * various zone information that depends on this initialization.
++	 */
++	build_all_zonelists(NULL);
++	for_each_populated_zone(zone) {
++		if (zone_idx(zone) == ZONE_MOVABLE) {
++			zone_pcp_reset(zone);
++			setup_zone_pageset(zone);
++		} else
++			zone_pcp_update(zone);
++
++		set_zone_contiguous(zone);
++	}
++
++	/*
++	 * We need to re-init per zone wmark by calling
++	 * init_per_zone_wmark_min() but doesn't call here because it is
++	 * registered on core_initcall and it will be called later than us.
++	 */
++
+ 	return 0;
+ }
+-core_initcall(cma_init_reserved_areas);
++pure_initcall(cma_init_reserved_areas);
+ 
+ /**
+  * cma_init_reserved_mem() - create custom contiguous area from reserved memory
+diff --git a/mm/internal.h b/mm/internal.h
+index 1df011f..b4f9ebc 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -168,6 +168,9 @@ extern void post_alloc_hook(struct page *page, unsigned int order,
+ 					gfp_t gfp_flags);
+ extern int user_min_free_kbytes;
+ 
++extern void set_zone_contiguous(struct zone *zone);
++extern void clear_zone_contiguous(struct zone *zone);
++
+ #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+ 
+ /*
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index eb094b1..bbd00f1 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1596,16 +1596,38 @@ void __init page_alloc_init_late(void)
+ }
+ 
+ #ifdef CONFIG_CMA
++static void __init adjust_present_page_count(struct page *page, long count)
++{
++	struct zone *zone = page_zone(page);
++
++	/* We don't need to hold a lock since it is boot-up process */
++	zone->present_pages += count;
++}
++
+ /* Free whole pageblock and set its migration type to MIGRATE_CMA. */
+ void __init init_cma_reserved_pageblock(struct page *page)
+ {
+ 	unsigned i = pageblock_nr_pages;
++	unsigned long pfn = page_to_pfn(page);
+ 	struct page *p = page;
++	int nid = page_to_nid(page);
++
++	/*
++	 * ZONE_MOVABLE will steal present pages from other zones by
++	 * changing page links so page_zone() is changed. Before that,
++	 * we need to adjust previous zone's page count first.
++	 */
++	adjust_present_page_count(page, -pageblock_nr_pages);
+ 
+ 	do {
+ 		__ClearPageReserved(p);
+ 		set_page_count(p, 0);
+-	} while (++p, --i);
++
++		/* Steal pages from other zones */
++		set_page_links(p, ZONE_MOVABLE, nid, pfn);
++	} while (++p, ++pfn, --i);
++
++	adjust_present_page_count(page, pageblock_nr_pages);
+ 
+ 	set_pageblock_migratetype(page, MIGRATE_CMA);
+ 
+@@ -6023,6 +6045,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ {
+ 	enum zone_type j;
+ 	int nid = pgdat->node_id;
++	unsigned long node_end_pfn = 0;
+ 
+ 	pgdat_resize_init(pgdat);
+ #ifdef CONFIG_NUMA_BALANCING
+@@ -6050,9 +6073,13 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ 		struct zone *zone = pgdat->node_zones + j;
+ 		unsigned long size, realsize, freesize, memmap_pages;
+ 		unsigned long zone_start_pfn = zone->zone_start_pfn;
++		unsigned long movable_size = 0;
+ 
+ 		size = zone->spanned_pages;
+ 		realsize = freesize = zone->present_pages;
++		if (zone_end_pfn(zone) > node_end_pfn)
++			node_end_pfn = zone_end_pfn(zone);
++
+ 
+ 		/*
+ 		 * Adjust freesize so that it accounts for how much memory
+@@ -6101,12 +6128,30 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ 		zone_seqlock_init(zone);
+ 		zone_pcp_init(zone);
+ 
+-		if (!size)
++		/*
++		 * The size of the CMA area is unknown now so we need to
++		 * prepare the memory for the usemap at maximum.
++		 */
++		if (IS_ENABLED(CONFIG_CMA) && j == ZONE_MOVABLE &&
++			pgdat->node_spanned_pages) {
++			movable_size = node_end_pfn - pgdat->node_start_pfn;
++		}
++
++		if (!size && !movable_size)
+ 			continue;
+ 
+ 		set_pageblock_order();
+-		setup_usemap(pgdat, zone, zone_start_pfn, size);
+-		init_currently_empty_zone(zone, zone_start_pfn, size);
++		if (movable_size) {
++			zone->zone_start_pfn = pgdat->node_start_pfn;
++			zone->spanned_pages = movable_size;
++			setup_usemap(pgdat, zone,
++				pgdat->node_start_pfn, movable_size);
++			init_currently_empty_zone(zone,
++				pgdat->node_start_pfn, movable_size);
++		} else {
++			setup_usemap(pgdat, zone, zone_start_pfn, size);
++			init_currently_empty_zone(zone, zone_start_pfn, size);
++		}
+ 		memmap_init(size, nid, j, zone_start_pfn);
+ 	}
+ }
+@@ -7657,7 +7702,7 @@ void free_contig_range(unsigned long pfn, unsigned nr_pages)
+ }
+ #endif
+ 
+-#ifdef CONFIG_MEMORY_HOTPLUG
++#if defined CONFIG_MEMORY_HOTPLUG || defined CONFIG_CMA
+ /*
+  * The zone indicated has a new number of managed_pages; batch sizes and percpu
+  * page high values need to be recalulated.
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
