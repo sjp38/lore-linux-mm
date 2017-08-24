@@ -1,67 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 699A36B04EC
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 19:08:06 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id t193so3182410pgc.4
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 16:08:06 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id x1si3741822plm.825.2017.08.24.16.08.04
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 144536B04ED
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 19:08:57 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id a47so1091763wra.0
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 16:08:57 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [217.72.192.74])
+        by mx.google.com with ESMTPS id v63si110468wma.118.2017.08.24.16.08.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Aug 2017 16:08:04 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 1/7] ktask: add documentation
-References: <20170824205004.18502-1-daniel.m.jordan@oracle.com>
- <20170824205004.18502-2-daniel.m.jordan@oracle.com>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <ebada9e9-038c-71b5-2115-1693cd1e202e@infradead.org>
-Date: Thu, 24 Aug 2017 16:07:56 -0700
-MIME-Version: 1.0
-In-Reply-To: <20170824205004.18502-2-daniel.m.jordan@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Thu, 24 Aug 2017 16:08:55 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] mm: HMM always needs MMU_NOTIFIER
+Date: Fri, 25 Aug 2017 01:08:23 +0200
+Message-Id: <20170824230850.1810408-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: aaron.lu@intel.com, akpm@linux-foundation.org, dave.hansen@linux.intel.com, mgorman@techsingularity.net, mhocko@kernel.org, mike.kravetz@oracle.com, pasha.tatashin@oracle.com, steven.sistare@oracle.com, tim.c.chen@intel.com
+To: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Cc: Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Subhash Gutti <sgutti@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 08/24/2017 01:49 PM, Daniel Jordan wrote:
-> Motivates and explains the ktask API for kernel clients.
-> 
-> Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-> Reviewed-by: Steve Sistare <steven.sistare@oracle.com>
-> Cc: Aaron Lu <aaron.lu@intel.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Mike Kravetz <mike.kravetz@oracle.com>
-> Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
-> Cc: Tim Chen <tim.c.chen@intel.com>
-> ---
->  Documentation/core-api/index.rst |   1 +
->  Documentation/core-api/ktask.rst | 104 +++++++++++++++++++++++++++++++++++++++
->  2 files changed, 105 insertions(+)
->  create mode 100644 Documentation/core-api/ktask.rst
-> 
-> diff --git a/Documentation/core-api/ktask.rst b/Documentation/core-api/ktask.rst
-> new file mode 100644
-> index 000000000000..cb4b0d87c8c6
-> --- /dev/null
-> +++ b/Documentation/core-api/ktask.rst
-> @@ -0,0 +1,104 @@
-> +============================================
-> +ktask: parallelize cpu-intensive kernel work
-> +============================================
+When building a kernel with HMM enabled but without MMU_NOTIFIER,
+we run into a build error:
 
-Hi,
+mm/hmm.c:66:22: error: field 'mmu_notifier' has incomplete type
+  struct mmu_notifier mmu_notifier;
 
-I would prefer to use CPU instead of cpu.
-Otherwise, Reviewed-by: Randy Dunlap <rdunlap@infradead.org>
+If I read this right, the dependency is correct, but the #ifdef
+annotations in the mm/hmm.c are not. This changes them in
+a way to make it all build cleanly.
 
+Fixes: e4e0061ea15c ("mm/device-public-memory: device memory cache coherent with CPU")
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+I did not try very hard to understand what the code is
+supposed to do, please check if this makes sense beyond fixing
+the build before applying.
+---
+ mm/hmm.c | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)
 
+diff --git a/mm/hmm.c b/mm/hmm.c
+index 4a179a16ab10..b9e9f14e7454 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -41,11 +41,16 @@
+  */
+ DEFINE_STATIC_KEY_FALSE(device_private_key);
+ EXPORT_SYMBOL(device_private_key);
+-static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
+ #endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
+ 
++void hmm_mm_destroy(struct mm_struct *mm)
++{
++	kfree(mm->hmm);
++}
++
++#if IS_ENABLED(CONFIG_HMM_MIRROR)
++static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
+ 
+-#ifdef CONFIG_HMM
+ /*
+  * struct hmm - HMM per mm struct
+  *
+@@ -124,13 +129,6 @@ static struct hmm *hmm_register(struct mm_struct *mm)
+ 	return mm->hmm;
+ }
+ 
+-void hmm_mm_destroy(struct mm_struct *mm)
+-{
+-	kfree(mm->hmm);
+-}
+-#endif /* CONFIG_HMM */
+-
+-#if IS_ENABLED(CONFIG_HMM_MIRROR)
+ static void hmm_invalidate_range(struct hmm *hmm,
+ 				 enum hmm_update_type action,
+ 				 unsigned long start,
 -- 
-~Randy
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
