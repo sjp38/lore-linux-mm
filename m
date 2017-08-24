@@ -1,63 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DBCD6B04AE
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 06:56:38 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id d63so256871wmd.14
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 03:56:38 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E55856810B5
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 07:05:19 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l18so288489wmd.12
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 04:05:19 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v7si724655wrf.314.2017.08.24.03.56.36
+        by mx.google.com with ESMTPS id 12si1373555wme.229.2017.08.24.04.05.18
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 24 Aug 2017 03:56:37 -0700 (PDT)
-Date: Thu, 24 Aug 2017 12:56:35 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] xfs: Drop setting redundant PF_KSWAPD in kswapd context
-Message-ID: <20170824105635.GA5965@dhcp22.suse.cz>
-References: <20170824104247.8288-1-khandual@linux.vnet.ibm.com>
+        Thu, 24 Aug 2017 04:05:18 -0700 (PDT)
+Subject: Re: [PATCH] mm/mlock: use page_zone() instead of page_zone_id()
+References: <1503559211-10259-1-git-send-email-iamjoonsoo.kim@lge.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a8cca363-544d-1b7e-0e93-d7df5c5b6f20@suse.cz>
+Date: Thu, 24 Aug 2017 13:05:15 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170824104247.8288-1-khandual@linux.vnet.ibm.com>
+In-Reply-To: <1503559211-10259-1-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-xfs@vger.kernel.org, linux-kernel@vger.kernel.org, dchinner@redhat.com, bfoster@redhat.com, sandeen@sandeen.net
+To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>
 
-On Thu 24-08-17 16:12:47, Anshuman Khandual wrote:
-> xfs_btree_split() calls xfs_btree_split_worker() with args.kswapd set
-> if current->flags alrady has PF_KSWAPD. Hence we should not again add
-> PF_KSWAPD into the current flags inside kswapd context. So drop this
-> redundant flag addition.
++CC Mel
 
-I am not familiar with the code but your change seems incorect. The
-whole point of args->kswapd is to convey the kswapd context to the
-worker which is obviously running in a different context. So this patch
-loses the kswapd context.
-
-> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-> ---
->  fs/xfs/libxfs/xfs_btree.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+On 08/24/2017 09:20 AM, js1304@gmail.com wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> diff --git a/fs/xfs/libxfs/xfs_btree.c b/fs/xfs/libxfs/xfs_btree.c
-> index e0bcc4a..b3c85e3 100644
-> --- a/fs/xfs/libxfs/xfs_btree.c
-> +++ b/fs/xfs/libxfs/xfs_btree.c
-> @@ -2895,7 +2895,7 @@ struct xfs_btree_split_args {
->  	 * in any way.
->  	 */
->  	if (args->kswapd)
-> -		new_pflags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
-> +		new_pflags |= PF_MEMALLOC | PF_SWAPWRITE;
->  
->  	current_set_flags_nested(&pflags, new_pflags);
->  
-> -- 
-> 1.8.5.2
+> page_zone_id() is a specialized function to compare the zone for the pages
+> that are within the section range. If the section of the pages are
+> different, page_zone_id() can be different even if their zone is the same.
+> This wrong usage doesn't cause any actual problem since
+> __munlock_pagevec_fill() would be called again with failed index. However,
+> it's better to use more appropriate function here.
 
--- 
-Michal Hocko
-SUSE Labs
+Hmm using zone id was part of the series making munlock faster. Too bad
+it's doing the wrong thing on some memory models. Looks like it wasn't
+evaluated in isolation, but only as part of the pagevec usage (commit
+7a8010cd36273) but most likely it wasn't contributing too much to the
+14% speedup.
+
+> This patch is also preparation for futher change about page_zone_id().
+
+Out of curiosity, what kind of change?
+
+Vlastimil
+
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>  mm/mlock.c | 10 ++++------
+>  1 file changed, 4 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/mlock.c b/mm/mlock.c
+> index b562b55..dfc6f19 100644
+> --- a/mm/mlock.c
+> +++ b/mm/mlock.c
+> @@ -365,8 +365,8 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
+>   * @start + PAGE_SIZE when no page could be added by the pte walk.
+>   */
+>  static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
+> -		struct vm_area_struct *vma, int zoneid,	unsigned long start,
+> -		unsigned long end)
+> +			struct vm_area_struct *vma, struct zone *zone,
+> +			unsigned long start, unsigned long end)
+>  {
+>  	pte_t *pte;
+>  	spinlock_t *ptl;
+> @@ -394,7 +394,7 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
+>  		 * Break if page could not be obtained or the page's node+zone does not
+>  		 * match
+>  		 */
+> -		if (!page || page_zone_id(page) != zoneid)
+> +		if (!page || page_zone(page) != zone)
+>  			break;
+>  
+>  		/*
+> @@ -446,7 +446,6 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
+>  		unsigned long page_increm;
+>  		struct pagevec pvec;
+>  		struct zone *zone;
+> -		int zoneid;
+>  
+>  		pagevec_init(&pvec, 0);
+>  		/*
+> @@ -481,7 +480,6 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
+>  				 */
+>  				pagevec_add(&pvec, page);
+>  				zone = page_zone(page);
+> -				zoneid = page_zone_id(page);
+>  
+>  				/*
+>  				 * Try to fill the rest of pagevec using fast
+> @@ -490,7 +488,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
+>  				 * pagevec.
+>  				 */
+>  				start = __munlock_pagevec_fill(&pvec, vma,
+> -						zoneid, start, end);
+> +						zone, start, end);
+>  				__munlock_pagevec(&pvec, zone);
+>  				goto next;
+>  			}
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
