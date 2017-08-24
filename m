@@ -1,67 +1,308 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C5D60440846
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 11:04:12 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id r11so4072506pgs.9
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 08:04:12 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id q7si2958353pfi.408.2017.08.24.08.04.10
-        for <linux-mm@kvack.org>;
-        Thu, 24 Aug 2017 08:04:10 -0700 (PDT)
-Date: Thu, 24 Aug 2017 16:02:49 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH] fork: fix incorrect fput of ->exe_file causing
- use-after-free
-Message-ID: <20170824150110.GA29665@leverpostej>
-References: <20170823211408.31198-1-ebiggers3@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170823211408.31198-1-ebiggers3@gmail.com>
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D2F0440846
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 11:39:41 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id q7so4779868qtc.7
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 08:39:41 -0700 (PDT)
+Received: from mail-qt0-x244.google.com (mail-qt0-x244.google.com. [2607:f8b0:400d:c0d::244])
+        by mx.google.com with ESMTPS id w47si4113274qtj.18.2017.08.24.08.39.39
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Aug 2017 08:39:39 -0700 (PDT)
+Received: by mail-qt0-x244.google.com with SMTP id h24so2438935qth.4
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 08:39:39 -0700 (PDT)
+From: josef@toxicpanda.com
+Subject: [PATCH][v2] mm: use sc->priority for slab shrink targets
+Date: Thu, 24 Aug 2017 11:39:36 -0400
+Message-Id: <1503589176-1823-1-git-send-email-jbacik@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Biggers <ebiggers3@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Ingo Molnar <mingo@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org, Eric Biggers <ebiggers@google.com>
+To: minchan@kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, kernel-team@fb.com, aryabinin@virtuozzo.com
+Cc: Josef Bacik <jbacik@fb.com>
 
-On Wed, Aug 23, 2017 at 02:14:08PM -0700, Eric Biggers wrote:
-> From: Eric Biggers <ebiggers@google.com>
-> 
-> Commit 7c051267931a ("mm, fork: make dup_mmap wait for mmap_sem for
-> write killable") made it possible to kill a forking task while it is
-> waiting to acquire its ->mmap_sem for write, in dup_mmap().  However, it
-> was overlooked that this introduced an new error path before a reference
-> is taken on the mm_struct's ->exe_file.  Since the ->exe_file of the new
-> mm_struct was already set to the old ->exe_file by the memcpy() in
-> dup_mm(), it was possible for the mmput() in the error path of dup_mm()
-> to drop a reference to ->exe_file which was never taken.  This caused
-> the struct file to later be freed prematurely.
-> 
-> Fix it by updating mm_init() to NULL out the ->exe_file, in the same
-> place it clears other things like the list of mmaps.
+From: Josef Bacik <jbacik@fb.com>
 
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index e075b7780421..cbbea277b3fb 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -806,6 +806,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
->  	mm_init_cpumask(mm);
->  	mm_init_aio(mm);
->  	mm_init_owner(mm, p);
-> +	RCU_INIT_POINTER(mm->exe_file, NULL);
->  	mmu_notifier_mm_init(mm);
->  	init_tlb_flush_pending(mm);
->  #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
+Previously we were using the ratio of the number of lru pages scanned to
+the number of eligible lru pages to determine the number of slab objects
+to scan.  The problem with this is that these two things have nothing to
+do with each other, so in slab heavy work loads where there is little to
+no page cache we can end up with the pages scanned being a very low
+number.  This means that we reclaim next to no slab pages and waste a
+lot of time reclaiming small amounts of space.
 
-I've been seeing similar issues on arm64 with use-after-free of a file
-and other memory corruption [1].
+Consider the following scenario, where we have the following values and
+the rest of the memory usage is in slab
 
-This patch seems to fix that; a test that normally fired in a few
-minutes has been happily running for hours with this applied.
+Active:            58840 kB
+Inactive:          46860 kB
 
-Thanks,
-Mark.
+Every time we do a get_scan_count() we do this
 
-[1] https://lkml.kernel.org/r/20170824113743.GA14737@leverpostej
+scan = size >> sc->priority
+
+where sc->priority starts at DEF_PRIORITY, which is 12.  The first loop
+through reclaim would result in a scan target of 2 pages to 11715 total
+inactive pages, and 3 pages to 14710 total active pages.  This is a
+really really small target for a system that is entirely slab pages.
+And this is super optimistic, this assumes we even get to scan these
+pages.  We don't increment sc->nr_scanned unless we 1) isolate the page,
+which assumes it's not in use, and 2) can lock the page.  Under
+pressure these numbers could probably go down, I'm sure there's some
+random pages from daemons that aren't actually in use, so the targets
+get even smaller.
+
+Instead use sc->priority in the same way we use it to determine scan
+amounts for the lru's.  This generally equates to pages.  Consider the
+following
+
+slab_pages = (nr_objects * object_size) / PAGE_SIZE
+
+What we would like to do is
+
+scan = slab_pages >> sc->priority
+
+but we don't know the number of slab pages each shrinker controls, only
+the objects.  However say that theoretically we knew how many pages a
+shrinker controlled, we'd still have to convert this to objects, which
+would look like the following
+
+scan = shrinker_pages >> sc->priority
+scan_objects = (PAGE_SIZE / object_size) * scan
+
+or written another way
+
+scan_objects = (shrinker_pages >> sc->priority) *
+		(PAGE_SIZE / object_size)
+
+which can thus be written
+
+scan_objects = ((shrinker_pages * PAGE_SIZE) / object_size) >>
+		sc->priority
+
+which is just
+
+scan_objects = nr_objects >> sc->priority
+
+We don't need to know exactly how many pages each shrinker represents,
+it's objects are all the information we need.  Making this change allows
+us to place an appropriate amount of pressure on the shrinker pools for
+their relative size.
+
+Signed-off-by: Josef Bacik <jbacik@fb.com>
+---
+v1->v2:
+- updated changelog.
+- fixed the count to use the actual priority reduced number.
+- dropped the kswapd patch, we'll just deal with the constant eviction of the
+  workingset under pressure.
+
+ include/trace/events/vmscan.h | 23 ++++++++++------------
+ mm/vmscan.c                   | 46 +++++++++++--------------------------------
+ 2 files changed, 22 insertions(+), 47 deletions(-)
+
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+index 27e8a5c..8c5a00a 100644
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -187,12 +187,12 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_re
+ 
+ TRACE_EVENT(mm_shrink_slab_start,
+ 	TP_PROTO(struct shrinker *shr, struct shrink_control *sc,
+-		long nr_objects_to_shrink, unsigned long pgs_scanned,
+-		unsigned long lru_pgs, unsigned long cache_items,
+-		unsigned long long delta, unsigned long total_scan),
++		long nr_objects_to_shrink, unsigned long cache_items,
++		unsigned long long delta, unsigned long total_scan,
++		int priority),
+ 
+-	TP_ARGS(shr, sc, nr_objects_to_shrink, pgs_scanned, lru_pgs,
+-		cache_items, delta, total_scan),
++	TP_ARGS(shr, sc, nr_objects_to_shrink, cache_items, delta, total_scan,
++		priority),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(struct shrinker *, shr)
+@@ -200,11 +200,10 @@ TRACE_EVENT(mm_shrink_slab_start,
+ 		__field(int, nid)
+ 		__field(long, nr_objects_to_shrink)
+ 		__field(gfp_t, gfp_flags)
+-		__field(unsigned long, pgs_scanned)
+-		__field(unsigned long, lru_pgs)
+ 		__field(unsigned long, cache_items)
+ 		__field(unsigned long long, delta)
+ 		__field(unsigned long, total_scan)
++		__field(int, priority)
+ 	),
+ 
+ 	TP_fast_assign(
+@@ -213,24 +212,22 @@ TRACE_EVENT(mm_shrink_slab_start,
+ 		__entry->nid = sc->nid;
+ 		__entry->nr_objects_to_shrink = nr_objects_to_shrink;
+ 		__entry->gfp_flags = sc->gfp_mask;
+-		__entry->pgs_scanned = pgs_scanned;
+-		__entry->lru_pgs = lru_pgs;
+ 		__entry->cache_items = cache_items;
+ 		__entry->delta = delta;
+ 		__entry->total_scan = total_scan;
++		__entry->priority = priority;
+ 	),
+ 
+-	TP_printk("%pF %p: nid: %d objects to shrink %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
++	TP_printk("%pF %p: nid: %d objects to shrink %ld gfp_flags %s cache items %ld delta %lld total_scan %ld priority %d",
+ 		__entry->shrink,
+ 		__entry->shr,
+ 		__entry->nid,
+ 		__entry->nr_objects_to_shrink,
+ 		show_gfp_flags(__entry->gfp_flags),
+-		__entry->pgs_scanned,
+-		__entry->lru_pgs,
+ 		__entry->cache_items,
+ 		__entry->delta,
+-		__entry->total_scan)
++		__entry->total_scan,
++		__entry->priority)
+ );
+ 
+ TRACE_EVENT(mm_shrink_slab_end,
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 734e8d3..8918c12c1 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -306,9 +306,7 @@ EXPORT_SYMBOL(unregister_shrinker);
+ #define SHRINK_BATCH 128
+ 
+ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+-				    struct shrinker *shrinker,
+-				    unsigned long nr_scanned,
+-				    unsigned long nr_eligible)
++				    struct shrinker *shrinker, int priority)
+ {
+ 	unsigned long freed = 0;
+ 	unsigned long long delta;
+@@ -333,9 +331,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
+ 
+ 	total_scan = nr;
+-	delta = (4 * nr_scanned) / shrinker->seeks;
+-	delta *= freeable;
+-	do_div(delta, nr_eligible + 1);
++	delta = freeable >> priority;
++	delta = (4 * delta) / shrinker->seeks;
+ 	total_scan += delta;
+ 	if (total_scan < 0) {
+ 		pr_err("shrink_slab: %pF negative objects to delete nr=%ld\n",
+@@ -369,8 +366,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 		total_scan = freeable * 2;
+ 
+ 	trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
+-				   nr_scanned, nr_eligible,
+-				   freeable, delta, total_scan);
++				   freeable, delta, total_scan, priority);
+ 
+ 	/*
+ 	 * Normally, we should not scan less than batch_size objects in one
+@@ -429,8 +425,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+  * @gfp_mask: allocation context
+  * @nid: node whose slab caches to target
+  * @memcg: memory cgroup whose slab caches to target
+- * @nr_scanned: pressure numerator
+- * @nr_eligible: pressure denominator
++ * @priority: the reclaim priority
+  *
+  * Call the shrink functions to age shrinkable caches.
+  *
+@@ -442,20 +437,14 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+  * objects from the memory cgroup specified. Otherwise, only unaware
+  * shrinkers are called.
+  *
+- * @nr_scanned and @nr_eligible form a ratio that indicate how much of
+- * the available objects should be scanned.  Page reclaim for example
+- * passes the number of pages scanned and the number of pages on the
+- * LRU lists that it considered on @nid, plus a bias in @nr_scanned
+- * when it encountered mapped pages.  The ratio is further biased by
+- * the ->seeks setting of the shrink function, which indicates the
+- * cost to recreate an object relative to that of an LRU page.
++ * @priority is sc->priority, we take the number of objects and >> by priority
++ * in order to get the scan target.
+  *
+  * Returns the number of reclaimed slab objects.
+  */
+ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 				 struct mem_cgroup *memcg,
+-				 unsigned long nr_scanned,
+-				 unsigned long nr_eligible)
++				 int priority)
+ {
+ 	struct shrinker *shrinker;
+ 	unsigned long freed = 0;
+@@ -463,9 +452,6 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 	if (memcg && (!memcg_kmem_enabled() || !mem_cgroup_online(memcg)))
+ 		return 0;
+ 
+-	if (nr_scanned == 0)
+-		nr_scanned = SWAP_CLUSTER_MAX;
+-
+ 	if (!down_read_trylock(&shrinker_rwsem)) {
+ 		/*
+ 		 * If we would return 0, our callers would understand that we
+
+
+
+
+
+@@ -496,7 +482,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 		if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
+ 			sc.nid = 0;
+ 
+-		freed += do_shrink_slab(&sc, shrinker, nr_scanned, nr_eligible);
++		freed += do_shrink_slab(&sc, shrinker, priority);
+ 	}
+ 
+ 	up_read(&shrinker_rwsem);
+@@ -514,8 +500,7 @@ void drop_slab_node(int nid)
+ 
+ 		freed = 0;
+ 		do {
+-			freed += shrink_slab(GFP_KERNEL, nid, memcg,
+-					     1000, 1000);
++			freed += shrink_slab(GFP_KERNEL, nid, memcg, 0);
+ 		} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)) != NULL);
+ 	} while (freed > 10);
+ }
+@@ -2610,14 +2595,12 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 
+ 			reclaimed = sc->nr_reclaimed;
+ 			scanned = sc->nr_scanned;
+-
+ 			shrink_node_memcg(pgdat, memcg, sc, &lru_pages);
+ 			node_lru_pages += lru_pages;
+ 
+ 			if (memcg)
+ 				shrink_slab(sc->gfp_mask, pgdat->node_id,
+-					    memcg, sc->nr_scanned - scanned,
+-					    lru_pages);
++					    memcg, sc->priority);
+ 
+ 			/* Record the group's reclaim efficiency */
+ 			vmpressure(sc->gfp_mask, memcg, false,
+@@ -2641,14 +2624,9 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 			}
+ 		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
+ 
+-		/*
+-		 * Shrink the slab caches in the same proportion that
+-		 * the eligible LRU pages were scanned.
+-		 */
+ 		if (global_reclaim(sc))
+ 			shrink_slab(sc->gfp_mask, pgdat->node_id, NULL,
+-				    sc->nr_scanned - nr_scanned,
+-				    node_lru_pages);
++				    sc->priority);
+ 
+ 		/*
+ 		 * Record the subtree's reclaim efficiency. The reclaimed
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
