@@ -1,30 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D1A22280852
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 05:30:54 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id a110so130796wrc.1
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 02:30:54 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 180AE6B04C4
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 05:42:02 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id m1so123160wmd.3
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 02:42:02 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 34si2936984wrf.313.2017.08.24.02.30.52
+        by mx.google.com with ESMTPS id j38si3019899wre.521.2017.08.24.02.42.00
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 24 Aug 2017 02:30:52 -0700 (PDT)
-Date: Thu, 24 Aug 2017 11:30:50 +0200
-From: Michal Hocko <mhocko@kernel.org>
+        Thu, 24 Aug 2017 02:42:00 -0700 (PDT)
 Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
  ZONE_MOVABLE request
-Message-ID: <20170824093050.GD5943@dhcp22.suse.cz>
 References: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <e919c65e-bc2f-6b3b-41fc-3589590a84ac@suse.cz>
+Date: Thu, 24 Aug 2017 11:41:58 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu 24-08-17 14:45:46, Joonsoo Kim wrote:
+On 08/24/2017 07:45 AM, js1304@gmail.com wrote:
 > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
 > Freepage on ZONE_HIGHMEM doesn't work for kernel memory so it's not that
@@ -32,15 +33,7 @@ On Thu 24-08-17 14:45:46, Joonsoo Kim wrote:
 > theorectically cause to decrease usable memory for GFP_HIGHUSER_MOVABLE
 > allocation request which is mainly used for page cache and anon page
 > allocation. So, fix it.
-
-I do not really understand what is the problem you are trying to fix.
-Yes the memory is reserved for a higher priority consumer and that is
-deliberate AFAICT. Just consider that an OOM victim wants to make
-further progress and rely on memory reserve while doing
-GFP_HIGHUSER_MOVABLE request.
-
-So what is the real problem you are trying to address here?
-
+> 
 > And, defining sysctl_lowmem_reserve_ratio array by MAX_NR_ZONES - 1 size
 > makes code complex. For example, if there is highmem system, following
 > reserve ratio is activated for *NORMAL ZONE* which would be easyily
@@ -55,6 +48,22 @@ So what is the real problem you are trying to address here?
 > 
 > Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 > Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+Looks like I did that almost year ago, so definitely had to refresh my
+memory now :)
+
+Anyway now I looked more thoroughly and noticed that this change leaks
+into the reported sysctl. On a 64bit system with ZONE_MOVABLE:
+
+before the patch:
+vm.lowmem_reserve_ratio = 256   256     32
+
+after the patch:
+vm.lowmem_reserve_ratio = 256   256     32      2147483647
+
+So if we indeed remove HIGHMEM from protection (c.f. Michal's mail), we
+should do that differently than with the INT_MAX trick, IMHO.
+
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > ---
 >  include/linux/mmzone.h |  2 +-
@@ -102,13 +111,7 @@ So what is the real problem you are trying to address here?
 >  };
 >  
 >  EXPORT_SYMBOL(totalram_pages);
-> -- 
-> 2.7.4
 > 
-
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
