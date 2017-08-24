@@ -1,70 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 19193440846
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 12:03:24 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id n9so1526136wra.8
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 09:03:24 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id p123si3461054wmp.21.2017.08.24.09.03.18
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E6A9B440846
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 12:08:38 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id n185so3290035pga.11
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 09:08:38 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id p28si2990310pgc.575.2017.08.24.09.08.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Aug 2017 09:03:18 -0700 (PDT)
-Date: Wed, 23 Aug 2017 19:57:09 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC PATCH] treewide: remove GFP_TEMPORARY allocation flag
-Message-ID: <20170823175709.GA22743@xo-6d-61-c0.localdomain>
-References: <20170728091904.14627-1-mhocko@kernel.org>
+        Thu, 24 Aug 2017 09:08:37 -0700 (PDT)
+Subject: Re: [RESEND PATCH 0/3] mm: Add cache coloring mechanism
+References: <20170823100205.17311-1-lukasz.daniluk@intel.com>
+ <f95eacd5-0a91-24a0-7722-b63f3c196552@suse.cz>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <82cc1886-6c24-4e6e-7269-4d150e9f39eb@intel.com>
+Date: Thu, 24 Aug 2017 09:08:32 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170728091904.14627-1-mhocko@kernel.org>
+In-Reply-To: <f95eacd5-0a91-24a0-7722-b63f3c196552@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Neil Brown <neilb@suse.de>, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Vlastimil Babka <vbabka@suse.cz>, =?UTF-8?Q?=c5=81ukasz_Daniluk?= <lukasz.daniluk@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: lukasz.anaczkowski@intel.com
 
-Hi!
+On 08/24/2017 05:47 AM, Vlastimil Babka wrote:
+> So the obvious question, what about THPs? Their size should be enough to
+> contain all the colors with current caches, no? Even on KNL I didn't
+> find more than "32x 1 MB 16-way L2 caches". This is in addition to the
+> improved TLB performance, which you want to get as well for such workloads?
 
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> GFP_TEMPORARY has been introduced by e12ba74d8ff3 ("Group short-lived
-> and reclaimable kernel allocations") along with __GFP_RECLAIMABLE. It's
-> primary motivation was to allow users to tell that an allocation is
-> short lived and so the allocator can try to place such allocations close
-> together and prevent long term fragmentation. As much as this sounds
-> like a reasonable semantic it becomes much less clear when to use the
-> highlevel GFP_TEMPORARY allocation flag. How long is temporary? Can
-> the context holding that memory sleep? Can it take locks? It seems
-> there is no good answer for those questions.
-> 
-> The current implementation of GFP_TEMPORARY is basically
-> GFP_KERNEL | __GFP_RECLAIMABLE which in itself is tricky because
-> basically none of the existing caller provide a way to reclaim the
-> allocated memory. So this is rather misleading and hard to evaluate for
-> any benefits.
-> 
-> I have checked some random users and none of them has added the flag
-> with a specific justification. I suspect most of them just copied from
-> other existing users and others just thought it might be a good idea
-> to use without any measuring. This suggests that GFP_TEMPORARY just
-> motivates for cargo cult usage without any reasoning.
-> 
-> I believe that our gfp flags are quite complex already and especially
-> those with highlevel semantic should be clearly defined to prevent from
-> confusion and abuse. Therefore I propose dropping GFP_TEMPORARY and
-> replace all existing users to simply use GFP_KERNEL. Please note that
-> SLAB users with shrinkers will still get __GFP_RECLAIMABLE heuristic
-> and so they will be placed properly for memory fragmentation prevention.
-> 
-> I can see reasons we might want some gfp flag to reflect shorterm
-> allocations but I propose starting from a clear semantic definition and
-> only then add users with proper justification.
+The cache in this case is "MCDRAM" which is 16GB in size.  It can be
+used as normal RAM or a cache.  This patch deals with when "MCDRAM" is
+in its cache mode.
 
-Dunno. < 1msec probably is temporary, 1 hour probably is not. If it causes
-problems, can you just #define GFP_TEMPORARY GFP_KERNEL ? Treewide replace,
-and then starting again goes not look attractive to me.
+It's described in the "Memory Modes" slide here:
 
-									Pavel
+> http://www.nersc.gov/users/computational-systems/cori/configuration/knl-processor-modes/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
