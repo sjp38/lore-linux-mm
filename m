@@ -1,43 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E6A9B440846
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 12:08:38 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id n185so3290035pga.11
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 09:08:38 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id p28si2990310pgc.575.2017.08.24.09.08.37
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D82A4440846
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 12:08:48 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id a110so1596502wrc.1
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 09:08:48 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id n93si3748855wrb.412.2017.08.24.09.08.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Aug 2017 09:08:37 -0700 (PDT)
-Subject: Re: [RESEND PATCH 0/3] mm: Add cache coloring mechanism
-References: <20170823100205.17311-1-lukasz.daniluk@intel.com>
- <f95eacd5-0a91-24a0-7722-b63f3c196552@suse.cz>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <82cc1886-6c24-4e6e-7269-4d150e9f39eb@intel.com>
-Date: Thu, 24 Aug 2017 09:08:32 -0700
+        Thu, 24 Aug 2017 09:08:47 -0700 (PDT)
+Date: Thu, 24 Aug 2017 18:08:46 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH v6 0/5] MAP_DIRECT and block-map-atomic files
+Message-ID: <20170824160846.GA27591@lst.de>
+References: <150353211413.5039.5228914877418362329.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <f95eacd5-0a91-24a0-7722-b63f3c196552@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <150353211413.5039.5228914877418362329.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, =?UTF-8?Q?=c5=81ukasz_Daniluk?= <lukasz.daniluk@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: lukasz.anaczkowski@intel.com
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "Darrick J. Wong" <darrick.wong@oracle.com>, David Airlie <airlied@linux.ie>, linux-api@vger.kernel.org, linux-nvdimm@lists.01.org, Dave Chinner <david@fromorbit.com>, Takashi Iwai <tiwai@suse.com>, dri-devel@lists.freedesktop.org, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, Julia Lawall <julia.lawall@lip6.fr>, Jeff Moyer <jmoyer@redhat.com>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, luto@kernel.org, linux-fsdevel@vger.kernel.org, Daniel Vetter <daniel.vetter@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
 
-On 08/24/2017 05:47 AM, Vlastimil Babka wrote:
-> So the obvious question, what about THPs? Their size should be enough to
-> contain all the colors with current caches, no? Even on KNL I didn't
-> find more than "32x 1 MB 16-way L2 caches". This is in addition to the
-> improved TLB performance, which you want to get as well for such workloads?
-
-The cache in this case is "MCDRAM" which is 16GB in size.  It can be
-used as normal RAM or a cache.  This patch deals with when "MCDRAM" is
-in its cache mode.
-
-It's described in the "Memory Modes" slide here:
-
-> http://www.nersc.gov/users/computational-systems/cori/configuration/knl-processor-modes/
+This seems to be missing patches 1 and 3.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
