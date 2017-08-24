@@ -1,61 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 822A72808A4
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 10:27:23 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id m7so3731878pga.8
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 07:27:23 -0700 (PDT)
-Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30131.outbound.protection.outlook.com. [40.107.3.131])
-        by mx.google.com with ESMTPS id y94si3049213plh.826.2017.08.24.07.27.22
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E3B7C6B04BF
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 10:49:28 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id p6so3855677ywh.8
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 07:49:28 -0700 (PDT)
+Received: from mail-qk0-x241.google.com (mail-qk0-x241.google.com. [2607:f8b0:400d:c09::241])
+        by mx.google.com with ESMTPS id e130si1103821ywc.458.2017.08.24.07.49.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 24 Aug 2017 07:27:22 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Aug 2017 07:49:27 -0700 (PDT)
+Received: by mail-qk0-x241.google.com with SMTP id s3so2429060qkd.1
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 07:49:27 -0700 (PDT)
+Date: Thu, 24 Aug 2017 10:49:25 -0400
+From: Josef Bacik <josef@toxicpanda.com>
 Subject: Re: [PATCH 1/2] mm: use sc->priority for slab shrink targets
+Message-ID: <20170824144924.w3inhdnmgfscso7l@destiny>
 References: <1503430539-2878-1-git-send-email-jbacik@fb.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <a6a68b0b-4138-2563-fa53-ad8406dc6e34@virtuozzo.com>
-Date: Thu, 24 Aug 2017 17:29:59 +0300
+ <a6a68b0b-4138-2563-fa53-ad8406dc6e34@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <1503430539-2878-1-git-send-email-jbacik@fb.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <a6a68b0b-4138-2563-fa53-ad8406dc6e34@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: josef@toxicpanda.com, minchan@kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, kernel-team@fb.com
-Cc: Josef Bacik <jbacik@fb.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: josef@toxicpanda.com, minchan@kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, kernel-team@fb.com, Josef Bacik <jbacik@fb.com>
 
+On Thu, Aug 24, 2017 at 05:29:59PM +0300, Andrey Ryabinin wrote:
+> 
+> 
+> On 08/22/2017 10:35 PM, josef@toxicpanda.com wrote:
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -306,9 +306,7 @@ EXPORT_SYMBOL(unregister_shrinker);
+> >  #define SHRINK_BATCH 128
+> >  
+> >  static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+> > -				    struct shrinker *shrinker,
+> > -				    unsigned long nr_scanned,
+> > -				    unsigned long nr_eligible)
+> > +				    struct shrinker *shrinker, int priority)
+> >  {
+> >  	unsigned long freed = 0;
+> >  	unsigned long long delta;
+> > @@ -333,9 +331,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+> >  	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
+> >  
+> >  	total_scan = nr;
+> > -	delta = (4 * nr_scanned) / shrinker->seeks;
+> > -	delta *= freeable;
+> > -	do_div(delta, nr_eligible + 1);
+> > +	delta = freeable >> priority;
+> > +	delta = (4 * freeable) / shrinker->seeks;
+> 
+> Something is wrong. The first line does nothing.
+> 
 
+Lol jesus, nice catch, I'll fix this up.  Thanks,
 
-On 08/22/2017 10:35 PM, josef@toxicpanda.com wrote:
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -306,9 +306,7 @@ EXPORT_SYMBOL(unregister_shrinker);
->  #define SHRINK_BATCH 128
->  
->  static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
-> -				    struct shrinker *shrinker,
-> -				    unsigned long nr_scanned,
-> -				    unsigned long nr_eligible)
-> +				    struct shrinker *shrinker, int priority)
->  {
->  	unsigned long freed = 0;
->  	unsigned long long delta;
-> @@ -333,9 +331,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
->  	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
->  
->  	total_scan = nr;
-> -	delta = (4 * nr_scanned) / shrinker->seeks;
-> -	delta *= freeable;
-> -	do_div(delta, nr_eligible + 1);
-> +	delta = freeable >> priority;
-> +	delta = (4 * freeable) / shrinker->seeks;
-
-Something is wrong. The first line does nothing.
-
-
->  	total_scan += delta;
->  	if (total_scan < 0) {
->  		pr_err("shrink_slab: %pF negative objects to delete nr=%ld\n",
+Josef
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
