@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D38936B04B9
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 02:36:56 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u191so31547497pgc.13
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 23:36:56 -0700 (PDT)
-Received: from mail-pg0-x241.google.com (mail-pg0-x241.google.com. [2607:f8b0:400e:c05::241])
-        by mx.google.com with ESMTPS id c9si2109974pli.66.2017.08.23.23.36.55
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 42DC66B04BA
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 02:37:00 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id z193so8505868pgd.7
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 23:37:00 -0700 (PDT)
+Received: from mail-pg0-x242.google.com (mail-pg0-x242.google.com. [2607:f8b0:400e:c05::242])
+        by mx.google.com with ESMTPS id q1si2277386pga.789.2017.08.23.23.36.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Aug 2017 23:36:55 -0700 (PDT)
-Received: by mail-pg0-x241.google.com with SMTP id 189so2588557pgj.0
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 23:36:55 -0700 (PDT)
+        Wed, 23 Aug 2017 23:36:59 -0700 (PDT)
+Received: by mail-pg0-x242.google.com with SMTP id u9so2561900pgn.5
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 23:36:59 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH 2/3] mm/cma: remove ALLOC_CMA
-Date: Thu, 24 Aug 2017 15:36:32 +0900
-Message-Id: <1503556593-10720-3-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 3/3] ARM: CMA: avoid double mapping to the CMA area if CONFIG_HIGHMEM = y
+Date: Thu, 24 Aug 2017 15:36:33 +0900
+Message-Id: <1503556593-10720-4-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1503556593-10720-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1503556593-10720-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,131 +24,44 @@ Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorma
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Now, all reserved pages for CMA region are belong to the ZONE_MOVABLE
-and it only serves for a request with GFP_HIGHMEM && GFP_MOVABLE.
-Therefore, we don't need to maintain ALLOC_CMA at all.
+CMA area is now managed by the separate zone, ZONE_MOVABLE,
+to fix many MM related problems. In this implementation, if
+CONFIG_HIGHMEM = y, then ZONE_MOVABLE is considered as HIGHMEM and
+the memory of the CMA area is also considered as HIGHMEM.
+That means that they are considered as the page without direct mapping.
+However, CMA area could be in a lowmem and the memory could have
+direct mapping.
 
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+In ARM, when establishing a new mapping for DMA, direct mapping should
+be cleared since two mapping with different cache policy could cause
+unknown problem. With this patch, PageHighmem() for the CMA memory
+located in lowmem returns true so that the function for DMA mapping
+cannot notice whether it needs to clear direct mapping or not, correctly.
+To handle this situation, this patch always clears direct mapping
+for such CMA memory.
+
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/compaction.c |  4 +---
- mm/internal.h   |  1 -
- mm/page_alloc.c | 28 +++-------------------------
- 3 files changed, 4 insertions(+), 29 deletions(-)
+ arch/arm/mm/dma-mapping.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index bf018d8..ee16d4a 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1457,14 +1457,12 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
- 	 * if compaction succeeds.
- 	 * For costly orders, we require low watermark instead of min for
- 	 * compaction to proceed to increase its chances.
--	 * ALLOC_CMA is used, as pages in CMA pageblocks are considered
--	 * suitable migration targets
- 	 */
- 	watermark = (order > PAGE_ALLOC_COSTLY_ORDER) ?
- 				low_wmark_pages(zone) : min_wmark_pages(zone);
- 	watermark += compact_gap(order);
- 	if (!__zone_watermark_ok(zone, 0, watermark, classzone_idx,
--						ALLOC_CMA, wmark_target))
-+						0, wmark_target))
- 		return COMPACT_SKIPPED;
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index fcf1473..38f0fde 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -513,7 +513,13 @@ void __init dma_contiguous_remap(void)
+ 		flush_tlb_kernel_range(__phys_to_virt(start),
+ 				       __phys_to_virt(end));
  
- 	return COMPACT_CONTINUE;
-diff --git a/mm/internal.h b/mm/internal.h
-index b4f9ebc..0aaa05a 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -497,7 +497,6 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
- #define ALLOC_HARDER		0x10 /* try to alloc harder */
- #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
- #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
--#define ALLOC_CMA		0x80 /* allow allocations from CMA areas */
- 
- enum ttu_flags;
- struct tlbflush_unmap_batch;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index bbd00f1..b74bd78 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2710,7 +2710,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
- 		 * exists.
- 		 */
- 		watermark = min_wmark_pages(zone) + (1UL << order);
--		if (!zone_watermark_ok(zone, 0, watermark, 0, ALLOC_CMA))
-+		if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
- 			return 0;
- 
- 		__mod_zone_freepage_state(zone, -(1UL << order), mt);
-@@ -2987,12 +2987,6 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+-		iotable_init(&map, 1);
++		/*
++		 * For highmem system, all the memory in CMA region will be
++		 * considered as highmem even if it's physical address belong
++		 * to lowmem. Therefore, re-mapping isn't required.
++		 */
++		if (!IS_ENABLED(CONFIG_HIGHMEM))
++			iotable_init(&map, 1);
  	}
- 
- 
--#ifdef CONFIG_CMA
--	/* If allocation can't use CMA areas don't use free CMA pages */
--	if (!(alloc_flags & ALLOC_CMA))
--		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
--#endif
--
- 	/*
- 	 * Check watermarks for an order-0 allocation request. If these
- 	 * are not met, then a high-order request also cannot go ahead
-@@ -3022,10 +3016,8 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
- 		}
- 
- #ifdef CONFIG_CMA
--		if ((alloc_flags & ALLOC_CMA) &&
--		    !list_empty(&area->free_list[MIGRATE_CMA])) {
-+		if (!list_empty(&area->free_list[MIGRATE_CMA]))
- 			return true;
--		}
- #endif
- 	}
- 	return false;
-@@ -3042,13 +3034,6 @@ static inline bool zone_watermark_fast(struct zone *z, unsigned int order,
- 		unsigned long mark, int classzone_idx, unsigned int alloc_flags)
- {
- 	long free_pages = zone_page_state(z, NR_FREE_PAGES);
--	long cma_pages = 0;
--
--#ifdef CONFIG_CMA
--	/* If allocation can't use CMA areas don't use free CMA pages */
--	if (!(alloc_flags & ALLOC_CMA))
--		cma_pages = zone_page_state(z, NR_FREE_CMA_PAGES);
--#endif
- 
- 	/*
- 	 * Fast check for order-0 only. If this fails then the reserves
-@@ -3057,7 +3042,7 @@ static inline bool zone_watermark_fast(struct zone *z, unsigned int order,
- 	 * the caller is !atomic then it'll uselessly search the free
- 	 * list. That corner case is then slower but it is harmless.
- 	 */
--	if (!order && (free_pages - cma_pages) > mark + z->lowmem_reserve[classzone_idx])
-+	if (!order && free_pages > mark + z->lowmem_reserve[classzone_idx])
- 		return true;
- 
- 	return __zone_watermark_ok(z, order, mark, classzone_idx, alloc_flags,
-@@ -3676,10 +3661,6 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
- 	} else if (unlikely(rt_task(current)) && !in_interrupt())
- 		alloc_flags |= ALLOC_HARDER;
- 
--#ifdef CONFIG_CMA
--	if (gfpflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
--		alloc_flags |= ALLOC_CMA;
--#endif
- 	return alloc_flags;
- }
- 
-@@ -4156,9 +4137,6 @@ static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
- 	if (should_fail_alloc_page(gfp_mask, order))
- 		return false;
- 
--	if (IS_ENABLED(CONFIG_CMA) && ac->migratetype == MIGRATE_MOVABLE)
--		*alloc_flags |= ALLOC_CMA;
--
- 	return true;
  }
  
 -- 
