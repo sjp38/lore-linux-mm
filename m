@@ -1,60 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B68A440846
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 16:44:52 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id l124so562270wmg.8
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 13:44:52 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id i21si2185640wmc.264.2017.08.24.13.44.50
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 54420440846
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 16:48:45 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id r199so348962vke.6
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 13:48:45 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id e1si2166366vkf.205.2017.08.24.13.48.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 24 Aug 2017 13:44:50 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 7F7B2F41C0
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 20:44:49 +0000 (UTC)
-Date: Thu, 24 Aug 2017 21:44:48 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
-Message-ID: <20170824204448.if2mve3iy5k425di@techsingularity.net>
-References: <37D7C6CF3E00A74B8858931C1DB2F0775378A24A@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFy=4y0fq9nL2WR1x8vwzJrDOdv++r036LXpR=6Jx8jpzg@mail.gmail.com>
- <37D7C6CF3E00A74B8858931C1DB2F0775378A377@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFwavpFfKNW9NVgNhLggqhii-guc5aX1X5fxrPK+==id0g@mail.gmail.com>
- <37D7C6CF3E00A74B8858931C1DB2F0775378A8AB@SHSMSX103.ccr.corp.intel.com>
- <6e8b81de-e985-9222-29c5-594c6849c351@linux.intel.com>
- <CA+55aFzbom=qFc2pYk07XhiMBn083EXugSUHmSVbTuu8eJtHVQ@mail.gmail.com>
- <CA+55aFzxisTJS+Z7q+Dp9oRgvMpXEQRedYFu7-k_YXEE-=htgA@mail.gmail.com>
- <85fb2a78-cbb7-dceb-12e8-7d18519c30a0@linux.intel.com>
- <CA+55aFwOxWWgL3Xdh_m3pbeoYedqBkpvLiJNcEYWUvOAzmB3zQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <CA+55aFwOxWWgL3Xdh_m3pbeoYedqBkpvLiJNcEYWUvOAzmB3zQ@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Aug 2017 13:48:44 -0700 (PDT)
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Subject: [RFC PATCH v2 0/7] ktask: multithread cpu-intensive kernel work
+Date: Thu, 24 Aug 2017 16:49:57 -0400
+Message-Id: <20170824205004.18502-1-daniel.m.jordan@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, "Liang, Kan" <kan.liang@intel.com>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: aaron.lu@intel.com, akpm@linux-foundation.org, dave.hansen@linux.intel.com, mgorman@techsingularity.net, mhocko@kernel.org, mike.kravetz@oracle.com, pasha.tatashin@oracle.com, steven.sistare@oracle.com, tim.c.chen@intel.com
 
-On Thu, Aug 24, 2017 at 11:16:15AM -0700, Linus Torvalds wrote:
-> On Thu, Aug 24, 2017 at 10:49 AM, Tim Chen <tim.c.chen@linux.intel.com> wrote:
-> >
-> > These changes look fine.  We are testing them now.
-> > Does the second patch in the series look okay to you?
-> 
-> I didn't really have any reaction to that one, as long as Mel&co are
-> ok with it, I'm fine with it.
-> 
+ktask is a generic framework for parallelizing cpu-intensive work in the
+kernel.  The intended use is for big machines that can use their cpu power
+to speed up large tasks that can't otherwise be multithreaded in userland.
+The API is generic enough to add concurrency to many different kinds of
+tasks--for example, zeroing a range of pages or evicting a list of
+inodes--and aims to save its clients the trouble of splitting up the work,
+choosing the number of threads to use, starting these threads, and load
+balancing the work between them.
 
-I've no strong objections or concerns. I'm disappointed that the
-original root cause for this could not be found but hope that eventually a
-reproducible test case will eventually be available. Despite having access
-to a 4-socket box, I was still unable to create a workload that caused
-large delays on wakeup. I'm going to have to stop as I don't think it's
-possible to create on that particular machine for whatever reason.
+Why do we need ktask when the kernel has other APIs for managing
+concurrency?  After all, kthread_workers and workqueues already provide ways
+to start threads, and the kernel can handle large tasks with a single thread
+by periodically yielding the cpu with cond_resched or doing the work in
+fixed size batches.
+
+Of the existing concurrency facilities, kthread_worker isn't suited for
+providing parallelism because each comes with only a single thread.
+Workqueues are a better fit for this, and in fact ktask is built on an
+unbound workqueue, but workqueues aren't designed for splitting up a large
+task.  ktask instead uses unbound workqueue threads to run "chunks" of a
+task.
+
+More background is available in the documentation commit (first commit of the
+series).
+
+This patchset is based on 4.13-rc6 and contains three ktask users so far, with
+more to come:
+ - clearing gigantic pages
+ - fallocate for HugeTLB pages
+ - deferred struct page initialization at boot time
+
+The core ktask code is based on work by Pavel Tatashin, Steve Sistare, and
+Jonathan Adams.
+
+v1 -> v2:
+ - Added deferred struct page initialization use case.
+ - Explained the source of the performance improvement from parallelizing
+   clear_gigantic_page (comment from Dave Hansen).
+ - Fixed Documentation and build warnings from CONFIG_KTASK=n kernels.
+
+link to v1: https://lkml.org/lkml/2017/7/14/666
+
+Daniel Jordan (7):
+  ktask: add documentation
+  ktask: multithread cpu-intensive kernel work
+  ktask: add /proc/sys/debug/ktask_max_threads
+  mm: enlarge type of offset argument in mem_map_offset and mem_map_next
+  mm: parallelize clear_gigantic_page
+  hugetlbfs: parallelize hugetlbfs_fallocate with ktask
+  mm: parallelize deferred struct page initialization within each node
+
+ Documentation/core-api/index.rst |   1 +
+ Documentation/core-api/ktask.rst | 104 ++++++++++
+ fs/hugetlbfs/inode.c             | 117 +++++++++---
+ include/linux/ktask.h            | 235 +++++++++++++++++++++++
+ include/linux/ktask_internal.h   |  19 ++
+ include/linux/mm.h               |   6 +
+ init/Kconfig                     |   7 +
+ init/main.c                      |   2 +
+ kernel/Makefile                  |   2 +-
+ kernel/ktask.c                   | 396 +++++++++++++++++++++++++++++++++++++++
+ kernel/sysctl.c                  |  10 +
+ mm/internal.h                    |   7 +-
+ mm/memory.c                      |  35 +++-
+ mm/page_alloc.c                  | 174 ++++++++++-------
+ 14 files changed, 1014 insertions(+), 101 deletions(-)
+ create mode 100644 Documentation/core-api/ktask.rst
+ create mode 100644 include/linux/ktask.h
+ create mode 100644 include/linux/ktask_internal.h
+ create mode 100644 kernel/ktask.c
 
 -- 
-Mel Gorman
-SUSE Labs
+2.12.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
