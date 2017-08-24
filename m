@@ -1,56 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 959C2440846
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 13:42:10 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id r200so246301oie.0
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 10:42:10 -0700 (PDT)
-Received: from mail-oi0-x236.google.com (mail-oi0-x236.google.com. [2607:f8b0:4003:c06::236])
-        by mx.google.com with ESMTPS id v202si3825029oia.508.2017.08.24.10.42.09
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E4BF440846
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 13:49:21 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id u20so597731pgb.10
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 10:49:21 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id l23si3186479pgu.76.2017.08.24.10.49.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Aug 2017 10:42:09 -0700 (PDT)
-Received: by mail-oi0-x236.google.com with SMTP id j144so1505574oib.1
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 10:42:09 -0700 (PDT)
+        Thu, 24 Aug 2017 10:49:19 -0700 (PDT)
+Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
+References: <CA+55aFwzTMrZwh7TE_VeZt8gx5Syoop-kA=Xqs56=FkyakrM6g@mail.gmail.com>
+ <CA+55aFxZjjqUM4kPvNEeZahPovBHFATiwADj-iPTDN0-jnU67Q@mail.gmail.com>
+ <20170818185455.qol3st2nynfa47yc@techsingularity.net>
+ <CA+55aFwX0yrUPULrDxTWVCg5c6DKh-yCG84NXVxaptXNQ4O_kA@mail.gmail.com>
+ <20170821183234.kzennaaw2zt2rbwz@techsingularity.net>
+ <37D7C6CF3E00A74B8858931C1DB2F07753788B58@SHSMSX103.ccr.corp.intel.com>
+ <37D7C6CF3E00A74B8858931C1DB2F0775378A24A@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFy=4y0fq9nL2WR1x8vwzJrDOdv++r036LXpR=6Jx8jpzg@mail.gmail.com>
+ <37D7C6CF3E00A74B8858931C1DB2F0775378A377@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFwavpFfKNW9NVgNhLggqhii-guc5aX1X5fxrPK+==id0g@mail.gmail.com>
+ <37D7C6CF3E00A74B8858931C1DB2F0775378A8AB@SHSMSX103.ccr.corp.intel.com>
+ <6e8b81de-e985-9222-29c5-594c6849c351@linux.intel.com>
+ <CA+55aFzbom=qFc2pYk07XhiMBn083EXugSUHmSVbTuu8eJtHVQ@mail.gmail.com>
+ <CA+55aFzxisTJS+Z7q+Dp9oRgvMpXEQRedYFu7-k_YXEE-=htgA@mail.gmail.com>
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Message-ID: <85fb2a78-cbb7-dceb-12e8-7d18519c30a0@linux.intel.com>
+Date: Thu, 24 Aug 2017 10:49:18 -0700
 MIME-Version: 1.0
-In-Reply-To: <20170824165838.GB3121@infradead.org>
-References: <150353211413.5039.5228914877418362329.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150353211985.5039.4333061601382775843.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20170824165838.GB3121@infradead.org>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 24 Aug 2017 10:42:09 -0700
-Message-ID: <CAPcyv4gd1qgtP7DjfRnXDebhYb1_4jnuM3HTL-ma2snz7FMAOg@mail.gmail.com>
-Subject: Re: [PATCH v6 1/5] vfs: add flags parameter to ->mmap() in 'struct file_operations'
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CA+55aFzxisTJS+Z7q+Dp9oRgvMpXEQRedYFu7-k_YXEE-=htgA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, David Airlie <airlied@linux.ie>, Linux API <linux-api@vger.kernel.org>, Takashi Iwai <tiwai@suse.com>, Maling list - DRI developers <dri-devel@lists.freedesktop.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, Julia Lawall <julia.lawall@lip6.fr>, Andy Lutomirski <luto@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Daniel Vetter <daniel.vetter@intel.com>, Linux MM <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: "Liang, Kan" <kan.liang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 24, 2017 at 9:58 AM, Christoph Hellwig <hch@infradead.org> wrote:
-> On Wed, Aug 23, 2017 at 04:48:40PM -0700, Dan Williams wrote:
->> We are running running short of vma->vm_flags. We can avoid needing a
->> new VM_* flag in some cases if the original @flags submitted to mmap(2)
->> is made available to the ->mmap() 'struct file_operations'
->> implementation. For example, the proposed addition of MAP_DIRECT can be
->> implemented without taking up a new vm_flags bit. Another motivation to
->> avoid vm_flags is that they appear in /proc/$pid/smaps, and we have seen
->> software that tries to dangerously (TOCTOU) read smaps to infer the
->> behavior of a virtual address range.
+On 08/23/2017 04:30 PM, Linus Torvalds wrote:
+> On Wed, Aug 23, 2017 at 11:17 AM, Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
+>> On Wed, Aug 23, 2017 at 8:58 AM, Tim Chen <tim.c.chen@linux.intel.com> wrote:
+>>>
+>>> Will you still consider the original patch as a fail safe mechanism?
 >>
->> This conversion was performed by the following semantic patch. There
->> were a few manual edits for oddities like proc_reg_mmap.
->>
->> Thanks to Julia for helping me with coccinelle iteration to cover cases
->> where the mmap routine is defined in a separate file from the 'struct
->> file_operations' instance that consumes it.
->
-> How are we going to check that an instance actually supports any
-> of those flags?
+>> I don't think we have much choice, although I would *really* want to
+>> get this root-caused rather than just papering over the symptoms.
+> 
+> Oh well. Apparently we're not making progress on that, so I looked at
+> the patch again.
+> 
+> Can we fix it up a bit? In particular, the "bookmark_wake_function()"
+> thing added no value, and definitely shouldn't have been exported.
+> Just use NULL instead.
+> 
+> And the WAITQUEUE_WALK_BREAK_CNT thing should be internal to
+> __wake_up_common(), not in some common header file. Again, there's no
+> value in exporting it to anybody else.
+> 
+> And doing
+> 
+>                 if (curr->flags & WQ_FLAG_BOOKMARK)
+> 
+> looks odd, when we just did
+> 
+>                 unsigned flags = curr->flags;
+> 
+> one line earlier, so that can be just simplified.
+> 
+> So can you test that simplified version of the patch? I'm attaching my
+> suggested edited patch, but you may just want to do those changes
+> directly to your tree instead.
 
-In patch 3 I validate the flags by introducing an
-"mmap_supported_mask" field to 'struct file_operations'. It will be
-zero by default for almost all implementations and zero means "support
-the legacy mmap flags".
+These changes look fine.  We are testing them now.
+Does the second patch in the series look okay to you?
+
+Thanks.
+
+Tim
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
