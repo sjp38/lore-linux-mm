@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 31716440846
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 16:27:02 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id 4so689052oie.8
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 13:27:02 -0700 (PDT)
-Received: from mail-oi0-x230.google.com (mail-oi0-x230.google.com. [2607:f8b0:4003:c06::230])
-        by mx.google.com with ESMTPS id h84si4047616oif.273.2017.08.24.13.26.56
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B68A440846
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 16:44:52 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id l124so562270wmg.8
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 13:44:52 -0700 (PDT)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id i21si2185640wmc.264.2017.08.24.13.44.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Aug 2017 13:26:56 -0700 (PDT)
-Received: by mail-oi0-x230.google.com with SMTP id t88so5390494oij.0
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 13:26:56 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 24 Aug 2017 13:44:50 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 7F7B2F41C0
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 20:44:49 +0000 (UTC)
+Date: Thu, 24 Aug 2017 21:44:48 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 1/2] sched/wait: Break up long wake list walk
+Message-ID: <20170824204448.if2mve3iy5k425di@techsingularity.net>
+References: <37D7C6CF3E00A74B8858931C1DB2F0775378A24A@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFy=4y0fq9nL2WR1x8vwzJrDOdv++r036LXpR=6Jx8jpzg@mail.gmail.com>
+ <37D7C6CF3E00A74B8858931C1DB2F0775378A377@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFwavpFfKNW9NVgNhLggqhii-guc5aX1X5fxrPK+==id0g@mail.gmail.com>
+ <37D7C6CF3E00A74B8858931C1DB2F0775378A8AB@SHSMSX103.ccr.corp.intel.com>
+ <6e8b81de-e985-9222-29c5-594c6849c351@linux.intel.com>
+ <CA+55aFzbom=qFc2pYk07XhiMBn083EXugSUHmSVbTuu8eJtHVQ@mail.gmail.com>
+ <CA+55aFzxisTJS+Z7q+Dp9oRgvMpXEQRedYFu7-k_YXEE-=htgA@mail.gmail.com>
+ <85fb2a78-cbb7-dceb-12e8-7d18519c30a0@linux.intel.com>
+ <CA+55aFwOxWWgL3Xdh_m3pbeoYedqBkpvLiJNcEYWUvOAzmB3zQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170824163925.GA28503@lst.de>
-References: <150353211413.5039.5228914877418362329.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150353213655.5039.7662200155640827407.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20170824161152.GB27591@lst.de> <CAPcyv4jjNi_+c5DW9nsBLEnYMBtsR_v67+bF6bC4Cb9mY7T+Ww@mail.gmail.com>
- <20170824163925.GA28503@lst.de>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 24 Aug 2017 13:26:55 -0700
-Message-ID: <CAPcyv4j06mdEek-aYfZCbTW0MaL6gy7OpUsgyv4hBB5yy_rW6A@mail.gmail.com>
-Subject: Re: [PATCH v6 4/5] fs, xfs: introduce MAP_DIRECT for creating
- block-map-atomic file ranges
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CA+55aFwOxWWgL3Xdh_m3pbeoYedqBkpvLiJNcEYWUvOAzmB3zQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Darrick J. Wong" <darrick.wong@oracle.com>, Linux API <linux-api@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, xen-devel@lists.xen.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, "Liang, Kan" <kan.liang@intel.com>, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 24, 2017 at 9:39 AM, Christoph Hellwig <hch@lst.de> wrote:
-> On Thu, Aug 24, 2017 at 09:31:17AM -0700, Dan Williams wrote:
->> External agent is a DMA device, or a hypervisor like Xen. In the DMA
->> case perhaps we can use the fcntl lease mechanism, I'll investigate.
->> In the Xen case it actually would need to use fiemap() to discover the
->> physical addresses that back the file to setup their M2P tables.
->> Here's the discussion where we discovered that physical address
->> dependency:
->>
->>     https://lists.xen.org/archives/html/xen-devel/2017-04/msg00419.html
->
-> fiemap does not work to discover physical addresses.  If they want
-> to do anything involving physical address they will need a kernel
-> driver.
+On Thu, Aug 24, 2017 at 11:16:15AM -0700, Linus Torvalds wrote:
+> On Thu, Aug 24, 2017 at 10:49 AM, Tim Chen <tim.c.chen@linux.intel.com> wrote:
+> >
+> > These changes look fine.  We are testing them now.
+> > Does the second patch in the series look okay to you?
+> 
+> I didn't really have any reaction to that one, as long as Mel&co are
+> ok with it, I'm fine with it.
+> 
 
-True, it's broken with respect to multi-device filesystems and these
-patches do nothing to fix that problem. Ok, I'm fine to let that use
-case depend on a kernel driver and just focus on fixing the DMA case.
+I've no strong objections or concerns. I'm disappointed that the
+original root cause for this could not be found but hope that eventually a
+reproducible test case will eventually be available. Despite having access
+to a 4-socket box, I was still unable to create a workload that caused
+large delays on wakeup. I'm going to have to stop as I don't think it's
+possible to create on that particular machine for whatever reason.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
