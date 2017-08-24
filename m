@@ -1,105 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F10832803BB
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 06:01:28 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id m7so1218008pga.8
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 03:01:28 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id e84si2545920pfh.35.2017.08.24.03.01.25
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8801628042A
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 06:44:16 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id i74so1798952pgd.5
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 03:44:16 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id n4si2618495pgc.281.2017.08.24.03.44.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Aug 2017 03:01:27 -0700 (PDT)
-From: Kemi Wang <kemi.wang@intel.com>
-Subject: [PATCH v2 3/3] mm: Consider the number in local CPUs when *reads* NUMA stats
-Date: Thu, 24 Aug 2017 18:00:01 +0800
-Message-Id: <1503568801-21305-4-git-send-email-kemi.wang@intel.com>
-In-Reply-To: <1503568801-21305-1-git-send-email-kemi.wang@intel.com>
-References: <1503568801-21305-1-git-send-email-kemi.wang@intel.com>
+        Thu, 24 Aug 2017 03:44:15 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7OAhfx3146348
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 06:44:14 -0400
+Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2chsxkn5yv-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 06:44:14 -0400
+Received: from localhost
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 24 Aug 2017 20:44:11 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v7OAgsia39387368
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 20:42:54 +1000
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v7OAgkDu011397
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 20:42:46 +1000
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [PATCH] xfs: Drop setting redundant PF_KSWAPD in kswapd context
+Date: Thu, 24 Aug 2017 16:12:47 +0530
+Message-Id: <20170824104247.8288-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>
-Cc: Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Kemi Wang <kemi.wang@intel.com>
+To: linux-mm@kvack.org, linux-xfs@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: dchinner@redhat.com, bfoster@redhat.com, sandeen@sandeen.net
 
-To avoid deviation, the per cpu number of NUMA stats in vm_numa_stat_diff[]
-is included when a user *reads* the NUMA stats.
+xfs_btree_split() calls xfs_btree_split_worker() with args.kswapd set
+if current->flags alrady has PF_KSWAPD. Hence we should not again add
+PF_KSWAPD into the current flags inside kswapd context. So drop this
+redundant flag addition.
 
-Since NUMA stats does not be read by users frequently, and kernel does not
-need it to make a decision, it will not be a problem to make the readers
-more expensive.
-
-Changelog:
-v2:
-    a) new creation.
-
-Signed-off-by: Kemi Wang <kemi.wang@intel.com>
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 ---
- include/linux/vmstat.h | 6 +++++-
- mm/vmstat.c            | 9 +++++++--
- 2 files changed, 12 insertions(+), 3 deletions(-)
+ fs/xfs/libxfs/xfs_btree.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index a29bd98..72e9ca6 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -125,10 +125,14 @@ static inline unsigned long global_numa_state(enum numa_stat_item item)
- 	return x;
- }
+diff --git a/fs/xfs/libxfs/xfs_btree.c b/fs/xfs/libxfs/xfs_btree.c
+index e0bcc4a..b3c85e3 100644
+--- a/fs/xfs/libxfs/xfs_btree.c
++++ b/fs/xfs/libxfs/xfs_btree.c
+@@ -2895,7 +2895,7 @@ struct xfs_btree_split_args {
+ 	 * in any way.
+ 	 */
+ 	if (args->kswapd)
+-		new_pflags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
++		new_pflags |= PF_MEMALLOC | PF_SWAPWRITE;
  
--static inline unsigned long zone_numa_state(struct zone *zone,
-+static inline unsigned long zone_numa_state_snapshot(struct zone *zone,
- 					enum numa_stat_item item)
- {
- 	long x = atomic_long_read(&zone->vm_numa_stat[item]);
-+	int cpu;
-+
-+	for_each_online_cpu(cpu)
-+		x += per_cpu_ptr(zone->pageset, cpu)->vm_numa_stat_diff[item];
+ 	current_set_flags_nested(&pflags, new_pflags);
  
- 	return x;
- }
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index b015f39..abeab81 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -895,6 +895,10 @@ unsigned long sum_zone_node_page_state(int node,
- 	return count;
- }
- 
-+/*
-+ * Determine the per node value of a numa stat item. To avoid deviation,
-+ * the per cpu stat number in vm_numa_stat_diff[] is also included.
-+ */
- unsigned long sum_zone_numa_state(int node,
- 				 enum numa_stat_item item)
- {
-@@ -903,7 +907,7 @@ unsigned long sum_zone_numa_state(int node,
- 	unsigned long count = 0;
- 
- 	for (i = 0; i < MAX_NR_ZONES; i++)
--		count += zone_numa_state(zones + i, item);
-+		count += zone_numa_state_snapshot(zones + i, item);
- 
- 	return count;
- }
-@@ -1534,7 +1538,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
- 	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
- 		seq_printf(m, "\n      %-12s %lu",
- 				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
--				zone_numa_state(zone, i));
-+				zone_numa_state_snapshot(zone, i));
- #endif
- 
- 	seq_printf(m, "\n  pagesets");
-@@ -1790,6 +1794,7 @@ static bool need_update(int cpu)
- #ifdef CONFIG_NUMA
- 		BUILD_BUG_ON(sizeof(p->vm_numa_stat_diff[0]) != 2);
- #endif
-+
- 		/*
- 		 * The fast way of checking if there are any vmstat diffs.
- 		 * This works because the diffs are byte sized items.
 -- 
-2.7.4
+1.8.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
