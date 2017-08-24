@@ -1,320 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 39A97440882
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 16:48:51 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id k126so3075958qkb.3
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 13:48:51 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id o14si4557046qta.501.2017.08.24.13.48.49
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Aug 2017 13:48:50 -0700 (PDT)
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: [RFC PATCH v2 7/7] mm: parallelize deferred struct page initialization within each node
-Date: Thu, 24 Aug 2017 16:50:04 -0400
-Message-Id: <20170824205004.18502-8-daniel.m.jordan@oracle.com>
-In-Reply-To: <20170824205004.18502-1-daniel.m.jordan@oracle.com>
-References: <20170824205004.18502-1-daniel.m.jordan@oracle.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CE148440882
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 18:16:04 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id t193so2802322pgc.4
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 15:16:04 -0700 (PDT)
+Received: from ipmail01.adl2.internode.on.net (ipmail01.adl2.internode.on.net. [150.101.137.133])
+        by mx.google.com with ESMTP id 33si3707393plg.445.2017.08.24.15.16.02
+        for <linux-mm@kvack.org>;
+        Thu, 24 Aug 2017 15:16:03 -0700 (PDT)
+Date: Fri, 25 Aug 2017 08:15:59 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 1/2] mm: use sc->priority for slab shrink targets
+Message-ID: <20170824221559.GF21024@dastard>
+References: <1503430539-2878-1-git-send-email-jbacik@fb.com>
+ <a6a68b0b-4138-2563-fa53-ad8406dc6e34@virtuozzo.com>
+ <20170824144924.w3inhdnmgfscso7l@destiny>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170824144924.w3inhdnmgfscso7l@destiny>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: aaron.lu@intel.com, akpm@linux-foundation.org, dave.hansen@linux.intel.com, mgorman@techsingularity.net, mhocko@kernel.org, mike.kravetz@oracle.com, pasha.tatashin@oracle.com, steven.sistare@oracle.com, tim.c.chen@intel.com
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, minchan@kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, kernel-team@fb.com, Josef Bacik <jbacik@fb.com>
 
-Deferred struct page initialization currently uses one thread per node
-(pgdatinit threads), but this can still be a bottleneck during boot on
-big machines.  To reduce boot time, use ktask within each pgdatinit
-thread to parallelize the struct page initialization on each node,
-allowing the system to use more memory bandwidth.
+On Thu, Aug 24, 2017 at 10:49:25AM -0400, Josef Bacik wrote:
+> On Thu, Aug 24, 2017 at 05:29:59PM +0300, Andrey Ryabinin wrote:
+> > 
+> > 
+> > On 08/22/2017 10:35 PM, josef@toxicpanda.com wrote:
+> > > --- a/mm/vmscan.c
+> > > +++ b/mm/vmscan.c
+> > > @@ -306,9 +306,7 @@ EXPORT_SYMBOL(unregister_shrinker);
+> > >  #define SHRINK_BATCH 128
+> > >  
+> > >  static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+> > > -				    struct shrinker *shrinker,
+> > > -				    unsigned long nr_scanned,
+> > > -				    unsigned long nr_eligible)
+> > > +				    struct shrinker *shrinker, int priority)
+> > >  {
+> > >  	unsigned long freed = 0;
+> > >  	unsigned long long delta;
+> > > @@ -333,9 +331,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+> > >  	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
+> > >  
+> > >  	total_scan = nr;
+> > > -	delta = (4 * nr_scanned) / shrinker->seeks;
+> > > -	delta *= freeable;
+> > > -	do_div(delta, nr_eligible + 1);
+> > > +	delta = freeable >> priority;
+> > > +	delta = (4 * freeable) / shrinker->seeks;
+> > 
+> > Something is wrong. The first line does nothing.
+> > 
+> 
+> Lol jesus, nice catch, I'll fix this up.  Thanks,
 
-The number of cpus used depends on a few factors, including the size of
-the memory on that node (see the Documentation commit earlier in the
-series for more information), but in this special case, since cpus are
-not being used for much else at this phase of boot, we raise ktask's cap
-on the maximum number of cpus to the number of cpus on the node.  Up to
-this many cpus participate in initializing struct pages per node.
+Josef, this bug has been in every patch you've sent. What does
+fixing it do to the behaviour of the algorithm now? It's going to
+change it, for sure, so can you run all your behavioural
+characterisation tests and let us know what the difference between
+the broken and fixed patches are?
 
-Machine: Intel(R) Xeon(R) CPU E7-8895 v3 @ 2.60GHz, 288 cpus, 1T memory
-Test:    Boot the machine with deferred struct page initialization
+Cheers,
 
-kernel                   speedup   min time per   stdev
-                                   node (ms)
-
-baseline (4.13-rc5)                         483     0.5
-ktask (4.13-rc5 based)     3.66x            132     1.5
-
-Machine: SPARC M6 30-node LDom, 256 cpus, 30T memory
-Test:    Boot the machine with deferred struct page initialization
-
-kernel                   speedup   min time per   stdev
-                                   node (ms)
-
-baseline (4.13-rc5)                        9566     1.4
-ktask (4.13-rc5 based)     1.55x           6172    19.5
-
-[There is a patch series under review upstream to defer the zeroing of
-struct pages to pgdatinit threads:
-    complete deferred page initialization
-    http://www.spinics.net/lists/linux-mm/msg132805.html
-We get bigger speedups and save more boot time when incorporating this
-pending series because there is more work to parallelize.]
-
-Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-Suggested-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Aaron Lu <aaron.lu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Steve Sistare <steven.sistare@oracle.com>
-Cc: Tim Chen <tim.c.chen@intel.com>
----
- mm/page_alloc.c | 174 ++++++++++++++++++++++++++++++++++----------------------
- 1 file changed, 107 insertions(+), 67 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1bad301820c7..6850f58fa720 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -66,6 +66,7 @@
- #include <linux/kthread.h>
- #include <linux/memcontrol.h>
- #include <linux/ftrace.h>
-+#include <linux/ktask.h>
- 
- #include <asm/sections.h>
- #include <asm/tlbflush.h>
-@@ -1268,8 +1269,6 @@ static void __init __free_pages_boot_core(struct page *page, unsigned int order)
- 	}
- 	__ClearPageReserved(p);
- 	set_page_count(p, 0);
--
--	page_zone(page)->managed_pages += nr_pages;
- 	set_page_refcounted(page);
- 	__free_pages(page, order);
- }
-@@ -1333,7 +1332,8 @@ void __init __free_pages_bootmem(struct page *page, unsigned long pfn,
- {
- 	if (early_page_uninitialised(pfn))
- 		return;
--	return __free_pages_boot_core(page, order);
-+	__free_pages_boot_core(page, order);
-+	page_zone(page)->managed_pages += (1ul << order);
- }
- 
- /*
-@@ -1441,12 +1441,99 @@ static inline void __init pgdat_init_report_one_done(void)
- 		complete(&pgdat_init_all_done_comp);
- }
- 
-+struct deferred_init_args {
-+	int nid;
-+	int zid;
-+	struct zone *zone;
-+	atomic64_t nr_pages;
-+};
-+
-+int __init deferred_init_memmap_chunk(unsigned long start_pfn,
-+				      unsigned long end_pfn,
-+				      struct deferred_init_args *args)
-+{
-+	unsigned long pfn;
-+	int nid = args->nid;
-+	int zid = args->zid;
-+	struct zone *zone = args->zone;
-+	struct page *page = NULL;
-+	struct page *free_base_page = NULL;
-+	unsigned long free_base_pfn = 0;
-+	unsigned long nr_pages = 0;
-+	int nr_to_free = 0;
-+	struct mminit_pfnnid_cache nid_init_state = { };
-+
-+	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-+		if (!pfn_valid_within(pfn))
-+			goto free_range;
-+
-+		/*
-+		 * Ensure pfn_valid is checked every
-+		 * pageblock_nr_pages for memory holes
-+		 */
-+		if ((pfn & (pageblock_nr_pages - 1)) == 0) {
-+			if (!pfn_valid(pfn)) {
-+				page = NULL;
-+				goto free_range;
-+			}
-+		}
-+
-+		if (!meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
-+			page = NULL;
-+			goto free_range;
-+		}
-+
-+		/* Minimise pfn page lookups and scheduler checks */
-+		if (page && (pfn & (pageblock_nr_pages - 1)) != 0) {
-+			page++;
-+		} else {
-+			nr_pages += nr_to_free;
-+			deferred_free_range(free_base_page,
-+					free_base_pfn, nr_to_free);
-+			free_base_page = NULL;
-+			free_base_pfn = nr_to_free = 0;
-+
-+			page = pfn_to_page(pfn);
-+			cond_resched();
-+		}
-+
-+		if (page->flags) {
-+			VM_BUG_ON(page_zone(page) != zone);
-+			goto free_range;
-+		}
-+
-+		__init_single_page(page, pfn, zid, nid);
-+		if (!free_base_page) {
-+			free_base_page = page;
-+			free_base_pfn = pfn;
-+			nr_to_free = 0;
-+		}
-+		nr_to_free++;
-+
-+		/* Where possible, batch up pages for a single free */
-+		continue;
-+free_range:
-+		/* Free the current block of pages to allocator */
-+		nr_pages += nr_to_free;
-+		deferred_free_range(free_base_page, free_base_pfn,
-+							nr_to_free);
-+		free_base_page = NULL;
-+		free_base_pfn = nr_to_free = 0;
-+	}
-+	/* Free the last block of pages to allocator */
-+	nr_pages += nr_to_free;
-+	deferred_free_range(free_base_page, free_base_pfn, nr_to_free);
-+
-+	atomic64_add(nr_pages, &args->nr_pages);
-+
-+	return KTASK_RETURN_SUCCESS;
-+}
-+
- /* Initialise remaining memory on a node */
- static int __init deferred_init_memmap(void *data)
- {
- 	pg_data_t *pgdat = data;
- 	int nid = pgdat->node_id;
--	struct mminit_pfnnid_cache nid_init_state = { };
- 	unsigned long start = jiffies;
- 	unsigned long nr_pages = 0;
- 	unsigned long walk_start, walk_end;
-@@ -1454,6 +1541,7 @@ static int __init deferred_init_memmap(void *data)
- 	struct zone *zone;
- 	unsigned long first_init_pfn = pgdat->first_deferred_pfn;
- 	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
-+	unsigned long nr_node_cpus = cpumask_weight(cpumask);
- 
- 	if (first_init_pfn == ULONG_MAX) {
- 		pgdat_init_report_one_done();
-@@ -1478,10 +1566,12 @@ static int __init deferred_init_memmap(void *data)
- 
- 	for_each_mem_pfn_range(i, nid, &walk_start, &walk_end, NULL) {
- 		unsigned long pfn, end_pfn;
--		struct page *page = NULL;
--		struct page *free_base_page = NULL;
--		unsigned long free_base_pfn = 0;
--		int nr_to_free = 0;
-+		struct ktask_node kn;
-+		struct deferred_init_args args = { nid, zid, zone,
-+						   ATOMIC64_INIT(0) };
-+		DEFINE_KTASK_CTL_RANGE(ctl, deferred_init_memmap_chunk, &args,
-+				       KTASK_BPGS_MINCHUNK, nr_node_cpus,
-+				       GFP_KERNEL);
- 
- 		end_pfn = min(walk_end, zone_end_pfn(zone));
- 		pfn = first_init_pfn;
-@@ -1490,73 +1580,23 @@ static int __init deferred_init_memmap(void *data)
- 		if (pfn < zone->zone_start_pfn)
- 			pfn = zone->zone_start_pfn;
- 
--		for (; pfn < end_pfn; pfn++) {
--			if (!pfn_valid_within(pfn))
--				goto free_range;
--
--			/*
--			 * Ensure pfn_valid is checked every
--			 * pageblock_nr_pages for memory holes
--			 */
--			if ((pfn & (pageblock_nr_pages - 1)) == 0) {
--				if (!pfn_valid(pfn)) {
--					page = NULL;
--					goto free_range;
--				}
--			}
--
--			if (!meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
--				page = NULL;
--				goto free_range;
--			}
--
--			/* Minimise pfn page lookups and scheduler checks */
--			if (page && (pfn & (pageblock_nr_pages - 1)) != 0) {
--				page++;
--			} else {
--				nr_pages += nr_to_free;
--				deferred_free_range(free_base_page,
--						free_base_pfn, nr_to_free);
--				free_base_page = NULL;
--				free_base_pfn = nr_to_free = 0;
--
--				page = pfn_to_page(pfn);
--				cond_resched();
--			}
--
--			if (page->flags) {
--				VM_BUG_ON(page_zone(page) != zone);
--				goto free_range;
--			}
--
--			__init_single_page(page, pfn, zid, nid);
--			if (!free_base_page) {
--				free_base_page = page;
--				free_base_pfn = pfn;
--				nr_to_free = 0;
--			}
--			nr_to_free++;
--
--			/* Where possible, batch up pages for a single free */
-+		if (pfn >= end_pfn)
- 			continue;
--free_range:
--			/* Free the current block of pages to allocator */
--			nr_pages += nr_to_free;
--			deferred_free_range(free_base_page, free_base_pfn,
--								nr_to_free);
--			free_base_page = NULL;
--			free_base_pfn = nr_to_free = 0;
--		}
--		/* Free the last block of pages to allocator */
--		nr_pages += nr_to_free;
--		deferred_free_range(free_base_page, free_base_pfn, nr_to_free);
-+
-+		kn.kn_start	= (void *)pfn;
-+		kn.kn_task_size	= end_pfn - pfn;
-+		kn.kn_nid	= nid;
-+		(void) ktask_run_numa(&kn, 1, &ctl);
- 
- 		first_init_pfn = max(end_pfn, first_init_pfn);
-+		nr_pages += atomic64_read(&args.nr_pages);
- 	}
- 
- 	/* Sanity check that the next zone really is unpopulated */
- 	WARN_ON(++zid < MAX_NR_ZONES && populated_zone(++zone));
- 
-+	zone->managed_pages += nr_pages;
-+
- 	pr_info("node %d initialised, %lu pages in %ums\n", nid, nr_pages,
- 					jiffies_to_msecs(jiffies - start));
- 
+Dave.
 -- 
-2.12.2
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
