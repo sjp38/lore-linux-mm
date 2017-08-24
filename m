@@ -1,92 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9669F440846
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 08:47:56 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id y72so741218wrc.0
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 05:47:56 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f66si1558681wmd.163.2017.08.24.05.47.55
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 44810440846
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 08:52:03 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 123so624997wml.8
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 05:52:03 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id 53si3399805wrc.182.2017.08.24.05.52.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 24 Aug 2017 05:47:55 -0700 (PDT)
-Subject: Re: [RESEND PATCH 0/3] mm: Add cache coloring mechanism
-References: <20170823100205.17311-1-lukasz.daniluk@intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <f95eacd5-0a91-24a0-7722-b63f3c196552@suse.cz>
-Date: Thu, 24 Aug 2017 14:47:53 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Aug 2017 05:52:02 -0700 (PDT)
+Date: Thu, 24 Aug 2017 13:51:13 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v6 3/4] mm, oom: introduce oom_priority for memory cgroups
+Message-ID: <20170824125113.GB15916@castle.DHCP.thefacebook.com>
+References: <20170823165201.24086-1-guro@fb.com>
+ <20170823165201.24086-4-guro@fb.com>
+ <20170824121054.GI5943@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170823100205.17311-1-lukasz.daniluk@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20170824121054.GI5943@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?=c5=81ukasz_Daniluk?= <lukasz.daniluk@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: dave.hansen@intel.com, lukasz.anaczkowski@intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 08/23/2017 12:02 PM, A?ukasz Daniluk wrote:
-> Patches resend with Linux Kernel Mailing List added correctly this time.
+On Thu, Aug 24, 2017 at 02:10:54PM +0200, Michal Hocko wrote:
+> On Wed 23-08-17 17:52:00, Roman Gushchin wrote:
+> > Introduce a per-memory-cgroup oom_priority setting: an integer number
+> > within the [-10000, 10000] range, which defines the order in which
+> > the OOM killer selects victim memory cgroups.
 > 
-> This patch series adds cache coloring mechanism that works along buddy
-> allocator. The solution is opt-in, disabled by default minimally
-> interferes with default allocation paths due to added if statements.
-> 
-> Why would such patches be needed? Big caches with low associativity
-> (direct mapped caches, 2-way associative) will benefit from the solution
-> the most - it allows for near constant performance through the lifetime
-> of a system, despite the allocations and deallocations happening and
-> reordering buddy lists.
+> Why do we need a range here?
 
-So the obvious question, what about THPs? Their size should be enough to
-contain all the colors with current caches, no? Even on KNL I didn't
-find more than "32x 1 MB 16-way L2 caches". This is in addition to the
-improved TLB performance, which you want to get as well for such workloads?
+No specific reason, both [INT_MIN, INT_MAX] and [-10000, 10000] will
+work equally. We should be able to predefine an OOM killing order for
+any reasonable amount of cgroups.
 
-> On KNL system, the STREAM benchmark with problem size resulting in its
-> internal arrays being of 16GB size will yield bandwidth performance of
-> 336GB/s after fresh boot. With cache coloring patches applied and
-> enabled, this performance stays near constant (most 1.5% drop observed),
-> despite running benchmark multiple times with varying sizes over course
-> of days.  Without these patches however, the bandwidth when using such
-> allocations drops to 117GB/s - over 65% of irrecoverable performance
-> penalty. Workloads that exceed set cache size suffer from decreased
-> randomization of allocations with cache coloring enabled, but effect of
-> cache usage disappears roughly at the same allocation size.
+> 
+> > OOM killer prefers memory cgroups with larger priority if they are
+> > populated with eligible tasks.
+> 
+> So this is basically orthogonal to the score based selection and the
+> real size is only the tiebreaker for same priorities? Could you describe
+> the usecase? Becasuse to me this sounds like a separate oom killer
+> strategy. I can imagine somebody might be interested (e.g. always kill
+> the oldest memcgs...) but an explicit range wouldn't fly with such a
+> usecase very well.
 
-So was the test with THP's enabled or disabled? And what was the cache
-configuration and the values of cache_color_size and
-cache_color_min_order parameters?
+The usecase: you have a machine with several containerized workloads
+of different importance, and some system-level stuff, also in (memory)
+cgroups.
+In case of global memory shortage, some workloads should be killed in
+a first order, others should be killed only if there is no other option.
+Several workloads can have equal importance. Size-based tiebreaking
+is very useful to catch memory leakers amongst them.
 
-I'm also confused about the "cache_color_min_order=" parameter. If this
-wants to benefit non-THP userspace, then you would need to set it to 0,
-right? Or does this mean that indeed you expect THP to not contain all
-the colors, so you'd set it to the THP order (9)?
+> 
+> That brings me back to my original suggestion. Wouldn't a "register an
+> oom strategy" approach much better than blending things together and
+> then have to wrap heads around different combinations of tunables?
 
-> Solution is divided into three patches. First patch is a preparatory one
-> that provides interface for retrieving (information about) free lists
-> contained by particular free_area structure.  Second one (parallel
-> structure keeping separate list_heads for each cache color in a given
-> context) shows general solution overview and is working as it is.
-> However, it has serious performance implications with bigger caches due
-> to linear search for next color to be used during allocations. Third
-> patch (sorting list_heads using RB trees) aims to improve solution's
-> performance by replacing linear search for next color with searching in
-> RB tree. While improving computational performance, it imposes increased
-> memory cost of the solution.
+Well, I believe that 90% of this patchset is still relevant; the only
+thing you might want to customize/replace size-based tiebreaking with
+something else (like timestamp-based tiebreaking, mentioned by David earlier).
+
+What about tunables, there are two, and they are completely orthogonal:
+1) oom_priority allows to define an order, in which cgroups will be OOMed
+2) oom_kill_all defines if all or just one task should be killed
+
+So, I don't think it's a too complex interface.
+
+Again, I'm not against oom strategy approach, it just looks as a much bigger
+project, and I do not see a big need.
+
+Do you have an example, which can't be effectively handled by an approach
+I'm suggesting?
+
 > 
+> [...]
+> > @@ -2760,7 +2761,12 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+> >  			if (iter->oom_score == 0)
+> >  				continue;
+> >  
+> > -			if (iter->oom_score > score) {
+> > +			if (iter->oom_priority > prio) {
+> > +				memcg = iter;
+> > +				prio = iter->oom_priority;
+> > +				score = iter->oom_score;
+> > +			} else if (iter->oom_priority == prio &&
+> > +				   iter->oom_score > score) {
+> >  				memcg = iter;
+> >  				score = iter->oom_score;
+> >  			}
 > 
-> A?ukasz Daniluk (3):
->   mm: move free_list selection to dedicated functions
->   mm: Add page colored allocation path
->   mm: Add helper rbtree to search for next cache color
-> 
->  Documentation/admin-guide/kernel-parameters.txt |   8 +
->  include/linux/mmzone.h                          |  12 +-
->  mm/compaction.c                                 |   4 +-
->  mm/page_alloc.c                                 | 381 ++++++++++++++++++++++--
->  mm/vmstat.c                                     |  10 +-
->  5 files changed, 383 insertions(+), 32 deletions(-)
-> 
+> Just a minor thing. Why do we even have to calculate oom_score when we
+> use it only as a tiebreaker?
+
+Right now it's necessary, because at the same time we do look for
+per-existing OOM victims. But if we can have a memcg-level counter for it,
+this can be optimized.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
