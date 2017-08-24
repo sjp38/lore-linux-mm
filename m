@@ -1,139 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 425CB440846
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 08:41:44 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id y64so588592wmd.6
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 05:41:44 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9669F440846
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 08:47:56 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id y72so741218wrc.0
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 05:47:56 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d125si1556819wmf.44.2017.08.24.05.41.41
+        by mx.google.com with ESMTPS id f66si1558681wmd.163.2017.08.24.05.47.55
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 24 Aug 2017 05:41:42 -0700 (PDT)
-Date: Thu, 24 Aug 2017 14:41:39 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [Bug 196729] New: System becomes unresponsive when swapping -
- Regression since 4.10.x
-Message-ID: <20170824124139.GJ5943@dhcp22.suse.cz>
-References: <bug-196729-27@https.bugzilla.kernel.org/>
- <20170822155530.928b377fa636bbea28e1d4df@linux-foundation.org>
- <20170823133848.GA2652@dhcp22.suse.cz>
- <3069262.adKtTK0b29@wopr.lan.crc.id.au>
+        Thu, 24 Aug 2017 05:47:55 -0700 (PDT)
+Subject: Re: [RESEND PATCH 0/3] mm: Add cache coloring mechanism
+References: <20170823100205.17311-1-lukasz.daniluk@intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <f95eacd5-0a91-24a0-7722-b63f3c196552@suse.cz>
+Date: Thu, 24 Aug 2017 14:47:53 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3069262.adKtTK0b29@wopr.lan.crc.id.au>
+In-Reply-To: <20170823100205.17311-1-lukasz.daniluk@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Haigh <netwiz@crc.id.au>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org
+To: =?UTF-8?Q?=c5=81ukasz_Daniluk?= <lukasz.daniluk@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: dave.hansen@intel.com, lukasz.anaczkowski@intel.com
 
-On Thu 24-08-17 00:30:40, Steven Haigh wrote:
-> On Wednesday, 23 August 2017 11:38:48 PM AEST Michal Hocko wrote:
-> > On Tue 22-08-17 15:55:30, Andrew Morton wrote:
-> > > (switched to email.  Please respond via emailed reply-to-all, not via the
-> > > bugzilla web interface).
-> > 
-> > > On Tue, 22 Aug 2017 11:17:08 +0000 bugzilla-daemon@bugzilla.kernel.org 
-> wrote:
-> > [...]
-> > 
-> > > Sadly I haven't been able to capture this information
-> > > 
-> > > > fully yet due to said unresponsiveness.
-> > 
-> > Please try to collect /proc/vmstat in the bacground and provide the
-> > collected data. Something like
-> > 
-> > while true
-> > do
-> > 	cp /proc/vmstat > vmstat.$(date +%s)
-> > 	sleep 1s
-> > done
-> > 
-> > If the system turns out so busy that it won't be able to fork a process
-> > or write the output (which you will see by checking timestamps of files
-> > and looking for holes) then you can try the attached proggy
-> > ./read_vmstat output_file timeout output_size
-> > 
-> > Note you might need to increase the mlock rlimit to lock everything into
-> > memory.
+On 08/23/2017 12:02 PM, A?ukasz Daniluk wrote:
+> Patches resend with Linux Kernel Mailing List added correctly this time.
 > 
-> Thanks Michal,
+> This patch series adds cache coloring mechanism that works along buddy
+> allocator. The solution is opt-in, disabled by default minimally
+> interferes with default allocation paths due to added if statements.
 > 
-> I have upgraded PCs since I initially put together this data - however I was 
-> able to get strange behaviour by pulling out an 8Gb RAM stick in my new system 
-> - leaving it with only 8Gb of RAM.
+> Why would such patches be needed? Big caches with low associativity
+> (direct mapped caches, 2-way associative) will benefit from the solution
+> the most - it allows for near constant performance through the lifetime
+> of a system, despite the allocations and deallocations happening and
+> reordering buddy lists.
+
+So the obvious question, what about THPs? Their size should be enough to
+contain all the colors with current caches, no? Even on KNL I didn't
+find more than "32x 1 MB 16-way L2 caches". This is in addition to the
+improved TLB performance, which you want to get as well for such workloads?
+
+> On KNL system, the STREAM benchmark with problem size resulting in its
+> internal arrays being of 16GB size will yield bandwidth performance of
+> 336GB/s after fresh boot. With cache coloring patches applied and
+> enabled, this performance stays near constant (most 1.5% drop observed),
+> despite running benchmark multiple times with varying sizes over course
+> of days.  Without these patches however, the bandwidth when using such
+> allocations drops to 117GB/s - over 65% of irrecoverable performance
+> penalty. Workloads that exceed set cache size suffer from decreased
+> randomization of allocations with cache coloring enabled, but effect of
+> cache usage disappears roughly at the same allocation size.
+
+So was the test with THP's enabled or disabled? And what was the cache
+configuration and the values of cache_color_size and
+cache_color_min_order parameters?
+
+I'm also confused about the "cache_color_min_order=" parameter. If this
+wants to benefit non-THP userspace, then you would need to set it to 0,
+right? Or does this mean that indeed you expect THP to not contain all
+the colors, so you'd set it to the THP order (9)?
+
+> Solution is divided into three patches. First patch is a preparatory one
+> that provides interface for retrieving (information about) free lists
+> contained by particular free_area structure.  Second one (parallel
+> structure keeping separate list_heads for each cache color in a given
+> context) shows general solution overview and is working as it is.
+> However, it has serious performance implications with bigger caches due
+> to linear search for next color to be used during allocations. Third
+> patch (sorting list_heads using RB trees) aims to improve solution's
+> performance by replacing linear search for next color with searching in
+> RB tree. While improving computational performance, it imposes increased
+> memory cost of the solution.
 > 
-> All these tests are performed with Fedora 26 and kernel 4.12.8-300.fc26.x86_64
 > 
-> I have attached 3 files with output.
+> A?ukasz Daniluk (3):
+>   mm: move free_list selection to dedicated functions
+>   mm: Add page colored allocation path
+>   mm: Add helper rbtree to search for next cache color
 > 
-> 8Gb-noswap.tar.gz contains the output of /proc/vmstat running on 8Gb of RAM 
-> with no swap. Under this scenario, I was expecting the OOM reaper to just kill 
-> the game when memory allocated became too high for the amount of physical RAM. 
-> Interestingly, you'll notice a massive hang in the output before the game is 
-> terminated. I didn't see this before.
-
-I have checked few gaps. E.g. vmstat.1503496391 vmstat.1503496451 which
-is one minute. The most notable thing is that there are only very few
-pagecache pages
-			[base]		[diff]
-nr_active_file  	1641    	3345
-nr_inactive_file        1630    	4787
-
-So there is not much to reclaim without swap. The more important thing
-is that we keep reclaiming and refaulting that memory
-
-workingset_activate     5905591 	1616391
-workingset_refault      33412538        10302135
-pgactivate      	42279686        13219593
-pgdeactivate    	48175757        14833350
-
-pgscan_kswapd   	379431778       126407849
-pgsteal_kswapd  	49751559        13322930
-
-so we are effectivelly trashing over the very small amount of
-reclaimable memory. This is something that we cannot detect right now.
-It is even questionable whether the OOM killer would be an appropriate
-action. Your system has recovered and then it is always hard to decide
-whether a disruptive action is more appropriate. One minute of
-unresponsiveness is certainly annoying though. Your system is obviously
-under provisioned to load you want to run obviously.
-
-It is quite interesting to see that we do not really have too many
-direct reclaimers during this time period
-allocstall_normal       30      	1
-allocstall_movable      490     	88
-pgscan_direct_throttle  0       	0
-pgsteal_direct  	24434   	4069
-pgscan_direct   	38678   	5868
- 
-> 8Gb-swap-on-file.tar.gz contains the output of /proc/vmstat still with 8Gb of 
-> RAM - but creating a file with swap on the PCIe SSD /swapfile with size 8Gb 
-> via:
-> 	# dd if=/dev/zero of=/swapfile bs=1G count=8
-> 	# mkswap /swapfile
-> 	# swapon /swapfile
+>  Documentation/admin-guide/kernel-parameters.txt |   8 +
+>  include/linux/mmzone.h                          |  12 +-
+>  mm/compaction.c                                 |   4 +-
+>  mm/page_alloc.c                                 | 381 ++++++++++++++++++++++--
+>  mm/vmstat.c                                     |  10 +-
+>  5 files changed, 383 insertions(+), 32 deletions(-)
 > 
-> Some times (all in UTC+10):
-> 23:58:30 - Start loading the saved game
-> 23:59:38 - Load ok, all running fine
-> 00:00:15 - Load Chrome
-> 00:01:00 - Quit the game
-> 
-> The game seemed to run ok with no real issue - and a lot was swapped to the 
-> swap file. I'm wondering if it was purely the speed of the PCIe SSD that 
-> caused this appearance - as the creation of the file with dd completed at 
-> ~1.4GB/sec.
-
-Swap IO tends to be really scattered and the IO performance is not really
-great even on a fast storage AFAIK.
- 
-Anyway your original report sounded like a regression. Were you able to
-run the _same_ workload on an older kernel without these issues?
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
