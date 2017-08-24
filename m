@@ -1,158 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A6E42803B4
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 00:33:00 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id t193so28556095pgc.0
-        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 21:33:00 -0700 (PDT)
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id m1si2291050pld.69.2017.08.23.21.32.55
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F2C82803BC
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 01:12:04 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id y15so29580999pgc.3
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 22:12:04 -0700 (PDT)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id x10si2179973pfd.250.2017.08.23.22.12.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Aug 2017 21:32:56 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [RFC PATCH 1/4] mm: madvise: read loop's step size beforehand
- in madvise_inject_error(), prepare for THP support.
-Date: Thu, 24 Aug 2017 04:26:10 +0000
-Message-ID: <20170824042608.GA30150@hori1.linux.bs1.fc.nec.co.jp>
-References: <20170815015216.31827-1-zi.yan@sent.com>
- <20170815015216.31827-2-zi.yan@sent.com>
- <20170823074933.GA3527@hori1.linux.bs1.fc.nec.co.jp>
- <41F3B393-6FDA-4CF9-A790-A1B4B4FDFA58@sent.com>
-In-Reply-To: <41F3B393-6FDA-4CF9-A790-A1B4B4FDFA58@sent.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <69C161DC7DF5E545A5EF9DD66C313892@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Wed, 23 Aug 2017 22:12:03 -0700 (PDT)
+Received: by mail-pg0-x243.google.com with SMTP id m7so2293050pga.3
+        for <linux-mm@kvack.org>; Wed, 23 Aug 2017 22:12:03 -0700 (PDT)
+Date: Thu, 24 Aug 2017 14:11:53 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/2] mm: Track actual nr_scanned during shrink_slab()
+Message-ID: <20170824051153.GB13922@bgram>
+References: <20170815153010.e3cfc177af0b2c0dc421b84c@linux-foundation.org>
+ <20170822135325.9191-1-chris@chris-wilson.co.uk>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170822135325.9191-1-chris@chris-wilson.co.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: linux-mm@kvack.org, intel-gfx@lists.freedesktop.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Shaohua Li <shli@fb.com>
 
-On Wed, Aug 23, 2017 at 10:20:02AM -0400, Zi Yan wrote:
-> On 23 Aug 2017, at 3:49, Naoya Horiguchi wrote:
->=20
-> > On Mon, Aug 14, 2017 at 09:52:13PM -0400, Zi Yan wrote:
-> >> From: Zi Yan <zi.yan@cs.rutgers.edu>
-> >>
-> >> The loop in madvise_inject_error() reads its step size from a page
-> >> after it is soft-offlined. It works because the page is:
-> >> 1) a hugetlb page: the page size does not change;
-> >> 2) a base page: the page size does not change;
-> >> 3) a THP: soft-offline always splits THPs, thus, it is OK to use
-> >>    PAGE_SIZE as step size.
-> >>
-> >> It will be a problem when soft-offline supports THP migrations.
-> >> When a THP is migrated without split during soft-offlining, the THP
-> >> is split after migration, thus, before and after soft-offlining page
-> >> sizes do not match. This causes a THP to be unnecessarily soft-lined,
-> >> at most, 511 times, wasting free space.
-> >
-> > Hi Zi Yan,
-> >
-> > Thank you for the suggestion.
-> >
-> > I think that when madvise(MADV_SOFT_OFFLINE) is called with some range
-> > over more than one 4kB page, the caller clearly intends to call
-> > soft_offline_page() over all 4kB pages within the range in order to
-> > simulate the multiple soft-offline events. Please note that the caller
-> > only knows that specific pages are half-broken, and expect that all suc=
-h
-> > pages are offlined. So the end result should be same, whether the given
-> > range is backed by thp or not.
-> >
->=20
-> But if the given virtual address is backed by a THP and the THP is soft-o=
-fflined
-> without splitting (enabled by following patches), the old for-loop will c=
-ause extra
-> 511 THPs being soft-offlined.
->=20
-> For example, the caller wants to offline VPN 0-511, which is backed by a =
-THP whose
-> address range is PFN 0-511. In the first iteration of the for-loop,
-> get_user_pages_fast(VPN0, ...) will return the THP and soft_offline_page(=
-) will offline the THP,
-> replacing it with a new THP, say PFN 512-1023, so VPN 0-511 is backed by =
-PFN 512-1023.
-> But the original THP will be split after it is freed, thus, for-loop will=
- not end
-> at this moment, but continues to offline VPN1, which leads to PFN 512-102=
-3 being offlined
-> and replaced by another THP, say 1024-1535. This will go on and end up wi=
-th
-> 511 extra THPs are offlined. That is why we need to this patch to tell
-> whether the THP is offlined as a whole or just its head page is offlined.
+Hello Chris,
 
-Thanks for elaborating this. I understand your point.
-But I still not sure what the best behavior is.
+On Tue, Aug 22, 2017 at 02:53:24PM +0100, Chris Wilson wrote:
+> Some shrinkers may only be able to free a bunch of objects at a time, and
+> so free more than the requested nr_to_scan in one pass. Whilst other
+> shrinkers may find themselves even unable to scan as many objects as
+> they counted, and so underreport. Account for the extra freed/scanned
+> objects against the total number of objects we intend to scan, otherwise
+> we may end up penalising the slab far more than intended. Similarly,
+> we want to add the underperforming scan to the deferred pass so that we
+> try harder and harder in future passes.
+> 
+> v2: Andrew's shrinkctl->nr_scanned
+> 
+> Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Shaohua Li <shli@fb.com>
+> Cc: linux-mm@kvack.org
+> ---
+>  include/linux/shrinker.h | 7 +++++++
+>  mm/vmscan.c              | 7 ++++---
+>  2 files changed, 11 insertions(+), 3 deletions(-)
+> 
+> diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+> index 4fcacd915d45..51d189615bda 100644
+> --- a/include/linux/shrinker.h
+> +++ b/include/linux/shrinker.h
+> @@ -18,6 +18,13 @@ struct shrink_control {
+>  	 */
+>  	unsigned long nr_to_scan;
+>  
+> +	/*
+> +	 * How many objects did scan_objects process?
+> +	 * This defaults to nr_to_scan before every call, but the callee
+> +	 * should track its actual progress.
 
-madvise(MADV_SOFT_OFFLINE) is a test feature and giving multi-page range
-on the call works like some stress testing. So multiple thp migrations
-seem to me an expected behavior. At least it behaves in the same manner
-as calling madvise(MADV_SOFT_OFFLINE) 512 times on VPN0-VPN511 separately,
-which is consistent.
+So, if shrinker scans object more than requested, it shoud add up
+top nr_scanned?
 
-So I still feel like leaving the current behavior as long as your later
-patches work without this change.
+opposite case, if shrinker scans less than requested, it should reduce
+nr_scanned to the value scanned real?
 
-Thanks,
-Naoya Horiguchi
+To track the progress is burden for the shrinker users. Even if a
+shrinker has a mistake, VM will have big trouble like infinite loop.
 
->=20
-> Let me know if it is still not clear to you. Or I missed something.
->=20
-> >>
-> >> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
-> >> ---
-> >>  mm/madvise.c | 21 ++++++++++++++++++---
-> >>  1 file changed, 18 insertions(+), 3 deletions(-)
-> >>
-> >> diff --git a/mm/madvise.c b/mm/madvise.c
-> >> index 47d8d8a25eae..49f6774db259 100644
-> >> --- a/mm/madvise.c
-> >> +++ b/mm/madvise.c
-> >> @@ -612,19 +612,22 @@ static long madvise_remove(struct vm_area_struct=
- *vma,
-> >>  static int madvise_inject_error(int behavior,
-> >>  		unsigned long start, unsigned long end)
-> >>  {
-> >> -	struct page *page;
-> >> +	struct page *page =3D NULL;
-> >> +	unsigned long page_size =3D PAGE_SIZE;
-> >>
-> >>  	if (!capable(CAP_SYS_ADMIN))
-> >>  		return -EPERM;
-> >>
-> >> -	for (; start < end; start +=3D PAGE_SIZE <<
-> >> -				compound_order(compound_head(page))) {
-> >> +	for (; start < end; start +=3D page_size) {
-> >>  		int ret;
-> >>
-> >>  		ret =3D get_user_pages_fast(start, 1, 0, &page);
-> >>  		if (ret !=3D 1)
-> >>  			return ret;
-> >>
-> >> +		page_size =3D (PAGE_SIZE << compound_order(compound_head(page))) -
-> >> +			(PAGE_SIZE * (page - compound_head(page)));
-> >> +
-> >
-> > Assigning a value which is not 4kB or some hugepage size into page_size
-> > might be confusing because that's not what the name says. You can intro=
-duce
-> > 'next' virtual address and ALIGN() might be helpful to calculate it.
->=20
-> Like:
->=20
-> next =3D ALIGN(start, PAGE_SIZE<<compound_order(compound_head(page))) - s=
-tart;
->=20
-> I think it works. Thanks.
->=20
->=20
-> --
-> Best Regards
-> Yan Zi
+IMHO, we need concrete reason to do it but fail to see it at this moment.
+
+Could we just add up more freed object than requested to total_scan
+like you did in first version[1]?
+[1] lkml.kernel.org/r/<20170812113437.7397-1-chris@chris-wilson.co.uk>
+
+> +	 */
+> +	unsigned long nr_scanned;
+> +
+>  	/* current node being shrunk (for NUMA aware shrinkers) */
+>  	int nid;
+>  
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index a1af041930a6..339b8fc95fc9 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -393,14 +393,15 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+>  		unsigned long nr_to_scan = min(batch_size, total_scan);
+>  
+>  		shrinkctl->nr_to_scan = nr_to_scan;
+> +		shrinkctl->nr_scanned = nr_to_scan;
+>  		ret = shrinker->scan_objects(shrinker, shrinkctl);
+>  		if (ret == SHRINK_STOP)
+>  			break;
+>  		freed += ret;
+>  
+> -		count_vm_events(SLABS_SCANNED, nr_to_scan);
+> -		total_scan -= nr_to_scan;
+> -		scanned += nr_to_scan;
+> +		count_vm_events(SLABS_SCANNED, shrinkctl->nr_scanned);
+> +		total_scan -= shrinkctl->nr_scanned;
+> +		scanned += shrinkctl->nr_scanned;
+
+If we really want to go this way, at least, We need some defense code
+to prevent infinite loop when shrinker doesn't have object any more.
+However, I really want to go with your first version.
+
+Andrew?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
