@@ -1,426 +1,635 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DA9F96810D7
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 18:51:02 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id p14so1559817wrg.6
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 15:51:02 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id z39si132970wrz.317.2017.08.25.15.50.59
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8356D6810D7
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 18:51:19 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id 4so1783411oie.8
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 15:51:19 -0700 (PDT)
+Received: from mail-oi0-x244.google.com (mail-oi0-x244.google.com. [2607:f8b0:4003:c06::244])
+        by mx.google.com with ESMTPS id x192si6515482oif.83.2017.08.25.15.51.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Aug 2017 15:51:00 -0700 (PDT)
-Date: Fri, 25 Aug 2017 15:50:57 -0700
-From: akpm@linux-foundation.org
-Subject: mmotm 2017-08-25-15-50 uploaded
-Message-ID: <59a0a9d1.jzOblYrHfdIDuDZw%akpm@linux-foundation.org>
+        Fri, 25 Aug 2017 15:51:18 -0700 (PDT)
+Received: by mail-oi0-x244.google.com with SMTP id y193so1031351oie.5
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 15:51:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <f10f4c25-49c0-7ef5-55c2-769c8fd9bf90@linux.intel.com>
+References: <83f675ad385d67760da4b99cd95ee912ca7c0b44.1503677178.git.tim.c.chen@linux.intel.com>
+ <cd8ce7fbca9c126f7f928b8fa48d7a9197955b45.1503677178.git.tim.c.chen@linux.intel.com>
+ <CA+55aFyErsNw8bqTOCzcrarDZBdj+Ev=1N3sV-gxtLTH03bBFQ@mail.gmail.com> <f10f4c25-49c0-7ef5-55c2-769c8fd9bf90@linux.intel.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 25 Aug 2017 15:51:17 -0700
+Message-ID: <CA+55aFzNikMsuPAaExxT1Z8MfOeU6EhSn6UPDkkz-MRqamcemg@mail.gmail.com>
+Subject: Re: [PATCH 2/2 v2] sched/wait: Introduce lock breaker in wake_up_page_bit
+Content-Type: multipart/mixed; boundary="001a11c1691e72570105579bc813"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Kan Liang <kan.liang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Christopher Lameter <cl@linux.com>, "Eric W . Biederman" <ebiederm@xmission.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-The mm-of-the-moment snapshot 2017-08-25-15-50 has been uploaded to
+--001a11c1691e72570105579bc813
+Content-Type: text/plain; charset="UTF-8"
 
-   http://www.ozlabs.org/~akpm/mmotm/
+On Fri, Aug 25, 2017 at 3:19 PM, Tim Chen <tim.c.chen@linux.intel.com> wrote:
+>
+> Also I think patch 1 is still a good idea for a fail safe mechanism
+> in case there are other long wait list.
 
-mmotm-readme.txt says
+Yeah, I don't hate patch #1.
 
-README for mm-of-the-moment:
+But that other patch is just nasty.
 
-http://www.ozlabs.org/~akpm/mmotm/
+> That said, I do think your suggested approach is cleaner.  However, it
+> is a much more substantial change.  Let me take a look and see if I
+> have any issues implementing it.
 
-This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-more than once a week.
+Actually, I tried it myself.
 
-You will need quilt to apply these patches to the latest Linus release (4.x
-or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-http://ozlabs.org/~akpm/mmotm/series
+It was painful. But I actually have a TOTALLY UNTESTED set of two
+patches that implements the idea.
 
-The file broken-out.tar.gz contains two datestamp files: .DATE and
-.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-followed by the base kernel version against which this patch series is to
-be applied.
+And by "implements the idea" I mean "it kind of compiles, and it kind
+of looks like it might work".
 
-This tree is partially included in linux-next.  To see which patches are
-included in linux-next, consult the `series' file.  Only the patches
-within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-linux-next.
+But by "kind of compiles" I mean that I didn't implement the nasty
+add_page_wait_queue() thing that the cachefiles interface wants.
+Honestly, I think the sanest way to do that is to just have a hashed
+wait queue *just* for cachefiles.
 
-A git tree which contains the memory management portion of this tree is
-maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-by Michal Hocko.  It contains the patches which are between the
-"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
-file, http://www.ozlabs.org/~akpm/mmotm/series.
+And by "kind of looks like it might work" I really mean just that.
+It's entirely untested. It's more of a "let's take that description of
+mine and turn it into code". I really have not tested this AT ALL.
 
+And it's subtle enough that I suspect it really is majorly buggy. It
+uses the locking hash list code (hlist_bl_node) to keep the hash table
+fairly small and hide the lock in the hash table itself.
 
-A full copy of the full kernel tree with the linux-next and mmotm patches
-already applied is available through git within an hour of the mmotm
-release.  Individual mmotm releases are tagged.  The master branch always
-points to the latest release, so it's constantly rebasing.
+And then it plays horrible games with linked lists. Yeah, that may
+have been a mistake, but I thought I should try to avoid the doubly
+linked lists in that "struct page_wait_struct" because it's allocated
+on the stack, and each list_head is 16 bytes on 64-bit architectures.
 
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+But that "let's save 24 bytes in the structure" made it much nastier
+to remove entries, so it was probably a bad trade-off.
 
-To develop on top of mmotm git:
+But I'm attaching the two patches because I have no shame. If somebody
+is willing to look at my completely untested crap code.
 
-  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-  $ git remote update mmotm
-  $ git checkout -b topic mmotm/master
-  <make changes, commit>
-  $ git send-email mmotm/master.. [...]
+I *really* want to emphasize that "untested crap".
 
-To rebase a branch with older patches to a new mmotm release:
+This is meant to be example code of the *concept* rather than anything
+that actually works.
 
-  $ git remote update mmotm
-  $ git rebase --onto mmotm/master <topic base> topic
+So take it as that: example pseudo-code that happens to pass a
+compiler, but is meant as a RFD rather than actually working.
 
+The first patch just moves code around because I wanted to experiment
+with the new code in a new file. That first patch is probably fine. It
+shouldn't change any code, just move it.
 
+The second patch is the "broken patch to illustrate the idea".
 
+                    Linus
 
-The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-contains daily snapshots of the -mm tree.  It is updated more frequently
-than mmotm, and is untested.
+--001a11c1691e72570105579bc813
+Content-Type: text/x-patch; charset="US-ASCII";
+	name="0001-Split-page-bit-waiting-functions-into-their-own-file.patch"
+Content-Disposition: attachment;
+	filename="0001-Split-page-bit-waiting-functions-into-their-own-file.patch"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_j6sh0dn00
 
-A git copy of this tree is available at
+RnJvbSBiMGJlYzFkZThhN2RiYTY5YjIyM2RkMzBkZDJhNzM0NDAxZjMzNWFhIE1vbiBTZXAgMTcg
+MDA6MDA6MDAgMjAwMQpGcm9tOiBMaW51cyBUb3J2YWxkcyA8dG9ydmFsZHNAbGludXgtZm91bmRh
+dGlvbi5vcmc+CkRhdGU6IEZyaSwgMjUgQXVnIDIwMTcgMTM6MjU6NDMgLTA3MDAKU3ViamVjdDog
+W1BBVENIIDEvMl0gU3BsaXQgcGFnZSBiaXQgd2FpdGluZyBmdW5jdGlvbnMgaW50byB0aGVpciBv
+d24gZmlsZQoKSXQgdHVybnMgb3V0IHRoYXQgdGhlIHBhZ2UtYml0IHdhaXRpbmcgbG9naWMgaXMg
+dmVyeSBzcGVjaWFsIGluZGVlZCwgYW5kCndpbGwgZ2V0IGV2ZW4gbW9yZSBzby4gIFNwbGl0IGl0
+IHVwIGludG8gaXRzIG93biBmaWxlIHRvIG1ha2UgdGhpcyBjbGVhci4KCkknbGwgcmV3cml0ZSB0
+aGUgbG9naWMgb2YgdGhlIHBhZ2Ugd2FpdCBxdWV1ZSBjb21wbGV0ZWx5LCBidXQgdGhpcyBpcwpw
+dXJlIHByZXAtd29yayB3aXRoIG5vIGFjdHVhbCBjb2RlIGNoYW5nZXMsIGp1c3QgY29kZSBtb3Zl
+bWVudC4KClNpZ25lZC1vZmYtYnk6IExpbnVzIFRvcnZhbGRzIDx0b3J2YWxkc0BsaW51eC1mb3Vu
+ZGF0aW9uLm9yZz4KLS0tCiBtbS9NYWtlZmlsZSAgICAgICAgfCAgIDIgKy0KIG1tL2ZpbGVtYXAu
+YyAgICAgICB8IDI2MCAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS0tLQogbW0vcGFnZV93YWl0X2JpdC5jIHwgMjc0ICsrKysrKysrKysrKysrKysrKysrKysr
+KysrKysrKysrKysrKysrKysrKysrKysrKysrKysrCiAzIGZpbGVzIGNoYW5nZWQsIDI3NSBpbnNl
+cnRpb25zKCspLCAyNjEgZGVsZXRpb25zKC0pCiBjcmVhdGUgbW9kZSAxMDA2NDQgbW0vcGFnZV93
+YWl0X2JpdC5jCgpkaWZmIC0tZ2l0IGEvbW0vTWFrZWZpbGUgYi9tbS9NYWtlZmlsZQppbmRleCA0
+MTFiZDI0ZDRhN2MuLjhiYzAxOTQyMDdhMyAxMDA2NDQKLS0tIGEvbW0vTWFrZWZpbGUKKysrIGIv
+bW0vTWFrZWZpbGUKQEAgLTMyLDcgKzMyLDcgQEAgaWZkZWYgQ09ORklHX0NST1NTX01FTU9SWV9B
+VFRBQ0gKIG1tdS0kKENPTkZJR19NTVUpCSs9IHByb2Nlc3Nfdm1fYWNjZXNzLm8KIGVuZGlmCiAK
+LW9iai15CQkJOj0gZmlsZW1hcC5vIG1lbXBvb2wubyBvb21fa2lsbC5vIFwKK29iai15CQkJOj0g
+ZmlsZW1hcC5vIHBhZ2Vfd2FpdF9iaXQubyBtZW1wb29sLm8gb29tX2tpbGwubyBcCiAJCQkgICBt
+YWNjZXNzLm8gcGFnZV9hbGxvYy5vIHBhZ2Utd3JpdGViYWNrLm8gXAogCQkJICAgcmVhZGFoZWFk
+Lm8gc3dhcC5vIHRydW5jYXRlLm8gdm1zY2FuLm8gc2htZW0ubyBcCiAJCQkgICB1dGlsLm8gbW16
+b25lLm8gdm1zdGF0Lm8gYmFja2luZy1kZXYubyBcCmRpZmYgLS1naXQgYS9tbS9maWxlbWFwLmMg
+Yi9tbS9maWxlbWFwLmMKaW5kZXggYTQ5NzAyNDQ1Y2UwLi5mOWI3MTBlOGY3NmUgMTAwNjQ0Ci0t
+LSBhL21tL2ZpbGVtYXAuYworKysgYi9tbS9maWxlbWFwLmMKQEAgLTg1NiwxOTUgKzg1Niw2IEBA
+IHN0cnVjdCBwYWdlICpfX3BhZ2VfY2FjaGVfYWxsb2MoZ2ZwX3QgZ2ZwKQogRVhQT1JUX1NZTUJP
+TChfX3BhZ2VfY2FjaGVfYWxsb2MpOwogI2VuZGlmCiAKLS8qCi0gKiBJbiBvcmRlciB0byB3YWl0
+IGZvciBwYWdlcyB0byBiZWNvbWUgYXZhaWxhYmxlIHRoZXJlIG11c3QgYmUKLSAqIHdhaXRxdWV1
+ZXMgYXNzb2NpYXRlZCB3aXRoIHBhZ2VzLiBCeSB1c2luZyBhIGhhc2ggdGFibGUgb2YKLSAqIHdh
+aXRxdWV1ZXMgd2hlcmUgdGhlIGJ1Y2tldCBkaXNjaXBsaW5lIGlzIHRvIG1haW50YWluIGFsbAot
+ICogd2FpdGVycyBvbiB0aGUgc2FtZSBxdWV1ZSBhbmQgd2FrZSBhbGwgd2hlbiBhbnkgb2YgdGhl
+IHBhZ2VzCi0gKiBiZWNvbWUgYXZhaWxhYmxlLCBhbmQgZm9yIHRoZSB3b2tlbiBjb250ZXh0cyB0
+byBjaGVjayB0byBiZQotICogc3VyZSB0aGUgYXBwcm9wcmlhdGUgcGFnZSBiZWNhbWUgYXZhaWxh
+YmxlLCB0aGlzIHNhdmVzIHNwYWNlCi0gKiBhdCBhIGNvc3Qgb2YgInRodW5kZXJpbmcgaGVyZCIg
+cGhlbm9tZW5hIGR1cmluZyByYXJlIGhhc2gKLSAqIGNvbGxpc2lvbnMuCi0gKi8KLSNkZWZpbmUg
+UEFHRV9XQUlUX1RBQkxFX0JJVFMgOAotI2RlZmluZSBQQUdFX1dBSVRfVEFCTEVfU0laRSAoMSA8
+PCBQQUdFX1dBSVRfVEFCTEVfQklUUykKLXN0YXRpYyB3YWl0X3F1ZXVlX2hlYWRfdCBwYWdlX3dh
+aXRfdGFibGVbUEFHRV9XQUlUX1RBQkxFX1NJWkVdIF9fY2FjaGVsaW5lX2FsaWduZWQ7Ci0KLXN0
+YXRpYyB3YWl0X3F1ZXVlX2hlYWRfdCAqcGFnZV93YWl0cXVldWUoc3RydWN0IHBhZ2UgKnBhZ2Up
+Ci17Ci0JcmV0dXJuICZwYWdlX3dhaXRfdGFibGVbaGFzaF9wdHIocGFnZSwgUEFHRV9XQUlUX1RB
+QkxFX0JJVFMpXTsKLX0KLQotdm9pZCBfX2luaXQgcGFnZWNhY2hlX2luaXQodm9pZCkKLXsKLQlp
+bnQgaTsKLQotCWZvciAoaSA9IDA7IGkgPCBQQUdFX1dBSVRfVEFCTEVfU0laRTsgaSsrKQotCQlp
+bml0X3dhaXRxdWV1ZV9oZWFkKCZwYWdlX3dhaXRfdGFibGVbaV0pOwotCi0JcGFnZV93cml0ZWJh
+Y2tfaW5pdCgpOwotfQotCi1zdHJ1Y3Qgd2FpdF9wYWdlX2tleSB7Ci0Jc3RydWN0IHBhZ2UgKnBh
+Z2U7Ci0JaW50IGJpdF9ucjsKLQlpbnQgcGFnZV9tYXRjaDsKLX07Ci0KLXN0cnVjdCB3YWl0X3Bh
+Z2VfcXVldWUgewotCXN0cnVjdCBwYWdlICpwYWdlOwotCWludCBiaXRfbnI7Ci0Jd2FpdF9xdWV1
+ZV9lbnRyeV90IHdhaXQ7Ci19OwotCi1zdGF0aWMgaW50IHdha2VfcGFnZV9mdW5jdGlvbih3YWl0
+X3F1ZXVlX2VudHJ5X3QgKndhaXQsIHVuc2lnbmVkIG1vZGUsIGludCBzeW5jLCB2b2lkICphcmcp
+Ci17Ci0Jc3RydWN0IHdhaXRfcGFnZV9rZXkgKmtleSA9IGFyZzsKLQlzdHJ1Y3Qgd2FpdF9wYWdl
+X3F1ZXVlICp3YWl0X3BhZ2UKLQkJPSBjb250YWluZXJfb2Yod2FpdCwgc3RydWN0IHdhaXRfcGFn
+ZV9xdWV1ZSwgd2FpdCk7Ci0KLQlpZiAod2FpdF9wYWdlLT5wYWdlICE9IGtleS0+cGFnZSkKLQkg
+ICAgICAgcmV0dXJuIDA7Ci0Ja2V5LT5wYWdlX21hdGNoID0gMTsKLQotCWlmICh3YWl0X3BhZ2Ut
+PmJpdF9uciAhPSBrZXktPmJpdF9ucikKLQkJcmV0dXJuIDA7Ci0JaWYgKHRlc3RfYml0KGtleS0+
+Yml0X25yLCAma2V5LT5wYWdlLT5mbGFncykpCi0JCXJldHVybiAwOwotCi0JcmV0dXJuIGF1dG9y
+ZW1vdmVfd2FrZV9mdW5jdGlvbih3YWl0LCBtb2RlLCBzeW5jLCBrZXkpOwotfQotCi1zdGF0aWMg
+dm9pZCB3YWtlX3VwX3BhZ2VfYml0KHN0cnVjdCBwYWdlICpwYWdlLCBpbnQgYml0X25yKQotewot
+CXdhaXRfcXVldWVfaGVhZF90ICpxID0gcGFnZV93YWl0cXVldWUocGFnZSk7Ci0Jc3RydWN0IHdh
+aXRfcGFnZV9rZXkga2V5OwotCXVuc2lnbmVkIGxvbmcgZmxhZ3M7Ci0KLQlrZXkucGFnZSA9IHBh
+Z2U7Ci0Ja2V5LmJpdF9uciA9IGJpdF9ucjsKLQlrZXkucGFnZV9tYXRjaCA9IDA7Ci0KLQlzcGlu
+X2xvY2tfaXJxc2F2ZSgmcS0+bG9jaywgZmxhZ3MpOwotCV9fd2FrZV91cF9sb2NrZWRfa2V5KHEs
+IFRBU0tfTk9STUFMLCAma2V5KTsKLQkvKgotCSAqIEl0IGlzIHBvc3NpYmxlIGZvciBvdGhlciBw
+YWdlcyB0byBoYXZlIGNvbGxpZGVkIG9uIHRoZSB3YWl0cXVldWUKLQkgKiBoYXNoLCBzbyBpbiB0
+aGF0IGNhc2UgY2hlY2sgZm9yIGEgcGFnZSBtYXRjaC4gVGhhdCBwcmV2ZW50cyBhIGxvbmctCi0J
+ICogdGVybSB3YWl0ZXIKLQkgKgotCSAqIEl0IGlzIHN0aWxsIHBvc3NpYmxlIHRvIG1pc3MgYSBj
+YXNlIGhlcmUsIHdoZW4gd2Ugd29rZSBwYWdlIHdhaXRlcnMKLQkgKiBhbmQgcmVtb3ZlZCB0aGVt
+IGZyb20gdGhlIHdhaXRxdWV1ZSwgYnV0IHRoZXJlIGFyZSBzdGlsbCBvdGhlcgotCSAqIHBhZ2Ug
+d2FpdGVycy4KLQkgKi8KLQlpZiAoIXdhaXRxdWV1ZV9hY3RpdmUocSkgfHwgIWtleS5wYWdlX21h
+dGNoKSB7Ci0JCUNsZWFyUGFnZVdhaXRlcnMocGFnZSk7Ci0JCS8qCi0JCSAqIEl0J3MgcG9zc2li
+bGUgdG8gbWlzcyBjbGVhcmluZyBXYWl0ZXJzIGhlcmUsIHdoZW4gd2Ugd29rZQotCQkgKiBvdXIg
+cGFnZSB3YWl0ZXJzLCBidXQgdGhlIGhhc2hlZCB3YWl0cXVldWUgaGFzIHdhaXRlcnMgZm9yCi0J
+CSAqIG90aGVyIHBhZ2VzIG9uIGl0LgotCQkgKgotCQkgKiBUaGF0J3Mgb2theSwgaXQncyBhIHJh
+cmUgY2FzZS4gVGhlIG5leHQgd2FrZXIgd2lsbCBjbGVhciBpdC4KLQkJICovCi0JfQotCXNwaW5f
+dW5sb2NrX2lycXJlc3RvcmUoJnEtPmxvY2ssIGZsYWdzKTsKLX0KLQotc3RhdGljIHZvaWQgd2Fr
+ZV91cF9wYWdlKHN0cnVjdCBwYWdlICpwYWdlLCBpbnQgYml0KQotewotCWlmICghUGFnZVdhaXRl
+cnMocGFnZSkpCi0JCXJldHVybjsKLQl3YWtlX3VwX3BhZ2VfYml0KHBhZ2UsIGJpdCk7Ci19Ci0K
+LXN0YXRpYyBpbmxpbmUgaW50IHdhaXRfb25fcGFnZV9iaXRfY29tbW9uKHdhaXRfcXVldWVfaGVh
+ZF90ICpxLAotCQlzdHJ1Y3QgcGFnZSAqcGFnZSwgaW50IGJpdF9uciwgaW50IHN0YXRlLCBib29s
+IGxvY2spCi17Ci0Jc3RydWN0IHdhaXRfcGFnZV9xdWV1ZSB3YWl0X3BhZ2U7Ci0Jd2FpdF9xdWV1
+ZV9lbnRyeV90ICp3YWl0ID0gJndhaXRfcGFnZS53YWl0OwotCWludCByZXQgPSAwOwotCi0JaW5p
+dF93YWl0KHdhaXQpOwotCXdhaXQtPmZ1bmMgPSB3YWtlX3BhZ2VfZnVuY3Rpb247Ci0Jd2FpdF9w
+YWdlLnBhZ2UgPSBwYWdlOwotCXdhaXRfcGFnZS5iaXRfbnIgPSBiaXRfbnI7Ci0KLQlmb3IgKDs7
+KSB7Ci0JCXNwaW5fbG9ja19pcnEoJnEtPmxvY2spOwotCi0JCWlmIChsaWtlbHkobGlzdF9lbXB0
+eSgmd2FpdC0+ZW50cnkpKSkgewotCQkJaWYgKGxvY2spCi0JCQkJX19hZGRfd2FpdF9xdWV1ZV9l
+bnRyeV90YWlsX2V4Y2x1c2l2ZShxLCB3YWl0KTsKLQkJCWVsc2UKLQkJCQlfX2FkZF93YWl0X3F1
+ZXVlKHEsIHdhaXQpOwotCQkJU2V0UGFnZVdhaXRlcnMocGFnZSk7Ci0JCX0KLQotCQlzZXRfY3Vy
+cmVudF9zdGF0ZShzdGF0ZSk7Ci0KLQkJc3Bpbl91bmxvY2tfaXJxKCZxLT5sb2NrKTsKLQotCQlp
+ZiAobGlrZWx5KHRlc3RfYml0KGJpdF9uciwgJnBhZ2UtPmZsYWdzKSkpIHsKLQkJCWlvX3NjaGVk
+dWxlKCk7Ci0JCQlpZiAodW5saWtlbHkoc2lnbmFsX3BlbmRpbmdfc3RhdGUoc3RhdGUsIGN1cnJl
+bnQpKSkgewotCQkJCXJldCA9IC1FSU5UUjsKLQkJCQlicmVhazsKLQkJCX0KLQkJfQotCi0JCWlm
+IChsb2NrKSB7Ci0JCQlpZiAoIXRlc3RfYW5kX3NldF9iaXRfbG9jayhiaXRfbnIsICZwYWdlLT5m
+bGFncykpCi0JCQkJYnJlYWs7Ci0JCX0gZWxzZSB7Ci0JCQlpZiAoIXRlc3RfYml0KGJpdF9uciwg
+JnBhZ2UtPmZsYWdzKSkKLQkJCQlicmVhazsKLQkJfQotCX0KLQotCWZpbmlzaF93YWl0KHEsIHdh
+aXQpOwotCi0JLyoKLQkgKiBBIHNpZ25hbCBjb3VsZCBsZWF2ZSBQYWdlV2FpdGVycyBzZXQuIENs
+ZWFyaW5nIGl0IGhlcmUgaWYKLQkgKiAhd2FpdHF1ZXVlX2FjdGl2ZSB3b3VsZCBiZSBwb3NzaWJs
+ZSAoYnkgb3Blbi1jb2RpbmcgZmluaXNoX3dhaXQpLAotCSAqIGJ1dCBzdGlsbCBmYWlsIHRvIGNh
+dGNoIGl0IGluIHRoZSBjYXNlIG9mIHdhaXQgaGFzaCBjb2xsaXNpb24uIFdlCi0JICogYWxyZWFk
+eSBjYW4gZmFpbCB0byBjbGVhciB3YWl0IGhhc2ggY29sbGlzaW9uIGNhc2VzLCBzbyBkb24ndAot
+CSAqIGJvdGhlciB3aXRoIHNpZ25hbHMgZWl0aGVyLgotCSAqLwotCi0JcmV0dXJuIHJldDsKLX0K
+LQotdm9pZCB3YWl0X29uX3BhZ2VfYml0KHN0cnVjdCBwYWdlICpwYWdlLCBpbnQgYml0X25yKQot
+ewotCXdhaXRfcXVldWVfaGVhZF90ICpxID0gcGFnZV93YWl0cXVldWUocGFnZSk7Ci0Jd2FpdF9v
+bl9wYWdlX2JpdF9jb21tb24ocSwgcGFnZSwgYml0X25yLCBUQVNLX1VOSU5URVJSVVBUSUJMRSwg
+ZmFsc2UpOwotfQotRVhQT1JUX1NZTUJPTCh3YWl0X29uX3BhZ2VfYml0KTsKLQotaW50IHdhaXRf
+b25fcGFnZV9iaXRfa2lsbGFibGUoc3RydWN0IHBhZ2UgKnBhZ2UsIGludCBiaXRfbnIpCi17Ci0J
+d2FpdF9xdWV1ZV9oZWFkX3QgKnEgPSBwYWdlX3dhaXRxdWV1ZShwYWdlKTsKLQlyZXR1cm4gd2Fp
+dF9vbl9wYWdlX2JpdF9jb21tb24ocSwgcGFnZSwgYml0X25yLCBUQVNLX0tJTExBQkxFLCBmYWxz
+ZSk7Ci19Ci0KLS8qKgotICogYWRkX3BhZ2Vfd2FpdF9xdWV1ZSAtIEFkZCBhbiBhcmJpdHJhcnkg
+d2FpdGVyIHRvIGEgcGFnZSdzIHdhaXQgcXVldWUKLSAqIEBwYWdlOiBQYWdlIGRlZmluaW5nIHRo
+ZSB3YWl0IHF1ZXVlIG9mIGludGVyZXN0Ci0gKiBAd2FpdGVyOiBXYWl0ZXIgdG8gYWRkIHRvIHRo
+ZSBxdWV1ZQotICoKLSAqIEFkZCBhbiBhcmJpdHJhcnkgQHdhaXRlciB0byB0aGUgd2FpdCBxdWV1
+ZSBmb3IgdGhlIG5vbWluYXRlZCBAcGFnZS4KLSAqLwotdm9pZCBhZGRfcGFnZV93YWl0X3F1ZXVl
+KHN0cnVjdCBwYWdlICpwYWdlLCB3YWl0X3F1ZXVlX2VudHJ5X3QgKndhaXRlcikKLXsKLQl3YWl0
+X3F1ZXVlX2hlYWRfdCAqcSA9IHBhZ2Vfd2FpdHF1ZXVlKHBhZ2UpOwotCXVuc2lnbmVkIGxvbmcg
+ZmxhZ3M7Ci0KLQlzcGluX2xvY2tfaXJxc2F2ZSgmcS0+bG9jaywgZmxhZ3MpOwotCV9fYWRkX3dh
+aXRfcXVldWUocSwgd2FpdGVyKTsKLQlTZXRQYWdlV2FpdGVycyhwYWdlKTsKLQlzcGluX3VubG9j
+a19pcnFyZXN0b3JlKCZxLT5sb2NrLCBmbGFncyk7Ci19Ci1FWFBPUlRfU1lNQk9MX0dQTChhZGRf
+cGFnZV93YWl0X3F1ZXVlKTsKLQogI2lmbmRlZiBjbGVhcl9iaXRfdW5sb2NrX2lzX25lZ2F0aXZl
+X2J5dGUKIAogLyoKQEAgLTEwNjgsNTcgKzg3OSw2IEBAIHN0YXRpYyBpbmxpbmUgYm9vbCBjbGVh
+cl9iaXRfdW5sb2NrX2lzX25lZ2F0aXZlX2J5dGUobG9uZyBuciwgdm9sYXRpbGUgdm9pZCAqbWVt
+CiAKICNlbmRpZgogCi0vKioKLSAqIHVubG9ja19wYWdlIC0gdW5sb2NrIGEgbG9ja2VkIHBhZ2UK
+LSAqIEBwYWdlOiB0aGUgcGFnZQotICoKLSAqIFVubG9ja3MgdGhlIHBhZ2UgYW5kIHdha2VzIHVw
+IHNsZWVwZXJzIGluIF9fX3dhaXRfb25fcGFnZV9sb2NrZWQoKS4KLSAqIEFsc28gd2FrZXMgc2xl
+ZXBlcnMgaW4gd2FpdF9vbl9wYWdlX3dyaXRlYmFjaygpIGJlY2F1c2UgdGhlIHdha2V1cAotICog
+bWVjaGFuaXNtIGJldHdlZW4gUGFnZUxvY2tlZCBwYWdlcyBhbmQgUGFnZVdyaXRlYmFjayBwYWdl
+cyBpcyBzaGFyZWQuCi0gKiBCdXQgdGhhdCdzIE9LIC0gc2xlZXBlcnMgaW4gd2FpdF9vbl9wYWdl
+X3dyaXRlYmFjaygpIGp1c3QgZ28gYmFjayB0byBzbGVlcC4KLSAqCi0gKiBOb3RlIHRoYXQgdGhp
+cyBkZXBlbmRzIG9uIFBHX3dhaXRlcnMgYmVpbmcgdGhlIHNpZ24gYml0IGluIHRoZSBieXRlCi0g
+KiB0aGF0IGNvbnRhaW5zIFBHX2xvY2tlZCAtIHRodXMgdGhlIEJVSUxEX0JVR19PTigpLiBUaGF0
+IGFsbG93cyB1cyB0bwotICogY2xlYXIgdGhlIFBHX2xvY2tlZCBiaXQgYW5kIHRlc3QgUEdfd2Fp
+dGVycyBhdCB0aGUgc2FtZSB0aW1lIGZhaXJseQotICogcG9ydGFibHkgKGFyY2hpdGVjdHVyZXMg
+dGhhdCBkbyBMTC9TQyBjYW4gdGVzdCBhbnkgYml0LCB3aGlsZSB4ODYgY2FuCi0gKiB0ZXN0IHRo
+ZSBzaWduIGJpdCkuCi0gKi8KLXZvaWQgdW5sb2NrX3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UpCi17
+Ci0JQlVJTERfQlVHX09OKFBHX3dhaXRlcnMgIT0gNyk7Ci0JcGFnZSA9IGNvbXBvdW5kX2hlYWQo
+cGFnZSk7Ci0JVk1fQlVHX09OX1BBR0UoIVBhZ2VMb2NrZWQocGFnZSksIHBhZ2UpOwotCWlmIChj
+bGVhcl9iaXRfdW5sb2NrX2lzX25lZ2F0aXZlX2J5dGUoUEdfbG9ja2VkLCAmcGFnZS0+ZmxhZ3Mp
+KQotCQl3YWtlX3VwX3BhZ2VfYml0KHBhZ2UsIFBHX2xvY2tlZCk7Ci19Ci1FWFBPUlRfU1lNQk9M
+KHVubG9ja19wYWdlKTsKLQotLyoqCi0gKiBlbmRfcGFnZV93cml0ZWJhY2sgLSBlbmQgd3JpdGVi
+YWNrIGFnYWluc3QgYSBwYWdlCi0gKiBAcGFnZTogdGhlIHBhZ2UKLSAqLwotdm9pZCBlbmRfcGFn
+ZV93cml0ZWJhY2soc3RydWN0IHBhZ2UgKnBhZ2UpCi17Ci0JLyoKLQkgKiBUZXN0Q2xlYXJQYWdl
+UmVjbGFpbSBjb3VsZCBiZSB1c2VkIGhlcmUgYnV0IGl0IGlzIGFuIGF0b21pYwotCSAqIG9wZXJh
+dGlvbiBhbmQgb3ZlcmtpbGwgaW4gdGhpcyBwYXJ0aWN1bGFyIGNhc2UuIEZhaWxpbmcgdG8KLQkg
+KiBzaHVmZmxlIGEgcGFnZSBtYXJrZWQgZm9yIGltbWVkaWF0ZSByZWNsYWltIGlzIHRvbyBtaWxk
+IHRvCi0JICoganVzdGlmeSB0YWtpbmcgYW4gYXRvbWljIG9wZXJhdGlvbiBwZW5hbHR5IGF0IHRo
+ZSBlbmQgb2YKLQkgKiBldmVyIHBhZ2Ugd3JpdGViYWNrLgotCSAqLwotCWlmIChQYWdlUmVjbGFp
+bShwYWdlKSkgewotCQlDbGVhclBhZ2VSZWNsYWltKHBhZ2UpOwotCQlyb3RhdGVfcmVjbGFpbWFi
+bGVfcGFnZShwYWdlKTsKLQl9Ci0KLQlpZiAoIXRlc3RfY2xlYXJfcGFnZV93cml0ZWJhY2socGFn
+ZSkpCi0JCUJVRygpOwotCi0Jc21wX21iX19hZnRlcl9hdG9taWMoKTsKLQl3YWtlX3VwX3BhZ2Uo
+cGFnZSwgUEdfd3JpdGViYWNrKTsKLX0KLUVYUE9SVF9TWU1CT0woZW5kX3BhZ2Vfd3JpdGViYWNr
+KTsKLQogLyoKICAqIEFmdGVyIGNvbXBsZXRpbmcgSS9PIG9uIGEgcGFnZSwgY2FsbCB0aGlzIHJv
+dXRpbmUgdG8gdXBkYXRlIHRoZSBwYWdlCiAgKiBmbGFncyBhcHByb3ByaWF0ZWx5CkBAIC0xMTQ3
+LDI2ICs5MDcsNiBAQCB2b2lkIHBhZ2VfZW5kaW8oc3RydWN0IHBhZ2UgKnBhZ2UsIGJvb2wgaXNf
+d3JpdGUsIGludCBlcnIpCiB9CiBFWFBPUlRfU1lNQk9MX0dQTChwYWdlX2VuZGlvKTsKIAotLyoq
+Ci0gKiBfX2xvY2tfcGFnZSAtIGdldCBhIGxvY2sgb24gdGhlIHBhZ2UsIGFzc3VtaW5nIHdlIG5l
+ZWQgdG8gc2xlZXAgdG8gZ2V0IGl0Ci0gKiBAX19wYWdlOiB0aGUgcGFnZSB0byBsb2NrCi0gKi8K
+LXZvaWQgX19sb2NrX3BhZ2Uoc3RydWN0IHBhZ2UgKl9fcGFnZSkKLXsKLQlzdHJ1Y3QgcGFnZSAq
+cGFnZSA9IGNvbXBvdW5kX2hlYWQoX19wYWdlKTsKLQl3YWl0X3F1ZXVlX2hlYWRfdCAqcSA9IHBh
+Z2Vfd2FpdHF1ZXVlKHBhZ2UpOwotCXdhaXRfb25fcGFnZV9iaXRfY29tbW9uKHEsIHBhZ2UsIFBH
+X2xvY2tlZCwgVEFTS19VTklOVEVSUlVQVElCTEUsIHRydWUpOwotfQotRVhQT1JUX1NZTUJPTChf
+X2xvY2tfcGFnZSk7Ci0KLWludCBfX2xvY2tfcGFnZV9raWxsYWJsZShzdHJ1Y3QgcGFnZSAqX19w
+YWdlKQotewotCXN0cnVjdCBwYWdlICpwYWdlID0gY29tcG91bmRfaGVhZChfX3BhZ2UpOwotCXdh
+aXRfcXVldWVfaGVhZF90ICpxID0gcGFnZV93YWl0cXVldWUocGFnZSk7Ci0JcmV0dXJuIHdhaXRf
+b25fcGFnZV9iaXRfY29tbW9uKHEsIHBhZ2UsIFBHX2xvY2tlZCwgVEFTS19LSUxMQUJMRSwgdHJ1
+ZSk7Ci19Ci1FWFBPUlRfU1lNQk9MX0dQTChfX2xvY2tfcGFnZV9raWxsYWJsZSk7Ci0KIC8qCiAg
+KiBSZXR1cm4gdmFsdWVzOgogICogMSAtIHBhZ2UgaXMgbG9ja2VkOyBtbWFwX3NlbSBpcyBzdGls
+bCBoZWxkLgpkaWZmIC0tZ2l0IGEvbW0vcGFnZV93YWl0X2JpdC5jIGIvbW0vcGFnZV93YWl0X2Jp
+dC5jCm5ldyBmaWxlIG1vZGUgMTAwNjQ0CmluZGV4IDAwMDAwMDAwMDAwMC4uNzU1MGI2ZDI3MTVh
+Ci0tLSAvZGV2L251bGwKKysrIGIvbW0vcGFnZV93YWl0X2JpdC5jCkBAIC0wLDAgKzEsMjc0IEBA
+CisvKgorICoJbGludXgvbW0vcGFnZV93YWl0X2JpdC5jCisgKgorICogQ29weXJpZ2h0IChDKSAy
+MDE3ICBMaW51cyBUb3J2YWxkcworICovCisKKyNpbmNsdWRlIDxsaW51eC9zd2FwLmg+CisjaW5j
+bHVkZSA8bGludXgvcGFnZW1hcC5oPgorI2luY2x1ZGUgPGxpbnV4L3dhaXQuaD4KKyNpbmNsdWRl
+IDxsaW51eC9leHBvcnQuaD4KKyNpbmNsdWRlIDxsaW51eC9zY2hlZC9zaWduYWwuaD4KKworI2lu
+Y2x1ZGUgImludGVybmFsLmgiCisKKy8qCisgKiBJbiBvcmRlciB0byB3YWl0IGZvciBwYWdlcyB0
+byBiZWNvbWUgYXZhaWxhYmxlIHRoZXJlIG11c3QgYmUKKyAqIHdhaXRxdWV1ZXMgYXNzb2NpYXRl
+ZCB3aXRoIHBhZ2VzLiBCeSB1c2luZyBhIGhhc2ggdGFibGUgb2YKKyAqIHdhaXRxdWV1ZXMgd2hl
+cmUgdGhlIGJ1Y2tldCBkaXNjaXBsaW5lIGlzIHRvIG1haW50YWluIGFsbAorICogd2FpdGVycyBv
+biB0aGUgc2FtZSBxdWV1ZSBhbmQgd2FrZSBhbGwgd2hlbiBhbnkgb2YgdGhlIHBhZ2VzCisgKiBi
+ZWNvbWUgYXZhaWxhYmxlLCBhbmQgZm9yIHRoZSB3b2tlbiBjb250ZXh0cyB0byBjaGVjayB0byBi
+ZQorICogc3VyZSB0aGUgYXBwcm9wcmlhdGUgcGFnZSBiZWNhbWUgYXZhaWxhYmxlLCB0aGlzIHNh
+dmVzIHNwYWNlCisgKiBhdCBhIGNvc3Qgb2YgInRodW5kZXJpbmcgaGVyZCIgcGhlbm9tZW5hIGR1
+cmluZyByYXJlIGhhc2gKKyAqIGNvbGxpc2lvbnMuCisgKi8KKyNkZWZpbmUgUEFHRV9XQUlUX1RB
+QkxFX0JJVFMgOAorI2RlZmluZSBQQUdFX1dBSVRfVEFCTEVfU0laRSAoMSA8PCBQQUdFX1dBSVRf
+VEFCTEVfQklUUykKK3N0YXRpYyB3YWl0X3F1ZXVlX2hlYWRfdCBwYWdlX3dhaXRfdGFibGVbUEFH
+RV9XQUlUX1RBQkxFX1NJWkVdIF9fY2FjaGVsaW5lX2FsaWduZWQ7CisKK3N0YXRpYyB3YWl0X3F1
+ZXVlX2hlYWRfdCAqcGFnZV93YWl0cXVldWUoc3RydWN0IHBhZ2UgKnBhZ2UpCit7CisJcmV0dXJu
+ICZwYWdlX3dhaXRfdGFibGVbaGFzaF9wdHIocGFnZSwgUEFHRV9XQUlUX1RBQkxFX0JJVFMpXTsK
+K30KKwordm9pZCBfX2luaXQgcGFnZWNhY2hlX2luaXQodm9pZCkKK3sKKwlpbnQgaTsKKworCWZv
+ciAoaSA9IDA7IGkgPCBQQUdFX1dBSVRfVEFCTEVfU0laRTsgaSsrKQorCQlpbml0X3dhaXRxdWV1
+ZV9oZWFkKCZwYWdlX3dhaXRfdGFibGVbaV0pOworCisJcGFnZV93cml0ZWJhY2tfaW5pdCgpOwor
+fQorCitzdHJ1Y3Qgd2FpdF9wYWdlX2tleSB7CisJc3RydWN0IHBhZ2UgKnBhZ2U7CisJaW50IGJp
+dF9ucjsKKwlpbnQgcGFnZV9tYXRjaDsKK307CisKK3N0cnVjdCB3YWl0X3BhZ2VfcXVldWUgewor
+CXN0cnVjdCBwYWdlICpwYWdlOworCWludCBiaXRfbnI7CisJd2FpdF9xdWV1ZV9lbnRyeV90IHdh
+aXQ7Cit9OworCitzdGF0aWMgaW50IHdha2VfcGFnZV9mdW5jdGlvbih3YWl0X3F1ZXVlX2VudHJ5
+X3QgKndhaXQsIHVuc2lnbmVkIG1vZGUsIGludCBzeW5jLCB2b2lkICphcmcpCit7CisJc3RydWN0
+IHdhaXRfcGFnZV9rZXkgKmtleSA9IGFyZzsKKwlzdHJ1Y3Qgd2FpdF9wYWdlX3F1ZXVlICp3YWl0
+X3BhZ2UKKwkJPSBjb250YWluZXJfb2Yod2FpdCwgc3RydWN0IHdhaXRfcGFnZV9xdWV1ZSwgd2Fp
+dCk7CisKKwlpZiAod2FpdF9wYWdlLT5wYWdlICE9IGtleS0+cGFnZSkKKwkgICAgICAgcmV0dXJu
+IDA7CisJa2V5LT5wYWdlX21hdGNoID0gMTsKKworCWlmICh3YWl0X3BhZ2UtPmJpdF9uciAhPSBr
+ZXktPmJpdF9ucikKKwkJcmV0dXJuIDA7CisJaWYgKHRlc3RfYml0KGtleS0+Yml0X25yLCAma2V5
+LT5wYWdlLT5mbGFncykpCisJCXJldHVybiAwOworCisJcmV0dXJuIGF1dG9yZW1vdmVfd2FrZV9m
+dW5jdGlvbih3YWl0LCBtb2RlLCBzeW5jLCBrZXkpOworfQorCitzdGF0aWMgdm9pZCB3YWtlX3Vw
+X3BhZ2VfYml0KHN0cnVjdCBwYWdlICpwYWdlLCBpbnQgYml0X25yKQoreworCXdhaXRfcXVldWVf
+aGVhZF90ICpxID0gcGFnZV93YWl0cXVldWUocGFnZSk7CisJc3RydWN0IHdhaXRfcGFnZV9rZXkg
+a2V5OworCXVuc2lnbmVkIGxvbmcgZmxhZ3M7CisKKwlrZXkucGFnZSA9IHBhZ2U7CisJa2V5LmJp
+dF9uciA9IGJpdF9ucjsKKwlrZXkucGFnZV9tYXRjaCA9IDA7CisKKwlzcGluX2xvY2tfaXJxc2F2
+ZSgmcS0+bG9jaywgZmxhZ3MpOworCV9fd2FrZV91cF9sb2NrZWRfa2V5KHEsIFRBU0tfTk9STUFM
+LCAma2V5KTsKKwkvKgorCSAqIEl0IGlzIHBvc3NpYmxlIGZvciBvdGhlciBwYWdlcyB0byBoYXZl
+IGNvbGxpZGVkIG9uIHRoZSB3YWl0cXVldWUKKwkgKiBoYXNoLCBzbyBpbiB0aGF0IGNhc2UgY2hl
+Y2sgZm9yIGEgcGFnZSBtYXRjaC4gVGhhdCBwcmV2ZW50cyBhIGxvbmctCisJICogdGVybSB3YWl0
+ZXIKKwkgKgorCSAqIEl0IGlzIHN0aWxsIHBvc3NpYmxlIHRvIG1pc3MgYSBjYXNlIGhlcmUsIHdo
+ZW4gd2Ugd29rZSBwYWdlIHdhaXRlcnMKKwkgKiBhbmQgcmVtb3ZlZCB0aGVtIGZyb20gdGhlIHdh
+aXRxdWV1ZSwgYnV0IHRoZXJlIGFyZSBzdGlsbCBvdGhlcgorCSAqIHBhZ2Ugd2FpdGVycy4KKwkg
+Ki8KKwlpZiAoIXdhaXRxdWV1ZV9hY3RpdmUocSkgfHwgIWtleS5wYWdlX21hdGNoKSB7CisJCUNs
+ZWFyUGFnZVdhaXRlcnMocGFnZSk7CisJCS8qCisJCSAqIEl0J3MgcG9zc2libGUgdG8gbWlzcyBj
+bGVhcmluZyBXYWl0ZXJzIGhlcmUsIHdoZW4gd2Ugd29rZQorCQkgKiBvdXIgcGFnZSB3YWl0ZXJz
+LCBidXQgdGhlIGhhc2hlZCB3YWl0cXVldWUgaGFzIHdhaXRlcnMgZm9yCisJCSAqIG90aGVyIHBh
+Z2VzIG9uIGl0LgorCQkgKgorCQkgKiBUaGF0J3Mgb2theSwgaXQncyBhIHJhcmUgY2FzZS4gVGhl
+IG5leHQgd2FrZXIgd2lsbCBjbGVhciBpdC4KKwkJICovCisJfQorCXNwaW5fdW5sb2NrX2lycXJl
+c3RvcmUoJnEtPmxvY2ssIGZsYWdzKTsKK30KKworc3RhdGljIHZvaWQgd2FrZV91cF9wYWdlKHN0
+cnVjdCBwYWdlICpwYWdlLCBpbnQgYml0KQoreworCWlmICghUGFnZVdhaXRlcnMocGFnZSkpCisJ
+CXJldHVybjsKKwl3YWtlX3VwX3BhZ2VfYml0KHBhZ2UsIGJpdCk7Cit9CisKK3N0YXRpYyBpbmxp
+bmUgaW50IHdhaXRfb25fcGFnZV9iaXRfY29tbW9uKHdhaXRfcXVldWVfaGVhZF90ICpxLAorCQlz
+dHJ1Y3QgcGFnZSAqcGFnZSwgaW50IGJpdF9uciwgaW50IHN0YXRlLCBib29sIGxvY2spCit7CisJ
+c3RydWN0IHdhaXRfcGFnZV9xdWV1ZSB3YWl0X3BhZ2U7CisJd2FpdF9xdWV1ZV9lbnRyeV90ICp3
+YWl0ID0gJndhaXRfcGFnZS53YWl0OworCWludCByZXQgPSAwOworCisJaW5pdF93YWl0KHdhaXQp
+OworCXdhaXQtPmZ1bmMgPSB3YWtlX3BhZ2VfZnVuY3Rpb247CisJd2FpdF9wYWdlLnBhZ2UgPSBw
+YWdlOworCXdhaXRfcGFnZS5iaXRfbnIgPSBiaXRfbnI7CisKKwlmb3IgKDs7KSB7CisJCXNwaW5f
+bG9ja19pcnEoJnEtPmxvY2spOworCisJCWlmIChsaWtlbHkobGlzdF9lbXB0eSgmd2FpdC0+ZW50
+cnkpKSkgeworCQkJaWYgKGxvY2spCisJCQkJX19hZGRfd2FpdF9xdWV1ZV9lbnRyeV90YWlsX2V4
+Y2x1c2l2ZShxLCB3YWl0KTsKKwkJCWVsc2UKKwkJCQlfX2FkZF93YWl0X3F1ZXVlKHEsIHdhaXQp
+OworCQkJU2V0UGFnZVdhaXRlcnMocGFnZSk7CisJCX0KKworCQlzZXRfY3VycmVudF9zdGF0ZShz
+dGF0ZSk7CisKKwkJc3Bpbl91bmxvY2tfaXJxKCZxLT5sb2NrKTsKKworCQlpZiAobGlrZWx5KHRl
+c3RfYml0KGJpdF9uciwgJnBhZ2UtPmZsYWdzKSkpIHsKKwkJCWlvX3NjaGVkdWxlKCk7CisJCQlp
+ZiAodW5saWtlbHkoc2lnbmFsX3BlbmRpbmdfc3RhdGUoc3RhdGUsIGN1cnJlbnQpKSkgeworCQkJ
+CXJldCA9IC1FSU5UUjsKKwkJCQlicmVhazsKKwkJCX0KKwkJfQorCisJCWlmIChsb2NrKSB7CisJ
+CQlpZiAoIXRlc3RfYW5kX3NldF9iaXRfbG9jayhiaXRfbnIsICZwYWdlLT5mbGFncykpCisJCQkJ
+YnJlYWs7CisJCX0gZWxzZSB7CisJCQlpZiAoIXRlc3RfYml0KGJpdF9uciwgJnBhZ2UtPmZsYWdz
+KSkKKwkJCQlicmVhazsKKwkJfQorCX0KKworCWZpbmlzaF93YWl0KHEsIHdhaXQpOworCisJLyoK
+KwkgKiBBIHNpZ25hbCBjb3VsZCBsZWF2ZSBQYWdlV2FpdGVycyBzZXQuIENsZWFyaW5nIGl0IGhl
+cmUgaWYKKwkgKiAhd2FpdHF1ZXVlX2FjdGl2ZSB3b3VsZCBiZSBwb3NzaWJsZSAoYnkgb3Blbi1j
+b2RpbmcgZmluaXNoX3dhaXQpLAorCSAqIGJ1dCBzdGlsbCBmYWlsIHRvIGNhdGNoIGl0IGluIHRo
+ZSBjYXNlIG9mIHdhaXQgaGFzaCBjb2xsaXNpb24uIFdlCisJICogYWxyZWFkeSBjYW4gZmFpbCB0
+byBjbGVhciB3YWl0IGhhc2ggY29sbGlzaW9uIGNhc2VzLCBzbyBkb24ndAorCSAqIGJvdGhlciB3
+aXRoIHNpZ25hbHMgZWl0aGVyLgorCSAqLworCisJcmV0dXJuIHJldDsKK30KKwordm9pZCB3YWl0
+X29uX3BhZ2VfYml0KHN0cnVjdCBwYWdlICpwYWdlLCBpbnQgYml0X25yKQoreworCXdhaXRfcXVl
+dWVfaGVhZF90ICpxID0gcGFnZV93YWl0cXVldWUocGFnZSk7CisJd2FpdF9vbl9wYWdlX2JpdF9j
+b21tb24ocSwgcGFnZSwgYml0X25yLCBUQVNLX1VOSU5URVJSVVBUSUJMRSwgZmFsc2UpOworfQor
+RVhQT1JUX1NZTUJPTCh3YWl0X29uX3BhZ2VfYml0KTsKKworaW50IHdhaXRfb25fcGFnZV9iaXRf
+a2lsbGFibGUoc3RydWN0IHBhZ2UgKnBhZ2UsIGludCBiaXRfbnIpCit7CisJd2FpdF9xdWV1ZV9o
+ZWFkX3QgKnEgPSBwYWdlX3dhaXRxdWV1ZShwYWdlKTsKKwlyZXR1cm4gd2FpdF9vbl9wYWdlX2Jp
+dF9jb21tb24ocSwgcGFnZSwgYml0X25yLCBUQVNLX0tJTExBQkxFLCBmYWxzZSk7Cit9CisKKy8q
+KgorICogYWRkX3BhZ2Vfd2FpdF9xdWV1ZSAtIEFkZCBhbiBhcmJpdHJhcnkgd2FpdGVyIHRvIGEg
+cGFnZSdzIHdhaXQgcXVldWUKKyAqIEBwYWdlOiBQYWdlIGRlZmluaW5nIHRoZSB3YWl0IHF1ZXVl
+IG9mIGludGVyZXN0CisgKiBAd2FpdGVyOiBXYWl0ZXIgdG8gYWRkIHRvIHRoZSBxdWV1ZQorICoK
+KyAqIEFkZCBhbiBhcmJpdHJhcnkgQHdhaXRlciB0byB0aGUgd2FpdCBxdWV1ZSBmb3IgdGhlIG5v
+bWluYXRlZCBAcGFnZS4KKyAqLwordm9pZCBhZGRfcGFnZV93YWl0X3F1ZXVlKHN0cnVjdCBwYWdl
+ICpwYWdlLCB3YWl0X3F1ZXVlX2VudHJ5X3QgKndhaXRlcikKK3sKKwl3YWl0X3F1ZXVlX2hlYWRf
+dCAqcSA9IHBhZ2Vfd2FpdHF1ZXVlKHBhZ2UpOworCXVuc2lnbmVkIGxvbmcgZmxhZ3M7CisKKwlz
+cGluX2xvY2tfaXJxc2F2ZSgmcS0+bG9jaywgZmxhZ3MpOworCV9fYWRkX3dhaXRfcXVldWUocSwg
+d2FpdGVyKTsKKwlTZXRQYWdlV2FpdGVycyhwYWdlKTsKKwlzcGluX3VubG9ja19pcnFyZXN0b3Jl
+KCZxLT5sb2NrLCBmbGFncyk7Cit9CitFWFBPUlRfU1lNQk9MX0dQTChhZGRfcGFnZV93YWl0X3F1
+ZXVlKTsKKworCisvKioKKyAqIF9fbG9ja19wYWdlIC0gZ2V0IGEgbG9jayBvbiB0aGUgcGFnZSwg
+YXNzdW1pbmcgd2UgbmVlZCB0byBzbGVlcCB0byBnZXQgaXQKKyAqIEBfX3BhZ2U6IHRoZSBwYWdl
+IHRvIGxvY2sKKyAqLwordm9pZCBfX2xvY2tfcGFnZShzdHJ1Y3QgcGFnZSAqX19wYWdlKQorewor
+CXN0cnVjdCBwYWdlICpwYWdlID0gY29tcG91bmRfaGVhZChfX3BhZ2UpOworCXdhaXRfcXVldWVf
+aGVhZF90ICpxID0gcGFnZV93YWl0cXVldWUocGFnZSk7CisJd2FpdF9vbl9wYWdlX2JpdF9jb21t
+b24ocSwgcGFnZSwgUEdfbG9ja2VkLCBUQVNLX1VOSU5URVJSVVBUSUJMRSwgdHJ1ZSk7Cit9CitF
+WFBPUlRfU1lNQk9MKF9fbG9ja19wYWdlKTsKKworaW50IF9fbG9ja19wYWdlX2tpbGxhYmxlKHN0
+cnVjdCBwYWdlICpfX3BhZ2UpCit7CisJc3RydWN0IHBhZ2UgKnBhZ2UgPSBjb21wb3VuZF9oZWFk
+KF9fcGFnZSk7CisJd2FpdF9xdWV1ZV9oZWFkX3QgKnEgPSBwYWdlX3dhaXRxdWV1ZShwYWdlKTsK
+KwlyZXR1cm4gd2FpdF9vbl9wYWdlX2JpdF9jb21tb24ocSwgcGFnZSwgUEdfbG9ja2VkLCBUQVNL
+X0tJTExBQkxFLCB0cnVlKTsKK30KK0VYUE9SVF9TWU1CT0xfR1BMKF9fbG9ja19wYWdlX2tpbGxh
+YmxlKTsKKworLyoqCisgKiB1bmxvY2tfcGFnZSAtIHVubG9jayBhIGxvY2tlZCBwYWdlCisgKiBA
+cGFnZTogdGhlIHBhZ2UKKyAqCisgKiBVbmxvY2tzIHRoZSBwYWdlIGFuZCB3YWtlcyB1cCBzbGVl
+cGVycyBpbiBfX193YWl0X29uX3BhZ2VfbG9ja2VkKCkuCisgKiBBbHNvIHdha2VzIHNsZWVwZXJz
+IGluIHdhaXRfb25fcGFnZV93cml0ZWJhY2soKSBiZWNhdXNlIHRoZSB3YWtldXAKKyAqIG1lY2hh
+bmlzbSBiZXR3ZWVuIFBhZ2VMb2NrZWQgcGFnZXMgYW5kIFBhZ2VXcml0ZWJhY2sgcGFnZXMgaXMg
+c2hhcmVkLgorICogQnV0IHRoYXQncyBPSyAtIHNsZWVwZXJzIGluIHdhaXRfb25fcGFnZV93cml0
+ZWJhY2soKSBqdXN0IGdvIGJhY2sgdG8gc2xlZXAuCisgKgorICogTm90ZSB0aGF0IHRoaXMgZGVw
+ZW5kcyBvbiBQR193YWl0ZXJzIGJlaW5nIHRoZSBzaWduIGJpdCBpbiB0aGUgYnl0ZQorICogdGhh
+dCBjb250YWlucyBQR19sb2NrZWQgLSB0aHVzIHRoZSBCVUlMRF9CVUdfT04oKS4gVGhhdCBhbGxv
+d3MgdXMgdG8KKyAqIGNsZWFyIHRoZSBQR19sb2NrZWQgYml0IGFuZCB0ZXN0IFBHX3dhaXRlcnMg
+YXQgdGhlIHNhbWUgdGltZSBmYWlybHkKKyAqIHBvcnRhYmx5IChhcmNoaXRlY3R1cmVzIHRoYXQg
+ZG8gTEwvU0MgY2FuIHRlc3QgYW55IGJpdCwgd2hpbGUgeDg2IGNhbgorICogdGVzdCB0aGUgc2ln
+biBiaXQpLgorICovCit2b2lkIHVubG9ja19wYWdlKHN0cnVjdCBwYWdlICpwYWdlKQoreworCUJV
+SUxEX0JVR19PTihQR193YWl0ZXJzICE9IDcpOworCXBhZ2UgPSBjb21wb3VuZF9oZWFkKHBhZ2Up
+OworCVZNX0JVR19PTl9QQUdFKCFQYWdlTG9ja2VkKHBhZ2UpLCBwYWdlKTsKKwlpZiAoY2xlYXJf
+Yml0X3VubG9ja19pc19uZWdhdGl2ZV9ieXRlKFBHX2xvY2tlZCwgJnBhZ2UtPmZsYWdzKSkKKwkJ
+d2FrZV91cF9wYWdlX2JpdChwYWdlLCBQR19sb2NrZWQpOworfQorRVhQT1JUX1NZTUJPTCh1bmxv
+Y2tfcGFnZSk7CisKKy8qKgorICogZW5kX3BhZ2Vfd3JpdGViYWNrIC0gZW5kIHdyaXRlYmFjayBh
+Z2FpbnN0IGEgcGFnZQorICogQHBhZ2U6IHRoZSBwYWdlCisgKi8KK3ZvaWQgZW5kX3BhZ2Vfd3Jp
+dGViYWNrKHN0cnVjdCBwYWdlICpwYWdlKQoreworCS8qCisJICogVGVzdENsZWFyUGFnZVJlY2xh
+aW0gY291bGQgYmUgdXNlZCBoZXJlIGJ1dCBpdCBpcyBhbiBhdG9taWMKKwkgKiBvcGVyYXRpb24g
+YW5kIG92ZXJraWxsIGluIHRoaXMgcGFydGljdWxhciBjYXNlLiBGYWlsaW5nIHRvCisJICogc2h1
+ZmZsZSBhIHBhZ2UgbWFya2VkIGZvciBpbW1lZGlhdGUgcmVjbGFpbSBpcyB0b28gbWlsZCB0bwor
+CSAqIGp1c3RpZnkgdGFraW5nIGFuIGF0b21pYyBvcGVyYXRpb24gcGVuYWx0eSBhdCB0aGUgZW5k
+IG9mCisJICogZXZlciBwYWdlIHdyaXRlYmFjay4KKwkgKi8KKwlpZiAoUGFnZVJlY2xhaW0ocGFn
+ZSkpIHsKKwkJQ2xlYXJQYWdlUmVjbGFpbShwYWdlKTsKKwkJcm90YXRlX3JlY2xhaW1hYmxlX3Bh
+Z2UocGFnZSk7CisJfQorCisJaWYgKCF0ZXN0X2NsZWFyX3BhZ2Vfd3JpdGViYWNrKHBhZ2UpKQor
+CQlCVUcoKTsKKworCXNtcF9tYl9fYWZ0ZXJfYXRvbWljKCk7CisJd2FrZV91cF9wYWdlKHBhZ2Us
+IFBHX3dyaXRlYmFjayk7Cit9CitFWFBPUlRfU1lNQk9MKGVuZF9wYWdlX3dyaXRlYmFjayk7Ci0t
+IAoyLjE0LjAucmMxLjIuZzRjODI0N2VjMwoK
+--001a11c1691e72570105579bc813
+Content-Type: text/x-patch; charset="US-ASCII";
+	name="0002-Re-implement-the-page-bit-wait-code.patch"
+Content-Disposition: attachment;
+	filename="0002-Re-implement-the-page-bit-wait-code.patch"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_j6sh0iq61
 
-	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
-
-and use of this tree is similar to
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
-
-
-This mmotm tree contains the following patches against 4.13-rc6:
-(patches marked "*" will be included in linux-next)
-
-  origin.patch
-  i-need-old-gcc.patch
-* pm-hibernate-feed-the-wathdog-when-creating-snapshot.patch
-* pm-hibernate-feed-the-wathdog-when-creating-snapshot-v2.patch
-* pm-hibernate-feed-the-wathdog-when-creating-snapshot-v3.patch
-* mm-shmem-fix-handling-sys-kernel-mm-transparent_hugepage-shmem_enabled.patch
-* dax-fix-deadlock-due-to-misaligned-pmd-faults.patch
-* mm-madvise-fix-freeing-of-locked-page-with-madv_free.patch
-* fork-fix-incorrect-fput-of-exe_file-causing-use-after-free.patch
-* mm-reversed-logic-in-memblock_discard.patch
-* mm-skip-hwpoisoned-pages-when-onlining-pages.patch
-* fortify-use-warn-instead-of-bug-for-now.patch
-* adfs-use-unsigned-types-for-memcpy-length.patch
-* mmpage_alloc-dont-call-__node_reclaim-with-oom_lock-held.patch
-* kthread_worker-dont-hog-the-cpu.patch
-* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
-* metag-numa-remove-the-unused-parent_node-macro.patch
-* mm-add-vm_insert_mixed_mkwrite.patch
-* dax-relocate-some-dax-functions.patch
-* dax-use-common-4k-zero-page-for-dax-mmap-reads.patch
-* dax-remove-dax-code-from-page_cache_tree_insert.patch
-* dax-move-all-dax-radix-tree-defs-to-fs-daxc.patch
-* dax-explain-how-read2-write2-addresses-are-validated.patch
-* dax-use-pg_pmd_colour-instead-of-open-coding.patch
-* modpost-simplify-sec_name.patch
-* ocfs2-make-ocfs2_set_acl-static.patch
-* ocfs2-re-queue-ast-or-bast-if-sending-is-failed-to-improve-the-reliability.patch
-* ocfs2-re-queue-ast-or-bast-if-sending-is-failed-to-improve-the-reliability-fix.patch
-* ocfs2-clean-up-some-dead-code.patch
-* ocfs2-get-rid-of-ocfs2_is_o2cb_active-function.patch
-* ocfs2-old-mle-put-and-release-after-the-function-dlm_add_migration_mle-called.patch
-* ocfs2-old-mle-put-and-release-after-the-function-dlm_add_migration_mle-called-fix.patch
-* ocfs2-give-an-obvious-tip-for-dismatch-cluster-names.patch
-* ocfs2-give-an-obvious-tip-for-dismatch-cluster-names-v2.patch
-* ocfs2-move-some-definitions-to-header-file.patch
-* ocfs2-fix-some-small-problems.patch
-* ocfs2-add-kobject-for-online-file-check.patch
-* ocfs2-add-duplicative-ino-number-check.patch
-* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
-  mm.patch
-* slub-make-sure-struct-kmem_cache_node-is-initialized-before-publication.patch
-* mm-add-slub-free-list-pointer-obfuscation.patch
-* mm-slubc-add-a-naive-detection-of-double-free-or-corruption.patch
-* mm-track-actual-nr_scanned-during-shrink_slab.patch
-* drm-i915-wire-up-shrinkctl-nr_scanned.patch
-* mm-memory_hotplug-just-build-zonelist-for-new-added-node.patch
-* mm-memory_hotplug-just-build-zonelist-for-new-added-node-fix.patch
-* mm-memory_hotplug-just-build-zonelist-for-new-added-node-fix-fix.patch
-* mm-mempolicy-add-queue_pages_required.patch
-* mm-x86-move-_page_swp_soft_dirty-from-bit-7-to-bit-1.patch
-* mm-thp-introduce-separate-ttu-flag-for-thp-freezing.patch
-* mm-thp-introduce-config_arch_enable_thp_migration.patch
-* mm-thp-enable-thp-migration-in-generic-path.patch
-* mm-thp-enable-thp-migration-in-generic-path-fix.patch
-* mm-thp-enable-thp-migration-in-generic-path-fix-fix.patch
-* mm-thp-check-pmd-migration-entry-in-common-path.patch
-* mm-soft-dirty-keep-soft-dirty-bits-over-thp-migration.patch
-* mm-mempolicy-mbind-and-migrate_pages-support-thp-migration.patch
-* mm-migrate-move_pages-supports-thp-migration.patch
-* mm-memory_hotplug-memory-hotremove-supports-thp-migration.patch
-* mm-memory_hotplug-display-allowed-zones-in-the-preferred-ordering.patch
-* mm-memory_hotplug-remove-zone-restrictions.patch
-* zram-clean-up-duplicated-codes-in-__zram_bvec_write.patch
-* zram-clean-up-duplicated-codes-in-__zram_bvec_write-fix.patch
-* zram-inlining-zram_compress.patch
-* zram-rename-zram_decompress_page-with-__zram_bvec_read.patch
-* zram-add-interface-to-specify-backing-device.patch
-* zram-add-free-space-management-in-backing-device.patch
-* zram-identify-asynchronous-ios-return-value.patch
-* zram-write-incompressible-pages-to-backing-device.patch
-* zram-write-incompressible-pages-to-backing-device-fix.patch
-* zram-read-page-from-backing-device.patch
-* zram-read-page-from-backing-device-fix.patch
-* zram-add-config-and-doc-file-for-writeback-feature.patch
-* mm-page_alloc-rip-out-zonelist_order_zone.patch
-* mm-page_alloc-rip-out-zonelist_order_zone-fix.patch
-* mm-page_alloc-remove-boot-pageset-initialization-from-memory-hotplug.patch
-* mm-page_alloc-do-not-set_cpu_numa_mem-on-empty-nodes-initialization.patch
-* mm-memory_hotplug-drop-zone-from-build_all_zonelists.patch
-* mm-memory_hotplug-remove-explicit-build_all_zonelists-from-try_online_node.patch
-* mm-page_alloc-simplify-zonelist-initialization.patch
-* mm-page_alloc-remove-stop_machine-from-build_all_zonelists.patch
-* mm-memory_hotplug-get-rid-of-zonelists_mutex.patch
-* mm-sparse-page_ext-drop-ugly-n_high_memory-branches-for-allocations.patch
-* mm-page_owner-make-init_pages_in_zone-faster.patch
-* mm-page_owner-make-init_pages_in_zone-faster-fix.patch
-* mm-page_owner-make-init_pages_in_zone-faster-fix-checkpatch-fixes.patch
-* mm-page_ext-periodically-reschedule-during-page_ext_init.patch
-* mm-page_owner-dont-grab-zone-lock-for-init_pages_in_zone.patch
-* mm-mremap-fail-map-duplication-attempts-for-private-mappings.patch
-* mm-gup-make-__gup_device_-require-thp.patch
-* mm-hugetlb-make-huge_pte_offset-consistent-and-document-behaviour.patch
-* mm-hugetlbc-make-huge_pte_offset-consistent-and-document-behaviour-v2.patch
-* mm-always-flush-vma-ranges-affected-by-zap_page_range-v2.patch
-* zsmalloc-zs_page_migrate-skip-unnecessary-loops-but-not-return-ebusy-if-zspage-is-not-inuse.patch
-* zsmalloc-zs_page_migrate-skip-unnecessary-loops-but-not-return-ebusy-if-zspage-is-not-inuse-fix.patch
-* mm-vmscan-do-not-loop-on-too_many_isolated-for-ever.patch
-* mm-vmscan-do-not-loop-on-too_many_isolated-for-ever-fix.patch
-* fscache-remove-unused-now_uncached-callback.patch
-* mm-make-pagevec_lookup-update-index.patch
-* mm-implement-find_get_pages_range.patch
-* fs-fix-performance-regression-in-clean_bdev_aliases.patch
-* ext4-use-pagevec_lookup_range-in-ext4_find_unwritten_pgoff.patch
-* ext4-use-pagevec_lookup_range-in-writeback-code.patch
-* hugetlbfs-use-pagevec_lookup_range-in-remove_inode_hugepages.patch
-* fs-use-pagevec_lookup_range-in-page_cache_seek_hole_data.patch
-* mm-use-find_get_pages_range-in-filemap_range_has_page.patch
-* mm-remove-nr_pages-argument-from-pagevec_lookup_range.patch
-* mm-memcg-reset-memorylow-during-memcg-offlining.patch
-* cgroup-revert-fa06235b8eb0-cgroup-reset-css-on-destruction.patch
-* mm-ksm-constify-attribute_group-structures.patch
-* mm-slub-constify-attribute_group-structures.patch
-* mm-page_idle-constify-attribute_group-structures.patch
-* mm-huge_memory-constify-attribute_group-structures.patch
-* mm-hugetlb-constify-attribute_group-structures.patch
-* mm-memcontrol-use-int-for-event-state-parameter-in-several-functions.patch
-* mm-memcontrol-use-int-for-event-state-parameter-in-several-functions-v2.patch
-* mm-thp-swap-support-to-clear-swap-cache-flag-for-thp-swapped-out.patch
-* mm-thp-swap-support-to-reclaim-swap-space-for-thp-swapped-out.patch
-* mm-thp-swap-support-to-reclaim-swap-space-for-thp-swapped-out-fix.patch
-* mm-thp-swap-make-reuse_swap_page-works-for-thp-swapped-out.patch
-* mm-thp-swap-make-reuse_swap_page-works-for-thp-swapped-out-fix.patch
-* mm-thp-swap-dont-allocate-huge-cluster-for-file-backed-swap-device.patch
-* block-thp-make-block_device_operationsrw_page-support-thp.patch
-* test-code-to-write-thp-to-swap-device-as-a-whole.patch
-* mm-thp-swap-support-to-split-thp-for-thp-swapped-out.patch
-* memcg-thp-swap-support-move-mem-cgroup-charge-for-thp-swapped-out.patch
-* memcg-thp-swap-avoid-to-duplicated-charge-thp-in-swap-cache.patch
-* memcg-thp-swap-make-mem_cgroup_swapout-support-thp.patch
-* mm-thp-swap-delay-splitting-thp-after-swapped-out.patch
-* mm-thp-swap-add-thp-swapping-out-fallback-counting.patch
-* shmem-shmem_charge-verify-max_block-is-not-exceeded-before-inode-update.patch
-* shmem-introduce-shmem_inode_acct_block.patch
-* userfaultfd-shmem-add-shmem_mfill_zeropage_pte-for-userfaultfd-support.patch
-* userfaultfd-mcopy_atomic-introduce-mfill_atomic_pte-helper.patch
-* userfaultfd-shmem-wire-up-shmem_mfill_zeropage_pte.patch
-* userfaultfd-report-uffdio_zeropage-as-available-for-shmem-vmas.patch
-* userfaultfd-selftest-enable-testing-of-uffdio_zeropage-for-shmem.patch
-* fs-remove-unnecessary-null-f_mapping-check-in-sync_file_range.patch
-* fs-remove-unneeded-forward-definition-of-mm_struct-from-fsh.patch
-* mm-hugetlb-define-system-call-hugetlb-size-encodings-in-single-file.patch
-* mm-arch-consolidate-mmap-hugetlb-size-encodings.patch
-* mm-shm-use-new-hugetlb-size-encoding-definitions.patch
-* mm-rename-global_page_state-to-global_zone_page_state.patch
-* userfaultfd-add-feature-to-request-for-a-signal-delivery.patch
-* userfaultfd-selftest-add-tests-for-uffd_feature_sigbus-feature.patch
-* userfaultfd-selftest-exercise-uffdio_copy-zeropage-eexist.patch
-* userfaultfd-selftest-exercise-uffdio_copy-zeropage-eexist-fix.patch
-* userfaultfd-selftest-explicit-failure-if-the-sigbus-test-failed.patch
-* userfaultfd-call-userfaultfd_unmap_prep-only-if-__split_vma-succeeds.patch
-* userfaultfd-provide-pid-in-userfault-msg.patch
-* userfaultfd-provide-pid-in-userfault-msg-add-feat-union.patch
-* mm-hugetlb-do-not-allocate-non-migrateable-gigantic-pages-from-movable-zones.patch
-* mm-vmstat-fix-divide-error-at-__fragmentation_index.patch
-* mm-vmalloc-reduce-half-comparison-during-pcpu_get_vm_areas.patch
-* mm-devm_memremap_pages-use-multi-order-radix-for-zone_device-lookups.patch
-* mm-shmem-add-hugetlbfs-support-to-memfd_create.patch
-* selftests-memfd-add-memfd_create-hugetlbfs-selftest.patch
-* vmstat-fix-wrong-comment.patch
-* mm-dont-reinvent-the-wheel-but-use-existing-llist-api.patch
-* mm-swap-add-swap-readahead-hit-statistics.patch
-* mm-swap-add-swap-readahead-hit-statistics-fix.patch
-* mm-swap-fix-swap-readahead-marking.patch
-* mm-swap-vma-based-swap-readahead.patch
-* mm-swap-add-sysfs-interface-for-vma-based-swap-readahead.patch
-* mm-swap-dont-use-vma-based-swap-readahead-if-hdd-is-used-as-swap.patch
-* z3fold-use-per-cpu-unbuddied-lists.patch
-* mm-oom-do-not-rely-on-tif_memdie-for-memory-reserves-access.patch
-* mm-replace-tif_memdie-checks-by-tsk_is_oom_victim.patch
-* swap-choose-swap-device-according-to-numa-node.patch
-* swap-choose-swap-device-according-to-numa-node-v2.patch
-* swap-choose-swap-device-according-to-numa-node-v2-fix.patch
-* mm-oom-let-oom_reap_task-and-exit_mmap-to-run-concurrently.patch
-* mm-oom-let-oom_reap_task-and-exit_mmap-to-run-concurrently-fix.patch
-* mm-oom-let-oom_reap_task-and-exit_mmap-to-run-concurrently-fix-2.patch
-* mm-oom-let-oom_reap_task-and-exit_mmap-to-run-concurrently-fix-3.patch
-* mm-clear-to-access-sub-page-last-when-clearing-huge-page.patch
-* add-proc-pid-smaps_rollup.patch
-* x86mpx-make-mpx-depend-on-x86-64-to-free-up-vma-flag.patch
-* mmfork-introduce-madv_wipeonfork.patch
-* hmm-heterogeneous-memory-management-documentation-v3.patch
-* mm-hmm-heterogeneous-memory-management-hmm-for-short-v5.patch
-* mm-hmm-mirror-mirror-process-address-space-on-device-with-hmm-helpers-v3.patch
-* mm-hmm-mirror-helper-to-snapshot-cpu-page-table-v4.patch
-* mm-hmm-mirror-device-page-fault-handler.patch
-* mm-memory_hotplug-introduce-add_pages.patch
-* mm-zone_device-new-type-of-zone_device-for-unaddressable-memory-v5.patch
-* mm-zone_device-new-type-of-zone_device-for-unaddressable-memory-fix.patch
-* mm-zone_device-special-case-put_page-for-device-private-pages-v4.patch
-* mm-memcontrol-allow-to-uncharge-page-without-using-page-lru-field.patch
-* mm-memcontrol-support-memory_device_private-v4.patch
-* mm-hmm-devmem-device-memory-hotplug-using-zone_device-v7.patch
-* mm-hmm-devmem-dummy-hmm-device-for-zone_device-memory-v3.patch
-* mm-migrate-new-migrate-mode-migrate_sync_no_copy.patch
-* mm-migrate-new-memory-migration-helper-for-use-with-device-memory-v5.patch
-* mm-migrate-migrate_vma-unmap-page-from-vma-while-collecting-pages.patch
-* mm-migrate-support-un-addressable-zone_device-page-in-migration-v3.patch
-* mm-migrate-allow-migrate_vma-to-alloc-new-page-on-empty-entry-v4.patch
-* mm-device-public-memory-device-memory-cache-coherent-with-cpu-v5.patch
-* mm-hmm-add-new-helper-to-hotplug-cdm-memory-region-v3.patch
-* mm-hmm-avoid-bloating-arch-that-do-not-make-use-of-hmm.patch
-* mm-hmm-struct-hmm-is-only-use-by-hmm-mirror-functionality-v2.patch
-* mm-remove-useless-vma-parameter-to-offset_il_node.patch
-* mm-compaction-kcompactd-should-not-ignore-pageblock-skip.patch
-* mm-compaction-persistently-skip-hugetlbfs-pageblocks.patch
-* mm-compaction-persistently-skip-hugetlbfs-pageblocks-fix.patch
-* userfaultfd-non-cooperative-closing-the-uffd-without-triggering-sigbus.patch
-* mm-page_fault-remove-reduntant-check-for-write-access.patch
-* mm-change-the-call-sites-of-numa-statistics-items.patch
-* mm-change-the-call-sites-of-numa-statistics-items-checkpatch-fixes.patch
-* mm-update-numa-counter-threshold-size.patch
-* mm-consider-the-number-in-local-cpus-when-reads-numa-stats.patch
-* mm-mlock-use-page_zone-instead-of-page_zone_id.patch
-* mm-zsmalloc-change-stat-type-parameter-to-int.patch
-* mm-fadvise-avoid-fadvise-for-fs-without-backing-device.patch
-* mm-page_alloc-return-0-in-case-this-node-has-no-page-within-the-zone.patch
-* mm-vmscan-do-not-pass-reclaimed-slab-to-vmpressure.patch
-* mm-page_owner-align-with-pageblock_nr-pages.patch
-* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
-* fs-proc-remove-priv-argument-from-is_stack.patch
-* fs-proc-remove-priv-argument-from-is_stack-fix.patch
-* proc-uninline-proc_create.patch
-* fs-proc-unconditional-cond_resched-when-reading-smaps.patch
-* linux-kernelh-move-div_round_down_ull-macro.patch
-* add-multibyte-memset-functions.patch
-* add-testcases-for-memset16-32-64.patch
-* add-testcases-for-memset16-32-64-fix.patch
-* x86-implement-memset16-memset32-memset64.patch
-* arm-implement-memset32-memset64.patch
-* alpha-add-support-for-memset16.patch
-* zram-convert-to-using-memset_l.patch
-* sym53c8xx_2-convert-to-use-memset32.patch
-* vga-optimise-console-scrolling.patch
-* vga-optimise-console-scrolling-fix.patch
-* parse-maintainers-add-ability-to-specify-filenames.patch
-* make-nr_cpu_ids-unsigned.patch
-* bitops-avoid-integer-overflow-in-genmask_ull.patch
-* rbtree-cache-leftmost-node-internally.patch
-* rbtree-optimize-root-check-during-rebalancing-loop.patch
-* rbtree-add-some-additional-comments-for-rebalancing-cases.patch
-* lib-rbtree_testc-make-input-module-parameters.patch
-* lib-rbtree_testc-add-inorder-traversal-test.patch
-* lib-rbtree_testc-support-rb_root_cached.patch
-* sched-fair-replace-cfs_rq-rb_leftmost.patch
-* sched-deadline-replace-earliest-dl-and-rq-leftmost-caching.patch
-* locking-rtmutex-replace-top-waiter-and-pi_waiters-leftmost-caching.patch
-* block-cfq-replace-cfq_rb_root-leftmost-caching.patch
-* lib-interval_tree-fast-overlap-detection.patch
-* lib-interval_tree-fast-overlap-detection-fix.patch
-* lib-interval-tree-correct-comment-wrt-generic-flavor.patch
-* procfs-use-faster-rb_first_cached.patch
-* fs-epoll-use-faster-rb_first_cached.patch
-* mem-memcg-cache-rightmost-node.patch
-* mem-memcg-cache-rightmost-node-fix.patch
-* block-cfq-cache-rightmost-rb_node.patch
-* block-cfq-cache-rightmost-rb_node-fix.patch
-* lib-hexdump-return-einval-in-case-of-error-in-hex2bin.patch
-* lib-add-test-module-for-config_debug_virtual.patch
-* lib-make-bitmap_parselist-thread-safe-and-much-faster.patch
-* lib-add-test-for-bitmap_parselist.patch
-* lib-add-test-for-bitmap_parselist-fix.patch
-* bitmap-introduce-bitmap_from_u64.patch
-* bitmap-introduce-bitmap_from_u64-checkpatch-fixes.patch
-* bitmap-introduce-bitmap_from_u64-checkpatch-fixes-fix.patch
-* lib-rhashtable-fix-comment-on-locks_mul-default-value.patch
-* lib-stringc-check-for-kmalloc-failure.patch
-* lib-cmldinec-clean-up-the-meaningless-comment.patch
-* checkpatch-add-strict-check-for-ifs-with-unnecessary-parentheses.patch
-* init-move-stack-canary-initialization-after-setup_arch.patch
-* extract-early-boot-entropy-from-the-passed-cmdline.patch
-* autofs-fix-at_no_automount-not-being-honored.patch
-* autofs-make-disc-device-user-accessible.patch
-* autofs-make-dev-ioctl-version-and-ismountpoint-user-accessible.patch
-* autofs-remove-unused-autofs_ioc_expire_direct-indirect.patch
-* autofs-non-functional-header-inclusion-cleanup.patch
-* autofs-use-autofs_dev_ioctl_size.patch
-* autofs-drop-wrong-comment.patch
-* autofs-use-unsigned-int-long-instead-of-uint-ulong-for-ioctl-args.patch
-* vfat-deduplicate-hex2bin.patch
-* test_kmod-remove-paranoid-uint_max-check-on-uint-range-processing.patch
-* test_kmod-flip-int-checks-to-be-consistent.patch
-* kmod-split-out-umh-code-into-its-own-file.patch
-* maintainers-clarify-kmod-is-just-a-kernel-module-loader.patch
-* kmod-split-off-umh-headers-into-its-own-file.patch
-* kmod-move-ifdef-config_modules-wrapper-to-makefile.patch
-* seq_file-delete-small-value-optimization.patch
-* cpumask-make-cpumask_next-out-of-line.patch
-* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
-* rapidio-remove-global-irq-spinlocks-from-the-subsystem.patch
-* uapi-fix-linux-sysctlh-userspace-compilation-errors.patch
-* m32r-defconfig-cleanup-from-old-kconfig-options.patch
-* mn10300-defconfig-cleanup-from-old-kconfig-options.patch
-* sh-defconfig-cleanup-from-old-kconfig-options.patch
-* kcov-support-compat-processes.patch
-* kernel-reboot-add-devm_register_reboot_notifier.patch
-* kernel-reboot-add-devm_register_reboot_notifier-fix.patch
-* ipc-convert-ipc_namespacecount-from-atomic_t-to-refcount_t.patch
-* ipc-convert-sem_undo_listrefcnt-from-atomic_t-to-refcount_t.patch
-* ipc-convert-kern_ipc_permrefcount-from-atomic_t-to-refcount_t.patch
-* ipc-sem-drop-sem_checkid-helper.patch
-* ipc-sem-play-nicer-with-large-nsops-allocations.patch
-* ipc-optimize-semget-shmget-msgget-for-lots-of-keys.patch
-  linux-next.patch
-  linux-next-rejects.patch
-  linux-next-rejects-2.patch
-  linux-next-git-rejects.patch
-* zram-mm-vs-block.patch
-* fs-select-fix-memory-corruption-in-compat_get_fd_set.patch
-* nfit-use-init_completion-in-acpi_nfit_flush_probe.patch
-* completion-avoid-unnecessary-stack-allocation-for-completion_initializer_onstack.patch
-* drivers-media-cec-cec-adapc-fix-build-with-gcc-444.patch
-* fscache-fix-fscache_objlist_show-format-processing.patch
-* ib-mlx4-fix-sprintf-format-warning.patch
-* iopoll-avoid-wint-in-bool-context-warning.patch
-* select-use-get-put_timespec64.patch
-* io_getevents-use-timespec64-to-represent-timeouts.patch
-* sparc64-ng4-memset-32-bits-overflow.patch
-* treewide-remove-gfp_temporary-allocation-flag.patch
-* treewide-remove-gfp_temporary-allocation-flag-fix.patch
-* treewide-remove-gfp_temporary-allocation-flag-checkpatch-fixes.patch
-* treewide-remove-gfp_temporary-allocation-flag-fix-2.patch
-* lib-crc-ccitt-add-ccitt-false-crc16-variant.patch
-  mm-add-strictlimit-knob-v2.patch
-  make-sure-nobodys-leaking-resources.patch
-  releasing-resources-with-children.patch
-  kernel-forkc-export-kernel_thread-to-modules.patch
-  mutex-subsystem-synchro-test-module.patch
-  slab-leaks3-default-y.patch
-  workaround-for-a-pci-restoring-bug.patch
+RnJvbSA4Y2Y5Mzc3Yzk4ZDc3YjJhMmRlMGRiYzQ1MWU4YWMyODM2ODRhNGUyIE1vbiBTZXAgMTcg
+MDA6MDA6MDAgMjAwMQpGcm9tOiBMaW51cyBUb3J2YWxkcyA8dG9ydmFsZHNAbGludXgtZm91bmRh
+dGlvbi5vcmc+CkRhdGU6IEZyaSwgMjUgQXVnIDIwMTcgMTU6NDU6NDMgLTA3MDAKU3ViamVjdDog
+W1BBVENIIDIvMl0gUmUtaW1wbGVtZW50IHRoZSBwYWdlIGJpdC13YWl0IGNvZGUKClRoZSBwYWdl
+IHdhaXQtcXVldWVzIGhhdmUgc29tZSBob3JyaWJsZSBzY2FsaW5nIGlzc3VlcywgYW5kIHRoZXkg
+c2VlbSB0bwpiZSBoYXJkIHRvIGZpeC4gIEFuZCB0aGUgd2F5IHRoZXkgdXNlIHRoZSByZWd1bGFy
+IHdhaXQtcXVldWVzIG1hZGUgdGhhdApyZWFsbHkgYmFkLCB3aXRoIGludGVycnVwdHMgZGlzYWJs
+ZWQgZm9yIGxvbmcgdGltZXMgZXRjLgoKVGhpcyB0cmllcyB0byByZS1pbXBsZW1lbnQgdGhlbSB3
+aXRoIGEgdG90YWxseSBkaWZmZXJlbnQgbW9kZWwuICBJdCdzCmtub3duIGJyb2tlbiwgYW5kIHRo
+ZSBhZGRfcGFnZV93YWl0X3F1ZXVlKCkgdGhpbmcgdGhhdCB0aGUgY2FjaGVmaWxlcwpjb2RlIHdh
+bnRzIHRvIHVzZSBpcyBub3QgaW1wbGVtZW50ZWQgYXQgYWxsIChpdCBwcm9iYWJseSB3aWxsIGp1
+c3QgbmVlZAp0byBoYXZlIGEgcGFyYWxsZWwgc2V0IG9mIHdhaXQtcXVldWVzIHRoYXQgYXJlICpv
+bmx5KiB1c2VkIGZvciB0aGF0KS4KClRoZSBjb2RlIGlzIHVudGVzdGVkIGFuZCBwcm9iYWJseSBo
+b3JyaWJseSBidWdneSwgYnV0IEknbSBob3Bpbmcgb3RoZXJzCndpbGwgdGFrZSBhIGxvb2sgYXQg
+dGhpcy4KCk5vdC1zaWduZWQtb2ZmLXlldC1ieTogTGludXMgVG9ydmFsZHMgPHRvcnZhbGRzQGxp
+bnV4LWZvdW5kYXRpb24ub3JnPgotLS0KIG1tL3BhZ2Vfd2FpdF9iaXQuYyB8IDMwOSArKysrKysr
+KysrKysrKysrKysrKysrKysrKysrKysrKysrKystLS0tLS0tLS0tLS0tLS0tLQogMSBmaWxlIGNo
+YW5nZWQsIDIwOSBpbnNlcnRpb25zKCspLCAxMDAgZGVsZXRpb25zKC0pCgpkaWZmIC0tZ2l0IGEv
+bW0vcGFnZV93YWl0X2JpdC5jIGIvbW0vcGFnZV93YWl0X2JpdC5jCmluZGV4IDc1NTBiNmQyNzE1
+YS4uNDdmZGIzMDVkZGFlIDEwMDY0NAotLS0gYS9tbS9wYWdlX3dhaXRfYml0LmMKKysrIGIvbW0v
+cGFnZV93YWl0X2JpdC5jCkBAIC05LDkgKzksMzggQEAKICNpbmNsdWRlIDxsaW51eC93YWl0Lmg+
+CiAjaW5jbHVkZSA8bGludXgvZXhwb3J0Lmg+CiAjaW5jbHVkZSA8bGludXgvc2NoZWQvc2lnbmFs
+Lmg+CisjaW5jbHVkZSA8bGludXgvbGlzdF9ibC5oPgogCiAjaW5jbHVkZSAiaW50ZXJuYWwuaCIK
+IAorLyoKKyAqIEVhY2ggd2FpdGVyIG9uIGEgcGFnZSB3aWxsIHJlZ2lzdGVyIHRoaXMKKyAqICdw
+YWdlX3dhaXRfc3RydWN0JyBhcyBwYXJ0IG9mIHdhaXRpbmcuCisgKgorICogTm90ZSB0aGF0IGZv
+ciBhbnkgcGFydGljdWxhciBwYWdlLCBvbmx5IG9uZSBvZiB0aGUKKyAqIHN0cnVjdHMgd2lsbCBh
+Y3R1YWxseSBiZSB2aXNpYmxlIGF0IHRoZSBoZWFkIG9mIHRoZQorICogd2FpdCBxdWV1ZSBoYXNo
+IHRhYmxlIGF0IGFueSBwYXJ0aWN1bGFyIHRpbWUsIGJ1dAorICogZXZlcnlib2R5IGhhcyBvbmUs
+IGJlY2F1c2UgYXMgb25lIHdhaXRlciBpcyB3b2tlbgorICogdXAgd2Ugd2lsbCBuZWVkIHRvIHBp
+Y2sgYW5vdGhlciBoZWFkIGZvciB3YWl0ZXJzLgorICoKKyAqIE5PVEUhIEFsbCB0aGUgbGlzdCBv
+cGVyYXRpb25zIGFyZSBwcm90ZWN0ZWQgYnkgdGhlCisgKiBobGlzdF9ibF9sb2NrIG9uIHRoZSBo
+YXNoIHRhYmxlLgorICovCitzdHJ1Y3QgcGFnZV93YWl0X3N0cnVjdCB7CisJLy8gVGhpcyBpcyB0
+aGUgaGFzaCBxdWV1ZSBoZWFkIGVudHJ5CisJLy8gb25seSB1c2VkIG9uY2UgcGVyIHsgcGFnZSwg
+Yml0IH0KKwlzdHJ1Y3QgaGxpc3RfYmxfbm9kZSBsaXN0OworCXN0cnVjdCBwYWdlICpwYWdlOwor
+CWludCBiaXQ7CisKKwlzdHJ1Y3QgcGFnZV93YWl0X3N0cnVjdCAqYWxsOworCXN0cnVjdCBwYWdl
+X3dhaXRfc3RydWN0ICpleGNsdXNpdmU7CisKKwkvLyBUaGlzIGlzIHRoZSB3YWl0ZXIgbGlzdAor
+CXN0cnVjdCBwYWdlX3dhaXRfc3RydWN0ICpuZXh0OworCXN0cnVjdCB0YXNrX3N0cnVjdCAqd2Fr
+ZTsKK307CisKIC8qCiAgKiBJbiBvcmRlciB0byB3YWl0IGZvciBwYWdlcyB0byBiZWNvbWUgYXZh
+aWxhYmxlIHRoZXJlIG11c3QgYmUKICAqIHdhaXRxdWV1ZXMgYXNzb2NpYXRlZCB3aXRoIHBhZ2Vz
+LiBCeSB1c2luZyBhIGhhc2ggdGFibGUgb2YKQEAgLTIyLDExICs1MSwxMSBAQAogICogYXQgYSBj
+b3N0IG9mICJ0aHVuZGVyaW5nIGhlcmQiIHBoZW5vbWVuYSBkdXJpbmcgcmFyZSBoYXNoCiAgKiBj
+b2xsaXNpb25zLgogICovCi0jZGVmaW5lIFBBR0VfV0FJVF9UQUJMRV9CSVRTIDgKKyNkZWZpbmUg
+UEFHRV9XQUlUX1RBQkxFX0JJVFMgMTIKICNkZWZpbmUgUEFHRV9XQUlUX1RBQkxFX1NJWkUgKDEg
+PDwgUEFHRV9XQUlUX1RBQkxFX0JJVFMpCi1zdGF0aWMgd2FpdF9xdWV1ZV9oZWFkX3QgcGFnZV93
+YWl0X3RhYmxlW1BBR0VfV0FJVF9UQUJMRV9TSVpFXSBfX2NhY2hlbGluZV9hbGlnbmVkOworc3Rh
+dGljIHN0cnVjdCBobGlzdF9ibF9oZWFkIHBhZ2Vfd2FpdF90YWJsZVtQQUdFX1dBSVRfVEFCTEVf
+U0laRV0gX19jYWNoZWxpbmVfYWxpZ25lZDsKIAotc3RhdGljIHdhaXRfcXVldWVfaGVhZF90ICpw
+YWdlX3dhaXRxdWV1ZShzdHJ1Y3QgcGFnZSAqcGFnZSkKK3N0YXRpYyBzdHJ1Y3QgaGxpc3RfYmxf
+aGVhZCAqcGFnZV93YWl0cXVldWUoc3RydWN0IHBhZ2UgKnBhZ2UpCiB7CiAJcmV0dXJuICZwYWdl
+X3dhaXRfdGFibGVbaGFzaF9wdHIocGFnZSwgUEFHRV9XQUlUX1RBQkxFX0JJVFMpXTsKIH0KQEAg
+LTM2LDczICs2NSwxMjkgQEAgdm9pZCBfX2luaXQgcGFnZWNhY2hlX2luaXQodm9pZCkKIAlpbnQg
+aTsKIAogCWZvciAoaSA9IDA7IGkgPCBQQUdFX1dBSVRfVEFCTEVfU0laRTsgaSsrKQotCQlpbml0
+X3dhaXRxdWV1ZV9oZWFkKCZwYWdlX3dhaXRfdGFibGVbaV0pOworCQlJTklUX0hMSVNUX0JMX0hF
+QUQoJnBhZ2Vfd2FpdF90YWJsZVtpXSk7CiAKIAlwYWdlX3dyaXRlYmFja19pbml0KCk7CiB9CiAK
+LXN0cnVjdCB3YWl0X3BhZ2Vfa2V5IHsKLQlzdHJ1Y3QgcGFnZSAqcGFnZTsKLQlpbnQgYml0X25y
+OwotCWludCBwYWdlX21hdGNoOwotfTsKKy8qCisgKiBXZSBmb3VuZCBhIHdhaXQgZW50cnkgZm9y
+IHRoZSByZXF1ZXN0ZWQgcGFnZSBhbmQgYml0LgorICoKKyAqIFdlIG5vdyBuZWVkIHRvIGNyZWF0
+ZSBhIHdha2V1cCBsaXN0LCB3aGljaCBpbmNsdWRlcyB0aGUKKyAqIGZpcnN0IGV4Y2x1c2l2ZSB3
+YWl0ZXIgKGlmIGFueSksIGFuZCBhbGwgdGhlIG5vbi1leGNsdXNpdmUKKyAqIG9uZXMuCisgKgor
+ICogSWYgdGhlcmUgYXJlIG1vcmUgdGhhbiBvbmUgZXhjbHVzaXZlIHdhaXRlcnMsIHdlIG5lZWQg
+dG8KKyAqIHR1cm5zIHRoZSBuZXh0IGV4Y2x1c2l2ZSB3YWl0ZXIgaW50byBhIHdhaXQgZW50cnks
+IGFuZAorICogYWRkIGl0IGJhY2sgdG8gdGhlIHBhZ2Ugd2FpdCBsaXN0LgorICovCitzdGF0aWMg
+c3RydWN0IHBhZ2Vfd2FpdF9zdHJ1Y3QgKmNyZWF0ZV93YWtlX3VwX2xpc3Qoc3RydWN0IHBhZ2Vf
+d2FpdF9zdHJ1Y3QgKmVudHJ5LCBzdHJ1Y3QgaGxpc3RfYmxfaGVhZCAqaGVhZCkKK3sKKwlzdHJ1
+Y3QgcGFnZV93YWl0X3N0cnVjdCAqYWxsID0gZW50cnktPmFsbDsKKwlzdHJ1Y3QgcGFnZV93YWl0
+X3N0cnVjdCAqZXhjbHVzaXZlID0gZW50cnktPmV4Y2x1c2l2ZTsKIAotc3RydWN0IHdhaXRfcGFn
+ZV9xdWV1ZSB7Ci0Jc3RydWN0IHBhZ2UgKnBhZ2U7Ci0JaW50IGJpdF9ucjsKLQl3YWl0X3F1ZXVl
+X2VudHJ5X3Qgd2FpdDsKLX07CisJaWYgKGV4Y2x1c2l2ZSkgeworCQlzdHJ1Y3QgcGFnZV93YWl0
+X3N0cnVjdCAqcmVtYWluID0gZXhjbHVzaXZlLT5uZXh0OwogCi1zdGF0aWMgaW50IHdha2VfcGFn
+ZV9mdW5jdGlvbih3YWl0X3F1ZXVlX2VudHJ5X3QgKndhaXQsIHVuc2lnbmVkIG1vZGUsIGludCBz
+eW5jLCB2b2lkICphcmcpCisJCWlmIChyZW1haW4pIHsKKwkJCXJlbWFpbi0+YWxsID0gTlVMTDsK
+KwkJCXJlbWFpbi0+ZXhjbHVzaXZlID0gcmVtYWluOworCQkJaGxpc3RfYmxfYWRkX2hlYWQoJnJl
+bWFpbi0+bGlzdCwgaGVhZCk7CisJCX0KKwkJZXhjbHVzaXZlLT5uZXh0ID0gYWxsOworCQlhbGwg
+PSBleGNsdXNpdmU7CisJfQorCXJldHVybiBhbGw7Cit9CisKK3N0YXRpYyBpbmxpbmUgaW50IHJl
+bW92ZV9teXNlbGZfZnJvbV9vbmVfbGlzdChzdHJ1Y3QgcGFnZV93YWl0X3N0cnVjdCAqKnAsIHN0
+cnVjdCBwYWdlX3dhaXRfc3RydWN0ICplbnRyeSkKK3sKKwl3aGlsZSAoKnApIHsKKwkJc3RydWN0
+IHBhZ2Vfd2FpdF9zdHJ1Y3QgKm4gPSAqcDsKKwkJaWYgKG4gPT0gZW50cnkpIHsKKwkJCSpwID0g
+bi0+bmV4dDsKKwkJCXJldHVybiAxOworCQl9CisJCXAgPSAmbi0+bmV4dDsKKwl9CisJcmV0dXJu
+IDA7Cit9CisKKy8qCisgKiBXZSBnb3Qgd29rZW4gdXAsIGFuZCB3ZSBuZWVkIHRvIG1ha2Ugc3Vy
+ZSB0aGVyZSBpcyBubyBtb3JlCisgKiBhY2Nlc3MgdG8gdXMgaW4gdGhlIGxpc3QuCisgKi8KK3N0
+YXRpYyB2b2lkIHJlbW92ZV9teXNlbGZfZnJvbShzdHJ1Y3QgcGFnZV93YWl0X3N0cnVjdCAqb2xk
+LCBzdHJ1Y3QgcGFnZV93YWl0X3N0cnVjdCAqZW50cnksIHN0cnVjdCBobGlzdF9ibF9oZWFkICpo
+ZWFkKQogewotCXN0cnVjdCB3YWl0X3BhZ2Vfa2V5ICprZXkgPSBhcmc7Ci0Jc3RydWN0IHdhaXRf
+cGFnZV9xdWV1ZSAqd2FpdF9wYWdlCi0JCT0gY29udGFpbmVyX29mKHdhaXQsIHN0cnVjdCB3YWl0
+X3BhZ2VfcXVldWUsIHdhaXQpOworCS8qIFdlIGNhbiBiZSBvbiBvbmx5IG9uZSBsaXN0ICovCisJ
+aWYgKCFyZW1vdmVfbXlzZWxmX2Zyb21fb25lX2xpc3QoJm9sZC0+YWxsLCBlbnRyeSkpCisJCXJl
+bW92ZV9teXNlbGZfZnJvbV9vbmVfbGlzdCgmb2xkLT5leGNsdXNpdmUsIGVudHJ5KTsKIAotCWlm
+ICh3YWl0X3BhZ2UtPnBhZ2UgIT0ga2V5LT5wYWdlKQotCSAgICAgICByZXR1cm4gMDsKLQlrZXkt
+PnBhZ2VfbWF0Y2ggPSAxOworCWhsaXN0X2JsX2RlbF9pbml0KCZlbnRyeS0+bGlzdCk7Cit9CiAK
+LQlpZiAod2FpdF9wYWdlLT5iaXRfbnIgIT0ga2V5LT5iaXRfbnIpCi0JCXJldHVybiAwOwotCWlm
+ICh0ZXN0X2JpdChrZXktPmJpdF9uciwgJmtleS0+cGFnZS0+ZmxhZ3MpKQotCQlyZXR1cm4gMDsK
+IAotCXJldHVybiBhdXRvcmVtb3ZlX3dha2VfZnVuY3Rpb24od2FpdCwgbW9kZSwgc3luYywga2V5
+KTsKKy8qCisgKiBGaW5kIGFuZCByZW1vdmUgdGhlIG1hdGNoaW5nIHBhZ2UvYml0IGVudHJ5IGZy
+b20gdGhlIChsb2NrZWQpIGJsIGxpc3QKKyAqCisgKiBSZXR1cm4gRVJSX1BUUigtRVNSQ0gpIGlm
+IG5vIG1hdGNoaW5nIHBhZ2UgYXQgYWxsLCBOVUxMIGlmIHBhZ2UgZm91bmQKKyAqIGJ1dCBub3Qg
+d2l0aCBtYXRjaGluZyBiaXQuCisgKi8KK3N0YXRpYyBzdHJ1Y3QgcGFnZV93YWl0X3N0cnVjdCAq
+ZmluZF9kZWxfZW50cnkoc3RydWN0IHBhZ2UgKnBhZ2UsIGludCBiaXRfbnIsIHN0cnVjdCBobGlz
+dF9ibF9oZWFkICpoZWFkKQoreworCXN0cnVjdCBwYWdlX3dhaXRfc3RydWN0ICplbnRyeTsKKwlz
+dHJ1Y3QgcGFnZV93YWl0X3N0cnVjdCAqcmV0ID0gRVJSX1BUUigtRVNSQ0gpOworCXN0cnVjdCBo
+bGlzdF9ibF9ub2RlICpub2RlOworCisJaGxpc3RfYmxfZm9yX2VhY2hfZW50cnkoZW50cnksIG5v
+ZGUsIGhlYWQsIGxpc3QpIHsKKwkJaWYgKGVudHJ5LT5wYWdlICE9IHBhZ2UpCisJCQljb250aW51
+ZTsKKwkJcmV0ID0gTlVMTDsKKwkJaWYgKGVudHJ5LT5iaXQgIT0gYml0X25yKQorCQkJY29udGlu
+dWU7CisJCV9faGxpc3RfYmxfZGVsKG5vZGUpOworCQlJTklUX0hMSVNUX0JMX05PREUobm9kZSk7
+CisJCXJldCA9IGVudHJ5OworCQlicmVhazsKKwl9CisJcmV0dXJuIHJldDsKIH0KIAogc3RhdGlj
+IHZvaWQgd2FrZV91cF9wYWdlX2JpdChzdHJ1Y3QgcGFnZSAqcGFnZSwgaW50IGJpdF9ucikKIHsK
+LQl3YWl0X3F1ZXVlX2hlYWRfdCAqcSA9IHBhZ2Vfd2FpdHF1ZXVlKHBhZ2UpOwotCXN0cnVjdCB3
+YWl0X3BhZ2Vfa2V5IGtleTsKKwlzdHJ1Y3QgaGxpc3RfYmxfaGVhZCAqaGVhZCA9IHBhZ2Vfd2Fp
+dHF1ZXVlKHBhZ2UpOworCXN0cnVjdCBwYWdlX3dhaXRfc3RydWN0ICp3YWtlOwogCXVuc2lnbmVk
+IGxvbmcgZmxhZ3M7CiAKLQlrZXkucGFnZSA9IHBhZ2U7Ci0Ja2V5LmJpdF9uciA9IGJpdF9ucjsK
+LQlrZXkucGFnZV9tYXRjaCA9IDA7CisJbG9jYWxfc2F2ZV9mbGFncyhmbGFncyk7CisJaGxpc3Rf
+YmxfbG9jayhoZWFkKTsKKworCXdha2UgPSBmaW5kX2RlbF9lbnRyeShwYWdlLCBiaXRfbnIsIGhl
+YWQpOworCWlmIChJU19FUlIod2FrZSkpIHsKKwkJQ2xlYXJQYWdlV2FpdGVycyhwYWdlKTsKKwkJ
+d2FrZSA9IE5VTEw7CisJfSBlbHNlIGlmICh3YWtlKSB7CisJCXdha2UgPSBjcmVhdGVfd2FrZV91
+cF9saXN0KHdha2UsIGhlYWQpOworCX0KKworCWhsaXN0X2JsX3VubG9jayhoZWFkKTsKKwlsb2Nh
+bF9pcnFfcmVzdG9yZShmbGFncyk7CiAKLQlzcGluX2xvY2tfaXJxc2F2ZSgmcS0+bG9jaywgZmxh
+Z3MpOwotCV9fd2FrZV91cF9sb2NrZWRfa2V5KHEsIFRBU0tfTk9STUFMLCAma2V5KTsKIAkvKgot
+CSAqIEl0IGlzIHBvc3NpYmxlIGZvciBvdGhlciBwYWdlcyB0byBoYXZlIGNvbGxpZGVkIG9uIHRo
+ZSB3YWl0cXVldWUKLQkgKiBoYXNoLCBzbyBpbiB0aGF0IGNhc2UgY2hlY2sgZm9yIGEgcGFnZSBt
+YXRjaC4gVGhhdCBwcmV2ZW50cyBhIGxvbmctCi0JICogdGVybSB3YWl0ZXIKKwkgKiBBY3R1YWxs
+eSB3YWtlIGV2ZXJ5Ym9keSB1cC4gTm90ZSB0aGF0IGFzIHdlCisJICogd2FrZSB0aGVtIHVwLCB3
+ZSBjYW4ndCB1c2UgdGhlICd3YWtlX2xpc3QnCisJICogZW50cnkgYW55IG1vcmUsIGJlY2F1c2Ug
+aXQncyBvbiB0aGVpciBzdGFjay4KIAkgKgotCSAqIEl0IGlzIHN0aWxsIHBvc3NpYmxlIHRvIG1p
+c3MgYSBjYXNlIGhlcmUsIHdoZW4gd2Ugd29rZSBwYWdlIHdhaXRlcnMKLQkgKiBhbmQgcmVtb3Zl
+ZCB0aGVtIGZyb20gdGhlIHdhaXRxdWV1ZSwgYnV0IHRoZXJlIGFyZSBzdGlsbCBvdGhlcgotCSAq
+IHBhZ2Ugd2FpdGVycy4KKwkgKiBXZSBhbHNvIGNsZWFyIHRoZSAnd2FrZScgZmllbGQgc28gdGhh
+dCB0aGUKKwkgKiB0YXJnZXQgcHJvY2VzcyBjYW4gc2VlIGlmIHRoZXkgZ290IHdva2VuIHVwCisJ
+ICogYnkgYSBwYWdlIGJpdCBldmVudC4KIAkgKi8KLQlpZiAoIXdhaXRxdWV1ZV9hY3RpdmUocSkg
+fHwgIWtleS5wYWdlX21hdGNoKSB7Ci0JCUNsZWFyUGFnZVdhaXRlcnMocGFnZSk7Ci0JCS8qCi0J
+CSAqIEl0J3MgcG9zc2libGUgdG8gbWlzcyBjbGVhcmluZyBXYWl0ZXJzIGhlcmUsIHdoZW4gd2Ug
+d29rZQotCQkgKiBvdXIgcGFnZSB3YWl0ZXJzLCBidXQgdGhlIGhhc2hlZCB3YWl0cXVldWUgaGFz
+IHdhaXRlcnMgZm9yCi0JCSAqIG90aGVyIHBhZ2VzIG9uIGl0LgotCQkgKgotCQkgKiBUaGF0J3Mg
+b2theSwgaXQncyBhIHJhcmUgY2FzZS4gVGhlIG5leHQgd2FrZXIgd2lsbCBjbGVhciBpdC4KLQkJ
+ICovCi0JfQotCXNwaW5fdW5sb2NrX2lycXJlc3RvcmUoJnEtPmxvY2ssIGZsYWdzKTsKKwl3aGls
+ZSAod2FrZSkgeworCQlzdHJ1Y3QgdGFza19zdHJ1Y3QgKnAgPSB3YWtlLT53YWtlOworCQl3YWtl
+ID0gd2FrZS0+bmV4dDsKKwkJc21wX3N0b3JlX3JlbGVhc2UoJndha2UtPndha2UsIE5VTEwpOwor
+CQl3YWtlX3VwX3Byb2Nlc3MocCk7CisJfTsKIH0KIAogc3RhdGljIHZvaWQgd2FrZV91cF9wYWdl
+KHN0cnVjdCBwYWdlICpwYWdlLCBpbnQgYml0KQpAQCAtMTEyLDc2ICsxOTcsMTAxIEBAIHN0YXRp
+YyB2b2lkIHdha2VfdXBfcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSwgaW50IGJpdCkKIAl3YWtlX3Vw
+X3BhZ2VfYml0KHBhZ2UsIGJpdCk7CiB9CiAKLXN0YXRpYyBpbmxpbmUgaW50IHdhaXRfb25fcGFn
+ZV9iaXRfY29tbW9uKHdhaXRfcXVldWVfaGVhZF90ICpxLAotCQlzdHJ1Y3QgcGFnZSAqcGFnZSwg
+aW50IGJpdF9uciwgaW50IHN0YXRlLCBib29sIGxvY2spCisvKgorICogV2FpdCBmb3IgdGhlIHNw
+ZWNpZmljIHBhZ2UgYml0IHRvIGNsZWFyLgorICovCitzdGF0aWMgdm9pZCB3YWl0X29uY2Vfb25f
+cGFnZV9iaXQoc3RydWN0IHBhZ2UgKnBhZ2UsIGludCBiaXRfbnIsIGludCBzdGF0ZSwgYm9vbCBs
+b2NrKQogewotCXN0cnVjdCB3YWl0X3BhZ2VfcXVldWUgd2FpdF9wYWdlOwotCXdhaXRfcXVldWVf
+ZW50cnlfdCAqd2FpdCA9ICZ3YWl0X3BhZ2Uud2FpdDsKLQlpbnQgcmV0ID0gMDsKKwlzdHJ1Y3Qg
+cGFnZV93YWl0X3N0cnVjdCBlbnRyeSwgKm9sZDsKKwlzdHJ1Y3QgaGxpc3RfYmxfaGVhZCAqaGVh
+ZDsKKwl1bnNpZ25lZCBsb25nIGZsYWdzOwogCi0JaW5pdF93YWl0KHdhaXQpOwotCXdhaXQtPmZ1
+bmMgPSB3YWtlX3BhZ2VfZnVuY3Rpb247Ci0Jd2FpdF9wYWdlLnBhZ2UgPSBwYWdlOwotCXdhaXRf
+cGFnZS5iaXRfbnIgPSBiaXRfbnI7CisJSU5JVF9ITElTVF9CTF9OT0RFKCZlbnRyeS5saXN0KTsK
+KwllbnRyeS5wYWdlID0gcGFnZTsKKwllbnRyeS5iaXQgPSBiaXRfbnI7CisJZW50cnkuYWxsID0g
+ZW50cnkuZXhjbHVzaXZlID0gTlVMTDsKKwllbnRyeS5uZXh0ID0gTlVMTDsKKwllbnRyeS53YWtl
+ID0gY3VycmVudDsKKworCWhlYWQgPSBwYWdlX3dhaXRxdWV1ZShwYWdlKTsKKwlsb2NhbF9zYXZl
+X2ZsYWdzKGZsYWdzKTsKKwlobGlzdF9ibF9sb2NrKGhlYWQpOworCisJb2xkID0gZmluZF9kZWxf
+ZW50cnkocGFnZSwgYml0X25yLCBoZWFkKTsKKwlpZiAoSVNfRVJSKG9sZCkpCisJCW9sZCA9IE5V
+TEw7CisJaWYgKG9sZCkgeworCQllbnRyeS5hbGwgPSBvbGQtPmFsbDsKKwkJZW50cnkuZXhjbHVz
+aXZlID0gb2xkLT5leGNsdXNpdmU7CisJfQogCi0JZm9yICg7OykgewotCQlzcGluX2xvY2tfaXJx
+KCZxLT5sb2NrKTsKLQotCQlpZiAobGlrZWx5KGxpc3RfZW1wdHkoJndhaXQtPmVudHJ5KSkpIHsK
+LQkJCWlmIChsb2NrKQotCQkJCV9fYWRkX3dhaXRfcXVldWVfZW50cnlfdGFpbF9leGNsdXNpdmUo
+cSwgd2FpdCk7Ci0JCQllbHNlCi0JCQkJX19hZGRfd2FpdF9xdWV1ZShxLCB3YWl0KTsKLQkJCVNl
+dFBhZ2VXYWl0ZXJzKHBhZ2UpOwotCQl9CisJaWYgKGxvY2spIHsKKwkJZW50cnkubmV4dCA9IGVu
+dHJ5LmV4Y2x1c2l2ZTsKKwkJZW50cnkuZXhjbHVzaXZlID0gJmVudHJ5OworCX0gZWxzZSB7CisJ
+CWVudHJ5Lm5leHQgPSBlbnRyeS5hbGw7CisJCWVudHJ5LmFsbCA9ICZlbnRyeTsKKwl9CiAKLQkJ
+c2V0X2N1cnJlbnRfc3RhdGUoc3RhdGUpOworCWhsaXN0X2JsX2FkZF9oZWFkKCZlbnRyeS5saXN0
+LCBoZWFkKTsKKwljdXJyZW50LT5zdGF0ZSA9IHN0YXRlOwogCi0JCXNwaW5fdW5sb2NrX2lycSgm
+cS0+bG9jayk7CisJaGxpc3RfYmxfdW5sb2NrKGhlYWQpOworCWxvY2FsX2lycV9yZXN0b3JlKGZs
+YWdzKTsKIAotCQlpZiAobGlrZWx5KHRlc3RfYml0KGJpdF9uciwgJnBhZ2UtPmZsYWdzKSkpIHsK
+LQkJCWlvX3NjaGVkdWxlKCk7Ci0JCQlpZiAodW5saWtlbHkoc2lnbmFsX3BlbmRpbmdfc3RhdGUo
+c3RhdGUsIGN1cnJlbnQpKSkgewotCQkJCXJldCA9IC1FSU5UUjsKLQkJCQlicmVhazsKLQkJCX0K
+LQkJfQorCWlmIChsaWtlbHkodGVzdF9iaXQoYml0X25yLCAmcGFnZS0+ZmxhZ3MpKSkKKwkJaW9f
+c2NoZWR1bGUoKTsKKworCS8qCisJICogTk9URSEgSWYgd2Ugd2VyZSB3b2tlbiB1cCBieSBzb21l
+dGhpbmcgZWxzZSwKKwkgKiB3ZSBoYXZlIHRvIHJlbW92ZSBvdXJzZWx2ZXMgZnJvbSB0aGUgaGFz
+aCBsaXN0LgorCSAqCisJICogQnV0IGluIG9yZGVyIHRvIGF2b2lkIGV4dHJhIGxvY2tpbmcgb3Zl
+cmhlYWQgaW4KKwkgKiB0aGUgY29tbW9uIGNhc2UsIHdlIG9ubHkgZG8gdGhpcyBpZiB3ZSBjYW4n
+dAorCSAqIGFscmVhZHkgdGVsbCB0aGF0IHdlIHdlcmUgd29rZW4gdXAgKGFuZCB0aHVzCisJICog
+bm8gbG9uZ2VyIG9uIHRoZSBsaXN0cykuCisJICovCisJaWYgKHNtcF9sb2FkX2FjcXVpcmUoJmVu
+dHJ5Lndha2UpICE9IE5VTEwpIHsKKwkJbG9jYWxfc2F2ZV9mbGFncyhmbGFncyk7CisJCWhsaXN0
+X2JsX2xvY2soaGVhZCk7CisKKwkJb2xkID0gZmluZF9kZWxfZW50cnkocGFnZSwgYml0X25yLCBo
+ZWFkKTsKKwkJaWYgKG9sZCAmJiAhSVNfRVJSKG9sZCkpCisJCQlyZW1vdmVfbXlzZWxmX2Zyb20o
+b2xkLCAmZW50cnksIGhlYWQpOwogCisJCWhsaXN0X2JsX3VubG9jayhoZWFkKTsKKwkJbG9jYWxf
+aXJxX3Jlc3RvcmUoZmxhZ3MpOworCX0KK30KKworc3RhdGljIGlubGluZSBpbnQgd2FpdF9vbl9w
+YWdlX2JpdF9jb21tb24oc3RydWN0IHBhZ2UgKnBhZ2UsIGludCBiaXRfbnIsIGludCBzdGF0ZSwg
+Ym9vbCBsb2NrKQoreworCWZvciAoOzspIHsKKwkJd2FpdF9vbmNlX29uX3BhZ2VfYml0KHBhZ2Us
+IGJpdF9uciwgc3RhdGUsIGxvY2spOwogCQlpZiAobG9jaykgewogCQkJaWYgKCF0ZXN0X2FuZF9z
+ZXRfYml0X2xvY2soYml0X25yLCAmcGFnZS0+ZmxhZ3MpKQotCQkJCWJyZWFrOworCQkJCXJldHVy
+biAwOwogCQl9IGVsc2UgewogCQkJaWYgKCF0ZXN0X2JpdChiaXRfbnIsICZwYWdlLT5mbGFncykp
+Ci0JCQkJYnJlYWs7CisJCQkJcmV0dXJuIDA7CiAJCX0KKwkJaWYgKHVubGlrZWx5KHNpZ25hbF9w
+ZW5kaW5nX3N0YXRlKHN0YXRlLCBjdXJyZW50KSkpCisJCQlyZXR1cm4gLUVJTlRSOwogCX0KLQot
+CWZpbmlzaF93YWl0KHEsIHdhaXQpOwotCi0JLyoKLQkgKiBBIHNpZ25hbCBjb3VsZCBsZWF2ZSBQ
+YWdlV2FpdGVycyBzZXQuIENsZWFyaW5nIGl0IGhlcmUgaWYKLQkgKiAhd2FpdHF1ZXVlX2FjdGl2
+ZSB3b3VsZCBiZSBwb3NzaWJsZSAoYnkgb3Blbi1jb2RpbmcgZmluaXNoX3dhaXQpLAotCSAqIGJ1
+dCBzdGlsbCBmYWlsIHRvIGNhdGNoIGl0IGluIHRoZSBjYXNlIG9mIHdhaXQgaGFzaCBjb2xsaXNp
+b24uIFdlCi0JICogYWxyZWFkeSBjYW4gZmFpbCB0byBjbGVhciB3YWl0IGhhc2ggY29sbGlzaW9u
+IGNhc2VzLCBzbyBkb24ndAotCSAqIGJvdGhlciB3aXRoIHNpZ25hbHMgZWl0aGVyLgotCSAqLwot
+Ci0JcmV0dXJuIHJldDsKIH0KIAogdm9pZCB3YWl0X29uX3BhZ2VfYml0KHN0cnVjdCBwYWdlICpw
+YWdlLCBpbnQgYml0X25yKQogewotCXdhaXRfcXVldWVfaGVhZF90ICpxID0gcGFnZV93YWl0cXVl
+dWUocGFnZSk7Ci0Jd2FpdF9vbl9wYWdlX2JpdF9jb21tb24ocSwgcGFnZSwgYml0X25yLCBUQVNL
+X1VOSU5URVJSVVBUSUJMRSwgZmFsc2UpOworCXdhaXRfb25fcGFnZV9iaXRfY29tbW9uKHBhZ2Us
+IGJpdF9uciwgVEFTS19VTklOVEVSUlVQVElCTEUsIGZhbHNlKTsKIH0KIEVYUE9SVF9TWU1CT0wo
+d2FpdF9vbl9wYWdlX2JpdCk7CiAKIGludCB3YWl0X29uX3BhZ2VfYml0X2tpbGxhYmxlKHN0cnVj
+dCBwYWdlICpwYWdlLCBpbnQgYml0X25yKQogewotCXdhaXRfcXVldWVfaGVhZF90ICpxID0gcGFn
+ZV93YWl0cXVldWUocGFnZSk7Ci0JcmV0dXJuIHdhaXRfb25fcGFnZV9iaXRfY29tbW9uKHEsIHBh
+Z2UsIGJpdF9uciwgVEFTS19LSUxMQUJMRSwgZmFsc2UpOworCXJldHVybiB3YWl0X29uX3BhZ2Vf
+Yml0X2NvbW1vbihwYWdlLCBiaXRfbnIsIFRBU0tfS0lMTEFCTEUsIGZhbHNlKTsKIH0KIAorI2lm
+IDAKIC8qKgogICogYWRkX3BhZ2Vfd2FpdF9xdWV1ZSAtIEFkZCBhbiBhcmJpdHJhcnkgd2FpdGVy
+IHRvIGEgcGFnZSdzIHdhaXQgcXVldWUKICAqIEBwYWdlOiBQYWdlIGRlZmluaW5nIHRoZSB3YWl0
+IHF1ZXVlIG9mIGludGVyZXN0CkBAIC0yMDAsNiArMzEwLDcgQEAgdm9pZCBhZGRfcGFnZV93YWl0
+X3F1ZXVlKHN0cnVjdCBwYWdlICpwYWdlLCB3YWl0X3F1ZXVlX2VudHJ5X3QgKndhaXRlcikKIAlz
+cGluX3VubG9ja19pcnFyZXN0b3JlKCZxLT5sb2NrLCBmbGFncyk7CiB9CiBFWFBPUlRfU1lNQk9M
+X0dQTChhZGRfcGFnZV93YWl0X3F1ZXVlKTsKKyNlbmRpZgogCiAKIC8qKgpAQCAtMjA5LDE2ICsz
+MjAsMTQgQEAgRVhQT1JUX1NZTUJPTF9HUEwoYWRkX3BhZ2Vfd2FpdF9xdWV1ZSk7CiB2b2lkIF9f
+bG9ja19wYWdlKHN0cnVjdCBwYWdlICpfX3BhZ2UpCiB7CiAJc3RydWN0IHBhZ2UgKnBhZ2UgPSBj
+b21wb3VuZF9oZWFkKF9fcGFnZSk7Ci0Jd2FpdF9xdWV1ZV9oZWFkX3QgKnEgPSBwYWdlX3dhaXRx
+dWV1ZShwYWdlKTsKLQl3YWl0X29uX3BhZ2VfYml0X2NvbW1vbihxLCBwYWdlLCBQR19sb2NrZWQs
+IFRBU0tfVU5JTlRFUlJVUFRJQkxFLCB0cnVlKTsKKwl3YWl0X29uX3BhZ2VfYml0X2NvbW1vbihw
+YWdlLCBQR19sb2NrZWQsIFRBU0tfVU5JTlRFUlJVUFRJQkxFLCB0cnVlKTsKIH0KIEVYUE9SVF9T
+WU1CT0woX19sb2NrX3BhZ2UpOwogCiBpbnQgX19sb2NrX3BhZ2Vfa2lsbGFibGUoc3RydWN0IHBh
+Z2UgKl9fcGFnZSkKIHsKIAlzdHJ1Y3QgcGFnZSAqcGFnZSA9IGNvbXBvdW5kX2hlYWQoX19wYWdl
+KTsKLQl3YWl0X3F1ZXVlX2hlYWRfdCAqcSA9IHBhZ2Vfd2FpdHF1ZXVlKHBhZ2UpOwotCXJldHVy
+biB3YWl0X29uX3BhZ2VfYml0X2NvbW1vbihxLCBwYWdlLCBQR19sb2NrZWQsIFRBU0tfS0lMTEFC
+TEUsIHRydWUpOworCXJldHVybiB3YWl0X29uX3BhZ2VfYml0X2NvbW1vbihwYWdlLCBQR19sb2Nr
+ZWQsIFRBU0tfS0lMTEFCTEUsIHRydWUpOwogfQogRVhQT1JUX1NZTUJPTF9HUEwoX19sb2NrX3Bh
+Z2Vfa2lsbGFibGUpOwogCi0tIAoyLjE0LjAucmMxLjIuZzRjODI0N2VjMwoK
+--001a11c1691e72570105579bc813--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
