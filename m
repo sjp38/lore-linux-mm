@@ -1,57 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EAAB6B05C1
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 09:16:26 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id p12so11732974qkl.0
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 06:16:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 8si1064504qkp.409.2017.08.25.06.16.25
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C86EA6810BF
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 10:12:43 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id v67so30418902ywg.4
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 07:12:43 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id x14si1563892ybe.577.2017.08.25.07.12.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Aug 2017 06:16:25 -0700 (PDT)
-Date: Fri, 25 Aug 2017 15:16:15 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH v2 0/3] Separate NUMA statistics from zone statistics
-Message-ID: <20170825151615.4eb04cf4@redhat.com>
-In-Reply-To: <20170825080437.wyikqunw6mtj22hu@techsingularity.net>
-References: <1503568801-21305-1-git-send-email-kemi.wang@intel.com>
-	<20170825080437.wyikqunw6mtj22hu@techsingularity.net>
+        Fri, 25 Aug 2017 07:12:42 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 1/7] ktask: add documentation
+References: <20170824205004.18502-1-daniel.m.jordan@oracle.com>
+ <20170824205004.18502-2-daniel.m.jordan@oracle.com>
+ <ebada9e9-038c-71b5-2115-1693cd1e202e@infradead.org>
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Message-ID: <b460a898-f915-9c5f-e185-2348a657ddfd@oracle.com>
+Date: Fri, 25 Aug 2017 10:12:04 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <ebada9e9-038c-71b5-2115-1693cd1e202e@infradead.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Kemi Wang <kemi.wang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, brouer@redhat.com
+To: Randy Dunlap <rdunlap@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: aaron.lu@intel.com, akpm@linux-foundation.org, dave.hansen@linux.intel.com, mgorman@techsingularity.net, mhocko@kernel.org, mike.kravetz@oracle.com, pasha.tatashin@oracle.com, steven.sistare@oracle.com, tim.c.chen@intel.com
 
-On Fri, 25 Aug 2017 09:04:37 +0100
-Mel Gorman <mgorman@techsingularity.net> wrote:
+On 08/24/2017 07:07 PM, Randy Dunlap wrote:
+> On 08/24/2017 01:49 PM, Daniel Jordan wrote:
+>> diff --git a/Documentation/core-api/ktask.rst b/Documentation/core-api/ktask.rst
+>> new file mode 100644
+>> index 000000000000..cb4b0d87c8c6
+>> --- /dev/null
+>> +++ b/Documentation/core-api/ktask.rst
+>> @@ -0,0 +1,104 @@
+>> +============================================
+>> +ktask: parallelize cpu-intensive kernel work
+>> +============================================
+> Hi,
+>
+> I would prefer to use CPU instead of cpu.
 
-> On Thu, Aug 24, 2017 at 05:59:58PM +0800, Kemi Wang wrote:
-> > Each page allocation updates a set of per-zone statistics with a call to
-> > zone_statistics(). As discussed in 2017 MM summit, these are a substantial
-> > source of overhead in the page allocator and are very rarely consumed. This
-> > significant overhead in cache bouncing caused by zone counters (NUMA
-> > associated counters) update in parallel in multi-threaded page allocation
-> > (pointed out by Dave Hansen).
-> >   
-> 
-> For the series;
-> 
-> Acked-by: Mel Gorman <mgorman@techsingularity.net>
-> 
+Ok, a quick grep through Documentation shows that CPU is used more often 
+than cpu, so for consistency I'll change it.
 
-I'm very happy to see these issues being worked on, from our MM-summit
-interactions. I would like to provide/have a:
+> Otherwise, Reviewed-by: Randy Dunlap <rdunlap@infradead.org>
 
-Reported-by: Jesper Dangaard Brouer <brouer@redhat.com>
+Thanks for the review, Randy.
 
-As I'm not sure an acked-by from me have any value/merit here ;-)
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  LinkedIn: http://www.linkedin.com/in/brouer
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
