@@ -1,95 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D4D506810D7
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 19:41:48 -0400 (EDT)
-Received: by mail-vk0-f69.google.com with SMTP id d124so964242vkf.11
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 16:41:48 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 89si3186695uag.384.2017.08.25.16.41.47
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CED486810D7
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 19:50:33 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id z193so4676099pgd.10
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 16:50:33 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id p5si5458914pgn.350.2017.08.25.16.50.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Aug 2017 16:41:47 -0700 (PDT)
-Subject: Re: + mm-madvise-fix-freeing-of-locked-page-with-madv_free.patch
- added to -mm tree
-References: <599df681.NreP1dR3/HGSfpCe%akpm@linux-foundation.org>
- <20170824060957.GA29811@dhcp22.suse.cz>
- <81C11D6F-653D-4B14-A3A6-E6BB6FB5436D@vmware.com>
- <3452db57-d847-ec8e-c9be-7710f4ddd5d4@oracle.com>
- <10E0D3D9-F7D4-4A0F-AD2F-9E40F3DE6CCC@vmware.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <c51c78c4-8bac-c5e2-c740-3fc92d602436@oracle.com>
-Date: Fri, 25 Aug 2017 16:41:36 -0700
+        Fri, 25 Aug 2017 16:50:32 -0700 (PDT)
+Subject: Re: mmotm 2017-08-25-15-50 uploaded
+References: <59a0a9d1.jzOblYrHfdIDuDZw%akpm@linux-foundation.org>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <3c9df006-0cc5-3a32-b715-1fbb43cb9ea8@infradead.org>
+Date: Fri, 25 Aug 2017 16:50:26 -0700
 MIME-Version: 1.0
-In-Reply-To: <10E0D3D9-F7D4-4A0F-AD2F-9E40F3DE6CCC@vmware.com>
+In-Reply-To: <59a0a9d1.jzOblYrHfdIDuDZw%akpm@linux-foundation.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nadav Amit <namit@vmware.com>
-Cc: "ebiggers@google.com" <ebiggers@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, "rientjes@google.com" <rientjes@google.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "mm-commits@vger.kernel.org" <mm-commits@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, "nyc@holomorphy.com" <nyc@holomorphy.com>
+To: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
+Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
 
-On 08/25/2017 03:51 PM, Nadav Amit wrote:
-> Mike Kravetz <mike.kravetz@oracle.com> wrote:
+On 08/25/17 15:50, akpm@linux-foundation.org wrote:
+> The mm-of-the-moment snapshot 2017-08-25-15-50 has been uploaded to
 > 
->> On 08/25/2017 03:02 PM, Nadav Amit wrote:
->>> Michal Hocko <mhocko@kernel.org> wrote:
->>>
->>>> Hmm, I do not see this neither in linux-mm nor LKML. Strange
->>>>
->>>> On Wed 23-08-17 14:41:21, Andrew Morton wrote:
->>>>> From: Eric Biggers <ebiggers@google.com>
->>>>> Subject: mm/madvise.c: fix freeing of locked page with MADV_FREE
->>>>>
->>>>> If madvise(..., MADV_FREE) split a transparent hugepage, it called
->>>>> put_page() before unlock_page().  This was wrong because put_page() can
->>>>> free the page, e.g.  if a concurrent madvise(..., MADV_DONTNEED) has
->>>>> removed it from the memory mapping.  put_page() then rightfully complained
->>>>> about freeing a locked page.
->>>>>
->>>>> Fix this by moving the unlock_page() before put_page().
->>>
->>> Quick grep shows that a similar flow (put_page() followed by an
->>> unlock_page() ) also happens in hugetlbfs_fallocate(). Isna??t it a problem as
->>> well?
->>
->> I assume you are asking about this block of code?
+>    http://www.ozlabs.org/~akpm/mmotm/
 > 
-> Yes.
+> mmotm-readme.txt says
 > 
->>
->>                /*
->>                 * page_put due to reference from alloc_huge_page()
->>                 * unlock_page because locked by add_to_page_cache()
->>                 */
->>                put_page(page);
->>                unlock_page(page);
->>
->> Well, there is a typo (page_put) in the comment. :(
->>
->> However, in this case we have just added the huge page to a hugetlbfs
->> file.  The put_page() is there just to drop the reference count on the
->> page (taken when allocated).  It will still be non-zero as we have
->> successfully added it to the page cache.  So, we are not freeing the
->> page here, just dropping the reference count.
->>
->> This should not cause a problem like that seen in madvise.
+> README for mm-of-the-moment:
 > 
-> Thanks for the quick response.
+> http://www.ozlabs.org/~akpm/mmotm/
 > 
-> I am not too familiar with this piece of code, so just for the matter of
-> understanding: what prevents the page from being removed from the page cache
-> shortly after it is added (even if it is highly unlikely)? The page lock? The
-> inode lock?
+> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> more than once a week.
 
-Someone would need to acquire the inode lock to remove the page.  This
-is held until we exit the routine.  Also note that put_page for this
-type of huge page almost always results in the page being put back
-on a free list within the hugetlb(fs) subsystem.  It is not returned
-to the 'normal' memory allocators for general use.
+lots of this one (on x86_64, i386, or UML):
+
+../kernel/fork.c:818:2: error: implicit declaration of function 'hmm_mm_init' [-Werror=implicit-function-declaration]
+../kernel/fork.c:897:2: error: implicit declaration of function 'hmm_mm_destroy' [-Werror=implicit-function-declaration]
+
+from mm-hmm-heterogeneous-memory-management-hmm-for-short-v5.patch
+
+Cc: JA(C)rA'me Glisse <jglisse@redhat.com>
 
 -- 
-Mike Kravetz
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
