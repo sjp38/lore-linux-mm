@@ -1,54 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C86EA6810BF
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 10:12:43 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id v67so30418902ywg.4
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 07:12:43 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id x14si1563892ybe.577.2017.08.25.07.12.42
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DD3876810B7
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 10:40:41 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id q7so41358qta.2
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 07:40:41 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o2si6082863qkc.93.2017.08.25.07.40.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Aug 2017 07:12:42 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 1/7] ktask: add documentation
-References: <20170824205004.18502-1-daniel.m.jordan@oracle.com>
- <20170824205004.18502-2-daniel.m.jordan@oracle.com>
- <ebada9e9-038c-71b5-2115-1693cd1e202e@infradead.org>
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Message-ID: <b460a898-f915-9c5f-e185-2348a657ddfd@oracle.com>
-Date: Fri, 25 Aug 2017 10:12:04 -0400
+        Fri, 25 Aug 2017 07:40:40 -0700 (PDT)
+Date: Fri, 25 Aug 2017 16:40:36 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] fork: fix incorrect fput of ->exe_file causing
+ use-after-free
+Message-ID: <20170825144036.GA26620@redhat.com>
+References: <20170823211408.31198-1-ebiggers3@gmail.com>
+ <20170824132041.GA22882@redhat.com>
+ <20170824165935.GA21624@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <ebada9e9-038c-71b5-2115-1693cd1e202e@infradead.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170824165935.GA21624@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: aaron.lu@intel.com, akpm@linux-foundation.org, dave.hansen@linux.intel.com, mgorman@techsingularity.net, mhocko@kernel.org, mike.kravetz@oracle.com, pasha.tatashin@oracle.com, steven.sistare@oracle.com, tim.c.chen@intel.com
+To: Eric Biggers <ebiggers3@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Ingo Molnar <mingo@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Michal Hocko <mhocko@suse.com>, Peter Zijlstra <peterz@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org, Eric Biggers <ebiggers@google.com>
 
-On 08/24/2017 07:07 PM, Randy Dunlap wrote:
-> On 08/24/2017 01:49 PM, Daniel Jordan wrote:
->> diff --git a/Documentation/core-api/ktask.rst b/Documentation/core-api/ktask.rst
->> new file mode 100644
->> index 000000000000..cb4b0d87c8c6
->> --- /dev/null
->> +++ b/Documentation/core-api/ktask.rst
->> @@ -0,0 +1,104 @@
->> +============================================
->> +ktask: parallelize cpu-intensive kernel work
->> +============================================
-> Hi,
+On 08/24, Eric Biggers wrote:
 >
-> I would prefer to use CPU instead of cpu.
+> On Thu, Aug 24, 2017 at 03:20:41PM +0200, Oleg Nesterov wrote:
+> > On 08/23, Eric Biggers wrote:
+> > >
+> > > From: Eric Biggers <ebiggers@google.com>
+> > >
+> > > Commit 7c051267931a ("mm, fork: make dup_mmap wait for mmap_sem for
+> > > write killable") made it possible to kill a forking task while it is
+> > > waiting to acquire its ->mmap_sem for write, in dup_mmap().  However, it
+> > > was overlooked that this introduced an new error path before a reference
+> > > is taken on the mm_struct's ->exe_file.
+> >
+> > Hmm. Unless I am totally confused, the same problem with mm->exol_area?
+> > I'll recheck....
+>
+> I'm not sure what you mean by ->exol_area.
 
-Ok, a quick grep through Documentation shows that CPU is used more often 
-than cpu, so for consistency I'll change it.
+I meant mm->uprobes_state.xol_area, sorry
 
-> Otherwise, Reviewed-by: Randy Dunlap <rdunlap@infradead.org>
+> > > --- a/kernel/fork.c
+> > > +++ b/kernel/fork.c
+> > > @@ -806,6 +806,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
+> > >  	mm_init_cpumask(mm);
+> > >  	mm_init_aio(mm);
+> > >  	mm_init_owner(mm, p);
+> > > +	RCU_INIT_POINTER(mm->exe_file, NULL);
+> > 
+> > Can't we simply move
+> > 
+> > 	RCU_INIT_POINTER(mm->exe_file, get_mm_exe_file(oldmm));
+> > 
+> > from dup_mmap() here? Afaics this doesn't need mmap_sem.
+> > 
+> 
+> Two problems, even assuming that get_mm_exe_file() doesn't require mmap_sem:
+> 
+> - If mm_alloc_pgd() or init_new_context() in mm_init() fails, mm_init() doesn't
+>   do the full mmput(), so the file reference would not be dropped.  So it would
+>   need to be changed to drop the file reference too.
 
-Thanks for the review, Randy.
+Ah yes, I forgot that mm_init() can fail after that, thanks for correcting me.
 
-Daniel
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
