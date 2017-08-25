@@ -1,99 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DDC2044088B
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 20:42:39 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id w78so5212444qkw.7
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 17:42:39 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f126si4860368qkd.367.2017.08.24.17.42.38
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Aug 2017 17:42:38 -0700 (PDT)
-From: jglisse@redhat.com
-Subject: [PATCH] mm/hmm: struct hmm is only use by HMM mirror functionality
-Date: Thu, 24 Aug 2017 20:42:26 -0400
-Message-Id: <1503621746-17876-1-git-send-email-jglisse@redhat.com>
-In-Reply-To: <20170824230850.1810408-1-arnd@arndb.de>
-References: <20170824230850.1810408-1-arnd@arndb.de>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F74844088B
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 21:43:37 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id q68so4319687pgq.11
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 18:43:37 -0700 (PDT)
+Received: from ipmail01.adl2.internode.on.net (ipmail01.adl2.internode.on.net. [150.101.137.133])
+        by mx.google.com with ESMTP id u5si3979318plm.505.2017.08.24.18.43.33
+        for <linux-mm@kvack.org>;
+        Thu, 24 Aug 2017 18:43:35 -0700 (PDT)
+Date: Fri, 25 Aug 2017 11:40:09 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 1/2] mm: use sc->priority for slab shrink targets
+Message-ID: <20170825014009.GL21024@dastard>
+References: <1503430539-2878-1-git-send-email-jbacik@fb.com>
+ <a6a68b0b-4138-2563-fa53-ad8406dc6e34@virtuozzo.com>
+ <20170824144924.w3inhdnmgfscso7l@destiny>
+ <20170824221559.GF21024@dastard>
+ <20170824224544.3yrsl36u536fgkhc@destiny>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170824224544.3yrsl36u536fgkhc@destiny>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Subhash Gutti <sgutti@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, minchan@kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, kernel-team@fb.com, Josef Bacik <jbacik@fb.com>
 
-From: JA(C)rA'me Glisse <jglisse@redhat.com>
+On Thu, Aug 24, 2017 at 06:45:46PM -0400, Josef Bacik wrote:
+> On Fri, Aug 25, 2017 at 08:15:59AM +1000, Dave Chinner wrote:
+> > On Thu, Aug 24, 2017 at 10:49:25AM -0400, Josef Bacik wrote:
+> > > On Thu, Aug 24, 2017 at 05:29:59PM +0300, Andrey Ryabinin wrote:
+> > > > 
+> > > > 
+> > > > On 08/22/2017 10:35 PM, josef@toxicpanda.com wrote:
+> > > > > --- a/mm/vmscan.c
+> > > > > +++ b/mm/vmscan.c
+> > > > > @@ -306,9 +306,7 @@ EXPORT_SYMBOL(unregister_shrinker);
+> > > > >  #define SHRINK_BATCH 128
+> > > > >  
+> > > > >  static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+> > > > > -				    struct shrinker *shrinker,
+> > > > > -				    unsigned long nr_scanned,
+> > > > > -				    unsigned long nr_eligible)
+> > > > > +				    struct shrinker *shrinker, int priority)
+> > > > >  {
+> > > > >  	unsigned long freed = 0;
+> > > > >  	unsigned long long delta;
+> > > > > @@ -333,9 +331,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+> > > > >  	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
+> > > > >  
+> > > > >  	total_scan = nr;
+> > > > > -	delta = (4 * nr_scanned) / shrinker->seeks;
+> > > > > -	delta *= freeable;
+> > > > > -	do_div(delta, nr_eligible + 1);
+> > > > > +	delta = freeable >> priority;
+> > > > > +	delta = (4 * freeable) / shrinker->seeks;
+> > > > 
+> > > > Something is wrong. The first line does nothing.
+> > > > 
+> > > 
+> > > Lol jesus, nice catch, I'll fix this up.  Thanks,
+> > 
+> > Josef, this bug has been in every patch you've sent. What does
+> > fixing it do to the behaviour of the algorithm now? It's going to
+> > change it, for sure, so can you run all your behavioural
+> > characterisation tests and let us know what the difference between
+> > the broken and fixed patches are?
+> 
+> The bug made it so we were way more agressive with slab reclaim than we should
+> be.  My second patch masked this with the inactive/slab diff stuff, but I've
+> dropped that patch since its controversial and I don't really care to argue
+> about it anymore.  This patch still fixes the issue of us not reclaiming enough
+> in slab mostly workloads, I ran my fs_mark test before I sent out the new
+> version to verify there still isn't the huge drop in performance once reclaim
+> kicks in.  Without any changes we reclaimed basically no slab, with the bug in
+> place (without my second patch) we reclaimed all of the slab in one go, and with
+> the fixed patch we reclaim a proportional amount each time we enter the
+> shrinker.  Thanks,
 
-The struct hmm is only use if the HMM mirror functionality is enabled
-move associated code behind CONFIG_HMM_MIRROR to avoid build error if
-one enable some of the HMM memory configuration without the mirror
-feature.
+Cool, thanks for verifying it works as intended now, Josef. :P
 
-Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>,
-Cc: Subhash Gutti <sgutti@nvidia.com>,
-Cc: Evgeny Baskakov <ebaskakov@nvidia.com>
----
- include/linux/hmm.h | 7 +++----
- mm/hmm.c            | 4 +---
- 2 files changed, 4 insertions(+), 7 deletions(-)
+Cheers,
 
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 5866f31..b4355d7 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -499,7 +499,7 @@ struct hmm_device *hmm_device_new(void *drvdata);
- void hmm_device_put(struct hmm_device *hmm_device);
- #endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
- 
--
-+#if IS_ENABLED(CONFIG_HMM_MIRROR)
- /* Below are for HMM internal use only! Not to be used by device driver! */
- void hmm_mm_destroy(struct mm_struct *mm);
- 
-@@ -507,12 +507,11 @@ static inline void hmm_mm_init(struct mm_struct *mm)
- {
- 	mm->hmm = NULL;
- }
--
--#else /* IS_ENABLED(CONFIG_HMM) */
--
-+#else /* IS_ENABLED(CONFIG_HMM_MIRROR) */
- /* Below are for HMM internal use only! Not to be used by device driver! */
- static inline void hmm_mm_destroy(struct mm_struct *mm) {}
- static inline void hmm_mm_init(struct mm_struct *mm) {}
-+#endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
- 
- #endif /* IS_ENABLED(CONFIG_HMM) */
- #endif /* LINUX_HMM_H */
-diff --git a/mm/hmm.c b/mm/hmm.c
-index 3faa4d4..7e4f42b 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -43,7 +43,7 @@ DEFINE_STATIC_KEY_FALSE(device_private_key);
- EXPORT_SYMBOL(device_private_key);
- 
- 
--#ifdef CONFIG_HMM
-+#if IS_ENABLED(CONFIG_HMM_MIRROR)
- static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
- 
- /*
-@@ -128,9 +128,7 @@ void hmm_mm_destroy(struct mm_struct *mm)
- {
- 	kfree(mm->hmm);
- }
--#endif /* CONFIG_HMM */
- 
--#if IS_ENABLED(CONFIG_HMM_MIRROR)
- static void hmm_invalidate_range(struct hmm *hmm,
- 				 enum hmm_update_type action,
- 				 unsigned long start,
+Dave.
 -- 
-2.7.5
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
