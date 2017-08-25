@@ -1,117 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F2F2744088B
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 03:28:22 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id c28so1839023wra.12
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 00:28:22 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id z16si775329wmc.103.2017.08.25.00.28.20
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 093C244088B
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 03:33:23 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b189so1700096wmd.3
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 00:33:22 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 130si737218wmf.221.2017.08.25.00.33.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Aug 2017 00:28:20 -0700 (PDT)
-Date: Fri, 25 Aug 2017 09:28:19 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC PATCH] treewide: remove GFP_TEMPORARY allocation flag
-Message-ID: <20170825072818.GA15494@amd>
-References: <20170728091904.14627-1-mhocko@kernel.org>
- <20170823175709.GA22743@xo-6d-61-c0.localdomain>
- <20170825063545.GA25498@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 25 Aug 2017 00:33:17 -0700 (PDT)
+Date: Fri, 25 Aug 2017 09:33:14 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
+ ZONE_MOVABLE request
+Message-ID: <20170825073314.GC25498@dhcp22.suse.cz>
+References: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20170824093050.GD5943@dhcp22.suse.cz>
+ <20170825001543.GC29701@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="DocE+STaALJfprDB"
-Content-Disposition: inline
-In-Reply-To: <20170825063545.GA25498@dhcp22.suse.cz>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Neil Brown <neilb@suse.de>, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
-
-
---DocE+STaALJfprDB
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20170825001543.GC29701@js1304-P5Q-DELUXE>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 2017-08-25 08:35:46, Michal Hocko wrote:
-> On Wed 23-08-17 19:57:09, Pavel Machek wrote:
-> > Hi!
-> >=20
-> > > From: Michal Hocko <mhocko@suse.com>
-> > >=20
-> > > GFP_TEMPORARY has been introduced by e12ba74d8ff3 ("Group short-lived
-> > > and reclaimable kernel allocations") along with __GFP_RECLAIMABLE. It=
-'s
-> > > primary motivation was to allow users to tell that an allocation is
-> > > short lived and so the allocator can try to place such allocations cl=
-ose
-> > > together and prevent long term fragmentation. As much as this sounds
-> > > like a reasonable semantic it becomes much less clear when to use the
-> > > highlevel GFP_TEMPORARY allocation flag. How long is temporary? Can
-> > > the context holding that memory sleep? Can it take locks? It seems
-> > > there is no good answer for those questions.
-> > >=20
-> > > The current implementation of GFP_TEMPORARY is basically
-> > > GFP_KERNEL | __GFP_RECLAIMABLE which in itself is tricky because
-> > > basically none of the existing caller provide a way to reclaim the
-> > > allocated memory. So this is rather misleading and hard to evaluate f=
-or
-> > > any benefits.
-> > >=20
-> > > I have checked some random users and none of them has added the flag
-> > > with a specific justification. I suspect most of them just copied from
-> > > other existing users and others just thought it might be a good idea
-> > > to use without any measuring. This suggests that GFP_TEMPORARY just
-> > > motivates for cargo cult usage without any reasoning.
-> > >=20
-> > > I believe that our gfp flags are quite complex already and especially
-> > > those with highlevel semantic should be clearly defined to prevent fr=
-om
-> > > confusion and abuse. Therefore I propose dropping GFP_TEMPORARY and
-> > > replace all existing users to simply use GFP_KERNEL. Please note that
-> > > SLAB users with shrinkers will still get __GFP_RECLAIMABLE heuristic
-> > > and so they will be placed properly for memory fragmentation preventi=
-on.
-> > >=20
-> > > I can see reasons we might want some gfp flag to reflect shorterm
-> > > allocations but I propose starting from a clear semantic definition a=
-nd
-> > > only then add users with proper justification.
-> >=20
-> > Dunno. < 1msec probably is temporary, 1 hour probably is not. If it cau=
-ses
-> > problems, can you just #define GFP_TEMPORARY GFP_KERNEL ? Treewide repl=
-ace,
-> > and then starting again goes not look attractive to me.
->=20
-> I do not think we want a highlevel GFP_TEMPORARY without any meaning.
-> This just supports spreading the flag usage without a clear semantic
-> and it will lead to even bigger mess. Once we can actually define what
-> the flag means we can also add its users based on that new semantic.
+On Fri 25-08-17 09:15:43, Joonsoo Kim wrote:
+> On Thu, Aug 24, 2017 at 11:30:50AM +0200, Michal Hocko wrote:
+> > On Thu 24-08-17 14:45:46, Joonsoo Kim wrote:
+> > > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > > 
+> > > Freepage on ZONE_HIGHMEM doesn't work for kernel memory so it's not that
+> > > important to reserve. When ZONE_MOVABLE is used, this problem would
+> > > theorectically cause to decrease usable memory for GFP_HIGHUSER_MOVABLE
+> > > allocation request which is mainly used for page cache and anon page
+> > > allocation. So, fix it.
+> > 
+> > I do not really understand what is the problem you are trying to fix.
+> > Yes the memory is reserved for a higher priority consumer and that is
+> > deliberate AFAICT. Just consider that an OOM victim wants to make
+> > further progress and rely on memory reserve while doing
+> > GFP_HIGHUSER_MOVABLE request.
+> > 
+> > So what is the real problem you are trying to address here?
+> 
+> If the system has the both, ZONE_HIGHMEM and ZONE_MOVABLE,
+> ZONE_HIGHMEM will reserve the memory for ZONE_MOVABLE request.
 
-It has real meaning.
-
-You can define more exact meaning, and then adjust the usage. But
-there's no need to do treewide replacement...
-
-									Pavel
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
-
---DocE+STaALJfprDB
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAlmf0ZIACgkQMOfwapXb+vInRACfazkMxonDgc6UtD8NpcwEBgmP
-8vkAn0hn7Nn4yEb2gx9xGVMFI1XCbupC
-=dH1k
------END PGP SIGNATURE-----
-
---DocE+STaALJfprDB--
+Ohh, right. I forgot that __GFP_MOVABLE doesn't really enforce the
+movable zone. It does so only if __GFP_HIGHMEM is specified as well when
+ZONE_HIGHMEM is enabled. So indeed reserving memory in both is somehow
+awkward. So why don't we simply remove reserves from the movable zone
+when the highmem zone is enabled?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
