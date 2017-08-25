@@ -1,74 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 58C7C6B05B2
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 09:00:21 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id t3so11424868pgt.8
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 06:00:21 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id u128si4698168pfu.374.2017.08.25.06.00.19
+	by kanga.kvack.org (Postfix) with ESMTP id B23206B05BF
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 09:10:56 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id u20so11530418pgb.10
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 06:10:56 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id g8si4779108pgr.417.2017.08.25.06.10.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Aug 2017 06:00:19 -0700 (PDT)
-Date: Fri, 25 Aug 2017 06:00:11 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH v6 3/5] mm: introduce mmap3 for safely defining new mmap
- flags
-Message-ID: <20170825130011.GA30072@infradead.org>
-References: <150353211413.5039.5228914877418362329.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150353213097.5039.6729469069608762658.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20170824165546.GA3121@infradead.org>
- <CAPcyv4iN0QpUSgOUvisnNQsiV1Pp=4dh7CwAV8FFj=_rFU=aug@mail.gmail.com>
+        Fri, 25 Aug 2017 06:10:51 -0700 (PDT)
+Subject: Re: [RESEND PATCH 0/3] mm: Add cache coloring mechanism
+References: <20170823100205.17311-1-lukasz.daniluk@intel.com>
+ <f95eacd5-0a91-24a0-7722-b63f3c196552@suse.cz>
+ <82cc1886-6c24-4e6e-7269-4d150e9f39eb@intel.com>
+ <88c17eaf-7546-8cd8-0404-3a4a7aafddee@suse.cz>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <ad8dcf32-ecc3-a39d-9c6f-78c6bfbbb566@intel.com>
+Date: Fri, 25 Aug 2017 06:10:49 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4iN0QpUSgOUvisnNQsiV1Pp=4dh7CwAV8FFj=_rFU=aug@mail.gmail.com>
+In-Reply-To: <88c17eaf-7546-8cd8-0404-3a4a7aafddee@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Vlastimil Babka <vbabka@suse.cz>, =?UTF-8?Q?=c5=81ukasz_Daniluk?= <lukasz.daniluk@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: lukasz.anaczkowski@intel.com
 
-On Thu, Aug 24, 2017 at 10:36:02AM -0700, Dan Williams wrote:
-> I'll let Andy and Kirill restate their concerns, but one of the
-> arguments that swayed me is that any new mmap flag with this hack must
-> be documented to only work with MAP_SHARED and that MAP_PRIVATE is
-> silently ignored. I agree with the mess and delays it causes for other
-> archs and libc, but at the same time this is for new applications and
-> libraries that know to look for the new flag, so they need to do the
-> extra work to check for the new syscall.
+On 08/25/2017 02:04 AM, Vlastimil Babka wrote:
+> On 08/24/2017 06:08 PM, Dave Hansen wrote:
+>> On 08/24/2017 05:47 AM, Vlastimil Babka wrote:
+>>> So the obvious question, what about THPs? Their size should be enough to
+>>> contain all the colors with current caches, no? Even on KNL I didn't
+>>> find more than "32x 1 MB 16-way L2 caches". This is in addition to the
+>>> improved TLB performance, which you want to get as well for such workloads?
+>> The cache in this case is "MCDRAM" which is 16GB in size.  It can be
+>> used as normal RAM or a cache.  This patch deals with when "MCDRAM" is
+>> in its cache mode.
+> Hm, 16GB direct mapped, that means 8k colors for 2MB THP's. Is that
+> really practical? Wouldn't such workload use 1GB hugetlbfs pages? Then
+> it's still 16 colors to manage, but could be done purely in userspace
+> since they should not move in physical memory and userspace can control
+> where to map each phase in the virtual layout.
 
-True.  That is for the original hack, but I spent some more time
-looking at the mmap code, and there is one thing I noticed:
+There are lots of options for applications that are written with
+specific knowledge of MCDRAM.  The easiest option from the kernel's
+perspective is to just turn the caching mode off and treat MCDRAM as
+normal RAM (it shows up in a separate NUMA node in that case).
 
-include/uapi/asm-generic/mman-common.h:
+But, one of the reasons for the cache mode in the first place was to
+support applications that don't have specific knowledge of MCDRAM.  Or,
+even old binaries that were compiled long ago.
 
-#define MAP_SHARED      0x01            /* Share changes */
-#define MAP_PRIVATE     0x02            /* Changes are private */
-#define MAP_TYPE        0x0f            /* Mask for type of mapping */
-
-mm/mmap.c:
-
-	if (file) {
-		struct inode *inode = file_inode(file);
-
-		switch (flags & MAP_TYPE) {
-                case MAP_SHARED:
-			...
-		case MAP_PRIVATE:
-			...
-		default:
-			return -EINVAL;
-		}
-
-and very similar for the anonymous and nommu cases.
-
-So if we pick e.g. 0x4 as the valid bit we don't even need to overload
-the MAP_SHARED and MAP_PRIVATE meaning.
-
-> 
-> However, if the fcntl lease approach works for the DMA cases then we
-> only have the one mmap flag to add for now, so maybe the weird
-> MAP_{SHARED|PRIVATE} semantics are tolerable.
----end quoted text---
+In other words, I don't think this is something we can easily punt to
+userspace.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
