@@ -1,76 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B59744088B
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 20:20:06 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 83so3754104pgb.1
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 17:20:06 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id o84si741384pfi.421.2017.08.24.17.20.04
-        for <linux-mm@kvack.org>;
-        Thu, 24 Aug 2017 17:20:05 -0700 (PDT)
-Date: Fri, 25 Aug 2017 09:20:31 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
- ZONE_MOVABLE request
-Message-ID: <20170825002031.GD29701@js1304-P5Q-DELUXE>
-References: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
- <e919c65e-bc2f-6b3b-41fc-3589590a84ac@suse.cz>
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B22A44088B
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 20:36:24 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id l19so934703oib.15
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 17:36:24 -0700 (PDT)
+Received: from mail-oi0-x236.google.com (mail-oi0-x236.google.com. [2607:f8b0:4003:c06::236])
+        by mx.google.com with ESMTPS id t4si4257049oig.398.2017.08.24.17.36.23
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Aug 2017 17:36:23 -0700 (PDT)
+Received: by mail-oi0-x236.google.com with SMTP id j144so9463754oib.1
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 17:36:23 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e919c65e-bc2f-6b3b-41fc-3589590a84ac@suse.cz>
+In-Reply-To: <20170824142239.15178-1-boqun.feng@gmail.com>
+References: <20170823152542.5150-2-boqun.feng@gmail.com> <20170824142239.15178-1-boqun.feng@gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 24 Aug 2017 17:36:22 -0700
+Message-ID: <CAPcyv4gHgdpyqbv8gs5MiEtEHSdC-JLhutdfn81fhQ1woQSh_Q@mail.gmail.com>
+Subject: Re: [PATCH v2 1/2] nfit: Fix the abuse of COMPLETION_INITIALIZER_ONSTACK()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Boqun Feng <boqun.feng@gmail.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Michel Lespinasse <walken@google.com>, Byungchul Park <byungchul.park@lge.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Nicholas Piggin <npiggin@gmail.com>, kernel-team@lge.com, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux ACPI <linux-acpi@vger.kernel.org>
 
-On Thu, Aug 24, 2017 at 11:41:58AM +0200, Vlastimil Babka wrote:
-> On 08/24/2017 07:45 AM, js1304@gmail.com wrote:
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > 
-> > Freepage on ZONE_HIGHMEM doesn't work for kernel memory so it's not that
-> > important to reserve. When ZONE_MOVABLE is used, this problem would
-> > theorectically cause to decrease usable memory for GFP_HIGHUSER_MOVABLE
-> > allocation request which is mainly used for page cache and anon page
-> > allocation. So, fix it.
-> > 
-> > And, defining sysctl_lowmem_reserve_ratio array by MAX_NR_ZONES - 1 size
-> > makes code complex. For example, if there is highmem system, following
-> > reserve ratio is activated for *NORMAL ZONE* which would be easyily
-> > misleading people.
-> > 
-> >  #ifdef CONFIG_HIGHMEM
-> >  32
-> >  #endif
-> > 
-> > This patch also fix this situation by defining sysctl_lowmem_reserve_ratio
-> > array by MAX_NR_ZONES and place "#ifdef" to right place.
-> > 
-> > Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> > Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> 
-> Looks like I did that almost year ago, so definitely had to refresh my
-> memory now :)
-> 
-> Anyway now I looked more thoroughly and noticed that this change leaks
-> into the reported sysctl. On a 64bit system with ZONE_MOVABLE:
-> 
-> before the patch:
-> vm.lowmem_reserve_ratio = 256   256     32
-> 
-> after the patch:
-> vm.lowmem_reserve_ratio = 256   256     32      2147483647
-> 
-> So if we indeed remove HIGHMEM from protection (c.f. Michal's mail), we
-> should do that differently than with the INT_MAX trick, IMHO.
+On Thu, Aug 24, 2017 at 7:22 AM, Boqun Feng <boqun.feng@gmail.com> wrote:
+> COMPLETION_INITIALIZER_ONSTACK() is supposed to used as an initializer,
+> in other words, it should only be used in assignment expressions or
+> compound literals. So the usage in drivers/acpi/nfit/core.c:
+>
+>         COMPLETION_INITIALIZER_ONSTACK(flush.cmp);
+>
+> , is inappropriate.
+>
+> Besides, this usage could also break compilations for another fix to
+> reduce stack sizes caused by COMPLETION_INITIALIZER_ONSTACK(), because
+> that fix changes COMPLETION_INITIALIZER_ONSTACK() from rvalue to lvalue,
+> and usage as above will report error:
+>
+>         drivers/acpi/nfit/core.c: In function 'acpi_nfit_flush_probe':
+>         include/linux/completion.h:77:3: error: value computed is not used [-Werror=unused-value]
+>           (*({ init_completion(&work); &work; }))
+>
+> This patch fixes this by replacing COMPLETION_INITIALIZER_ONSTACK() with
+> init_completion() in acpi_nfit_flush_probe(), which does the same
+> initialization without any other problem.
+>
+> Signed-off-by: Boqun Feng <boqun.feng@gmail.com>
 
-Hmm, this is already pointed by Minchan and I have answered that.
-
-lkml.kernel.org/r/<20170421013243.GA13966@js1304-desktop>
-
-If you have a better idea, please let me know.
-
-Thanks.
+Acked-by: Dan Williams <dan.j.williams@intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
