@@ -1,58 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 286F66810C8
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 17:32:17 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id j72so1248696wmi.5
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 14:32:17 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F2CCF6810C8
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 17:36:23 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id p8so1393237wrf.2
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 14:36:23 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id u7si2865131wrg.183.2017.08.25.14.32.15
+        by mx.google.com with ESMTPS id w19si3759117wra.295.2017.08.25.14.36.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Aug 2017 14:32:15 -0700 (PDT)
-Date: Fri, 25 Aug 2017 14:32:13 -0700
+        Fri, 25 Aug 2017 14:36:22 -0700 (PDT)
+Date: Fri, 25 Aug 2017 14:36:20 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/3] mm/cma: manage the memory of the CMA area by using
- the ZONE_MOVABLE
-Message-Id: <20170825143213.5c7de68783b78fafb461c845@linux-foundation.org>
-In-Reply-To: <1503556593-10720-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1503556593-10720-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: + mm-madvise-fix-freeing-of-locked-page-with-madv_free.patch
+ added to -mm tree
+Message-Id: <20170825143620.582a8822f80431b4baacd8ee@linux-foundation.org>
+In-Reply-To: <20170824060957.GA29811@dhcp22.suse.cz>
+References: <599df681.NreP1dR3/HGSfpCe%akpm@linux-foundation.org>
+	<20170824060957.GA29811@dhcp22.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: ebiggers@google.com, aarcange@redhat.com, dvyukov@google.com, hughd@google.com, minchan@kernel.org, rientjes@google.com, stable@vger.kernel.org, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 24 Aug 2017 15:36:30 +0900 js1304@gmail.com wrote:
+On Thu, 24 Aug 2017 08:09:57 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > Google Bug Id: 64696096
 > 
-> This patchset is the follow-up of the discussion about the
-> "Introduce ZONE_CMA (v7)" [1]. Please reference it if more information
-> is needed.
-> 
-> In this patchset, the memory of the CMA area is managed by using
-> the ZONE_MOVABLE. Since there is another type of the memory in this zone,
-> we need to maintain a migratetype for the CMA memory to account
-> the number of the CMA memory. So, unlike previous patchset, there is
-> less deletion of the code.
-> 
-> Otherwise, there is no big change.
-> 
-> Motivation of this patchset is described in the commit description of
-> the patch "mm/cma: manage the memory of the CMA area by using
-> the ZONE_MOVABLE". Please refer it for more information.
-> 
-> This patchset is based on linux-next-20170822 plus
-> "mm/page_alloc: don't reserve ZONE_HIGHMEM for ZONE_MOVABLE".
-> 
+> Is this necessary in the changelog?
 
-But "mm/page_alloc: don't reserve ZONE_HIGHMEM for ZONE_MOVABLE" did
-not do very well at review - both Michal and Vlastimil are looking for
-changes.  So we're not ready for a patch series which depends upon that
-one?
+I tend to keep this sort of a thing as a courtesy to the sender.
 
+But I did change it from "Google-Bug-Id:". 
+Documentation/process/submitting-patches.rst lists "Reported-by:,
+Tested-by:, Reviewed-by:, Suggested-by: and Fixes:" as the recognized
+patch tags and I don't think it's a good idea to introduce new ones -
+that just creates more work for the people who maintain parsers for
+this stuff.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
