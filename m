@@ -1,58 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E9F4244088B
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 20:15:17 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id b8so3691172pgn.3
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 17:15:17 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id q72si1998756pfd.574.2017.08.24.17.15.16
-        for <linux-mm@kvack.org>;
-        Thu, 24 Aug 2017 17:15:17 -0700 (PDT)
-Date: Fri, 25 Aug 2017 09:15:43 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
- ZONE_MOVABLE request
-Message-ID: <20170825001543.GC29701@js1304-P5Q-DELUXE>
-References: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20170824093050.GD5943@dhcp22.suse.cz>
+	by kanga.kvack.org (Postfix) with ESMTP id 3415444088B
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 20:17:51 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id u20so3602930pgb.10
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 17:17:51 -0700 (PDT)
+Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
+        by mx.google.com with ESMTPS id c195si3723618pga.622.2017.08.24.17.17.49
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Aug 2017 17:17:49 -0700 (PDT)
+Received: by mail-pg0-x243.google.com with SMTP id t3so1392438pgt.5
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 17:17:49 -0700 (PDT)
+Date: Fri, 25 Aug 2017 08:18:10 +0800
+From: Boqun Feng <boqun.feng@gmail.com>
+Subject: Re: [PATCH v2 1/2] nfit: Fix the abuse of
+ COMPLETION_INITIALIZER_ONSTACK()
+Message-ID: <20170825001810.GN11771@tardis>
+References: <20170823152542.5150-2-boqun.feng@gmail.com>
+ <20170824142239.15178-1-boqun.feng@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="fDERRRNgB4on1jOB"
 Content-Disposition: inline
-In-Reply-To: <20170824093050.GD5943@dhcp22.suse.cz>
+In-Reply-To: <20170824142239.15178-1-boqun.feng@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, walken@google.com, Byungchul Park <byungchul.park@lge.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, willy@infradead.org, Nicholas Piggin <npiggin@gmail.com>, kernel-team@lge.com, Dan Williams <dan.j.williams@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, linux-nvdimm@lists.01.org, linux-acpi@vger.kernel.org
 
-On Thu, Aug 24, 2017 at 11:30:50AM +0200, Michal Hocko wrote:
-> On Thu 24-08-17 14:45:46, Joonsoo Kim wrote:
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > 
-> > Freepage on ZONE_HIGHMEM doesn't work for kernel memory so it's not that
-> > important to reserve. When ZONE_MOVABLE is used, this problem would
-> > theorectically cause to decrease usable memory for GFP_HIGHUSER_MOVABLE
-> > allocation request which is mainly used for page cache and anon page
-> > allocation. So, fix it.
-> 
-> I do not really understand what is the problem you are trying to fix.
-> Yes the memory is reserved for a higher priority consumer and that is
-> deliberate AFAICT. Just consider that an OOM victim wants to make
-> further progress and rely on memory reserve while doing
-> GFP_HIGHUSER_MOVABLE request.
-> 
-> So what is the real problem you are trying to address here?
 
-If the system has the both, ZONE_HIGHMEM and ZONE_MOVABLE,
-ZONE_HIGHMEM will reserve the memory for ZONE_MOVABLE request.
-However, they are consumed by nearly equivalent priority consumer who
-uses GFP_HIGHMEM + GFP_MOVABLE. In that case, reserved memory in
-ZONE_HIGHMEM would not be used and it means just waste of the memory.
-This patch try to fix it to nullify reserving memory in ZONE_HIGHMEM.
+--fDERRRNgB4on1jOB
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-And, I think that all this problem is caused by the complex code in
-lowmem reserve calculation. So, did some clean-up.
+On Thu, Aug 24, 2017 at 10:22:36PM +0800, Boqun Feng wrote:
+> COMPLETION_INITIALIZER_ONSTACK() is supposed to used as an initializer,
+> in other words, it should only be used in assignment expressions or
+> compound literals. So the usage in drivers/acpi/nfit/core.c:
+>=20
+> 	COMPLETION_INITIALIZER_ONSTACK(flush.cmp);
+>=20
+> , is inappropriate.
+>=20
+> Besides, this usage could also break compilations for another fix to
+> reduce stack sizes caused by COMPLETION_INITIALIZER_ONSTACK(), because
+> that fix changes COMPLETION_INITIALIZER_ONSTACK() from rvalue to lvalue,
+> and usage as above will report error:
+>=20
+> 	drivers/acpi/nfit/core.c: In function 'acpi_nfit_flush_probe':
+> 	include/linux/completion.h:77:3: error: value computed is not used [-Wer=
+ror=3Dunused-value]
+> 	  (*({ init_completion(&work); &work; }))
+>=20
+> This patch fixes this by replacing COMPLETION_INITIALIZER_ONSTACK() with
+> init_completion() in acpi_nfit_flush_probe(), which does the same
+> initialization without any other problem.
+>=20
+> Signed-off-by: Boqun Feng <boqun.feng@gmail.com>
+> ---
 
-Thanks.
+Sorry, forget to metion:
+
+v1 --> v2:
+	Improve the commit log, based on Dan, Thomas and Arnd's
+	comments.
+
+Only V2 of this patch #1 is updated.=20
+
+Regards,
+Boqun
+
+>  drivers/acpi/nfit/core.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>=20
+> diff --git a/drivers/acpi/nfit/core.c b/drivers/acpi/nfit/core.c
+> index 19182d091587..1893e416e7c0 100644
+> --- a/drivers/acpi/nfit/core.c
+> +++ b/drivers/acpi/nfit/core.c
+> @@ -2884,7 +2884,7 @@ static int acpi_nfit_flush_probe(struct nvdimm_bus_=
+descriptor *nd_desc)
+>  	 * need to be interruptible while waiting.
+>  	 */
+>  	INIT_WORK_ONSTACK(&flush.work, flush_probe);
+> -	COMPLETION_INITIALIZER_ONSTACK(flush.cmp);
+> +	init_completion(&flush.cmp);
+>  	queue_work(nfit_wq, &flush.work);
+>  	mutex_unlock(&acpi_desc->init_mutex);
+> =20
+> --=20
+> 2.14.1
+>=20
+
+--fDERRRNgB4on1jOB
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEEj5IosQTPz8XU1wRHSXnow7UH+rgFAlmfbL4ACgkQSXnow7UH
++rjH9gf/Rbn4gfb/z0Kw0VFlgUqko7luFjTmSX663B1wCNdvdbb9WCeZ1k8Pmsjp
+7ck7/3OxHj0AVBiF6zhVDbeHUFNiyUQFjl4N4fcvoVkA0AiRpLrgIlU/CSmlHO5m
+4eyPglHcdWtHzW5bKFm4cpt815FS0cpqoBIKEWNJ7IuBPrZ1G4d9kC/MVfSUKsBR
+UzkMogpvwjaQTJaeNNdrt3lPpTqBhNe/UaNzrxcE+YFzKHC+QGbxLC2TKtOe0oYP
+EnW4eGfTkW1D1oeTbZ3V2Lrd+Q+sWyA228zdkJNMVz2V5KfRCnKr7TinNJsjSyu3
+xin26t5dPxOMWhjPW1wiCLgi0Ln9FQ==
+=/GOJ
+-----END PGP SIGNATURE-----
+
+--fDERRRNgB4on1jOB--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
