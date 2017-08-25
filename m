@@ -1,69 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E9356810C8
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 16:01:50 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b189so1032036wmd.3
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 13:01:50 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id z133si1761201wmg.179.2017.08.25.13.01.48
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 17ADF6B049E
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 16:24:33 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id d66so760479oib.2
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 13:24:33 -0700 (PDT)
+Received: from mail-oi0-x232.google.com (mail-oi0-x232.google.com. [2607:f8b0:4003:c06::232])
+        by mx.google.com with ESMTPS id j186si6212354oia.7.2017.08.25.13.24.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Aug 2017 13:01:49 -0700 (PDT)
-Date: Fri, 25 Aug 2017 13:01:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/hmm: struct hmm is only use by HMM mirror
- functionality
-Message-Id: <20170825130146.81f28f23a06a22b55270074a@linux-foundation.org>
-In-Reply-To: <1503621746-17876-1-git-send-email-jglisse@redhat.com>
-References: <20170824230850.1810408-1-arnd@arndb.de>
-	<1503621746-17876-1-git-send-email-jglisse@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 25 Aug 2017 13:24:32 -0700 (PDT)
+Received: by mail-oi0-x232.google.com with SMTP id r9so7592737oie.3
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 13:24:31 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <4de21e8d-5e10-ec40-c731-0c079953cf48@gmx.de>
+References: <150353211413.5039.5228914877418362329.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <150353213097.5039.6729469069608762658.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20170824165546.GA3121@infradead.org> <CAPcyv4iN0QpUSgOUvisnNQsiV1Pp=4dh7CwAV8FFj=_rFU=aug@mail.gmail.com>
+ <20170825130011.GA30072@infradead.org> <20170825155803.4km7wttzadfqw2vb@node.shutemov.name>
+ <20170825160236.GA2561@infradead.org> <20170825161607.6v6beg4zjktllt2z@node.shutemov.name>
+ <4de21e8d-5e10-ec40-c731-0c079953cf48@gmx.de>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 25 Aug 2017 13:24:31 -0700
+Message-ID: <CAPcyv4jeZc8P+E0aHNChzy-wfNpOx3GehKck1nXqJ1b9JdydFA@mail.gmail.com>
+Subject: Re: [PATCH v6 3/5] mm: introduce mmap3 for safely defining new mmap flags
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jglisse@redhat.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Stephen Rothwell <sfr@canb.auug.org.au>, Subhash Gutti <sgutti@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>
+To: Helge Deller <deller@gmx.de>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-parisc@vger.kernel.org
 
-On Thu, 24 Aug 2017 20:42:26 -0400 jglisse@redhat.com wrote:
+On Fri, Aug 25, 2017 at 9:19 AM, Helge Deller <deller@gmx.de> wrote:
+> On 25.08.2017 18:16, Kirill A. Shutemov wrote:
+>> On Fri, Aug 25, 2017 at 09:02:36AM -0700, Christoph Hellwig wrote:
+>>> On Fri, Aug 25, 2017 at 06:58:03PM +0300, Kirill A. Shutemov wrote:
+>>>> Not all archs are ready for this:
+>>>>
+>>>> arch/parisc/include/uapi/asm/mman.h:#define MAP_TYPE    0x03            /* Mask for type of mapping */
+>>>> arch/parisc/include/uapi/asm/mman.h:#define MAP_FIXED   0x04            /* Interpret addr exactly */
+>>>
+>>> I'd be happy to say that we should not care about parisc for
+>>> persistent memory.  We'll just have to find a way to exclude
+>>> parisc without making life too ugly.
+>>
+>> I don't think creapling mmap() interface for one arch is the right way to
+>> go. I think the interface should be universal.
+>>
+>> I may imagine MAP_DIRECT can be useful not only for persistent memory.
+>> For tmpfs instead of mlock()?
+>
+> On parisc we have
+> #define MAP_SHARED      0x01            /* Share changes */
+> #define MAP_PRIVATE     0x02            /* Changes are private */
+> #define MAP_TYPE        0x03            /* Mask for type of mapping */
+> #define MAP_FIXED       0x04            /* Interpret addr exactly */
+> #define MAP_ANONYMOUS   0x10            /* don't use a file */
+>
+> So, if you need a MAP_DIRECT, wouldn't e.g.
+> #define MAP_DIRECT      0x08
+> be possible (for parisc, and others 0x04).
+> And if MAP_TYPE needs to include this flag on parisc:
+> #define MAP_TYPE        (0x03 | 0x08)  /* Mask for type of mapping */
 
-> The struct hmm is only use if the HMM mirror functionality is enabled
-> move associated code behind CONFIG_HMM_MIRROR to avoid build error if
-> one enable some of the HMM memory configuration without the mirror
-> feature.
+The problem here is that to support new the mmap flags the arch needs
+to find a flag that is guaranteed to fail on older kernels. Defining
+MAP_DIRECT to 0x8 on parisc doesn't work because it will simply be
+ignored on older parisc kernels.
 
-It's unclear whether this patch is in addition to Arnd's "mm: HMM always
-needs MMU_NOTIFIER" or is a replacement for it.  (If the latter, it
-should have Arnd's Reported-by).  But I cannot get this patch to apply
-cleanly in either situation.
+However, it's already the case that several archs have their own
+sys_mmap entry points. Those archs that can't follow the common scheme
+(only parsic it seems) will need to add a new mmap syscall. I think
+that's a reasonable tradeoff to allow every other architecture to add
+this support with their existing mmap syscall paths.
 
-So I'll skip both patches.  Please send something which applies on top
-of
-
-hmm-heterogeneous-memory-management-documentation-v3.patch
-mm-hmm-heterogeneous-memory-management-hmm-for-short-v5.patch
-mm-hmm-mirror-mirror-process-address-space-on-device-with-hmm-helpers-v3.patch
-mm-hmm-mirror-helper-to-snapshot-cpu-page-table-v4.patch
-mm-hmm-mirror-device-page-fault-handler.patch
-mm-memory_hotplug-introduce-add_pages.patch
-mm-zone_device-new-type-of-zone_device-for-unaddressable-memory-v5.patch
-mm-zone_device-new-type-of-zone_device-for-unaddressable-memory-fix.patch
-mm-zone_device-special-case-put_page-for-device-private-pages-v4.patch
-mm-memcontrol-allow-to-uncharge-page-without-using-page-lru-field.patch
-mm-memcontrol-support-memory_device_private-v4.patch
-mm-hmm-devmem-device-memory-hotplug-using-zone_device-v7.patch
-mm-hmm-devmem-dummy-hmm-device-for-zone_device-memory-v3.patch
-mm-migrate-new-migrate-mode-migrate_sync_no_copy.patch
-mm-migrate-new-memory-migration-helper-for-use-with-device-memory-v5.patch
-mm-migrate-migrate_vma-unmap-page-from-vma-while-collecting-pages.patch
-mm-migrate-support-un-addressable-zone_device-page-in-migration-v3.patch
-mm-migrate-allow-migrate_vma-to-alloc-new-page-on-empty-entry-v4.patch
-mm-device-public-memory-device-memory-cache-coherent-with-cpu-v5.patch
-mm-hmm-add-new-helper-to-hotplug-cdm-memory-region-v3.patch
-#
-mm-hmm-avoid-bloating-arch-that-do-not-make-use-of-hmm.patch
-
-thanks.
+That means MAP_DIRECT should be defined to MAP_TYPE on parisc until it
+later defines an opt-in mechanism to a new syscall that honors
+MAP_DIRECT as a valid flag.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
