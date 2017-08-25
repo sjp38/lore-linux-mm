@@ -1,91 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F74844088B
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 21:43:37 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id q68so4319687pgq.11
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 18:43:37 -0700 (PDT)
-Received: from ipmail01.adl2.internode.on.net (ipmail01.adl2.internode.on.net. [150.101.137.133])
-        by mx.google.com with ESMTP id u5si3979318plm.505.2017.08.24.18.43.33
-        for <linux-mm@kvack.org>;
-        Thu, 24 Aug 2017 18:43:35 -0700 (PDT)
-Date: Fri, 25 Aug 2017 11:40:09 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 1/2] mm: use sc->priority for slab shrink targets
-Message-ID: <20170825014009.GL21024@dastard>
-References: <1503430539-2878-1-git-send-email-jbacik@fb.com>
- <a6a68b0b-4138-2563-fa53-ad8406dc6e34@virtuozzo.com>
- <20170824144924.w3inhdnmgfscso7l@destiny>
- <20170824221559.GF21024@dastard>
- <20170824224544.3yrsl36u536fgkhc@destiny>
+	by kanga.kvack.org (Postfix) with ESMTP id 26ACB44088B
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 00:02:28 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 63so5720613pgc.0
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 21:02:28 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id b11si3945133pfd.435.2017.08.24.21.02.25
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Aug 2017 21:02:25 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7P40Mvo066947
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 00:02:25 -0400
+Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com [202.81.31.147])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2cj63756gx-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 00:02:24 -0400
+Received: from localhost
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Fri, 25 Aug 2017 14:02:22 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v7P42Lef26542298
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 14:02:21 +1000
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v7P42LPS006847
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 14:02:21 +1000
+Subject: Re: [PATCH] xfs: Drop setting redundant PF_KSWAPD in kswapd context
+References: <20170824104247.8288-1-khandual@linux.vnet.ibm.com>
+ <20170824105635.GA5965@dhcp22.suse.cz> <20170825000137.GI21024@dastard>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Fri, 25 Aug 2017 09:32:14 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170824224544.3yrsl36u536fgkhc@destiny>
+In-Reply-To: <20170825000137.GI21024@dastard>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <f60c57f4-c7e2-9ae0-38e8-80c3f77f65e0@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josef Bacik <josef@toxicpanda.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, minchan@kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, riel@redhat.com, akpm@linux-foundation.org, kernel-team@fb.com, Josef Bacik <jbacik@fb.com>
+To: Dave Chinner <david@fromorbit.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-xfs@vger.kernel.org, linux-kernel@vger.kernel.org, dchinner@redhat.com, bfoster@redhat.com, sandeen@sandeen.net
 
-On Thu, Aug 24, 2017 at 06:45:46PM -0400, Josef Bacik wrote:
-> On Fri, Aug 25, 2017 at 08:15:59AM +1000, Dave Chinner wrote:
-> > On Thu, Aug 24, 2017 at 10:49:25AM -0400, Josef Bacik wrote:
-> > > On Thu, Aug 24, 2017 at 05:29:59PM +0300, Andrey Ryabinin wrote:
-> > > > 
-> > > > 
-> > > > On 08/22/2017 10:35 PM, josef@toxicpanda.com wrote:
-> > > > > --- a/mm/vmscan.c
-> > > > > +++ b/mm/vmscan.c
-> > > > > @@ -306,9 +306,7 @@ EXPORT_SYMBOL(unregister_shrinker);
-> > > > >  #define SHRINK_BATCH 128
-> > > > >  
-> > > > >  static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
-> > > > > -				    struct shrinker *shrinker,
-> > > > > -				    unsigned long nr_scanned,
-> > > > > -				    unsigned long nr_eligible)
-> > > > > +				    struct shrinker *shrinker, int priority)
-> > > > >  {
-> > > > >  	unsigned long freed = 0;
-> > > > >  	unsigned long long delta;
-> > > > > @@ -333,9 +331,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
-> > > > >  	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
-> > > > >  
-> > > > >  	total_scan = nr;
-> > > > > -	delta = (4 * nr_scanned) / shrinker->seeks;
-> > > > > -	delta *= freeable;
-> > > > > -	do_div(delta, nr_eligible + 1);
-> > > > > +	delta = freeable >> priority;
-> > > > > +	delta = (4 * freeable) / shrinker->seeks;
-> > > > 
-> > > > Something is wrong. The first line does nothing.
-> > > > 
-> > > 
-> > > Lol jesus, nice catch, I'll fix this up.  Thanks,
-> > 
-> > Josef, this bug has been in every patch you've sent. What does
-> > fixing it do to the behaviour of the algorithm now? It's going to
-> > change it, for sure, so can you run all your behavioural
-> > characterisation tests and let us know what the difference between
-> > the broken and fixed patches are?
+On 08/25/2017 05:31 AM, Dave Chinner wrote:
+> On Thu, Aug 24, 2017 at 12:56:35PM +0200, Michal Hocko wrote:
+>> On Thu 24-08-17 16:12:47, Anshuman Khandual wrote:
+>>> xfs_btree_split() calls xfs_btree_split_worker() with args.kswapd set
+>>> if current->flags alrady has PF_KSWAPD. Hence we should not again add
+>>> PF_KSWAPD into the current flags inside kswapd context. So drop this
+>>> redundant flag addition.
+>>
+>> I am not familiar with the code but your change seems incorect. The
+>> whole point of args->kswapd is to convey the kswapd context to the
+>> worker which is obviously running in a different context. So this patch
+>> loses the kswapd context.
 > 
-> The bug made it so we were way more agressive with slab reclaim than we should
-> be.  My second patch masked this with the inactive/slab diff stuff, but I've
-> dropped that patch since its controversial and I don't really care to argue
-> about it anymore.  This patch still fixes the issue of us not reclaiming enough
-> in slab mostly workloads, I ran my fs_mark test before I sent out the new
-> version to verify there still isn't the huge drop in performance once reclaim
-> kicks in.  Without any changes we reclaimed basically no slab, with the bug in
-> place (without my second patch) we reclaimed all of the slab in one go, and with
-> the fixed patch we reclaim a proportional amount each time we enter the
-> shrinker.  Thanks,
+> Yup. That's what the code does, and removing the PF_KSWAPD from it
+> will break it.
 
-Cool, thanks for verifying it works as intended now, Josef. :P
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+The worker thread need to inherit these flags. Thanks for pointing out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
