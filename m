@@ -1,44 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A590F6810C8
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 17:42:00 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id p8so1409062wrf.2
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 14:42:00 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E44A16B0499
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 17:50:01 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id t138so1284137wmt.6
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 14:50:01 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id x8si1928326wme.29.2017.08.25.14.41.59
+        by mx.google.com with ESMTPS id m188si1843131wme.155.2017.08.25.14.50.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Aug 2017 14:41:59 -0700 (PDT)
-Date: Fri, 25 Aug 2017 14:41:56 -0700
+        Fri, 25 Aug 2017 14:50:00 -0700 (PDT)
+Date: Fri, 25 Aug 2017 14:49:57 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] mm: Track actual nr_scanned during shrink_slab()
-Message-Id: <20170825144156.f70bfad8dd982d1a320e41ca@linux-foundation.org>
-In-Reply-To: <29aae2cd-85a8-f3c4-66e2-4d4f5a2732c1@suse.cz>
-References: <20170815153010.e3cfc177af0b2c0dc421b84c@linux-foundation.org>
-	<20170822135325.9191-1-chris@chris-wilson.co.uk>
-	<20170824051153.GB13922@bgram>
-	<29aae2cd-85a8-f3c4-66e2-4d4f5a2732c1@suse.cz>
+Subject: Re: [RFC PATCH] mm: fadvise: avoid fadvise for fs without backing
+ device
+Message-Id: <20170825144957.5d99dad605fed1dc2550d25c@linux-foundation.org>
+In-Reply-To: <CALvZod444NZaw9wcdSMs5Y60a0cV4j9SEt-TLBJT34OJ_yg3CQ@mail.gmail.com>
+References: <20170818011023.181465-1-shakeelb@google.com>
+	<CALvZod444NZaw9wcdSMs5Y60a0cV4j9SEt-TLBJT34OJ_yg3CQ@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Minchan Kim <minchan@kernel.org>, Chris Wilson <chris@chris-wilson.co.uk>, linux-mm@kvack.org, intel-gfx@lists.freedesktop.org, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Mel Gorman <mgorman@techsingularity.net>, Shaohua Li <shli@fb.com>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 24 Aug 2017 10:00:49 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
+On Thu, 17 Aug 2017 18:20:17 -0700 Shakeel Butt <shakeelb@google.com> wrote:
 
-> > Even if a
-> > shrinker has a mistake, VM will have big trouble like infinite loop.
+> +linux-mm, linux-kernel
 > 
-> We could fake 0 as 1 or something, at least.
+> On Thu, Aug 17, 2017 at 6:10 PM, Shakeel Butt <shakeelb@google.com> wrote:
+> > The fadvise() manpage is silent on fadvise()'s effect on
+> > memory-based filesystems (shmem, hugetlbfs & ramfs) and pseudo
+> > file systems (procfs, sysfs, kernfs). The current implementaion
+> > of fadvise is mostly a noop for such filesystems except for
+> > FADV_DONTNEED which will trigger expensive remote LRU cache
+> > draining. This patch makes the noop of fadvise() on such file
+> > systems very explicit.
+> >
+> > However this change has two side effects for ramfs and one for
+> > tmpfs. First fadvise(FADV_DONTNEED) can remove the unmapped clean
+> > zero'ed pages of ramfs (allocated through read, readahead & read
+> > fault) and tmpfs (allocated through read fault). Also
+> > fadvise(FADV_WILLNEED) on create such clean zero'ed pages for
+> > ramfs.
 
-If the shrinker returns sc->nr_scanned==0 then that's a buggy shrinker
-- it should return SHRINK_STOP in that case.  Only a single shrinker
-(i915) presently uses sc->nr_scanned and that one gets it right.  I
-think it's OK - there's a limit to how far we should go defending
-against buggy kernel code, surely.
-
+That sentence makes no sense.  I assume "fadvise(FADV_WILLNEED) will
+create"?
 
 
 --
