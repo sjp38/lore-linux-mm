@@ -1,46 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 666F96810B7
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 04:04:39 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id z132so1739802wmg.9
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 01:04:39 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id v9si6463632edc.529.2017.08.25.01.04.38
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A84F6810B7
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 04:04:46 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 136so1734718wmm.11
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 01:04:46 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 138si805695wmf.127.2017.08.25.01.04.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Aug 2017 01:04:38 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id C8A711C15FF
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 09:04:37 +0100 (IST)
-Date: Fri, 25 Aug 2017 09:04:37 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH v2 0/3] Separate NUMA statistics from zone statistics
-Message-ID: <20170825080437.wyikqunw6mtj22hu@techsingularity.net>
-References: <1503568801-21305-1-git-send-email-kemi.wang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 25 Aug 2017 01:04:45 -0700 (PDT)
+Date: Fri, 25 Aug 2017 10:04:42 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] treewide: remove GFP_TEMPORARY allocation flag
+Message-ID: <20170825080442.GF25498@dhcp22.suse.cz>
+References: <20170728091904.14627-1-mhocko@kernel.org>
+ <20170823175709.GA22743@xo-6d-61-c0.localdomain>
+ <20170825063545.GA25498@dhcp22.suse.cz>
+ <20170825072818.GA15494@amd>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1503568801-21305-1-git-send-email-kemi.wang@intel.com>
+In-Reply-To: <20170825072818.GA15494@amd>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kemi Wang <kemi.wang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Pavel Machek <pavel@ucw.cz>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Neil Brown <neilb@suse.de>, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 24, 2017 at 05:59:58PM +0800, Kemi Wang wrote:
-> Each page allocation updates a set of per-zone statistics with a call to
-> zone_statistics(). As discussed in 2017 MM summit, these are a substantial
-> source of overhead in the page allocator and are very rarely consumed. This
-> significant overhead in cache bouncing caused by zone counters (NUMA
-> associated counters) update in parallel in multi-threaded page allocation
-> (pointed out by Dave Hansen).
+On Fri 25-08-17 09:28:19, Pavel Machek wrote:
+> On Fri 2017-08-25 08:35:46, Michal Hocko wrote:
+> > On Wed 23-08-17 19:57:09, Pavel Machek wrote:
+[...]
+> > > Dunno. < 1msec probably is temporary, 1 hour probably is not. If it causes
+> > > problems, can you just #define GFP_TEMPORARY GFP_KERNEL ? Treewide replace,
+> > > and then starting again goes not look attractive to me.
+> > 
+> > I do not think we want a highlevel GFP_TEMPORARY without any meaning.
+> > This just supports spreading the flag usage without a clear semantic
+> > and it will lead to even bigger mess. Once we can actually define what
+> > the flag means we can also add its users based on that new semantic.
 > 
+> It has real meaning.
 
-For the series;
+Which is?
+ 
+> You can define more exact meaning, and then adjust the usage. But
+> there's no need to do treewide replacement...
 
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
+I have checked most of them and except for the initially added onces the
+large portion where added without a good reasons or even break an
+intuitive meaning by taking locks.
+
+Seriously, if we need a short term semantic it should be clearly defined
+first.
+
+Is there any specific case why you think this patch is in a wrong
+direction? E.g. a measurable regression?
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
