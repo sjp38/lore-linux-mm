@@ -1,1539 +1,426 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F3AC6810D7
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 18:32:12 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id q72so3969251ywg.0
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 15:32:12 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id o203si1884512ywc.696.2017.08.25.15.32.07
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DA9F96810D7
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 18:51:02 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id p14so1559817wrg.6
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 15:51:02 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id z39si132970wrz.317.2017.08.25.15.50.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Aug 2017 15:32:07 -0700 (PDT)
-Subject: Re: [PATCH v7 9/9] sparc64: Add support for ADI (Application Data Integrity)
-Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
+        Fri, 25 Aug 2017 15:51:00 -0700 (PDT)
+Date: Fri, 25 Aug 2017 15:50:57 -0700
+From: akpm@linux-foundation.org
+Subject: mmotm 2017-08-25-15-50 uploaded
+Message-ID: <59a0a9d1.jzOblYrHfdIDuDZw%akpm@linux-foundation.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-From: Anthony Yznaga <anthony.yznaga@oracle.com>
-In-Reply-To: <3a687666c2e7972fb6d2379848f31006ac1dd59a.1502219353.git.khalid.aziz@oracle.com>
-Date: Fri, 25 Aug 2017 15:31:04 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <F65BCC2D-8FA4-453F-8378-3369C44B0319@oracle.com>
-References: <cover.1502219353.git.khalid.aziz@oracle.com> <cover.1502219353.git.khalid.aziz@oracle.com> <3a687666c2e7972fb6d2379848f31006ac1dd59a.1502219353.git.khalid.aziz@oracle.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Khalid Aziz <khalid.aziz@oracle.com>
-Cc: David Miller <davem@davemloft.net>, dave.hansen@linux.intel.com, corbet@lwn.net, Bob Picco <bob.picco@oracle.com>, steven.sistare@oracle.com, pasha.tatashin@oracle.com, mike.kravetz@oracle.com, mingo@kernel.org, nitin.m.gupta@oracle.com, kirill.shutemov@linux.intel.com, tom.hromatka@oracle.com, eric.saint.etienne@oracle.com, allen.pais@oracle.com, cmetcalf@mellanox.com, akpm@linux-foundation.org, geert@linux-m68k.org, tklauser@distanz.ch, atish.patra@oracle.com, vijay.ac.kumar@oracle.com, peterz@infradead.org, mhocko@suse.com, jack@suse.cz, lstoakes@gmail.com, hughd@google.com, thomas.tai@oracle.com, paul.gortmaker@windriver.com, ross.zwisler@linux.intel.com, dave.jiang@intel.com, willy@infradead.org, ying.huang@intel.com, zhongjiang@huawei.com, minchan@kernel.org, vegard.nossum@oracle.com, imbrenda@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, Khalid Aziz <khalid@gonehiking.org>
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
+
+The mm-of-the-moment snapshot 2017-08-25-15-50 has been uploaded to
+
+   http://www.ozlabs.org/~akpm/mmotm/
+
+mmotm-readme.txt says
+
+README for mm-of-the-moment:
+
+http://www.ozlabs.org/~akpm/mmotm/
+
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
+
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
+
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
+
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
 
 
-> On Aug 9, 2017, at 2:26 PM, Khalid Aziz <khalid.aziz@oracle.com> =
-wrote:
->=20
-> ADI is a new feature supported on SPARC M7 and newer processors to =
-allow
-> hardware to catch rogue accesses to memory. ADI is supported for data
-> fetches only and not instruction fetches. An app can enable ADI on its
-> data pages, set version tags on them and use versioned addresses to
-> access the data pages. Upper bits of the address contain the version
-> tag. On M7 processors, upper four bits (bits 63-60) contain the =
-version
-> tag. If a rogue app attempts to access ADI enabled data pages, its
-> access is blocked and processor generates an exception. Please see
-> Documentation/sparc/adi.txt for further details.
->=20
-> This patch extends mprotect to enable ADI (TSTATE.mcde), =
-enable/disable
-> MCD (Memory Corruption Detection) on selected memory ranges, enable
-> TTE.mcd in PTEs, return ADI parameters to userspace and save/restore =
-ADI
-> version tags on page swap out/in or migration. ADI is not enabled by
-> default for any task. A task must explicitly enable ADI on a memory
-> range and set version tag for ADI to be effective for the task.
->=20
-> Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
-> Cc: Khalid Aziz <khalid@gonehiking.org>
-> ---
-> v7:
-> 	- Enhanced arch_validate_prot() to enable ADI only on writable
-> 	  addresses backed by physical RAM
-> 	- Added support for saving/restoring ADI tags for each ADI
-> 	  block size address range on a page on swap in/out
-> 	- Added code to copy ADI tags on COW
-> 	- Updated values for auxiliary vectors to not conflict with
-> 	  values on other architectures to avoid conflict in glibc. =
-glibc
-> 	  consolidates all auxiliary vectors into its headers and
-> 	  duplicate values in consolidated header are problematic
-> 	- Disable same page merging on ADI enabled pages since ADI tags
-> 	  may not match on pages with identical data
-> 	- Broke the patch up further into smaller patches
->=20
-> v6:
-> 	- Eliminated instructions to read and write PSTATE as well as
-> 	  MCDPER and PMCDPER on every access to userspace addresses
-> 	  by setting PSTATE and PMCDPER correctly upon entry into
-> 	  kernel. PSTATE.mcde and PMCDPER are set upon entry into
-> 	  kernel when running on an M7 processor. PSTATE.mcde being
-> 	  set only affects memory accesses that have TTE.mcd set.
-> 	  PMCDPER being set only affects writes to memory addresses
-> 	  that have TTE.mcd set. This ensures any faults caused by
-> 	  ADI tag mismatch on a write are exposed before kernel returns
-> 	  to userspace.
->=20
-> v5:
-> 	- Fixed indentation issues and instrcuctions in assembly code
-> 	- Removed CONFIG_SPARC64 from mdesc.c
-> 	- Changed to maintain state of MCDPER register in thread info
-> 	  flags as opposed to in mm context. MCDPER is a per-thread
-> 	  state and belongs in thread info flag as opposed to mm context
-> 	  which is shared across threads. Added comments to clarify this
-> 	  is a lazily maintained state and must be updated on context
-> 	  switch and copy_process()
-> 	- Updated code to use the new arch_do_swap_page() and
-> 	  arch_unmap_one() functions
->=20
-> v4:
-> 	- Broke patch up into smaller patches
->=20
-> v3:
-> 	- Removed CONFIG_SPARC_ADI
-> 	- Replaced prctl commands with mprotect
-> 	- Added auxiliary vectors for ADI parameters
-> 	- Enabled ADI for swappable pages
->=20
-> v2:
-> 	- Fixed a build error
->=20
-> Documentation/sparc/adi.txt             | 272 =
-+++++++++++++++++++++++++++++++
-> arch/sparc/include/asm/mman.h           |  72 ++++++++-
-> arch/sparc/include/asm/mmu_64.h         |  17 ++
-> arch/sparc/include/asm/mmu_context_64.h |  43 +++++
-> arch/sparc/include/asm/page_64.h        |   4 +
-> arch/sparc/include/asm/pgtable_64.h     |  46 ++++++
-> arch/sparc/include/asm/thread_info_64.h |   2 +-
-> arch/sparc/include/asm/trap_block.h     |   2 +
-> arch/sparc/include/uapi/asm/mman.h      |   2 +
-> arch/sparc/kernel/adi_64.c              | 277 =
-++++++++++++++++++++++++++++++++
-> arch/sparc/kernel/etrap_64.S            |  28 +++-
-> arch/sparc/kernel/process_64.c          |  25 +++
-> arch/sparc/kernel/setup_64.c            |  11 +-
-> arch/sparc/kernel/vmlinux.lds.S         |   5 +
-> arch/sparc/mm/gup.c                     |  37 +++++
-> arch/sparc/mm/hugetlbpage.c             |  14 +-
-> arch/sparc/mm/init_64.c                 |  33 ++++
-> arch/sparc/mm/tsb.c                     |  21 +++
-> include/linux/mm.h                      |   3 +
-> mm/ksm.c                                |   4 +
-> 20 files changed, 913 insertions(+), 5 deletions(-)
-> create mode 100644 Documentation/sparc/adi.txt
->=20
-> diff --git a/Documentation/sparc/adi.txt b/Documentation/sparc/adi.txt
-> new file mode 100644
-> index 000000000000..383bc65fec1e
-> --- /dev/null
-> +++ b/Documentation/sparc/adi.txt
-> @@ -0,0 +1,272 @@
-> +Application Data Integrity (ADI)
-> +=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D
-> +
-> +SPARC M7 processor adds the Application Data Integrity (ADI) feature.
-> +ADI allows a task to set version tags on any subset of its address
-> +space. Once ADI is enabled and version tags are set for ranges of
-> +address space of a task, the processor will compare the tag in =
-pointers
-> +to memory in these ranges to the version set by the application
-> +previously. Access to memory is granted only if the tag in given =
-pointer
-> +matches the tag set by the application. In case of mismatch, =
-processor
-> +raises an exception.
-> +
-> +Following steps must be taken by a task to enable ADI fully:
-> +
-> +1. Set the user mode PSTATE.mcde bit. This acts as master switch for
-> +   the task's entire address space to enable/disable ADI for the =
-task.
-> +
-> +2. Set TTE.mcd bit on any TLB entries that correspond to the range of
-> +   addresses ADI is being enabled on. MMU checks the version tag only
-> +   on the pages that have TTE.mcd bit set.
-> +
-> +3. Set the version tag for virtual addresses using stxa instruction
-> +   and one of the MCD specific ASIs. Each stxa instruction sets the
-> +   given tag for one ADI block size number of bytes. This step must
-> +   be repeated for entire page to set tags for entire page.
-> +
-> +ADI block size for the platform is provided by the hypervisor to =
-kernel
-> +in machine description tables. Hypervisor also provides the number of
-> +top bits in the virtual address that specify the version tag.  Once
-> +version tag has been set for a memory location, the tag is stored in =
-the
-> +physical memory and the same tag must be present in the ADI version =
-tag
-> +bits of the virtual address being presented to the MMU. For example =
-on
-> +SPARC M7 processor, MMU uses bits 63-60 for version tags and ADI =
-block
-> +size is same as cacheline size which is 64 bytes. A task that sets =
-ADI
-> +version to, say 10, on a range of memory, must access that memory =
-using
-> +virtual addresses that contain 0xa in bits 63-60.
-> +
-> +ADI is enabled on a set of pages using mprotect() with PROT_ADI flag.
-> +When ADI is enabled on a set of pages by a task for the first time,
-> +kernel sets the PSTATE.mcde bit fot the task. Version tags for memory
-> +addresses are set with an stxa instruction on the addresses using
-> +ASI_MCD_PRIMARY or ASI_MCD_ST_BLKINIT_PRIMARY. ADI block size is
-> +provided by the hypervisor to the kernel.  Kernel returns the value =
-of
-> +ADI block size to userspace using auxiliary vector along with other =
-ADI
-> +info. Following auxiliary vectors are provided by the kernel:
-> +
-> +	AT_ADI_BLKSZ	ADI block size. This is the granularity and
-> +			alignment, in bytes, of ADI versioning.
-> +	AT_ADI_NBITS	Number of ADI version bits in the VA
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
 
-The previous patch series also defined AT_ADI_UEONADI.  Why was that
-removed?
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
 
-> +
-> +
-> +IMPORTANT NOTES:
-> +
-> +- Version tag values of 0x0 and 0xf are reserved.
+To develop on top of mmotm git:
 
-The documentation should probably state more specifically that an
-in-memory tag value of 0x0 or 0xf is treated as "match all" by the HW
-meaning that a mismatch exception will never be generated regardless
-of the tag bits set in the VA accessing the memory.
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
 
-> +
-> +- Version tags are set on virtual addresses from userspace even =
-though
-> +  tags are stored in physical memory. Tags are set on a physical page
-> +  after it has been allocated to a task and a pte has been created =
-for
-> +  it.
-> +
-> +- When a task frees a memory page it had set version tags on, the =
-page
-> +  goes back to free page pool. When this page is re-allocated to a =
-task,
-> +  kernel clears the page using block initialization ASI which clears =
-the
-> +  version tags as well for the page. If a page allocated to a task is
-> +  freed and allocated back to the same task, old version tags set by =
-the
-> +  task on that page will no longer be present.
+To rebase a branch with older patches to a new mmotm release:
 
-The specifics should be included here, too, so someone doesn't have
-to guess what's going on if they make changes and the tags are no longer
-cleared.  The HW clears the tag for a cacheline for block initializing
-stores to 64-byte aligned addresses if PSTATE.mcde=3D0 or TTE.mcd=3D0.
-PSTATE.mce is set when executing in the kernel, but pages are cleared
-using kernel physical mapping VAs which are mapped with TTE.mcd=3D0.
-
-Another HW behavior that should be mentioned is that tag mismatches
-are not detected for non-faulting loads.
-
-> +
-> +- Kernel does not set any tags for user pages and it is entirely a
-> +  task's responsibility to set any version tags. Kernel does ensure =
-the
-> +  version tags are preserved if a page is swapped out to the disk and
-> +  swapped back in. It also preserves that version tags if a page is
-> +  migrated.
-
-I only have a cursory understanding of how page migration works, but
-I could not see how the tags would be preserved if a page were migrated.
-I figured the place to copy the tags would be migrate_page_copy(), but
-I don't see changes there.
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
 
 
-> +
-> +- ADI works for any size pages. A userspace task need not be aware of
-> +  page size when using ADI. It can simply select a virtual address
-> +  range, enable ADI on the range using mprotect() and set version =
-tags
-> +  for the entire range. mprotect() ensures range is aligned to page =
-size
-> +  and is a multiple of page size.
-> +
-> +
-> +
-> +ADI related traps
-> +-----------------
-> +
-> +With ADI enabled, following new traps may occur:
-> +
-> +Disrupting memory corruption
-> +
-> +	When a store accesses a memory localtion that has TTE.mcd=3D1,
-> +	the task is running with ADI enabled (PSTATE.mcde=3D1), and the =
-ADI
-> +	tag in the address used (bits 63:60) does not match the tag set =
-on
-> +	the corresponding cacheline, a memory corruption trap occurs. By
-> +	default, it is a disrupting trap and is sent to the hypervisor
-> +	first. Hypervisor creates a sun4v error report and sends a
-> +	resumable error (TT=3D0x7e) trap to the kernel. The kernel sends
-> +	a SIGSEGV to the task that resulted in this trap with the =
-following
-> +	info:
-> +
-> +		siginfo.si_signo =3D SIGSEGV;
-> +		siginfo.errno =3D 0;
-> +		siginfo.si_code =3D SEGV_ADIDERR;
-> +		siginfo.si_addr =3D addr; /* PC where first mismatch =
-occurred */
-> +		siginfo.si_trapno =3D 0;
-> +
-> +
-> +Precise memory corruption
-> +
-> +	When a store accesses a memory location that has TTE.mcd=3D1,
-> +	the task is running with ADI enabled (PSTATE.mcde=3D1), and the =
-ADI
-> +	tag in the address used (bits 63:60) does not match the tag set =
-on
-> +	the corresponding cacheline, a memory corruption trap occurs. If
-> +	MCD precise exception is enabled (MCDPERR=3D1), a precise
-> +	exception is sent to the kernel with TT=3D0x1a. The kernel sends
-> +	a SIGSEGV to the task that resulted in this trap with the =
-following
-> +	info:
-> +
-> +		siginfo.si_signo =3D SIGSEGV;
-> +		siginfo.errno =3D 0;
-> +		siginfo.si_code =3D SEGV_ADIPERR;
-> +		siginfo.si_addr =3D addr;	/* address that caused =
-trap */
-> +		siginfo.si_trapno =3D 0;
-> +
-> +	NOTE: ADI tag mismatch on a load always results in precise trap.
-> +
-> +
-> +MCD disabled
-> +
-> +	When a task has not enabled ADI and attempts to set ADI version
-> +	on a memory address, processor sends an MCD disabled trap. This
-> +	trap is handled by hypervisor first and the hypervisor vectors =
-this
-> +	trap through to the kernel as Data Access Exception trap with
-> +	fault type set to 0xa (invalid ASI). When this occurs, the =
-kernel
-> +	sends the task SIGSEGV signal with following info:
-> +
-> +		siginfo.si_signo =3D SIGSEGV;
-> +		siginfo.errno =3D 0;
-> +		siginfo.si_code =3D SEGV_ACCADI;
-> +		siginfo.si_addr =3D addr;	/* address that caused =
-trap */
-> +		siginfo.si_trapno =3D 0;
-> +
-> +
-> +Sample program to use ADI
-> +-------------------------
-> +
-> +Following sample program is meant to illustrate how to use the ADI
-> +functionality.
-> +
-> +#include <unistd.h>
-> +#include <stdio.h>
-> +#include <stdlib.h>
-> +#include <elf.h>
-> +#include <sys/ipc.h>
-> +#include <sys/shm.h>
-> +#include <sys/mman.h>
-> +#include <asm/asi.h>
-> +
-> +#ifndef AT_ADI_BLKSZ
-> +#define AT_ADI_BLKSZ	48
-> +#endif
-> +#ifndef AT_ADI_NBITS
-> +#define AT_ADI_NBITS	49
-> +#endif
-> +
-> +#ifndef PROT_ADI
-> +#define PROT_ADI	0x10
-> +#endif
-> +
-> +#define BUFFER_SIZE     32*1024*1024UL
-> +
-> +main(int argc, char* argv[], char* envp[])
-> +{
-> +        unsigned long i, mcde, adi_blksz, adi_nbits;
-> +        char *shmaddr, *tmp_addr, *end, *veraddr, *clraddr;
-> +        int shmid, version;
-> +	Elf64_auxv_t *auxv;
-> +
-> +	adi_blksz =3D 0;
-> +
-> +	while(*envp++ !=3D NULL);
-> +	for (auxv =3D (Elf64_auxv_t *)envp; auxv->a_type !=3D AT_NULL; =
-auxv++) {
-> +		switch (auxv->a_type) {
-> +		case AT_ADI_BLKSZ:
-> +			adi_blksz =3D auxv->a_un.a_val;
-> +			break;
-> +		case AT_ADI_NBITS:
-> +			adi_nbits =3D auxv->a_un.a_val;
-> +			break;
-> +		}
-> +	}
-> +	if (adi_blksz =3D=3D 0) {
-> +		fprintf(stderr, "Oops! ADI is not supported\n");
-> +		exit(1);
-> +	}
-> +
-> +	printf("ADI capabilities:\n");
-> +	printf("\tBlock size =3D %ld\n", adi_blksz);
-> +	printf("\tNumber of bits =3D %ld\n", adi_nbits);
-> +
-> +        if ((shmid =3D shmget(2, BUFFER_SIZE,
-> +                                IPC_CREAT | SHM_R | SHM_W)) < 0) {
-> +                perror("shmget failed");
-> +                exit(1);
-> +        }
-> +
-> +        shmaddr =3D shmat(shmid, NULL, 0);
-> +        if (shmaddr =3D=3D (char *)-1) {
-> +                perror("shm attach failed");
-> +                shmctl(shmid, IPC_RMID, NULL);
-> +                exit(1);
-> +        }
-> +
-> +	if (mprotect(shmaddr, BUFFER_SIZE, =
-PROT_READ|PROT_WRITE|PROT_ADI)) {
-> +		perror("mprotect failed");
-> +		goto err_out;
-> +	}
-> +
-> +        /* Set the ADI version tag on the shm segment
-> +         */
-> +        version =3D 10;
-> +        tmp_addr =3D shmaddr;
-> +        end =3D shmaddr + BUFFER_SIZE;
-> +        while (tmp_addr < end) {
-> +                asm volatile(
-> +                        "stxa %1, [%0]0x90\n\t"
-> +                        :
-> +                        : "r" (tmp_addr), "r" (version));
-> +                tmp_addr +=3D adi_blksz;
-> +        }
-> +	asm volatile("membar #Sync\n\t");
-> +
-> +        /* Create a versioned address from the normal address by =
-placing
-> +	 * version tag in the upper adi_nbits bits
-> +         */
-> +        tmp_addr =3D (void *) ((unsigned long)shmaddr << adi_nbits);
-> +        tmp_addr =3D (void *) ((unsigned long)tmp_addr >> adi_nbits);
-> +        veraddr =3D (void *) (((unsigned long)version << =
-(64-adi_nbits))
-> +                        | (unsigned long)tmp_addr);
-> +
-> +        printf("Starting the writes:\n");
-> +        for (i =3D 0; i < BUFFER_SIZE; i++) {
-> +                veraddr[i] =3D (char)(i);
-> +                if (!(i % (1024 * 1024)))
-> +                        printf(".");
-> +        }
-> +        printf("\n");
-> +
-> +        printf("Verifying data...");
-> +	fflush(stdout);
-> +        for (i =3D 0; i < BUFFER_SIZE; i++)
-> +                if (veraddr[i] !=3D (char)i)
-> +                        printf("\nIndex %lu mismatched\n", i);
-> +        printf("Done.\n");
-> +
-> +        /* Disable ADI and clean up
-> +         */
-> +	if (mprotect(shmaddr, BUFFER_SIZE, PROT_READ|PROT_WRITE)) {
-> +		perror("mprotect failed");
-> +		goto err_out;
-> +	}
-> +
-> +        if (shmdt((const void *)shmaddr) !=3D 0)
-> +                perror("Detach failure");
-> +        shmctl(shmid, IPC_RMID, NULL);
-> +
-> +        exit(0);
-> +
-> +err_out:
-> +        if (shmdt((const void *)shmaddr) !=3D 0)
-> +                perror("Detach failure");
-> +        shmctl(shmid, IPC_RMID, NULL);
-> +        exit(1);
-> +}
-> diff --git a/arch/sparc/include/asm/mman.h =
-b/arch/sparc/include/asm/mman.h
-> index 59bb5938d852..b799796ad963 100644
-> --- a/arch/sparc/include/asm/mman.h
-> +++ b/arch/sparc/include/asm/mman.h
-> @@ -6,5 +6,75 @@
-> #ifndef __ASSEMBLY__
-> #define arch_mmap_check(addr,len,flags)	=
-sparc_mmap_check(addr,len)
-> int sparc_mmap_check(unsigned long addr, unsigned long len);
-> -#endif
-> +
-> +#ifdef CONFIG_SPARC64
-> +#include <asm/adi_64.h>
-> +
-> +#define arch_calc_vm_prot_bits(prot, pkey) =
-sparc_calc_vm_prot_bits(prot)
-> +static inline unsigned long sparc_calc_vm_prot_bits(unsigned long =
-prot)
-> +{
-> +	if (prot & PROT_ADI) {
-> +		struct pt_regs *regs;
-> +
-> +		if (!current->mm->context.adi) {
-> +			regs =3D task_pt_regs(current);
-> +			regs->tstate |=3D TSTATE_MCDE;
-> +			current->mm->context.adi =3D true;
-
-If a process is multi-threaded when it enables ADI on some memory for
-the first time, TSTATE_MCDE will only be set for the calling thread
-and it will not be possible to enable it for the other threads.
-One possible way to handle this is to enable TSTATE_MCDE for all user
-threads when they are initialized if adi_capable() returns true.
 
 
-> +		}
-> +		return VM_SPARC_ADI;
-> +	} else {
-> +		return 0;
-> +	}
-> +}
-> +
-> +#define arch_vm_get_page_prot(vm_flags) =
-sparc_vm_get_page_prot(vm_flags)
-> +static inline pgprot_t sparc_vm_get_page_prot(unsigned long vm_flags)
-> +{
-> +	return (vm_flags & VM_SPARC_ADI) ? __pgprot(_PAGE_MCD_4V) : =
-__pgprot(0);
-> +}
-> +
-> +#define arch_validate_prot(prot, addr) sparc_validate_prot(prot, =
-addr)
-> +static inline int sparc_validate_prot(unsigned long prot, unsigned =
-long addr)
-> +{
-> +	if (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM | =
-PROT_ADI))
-> +		return 0;
-> +	if (prot & PROT_ADI) {
-> +		if (!adi_capable())
-> +			return 0;
-> +
-> +		/* ADI tags can not be set on read-only memory, so it =
-makes
-> +		 * sense to enable ADI on writable memory only.
-> +		 */
-> +		if (!(prot & PROT_WRITE))
-> +			return 0;
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
 
-This prevents the use of ADI for the legitimate case where shared memory
-is mapped read/write for a master process but mapped read-only for a
-client process.  The master process could set the tags and communicate
-the expected tag values to the client.
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
 
 
-> +
-> +		if (addr) {
-> +			struct vm_area_struct *vma;
-> +
-> +			vma =3D find_vma(current->mm, addr);
-> +			if (vma) {
-> +				/* ADI can not be enabled on PFN
-> +				 * mapped pages
-> +				 */
-> +				if (vma->vm_flags & (VM_PFNMAP | =
-VM_MIXEDMAP))
-> +					return 0;
-> +
-> +				/* Mergeable pages can become =
-unmergeable
-> +				 * if ADI is enabled on them even if =
-they
-> +				 * have identical data on them. This can =
-be
-> +				 * because ADI enabled pages with =
-identical
-> +				 * data may still not have identical ADI
-> +				 * tags on them. Disallow ADI on =
-mergeable
-> +				 * pages.
-> +				 */
-> +				if (vma->vm_flags & VM_MERGEABLE)
-> +					return 0;
-> +			}
-> +		}
-> +	}
-> +	return 1;
-> +}
-> +#endif /* CONFIG_SPARC64 */
-> +
-> +#endif /* __ASSEMBLY__ */
-> #endif /* __SPARC_MMAN_H__ */
-> diff --git a/arch/sparc/include/asm/mmu_64.h =
-b/arch/sparc/include/asm/mmu_64.h
-> index 83b36a5371ff..a65d51ebe00b 100644
-> --- a/arch/sparc/include/asm/mmu_64.h
-> +++ b/arch/sparc/include/asm/mmu_64.h
-> @@ -89,6 +89,20 @@ struct tsb_config {
-> #define MM_NUM_TSBS	1
-> #endif
->=20
-> +/* ADI tags are stored when a page is swapped out and the storage for
-> + * tags is allocated dynamically. There is a tag storage descriptor
-> + * associated with each set of tag storage pages. Tag storage =
-descriptors
-> + * are allocated dynamically. Since kernel will allocate a full page =
-for
-> + * each tag storage descriptor, we can store up to
-> + * PAGE_SIZE/sizeof(tag storage descriptor) descriptors on that page.
-> + */
-> +typedef struct {
-> +	unsigned long	start;		/* Start address for this tag =
-storage */
-> +	unsigned long	end;		/* Last address for tag storage =
-*/
-> +	unsigned char	*tags;		/* Where the tags are */
-> +	unsigned long	tag_users;	/* number of references to =
-descriptor */
-> +} tag_storage_desc_t;
-> +
-> typedef struct {
-> 	spinlock_t		lock;
-> 	unsigned long		sparc64_ctx_val;
-> @@ -96,6 +110,9 @@ typedef struct {
-> 	unsigned long		thp_pte_count;
-> 	struct tsb_config	tsb_block[MM_NUM_TSBS];
-> 	struct hv_tsb_descr	tsb_descr[MM_NUM_TSBS];
-> +	bool			adi;
-> +	tag_storage_desc_t	*tag_store;
-> +	spinlock_t		tag_lock;
-> } mm_context_t;
->=20
-> #endif /* !__ASSEMBLY__ */
-> diff --git a/arch/sparc/include/asm/mmu_context_64.h =
-b/arch/sparc/include/asm/mmu_context_64.h
-> index 2cddcda4f85f..68de059551f9 100644
-> --- a/arch/sparc/include/asm/mmu_context_64.h
-> +++ b/arch/sparc/include/asm/mmu_context_64.h
-> @@ -9,6 +9,7 @@
-> #include <linux/mm_types.h>
->=20
-> #include <asm/spitfire.h>
-> +#include <asm/adi_64.h>
-> #include <asm-generic/mm_hooks.h>
->=20
-> static inline void enter_lazy_tlb(struct mm_struct *mm, struct =
-task_struct *tsk)
-> @@ -129,6 +130,48 @@ static inline void switch_mm(struct mm_struct =
-*old_mm, struct mm_struct *mm, str
->=20
-> #define deactivate_mm(tsk,mm)	do { } while (0)
-> #define activate_mm(active_mm, mm) switch_mm(active_mm, mm, NULL)
-> +
-> +#define  __HAVE_ARCH_START_CONTEXT_SWITCH
-> +static inline void arch_start_context_switch(struct task_struct =
-*prev)
-> +{
-> +	/* Save the current state of MCDPER register for the process
-> +	 * we are switching from
-> +	 */
-> +	if (adi_capable()) {
-> +		register unsigned long tmp_mcdper;
-> +
-> +		__asm__ __volatile__(
-> +			".word 0x83438000\n\t"	/* rd  %mcdper, %g1 */
-> +			"mov %%g1, %0\n\t"
-> +			: "=3Dr" (tmp_mcdper)
-> +			:
-> +			: "g1");
-> +		if (tmp_mcdper)
-> +			set_tsk_thread_flag(prev, TIF_MCDPER);
-> +		else
-> +			clear_tsk_thread_flag(prev, TIF_MCDPER);
-> +	}
-> +}
-> +
-> +#define finish_arch_post_lock_switch	finish_arch_post_lock_switch
-> +static inline void finish_arch_post_lock_switch(void)
-> +{
-> +	/* Restore the state of MCDPER register for the new process
-> +	 * just switched to.
-> +	 */
-> +	if (adi_capable()) {
-> +		register unsigned long tmp_mcdper;
-> +
-> +		tmp_mcdper =3D test_thread_flag(TIF_MCDPER);
-> +		__asm__ __volatile__(
-> +			"mov %0, %%g1\n\t"
-> +			".word 0x9d800001\n\t"	/* wr %g0, %g1, %mcdper" =
-*/
-> +			:
-> +			: "ir" (tmp_mcdper)
-> +			: "g1");
-> +	}
-> +}
-> +
-> #endif /* !(__ASSEMBLY__) */
->=20
-> #endif /* !(__SPARC64_MMU_CONTEXT_H) */
-> diff --git a/arch/sparc/include/asm/page_64.h =
-b/arch/sparc/include/asm/page_64.h
-> index 5961b2d8398a..dc582c5611f8 100644
-> --- a/arch/sparc/include/asm/page_64.h
-> +++ b/arch/sparc/include/asm/page_64.h
-> @@ -46,6 +46,10 @@ struct page;
-> void clear_user_page(void *addr, unsigned long vaddr, struct page =
-*page);
-> #define copy_page(X,Y)	memcpy((void *)(X), (void *)(Y), =
-PAGE_SIZE)
-> void copy_user_page(void *to, void *from, unsigned long vaddr, struct =
-page *topage);
-> +#define __HAVE_ARCH_COPY_USER_HIGHPAGE
-> +struct vm_area_struct;
-> +void copy_user_highpage(struct page *to, struct page *from,
-> +			unsigned long vaddr, struct vm_area_struct =
-*vma);
->=20
-> /* Unlike sparc32, sparc64's parameter passing API is more
->  * sane in that structures which as small enough are passed
-> diff --git a/arch/sparc/include/asm/pgtable_64.h =
-b/arch/sparc/include/asm/pgtable_64.h
-> index af045061f41e..51da342c392d 100644
-> --- a/arch/sparc/include/asm/pgtable_64.h
-> +++ b/arch/sparc/include/asm/pgtable_64.h
-> @@ -18,6 +18,7 @@
-> #include <asm/types.h>
-> #include <asm/spitfire.h>
-> #include <asm/asi.h>
-> +#include <asm/adi.h>
-> #include <asm/page.h>
-> #include <asm/processor.h>
->=20
-> @@ -570,6 +571,18 @@ static inline pte_t pte_mkspecial(pte_t pte)
-> 	return pte;
-> }
->=20
-> +static inline pte_t pte_mkmcd(pte_t pte)
-> +{
-> +	pte_val(pte) |=3D _PAGE_MCD_4V;
-> +	return pte;
-> +}
-> +
-> +static inline pte_t pte_mknotmcd(pte_t pte)
-> +{
-> +	pte_val(pte) &=3D ~_PAGE_MCD_4V;
-> +	return pte;
-> +}
-> +
-> static inline unsigned long pte_young(pte_t pte)
-> {
-> 	unsigned long mask;
-> @@ -1001,6 +1014,39 @@ int page_in_phys_avail(unsigned long paddr);
-> int remap_pfn_range(struct vm_area_struct *, unsigned long, unsigned =
-long,
-> 		    unsigned long, pgprot_t);
->=20
-> +void adi_restore_tags(struct mm_struct *mm, struct vm_area_struct =
-*vma,
-> +		      unsigned long addr, pte_t pte);
-> +
-> +int adi_save_tags(struct mm_struct *mm, struct vm_area_struct *vma,
-> +		  unsigned long addr, pte_t oldpte);
-> +
-> +#define __HAVE_ARCH_DO_SWAP_PAGE
-> +static inline void arch_do_swap_page(struct mm_struct *mm,
-> +				     struct vm_area_struct *vma,
-> +				     unsigned long addr,
-> +				     pte_t pte, pte_t oldpte)
-> +{
-> +	/* If this is a new page being mapped in, there can be no
-> +	 * ADI tags stored away for this page. Skip looking for
-> +	 * stored tags
-> +	 */
-> +	if (pte_none(oldpte))
-> +		return;
-> +
-> +	if (adi_state.enabled && (pte_val(pte) & _PAGE_MCD_4V))
-> +		adi_restore_tags(mm, vma, addr, pte);
-> +}
-> +
-> +#define __HAVE_ARCH_UNMAP_ONE
-> +static inline int arch_unmap_one(struct mm_struct *mm,
-> +				 struct vm_area_struct *vma,
-> +				 unsigned long addr, pte_t oldpte)
-> +{
-> +	if (adi_state.enabled && (pte_val(oldpte) & _PAGE_MCD_4V))
-> +		return adi_save_tags(mm, vma, addr, oldpte);
-> +	return 0;
-> +}
-> +
-> static inline int io_remap_pfn_range(struct vm_area_struct *vma,
-> 				     unsigned long from, unsigned long =
-pfn,
-> 				     unsigned long size, pgprot_t prot)
-> diff --git a/arch/sparc/include/asm/thread_info_64.h =
-b/arch/sparc/include/asm/thread_info_64.h
-> index 38a24f257b85..9c04acb1f9af 100644
-> --- a/arch/sparc/include/asm/thread_info_64.h
-> +++ b/arch/sparc/include/asm/thread_info_64.h
-> @@ -190,7 +190,7 @@ register struct thread_info =
-*current_thread_info_reg asm("g6");
->  *       in using in assembly, else we can't use the mask as
->  *       an immediate value in instructions such as andcc.
->  */
-> -/* flag bit 12 is available */
-> +#define TIF_MCDPER		12	/* Precise MCD exception */
-> #define TIF_MEMDIE		13	/* is terminating due to OOM =
-killer */
-> #define TIF_POLLING_NRFLAG	14
->=20
-> diff --git a/arch/sparc/include/asm/trap_block.h =
-b/arch/sparc/include/asm/trap_block.h
-> index ec9c04de3664..b283e940671a 100644
-> --- a/arch/sparc/include/asm/trap_block.h
-> +++ b/arch/sparc/include/asm/trap_block.h
-> @@ -72,6 +72,8 @@ struct sun4v_1insn_patch_entry {
-> };
-> extern struct sun4v_1insn_patch_entry __sun4v_1insn_patch,
-> 	__sun4v_1insn_patch_end;
-> +extern struct sun4v_1insn_patch_entry __sun_m7_1insn_patch,
-> +	__sun_m7_1insn_patch_end;
->=20
-> struct sun4v_2insn_patch_entry {
-> 	unsigned int	addr;
-> diff --git a/arch/sparc/include/uapi/asm/mman.h =
-b/arch/sparc/include/uapi/asm/mman.h
-> index 9765896ecb2c..a72c03397345 100644
-> --- a/arch/sparc/include/uapi/asm/mman.h
-> +++ b/arch/sparc/include/uapi/asm/mman.h
-> @@ -5,6 +5,8 @@
->=20
-> /* SunOS'ified... */
->=20
-> +#define PROT_ADI	0x10		/* ADI enabled */
-> +
-> #define MAP_RENAME      MAP_ANONYMOUS   /* In SunOS terminology */
-> #define MAP_NORESERVE   0x40            /* don't reserve swap pages */
-> #define MAP_INHERIT     0x80            /* SunOS doesn't do this, =
-but... */
-> diff --git a/arch/sparc/kernel/adi_64.c b/arch/sparc/kernel/adi_64.c
-> index 9fbb5dd4a7bf..83c1e36ae5fa 100644
-> --- a/arch/sparc/kernel/adi_64.c
-> +++ b/arch/sparc/kernel/adi_64.c
-> @@ -7,10 +7,24 @@
->  * This work is licensed under the terms of the GNU GPL, version 2.
->  */
-> #include <linux/init.h>
-> +#include <linux/slab.h>
-> +#include <linux/mm_types.h>
-> #include <asm/mdesc.h>
-> #include <asm/adi_64.h>
-> +#include <asm/mmu_64.h>
-> +#include <asm/pgtable_64.h>
-> +
-> +/* Each page of storage for ADI tags can accommodate tags for 128
-> + * pages. When ADI enabled pages are being swapped out, it would be
-> + * prudent to allocate at least enough tag storage space to =
-accommodate
-> + * SWAPFILE_CLUSTER number of pages. Allocate enough tag storage to
-> + * store tags for four SWAPFILE_CLUSTER pages to reduce need for
-> + * further allocations for same vma.
-> + */
-> +#define TAG_STORAGE_PAGES	8
->=20
-> struct adi_config adi_state;
-> +EXPORT_SYMBOL(adi_state);
->=20
-> /* mdesc_adi_init() : Parse machine description provided by the
->  *	hypervisor to detect ADI capabilities
-> @@ -78,6 +92,19 @@ void __init mdesc_adi_init(void)
-> 		goto adi_not_found;
-> 	adi_state.caps.nbits =3D *val;
->=20
-> +	/* Some of the code to support swapping ADI tags is written
-> +	 * assumption that two ADI tags can fit inside one byte. If
-> +	 * this assumption is broken by a future architecture change,
-> +	 * that code will have to be revisited. If that were to happen,
-> +	 * disable ADI support so we do not get unpredictable results
-> +	 * with programs trying to use ADI and their pages getting
-> +	 * swapped out
-> +	 */
-> +	if (adi_state.caps.nbits > 4) {
-> +		pr_warn("WARNING: ADI tag size >4 on this platform. =
-Disabling AADI support\n");
-> +		adi_state.enabled =3D false;
-> +	}
-> +
-> 	mdesc_release(hp);
-> 	return;
->=20
-> @@ -88,3 +115,253 @@ void __init mdesc_adi_init(void)
-> 	if (hp)
-> 		mdesc_release(hp);
-> }
-> +
-> +tag_storage_desc_t *find_tag_store(struct mm_struct *mm,
-> +				   struct vm_area_struct *vma,
-> +				   unsigned long addr)
-> +{
-> +	tag_storage_desc_t *tag_desc =3D NULL;
-> +	unsigned long i, max_desc, flags;
-> +
-> +	/* Check if this vma already has tag storage descriptor
-> +	 * allocated for it.
-> +	 */
-> +	max_desc =3D PAGE_SIZE/sizeof(tag_storage_desc_t);
-> +	if (mm->context.tag_store) {
-> +		tag_desc =3D mm->context.tag_store;
-> +		spin_lock_irqsave(&mm->context.tag_lock, flags);
-> +		for (i =3D 0; i < max_desc; i++) {
-> +			if ((addr >=3D tag_desc->start) &&
-> +			    ((addr + PAGE_SIZE - 1) <=3D tag_desc->end))
-> +				break;
-> +			tag_desc++;
-> +		}
-> +		spin_unlock_irqrestore(&mm->context.tag_lock, flags);
-> +
-> +		/* If no matching entries were found, this must be a
-> +		 * freshly allocated page
-> +		 */
-> +		if (i >=3D max_desc)
-> +			tag_desc =3D NULL;
-> +	}
-> +
-> +	return tag_desc;
-> +}
-> +
-> +tag_storage_desc_t *alloc_tag_store(struct mm_struct *mm,
-> +				    struct vm_area_struct *vma,
-> +				    unsigned long addr)
-> +{
-> +	unsigned char *tags;
-> +	unsigned long i, size, max_desc, flags;
-> +	tag_storage_desc_t *tag_desc, *open_desc;
-> +	unsigned long end_addr, hole_start, hole_end;
-> +
-> +	max_desc =3D PAGE_SIZE/sizeof(tag_storage_desc_t);
-> +	open_desc =3D NULL;
-> +	hole_start =3D 0;
-> +	hole_end =3D ULONG_MAX;
-> +	end_addr =3D addr + PAGE_SIZE - 1;
-> +
-> +	/* Check if this vma already has tag storage descriptor
-> +	 * allocated for it.
-> +	 */
-> +	spin_lock_irqsave(&mm->context.tag_lock, flags);
-> +	if (mm->context.tag_store) {
-> +		tag_desc =3D mm->context.tag_store;
-> +
-> +		/* Look for a matching entry for this address. While =
-doing
-> +		 * that, look for the first open slot as well and find
-> +		 * the hole in already allocated range where this =
-request
-> +		 * will fit in.
-> +		 */
-> +		for (i =3D 0; i < max_desc; i++) {
-> +			if (tag_desc->tag_users =3D=3D 0) {
-> +				if (open_desc =3D=3D NULL)
-> +					open_desc =3D tag_desc;
-> +			} else {
-> +				if ((addr >=3D tag_desc->start) &&
-> +				    (tag_desc->end >=3D (addr + =
-PAGE_SIZE - 1))) {
-> +					tag_desc->tag_users++;
-> +					goto out;
-> +				}
-> +			}
-> +			if ((tag_desc->start > end_addr) &&
-> +			    (tag_desc->start < hole_end))
-> +				hole_end =3D tag_desc->start;
-> +			if ((tag_desc->end < addr) &&
-> +			    (tag_desc->end > hole_start))
-> +				hole_start =3D tag_desc->end;
-> +			tag_desc++;
-> +		}
-> +
-> +	} else {
-> +		size =3D sizeof(tag_storage_desc_t)*max_desc;
-> +		mm->context.tag_store =3D kzalloc(size, =
-GFP_NOIO|__GFP_NOWARN);
+This mmotm tree contains the following patches against 4.13-rc6:
+(patches marked "*" will be included in linux-next)
 
-The spin_lock_irqsave() above means that all but level 15 interrupts
-will be disabled when kzalloc() is called.  If kzalloc() can sleep
-there's a risk of deadlock.
-
-
-> +		if (mm->context.tag_store =3D=3D NULL) {
-> +			tag_desc =3D NULL;
-> +			goto out;
-> +		}
-> +		tag_desc =3D mm->context.tag_store;
-> +		for (i =3D 0; i < max_desc; i++, tag_desc++)
-> +			tag_desc->tag_users =3D 0;
-> +		open_desc =3D mm->context.tag_store;
-> +		i =3D 0;
-> +	}
-> +
-> +	/* Check if we ran out of tag storage descriptors */
-> +	if (open_desc =3D=3D NULL) {
-> +		tag_desc =3D NULL;
-> +		goto out;
-> +	}
-> +
-> +	/* Mark this tag descriptor slot in use and then initialize it =
-*/
-> +	tag_desc =3D open_desc;
-> +	tag_desc->tag_users =3D 1;
-> +
-> +	/* Tag storage has not been allocated for this vma and space
-> +	 * is available in tag storage descriptor. Since this page is
-> +	 * being swapped out, there is high probability subsequent pages
-> +	 * in the VMA will be swapped out as well. Allocates pages to
-> +	 * store tags for as many pages in this vma as possible but not
-> +	 * more than TAG_STORAGE_PAGES. Each byte in tag space holds
-> +	 * two ADI tags since each ADI tag is 4 bits. Each ADI tag
-> +	 * covers adi_blksize() worth of addresses. Check if the hole is
-> +	 * big enough to accommodate full address range for using
-> +	 * TAG_STORAGE_PAGES number of tag pages.
-> +	 */
-> +	size =3D TAG_STORAGE_PAGES * PAGE_SIZE;
-> +	end_addr =3D addr + (size*2*adi_blksize()) - 1;
-
-Since size > PAGE_SIZE, end_addr could theoretically overflow.
-
-
-> +	if (hole_end < end_addr) {
-> +		/* Available hole is too small on the upper end of
-> +		 * address. Can we expand the range towards the lower
-> +		 * address and maximize use of this slot?
-> +		 */
-> +		unsigned long tmp_addr;
-> +
-> +		end_addr =3D hole_end - 1;
-> +		tmp_addr =3D end_addr - (size*2*adi_blksize()) + 1;
-
-Similarily, tmp_addr may underflow.
-
-> +		if (tmp_addr < hole_start) {
-> +			/* Available hole is restricted on lower address
-> +			 * end as well
-> +			 */
-> +			tmp_addr =3D hole_start + 1;
-> +		}
-> +		addr =3D tmp_addr;
-> +		size =3D (end_addr + 1 - addr)/(2*adi_blksize());
-> +		size =3D (size + (PAGE_SIZE-adi_blksize()))/PAGE_SIZE;
-> +		size =3D size * PAGE_SIZE;
-> +	}
-> +	tags =3D kzalloc(size, GFP_NOIO|__GFP_NOWARN);
-
-Potential deadlock due to PIL=3D14?
-
-
-> +	if (tags =3D=3D NULL) {
-> +		tag_desc->tag_users =3D 0;
-> +		tag_desc =3D NULL;
-> +		goto out;
-> +	}
-> +	tag_desc->start =3D addr;
-> +	tag_desc->tags =3D tags;
-> +	tag_desc->end =3D end_addr;
-> +
-> +out:
-> +	spin_unlock_irqrestore(&mm->context.tag_lock, flags);
-> +	return tag_desc;
-> +}
-> +
-> +void del_tag_store(tag_storage_desc_t *tag_desc, struct mm_struct =
-*mm)
-> +{
-> +	unsigned long flags;
-> +	unsigned char *tags =3D NULL;
-> +
-> +	spin_lock_irqsave(&mm->context.tag_lock, flags);
-> +	tag_desc->tag_users--;
-> +	if (tag_desc->tag_users =3D=3D 0) {
-> +		tag_desc->start =3D tag_desc->end =3D 0;
-> +		/* Do not free up the tag storage space allocated
-> +		 * by the first descriptor. This is persistent
-> +		 * emergency tag storage space for the task.
-> +		 */
-> +		if (tag_desc !=3D mm->context.tag_store) {
-> +			tags =3D tag_desc->tags;
-> +			tag_desc->tags =3D NULL;
-> +		}
-> +	}
-> +	spin_unlock_irqrestore(&mm->context.tag_lock, flags);
-> +	kfree(tags);
-> +}
-> +
-> +#define tag_start(addr, tag_desc)		\
-> +	((tag_desc)->tags + ((addr - =
-(tag_desc)->start)/(2*adi_blksize())))
-> +
-> +/* Retrieve any saved ADI tags for the page being swapped back in and
-> + * restore these tags to the newly allocated physical page.
-> + */
-> +void adi_restore_tags(struct mm_struct *mm, struct vm_area_struct =
-*vma,
-> +		      unsigned long addr, pte_t pte)
-> +{
-> +	unsigned char *tag;
-> +	tag_storage_desc_t *tag_desc;
-> +	unsigned long paddr, tmp, version1, version2;
-> +
-> +	/* Check if the swapped out page has an ADI version
-> +	 * saved. If yes, restore version tag to the newly
-> +	 * allocated page.
-> +	 */
-> +	tag_desc =3D find_tag_store(mm, vma, addr);
-> +	if (tag_desc =3D=3D NULL)
-> +		return;
-> +
-> +	tag =3D tag_start(addr, tag_desc);
-> +	paddr =3D pte_val(pte) & _PAGE_PADDR_4V;
-> +	for (tmp =3D paddr; tmp < (paddr+PAGE_SIZE); tmp +=3D =
-adi_blksize()) {
-> +		version1 =3D (*tag) >> 4;
-> +		version2 =3D (*tag) & 0x0f;
-> +		*tag++ =3D 0;
-> +		asm volatile("stxa %0, [%1] %2\n\t"
-> +			:
-> +			: "r" (version1), "r" (tmp),
-> +			  "i" (ASI_MCD_REAL));
-> +		tmp +=3D adi_blksize();
-> +		asm volatile("stxa %0, [%1] %2\n\t"
-> +			:
-> +			: "r" (version2), "r" (tmp),
-> +			  "i" (ASI_MCD_REAL));
-> +	}
-> +	asm volatile("membar #Sync\n\t");
-> +
-> +	/* Check and mark this tag space for release later if
-> +	 * the swapped in page was the last user of tag space
-> +	 */
-> +	del_tag_store(tag_desc, mm);
-> +}
-> +
-> +/* A page is about to be swapped out. Save any ADI tags associated =
-with
-> + * this physical page so they can be restored later when the page is =
-swapped
-> + * back in.
-> + */
-> +int adi_save_tags(struct mm_struct *mm, struct vm_area_struct *vma,
-> +		  unsigned long addr, pte_t oldpte)
-> +{
-> +	unsigned char *tag;
-> +	tag_storage_desc_t *tag_desc;
-> +	unsigned long version1, version2, paddr, tmp;
-> +
-> +	tag_desc =3D alloc_tag_store(mm, vma, addr);
-> +	if (tag_desc =3D=3D NULL)
-> +		return -1;
-> +
-> +	tag =3D tag_start(addr, tag_desc);
-> +	paddr =3D pte_val(oldpte) & _PAGE_PADDR_4V;
-> +	for (tmp =3D paddr; tmp < (paddr+PAGE_SIZE); tmp +=3D =
-adi_blksize()) {
-> +		asm volatile("ldxa [%1] %2, %0\n\t"
-> +				: "=3Dr" (version1)
-> +				: "r" (tmp), "i" (ASI_MCD_REAL));
-> +		tmp +=3D adi_blksize();
-> +		asm volatile("ldxa [%1] %2, %0\n\t"
-> +				: "=3Dr" (version2)
-> +				: "r" (tmp), "i" (ASI_MCD_REAL));
-> +		*tag =3D (version1 << 4) | version2;
-> +		tag++;
-> +	}
-> +
-> +	return 0;
-> +}
-> diff --git a/arch/sparc/kernel/etrap_64.S =
-b/arch/sparc/kernel/etrap_64.S
-> index 1276ca2567ba..7be33bf45cff 100644
-> --- a/arch/sparc/kernel/etrap_64.S
-> +++ b/arch/sparc/kernel/etrap_64.S
-> @@ -132,7 +132,33 @@ etrap_save:	save	%g2, -STACK_BIAS, %sp
-> 		stx	%g6, [%sp + PTREGS_OFF + PT_V9_G6]
-> 		stx	%g7, [%sp + PTREGS_OFF + PT_V9_G7]
-> 		or	%l7, %l0, %l7
-> -		sethi	%hi(TSTATE_TSO | TSTATE_PEF), %l0
-> +661:		sethi	%hi(TSTATE_TSO | TSTATE_PEF), %l0
-> +		/*
-> +		 * If userspace is using ADI, it could potentially pass
-> +		 * a pointer with version tag embedded in it. To =
-maintain
-> +		 * the ADI security, we must enable PSTATE.mcde. =
-Userspace
-> +		 * would have already set TTE.mcd in an earlier call to
-> +		 * kernel and set the version tag for the address being
-> +		 * dereferenced. Setting PSTATE.mcde would ensure any
-> +		 * access to userspace data through a system call honors
-> +		 * ADI and does not allow a rogue app to bypass ADI by
-> +		 * using system calls. Setting PSTATE.mcde only affects
-> +		 * accesses to virtual addresses that have TTE.mcd set.
-> +		 * Set PMCDPER to ensure any exceptions caused by ADI
-> +		 * version tag mismatch are exposed before system call
-> +		 * returns to userspace. Setting PMCDPER affects only
-> +		 * writes to virtual addresses that have TTE.mcd set and
-> +		 * have a version tag set as well.
-> +		 */
-> +		.section .sun_m7_1insn_patch, "ax"
-> +		.word	661b
-> +		sethi	%hi(TSTATE_TSO | TSTATE_PEF | TSTATE_MCDE), %l0
-> +		.previous
-> +661:		nop
-> +		.section .sun_m7_1insn_patch, "ax"
-> +		.word	661b
-> +		.word 0xaf902001	/* wrpr %g0, 1, %pmcdper */
-
-I commented on this on the last patch series revision.  PMCDPER could be
-set once when each CPU is configured rather than every time the kernel
-is entered.  Since it's never cleared, setting it repeatedly =
-unnecessarily
-impacts the performance of etrap.
-
-Also, there are places in rtrap where PSTATE is set before continuing
-execution in the kernel.  These should also be patched to set =
-TSTATE_MCDE.
-
-
-> +		.previous
-> 		or	%l7, %l0, %l7
-> 		wrpr	%l2, %tnpc
-> 		wrpr	%l7, (TSTATE_PRIV | TSTATE_IE), %tstate
-> diff --git a/arch/sparc/kernel/process_64.c =
-b/arch/sparc/kernel/process_64.c
-> index b96104da5bd6..defa5723dfa6 100644
-> --- a/arch/sparc/kernel/process_64.c
-> +++ b/arch/sparc/kernel/process_64.c
-> @@ -664,6 +664,31 @@ int copy_thread(unsigned long clone_flags, =
-unsigned long sp,
-> 	return 0;
-> }
->=20
-> +/* TIF_MCDPER in thread info flags for current task is updated lazily =
-upon
-> + * a context switch. Update the this flag in current task's thread =
-flags
-> + * before dup so the dup'd task will inherit the current TIF_MCDPER =
-flag.
-> + */
-> +int arch_dup_task_struct(struct task_struct *dst, struct task_struct =
-*src)
-> +{
-> +	if (adi_capable()) {
-> +		register unsigned long tmp_mcdper;
-> +
-> +		__asm__ __volatile__(
-> +			".word 0x83438000\n\t"	/* rd  %mcdper, %g1 */
-> +			"mov %%g1, %0\n\t"
-> +			: "=3Dr" (tmp_mcdper)
-> +			:
-> +			: "g1");
-> +		if (tmp_mcdper)
-> +			set_thread_flag(TIF_MCDPER);
-> +		else
-> +			clear_thread_flag(TIF_MCDPER);
-> +	}
-> +
-> +	*dst =3D *src;
-> +	return 0;
-> +}
-> +
-> typedef struct {
-> 	union {
-> 		unsigned int	pr_regs[32];
-> diff --git a/arch/sparc/kernel/setup_64.c =
-b/arch/sparc/kernel/setup_64.c
-> index 422b17880955..a9da205da394 100644
-> --- a/arch/sparc/kernel/setup_64.c
-> +++ b/arch/sparc/kernel/setup_64.c
-> @@ -240,6 +240,12 @@ void sun4v_patch_1insn_range(struct =
-sun4v_1insn_patch_entry *start,
-> 	}
-> }
->=20
-> +void sun_m7_patch_1insn_range(struct sun4v_1insn_patch_entry *start,
-> +			     struct sun4v_1insn_patch_entry *end)
-> +{
-> +	sun4v_patch_1insn_range(start, end);
-> +}
-> +
-> void sun4v_patch_2insn_range(struct sun4v_2insn_patch_entry *start,
-> 			     struct sun4v_2insn_patch_entry *end)
-> {
-> @@ -289,9 +295,12 @@ static void __init sun4v_patch(void)
-> 	sun4v_patch_2insn_range(&__sun4v_2insn_patch,
-> 				&__sun4v_2insn_patch_end);
-> 	if (sun4v_chip_type =3D=3D SUN4V_CHIP_SPARC_M7 ||
-> -	    sun4v_chip_type =3D=3D SUN4V_CHIP_SPARC_SN)
-> +	    sun4v_chip_type =3D=3D SUN4V_CHIP_SPARC_SN) {
-> +		sun_m7_patch_1insn_range(&__sun_m7_1insn_patch,
-> +					 &__sun_m7_1insn_patch_end);
-> 		sun_m7_patch_2insn_range(&__sun_m7_2insn_patch,
-> 					 &__sun_m7_2insn_patch_end);
-
-Why not call sun4v_patch_1insn_range() and sun4v_patch_2insn_range()
-here instead of adding new functions that just call these functions?
-
-Anthony
-
-> +		}
->=20
-> 	sun4v_hvapi_init();
-> }
-> diff --git a/arch/sparc/kernel/vmlinux.lds.S =
-b/arch/sparc/kernel/vmlinux.lds.S
-> index 572db686f845..20a70682cce7 100644
-> --- a/arch/sparc/kernel/vmlinux.lds.S
-> +++ b/arch/sparc/kernel/vmlinux.lds.S
-> @@ -144,6 +144,11 @@ SECTIONS
-> 		*(.pause_3insn_patch)
-> 		__pause_3insn_patch_end =3D .;
-> 	}
-> +	.sun_m7_1insn_patch : {
-> +		__sun_m7_1insn_patch =3D .;
-> +		*(.sun_m7_1insn_patch)
-> +		__sun_m7_1insn_patch_end =3D .;
-> +	}
-> 	.sun_m7_2insn_patch : {
-> 		__sun_m7_2insn_patch =3D .;
-> 		*(.sun_m7_2insn_patch)
-> diff --git a/arch/sparc/mm/gup.c b/arch/sparc/mm/gup.c
-> index cd0e32bbcb1d..579f7ae75b35 100644
-> --- a/arch/sparc/mm/gup.c
-> +++ b/arch/sparc/mm/gup.c
-> @@ -11,6 +11,7 @@
-> #include <linux/pagemap.h>
-> #include <linux/rwsem.h>
-> #include <asm/pgtable.h>
-> +#include <asm/adi.h>
->=20
-> /*
->  * The performance critical leaf functions are made noinline otherwise =
-gcc
-> @@ -157,6 +158,24 @@ int __get_user_pages_fast(unsigned long start, =
-int nr_pages, int write,
-> 	pgd_t *pgdp;
-> 	int nr =3D 0;
->=20
-> +#ifdef CONFIG_SPARC64
-> +	if (adi_capable()) {
-> +		long addr =3D start;
-> +
-> +		/* If userspace has passed a versioned address, kernel
-> +		 * will not find it in the VMAs since it does not store
-> +		 * the version tags in the list of VMAs. Storing version
-> +		 * tags in list of VMAs is impractical since they can be
-> +		 * changed any time from userspace without dropping into
-> +		 * kernel. Any address search in VMAs will be done with
-> +		 * non-versioned addresses. Ensure the ADI version bits
-> +		 * are dropped here by sign extending the last bit =
-before
-> +		 * ADI bits. IOMMU does not implement version tags.
-> +		 */
-> +		addr =3D (addr << (long)adi_nbits()) >> =
-(long)adi_nbits();
-> +		start =3D addr;
-> +	}
-> +#endif
-> 	start &=3D PAGE_MASK;
-> 	addr =3D start;
-> 	len =3D (unsigned long) nr_pages << PAGE_SHIFT;
-> @@ -187,6 +206,24 @@ int get_user_pages_fast(unsigned long start, int =
-nr_pages, int write,
-> 	pgd_t *pgdp;
-> 	int nr =3D 0;
->=20
-> +#ifdef CONFIG_SPARC64
-> +	if (adi_capable()) {
-> +		long addr =3D start;
-> +
-> +		/* If userspace has passed a versioned address, kernel
-> +		 * will not find it in the VMAs since it does not store
-> +		 * the version tags in the list of VMAs. Storing version
-> +		 * tags in list of VMAs is impractical since they can be
-> +		 * changed any time from userspace without dropping into
-> +		 * kernel. Any address search in VMAs will be done with
-> +		 * non-versioned addresses. Ensure the ADI version bits
-> +		 * are dropped here by sign extending the last bit =
-before
-> +		 * ADI bits. IOMMU does not implements version tags,
-> +		 */
-> +		addr =3D (addr << (long)adi_nbits()) >> =
-(long)adi_nbits();
-> +		start =3D addr;
-> +	}
-> +#endif
-> 	start &=3D PAGE_MASK;
-> 	addr =3D start;
-> 	len =3D (unsigned long) nr_pages << PAGE_SHIFT;
-> diff --git a/arch/sparc/mm/hugetlbpage.c b/arch/sparc/mm/hugetlbpage.c
-> index 88855e383b34..487ed1f1ce86 100644
-> --- a/arch/sparc/mm/hugetlbpage.c
-> +++ b/arch/sparc/mm/hugetlbpage.c
-> @@ -177,8 +177,20 @@ pte_t arch_make_huge_pte(pte_t entry, struct =
-vm_area_struct *vma,
-> 			 struct page *page, int writeable)
-> {
-> 	unsigned int shift =3D huge_page_shift(hstate_vma(vma));
-> +	pte_t pte;
->=20
-> -	return hugepage_shift_to_tte(entry, shift);
-> +	pte =3D hugepage_shift_to_tte(entry, shift);
-> +
-> +#ifdef CONFIG_SPARC64
-> +	/* If this vma has ADI enabled on it, turn on TTE.mcd
-> +	 */
-> +	if (vma->vm_flags & VM_SPARC_ADI)
-> +		return pte_mkmcd(pte);
-> +	else
-> +		return pte_mknotmcd(pte);
-> +#else
-> +	return pte;
-> +#endif
-> }
->=20
-> static unsigned int sun4v_huge_tte_to_shift(pte_t entry)
-> diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-> index 3c40ebd50f92..94854e7e833e 100644
-> --- a/arch/sparc/mm/init_64.c
-> +++ b/arch/sparc/mm/init_64.c
-> @@ -3087,3 +3087,36 @@ void flush_tlb_kernel_range(unsigned long =
-start, unsigned long end)
-> 		do_flush_tlb_kernel_range(start, end);
-> 	}
-> }
-> +
-> +void copy_user_highpage(struct page *to, struct page *from,
-> +	unsigned long vaddr, struct vm_area_struct *vma)
-> +{
-> +	char *vfrom, *vto;
-> +
-> +	vfrom =3D kmap_atomic(from);
-> +	vto =3D kmap_atomic(to);
-> +	copy_user_page(vto, vfrom, vaddr, to);
-> +	kunmap_atomic(vto);
-> +	kunmap_atomic(vfrom);
-> +
-> +	/* If this page has ADI enabled, copy over any ADI tags
-> +	 * as well
-> +	 */
-> +	if (vma->vm_flags & VM_SPARC_ADI) {
-> +		unsigned long pfrom, pto, i, adi_tag;
-> +
-> +		pfrom =3D page_to_phys(from);
-> +		pto =3D page_to_phys(to);
-> +
-> +		for (i =3D pfrom; i < (pfrom + PAGE_SIZE); i +=3D =
-adi_blksize()) {
-> +			asm volatile("ldxa [%1] %2, %0\n\t"
-> +					: "=3Dr" (adi_tag)
-> +					:  "r" (i), "i" (ASI_MCD_REAL));
-> +			asm volatile("stxa %0, [%1] %2\n\t"
-> +					:
-> +					: "r" (adi_tag), "r" (pto),
-> +					  "i" (ASI_MCD_REAL));
-> +			pto +=3D adi_blksize();
-> +		}
-> +	}
-> +}
-> diff --git a/arch/sparc/mm/tsb.c b/arch/sparc/mm/tsb.c
-> index 0d4b998c7d7b..6518cc42056b 100644
-> --- a/arch/sparc/mm/tsb.c
-> +++ b/arch/sparc/mm/tsb.c
-> @@ -545,6 +545,9 @@ int init_new_context(struct task_struct *tsk, =
-struct mm_struct *mm)
->=20
-> 	mm->context.sparc64_ctx_val =3D 0UL;
->=20
-> +	mm->context.tag_store =3D NULL;
-> +	spin_lock_init(&mm->context.tag_lock);
-> +
-> #if defined(CONFIG_HUGETLB_PAGE) || =
-defined(CONFIG_TRANSPARENT_HUGEPAGE)
-> 	/* We reset them to zero because the fork() page copying
-> 	 * will re-increment the counters as the parent PTEs are
-> @@ -610,4 +613,22 @@ void destroy_context(struct mm_struct *mm)
-> 	}
->=20
-> 	spin_unlock_irqrestore(&ctx_alloc_lock, flags);
-> +
-> +	/* If ADI tag storage was allocated for this task, free it */
-> +	if (mm->context.tag_store) {
-> +		tag_storage_desc_t *tag_desc;
-> +		unsigned long max_desc;
-> +		unsigned char *tags;
-> +
-> +		tag_desc =3D mm->context.tag_store;
-> +		max_desc =3D PAGE_SIZE/sizeof(tag_storage_desc_t);
-> +		for (i =3D 0; i < max_desc; i++) {
-> +			tags =3D tag_desc->tags;
-> +			tag_desc->tags =3D NULL;
-> +			kfree(tags);
-> +			tag_desc++;
-> +		}
-> +		kfree(mm->context.tag_store);
-> +		mm->context.tag_store =3D NULL;
-> +	}
-> }
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index b7aa3932e6d4..c0972114036f 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -231,6 +231,9 @@ extern unsigned int kobjsize(const void *objp);
-> # define VM_GROWSUP	VM_ARCH_1
-> #elif defined(CONFIG_IA64)
-> # define VM_GROWSUP	VM_ARCH_1
-> +#elif defined(CONFIG_SPARC64)
-> +# define VM_SPARC_ADI	VM_ARCH_1	/* Uses ADI tag for =
-access control */
-> +# define VM_ARCH_CLEAR	VM_SPARC_ADI
-> #elif !defined(CONFIG_MMU)
-> # define VM_MAPPED_COPY	VM_ARCH_1	/* T if mapped copy of =
-data (nommu mmap) */
-> #endif
-> diff --git a/mm/ksm.c b/mm/ksm.c
-> index 216184af0e19..bb82399816ef 100644
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -1797,6 +1797,10 @@ int ksm_madvise(struct vm_area_struct *vma, =
-unsigned long start,
-> 		if (*vm_flags & VM_SAO)
-> 			return 0;
-> #endif
-> +#ifdef VM_SPARC_ADI
-> +		if (*vm_flags & VM_SPARC_ADI)
-> +			return 0;
-> +#endif
->=20
-> 		if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
-> 			err =3D __ksm_enter(mm);
-> --=20
-> 2.11.0
->=20
-> --
-> To unsubscribe from this list: send the line "unsubscribe sparclinux" =
-in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+  origin.patch
+  i-need-old-gcc.patch
+* pm-hibernate-feed-the-wathdog-when-creating-snapshot.patch
+* pm-hibernate-feed-the-wathdog-when-creating-snapshot-v2.patch
+* pm-hibernate-feed-the-wathdog-when-creating-snapshot-v3.patch
+* mm-shmem-fix-handling-sys-kernel-mm-transparent_hugepage-shmem_enabled.patch
+* dax-fix-deadlock-due-to-misaligned-pmd-faults.patch
+* mm-madvise-fix-freeing-of-locked-page-with-madv_free.patch
+* fork-fix-incorrect-fput-of-exe_file-causing-use-after-free.patch
+* mm-reversed-logic-in-memblock_discard.patch
+* mm-skip-hwpoisoned-pages-when-onlining-pages.patch
+* fortify-use-warn-instead-of-bug-for-now.patch
+* adfs-use-unsigned-types-for-memcpy-length.patch
+* mmpage_alloc-dont-call-__node_reclaim-with-oom_lock-held.patch
+* kthread_worker-dont-hog-the-cpu.patch
+* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
+* metag-numa-remove-the-unused-parent_node-macro.patch
+* mm-add-vm_insert_mixed_mkwrite.patch
+* dax-relocate-some-dax-functions.patch
+* dax-use-common-4k-zero-page-for-dax-mmap-reads.patch
+* dax-remove-dax-code-from-page_cache_tree_insert.patch
+* dax-move-all-dax-radix-tree-defs-to-fs-daxc.patch
+* dax-explain-how-read2-write2-addresses-are-validated.patch
+* dax-use-pg_pmd_colour-instead-of-open-coding.patch
+* modpost-simplify-sec_name.patch
+* ocfs2-make-ocfs2_set_acl-static.patch
+* ocfs2-re-queue-ast-or-bast-if-sending-is-failed-to-improve-the-reliability.patch
+* ocfs2-re-queue-ast-or-bast-if-sending-is-failed-to-improve-the-reliability-fix.patch
+* ocfs2-clean-up-some-dead-code.patch
+* ocfs2-get-rid-of-ocfs2_is_o2cb_active-function.patch
+* ocfs2-old-mle-put-and-release-after-the-function-dlm_add_migration_mle-called.patch
+* ocfs2-old-mle-put-and-release-after-the-function-dlm_add_migration_mle-called-fix.patch
+* ocfs2-give-an-obvious-tip-for-dismatch-cluster-names.patch
+* ocfs2-give-an-obvious-tip-for-dismatch-cluster-names-v2.patch
+* ocfs2-move-some-definitions-to-header-file.patch
+* ocfs2-fix-some-small-problems.patch
+* ocfs2-add-kobject-for-online-file-check.patch
+* ocfs2-add-duplicative-ino-number-check.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+  mm.patch
+* slub-make-sure-struct-kmem_cache_node-is-initialized-before-publication.patch
+* mm-add-slub-free-list-pointer-obfuscation.patch
+* mm-slubc-add-a-naive-detection-of-double-free-or-corruption.patch
+* mm-track-actual-nr_scanned-during-shrink_slab.patch
+* drm-i915-wire-up-shrinkctl-nr_scanned.patch
+* mm-memory_hotplug-just-build-zonelist-for-new-added-node.patch
+* mm-memory_hotplug-just-build-zonelist-for-new-added-node-fix.patch
+* mm-memory_hotplug-just-build-zonelist-for-new-added-node-fix-fix.patch
+* mm-mempolicy-add-queue_pages_required.patch
+* mm-x86-move-_page_swp_soft_dirty-from-bit-7-to-bit-1.patch
+* mm-thp-introduce-separate-ttu-flag-for-thp-freezing.patch
+* mm-thp-introduce-config_arch_enable_thp_migration.patch
+* mm-thp-enable-thp-migration-in-generic-path.patch
+* mm-thp-enable-thp-migration-in-generic-path-fix.patch
+* mm-thp-enable-thp-migration-in-generic-path-fix-fix.patch
+* mm-thp-check-pmd-migration-entry-in-common-path.patch
+* mm-soft-dirty-keep-soft-dirty-bits-over-thp-migration.patch
+* mm-mempolicy-mbind-and-migrate_pages-support-thp-migration.patch
+* mm-migrate-move_pages-supports-thp-migration.patch
+* mm-memory_hotplug-memory-hotremove-supports-thp-migration.patch
+* mm-memory_hotplug-display-allowed-zones-in-the-preferred-ordering.patch
+* mm-memory_hotplug-remove-zone-restrictions.patch
+* zram-clean-up-duplicated-codes-in-__zram_bvec_write.patch
+* zram-clean-up-duplicated-codes-in-__zram_bvec_write-fix.patch
+* zram-inlining-zram_compress.patch
+* zram-rename-zram_decompress_page-with-__zram_bvec_read.patch
+* zram-add-interface-to-specify-backing-device.patch
+* zram-add-free-space-management-in-backing-device.patch
+* zram-identify-asynchronous-ios-return-value.patch
+* zram-write-incompressible-pages-to-backing-device.patch
+* zram-write-incompressible-pages-to-backing-device-fix.patch
+* zram-read-page-from-backing-device.patch
+* zram-read-page-from-backing-device-fix.patch
+* zram-add-config-and-doc-file-for-writeback-feature.patch
+* mm-page_alloc-rip-out-zonelist_order_zone.patch
+* mm-page_alloc-rip-out-zonelist_order_zone-fix.patch
+* mm-page_alloc-remove-boot-pageset-initialization-from-memory-hotplug.patch
+* mm-page_alloc-do-not-set_cpu_numa_mem-on-empty-nodes-initialization.patch
+* mm-memory_hotplug-drop-zone-from-build_all_zonelists.patch
+* mm-memory_hotplug-remove-explicit-build_all_zonelists-from-try_online_node.patch
+* mm-page_alloc-simplify-zonelist-initialization.patch
+* mm-page_alloc-remove-stop_machine-from-build_all_zonelists.patch
+* mm-memory_hotplug-get-rid-of-zonelists_mutex.patch
+* mm-sparse-page_ext-drop-ugly-n_high_memory-branches-for-allocations.patch
+* mm-page_owner-make-init_pages_in_zone-faster.patch
+* mm-page_owner-make-init_pages_in_zone-faster-fix.patch
+* mm-page_owner-make-init_pages_in_zone-faster-fix-checkpatch-fixes.patch
+* mm-page_ext-periodically-reschedule-during-page_ext_init.patch
+* mm-page_owner-dont-grab-zone-lock-for-init_pages_in_zone.patch
+* mm-mremap-fail-map-duplication-attempts-for-private-mappings.patch
+* mm-gup-make-__gup_device_-require-thp.patch
+* mm-hugetlb-make-huge_pte_offset-consistent-and-document-behaviour.patch
+* mm-hugetlbc-make-huge_pte_offset-consistent-and-document-behaviour-v2.patch
+* mm-always-flush-vma-ranges-affected-by-zap_page_range-v2.patch
+* zsmalloc-zs_page_migrate-skip-unnecessary-loops-but-not-return-ebusy-if-zspage-is-not-inuse.patch
+* zsmalloc-zs_page_migrate-skip-unnecessary-loops-but-not-return-ebusy-if-zspage-is-not-inuse-fix.patch
+* mm-vmscan-do-not-loop-on-too_many_isolated-for-ever.patch
+* mm-vmscan-do-not-loop-on-too_many_isolated-for-ever-fix.patch
+* fscache-remove-unused-now_uncached-callback.patch
+* mm-make-pagevec_lookup-update-index.patch
+* mm-implement-find_get_pages_range.patch
+* fs-fix-performance-regression-in-clean_bdev_aliases.patch
+* ext4-use-pagevec_lookup_range-in-ext4_find_unwritten_pgoff.patch
+* ext4-use-pagevec_lookup_range-in-writeback-code.patch
+* hugetlbfs-use-pagevec_lookup_range-in-remove_inode_hugepages.patch
+* fs-use-pagevec_lookup_range-in-page_cache_seek_hole_data.patch
+* mm-use-find_get_pages_range-in-filemap_range_has_page.patch
+* mm-remove-nr_pages-argument-from-pagevec_lookup_range.patch
+* mm-memcg-reset-memorylow-during-memcg-offlining.patch
+* cgroup-revert-fa06235b8eb0-cgroup-reset-css-on-destruction.patch
+* mm-ksm-constify-attribute_group-structures.patch
+* mm-slub-constify-attribute_group-structures.patch
+* mm-page_idle-constify-attribute_group-structures.patch
+* mm-huge_memory-constify-attribute_group-structures.patch
+* mm-hugetlb-constify-attribute_group-structures.patch
+* mm-memcontrol-use-int-for-event-state-parameter-in-several-functions.patch
+* mm-memcontrol-use-int-for-event-state-parameter-in-several-functions-v2.patch
+* mm-thp-swap-support-to-clear-swap-cache-flag-for-thp-swapped-out.patch
+* mm-thp-swap-support-to-reclaim-swap-space-for-thp-swapped-out.patch
+* mm-thp-swap-support-to-reclaim-swap-space-for-thp-swapped-out-fix.patch
+* mm-thp-swap-make-reuse_swap_page-works-for-thp-swapped-out.patch
+* mm-thp-swap-make-reuse_swap_page-works-for-thp-swapped-out-fix.patch
+* mm-thp-swap-dont-allocate-huge-cluster-for-file-backed-swap-device.patch
+* block-thp-make-block_device_operationsrw_page-support-thp.patch
+* test-code-to-write-thp-to-swap-device-as-a-whole.patch
+* mm-thp-swap-support-to-split-thp-for-thp-swapped-out.patch
+* memcg-thp-swap-support-move-mem-cgroup-charge-for-thp-swapped-out.patch
+* memcg-thp-swap-avoid-to-duplicated-charge-thp-in-swap-cache.patch
+* memcg-thp-swap-make-mem_cgroup_swapout-support-thp.patch
+* mm-thp-swap-delay-splitting-thp-after-swapped-out.patch
+* mm-thp-swap-add-thp-swapping-out-fallback-counting.patch
+* shmem-shmem_charge-verify-max_block-is-not-exceeded-before-inode-update.patch
+* shmem-introduce-shmem_inode_acct_block.patch
+* userfaultfd-shmem-add-shmem_mfill_zeropage_pte-for-userfaultfd-support.patch
+* userfaultfd-mcopy_atomic-introduce-mfill_atomic_pte-helper.patch
+* userfaultfd-shmem-wire-up-shmem_mfill_zeropage_pte.patch
+* userfaultfd-report-uffdio_zeropage-as-available-for-shmem-vmas.patch
+* userfaultfd-selftest-enable-testing-of-uffdio_zeropage-for-shmem.patch
+* fs-remove-unnecessary-null-f_mapping-check-in-sync_file_range.patch
+* fs-remove-unneeded-forward-definition-of-mm_struct-from-fsh.patch
+* mm-hugetlb-define-system-call-hugetlb-size-encodings-in-single-file.patch
+* mm-arch-consolidate-mmap-hugetlb-size-encodings.patch
+* mm-shm-use-new-hugetlb-size-encoding-definitions.patch
+* mm-rename-global_page_state-to-global_zone_page_state.patch
+* userfaultfd-add-feature-to-request-for-a-signal-delivery.patch
+* userfaultfd-selftest-add-tests-for-uffd_feature_sigbus-feature.patch
+* userfaultfd-selftest-exercise-uffdio_copy-zeropage-eexist.patch
+* userfaultfd-selftest-exercise-uffdio_copy-zeropage-eexist-fix.patch
+* userfaultfd-selftest-explicit-failure-if-the-sigbus-test-failed.patch
+* userfaultfd-call-userfaultfd_unmap_prep-only-if-__split_vma-succeeds.patch
+* userfaultfd-provide-pid-in-userfault-msg.patch
+* userfaultfd-provide-pid-in-userfault-msg-add-feat-union.patch
+* mm-hugetlb-do-not-allocate-non-migrateable-gigantic-pages-from-movable-zones.patch
+* mm-vmstat-fix-divide-error-at-__fragmentation_index.patch
+* mm-vmalloc-reduce-half-comparison-during-pcpu_get_vm_areas.patch
+* mm-devm_memremap_pages-use-multi-order-radix-for-zone_device-lookups.patch
+* mm-shmem-add-hugetlbfs-support-to-memfd_create.patch
+* selftests-memfd-add-memfd_create-hugetlbfs-selftest.patch
+* vmstat-fix-wrong-comment.patch
+* mm-dont-reinvent-the-wheel-but-use-existing-llist-api.patch
+* mm-swap-add-swap-readahead-hit-statistics.patch
+* mm-swap-add-swap-readahead-hit-statistics-fix.patch
+* mm-swap-fix-swap-readahead-marking.patch
+* mm-swap-vma-based-swap-readahead.patch
+* mm-swap-add-sysfs-interface-for-vma-based-swap-readahead.patch
+* mm-swap-dont-use-vma-based-swap-readahead-if-hdd-is-used-as-swap.patch
+* z3fold-use-per-cpu-unbuddied-lists.patch
+* mm-oom-do-not-rely-on-tif_memdie-for-memory-reserves-access.patch
+* mm-replace-tif_memdie-checks-by-tsk_is_oom_victim.patch
+* swap-choose-swap-device-according-to-numa-node.patch
+* swap-choose-swap-device-according-to-numa-node-v2.patch
+* swap-choose-swap-device-according-to-numa-node-v2-fix.patch
+* mm-oom-let-oom_reap_task-and-exit_mmap-to-run-concurrently.patch
+* mm-oom-let-oom_reap_task-and-exit_mmap-to-run-concurrently-fix.patch
+* mm-oom-let-oom_reap_task-and-exit_mmap-to-run-concurrently-fix-2.patch
+* mm-oom-let-oom_reap_task-and-exit_mmap-to-run-concurrently-fix-3.patch
+* mm-clear-to-access-sub-page-last-when-clearing-huge-page.patch
+* add-proc-pid-smaps_rollup.patch
+* x86mpx-make-mpx-depend-on-x86-64-to-free-up-vma-flag.patch
+* mmfork-introduce-madv_wipeonfork.patch
+* hmm-heterogeneous-memory-management-documentation-v3.patch
+* mm-hmm-heterogeneous-memory-management-hmm-for-short-v5.patch
+* mm-hmm-mirror-mirror-process-address-space-on-device-with-hmm-helpers-v3.patch
+* mm-hmm-mirror-helper-to-snapshot-cpu-page-table-v4.patch
+* mm-hmm-mirror-device-page-fault-handler.patch
+* mm-memory_hotplug-introduce-add_pages.patch
+* mm-zone_device-new-type-of-zone_device-for-unaddressable-memory-v5.patch
+* mm-zone_device-new-type-of-zone_device-for-unaddressable-memory-fix.patch
+* mm-zone_device-special-case-put_page-for-device-private-pages-v4.patch
+* mm-memcontrol-allow-to-uncharge-page-without-using-page-lru-field.patch
+* mm-memcontrol-support-memory_device_private-v4.patch
+* mm-hmm-devmem-device-memory-hotplug-using-zone_device-v7.patch
+* mm-hmm-devmem-dummy-hmm-device-for-zone_device-memory-v3.patch
+* mm-migrate-new-migrate-mode-migrate_sync_no_copy.patch
+* mm-migrate-new-memory-migration-helper-for-use-with-device-memory-v5.patch
+* mm-migrate-migrate_vma-unmap-page-from-vma-while-collecting-pages.patch
+* mm-migrate-support-un-addressable-zone_device-page-in-migration-v3.patch
+* mm-migrate-allow-migrate_vma-to-alloc-new-page-on-empty-entry-v4.patch
+* mm-device-public-memory-device-memory-cache-coherent-with-cpu-v5.patch
+* mm-hmm-add-new-helper-to-hotplug-cdm-memory-region-v3.patch
+* mm-hmm-avoid-bloating-arch-that-do-not-make-use-of-hmm.patch
+* mm-hmm-struct-hmm-is-only-use-by-hmm-mirror-functionality-v2.patch
+* mm-remove-useless-vma-parameter-to-offset_il_node.patch
+* mm-compaction-kcompactd-should-not-ignore-pageblock-skip.patch
+* mm-compaction-persistently-skip-hugetlbfs-pageblocks.patch
+* mm-compaction-persistently-skip-hugetlbfs-pageblocks-fix.patch
+* userfaultfd-non-cooperative-closing-the-uffd-without-triggering-sigbus.patch
+* mm-page_fault-remove-reduntant-check-for-write-access.patch
+* mm-change-the-call-sites-of-numa-statistics-items.patch
+* mm-change-the-call-sites-of-numa-statistics-items-checkpatch-fixes.patch
+* mm-update-numa-counter-threshold-size.patch
+* mm-consider-the-number-in-local-cpus-when-reads-numa-stats.patch
+* mm-mlock-use-page_zone-instead-of-page_zone_id.patch
+* mm-zsmalloc-change-stat-type-parameter-to-int.patch
+* mm-fadvise-avoid-fadvise-for-fs-without-backing-device.patch
+* mm-page_alloc-return-0-in-case-this-node-has-no-page-within-the-zone.patch
+* mm-vmscan-do-not-pass-reclaimed-slab-to-vmpressure.patch
+* mm-page_owner-align-with-pageblock_nr-pages.patch
+* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
+* fs-proc-remove-priv-argument-from-is_stack.patch
+* fs-proc-remove-priv-argument-from-is_stack-fix.patch
+* proc-uninline-proc_create.patch
+* fs-proc-unconditional-cond_resched-when-reading-smaps.patch
+* linux-kernelh-move-div_round_down_ull-macro.patch
+* add-multibyte-memset-functions.patch
+* add-testcases-for-memset16-32-64.patch
+* add-testcases-for-memset16-32-64-fix.patch
+* x86-implement-memset16-memset32-memset64.patch
+* arm-implement-memset32-memset64.patch
+* alpha-add-support-for-memset16.patch
+* zram-convert-to-using-memset_l.patch
+* sym53c8xx_2-convert-to-use-memset32.patch
+* vga-optimise-console-scrolling.patch
+* vga-optimise-console-scrolling-fix.patch
+* parse-maintainers-add-ability-to-specify-filenames.patch
+* make-nr_cpu_ids-unsigned.patch
+* bitops-avoid-integer-overflow-in-genmask_ull.patch
+* rbtree-cache-leftmost-node-internally.patch
+* rbtree-optimize-root-check-during-rebalancing-loop.patch
+* rbtree-add-some-additional-comments-for-rebalancing-cases.patch
+* lib-rbtree_testc-make-input-module-parameters.patch
+* lib-rbtree_testc-add-inorder-traversal-test.patch
+* lib-rbtree_testc-support-rb_root_cached.patch
+* sched-fair-replace-cfs_rq-rb_leftmost.patch
+* sched-deadline-replace-earliest-dl-and-rq-leftmost-caching.patch
+* locking-rtmutex-replace-top-waiter-and-pi_waiters-leftmost-caching.patch
+* block-cfq-replace-cfq_rb_root-leftmost-caching.patch
+* lib-interval_tree-fast-overlap-detection.patch
+* lib-interval_tree-fast-overlap-detection-fix.patch
+* lib-interval-tree-correct-comment-wrt-generic-flavor.patch
+* procfs-use-faster-rb_first_cached.patch
+* fs-epoll-use-faster-rb_first_cached.patch
+* mem-memcg-cache-rightmost-node.patch
+* mem-memcg-cache-rightmost-node-fix.patch
+* block-cfq-cache-rightmost-rb_node.patch
+* block-cfq-cache-rightmost-rb_node-fix.patch
+* lib-hexdump-return-einval-in-case-of-error-in-hex2bin.patch
+* lib-add-test-module-for-config_debug_virtual.patch
+* lib-make-bitmap_parselist-thread-safe-and-much-faster.patch
+* lib-add-test-for-bitmap_parselist.patch
+* lib-add-test-for-bitmap_parselist-fix.patch
+* bitmap-introduce-bitmap_from_u64.patch
+* bitmap-introduce-bitmap_from_u64-checkpatch-fixes.patch
+* bitmap-introduce-bitmap_from_u64-checkpatch-fixes-fix.patch
+* lib-rhashtable-fix-comment-on-locks_mul-default-value.patch
+* lib-stringc-check-for-kmalloc-failure.patch
+* lib-cmldinec-clean-up-the-meaningless-comment.patch
+* checkpatch-add-strict-check-for-ifs-with-unnecessary-parentheses.patch
+* init-move-stack-canary-initialization-after-setup_arch.patch
+* extract-early-boot-entropy-from-the-passed-cmdline.patch
+* autofs-fix-at_no_automount-not-being-honored.patch
+* autofs-make-disc-device-user-accessible.patch
+* autofs-make-dev-ioctl-version-and-ismountpoint-user-accessible.patch
+* autofs-remove-unused-autofs_ioc_expire_direct-indirect.patch
+* autofs-non-functional-header-inclusion-cleanup.patch
+* autofs-use-autofs_dev_ioctl_size.patch
+* autofs-drop-wrong-comment.patch
+* autofs-use-unsigned-int-long-instead-of-uint-ulong-for-ioctl-args.patch
+* vfat-deduplicate-hex2bin.patch
+* test_kmod-remove-paranoid-uint_max-check-on-uint-range-processing.patch
+* test_kmod-flip-int-checks-to-be-consistent.patch
+* kmod-split-out-umh-code-into-its-own-file.patch
+* maintainers-clarify-kmod-is-just-a-kernel-module-loader.patch
+* kmod-split-off-umh-headers-into-its-own-file.patch
+* kmod-move-ifdef-config_modules-wrapper-to-makefile.patch
+* seq_file-delete-small-value-optimization.patch
+* cpumask-make-cpumask_next-out-of-line.patch
+* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
+* rapidio-remove-global-irq-spinlocks-from-the-subsystem.patch
+* uapi-fix-linux-sysctlh-userspace-compilation-errors.patch
+* m32r-defconfig-cleanup-from-old-kconfig-options.patch
+* mn10300-defconfig-cleanup-from-old-kconfig-options.patch
+* sh-defconfig-cleanup-from-old-kconfig-options.patch
+* kcov-support-compat-processes.patch
+* kernel-reboot-add-devm_register_reboot_notifier.patch
+* kernel-reboot-add-devm_register_reboot_notifier-fix.patch
+* ipc-convert-ipc_namespacecount-from-atomic_t-to-refcount_t.patch
+* ipc-convert-sem_undo_listrefcnt-from-atomic_t-to-refcount_t.patch
+* ipc-convert-kern_ipc_permrefcount-from-atomic_t-to-refcount_t.patch
+* ipc-sem-drop-sem_checkid-helper.patch
+* ipc-sem-play-nicer-with-large-nsops-allocations.patch
+* ipc-optimize-semget-shmget-msgget-for-lots-of-keys.patch
+  linux-next.patch
+  linux-next-rejects.patch
+  linux-next-rejects-2.patch
+  linux-next-git-rejects.patch
+* zram-mm-vs-block.patch
+* fs-select-fix-memory-corruption-in-compat_get_fd_set.patch
+* nfit-use-init_completion-in-acpi_nfit_flush_probe.patch
+* completion-avoid-unnecessary-stack-allocation-for-completion_initializer_onstack.patch
+* drivers-media-cec-cec-adapc-fix-build-with-gcc-444.patch
+* fscache-fix-fscache_objlist_show-format-processing.patch
+* ib-mlx4-fix-sprintf-format-warning.patch
+* iopoll-avoid-wint-in-bool-context-warning.patch
+* select-use-get-put_timespec64.patch
+* io_getevents-use-timespec64-to-represent-timeouts.patch
+* sparc64-ng4-memset-32-bits-overflow.patch
+* treewide-remove-gfp_temporary-allocation-flag.patch
+* treewide-remove-gfp_temporary-allocation-flag-fix.patch
+* treewide-remove-gfp_temporary-allocation-flag-checkpatch-fixes.patch
+* treewide-remove-gfp_temporary-allocation-flag-fix-2.patch
+* lib-crc-ccitt-add-ccitt-false-crc16-variant.patch
+  mm-add-strictlimit-knob-v2.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  slab-leaks3-default-y.patch
+  workaround-for-a-pci-restoring-bug.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
