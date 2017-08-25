@@ -1,59 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B23206B05BF
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 09:10:56 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u20so11530418pgb.10
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 06:10:56 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id g8si4779108pgr.417.2017.08.25.06.10.51
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EAAB6B05C1
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 09:16:26 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id p12so11732974qkl.0
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 06:16:26 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 8si1064504qkp.409.2017.08.25.06.16.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Aug 2017 06:10:51 -0700 (PDT)
-Subject: Re: [RESEND PATCH 0/3] mm: Add cache coloring mechanism
-References: <20170823100205.17311-1-lukasz.daniluk@intel.com>
- <f95eacd5-0a91-24a0-7722-b63f3c196552@suse.cz>
- <82cc1886-6c24-4e6e-7269-4d150e9f39eb@intel.com>
- <88c17eaf-7546-8cd8-0404-3a4a7aafddee@suse.cz>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <ad8dcf32-ecc3-a39d-9c6f-78c6bfbbb566@intel.com>
-Date: Fri, 25 Aug 2017 06:10:49 -0700
+        Fri, 25 Aug 2017 06:16:25 -0700 (PDT)
+Date: Fri, 25 Aug 2017 15:16:15 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH v2 0/3] Separate NUMA statistics from zone statistics
+Message-ID: <20170825151615.4eb04cf4@redhat.com>
+In-Reply-To: <20170825080437.wyikqunw6mtj22hu@techsingularity.net>
+References: <1503568801-21305-1-git-send-email-kemi.wang@intel.com>
+	<20170825080437.wyikqunw6mtj22hu@techsingularity.net>
 MIME-Version: 1.0
-In-Reply-To: <88c17eaf-7546-8cd8-0404-3a4a7aafddee@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, =?UTF-8?Q?=c5=81ukasz_Daniluk?= <lukasz.daniluk@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: lukasz.anaczkowski@intel.com
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Kemi Wang <kemi.wang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, brouer@redhat.com
 
-On 08/25/2017 02:04 AM, Vlastimil Babka wrote:
-> On 08/24/2017 06:08 PM, Dave Hansen wrote:
->> On 08/24/2017 05:47 AM, Vlastimil Babka wrote:
->>> So the obvious question, what about THPs? Their size should be enough to
->>> contain all the colors with current caches, no? Even on KNL I didn't
->>> find more than "32x 1 MB 16-way L2 caches". This is in addition to the
->>> improved TLB performance, which you want to get as well for such workloads?
->> The cache in this case is "MCDRAM" which is 16GB in size.  It can be
->> used as normal RAM or a cache.  This patch deals with when "MCDRAM" is
->> in its cache mode.
-> Hm, 16GB direct mapped, that means 8k colors for 2MB THP's. Is that
-> really practical? Wouldn't such workload use 1GB hugetlbfs pages? Then
-> it's still 16 colors to manage, but could be done purely in userspace
-> since they should not move in physical memory and userspace can control
-> where to map each phase in the virtual layout.
+On Fri, 25 Aug 2017 09:04:37 +0100
+Mel Gorman <mgorman@techsingularity.net> wrote:
 
-There are lots of options for applications that are written with
-specific knowledge of MCDRAM.  The easiest option from the kernel's
-perspective is to just turn the caching mode off and treat MCDRAM as
-normal RAM (it shows up in a separate NUMA node in that case).
+> On Thu, Aug 24, 2017 at 05:59:58PM +0800, Kemi Wang wrote:
+> > Each page allocation updates a set of per-zone statistics with a call to
+> > zone_statistics(). As discussed in 2017 MM summit, these are a substantial
+> > source of overhead in the page allocator and are very rarely consumed. This
+> > significant overhead in cache bouncing caused by zone counters (NUMA
+> > associated counters) update in parallel in multi-threaded page allocation
+> > (pointed out by Dave Hansen).
+> >   
+> 
+> For the series;
+> 
+> Acked-by: Mel Gorman <mgorman@techsingularity.net>
+> 
 
-But, one of the reasons for the cache mode in the first place was to
-support applications that don't have specific knowledge of MCDRAM.  Or,
-even old binaries that were compiled long ago.
+I'm very happy to see these issues being worked on, from our MM-summit
+interactions. I would like to provide/have a:
 
-In other words, I don't think this is something we can easily punt to
-userspace.
+Reported-by: Jesper Dangaard Brouer <brouer@redhat.com>
+
+As I'm not sure an acked-by from me have any value/merit here ;-)
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
