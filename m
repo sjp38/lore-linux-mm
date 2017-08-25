@@ -1,93 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 31A966810C3
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 13:34:34 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id a7so2637876pgn.7
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 10:34:34 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id e184si5011706pgc.782.2017.08.25.10.34.32
-        for <linux-mm@kvack.org>;
-        Fri, 25 Aug 2017 10:34:32 -0700 (PDT)
-Date: Fri, 25 Aug 2017 18:34:33 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH 1/1] mm: only dispaly online cpus of the numa node
-Message-ID: <20170825173433.GB26878@arm.com>
-References: <1497962608-12756-1-git-send-email-thunder.leizhen@huawei.com>
- <20170824083225.GA5943@dhcp22.suse.cz>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F3C526810C3
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 13:41:45 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id i76so603251wme.2
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 10:41:45 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m13si1673667wmh.67.2017.08.25.10.41.43
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 25 Aug 2017 10:41:44 -0700 (PDT)
+Date: Fri, 25 Aug 2017 19:41:34 +0200
+From: Borislav Petkov <bp@suse.de>
+Subject: Re: [PATCH v8 02/28] x86/boot: Relocate definition of the initial
+ state of CR0
+Message-ID: <20170825174133.r5xhcv5utfipsujo@pd.tnic>
+References: <20170819002809.111312-1-ricardo.neri-calderon@linux.intel.com>
+ <20170819002809.111312-3-ricardo.neri-calderon@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20170824083225.GA5943@dhcp22.suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170819002809.111312-3-ricardo.neri-calderon@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Zhen Lei <thunder.leizhen@huawei.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-api <linux-api@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm <linux-mm@kvack.org>, Zefan Li <lizefan@huawei.com>, Xinwei Hu <huxinwei@huawei.com>, Tianhong Ding <dingtianhong@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Catalin Marinas <catalin.marinas@arm.com>
+To: Ricardo Neri <ricardo.neri-calderon@linux.intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Brian Gerst <brgerst@gmail.com>, Chris Metcalf <cmetcalf@mellanox.com>, Dave Hansen <dave.hansen@linux.intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Liang Z Li <liang.z.li@intel.com>, Masami Hiramatsu <mhiramat@kernel.org>, Huang Rui <ray.huang@amd.com>, Jiri Slaby <jslaby@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Michael S. Tsirkin" <mst@redhat.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Vlastimil Babka <vbabka@suse.cz>, Chen Yucong <slaoub@gmail.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Shuah Khan <shuah@kernel.org>, linux-kernel@vger.kernel.org, x86@kernel.org, ricardo.neri@intel.com, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Aug 24, 2017 at 10:32:26AM +0200, Michal Hocko wrote:
-> It seems this has slipped through cracks. Let's CC arm64 guys
-> 
-> On Tue 20-06-17 20:43:28, Zhen Lei wrote:
-> > When I executed numactl -H(which read /sys/devices/system/node/nodeX/cpumap
-> > and display cpumask_of_node for each node), but I got different result on
-> > X86 and arm64. For each numa node, the former only displayed online CPUs,
-> > and the latter displayed all possible CPUs. Unfortunately, both Linux
-> > documentation and numactl manual have not described it clear.
-> > 
-> > I sent a mail to ask for help, and Michal Hocko <mhocko@kernel.org> replied
-> > that he preferred to print online cpus because it doesn't really make much
-> > sense to bind anything on offline nodes.
-> 
-> Yes printing offline CPUs is just confusing and more so when the
-> behavior is not consistent over architectures. I believe that x86
-> behavior is the more appropriate one because it is more logical to dump
-> the NUMA topology and use it for affinity setting than adding one
-> additional step to check the cpu state to achieve the same.
-> 
-> It is true that the online/offline state might change at any time so the
-> above might be tricky on its own but if we should at least make the
-> behavior consistent.
-> 
-> > Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
-> 
-> Acked-by: Michal Hocko <mhocko@suse.com>
+On Fri, Aug 18, 2017 at 05:27:43PM -0700, Ricardo Neri wrote:
+> Both head_32.S and head_64.S utilize the same value to initialize the
+> control register CR0. Also, other parts of the kernel might want to access
+> to this initial definition (e.g., emulation code for User-Mode Instruction
 
-The concept looks find to me, but shouldn't we use cpumask_var_t and
-alloc/free_cpumask_var?
+s/to //
 
-Will
-
-> >  drivers/base/node.c | 6 ++++--
-> >  1 file changed, 4 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/drivers/base/node.c b/drivers/base/node.c
-> > index 5548f96..d5e7ce7 100644
-> > --- a/drivers/base/node.c
-> > +++ b/drivers/base/node.c
-> > @@ -28,12 +28,14 @@ static struct bus_type node_subsys = {
-> >  static ssize_t node_read_cpumap(struct device *dev, bool list, char *buf)
-> >  {
-> >  	struct node *node_dev = to_node(dev);
-> > -	const struct cpumask *mask = cpumask_of_node(node_dev->dev.id);
-> > +	struct cpumask mask;
-> > +
-> > +	cpumask_and(&mask, cpumask_of_node(node_dev->dev.id), cpu_online_mask);
-> > 
-> >  	/* 2008/04/07: buf currently PAGE_SIZE, need 9 chars per 32 bits. */
-> >  	BUILD_BUG_ON((NR_CPUS/32 * 9) > (PAGE_SIZE-1));
-> > 
-> > -	return cpumap_print_to_pagebuf(list, buf, mask);
-> > +	return cpumap_print_to_pagebuf(list, buf, &mask);
-> >  }
-> > 
-> >  static inline ssize_t node_read_cpumask(struct device *dev,
-> > --
-> > 2.5.0
-> > 
-> > 
+> Prevention uses this state to provide a sane dummy value for CR0 when
+> emulating the smsw instruction). Thus, relocate this definition to a
+> header file from which it can be conveniently accessed.
 > 
-> -- 
-> Michal Hocko
-> SUSE Labs
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Andy Lutomirski <luto@amacapital.net>
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Borislav Petkov <bp@alien8.de>
+> Cc: Brian Gerst <brgerst@gmail.com>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Cc: Denys Vlasenko <dvlasenk@redhat.com>
+> Cc: H. Peter Anvin <hpa@zytor.com>
+> Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: linux-arch@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Suggested-by: Borislav Petkov <bp@alien8.de>
+> Signed-off-by: Ricardo Neri <ricardo.neri-calderon@linux.intel.com>
+> ---
+>  arch/x86/include/uapi/asm/processor-flags.h | 6 ++++++
+>  arch/x86/kernel/head_32.S                   | 3 ---
+>  arch/x86/kernel/head_64.S                   | 3 ---
+>  3 files changed, 6 insertions(+), 6 deletions(-)
+> 
+> diff --git a/arch/x86/include/uapi/asm/processor-flags.h b/arch/x86/include/uapi/asm/processor-flags.h
+> index 185f3d10c194..aae1f2aa7563 100644
+> --- a/arch/x86/include/uapi/asm/processor-flags.h
+> +++ b/arch/x86/include/uapi/asm/processor-flags.h
+> @@ -151,5 +151,11 @@
+>  #define CX86_ARR_BASE	0xc4
+>  #define CX86_RCR_BASE	0xdc
+>  
+> +/*
+> + * Initial state of CR0 for head_32/64.S
+> + */
+
+No need for that comment.
+
+With the minor nitpicks addressed, you can add:
+
+Reviewed-by: Borislav Petkov <bp@suse.de>
+
+Thx.
+
+-- 
+Regards/Gruss,
+    Boris.
+
+SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
