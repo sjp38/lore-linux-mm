@@ -1,61 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E4EA66810D0
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 17:16:41 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id z96so97336wrb.7
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 14:16:41 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i124si1849429wma.122.2017.08.25.14.16.40
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EFBE6810C8
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 17:31:38 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id u11so5876031qtu.7
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 14:31:38 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i10si6965789qtg.11.2017.08.25.14.31.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Aug 2017 14:16:40 -0700 (PDT)
-Date: Fri, 25 Aug 2017 14:16:37 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH RFC v2] Add /proc/pid/smaps_rollup
-Message-Id: <20170825141637.f11a36a9997b4b705d5b6481@linux-foundation.org>
-In-Reply-To: <20170824085553.GB5943@dhcp22.suse.cz>
-References: <20170808132554.141143-1-dancol@google.com>
-	<20170810001557.147285-1-dancol@google.com>
-	<20170810043831.GB2249@bbox>
-	<20170810084617.GI23863@dhcp22.suse.cz>
-	<r0251soju3fo.fsf@dancol.org>
-	<20170810105852.GM23863@dhcp22.suse.cz>
-	<CAPz6YkUNu1uH057ENuH+Umq5J=J24my0p91mvYMtEb4Vy6Dhqg@mail.gmail.com>
-	<CAEe=SxkgPUEkHdQm+M49EBc_Y_bEnNbe5fed3yALUx2eUbMrGQ@mail.gmail.com>
-	<20170824085553.GB5943@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 25 Aug 2017 14:31:37 -0700 (PDT)
+From: jglisse@redhat.com
+Subject: [PATCH] mm/hmm: struct hmm is only use by HMM mirror functionality v2
+Date: Fri, 25 Aug 2017 17:31:33 -0400
+Message-Id: <20170825213133.27286-1-jglisse@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tim Murray <timmurray@google.com>, Sonny Rao <sonnyrao@chromium.org>, Daniel Colascione <dancol@google.com>, Minchan Kim <minchan@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Joel Fernandes <joelaf@google.com>, Al Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, Robert Foss <robert.foss@collabora.com>, linux-api@vger.kernel.org, Luigi Semenzato <semenzato@google.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Subhash Gutti <sgutti@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>
 
-On Thu, 24 Aug 2017 10:55:53 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-> > If we assume that the number of VMAs is going to increase over time,
-> > then doing anything we can do to reduce the overhead of each VMA
-> > during PSS collection seems like the right way to go, and that means
-> > outputting an aggregate statistic (to avoid whatever overhead there is
-> > per line in writing smaps and in reading each line from userspace).
-> > 
-> > Also, Dan sent me some numbers from his benchmark measuring PSS on
-> > system_server (the big Android process) using smaps vs smaps_rollup:
-> > 
-> > using smaps:
-> > iterations:1000 pid:1163 pss:220023808
-> >  0m29.46s real 0m08.28s user 0m20.98s system
-> > 
-> > using smaps_rollup:
-> > iterations:1000 pid:1163 pss:220702720
-> >  0m04.39s real 0m00.03s user 0m04.31s system
-> 
-> I would assume we would do all we can to reduce this kernel->user
-> overhead first before considering a new user visible file. I haven't
-> seen any attempts except from the low hanging fruid I have tried.
+The struct hmm is only use if the HMM mirror functionality is enabled
+move associated code behind CONFIG_HMM_MIRROR to avoid build error if
+one enable some of the HMM memory configuration without the mirror
+feature.
 
-It's hard to believe that we'll get anything like a 5x speedup via
-optimization of the existing code?
+Changed since v1:
+  - make it clear that it replace Arnd patch
+  - make sure it apply on top of lastest mm
+
+Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+Reported-by: Arnd Bergmann <arnd@arndb.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>,
+Cc: Subhash Gutti <sgutti@nvidia.com>,
+Cc: Evgeny Baskakov <ebaskakov@nvidia.com>
+---
+ include/linux/hmm.h | 8 ++++----
+ mm/hmm.c            | 7 +++----
+ 2 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index 5866f3194c26..9583d9a15f9c 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -501,18 +501,18 @@ void hmm_device_put(struct hmm_device *hmm_device);
+ 
+ 
+ /* Below are for HMM internal use only! Not to be used by device driver! */
++#if IS_ENABLED(CONFIG_HMM_MIRROR)
+ void hmm_mm_destroy(struct mm_struct *mm);
+ 
+ static inline void hmm_mm_init(struct mm_struct *mm)
+ {
+ 	mm->hmm = NULL;
+ }
+-
+-#else /* IS_ENABLED(CONFIG_HMM) */
+-
+-/* Below are for HMM internal use only! Not to be used by device driver! */
++#else /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+ static inline void hmm_mm_destroy(struct mm_struct *mm) {}
+ static inline void hmm_mm_init(struct mm_struct *mm) {}
++#endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
++
+ 
+ #endif /* IS_ENABLED(CONFIG_HMM) */
+ #endif /* LINUX_HMM_H */
+diff --git a/mm/hmm.c b/mm/hmm.c
+index 4a179a16ab10..cf9cf0db809e 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -41,11 +41,12 @@
+  */
+ DEFINE_STATIC_KEY_FALSE(device_private_key);
+ EXPORT_SYMBOL(device_private_key);
+-static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
+ #endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
+ 
+ 
+-#ifdef CONFIG_HMM
++#if IS_ENABLED(CONFIG_HMM_MIRROR)
++static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
++
+ /*
+  * struct hmm - HMM per mm struct
+  *
+@@ -128,9 +129,7 @@ void hmm_mm_destroy(struct mm_struct *mm)
+ {
+ 	kfree(mm->hmm);
+ }
+-#endif /* CONFIG_HMM */
+ 
+-#if IS_ENABLED(CONFIG_HMM_MIRROR)
+ static void hmm_invalidate_range(struct hmm *hmm,
+ 				 enum hmm_update_type action,
+ 				 unsigned long start,
+-- 
+2.13.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
