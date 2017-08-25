@@ -1,54 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B22A44088B
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 20:36:24 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id l19so934703oib.15
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 17:36:24 -0700 (PDT)
-Received: from mail-oi0-x236.google.com (mail-oi0-x236.google.com. [2607:f8b0:4003:c06::236])
-        by mx.google.com with ESMTPS id t4si4257049oig.398.2017.08.24.17.36.23
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DDC2044088B
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 20:42:39 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id w78so5212444qkw.7
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 17:42:39 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f126si4860368qkd.367.2017.08.24.17.42.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Aug 2017 17:36:23 -0700 (PDT)
-Received: by mail-oi0-x236.google.com with SMTP id j144so9463754oib.1
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 17:36:23 -0700 (PDT)
+        Thu, 24 Aug 2017 17:42:38 -0700 (PDT)
+From: jglisse@redhat.com
+Subject: [PATCH] mm/hmm: struct hmm is only use by HMM mirror functionality
+Date: Thu, 24 Aug 2017 20:42:26 -0400
+Message-Id: <1503621746-17876-1-git-send-email-jglisse@redhat.com>
+In-Reply-To: <20170824230850.1810408-1-arnd@arndb.de>
+References: <20170824230850.1810408-1-arnd@arndb.de>
 MIME-Version: 1.0
-In-Reply-To: <20170824142239.15178-1-boqun.feng@gmail.com>
-References: <20170823152542.5150-2-boqun.feng@gmail.com> <20170824142239.15178-1-boqun.feng@gmail.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 24 Aug 2017 17:36:22 -0700
-Message-ID: <CAPcyv4gHgdpyqbv8gs5MiEtEHSdC-JLhutdfn81fhQ1woQSh_Q@mail.gmail.com>
-Subject: Re: [PATCH v2 1/2] nfit: Fix the abuse of COMPLETION_INITIALIZER_ONSTACK()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boqun Feng <boqun.feng@gmail.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Michel Lespinasse <walken@google.com>, Byungchul Park <byungchul.park@lge.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, Nicholas Piggin <npiggin@gmail.com>, kernel-team@lge.com, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <lenb@kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux ACPI <linux-acpi@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Subhash Gutti <sgutti@nvidia.com>, Evgeny Baskakov <ebaskakov@nvidia.com>
 
-On Thu, Aug 24, 2017 at 7:22 AM, Boqun Feng <boqun.feng@gmail.com> wrote:
-> COMPLETION_INITIALIZER_ONSTACK() is supposed to used as an initializer,
-> in other words, it should only be used in assignment expressions or
-> compound literals. So the usage in drivers/acpi/nfit/core.c:
->
->         COMPLETION_INITIALIZER_ONSTACK(flush.cmp);
->
-> , is inappropriate.
->
-> Besides, this usage could also break compilations for another fix to
-> reduce stack sizes caused by COMPLETION_INITIALIZER_ONSTACK(), because
-> that fix changes COMPLETION_INITIALIZER_ONSTACK() from rvalue to lvalue,
-> and usage as above will report error:
->
->         drivers/acpi/nfit/core.c: In function 'acpi_nfit_flush_probe':
->         include/linux/completion.h:77:3: error: value computed is not used [-Werror=unused-value]
->           (*({ init_completion(&work); &work; }))
->
-> This patch fixes this by replacing COMPLETION_INITIALIZER_ONSTACK() with
-> init_completion() in acpi_nfit_flush_probe(), which does the same
-> initialization without any other problem.
->
-> Signed-off-by: Boqun Feng <boqun.feng@gmail.com>
+From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-Acked-by: Dan Williams <dan.j.williams@intel.com>
+The struct hmm is only use if the HMM mirror functionality is enabled
+move associated code behind CONFIG_HMM_MIRROR to avoid build error if
+one enable some of the HMM memory configuration without the mirror
+feature.
+
+Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>,
+Cc: Subhash Gutti <sgutti@nvidia.com>,
+Cc: Evgeny Baskakov <ebaskakov@nvidia.com>
+---
+ include/linux/hmm.h | 7 +++----
+ mm/hmm.c            | 4 +---
+ 2 files changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index 5866f31..b4355d7 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -499,7 +499,7 @@ struct hmm_device *hmm_device_new(void *drvdata);
+ void hmm_device_put(struct hmm_device *hmm_device);
+ #endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
+ 
+-
++#if IS_ENABLED(CONFIG_HMM_MIRROR)
+ /* Below are for HMM internal use only! Not to be used by device driver! */
+ void hmm_mm_destroy(struct mm_struct *mm);
+ 
+@@ -507,12 +507,11 @@ static inline void hmm_mm_init(struct mm_struct *mm)
+ {
+ 	mm->hmm = NULL;
+ }
+-
+-#else /* IS_ENABLED(CONFIG_HMM) */
+-
++#else /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+ /* Below are for HMM internal use only! Not to be used by device driver! */
+ static inline void hmm_mm_destroy(struct mm_struct *mm) {}
+ static inline void hmm_mm_init(struct mm_struct *mm) {}
++#endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+ 
+ #endif /* IS_ENABLED(CONFIG_HMM) */
+ #endif /* LINUX_HMM_H */
+diff --git a/mm/hmm.c b/mm/hmm.c
+index 3faa4d4..7e4f42b 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -43,7 +43,7 @@ DEFINE_STATIC_KEY_FALSE(device_private_key);
+ EXPORT_SYMBOL(device_private_key);
+ 
+ 
+-#ifdef CONFIG_HMM
++#if IS_ENABLED(CONFIG_HMM_MIRROR)
+ static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
+ 
+ /*
+@@ -128,9 +128,7 @@ void hmm_mm_destroy(struct mm_struct *mm)
+ {
+ 	kfree(mm->hmm);
+ }
+-#endif /* CONFIG_HMM */
+ 
+-#if IS_ENABLED(CONFIG_HMM_MIRROR)
+ static void hmm_invalidate_range(struct hmm *hmm,
+ 				 enum hmm_update_type action,
+ 				 unsigned long start,
+-- 
+2.7.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
