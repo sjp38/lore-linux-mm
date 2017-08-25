@@ -1,62 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 515CD44088B
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 19:59:05 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id q68so3443566pgq.11
-        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 16:59:05 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id s13si3971487plj.176.2017.08.24.16.59.03
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 347FC44088B
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2017 20:02:09 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 63so3613609pgc.0
+        for <linux-mm@kvack.org>; Thu, 24 Aug 2017 17:02:09 -0700 (PDT)
+Received: from ipmail01.adl2.internode.on.net (ipmail01.adl2.internode.on.net. [150.101.137.133])
+        by mx.google.com with ESMTP id a66si3846049pli.531.2017.08.24.17.02.07
         for <linux-mm@kvack.org>;
-        Thu, 24 Aug 2017 16:59:04 -0700 (PDT)
-Date: Fri, 25 Aug 2017 08:59:30 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] mm/mlock: use page_zone() instead of page_zone_id()
-Message-ID: <20170824235930.GB29701@js1304-P5Q-DELUXE>
-References: <1503559211-10259-1-git-send-email-iamjoonsoo.kim@lge.com>
- <a8cca363-544d-1b7e-0e93-d7df5c5b6f20@suse.cz>
+        Thu, 24 Aug 2017 17:02:08 -0700 (PDT)
+Date: Fri, 25 Aug 2017 10:01:37 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] xfs: Drop setting redundant PF_KSWAPD in kswapd context
+Message-ID: <20170825000137.GI21024@dastard>
+References: <20170824104247.8288-1-khandual@linux.vnet.ibm.com>
+ <20170824105635.GA5965@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <a8cca363-544d-1b7e-0e93-d7df5c5b6f20@suse.cz>
+In-Reply-To: <20170824105635.GA5965@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-xfs@vger.kernel.org, linux-kernel@vger.kernel.org, dchinner@redhat.com, bfoster@redhat.com, sandeen@sandeen.net
 
-On Thu, Aug 24, 2017 at 01:05:15PM +0200, Vlastimil Babka wrote:
-> +CC Mel
+On Thu, Aug 24, 2017 at 12:56:35PM +0200, Michal Hocko wrote:
+> On Thu 24-08-17 16:12:47, Anshuman Khandual wrote:
+> > xfs_btree_split() calls xfs_btree_split_worker() with args.kswapd set
+> > if current->flags alrady has PF_KSWAPD. Hence we should not again add
+> > PF_KSWAPD into the current flags inside kswapd context. So drop this
+> > redundant flag addition.
 > 
-> On 08/24/2017 09:20 AM, js1304@gmail.com wrote:
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > 
-> > page_zone_id() is a specialized function to compare the zone for the pages
-> > that are within the section range. If the section of the pages are
-> > different, page_zone_id() can be different even if their zone is the same.
-> > This wrong usage doesn't cause any actual problem since
-> > __munlock_pagevec_fill() would be called again with failed index. However,
-> > it's better to use more appropriate function here.
-> 
-> Hmm using zone id was part of the series making munlock faster. Too bad
-> it's doing the wrong thing on some memory models. Looks like it wasn't
-> evaluated in isolation, but only as part of the pagevec usage (commit
-> 7a8010cd36273) but most likely it wasn't contributing too much to the
-> 14% speedup.
+> I am not familiar with the code but your change seems incorect. The
+> whole point of args->kswapd is to convey the kswapd context to the
+> worker which is obviously running in a different context. So this patch
+> loses the kswapd context.
 
-I roughly checked that patch and it seems that performance improvement
-of that commit isn't related to page_zone_id() usage. With
-page_zone(), we would have more chance that do a job as a batch.
+Yup. That's what the code does, and removing the PF_KSWAPD from it
+will break it.
 
-> 
-> > This patch is also preparation for futher change about page_zone_id().
-> 
-> Out of curiosity, what kind of change?
->
+Cheers,
 
-I prepared one more patch that prevent another user of page_zone_id()
-since it is too tricky. However, I don't submit it. That description
-should be removed. :/
-
-Thanks.
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
