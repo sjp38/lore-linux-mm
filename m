@@ -1,72 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D8A9B6810B7
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 06:50:59 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id q16so10005089pgc.2
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 03:50:59 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id t77si4531955pfi.40.2017.08.25.03.50.58
-        for <linux-mm@kvack.org>;
-        Fri, 25 Aug 2017 03:50:58 -0700 (PDT)
-Date: Fri, 25 Aug 2017 11:49:42 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH] fork: fix incorrect fput of ->exe_file causing
- use-after-free
-Message-ID: <20170825104941.GC3127@leverpostej>
-References: <20170823211408.31198-1-ebiggers3@gmail.com>
- <20170824150110.GA29665@leverpostej>
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C373E6810B7
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 06:58:16 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id p14so2750611wrg.6
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 03:58:16 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id m138si1073877wmg.263.2017.08.25.03.58.15
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 25 Aug 2017 03:58:15 -0700 (PDT)
+Date: Fri, 25 Aug 2017 11:57:28 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v6 2/4] mm, oom: cgroup-aware OOM killer
+Message-ID: <20170825105728.GA10438@castle.DHCP.thefacebook.com>
+References: <20170823165201.24086-1-guro@fb.com>
+ <20170823165201.24086-3-guro@fb.com>
+ <alpine.DEB.2.10.1708231614310.68096@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170824150110.GA29665@leverpostej>
+In-Reply-To: <alpine.DEB.2.10.1708231614310.68096@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Biggers <ebiggers3@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Ingo Molnar <mingo@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org, Eric Biggers <ebiggers@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Aug 24, 2017 at 04:02:49PM +0100, Mark Rutland wrote:
-> On Wed, Aug 23, 2017 at 02:14:08PM -0700, Eric Biggers wrote:
-> > From: Eric Biggers <ebiggers@google.com>
+Hi David!
+
+On Wed, Aug 23, 2017 at 04:19:11PM -0700, David Rientjes wrote:
+> On Wed, 23 Aug 2017, Roman Gushchin wrote:
+> 
+> > Traditionally, the OOM killer is operating on a process level.
+> > Under oom conditions, it finds a process with the highest oom score
+> > and kills it.
 > > 
-> > Commit 7c051267931a ("mm, fork: make dup_mmap wait for mmap_sem for
-> > write killable") made it possible to kill a forking task while it is
-> > waiting to acquire its ->mmap_sem for write, in dup_mmap().  However, it
-> > was overlooked that this introduced an new error path before a reference
-> > is taken on the mm_struct's ->exe_file.  Since the ->exe_file of the new
-> > mm_struct was already set to the old ->exe_file by the memcpy() in
-> > dup_mm(), it was possible for the mmput() in the error path of dup_mm()
-> > to drop a reference to ->exe_file which was never taken.  This caused
-> > the struct file to later be freed prematurely.
+> > This behavior doesn't suit well the system with many running
+> > containers:
 > > 
-> > Fix it by updating mm_init() to NULL out the ->exe_file, in the same
-> > place it clears other things like the list of mmaps.
+> > 1) There is no fairness between containers. A small container with
+> > few large processes will be chosen over a large one with huge
+> > number of small processes.
+> > 
+> > 2) Containers often do not expect that some random process inside
+> > will be killed. In many cases much safer behavior is to kill
+> > all tasks in the container. Traditionally, this was implemented
+> > in userspace, but doing it in the kernel has some advantages,
+> > especially in a case of a system-wide OOM.
+> > 
+> > 3) Per-process oom_score_adj affects global OOM, so it's a breache
+> > in the isolation.
+> > 
+> > To address these issues, cgroup-aware OOM killer is introduced.
+> > 
+> > Under OOM conditions, it tries to find the biggest memory consumer,
+> > and free memory by killing corresponding task(s). The difference
+> > the "traditional" OOM killer is that it can treat memory cgroups
+> > as memory consumers as well as single processes.
+> > 
+> > By default, it will look for the biggest leaf cgroup, and kill
+> > the largest task inside.
+> > 
+> > But a user can change this behavior by enabling the per-cgroup
+> > oom_kill_all_tasks option. If set, it causes the OOM killer treat
+> > the whole cgroup as an indivisible memory consumer. In case if it's
+> > selected as on OOM victim, all belonging tasks will be killed.
+> > 
 > 
-> > diff --git a/kernel/fork.c b/kernel/fork.c
-> > index e075b7780421..cbbea277b3fb 100644
-> > --- a/kernel/fork.c
-> > +++ b/kernel/fork.c
-> > @@ -806,6 +806,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
-> >  	mm_init_cpumask(mm);
-> >  	mm_init_aio(mm);
-> >  	mm_init_owner(mm, p);
-> > +	RCU_INIT_POINTER(mm->exe_file, NULL);
-> >  	mmu_notifier_mm_init(mm);
-> >  	init_tlb_flush_pending(mm);
-> >  #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
-> 
-> I've been seeing similar issues on arm64 with use-after-free of a file
-> and other memory corruption [1].
-> 
-> This patch seems to fix that; a test that normally fired in a few
-> minutes has been happily running for hours with this applied.
+> I'm very happy with the rest of the patchset, but I feel that I must renew 
+> my objection to memory.oom_kill_all_tasks being able to override the 
+> setting of the admin of setting a process to be oom disabled.  From my 
+> perspective, setting memory.oom_kill_all_tasks with an oom disabled 
+> process attached that now becomes killable either (1) overrides the 
+> CAP_SYS_RESOURCE oom disabled setting or (2) is lazy and doesn't modify 
+> /proc/pid/oom_score_adj itself.
 
-Those haven't triggered after 24 hours, and in 16+ hours of fuzzing with
-this applied, I haven't seen new issues. FWIW:
+Changed this in v7 (to be posted soon).
 
-Tested-by: Mark Rutland <mark.rutland@arm.com>
+Thanks!
 
-Thanks,
-Mark.
+Roman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
