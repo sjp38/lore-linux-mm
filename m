@@ -1,64 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A1126810C8
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 15:44:32 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id n83so496100oig.0
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 12:44:32 -0700 (PDT)
-Received: from mail-oi0-x236.google.com (mail-oi0-x236.google.com. [2607:f8b0:4003:c06::236])
-        by mx.google.com with ESMTPS id r64si5946182oih.550.2017.08.25.12.44.30
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C23A6810C8
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 15:58:07 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id x21so1229042oif.5
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 12:58:07 -0700 (PDT)
+Received: from mail-oi0-x243.google.com (mail-oi0-x243.google.com. [2607:f8b0:4003:c06::243])
+        by mx.google.com with ESMTPS id p128si5885988oia.407.2017.08.25.12.58.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Aug 2017 12:44:30 -0700 (PDT)
-Received: by mail-oi0-x236.google.com with SMTP id r203so3341360oih.0
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 12:44:30 -0700 (PDT)
+        Fri, 25 Aug 2017 12:58:05 -0700 (PDT)
+Received: by mail-oi0-x243.google.com with SMTP id k77so728353oib.1
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 12:58:05 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4gWD7sTLdmwoX7Ce+McMvtLKhOf60e-1ax12qQs7=Qzdg@mail.gmail.com>
-References: <150353211413.5039.5228914877418362329.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150353212577.5039.14069456126848863439.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20170824161347.GC27591@lst.de> <CAPcyv4gWD7sTLdmwoX7Ce+McMvtLKhOf60e-1ax12qQs7=Qzdg@mail.gmail.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 25 Aug 2017 12:44:29 -0700
-Message-ID: <CAPcyv4iT+7M6NwzE0WDZLZVjDYRr1Tj0_ug-Bcu9YWDtq13rXg@mail.gmail.com>
-Subject: Re: [PATCH v6 2/5] fs, xfs: introduce S_IOMAP_SEALED
+In-Reply-To: <cd8ce7fbca9c126f7f928b8fa48d7a9197955b45.1503677178.git.tim.c.chen@linux.intel.com>
+References: <83f675ad385d67760da4b99cd95ee912ca7c0b44.1503677178.git.tim.c.chen@linux.intel.com>
+ <cd8ce7fbca9c126f7f928b8fa48d7a9197955b45.1503677178.git.tim.c.chen@linux.intel.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 25 Aug 2017 12:58:05 -0700
+Message-ID: <CA+55aFyErsNw8bqTOCzcrarDZBdj+Ev=1N3sV-gxtLTH03bBFQ@mail.gmail.com>
+Subject: Re: [PATCH 2/2 v2] sched/wait: Introduce lock breaker in wake_up_page_bit
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Darrick J. Wong" <darrick.wong@oracle.com>, Linux API <linux-api@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Kan Liang <kan.liang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Christopher Lameter <cl@linux.com>, "Eric W . Biederman" <ebiederm@xmission.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 24, 2017 at 11:00 PM, Dan Williams <dan.j.williams@intel.com> wrote:
-> On Thu, Aug 24, 2017 at 9:13 AM, Christoph Hellwig <hch@lst.de> wrote:
->> I'm still very unhappy about the get/set flag state.  What is the
->> reason you can't use/extend leases? (take a look at the fcntl
->> man page and look for Leases).  A variant of the concept is what
->> the pNFS block server uses.
->
-> So I think leases could potentially be extended to replace the inode
-> flag. A MAP_DIRECT operation would take out a lease that is broken by
-> break_layouts(). However, like the pNFS case the lease break would
-> need to held off while any DMA might be in-flight. We can use an
-> elevated page count as that indication as ZONE_DEVICE pages only ever
-> have an elevated page count in response to get_user_pages().
->
-> However, I think the only practical difference is turning an immediate
-> ETXTBSY response that S_IOMAP_SEALED provides into an indefinite
-> blocking wait for break_layouts() to complete. Can pNFS run
-> break_layouts() in bounded time?
->
-> As far I can see a lease and S_IOMAP_SEALED have the same DMA
-> cancelling problem, so a lease is not better in that regard. Absent an
-> overlaying protocol like pNFS, I think S_IOMAP_SEALED is cleaner
-> because it fails incompatible operations outright rather than stalls
-> them in break_layouts(). Were their other benefits to a lease over an
-> inode flag that you had in mind for this case where the protocol is
-> userspace defined? Maybe I'm thinking too small on the ways a lease
-> might be extended.
+On Fri, Aug 25, 2017 at 9:13 AM, Tim Chen <tim.c.chen@linux.intel.com> wrote:
+> Now that we have added breaks in the wait queue scan and allow bookmark
+> on scan position, we put this logic in the wake_up_page_bit function.
 
-At a minimum I can at least use a new lease type as an indication of
-when to bail out an block-map operation with ETXTBSY, and reuse the
-lease security model. That way we at least start to converge the
-in-kernel lease machinery for pinning blocks with this userspace
-mechanism.
+Oh, _this_ is the other patch you were talking about. I thought it was
+the NUMA counter threashold that was discussed around the same time,
+and that's why I referred to Mel.
+
+Gods, _this_ patch is ugly.  No, I'm not happy with it at all. It
+makes that wait_queue_head much bigger, for this disgusting one use.
+
+So no, this is no good.
+
+Now, maybe the page_wait_table[] itself could be changed to be
+something that is *not* just the wait-queue head.
+
+But if we need to change the page_wait_table[] itself to have more
+information, then we should make it not be a wait-queue at all, we
+should make it be a list of much more specialized entries, indexed by
+the {page,bit} tuple.
+
+And once we do that, we probably *could* use something like two
+specialized lists: one that is wake-all, and one that is wake-one.
+
+So you'd have something like
+
+    struct page_wait_struct {
+        struct list_node list;
+        struct page *page;
+        int bit;
+        struct llist_head all;
+        struct llist_head exclusive;
+    };
+
+and then the "page_wait_table[]" would be just an array of
+
+    struct page_wait_head {
+        spinlock_t lock;
+        struct hlist_head list;
+    };
+
+and then the rule is:
+
+ - each page/bit combination allocates one of these page_wait_struct
+entries when somebody starts waiting for it for the first time (and we
+use the spinlock in the page_wait_head to serialize that list).
+
+ - an exclusive wait (ie somebody who waits to get the bit for
+locking) adds itself to the 'exclusive' llist
+
+ - non-locking waiters add themselves to the 'all' list
+
+ - we can use llist_del_all() to remove the 'all' list and then walk
+it and wake them up without any locks
+
+ - we can use llist_del_first() to remove the first exclusive waiter
+and wait _it_ up without any locks.
+
+Hmm? How does that sound? That means that we wouldn't use the normal
+wait-queues at all for the page hash waiting. We'd use this two-level
+list: one list to find the page/bit thing, and then two lists within
+that fdor the wait-queues for just *that* page/bit.
+
+So no need for the 'key' stuff at all, because the page/bit data would
+be in the first data list, and the second list wouldn't have any of
+these traversal issues where you have to be careful and do it one
+entry at a time.
+
+                 Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
