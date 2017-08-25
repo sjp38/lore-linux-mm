@@ -1,61 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A84F6810B7
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 04:04:46 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 136so1734718wmm.11
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 01:04:46 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 094F66B03C1
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 04:14:08 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z91so2319033wrc.1
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 01:14:07 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 138si805695wmf.127.2017.08.25.01.04.45
+        by mx.google.com with ESMTPS id s6si822645wma.226.2017.08.25.01.14.06
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 25 Aug 2017 01:04:45 -0700 (PDT)
-Date: Fri, 25 Aug 2017 10:04:42 +0200
+        Fri, 25 Aug 2017 01:14:06 -0700 (PDT)
+Date: Fri, 25 Aug 2017 10:14:03 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] treewide: remove GFP_TEMPORARY allocation flag
-Message-ID: <20170825080442.GF25498@dhcp22.suse.cz>
-References: <20170728091904.14627-1-mhocko@kernel.org>
- <20170823175709.GA22743@xo-6d-61-c0.localdomain>
- <20170825063545.GA25498@dhcp22.suse.cz>
- <20170825072818.GA15494@amd>
+Subject: Re: [v6 2/4] mm, oom: cgroup-aware OOM killer
+Message-ID: <20170825081402.GG25498@dhcp22.suse.cz>
+References: <20170823165201.24086-1-guro@fb.com>
+ <20170823165201.24086-3-guro@fb.com>
+ <20170824114706.GG5943@dhcp22.suse.cz>
+ <20170824122846.GA15916@castle.DHCP.thefacebook.com>
+ <20170824125811.GK5943@dhcp22.suse.cz>
+ <20170824135842.GA21167@castle.DHCP.thefacebook.com>
+ <20170824141336.GP5943@dhcp22.suse.cz>
+ <20170824145801.GA23457@castle.DHCP.thefacebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170825072818.GA15494@amd>
+In-Reply-To: <20170824145801.GA23457@castle.DHCP.thefacebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Neil Brown <neilb@suse.de>, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri 25-08-17 09:28:19, Pavel Machek wrote:
-> On Fri 2017-08-25 08:35:46, Michal Hocko wrote:
-> > On Wed 23-08-17 19:57:09, Pavel Machek wrote:
+On Thu 24-08-17 15:58:01, Roman Gushchin wrote:
+> On Thu, Aug 24, 2017 at 04:13:37PM +0200, Michal Hocko wrote:
+> > On Thu 24-08-17 14:58:42, Roman Gushchin wrote:
 [...]
-> > > Dunno. < 1msec probably is temporary, 1 hour probably is not. If it causes
-> > > problems, can you just #define GFP_TEMPORARY GFP_KERNEL ? Treewide replace,
-> > > and then starting again goes not look attractive to me.
+> > > Both ways are not ideal, and sum of the processes is not ideal too.
+> > > Especially, if you take oom_score_adj into account. Will you respect it?
 > > 
-> > I do not think we want a highlevel GFP_TEMPORARY without any meaning.
-> > This just supports spreading the flag usage without a clear semantic
-> > and it will lead to even bigger mess. Once we can actually define what
-> > the flag means we can also add its users based on that new semantic.
+> > Yes, and I do not see any reason why we shouldn't.
 > 
-> It has real meaning.
+> It makes things even more complicated.
+> Right now task's oom_score can be in (~ -total_memory, ~ +2*total_memory) range,
+> and it you're starting summing it, it can be multiplied by number of tasks...
+> Weird.
 
-Which is?
- 
-> You can define more exact meaning, and then adjust the usage. But
-> there's no need to do treewide replacement...
+oom_score_adj is just a normalized bias so if tasks inside oom will use
+it the whole memcg will get accumulated bias from all such tasks so it
+is not completely off. I agree that the more tasks use the bias the more
+biased the whole memcg will be. This might or might not be a problem.
+As you are trying to reimplement the existing oom killer implementation
+I do not think we cannot simply ignore API which people are used to.
 
-I have checked most of them and except for the initially added onces the
-large portion where added without a good reasons or even break an
-intuitive meaning by taking locks.
+If this was a configurable oom policy then I could see how ignoring
+oom_score_adj is acceptable because it would be an explicit opt-in.
 
-Seriously, if we need a short term semantic it should be clearly defined
-first.
+> It also will be different in case of system and memcg-wide OOM.
 
-Is there any specific case why you think this patch is in a wrong
-direction? E.g. a measurable regression?
+Why, we do honor oom_score_adj for the memcg OOM now and in fact the
+kernel memcg OOM killer shouldn't be very much different from the global
+one except for the tasks scope.
 
+> > > I've started actually with such approach, but then found it weird.
+> > > 
+> > > > Besides that you have
+> > > > to check each task for over-killing anyway. So I do not see any
+> > > > performance merits here.
+> > > 
+> > > It's an implementation detail, and we can hopefully get rid of it at some point.
+> > 
+> > Well, we might do some estimations and ignore oom scopes but I that
+> > sounds really complicated and error prone. Unless we have anything like
+> > that then I would start from tasks and build up the necessary to make a
+> > decision at the higher level.
+> 
+> Seriously speaking, do you have an example, when summing per-process
+> oom_score will work better?
+
+The primary reason I am pushing for this is to have the common iterator
+code path (which we have since Vladimir has unified memcg and global oom
+paths) and only parametrize the value calculation and victim selection.
+
+> Especially, if we're talking about customizing oom_score calculation,
+> it makes no sence to me. How you will sum process timestamps?
+
+Well, I meant you could sum oom_badness for your particular
+implementation. If we need some other policy then this wouldn't work and
+that's why I've said that I would like to preserve the current common
+code and only parametrize value calculation and victim selection...
 -- 
 Michal Hocko
 SUSE Labs
