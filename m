@@ -1,62 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FF146810D7
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 22:54:09 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id z193so5685511pgd.10
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 19:54:09 -0700 (PDT)
-Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id b89si2371853plb.24.2017.08.25.19.54.07
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5743C6810D7
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 22:54:29 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id d66so1885746oib.2
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 19:54:29 -0700 (PDT)
+Received: from mail-oi0-x235.google.com (mail-oi0-x235.google.com. [2607:f8b0:4003:c06::235])
+        by mx.google.com with ESMTPS id p186si6491036oih.151.2017.08.25.19.54.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 25 Aug 2017 19:54:08 -0700 (PDT)
-Message-ID: <59A0E237.1070501@huawei.com>
-Date: Sat, 26 Aug 2017 10:51:35 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 25 Aug 2017 19:54:28 -0700 (PDT)
+Received: by mail-oi0-x235.google.com with SMTP id k77so12294125oib.2
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 19:54:28 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] futex: avoid undefined behaviour when shift exponent
- is negative
-References: <1498045437-7675-1-git-send-email-zhongjiang@huawei.com> <20170621164036.4findvvz7jj4cvqo@gmail.com> <595331FE.3090700@huawei.com> <alpine.DEB.2.20.1706282353190.1890@nanos> <599FB3C4.6000009@huawei.com> <alpine.DEB.2.20.1708252308500.2124@nanos>
-In-Reply-To: <alpine.DEB.2.20.1708252308500.2124@nanos>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CA+55aFzy981a8Ab+89APi6Qnb9U9xap=0A6XNc+wZsAWngWPzA@mail.gmail.com>
+References: <83f675ad385d67760da4b99cd95ee912ca7c0b44.1503677178.git.tim.c.chen@linux.intel.com>
+ <cd8ce7fbca9c126f7f928b8fa48d7a9197955b45.1503677178.git.tim.c.chen@linux.intel.com>
+ <CA+55aFyErsNw8bqTOCzcrarDZBdj+Ev=1N3sV-gxtLTH03bBFQ@mail.gmail.com>
+ <f10f4c25-49c0-7ef5-55c2-769c8fd9bf90@linux.intel.com> <CA+55aFzNikMsuPAaExxT1Z8MfOeU6EhSn6UPDkkz-MRqamcemg@mail.gmail.com>
+ <CA+55aFx67j0u=GNRKoCWpsLRDcHdrjfVvWRS067wLUSfzstgoQ@mail.gmail.com> <CA+55aFzy981a8Ab+89APi6Qnb9U9xap=0A6XNc+wZsAWngWPzA@mail.gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 25 Aug 2017 19:54:27 -0700
+Message-ID: <CA+55aFwyCSh1RbJ3d5AXURa4_r5OA_=ZZKQrFX0=Z1J3ZgVJ5g@mail.gmail.com>
+Subject: Re: [PATCH 2/2 v2] sched/wait: Introduce lock breaker in wake_up_page_bit
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@kernel.org>, akpm@linux-foundation.org, mingo@redhat.com, minchan@kernel.org, mhocko@suse.com, hpa@zytor.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zhen Lei <thunder.leizhen@huawei.com>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Kan Liang <kan.liang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Christopher Lameter <cl@linux.com>, "Eric W . Biederman" <ebiederm@xmission.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 2017/8/26 5:13, Thomas Gleixner wrote:
-> On Fri, 25 Aug 2017, zhong jiang wrote:
->> From: zhong jiang <zhongjiang@huawei.com>
->> Date: Fri, 25 Aug 2017 12:05:56 +0800
->> Subject: [PATCH v2] futex: avoid undefined behaviour when shift exponent is
->>  negative
-> Please do not send patches without changing the subject line so it's clear
-> that there is a new patch.
-  ok
->> using a shift value < 0 or > 31 will get crap as a result. because
->> it's just undefined. The issue still disturb me, so I try to fix
->> it again by excluding the especially condition.
-> Which is obsolete now as this code is unified accross all architectures and
-> the shift issue is addressed in the generic version of it. So all
-> architectures get the same fix. See:
+On Fri, Aug 25, 2017 at 5:31 PM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
 >
->  http://git.kernel.org/tip/30d6e0a4190d37740e9447e4e4815f06992dd8c3
-  ok , I  miss the above patch.
-> And no, we won't add that x86 fix before that unification hits mainline
-> because that undefined behaviour is harmless as it only affects the user
-> space value of the futex. IOW, the caller gets what it asked for: crap.
-  Thank you for clarification.
+> It made it way more fragile and complicated, having to rewrite things
+> so carefully. A simple slab cache would likely be a lot cleaner and
+> simpler.
 
-  Regards
- zhongjiang
-> Thanks,
->
-> 	tglx
->
->
-> .
->
- 
+It also turns out that despite all the interfaces, we only really ever
+wait on two different bits: PG_locked and PG_writeback. Nothing else.
+
+Even the add_page_wait_queue() thing, which looks oh-so-generic,
+really only waits on PG_locked.
+
+And the PG_writeback case never really cares for the "locked" case, so
+this incredibly generic interface that allows you to wait on any bit
+you want, and has the whole exclusive wait support for getting
+exclusive access to the bit really only has three cases:
+
+ - wait for locked exclusive (wake up first waiter when unlocked)
+
+ - wait for locked (wake up all waiters when unlocked)
+
+ - wait for writeback (wake up all waiters when no longer under writeback)
+
+and those last two could probably even share the same queue.
+
+But even without sharing the same queue, we could just do a per-page
+allocation for the three queues - and probably that stupiud
+add_page_wait_queue() waitqueue too. So no "per-page and per-bit"
+thing, just a per-page thing.
+
+I'll try writing that up.
+
+Simplify, simplify, simplify.
+
+               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
