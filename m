@@ -1,98 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ADC8D6810D7
-	for <linux-mm@kvack.org>; Sat, 26 Aug 2017 00:11:48 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id y14so2287882wrd.3
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 21:11:48 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v16si6446929wrg.456.2017.08.25.21.11.46
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BF0D56810D7
+	for <linux-mm@kvack.org>; Sat, 26 Aug 2017 03:47:06 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id g23so2759837wrg.4
+        for <linux-mm@kvack.org>; Sat, 26 Aug 2017 00:47:06 -0700 (PDT)
+Received: from mout.gmx.net (mout.gmx.net. [212.227.15.19])
+        by mx.google.com with ESMTPS id w19si4510617wra.295.2017.08.26.00.47.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 25 Aug 2017 21:11:46 -0700 (PDT)
-From: NeilBrown <neilb@suse.com>
-Date: Sat, 26 Aug 2017 14:11:33 +1000
-Subject: Re: [RFC PATCH] treewide: remove GFP_TEMPORARY allocation flag
-In-Reply-To: <20170825213936.GA13576@amd>
-References: <20170728091904.14627-1-mhocko@kernel.org> <20170823175709.GA22743@xo-6d-61-c0.localdomain> <20170825063545.GA25498@dhcp22.suse.cz> <20170825072818.GA15494@amd> <20170825080442.GF25498@dhcp22.suse.cz> <20170825213936.GA13576@amd>
-Message-ID: <87pobjhssq.fsf@notabene.neil.brown.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 26 Aug 2017 00:47:05 -0700 (PDT)
+Date: Sat, 26 Aug 2017 09:40:47 +0200
+From: Helge Deller <deller@gmx.de>
+Subject: Re: [PATCH v6 3/5] mm: introduce mmap3 for safely defining new mmap
+ flags
+Message-ID: <20170826074047.GA6292@ls3530.fritz.box>
+References: <150353211413.5039.5228914877418362329.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <150353213097.5039.6729469069608762658.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20170824165546.GA3121@infradead.org>
+ <CAPcyv4iN0QpUSgOUvisnNQsiV1Pp=4dh7CwAV8FFj=_rFU=aug@mail.gmail.com>
+ <20170825130011.GA30072@infradead.org>
+ <20170825155803.4km7wttzadfqw2vb@node.shutemov.name>
+ <20170825160236.GA2561@infradead.org>
+ <20170825161607.6v6beg4zjktllt2z@node.shutemov.name>
+ <4de21e8d-5e10-ec40-c731-0c079953cf48@gmx.de>
+ <CAPcyv4jeZc8P+E0aHNChzy-wfNpOx3GehKck1nXqJ1b9JdydFA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-=";
-	micalg=pgp-sha256; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4jeZc8P+E0aHNChzy-wfNpOx3GehKck1nXqJ1b9JdydFA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Neil Brown <neilb@suse.de>, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Helge Deller <deller@gmx.de>, "Kirill A. Shutemov" <kirill@shutemov.name>, Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-parisc@vger.kernel.org
 
---=-=-=
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+* Dan Williams <dan.j.williams@intel.com>:
+> On Fri, Aug 25, 2017 at 9:19 AM, Helge Deller <deller@gmx.de> wrote:
+> > On 25.08.2017 18:16, Kirill A. Shutemov wrote:
+> >> On Fri, Aug 25, 2017 at 09:02:36AM -0700, Christoph Hellwig wrote:
+> >>> On Fri, Aug 25, 2017 at 06:58:03PM +0300, Kirill A. Shutemov wrote:
+> >>>> Not all archs are ready for this:
+> >>>>
+> >>>> arch/parisc/include/uapi/asm/mman.h:#define MAP_TYPE    0x03            /* Mask for type of mapping */
+> >>>> arch/parisc/include/uapi/asm/mman.h:#define MAP_FIXED   0x04            /* Interpret addr exactly */
+> >>>
+> >>> I'd be happy to say that we should not care about parisc for
+> >>> persistent memory.  We'll just have to find a way to exclude
+> >>> parisc without making life too ugly.
+> >>
+> >> I don't think creapling mmap() interface for one arch is the right way to
+> >> go. I think the interface should be universal.
+> >>
+> >> I may imagine MAP_DIRECT can be useful not only for persistent memory.
+> >> For tmpfs instead of mlock()?
+> >
+> > On parisc we have
+> > #define MAP_SHARED      0x01            /* Share changes */
+> > #define MAP_PRIVATE     0x02            /* Changes are private */
+> > #define MAP_TYPE        0x03            /* Mask for type of mapping */
+> > #define MAP_FIXED       0x04            /* Interpret addr exactly */
+> > #define MAP_ANONYMOUS   0x10            /* don't use a file */
+> >
+> > So, if you need a MAP_DIRECT, wouldn't e.g.
+> > #define MAP_DIRECT      0x08
+> > be possible (for parisc, and others 0x04).
+> > And if MAP_TYPE needs to include this flag on parisc:
+> > #define MAP_TYPE        (0x03 | 0x08)  /* Mask for type of mapping */
+> 
+> The problem here is that to support new the mmap flags the arch needs
+> to find a flag that is guaranteed to fail on older kernels. Defining
+> MAP_DIRECT to 0x8 on parisc doesn't work because it will simply be
+> ignored on older parisc kernels.
+> 
+> However, it's already the case that several archs have their own
+> sys_mmap entry points. Those archs that can't follow the common scheme
+> (only parsic it seems) will need to add a new mmap syscall. I think
+> that's a reasonable tradeoff to allow every other architecture to add
+> this support with their existing mmap syscall paths.
 
-On Fri, Aug 25 2017, Pavel Machek wrote:
+I don't want other architectures to suffer just because of parisc.
+But adding a new syscall just for usage on parisc won't work either,
+because nobody will add code to call it then.
+ 
+> That means MAP_DIRECT should be defined to MAP_TYPE on parisc until it
+> later defines an opt-in mechanism to a new syscall that honors
+> MAP_DIRECT as a valid flag.
 
-> On Fri 2017-08-25 10:04:42, Michal Hocko wrote:
->> On Fri 25-08-17 09:28:19, Pavel Machek wrote:
->> > On Fri 2017-08-25 08:35:46, Michal Hocko wrote:
->> > > On Wed 23-08-17 19:57:09, Pavel Machek wrote:
->> [...]
->> > > > Dunno. < 1msec probably is temporary, 1 hour probably is not. If i=
-t causes
->> > > > problems, can you just #define GFP_TEMPORARY GFP_KERNEL ? Treewide=
- replace,
->> > > > and then starting again goes not look attractive to me.
->> > >=20
->> > > I do not think we want a highlevel GFP_TEMPORARY without any meaning.
->> > > This just supports spreading the flag usage without a clear semantic
->> > > and it will lead to even bigger mess. Once we can actually define wh=
-at
->> > > the flag means we can also add its users based on that new semantic.
->> >=20
->> > It has real meaning.
->>=20
->> Which is?
->
-> "This allocation is temporary. It lasts milliseconds, not hours."
+I'd instead propose to to introduce an ABI breakage for parisc users
+(which aren't many). Most parisc users update their kernel regularily
+anyway, because we fixed so many bugs in the latest kernel.
 
-It isn't sufficient to give a rule for when GFP_TEMPORARY will be used,
-you also need to explain (at least in general terms) how the information
-will be used.  Also you need to give guidelines on whether the flag
-should be set for allocation that will last seconds or minutes.
+With the following patch pushed down to the stable kernel series,
+MAP_DIRECT will fail as expected on those kernels, while we can
+keep parisc up with current developments regarding MAP_DIRECT.
 
-If we have a flag that doesn't have a well defined meaning that actually
-affects behavior, it will not be used consistently, and if we ever
-change exactly how it behaves we can expect things to break.  So it is
-better not to have a flag, than to have a poorly defined flag.
+diff --git a/arch/parisc/include/uapi/asm/mman.h b/arch/parisc/include/uapi/asm/mman.h
+index 9a9c2fe..43b9a1e 100644
+--- a/arch/parisc/include/uapi/asm/mman.h
++++ b/arch/parisc/include/uapi/asm/mman.h
+@@ -13,6 +13,7 @@
+ #define MAP_PRIVATE	0x02		/* Changes are private */
+ #define MAP_TYPE	0x03		/* Mask for type of mapping */
+ #define MAP_FIXED	0x04		/* Interpret addr exactly */
++#define MAP_DIRECT	0x08		/* Interpret addr exactly */
+ #define MAP_ANONYMOUS	0x10		/* don't use a file */
+ 
+ #define MAP_DENYWRITE	0x0800		/* ETXTBSY */
+diff --git a/arch/parisc/kernel/sys_parisc.c b/arch/parisc/kernel/sys_parisc.c
+index 378a754..0499f87 100644
+--- a/arch/parisc/kernel/sys_parisc.c
++++ b/arch/parisc/kernel/sys_parisc.c
+@@ -270,6 +270,10 @@ asmlinkage unsigned long sys_mmap2(unsigned long addr, unsigned long len,
+ {
+ 	/* Make sure the shift for mmap2 is constant (12), no matter what PAGE_SIZE
+ 	   we have. */
++#if !defined(CONFIG_HAVE_MAP_DIRECT_SUPPORT)
++	if (flags & MAP_DIRECT)
++		return -EINVAL;
++#endif
+ 	return sys_mmap_pgoff(addr, len, prot, flags, fd,
+ 			      pgoff >> (PAGE_SHIFT - 12));
+ }
+@@ -278,6 +282,10 @@ asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
+ 		unsigned long prot, unsigned long flags, unsigned long fd,
+ 		unsigned long offset)
+ {
++#if !defined(CONFIG_HAVE_MAP_DIRECT_SUPPORT)
++	if (flags & MAP_DIRECT)
++		return -EINVAL;
++#endif
+ 	if (!(offset & ~PAGE_MASK)) {
+ 		return sys_mmap_pgoff(addr, len, prot, flags, fd,
+ 					offset >> PAGE_SHIFT);
 
-My current thoughts is that the important criteria is not how long the
-allocation will be used for, but whether it is reclaimable.  Allocations
-that will only last 5 msecs are reclaimable by calling "usleep(5000)".
-Other allocations might be reclaimable in other ways.  Allocations that
-are not reclaimable may well be directed to a more restricted pool of
-memory, and might be more likely to fail.  If we grew a strong
-"reclaimable" concept, this 'temporary' concept that you want to hold on
-to would become a burden.
 
-NeilBrown
-
---=-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEG8Yp69OQ2HB7X0l6Oeye3VZigbkFAlmg9PcACgkQOeye3VZi
-gbnK5w/9EFiM/vufiuEborcv/va48Ho01Xtn7ftlb/cUbUZq54NlcB5Q1Gku3xci
-VEoRvQS1hUo3s8wAVOTWVKL/Q9d2MYl05CWNp7wk2WRdScI2/yT5WsfpNbAEc507
-MiFFnZPV4iqCpKFghNJNZ44HYJYioSkLROP+9znnrDAHl9gbTsRwYJF59PtG3iua
-lC6SwEnmL0n/AyERnMJJCSNl/1puQeI6Gs8mOYN9p6d2XlQoSyRkGfteih847udC
-nV/pqS7xizZtCGX8SZNcATcKeCXvAH4oH4cw9CioxuKgxqTKZQoc2GB2Y+HSgTaT
-+l4idps3j2xF/y3hsDWR+gN/FSntzMtOCeK9iom/cYG2+E234ON94TecYv95qo06
-Sefqy4Sq4CGlI3hfH3c+nWiQOVF7HD2JPia/uEmcf9YDW5SLKelHxEiwlWbWHMEL
-yQCXtai3Ydh8qbY+1YSvOP9Ta9MuFku6D2Zhzx0yxUSEnI+dITrtlC2TRMHRMB5J
-crJQMgkxbSJVkomShEGujecMvzqFizKVVmzG6Y+2REw4eMV3f8f5kTrRn1p4jW8Y
-U83y0z10RuL/O6uedD09Pp5W62M8zFMPHJugAcE8dXBLplDDDlUQpmZ/xSqIgCTT
-2k//4RBV4m8B7cTURON6qJqPHZZfPtzx1zFqgifypvw8r++Id1w=
-=oCgK
------END PGP SIGNATURE-----
---=-=-=--
+Helge
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
