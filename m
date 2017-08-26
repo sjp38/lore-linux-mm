@@ -1,51 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B33BD6810D7
-	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 20:31:54 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id 4so2048556oie.8
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 17:31:54 -0700 (PDT)
-Received: from mail-oi0-x244.google.com (mail-oi0-x244.google.com. [2607:f8b0:4003:c06::244])
-        by mx.google.com with ESMTPS id g5si6252127oif.82.2017.08.25.17.31.53
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E3156810D7
+	for <linux-mm@kvack.org>; Fri, 25 Aug 2017 21:28:29 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id v123so2209027oif.11
+        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 18:28:29 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id a62si6232188oif.90.2017.08.25.18.28.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Aug 2017 17:31:53 -0700 (PDT)
-Received: by mail-oi0-x244.google.com with SMTP id d66so833372oib.3
-        for <linux-mm@kvack.org>; Fri, 25 Aug 2017 17:31:53 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CA+55aFx67j0u=GNRKoCWpsLRDcHdrjfVvWRS067wLUSfzstgoQ@mail.gmail.com>
-References: <83f675ad385d67760da4b99cd95ee912ca7c0b44.1503677178.git.tim.c.chen@linux.intel.com>
- <cd8ce7fbca9c126f7f928b8fa48d7a9197955b45.1503677178.git.tim.c.chen@linux.intel.com>
- <CA+55aFyErsNw8bqTOCzcrarDZBdj+Ev=1N3sV-gxtLTH03bBFQ@mail.gmail.com>
- <f10f4c25-49c0-7ef5-55c2-769c8fd9bf90@linux.intel.com> <CA+55aFzNikMsuPAaExxT1Z8MfOeU6EhSn6UPDkkz-MRqamcemg@mail.gmail.com>
- <CA+55aFx67j0u=GNRKoCWpsLRDcHdrjfVvWRS067wLUSfzstgoQ@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 25 Aug 2017 17:31:52 -0700
-Message-ID: <CA+55aFzy981a8Ab+89APi6Qnb9U9xap=0A6XNc+wZsAWngWPzA@mail.gmail.com>
-Subject: Re: [PATCH 2/2 v2] sched/wait: Introduce lock breaker in wake_up_page_bit
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 25 Aug 2017 18:28:28 -0700 (PDT)
+Subject: Re: [PATCH 1/2] mm,page_alloc: Don't call __node_reclaim() with oom_lock held.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1503577106-9196-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20170825134714.844d9fb169e5b1883c3dd6eb@linux-foundation.org>
+In-Reply-To: <20170825134714.844d9fb169e5b1883c3dd6eb@linux-foundation.org>
+Message-Id: <201708261028.HBH81733.HOtQJLMVFOFFOS@I-love.SAKURA.ne.jp>
+Date: Sat, 26 Aug 2017 10:28:24 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Kan Liang <kan.liang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Christopher Lameter <cl@linux.com>, "Eric W . Biederman" <ebiederm@xmission.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, mgorman@suse.de, mhocko@suse.com, vbabka@suse.cz
 
-On Fri, Aug 25, 2017 at 4:03 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> Let this be a lesson in just *how* little tested, and *how* crap that
-> patch probably still is.
+Andrew Morton wrote:
+> On Thu, 24 Aug 2017 21:18:25 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
+> 
+> > We are doing last second memory allocation attempt before calling
+> > out_of_memory(). But since slab shrinker functions might indirectly
+> > wait for other thread's __GFP_DIRECT_RECLAIM && !__GFP_NORETRY memory
+> > allocations via sleeping locks, calling slab shrinker functions from
+> > node_reclaim() from get_page_from_freelist() with oom_lock held has
+> > possibility of deadlock. Therefore, make sure that last second memory
+> > allocation attempt does not call slab shrinker functions.
+> 
+> I wonder if there's any way we could gert lockdep to detect this sort
+> of thing.
 
-I haven't had time to look at it any more (trying to merge the pull
-requests that came in today instead), but the more I think about it,
-the more I think it was a mistake to do that page_wait_struct
-allocation on the stack.
+That is hopeless regarding MM subsystem.
 
-It made it way more fragile and complicated, having to rewrite things
-so carefully. A simple slab cache would likely be a lot cleaner and
-simpler.
+The root problem is that MM subsystem assumes that somebody else shall make
+progress for me. And direct reclaim does not check for other thread's progress
+(e.g. too_many_isolated() looping forever waiting for kswapd) and continue
+consuming CPU resource (e.g. deprive a thread doing schedule_timeout_killable()
+with oom_lock held of all CPU time for doing pointless get_page_from_freelist()
+etc.).
 
-So even if that thing can be made to work, it's probably not worth the pain.
+Since the page allocator chooses retry the attempt rather than wait for locks,
+lockdep won't help. The dependency is spreaded to all threads with timing and
+threshold checks, preventing threads from calling operations which lockdep
+will detect.
 
-               Linus
+I do wish we can get rid of __GFP_DIRECT_RECLAIM and offload memory reclaim
+operation to some kswapd-like kernel threads. Then, we would be able to check
+progress of relevant threads and invoke the OOM killer as needed (rather than
+doing __GFP_FS check in out_of_memory()), as well as implementing __GFP_KILLABLE.
+
+> 
+> Has the deadlock been observed in testing?  Do we think this fix
+> should be backported into -stable?
+
+I have never observed this deadlock, but it is hard for everybody to know
+if he/she hit this deadlock. The only clue which is available since 4.9+
+(though still unreliable) is warn_alloc() complaining memory allocation is
+stalling for some reason. For users using 2.6.18/2.6.32/3.10 kernels, they
+have absolutely no clue to know it (other than using SysRq-t etc. which is
+generating too much messages and asking for too much efforts).
+
+Judging from my experience at a support center, it is too difficult for users
+to report memory allocation hangs. It requires users to stand by in front of
+the console twenty-four seven so that we get SysRq-t etc. whenever a memory
+allocation related problem is suspected. We can't ask users for such effort.
+There is no report does not mean memory allocation hang is not occurring in
+the real life. But nobody (other than me) is interested in adding asynchronous
+watchdog like kmallocwd. Thus, I'm spending much effort for finding potential
+lockup bugs using stress tests, and Michal do not care bugs which are found by
+stress tests, and nobody else are responding, and users do not have a reliable
+mean to report lockup bugs caused by memory allocation (e.g. kmallocwd).
+
+Sigh.....
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
