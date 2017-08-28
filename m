@@ -1,90 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AD07F6B02B4
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 04:32:00 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id v2so4359164wmd.9
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 01:32:00 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i12si3982309wrc.474.2017.08.28.01.31.59
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DDCA66B025F
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 05:33:50 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 34so9716251wrb.9
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 02:33:50 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id u6si12959904edj.468.2017.08.28.02.33.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 28 Aug 2017 01:31:59 -0700 (PDT)
-Date: Mon, 28 Aug 2017 10:31:57 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Aug 2017 02:33:49 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id e67so6447685wmd.0
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 02:33:49 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mmotm 2017-08-25-15-50 uploaded
-Message-ID: <20170828083157.GE17097@dhcp22.suse.cz>
-References: <59a0a9d1.jzOblYrHfdIDuDZw%akpm@linux-foundation.org>
- <3c9df006-0cc5-3a32-b715-1fbb43cb9ea8@infradead.org>
- <20170828075931.GC17097@dhcp22.suse.cz>
- <20170828182705.150afe66@canb.auug.org.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170828182705.150afe66@canb.auug.org.au>
+Subject: [PATCH] mm, memory_hotplug: do not back off draining pcp free pages from kworker context
+Date: Mon, 28 Aug 2017 11:33:41 +0200
+Message-Id: <20170828093341.26341-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Randy Dunlap <rdunlap@infradead.org>, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, broonie@kernel.org, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Mon 28-08-17 18:27:05, Stephen Rothwell wrote:
-> Hi Michal,
-> 
-> On Mon, 28 Aug 2017 09:59:31 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > From 31d551dbcb1b7987a4cd07767c1e2805849b7a26 Mon Sep 17 00:00:00 2001
-> > From: Michal Hocko <mhocko@suse.com>
-> > Date: Mon, 28 Aug 2017 09:41:39 +0200
-> > Subject: [PATCH] 
-> >  mm-hmm-struct-hmm-is-only-use-by-hmm-mirror-functionality-v2-fix
-> > 
-> > Compiler is complaining for allnoconfig
-> > 
-> > kernel/fork.c: In function 'mm_init':
-> > kernel/fork.c:814:2: error: implicit declaration of function 'hmm_mm_init' [-Werror=implicit-function-declaration]
-> >   hmm_mm_init(mm);
-> >   ^
-> > kernel/fork.c: In function '__mmdrop':
-> > kernel/fork.c:893:2: error: implicit declaration of function 'hmm_mm_destroy' [-Werror=implicit-function-declaration]
-> >   hmm_mm_destroy(mm);
-> > 
-> > Make sure that hmm_mm_init/hmm_mm_destroy empty stups are defined when
-> > CONFIG_HMM is disabled.
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > ---
-> >  include/linux/hmm.h | 7 +++----
-> >  1 file changed, 3 insertions(+), 4 deletions(-)
-> > 
-> > diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> > index 9583d9a15f9c..aeb94e682dda 100644
-> > --- a/include/linux/hmm.h
-> > +++ b/include/linux/hmm.h
-> > @@ -508,11 +508,10 @@ static inline void hmm_mm_init(struct mm_struct *mm)
-> >  {
-> >  	mm->hmm = NULL;
-> >  }
-> > -#else /* IS_ENABLED(CONFIG_HMM_MIRROR) */
-> > +#endif
-> > +
-> > +#else /* IS_ENABLED(CONFIG_HMM) */
-> >  static inline void hmm_mm_destroy(struct mm_struct *mm) {}
-> >  static inline void hmm_mm_init(struct mm_struct *mm) {}
-> > -#endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
-> > -
-> > -
-> >  #endif /* IS_ENABLED(CONFIG_HMM) */
-> >  #endif /* LINUX_HMM_H */
-> 
-> What happens when CONFIG_HMM is defined but CONFIG_HMM_MIRROR is not?
-> Or is that not possible (in which case why would we have
-> CONFIG_HMM_MIRROR)? 
+From: Michal Hocko <mhocko@suse.com>
 
-This is something to Jerome to answer but hmm_mm_init/hmm_mm_destroy are
-used regardless of the specific HMM configuration so an empty stub
-should be defined unconditionally AFAIU.
+drain_all_pages backs off when called from a kworker context since
+0ccce3b924212 ("mm, page_alloc: drain per-cpu pages from workqueue
+context") because the original IPI based pcp draining has been replaced
+by a WQ based one and the check wanted to prevent from recursion and
+inter workers dependencies. This has made some sense at the time
+because the system WQ has been used and one worker holding the lock
+could be blocked while waiting for new workers to emerge which can be a
+problem under OOM conditions.
+
+Since then ce612879ddc7 ("mm: move pcp and lru-pcp draining into single
+wq") has moved draining to a dedicated (mm_percpu_wq) WQ with a rescuer
+so we shouldn't depend on any other WQ activity to make a forward
+progress so calling drain_all_pages from a worker context is safe as
+long as this doesn't happen from mm_percpu_wq itself which is not the
+case because all workers are required to _not_ depend on any MM locks.
+
+Why is this a problem in the first place? ACPI driven memory hot-remove
+(acpi_device_hotplug) is executed from the worker context. We end
+up calling __offline_pages to free all the pages and that requires
+both lru_add_drain_all_cpuslocked and drain_all_pages to do their job
+otherwise we can have dangling pages on pcp lists and fail the offline
+operation (__test_page_isolated_in_pageblock would see a page with 0
+ref. count but without PageBuddy set).
+
+Fix the issue by removing the worker check in drain_all_pages.
+lru_add_drain_all_cpuslocked doesn't have this restriction so it works
+as expected.
+
+Fixes: 0ccce3b924212 ("mm, page_alloc: drain per-cpu pages from workqueue context")
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+
+ mm/page_alloc.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ffead2159001..a94e1847bb0d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2477,10 +2477,6 @@ void drain_all_pages(struct zone *zone)
+ 	if (WARN_ON_ONCE(!mm_percpu_wq))
+ 		return;
+ 
+-	/* Workqueues cannot recurse */
+-	if (current->flags & PF_WQ_WORKER)
+-		return;
+-
+ 	/*
+ 	 * Do not drain if one is already in progress unless it's specific to
+ 	 * a zone. Such callers are primarily CMA and memory hotplug and need
 -- 
-Michal Hocko
-SUSE Labs
+2.13.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
