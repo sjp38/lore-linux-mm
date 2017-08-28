@@ -1,96 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C4AB26B025F
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 09:08:33 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id n37so611301wrf.8
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 06:08:33 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F2606B025F
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 09:13:31 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id v4so656293wrc.3
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 06:13:31 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f66si256055wmd.163.2017.08.28.06.08.31
+        by mx.google.com with ESMTPS id w10si296929wre.193.2017.08.28.06.13.30
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 28 Aug 2017 06:08:32 -0700 (PDT)
-Date: Mon, 28 Aug 2017 15:08:29 +0200
+        Mon, 28 Aug 2017 06:13:30 -0700 (PDT)
+Date: Mon, 28 Aug 2017 15:13:28 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm/slub: don't use reserved highatomic pageblock for
- optimistic try
-Message-ID: <20170828130829.GL17097@dhcp22.suse.cz>
-References: <1503882675-17910-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1503882675-17910-2-git-send-email-iamjoonsoo.kim@lge.com>
- <b50bd39f-931f-7016-f380-62d65babb03f@suse.cz>
+Subject: Re: [PATCH 1/1] mm: only dispaly online cpus of the numa node
+Message-ID: <20170828131328.GM17097@dhcp22.suse.cz>
+References: <1497962608-12756-1-git-send-email-thunder.leizhen@huawei.com>
+ <20170824083225.GA5943@dhcp22.suse.cz>
+ <20170825173433.GB26878@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <b50bd39f-931f-7016-f380-62d65babb03f@suse.cz>
+In-Reply-To: <20170825173433.GB26878@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Zhen Lei <thunder.leizhen@huawei.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-api <linux-api@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm <linux-mm@kvack.org>, Zefan Li <lizefan@huawei.com>, Xinwei Hu <huxinwei@huawei.com>, Tianhong Ding <dingtianhong@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Catalin Marinas <catalin.marinas@arm.com>
 
-On Mon 28-08-17 13:29:29, Vlastimil Babka wrote:
-> On 08/28/2017 03:11 AM, js1304@gmail.com wrote:
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Fri 25-08-17 18:34:33, Will Deacon wrote:
+> On Thu, Aug 24, 2017 at 10:32:26AM +0200, Michal Hocko wrote:
+> > It seems this has slipped through cracks. Let's CC arm64 guys
 > > 
-> > High-order atomic allocation is difficult to succeed since we cannot
-> > reclaim anything in this context. So, we reserves the pageblock for
-> > this kind of request.
+> > On Tue 20-06-17 20:43:28, Zhen Lei wrote:
+> > > When I executed numactl -H(which read /sys/devices/system/node/nodeX/cpumap
+> > > and display cpumask_of_node for each node), but I got different result on
+> > > X86 and arm64. For each numa node, the former only displayed online CPUs,
+> > > and the latter displayed all possible CPUs. Unfortunately, both Linux
+> > > documentation and numactl manual have not described it clear.
+> > > 
+> > > I sent a mail to ask for help, and Michal Hocko <mhocko@kernel.org> replied
+> > > that he preferred to print online cpus because it doesn't really make much
+> > > sense to bind anything on offline nodes.
 > > 
-> > In slub, we try to allocate higher-order page more than it actually
-> > needs in order to get the best performance. If this optimistic try is
-> > used with GFP_ATOMIC, alloc_flags will be set as ALLOC_HARDER and
-> > the pageblock reserved for high-order atomic allocation would be used.
-> > Moreover, this request would reserve the MIGRATE_HIGHATOMIC pageblock
-> > ,if succeed, to prepare further request. It would not be good to use
-> > MIGRATE_HIGHATOMIC pageblock in terms of fragmentation management
-> > since it unconditionally set a migratetype to request's migratetype
-> > when unreserving the pageblock without considering the migratetype of
-> > used pages in the pageblock.
+> > Yes printing offline CPUs is just confusing and more so when the
+> > behavior is not consistent over architectures. I believe that x86
+> > behavior is the more appropriate one because it is more logical to dump
+> > the NUMA topology and use it for affinity setting than adding one
+> > additional step to check the cpu state to achieve the same.
 > > 
-> > This is not what we don't intend so fix it by unconditionally setting
-> > __GFP_NOMEMALLOC in order to not set ALLOC_HARDER.
+> > It is true that the online/offline state might change at any time so the
+> > above might be tricky on its own but if we should at least make the
+> > behavior consistent.
+> > 
+> > > Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
+> > 
+> > Acked-by: Michal Hocko <mhocko@suse.com>
 > 
-> I wonder if it would be more robust to strip GFP_ATOMIC from alloc_gfp.
-> E.g. __GFP_NOMEMALLOC does seem to prevent ALLOC_HARDER, but not
-> ALLOC_HIGH. Or maybe we should adjust __GFP_NOMEMALLOC implementation
-> and document it more thoroughly? CC Michal Hocko
+> The concept looks find to me, but shouldn't we use cpumask_var_t and
+> alloc/free_cpumask_var?
 
-Yeah, __GFP_NOMEMALLOC is rather inconsistent. It has been added to
-override __GFP_MEMALLOC resp. PF_MEMALLOC AFAIK. In this particular
-case I would agree that dropping __GFP_HIGH and __GFP_ATOMIC would
-be more precise. I am not sure we want to touch the existing semantic of
-__GFP_NOMEMALLOC though. This would require auditing all the existing
-users (something tells me that quite some of those will be incorrect...)
+This will be safer but both callers of node_read_cpumap are shallow
+stack so I am not sure a stack is a limiting factor here.
 
-> Also, were these 2 patches done via code inspection or you noticed
-> suboptimal behavior which got fixed? Thanks.
-
-The patch description is not very clear to me either but I guess that
-Joonsoo sees to many larger order pages to back slab objects when the
-system is not under heavy memory pressure and that increases internal
-fragmentation?
-
-> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > ---
-> >  mm/slub.c | 6 ++----
-> >  1 file changed, 2 insertions(+), 4 deletions(-)
-> > 
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > index e1e442c..fd8dd89 100644
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -1579,10 +1579,8 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
-> >  	 */
-> >  	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
-> >  	if (oo_order(oo) > oo_order(s->min)) {
-> > -		if (alloc_gfp & __GFP_DIRECT_RECLAIM) {
-> > -			alloc_gfp |= __GFP_NOMEMALLOC;
-> > -			alloc_gfp &= ~__GFP_DIRECT_RECLAIM;
-> > -		}
-> > +		alloc_gfp |= __GFP_NOMEMALLOC;
-> > +		alloc_gfp &= ~__GFP_DIRECT_RECLAIM;
-> >  	}
-> >  
-> >  	page = alloc_slab_page(s, alloc_gfp, node, oo);
-> > 
+Zhen Lei, would you care to update that part please?
 
 -- 
 Michal Hocko
