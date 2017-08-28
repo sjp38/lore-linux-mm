@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 764946B0292
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 04:10:03 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 136so8433558wmm.11
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 01:10:03 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 551F36B025F
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 04:13:48 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id p77so9463885wrb.10
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 01:13:48 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id c14si10191961wrd.117.2017.08.28.01.10.01
+        by mx.google.com with ESMTPS id i25si4263341wrc.405.2017.08.28.01.13.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Aug 2017 01:10:02 -0700 (PDT)
+        Mon, 28 Aug 2017 01:13:46 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.12 76/99] x86/mm: Fix use-after-free of ldt_struct
-Date: Mon, 28 Aug 2017 10:05:14 +0200
-Message-Id: <20170828080459.293475106@linuxfoundation.org>
-In-Reply-To: <20170828080455.968552605@linuxfoundation.org>
-References: <20170828080455.968552605@linuxfoundation.org>
+Subject: [PATCH 4.9 60/84] x86/mm: Fix use-after-free of ldt_struct
+Date: Mon, 28 Aug 2017 10:05:25 +0200
+Message-Id: <20170828080531.898990623@linuxfoundation.org>
+In-Reply-To: <20170828080529.526391781@linuxfoundation.org>
+References: <20170828080529.526391781@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -22,7 +22,7 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Eric Biggers <ebiggers@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Christoph Hellwig <hch@lst.de>, Denys Vlasenko <dvlasenk@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-4.12-stable review patch.  If anyone has any objections, please let me know.
+4.9-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
