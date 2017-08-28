@@ -1,99 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EACA6B03AB
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 01:17:58 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id t124so4323579oih.11
-        for <linux-mm@kvack.org>; Sun, 27 Aug 2017 22:17:58 -0700 (PDT)
-Received: from mail-it0-x236.google.com (mail-it0-x236.google.com. [2607:f8b0:4001:c0b::236])
-        by mx.google.com with ESMTPS id p63si9764453oib.182.2017.08.27.22.17.56
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5852F6B025F
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 02:45:11 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id a47so9258455wra.0
+        for <linux-mm@kvack.org>; Sun, 27 Aug 2017 23:45:11 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n17si10078687wrf.252.2017.08.27.23.45.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Aug 2017 22:17:56 -0700 (PDT)
-Received: by mail-it0-x236.google.com with SMTP id f1so12582926ith.0
-        for <linux-mm@kvack.org>; Sun, 27 Aug 2017 22:17:56 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 27 Aug 2017 23:45:09 -0700 (PDT)
+Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
+ ZONE_MOVABLE request
+References: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <e919c65e-bc2f-6b3b-41fc-3589590a84ac@suse.cz>
+ <20170825002031.GD29701@js1304-P5Q-DELUXE>
+ <d57eeb5c-d91d-9718-8473-3c6db465b154@suse.cz>
+ <20170828002857.GB9167@js1304-P5Q-DELUXE>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <78dd0160-14e8-22a6-bd10-d37bbd39f77b@suse.cz>
+Date: Mon, 28 Aug 2017 08:45:07 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170828112959.05622961@roar.ozlabs.ibm.com>
-References: <83f675ad385d67760da4b99cd95ee912ca7c0b44.1503677178.git.tim.c.chen@linux.intel.com>
- <cd8ce7fbca9c126f7f928b8fa48d7a9197955b45.1503677178.git.tim.c.chen@linux.intel.com>
- <CA+55aFyErsNw8bqTOCzcrarDZBdj+Ev=1N3sV-gxtLTH03bBFQ@mail.gmail.com>
- <f10f4c25-49c0-7ef5-55c2-769c8fd9bf90@linux.intel.com> <CA+55aFzNikMsuPAaExxT1Z8MfOeU6EhSn6UPDkkz-MRqamcemg@mail.gmail.com>
- <CA+55aFx67j0u=GNRKoCWpsLRDcHdrjfVvWRS067wLUSfzstgoQ@mail.gmail.com>
- <CA+55aFzy981a8Ab+89APi6Qnb9U9xap=0A6XNc+wZsAWngWPzA@mail.gmail.com>
- <CA+55aFwyCSh1RbJ3d5AXURa4_r5OA_=ZZKQrFX0=Z1J3ZgVJ5g@mail.gmail.com>
- <CA+55aFy18WCqZGwkxH6dTZR9LD9M5nXWqEN8DBeZ4LvNo4Y0BQ@mail.gmail.com>
- <CA+55aFx0NjiHM5Aw0N7xDwRcnHOiaceV2iYuGOU1uM3FUyf+Lg@mail.gmail.com>
- <CA+55aFwuyqm6xMmS0PdjDZbgrXTiXkH+cGua=npXLaEnzOUGjw@mail.gmail.com>
- <20170828111648.22f81bc5@roar.ozlabs.ibm.com> <20170828112959.05622961@roar.ozlabs.ibm.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sun, 27 Aug 2017 22:17:55 -0700
-Message-ID: <CA+55aFy0WnCeR-WaBQFtsvES1zJpR8BHRRL3aTrwQrUQbFq0fQ@mail.gmail.com>
-Subject: Re: [PATCH 2/2 v2] sched/wait: Introduce lock breaker in wake_up_page_bit
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20170828002857.GB9167@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Kan Liang <kan.liang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Christopher Lameter <cl@linux.com>, "Eric W . Biederman" <ebiederm@xmission.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
 
-On Sun, Aug 27, 2017 at 6:29 PM, Nicholas Piggin <npiggin@gmail.com> wrote:
->
-> BTW. since you are looking at this stuff, one other small problem I remember
-> with exclusive waiters is that losing to a concurrent locker puts them to
-> the back of the queue. I think that could be fixed with some small change to
-> the wait loops (first add to tail, then retries add to head). Thoughts?
++CC linux-api
 
-No, not that way.
+On 08/28/2017 02:28 AM, Joonsoo Kim wrote:
+> On Fri, Aug 25, 2017 at 09:56:10AM +0200, Vlastimil Babka wrote:
+>> On 08/25/2017 02:20 AM, Joonsoo Kim wrote:
+>>> On Thu, Aug 24, 2017 at 11:41:58AM +0200, Vlastimil Babka wrote:
+>>>
+>>> Hmm, this is already pointed by Minchan and I have answered that.
+>>>
+>>> lkml.kernel.org/r/<20170421013243.GA13966@js1304-desktop>
+>>>
+>>> If you have a better idea, please let me know.
+>>
+>> My idea is that size of sysctl_lowmem_reserve_ratio is ZONE_NORMAL+1 and
+>> it has no entries for zones > NORMAL. The
+>> setup_per_zone_lowmem_reserve() is adjusted to only set
+>> lower_zone->lowmem_reserve[j] for idx <= ZONE_NORMAL.
+>>
+>> I can't imagine somebody would want override the ratio for HIGHMEM or
+>> MOVABLE
+>> (where it has no effect anyway) so the simplest thing is not to expose
+>> it at all.
+> 
+> Seems reasonable. However, if there is a user who checks
+> sysctl_lowmem_reserve_ratio entry for HIGHMEM and change it, suggested
+> interface will cause a problem since it doesn't expose ratio for
+> HIGHMEM. Am I missing something?
 
-First off, it's oddly complicated, but more importantly, the real
-unfairness you lose to is not other things on the wait queue, but to
-other lockers that aren't on the wait-queue at all, but instead just
-come in and do a "test-and-set" without ever even going through the
-slow path.
+As you explained, it makes little sense to change it for HIGHMEM which
+only affects MOVABLE allocations. Also I doubt there are many systems
+with both HIGHMEM (implies 32bit) *and* MOVABLE (implies NUMA, memory
+hotplug...) zones. So I would just remove it, and if somebody will
+really miss it, we can always add it back. In any case, please CC
+linux-api on the next version.
 
-So instead of playing queuing games, you'd need to just change the
-unlock sequence. Right now we basically do:
-
- - clear lock bit and atomically test if contended (and we play games
-with bit numbering to do that atomic test efficiently)
-
- - if contended, wake things up
-
-and you'd change the logic to be
-
- - if contended, don't clear the lock bit at all, just transfer the
-lock ownership directly to the waiters by walking the wait list
-
- - clear the lock bit only once there are no more wait entries (either
-because there were no waiters at all, or because all the entries were
-just waiting for the lock to be released)
-
-which is certainly doable with a couple of small extensions to the
-page wait key data structure.
-
-But most of my clever schemes the last few days were abject failures,
-and honestly, it's late in the rc.
-
-In fact, this late in the game I probably wouldn't even have committed
-the small cleanups I did if it wasn't for the fact that thinking of
-the whole WQ_FLAG_EXCLUSIVE bit made me find the bug.
-
-So the cleanups were actually what got me to look at the problem in
-the first place, and then I went "I'm going to commit the cleanup, and
-then I can think about the bug I just found".
-
-I'm just happy that the fix seems to be trivial. I was afraid I'd have
-to do something nastier (like have the EINTR case send another
-explicit wakeup to make up for the lost one, or some ugly hack like
-that).
-
-It was only when I started looking at the history of that code, and I
-saw the old bit_lock code, and I went "Hmm. That has the _same_ bug -
-oh wait, no it doesn't!" that I realized that there was that simple
-fix.
-
-You weren't cc'd on the earlier part of the discussion, you only got
-added when I realized what the history and simple fix was.
-
-               Linus
+> Thanks.
+> 
+> 
+>>
+>>> Thanks.
+>>>
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
