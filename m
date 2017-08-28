@@ -1,126 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E1936B025F
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 04:09:30 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id q68so22081508pgq.11
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 01:09:30 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id 102si8903597pld.196.2017.08.28.01.09.28
-        for <linux-mm@kvack.org>;
-        Mon, 28 Aug 2017 01:09:28 -0700 (PDT)
-Date: Mon, 28 Aug 2017 17:09:25 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 1/2] mm: Track actual nr_scanned during shrink_slab()
-Message-ID: <20170828080925.GB6309@blaptop>
-References: <20170815153010.e3cfc177af0b2c0dc421b84c@linux-foundation.org>
- <20170822135325.9191-1-chris@chris-wilson.co.uk>
- <20170824051153.GB13922@bgram>
- <29aae2cd-85a8-f3c4-66e2-4d4f5a2732c1@suse.cz>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 764946B0292
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 04:10:03 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 136so8433558wmm.11
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 01:10:03 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id c14si10191961wrd.117.2017.08.28.01.10.01
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Aug 2017 01:10:02 -0700 (PDT)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.12 76/99] x86/mm: Fix use-after-free of ldt_struct
+Date: Mon, 28 Aug 2017 10:05:14 +0200
+Message-Id: <20170828080459.293475106@linuxfoundation.org>
+In-Reply-To: <20170828080455.968552605@linuxfoundation.org>
+References: <20170828080455.968552605@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <29aae2cd-85a8-f3c4-66e2-4d4f5a2732c1@suse.cz>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Chris Wilson <chris@chris-wilson.co.uk>, linux-mm@kvack.org, intel-gfx@lists.freedesktop.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Mel Gorman <mgorman@techsingularity.net>, Shaohua Li <shli@fb.com>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Eric Biggers <ebiggers@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Christoph Hellwig <hch@lst.de>, Denys Vlasenko <dvlasenk@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-Hi Vlastimil,
+4.12-stable review patch.  If anyone has any objections, please let me know.
 
-On Thu, Aug 24, 2017 at 10:00:49AM +0200, Vlastimil Babka wrote:
-> On 08/24/2017 07:11 AM, Minchan Kim wrote:
-> > Hello Chris,
-> > 
-> > On Tue, Aug 22, 2017 at 02:53:24PM +0100, Chris Wilson wrote:
-> >> Some shrinkers may only be able to free a bunch of objects at a time, and
-> >> so free more than the requested nr_to_scan in one pass.
-> 
-> Can such shrinkers reflect that in their shrinker->batch value? Or is it
-> unpredictable for each scan?
-> 
-> >> Whilst other
-> >> shrinkers may find themselves even unable to scan as many objects as
-> >> they counted, and so underreport. Account for the extra freed/scanned
-> >> objects against the total number of objects we intend to scan, otherwise
-> >> we may end up penalising the slab far more than intended. Similarly,
-> >> we want to add the underperforming scan to the deferred pass so that we
-> >> try harder and harder in future passes.
-> >>
-> >> v2: Andrew's shrinkctl->nr_scanned
-> >>
-> >> Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
-> >> Cc: Andrew Morton <akpm@linux-foundation.org>
-> >> Cc: Michal Hocko <mhocko@suse.com>
-> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> >> Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
-> >> Cc: Minchan Kim <minchan@kernel.org>
-> >> Cc: Vlastimil Babka <vbabka@suse.cz>
-> >> Cc: Mel Gorman <mgorman@techsingularity.net>
-> >> Cc: Shaohua Li <shli@fb.com>
-> >> Cc: linux-mm@kvack.org
-> >> ---
-> >>  include/linux/shrinker.h | 7 +++++++
-> >>  mm/vmscan.c              | 7 ++++---
-> >>  2 files changed, 11 insertions(+), 3 deletions(-)
-> >>
-> >> diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-> >> index 4fcacd915d45..51d189615bda 100644
-> >> --- a/include/linux/shrinker.h
-> >> +++ b/include/linux/shrinker.h
-> >> @@ -18,6 +18,13 @@ struct shrink_control {
-> >>  	 */
-> >>  	unsigned long nr_to_scan;
-> >>  
-> >> +	/*
-> >> +	 * How many objects did scan_objects process?
-> >> +	 * This defaults to nr_to_scan before every call, but the callee
-> >> +	 * should track its actual progress.
-> > 
-> > So, if shrinker scans object more than requested, it shoud add up
-> > top nr_scanned?
-> 
-> That sounds fair.
-> 
-> > opposite case, if shrinker scans less than requested, it should reduce
-> > nr_scanned to the value scanned real?
-> 
-> Unsure. If they can't scan more, the following attempt in the next
-> iteration should fail and thus result in SHRINK_STOP?
+------------------
 
-What should I do if I don't scan anything for some reasons on this iteration
-but don't want to stop by SHRINK_STOP because I expect I will scan them
-on next iteration? Return 1 on shrinker side? It doesn't make sense.
-nr_scanned represents for realy scan value so if shrinker doesn't scan
-anything but want to continue the scanning, it can return 0 and VM
-should take care of it to prevent infinite loop because shrinker's
-expectation can be wrong so it can make the system live-lock.
+From: Eric Biggers <ebiggers@google.com>
 
-> 
-> > To track the progress is burden for the shrinker users.
-> 
-> You mean shrinker authors, not users? AFAICS this nr_scanned is opt-in,
-> if they don't want to touch it, the default remains nr_to_scan.
+commit ccd5b3235180eef3cfec337df1c8554ab151b5cc upstream.
 
-I meant shrinker authors which is user for VM shrinker. :-D
+The following commit:
 
-Anyway, my point is that shrinker are already racy. IOW, the amount of
-objects in a shrinker can be changed between count_object and
-scan_object and I'm not sure such micro object tracking based on stale
-value will help a lot in every cases.
+  39a0526fb3f7 ("x86/mm: Factor out LDT init from context init")
 
-That means it could be broken interface without guarantee helping
-the system as expected.
+renamed init_new_context() to init_new_context_ldt() and added a new
+init_new_context() which calls init_new_context_ldt().  However, the
+error code of init_new_context_ldt() was ignored.  Consequently, if a
+memory allocation in alloc_ldt_struct() failed during a fork(), the
+->context.ldt of the new task remained the same as that of the old task
+(due to the memcpy() in dup_mm()).  ldt_struct's are not intended to be
+shared, so a use-after-free occurred after one task exited.
 
-However, with v1 from Chris, it's low hanging fruit to get without pain
-so that's why I wanted to merge v1 rather than v2.
+Fix the bug by making init_new_context() pass through the error code of
+init_new_context_ldt().
 
-> 
-> > Even if a
-> > shrinker has a mistake, VM will have big trouble like infinite loop.
-> 
-> We could fake 0 as 1 or something, at least.
+This bug was found by syzkaller, which encountered the following splat:
 
-Yes, I think we need it if we want to go this way.
+    BUG: KASAN: use-after-free in free_ldt_struct.part.2+0x10a/0x150 arch/x86/kernel/ldt.c:116
+    Read of size 4 at addr ffff88006d2cb7c8 by task kworker/u9:0/3710
+
+    CPU: 1 PID: 3710 Comm: kworker/u9:0 Not tainted 4.13.0-rc4-next-20170811 #2
+    Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+    Call Trace:
+     __dump_stack lib/dump_stack.c:16 [inline]
+     dump_stack+0x194/0x257 lib/dump_stack.c:52
+     print_address_description+0x73/0x250 mm/kasan/report.c:252
+     kasan_report_error mm/kasan/report.c:351 [inline]
+     kasan_report+0x24e/0x340 mm/kasan/report.c:409
+     __asan_report_load4_noabort+0x14/0x20 mm/kasan/report.c:429
+     free_ldt_struct.part.2+0x10a/0x150 arch/x86/kernel/ldt.c:116
+     free_ldt_struct arch/x86/kernel/ldt.c:173 [inline]
+     destroy_context_ldt+0x60/0x80 arch/x86/kernel/ldt.c:171
+     destroy_context arch/x86/include/asm/mmu_context.h:157 [inline]
+     __mmdrop+0xe9/0x530 kernel/fork.c:889
+     mmdrop include/linux/sched/mm.h:42 [inline]
+     exec_mmap fs/exec.c:1061 [inline]
+     flush_old_exec+0x173c/0x1ff0 fs/exec.c:1291
+     load_elf_binary+0x81f/0x4ba0 fs/binfmt_elf.c:855
+     search_binary_handler+0x142/0x6b0 fs/exec.c:1652
+     exec_binprm fs/exec.c:1694 [inline]
+     do_execveat_common.isra.33+0x1746/0x22e0 fs/exec.c:1816
+     do_execve+0x31/0x40 fs/exec.c:1860
+     call_usermodehelper_exec_async+0x457/0x8f0 kernel/umh.c:100
+     ret_from_fork+0x2a/0x40 arch/x86/entry/entry_64.S:431
+
+    Allocated by task 3700:
+     save_stack_trace+0x16/0x20 arch/x86/kernel/stacktrace.c:59
+     save_stack+0x43/0xd0 mm/kasan/kasan.c:447
+     set_track mm/kasan/kasan.c:459 [inline]
+     kasan_kmalloc+0xad/0xe0 mm/kasan/kasan.c:551
+     kmem_cache_alloc_trace+0x136/0x750 mm/slab.c:3627
+     kmalloc include/linux/slab.h:493 [inline]
+     alloc_ldt_struct+0x52/0x140 arch/x86/kernel/ldt.c:67
+     write_ldt+0x7b7/0xab0 arch/x86/kernel/ldt.c:277
+     sys_modify_ldt+0x1ef/0x240 arch/x86/kernel/ldt.c:307
+     entry_SYSCALL_64_fastpath+0x1f/0xbe
+
+    Freed by task 3700:
+     save_stack_trace+0x16/0x20 arch/x86/kernel/stacktrace.c:59
+     save_stack+0x43/0xd0 mm/kasan/kasan.c:447
+     set_track mm/kasan/kasan.c:459 [inline]
+     kasan_slab_free+0x71/0xc0 mm/kasan/kasan.c:524
+     __cache_free mm/slab.c:3503 [inline]
+     kfree+0xca/0x250 mm/slab.c:3820
+     free_ldt_struct.part.2+0xdd/0x150 arch/x86/kernel/ldt.c:121
+     free_ldt_struct arch/x86/kernel/ldt.c:173 [inline]
+     destroy_context_ldt+0x60/0x80 arch/x86/kernel/ldt.c:171
+     destroy_context arch/x86/include/asm/mmu_context.h:157 [inline]
+     __mmdrop+0xe9/0x530 kernel/fork.c:889
+     mmdrop include/linux/sched/mm.h:42 [inline]
+     __mmput kernel/fork.c:916 [inline]
+     mmput+0x541/0x6e0 kernel/fork.c:927
+     copy_process.part.36+0x22e1/0x4af0 kernel/fork.c:1931
+     copy_process kernel/fork.c:1546 [inline]
+     _do_fork+0x1ef/0xfb0 kernel/fork.c:2025
+     SYSC_clone kernel/fork.c:2135 [inline]
+     SyS_clone+0x37/0x50 kernel/fork.c:2129
+     do_syscall_64+0x26c/0x8c0 arch/x86/entry/common.c:287
+     return_from_SYSCALL_64+0x0/0x7a
+
+Here is a C reproducer:
+
+    #include <asm/ldt.h>
+    #include <pthread.h>
+    #include <signal.h>
+    #include <stdlib.h>
+    #include <sys/syscall.h>
+    #include <sys/wait.h>
+    #include <unistd.h>
+
+    static void *fork_thread(void *_arg)
+    {
+        fork();
+    }
+
+    int main(void)
+    {
+        struct user_desc desc = { .entry_number = 8191 };
+
+        syscall(__NR_modify_ldt, 1, &desc, sizeof(desc));
+
+        for (;;) {
+            if (fork() == 0) {
+                pthread_t t;
+
+                srand(getpid());
+                pthread_create(&t, NULL, fork_thread, NULL);
+                usleep(rand() % 10000);
+                syscall(__NR_exit_group, 0);
+            }
+            wait(NULL);
+        }
+    }
+
+Note: the reproducer takes advantage of the fact that alloc_ldt_struct()
+may use vmalloc() to allocate a large ->entries array, and after
+commit:
+
+  5d17a73a2ebe ("vmalloc: back off when the current task is killed")
+
+it is possible for userspace to fail a task's vmalloc() by
+sending a fatal signal, e.g. via exit_group().  It would be more
+difficult to reproduce this bug on kernels without that commit.
+
+This bug only affected kernels with CONFIG_MODIFY_LDT_SYSCALL=y.
+
+Signed-off-by: Eric Biggers <ebiggers@google.com>
+Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Fixes: 39a0526fb3f7 ("x86/mm: Factor out LDT init from context init")
+Link: http://lkml.kernel.org/r/20170824175029.76040-1-ebiggers3@gmail.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+---
+ arch/x86/include/asm/mmu_context.h |    4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -116,9 +116,7 @@ static inline int init_new_context(struc
+ 		mm->context.execute_only_pkey = -1;
+ 	}
+ 	#endif
+-	init_new_context_ldt(tsk, mm);
+-
+-	return 0;
++	return init_new_context_ldt(tsk, mm);
+ }
+ static inline void destroy_context(struct mm_struct *mm)
+ {
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
