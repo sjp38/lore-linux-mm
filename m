@@ -1,49 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AB2BB6B037C
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 17:35:24 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id m68so1173333pfj.6
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 14:35:24 -0700 (PDT)
-Received: from mail-pg0-x234.google.com (mail-pg0-x234.google.com. [2607:f8b0:400e:c05::234])
-        by mx.google.com with ESMTPS id t134si964948pgc.350.2017.08.28.14.35.23
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BFF8A6B037C
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 17:35:25 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id a2so2470053pfj.2
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 14:35:25 -0700 (PDT)
+Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
+        by mx.google.com with ESMTPS id e4si1074881plb.423.2017.08.28.14.35.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Aug 2017 14:35:23 -0700 (PDT)
-Received: by mail-pg0-x234.google.com with SMTP id y15so5011461pgc.1
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 14:35:23 -0700 (PDT)
+        Mon, 28 Aug 2017 14:35:24 -0700 (PDT)
+Received: by mail-pf0-x22c.google.com with SMTP id r62so4721163pfj.0
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 14:35:24 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v2 09/30] jfs: Define usercopy region in jfs_ip slab cache
-Date: Mon, 28 Aug 2017 14:34:50 -0700
-Message-Id: <1503956111-36652-10-git-send-email-keescook@chromium.org>
+Subject: [PATCH v2 10/30] befs: Define usercopy region in befs_inode_cache slab cache
+Date: Mon, 28 Aug 2017 14:34:51 -0700
+Message-Id: <1503956111-36652-11-git-send-email-keescook@chromium.org>
 In-Reply-To: <1503956111-36652-1-git-send-email-keescook@chromium.org>
 References: <1503956111-36652-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, Luis de Bethencourt <luisbg@kernel.org>, Salah Triki <salah.triki@gmail.com>, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
 From: David Windsor <dave@nullcore.net>
 
-The jfs symlink pathnames, stored in struct jfs_inode_info.i_inline and
-therefore contained in the jfs_ip slab cache, need to be copied to/from
-userspace.
+befs symlink pathnames, stored in struct befs_inode_info.i_data.symlink
+and therefore contained in the befs_inode_cache slab cache, need to be
+copied to/from userspace.
 
 cache object allocation:
-    fs/jfs/super.c:
-        jfs_alloc_inode(...):
+    fs/befs/linuxvfs.c:
+        befs_alloc_inode(...):
             ...
-            jfs_inode = kmem_cache_alloc(jfs_inode_cachep, GFP_NOFS);
+            bi = kmem_cache_alloc(befs_inode_cachep, GFP_KERNEL);
             ...
-            return &jfs_inode->vfs_inode;
+            return &bi->vfs_inode;
 
-    fs/jfs/jfs_incore.h:
-        JFS_IP(struct inode *inode):
-            return container_of(inode, struct jfs_inode_info, vfs_inode);
-
-    fs/jfs/inode.c:
-        jfs_iget(...):
+        befs_iget(...):
             ...
-            inode->i_link = JFS_IP(inode)->i_inline;
+            strlcpy(befs_ino->i_data.symlink, raw_inode->data.symlink,
+                    BEFS_SYMLINK_LEN);
+            ...
+            inode->i_link = befs_ino->i_data.symlink;
 
 example usage trace:
     readlink_copy+0x43/0x70
@@ -63,7 +61,8 @@ example usage trace:
             readlink_copy(..., link);
 
 In support of usercopy hardening, this patch defines a region in the
-jfs_ip slab cache in which userspace copy operations are allowed.
+befs_inode_cache slab cache in which userspace copy operations are
+allowed.
 
 This region is known as the slab cache's usercopy region. Slab caches can
 now check that each copy operation involving cache-managed memory falls
@@ -76,30 +75,36 @@ mine and don't reflect the original grsecurity/PaX code.
 
 Signed-off-by: David Windsor <dave@nullcore.net>
 [kees: adjust commit log, provide usage trace]
-Cc: Dave Kleikamp <shaggy@kernel.org>
-Cc: jfs-discussion@lists.sourceforge.net
+Cc: Luis de Bethencourt <luisbg@kernel.org>
+Cc: Salah Triki <salah.triki@gmail.com>
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- fs/jfs/super.c | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ fs/befs/linuxvfs.c | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)
 
-diff --git a/fs/jfs/super.c b/fs/jfs/super.c
-index e8aad7d87b8c..10b958f49f57 100644
---- a/fs/jfs/super.c
-+++ b/fs/jfs/super.c
-@@ -972,9 +972,11 @@ static int __init init_jfs_fs(void)
- 	int rc;
- 
- 	jfs_inode_cachep =
--	    kmem_cache_create("jfs_ip", sizeof(struct jfs_inode_info), 0,
--			    SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
--			    init_once);
-+	    kmem_cache_create_usercopy("jfs_ip", sizeof(struct jfs_inode_info),
-+			0, SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
-+			offsetof(struct jfs_inode_info, i_inline),
-+			sizeof_field(struct jfs_inode_info, i_inline),
-+			init_once);
- 	if (jfs_inode_cachep == NULL)
+diff --git a/fs/befs/linuxvfs.c b/fs/befs/linuxvfs.c
+index 4a4a5a366158..1c2dcbee79dd 100644
+--- a/fs/befs/linuxvfs.c
++++ b/fs/befs/linuxvfs.c
+@@ -444,11 +444,15 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
+ static int __init
+ befs_init_inodecache(void)
+ {
+-	befs_inode_cachep = kmem_cache_create("befs_inode_cache",
+-					      sizeof (struct befs_inode_info),
+-					      0, (SLAB_RECLAIM_ACCOUNT|
+-						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
+-					      init_once);
++	befs_inode_cachep = kmem_cache_create_usercopy("befs_inode_cache",
++				sizeof(struct befs_inode_info), 0,
++				(SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
++					SLAB_ACCOUNT),
++				offsetof(struct befs_inode_info,
++					i_data.symlink),
++				sizeof_field(struct befs_inode_info,
++					i_data.symlink),
++				init_once);
+ 	if (befs_inode_cachep == NULL)
  		return -ENOMEM;
  
 -- 
