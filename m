@@ -1,83 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F1126B025F
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 07:29:33 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id m85so263789wma.8
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 04:29:33 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 544B66B0292
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 07:30:26 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id q77so261968wmd.9
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 04:30:26 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t21si132449wme.159.2017.08.28.04.29.31
+        by mx.google.com with ESMTPS id o98si136602wrc.529.2017.08.28.04.30.24
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 28 Aug 2017 04:29:31 -0700 (PDT)
-Subject: Re: [PATCH 2/2] mm/slub: don't use reserved highatomic pageblock for
- optimistic try
-References: <1503882675-17910-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1503882675-17910-2-git-send-email-iamjoonsoo.kim@lge.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <b50bd39f-931f-7016-f380-62d65babb03f@suse.cz>
-Date: Mon, 28 Aug 2017 13:29:29 +0200
+        Mon, 28 Aug 2017 04:30:25 -0700 (PDT)
+Date: Mon, 28 Aug 2017 13:30:23 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH RFC v2] Add /proc/pid/smaps_rollup
+Message-ID: <20170828113023.GH17097@dhcp22.suse.cz>
+References: <20170808132554.141143-1-dancol@google.com>
+ <20170810001557.147285-1-dancol@google.com>
+ <20170810043831.GB2249@bbox>
+ <20170810084617.GI23863@dhcp22.suse.cz>
+ <r0251soju3fo.fsf@dancol.org>
+ <20170810105852.GM23863@dhcp22.suse.cz>
+ <CAPz6YkUNu1uH057ENuH+Umq5J=J24my0p91mvYMtEb4Vy6Dhqg@mail.gmail.com>
+ <CAEe=SxkgPUEkHdQm+M49EBc_Y_bEnNbe5fed3yALUx2eUbMrGQ@mail.gmail.com>
+ <20170824085553.GB5943@dhcp22.suse.cz>
+ <20170825141637.f11a36a9997b4b705d5b6481@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <1503882675-17910-2-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170825141637.f11a36a9997b4b705d5b6481@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tim Murray <timmurray@google.com>, Sonny Rao <sonnyrao@chromium.org>, Daniel Colascione <dancol@google.com>, Minchan Kim <minchan@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Joel Fernandes <joelaf@google.com>, Al Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, Robert Foss <robert.foss@collabora.com>, linux-api@vger.kernel.org, Luigi Semenzato <semenzato@google.com>
 
-On 08/28/2017 03:11 AM, js1304@gmail.com wrote:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Fri 25-08-17 14:16:37, Andrew Morton wrote:
+> On Thu, 24 Aug 2017 10:55:53 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> High-order atomic allocation is difficult to succeed since we cannot
-> reclaim anything in this context. So, we reserves the pageblock for
-> this kind of request.
+> > > If we assume that the number of VMAs is going to increase over time,
+> > > then doing anything we can do to reduce the overhead of each VMA
+> > > during PSS collection seems like the right way to go, and that means
+> > > outputting an aggregate statistic (to avoid whatever overhead there is
+> > > per line in writing smaps and in reading each line from userspace).
+> > > 
+> > > Also, Dan sent me some numbers from his benchmark measuring PSS on
+> > > system_server (the big Android process) using smaps vs smaps_rollup:
+> > > 
+> > > using smaps:
+> > > iterations:1000 pid:1163 pss:220023808
+> > >  0m29.46s real 0m08.28s user 0m20.98s system
+> > > 
+> > > using smaps_rollup:
+> > > iterations:1000 pid:1163 pss:220702720
+> > >  0m04.39s real 0m00.03s user 0m04.31s system
+> > 
+> > I would assume we would do all we can to reduce this kernel->user
+> > overhead first before considering a new user visible file. I haven't
+> > seen any attempts except from the low hanging fruid I have tried.
 > 
-> In slub, we try to allocate higher-order page more than it actually
-> needs in order to get the best performance. If this optimistic try is
-> used with GFP_ATOMIC, alloc_flags will be set as ALLOC_HARDER and
-> the pageblock reserved for high-order atomic allocation would be used.
-> Moreover, this request would reserve the MIGRATE_HIGHATOMIC pageblock
-> ,if succeed, to prepare further request. It would not be good to use
-> MIGRATE_HIGHATOMIC pageblock in terms of fragmentation management
-> since it unconditionally set a migratetype to request's migratetype
-> when unreserving the pageblock without considering the migratetype of
-> used pages in the pageblock.
-> 
-> This is not what we don't intend so fix it by unconditionally setting
-> __GFP_NOMEMALLOC in order to not set ALLOC_HARDER.
+> It's hard to believe that we'll get anything like a 5x speedup via
+> optimization of the existing code?
 
-I wonder if it would be more robust to strip GFP_ATOMIC from alloc_gfp.
-E.g. __GFP_NOMEMALLOC does seem to prevent ALLOC_HARDER, but not
-ALLOC_HIGH. Or maybe we should adjust __GFP_NOMEMALLOC implementation
-and document it more thoroughly? CC Michal Hocko
+Maybe we will not get that much of a boost but having misleading numbers
+really quick is not something we should aim for. Just try to think what
+the cumulative numbers actually mean. How can you even consider
+cumulative PSS when you have no idea about mappings that were
+considered?
 
-Also, were these 2 patches done via code inspection or you noticed
-suboptimal behavior which got fixed? Thanks.
-
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->  mm/slub.c | 6 ++----
->  1 file changed, 2 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index e1e442c..fd8dd89 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -1579,10 +1579,8 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
->  	 */
->  	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
->  	if (oo_order(oo) > oo_order(s->min)) {
-> -		if (alloc_gfp & __GFP_DIRECT_RECLAIM) {
-> -			alloc_gfp |= __GFP_NOMEMALLOC;
-> -			alloc_gfp &= ~__GFP_DIRECT_RECLAIM;
-> -		}
-> +		alloc_gfp |= __GFP_NOMEMALLOC;
-> +		alloc_gfp &= ~__GFP_DIRECT_RECLAIM;
->  	}
->  
->  	page = alloc_slab_page(s, alloc_gfp, node, oo);
-> 
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
