@@ -1,63 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E03B76B02F3
-	for <linux-mm@kvack.org>; Sun, 27 Aug 2017 20:30:44 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id t193so19892151pgc.4
-        for <linux-mm@kvack.org>; Sun, 27 Aug 2017 17:30:44 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id i35si6537848plg.727.2017.08.27.17.30.43
-        for <linux-mm@kvack.org>;
-        Sun, 27 Aug 2017 17:30:43 -0700 (PDT)
-Date: Mon, 28 Aug 2017 09:31:20 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 0/3] mm/cma: manage the memory of the CMA area by using
- the ZONE_MOVABLE
-Message-ID: <20170828003120.GC9167@js1304-P5Q-DELUXE>
-References: <1503556593-10720-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20170825143213.5c7de68783b78fafb461c845@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170825143213.5c7de68783b78fafb461c845@linux-foundation.org>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 327B36B02FA
+	for <linux-mm@kvack.org>; Sun, 27 Aug 2017 21:11:27 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id c28so11751466pfe.4
+        for <linux-mm@kvack.org>; Sun, 27 Aug 2017 18:11:27 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id m14si8707686pgd.185.2017.08.27.18.11.25
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 27 Aug 2017 18:11:26 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id g13so3080351pfm.2
+        for <linux-mm@kvack.org>; Sun, 27 Aug 2017 18:11:25 -0700 (PDT)
+From: js1304@gmail.com
+Subject: [PATCH 1/2] mm/slub: wake up kswapd for initial high order allocation
+Date: Mon, 28 Aug 2017 10:11:14 +0900
+Message-Id: <1503882675-17910-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>
 
-On Fri, Aug 25, 2017 at 02:32:13PM -0700, Andrew Morton wrote:
-> On Thu, 24 Aug 2017 15:36:30 +0900 js1304@gmail.com wrote:
-> 
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > 
-> > This patchset is the follow-up of the discussion about the
-> > "Introduce ZONE_CMA (v7)" [1]. Please reference it if more information
-> > is needed.
-> > 
-> > In this patchset, the memory of the CMA area is managed by using
-> > the ZONE_MOVABLE. Since there is another type of the memory in this zone,
-> > we need to maintain a migratetype for the CMA memory to account
-> > the number of the CMA memory. So, unlike previous patchset, there is
-> > less deletion of the code.
-> > 
-> > Otherwise, there is no big change.
-> > 
-> > Motivation of this patchset is described in the commit description of
-> > the patch "mm/cma: manage the memory of the CMA area by using
-> > the ZONE_MOVABLE". Please refer it for more information.
-> > 
-> > This patchset is based on linux-next-20170822 plus
-> > "mm/page_alloc: don't reserve ZONE_HIGHMEM for ZONE_MOVABLE".
-> > 
-> 
-> But "mm/page_alloc: don't reserve ZONE_HIGHMEM for ZONE_MOVABLE" did
-> not do very well at review - both Michal and Vlastimil are looking for
-> changes.  So we're not ready for a patch series which depends upon that
-> one?
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Oops. I checked again and I found that this patchset is not dependant
-to that patch. It's just leftover from ZONE_CMA patchset.
+slub uses higher order allocation than it actually needs. In this case,
+we don't want to do direct reclaim to make such a high order page since
+it causes a big latency to the user. Instead, we would like to fallback
+lower order allocation that it actually needs.
 
-Thanks.
+However, we also want to get this higher order page in the next time
+in order to get the best performance and it would be a role of
+the background thread like as kswapd and kcompactd. To wake up them,
+we should not clear __GFP_KSWAPD_RECLAIM.
+
+Unlike this intention, current code clears __GFP_KSWAPD_RECLAIM so fix it.
+
+Note that this patch does some clean up, too.
+__GFP_NOFAIL is cleared twice so remove one.
+
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+ mm/slub.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index 0dc7397..e1e442c 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1578,8 +1578,12 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 	 * so we fall-back to the minimum order allocation.
+ 	 */
+ 	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
+-	if ((alloc_gfp & __GFP_DIRECT_RECLAIM) && oo_order(oo) > oo_order(s->min))
+-		alloc_gfp = (alloc_gfp | __GFP_NOMEMALLOC) & ~(__GFP_RECLAIM|__GFP_NOFAIL);
++	if (oo_order(oo) > oo_order(s->min)) {
++		if (alloc_gfp & __GFP_DIRECT_RECLAIM) {
++			alloc_gfp |= __GFP_NOMEMALLOC;
++			alloc_gfp &= ~__GFP_DIRECT_RECLAIM;
++		}
++	}
+ 
+ 	page = alloc_slab_page(s, alloc_gfp, node, oo);
+ 	if (unlikely(!page)) {
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
