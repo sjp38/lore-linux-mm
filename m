@@ -1,189 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BAFD86B025F
-	for <linux-mm@kvack.org>; Sun, 27 Aug 2017 19:12:21 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id d66so8266655oib.2
-        for <linux-mm@kvack.org>; Sun, 27 Aug 2017 16:12:21 -0700 (PDT)
-Received: from mail-io0-x242.google.com (mail-io0-x242.google.com. [2607:f8b0:4001:c06::242])
-        by mx.google.com with ESMTPS id r205si9177731oig.374.2017.08.27.16.12.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Aug 2017 16:12:20 -0700 (PDT)
-Received: by mail-io0-x242.google.com with SMTP id c18so2394479ioj.2
-        for <linux-mm@kvack.org>; Sun, 27 Aug 2017 16:12:20 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 116146B025F
+	for <linux-mm@kvack.org>; Sun, 27 Aug 2017 20:15:17 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id a2so11501888pfj.2
+        for <linux-mm@kvack.org>; Sun, 27 Aug 2017 17:15:17 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id w61si2203736plb.817.2017.08.27.17.15.15
+        for <linux-mm@kvack.org>;
+        Sun, 27 Aug 2017 17:15:15 -0700 (PDT)
+Date: Mon, 28 Aug 2017 09:15:52 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
+ ZONE_MOVABLE request
+Message-ID: <20170828001551.GA9167@js1304-P5Q-DELUXE>
+References: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <e919c65e-bc2f-6b3b-41fc-3589590a84ac@suse.cz>
+ <20170825002031.GD29701@js1304-P5Q-DELUXE>
+ <20170825073841.GD25498@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFx0NjiHM5Aw0N7xDwRcnHOiaceV2iYuGOU1uM3FUyf+Lg@mail.gmail.com>
-References: <83f675ad385d67760da4b99cd95ee912ca7c0b44.1503677178.git.tim.c.chen@linux.intel.com>
- <cd8ce7fbca9c126f7f928b8fa48d7a9197955b45.1503677178.git.tim.c.chen@linux.intel.com>
- <CA+55aFyErsNw8bqTOCzcrarDZBdj+Ev=1N3sV-gxtLTH03bBFQ@mail.gmail.com>
- <f10f4c25-49c0-7ef5-55c2-769c8fd9bf90@linux.intel.com> <CA+55aFzNikMsuPAaExxT1Z8MfOeU6EhSn6UPDkkz-MRqamcemg@mail.gmail.com>
- <CA+55aFx67j0u=GNRKoCWpsLRDcHdrjfVvWRS067wLUSfzstgoQ@mail.gmail.com>
- <CA+55aFzy981a8Ab+89APi6Qnb9U9xap=0A6XNc+wZsAWngWPzA@mail.gmail.com>
- <CA+55aFwyCSh1RbJ3d5AXURa4_r5OA_=ZZKQrFX0=Z1J3ZgVJ5g@mail.gmail.com>
- <CA+55aFy18WCqZGwkxH6dTZR9LD9M5nXWqEN8DBeZ4LvNo4Y0BQ@mail.gmail.com> <CA+55aFx0NjiHM5Aw0N7xDwRcnHOiaceV2iYuGOU1uM3FUyf+Lg@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sun, 27 Aug 2017 16:12:19 -0700
-Message-ID: <CA+55aFwuyqm6xMmS0PdjDZbgrXTiXkH+cGua=npXLaEnzOUGjw@mail.gmail.com>
-Subject: Re: [PATCH 2/2 v2] sched/wait: Introduce lock breaker in wake_up_page_bit
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170825073841.GD25498@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>, Nick Piggin <npiggin@gmail.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Kan Liang <kan.liang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Christopher Lameter <cl@linux.com>, "Eric W . Biederman" <ebiederm@xmission.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Aug 27, 2017 at 2:40 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> The race goes like this:
->
->   thread1       thread2         thread3
->   ----          ----            ----
->
->   .. CPU1 ...
->   __lock_page_killable
->     wait_on_page_bit_common()
->       get wq lock
->       __add_wait_queue_entry_tail_exclusive()
->       set_current_state(TASK_KILLABLE);
->       release wq lock
->         io_schedule
->
->                 ... CPU2 ...
->                 __lock_page[_killable]()
->                   wait_on_page_bit_common()
->                     get wq lock
->                     __add_wait_queue_entry_tail_exclusive()
->                     set_current_state(TASK_KILLABLE);
->                     release wq lock
->                     io_schedule
->
->                                 ... CPU3 ...
->                                 unlock_page()
->                                 wake_up_page_bit(page, PG_Locked)
->                                   wakes up CPU1 _only_
->
->   ... lethal signal for thread1 happens ...
->      if (unlikely(signal_pending_state(state, current))) {
->           ret = -EINTR;
->           break;
->      }
+On Fri, Aug 25, 2017 at 09:38:42AM +0200, Michal Hocko wrote:
+> On Fri 25-08-17 09:20:31, Joonsoo Kim wrote:
+> > On Thu, Aug 24, 2017 at 11:41:58AM +0200, Vlastimil Babka wrote:
+> > > On 08/24/2017 07:45 AM, js1304@gmail.com wrote:
+> > > > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > > > 
+> > > > Freepage on ZONE_HIGHMEM doesn't work for kernel memory so it's not that
+> > > > important to reserve. When ZONE_MOVABLE is used, this problem would
+> > > > theorectically cause to decrease usable memory for GFP_HIGHUSER_MOVABLE
+> > > > allocation request which is mainly used for page cache and anon page
+> > > > allocation. So, fix it.
+> > > > 
+> > > > And, defining sysctl_lowmem_reserve_ratio array by MAX_NR_ZONES - 1 size
+> > > > makes code complex. For example, if there is highmem system, following
+> > > > reserve ratio is activated for *NORMAL ZONE* which would be easyily
+> > > > misleading people.
+> > > > 
+> > > >  #ifdef CONFIG_HIGHMEM
+> > > >  32
+> > > >  #endif
+> > > > 
+> > > > This patch also fix this situation by defining sysctl_lowmem_reserve_ratio
+> > > > array by MAX_NR_ZONES and place "#ifdef" to right place.
+> > > > 
+> > > > Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> > > > Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> > > 
+> > > Looks like I did that almost year ago, so definitely had to refresh my
+> > > memory now :)
+> > > 
+> > > Anyway now I looked more thoroughly and noticed that this change leaks
+> > > into the reported sysctl. On a 64bit system with ZONE_MOVABLE:
+> > > 
+> > > before the patch:
+> > > vm.lowmem_reserve_ratio = 256   256     32
+> > > 
+> > > after the patch:
+> > > vm.lowmem_reserve_ratio = 256   256     32      2147483647
+> > > 
+> > > So if we indeed remove HIGHMEM from protection (c.f. Michal's mail), we
+> > > should do that differently than with the INT_MAX trick, IMHO.
+> > 
+> > Hmm, this is already pointed by Minchan and I have answered that.
+> > 
+> > lkml.kernel.org/r/<20170421013243.GA13966@js1304-desktop>
+> > 
+> > If you have a better idea, please let me know.
+> 
+> Why don't we just use 0. In fact we are reserving 0 pages... Using
+> INT_MAX is just wrong.
 
-With the race meaning that thread2 never gets woken up due to the
-exclusive wakeup being caught by thread1 (which doesn't actually take
-the lock).
+The number of reserved pages is calculated by "managed_pages /
+ratio". Using INT_MAX, net result would be 0.
 
-I think that this bug was introduced by commit 62906027091f ("mm: add
-PageWaiters indicating tasks are waiting for a page bit"), which
-changed the page lock from using the wait_on_bit_lock() code to its
-own _slightly_ different version.
+There is a logic converting ratio 0 to ratio 1.
 
-Because it looks like _almost_ the same thing existed in the old
-wait_on_bit_lock() code - and that is still used by a couple of
-filesystems.
+if (sysctl_lowmem_reserve_ratio[idx] < 1)
+        sysctl_lowmem_reserve_ratio[idx] = 1
 
-*Most* of the users seem to use TASK_UNINTERRUPTIBLE, which is fine.
-But cifs and the sunrpc XPRT_LOCKED code both use the TASK_KILLABLE
-form that would seem to have the exact same issue: wait_on_bit_lock()
-uses exclusive wait-queues, but then may return with an error without
-actually taking the lock.
+If I use 0 to represent 0 reserved page, there would be a user
+who is affected by this change. So, I don't use 0 for this patch.
 
-Now, it turns out that I think the wait_on_bit_lock() code is actually
-safe, for a subtle reason.
-
-Why? Unlike the page lock code, the wait_on_bit_lock() code always
-tries to get the lock bit before returning an error. So
-wait_on_bit_lock() will prefer a successful lock taking over EINTR,
-which means that if the bit really was unlocked, it would have been
-taken.
-
-And if something else locked the bit again under us and we didn't get
-it, that "something else" presumably will then wake things up when it
-unlocks.
-
-So the wait_on_bit_lock() code could _also_ lose the wakeup event, but
-it would only lose it in situations where somebody else would then
-re-send it.
-
-Do people agree with that analysis?
-
-So I think the old wait_on_bit_lock() code ends up being safe -
-despite having this same pattern of "exclusive wait but might error
-out without taking the lock".
-
-Whether that "wait_on_bit_lock() is safe" was just a fluke or was
-because people thought about it is unclear. It's old code. People
-probably *did* think about it. I really can't remember.
-
-But it does point to a fix for the page lock case: just move the
-signal_pending_state() test to after the bit checking.
-
-So the page locking code is racy because you could have this:
-
- - another cpu does the unlock_page() and wakes up the process (and
-uses the exclusive event)
-
- - we then get a lethal signal before we get toi the
-"signal_pending_state()" state.
-
- - we end up prioritizing the lethal signal, because obviously we
-don't care about locking the page any more.
-
- - so now the lock bit may be still clear and there's nobody who is
-going to wake up the remaining waiter
-
-Moving the signal_pending_state() down actually fixes the race,
-because we know that in order for the exclusive thing to have
-mattered, it *has* to actually wake us up. So the unlock_page() must
-happen before the lethal signal (where before is well-defined because
-of that "try_to_wake_up()" taking a lock and looking at the task
-state). The exclusive accounting is only done if the process is
-actually woken up, not if it was already running (see
-"try_to_wake_up()").
-
-And if the unlock_page() happened before the lethal signal, then we
-know that test_and_set_bit_lock() will either work (in which case
-we're ok), or another locker successfully came in later - in which
-case we're _also_ ok, because that other locker will then do the
-unlock again, and wake up subsequent waiters that might have been
-blocked by our first exclusive waiter.
-
-So I propose that the fix might be as simple as this:
-
-    diff --git a/mm/filemap.c b/mm/filemap.c
-    index baba290c276b..0b41c8cbeabc 100644
-    --- a/mm/filemap.c
-    +++ b/mm/filemap.c
-    @@ -986,10 +986,6 @@ static inline int
-wait_on_page_bit_common(wait_queue_head_t *q,
-
-                if (likely(test_bit(bit_nr, &page->flags))) {
-                        io_schedule();
-    -                   if (unlikely(signal_pending_state(state, current))) {
-    -                           ret = -EINTR;
-    -                           break;
-    -                   }
-                }
-
-                if (lock) {
-    @@ -999,6 +995,11 @@ static inline int
-wait_on_page_bit_common(wait_queue_head_t *q,
-                        if (!test_bit(bit_nr, &page->flags))
-                                break;
-                }
-    +
-    +           if (unlikely(signal_pending_state(state, current))) {
-    +                   ret = -EINTR;
-    +                   break;
-    +           }
-        }
-
-        finish_wait(q, wait);
-
-but maybe I'm missing something.
-
-Nick, comments?
-
-                 Linus
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
