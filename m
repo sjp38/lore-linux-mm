@@ -1,86 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C0B406B025F
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 06:04:44 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id a47so94846wra.0
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 03:04:44 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b83si20181wmc.139.2017.08.28.03.04.43
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 793146B025F
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 06:20:25 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p69so114048pfk.10
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 03:20:25 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id e7si65393pgp.145.2017.08.28.03.20.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 28 Aug 2017 03:04:43 -0700 (PDT)
-Subject: Re: [PATCH 1/2] mm/slub: wake up kswapd for initial high order
- allocation
-References: <1503882675-17910-1-git-send-email-iamjoonsoo.kim@lge.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <f1423efc-3c60-c03e-0d81-f2e8fcccbcd6@suse.cz>
-Date: Mon, 28 Aug 2017 12:04:41 +0200
-MIME-Version: 1.0
-In-Reply-To: <1503882675-17910-1-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Aug 2017 03:20:24 -0700 (PDT)
+From: Wei Wang <wei.w.wang@intel.com>
+Subject: [PATCH v15 0/5] Virtio-balloon Enhancement
+Date: Mon, 28 Aug 2017 18:08:28 +0800
+Message-Id: <1503914913-28893-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>
+To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
+Cc: david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On 08/28/2017 03:11 AM, js1304@gmail.com wrote:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> 
-> slub uses higher order allocation than it actually needs. In this case,
-> we don't want to do direct reclaim to make such a high order page since
-> it causes a big latency to the user. Instead, we would like to fallback
-> lower order allocation that it actually needs.
-> 
-> However, we also want to get this higher order page in the next time
-> in order to get the best performance and it would be a role of
-> the background thread like as kswapd and kcompactd. To wake up them,
-> we should not clear __GFP_KSWAPD_RECLAIM.
-> 
-> Unlike this intention, current code clears __GFP_KSWAPD_RECLAIM so fix it.
-> 
-> Note that this patch does some clean up, too.
-> __GFP_NOFAIL is cleared twice so remove one.
-> 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+This patch series enhances the existing virtio-balloon with the following
+new features:
+1) fast ballooning: transfer ballooned pages between the guest and host in
+chunks using sgs, instead of one by one; and
+2) free page block reporting: a new virtqueue to report guest free pages
+to the host.
 
-Hm, so this seems to revert Mel's 444eb2a449ef ("mm: thp: set THP defrag
-by default to madvise and add a stall-free defrag option") wrt the slub
-allocate_slab() part. AFAICS the intention in Mel's patch was that he
-removed a special case in __alloc_page_slowpath() where including
-__GFP_THISNODE and lacking ~__GFP_DIRECT_RECLAIM effectively means also
-lacking __GFP_KSWAPD_RECLAIM. The commit log claims that slab/slub might
-change behavior so he moved the removal of __GFP_KSWAPD_RECLAIM to them.
+The second feature can be used to accelerate live migration of VMs. Here
+are some details:
 
-But AFAICS, only slab uses __GFP_THISNODE, while slub doesn't. So your
-patch would indeed revert an unintentional change of Mel's commit. Is it
-right or do I miss something?
+Live migration needs to transfer the VM's memory from the source machine
+to the destination round by round. For the 1st round, all the VM's memory
+is transferred. From the 2nd round, only the pieces of memory that were
+written by the guest (after the 1st round) are transferred. One method
+that is popularly used by the hypervisor to track which part of memory is
+written is to write-protect all the guest memory.
 
-> ---
->  mm/slub.c | 8 ++++++--
->  1 file changed, 6 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 0dc7397..e1e442c 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -1578,8 +1578,12 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
->  	 * so we fall-back to the minimum order allocation.
->  	 */
->  	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
-> -	if ((alloc_gfp & __GFP_DIRECT_RECLAIM) && oo_order(oo) > oo_order(s->min))
-> -		alloc_gfp = (alloc_gfp | __GFP_NOMEMALLOC) & ~(__GFP_RECLAIM|__GFP_NOFAIL);
-> +	if (oo_order(oo) > oo_order(s->min)) {
-> +		if (alloc_gfp & __GFP_DIRECT_RECLAIM) {
-> +			alloc_gfp |= __GFP_NOMEMALLOC;
-> +			alloc_gfp &= ~__GFP_DIRECT_RECLAIM;
-> +		}
-> +	}
->  
->  	page = alloc_slab_page(s, alloc_gfp, node, oo);
->  	if (unlikely(!page)) {
-> 
+The second feature  enables the optimization of the 1st round memory
+transfer - the hypervisor can skip the transfer of guest free pages in the
+1st round. It is not concerned that the memory pages are used after they
+are given to the hypervisor as a hint of the free pages, because they will
+be tracked by the hypervisor and transferred in the next round if they are
+used and written.
+
+Change Log:
+v14->v15:
+1) mm: make the report callback return a bool value - returning 1 to stop
+walking through the free page list.
+2) virtio-balloon: batching sgs of balloon pages till the vq is full
+3) virtio-balloon: create a new workqueue, rather than using the default
+system_wq, to queue the free page reporting work item.
+4) virtio-balloon: add a ctrl_vq to be a central control plane which will
+handle all the future control related commands between the host and guest.
+Add free page report as the first feature controlled under ctrl_vq, and
+the free_page_vq is a data plane vq dedicated to the transmission of free
+page blocks.
+
+v13->v14:
+1) xbitmap: move the code from lib/radix-tree.c to lib/xbitmap.c.
+2) xbitmap: consolidate the implementation of xb_bit_set/clear/test into
+one xb_bit_ops.
+3) xbitmap: add documents for the exported APIs.
+4) mm: rewrite the function to walk through free page blocks.
+5) virtio-balloon: when reporting a free page blcok to the device, if the
+vq is full (less likey to happen in practice), just skip reporting this
+block, instead of busywaiting till an entry gets released.
+6) virtio-balloon: fail the probe function if adding the signal buf in
+init_vqs fails.
+
+v12->v13:
+1) mm: use a callback function to handle the the free page blocks from the
+report function. This avoids exposing the zone internal to a kernel
+module.
+2) virtio-balloon: send balloon pages or a free page block using a single
+sg each time. This has the benefits of simpler implementation with no new
+APIs.
+3) virtio-balloon: the free_page_vq is used to report free pages only (no
+multiple usages interleaving)
+4) virtio-balloon: Balloon pages and free page blocks are sent via input
+sgs, and the completion signal to the host is sent via an output sg.
+
+v11->v12:
+1) xbitmap: use the xbitmap from Matthew Wilcox to record ballooned pages.
+2) virtio-ring: enable the driver to build up a desc chain using vring
+desc.
+3) virtio-ring: Add locking to the existing START_USE() and END_USE()
+macro to lock/unlock the vq when a vq operation starts/ends.
+4) virtio-ring: add virtqueue_kick_sync() and virtqueue_kick_async()
+5) virtio-balloon: describe chunks of ballooned pages and free pages
+blocks directly using one or more chains of desc from the vq.
+
+v10->v11:
+1) virtio_balloon: use vring_desc to describe a chunk;
+2) virtio_ring: support to add an indirect desc table to virtqueue;
+3)  virtio_balloon: use cmdq to report guest memory statistics.
+
+v9->v10:
+1) mm: put report_unused_page_block() under CONFIG_VIRTIO_BALLOON;
+2) virtio-balloon: add virtballoon_validate();
+3) virtio-balloon: msg format change;
+4) virtio-balloon: move miscq handling to a task on system_freezable_wq;
+5) virtio-balloon: code cleanup.
+
+v8->v9:
+1) Split the two new features, VIRTIO_BALLOON_F_BALLOON_CHUNKS and
+VIRTIO_BALLOON_F_MISC_VQ, which were mixed together in the previous
+implementation;
+2) Simpler function to get the free page block.
+
+v7->v8:
+1) Use only one chunk format, instead of two.
+2) re-write the virtio-balloon implementation patch.
+3) commit changes
+4) patch re-org
+
+
+Matthew Wilcox (1):
+  lib/xbitmap: Introduce xbitmap
+
+Wei Wang (4):
+  lib/xbitmap: add xb_find_next_bit() and xb_zero()
+  virtio-balloon: VIRTIO_BALLOON_F_SG
+  mm: support reporting free page blocks
+  virtio-balloon: VIRTIO_BALLOON_F_CTRL_VQ
+
+ drivers/virtio/virtio_balloon.c     | 418 ++++++++++++++++++++++++++++++++----
+ include/linux/mm.h                  |   5 +
+ include/linux/radix-tree.h          |   3 +
+ include/linux/xbitmap.h             |  64 ++++++
+ include/uapi/linux/virtio_balloon.h |  16 ++
+ lib/Makefile                        |   2 +-
+ lib/radix-tree.c                    |  22 +-
+ lib/xbitmap.c                       | 215 +++++++++++++++++++
+ mm/page_alloc.c                     |  65 ++++++
+ 9 files changed, 769 insertions(+), 41 deletions(-)
+ create mode 100644 include/linux/xbitmap.h
+ create mode 100644 lib/xbitmap.c
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
