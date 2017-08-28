@@ -1,68 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D5EC56B02B4
-	for <linux-mm@kvack.org>; Sun, 27 Aug 2017 20:28:21 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id t193so19880655pgc.4
-        for <linux-mm@kvack.org>; Sun, 27 Aug 2017 17:28:21 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id s10si9166923plj.788.2017.08.27.17.28.20
+	by kanga.kvack.org (Postfix) with ESMTP id E03B76B02F3
+	for <linux-mm@kvack.org>; Sun, 27 Aug 2017 20:30:44 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id t193so19892151pgc.4
+        for <linux-mm@kvack.org>; Sun, 27 Aug 2017 17:30:44 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id i35si6537848plg.727.2017.08.27.17.30.43
         for <linux-mm@kvack.org>;
-        Sun, 27 Aug 2017 17:28:20 -0700 (PDT)
-Date: Mon, 28 Aug 2017 09:28:57 +0900
+        Sun, 27 Aug 2017 17:30:43 -0700 (PDT)
+Date: Mon, 28 Aug 2017 09:31:20 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
- ZONE_MOVABLE request
-Message-ID: <20170828002857.GB9167@js1304-P5Q-DELUXE>
-References: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
- <e919c65e-bc2f-6b3b-41fc-3589590a84ac@suse.cz>
- <20170825002031.GD29701@js1304-P5Q-DELUXE>
- <d57eeb5c-d91d-9718-8473-3c6db465b154@suse.cz>
+Subject: Re: [PATCH 0/3] mm/cma: manage the memory of the CMA area by using
+ the ZONE_MOVABLE
+Message-ID: <20170828003120.GC9167@js1304-P5Q-DELUXE>
+References: <1503556593-10720-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20170825143213.5c7de68783b78fafb461c845@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d57eeb5c-d91d-9718-8473-3c6db465b154@suse.cz>
+In-Reply-To: <20170825143213.5c7de68783b78fafb461c845@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
 
-On Fri, Aug 25, 2017 at 09:56:10AM +0200, Vlastimil Babka wrote:
-> On 08/25/2017 02:20 AM, Joonsoo Kim wrote:
-> > On Thu, Aug 24, 2017 at 11:41:58AM +0200, Vlastimil Babka wrote:
-> > 
-> > Hmm, this is already pointed by Minchan and I have answered that.
-> > 
-> > lkml.kernel.org/r/<20170421013243.GA13966@js1304-desktop>
-> > 
-> > If you have a better idea, please let me know.
+On Fri, Aug 25, 2017 at 02:32:13PM -0700, Andrew Morton wrote:
+> On Thu, 24 Aug 2017 15:36:30 +0900 js1304@gmail.com wrote:
 > 
-> My idea is that size of sysctl_lowmem_reserve_ratio is ZONE_NORMAL+1 and
-> it has no entries for zones > NORMAL. The
-> setup_per_zone_lowmem_reserve() is adjusted to only set
-> lower_zone->lowmem_reserve[j] for idx <= ZONE_NORMAL.
+> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > 
+> > This patchset is the follow-up of the discussion about the
+> > "Introduce ZONE_CMA (v7)" [1]. Please reference it if more information
+> > is needed.
+> > 
+> > In this patchset, the memory of the CMA area is managed by using
+> > the ZONE_MOVABLE. Since there is another type of the memory in this zone,
+> > we need to maintain a migratetype for the CMA memory to account
+> > the number of the CMA memory. So, unlike previous patchset, there is
+> > less deletion of the code.
+> > 
+> > Otherwise, there is no big change.
+> > 
+> > Motivation of this patchset is described in the commit description of
+> > the patch "mm/cma: manage the memory of the CMA area by using
+> > the ZONE_MOVABLE". Please refer it for more information.
+> > 
+> > This patchset is based on linux-next-20170822 plus
+> > "mm/page_alloc: don't reserve ZONE_HIGHMEM for ZONE_MOVABLE".
+> > 
 > 
-> I can't imagine somebody would want override the ratio for HIGHMEM or
-> MOVABLE
-> (where it has no effect anyway) so the simplest thing is not to expose
-> it at all.
+> But "mm/page_alloc: don't reserve ZONE_HIGHMEM for ZONE_MOVABLE" did
+> not do very well at review - both Michal and Vlastimil are looking for
+> changes.  So we're not ready for a patch series which depends upon that
+> one?
 
-Seems reasonable. However, if there is a user who checks
-sysctl_lowmem_reserve_ratio entry for HIGHMEM and change it, suggested
-interface will cause a problem since it doesn't expose ratio for
-HIGHMEM. Am I missing something?
+Oops. I checked again and I found that this patchset is not dependant
+to that patch. It's just leftover from ZONE_CMA patchset.
 
 Thanks.
-
-
-> 
-> > Thanks.
-> > 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
