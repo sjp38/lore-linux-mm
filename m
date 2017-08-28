@@ -1,84 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 26B016B025F
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 08:37:00 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id l19so498821wmi.1
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 05:37:00 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C4AB26B025F
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 09:08:33 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id n37so611301wrf.8
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 06:08:33 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h19si271800wrb.48.2017.08.28.05.36.58
+        by mx.google.com with ESMTPS id f66si256055wmd.163.2017.08.28.06.08.31
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 28 Aug 2017 05:36:58 -0700 (PDT)
-Date: Mon, 28 Aug 2017 14:36:57 +0200
+        Mon, 28 Aug 2017 06:08:32 -0700 (PDT)
+Date: Mon, 28 Aug 2017 15:08:29 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] treewide: remove GFP_TEMPORARY allocation flag
-Message-ID: <20170828123657.GK17097@dhcp22.suse.cz>
-References: <20170728091904.14627-1-mhocko@kernel.org>
- <20170823175709.GA22743@xo-6d-61-c0.localdomain>
- <20170825063545.GA25498@dhcp22.suse.cz>
- <20170825072818.GA15494@amd>
- <20170825080442.GF25498@dhcp22.suse.cz>
- <20170825213936.GA13576@amd>
- <87pobjhssq.fsf@notabene.neil.brown.name>
+Subject: Re: [PATCH 2/2] mm/slub: don't use reserved highatomic pageblock for
+ optimistic try
+Message-ID: <20170828130829.GL17097@dhcp22.suse.cz>
+References: <1503882675-17910-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1503882675-17910-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <b50bd39f-931f-7016-f380-62d65babb03f@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87pobjhssq.fsf@notabene.neil.brown.name>
+In-Reply-To: <b50bd39f-931f-7016-f380-62d65babb03f@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.com>
-Cc: Pavel Machek <pavel@ucw.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Neil Brown <neilb@suse.de>, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>
 
-On Sat 26-08-17 14:11:33, NeilBrown wrote:
-> On Fri, Aug 25 2017, Pavel Machek wrote:
+On Mon 28-08-17 13:29:29, Vlastimil Babka wrote:
+> On 08/28/2017 03:11 AM, js1304@gmail.com wrote:
+> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > 
+> > High-order atomic allocation is difficult to succeed since we cannot
+> > reclaim anything in this context. So, we reserves the pageblock for
+> > this kind of request.
+> > 
+> > In slub, we try to allocate higher-order page more than it actually
+> > needs in order to get the best performance. If this optimistic try is
+> > used with GFP_ATOMIC, alloc_flags will be set as ALLOC_HARDER and
+> > the pageblock reserved for high-order atomic allocation would be used.
+> > Moreover, this request would reserve the MIGRATE_HIGHATOMIC pageblock
+> > ,if succeed, to prepare further request. It would not be good to use
+> > MIGRATE_HIGHATOMIC pageblock in terms of fragmentation management
+> > since it unconditionally set a migratetype to request's migratetype
+> > when unreserving the pageblock without considering the migratetype of
+> > used pages in the pageblock.
+> > 
+> > This is not what we don't intend so fix it by unconditionally setting
+> > __GFP_NOMEMALLOC in order to not set ALLOC_HARDER.
 > 
-> > On Fri 2017-08-25 10:04:42, Michal Hocko wrote:
-> >> On Fri 25-08-17 09:28:19, Pavel Machek wrote:
-> >> > On Fri 2017-08-25 08:35:46, Michal Hocko wrote:
-> >> > > On Wed 23-08-17 19:57:09, Pavel Machek wrote:
-> >> [...]
-> >> > > > Dunno. < 1msec probably is temporary, 1 hour probably is not. If it causes
-> >> > > > problems, can you just #define GFP_TEMPORARY GFP_KERNEL ? Treewide replace,
-> >> > > > and then starting again goes not look attractive to me.
-> >> > > 
-> >> > > I do not think we want a highlevel GFP_TEMPORARY without any meaning.
-> >> > > This just supports spreading the flag usage without a clear semantic
-> >> > > and it will lead to even bigger mess. Once we can actually define what
-> >> > > the flag means we can also add its users based on that new semantic.
-> >> > 
-> >> > It has real meaning.
-> >> 
-> >> Which is?
-> >
-> > "This allocation is temporary. It lasts milliseconds, not hours."
-> 
-> It isn't sufficient to give a rule for when GFP_TEMPORARY will be used,
-> you also need to explain (at least in general terms) how the information
-> will be used.  Also you need to give guidelines on whether the flag
-> should be set for allocation that will last seconds or minutes.
-> 
-> If we have a flag that doesn't have a well defined meaning that actually
-> affects behavior, it will not be used consistently, and if we ever
-> change exactly how it behaves we can expect things to break.  So it is
-> better not to have a flag, than to have a poorly defined flag.
+> I wonder if it would be more robust to strip GFP_ATOMIC from alloc_gfp.
+> E.g. __GFP_NOMEMALLOC does seem to prevent ALLOC_HARDER, but not
+> ALLOC_HIGH. Or maybe we should adjust __GFP_NOMEMALLOC implementation
+> and document it more thoroughly? CC Michal Hocko
 
-Absolutely agreed!
+Yeah, __GFP_NOMEMALLOC is rather inconsistent. It has been added to
+override __GFP_MEMALLOC resp. PF_MEMALLOC AFAIK. In this particular
+case I would agree that dropping __GFP_HIGH and __GFP_ATOMIC would
+be more precise. I am not sure we want to touch the existing semantic of
+__GFP_NOMEMALLOC though. This would require auditing all the existing
+users (something tells me that quite some of those will be incorrect...)
 
-> My current thoughts is that the important criteria is not how long the
-> allocation will be used for, but whether it is reclaimable.  Allocations
-> that will only last 5 msecs are reclaimable by calling "usleep(5000)".
-> Other allocations might be reclaimable in other ways.  Allocations that
-> are not reclaimable may well be directed to a more restricted pool of
-> memory, and might be more likely to fail.  If we grew a strong
-> "reclaimable" concept, this 'temporary' concept that you want to hold on
-> to would become a burden.
+> Also, were these 2 patches done via code inspection or you noticed
+> suboptimal behavior which got fixed? Thanks.
 
-... and here again. The whole motivation for the flag was to gather
-these objects together and reduce chances of internal fragmentation
-due to long lived objects mixed with short term ones. Without an
-explicit way to reclaim those objects or having a clear checkpoint to
-wait for it is not really helping us to reach desired outcome (less
-fragmented memory).
+The patch description is not very clear to me either but I guess that
+Joonsoo sees to many larger order pages to back slab objects when the
+system is not under heavy memory pressure and that increases internal
+fragmentation?
+
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > ---
+> >  mm/slub.c | 6 ++----
+> >  1 file changed, 2 insertions(+), 4 deletions(-)
+> > 
+> > diff --git a/mm/slub.c b/mm/slub.c
+> > index e1e442c..fd8dd89 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -1579,10 +1579,8 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+> >  	 */
+> >  	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
+> >  	if (oo_order(oo) > oo_order(s->min)) {
+> > -		if (alloc_gfp & __GFP_DIRECT_RECLAIM) {
+> > -			alloc_gfp |= __GFP_NOMEMALLOC;
+> > -			alloc_gfp &= ~__GFP_DIRECT_RECLAIM;
+> > -		}
+> > +		alloc_gfp |= __GFP_NOMEMALLOC;
+> > +		alloc_gfp &= ~__GFP_DIRECT_RECLAIM;
+> >  	}
+> >  
+> >  	page = alloc_slab_page(s, alloc_gfp, node, oo);
+> > 
 
 -- 
 Michal Hocko
