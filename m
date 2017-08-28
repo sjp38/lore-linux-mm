@@ -1,53 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EBEE26B04A3
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 17:43:56 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id r133so2597753pgr.6
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 14:43:56 -0700 (PDT)
-Received: from mail-pg0-x231.google.com (mail-pg0-x231.google.com. [2607:f8b0:400e:c05::231])
-        by mx.google.com with ESMTPS id h4si1060805pln.182.2017.08.28.14.43.55
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 952F86B04A5
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 17:43:57 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id r133so2597782pgr.6
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 14:43:57 -0700 (PDT)
+Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
+        by mx.google.com with ESMTPS id e92si1060964pld.640.2017.08.28.14.43.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Aug 2017 14:43:55 -0700 (PDT)
-Received: by mail-pg0-x231.google.com with SMTP id 63so5021104pgc.2
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 14:43:55 -0700 (PDT)
+        Mon, 28 Aug 2017 14:43:56 -0700 (PDT)
+Received: by mail-pf0-x232.google.com with SMTP id z87so4714959pfi.3
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 14:43:56 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v2 19/30] ip: Define usercopy region in IP proto slab cache
-Date: Mon, 28 Aug 2017 14:35:00 -0700
-Message-Id: <1503956111-36652-20-git-send-email-keescook@chromium.org>
+Subject: [PATCH v2 24/30] fork: Define usercopy region in mm_struct slab caches
+Date: Mon, 28 Aug 2017 14:35:05 -0700
+Message-Id: <1503956111-36652-25-git-send-email-keescook@chromium.org>
 In-Reply-To: <1503956111-36652-1-git-send-email-keescook@chromium.org>
 References: <1503956111-36652-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, "David S. Miller" <davem@davemloft.net>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Andy Lutomirski <luto@kernel.org>, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
 From: David Windsor <dave@nullcore.net>
 
-The ICMP filters for IPv4 and IPv6 raw sockets need to be copied to/from
-userspace. In support of usercopy hardening, this patch defines a region
-in the struct proto slab cache in which userspace copy operations are
-allowed.
+In support of usercopy hardening, this patch defines a region in the
+mm_struct slab caches in which userspace copy operations are allowed.
+Only the auxv field is copied to userspace.
+
+cache object allocation:
+    kernel/fork.c:
+        #define allocate_mm()     (kmem_cache_alloc(mm_cachep, GFP_KERNEL))
+
+        dup_mm():
+            ...
+            mm = allocate_mm();
+
+        copy_mm(...):
+            ...
+            dup_mm();
+
+        copy_process(...):
+            ...
+            copy_mm(...)
+
+        _do_fork(...):
+            ...
+            copy_process(...)
 
 example usage trace:
 
-    net/ipv4/raw.c:
-        raw_seticmpfilter(...):
+    fs/binfmt_elf.c:
+        create_elf_tables(...):
             ...
-            copy_from_user(&raw_sk(sk)->filter, ..., optlen)
+            elf_info = (elf_addr_t *)current->mm->saved_auxv;
+            ...
+            copy_to_user(..., elf_info, ei_index * sizeof(elf_addr_t))
 
-        raw_geticmpfilter(...):
+        load_elf_binary(...):
             ...
-            copy_to_user(..., &raw_sk(sk)->filter, len)
-
-    net/ipv6/raw.c:
-        rawv6_seticmpfilter(...):
-            ...
-            copy_from_user(&raw6_sk(sk)->filter, ..., optlen)
-
-        rawv6_geticmpfilter(...):
-            ...
-            copy_to_user(..., &raw6_sk(sk)->filter, len)
+            create_elf_tables(...);
 
 This region is known as the slab cache's usercopy region. Slab caches can
 now check that each copy operation involving cache-managed memory falls
@@ -59,43 +71,33 @@ understanding of the code. Changes or omissions from the original code are
 mine and don't reflect the original grsecurity/PaX code.
 
 Signed-off-by: David Windsor <dave@nullcore.net>
-[kees: split from network patch, provide usage trace]
-Cc: "David S. Miller" <davem@davemloft.net>
-Cc: Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
-Cc: Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>
-Cc: netdev@vger.kernel.org
+[kees: adjust commit log, split patch, provide usage trace]
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andy Lutomirski <luto@kernel.org>
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- net/ipv4/raw.c | 2 ++
- net/ipv6/raw.c | 2 ++
- 2 files changed, 4 insertions(+)
+ kernel/fork.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/net/ipv4/raw.c b/net/ipv4/raw.c
-index b0bb5d0a30bd..6c7f8d2eb3af 100644
---- a/net/ipv4/raw.c
-+++ b/net/ipv4/raw.c
-@@ -964,6 +964,8 @@ struct proto raw_prot = {
- 	.hash		   = raw_hash_sk,
- 	.unhash		   = raw_unhash_sk,
- 	.obj_size	   = sizeof(struct raw_sock),
-+	.useroffset	   = offsetof(struct raw_sock, filter),
-+	.usersize	   = sizeof_field(struct raw_sock, filter),
- 	.h.raw_hash	   = &raw_v4_hashinfo,
- #ifdef CONFIG_COMPAT
- 	.compat_setsockopt = compat_raw_setsockopt,
-diff --git a/net/ipv6/raw.c b/net/ipv6/raw.c
-index 60be012fe708..27dd9a5f71c6 100644
---- a/net/ipv6/raw.c
-+++ b/net/ipv6/raw.c
-@@ -1265,6 +1265,8 @@ struct proto rawv6_prot = {
- 	.hash		   = raw_hash_sk,
- 	.unhash		   = raw_unhash_sk,
- 	.obj_size	   = sizeof(struct raw6_sock),
-+	.useroffset	   = offsetof(struct raw6_sock, filter),
-+	.usersize	   = sizeof_field(struct raw6_sock, filter),
- 	.h.raw_hash	   = &raw_v6_hashinfo,
- #ifdef CONFIG_COMPAT
- 	.compat_setsockopt = compat_rawv6_setsockopt,
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 17921b0390b4..d8ebf755a47b 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -2206,9 +2206,11 @@ void __init proc_caches_init(void)
+ 	 * maximum number of CPU's we can ever have.  The cpumask_allocation
+ 	 * is at the end of the structure, exactly for that reason.
+ 	 */
+-	mm_cachep = kmem_cache_create("mm_struct",
++	mm_cachep = kmem_cache_create_usercopy("mm_struct",
+ 			sizeof(struct mm_struct), ARCH_MIN_MMSTRUCT_ALIGN,
+ 			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_NOTRACK|SLAB_ACCOUNT,
++			offsetof(struct mm_struct, saved_auxv),
++			sizeof_field(struct mm_struct, saved_auxv),
+ 			NULL);
+ 	vm_area_cachep = KMEM_CACHE(vm_area_struct, SLAB_PANIC|SLAB_ACCOUNT);
+ 	mmap_init();
 -- 
 2.7.4
 
