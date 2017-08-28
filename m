@@ -1,106 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 97F1A6B025F
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 10:33:10 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id j72so829822wmi.6
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 07:33:10 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u76si395887wmf.69.2017.08.28.07.33.08
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B36486B02B4
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 10:51:19 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id r187so1052485pfr.8
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 07:51:19 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id s21si426179pfi.259.2017.08.28.07.51.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 28 Aug 2017 07:33:08 -0700 (PDT)
-Date: Mon, 28 Aug 2017 16:33:07 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/hmm: fix build when HMM is disabled
-Message-ID: <20170828143307.GC17080@dhcp22.suse.cz>
-References: <3c9df006-0cc5-3a32-b715-1fbb43cb9ea8@infradead.org>
- <20170826002149.20919-1-jglisse@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Aug 2017 07:51:18 -0700 (PDT)
+From: "Liang, Kan" <kan.liang@intel.com>
+Subject: RE: [PATCH 2/2 v2] sched/wait: Introduce lock breaker in
+ wake_up_page_bit
+Date: Mon, 28 Aug 2017 14:51:14 +0000
+Message-ID: <37D7C6CF3E00A74B8858931C1DB2F077537A07E9@SHSMSX103.ccr.corp.intel.com>
+References: <83f675ad385d67760da4b99cd95ee912ca7c0b44.1503677178.git.tim.c.chen@linux.intel.com>
+ <cd8ce7fbca9c126f7f928b8fa48d7a9197955b45.1503677178.git.tim.c.chen@linux.intel.com>
+ <CA+55aFyErsNw8bqTOCzcrarDZBdj+Ev=1N3sV-gxtLTH03bBFQ@mail.gmail.com>
+ <f10f4c25-49c0-7ef5-55c2-769c8fd9bf90@linux.intel.com>
+ <CA+55aFzNikMsuPAaExxT1Z8MfOeU6EhSn6UPDkkz-MRqamcemg@mail.gmail.com>
+ <CA+55aFx67j0u=GNRKoCWpsLRDcHdrjfVvWRS067wLUSfzstgoQ@mail.gmail.com>
+ <CA+55aFzy981a8Ab+89APi6Qnb9U9xap=0A6XNc+wZsAWngWPzA@mail.gmail.com>
+ <CA+55aFwyCSh1RbJ3d5AXURa4_r5OA_=ZZKQrFX0=Z1J3ZgVJ5g@mail.gmail.com>
+ <CA+55aFy18WCqZGwkxH6dTZR9LD9M5nXWqEN8DBeZ4LvNo4Y0BQ@mail.gmail.com>
+In-Reply-To: <CA+55aFy18WCqZGwkxH6dTZR9LD9M5nXWqEN8DBeZ4LvNo4Y0BQ@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170826002149.20919-1-jglisse@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jglisse@redhat.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes
+ Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Christopher Lameter <cl@linux.com>, "Eric W . Biederman" <ebiederm@xmission.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-I have only now noticed this patch and it fixes allnoconfig failure
-I saw earlier this day and tried to address by
-http://lkml.kernel.org/r/20170828075931.GC17097@dhcp22.suse.cz
-
-On Fri 25-08-17 20:21:49, jglisse@redhat.com wrote:
-> From: Jerome Glisse <jglisse@redhat.com>
-> 
-> Combinatorial Kconfig is painfull. Withi this patch all below combination
-> build.
-> 
-> 1)
-> 
-> 2)
-> CONFIG_HMM_MIRROR=y
-> 
-> 3)
-> CONFIG_DEVICE_PRIVATE=y
-> 
-> 4)
-> CONFIG_DEVICE_PUBLIC=y
-> 
-> 5)
-> CONFIG_HMM_MIRROR=y
-> CONFIG_DEVICE_PUBLIC=y
-> 
-> 6)
-> CONFIG_HMM_MIRROR=y
-> CONFIG_DEVICE_PRIVATE=y
-> 
-> 7)
-> CONFIG_DEVICE_PRIVATE=y
-> CONFIG_DEVICE_PUBLIC=y
-> 
-> 8)
-> CONFIG_HMM_MIRROR=y
-> CONFIG_DEVICE_PRIVATE=y
-> CONFIG_DEVICE_PUBLIC=y
-> 
-> Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> Reported-by: Randy Dunlap <rdunlap@infradead.org>
-> ---
->  include/linux/hmm.h | 4 +---
->  1 file changed, 1 insertion(+), 3 deletions(-)
-> 
-> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> index 9583d9a15f9c..96d6b1232c07 100644
-> --- a/include/linux/hmm.h
-> +++ b/include/linux/hmm.h
-> @@ -498,7 +498,7 @@ struct hmm_device {
->  struct hmm_device *hmm_device_new(void *drvdata);
->  void hmm_device_put(struct hmm_device *hmm_device);
->  #endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
-> -
-> +#endif /* IS_ENABLED(CONFIG_HMM) */
->  
->  /* Below are for HMM internal use only! Not to be used by device driver! */
->  #if IS_ENABLED(CONFIG_HMM_MIRROR)
-> @@ -513,6 +513,4 @@ static inline void hmm_mm_destroy(struct mm_struct *mm) {}
->  static inline void hmm_mm_init(struct mm_struct *mm) {}
->  #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
->  
-> -
-> -#endif /* IS_ENABLED(CONFIG_HMM) */
->  #endif /* LINUX_HMM_H */
-> -- 
-> 2.13.4
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
+DQoNCi4NCj4gT24gRnJpLCBBdWcgMjUsIDIwMTcgYXQgNzo1NCBQTSwgTGludXMgVG9ydmFsZHMg
+PHRvcnZhbGRzQGxpbnV4LQ0KPiBmb3VuZGF0aW9uLm9yZz4gd3JvdGU6DQo+ID4NCj4gPiBTaW1w
+bGlmeSwgc2ltcGxpZnksIHNpbXBsaWZ5Lg0KPiANCj4gSSd2ZSBub3cgdHJpZWQgdGhyZWUgZGlm
+ZmVyZW50IGFwcHJvYWNoZXMgKEkgc3RvcHBlZCBzZW5kaW5nIGJyb2tlbiBwYXRjaGVzDQo+IGFm
+dGVyIGRlY2lkaW5nIHRoZSBmaXJzdCBvbmUgd2FzIHVuZml4YWJsZSksIGFuZCB0aGV5IGFsbCBz
+dWNrLg0KPiANCj4gSSB3YXMgaG9waW5nIGZvciBzb21ldGhpbmcgbG9ja2xlc3MgdG8gYXZvaWQg
+dGhlIHdob2xlIGlzc3VlIHdpdGggbGF0ZW5jeQ0KPiBvdmVyIHRoZSBsb25nIGxpc3QsIGJ1dCBh
+bnl0aGluZyB0aGF0IGhhcyB0aGUgd2FpdCBxdWV1ZSBlbnRyeSBhbGxvY2F0ZWQgb24gdGhlDQo+
+IHN0YWNrIG5lZWRzIHRvIHN5bmNocm9uaXplIHRoZSB3YWtldXAgZHVlIHRvIHRoZSBzdGFjayB1
+c2FnZSwgc28gb25jZSB5b3UNCj4gaGF2ZSBsaXN0cyB0aGF0IGFyZSB0aG91c2FuZHMgb2YgZW50
+cmllcywgZWl0aGVyIHlvdSBob2xkIHRoZSBsb2NrIGZvciBsb25nDQo+IHRpbWVzIChub3JtYWwg
+d2FpdCBxdWV1ZXMpIG9yIHRha2UgYW5kIHJlbGVhc2UgdGhlbSBjb25zdGFudGx5ICh0aGUgc3dh
+aXQNCj4gYXBwcm9hY2gpLCBvciB5b3UgYmF0Y2ggdGhpbmdzIHVwIChUaW0ncyB3YWl0LXF1ZXVl
+IHBhdGNoZXMpLg0KPiANCj4gT2YgdGhvc2UgdGhyZWUgYXBwcm9hY2hlcywgdGhlIGJhdGNoaW5n
+IGRvZXMgc2VlbSB0byBiZSB0aGUgYmVzdCBvZiB0aGUgbG90Lg0KPiBBbGxvY2F0aW5nIG5vbi1z
+dGFjayB3YWl0IGVudHJpZXMgd2hpbGUgd2FpdGluZyBmb3IgcGFnZXMgc2VlbXMgbGlrZSBhIGJh
+ZA0KPiBpZGVhLiBXZSdyZSBwcm9iYWJseSB3YWl0aW5nIGZvciBJTyBpbiBub3JtYWwgY2lyY3Vt
+c3RhbmNlcywgcG9zc2libHkNCj4gYmVjYXVzZSB3ZSdyZSBsb3cgb24gbWVtb3J5Lg0KPiANCj4g
+U28gSSAqYW0qIG9rIHdpdGggdGhlIGJhdGNoaW5nICh5b3VyIHBhdGNoICMxKSwgYnV0IEknbSAq
+bm90KiBvayB3aXRoIHRoZQ0KPiBuYXN0eSBob3JyaWJsZSBib29rLWtlZXBpbmcgdG8gYXZvaWQg
+bmV3IGVudHJpZXMgd2hlbiB5b3UgYmF0Y2ggYW5kDQo+IHJlbGVhc2UgdGhlIGxvY2sgYW5kIHRo
+YXQgYWxsb3dzIG5ldyBlbnRyaWVzIG9uIHRoZSBsaXN0ICh5b3VyIHBhdGNoICMyKS4NCj4gDQo+
+IFRoYXQgc2FpZCwgSSBoYXZlIG5vdyBzdGFyZWQgKndheSogdG9vIG11Y2ggYXQgdGhlIHBhZ2Ug
+d2FpdCBjb2RlIGFmdGVyDQo+IGhhdmluZyB1bnN1Y2Nlc3NmdWxseSB0cmllZCB0byByZXBsYWNl
+IHRoYXQgd2FpdC1xdWV1ZSB3aXRoIG90aGVyICJjbGV2ZXIiDQo+IGFwcHJvYWNoZXMgKGFsbCBv
+ZiB3aGljaCBlbmRlZCB1cCBiZWluZyBjcmFwKS4NCj4gDQo+IEFuZCBJJ20gc3RhcnRpbmcgdG8g
+c2VlIGEgcG9zc2libGUgc29sdXRpb24sIG9yIGF0IGxlYXN0IGltcHJvdmVtZW50Lg0KPiANCj4g
+TGV0J3MganVzdCBhc3N1bWUgSSB0YWtlIHRoZSBiYXRjaGluZyBwYXRjaC4gSXQncyBub3QgY29u
+Y2VwdHVhbGx5IHVnbHksIGl0J3MNCj4gZmFpcmx5IHNpbXBsZSwgYW5kIHRoZXJlIGFyZSBsb3Rz
+IG9mIGluZGVwZW5kZW50IGFyZ3VtZW50cyBmb3IgaXQgKGllIGxhdGVuY3ksDQo+IGJ1dCBhbHNv
+IHBvc3NpYmxlIHBlcmZvcm1hbmNlIGZyb20gYmV0dGVyIHBhcmFsbGVsaXNtKS4NCj4gDQo+IFRo
+YXQgcGF0Y2ggZG9lc24ndCBtYWtlIGFueSBkYXRhIHN0cnVjdHVyZXMgYmlnZ2VyIG9yIG1vcmUg
+Y29tcGxpY2F0ZWQsIGl0J3MNCj4ganVzdCB0aGF0IHNpbmdsZSAiaXMgdGhpcyBhIGJvb2ttYXJr
+IGVudHJ5IiB0aGluZy4NCj4gU28gdGhhdCBwYXRjaCBqdXN0IGxvb2tzIGZ1bmRhbWVudGFsbHkg
+ZmluZSB0byBtZSwgYW5kIHRoZSBvbmx5IHJlYWwNCj4gYXJndW1lbnQgSSBldmVyIGhhZCBhZ2Fp
+bnN0IGl0IHdhcyB0aGF0IEkgd291bGQgcmVhbGx5IHJlYWxseSBfcmVhbGx5XyBoYXZlDQo+IHdh
+bnRlZCB0byByb290LWNhdXNlIHRoZSBiZWhhdmlvci4NCj4gDQo+IFNvIHRoYXQgbGVhdmVzIG15
+IGZ1bmRhbWVudGFsIGRpc2xpa2Ugb2YgeW91ciBvdGhlciBwYXRjaC4NCj4gDQo+IEFuZCBpdCB0
+dXJucyBvdXQgdGhhdCBhbGwgbXkgbG9va2luZyBhdCB0aGUgcGFnZSB3YWl0IGNvZGUgd2Fzbid0
+IGVudGlyZWx5DQo+IHVucHJvZHVjdGl2ZS4gWWVzLCBJIHdlbnQgdGhyb3VnaCB0aHJlZSBjcmFw
+IGFwcHJvYWNoZXMgYmVmb3JlIEkgZ2F2ZSB1cCBvbg0KPiByZXdyaXRpbmcgaXQsIGJ1dCBpbiB0
+aGUgbWVhbnRpbWUgSSBkaWQgZ2V0IHdheSB0b28gaW50aW1hdGUgd2l0aCBsb29raW5nIGF0DQo+
+IHRoYXQgcGlsZSBvZiBjcnVkLg0KPiANCj4gQW5kIEkgdGhpbmsgSSBmb3VuZCB0aGUgcmVhc29u
+IHdoeSB5b3UgbmVlZGVkIHRoYXQgcGF0Y2ggIzIgaW4gdGhlIGZpcnN0IHBsYWNlLg0KPiANCj4g
+SGVyZSdzIHdoYXQgaXMgZ29pbmcgb246DQo+IA0KPiAgLSB3ZSdyZSBnb2luZyB0byBhc3N1bWUg
+dGhhdCB0aGUgcHJvYmxlbSBpcyBhbGwgd2l0aCBhIHNpbmdsZSBwYWdlLCBub3QgZHVlIHRvDQo+
+IGhhc2ggY29sbGlzaW9ucyAoYXMgcGVyIHlvdXIgZWFybGllciByZXBvcnRzKQ0KPiANCj4gIC0g
+d2UgYWxzbyBrbm93IHRoYXQgdGhlIG9ubHkgYml0IHRoYXQgbWF0dGVycyBpcyB0aGUgUEdfbG9j
+a2VkIGJpdA0KPiANCj4gIC0gdGhhdCBtZWFucyB0aGF0IHRoZSBvbmx5IHdheSB0byBnZXQgdGhh
+dCAibXVsdGlwbGUgY29uY3VycmVudCB3YWtlciINCj4gc2l0dWF0aW9uIHRoYXQgeW91ciBwYXRj
+aCAjMiB0cmllcyB0byBoYW5kbGUgYmV0dGVyIGlzIGJlY2F1c2UgeW91IGhhdmUNCj4gbXVsdGlw
+bGUgcGVvcGxlIHVubG9ja2luZyB0aGUgcGFnZSAtIHNpbmNlIHRoYXQgaXMgd2hhdCBjYXVzZXMg
+dGhlIHdha2V1cHMNCj4gDQo+ICAtIHRoYXQgaW4gdHVybiBtZWFucyB0aGF0IHlvdSBvYnZpb3Vz
+bHkgaGFkIG11bHRpcGxlIHRocmVhZHMgKmxvY2tpbmcqIGl0IHRvby4NCj4gDQo+ICAtIGFuZCB0
+aGF0IG1lYW5zIHRoYXQgYW1vbmcgdGhvc2UgbmV3IGVudHJpZXMgdGhlcmUgYXJlIGxvY2tlcnMg
+Y29taW5nIGluDQo+IGluIHRoZSBtaWRkbGUgYW5kIGFkZGluZyBhbiBleGNsdXNpdmUgZW50cnku
+DQo+IA0KPiAgLSB0aGUgZXhjbHVzaXZlIGVudHJ5IGFscmVhZHkgc3RvcHMgdGhlIHdha2V1cCBs
+aXN0IHdhbGtpbmcNCj4gDQo+ICAtIGJ1dCB3ZSBhZGQgbm9uLWV4Y2x1c2l2ZSBlbnRyaWVzIFRP
+IFRIRSBCRUdJTk5JTkcgb2YgdGhlIHBhZ2Ugd2FpdGVycw0KPiBsaXN0DQo+IA0KPiBBbmQgSSBy
+ZWFsbHkgdGhpbmsgdGhhdCBsYXN0IHRoaW5nIGlzIGZ1bmRhbWVudGFsbHkgd3JvbmcuDQo+IA0K
+PiBJdCdzIHdyb25nIGZvciBzZXZlcmFsIHJlYXNvbnM6DQo+IA0KPiAgLSBiZWNhdXNlIGl0J3Mg
+dW5mYWlyOiB0aHJlYWRzIHRoYXQgd2FudCB0byBsb2NrIGdldCBwdXQgYmVoaW5kIHRocmVhZHMg
+dGhhdA0KPiBqdXN0IHdhbnQgdG8gc2VlIHRoZSB1bmxvY2tlZCBzdGF0ZS4NCj4gDQo+ICAtIGJl
+Y2F1c2UgaXQncyBzdHVwaWQ6IG91ciBub24tbG9ja2luZyB3YWl0ZXJzIHdpbGwgZW5kIHVwIHdh
+aXRpbmcgYWdhaW4gaWYgdGhlDQo+IHBhZ2UgZ290IGxvY2tlZCwgc28gd2FraW5nIHVwIGEgbG9j
+a2VyICphbmQqIGEgbG90IG9mIG5vbi1sb2NraW5nIHdhaXRlcnMgd2lsbA0KPiBqdXN0IGNhdXNl
+IHRoZW0gdG8gZ28gYmFjayB0byBzbGVlcCBhbnl3YXkNCj4gDQo+ICAtIGJlY2F1c2UgaXQgY2F1
+c2VzIHVzIHRvIHdhbGsgbG9uZ2VyIGxpc3RzOiB3ZSBzdG9wIHdhbGtpbmcgd2hlbiB3ZSB3YWtl
+IHVwDQo+IHRoZSBleGNsdXNpdmUgd2FpdGVyLCBidXQgYmVjYXVzZSB3ZSBhbHdheXMgcHV0IHRo
+ZSBub24tZXhjbHVzaXZlIHdhaXRlcnMgaW4NCj4gdGhlcmUgZmlyc3QsIHdlIGFsd2F5cyB3YWxr
+IHRoZSBsb25nIGxpc3Qgb2Ygbm9uLWV4Y2x1c2l2ZSB3YWl0ZXJzIGV2ZW4gaWYgd2UNCj4gY291
+bGQganVzdCBzdG9wIHdhbGtpbmcgYmVjYXVzZSB3ZSB3b2tlIHVwIGFuIGV4Y2x1c2l2ZSBvbmUu
+DQo+IA0KPiBOb3cgdGhlIHJlYXNvbiB3ZSBkbyB0aGlzIHNlZW1zIHRvIGJlIGVudGlyZWx5IHJh
+bmRvbTogZm9yIGEgKm5vcm1hbCogd2FpdA0KPiBxdWV1ZSwgeW91IHJlYWxseSB3YW50IHRvIGFs
+d2F5cyB3YWtlIHVwIGFsbCB0aGUgbm9uLWV4Y2x1c2l2ZSB3YWl0ZXJzLA0KPiBiZWNhdXNlIGV4
+Y2x1c2l2ZSB3YWl0ZXJzIGFyZSBvbmx5IGV4Y2x1c2l2ZSB3cnQgZWFjaCBvdGhlci4NCj4gDQo+
+IEJ1dCBmb3IgYSBwYWdlIGxvY2ssIGFuIGV4Y2x1c2l2ZSB3YWl0ZXIgcmVhbGx5IGlzIGdldHRp
+bmcgdGhlIGxvY2ssIGFuZCB0aGUNCj4gb3RoZXIgd2FpdGVycyBhcmUgZ29pbmcgdG8gd2FpdCBm
+b3IgdGhlIGxvY2sgdG8gY2xlYXIgYW55d2F5LCBzbyB0aGUgcGFnZSB3YWl0DQo+IHRoaW5nIGlz
+IGFjdHVhbGx5IGFsbW9zdCBleGFjdGx5IHRoZSByZXZlcnNlIHNpdHVhdGlvbi4gV2UgKmNvdWxk
+KiBwdXQNCj4gZXhjbHVzaXZlIHdhaXRlcnMgYXQgdGhlIGJlZ2lubmluZyBvZiB0aGUgbGlzdCBp
+bnN0ZWFkLCBhbmQgYWN0aXZlbHkgdHJ5IHRvIGF2b2lkDQo+IHdhbGtpbmcgdGhlIGxpc3QgYXQg
+YWxsIGlmIHdlIGhhdmUgcGVuZGluZyBsb2NrZXJzLg0KPiANCj4gSSdtIG5vdCBkb2luZyB0aGF0
+LCBiZWNhdXNlIEkgdGhpbmsgdGhlIGZhaXIgdGhpbmcgdG8gZG8gaXMgdG8ganVzdCBkbyB0aGlu
+Z3MgaW4NCj4gdGhlIG9yZGVyIHRoZXkgY2FtZSBpbi4gUGx1cyB0aGUgY29kZSBpcyBhY3R1YWxs
+eSBzaW1wbGVyIGlmIHdlIGp1c3QgYWx3YXlzIGFkZA0KPiB0byB0aGUgdGFpbC4NCj4gDQo+IE5v
+dywgdGhlIG90aGVyIHRoaW5nIHRvIGxvb2sgYXQgaXMgaG93IHRoZSB3YWtldXAgZnVuY3Rpb24g
+d29ya3MuIEl0IGNoZWNrcw0KPiB0aGUgYWxpYXNpbmcgaW5mb3JtYXRpb24gKHBhZ2UgYW5kIGJp
+dCBudW1iZXIpLCBidXQgdGhlbiBpdA0KPiAqYWxzbyogZG9lczoNCj4gDQo+ICAgICAgICAgaWYg
+KHRlc3RfYml0KGtleS0+Yml0X25yLCAma2V5LT5wYWdlLT5mbGFncykpDQo+ICAgICAgICAgICAg
+ICAgICByZXR1cm4gMDsNCj4gDQo+IGJhc2ljYWxseSBzYXlpbmcgImNvbnRpbnVlIHdhbGtpbmcg
+aWYgc29tZWJvZHkgZWxzZSBhbHJlYWR5IGdvdCB0aGUgYml0Ii4NCj4gDQo+IFRoYXQncyAqSU5T
+QU5FKi4gSXQncyBleGFjdGx5IHRoZSB3cm9uZyB0aGluZyB0byBkby4gSXQncyBiYXNpY2FsbHkg
+c2F5aW5nICJldmVuDQo+IGlmIHdlIGhhZCBhbiBleGNsdXNpdmUgd2FpdGVyLCBsZXQncyBub3Qg
+d2FrZSBpdCB1cCwgYnV0IGRvIGxldCB1cyBjb250aW51ZSB0bw0KPiB3YWxrIHRoZSBsaXN0IGV2
+ZW4gdGhvdWdoIHRoZSBiaXQgd2UncmUgd2FpdGluZyBmb3IgdG8gY2xlYXIgaXMgc2V0IGFscmVh
+ZHkiLg0KPiANCj4gV2hhdCB3b3VsZCBiZSBzYW5lIGlzIHRvIHNheSAic3RvcCB3YWxraW5nIHRo
+ZSBsaXN0IG5vdyIuLiBTbyBqdXN0IGRvIHRoYXQgLSBieQ0KPiBtYWtpbmcgIm5lZ2F0aXZlIHJl
+dHVybiBmcm9tIHdha2UgZnVuY3Rpb24iIG1lYW4gInN0b3Agd2Fsa2luZyIuDQo+IA0KPiBTbyBo
+b3cgYWJvdXQganVzdCB0aGlzIGZhaXJseSB0cml2aWFsIHBhdGNoPw0KDQpJIHRyaWVkIHRoaXMg
+cGF0Y2ggYW5kIGh0dHBzOi8vbGttbC5vcmcvbGttbC8yMDE3LzgvMjcvMjIyIHRvZ2V0aGVyLg0K
+QnV0IHRoZXkgZG9uJ3QgZml4IHRoZSBpc3N1ZS4gSSBjYW4gc3RpbGwgZ2V0IHRoZSBzaW1pbGFy
+IGNhbGwgc3RhY2suDQoNClRoYW5rcywNCkthbg0KDQo+IA0KPiBJbiBmYWN0LCBJIHRoaW5rIHRo
+aXMgbWF5IGhlbHAgZXZlbiAqd2l0aG91dCogVGltJ3MgcGF0Y2ggIzEuIFNvIEkgdGhpbmsgdGhp
+cw0KPiB3b3VsZCBiZSBsb3ZlbHkgdG8gdGVzdCBvbiB0aGF0IHByb2JsZW0gbG9hZCBvbiBpdHMg
+b3duLCBhbmQgc2VlaW5nIGlmIGl0DQo+IG1ha2VzIHRoZSB3YWl0IHF1ZXVlcyBiZWhhdmUgYmV0
+dGVyLg0KPiANCj4gSXQgbWlnaHQgbm90IGN1dCBkb3duIG9uIHRoZSB0b3RhbCBsZW5ndGggb2Yg
+dGhlIHdhaXQtcXVldWUsIGJ1dCBpdCBzaG91bGQNCj4gaG9wZWZ1bGx5IGNhdXNlIGl0IHRvIHdh
+bGsgaXQgbXVjaCBsZXNzLiBXZSBub3cgaGl0IHRoZSBleGNsdXNpdmUgd2FpdGVycw0KPiBlYXJs
+aWVyIGFuZCBzdG9wIHdha2luZyB0aGluZ3MgdXAgd2hlbiB3ZSBoYXZlIGEgbmV3IGxvY2tlciB0
+aHJlYWQgcGVuZGluZy4NCj4gQW5kIHdoZW4gdGhlIHBhZ2UgZW5kcyB1cCBiZWluZyBsb2NrZWQg
+YWdhaW4sIHdlIHN0b3Agd2Fsa2luZyB0aGUgbGlzdA0KPiBlbnRpcmVseSwgc28gbm8gdW5uZWNl
+c3NhcmlseSB0cmF2ZXJzYWwuDQo+IA0KPiBUaGlzIHBhdGNoIGlzIHNtYWxsIGFuZCBhdCBsZWFz
+dCBtaW5pbWFsbHkgd29ya3MgKEknbSBydW5uaW5nIGl0IHJpZ2h0IG5vdykuDQo+IA0KPiAgICAg
+ICAgICAgICAgICAgICAgICAgICAgICAgICAgTGludXMNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
