@@ -1,71 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2072F6B02FD
-	for <linux-mm@kvack.org>; Sun, 27 Aug 2017 21:11:30 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id m68so11778729pfj.11
-        for <linux-mm@kvack.org>; Sun, 27 Aug 2017 18:11:30 -0700 (PDT)
-Received: from mail-pg0-x243.google.com (mail-pg0-x243.google.com. [2607:f8b0:400e:c05::243])
-        by mx.google.com with ESMTPS id 9si279777pld.127.2017.08.27.18.11.29
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D5D46B037C
+	for <linux-mm@kvack.org>; Sun, 27 Aug 2017 21:17:09 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id t3so20098097pgt.8
+        for <linux-mm@kvack.org>; Sun, 27 Aug 2017 18:17:09 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id n7si8589632pga.274.2017.08.27.18.17.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Aug 2017 18:11:29 -0700 (PDT)
-Received: by mail-pg0-x243.google.com with SMTP id q16so5177459pgc.0
-        for <linux-mm@kvack.org>; Sun, 27 Aug 2017 18:11:29 -0700 (PDT)
-From: js1304@gmail.com
-Subject: [PATCH 2/2] mm/slub: don't use reserved highatomic pageblock for optimistic try
-Date: Mon, 28 Aug 2017 10:11:15 +0900
-Message-Id: <1503882675-17910-2-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1503882675-17910-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1503882675-17910-1-git-send-email-iamjoonsoo.kim@lge.com>
+        Sun, 27 Aug 2017 18:17:07 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id g13so3087427pfm.2
+        for <linux-mm@kvack.org>; Sun, 27 Aug 2017 18:17:07 -0700 (PDT)
+Date: Mon, 28 Aug 2017 11:16:48 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH 2/2 v2] sched/wait: Introduce lock breaker in
+ wake_up_page_bit
+Message-ID: <20170828111648.22f81bc5@roar.ozlabs.ibm.com>
+In-Reply-To: <CA+55aFwuyqm6xMmS0PdjDZbgrXTiXkH+cGua=npXLaEnzOUGjw@mail.gmail.com>
+References: <83f675ad385d67760da4b99cd95ee912ca7c0b44.1503677178.git.tim.c.chen@linux.intel.com>
+	<cd8ce7fbca9c126f7f928b8fa48d7a9197955b45.1503677178.git.tim.c.chen@linux.intel.com>
+	<CA+55aFyErsNw8bqTOCzcrarDZBdj+Ev=1N3sV-gxtLTH03bBFQ@mail.gmail.com>
+	<f10f4c25-49c0-7ef5-55c2-769c8fd9bf90@linux.intel.com>
+	<CA+55aFzNikMsuPAaExxT1Z8MfOeU6EhSn6UPDkkz-MRqamcemg@mail.gmail.com>
+	<CA+55aFx67j0u=GNRKoCWpsLRDcHdrjfVvWRS067wLUSfzstgoQ@mail.gmail.com>
+	<CA+55aFzy981a8Ab+89APi6Qnb9U9xap=0A6XNc+wZsAWngWPzA@mail.gmail.com>
+	<CA+55aFwyCSh1RbJ3d5AXURa4_r5OA_=ZZKQrFX0=Z1J3ZgVJ5g@mail.gmail.com>
+	<CA+55aFy18WCqZGwkxH6dTZR9LD9M5nXWqEN8DBeZ4LvNo4Y0BQ@mail.gmail.com>
+	<CA+55aFx0NjiHM5Aw0N7xDwRcnHOiaceV2iYuGOU1uM3FUyf+Lg@mail.gmail.com>
+	<CA+55aFwuyqm6xMmS0PdjDZbgrXTiXkH+cGua=npXLaEnzOUGjw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Kan Liang <kan.liang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Christopher Lameter <cl@linux.com>, "Eric W . Biederman" <ebiederm@xmission.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Sun, 27 Aug 2017 16:12:19 -0700
+Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-High-order atomic allocation is difficult to succeed since we cannot
-reclaim anything in this context. So, we reserves the pageblock for
-this kind of request.
+> On Sun, Aug 27, 2017 at 2:40 PM, Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
+> >
+> > The race goes like this:
+> >
+> >   thread1       thread2         thread3
+> >   ----          ----            ----
+> >
+> >   .. CPU1 ...
+> >   __lock_page_killable
+> >     wait_on_page_bit_common()
+> >       get wq lock
+> >       __add_wait_queue_entry_tail_exclusive()
+> >       set_current_state(TASK_KILLABLE);
+> >       release wq lock
+> >         io_schedule
+> >
+> >                 ... CPU2 ...
+> >                 __lock_page[_killable]()
+> >                   wait_on_page_bit_common()
+> >                     get wq lock
+> >                     __add_wait_queue_entry_tail_exclusive()
+> >                     set_current_state(TASK_KILLABLE);
+> >                     release wq lock
+> >                     io_schedule
+> >
+> >                                 ... CPU3 ...
+> >                                 unlock_page()
+> >                                 wake_up_page_bit(page, PG_Locked)
+> >                                   wakes up CPU1 _only_
+> >
+> >   ... lethal signal for thread1 happens ...
+> >      if (unlikely(signal_pending_state(state, current))) {
+> >           ret = -EINTR;
+> >           break;
+> >      }  
+> 
+> With the race meaning that thread2 never gets woken up due to the
+> exclusive wakeup being caught by thread1 (which doesn't actually take
+> the lock).
+> 
+> I think that this bug was introduced by commit 62906027091f ("mm: add
+> PageWaiters indicating tasks are waiting for a page bit"), which
+> changed the page lock from using the wait_on_bit_lock() code to its
+> own _slightly_ different version.
+> 
+> Because it looks like _almost_ the same thing existed in the old
+> wait_on_bit_lock() code - and that is still used by a couple of
+> filesystems.
+> 
+> *Most* of the users seem to use TASK_UNINTERRUPTIBLE, which is fine.
+> But cifs and the sunrpc XPRT_LOCKED code both use the TASK_KILLABLE
+> form that would seem to have the exact same issue: wait_on_bit_lock()
+> uses exclusive wait-queues, but then may return with an error without
+> actually taking the lock.
+> 
+> Now, it turns out that I think the wait_on_bit_lock() code is actually
+> safe, for a subtle reason.
+> 
+> Why? Unlike the page lock code, the wait_on_bit_lock() code always
+> tries to get the lock bit before returning an error. So
+> wait_on_bit_lock() will prefer a successful lock taking over EINTR,
+> which means that if the bit really was unlocked, it would have been
+> taken.
+> 
+> And if something else locked the bit again under us and we didn't get
+> it, that "something else" presumably will then wake things up when it
+> unlocks.
+> 
+> So the wait_on_bit_lock() code could _also_ lose the wakeup event, but
+> it would only lose it in situations where somebody else would then
+> re-send it.
+> 
+> Do people agree with that analysis?
+> 
+> So I think the old wait_on_bit_lock() code ends up being safe -
+> despite having this same pattern of "exclusive wait but might error
+> out without taking the lock".
+> 
+> Whether that "wait_on_bit_lock() is safe" was just a fluke or was
+> because people thought about it is unclear. It's old code. People
+> probably *did* think about it. I really can't remember.
+> 
+> But it does point to a fix for the page lock case: just move the
+> signal_pending_state() test to after the bit checking.
+> 
+> So the page locking code is racy because you could have this:
+> 
+>  - another cpu does the unlock_page() and wakes up the process (and
+> uses the exclusive event)
+> 
+>  - we then get a lethal signal before we get toi the
+> "signal_pending_state()" state.
+> 
+>  - we end up prioritizing the lethal signal, because obviously we
+> don't care about locking the page any more.
+> 
+>  - so now the lock bit may be still clear and there's nobody who is
+> going to wake up the remaining waiter
+> 
+> Moving the signal_pending_state() down actually fixes the race,
+> because we know that in order for the exclusive thing to have
+> mattered, it *has* to actually wake us up. So the unlock_page() must
+> happen before the lethal signal (where before is well-defined because
+> of that "try_to_wake_up()" taking a lock and looking at the task
+> state). The exclusive accounting is only done if the process is
+> actually woken up, not if it was already running (see
+> "try_to_wake_up()").
+> 
+> And if the unlock_page() happened before the lethal signal, then we
+> know that test_and_set_bit_lock() will either work (in which case
+> we're ok), or another locker successfully came in later - in which
+> case we're _also_ ok, because that other locker will then do the
+> unlock again, and wake up subsequent waiters that might have been
+> blocked by our first exclusive waiter.
+> 
+> So I propose that the fix might be as simple as this:
+> 
+>     diff --git a/mm/filemap.c b/mm/filemap.c
+>     index baba290c276b..0b41c8cbeabc 100644
+>     --- a/mm/filemap.c
+>     +++ b/mm/filemap.c
+>     @@ -986,10 +986,6 @@ static inline int
+> wait_on_page_bit_common(wait_queue_head_t *q,
+> 
+>                 if (likely(test_bit(bit_nr, &page->flags))) {
+>                         io_schedule();
+>     -                   if (unlikely(signal_pending_state(state, current))) {
+>     -                           ret = -EINTR;
+>     -                           break;
+>     -                   }
+>                 }
+> 
+>                 if (lock) {
+>     @@ -999,6 +995,11 @@ static inline int
+> wait_on_page_bit_common(wait_queue_head_t *q,
+>                         if (!test_bit(bit_nr, &page->flags))
+>                                 break;
+>                 }
+>     +
+>     +           if (unlikely(signal_pending_state(state, current))) {
+>     +                   ret = -EINTR;
+>     +                   break;
+>     +           }
+>         }
+> 
+>         finish_wait(q, wait);
+> 
+> but maybe I'm missing something.
+> 
+> Nick, comments?
 
-In slub, we try to allocate higher-order page more than it actually
-needs in order to get the best performance. If this optimistic try is
-used with GFP_ATOMIC, alloc_flags will be set as ALLOC_HARDER and
-the pageblock reserved for high-order atomic allocation would be used.
-Moreover, this request would reserve the MIGRATE_HIGHATOMIC pageblock
-,if succeed, to prepare further request. It would not be good to use
-MIGRATE_HIGHATOMIC pageblock in terms of fragmentation management
-since it unconditionally set a migratetype to request's migratetype
-when unreserving the pageblock without considering the migratetype of
-used pages in the pageblock.
+No I don't think you're missing something. We surely could lose our only
+wakeup in this window. So an exclusive waiter has to always make sure
+they propagate the wakeup (regardless of what they do with the contended
+resources itself).
 
-This is not what we don't intend so fix it by unconditionally setting
-__GFP_NOMEMALLOC in order to not set ALLOC_HARDER.
+Seems like your fix should solve it. By the look of how wait_on_bit_lock
+is structured, the author probably did think about this case a little
+better than I did :\
 
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- mm/slub.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
-
-diff --git a/mm/slub.c b/mm/slub.c
-index e1e442c..fd8dd89 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1579,10 +1579,8 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- 	 */
- 	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
- 	if (oo_order(oo) > oo_order(s->min)) {
--		if (alloc_gfp & __GFP_DIRECT_RECLAIM) {
--			alloc_gfp |= __GFP_NOMEMALLOC;
--			alloc_gfp &= ~__GFP_DIRECT_RECLAIM;
--		}
-+		alloc_gfp |= __GFP_NOMEMALLOC;
-+		alloc_gfp &= ~__GFP_DIRECT_RECLAIM;
- 	}
- 
- 	page = alloc_slab_page(s, alloc_gfp, node, oo);
--- 
-2.7.4
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
