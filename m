@@ -1,76 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DD5E6B0292
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 09:34:17 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id p37so713582wrc.5
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 06:34:17 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id 89si364994edq.95.2017.08.28.06.34.15
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BBF66B025F
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 10:10:03 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id k94so826446wrc.6
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 07:10:03 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m130si334618wma.277.2017.08.28.07.10.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Aug 2017 06:34:15 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 8A10C1C1969
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 14:34:15 +0100 (IST)
-Date: Mon, 28 Aug 2017 14:34:15 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH] mm, madvise: Ensure poisoned pages are removed from per-cpu
- lists
-Message-ID: <20170828133414.7qro57jbepdcyz5x@techsingularity.net>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 28 Aug 2017 07:10:01 -0700 (PDT)
+Date: Mon, 28 Aug 2017 16:09:58 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v15 4/5] mm: support reporting free page blocks
+Message-ID: <20170828140958.GO17097@dhcp22.suse.cz>
+References: <1503914913-28893-1-git-send-email-wei.w.wang@intel.com>
+ <1503914913-28893-5-git-send-email-wei.w.wang@intel.com>
+ <20170828133326.GN17097@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20170828133326.GN17097@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Hansen, Dave" <dave.hansen@intel.com>, "Luck, Tony" <tony.luck@intel.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-Wendy Wang reported off-list that a RAS HWPOISON-SOFT test case failed and
-bisected it to the commit 479f854a207c ("mm, page_alloc: defer debugging
-checks of pages allocated from the PCP"). The problem is that a page that
-was poisoned with madvise() is reused. The commit removed a check that
-would trigger if DEBUG_VM was enabled but re-enabling the check only
-fixes the problem as a side-effect by printing a bad_page warning and
-recovering.
+On Mon 28-08-17 15:33:26, Michal Hocko wrote:
+> On Mon 28-08-17 18:08:32, Wei Wang wrote:
+> > This patch adds support to walk through the free page blocks in the
+> > system and report them via a callback function. Some page blocks may
+> > leave the free list after zone->lock is released, so it is the caller's
+> > responsibility to either detect or prevent the use of such pages.
+> > 
+> > One use example of this patch is to accelerate live migration by skipping
+> > the transfer of free pages reported from the guest. A popular method used
+> > by the hypervisor to track which part of memory is written during live
+> > migration is to write-protect all the guest memory. So, those pages that
+> > are reported as free pages but are written after the report function
+> > returns will be captured by the hypervisor, and they will be added to the
+> > next round of memory transfer.
+> 
+> OK, looks much better. I still have few nits.
+> 
+> > +extern void walk_free_mem_block(void *opaque,
+> > +				int min_order,
+> > +				bool (*report_page_block)(void *, unsigned long,
+> > +							  unsigned long));
+> > +
+> 
+> please add names to arguments of the prototype
 
-The root of the problem is that a madvise() can leave a poisoned on
-the per-cpu list.  This patch drains all per-cpu lists after pages are
-poisoned so that they will not be reused. Wendy reports that the test case
-in question passes with this patch applied.  While this could be done in
-a targeted fashion, it is over-complicated for such a rare operation.
+And one more thing. Your callback returns bool and true usually means a
+success while you are using it to break out from the loop. This is
+rather confusing. I would expect iterating until false is returned so
+the opposite than what you have. You could also change this to int and
+return 0 on success and < 0 to break out. 
 
-Fixes: 479f854a207c ("mm, page_alloc: defer debugging checks of pages allocated from the PCP")
-Reported-and-tested-by: Wang, Wendy <wendy.wang@intel.com>
-Cc: stable@kernel.org
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/madvise.c | 6 ++++++
- 1 file changed, 6 insertions(+)
-
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 23ed525bc2bc..4d7d1e5ddba9 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -613,6 +613,7 @@ static int madvise_inject_error(int behavior,
- 		unsigned long start, unsigned long end)
- {
- 	struct page *page;
-+	struct zone *zone;
- 
- 	if (!capable(CAP_SYS_ADMIN))
- 		return -EPERM;
-@@ -646,6 +647,11 @@ static int madvise_inject_error(int behavior,
- 		if (ret)
- 			return ret;
- 	}
-+
-+	/* Ensure that all poisoned pages are removed from per-cpu lists */
-+	for_each_populated_zone(zone)
-+		drain_all_pages(zone);
-+
- 	return 0;
- }
- #endif
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
