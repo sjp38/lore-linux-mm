@@ -1,107 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E0DEF6B025F
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 12:17:51 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 63so7235759pgc.0
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 09:17:51 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id u188si2548666pgc.127.2017.08.29.09.17.50
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DD396B025F
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 12:22:53 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id j99so29556175ioo.6
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 09:22:53 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g101sor1001846iod.85.2017.08.29.09.22.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Aug 2017 09:17:50 -0700 (PDT)
-Subject: Re: [PATCH 2/2 v2] sched/wait: Introduce lock breaker in
- wake_up_page_bit
+        (Google Transport Security);
+        Tue, 29 Aug 2017 09:22:52 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <dd2f5b2b-cbb3-79ff-6982-94b97ff18986@linux.intel.com>
 References: <83f675ad385d67760da4b99cd95ee912ca7c0b44.1503677178.git.tim.c.chen@linux.intel.com>
  <cd8ce7fbca9c126f7f928b8fa48d7a9197955b45.1503677178.git.tim.c.chen@linux.intel.com>
  <CA+55aFyErsNw8bqTOCzcrarDZBdj+Ev=1N3sV-gxtLTH03bBFQ@mail.gmail.com>
- <f10f4c25-49c0-7ef5-55c2-769c8fd9bf90@linux.intel.com>
- <CA+55aFzNikMsuPAaExxT1Z8MfOeU6EhSn6UPDkkz-MRqamcemg@mail.gmail.com>
+ <f10f4c25-49c0-7ef5-55c2-769c8fd9bf90@linux.intel.com> <CA+55aFzNikMsuPAaExxT1Z8MfOeU6EhSn6UPDkkz-MRqamcemg@mail.gmail.com>
  <CA+55aFx67j0u=GNRKoCWpsLRDcHdrjfVvWRS067wLUSfzstgoQ@mail.gmail.com>
  <CA+55aFzy981a8Ab+89APi6Qnb9U9xap=0A6XNc+wZsAWngWPzA@mail.gmail.com>
  <CA+55aFwyCSh1RbJ3d5AXURa4_r5OA_=ZZKQrFX0=Z1J3ZgVJ5g@mail.gmail.com>
  <CA+55aFy18WCqZGwkxH6dTZR9LD9M5nXWqEN8DBeZ4LvNo4Y0BQ@mail.gmail.com>
  <37D7C6CF3E00A74B8858931C1DB2F077537A07E9@SHSMSX103.ccr.corp.intel.com>
- <CA+55aFzotfXc07UoVtxvDpQOP8tEt8pgxeYe+cGs=BDUC_A4pA@mail.gmail.com>
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Message-ID: <dd2f5b2b-cbb3-79ff-6982-94b97ff18986@linux.intel.com>
-Date: Tue, 29 Aug 2017 09:17:49 -0700
-MIME-Version: 1.0
-In-Reply-To: <CA+55aFzotfXc07UoVtxvDpQOP8tEt8pgxeYe+cGs=BDUC_A4pA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+ <CA+55aFzotfXc07UoVtxvDpQOP8tEt8pgxeYe+cGs=BDUC_A4pA@mail.gmail.com> <dd2f5b2b-cbb3-79ff-6982-94b97ff18986@linux.intel.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 29 Aug 2017 09:22:51 -0700
+Message-ID: <CA+55aFzxxKOWdHggXjBvLS6SUTnHpV-vD8f_3YFfuyJnz92ZOA@mail.gmail.com>
+Subject: Re: [PATCH 2/2 v2] sched/wait: Introduce lock breaker in wake_up_page_bit
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, "Liang, Kan" <kan.liang@intel.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Christopher Lameter <cl@linux.com>, "Eric W . Biederman" <ebiederm@xmission.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: "Liang, Kan" <kan.liang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Christopher Lameter <cl@linux.com>, "Eric W . Biederman" <ebiederm@xmission.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 08/28/2017 09:48 AM, Linus Torvalds wrote:
-> On Mon, Aug 28, 2017 at 7:51 AM, Liang, Kan <kan.liang@intel.com> wrote:
->>
->> I tried this patch and https://lkml.org/lkml/2017/8/27/222 together.
->> But they don't fix the issue. I can still get the similar call stack.
-> 
-> So the main issue was that I *really* hated Tim's patch #2, and the
-> patch to clean up the page wait queue should now make his patch series
-> much more palatable.
-> 
-> Attached is an ALMOST COMPLETELY UNTESTED forward-port of those two
-> patches, now without that nasty WQ_FLAG_ARRIVALS logic, because we now
-> always put the new entries at the end of the waitqueue.
-> 
-> The attached patches just apply directly on top of plain 4.13-rc7.
-> 
-> That makes patch #2 much more palatable, since it now doesn't need to
-> play games and worry about new arrivals.
-> 
-> But note the lack of testing. I've actually booted this and am running
-> these two patches right now, but honestly, you should consider them
-> "untested" simply because I can't trigger the page waiters contention
-> case to begin with.
-> 
-> But it's really just Tim's patches, modified for the page waitqueue
-> cleanup which makes patch #2 become much simpler, and now it's
-> palatable: it's just using the same bookmark thing that the normal
-> wakeup uses, no extra hacks.
-> 
-> So Tim should look these over, and they should definitely be tested on
-> that load-from-hell that you guys have, but if this set works, at
-> least I'm ok with it now.
-> 
-> Tim - did I miss anything? I added a "cpu_relax()" in there between
-> the release lock and irq and re-take it, I'm not convinced it makes
-> any difference, but I wanted to mark that "take a breather" thing.
-> 
-> Oh, there's one more case I only realized after the patches: the
-> stupid add_page_wait_queue() code still adds to the head of the list.
-> So technically you need this too:
+On Tue, Aug 29, 2017 at 9:17 AM, Tim Chen <tim.c.chen@linux.intel.com> wrote:
+>
+> BTW, are you going to add the chunk below separately as part of your
+> wait queue cleanup patch?
 
-BTW, are you going to add the chunk below separately as part of your
-wait queue cleanup patch?
+I did.
 
-Tim
+Commit 9c3a815f471a ("page waitqueue: always add new entries at the end")
 
-> 
->     diff --git a/mm/filemap.c b/mm/filemap.c
->     index 74123a298f53..598c3be57509 100644
->     --- a/mm/filemap.c
->     +++ b/mm/filemap.c
->     @@ -1061,7 +1061,7 @@ void add_page_wait_queue(struct page *page,
-> wait_queue_entry_t *waiter)
->         unsigned long flags;
-> 
->         spin_lock_irqsave(&q->lock, flags);
->     -   __add_wait_queue(q, waiter);
->     +   __add_wait_queue_entry_tail(q, waiter);
->         SetPageWaiters(page);
->         spin_unlock_irqrestore(&q->lock, flags);
->      }
-> 
-> but that only matters if you actually use the cachefiles thing, which
-> I hope/assume you don't.
-> 
->        Linus
-> 
+               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
