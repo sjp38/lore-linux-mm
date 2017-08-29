@@ -1,97 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 69D126B0292
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DD876B02B4
 	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 22:03:11 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id w42so1136183uaw.2
+Received: by mail-qt0-f200.google.com with SMTP id p13so6409475qtp.5
         for <linux-mm@kvack.org>; Mon, 28 Aug 2017 19:03:11 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id e124si783639vkg.65.2017.08.28.19.03.10
+        by mx.google.com with ESMTPS id j189si1812087qkj.93.2017.08.28.19.03.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 28 Aug 2017 19:03:10 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v7 02/11] sparc64/mm: setting fields in deferred pages
-Date: Mon, 28 Aug 2017 22:02:13 -0400
-Message-Id: <1503972142-289376-3-git-send-email-pasha.tatashin@oracle.com>
+Subject: [PATCH v7 07/11] sparc64: optimized struct page zeroing
+Date: Mon, 28 Aug 2017 22:02:18 -0400
+Message-Id: <1503972142-289376-8-git-send-email-pasha.tatashin@oracle.com>
 In-Reply-To: <1503972142-289376-1-git-send-email-pasha.tatashin@oracle.com>
 References: <1503972142-289376-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, Steven.Sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-Without deferred struct page feature (CONFIG_DEFERRED_STRUCT_PAGE_INIT),
-flags and other fields in "struct page"es are never changed prior to first
-initializing struct pages by going through __init_single_page().
+Add an optimized mm_zero_struct_page(), so struct page's are zeroed without
+calling memset(). We do eight to ten regular stores based on the size of
+struct page. Compiler optimizes out the conditions of switch() statement.
 
-With deferred struct page feature enabled there is a case where we set some
-fields prior to initializing:
+SPARC-M6 with 15T of memory, single thread performance:
 
-mem_init() {
-     register_page_bootmem_info();
-     free_all_bootmem();
-     ...
-}
+                               BASE            FIX  OPTIMIZED_FIX
+        bootmem_init   28.440467985s   2.305674818s   2.305161615s
+free_area_init_nodes  202.845901673s 225.343084508s 172.556506560s
+                      --------------------------------------------
+Total                 231.286369658s 227.648759326s 174.861668175s
 
-When register_page_bootmem_info() is called only non-deferred struct pages
-are initialized. But, this function goes through some reserved pages which
-might be part of the deferred, and thus are not yet initialized.
+BASE:  current linux
+FIX:   This patch series without "optimized struct page zeroing"
+OPTIMIZED_FIX: This patch series including the current patch.
 
-mem_init
-register_page_bootmem_info
-register_page_bootmem_info_node
- get_page_bootmem
-  .. setting fields here ..
-  such as: page->freelist = (void *)type;
-
-free_all_bootmem()
-free_low_memory_core_early()
- for_each_reserved_mem_region()
-  reserve_bootmem_region()
-   init_reserved_page() <- Only if this is deferred reserved page
-    __init_single_pfn()
-     __init_single_page()
-      memset(0) <-- Loose the set fields here
-
-We end-up with similar issue as in the previous patch, where currently we
-do not observe problem as memory is zeroed. But, if flag asserts are
-changed we can start hitting issues.
-
-Also, because in this patch series we will stop zeroing struct page memory
-during allocation, we must make sure that struct pages are properly
-initialized prior to using them.
-
-The deferred-reserved pages are initialized in free_all_bootmem().
-Therefore, the fix is to switch the above calls.
+bootmem_init() is where memory for struct pages is zeroed during
+allocation. Note, about two seconds in this function is a fixed time: it
+does not increase as memory is increased.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
 Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 Reviewed-by: Bob Picco <bob.picco@oracle.com>
 ---
- arch/sparc/mm/init_64.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ arch/sparc/include/asm/pgtable_64.h | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)
 
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index b3020a956b87..12dbba85a2e2 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -2508,9 +2508,15 @@ void __init mem_init(void)
- {
- 	high_memory = __va(last_valid_pfn << PAGE_SHIFT);
+diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
+index 6fbd931f0570..cee5cc7ccc51 100644
+--- a/arch/sparc/include/asm/pgtable_64.h
++++ b/arch/sparc/include/asm/pgtable_64.h
+@@ -230,6 +230,36 @@ extern unsigned long _PAGE_ALL_SZ_BITS;
+ extern struct page *mem_map_zero;
+ #define ZERO_PAGE(vaddr)	(mem_map_zero)
  
--	register_page_bootmem_info();
- 	free_all_bootmem();
- 
-+	/* Must be done after boot memory is put on freelist, because here we
-+	 * might set fields in deferred struct pages that have not yet been
-+	 * initialized, and free_all_bootmem() initializes all the reserved
-+	 * deferred pages for us.
-+	 */
-+	register_page_bootmem_info();
++/* This macro must be updated when the size of struct page grows above 80
++ * or reduces below 64.
++ * The idea that compiler optimizes out switch() statement, and only
++ * leaves clrx instructions
++ */
++#define	mm_zero_struct_page(pp) do {					\
++	unsigned long *_pp = (void *)(pp);				\
++									\
++	 /* Check that struct page is either 64, 72, or 80 bytes */	\
++	BUILD_BUG_ON(sizeof(struct page) & 7);				\
++	BUILD_BUG_ON(sizeof(struct page) < 64);				\
++	BUILD_BUG_ON(sizeof(struct page) > 80);				\
++									\
++	switch (sizeof(struct page)) {					\
++	case 80:							\
++		_pp[9] = 0;	/* fallthrough */			\
++	case 72:							\
++		_pp[8] = 0;	/* fallthrough */			\
++	default:							\
++		_pp[7] = 0;						\
++		_pp[6] = 0;						\
++		_pp[5] = 0;						\
++		_pp[4] = 0;						\
++		_pp[3] = 0;						\
++		_pp[2] = 0;						\
++		_pp[1] = 0;						\
++		_pp[0] = 0;						\
++	}								\
++} while (0)
 +
- 	/*
- 	 * Set up the zero page, mark it reserved, so that page count
- 	 * is not manipulated when freeing the page from user ptes.
+ /* PFNs are real physical page numbers.  However, mem_map only begins to record
+  * per-page information starting at pfn_base.  This is to handle systems where
+  * the first physical page in the machine is at some huge physical address,
 -- 
 2.14.1
 
