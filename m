@@ -1,84 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 60F2A6B02B4
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 20:33:06 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id r187so3025778pfr.8
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 17:33:06 -0700 (PDT)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 56E426B02B4
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 20:36:18 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id q68so3177259pgq.11
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 17:36:18 -0700 (PDT)
 Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id b17si1158461pfh.488.2017.08.28.17.33.04
+        by mx.google.com with ESMTP id s194si1211331pgc.142.2017.08.28.17.36.16
         for <linux-mm@kvack.org>;
-        Mon, 28 Aug 2017 17:33:05 -0700 (PDT)
-Date: Tue, 29 Aug 2017 09:33:44 +0900
+        Mon, 28 Aug 2017 17:36:17 -0700 (PDT)
+Date: Tue, 29 Aug 2017 09:36:58 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 2/2] mm/slub: don't use reserved highatomic pageblock for
- optimistic try
-Message-ID: <20170829003344.GB14489@js1304-P5Q-DELUXE>
-References: <1503882675-17910-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1503882675-17910-2-git-send-email-iamjoonsoo.kim@lge.com>
- <b50bd39f-931f-7016-f380-62d65babb03f@suse.cz>
- <20170828130829.GL17097@dhcp22.suse.cz>
+Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
+ ZONE_MOVABLE request
+Message-ID: <20170829003657.GC14489@js1304-P5Q-DELUXE>
+References: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <e919c65e-bc2f-6b3b-41fc-3589590a84ac@suse.cz>
+ <20170825002031.GD29701@js1304-P5Q-DELUXE>
+ <d57eeb5c-d91d-9718-8473-3c6db465b154@suse.cz>
+ <20170828002857.GB9167@js1304-P5Q-DELUXE>
+ <78dd0160-14e8-22a6-bd10-d37bbd39f77b@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170828130829.GL17097@dhcp22.suse.cz>
+In-Reply-To: <78dd0160-14e8-22a6-bd10-d37bbd39f77b@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
 
-On Mon, Aug 28, 2017 at 03:08:29PM +0200, Michal Hocko wrote:
-> On Mon 28-08-17 13:29:29, Vlastimil Babka wrote:
-> > On 08/28/2017 03:11 AM, js1304@gmail.com wrote:
-> > > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > > 
-> > > High-order atomic allocation is difficult to succeed since we cannot
-> > > reclaim anything in this context. So, we reserves the pageblock for
-> > > this kind of request.
-> > > 
-> > > In slub, we try to allocate higher-order page more than it actually
-> > > needs in order to get the best performance. If this optimistic try is
-> > > used with GFP_ATOMIC, alloc_flags will be set as ALLOC_HARDER and
-> > > the pageblock reserved for high-order atomic allocation would be used.
-> > > Moreover, this request would reserve the MIGRATE_HIGHATOMIC pageblock
-> > > ,if succeed, to prepare further request. It would not be good to use
-> > > MIGRATE_HIGHATOMIC pageblock in terms of fragmentation management
-> > > since it unconditionally set a migratetype to request's migratetype
-> > > when unreserving the pageblock without considering the migratetype of
-> > > used pages in the pageblock.
-> > > 
-> > > This is not what we don't intend so fix it by unconditionally setting
-> > > __GFP_NOMEMALLOC in order to not set ALLOC_HARDER.
+On Mon, Aug 28, 2017 at 08:45:07AM +0200, Vlastimil Babka wrote:
+> +CC linux-api
+> 
+> On 08/28/2017 02:28 AM, Joonsoo Kim wrote:
+> > On Fri, Aug 25, 2017 at 09:56:10AM +0200, Vlastimil Babka wrote:
+> >> On 08/25/2017 02:20 AM, Joonsoo Kim wrote:
+> >>> On Thu, Aug 24, 2017 at 11:41:58AM +0200, Vlastimil Babka wrote:
+> >>>
+> >>> Hmm, this is already pointed by Minchan and I have answered that.
+> >>>
+> >>> lkml.kernel.org/r/<20170421013243.GA13966@js1304-desktop>
+> >>>
+> >>> If you have a better idea, please let me know.
+> >>
+> >> My idea is that size of sysctl_lowmem_reserve_ratio is ZONE_NORMAL+1 and
+> >> it has no entries for zones > NORMAL. The
+> >> setup_per_zone_lowmem_reserve() is adjusted to only set
+> >> lower_zone->lowmem_reserve[j] for idx <= ZONE_NORMAL.
+> >>
+> >> I can't imagine somebody would want override the ratio for HIGHMEM or
+> >> MOVABLE
+> >> (where it has no effect anyway) so the simplest thing is not to expose
+> >> it at all.
 > > 
-> > I wonder if it would be more robust to strip GFP_ATOMIC from alloc_gfp.
-> > E.g. __GFP_NOMEMALLOC does seem to prevent ALLOC_HARDER, but not
-> > ALLOC_HIGH. Or maybe we should adjust __GFP_NOMEMALLOC implementation
-> > and document it more thoroughly? CC Michal Hocko
+> > Seems reasonable. However, if there is a user who checks
+> > sysctl_lowmem_reserve_ratio entry for HIGHMEM and change it, suggested
+> > interface will cause a problem since it doesn't expose ratio for
+> > HIGHMEM. Am I missing something?
 > 
-> Yeah, __GFP_NOMEMALLOC is rather inconsistent. It has been added to
-> override __GFP_MEMALLOC resp. PF_MEMALLOC AFAIK. In this particular
-> case I would agree that dropping __GFP_HIGH and __GFP_ATOMIC would
-> be more precise. I am not sure we want to touch the existing semantic of
-> __GFP_NOMEMALLOC though. This would require auditing all the existing
-> users (something tells me that quite some of those will be incorrect...)
+> As you explained, it makes little sense to change it for HIGHMEM which
+> only affects MOVABLE allocations. Also I doubt there are many systems
+> with both HIGHMEM (implies 32bit) *and* MOVABLE (implies NUMA, memory
+> hotplug...) zones. So I would just remove it, and if somebody will
+> really miss it, we can always add it back. In any case, please CC
+> linux-api on the next version.
 
-Hmm... now I realize that there is another reason that we need to use
-__GFP_NOMEMALLOC. Even if this allocation comes from PF_MEMALLOC user,
-this optimistic try should not use the reserved memory below the
-watermark. That is, it should not use ALLOC_NO_WATERMARKS. It can
-only be accomplished by using __GFP_NOMEMALLOC.
-
-> 
-> > Also, were these 2 patches done via code inspection or you noticed
-> > suboptimal behavior which got fixed? Thanks.
-> 
-> The patch description is not very clear to me either but I guess that
-> Joonsoo sees to many larger order pages to back slab objects when the
-> system is not under heavy memory pressure and that increases internal
-> fragmentation?
-
-Your guess is right. I found this problem when I checked the
-fragmentation ratio through the benchmark some months ago. I don't
-remember detailed system state in that benchmark.
+If we will accept a change that potentially breaks the user, I think
+that making zero as a special value for sysctl_lowmem_reserve_ratio
+is better solution. How about this way?
 
 Thanks.
 
