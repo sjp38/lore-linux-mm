@@ -1,93 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 99F506B025F
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 00:47:14 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id m40so16572928ioi.4
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 21:47:14 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id g192si1884985itg.176.2017.08.28.21.47.13
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DBB9F6B02B4
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 03:00:20 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id v4so3554926wrc.3
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 00:00:20 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y76si763303wme.83.2017.08.29.00.00.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Aug 2017 21:47:13 -0700 (PDT)
-Date: Mon, 28 Aug 2017 21:47:07 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH v2 15/30] xfs: Define usercopy region in xfs_inode slab
- cache
-Message-ID: <20170829044707.GP4757@magnolia>
-References: <1503956111-36652-1-git-send-email-keescook@chromium.org>
- <1503956111-36652-16-git-send-email-keescook@chromium.org>
- <20170828214957.GJ4757@magnolia>
- <CAGXu5j+pvxRjASUuBE49+uH34Mw26a4mtcWrZd=CEqcRHjetvA@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 29 Aug 2017 00:00:18 -0700 (PDT)
+Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
+ ZONE_MOVABLE request
+References: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <e919c65e-bc2f-6b3b-41fc-3589590a84ac@suse.cz>
+ <20170825002031.GD29701@js1304-P5Q-DELUXE>
+ <d57eeb5c-d91d-9718-8473-3c6db465b154@suse.cz>
+ <20170828002857.GB9167@js1304-P5Q-DELUXE>
+ <78dd0160-14e8-22a6-bd10-d37bbd39f77b@suse.cz>
+ <20170829003657.GC14489@js1304-P5Q-DELUXE>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <ad269513-56e4-87af-f44d-86a5dba1c9f6@suse.cz>
+Date: Tue, 29 Aug 2017 09:00:16 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGXu5j+pvxRjASUuBE49+uH34Mw26a4mtcWrZd=CEqcRHjetvA@mail.gmail.com>
+In-Reply-To: <20170829003657.GC14489@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, David Windsor <dave@nullcore.net>, linux-xfs@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
 
-On Mon, Aug 28, 2017 at 02:57:14PM -0700, Kees Cook wrote:
-> On Mon, Aug 28, 2017 at 2:49 PM, Darrick J. Wong
-> <darrick.wong@oracle.com> wrote:
-> > On Mon, Aug 28, 2017 at 02:34:56PM -0700, Kees Cook wrote:
-> >> From: David Windsor <dave@nullcore.net>
-> >>
-> >> The XFS inline inode data, stored in struct xfs_inode_t field
-> >> i_df.if_u2.if_inline_data and therefore contained in the xfs_inode slab
-> >> cache, needs to be copied to/from userspace.
-> >>
-> >> cache object allocation:
-> >>     fs/xfs/xfs_icache.c:
-> >>         xfs_inode_alloc(...):
-> >>             ...
-> >>             ip = kmem_zone_alloc(xfs_inode_zone, KM_SLEEP);
-> >>
-> >>     fs/xfs/libxfs/xfs_inode_fork.c:
-> >>         xfs_init_local_fork(...):
-> >>             ...
-> >>             if (mem_size <= sizeof(ifp->if_u2.if_inline_data))
-> >>                     ifp->if_u1.if_data = ifp->if_u2.if_inline_data;
-> >
-> > Hmm, what happens when mem_size > sizeof(if_inline_data)?  A slab object
-> > will be allocated for ifp->if_u1.if_data which can then be used for
-> > readlink in the same manner as the example usage trace below.  Does
-> > that allocated object have a need for a usercopy annotation like
-> > the one we're adding for if_inline_data?  Or is that already covered
-> > elsewhere?
+On 08/29/2017 02:36 AM, Joonsoo Kim wrote:
+> On Mon, Aug 28, 2017 at 08:45:07AM +0200, Vlastimil Babka wrote:
+>> +CC linux-api
+>>
+>> On 08/28/2017 02:28 AM, Joonsoo Kim wrote:
+>>> On Fri, Aug 25, 2017 at 09:56:10AM +0200, Vlastimil Babka wrote:
+>>>
+>>> Seems reasonable. However, if there is a user who checks
+>>> sysctl_lowmem_reserve_ratio entry for HIGHMEM and change it, suggested
+>>> interface will cause a problem since it doesn't expose ratio for
+>>> HIGHMEM. Am I missing something?
+>>
+>> As you explained, it makes little sense to change it for HIGHMEM which
+>> only affects MOVABLE allocations. Also I doubt there are many systems
+>> with both HIGHMEM (implies 32bit) *and* MOVABLE (implies NUMA, memory
+>> hotplug...) zones. So I would just remove it, and if somebody will
+>> really miss it, we can always add it back. In any case, please CC
+>> linux-api on the next version.
 > 
-> Yeah, the xfs helper kmem_alloc() is used in the other case, which
-> ultimately boils down to a call to kmalloc(), which is entirely
-> whitelisted by an earlier patch in the series:
-> 
-> https://lkml.org/lkml/2017/8/28/1026
+> If we will accept a change that potentially breaks the user, I think
+> that making zero as a special value for sysctl_lowmem_reserve_ratio
+> is better solution. How about this way?
 
-Ah.  It would've been helpful to have the first three patches cc'd to
-the xfs list.  So basically this series establishes the ability to set
-regions within a slab object into which copy_to_user can copy memory
-contents, and vice versa.  Have you seen any runtime performance impact?
-The overhead looks like it ought to be minimal.
+I'd prefer removal, but won't object to zero. Certainly much better than
+UINT_MAX.
 
-> (It's possible that at some future time we can start segregating
-> kernel-only kmallocs from usercopy-able kmallocs, but for now, there
-> are no plans for this.)
-
-A pity.  It would be interesting to create no-usercopy versions of the
-kmalloc-* slabs and see how much of XFS' memory consumption never
-touches userspace buffers. :)
-
---D
-
-> 
-> -Kees
-> 
-> -- 
-> Kees Cook
-> Pixel Security
+> Thanks.
 > --
-> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
+> To unsubscribe from this list: send the line "unsubscribe linux-api" in
 > the body of a message to majordomo@vger.kernel.org
 > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
