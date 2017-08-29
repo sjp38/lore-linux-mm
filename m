@@ -1,49 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 86F3D280300
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 16:16:01 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id q53so13421518qtq.3
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 13:16:01 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n65si3605407qkc.210.2017.08.29.13.16.00
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 90654280300
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 16:29:33 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id y7so6048842oia.7
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 13:29:33 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id v201si3045493oie.126.2017.08.29.13.29.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Aug 2017 13:16:00 -0700 (PDT)
-Date: Tue, 29 Aug 2017 16:15:56 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 0/4] mmu_notifier semantic update
-Message-ID: <20170829201555.GG7546@redhat.com>
-References: <20170829201132.9292-1-jglisse@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170829201132.9292-1-jglisse@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 29 Aug 2017 13:29:32 -0700 (PDT)
+Subject: Re: [PATCH] mm: Use WQ_HIGHPRI for mm_percpu_wq.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1503921210-4603-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20170828121055.GI17097@dhcp22.suse.cz>
+	<20170828170611.GV491396@devbig577.frc2.facebook.com>
+	<20170829133325.o2s4xiqnc3ez6qxb@dhcp22.suse.cz>
+	<20170829143319.GJ491396@devbig577.frc2.facebook.com>
+In-Reply-To: <20170829143319.GJ491396@devbig577.frc2.facebook.com>
+Message-Id: <201708300529.HEB00599.VHtOFOLFSJOMFQ@I-love.SAKURA.ne.jp>
+Date: Wed, 30 Aug 2017 05:29:26 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Bernhard Held <berny156@gmx.de>, Adam Borowski <kilobyte@angband.pl>, Andrea Arcangeli <aarcange@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Wanpeng Li <kernellwp@gmail.com>, Paolo Bonzini <pbonzini@redhat.com>, Takashi Iwai <tiwai@suse.de>, Nadav Amit <nadav.amit@gmail.com>, Mike Galbraith <efault@gmx.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, axie <axie@amd.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: tj@kernel.org, mhocko@kernel.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mgorman@suse.de, vbabka@suse.cz
 
-On Tue, Aug 29, 2017 at 04:11:28PM -0400, Jerome Glisse wrote:
-> So we do not want to allow sleep during call to mmu_notifier_invalidate_page()
-> but some code do not have surrounding mmu_notifier_invalidate_range_start()/
-> mmu_notifier_invalidate_range_end() or mmu_notifier_invalidate_range()
+Tejun Heo wrote:
+> Hello,
 > 
-> This patch serie just make sure that there is at least a call (outside spinlock
-> section) to mmu_notifier_invalidate_range() after mmu_notifier_invalidate_page()
+> On Tue, Aug 29, 2017 at 03:33:25PM +0200, Michal Hocko wrote:
+> > Hmm, we have this in should_reclaim_retry
+> > 			/*
+> > 			 * Memory allocation/reclaim might be called from a WQ
+> > 			 * context and the current implementation of the WQ
+> > 			 * concurrency control doesn't recognize that
+> > 			 * a particular WQ is congested if the worker thread is
+> > 			 * looping without ever sleeping. Therefore we have to
+> > 			 * do a short sleep here rather than calling
+> > 			 * cond_resched().
+> > 			 */
+> > 			if (current->flags & PF_WQ_WORKER)
+> > 				schedule_timeout_uninterruptible(1);
+> > 
+> > And I thought it would be susfficient for kworkers for concurrency WQ
+> > congestion thingy to jump in. Or do we need something more generic. E.g.
+> > make cond_resched special for kworkers?
 > 
-> This fix issue with AMD IOMMU v2 while avoiding to introduce issue for others
-> user of the mmu_notifier API. For releavent threads see:
+> I actually think we're hitting a bug somewhere.  Tetsuo's trace with
+> the patch applies doesn't add up.
 > 
-> https://lkml.kernel.org/r/20170809204333.27485-1-jglisse@redhat.com
-> https://lkml.kernel.org/r/20170804134928.l4klfcnqatni7vsc@black.fi.intel.com
-> https://marc.info/?l=kvm&m=150327081325160&w=2
+> Thanks.
 
-Please ignore this. Instead plan is to kill invalidate_page() switch
-it to invalidate_range() and make sure there is always range_start/
-range_end happening around.
-
-Jerome
+If we are under memory pressure, __zone_watermark_ok() can return false.
+If __zone_watermark_ok() == false, when is schedule_timeout_*() called explicitly?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
