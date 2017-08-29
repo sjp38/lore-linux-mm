@@ -1,55 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 990606B02F4
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 15:16:51 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id 190so4731700itx.7
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 12:16:51 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 64sor1617867ioc.159.2017.08.29.12.16.50
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E9B786B025F
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 15:26:27 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l19so5440368wmi.1
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 12:26:27 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id g12si3691482edc.47.2017.08.29.12.26.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 29 Aug 2017 12:16:50 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 29 Aug 2017 12:26:26 -0700 (PDT)
+Date: Tue, 29 Aug 2017 15:26:21 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: memcontrol: use per-cpu stocks for socket memory
+ uncharging
+Message-ID: <20170829192621.GA5447@cmpxchg.org>
+References: <20170829100150.4580-1-guro@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFy=+ipEWKYwckee7-QodyfwufejNq1WA3rSNUHKJiw+6g@mail.gmail.com>
-References: <20170829190526.8767-1-jglisse@redhat.com> <CA+55aFy=+ipEWKYwckee7-QodyfwufejNq1WA3rSNUHKJiw+6g@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 29 Aug 2017 12:16:49 -0700
-Message-ID: <CA+55aFynq_N8bYy2bKmp8eWnCbrFBpboeHCWJ92MF3zJ++V8og@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm/rmap: do not call mmu_notifier_invalidate_page() v3
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170829100150.4580-1-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Bernhard Held <berny156@gmx.de>, Adam Borowski <kilobyte@angband.pl>, Andrea Arcangeli <aarcange@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Wanpeng Li <kernellwp@gmail.com>, Paolo Bonzini <pbonzini@redhat.com>, Takashi Iwai <tiwai@suse.de>, Nadav Amit <nadav.amit@gmail.com>, Mike Galbraith <efault@gmx.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, axie <axie@amd.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-On Tue, Aug 29, 2017 at 12:09 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> So any approach like this is fundamentally garbage. Really. Stop
-> sending crap. This is exactly tehe same thing that we already reverted
-> because it was broken shit. Why do you re-send it without actually
-> fixing the fundamental problems that were pointed out?
+On Tue, Aug 29, 2017 at 11:01:50AM +0100, Roman Gushchin wrote:
+> We've noticed a quite sensible performance overhead on some hosts
+> with significant network traffic when socket memory accounting
+> is enabled.
+> 
+> Perf top shows that socket memory uncharging path is hot:
+>   2.13%  [kernel]                [k] page_counter_cancel
+>   1.14%  [kernel]                [k] __sk_mem_reduce_allocated
+>   1.14%  [kernel]                [k] _raw_spin_lock
+>   0.87%  [kernel]                [k] _raw_spin_lock_irqsave
+>   0.84%  [kernel]                [k] tcp_ack
+>   0.84%  [kernel]                [k] ixgbe_poll
+>   0.83%  < workload >
+>   0.82%  [kernel]                [k] enqueue_entity
+>   0.68%  [kernel]                [k] __fget
+>   0.68%  [kernel]                [k] tcp_delack_timer_handler
+>   0.67%  [kernel]                [k] __schedule
+>   0.60%  < workload >
+>   0.59%  [kernel]                [k] __inet6_lookup_established
+>   0.55%  [kernel]                [k] __switch_to
+>   0.55%  [kernel]                [k] menu_select
+>   0.54%  libc-2.20.so            [.] __memcpy_avx_unaligned
+> 
+> To address this issue, the existing per-cpu stock infrastructure
+> can be used.
+> 
+> refill_stock() can be called from mem_cgroup_uncharge_skmem()
+> to move charge to a per-cpu stock instead of calling atomic
+> page_counter_uncharge().
+> 
+> To prevent the uncontrolled growth of per-cpu stocks,
+> refill_stock() will explicitly drain the cached charge,
+> if the cached value exceeds CHARGE_BATCH.
+> 
+> This allows significantly optimize the load:
+>   1.21%  [kernel]                [k] _raw_spin_lock
+>   1.01%  [kernel]                [k] ixgbe_poll
+>   0.92%  [kernel]                [k] _raw_spin_lock_irqsave
+>   0.90%  [kernel]                [k] enqueue_entity
+>   0.86%  [kernel]                [k] tcp_ack
+>   0.85%  < workload >
+>   0.74%  perf-11120.map          [.] 0x000000000061bf24
+>   0.73%  [kernel]                [k] __schedule
+>   0.67%  [kernel]                [k] __fget
+>   0.63%  [kernel]                [k] __inet6_lookup_established
+>   0.62%  [kernel]                [k] menu_select
+>   0.59%  < workload >
+>   0.59%  [kernel]                [k] __switch_to
+>   0.57%  libc-2.20.so            [.] __memcpy_avx_unaligned
+> 
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: cgroups@vger.kernel.org
+> Cc: kernel-team@fb.com
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
 
-Here's what I think might work:
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
- - put mmu_notifier_invalidate_range_start() before the rmap lock is
-taken (and yes, this means that you don't know if it actually will do
-anyhting)
+Neat!
 
- - put mmu_notifier_invalidate_range_end() after the lock is released.
-And yes, this means that it will be unconditional and regardless of
-whether anything happened)
-
-And then you can check if something actually happened by catching the
-*ATOMIC* call to mmu_notifier_invalidate_page(), setting a flag, and
-then doing something blocking at mmu_notifier_invalidate_range_end()
-time.
-
-Maybe.
-
-I don't know what the KVM issues are.
-
-                Linus
+As far as other types of pages go: page cache and anon are already
+batched pretty well, but I think kmem might benefit from this
+too. Have you considered using the stock in memcg_kmem_uncharge()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
