@@ -1,152 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E41326B0311
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 22:03:13 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id x36so6341960qtx.9
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 19:03:13 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id d15si1751320qkb.211.2017.08.28.19.03.11
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AB226B0313
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 22:03:14 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id l132so1130511vke.1
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 19:03:14 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id z9si813310vkz.181.2017.08.28.19.03.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Aug 2017 19:03:12 -0700 (PDT)
+        Mon, 28 Aug 2017 19:03:13 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v7 08/11] mm: zero reserved and unavailable struct pages
-Date: Mon, 28 Aug 2017 22:02:19 -0400
-Message-Id: <1503972142-289376-9-git-send-email-pasha.tatashin@oracle.com>
+Subject: [PATCH v7 11/11] mm: stop zeroing memory during allocation in vmemmap
+Date: Mon, 28 Aug 2017 22:02:22 -0400
+Message-Id: <1503972142-289376-12-git-send-email-pasha.tatashin@oracle.com>
 In-Reply-To: <1503972142-289376-1-git-send-email-pasha.tatashin@oracle.com>
 References: <1503972142-289376-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, Steven.Sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-Some memory is reserved but unavailable: not present in memblock.memory
-(because not backed by physical pages), but present in memblock.reserved.
-Such memory has backing struct pages, but they are not initialized by going
-through __init_single_page().
+vmemmap_alloc_block() will no longer zero the block, so zero memory
+at its call sites for everything except struct pages.  Struct page memory
+is zero'd by struct page initialization.
 
-In some cases these struct pages are accessed even if they do not contain
-any data. One example is page_to_pfn() might access page->flags if this is
-where section information is stored (CONFIG_SPARSEMEM,
-SECTION_IN_PAGE_FLAGS).
-
-Since, struct pages are zeroed in __init_single_page(), and not during
-allocation time, we must zero such struct pages explicitly.
-
-The patch involves adding a new memblock iterator:
-	for_each_resv_unavail_range(i, p_start, p_end)
-
-Which iterates through reserved && !memory lists, and we zero struct pages
-explicitly by calling mm_zero_struct_page().
+Replace allocators in sprase-vmemmap to use the non-zeroing version. So,
+we will get the performance improvement by zeroing the memory in parallel
+when struct pages are zeroed.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
 Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 Reviewed-by: Bob Picco <bob.picco@oracle.com>
 ---
- include/linux/memblock.h | 16 ++++++++++++++++
- include/linux/mm.h       |  6 ++++++
- mm/page_alloc.c          | 30 ++++++++++++++++++++++++++++++
- 3 files changed, 52 insertions(+)
+ include/linux/mm.h  | 11 +++++++++++
+ mm/sparse-vmemmap.c | 14 +++++++-------
+ mm/sparse.c         |  6 +++---
+ 3 files changed, 21 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index bae11c7e7bf3..bdd4268f9323 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -237,6 +237,22 @@ unsigned long memblock_next_valid_pfn(unsigned long pfn, unsigned long max_pfn);
- 	for_each_mem_range_rev(i, &memblock.memory, &memblock.reserved,	\
- 			       nid, flags, p_start, p_end, p_nid)
- 
-+/**
-+ * for_each_resv_unavail_range - iterate through reserved and unavailable memory
-+ * @i: u64 used as loop variable
-+ * @flags: pick from blocks based on memory attributes
-+ * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
-+ * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
-+ *
-+ * Walks over unavailabled but reserved (reserved && !memory) areas of memblock.
-+ * Available as soon as memblock is initialized.
-+ * Note: because this memory does not belong to any physical node, flags and
-+ * nid arguments do not make sense and thus not exported as arguments.
-+ */
-+#define for_each_resv_unavail_range(i, p_start, p_end)			\
-+	for_each_mem_range(i, &memblock.reserved, &memblock.memory,	\
-+			   NUMA_NO_NODE, MEMBLOCK_NONE, p_start, p_end, NULL)
-+
- static inline void memblock_set_region_flags(struct memblock_region *r,
- 					     unsigned long flags)
- {
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 183ac5e733db..0a440ff8f226 100644
+index 0a440ff8f226..fba540aef1da 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -1968,6 +1968,12 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
- 					struct mminit_pfnnid_cache *state);
- #endif
- 
-+#ifdef CONFIG_HAVE_MEMBLOCK
-+void zero_resv_unavail(void);
-+#else
-+static inline void __paginginit zero_resv_unavail(void) {}
-+#endif
-+
- extern void set_dma_reserve(unsigned long new_dma_reserve);
- extern void memmap_init_zone(unsigned long, int, unsigned long,
- 				unsigned long, enum memmap_context);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4d67fe3dd172..484c16fb5f0d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6261,6 +6261,34 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
- 	free_area_init_core(pgdat);
+@@ -2456,6 +2456,17 @@ static inline void *vmemmap_alloc_block_buf(unsigned long size, int node)
+ 	return __vmemmap_alloc_block_buf(size, node, NULL);
  }
  
-+#ifdef CONFIG_HAVE_MEMBLOCK
-+/*
-+ * Only struct pages that are backed by physical memory are zeroed and
-+ * initialized by going through __init_single_page(). But, there are some
-+ * struct pages which are reserved in memblock allocator and their fields
-+ * may be accessed (for example page_to_pfn() on some configuration accesses
-+ * flags). We must explicitly zero those struct pages.
-+ */
-+void __paginginit zero_resv_unavail(void)
++static inline void *vmemmap_alloc_block_zero(unsigned long size, int node)
 +{
-+	phys_addr_t start, end;
-+	unsigned long pfn;
-+	u64 i, pgcnt;
++	void *p = vmemmap_alloc_block(size, node);
 +
-+	/* Loop through ranges that are reserved, but do not have reported
-+	 * physical memory backing.
-+	 */
-+	pgcnt = 0;
-+	for_each_resv_unavail_range(i, &start, &end) {
-+		for (pfn = PFN_DOWN(start); pfn < PFN_UP(end); pfn++) {
-+			mm_zero_struct_page(pfn_to_page(pfn));
-+			pgcnt++;
-+		}
-+	}
-+	pr_info("Reserved but unavailable: %lld pages", pgcnt);
++	if (!p)
++		return NULL;
++	memset(p, 0, size);
++
++	return p;
 +}
-+#endif /* CONFIG_HAVE_MEMBLOCK */
 +
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 
- #if MAX_NUMNODES > 1
-@@ -6684,6 +6712,7 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
- 			node_set_state(nid, N_MEMORY);
- 		check_for_memory(pgdat, nid);
- 	}
-+	zero_resv_unavail();
- }
- 
- static int __init cmdline_parse_core(char *p, unsigned long *core)
-@@ -6847,6 +6876,7 @@ void __init free_area_init(unsigned long *zones_size)
+ void vmemmap_verify(pte_t *, int, unsigned long, unsigned long);
+ int vmemmap_populate_basepages(unsigned long start, unsigned long end,
+ 			       int node);
+diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+index c50b1a14d55e..423d4da85a91 100644
+--- a/mm/sparse-vmemmap.c
++++ b/mm/sparse-vmemmap.c
+@@ -41,7 +41,7 @@ static void * __ref __earlyonly_bootmem_alloc(int node,
+ 				unsigned long align,
+ 				unsigned long goal)
  {
- 	free_area_init_node(0, zones_size,
- 			__pa(PAGE_OFFSET) >> PAGE_SHIFT, NULL);
-+	zero_resv_unavail();
+-	return memblock_virt_alloc_try_nid(size, align, goal,
++	return memblock_virt_alloc_try_nid_raw(size, align, goal,
+ 					    BOOTMEM_ALLOC_ACCESSIBLE, node);
  }
  
- static int page_alloc_cpu_dead(unsigned int cpu)
+@@ -56,11 +56,11 @@ void * __meminit vmemmap_alloc_block(unsigned long size, int node)
+ 
+ 		if (node_state(node, N_HIGH_MEMORY))
+ 			page = alloc_pages_node(
+-				node, GFP_KERNEL | __GFP_ZERO | __GFP_RETRY_MAYFAIL,
++				node, GFP_KERNEL | __GFP_RETRY_MAYFAIL,
+ 				get_order(size));
+ 		else
+ 			page = alloc_pages(
+-				GFP_KERNEL | __GFP_ZERO | __GFP_RETRY_MAYFAIL,
++				GFP_KERNEL | __GFP_RETRY_MAYFAIL,
+ 				get_order(size));
+ 		if (page)
+ 			return page_address(page);
+@@ -188,7 +188,7 @@ pmd_t * __meminit vmemmap_pmd_populate(pud_t *pud, unsigned long addr, int node)
+ {
+ 	pmd_t *pmd = pmd_offset(pud, addr);
+ 	if (pmd_none(*pmd)) {
+-		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
++		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
+ 		if (!p)
+ 			return NULL;
+ 		pmd_populate_kernel(&init_mm, pmd, p);
+@@ -200,7 +200,7 @@ pud_t * __meminit vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node)
+ {
+ 	pud_t *pud = pud_offset(p4d, addr);
+ 	if (pud_none(*pud)) {
+-		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
++		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
+ 		if (!p)
+ 			return NULL;
+ 		pud_populate(&init_mm, pud, p);
+@@ -212,7 +212,7 @@ p4d_t * __meminit vmemmap_p4d_populate(pgd_t *pgd, unsigned long addr, int node)
+ {
+ 	p4d_t *p4d = p4d_offset(pgd, addr);
+ 	if (p4d_none(*p4d)) {
+-		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
++		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
+ 		if (!p)
+ 			return NULL;
+ 		p4d_populate(&init_mm, p4d, p);
+@@ -224,7 +224,7 @@ pgd_t * __meminit vmemmap_pgd_populate(unsigned long addr, int node)
+ {
+ 	pgd_t *pgd = pgd_offset_k(addr);
+ 	if (pgd_none(*pgd)) {
+-		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
++		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
+ 		if (!p)
+ 			return NULL;
+ 		pgd_populate(&init_mm, pgd, p);
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 7b4be3fd5cac..0e315766ad11 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -441,9 +441,9 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+ 	}
+ 
+ 	size = PAGE_ALIGN(size);
+-	map = memblock_virt_alloc_try_nid(size * map_count,
+-					  PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
+-					  BOOTMEM_ALLOC_ACCESSIBLE, nodeid);
++	map = memblock_virt_alloc_try_nid_raw(size * map_count,
++					      PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
++					      BOOTMEM_ALLOC_ACCESSIBLE, nodeid);
+ 	if (map) {
+ 		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+ 			if (!present_section_nr(pnum))
 -- 
 2.14.1
 
