@@ -1,113 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E47026B02B4
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 20:45:08 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id m68so1810164pfj.6
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 17:45:08 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id h34si1257137pld.831.2017.08.28.17.45.06
-        for <linux-mm@kvack.org>;
-        Mon, 28 Aug 2017 17:45:07 -0700 (PDT)
-Date: Tue, 29 Aug 2017 09:45:47 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
- ZONE_MOVABLE request
-Message-ID: <20170829004546.GD14489@js1304-P5Q-DELUXE>
-References: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
- <e919c65e-bc2f-6b3b-41fc-3589590a84ac@suse.cz>
- <20170825002031.GD29701@js1304-P5Q-DELUXE>
- <20170825073841.GD25498@dhcp22.suse.cz>
- <20170828001551.GA9167@js1304-P5Q-DELUXE>
- <20170828095616.GG17097@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170828095616.GG17097@dhcp22.suse.cz>
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DD046B025F
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 22:03:10 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id s199so1116192vke.8
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 19:03:10 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id c197si762432vkd.280.2017.08.28.19.03.09
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Aug 2017 19:03:09 -0700 (PDT)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [PATCH v7 00/11] complete deferred page initialization
+Date: Mon, 28 Aug 2017 22:02:11 -0400
+Message-Id: <1503972142-289376-1-git-send-email-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, Steven.Sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On Mon, Aug 28, 2017 at 11:56:16AM +0200, Michal Hocko wrote:
-> On Mon 28-08-17 09:15:52, Joonsoo Kim wrote:
-> > On Fri, Aug 25, 2017 at 09:38:42AM +0200, Michal Hocko wrote:
-> > > On Fri 25-08-17 09:20:31, Joonsoo Kim wrote:
-> > > > On Thu, Aug 24, 2017 at 11:41:58AM +0200, Vlastimil Babka wrote:
-> > > > > On 08/24/2017 07:45 AM, js1304@gmail.com wrote:
-> > > > > > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > > > > > 
-> > > > > > Freepage on ZONE_HIGHMEM doesn't work for kernel memory so it's not that
-> > > > > > important to reserve. When ZONE_MOVABLE is used, this problem would
-> > > > > > theorectically cause to decrease usable memory for GFP_HIGHUSER_MOVABLE
-> > > > > > allocation request which is mainly used for page cache and anon page
-> > > > > > allocation. So, fix it.
-> > > > > > 
-> > > > > > And, defining sysctl_lowmem_reserve_ratio array by MAX_NR_ZONES - 1 size
-> > > > > > makes code complex. For example, if there is highmem system, following
-> > > > > > reserve ratio is activated for *NORMAL ZONE* which would be easyily
-> > > > > > misleading people.
-> > > > > > 
-> > > > > >  #ifdef CONFIG_HIGHMEM
-> > > > > >  32
-> > > > > >  #endif
-> > > > > > 
-> > > > > > This patch also fix this situation by defining sysctl_lowmem_reserve_ratio
-> > > > > > array by MAX_NR_ZONES and place "#ifdef" to right place.
-> > > > > > 
-> > > > > > Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> > > > > > Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> > > > > 
-> > > > > Looks like I did that almost year ago, so definitely had to refresh my
-> > > > > memory now :)
-> > > > > 
-> > > > > Anyway now I looked more thoroughly and noticed that this change leaks
-> > > > > into the reported sysctl. On a 64bit system with ZONE_MOVABLE:
-> > > > > 
-> > > > > before the patch:
-> > > > > vm.lowmem_reserve_ratio = 256   256     32
-> > > > > 
-> > > > > after the patch:
-> > > > > vm.lowmem_reserve_ratio = 256   256     32      2147483647
-> > > > > 
-> > > > > So if we indeed remove HIGHMEM from protection (c.f. Michal's mail), we
-> > > > > should do that differently than with the INT_MAX trick, IMHO.
-> > > > 
-> > > > Hmm, this is already pointed by Minchan and I have answered that.
-> > > > 
-> > > > lkml.kernel.org/r/<20170421013243.GA13966@js1304-desktop>
-> > > > 
-> > > > If you have a better idea, please let me know.
-> > > 
-> > > Why don't we just use 0. In fact we are reserving 0 pages... Using
-> > > INT_MAX is just wrong.
-> > 
-> > The number of reserved pages is calculated by "managed_pages /
-> > ratio". Using INT_MAX, net result would be 0.
-> 
-> Why cannot we simply special case 0?
-> 
-> > There is a logic converting ratio 0 to ratio 1.
-> > 
-> > if (sysctl_lowmem_reserve_ratio[idx] < 1)
-> >         sysctl_lowmem_reserve_ratio[idx] = 1
-> 
-> This code just tries to prevent from division by 0 but I am wondering
-> we should simply set lowmem_reserve to 0 in that case.
-> 
-> > If I use 0 to represent 0 reserved page, there would be a user
-> > who is affected by this change. So, I don't use 0 for this patch.
-> 
-> I am sorry but I do not understand? Could you be more specific please?
+Changelog:
+v7 - v6
+- Addressed comments from Michal Hocko
+- memblock_discard() patch was removed from this series and integrated
+  separately
+- Fixed bug reported by kbuild test robot new patch:
+  mm: zero reserved and unavailable struct pages
+- Removed patch
+  x86/mm: reserve only exiting low pages
+  As, it is not needed anymore, because of the previous fix
+- Re-wrote deferred_init_memmap(), found and fixed an existing bug, where
+  page variable is not reset when zone holes present.
+- Merged several patches together per Michal request
+- Added performance data including raw logs
 
-If there is a user that manually set sysctl_lowmem_reserve_ratio and
-he/she uses '0' to set ratio to '1', your suggestion making '0' as
-a special value changes his/her system behaviour. I'm afraid this
-case.
+v6 - v5
+- Fixed ARM64 + kasan code, as reported by Ard Biesheuvel
+- Tested ARM64 code in qemu and found few more issues, that I fixed in this
+  iteration
+- Added page roundup/rounddown to x86 and arm zeroing routines to zero the
+  whole allocated range, instead of only provided address range.
+- Addressed SPARC related comment from Sam Ravnborg
+- Fixed section mismatch warnings related to memblock_discard().
 
-However, if you and Vlastimil agree with this making '0' as a special
-value, I will go this way.
+v5 - v4
+- Fixed build issues reported by kbuild on various configurations
 
-Thanks.
+v4 - v3
+- Rewrote code to zero sturct pages in __init_single_page() as
+  suggested by Michal Hocko
+- Added code to handle issues related to accessing struct page
+  memory before they are initialized.
+
+v3 - v2
+- Addressed David Miller comments about one change per patch:
+    * Splited changes to platforms into 4 patches
+    * Made "do not zero vmemmap_buf" as a separate patch
+
+v2 - v1
+- Per request, added s390 to deferred "struct page" zeroing
+- Collected performance data on x86 which proofs the importance to
+  keep memset() as prefetch (see below).
+
+SMP machines can benefit from the DEFERRED_STRUCT_PAGE_INIT config option,
+which defers initializing struct pages until all cpus have been started so
+it can be done in parallel.
+
+However, this feature is sub-optimal, because the deferred page
+initialization code expects that the struct pages have already been zeroed,
+and the zeroing is done early in boot with a single thread only.  Also, we
+access that memory and set flags before struct pages are initialized. All
+of this is fixed in this patchset.
+
+In this work we do the following:
+- Never read access struct page until it was initialized
+- Never set any fields in struct pages before they are initialized
+- Zero struct page at the beginning of struct page initialization
+
+
+==========================================================================
+Performance improvements on x86 machine with 8 nodes:
+Intel(R) Xeon(R) CPU E7-8895 v3 @ 2.60GHz and 1T of memory:
+                        TIME          SPEED UP
+base no deferred:       95.796233s
+fix no deferred:        79.978956s    19.77%
+
+base deferred:          77.254713s
+fix deferred:           55.050509s    40.34%
+==========================================================================
+SPARC M6 3600 MHz with 15T of memory
+                        TIME          SPEED UP
+base no deferred:       358.335727s
+fix no deferred:        302.320936s   18.52%
+
+base deferred:          237.534603s
+fix deferred:           182.103003s   30.44%
+==========================================================================
+Raw dmesg output with timestamps:
+x86 base no deferred:    https://hastebin.com/ofunepurit.scala
+x86 base deferred:       https://hastebin.com/ifazegeyas.scala
+x86 fix no deferred:     https://hastebin.com/pegocohevo.scala
+x86 fix deferred:        https://hastebin.com/ofupevikuk.scala
+sparc base no deferred:  https://hastebin.com/ibobeteken.go
+sparc base deferred:     https://hastebin.com/fariqimiyu.go
+sparc fix no deferred:   https://hastebin.com/muhegoheyi.go
+sparc fix deferred:      https://hastebin.com/xadinobutu.go
+
+Pavel Tatashin (11):
+  x86/mm: setting fields in deferred pages
+  sparc64/mm: setting fields in deferred pages
+  mm: deferred_init_memmap improvements
+  sparc64: simplify vmemmap_populate
+  mm: defining memblock_virt_alloc_try_nid_raw
+  mm: zero struct pages during initialization
+  sparc64: optimized struct page zeroing
+  mm: zero reserved and unavailable struct pages
+  x86/kasan: explicitly zero kasan shadow memory
+  arm64/kasan: explicitly zero kasan shadow memory
+  mm: stop zeroing memory during allocation in vmemmap
+
+ arch/arm64/mm/kasan_init.c          |  42 ++++++++
+ arch/sparc/include/asm/pgtable_64.h |  30 ++++++
+ arch/sparc/mm/init_64.c             |  31 +++---
+ arch/x86/mm/init_64.c               |   9 +-
+ arch/x86/mm/kasan_init_64.c         |  66 ++++++++++++
+ include/linux/bootmem.h             |  27 +++++
+ include/linux/memblock.h            |  16 +++
+ include/linux/mm.h                  |  26 +++++
+ mm/memblock.c                       |  60 +++++++++--
+ mm/page_alloc.c                     | 207 ++++++++++++++++++++----------------
+ mm/sparse-vmemmap.c                 |  14 +--
+ mm/sparse.c                         |   6 +-
+ 12 files changed, 406 insertions(+), 128 deletions(-)
+
+-- 
+2.14.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
