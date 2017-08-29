@@ -1,72 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 56E426B02B4
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 20:36:18 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id q68so3177259pgq.11
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 17:36:18 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id s194si1211331pgc.142.2017.08.28.17.36.16
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E47026B02B4
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 20:45:08 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id m68so1810164pfj.6
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 17:45:08 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id h34si1257137pld.831.2017.08.28.17.45.06
         for <linux-mm@kvack.org>;
-        Mon, 28 Aug 2017 17:36:17 -0700 (PDT)
-Date: Tue, 29 Aug 2017 09:36:58 +0900
+        Mon, 28 Aug 2017 17:45:07 -0700 (PDT)
+Date: Tue, 29 Aug 2017 09:45:47 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
  ZONE_MOVABLE request
-Message-ID: <20170829003657.GC14489@js1304-P5Q-DELUXE>
+Message-ID: <20170829004546.GD14489@js1304-P5Q-DELUXE>
 References: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
  <e919c65e-bc2f-6b3b-41fc-3589590a84ac@suse.cz>
  <20170825002031.GD29701@js1304-P5Q-DELUXE>
- <d57eeb5c-d91d-9718-8473-3c6db465b154@suse.cz>
- <20170828002857.GB9167@js1304-P5Q-DELUXE>
- <78dd0160-14e8-22a6-bd10-d37bbd39f77b@suse.cz>
+ <20170825073841.GD25498@dhcp22.suse.cz>
+ <20170828001551.GA9167@js1304-P5Q-DELUXE>
+ <20170828095616.GG17097@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <78dd0160-14e8-22a6-bd10-d37bbd39f77b@suse.cz>
+In-Reply-To: <20170828095616.GG17097@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 28, 2017 at 08:45:07AM +0200, Vlastimil Babka wrote:
-> +CC linux-api
-> 
-> On 08/28/2017 02:28 AM, Joonsoo Kim wrote:
-> > On Fri, Aug 25, 2017 at 09:56:10AM +0200, Vlastimil Babka wrote:
-> >> On 08/25/2017 02:20 AM, Joonsoo Kim wrote:
-> >>> On Thu, Aug 24, 2017 at 11:41:58AM +0200, Vlastimil Babka wrote:
-> >>>
-> >>> Hmm, this is already pointed by Minchan and I have answered that.
-> >>>
-> >>> lkml.kernel.org/r/<20170421013243.GA13966@js1304-desktop>
-> >>>
-> >>> If you have a better idea, please let me know.
-> >>
-> >> My idea is that size of sysctl_lowmem_reserve_ratio is ZONE_NORMAL+1 and
-> >> it has no entries for zones > NORMAL. The
-> >> setup_per_zone_lowmem_reserve() is adjusted to only set
-> >> lower_zone->lowmem_reserve[j] for idx <= ZONE_NORMAL.
-> >>
-> >> I can't imagine somebody would want override the ratio for HIGHMEM or
-> >> MOVABLE
-> >> (where it has no effect anyway) so the simplest thing is not to expose
-> >> it at all.
+On Mon, Aug 28, 2017 at 11:56:16AM +0200, Michal Hocko wrote:
+> On Mon 28-08-17 09:15:52, Joonsoo Kim wrote:
+> > On Fri, Aug 25, 2017 at 09:38:42AM +0200, Michal Hocko wrote:
+> > > On Fri 25-08-17 09:20:31, Joonsoo Kim wrote:
+> > > > On Thu, Aug 24, 2017 at 11:41:58AM +0200, Vlastimil Babka wrote:
+> > > > > On 08/24/2017 07:45 AM, js1304@gmail.com wrote:
+> > > > > > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > > > > > 
+> > > > > > Freepage on ZONE_HIGHMEM doesn't work for kernel memory so it's not that
+> > > > > > important to reserve. When ZONE_MOVABLE is used, this problem would
+> > > > > > theorectically cause to decrease usable memory for GFP_HIGHUSER_MOVABLE
+> > > > > > allocation request which is mainly used for page cache and anon page
+> > > > > > allocation. So, fix it.
+> > > > > > 
+> > > > > > And, defining sysctl_lowmem_reserve_ratio array by MAX_NR_ZONES - 1 size
+> > > > > > makes code complex. For example, if there is highmem system, following
+> > > > > > reserve ratio is activated for *NORMAL ZONE* which would be easyily
+> > > > > > misleading people.
+> > > > > > 
+> > > > > >  #ifdef CONFIG_HIGHMEM
+> > > > > >  32
+> > > > > >  #endif
+> > > > > > 
+> > > > > > This patch also fix this situation by defining sysctl_lowmem_reserve_ratio
+> > > > > > array by MAX_NR_ZONES and place "#ifdef" to right place.
+> > > > > > 
+> > > > > > Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> > > > > > Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> > > > > 
+> > > > > Looks like I did that almost year ago, so definitely had to refresh my
+> > > > > memory now :)
+> > > > > 
+> > > > > Anyway now I looked more thoroughly and noticed that this change leaks
+> > > > > into the reported sysctl. On a 64bit system with ZONE_MOVABLE:
+> > > > > 
+> > > > > before the patch:
+> > > > > vm.lowmem_reserve_ratio = 256   256     32
+> > > > > 
+> > > > > after the patch:
+> > > > > vm.lowmem_reserve_ratio = 256   256     32      2147483647
+> > > > > 
+> > > > > So if we indeed remove HIGHMEM from protection (c.f. Michal's mail), we
+> > > > > should do that differently than with the INT_MAX trick, IMHO.
+> > > > 
+> > > > Hmm, this is already pointed by Minchan and I have answered that.
+> > > > 
+> > > > lkml.kernel.org/r/<20170421013243.GA13966@js1304-desktop>
+> > > > 
+> > > > If you have a better idea, please let me know.
+> > > 
+> > > Why don't we just use 0. In fact we are reserving 0 pages... Using
+> > > INT_MAX is just wrong.
 > > 
-> > Seems reasonable. However, if there is a user who checks
-> > sysctl_lowmem_reserve_ratio entry for HIGHMEM and change it, suggested
-> > interface will cause a problem since it doesn't expose ratio for
-> > HIGHMEM. Am I missing something?
+> > The number of reserved pages is calculated by "managed_pages /
+> > ratio". Using INT_MAX, net result would be 0.
 > 
-> As you explained, it makes little sense to change it for HIGHMEM which
-> only affects MOVABLE allocations. Also I doubt there are many systems
-> with both HIGHMEM (implies 32bit) *and* MOVABLE (implies NUMA, memory
-> hotplug...) zones. So I would just remove it, and if somebody will
-> really miss it, we can always add it back. In any case, please CC
-> linux-api on the next version.
+> Why cannot we simply special case 0?
+> 
+> > There is a logic converting ratio 0 to ratio 1.
+> > 
+> > if (sysctl_lowmem_reserve_ratio[idx] < 1)
+> >         sysctl_lowmem_reserve_ratio[idx] = 1
+> 
+> This code just tries to prevent from division by 0 but I am wondering
+> we should simply set lowmem_reserve to 0 in that case.
+> 
+> > If I use 0 to represent 0 reserved page, there would be a user
+> > who is affected by this change. So, I don't use 0 for this patch.
+> 
+> I am sorry but I do not understand? Could you be more specific please?
 
-If we will accept a change that potentially breaks the user, I think
-that making zero as a special value for sysctl_lowmem_reserve_ratio
-is better solution. How about this way?
+If there is a user that manually set sysctl_lowmem_reserve_ratio and
+he/she uses '0' to set ratio to '1', your suggestion making '0' as
+a special value changes his/her system behaviour. I'm afraid this
+case.
+
+However, if you and Vlastimil agree with this making '0' as a special
+value, I will go this way.
 
 Thanks.
 
