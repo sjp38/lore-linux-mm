@@ -1,237 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CBE466B025F
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 23:06:25 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id k3so3670003pfc.1
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 20:06:25 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id f19si1527568plj.427.2017.08.28.20.06.24
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 336AD6B025F
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 23:20:58 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id l87so3705612pfj.3
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 20:20:58 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id g14si1532759pln.252.2017.08.28.20.20.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Aug 2017 20:06:24 -0700 (PDT)
-Message-ID: <59A4DADE.5050303@intel.com>
-Date: Tue, 29 Aug 2017 11:09:18 +0800
+        Mon, 28 Aug 2017 20:20:57 -0700 (PDT)
+Message-ID: <59A4DE48.9030206@intel.com>
+Date: Tue, 29 Aug 2017 11:23:52 +0800
 From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v15 3/5] virtio-balloon: VIRTIO_BALLOON_F_SG
-References: <1503914913-28893-1-git-send-email-wei.w.wang@intel.com> <1503914913-28893-4-git-send-email-wei.w.wang@intel.com> <20170828204659-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20170828204659-mutt-send-email-mst@kernel.org>
+Subject: Re: [PATCH v15 4/5] mm: support reporting free page blocks
+References: <1503914913-28893-1-git-send-email-wei.w.wang@intel.com> <1503914913-28893-5-git-send-email-wei.w.wang@intel.com> <20170828133326.GN17097@dhcp22.suse.cz>
+In-Reply-To: <20170828133326.GN17097@dhcp22.suse.cz>
 Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On 08/29/2017 02:03 AM, Michael S. Tsirkin wrote:
-> On Mon, Aug 28, 2017 at 06:08:31PM +0800, Wei Wang wrote:
->> Add a new feature, VIRTIO_BALLOON_F_SG, which enables the transfer
->> of balloon (i.e. inflated/deflated) pages using scatter-gather lists
->> to the host.
+On 08/28/2017 09:33 PM, Michal Hocko wrote:
+> On Mon 28-08-17 18:08:32, Wei Wang wrote:
+>> This patch adds support to walk through the free page blocks in the
+>> system and report them via a callback function. Some page blocks may
+>> leave the free list after zone->lock is released, so it is the caller's
+>> responsibility to either detect or prevent the use of such pages.
 >>
->> The implementation of the previous virtio-balloon is not very
->> efficient, because the balloon pages are transferred to the
->> host one by one. Here is the breakdown of the time in percentage
->> spent on each step of the balloon inflating process (inflating
->> 7GB of an 8GB idle guest).
->>
->> 1) allocating pages (6.5%)
->> 2) sending PFNs to host (68.3%)
->> 3) address translation (6.1%)
->> 4) madvise (19%)
->>
->> It takes about 4126ms for the inflating process to complete.
->> The above profiling shows that the bottlenecks are stage 2)
->> and stage 4).
->>
->> This patch optimizes step 2) by transferring pages to the host in
->> sgs. An sg describes a chunk of guest physically continuous pages.
->> With this mechanism, step 4) can also be optimized by doing address
->> translation and madvise() in chunks rather than page by page.
->>
->> With this new feature, the above ballooning process takes ~597ms
->> resulting in an improvement of ~86%.
->>
->> TODO: optimize stage 1) by allocating/freeing a chunk of pages
->> instead of a single page each time.
->>
->> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
->> Signed-off-by: Liang Li <liang.z.li@intel.com>
->> Suggested-by: Michael S. Tsirkin <mst@redhat.com>
->> ---
->>   drivers/virtio/virtio_balloon.c     | 171 ++++++++++++++++++++++++++++++++----
->>   include/uapi/linux/virtio_balloon.h |   1 +
->>   2 files changed, 155 insertions(+), 17 deletions(-)
->>
->> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
->> index f0b3a0b..8ecc1d4 100644
->> --- a/drivers/virtio/virtio_balloon.c
->> +++ b/drivers/virtio/virtio_balloon.c
->> @@ -32,6 +32,8 @@
->>   #include <linux/mm.h>
->>   #include <linux/mount.h>
->>   #include <linux/magic.h>
->> +#include <linux/xbitmap.h>
->> +#include <asm/page.h>
->>   
->>   /*
->>    * Balloon device works in 4K page units.  So each page is pointed to by
->> @@ -79,6 +81,9 @@ struct virtio_balloon {
->>   	/* Synchronize access/update to this struct virtio_balloon elements */
->>   	struct mutex balloon_lock;
->>   
->> +	/* The xbitmap used to record balloon pages */
->> +	struct xb page_xb;
+>> One use example of this patch is to accelerate live migration by skipping
+>> the transfer of free pages reported from the guest. A popular method used
+>> by the hypervisor to track which part of memory is written during live
+>> migration is to write-protect all the guest memory. So, those pages that
+>> are reported as free pages but are written after the report function
+>> returns will be captured by the hypervisor, and they will be added to the
+>> next round of memory transfer.
+> OK, looks much better. I still have few nits.
+>
+>> +extern void walk_free_mem_block(void *opaque,
+>> +				int min_order,
+>> +				bool (*report_page_block)(void *, unsigned long,
+>> +							  unsigned long));
 >> +
->>   	/* The array of pfns we tell the Host about. */
->>   	unsigned int num_pfns;
->>   	__virtio32 pfns[VIRTIO_BALLOON_ARRAY_PFNS_MAX];
->> @@ -141,13 +146,111 @@ static void set_page_pfns(struct virtio_balloon *vb,
->>   					  page_to_balloon_pfn(page) + i);
+> please add names to arguments of the prototype
+>
+>>   /*
+>>    * Free reserved pages within range [PAGE_ALIGN(start), end & PAGE_MASK)
+>>    * into the buddy system. The freed pages will be poisoned with pattern
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 6d00f74..81eedc7 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -4762,6 +4762,71 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+>>   	show_swap_cache_info();
 >>   }
 >>   
->> +static int add_one_sg(struct virtqueue *vq, void *addr, uint32_t size)
->> +{
->> +	struct scatterlist sg;
->> +
->> +	sg_init_one(&sg, addr, size);
->> +	return virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
->> +}
->> +
->> +static void send_balloon_page_sg(struct virtio_balloon *vb,
->> +				 struct virtqueue *vq,
->> +				 void *addr,
->> +				 uint32_t size,
->> +				 bool batch)
->> +{
->> +	unsigned int len;
->> +	int err;
->> +
->> +	err = add_one_sg(vq, addr, size);
->> +	/* Sanity check: this can't really happen */
->> +	WARN_ON(err);
-> It might be cleaner to detect that add failed due to
-> ring full and kick then. Just an idea, up to you
-> whether to do it.
+>> +/**
+>> + * walk_free_mem_block - Walk through the free page blocks in the system
+>> + * @opaque: the context passed from the caller
+>> + * @min_order: the minimum order of free lists to check
+>> + * @report_page_block: the callback function to report free page blocks
+> page_block has meaning in the core MM which doesn't strictly match its
+> usage here. Moreover we are reporting pfn ranges rather than struct page
+> range. So report_pfn_range would suit better.
 >
->> +
->> +	/* If batching is in use, we batch the sgs till the vq is full. */
->> +	if (!batch || !vq->num_free) {
->> +		virtqueue_kick(vq);
->> +		wait_event(vb->acked, virtqueue_get_buf(vq, &len));
->> +		/* Release all the entries if there are */
-> Meaning
-> 	Account for all used entries if any
-> ?
+> [...]
+>> +	for_each_populated_zone(zone) {
+>> +		for (order = MAX_ORDER - 1; order >= min_order; order--) {
+>> +			for (mt = 0; !stop && mt < MIGRATE_TYPES; mt++) {
+>> +				spin_lock_irqsave(&zone->lock, flags);
+>> +				list = &zone->free_area[order].free_list[mt];
+>> +				list_for_each_entry(page, list, lru) {
+>> +					pfn = page_to_pfn(page);
+>> +					stop = report_page_block(opaque, pfn,
+>> +								 1 << order);
+>> +					if (stop)
+>> +						break;
+> 					if (stop) {
+> 						spin_unlock_irqrestore(&zone->lock, flags);
+> 						return;
+> 					}
 >
->> +		while (virtqueue_get_buf(vq, &len))
->> +			;
->
-> Above code is reused below. Add a function?
->
->> +	}
->> +}
->> +
->> +/*
->> + * Send balloon pages in sgs to host. The balloon pages are recorded in the
->> + * page xbitmap. Each bit in the bitmap corresponds to a page of PAGE_SIZE.
->> + * The page xbitmap is searched for continuous "1" bits, which correspond
->> + * to continuous pages, to chunk into sgs.
->> + *
->> + * @page_xb_start and @page_xb_end form the range of bits in the xbitmap that
->> + * need to be searched.
->> + */
->> +static void tell_host_sgs(struct virtio_balloon *vb,
->> +			  struct virtqueue *vq,
->> +			  unsigned long page_xb_start,
->> +			  unsigned long page_xb_end)
->> +{
->> +	unsigned long sg_pfn_start, sg_pfn_end;
->> +	void *sg_addr;
->> +	uint32_t sg_len, sg_max_len = round_down(UINT_MAX, PAGE_SIZE);
->> +
->> +	sg_pfn_start = page_xb_start;
->> +	while (sg_pfn_start < page_xb_end) {
->> +		sg_pfn_start = xb_find_next_bit(&vb->page_xb, sg_pfn_start,
->> +						page_xb_end, 1);
->> +		if (sg_pfn_start == page_xb_end + 1)
->> +			break;
->> +		sg_pfn_end = xb_find_next_bit(&vb->page_xb, sg_pfn_start + 1,
->> +					      page_xb_end, 0);
->> +		sg_addr = (void *)pfn_to_kaddr(sg_pfn_start);
->> +		sg_len = (sg_pfn_end - sg_pfn_start) << PAGE_SHIFT;
->> +		while (sg_len > sg_max_len) {
->> +			send_balloon_page_sg(vb, vq, sg_addr, sg_max_len, 1);
-> Last argument should be true, not 1.
->
->> +			sg_addr += sg_max_len;
->> +			sg_len -= sg_max_len;
->> +		}
->> +		send_balloon_page_sg(vb, vq, sg_addr, sg_len, 1);
->> +		xb_zero(&vb->page_xb, sg_pfn_start, sg_pfn_end);
->> +		sg_pfn_start = sg_pfn_end + 1;
->> +	}
->> +
->> +	/*
->> +	 * The last few sgs may not reach the batch size, but need a kick to
->> +	 * notify the device to handle them.
->> +	 */
->> +	if (vq->num_free != virtqueue_get_vring_size(vq)) {
->> +		virtqueue_kick(vq);
->> +		wait_event(vb->acked, virtqueue_get_buf(vq, &sg_len));
->> +		while (virtqueue_get_buf(vq, &sg_len))
->> +			;
-> Some entries can get used after a pause. Looks like they will leak then?
-> One fix would be to convert above if to a while loop.
-> I don't know whether to do it like this in send_balloon_page_sg too.
+> would be both easier and less error prone. E.g. You wouldn't pointlessly
+> iterate over remaining orders just to realize there is nothing to be
+> done for those...
 >
 
-Thanks for the above comments. I've re-written this part of code.
-Please have a check below if there is anything more we could improve:
-
-static void kick_and_wait(struct virtqueue *vq, wait_queue_head_t wq_head)
-{
-         unsigned int len;
-
-         virtqueue_kick(vq);
-         wait_event(wq_head, virtqueue_get_buf(vq, &len));
-         /* Detach all the used buffers from the vq */
-         while (virtqueue_get_buf(vq, &len))
-                 ;
-}
-
-static int add_one_sg(struct virtqueue *vq, void *addr, uint32_t size)
-{
-         struct scatterlist sg;
-         int ret;
-
-         sg_init_one(&sg, addr, size);
-         ret = virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
-         if (unlikely(ret == -ENOSPC))
-                 dev_warn(&vq->vdev->dev, "%s: failed due to ring full\n",
-                                  __func__);
-
-         return ret;
-}
-
-static void send_balloon_page_sg(struct virtio_balloon *vb,
-                                                       struct virtqueue *vq,
-                                                       void *addr,
-                                                       uint32_t size,
-                                                       bool batch)
-{
-         int err;
-
-         do {
-                 err = add_one_sg(vq, addr, size);
-                 if (err == -ENOSPC || !batch || !vq->num_free)
-                         kick_and_wait(vq, vb->acked);
-         } while (err == -ENOSPC);
-}
-
+Yes, that's better, thanks. I will take other suggestions as well.
 
 Best,
 Wei
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
