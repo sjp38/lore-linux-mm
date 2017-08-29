@@ -1,118 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AE5896B025F
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 10:50:39 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 4so2568559pgi.5
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 07:50:39 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 10DDB6B0292
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 10:58:37 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 83so6864334pgb.1
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 07:58:37 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id u2si2506545pge.11.2017.08.29.07.50.38
+        by mx.google.com with ESMTPS id c63si2443546pfd.289.2017.08.29.07.58.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Aug 2017 07:50:38 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7TEnLti006784
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 10:50:37 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2cna460w7q-1
+        Tue, 29 Aug 2017 07:58:36 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7TEtIxh053391
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 10:58:35 -0400
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2cn9t3ta6h-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 10:50:37 -0400
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 10:58:35 -0400
 Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Tue, 29 Aug 2017 15:50:34 +0100
+	Tue, 29 Aug 2017 15:58:32 +0100
 Subject: Re: [PATCH v2 19/20] x86/mm: Add speculative pagefault handling
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 References: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
  <1503007519-26777-20-git-send-email-ldufour@linux.vnet.ibm.com>
  <dbaaf637-9f22-eba0-63a5-7bd83f810e4f@linux.vnet.ibm.com>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Tue, 29 Aug 2017 16:50:26 +0200
+ <37b9b036-e951-0a74-3e5c-31049cda7dd2@linux.vnet.ibm.com>
+Date: Tue, 29 Aug 2017 16:58:23 +0200
 MIME-Version: 1.0
-In-Reply-To: <dbaaf637-9f22-eba0-63a5-7bd83f810e4f@linux.vnet.ibm.com>
+In-Reply-To: <37b9b036-e951-0a74-3e5c-31049cda7dd2@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Language: fr
 Content-Transfer-Encoding: 7bit
-Message-Id: <37b9b036-e951-0a74-3e5c-31049cda7dd2@linux.vnet.ibm.com>
+Message-Id: <6233b5fc-92d8-1977-82f9-e266ac1f6dec@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On 21/08/2017 09:29, Anshuman Khandual wrote:
-> On 08/18/2017 03:35 AM, Laurent Dufour wrote:
->> From: Peter Zijlstra <peterz@infradead.org>
+On 29/08/2017 16:50, Laurent Dufour wrote:
+> On 21/08/2017 09:29, Anshuman Khandual wrote:
+>> On 08/18/2017 03:35 AM, Laurent Dufour wrote:
+>>> From: Peter Zijlstra <peterz@infradead.org>
+>>>
+>>> Try a speculative fault before acquiring mmap_sem, if it returns with
+>>> VM_FAULT_RETRY continue with the mmap_sem acquisition and do the
+>>> traditional fault.
+>>>
+>>> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+>>>
+>>> [Clearing of FAULT_FLAG_ALLOW_RETRY is now done in
+>>>  handle_speculative_fault()]
+>>> [Retry with usual fault path in the case VM_ERROR is returned by
+>>>  handle_speculative_fault(). This allows signal to be delivered]
+>>> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+>>> ---
+>>>  arch/x86/include/asm/pgtable_types.h |  7 +++++++
+>>>  arch/x86/mm/fault.c                  | 19 +++++++++++++++++++
+>>>  2 files changed, 26 insertions(+)
+>>>
+>>> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+>>> index bf9638e1ee42..4fd2693a037e 100644
+>>> --- a/arch/x86/include/asm/pgtable_types.h
+>>> +++ b/arch/x86/include/asm/pgtable_types.h
+>>> @@ -234,6 +234,13 @@ enum page_cache_mode {
+>>>  #define PGD_IDENT_ATTR	 0x001		/* PRESENT (no other attributes) */
+>>>  #endif
+>>>  
+>>> +/*
+>>> + * Advertise that we call the Speculative Page Fault handler.
+>>> + */
+>>> +#ifdef CONFIG_X86_64
+>>> +#define __HAVE_ARCH_CALL_SPF
+>>> +#endif
+>>> +
+>>>  #ifdef CONFIG_X86_32
+>>>  # include <asm/pgtable_32_types.h>
+>>>  #else
+>>> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+>>> index 2a1fa10c6a98..4c070b9a4362 100644
+>>> --- a/arch/x86/mm/fault.c
+>>> +++ b/arch/x86/mm/fault.c
+>>> @@ -1365,6 +1365,24 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code,
+>>>  	if (error_code & PF_INSTR)
+>>>  		flags |= FAULT_FLAG_INSTRUCTION;
+>>>  
+>>> +#ifdef __HAVE_ARCH_CALL_SPF
+>>> +	if (error_code & PF_USER) {
+>>> +		fault = handle_speculative_fault(mm, address, flags);
+>>> +
+>>> +		/*
+>>> +		 * We also check against VM_FAULT_ERROR because we have to
+>>> +		 * raise a signal by calling later mm_fault_error() which
+>>> +		 * requires the vma pointer to be set. So in that case,
+>>> +		 * we fall through the normal path.
 >>
->> Try a speculative fault before acquiring mmap_sem, if it returns with
->> VM_FAULT_RETRY continue with the mmap_sem acquisition and do the
->> traditional fault.
+>> Cant mm_fault_error() be called inside handle_speculative_fault() ?
+>> Falling through the normal page fault path again just to raise a
+>> signal seems overkill. Looking into mm_fault_error(), it seems they
+>> are different for x86 and powerpc.
 >>
->> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+>> X86:
 >>
->> [Clearing of FAULT_FLAG_ALLOW_RETRY is now done in
->>  handle_speculative_fault()]
->> [Retry with usual fault path in the case VM_ERROR is returned by
->>  handle_speculative_fault(). This allows signal to be delivered]
->> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
->> ---
->>  arch/x86/include/asm/pgtable_types.h |  7 +++++++
->>  arch/x86/mm/fault.c                  | 19 +++++++++++++++++++
->>  2 files changed, 26 insertions(+)
+>> mm_fault_error(struct pt_regs *regs, unsigned long error_code,
+>>                unsigned long address, struct vm_area_struct *vma,
+>>                unsigned int fault)
 >>
->> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
->> index bf9638e1ee42..4fd2693a037e 100644
->> --- a/arch/x86/include/asm/pgtable_types.h
->> +++ b/arch/x86/include/asm/pgtable_types.h
->> @@ -234,6 +234,13 @@ enum page_cache_mode {
->>  #define PGD_IDENT_ATTR	 0x001		/* PRESENT (no other attributes) */
->>  #endif
->>  
->> +/*
->> + * Advertise that we call the Speculative Page Fault handler.
->> + */
->> +#ifdef CONFIG_X86_64
->> +#define __HAVE_ARCH_CALL_SPF
->> +#endif
->> +
->>  #ifdef CONFIG_X86_32
->>  # include <asm/pgtable_32_types.h>
->>  #else
->> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
->> index 2a1fa10c6a98..4c070b9a4362 100644
->> --- a/arch/x86/mm/fault.c
->> +++ b/arch/x86/mm/fault.c
->> @@ -1365,6 +1365,24 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code,
->>  	if (error_code & PF_INSTR)
->>  		flags |= FAULT_FLAG_INSTRUCTION;
->>  
->> +#ifdef __HAVE_ARCH_CALL_SPF
->> +	if (error_code & PF_USER) {
->> +		fault = handle_speculative_fault(mm, address, flags);
->> +
->> +		/*
->> +		 * We also check against VM_FAULT_ERROR because we have to
->> +		 * raise a signal by calling later mm_fault_error() which
->> +		 * requires the vma pointer to be set. So in that case,
->> +		 * we fall through the normal path.
+>> powerpc:
+>>
+>> mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
+>>
+>> Even in case of X86, I guess we would have reference to the faulting
+>> VMA (after the SRCU search) which can be used to call this function
+>> directly.
 > 
-> Cant mm_fault_error() be called inside handle_speculative_fault() ?
-> Falling through the normal page fault path again just to raise a
-> signal seems overkill. Looking into mm_fault_error(), it seems they
-> are different for x86 and powerpc.
-> 
-> X86:
-> 
-> mm_fault_error(struct pt_regs *regs, unsigned long error_code,
->                unsigned long address, struct vm_area_struct *vma,
->                unsigned int fault)
-> 
-> powerpc:
-> 
-> mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
-> 
-> Even in case of X86, I guess we would have reference to the faulting
-> VMA (after the SRCU search) which can be used to call this function
-> directly.
+> Yes I think this is doable in the case of x86.
 
-Yes I think this is doable in the case of x86.
+Indeed this is not doable as the vma pointer is not returned by
+handle_speculative_fault() and this is not possible to return it because
+once srcu_read_unlock() is called, the pointer is no more safe.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
