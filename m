@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D62E280395
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 19:55:20 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id x36so14760495qtx.9
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 16:55:20 -0700 (PDT)
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 30646280395
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 19:55:22 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id p12so14383447qkl.0
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 16:55:22 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a49si3976066qtc.359.2017.08.29.16.55.19
+        by mx.google.com with ESMTPS id n58si4006105qtc.347.2017.08.29.16.55.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Aug 2017 16:55:19 -0700 (PDT)
+        Tue, 29 Aug 2017 16:55:21 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [PATCH 12/13] KVM: update to new mmu_notifier semantic
-Date: Tue, 29 Aug 2017 19:54:46 -0400
-Message-Id: <20170829235447.10050-13-jglisse@redhat.com>
+Subject: [PATCH 13/13] mm/mmu_notifier: kill invalidate_page
+Date: Tue, 29 Aug 2017 19:54:47 -0400
+Message-Id: <20170829235447.10050-14-jglisse@redhat.com>
 In-Reply-To: <20170829235447.10050-1-jglisse@redhat.com>
 References: <20170829235447.10050-1-jglisse@redhat.com>
 MIME-Version: 1.0
@@ -21,86 +21,132 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, kvm@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Bernhard Held <berny156@gmx.de>, Adam Borowski <kilobyte@angband.pl>, Andrea Arcangeli <aarcange@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Wanpeng Li <kernellwp@gmail.com>, Paolo Bonzini <pbonzini@redhat.com>, Takashi Iwai <tiwai@suse.de>, Nadav Amit <nadav.amit@gmail.com>, Mike Galbraith <efault@gmx.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, axie <axie@amd.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Call to mmu_notifier_invalidate_page() are replaced by call to
-mmu_notifier_invalidate_range() and thus call are bracketed by
-call to mmu_notifier_invalidate_range_start()/end()
+The invalidate_page callback suffered from 2 pitfalls. First it use to
+happen after page table lock was release and thus a new page might have
+setup before the call to invalidate_page() happened.
 
-Remove now useless invalidate_page callback.
+This is in a weird way fix by c7ab0d2fdc840266b39db94538f74207ec2afbf6
+that moved the callback under the page table lock but this also break
+several existing user of the mmu_notifier API that assumed they could
+sleep inside this callback.
+
+The second pitfall was invalidate_page being the only callback not taking
+a range of address in respect to invalidation but was giving an address
+and a page. Lot of the callback implementer assumed this could never be
+THP and thus failed to invalidate the appropriate range for THP.
+
+By killing this callback we unify the mmu_notifier callback API to always
+take a virtual address range as input.
+
+Finaly this also simplify the end user life as there is now 2 clear
+choice:
+  - invalidate_range_start()/end() callback (which allow you to sleep)
+  - invalidate_range() where you can not sleep but happen right after
+    page table update under page table lock
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Paolo Bonzini <pbonzini@redhat.com>
-Cc: Radim KrA?mA!A? <rkrcmar@redhat.com>
-Cc: kvm@vger.kernel.org
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Bernhard Held <berny156@gmx.de>
+Cc: Adam Borowski <kilobyte@angband.pl>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Radim KrA?mA!A? <rkrcmar@redhat.com>
+Cc: Wanpeng Li <kernellwp@gmail.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Takashi Iwai <tiwai@suse.de>
+Cc: Nadav Amit <nadav.amit@gmail.com>
+Cc: Mike Galbraith <efault@gmx.de>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: axie <axie@amd.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- virt/kvm/kvm_main.c | 42 ------------------------------------------
- 1 file changed, 42 deletions(-)
+ include/linux/mmu_notifier.h | 25 -------------------------
+ mm/mmu_notifier.c            | 14 --------------
+ 2 files changed, 39 deletions(-)
 
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index 15252d723b54..4d81f6ded88e 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -322,47 +322,6 @@ static inline struct kvm *mmu_notifier_to_kvm(struct mmu_notifier *mn)
- 	return container_of(mn, struct kvm, mmu_notifier);
- }
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+index c91b3bcd158f..7b2e31b1745a 100644
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -95,17 +95,6 @@ struct mmu_notifier_ops {
+ 			   pte_t pte);
  
--static void kvm_mmu_notifier_invalidate_page(struct mmu_notifier *mn,
--					     struct mm_struct *mm,
--					     unsigned long address)
--{
--	struct kvm *kvm = mmu_notifier_to_kvm(mn);
--	int need_tlb_flush, idx;
+ 	/*
+-	 * Before this is invoked any secondary MMU is still ok to
+-	 * read/write to the page previously pointed to by the Linux
+-	 * pte because the page hasn't been freed yet and it won't be
+-	 * freed until this returns. If required set_page_dirty has to
+-	 * be called internally to this method.
+-	 */
+-	void (*invalidate_page)(struct mmu_notifier *mn,
+-				struct mm_struct *mm,
+-				unsigned long address);
 -
 -	/*
--	 * When ->invalidate_page runs, the linux pte has been zapped
--	 * already but the page is still allocated until
--	 * ->invalidate_page returns. So if we increase the sequence
--	 * here the kvm page fault will notice if the spte can't be
--	 * established because the page is going to be freed. If
--	 * instead the kvm page fault establishes the spte before
--	 * ->invalidate_page runs, kvm_unmap_hva will release it
--	 * before returning.
--	 *
--	 * The sequence increase only need to be seen at spin_unlock
--	 * time, and not at spin_lock time.
--	 *
--	 * Increasing the sequence after the spin_unlock would be
--	 * unsafe because the kvm page fault could then establish the
--	 * pte after kvm_unmap_hva returned, without noticing the page
--	 * is going to be freed.
--	 */
--	idx = srcu_read_lock(&kvm->srcu);
--	spin_lock(&kvm->mmu_lock);
--
--	kvm->mmu_notifier_seq++;
--	need_tlb_flush = kvm_unmap_hva(kvm, address) | kvm->tlbs_dirty;
--	/* we've to flush the tlb before the pages can be freed */
--	if (need_tlb_flush)
--		kvm_flush_remote_tlbs(kvm);
--
--	spin_unlock(&kvm->mmu_lock);
--
--	kvm_arch_mmu_notifier_invalidate_page(kvm, address);
--
--	srcu_read_unlock(&kvm->srcu, idx);
--}
--
- static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,
- 					struct mm_struct *mm,
- 					unsigned long address,
-@@ -510,7 +469,6 @@ static void kvm_mmu_notifier_release(struct mmu_notifier *mn,
+ 	 * invalidate_range_start() and invalidate_range_end() must be
+ 	 * paired and are called only when the mmap_sem and/or the
+ 	 * locks protecting the reverse maps are held. If the subsystem
+@@ -220,8 +209,6 @@ extern int __mmu_notifier_test_young(struct mm_struct *mm,
+ 				     unsigned long address);
+ extern void __mmu_notifier_change_pte(struct mm_struct *mm,
+ 				      unsigned long address, pte_t pte);
+-extern void __mmu_notifier_invalidate_page(struct mm_struct *mm,
+-					  unsigned long address);
+ extern void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+ 				  unsigned long start, unsigned long end);
+ extern void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
+@@ -268,13 +255,6 @@ static inline void mmu_notifier_change_pte(struct mm_struct *mm,
+ 		__mmu_notifier_change_pte(mm, address, pte);
  }
  
- static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
--	.invalidate_page	= kvm_mmu_notifier_invalidate_page,
- 	.invalidate_range_start	= kvm_mmu_notifier_invalidate_range_start,
- 	.invalidate_range_end	= kvm_mmu_notifier_invalidate_range_end,
- 	.clear_flush_young	= kvm_mmu_notifier_clear_flush_young,
+-static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
+-					  unsigned long address)
+-{
+-	if (mm_has_notifiers(mm))
+-		__mmu_notifier_invalidate_page(mm, address);
+-}
+-
+ static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+ 				  unsigned long start, unsigned long end)
+ {
+@@ -442,11 +422,6 @@ static inline void mmu_notifier_change_pte(struct mm_struct *mm,
+ {
+ }
+ 
+-static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
+-					  unsigned long address)
+-{
+-}
+-
+ static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+ 				  unsigned long start, unsigned long end)
+ {
+diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+index 54ca54562928..314285284e6e 100644
+--- a/mm/mmu_notifier.c
++++ b/mm/mmu_notifier.c
+@@ -174,20 +174,6 @@ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
+ 	srcu_read_unlock(&srcu, id);
+ }
+ 
+-void __mmu_notifier_invalidate_page(struct mm_struct *mm,
+-					  unsigned long address)
+-{
+-	struct mmu_notifier *mn;
+-	int id;
+-
+-	id = srcu_read_lock(&srcu);
+-	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
+-		if (mn->ops->invalidate_page)
+-			mn->ops->invalidate_page(mn, mm, address);
+-	}
+-	srcu_read_unlock(&srcu, id);
+-}
+-
+ void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+ 				  unsigned long start, unsigned long end)
+ {
 -- 
 2.13.5
 
