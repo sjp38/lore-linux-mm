@@ -1,87 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C2AA86B025F
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 07:55:28 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id u93so3905344wrc.10
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 04:55:28 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a20si107906wrh.532.2017.08.29.04.55.27
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 94BDB6B025F
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 08:04:35 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id r133so5928798pgr.6
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 05:04:35 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id g14si2180207pfd.491.2017.08.29.05.04.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 29 Aug 2017 04:55:27 -0700 (PDT)
-Subject: Re: [PATCH] mm, madvise: Ensure poisoned pages are removed from
- per-cpu lists
-References: <20170828133414.7qro57jbepdcyz5x@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <26785aab-caa8-bbdd-dbce-28cd826a9359@suse.cz>
-Date: Tue, 29 Aug 2017 13:55:26 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Aug 2017 05:04:34 -0700 (PDT)
+Date: Tue, 29 Aug 2017 14:04:26 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v2 14/20] mm: Provide speculative fault infrastructure
+Message-ID: <20170829120426.4ar56rbmiupbqmio@hirez.programming.kicks-ass.net>
+References: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1503007519-26777-15-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20170827001823.n5wgkfq36z6snvf2@node.shutemov.name>
+ <507e79d5-59df-c5b5-106d-970c9353d9bc@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20170828133414.7qro57jbepdcyz5x@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <507e79d5-59df-c5b5-106d-970c9353d9bc@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Hansen, Dave" <dave.hansen@intel.com>, "Luck, Tony" <tony.luck@intel.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On 08/28/2017 03:34 PM, Mel Gorman wrote:
-> Wendy Wang reported off-list that a RAS HWPOISON-SOFT test case failed and
-> bisected it to the commit 479f854a207c ("mm, page_alloc: defer debugging
-> checks of pages allocated from the PCP"). The problem is that a page that
-> was poisoned with madvise() is reused. The commit removed a check that
-> would trigger if DEBUG_VM was enabled but re-enabling the check only
-> fixes the problem as a side-effect by printing a bad_page warning and
-> recovering.
+On Tue, Aug 29, 2017 at 09:59:30AM +0200, Laurent Dufour wrote:
+> On 27/08/2017 02:18, Kirill A. Shutemov wrote:
+> >> +
+> >> +	if (unlikely(!vma->anon_vma))
+> >> +		goto unlock;
+> > 
+> > It deserves a comment.
 > 
-> The root of the problem is that a madvise() can leave a poisoned on
-> the per-cpu list.  This patch drains all per-cpu lists after pages are
-> poisoned so that they will not be reused. Wendy reports that the test case
-> in question passes with this patch applied.  While this could be done in
-> a targeted fashion, it is over-complicated for such a rare operation.
-> 
-> Fixes: 479f854a207c ("mm, page_alloc: defer debugging checks of pages allocated from the PCP")
-> Reported-and-tested-by: Wang, Wendy <wendy.wang@intel.com>
-> Cc: stable@kernel.org
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> You're right I'll add it in the next version.
+> For the record, the root cause is that __anon_vma_prepare() requires the
+> mmap_sem to be held because vm_next and vm_prev must be safe.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+But should that test not be:
 
-> ---
->  mm/madvise.c | 6 ++++++
->  1 file changed, 6 insertions(+)
-> 
-> diff --git a/mm/madvise.c b/mm/madvise.c
-> index 23ed525bc2bc..4d7d1e5ddba9 100644
-> --- a/mm/madvise.c
-> +++ b/mm/madvise.c
-> @@ -613,6 +613,7 @@ static int madvise_inject_error(int behavior,
->  		unsigned long start, unsigned long end)
->  {
->  	struct page *page;
-> +	struct zone *zone;
->  
->  	if (!capable(CAP_SYS_ADMIN))
->  		return -EPERM;
-> @@ -646,6 +647,11 @@ static int madvise_inject_error(int behavior,
->  		if (ret)
->  			return ret;
->  	}
-> +
-> +	/* Ensure that all poisoned pages are removed from per-cpu lists */
-> +	for_each_populated_zone(zone)
-> +		drain_all_pages(zone);
-> +
->  	return 0;
->  }
->  #endif
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+	if (unlikely(vma_is_anonymous(vma) && !vma->anon_vma))
+		goto unlock;
+
+Because !anon vmas will never have ->anon_vma set and you don't want to
+exclude those.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
