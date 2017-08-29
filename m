@@ -1,68 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F5C56B0292
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 09:18:38 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id q16so6265721pgc.3
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 06:18:38 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id n22si2293680pfj.334.2017.08.29.06.18.36
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E3086B025F
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 09:33:28 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id p37so4774894wrc.5
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 06:33:28 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n189si1260292wme.273.2017.08.29.06.33.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Aug 2017 06:18:37 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7TDIOHO078910
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 09:18:36 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2cn3jfb186-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 09:18:36 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Tue, 29 Aug 2017 14:18:33 +0100
-Subject: Re: [PATCH v2 14/20] mm: Provide speculative fault infrastructure
-References: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1503007519-26777-15-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170827001823.n5wgkfq36z6snvf2@node.shutemov.name>
- <507e79d5-59df-c5b5-106d-970c9353d9bc@linux.vnet.ibm.com>
- <20170829120426.4ar56rbmiupbqmio@hirez.programming.kicks-ass.net>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Tue, 29 Aug 2017 15:18:25 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 29 Aug 2017 06:33:26 -0700 (PDT)
+Date: Tue, 29 Aug 2017 15:33:25 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: Use WQ_HIGHPRI for mm_percpu_wq.
+Message-ID: <20170829133325.o2s4xiqnc3ez6qxb@dhcp22.suse.cz>
+References: <1503921210-4603-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20170828121055.GI17097@dhcp22.suse.cz>
+ <20170828170611.GV491396@devbig577.frc2.facebook.com>
 MIME-Version: 1.0
-In-Reply-To: <20170829120426.4ar56rbmiupbqmio@hirez.programming.kicks-ass.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <848fa2c6-dbda-9a1e-2efd-3ce9b083365e@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170828170611.GV491396@devbig577.frc2.facebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>
 
-On 29/08/2017 14:04, Peter Zijlstra wrote:
-> On Tue, Aug 29, 2017 at 09:59:30AM +0200, Laurent Dufour wrote:
->> On 27/08/2017 02:18, Kirill A. Shutemov wrote:
->>>> +
->>>> +	if (unlikely(!vma->anon_vma))
->>>> +		goto unlock;
->>>
->>> It deserves a comment.
->>
->> You're right I'll add it in the next version.
->> For the record, the root cause is that __anon_vma_prepare() requires the
->> mmap_sem to be held because vm_next and vm_prev must be safe.
+On Mon 28-08-17 10:06:11, Tejun Heo wrote:
+> Hello, Michal.
 > 
-> But should that test not be:
+> On Mon, Aug 28, 2017 at 02:10:56PM +0200, Michal Hocko wrote:
+> > I am not sure I understand how WQ_HIGHPRI actually helps. The work item
+> > will get served by a thread with higher priority and from a different
+> > pool than regular WQs. But what prevents the same issue as described
+> > above when the highprio pool gets congested? In other words what make
+> > WQ_HIGHPRI less prone to long stalls when we are under low memory
+> > situation and new workers cannot be allocated?
 > 
-> 	if (unlikely(vma_is_anonymous(vma) && !vma->anon_vma))
-> 		goto unlock;
-> 
-> Because !anon vmas will never have ->anon_vma set and you don't want to
-> exclude those.
+> So, the problem wasn't new worker not getting allocated due to memory
+> pressure.  Rescuer can handle that.  The problem is that the regular
+> worker pool is occupied with something which is constantly in runnable
+> state - most likely writeback / reclaim, so the workqueue doesn't
+> schedule the other work items.
 
-Yes in the case we later allow non anonymous vmas to be handled.
-Currently only anonymous vmas are supported so the check is good enough,
-isn't it ?
+Hmm, we have this in should_reclaim_retry
+			/*
+			 * Memory allocation/reclaim might be called from a WQ
+			 * context and the current implementation of the WQ
+			 * concurrency control doesn't recognize that
+			 * a particular WQ is congested if the worker thread is
+			 * looping without ever sleeping. Therefore we have to
+			 * do a short sleep here rather than calling
+			 * cond_resched().
+			 */
+			if (current->flags & PF_WQ_WORKER)
+				schedule_timeout_uninterruptible(1);
+
+And I thought it would be susfficient for kworkers for concurrency WQ
+congestion thingy to jump in. Or do we need something more generic. E.g.
+make cond_resched special for kworkers?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
