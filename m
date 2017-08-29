@@ -1,68 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A96206B0292
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 09:46:13 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id c18so26418678ioj.3
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 06:46:13 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id p15si2505383iod.206.2017.08.29.06.46.12
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E11826B025F
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 09:53:41 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id w62so4827763wrc.9
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 06:53:41 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r201si1348078wme.36.2017.08.29.06.53.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Aug 2017 06:46:12 -0700 (PDT)
-Date: Tue, 29 Aug 2017 15:45:50 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v2 14/20] mm: Provide speculative fault infrastructure
-Message-ID: <20170829134550.t7du5zdssvlzemtk@hirez.programming.kicks-ass.net>
-References: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1503007519-26777-15-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170827001823.n5wgkfq36z6snvf2@node.shutemov.name>
- <507e79d5-59df-c5b5-106d-970c9353d9bc@linux.vnet.ibm.com>
- <20170829120426.4ar56rbmiupbqmio@hirez.programming.kicks-ass.net>
- <848fa2c6-dbda-9a1e-2efd-3ce9b083365e@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 29 Aug 2017 06:53:40 -0700 (PDT)
+Date: Tue, 29 Aug 2017 15:53:39 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, memory_hotplug: do not back off draining pcp free
+ pages from kworker context
+Message-ID: <20170829135339.svjhc6mt235rdlyd@dhcp22.suse.cz>
+References: <20170828093341.26341-1-mhocko@kernel.org>
+ <20170828153359.f9b252f99647eebd339a3a89@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <848fa2c6-dbda-9a1e-2efd-3ce9b083365e@linux.vnet.ibm.com>
+In-Reply-To: <20170828153359.f9b252f99647eebd339a3a89@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Aug 29, 2017 at 03:18:25PM +0200, Laurent Dufour wrote:
-> On 29/08/2017 14:04, Peter Zijlstra wrote:
-> > On Tue, Aug 29, 2017 at 09:59:30AM +0200, Laurent Dufour wrote:
-> >> On 27/08/2017 02:18, Kirill A. Shutemov wrote:
-> >>>> +
-> >>>> +	if (unlikely(!vma->anon_vma))
-> >>>> +		goto unlock;
-> >>>
-> >>> It deserves a comment.
-> >>
-> >> You're right I'll add it in the next version.
-> >> For the record, the root cause is that __anon_vma_prepare() requires the
-> >> mmap_sem to be held because vm_next and vm_prev must be safe.
-> > 
-> > But should that test not be:
-> > 
-> > 	if (unlikely(vma_is_anonymous(vma) && !vma->anon_vma))
-> > 		goto unlock;
-> > 
-> > Because !anon vmas will never have ->anon_vma set and you don't want to
-> > exclude those.
+On Mon 28-08-17 15:33:59, Andrew Morton wrote:
+> On Mon, 28 Aug 2017 11:33:41 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> Yes in the case we later allow non anonymous vmas to be handled.
-> Currently only anonymous vmas are supported so the check is good enough,
-> isn't it ?
+> > drain_all_pages backs off when called from a kworker context since
+> > 0ccce3b924212 ("mm, page_alloc: drain per-cpu pages from workqueue
+> > context") because the original IPI based pcp draining has been replaced
+> > by a WQ based one and the check wanted to prevent from recursion and
+> > inter workers dependencies. This has made some sense at the time
+> > because the system WQ has been used and one worker holding the lock
+> > could be blocked while waiting for new workers to emerge which can be a
+> > problem under OOM conditions.
+> > 
+> > Since then ce612879ddc7 ("mm: move pcp and lru-pcp draining into single
+> > wq") has moved draining to a dedicated (mm_percpu_wq) WQ with a rescuer
+> > so we shouldn't depend on any other WQ activity to make a forward
+> > progress so calling drain_all_pages from a worker context is safe as
+> > long as this doesn't happen from mm_percpu_wq itself which is not the
+> > case because all workers are required to _not_ depend on any MM locks.
+> > 
+> > Why is this a problem in the first place? ACPI driven memory hot-remove
+> > (acpi_device_hotplug) is executed from the worker context. We end
+> > up calling __offline_pages to free all the pages and that requires
+> > both lru_add_drain_all_cpuslocked and drain_all_pages to do their job
+> > otherwise we can have dangling pages on pcp lists and fail the offline
+> > operation (__test_page_isolated_in_pageblock would see a page with 0
+> > ref. count but without PageBuddy set).
+> > 
+> > Fix the issue by removing the worker check in drain_all_pages.
+> > lru_add_drain_all_cpuslocked doesn't have this restriction so it works
+> > as expected.
+> > 
+> > Fixes: 0ccce3b924212 ("mm, page_alloc: drain per-cpu pages from workqueue context")
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> 
+> No cc:stable?
 
-That wasn't at all clear from reading the code. This makes it clear
-->anon_vma is only ever looked at for anonymous.
+I wouldn't be opposed I have just seen so many things broken in this
+area I didn't consider this important enough. This would be 4.11+
 
-And like Kirill says, we _really_ should start allowing some (if not
-all) vm_ops. Large file based mappings aren't particularly rare.
-
-I'm not sure we want to introduce a white-list or just bite the bullet
-and audit all ->fault() implementations. But either works and isn't
-terribly difficult, auditing all is more work though.
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
