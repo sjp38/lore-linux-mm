@@ -1,119 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 806C46B02F3
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 15:00:42 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 63so7894355pgc.0
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 12:00:42 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id w23si2788307pgc.748.2017.08.29.12.00.40
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A1446B02F3
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 15:05:33 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id u63so12528619qkb.5
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 12:05:33 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x23si2742613qta.246.2017.08.29.12.05.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Aug 2017 12:00:41 -0700 (PDT)
-Date: Tue, 29 Aug 2017 12:00:36 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH v2 15/30] xfs: Define usercopy region in xfs_inode slab
- cache
-Message-ID: <20170829190036.GD4757@magnolia>
-References: <1503956111-36652-1-git-send-email-keescook@chromium.org>
- <1503956111-36652-16-git-send-email-keescook@chromium.org>
- <20170828214957.GJ4757@magnolia>
- <CAGXu5j+pvxRjASUuBE49+uH34Mw26a4mtcWrZd=CEqcRHjetvA@mail.gmail.com>
- <20170829044707.GP4757@magnolia>
- <CAGXu5jJX1DA9D1LtrKkNoBXKZEYhbSE148YmUOP=WXsBCFsCyw@mail.gmail.com>
+        Tue, 29 Aug 2017 12:05:32 -0700 (PDT)
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Subject: [RFC PATCH] mm/rmap: do not call mmu_notifier_invalidate_page() v3
+Date: Tue, 29 Aug 2017 15:05:26 -0400
+Message-Id: <20170829190526.8767-1-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGXu5jJX1DA9D1LtrKkNoBXKZEYhbSE148YmUOP=WXsBCFsCyw@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, David Windsor <dave@nullcore.net>, linux-xfs@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Bernhard Held <berny156@gmx.de>, Adam Borowski <kilobyte@angband.pl>, Andrea Arcangeli <aarcange@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Wanpeng Li <kernellwp@gmail.com>, Paolo Bonzini <pbonzini@redhat.com>, Takashi Iwai <tiwai@suse.de>, Nadav Amit <nadav.amit@gmail.com>, Mike Galbraith <efault@gmx.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, axie <axie@amd.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Aug 29, 2017 at 11:48:49AM -0700, Kees Cook wrote:
-> On Mon, Aug 28, 2017 at 9:47 PM, Darrick J. Wong
-> <darrick.wong@oracle.com> wrote:
-> > On Mon, Aug 28, 2017 at 02:57:14PM -0700, Kees Cook wrote:
-> >> On Mon, Aug 28, 2017 at 2:49 PM, Darrick J. Wong
-> >> <darrick.wong@oracle.com> wrote:
-> >> > On Mon, Aug 28, 2017 at 02:34:56PM -0700, Kees Cook wrote:
-> >> >> From: David Windsor <dave@nullcore.net>
-> >> >>
-> >> >> The XFS inline inode data, stored in struct xfs_inode_t field
-> >> >> i_df.if_u2.if_inline_data and therefore contained in the xfs_inode slab
-> >> >> cache, needs to be copied to/from userspace.
-> >> >>
-> >> >> cache object allocation:
-> >> >>     fs/xfs/xfs_icache.c:
-> >> >>         xfs_inode_alloc(...):
-> >> >>             ...
-> >> >>             ip = kmem_zone_alloc(xfs_inode_zone, KM_SLEEP);
-> >> >>
-> >> >>     fs/xfs/libxfs/xfs_inode_fork.c:
-> >> >>         xfs_init_local_fork(...):
-> >> >>             ...
-> >> >>             if (mem_size <= sizeof(ifp->if_u2.if_inline_data))
-> >> >>                     ifp->if_u1.if_data = ifp->if_u2.if_inline_data;
-> >> >
-> >> > Hmm, what happens when mem_size > sizeof(if_inline_data)?  A slab object
-> >> > will be allocated for ifp->if_u1.if_data which can then be used for
-> >> > readlink in the same manner as the example usage trace below.  Does
-> >> > that allocated object have a need for a usercopy annotation like
-> >> > the one we're adding for if_inline_data?  Or is that already covered
-> >> > elsewhere?
-> >>
-> >> Yeah, the xfs helper kmem_alloc() is used in the other case, which
-> >> ultimately boils down to a call to kmalloc(), which is entirely
-> >> whitelisted by an earlier patch in the series:
-> >>
-> >> https://lkml.org/lkml/2017/8/28/1026
-> >
-> > Ah.  It would've been helpful to have the first three patches cc'd to
-> > the xfs list.  So basically this series establishes the ability to set
-> 
-> I went back and forth on that, and given all the things it touched, it
-> seemed like too large a CC list. :) I can explicitly add the xfs list
-> to the first three for any future versions.
-> 
-> > regions within a slab object into which copy_to_user can copy memory
-> > contents, and vice versa.  Have you seen any runtime performance impact?
-> > The overhead looks like it ought to be minimal.
-> 
-> Under CONFIG_HARDENED_USERCOPY, there's no difference in performance
-> between the earlier bounds checking (of the whole slab object) vs the
-> new bounds checking (of the useroffset/usersize portion of the slab
-> object). Perf difference of CONFIG_HARDENED_USERCOPY itself has proven
-> hard to measure, which likely means it's very minimal.
-> 
-> >> (It's possible that at some future time we can start segregating
-> >> kernel-only kmallocs from usercopy-able kmallocs, but for now, there
-> >> are no plans for this.)
-> >
-> > A pity.  It would be interesting to create no-usercopy versions of the
-> > kmalloc-* slabs and see how much of XFS' memory consumption never
-> > touches userspace buffers. :)
-> 
-> There are plans for building either a new helper (kmalloc_usercopy())
-> or adding a new flag (GFP_USERCOPY), but I haven't had time yet to
-> come back around to it. I wanted to land this step first, and we could
-> then move forward on the rest in future.
+Some MMU notifier need to be able to sleep during callback. This was
+broken by c7ab0d2fdc84 ("mm: convert try_to_unmap_one() to use
+page_vma_mapped_walk()").
 
-Heh, fair enough.
+This patch restore the sleep ability and properly capture the range of
+address that needs to be invalidated.
 
-For the XFS bits,
-Reviewed-by: Darrick J. Wong <darrick.wong@oracle.com>
+Relevent threads:
+https://lkml.kernel.org/r/20170809204333.27485-1-jglisse@redhat.com
+https://lkml.kernel.org/r/20170804134928.l4klfcnqatni7vsc@black.fi.intel.com
+https://marc.info/?l=kvm&m=150327081325160&w=2
 
---D
+Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Bernhard Held <berny156@gmx.de>
+Cc: Adam Borowski <kilobyte@angband.pl>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Radim KrA?mA!A? <rkrcmar@redhat.com>
+Cc: Wanpeng Li <kernellwp@gmail.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Takashi Iwai <tiwai@suse.de>
+Cc: Nadav Amit <nadav.amit@gmail.com>
+Cc: Mike Galbraith <efault@gmx.de>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: axie <axie@amd.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+---
+ mm/rmap.c | 26 +++++++++++++++++++++-----
+ 1 file changed, 21 insertions(+), 5 deletions(-)
 
-> 
-> -Kees
-> 
-> -- 
-> Kees Cook
-> Pixel Security
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+diff --git a/mm/rmap.c b/mm/rmap.c
+index c8993c63eb25..0b25b720f494 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -888,6 +888,8 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
+ 		.flags = PVMW_SYNC,
+ 	};
+ 	int *cleaned = arg;
++	bool invalidate = false;
++	unsigned long start = address, end = address;
+ 
+ 	while (page_vma_mapped_walk(&pvmw)) {
+ 		int ret = 0;
+@@ -905,6 +907,9 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
+ 			entry = pte_mkclean(entry);
+ 			set_pte_at(vma->vm_mm, address, pte, entry);
+ 			ret = 1;
++			invalidate = true;
++			/* range is exclusive */
++			end = pvmw.address + PAGE_SIZE;
+ 		} else {
+ #ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
+ 			pmd_t *pmd = pvmw.pmd;
+@@ -919,18 +924,22 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
+ 			entry = pmd_mkclean(entry);
+ 			set_pmd_at(vma->vm_mm, address, pmd, entry);
+ 			ret = 1;
++			invalidate = true;
++			/* range is exclusive */
++			end = pvmw.address + PAGE_SIZE;
+ #else
+ 			/* unexpected pmd-mapped page? */
+ 			WARN_ON_ONCE(1);
+ #endif
+ 		}
+ 
+-		if (ret) {
+-			mmu_notifier_invalidate_page(vma->vm_mm, address);
++		if (ret)
+ 			(*cleaned)++;
+-		}
+ 	}
+ 
++	if (invalidate)
++		mmu_notifier_invalidate_range(vma->vm_mm, start, end);
++
+ 	return true;
+ }
+ 
+@@ -1323,8 +1332,9 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 	};
+ 	pte_t pteval;
+ 	struct page *subpage;
+-	bool ret = true;
++	bool ret = true, invalidate = false;
+ 	enum ttu_flags flags = (enum ttu_flags)arg;
++	unsigned long start = address, end = address;
+ 
+ 	/* munlock has nothing to gain from examining un-locked vmas */
+ 	if ((flags & TTU_MUNLOCK) && !(vma->vm_flags & VM_LOCKED))
+@@ -1490,8 +1500,14 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ discard:
+ 		page_remove_rmap(subpage, PageHuge(page));
+ 		put_page(page);
+-		mmu_notifier_invalidate_page(mm, address);
++		invalidate = true;
++		/* range is exclusive */
++		end = address + PAGE_SIZE;
+ 	}
++
++	if (invalidate)
++		mmu_notifier_invalidate_range(mm, start, end);
++
+ 	return ret;
+ }
+ 
+-- 
+2.13.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
