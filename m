@@ -1,81 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 85F4C6B025F
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 15:58:47 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id j99so32608923ioo.6
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 12:58:47 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 140sor559402itz.0.2017.08.29.12.58.46
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A6496B025F
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 16:11:40 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id w42so13392445qtg.2
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 13:11:40 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u2si3662808qkf.108.2017.08.29.13.11.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 29 Aug 2017 12:58:46 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Aug 2017 13:11:39 -0700 (PDT)
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Subject: [PATCH 0/4] mmu_notifier semantic update
+Date: Tue, 29 Aug 2017 16:11:28 -0400
+Message-Id: <20170829201132.9292-1-jglisse@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFynq_N8bYy2bKmp8eWnCbrFBpboeHCWJ92MF3zJ++V8og@mail.gmail.com>
-References: <20170829190526.8767-1-jglisse@redhat.com> <CA+55aFy=+ipEWKYwckee7-QodyfwufejNq1WA3rSNUHKJiw+6g@mail.gmail.com>
- <CA+55aFynq_N8bYy2bKmp8eWnCbrFBpboeHCWJ92MF3zJ++V8og@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 29 Aug 2017 12:58:45 -0700
-Message-ID: <CA+55aFywcw0S-5-SZPnbA6Z7QNqdZvxo8d6k1Txe6HEWKZ_pnA@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm/rmap: do not call mmu_notifier_invalidate_page() v3
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Bernhard Held <berny156@gmx.de>, Adam Borowski <kilobyte@angband.pl>, Andrea Arcangeli <aarcange@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Wanpeng Li <kernellwp@gmail.com>, Paolo Bonzini <pbonzini@redhat.com>, Takashi Iwai <tiwai@suse.de>, Nadav Amit <nadav.amit@gmail.com>, Mike Galbraith <efault@gmx.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, axie <axie@amd.com>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Bernhard Held <berny156@gmx.de>, Adam Borowski <kilobyte@angband.pl>, Andrea Arcangeli <aarcange@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Wanpeng Li <kernellwp@gmail.com>, Paolo Bonzini <pbonzini@redhat.com>, Takashi Iwai <tiwai@suse.de>, Nadav Amit <nadav.amit@gmail.com>, Mike Galbraith <efault@gmx.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, axie <axie@amd.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Tue, Aug 29, 2017 at 12:16 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> And then you can check if something actually happened by catching the
-> *ATOMIC* call to mmu_notifier_invalidate_page(), setting a flag, and
-> then doing something blocking at mmu_notifier_invalidate_range_end()
-> time.
->
-> Maybe.
+So we do not want to allow sleep during call to mmu_notifier_invalidate_page()
+but some code do not have surrounding mmu_notifier_invalidate_range_start()/
+mmu_notifier_invalidate_range_end() or mmu_notifier_invalidate_range()
 
-Note that now I have looked more at the users, I think we actually
-just want to get rid of mmu_notifier_invalidate_page() entirely in
-favor of just calling mmu_notifier_invalidate_range_start()/end().
+This patch serie just make sure that there is at least a call (outside spinlock
+section) to mmu_notifier_invalidate_range() after mmu_notifier_invalidate_page()
 
-Nobody seems to want an atomic version of
-mmu_notifier_invalidate_page(), they are perfectly happy just getting
-those range_start/end() call instead.
+This fix issue with AMD IOMMU v2 while avoiding to introduce issue for others
+user of the mmu_notifier API. For releavent threads see:
 
-HOWEVER.
+https://lkml.kernel.org/r/20170809204333.27485-1-jglisse@redhat.com
+https://lkml.kernel.org/r/20170804134928.l4klfcnqatni7vsc@black.fi.intel.com
+https://marc.info/?l=kvm&m=150327081325160&w=2
 
-There do seem to be places (eg powernv/npu-dma.c, iommu/amd_iommu_v2.c
-and ommu/intel-svm.c) that want to get the "invalidate_page()" or
-"invalidate_range()" calls, but do *not* catch the begin/end() ones.
-The "range" calls were for atomic cases, and the "page" call was for
-the few places that weren't (but should have been). They seem to do
-the same things.
+Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Bernhard Held <berny156@gmx.de>
+Cc: Adam Borowski <kilobyte@angband.pl>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Radim KrA?mA!A? <rkrcmar@redhat.com>
+Cc: Wanpeng Li <kernellwp@gmail.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Takashi Iwai <tiwai@suse.de>
+Cc: Nadav Amit <nadav.amit@gmail.com>
+Cc: Mike Galbraith <efault@gmx.de>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: axie <axie@amd.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 
-So just switching from mmu_notifier_invalidate_page() to the
-"invalidate_range_start()/end()" pair instead could break those cases.
+JA(C)rA'me Glisse (4):
+  mm/mmu_notifier: document new behavior for
+    mmu_notifier_invalidate_page()
+  dax/mmu_notifier: update to new mmu_notifier semantic
+  mm/rmap: update to new mmu_notifier_invalidate_page() semantic
+  iommu/amd: update to new mmu_notifier_invalidate_page() semantic
 
-But the mmu_notifier_invalidate_range() call has always been atomic,
-afaik.  It's called from the ptep_clear_flush_notify(), which is
-called while holdin gthe ptl lock as far as I can tell.
+ drivers/iommu/amd_iommu_v2.c |  8 --------
+ fs/dax.c                     |  8 ++++++--
+ include/linux/mmu_notifier.h |  6 ++++++
+ mm/rmap.c                    | 18 +++++++++++++++++-
+ 4 files changed, 29 insertions(+), 11 deletions(-)
 
-So to handle the powernv/npu-dma.c, iommu/amd_iommu_v2.c and
-ommu/intel-svm.c correctly, _and_ get he KVM case right, we probably
-need to:
-
- - replace the existing mmu_notifier_invalidate_page() call with
-mmu_notifier_invalidate_range(), and make sure it's inside the locked
-region (ie fs/dax.c too - actually move it inside the lock)
-
- - surround the locked region with those
-mmu_notifier_invalidate_range_start()/end() calls.
-
- - get rid of mmu_notifier_invalidate_page() entirely, it had bad
-semantics anyway.
-
-and from all I can tell that should work for everybody.
-
-But maybe I'm missing something.
-
-               Linus
+-- 
+2.13.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
