@@ -1,257 +1,237 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CDD736B03B5
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 22:03:14 -0400 (EDT)
-Received: by mail-vk0-f69.google.com with SMTP id s199so1116277vke.8
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 19:03:14 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id k133si741849vkf.267.2017.08.28.19.03.13
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CBE466B025F
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 23:06:25 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id k3so3670003pfc.1
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 20:06:25 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id f19si1527568plj.427.2017.08.28.20.06.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Aug 2017 19:03:13 -0700 (PDT)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v7 05/11] mm: defining memblock_virt_alloc_try_nid_raw
-Date: Mon, 28 Aug 2017 22:02:16 -0400
-Message-Id: <1503972142-289376-6-git-send-email-pasha.tatashin@oracle.com>
-In-Reply-To: <1503972142-289376-1-git-send-email-pasha.tatashin@oracle.com>
-References: <1503972142-289376-1-git-send-email-pasha.tatashin@oracle.com>
+        Mon, 28 Aug 2017 20:06:24 -0700 (PDT)
+Message-ID: <59A4DADE.5050303@intel.com>
+Date: Tue, 29 Aug 2017 11:09:18 +0800
+From: Wei Wang <wei.w.wang@intel.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v15 3/5] virtio-balloon: VIRTIO_BALLOON_F_SG
+References: <1503914913-28893-1-git-send-email-wei.w.wang@intel.com> <1503914913-28893-4-git-send-email-wei.w.wang@intel.com> <20170828204659-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20170828204659-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, Steven.Sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-* A new variant of memblock_virt_alloc_* allocations:
-memblock_virt_alloc_try_nid_raw()
-    - Does not zero the allocated memory
-    - Does not panic if request cannot be satisfied
+On 08/29/2017 02:03 AM, Michael S. Tsirkin wrote:
+> On Mon, Aug 28, 2017 at 06:08:31PM +0800, Wei Wang wrote:
+>> Add a new feature, VIRTIO_BALLOON_F_SG, which enables the transfer
+>> of balloon (i.e. inflated/deflated) pages using scatter-gather lists
+>> to the host.
+>>
+>> The implementation of the previous virtio-balloon is not very
+>> efficient, because the balloon pages are transferred to the
+>> host one by one. Here is the breakdown of the time in percentage
+>> spent on each step of the balloon inflating process (inflating
+>> 7GB of an 8GB idle guest).
+>>
+>> 1) allocating pages (6.5%)
+>> 2) sending PFNs to host (68.3%)
+>> 3) address translation (6.1%)
+>> 4) madvise (19%)
+>>
+>> It takes about 4126ms for the inflating process to complete.
+>> The above profiling shows that the bottlenecks are stage 2)
+>> and stage 4).
+>>
+>> This patch optimizes step 2) by transferring pages to the host in
+>> sgs. An sg describes a chunk of guest physically continuous pages.
+>> With this mechanism, step 4) can also be optimized by doing address
+>> translation and madvise() in chunks rather than page by page.
+>>
+>> With this new feature, the above ballooning process takes ~597ms
+>> resulting in an improvement of ~86%.
+>>
+>> TODO: optimize stage 1) by allocating/freeing a chunk of pages
+>> instead of a single page each time.
+>>
+>> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+>> Signed-off-by: Liang Li <liang.z.li@intel.com>
+>> Suggested-by: Michael S. Tsirkin <mst@redhat.com>
+>> ---
+>>   drivers/virtio/virtio_balloon.c     | 171 ++++++++++++++++++++++++++++++++----
+>>   include/uapi/linux/virtio_balloon.h |   1 +
+>>   2 files changed, 155 insertions(+), 17 deletions(-)
+>>
+>> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+>> index f0b3a0b..8ecc1d4 100644
+>> --- a/drivers/virtio/virtio_balloon.c
+>> +++ b/drivers/virtio/virtio_balloon.c
+>> @@ -32,6 +32,8 @@
+>>   #include <linux/mm.h>
+>>   #include <linux/mount.h>
+>>   #include <linux/magic.h>
+>> +#include <linux/xbitmap.h>
+>> +#include <asm/page.h>
+>>   
+>>   /*
+>>    * Balloon device works in 4K page units.  So each page is pointed to by
+>> @@ -79,6 +81,9 @@ struct virtio_balloon {
+>>   	/* Synchronize access/update to this struct virtio_balloon elements */
+>>   	struct mutex balloon_lock;
+>>   
+>> +	/* The xbitmap used to record balloon pages */
+>> +	struct xb page_xb;
+>> +
+>>   	/* The array of pfns we tell the Host about. */
+>>   	unsigned int num_pfns;
+>>   	__virtio32 pfns[VIRTIO_BALLOON_ARRAY_PFNS_MAX];
+>> @@ -141,13 +146,111 @@ static void set_page_pfns(struct virtio_balloon *vb,
+>>   					  page_to_balloon_pfn(page) + i);
+>>   }
+>>   
+>> +static int add_one_sg(struct virtqueue *vq, void *addr, uint32_t size)
+>> +{
+>> +	struct scatterlist sg;
+>> +
+>> +	sg_init_one(&sg, addr, size);
+>> +	return virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
+>> +}
+>> +
+>> +static void send_balloon_page_sg(struct virtio_balloon *vb,
+>> +				 struct virtqueue *vq,
+>> +				 void *addr,
+>> +				 uint32_t size,
+>> +				 bool batch)
+>> +{
+>> +	unsigned int len;
+>> +	int err;
+>> +
+>> +	err = add_one_sg(vq, addr, size);
+>> +	/* Sanity check: this can't really happen */
+>> +	WARN_ON(err);
+> It might be cleaner to detect that add failed due to
+> ring full and kick then. Just an idea, up to you
+> whether to do it.
+>
+>> +
+>> +	/* If batching is in use, we batch the sgs till the vq is full. */
+>> +	if (!batch || !vq->num_free) {
+>> +		virtqueue_kick(vq);
+>> +		wait_event(vb->acked, virtqueue_get_buf(vq, &len));
+>> +		/* Release all the entries if there are */
+> Meaning
+> 	Account for all used entries if any
+> ?
+>
+>> +		while (virtqueue_get_buf(vq, &len))
+>> +			;
+>
+> Above code is reused below. Add a function?
+>
+>> +	}
+>> +}
+>> +
+>> +/*
+>> + * Send balloon pages in sgs to host. The balloon pages are recorded in the
+>> + * page xbitmap. Each bit in the bitmap corresponds to a page of PAGE_SIZE.
+>> + * The page xbitmap is searched for continuous "1" bits, which correspond
+>> + * to continuous pages, to chunk into sgs.
+>> + *
+>> + * @page_xb_start and @page_xb_end form the range of bits in the xbitmap that
+>> + * need to be searched.
+>> + */
+>> +static void tell_host_sgs(struct virtio_balloon *vb,
+>> +			  struct virtqueue *vq,
+>> +			  unsigned long page_xb_start,
+>> +			  unsigned long page_xb_end)
+>> +{
+>> +	unsigned long sg_pfn_start, sg_pfn_end;
+>> +	void *sg_addr;
+>> +	uint32_t sg_len, sg_max_len = round_down(UINT_MAX, PAGE_SIZE);
+>> +
+>> +	sg_pfn_start = page_xb_start;
+>> +	while (sg_pfn_start < page_xb_end) {
+>> +		sg_pfn_start = xb_find_next_bit(&vb->page_xb, sg_pfn_start,
+>> +						page_xb_end, 1);
+>> +		if (sg_pfn_start == page_xb_end + 1)
+>> +			break;
+>> +		sg_pfn_end = xb_find_next_bit(&vb->page_xb, sg_pfn_start + 1,
+>> +					      page_xb_end, 0);
+>> +		sg_addr = (void *)pfn_to_kaddr(sg_pfn_start);
+>> +		sg_len = (sg_pfn_end - sg_pfn_start) << PAGE_SHIFT;
+>> +		while (sg_len > sg_max_len) {
+>> +			send_balloon_page_sg(vb, vq, sg_addr, sg_max_len, 1);
+> Last argument should be true, not 1.
+>
+>> +			sg_addr += sg_max_len;
+>> +			sg_len -= sg_max_len;
+>> +		}
+>> +		send_balloon_page_sg(vb, vq, sg_addr, sg_len, 1);
+>> +		xb_zero(&vb->page_xb, sg_pfn_start, sg_pfn_end);
+>> +		sg_pfn_start = sg_pfn_end + 1;
+>> +	}
+>> +
+>> +	/*
+>> +	 * The last few sgs may not reach the batch size, but need a kick to
+>> +	 * notify the device to handle them.
+>> +	 */
+>> +	if (vq->num_free != virtqueue_get_vring_size(vq)) {
+>> +		virtqueue_kick(vq);
+>> +		wait_event(vb->acked, virtqueue_get_buf(vq, &sg_len));
+>> +		while (virtqueue_get_buf(vq, &sg_len))
+>> +			;
+> Some entries can get used after a pause. Looks like they will leak then?
+> One fix would be to convert above if to a while loop.
+> I don't know whether to do it like this in send_balloon_page_sg too.
+>
 
-* optimize early system hash allocations
+Thanks for the above comments. I've re-written this part of code.
+Please have a check below if there is anything more we could improve:
 
-Clients can call alloc_large_system_hash() with flag: HASH_ZERO to specify
-that memory that was allocated for system hash needs to be zeroed,
-otherwise the memory does not need to be zeroed, and client will initialize
-it.
+static void kick_and_wait(struct virtqueue *vq, wait_queue_head_t wq_head)
+{
+         unsigned int len;
 
-If memory does not need to be zero'd, call the new
-memblock_virt_alloc_raw() interface, and thus improve the boot performance.
+         virtqueue_kick(vq);
+         wait_event(wq_head, virtqueue_get_buf(vq, &len));
+         /* Detach all the used buffers from the vq */
+         while (virtqueue_get_buf(vq, &len))
+                 ;
+}
 
-* debug for raw alloctor
+static int add_one_sg(struct virtqueue *vq, void *addr, uint32_t size)
+{
+         struct scatterlist sg;
+         int ret;
 
-When CONFIG_DEBUG_VM is enabled, this patch sets all the memory that is
-returned by memblock_virt_alloc_try_nid_raw() to ones to ensure that no
-places excpect zeroed memory.
+         sg_init_one(&sg, addr, size);
+         ret = virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
+         if (unlikely(ret == -ENOSPC))
+                 dev_warn(&vq->vdev->dev, "%s: failed due to ring full\n",
+                                  __func__);
 
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
-Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-Reviewed-by: Bob Picco <bob.picco@oracle.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
----
- include/linux/bootmem.h | 27 ++++++++++++++++++++++
- mm/memblock.c           | 60 +++++++++++++++++++++++++++++++++++++++++++------
- mm/page_alloc.c         | 15 ++++++-------
- 3 files changed, 87 insertions(+), 15 deletions(-)
+         return ret;
+}
 
-diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
-index e223d91b6439..ea30b3987282 100644
---- a/include/linux/bootmem.h
-+++ b/include/linux/bootmem.h
-@@ -160,6 +160,9 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
- #define BOOTMEM_ALLOC_ANYWHERE		(~(phys_addr_t)0)
- 
- /* FIXME: Move to memblock.h at a point where we remove nobootmem.c */
-+void *memblock_virt_alloc_try_nid_raw(phys_addr_t size, phys_addr_t align,
-+				      phys_addr_t min_addr,
-+				      phys_addr_t max_addr, int nid);
- void *memblock_virt_alloc_try_nid_nopanic(phys_addr_t size,
- 		phys_addr_t align, phys_addr_t min_addr,
- 		phys_addr_t max_addr, int nid);
-@@ -176,6 +179,14 @@ static inline void * __init memblock_virt_alloc(
- 					    NUMA_NO_NODE);
- }
- 
-+static inline void * __init memblock_virt_alloc_raw(
-+					phys_addr_t size,  phys_addr_t align)
-+{
-+	return memblock_virt_alloc_try_nid_raw(size, align, BOOTMEM_LOW_LIMIT,
-+					    BOOTMEM_ALLOC_ACCESSIBLE,
-+					    NUMA_NO_NODE);
-+}
-+
- static inline void * __init memblock_virt_alloc_nopanic(
- 					phys_addr_t size, phys_addr_t align)
- {
-@@ -257,6 +268,14 @@ static inline void * __init memblock_virt_alloc(
- 	return __alloc_bootmem(size, align, BOOTMEM_LOW_LIMIT);
- }
- 
-+static inline void * __init memblock_virt_alloc_raw(
-+					phys_addr_t size,  phys_addr_t align)
-+{
-+	if (!align)
-+		align = SMP_CACHE_BYTES;
-+	return __alloc_bootmem_nopanic(size, align, BOOTMEM_LOW_LIMIT);
-+}
-+
- static inline void * __init memblock_virt_alloc_nopanic(
- 					phys_addr_t size, phys_addr_t align)
- {
-@@ -309,6 +328,14 @@ static inline void * __init memblock_virt_alloc_try_nid(phys_addr_t size,
- 					  min_addr);
- }
- 
-+static inline void * __init memblock_virt_alloc_try_nid_raw(
-+			phys_addr_t size, phys_addr_t align,
-+			phys_addr_t min_addr, phys_addr_t max_addr, int nid)
-+{
-+	return ___alloc_bootmem_node_nopanic(NODE_DATA(nid), size, align,
-+				min_addr, max_addr);
-+}
-+
- static inline void * __init memblock_virt_alloc_try_nid_nopanic(
- 			phys_addr_t size, phys_addr_t align,
- 			phys_addr_t min_addr, phys_addr_t max_addr, int nid)
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 91205780e6b1..1f299fb1eb08 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1327,7 +1327,6 @@ static void * __init memblock_virt_alloc_internal(
- 	return NULL;
- done:
- 	ptr = phys_to_virt(alloc);
--	memset(ptr, 0, size);
- 
- 	/*
- 	 * The min_count is set to 0 so that bootmem allocated blocks
-@@ -1340,6 +1339,45 @@ static void * __init memblock_virt_alloc_internal(
- 	return ptr;
- }
- 
-+/**
-+ * memblock_virt_alloc_try_nid_raw - allocate boot memory block without zeroing
-+ * memory and without panicking
-+ * @size: size of memory block to be allocated in bytes
-+ * @align: alignment of the region and block's size
-+ * @min_addr: the lower bound of the memory region from where the allocation
-+ *	  is preferred (phys address)
-+ * @max_addr: the upper bound of the memory region from where the allocation
-+ *	      is preferred (phys address), or %BOOTMEM_ALLOC_ACCESSIBLE to
-+ *	      allocate only from memory limited by memblock.current_limit value
-+ * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
-+ *
-+ * Public function, provides additional debug information (including caller
-+ * info), if enabled. Does not zero allocated memory, does not panic if request
-+ * cannot be satisfied.
-+ *
-+ * RETURNS:
-+ * Virtual address of allocated memory block on success, NULL on failure.
-+ */
-+void * __init memblock_virt_alloc_try_nid_raw(
-+			phys_addr_t size, phys_addr_t align,
-+			phys_addr_t min_addr, phys_addr_t max_addr,
-+			int nid)
-+{
-+	void *ptr;
-+
-+	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
-+		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
-+		     (u64)max_addr, (void *)_RET_IP_);
-+
-+	ptr = memblock_virt_alloc_internal(size, align,
-+					   min_addr, max_addr, nid);
-+#ifdef CONFIG_DEBUG_VM
-+	if (ptr && size > 0)
-+		memset(ptr, 0xff, size);
-+#endif
-+	return ptr;
-+}
-+
- /**
-  * memblock_virt_alloc_try_nid_nopanic - allocate boot memory block
-  * @size: size of memory block to be allocated in bytes
-@@ -1351,8 +1389,8 @@ static void * __init memblock_virt_alloc_internal(
-  *	      allocate only from memory limited by memblock.current_limit value
-  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
-  *
-- * Public version of _memblock_virt_alloc_try_nid_nopanic() which provides
-- * additional debug information (including caller info), if enabled.
-+ * Public function, provides additional debug information (including caller
-+ * info), if enabled. This function zeroes the allocated memory.
-  *
-  * RETURNS:
-  * Virtual address of allocated memory block on success, NULL on failure.
-@@ -1362,11 +1400,17 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
- 				phys_addr_t min_addr, phys_addr_t max_addr,
- 				int nid)
- {
-+	void *ptr;
-+
- 	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
- 		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
- 		     (u64)max_addr, (void *)_RET_IP_);
--	return memblock_virt_alloc_internal(size, align, min_addr,
--					     max_addr, nid);
-+
-+	ptr = memblock_virt_alloc_internal(size, align,
-+					   min_addr, max_addr, nid);
-+	if (ptr)
-+		memset(ptr, 0, size);
-+	return ptr;
- }
- 
- /**
-@@ -1380,7 +1424,7 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
-  *	      allocate only from memory limited by memblock.current_limit value
-  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
-  *
-- * Public panicking version of _memblock_virt_alloc_try_nid_nopanic()
-+ * Public panicking version of memblock_virt_alloc_try_nid_nopanic()
-  * which provides debug information (including caller info), if enabled,
-  * and panics if the request can not be satisfied.
-  *
-@@ -1399,8 +1443,10 @@ void * __init memblock_virt_alloc_try_nid(
- 		     (u64)max_addr, (void *)_RET_IP_);
- 	ptr = memblock_virt_alloc_internal(size, align,
- 					   min_addr, max_addr, nid);
--	if (ptr)
-+	if (ptr) {
-+		memset(ptr, 0, size);
- 		return ptr;
-+	}
- 
- 	panic("%s: Failed to allocate %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx\n",
- 	      __func__, (u64)size, (u64)align, nid, (u64)min_addr,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c170ac569aec..8293815ca85d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7356,18 +7356,17 @@ void *__init alloc_large_system_hash(const char *tablename,
- 
- 	log2qty = ilog2(numentries);
- 
--	/*
--	 * memblock allocator returns zeroed memory already, so HASH_ZERO is
--	 * currently not used when HASH_EARLY is specified.
--	 */
- 	gfp_flags = (flags & HASH_ZERO) ? GFP_ATOMIC | __GFP_ZERO : GFP_ATOMIC;
- 	do {
- 		size = bucketsize << log2qty;
--		if (flags & HASH_EARLY)
--			table = memblock_virt_alloc_nopanic(size, 0);
--		else if (hashdist)
-+		if (flags & HASH_EARLY) {
-+			if (flags & HASH_ZERO)
-+				table = memblock_virt_alloc_nopanic(size, 0);
-+			else
-+				table = memblock_virt_alloc_raw(size, 0);
-+		} else if (hashdist) {
- 			table = __vmalloc(size, gfp_flags, PAGE_KERNEL);
--		else {
-+		} else {
- 			/*
- 			 * If bucketsize is not a power-of-two, we may free
- 			 * some pages at the end of hash table which
--- 
-2.14.1
+static void send_balloon_page_sg(struct virtio_balloon *vb,
+                                                       struct virtqueue *vq,
+                                                       void *addr,
+                                                       uint32_t size,
+                                                       bool batch)
+{
+         int err;
+
+         do {
+                 err = add_one_sg(vq, addr, size);
+                 if (err == -ENOSPC || !batch || !vq->num_free)
+                         kick_and_wait(vq, vb->acked);
+         } while (err == -ENOSPC);
+}
+
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
