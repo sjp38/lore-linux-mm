@@ -1,50 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 94BDB6B025F
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 08:04:35 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id r133so5928798pgr.6
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 05:04:35 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id g14si2180207pfd.491.2017.08.29.05.04.34
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Aug 2017 05:04:34 -0700 (PDT)
-Date: Tue, 29 Aug 2017 14:04:26 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v2 14/20] mm: Provide speculative fault infrastructure
-Message-ID: <20170829120426.4ar56rbmiupbqmio@hirez.programming.kicks-ass.net>
-References: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1503007519-26777-15-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170827001823.n5wgkfq36z6snvf2@node.shutemov.name>
- <507e79d5-59df-c5b5-106d-970c9353d9bc@linux.vnet.ibm.com>
+	by kanga.kvack.org (Postfix) with ESMTP id D759D6B025F
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 08:31:31 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id q16so6069652pgc.3
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 05:31:31 -0700 (PDT)
+Received: from ipmail01.adl2.internode.on.net (ipmail01.adl2.internode.on.net. [150.101.137.133])
+        by mx.google.com with ESMTP id 79si1226543pgb.647.2017.08.29.05.31.29
+        for <linux-mm@kvack.org>;
+        Tue, 29 Aug 2017 05:31:30 -0700 (PDT)
+Date: Tue, 29 Aug 2017 22:31:26 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v2 15/30] xfs: Define usercopy region in xfs_inode slab
+ cache
+Message-ID: <20170829123126.GB10621@dastard>
+References: <1503956111-36652-1-git-send-email-keescook@chromium.org>
+ <1503956111-36652-16-git-send-email-keescook@chromium.org>
+ <20170829081453.GA10196@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <507e79d5-59df-c5b5-106d-970c9353d9bc@linux.vnet.ibm.com>
+In-Reply-To: <20170829081453.GA10196@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, David Windsor <dave@nullcore.net>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-On Tue, Aug 29, 2017 at 09:59:30AM +0200, Laurent Dufour wrote:
-> On 27/08/2017 02:18, Kirill A. Shutemov wrote:
-> >> +
-> >> +	if (unlikely(!vma->anon_vma))
-> >> +		goto unlock;
-> > 
-> > It deserves a comment.
-> 
-> You're right I'll add it in the next version.
-> For the record, the root cause is that __anon_vma_prepare() requires the
-> mmap_sem to be held because vm_next and vm_prev must be safe.
+On Tue, Aug 29, 2017 at 01:14:53AM -0700, Christoph Hellwig wrote:
+> One thing I've been wondering is wether we should actually just
+> get rid of the online area.  Compared to reading an inode from
+> disk a single additional kmalloc is negligible, and not having the
+> inline data / extent list would allow us to reduce the inode size
+> significantly.
 
-But should that test not be:
+Probably should.  I've already been looking at killing the inline
+extents array to simplify the management of the extent list (much
+simpler to index by rbtree when we don't have direct/indirect
+structures), so killing the inline data would get rid of the other
+part of the union the inline data sits in.
 
-	if (unlikely(vma_is_anonymous(vma) && !vma->anon_vma))
-		goto unlock;
+OTOH, if we're going to have to dynamically allocate the memory for
+the extent/inline data for the data fork, it may just be easier to
+make the entire data fork a dynamic allocation (like the attr fork).
 
-Because !anon vmas will never have ->anon_vma set and you don't want to
-exclude those.
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
