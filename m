@@ -1,338 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 930EB6B02B4
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 13:24:35 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id q16so7507381pgc.3
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 10:24:35 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id g33sor2802177plb.3.2017.08.29.10.24.33
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DDA56B025F
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 14:48:51 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id k191so5731665oih.0
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 11:48:51 -0700 (PDT)
+Received: from mail-io0-x22e.google.com (mail-io0-x22e.google.com. [2607:f8b0:4001:c06::22e])
+        by mx.google.com with ESMTPS id v130si2978189oia.302.2017.08.29.11.48.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 29 Aug 2017 10:24:34 -0700 (PDT)
-Date: Tue, 29 Aug 2017 10:24:31 -0700
-From: Tycho Andersen <tycho@docker.com>
-Subject: Re: [kernel-hardening] [PATCH v5 04/10] arm64: Add __flush_tlb_one()
-Message-ID: <20170829172431.dpqkxiu52yhr4meq@docker>
-References: <20170809200755.11234-1-tycho@docker.com>
- <20170809200755.11234-5-tycho@docker.com>
- <20170812112603.GB16374@remoulade>
- <20170814163536.6njceqc3dip5lrlu@smitten>
- <20170814165047.GB23428@leverpostej>
- <20170823165842.k5lbxom45avvd7g2@smitten>
- <20170823170443.GD12567@leverpostej>
- <20170823171302.ubnv7qyrexhhpbs7@smitten>
- <20170824154518.GB29665@leverpostej>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Aug 2017 11:48:50 -0700 (PDT)
+Received: by mail-io0-x22e.google.com with SMTP id s101so24622182ioe.0
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 11:48:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170824154518.GB29665@leverpostej>
+In-Reply-To: <20170829044707.GP4757@magnolia>
+References: <1503956111-36652-1-git-send-email-keescook@chromium.org>
+ <1503956111-36652-16-git-send-email-keescook@chromium.org>
+ <20170828214957.GJ4757@magnolia> <CAGXu5j+pvxRjASUuBE49+uH34Mw26a4mtcWrZd=CEqcRHjetvA@mail.gmail.com>
+ <20170829044707.GP4757@magnolia>
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 29 Aug 2017 11:48:49 -0700
+Message-ID: <CAGXu5jJX1DA9D1LtrKkNoBXKZEYhbSE148YmUOP=WXsBCFsCyw@mail.gmail.com>
+Subject: Re: [PATCH v2 15/30] xfs: Define usercopy region in xfs_inode slab cache
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, David Windsor <dave@nullcore.net>, linux-xfs@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-Hi Mark,
-
-On Thu, Aug 24, 2017 at 04:45:19PM +0100, Mark Rutland wrote:
-> On Wed, Aug 23, 2017 at 11:13:02AM -0600, Tycho Andersen wrote:
-> > On Wed, Aug 23, 2017 at 06:04:43PM +0100, Mark Rutland wrote:
-> > > On Wed, Aug 23, 2017 at 10:58:42AM -0600, Tycho Andersen wrote:
-> > > > Hi Mark,
-> > > > 
-> > > > On Mon, Aug 14, 2017 at 05:50:47PM +0100, Mark Rutland wrote:
-> > > > > That said, is there any reason not to use flush_tlb_kernel_range()
-> > > > > directly?
-> > > > 
-> > > > So it turns out that there is a difference between __flush_tlb_one() and
-> > > > flush_tlb_kernel_range() on x86: flush_tlb_kernel_range() flushes all the TLBs
-> > > > via on_each_cpu(), where as __flush_tlb_one() only flushes the local TLB (which
-> > > > I think is enough here).
-> > > 
-> > > That sounds suspicious; I don't think that __flush_tlb_one() is
-> > > sufficient.
-> > > 
-> > > If you only do local TLB maintenance, then the page is left accessible
-> > > to other CPUs via the (stale) kernel mappings. i.e. the page isn't
-> > > exclusively mapped by userspace.
-> > 
-> > I thought so too, so I tried to test it with something like the patch
-> > below. But it correctly failed for me when using __flush_tlb_one(). I
-> > suppose I'm doing something wrong in the test, but I'm not sure what.
-> 
-> I suspect the issue is that you use a completion to synchronise the
-> mapping.
-> 
-> The reader thread will block (i.e. it we go into schedule() and
-> something else will run), and I guess that on x86, that the
-> context-switch this entails upon completion happens to invalidate the
-> TLBs.
-> 
-> Instead, you could serialise the update with the reader doing:
-> 
-> 	/* spin until address is published to us */
-> 	addr = smp_cond_load_acquire(arg->virt_addr, VAL != NULL);
-> 
-> 	read_map(addr);
-> 
-> ... and the writer doing:
-> 
-> 	user_addr = do_map(...)
-> 
-> 	...
-> 
-> 	smp_store_release(arg->virt_addr, user_addr);
-> 
-> There would still be a chance of a context-switch, but it wouldn't be
-> mandatory.
-> 
-
-Thanks for this. However, I've tried several different variations
-(including just raw spinning), and it still seems to fail correctly
-for me.
-
-I'll see about just cleaning up the series with this round of feedback
-and post the whole thing again with CCs to the arm/x86 lists where
-appropriate, and hopefully someone can tell me what I'm doing wrong.
-
-Thanks,
-
-Tycho
-
-> As an aside, it looks like DEBUG_PAGEALLOC on x86 has the problem w.r.t.
-> under-invalidating, juding by the comments in x86's
-> __kernel_map_pages(). It only invalidates the local TLBs, even though
-> it should do it on all CPUs.
+On Mon, Aug 28, 2017 at 9:47 PM, Darrick J. Wong
+<darrick.wong@oracle.com> wrote:
+> On Mon, Aug 28, 2017 at 02:57:14PM -0700, Kees Cook wrote:
+>> On Mon, Aug 28, 2017 at 2:49 PM, Darrick J. Wong
+>> <darrick.wong@oracle.com> wrote:
+>> > On Mon, Aug 28, 2017 at 02:34:56PM -0700, Kees Cook wrote:
+>> >> From: David Windsor <dave@nullcore.net>
+>> >>
+>> >> The XFS inline inode data, stored in struct xfs_inode_t field
+>> >> i_df.if_u2.if_inline_data and therefore contained in the xfs_inode slab
+>> >> cache, needs to be copied to/from userspace.
+>> >>
+>> >> cache object allocation:
+>> >>     fs/xfs/xfs_icache.c:
+>> >>         xfs_inode_alloc(...):
+>> >>             ...
+>> >>             ip = kmem_zone_alloc(xfs_inode_zone, KM_SLEEP);
+>> >>
+>> >>     fs/xfs/libxfs/xfs_inode_fork.c:
+>> >>         xfs_init_local_fork(...):
+>> >>             ...
+>> >>             if (mem_size <= sizeof(ifp->if_u2.if_inline_data))
+>> >>                     ifp->if_u1.if_data = ifp->if_u2.if_inline_data;
+>> >
+>> > Hmm, what happens when mem_size > sizeof(if_inline_data)?  A slab object
+>> > will be allocated for ifp->if_u1.if_data which can then be used for
+>> > readlink in the same manner as the example usage trace below.  Does
+>> > that allocated object have a need for a usercopy annotation like
+>> > the one we're adding for if_inline_data?  Or is that already covered
+>> > elsewhere?
+>>
+>> Yeah, the xfs helper kmem_alloc() is used in the other case, which
+>> ultimately boils down to a call to kmalloc(), which is entirely
+>> whitelisted by an earlier patch in the series:
+>>
+>> https://lkml.org/lkml/2017/8/28/1026
 >
-> Thanks,
-> Mark.
-> 
-> > 
-> > Tycho
-> > 
-> > 
-> > From 1d1b0a18d56cf1634072096231bfbaa96cb2aa16 Mon Sep 17 00:00:00 2001
-> > From: Tycho Andersen <tycho@docker.com>
-> > Date: Tue, 22 Aug 2017 18:07:12 -0600
-> > Subject: [PATCH] add XPFO_SMP test
-> > 
-> > Signed-off-by: Tycho Andersen <tycho@docker.com>
-> > ---
-> >  drivers/misc/lkdtm.h      |   1 +
-> >  drivers/misc/lkdtm_core.c |   1 +
-> >  drivers/misc/lkdtm_xpfo.c | 139 ++++++++++++++++++++++++++++++++++++++++++----
-> >  3 files changed, 130 insertions(+), 11 deletions(-)
-> > 
-> > diff --git a/drivers/misc/lkdtm.h b/drivers/misc/lkdtm.h
-> > index fc53546113c1..34a6ee37f216 100644
-> > --- a/drivers/misc/lkdtm.h
-> > +++ b/drivers/misc/lkdtm.h
-> > @@ -67,5 +67,6 @@ void lkdtm_USERCOPY_KERNEL(void);
-> >  /* lkdtm_xpfo.c */
-> >  void lkdtm_XPFO_READ_USER(void);
-> >  void lkdtm_XPFO_READ_USER_HUGE(void);
-> > +void lkdtm_XPFO_SMP(void);
-> >  
-> >  #endif
-> > diff --git a/drivers/misc/lkdtm_core.c b/drivers/misc/lkdtm_core.c
-> > index 164bc404f416..9544e329de4b 100644
-> > --- a/drivers/misc/lkdtm_core.c
-> > +++ b/drivers/misc/lkdtm_core.c
-> > @@ -237,6 +237,7 @@ struct crashtype crashtypes[] = {
-> >  	CRASHTYPE(USERCOPY_KERNEL),
-> >  	CRASHTYPE(XPFO_READ_USER),
-> >  	CRASHTYPE(XPFO_READ_USER_HUGE),
-> > +	CRASHTYPE(XPFO_SMP),
-> >  };
-> >  
-> >  
-> > diff --git a/drivers/misc/lkdtm_xpfo.c b/drivers/misc/lkdtm_xpfo.c
-> > index c72509128eb3..7600fdcae22f 100644
-> > --- a/drivers/misc/lkdtm_xpfo.c
-> > +++ b/drivers/misc/lkdtm_xpfo.c
-> > @@ -4,22 +4,27 @@
-> >  
-> >  #include "lkdtm.h"
-> >  
-> > +#include <linux/cpumask.h>
-> >  #include <linux/mman.h>
-> >  #include <linux/uaccess.h>
-> >  #include <linux/xpfo.h>
-> > +#include <linux/kthread.h>
-> >  
-> > -void read_user_with_flags(unsigned long flags)
-> > +#include <linux/delay.h>
-> > +#include <linux/sched/task.h>
-> > +
-> > +#define XPFO_DATA 0xdeadbeef
-> > +
-> > +static unsigned long do_map(unsigned long flags)
-> >  {
-> > -	unsigned long user_addr, user_data = 0xdeadbeef;
-> > -	phys_addr_t phys_addr;
-> > -	void *virt_addr;
-> > +	unsigned long user_addr, user_data = XPFO_DATA;
-> >  
-> >  	user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
-> >  			    PROT_READ | PROT_WRITE | PROT_EXEC,
-> >  			    flags, 0);
-> >  	if (user_addr >= TASK_SIZE) {
-> >  		pr_warn("Failed to allocate user memory\n");
-> > -		return;
-> > +		return 0;
-> >  	}
-> >  
-> >  	if (copy_to_user((void __user *)user_addr, &user_data,
-> > @@ -28,25 +33,61 @@ void read_user_with_flags(unsigned long flags)
-> >  		goto free_user;
-> >  	}
-> >  
-> > +	return user_addr;
-> > +
-> > +free_user:
-> > +	vm_munmap(user_addr, PAGE_SIZE);
-> > +	return 0;
-> > +}
-> > +
-> > +static unsigned long *user_to_kernel(unsigned long user_addr)
-> > +{
-> > +	phys_addr_t phys_addr;
-> > +	void *virt_addr;
-> > +
-> >  	phys_addr = user_virt_to_phys(user_addr);
-> >  	if (!phys_addr) {
-> >  		pr_warn("Failed to get physical address of user memory\n");
-> > -		goto free_user;
-> > +		return 0;
-> >  	}
-> >  
-> >  	virt_addr = phys_to_virt(phys_addr);
-> >  	if (phys_addr != virt_to_phys(virt_addr)) {
-> >  		pr_warn("Physical address of user memory seems incorrect\n");
-> > -		goto free_user;
-> > +		return 0;
-> >  	}
-> >  
-> > +	return virt_addr;
-> > +}
-> > +
-> > +static void read_map(unsigned long *virt_addr)
-> > +{
-> >  	pr_info("Attempting bad read from kernel address %p\n", virt_addr);
-> > -	if (*(unsigned long *)virt_addr == user_data)
-> > -		pr_info("Huh? Bad read succeeded?!\n");
-> > +	if (*(unsigned long *)virt_addr == XPFO_DATA)
-> > +		pr_err("FAIL: Bad read succeeded?!\n");
-> >  	else
-> > -		pr_info("Huh? Bad read didn't fail but data is incorrect?!\n");
-> > +		pr_err("FAIL: Bad read didn't fail but data is incorrect?!\n");
-> > +}
-> > +
-> > +static void read_user_with_flags(unsigned long flags)
-> > +{
-> > +	unsigned long user_addr, *kernel;
-> > +
-> > +	user_addr = do_map(flags);
-> > +	if (!user_addr) {
-> > +		pr_err("FAIL: map failed\n");
-> > +		return;
-> > +	}
-> > +
-> > +	kernel = user_to_kernel(user_addr);
-> > +	if (!kernel) {
-> > +		pr_err("FAIL: user to kernel conversion failed\n");
-> > +		goto free_user;
-> > +	}
-> > +
-> > +	read_map(kernel);
-> >  
-> > - free_user:
-> > +free_user:
-> >  	vm_munmap(user_addr, PAGE_SIZE);
-> >  }
-> >  
-> > @@ -60,3 +101,79 @@ void lkdtm_XPFO_READ_USER_HUGE(void)
-> >  {
-> >  	read_user_with_flags(MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB);
-> >  }
-> > +
-> > +struct smp_arg {
-> > +	struct completion map_done;
-> > +	unsigned long *virt_addr;
-> > +	unsigned int cpu;
-> > +};
-> > +
-> > +static int smp_reader(void *parg)
-> > +{
-> > +	struct smp_arg *arg = parg;
-> > +
-> > +	if (arg->cpu != smp_processor_id()) {
-> > +		pr_err("FAIL: scheduled on wrong CPU?\n");
-> > +		return 0;
-> > +	}
-> > +
-> > +	wait_for_completion(&arg->map_done);
-> > +
-> > +	if (arg->virt_addr)
-> > +		read_map(arg->virt_addr);
-> > +
-> > +	return 0;
-> > +}
-> > +
-> > +/* The idea here is to read from the kernel's map on a different thread than
-> > + * did the mapping (and thus the TLB flushing), to make sure that the page
-> > + * faults on other cores too.
-> > + */
-> > +void lkdtm_XPFO_SMP(void)
-> > +{
-> > +	unsigned long user_addr;
-> > +	struct task_struct *thread;
-> > +	int ret;
-> > +	struct smp_arg arg;
-> > +
-> > +	init_completion(&arg.map_done);
-> > +
-> > +	if (num_online_cpus() < 2) {
-> > +		pr_err("not enough to do a multi cpu test\n");
-> > +		return;
-> > +	}
-> > +
-> > +	arg.cpu = (smp_processor_id() + 1) % num_online_cpus();
-> > +	thread = kthread_create(smp_reader, &arg, "lkdtm_xpfo_test");
-> > +	if (IS_ERR(thread)) {
-> > +		pr_err("couldn't create kthread? %ld\n", PTR_ERR(thread));
-> > +		return;
-> > +	}
-> > +
-> > +	kthread_bind(thread, arg.cpu);
-> > +	get_task_struct(thread);
-> > +	wake_up_process(thread);
-> > +
-> > +	user_addr = do_map(MAP_PRIVATE | MAP_ANONYMOUS);
-> > +	if (user_addr) {
-> > +		arg.virt_addr = user_to_kernel(user_addr);
-> > +		/* child thread checks for failure */
-> > +	}
-> > +
-> > +	complete(&arg.map_done);
-> > +
-> > +	/* there must be a better way to do this. */
-> > +	while (1) {
-> > +		if (thread->exit_state)
-> > +			break;
-> > +		msleep_interruptible(100);
-> > +	}
-> > +
-> > +	ret = kthread_stop(thread);
-> > +	if (ret != SIGKILL)
-> > +		pr_err("FAIL: thread wasn't killed: %d\n", ret);
-> > +	put_task_struct(thread);
-> > +
-> > +	if (user_addr)
-> > +		vm_munmap(user_addr, PAGE_SIZE);
-> > +}
-> > -- 
-> > 2.11.0
-> > 
+> Ah.  It would've been helpful to have the first three patches cc'd to
+> the xfs list.  So basically this series establishes the ability to set
+
+I went back and forth on that, and given all the things it touched, it
+seemed like too large a CC list. :) I can explicitly add the xfs list
+to the first three for any future versions.
+
+> regions within a slab object into which copy_to_user can copy memory
+> contents, and vice versa.  Have you seen any runtime performance impact?
+> The overhead looks like it ought to be minimal.
+
+Under CONFIG_HARDENED_USERCOPY, there's no difference in performance
+between the earlier bounds checking (of the whole slab object) vs the
+new bounds checking (of the useroffset/usersize portion of the slab
+object). Perf difference of CONFIG_HARDENED_USERCOPY itself has proven
+hard to measure, which likely means it's very minimal.
+
+>> (It's possible that at some future time we can start segregating
+>> kernel-only kmallocs from usercopy-able kmallocs, but for now, there
+>> are no plans for this.)
+>
+> A pity.  It would be interesting to create no-usercopy versions of the
+> kmalloc-* slabs and see how much of XFS' memory consumption never
+> touches userspace buffers. :)
+
+There are plans for building either a new helper (kmalloc_usercopy())
+or adding a new flag (GFP_USERCOPY), but I haven't had time yet to
+come back around to it. I wanted to land this step first, and we could
+then move forward on the rest in future.
+
+-Kees
+
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
