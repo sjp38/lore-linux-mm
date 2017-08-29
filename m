@@ -1,62 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 90654280300
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 16:29:33 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id y7so6048842oia.7
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 13:29:33 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id v201si3045493oie.126.2017.08.29.13.29.31
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 48563280300
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 16:40:34 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 8so518877wra.8
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 13:40:34 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id x33si3820187eda.364.2017.08.29.13.40.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 29 Aug 2017 13:29:32 -0700 (PDT)
-Subject: Re: [PATCH] mm: Use WQ_HIGHPRI for mm_percpu_wq.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1503921210-4603-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20170828121055.GI17097@dhcp22.suse.cz>
-	<20170828170611.GV491396@devbig577.frc2.facebook.com>
-	<20170829133325.o2s4xiqnc3ez6qxb@dhcp22.suse.cz>
-	<20170829143319.GJ491396@devbig577.frc2.facebook.com>
-In-Reply-To: <20170829143319.GJ491396@devbig577.frc2.facebook.com>
-Message-Id: <201708300529.HEB00599.VHtOFOLFSJOMFQ@I-love.SAKURA.ne.jp>
-Date: Wed, 30 Aug 2017 05:29:26 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 29 Aug 2017 13:40:32 -0700 (PDT)
+Date: Tue, 29 Aug 2017 16:40:26 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH][v2] mm: use sc->priority for slab shrink targets
+Message-ID: <20170829204026.GA7605@cmpxchg.org>
+References: <1503589176-1823-1-git-send-email-jbacik@fb.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1503589176-1823-1-git-send-email-jbacik@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tj@kernel.org, mhocko@kernel.org
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mgorman@suse.de, vbabka@suse.cz
+To: josef@toxicpanda.com
+Cc: minchan@kernel.org, linux-mm@kvack.org, riel@redhat.com, akpm@linux-foundation.org, david@fromorbit.com, kernel-team@fb.com, aryabinin@virtuozzo.com, Josef Bacik <jbacik@fb.com>
 
-Tejun Heo wrote:
-> Hello,
+On Thu, Aug 24, 2017 at 11:39:36AM -0400, josef@toxicpanda.com wrote:
+> From: Josef Bacik <jbacik@fb.com>
 > 
-> On Tue, Aug 29, 2017 at 03:33:25PM +0200, Michal Hocko wrote:
-> > Hmm, we have this in should_reclaim_retry
-> > 			/*
-> > 			 * Memory allocation/reclaim might be called from a WQ
-> > 			 * context and the current implementation of the WQ
-> > 			 * concurrency control doesn't recognize that
-> > 			 * a particular WQ is congested if the worker thread is
-> > 			 * looping without ever sleeping. Therefore we have to
-> > 			 * do a short sleep here rather than calling
-> > 			 * cond_resched().
-> > 			 */
-> > 			if (current->flags & PF_WQ_WORKER)
-> > 				schedule_timeout_uninterruptible(1);
-> > 
-> > And I thought it would be susfficient for kworkers for concurrency WQ
-> > congestion thingy to jump in. Or do we need something more generic. E.g.
-> > make cond_resched special for kworkers?
+> Previously we were using the ratio of the number of lru pages scanned to
+> the number of eligible lru pages to determine the number of slab objects
+> to scan.  The problem with this is that these two things have nothing to
+> do with each other, so in slab heavy work loads where there is little to
+> no page cache we can end up with the pages scanned being a very low
+> number.  This means that we reclaim next to no slab pages and waste a
+> lot of time reclaiming small amounts of space.
 > 
-> I actually think we're hitting a bug somewhere.  Tetsuo's trace with
-> the patch applies doesn't add up.
+> Consider the following scenario, where we have the following values and
+> the rest of the memory usage is in slab
 > 
-> Thanks.
+> Active:            58840 kB
+> Inactive:          46860 kB
+> 
+> Every time we do a get_scan_count() we do this
+> 
+> scan = size >> sc->priority
+> 
+> where sc->priority starts at DEF_PRIORITY, which is 12.  The first loop
+> through reclaim would result in a scan target of 2 pages to 11715 total
+> inactive pages, and 3 pages to 14710 total active pages.  This is a
+> really really small target for a system that is entirely slab pages.
+> And this is super optimistic, this assumes we even get to scan these
+> pages.  We don't increment sc->nr_scanned unless we 1) isolate the page,
+> which assumes it's not in use, and 2) can lock the page.  Under
+> pressure these numbers could probably go down, I'm sure there's some
+> random pages from daemons that aren't actually in use, so the targets
+> get even smaller.
+> 
+> Instead use sc->priority in the same way we use it to determine scan
+> amounts for the lru's.  This generally equates to pages.  Consider the
+> following
+> 
+> slab_pages = (nr_objects * object_size) / PAGE_SIZE
+> 
+> What we would like to do is
+> 
+> scan = slab_pages >> sc->priority
+> 
+> but we don't know the number of slab pages each shrinker controls, only
+> the objects.  However say that theoretically we knew how many pages a
+> shrinker controlled, we'd still have to convert this to objects, which
+> would look like the following
+> 
+> scan = shrinker_pages >> sc->priority
+> scan_objects = (PAGE_SIZE / object_size) * scan
+> 
+> or written another way
+> 
+> scan_objects = (shrinker_pages >> sc->priority) *
+> 		(PAGE_SIZE / object_size)
+> 
+> which can thus be written
+> 
+> scan_objects = ((shrinker_pages * PAGE_SIZE) / object_size) >>
+> 		sc->priority
+> 
+> which is just
+> 
+> scan_objects = nr_objects >> sc->priority
+> 
+> We don't need to know exactly how many pages each shrinker represents,
+> it's objects are all the information we need.  Making this change allows
+> us to place an appropriate amount of pressure on the shrinker pools for
+> their relative size.
+> 
+> Signed-off-by: Josef Bacik <jbacik@fb.com>
 
-If we are under memory pressure, __zone_watermark_ok() can return false.
-If __zone_watermark_ok() == false, when is schedule_timeout_*() called explicitly?
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+This looks good to me, thanks for persisting Josef.
+
+There is a small cleanup possible on top of this, as the slab shrinker
+was the only thing that used that lru_pages accumulation when the scan
+targets are calculated.
+
+---
