@@ -1,64 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F12526B0292
-	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 19:09:28 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id m4so5286527qke.6
-        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 16:09:28 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x189sor1004594qka.16.2017.08.28.16.09.28
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 28 Aug 2017 16:09:28 -0700 (PDT)
-Date: Mon, 28 Aug 2017 16:09:24 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] mm: Use WQ_HIGHPRI for mm_percpu_wq.
-Message-ID: <20170828230924.GG491396@devbig577.frc2.facebook.com>
-References: <1503921210-4603-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20170828121055.GI17097@dhcp22.suse.cz>
- <20170828170611.GV491396@devbig577.frc2.facebook.com>
- <201708290715.FEI21383.HSFOQtJOMVOFFL@I-love.SAKURA.ne.jp>
- <20170828230256.GF491396@devbig577.frc2.facebook.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AD666B025F
+	for <linux-mm@kvack.org>; Mon, 28 Aug 2017 20:21:44 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 63so3181173pgc.0
+        for <linux-mm@kvack.org>; Mon, 28 Aug 2017 17:21:44 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id u1si1141492pgc.810.2017.08.28.17.21.42
+        for <linux-mm@kvack.org>;
+        Mon, 28 Aug 2017 17:21:43 -0700 (PDT)
+Date: Tue, 29 Aug 2017 09:22:22 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 1/2] mm/slub: wake up kswapd for initial high order
+ allocation
+Message-ID: <20170829002222.GA14489@js1304-P5Q-DELUXE>
+References: <1503882675-17910-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <f1423efc-3c60-c03e-0d81-f2e8fcccbcd6@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170828230256.GF491396@devbig577.frc2.facebook.com>
+In-Reply-To: <f1423efc-3c60-c03e-0d81-f2e8fcccbcd6@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, mgorman@suse.de, vbabka@suse.cz
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>
 
-Hey, again.
+On Mon, Aug 28, 2017 at 12:04:41PM +0200, Vlastimil Babka wrote:
+> On 08/28/2017 03:11 AM, js1304@gmail.com wrote:
+> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > 
+> > slub uses higher order allocation than it actually needs. In this case,
+> > we don't want to do direct reclaim to make such a high order page since
+> > it causes a big latency to the user. Instead, we would like to fallback
+> > lower order allocation that it actually needs.
+> > 
+> > However, we also want to get this higher order page in the next time
+> > in order to get the best performance and it would be a role of
+> > the background thread like as kswapd and kcompactd. To wake up them,
+> > we should not clear __GFP_KSWAPD_RECLAIM.
+> > 
+> > Unlike this intention, current code clears __GFP_KSWAPD_RECLAIM so fix it.
+> > 
+> > Note that this patch does some clean up, too.
+> > __GFP_NOFAIL is cleared twice so remove one.
+> > 
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> 
+> Hm, so this seems to revert Mel's 444eb2a449ef ("mm: thp: set THP defrag
+> by default to madvise and add a stall-free defrag option") wrt the slub
+> allocate_slab() part. AFAICS the intention in Mel's patch was that he
+> removed a special case in __alloc_page_slowpath() where including
+> __GFP_THISNODE and lacking ~__GFP_DIRECT_RECLAIM effectively means also
+> lacking __GFP_KSWAPD_RECLAIM. The commit log claims that slab/slub might
+> change behavior so he moved the removal of __GFP_KSWAPD_RECLAIM to them.
+> 
+> But AFAICS, only slab uses __GFP_THISNODE, while slub doesn't. So your
+> patch would indeed revert an unintentional change of Mel's commit. Is it
+> right or do I miss something?
 
-On Mon, Aug 28, 2017 at 04:02:56PM -0700, Tejun Heo wrote:
-> Hmm... all these is mostly because workqueue lost the "ignore
-> concurrency management" flag a while back while converting WQ_HIGHPRI
-> to mean high nice priority instead of the top of the queue w/o
-> concurrency management.  Resurrecting that shouldn't be too difficult.
-> I'll get back to you soon.
+I didn't look at that patch. What I tried here is just restoring first
+intention of this code. I now realize that Mel did it for specific
+purpose. Thanks for notifying it.
 
-Can you please try this patch and see how the work item behaves w/
-WQ_HIGHPRI set?  It disables concurrency mgmt for highpri work items
-which makes sense anyway.
+Anyway, your analysis looks correct and this change doesn't hurt Mel's
+intention and restores original behaviour of the code. I will add your
+analysis on the commit description and resubmit it. Is it okay to you?
 
 Thanks.
-
-diff --git a/kernel/workqueue.c b/kernel/workqueue.c
-index ca937b0..14b6bce 100644
---- a/kernel/workqueue.c
-+++ b/kernel/workqueue.c
-@@ -2021,7 +2021,7 @@ __acquires(&pool->lock)
- {
- 	struct pool_workqueue *pwq = get_work_pwq(work);
- 	struct worker_pool *pool = worker->pool;
--	bool cpu_intensive = pwq->wq->flags & WQ_CPU_INTENSIVE;
-+	bool cpu_intensive = pwq->wq->flags & (WQ_CPU_INTENSIVE | WQ_HIGHPRI);
- 	int work_color;
- 	struct worker *collision;
- #ifdef CONFIG_LOCKDEP
-
-
--- 
-tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
