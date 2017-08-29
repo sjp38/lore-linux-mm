@@ -1,57 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A1E6D6B025F
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 17:20:36 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id p2so5947618ite.9
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 14:20:36 -0700 (PDT)
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id w64si3802821ioe.160.2017.08.29.14.20.35
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E3E106B02B4
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 17:41:10 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id p13so13958993qtp.5
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 14:41:10 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s25sor2339617qth.128.2017.08.29.14.41.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 29 Aug 2017 14:20:35 -0700 (PDT)
-Message-ID: <1504041570.2358.30.camel@kernel.crashing.org>
-Subject: Re: [PATCH v2 14/20] mm: Provide speculative fault infrastructure
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 30 Aug 2017 07:19:30 +1000
-In-Reply-To: <20170829112731.vhgwrzwwlimdbjcn@hirez.programming.kicks-ass.net>
-References: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
-	 <1503007519-26777-15-git-send-email-ldufour@linux.vnet.ibm.com>
-	 <20170827001823.n5wgkfq36z6snvf2@node.shutemov.name>
-	 <20170828093727.5wldedputadanssh@hirez.programming.kicks-ass.net>
-	 <1503954877.4850.19.camel@kernel.crashing.org>
-	 <20170829083352.qrsxvk3lkiydi3o2@hirez.programming.kicks-ass.net>
-	 <20170829112731.vhgwrzwwlimdbjcn@hirez.programming.kicks-ass.net>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Tue, 29 Aug 2017 14:41:09 -0700 (PDT)
+Date: Tue, 29 Aug 2017 14:41:04 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] mm: Use WQ_HIGHPRI for mm_percpu_wq.
+Message-ID: <20170829214104.GW491396@devbig577.frc2.facebook.com>
+References: <20170828121055.GI17097@dhcp22.suse.cz>
+ <20170828170611.GV491396@devbig577.frc2.facebook.com>
+ <201708290715.FEI21383.HSFOQtJOMVOFFL@I-love.SAKURA.ne.jp>
+ <20170828230256.GF491396@devbig577.frc2.facebook.com>
+ <20170828230924.GG491396@devbig577.frc2.facebook.com>
+ <201708292014.JHH35412.FMVFHOQOJtSLOF@I-love.SAKURA.ne.jp>
+ <20170829143817.GK491396@devbig577.frc2.facebook.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170829143817.GK491396@devbig577.frc2.facebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, mgorman@suse.de, vbabka@suse.cz
 
-On Tue, 2017-08-29 at 13:27 +0200, Peter Zijlstra wrote:
-> mpe helped me out and explained that is the PWC hint to TBLIE.
-> 
-> So, you set need_flush_all when you unhook pud/pmd/pte which you then
-> use to set PWC. So free_pgtables() will do the PWC when it unhooks
-> higher level pages.
-> 
-> But you're right that there's some issues, free_pgtables() itself
-> doesn't seem to use mm->page_table_lock,pmd->lock _AT_ALL_ to unhook the
-> pages.
-> 
-> If it were to do that, things should work fine since those locks would
-> then serialize against the speculative faults, we would never install a
-> page if the VMA would be under tear-down and it would thus not be
-> visible to your caches either.
+Hello,
 
-That's one case. I don't remember of *all* the cases to be honest, but
-I do remember several times over the past few years thinking "ah we are
-fine because the mm sem taken for writing protects us from any
-concurrent tree structure change" :-)
+I can't repro the problem.  The test program gets cleanly oom killed.
+Hmm... the workqueue dumps you posted are really weird because there
+are multiple work items stalling for really long times but only one
+pool is reporting hang and nobody has rescuers active.  I don't get
+how the system can be in such state.
 
-Cheers,
-Ben.
+Just in case, you're testing mainline, right?  I've updated your debug
+patch slightly so that it doesn't skip seemingly idle pools.  Can you
+please repro the problem with the patch applied?  Thanks.
+
+diff --git a/include/linux/workqueue.h b/include/linux/workqueue.h
+index db6dc9d..54027fc 100644
+--- a/include/linux/workqueue.h
++++ b/include/linux/workqueue.h
+@@ -101,6 +101,7 @@ struct work_struct {
+ 	atomic_long_t data;
+ 	struct list_head entry;
+ 	work_func_t func;
++	unsigned long stamp;
+ #ifdef CONFIG_LOCKDEP
+ 	struct lockdep_map lockdep_map;
+ #endif
+diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+index ca937b0..006c19a 100644
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -1296,6 +1296,7 @@ static void insert_work(struct pool_workqueue *pwq, struct work_struct *work,
+ 	struct worker_pool *pool = pwq->pool;
+ 
+ 	/* we own @work, set data and link */
++	work->stamp = jiffies;
+ 	set_work_pwq(work, pwq, extra_flags);
+ 	list_add_tail(&work->entry, head);
+ 	get_pwq(pwq);
+@@ -2021,7 +2022,7 @@ __acquires(&pool->lock)
+ {
+ 	struct pool_workqueue *pwq = get_work_pwq(work);
+ 	struct worker_pool *pool = worker->pool;
+-	bool cpu_intensive = pwq->wq->flags & WQ_CPU_INTENSIVE;
++	bool cpu_intensive = pwq->wq->flags & (WQ_CPU_INTENSIVE | WQ_HIGHPRI);
+ 	int work_color;
+ 	struct worker *collision;
+ #ifdef CONFIG_LOCKDEP
+@@ -4338,10 +4339,10 @@ static void pr_cont_work(bool comma, struct work_struct *work)
+ 
+ 		barr = container_of(work, struct wq_barrier, work);
+ 
+-		pr_cont("%s BAR(%d)", comma ? "," : "",
+-			task_pid_nr(barr->task));
++		pr_cont("%s BAR(%d){%u}", comma ? "," : "",
++			task_pid_nr(barr->task), jiffies_to_msecs(jiffies - work->stamp));
+ 	} else {
+-		pr_cont("%s %pf", comma ? "," : "", work->func);
++		pr_cont("%s %pf{%u}", comma ? "," : "", work->func, jiffies_to_msecs(jiffies - work->stamp));
+ 	}
+ }
+ 
+@@ -4373,10 +4374,11 @@ static void show_pwq(struct pool_workqueue *pwq)
+ 			if (worker->current_pwq != pwq)
+ 				continue;
+ 
+-			pr_cont("%s %d%s:%pf", comma ? "," : "",
++			pr_cont("%s %d%s:%pf{%u}", comma ? "," : "",
+ 				task_pid_nr(worker->task),
+ 				worker == pwq->wq->rescuer ? "(RESCUER)" : "",
+-				worker->current_func);
++				worker->current_func, worker->current_work ?
++				jiffies_to_msecs(jiffies - worker->current_work->stamp) : 0);
+ 			list_for_each_entry(work, &worker->scheduled, entry)
+ 				pr_cont_work(false, work);
+ 			comma = true;
+@@ -4461,8 +4463,8 @@ void show_workqueue_state(void)
+ 		bool first = true;
+ 
+ 		spin_lock_irqsave(&pool->lock, flags);
+-		if (pool->nr_workers == pool->nr_idle)
+-			goto next_pool;
++		/*if (pool->nr_workers == pool->nr_idle)
++		  goto next_pool;*/
+ 
+ 		pr_info("pool %d:", pool->id);
+ 		pr_cont_pool_info(pool);
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 9a4441b..c099ebf 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1768,7 +1768,8 @@ void __init init_mm_internals(void)
+ {
+ 	int ret __maybe_unused;
+ 
+-	mm_percpu_wq = alloc_workqueue("mm_percpu_wq", WQ_MEM_RECLAIM, 0);
++	mm_percpu_wq = alloc_workqueue("mm_percpu_wq",
++				       WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
+ 
+ #ifdef CONFIG_SMP
+ 	ret = cpuhp_setup_state_nocalls(CPUHP_MM_VMSTAT_DEAD, "mm/vmstat:dead",
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
