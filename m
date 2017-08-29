@@ -1,98 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BED1A6B025F
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 10:38:22 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id o63so10463492qkb.4
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 07:38:22 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w23sor1838859qkb.13.2017.08.29.07.38.21
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AE5896B025F
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 10:50:39 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 4so2568559pgi.5
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 07:50:39 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id u2si2506545pge.11.2017.08.29.07.50.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 29 Aug 2017 07:38:21 -0700 (PDT)
-Date: Tue, 29 Aug 2017 07:38:18 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] mm: Use WQ_HIGHPRI for mm_percpu_wq.
-Message-ID: <20170829143817.GK491396@devbig577.frc2.facebook.com>
-References: <20170828121055.GI17097@dhcp22.suse.cz>
- <20170828170611.GV491396@devbig577.frc2.facebook.com>
- <201708290715.FEI21383.HSFOQtJOMVOFFL@I-love.SAKURA.ne.jp>
- <20170828230256.GF491396@devbig577.frc2.facebook.com>
- <20170828230924.GG491396@devbig577.frc2.facebook.com>
- <201708292014.JHH35412.FMVFHOQOJtSLOF@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Aug 2017 07:50:38 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7TEnLti006784
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 10:50:37 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2cna460w7q-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 10:50:37 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Tue, 29 Aug 2017 15:50:34 +0100
+Subject: Re: [PATCH v2 19/20] x86/mm: Add speculative pagefault handling
+References: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1503007519-26777-20-git-send-email-ldufour@linux.vnet.ibm.com>
+ <dbaaf637-9f22-eba0-63a5-7bd83f810e4f@linux.vnet.ibm.com>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Tue, 29 Aug 2017 16:50:26 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201708292014.JHH35412.FMVFHOQOJtSLOF@I-love.SAKURA.ne.jp>
+In-Reply-To: <dbaaf637-9f22-eba0-63a5-7bd83f810e4f@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: fr
+Content-Transfer-Encoding: 7bit
+Message-Id: <37b9b036-e951-0a74-3e5c-31049cda7dd2@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, mgorman@suse.de, vbabka@suse.cz
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-Hello, Tetsuo.
-
-On Tue, Aug 29, 2017 at 08:14:49PM +0900, Tetsuo Handa wrote:
-> [  897.503107] workqueue mm_percpu_wq: flags=0x18
-> [  897.503291]   pwq 5: cpus=2 node=0 flags=0x0 nice=-20 active=1/256
-> [  897.503301]     pending: vmstat_update{58752}
-
-This is weird.  Assuming 1000HZ, the work item has been pending for
-about a minute but there's no active worker 
-
-> [  897.505127] pool 0: cpus=0 node=0 flags=0x0 nice=0 hung=40s workers=2 manager: 135
-> [  897.505160] pool 2: cpus=1 node=0 flags=0x0 nice=0 hung=0s workers=3 idle: 3311 2132
-> [  897.505179] pool 4: cpus=2 node=0 flags=0x0 nice=0 hung=59s workers=2 manager: 444
-> [  897.505200] pool 10: cpus=5 node=0 flags=0x0 nice=0 hung=43s workers=3 idle: 41 257
-> [  897.505478] pool 256: cpus=0-127 flags=0x4 nice=0 hung=0s workers=3 idle: 3305 378
-
-but there's no active worker on the pool and the rescuer hasn't been
-kicked off.
-
-> #include <stdio.h>
-> #include <stdlib.h>
-> #include <unistd.h>
-> #include <sys/types.h>
-> #include <sys/stat.h>
-> #include <fcntl.h>
+On 21/08/2017 09:29, Anshuman Khandual wrote:
+> On 08/18/2017 03:35 AM, Laurent Dufour wrote:
+>> From: Peter Zijlstra <peterz@infradead.org>
+>>
+>> Try a speculative fault before acquiring mmap_sem, if it returns with
+>> VM_FAULT_RETRY continue with the mmap_sem acquisition and do the
+>> traditional fault.
+>>
+>> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+>>
+>> [Clearing of FAULT_FLAG_ALLOW_RETRY is now done in
+>>  handle_speculative_fault()]
+>> [Retry with usual fault path in the case VM_ERROR is returned by
+>>  handle_speculative_fault(). This allows signal to be delivered]
+>> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+>> ---
+>>  arch/x86/include/asm/pgtable_types.h |  7 +++++++
+>>  arch/x86/mm/fault.c                  | 19 +++++++++++++++++++
+>>  2 files changed, 26 insertions(+)
+>>
+>> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+>> index bf9638e1ee42..4fd2693a037e 100644
+>> --- a/arch/x86/include/asm/pgtable_types.h
+>> +++ b/arch/x86/include/asm/pgtable_types.h
+>> @@ -234,6 +234,13 @@ enum page_cache_mode {
+>>  #define PGD_IDENT_ATTR	 0x001		/* PRESENT (no other attributes) */
+>>  #endif
+>>  
+>> +/*
+>> + * Advertise that we call the Speculative Page Fault handler.
+>> + */
+>> +#ifdef CONFIG_X86_64
+>> +#define __HAVE_ARCH_CALL_SPF
+>> +#endif
+>> +
+>>  #ifdef CONFIG_X86_32
+>>  # include <asm/pgtable_32_types.h>
+>>  #else
+>> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+>> index 2a1fa10c6a98..4c070b9a4362 100644
+>> --- a/arch/x86/mm/fault.c
+>> +++ b/arch/x86/mm/fault.c
+>> @@ -1365,6 +1365,24 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code,
+>>  	if (error_code & PF_INSTR)
+>>  		flags |= FAULT_FLAG_INSTRUCTION;
+>>  
+>> +#ifdef __HAVE_ARCH_CALL_SPF
+>> +	if (error_code & PF_USER) {
+>> +		fault = handle_speculative_fault(mm, address, flags);
+>> +
+>> +		/*
+>> +		 * We also check against VM_FAULT_ERROR because we have to
+>> +		 * raise a signal by calling later mm_fault_error() which
+>> +		 * requires the vma pointer to be set. So in that case,
+>> +		 * we fall through the normal path.
 > 
-> int main(int argc, char *argv[])
-> {
-> 	static char buffer[4096] = { };
-> 	char *buf = NULL;
-> 	unsigned long size;
-> 	unsigned long i;
-> 	for (i = 0; i < 1024; i++) {
-> 		if (fork() == 0) {
-> 			int fd = open("/proc/self/oom_score_adj", O_WRONLY);
-> 			write(fd, "1000", 4);
-> 			close(fd);
-> 			snprintf(buffer, sizeof(buffer), "/tmp/file.%u", getpid());
-> 			fd = open(buffer, O_WRONLY | O_CREAT | O_APPEND, 0600);
-> 			sleep(1);
-> 			while (write(fd, buffer, sizeof(buffer)) == sizeof(buffer));
-> 			_exit(0);
-> 		}
-> 	}
-> 	for (size = 1048576; size < 512UL * (1 << 30); size <<= 1) {
-> 		char *cp = realloc(buf, size);
-> 		if (!cp) {
-> 			size >>= 1;
-> 			break;
-> 		}
-> 		buf = cp;
-> 	}
-> 	sleep(2);
-> 	/* Will cause OOM due to overcommit */
-> 	for (i = 0; i < size; i += 4096)
-> 		buf[i] = 0;
-> 	return 0;
-> }
+> Cant mm_fault_error() be called inside handle_speculative_fault() ?
+> Falling through the normal page fault path again just to raise a
+> signal seems overkill. Looking into mm_fault_error(), it seems they
+> are different for x86 and powerpc.
+> 
+> X86:
+> 
+> mm_fault_error(struct pt_regs *regs, unsigned long error_code,
+>                unsigned long address, struct vm_area_struct *vma,
+>                unsigned int fault)
+> 
+> powerpc:
+> 
+> mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
+> 
+> Even in case of X86, I guess we would have reference to the faulting
+> VMA (after the SRCU search) which can be used to call this function
+> directly.
 
-I'll try to repro and find out what's going on.
-
-Thanks!
-
--- 
-tejun
+Yes I think this is doable in the case of x86.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
