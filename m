@@ -1,80 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3082F6B0292
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 13:27:51 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id p12so20829558qkl.0
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 10:27:51 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i123si5702742qkd.124.2017.08.30.10.27.49
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B7596B025F
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 13:46:13 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id t3so13468584pgt.8
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 10:46:13 -0700 (PDT)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
+        by mx.google.com with ESMTPS id u126si4878387pgb.366.2017.08.30.10.46.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Aug 2017 10:27:50 -0700 (PDT)
-Date: Wed, 30 Aug 2017 19:27:47 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 02/13] mm/rmap: update to new mmu_notifier semantic
-Message-ID: <20170830172747.GE13559@redhat.com>
-References: <20170829235447.10050-1-jglisse@redhat.com>
- <20170829235447.10050-3-jglisse@redhat.com>
- <6D58FBE4-5D03-49CC-AAFF-3C1279A5A849@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <6D58FBE4-5D03-49CC-AAFF-3C1279A5A849@gmail.com>
+        Wed, 30 Aug 2017 10:46:12 -0700 (PDT)
+Date: Wed, 30 Aug 2017 10:46:08 -0700 (PDT)
+Message-Id: <20170830.104608.2080967179463692935.davem@davemloft.net>
+Subject: Re: [PATCH v7 07/11] sparc64: optimized struct page zeroing
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <e07c05b1-c0be-bf7f-9a29-11dc41b79d10@oracle.com>
+References: <1503972142-289376-8-git-send-email-pasha.tatashin@oracle.com>
+	<20170829.181208.171985548699678313.davem@davemloft.net>
+	<e07c05b1-c0be-bf7f-9a29-11dc41b79d10@oracle.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nadav Amit <nadav.amit@gmail.com>
-Cc: =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Bernhard Held <berny156@gmx.de>, Adam Borowski <kilobyte@angband.pl>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Wanpeng Li <kernellwp@gmail.com>, Paolo Bonzini <pbonzini@redhat.com>, Takashi Iwai <tiwai@suse.de>, Mike Galbraith <efault@gmx.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, axie <axie@amd.com>, Andrew Morton <akpm@linux-foundation.org>
+To: pasha.tatashin@oracle.com
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, Steven.Sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On Tue, Aug 29, 2017 at 07:46:07PM -0700, Nadav Amit wrote:
-> Therefore, IIUC, try_to_umap_one() should only call
-> mmu_notifier_invalidate_range() after ptep_get_and_clear() and
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+Date: Wed, 30 Aug 2017 09:19:58 -0400
 
-That would trigger an unnecessarily double call to
-->invalidate_range() both from mmu_notifier_invalidate_range() after
-ptep_get_and_clear() and later at the end in
-mmu_notifier_invalidate_range_end().
+> The reason I am not doing initializing stores is because they require
+> a membar, even if only regular stores are following (I hoped to do a
+> membar before first load). This is something I was thinking was not
+> true, but after consulting with colleagues and checking processor
+> manual, I verified that it is the case.
 
-The only advantage of adding a mmu_notifier_invalidate_range() after
-ptep_get_and_clear() is to flush the secondary MMU TLBs (keep in mind
-the pagetables have to be shared with the primary MMU in order to use
-the ->invalidate_range()) inside the PT lock.
-
-So if mmu_notifier_invalidate_range() after ptep_get_and_clear() is
-needed or not, again boils down to the issue if the old code calling
-->invalidate_page outside the PT lock was always broken before or
-not. I don't see why exactly it was broken, we even hold the page lock
-there so I don't see a migration race possible either. Of course the
-constraint to be safe is that the put_page in try_to_unmap_one cannot
-be the last one, and that had to be enforced by the caller taking an
-additional reference on it.
-
-One can wonder if the primary MMU TLB flush in ptep_clear_flush
-(should_defer_flush returning false) could be put after releasing the
-PT lock too (because that's not different from deferring the secondary
-MMU notifier TLB flush in ->invalidate_range down to
-mmu_notifier_invalidate_range_end) even if TTU_BATCH_FLUSH isn't set,
-which may be safe too for the same reasons.
-
-When should_defer_flush returns true we already defer the primary MMU
-TLB flush to much later to even mmu_notifier_invalidate_range_end, not
-just after the PT lock release so at least when should_defer_flush is
-true, it looks obviously safe to defer the secondary MMU TLB flush to
-mmu_notifier_invalidate_range_end for the drivers implementing
-->invalidate_range.
-
-If I'm wrong and all TLB flushes must happen inside the PT lock, then
-we should at least reconsider the implicit call to ->invalidate_range
-method from mmu_notifier_invalidate_range_end or we would call it
-twice unnecessarily which doesn't look optimal. Either ways this
-doesn't look optimal. We would need to introduce a
-mmu_notifier_invalidate_range_end_full that calls also
-->invalidate_range in such case so we skip the ->invalidate_range call
-in mmu_notifier_invalidate_range_end if we put an explicit
-mmu_notifier_invalidate_range() after ptep_get_and_clear inside the PT
-lock like you suggested above.
-
-Thanks,
-Andrea
+Oh yes, that's right, now I remember.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
