@@ -1,54 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DE7A6B025F
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 04:40:37 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id l19so1461734wmi.1
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 01:40:37 -0700 (PDT)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.17.20])
-        by mx.google.com with ESMTPS id j64si2739695wmd.63.2017.08.30.01.40.35
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E5106B025F
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 04:46:11 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id a47so7992486wra.0
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 01:46:11 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 93sor545637wri.58.2017.08.30.01.46.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Aug 2017 01:40:36 -0700 (PDT)
-Message-ID: <1504082414.6014.39.camel@gmx.de>
-Subject: Re: [PATCH 00/13] mmu_notifier kill invalidate_page callback
-From: Mike Galbraith <efault@gmx.de>
-Date: Wed, 30 Aug 2017 10:40:14 +0200
-In-Reply-To: <20170830005615.GA2386@redhat.com>
-References: <20170829235447.10050-1-jglisse@redhat.com>
-	 <CA+55aFz6ArJ-ADXiYCu6xMUzdY=mKBtkzfJmLaBohC6Ub9t2SQ@mail.gmail.com>
-	 <20170830005615.GA2386@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Wed, 30 Aug 2017 01:46:09 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [RFC PATCH] mm, oom_reaper: skip mm structs with mmu notifiers
+Date: Wed, 30 Aug 2017 10:46:00 +0200
+Message-Id: <20170830084600.17491-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Bernhard Held <berny156@gmx.de>, Adam Borowski <kilobyte@angband.pl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Joerg Roedel <jroedel@suse.de>, Dan Williams <dan.j.williams@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Jack Steiner <steiner@sgi.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?UTF-8?Q?Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, ppc-dev <linuxppc-dev@lists.ozlabs.org>, DRI <dri-devel@lists.freedesktop.org>, amd-gfx@lists.freedesktop.org, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, "open list:AMD
- IOMMU (AMD-VI)" <iommu@lists.linux-foundation.org>, xen-devel <xen-devel@lists.xenproject.org>, KVM list <kvm@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Argangeli <andrea@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Tue, 2017-08-29 at 20:56 -0400, Jerome Glisse wrote:
-> On Tue, Aug 29, 2017 at 05:11:24PM -0700, Linus Torvalds wrote:
->=20
-> > People - *especially* the people who saw issues under KVM - can you
-> > try out J=C3=A9r=C3=B4me's patch-series? I aded some people to the cc, =
-the full
-> > series is on lkml. J=C3=A9r=C3=B4me - do you have a git branch for peop=
-le to
-> > test that they could easily pull and try out?
->=20
-> https://cgit.freedesktop.org/~glisse/linux mmu-notifier branch
-> git://people.freedesktop.org/~glisse/linux
+From: Michal Hocko <mhocko@suse.com>
 
-Looks good here.
+Andrea has noticed that the oom_reaper doesn't invalidate the range
+via mmu notifiers (mmu_notifier_invalidate_range_start,
+mmu_notifier_invalidate_range_end) and that can corrupt the memory
+of the kvm guest for example. As the callback is allowed to sleep
+and the implementation is out of hand of the MM it is safer to simply
+bail out if there is an mmu notifier registered. In order to not
+fail too early make the mm_has_notifiers check under the oom_lock
+and have a little nap before failing to give the current oom victim some
+more time to exit.
 
-I reproduced fairly quickly with RT host and 1 RT guest by just having
-the guest do a parallel kbuild over NFS (the guest had to be restored
-afterward, was corrupted). =C2=A0I'm currently flogging 2 guests as well as
-the host, whimper free. =C2=A0I'll let the lot broil for while longer, but
-at this point, smoke/flame appearance seems comfortingly unlikely.
+Fixes: aac453635549 ("mm, oom: introduce oom reaper")
+Noticed-by: Andrea Arcangeli <aarcange@redhat.com>
+Cc: stable
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
 
-	-Mike
+Hi,
+Andrea has pointed this out [1] while a different (but similar) bug has been
+discussed. This is an ugly hack to plug the potential memory corruption but
+we definitely want a better fix longterm.
 
+Does this sound like a viable option for now?
+
+[1] http://lkml.kernel.org/r/20170829140924.GB21615@redhat.com
+
+ include/linux/mmu_notifier.h |  5 +++++
+ mm/oom_kill.c                | 15 +++++++++++++++
+ 2 files changed, 20 insertions(+)
+
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+index c91b3bcd158f..947f21b451d2 100644
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -420,6 +420,11 @@ extern void mmu_notifier_synchronize(void);
+ 
+ #else /* CONFIG_MMU_NOTIFIER */
+ 
++static inline int mm_has_notifiers(struct mm_struct *mm)
++{
++	return 0;
++}
++
+ static inline void mmu_notifier_release(struct mm_struct *mm)
+ {
+ }
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 99736e026712..45f1a0c3dd90 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -40,6 +40,7 @@
+ #include <linux/ratelimit.h>
+ #include <linux/kthread.h>
+ #include <linux/init.h>
++#include <linux/mmu_notifier.h>
+ 
+ #include <asm/tlb.h>
+ #include "internal.h"
+@@ -488,6 +489,20 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 	 */
+ 	mutex_lock(&oom_lock);
+ 
++	/*
++	 * If the mm has notifiers then we would need to invalidate them around
++	 * unmap_page_range and that is risky because notifiers can sleep and
++	 * what they do is basically undeterministic. So let's have a short sleep
++	 * to give the oom victim some more time.
++	 * TODO: we really want to get rid of this ugly hack and make sure that
++	 * notifiers cannot block for unbounded amount of time and add
++	 * mmu_notifier_invalidate_range_{start,end} around unmap_page_range
++	 */
++	if (mm_has_notifiers(mm)) {
++		schedule_timeout_idle(HZ);
++		goto unlock_oom;
++	}
++
+ 	if (!down_read_trylock(&mm->mmap_sem)) {
+ 		ret = false;
+ 		trace_skip_task_reaping(tsk->pid);
+-- 
+2.13.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
