@@ -1,131 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9703E6B0292
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 07:22:51 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id e9so11392005ywh.8
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 04:22:51 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i139si643287wmf.3.2017.08.30.04.22.49
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 72C426B02C3
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 07:23:28 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id q68so11987629pgq.11
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 04:23:28 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id n6si4256637pgt.513.2017.08.30.04.23.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Aug 2017 04:22:49 -0700 (PDT)
-Date: Wed, 30 Aug 2017 13:22:47 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v2 08/30] ext2: Define usercopy region in
- ext2_inode_cache slab cache
-Message-ID: <20170830112247.GA30640@quack2.suse.cz>
-References: <1503956111-36652-1-git-send-email-keescook@chromium.org>
- <1503956111-36652-9-git-send-email-keescook@chromium.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Aug 2017 04:23:26 -0700 (PDT)
+Date: Wed, 30 Aug 2017 12:22:40 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v6 2/4] mm, oom: cgroup-aware OOM killer
+Message-ID: <20170830112240.GA4751@castle.dhcp.TheFacebook.com>
+References: <20170823165201.24086-1-guro@fb.com>
+ <20170823165201.24086-3-guro@fb.com>
+ <20170824114706.GG5943@dhcp22.suse.cz>
+ <20170824122846.GA15916@castle.DHCP.thefacebook.com>
+ <20170824125811.GK5943@dhcp22.suse.cz>
+ <20170824135842.GA21167@castle.DHCP.thefacebook.com>
+ <20170824141336.GP5943@dhcp22.suse.cz>
+ <20170824145801.GA23457@castle.DHCP.thefacebook.com>
+ <20170825081402.GG25498@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1503956111-36652-9-git-send-email-keescook@chromium.org>
+In-Reply-To: <20170825081402.GG25498@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: linux-kernel@vger.kernel.org, David Windsor <dave@nullcore.net>, Jan Kara <jack@suse.com>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon 28-08-17 14:34:49, Kees Cook wrote:
-> From: David Windsor <dave@nullcore.net>
+On Fri, Aug 25, 2017 at 10:14:03AM +0200, Michal Hocko wrote:
+> On Thu 24-08-17 15:58:01, Roman Gushchin wrote:
+> > On Thu, Aug 24, 2017 at 04:13:37PM +0200, Michal Hocko wrote:
+> > > On Thu 24-08-17 14:58:42, Roman Gushchin wrote:
+> [...]
+> > > > Both ways are not ideal, and sum of the processes is not ideal too.
+> > > > Especially, if you take oom_score_adj into account. Will you respect it?
+> > > 
+> > > Yes, and I do not see any reason why we shouldn't.
+> > 
+> > It makes things even more complicated.
+> > Right now task's oom_score can be in (~ -total_memory, ~ +2*total_memory) range,
+> > and it you're starting summing it, it can be multiplied by number of tasks...
+> > Weird.
 > 
-> The ext2 symlink pathnames, stored in struct ext2_inode_info.i_data and
-> therefore contained in the ext2_inode_cache slab cache, need to be copied
-> to/from userspace.
+> oom_score_adj is just a normalized bias so if tasks inside oom will use
+> it the whole memcg will get accumulated bias from all such tasks so it
+> is not completely off. I agree that the more tasks use the bias the more
+> biased the whole memcg will be. This might or might not be a problem.
+> As you are trying to reimplement the existing oom killer implementation
+> I do not think we cannot simply ignore API which people are used to.
 > 
-> cache object allocation:
->     fs/ext2/super.c:
->         ext2_alloc_inode(...):
->             struct ext2_inode_info *ei;
->             ...
->             ei = kmem_cache_alloc(ext2_inode_cachep, GFP_NOFS);
->             ...
->             return &ei->vfs_inode;
+> If this was a configurable oom policy then I could see how ignoring
+> oom_score_adj is acceptable because it would be an explicit opt-in.
 > 
->     fs/ext2/ext2.h:
->         EXT2_I(struct inode *inode):
->             return container_of(inode, struct ext2_inode_info, vfs_inode);
+> > It also will be different in case of system and memcg-wide OOM.
 > 
->     fs/ext2/namei.c:
->         ext2_symlink(...):
->             ...
->             inode->i_link = (char *)&EXT2_I(inode)->i_data;
+> Why, we do honor oom_score_adj for the memcg OOM now and in fact the
+> kernel memcg OOM killer shouldn't be very much different from the global
+> one except for the tasks scope.
 > 
-> example usage trace:
->     readlink_copy+0x43/0x70
->     vfs_readlink+0x62/0x110
->     SyS_readlinkat+0x100/0x130
+> > > > I've started actually with such approach, but then found it weird.
+> > > > 
+> > > > > Besides that you have
+> > > > > to check each task for over-killing anyway. So I do not see any
+> > > > > performance merits here.
+> > > > 
+> > > > It's an implementation detail, and we can hopefully get rid of it at some point.
+> > > 
+> > > Well, we might do some estimations and ignore oom scopes but I that
+> > > sounds really complicated and error prone. Unless we have anything like
+> > > that then I would start from tasks and build up the necessary to make a
+> > > decision at the higher level.
+> > 
+> > Seriously speaking, do you have an example, when summing per-process
+> > oom_score will work better?
 > 
->     fs/namei.c:
->         readlink_copy(..., link):
->             ...
->             copy_to_user(..., link, len);
+> The primary reason I am pushing for this is to have the common iterator
+> code path (which we have since Vladimir has unified memcg and global oom
+> paths) and only parametrize the value calculation and victim selection.
 > 
->         (inlined into vfs_readlink)
->         generic_readlink(dentry, ...):
->             struct inode *inode = d_inode(dentry);
->             const char *link = inode->i_link;
->             ...
->             readlink_copy(..., link);
+> > Especially, if we're talking about customizing oom_score calculation,
+> > it makes no sence to me. How you will sum process timestamps?
 > 
-> In support of usercopy hardening, this patch defines a region in the
-> ext2_inode_cache slab cache in which userspace copy operations are
-> allowed.
-> 
-> This region is known as the slab cache's usercopy region. Slab caches can
-> now check that each copy operation involving cache-managed memory falls
-> entirely within the slab's usercopy region.
-> 
-> This patch is modified from Brad Spengler/PaX Team's PAX_USERCOPY
-> whitelisting code in the last public patch of grsecurity/PaX based on my
-> understanding of the code. Changes or omissions from the original code are
-> mine and don't reflect the original grsecurity/PaX code.
-> 
-> Signed-off-by: David Windsor <dave@nullcore.net>
-> [kees: adjust commit log, provide usage trace]
-> Cc: Jan Kara <jack@suse.com>
-> Cc: linux-ext4@vger.kernel.org
-> Signed-off-by: Kees Cook <keescook@chromium.org>
+> Well, I meant you could sum oom_badness for your particular
+> implementation. If we need some other policy then this wouldn't work and
+> that's why I've said that I would like to preserve the current common
+> code and only parametrize value calculation and victim selection...
 
-Looks good. You can add:
+I've spent some time to implement such a version.
 
-Acked-by: Jan Kara <jack@suse.cz>
+It really became shorter and more existing code were reused,
+howewer I've met a couple of serious issues:
 
-								Honza
+1) Simple summing of per-task oom_score doesn't make sense.
+   First, we calculate oom_score per-task, while should sum per-process values,
+   or, better, per-mm struct. We can take only threa-group leader's score
+   into account, but it's also not 100% accurate.
+   And, again, we have a question what to do with per-task oom_score_adj,
+   if we don't task the task's oom_score into account.
 
-> ---
->  fs/ext2/super.c | 12 +++++++-----
->  1 file changed, 7 insertions(+), 5 deletions(-)
-> 
-> diff --git a/fs/ext2/super.c b/fs/ext2/super.c
-> index 7b1bc9059863..670142cde59d 100644
-> --- a/fs/ext2/super.c
-> +++ b/fs/ext2/super.c
-> @@ -219,11 +219,13 @@ static void init_once(void *foo)
->  
->  static int __init init_inodecache(void)
->  {
-> -	ext2_inode_cachep = kmem_cache_create("ext2_inode_cache",
-> -					     sizeof(struct ext2_inode_info),
-> -					     0, (SLAB_RECLAIM_ACCOUNT|
-> -						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
-> -					     init_once);
-> +	ext2_inode_cachep = kmem_cache_create_usercopy("ext2_inode_cache",
-> +				sizeof(struct ext2_inode_info), 0,
-> +				(SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
-> +					SLAB_ACCOUNT),
-> +				offsetof(struct ext2_inode_info, i_data),
-> +				sizeof_field(struct ext2_inode_info, i_data),
-> +				init_once);
->  	if (ext2_inode_cachep == NULL)
->  		return -ENOMEM;
->  	return 0;
-> -- 
-> 2.7.4
-> 
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+   Using memcg stats still looks to me as a more accurate and consistent
+   way of estimating memcg memory footprint.
+
+2) If we're treating tasks from not-kill-all cgroups as separate oom entities,
+   and compare them with memcgs with kill-all flag, we definitely need
+   per-task oom_priority to provide a clear way to compare entities.
+
+   Otherwise we need per-memcg size-based oom_score_adj, which is not
+   the best idea, as we agreed earlier.
+
+Thanks!
+
+Roman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
