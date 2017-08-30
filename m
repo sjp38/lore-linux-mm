@@ -1,124 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F3E66B0292
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 10:24:21 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id p37so9088417wrc.5
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 07:24:21 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b11si4656342wrd.141.2017.08.30.07.24.20
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 920FC6B025F
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 10:57:56 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id d202so7983437lfd.11
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 07:57:56 -0700 (PDT)
+Received: from tartarus.angband.pl (tartarus.angband.pl. [2a03:9300:10::8])
+        by mx.google.com with ESMTPS id s6si2492371lja.114.2017.08.30.07.57.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Aug 2017 07:24:20 -0700 (PDT)
-Date: Wed, 30 Aug 2017 16:24:18 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: memcontrol: use per-cpu stocks for socket memory
- uncharging
-Message-ID: <20170830142418.x2nnbljsczfjrdel@dhcp22.suse.cz>
-References: <20170829100150.4580-1-guro@fb.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 30 Aug 2017 07:57:54 -0700 (PDT)
+Date: Wed, 30 Aug 2017 16:57:42 +0200
+From: Adam Borowski <kilobyte@angband.pl>
+Subject: Re: [PATCH 00/13] mmu_notifier kill invalidate_page callback
+Message-ID: <20170830145742.xird3lgsb3nemtye@angband.pl>
+References: <20170829235447.10050-1-jglisse@redhat.com>
+ <CA+55aFz6ArJ-ADXiYCu6xMUzdY=mKBtkzfJmLaBohC6Ub9t2SQ@mail.gmail.com>
+ <20170830005615.GA2386@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20170829100150.4580-1-guro@fb.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170830005615.GA2386@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, kernel-team@fb.com, linux-kernel@vger.kernel.org
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Bernhard Held <berny156@gmx.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Joerg Roedel <jroedel@suse.de>, Dan Williams <dan.j.williams@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Jack Steiner <steiner@sgi.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, ppc-dev <linuxppc-dev@lists.ozlabs.org>, DRI <dri-devel@lists.freedesktop.org>, amd-gfx@lists.freedesktop.org, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, "open list:AMD IOMMU (AMD-VI)" <iommu@lists.linux-foundation.org>, xen-devel <xen-devel@lists.xenproject.org>, KVM list <kvm@vger.kernel.org>
 
-On Tue 29-08-17 11:01:50, Roman Gushchin wrote:
-> We've noticed a quite sensible performance overhead on some hosts
-> with significant network traffic when socket memory accounting
-> is enabled.
+On Tue, Aug 29, 2017 at 08:56:15PM -0400, Jerome Glisse wrote:
+> I will wait for people to test and for result of my own test before
+> reposting if need be, otherwise i will post as separate patch.
+>
+> > But from a _very_ quick read-through this looks fine. But it obviously
+> > needs testing.
+> > 
+> > People - *especially* the people who saw issues under KVM - can you
+> > try out JA(C)rA'me's patch-series? I aded some people to the cc, the full
+> > series is on lkml. JA(C)rA'me - do you have a git branch for people to
+> > test that they could easily pull and try out?
 > 
-> Perf top shows that socket memory uncharging path is hot:
->   2.13%  [kernel]                [k] page_counter_cancel
->   1.14%  [kernel]                [k] __sk_mem_reduce_allocated
->   1.14%  [kernel]                [k] _raw_spin_lock
->   0.87%  [kernel]                [k] _raw_spin_lock_irqsave
->   0.84%  [kernel]                [k] tcp_ack
->   0.84%  [kernel]                [k] ixgbe_poll
->   0.83%  < workload >
->   0.82%  [kernel]                [k] enqueue_entity
->   0.68%  [kernel]                [k] __fget
->   0.68%  [kernel]                [k] tcp_delack_timer_handler
->   0.67%  [kernel]                [k] __schedule
->   0.60%  < workload >
->   0.59%  [kernel]                [k] __inet6_lookup_established
->   0.55%  [kernel]                [k] __switch_to
->   0.55%  [kernel]                [k] menu_select
->   0.54%  libc-2.20.so            [.] __memcpy_avx_unaligned
-> 
-> To address this issue, the existing per-cpu stock infrastructure
-> can be used.
-> 
-> refill_stock() can be called from mem_cgroup_uncharge_skmem()
-> to move charge to a per-cpu stock instead of calling atomic
-> page_counter_uncharge().
-> 
-> To prevent the uncontrolled growth of per-cpu stocks,
-> refill_stock() will explicitly drain the cached charge,
-> if the cached value exceeds CHARGE_BATCH.
-> 
-> This allows significantly optimize the load:
->   1.21%  [kernel]                [k] _raw_spin_lock
->   1.01%  [kernel]                [k] ixgbe_poll
->   0.92%  [kernel]                [k] _raw_spin_lock_irqsave
->   0.90%  [kernel]                [k] enqueue_entity
->   0.86%  [kernel]                [k] tcp_ack
->   0.85%  < workload >
->   0.74%  perf-11120.map          [.] 0x000000000061bf24
->   0.73%  [kernel]                [k] __schedule
->   0.67%  [kernel]                [k] __fget
->   0.63%  [kernel]                [k] __inet6_lookup_established
->   0.62%  [kernel]                [k] menu_select
->   0.59%  < workload >
->   0.59%  [kernel]                [k] __switch_to
->   0.57%  libc-2.20.so            [.] __memcpy_avx_unaligned
-> 
-> Signed-off-by: Roman Gushchin <guro@fb.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: cgroups@vger.kernel.org
-> Cc: kernel-team@fb.com
-> Cc: linux-mm@kvack.org
-> Cc: linux-kernel@vger.kernel.org
+> https://cgit.freedesktop.org/~glisse/linux mmu-notifier branch
+> git://people.freedesktop.org/~glisse/linux
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+Tested your branch as of 10f07641, on a long list of guest VMs.
+No earth-shattering kaboom.
 
-> ---
->  mm/memcontrol.c | 6 ++++--
->  1 file changed, 4 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index b9cf3cf4a3d0..a69d23082abf 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1792,6 +1792,9 @@ static void refill_stock(struct mem_cgroup *memcg, unsigned int nr_pages)
->  	}
->  	stock->nr_pages += nr_pages;
->  
-> +	if (stock->nr_pages > CHARGE_BATCH)
-> +		drain_stock(stock);
-> +
->  	local_irq_restore(flags);
->  }
->  
-> @@ -5886,8 +5889,7 @@ void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
->  
->  	this_cpu_sub(memcg->stat->count[MEMCG_SOCK], nr_pages);
->  
-> -	page_counter_uncharge(&memcg->memory, nr_pages);
-> -	css_put_many(&memcg->css, nr_pages);
-> +	refill_stock(memcg, nr_pages);
->  }
->  
->  static int __init cgroup_memory(char *s)
-> -- 
-> 2.13.5
 
+Meow!
 -- 
-Michal Hocko
-SUSE Labs
+ac?aGBP'a  3/4 a >>ac?aGBP|a ? 
+aGBP 3/4 a ?ac?a ?a ?aGBP?a!? Vat kind uf sufficiently advanced technology iz dis!?
+ac?a!?a ?a .a ?a ?a ?                                 -- Genghis Ht'rok'din
+a ?a 3aGBP?a ?a ?a ?a ? 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
