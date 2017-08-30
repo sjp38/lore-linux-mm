@@ -1,213 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 67E136B04A2
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 23:18:45 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id q68so10074952pgq.11
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 20:18:45 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id k9si3499191pgp.433.2017.08.29.20.18.44
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 339156B04A4
+	for <linux-mm@kvack.org>; Tue, 29 Aug 2017 23:34:56 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id 63so2259223ioe.1
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 20:34:56 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 89sor2184050ioi.0.2017.08.29.20.34.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Aug 2017 20:18:44 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id g13so3500333pfm.2
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 20:18:44 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Re: [PATCH 02/13] mm/rmap: update to new mmu_notifier semantic
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <D65EED38-F1F2-4378-9457-21371EFD66F0@gmail.com>
-Date: Tue, 29 Aug 2017 20:18:41 -0700
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <0D062FD4-AAEB-46C9-9D3A-AC91E84414D3@gmail.com>
-References: <20170829235447.10050-1-jglisse@redhat.com>
- <20170829235447.10050-3-jglisse@redhat.com>
- <6D58FBE4-5D03-49CC-AAFF-3C1279A5A849@gmail.com>
- <20170830025910.GB2386@redhat.com>
- <D65EED38-F1F2-4378-9457-21371EFD66F0@gmail.com>
+        (Google Transport Security);
+        Tue, 29 Aug 2017 20:34:54 -0700 (PDT)
+From: Eric Biggers <ebiggers3@gmail.com>
+Subject: [PATCH] mm, uprobes: fix multiple free of ->uprobes_state.xol_area
+Date: Tue, 29 Aug 2017 22:33:03 -0500
+Message-Id: <20170830033303.17927-1-ebiggers3@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Bernhard Held <berny156@gmx.de>, Adam Borowski <kilobyte@angband.pl>, Andrea Arcangeli <aarcange@redhat.com>, =?utf-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Wanpeng Li <kernellwp@gmail.com>, Paolo Bonzini <pbonzini@redhat.com>, Takashi Iwai <tiwai@suse.de>, Mike Galbraith <efault@gmx.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, axie <axie@amd.com>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Eric Biggers <ebiggers@google.com>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Ingo Molnar <mingo@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Mark Rutland <mark.rutland@arm.com>, Michal Hocko <mhocko@suse.com>, Peter Zijlstra <peterz@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org
 
-Nadav Amit <nadav.amit@gmail.com> wrote:
+From: Eric Biggers <ebiggers@google.com>
 
-> Jerome Glisse <jglisse@redhat.com> wrote:
->=20
->> On Tue, Aug 29, 2017 at 07:46:07PM -0700, Nadav Amit wrote:
->>> J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com> wrote:
->>>=20
->>>> Replacing all mmu_notifier_invalidate_page() by =
-mmu_notifier_invalidat_range()
->>>> and making sure it is bracketed by call to =
-mmu_notifier_invalidate_range_start/
->>>> end.
->>>>=20
->>>> Note that because we can not presume the pmd value or pte value we =
-have to
->>>> assume the worse and unconditionaly report an invalidation as =
-happening.
->>>>=20
->>>> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
->>>> Cc: Dan Williams <dan.j.williams@intel.com>
->>>> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
->>>> Cc: Linus Torvalds <torvalds@linux-foundation.org>
->>>> Cc: Bernhard Held <berny156@gmx.de>
->>>> Cc: Adam Borowski <kilobyte@angband.pl>
->>>> Cc: Andrea Arcangeli <aarcange@redhat.com>
->>>> Cc: Radim Kr=C4=8Dm=C3=A1=C5=99 <rkrcmar@redhat.com>
->>>> Cc: Wanpeng Li <kernellwp@gmail.com>
->>>> Cc: Paolo Bonzini <pbonzini@redhat.com>
->>>> Cc: Takashi Iwai <tiwai@suse.de>
->>>> Cc: Nadav Amit <nadav.amit@gmail.com>
->>>> Cc: Mike Galbraith <efault@gmx.de>
->>>> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->>>> Cc: axie <axie@amd.com>
->>>> Cc: Andrew Morton <akpm@linux-foundation.org>
->>>> ---
->>>> mm/rmap.c | 44 +++++++++++++++++++++++++++++++++++++++++---
->>>> 1 file changed, 41 insertions(+), 3 deletions(-)
->>>>=20
->>>> diff --git a/mm/rmap.c b/mm/rmap.c
->>>> index c8993c63eb25..da97ed525088 100644
->>>> --- a/mm/rmap.c
->>>> +++ b/mm/rmap.c
->>>> @@ -887,11 +887,21 @@ static bool page_mkclean_one(struct page =
-*page, struct vm_area_struct *vma,
->>>> 		.address =3D address,
->>>> 		.flags =3D PVMW_SYNC,
->>>> 	};
->>>> +	unsigned long start =3D address, end;
->>>> 	int *cleaned =3D arg;
->>>>=20
->>>> +	/*
->>>> +	 * We have to assume the worse case ie pmd for invalidation. =
-Note that
->>>> +	 * the page can not be free from this function.
->>>> +	 */
->>>> +	end =3D min(vma->vm_end, (start & PMD_MASK) + PMD_SIZE);
->>>> +	mmu_notifier_invalidate_range_start(vma->vm_mm, start, end);
->>>> +
->>>> 	while (page_vma_mapped_walk(&pvmw)) {
->>>> +		unsigned long cstart, cend;
->>>> 		int ret =3D 0;
->>>> -		address =3D pvmw.address;
->>>> +
->>>> +		cstart =3D address =3D pvmw.address;
->>>> 		if (pvmw.pte) {
->>>> 			pte_t entry;
->>>> 			pte_t *pte =3D pvmw.pte;
->>>> @@ -904,6 +914,7 @@ static bool page_mkclean_one(struct page *page, =
-struct vm_area_struct *vma,
->>>> 			entry =3D pte_wrprotect(entry);
->>>> 			entry =3D pte_mkclean(entry);
->>>> 			set_pte_at(vma->vm_mm, address, pte, entry);
->>>> +			cend =3D cstart + PAGE_SIZE;
->>>> 			ret =3D 1;
->>>> 		} else {
->>>> #ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
->>>> @@ -918,6 +929,8 @@ static bool page_mkclean_one(struct page *page, =
-struct vm_area_struct *vma,
->>>> 			entry =3D pmd_wrprotect(entry);
->>>> 			entry =3D pmd_mkclean(entry);
->>>> 			set_pmd_at(vma->vm_mm, address, pmd, entry);
->>>> +			cstart &=3D PMD_MASK;
->>>> +			cend =3D cstart + PMD_SIZE;
->>>> 			ret =3D 1;
->>>> #else
->>>> 			/* unexpected pmd-mapped page? */
->>>> @@ -926,11 +939,13 @@ static bool page_mkclean_one(struct page =
-*page, struct vm_area_struct *vma,
->>>> 		}
->>>>=20
->>>> 		if (ret) {
->>>> -			mmu_notifier_invalidate_page(vma->vm_mm, =
-address);
->>>> +			mmu_notifier_invalidate_range(vma->vm_mm, =
-cstart, cend);
->>>> 			(*cleaned)++;
->>>> 		}
->>>> 	}
->>>>=20
->>>> +	mmu_notifier_invalidate_range_end(vma->vm_mm, start, end);
->>>> +
->>>> 	return true;
->>>> }
->>>>=20
->>>> @@ -1324,6 +1339,7 @@ static bool try_to_unmap_one(struct page =
-*page, struct vm_area_struct *vma,
->>>> 	pte_t pteval;
->>>> 	struct page *subpage;
->>>> 	bool ret =3D true;
->>>> +	unsigned long start =3D address, end;
->>>> 	enum ttu_flags flags =3D (enum ttu_flags)arg;
->>>>=20
->>>> 	/* munlock has nothing to gain from examining un-locked vmas */
->>>> @@ -1335,6 +1351,14 @@ static bool try_to_unmap_one(struct page =
-*page, struct vm_area_struct *vma,
->>>> 				flags & TTU_MIGRATION, page);
->>>> 	}
->>>>=20
->>>> +	/*
->>>> +	 * We have to assume the worse case ie pmd for invalidation. =
-Note that
->>>> +	 * the page can not be free in this function as call of =
-try_to_unmap()
->>>> +	 * must hold a reference on the page.
->>>> +	 */
->>>> +	end =3D min(vma->vm_end, (start & PMD_MASK) + PMD_SIZE);
->>>> +	mmu_notifier_invalidate_range_start(vma->vm_mm, start, end);
->>>> +
->>>> 	while (page_vma_mapped_walk(&pvmw)) {
->>>> 		/*
->>>> 		 * If the page is mlock()d, we cannot swap it out.
->>>> @@ -1408,6 +1432,8 @@ static bool try_to_unmap_one(struct page =
-*page, struct vm_area_struct *vma,
->>>> 				set_huge_swap_pte_at(mm, address,
->>>> 						     pvmw.pte, pteval,
->>>> 						     =
-vma_mmu_pagesize(vma));
->>>> +				mmu_notifier_invalidate_range(mm, =
-address,
->>>> +					address + =
-vma_mmu_pagesize(vma));
->>>=20
->>> I don=E2=80=99t think that the notifier should be called after the =
-PTE is set, but
->>> after the PTE is cleared, PTE permissions are demoted (e.g., RW->RO) =
-or
->>> access/dirty bits are cleared. [There is an exception: if the PFN in =
-the PTE
->>> is changed without clearing the PTE before, but it does not apply =
-here, and
->>> there is a different notifier for this case.]
->>>=20
->>> Therefore, IIUC, try_to_umap_one() should only call
->>> mmu_notifier_invalidate_range() after ptep_get_and_clear() and
->>> ptep_clear_flush() are called. All the other calls to
->>> mmu_notifier_invalidate_range() in this function can be removed.
->>=20
->> Yes it would simplify the patch, i was trying to optimize for the =
-case
->> where we restore the pte to its original value after =
-ptep_clear_flush()
->> or ptep_get_and_clear() as in this case there is no need to =
-invalidate
->> any secondary page table but that's an overkill optimization that =
-just
->> add too much complexity.
->=20
-> Interesting. Actually, prior to your changes, it seems that the break
-> statements would skip mmu_notifier_invalidate_page() when the PTE is =
-not
-> changed. So why not just change mmu_notifier_invalidate_page() into
-> mmu_notifier_invalidate_range() ?
+Commit 7c051267931a ("mm, fork: make dup_mmap wait for mmap_sem for
+write killable") made it possible to kill a forking task while it is
+waiting to acquire its ->mmap_sem for write, in dup_mmap().
 
-Sorry - I noticed it was actually wrong before (as you noted) at least
-in one case:
-	(unlikely(PageSwapBacked(page) !=3D PageSwapCache(page)))
+However, it was overlooked that this introduced an new error path before
+the new mm_struct's ->uprobes_state.xol_area has been set to NULL after
+being copied from the old mm_struct by the memcpy in dup_mm().  For a
+task that has previously hit a uprobe tracepoint, this resulted in the
+'struct xol_area' being freed multiple times if the task was killed at
+just the right time while forking.
 
-Regards,
-Nadav=
+Fix it by setting ->uprobes_state.xol_area to NULL in mm_init() rather
+than in uprobe_dup_mmap().
+
+With CONFIG_UPROBE_EVENTS=y, the bug can be reproduced by the same C
+program given by commit 2b7e8665b4ff ("fork: fix incorrect fput of
+->exe_file causing use-after-free"), provided that a uprobe tracepoint
+has been set on the fork_thread() function.  For example:
+
+    $ gcc reproducer.c -o reproducer -lpthread
+    $ nm reproducer | grep fork_thread
+    0000000000400719 t fork_thread
+    $ echo "p $PWD/reproducer:0x719" > /sys/kernel/debug/tracing/uprobe_events
+    $ echo 1 > /sys/kernel/debug/tracing/events/uprobes/enable
+    $ ./reproducer
+
+Here is the use-after-free reported by KASAN:
+
+    BUG: KASAN: use-after-free in uprobe_clear_state+0x1c4/0x200
+    Read of size 8 at addr ffff8800320a8b88 by task reproducer/198
+
+    CPU: 1 PID: 198 Comm: reproducer Not tainted 4.13.0-rc7-00015-g36fde05f3fb5 #255
+    Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-20170228_101828-anatol 04/01/2014
+    Call Trace:
+     dump_stack+0xdb/0x185
+     print_address_description+0x7e/0x290
+     kasan_report+0x23b/0x350
+     __asan_report_load8_noabort+0x19/0x20
+     uprobe_clear_state+0x1c4/0x200
+     mmput+0xd6/0x360
+     do_exit+0x740/0x1670
+     do_group_exit+0x13f/0x380
+     get_signal+0x597/0x17d0
+     do_signal+0x99/0x1df0
+     exit_to_usermode_loop+0x166/0x1e0
+     syscall_return_slowpath+0x258/0x2c0
+     entry_SYSCALL_64_fastpath+0xbc/0xbe
+
+    ...
+
+    Allocated by task 199:
+     save_stack_trace+0x1b/0x20
+     kasan_kmalloc+0xfc/0x180
+     kmem_cache_alloc_trace+0xf3/0x330
+     __create_xol_area+0x10f/0x780
+     uprobe_notify_resume+0x1674/0x2210
+     exit_to_usermode_loop+0x150/0x1e0
+     prepare_exit_to_usermode+0x14b/0x180
+     retint_user+0x8/0x20
+
+    Freed by task 199:
+     save_stack_trace+0x1b/0x20
+     kasan_slab_free+0xa8/0x1a0
+     kfree+0xba/0x210
+     uprobe_clear_state+0x151/0x200
+     mmput+0xd6/0x360
+     copy_process.part.8+0x605f/0x65d0
+     _do_fork+0x1a5/0xbd0
+     SyS_clone+0x19/0x20
+     do_syscall_64+0x22f/0x660
+     return_from_SYSCALL_64+0x0/0x7a
+
+Note: without KASAN, you may instead see a "Bad page state" message, or
+simply a general protection fault.
+
+Fixes: 7c051267931a ("mm, fork: make dup_mmap wait for mmap_sem for write killable")
+Reported-by: Oleg Nesterov <oleg@redhat.com>
+Cc: Alexander Shishkin <alexander.shishkin@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Arnaldo Carvalho de Melo <acme@kernel.org>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Mark Rutland <mark.rutland@arm.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: <stable@vger.kernel.org>    [v4.7+]
+Signed-off-by: Eric Biggers <ebiggers@google.com>
+---
+ kernel/events/uprobes.c | 2 --
+ kernel/fork.c           | 8 ++++++++
+ 2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
+index 0e137f98a50c..267f6ef91d97 100644
+--- a/kernel/events/uprobes.c
++++ b/kernel/events/uprobes.c
+@@ -1262,8 +1262,6 @@ void uprobe_end_dup_mmap(void)
+ 
+ void uprobe_dup_mmap(struct mm_struct *oldmm, struct mm_struct *newmm)
+ {
+-	newmm->uprobes_state.xol_area = NULL;
+-
+ 	if (test_bit(MMF_HAS_UPROBES, &oldmm->flags)) {
+ 		set_bit(MMF_HAS_UPROBES, &newmm->flags);
+ 		/* unconditionally, dup_mmap() skips VM_DONTCOPY vmas */
+diff --git a/kernel/fork.c b/kernel/fork.c
+index cbbea277b3fb..b7e9e57b71ea 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -785,6 +785,13 @@ static void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
+ #endif
+ }
+ 
++static void mm_init_uprobes_state(struct mm_struct *mm)
++{
++#ifdef CONFIG_UPROBES
++	mm->uprobes_state.xol_area = NULL;
++#endif
++}
++
+ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
+ 	struct user_namespace *user_ns)
+ {
+@@ -812,6 +819,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
+ #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
+ 	mm->pmd_huge_pte = NULL;
+ #endif
++	mm_init_uprobes_state(mm);
+ 
+ 	if (current->mm) {
+ 		mm->flags = current->mm->flags & MMF_INIT_MASK;
+-- 
+2.14.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
