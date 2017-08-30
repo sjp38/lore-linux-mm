@@ -1,127 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 55CE82803A5
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 01:31:29 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id t82so915735wmd.10
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 22:31:29 -0700 (PDT)
-Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
-        by mx.google.com with ESMTPS id f13si4763405edb.32.2017.08.29.22.31.28
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C27F12803A5
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 01:58:19 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 128so10697496pgd.10
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 22:58:19 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id m11si3909554pln.775.2017.08.29.22.58.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 29 Aug 2017 22:31:28 -0700 (PDT)
-Received: from mail-wr0-f200.google.com ([209.85.128.200])
-	by youngberry.canonical.com with esmtps (TLS1.0:RSA_AES_128_CBC_SHA1:16)
-	(Exim 4.76)
-	(envelope-from <juerg.haefliger@canonical.com>)
-	id 1dmvb5-0003yz-Tj
-	for linux-mm@kvack.org; Wed, 30 Aug 2017 05:31:27 +0000
-Received: by mail-wr0-f200.google.com with SMTP id a47so7438418wra.0
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 22:31:27 -0700 (PDT)
-Subject: Re: [kernel-hardening] [PATCH v5 04/10] arm64: Add __flush_tlb_one()
-References: <20170809200755.11234-1-tycho@docker.com>
- <20170809200755.11234-5-tycho@docker.com> <20170812112603.GB16374@remoulade>
- <20170814163536.6njceqc3dip5lrlu@smitten>
- <20170814165047.GB23428@leverpostej>
- <20170823165842.k5lbxom45avvd7g2@smitten>
- <20170823170443.GD12567@leverpostej>
-From: Juerg Haefliger <juerg.haefliger@canonical.com>
-Message-ID: <2428d66f-3c31-fa73-0d6a-c16fafa99455@canonical.com>
-Date: Wed, 30 Aug 2017 07:31:25 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Aug 2017 22:58:18 -0700 (PDT)
+Date: Wed, 30 Aug 2017 07:58:00 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v2 14/20] mm: Provide speculative fault infrastructure
+Message-ID: <20170830055800.GG32112@worktop.programming.kicks-ass.net>
+References: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1503007519-26777-15-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20170827001823.n5wgkfq36z6snvf2@node.shutemov.name>
+ <507e79d5-59df-c5b5-106d-970c9353d9bc@linux.vnet.ibm.com>
+ <20170829120426.4ar56rbmiupbqmio@hirez.programming.kicks-ass.net>
+ <848fa2c6-dbda-9a1e-2efd-3ce9b083365e@linux.vnet.ibm.com>
+ <20170829134550.t7du5zdssvlzemtk@hirez.programming.kicks-ass.net>
+ <ab0634c4-274d-208f-fc4b-43991986bacf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20170823170443.GD12567@leverpostej>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="A6exSVd4e9U3pOIGSQJPXxWSpn5KhIE8w"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <ab0634c4-274d-208f-fc4b-43991986bacf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>, Tycho Andersen <tycho@docker.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---A6exSVd4e9U3pOIGSQJPXxWSpn5KhIE8w
-Content-Type: multipart/mixed; boundary="irH4NmKN7wMDrNE8J2tbOkjU4JO732xNG";
- protected-headers="v1"
-From: Juerg Haefliger <juerg.haefliger@canonical.com>
-To: Mark Rutland <mark.rutland@arm.com>, Tycho Andersen <tycho@docker.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- kernel-hardening@lists.openwall.com,
- Marco Benatto <marco.antonio.780@gmail.com>
-Message-ID: <2428d66f-3c31-fa73-0d6a-c16fafa99455@canonical.com>
-Subject: Re: [kernel-hardening] [PATCH v5 04/10] arm64: Add __flush_tlb_one()
-References: <20170809200755.11234-1-tycho@docker.com>
- <20170809200755.11234-5-tycho@docker.com> <20170812112603.GB16374@remoulade>
- <20170814163536.6njceqc3dip5lrlu@smitten>
- <20170814165047.GB23428@leverpostej>
- <20170823165842.k5lbxom45avvd7g2@smitten>
- <20170823170443.GD12567@leverpostej>
-In-Reply-To: <20170823170443.GD12567@leverpostej>
+On Wed, Aug 30, 2017 at 10:33:50AM +0530, Anshuman Khandual wrote:
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index a497024..08f3042 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -1181,6 +1181,18 @@ int __lock_page_killable(struct page *__page)
+>  int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
+>                          unsigned int flags)
+>  {
+> +       if (flags & FAULT_FLAG_SPECULATIVE) {
+> +               if (flags & FAULT_FLAG_KILLABLE) {
+> +                       int ret;
+> +
+> +                       ret = __lock_page_killable(page);
+> +                       if (ret)
+> +                               return 0;
+> +               } else
+> +                       __lock_page(page);
+> +               return 1;
+> +       }
+> +
+>         if (flags & FAULT_FLAG_ALLOW_RETRY) {
+>                 /*
+>                  * CAUTION! In this case, mmap_sem is not released
 
---irH4NmKN7wMDrNE8J2tbOkjU4JO732xNG
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+Yeah, that looks right.
 
+> @@ -4012,17 +4010,7 @@ int handle_speculative_fault(struct mm_struct *mm, unsigned long address,
+>                 goto unlock;
+>         }
+> 
+> +       if (unlikely(vma_is_anonymous(vma) && !vma->anon_vma)) {
+>                 trace_spf_vma_notsup(_RET_IP_, vma, address);
+>                 goto unlock;
+>         }
 
-
-On 08/23/2017 07:04 PM, Mark Rutland wrote:
-> On Wed, Aug 23, 2017 at 10:58:42AM -0600, Tycho Andersen wrote:
->> Hi Mark,
->>
->> On Mon, Aug 14, 2017 at 05:50:47PM +0100, Mark Rutland wrote:
->>> That said, is there any reason not to use flush_tlb_kernel_range()
->>> directly?
->>
->> So it turns out that there is a difference between __flush_tlb_one() a=
-nd
->> flush_tlb_kernel_range() on x86: flush_tlb_kernel_range() flushes all =
-the TLBs
->> via on_each_cpu(), where as __flush_tlb_one() only flushes the local T=
-LB (which
->> I think is enough here).
->=20
-> That sounds suspicious; I don't think that __flush_tlb_one() is
-> sufficient.
->=20
-> If you only do local TLB maintenance, then the page is left accessible
-> to other CPUs via the (stale) kernel mappings. i.e. the page isn't
-> exclusively mapped by userspace.
-
-We flush all CPUs to get rid of stale entries when a new page is
-allocated to userspace that was previously allocated to the kernel.
-Is that the scenario you were thinking of?
-
-=2E..Juerg
-
-
-> Thanks,
-> Mark.
->=20
-
-
---irH4NmKN7wMDrNE8J2tbOkjU4JO732xNG--
-
---A6exSVd4e9U3pOIGSQJPXxWSpn5KhIE8w
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQI7BAEBCAAlBQJZpk2tHhxqdWVyZy5oYWVmbGlnZXJAY2Fub25pY2FsLmNvbQAK
-CRB1TDqW+fi0jDAIEACVZxelTLbWy+NwTXC/GcrJ9nHlD6y65VQ3czwQhdSOdY6K
-QfzpYKvXVbxYhf+2zqEacg3mSskZs5XU6p9wVjf6JLmNulDJLJxpNYyMYTSIm4oh
-O/EBDMiQTpACQXzPWZwgOYhviepx022E37Soonp3r8PlAeRvJWXlpITP4sDEDDB6
-3dVHAciqdgihh2kbtY93G/uiHAS44CBKis93IWKXLorXLuKu21DJzk2GSwLfUINq
-ZdbDsbjAUWxjrOS479BZJKp4X3/zigP8vNLBF8qx6Z+6WwwYLQzQD+0hHmXTa5GL
-VND4FqWU9y9U9ORwOI7cVYS+S/00PNA9jAvwm4Qm1oQUDX+bHHSuXgDK79wgAsr0
-9caduoFoPlsPtF/MlfEgVOjYTWEY040IEFGJQyIZIauGUqWe/4Z1IsokuS0qIJJt
-252lXFh6qfXu7A6W+fQ4kSED57gD4t/pJAT1c7MansvGl2q+W2qIC7QjWrmqSKD2
-+Rk5GsIWAND0wSOz+O/2pM4KTwrDRlMutiTSlsueqEFwNmO6V+UTKLOz5nTwEAU0
-uhBLctbblPLEjXpZv38H3heN8qTpwz2g98hv0hf8sa7D7FHaYuTd2/Zn2QNmhRC8
-O0AiPoc6FxyJwj2VWYigF6YDZecP9FOB+C+t8pbLKaSdepfL/BF/rjU+bC6P7g==
-=+9Xg
------END PGP SIGNATURE-----
-
---A6exSVd4e9U3pOIGSQJPXxWSpn5KhIE8w--
+As riel pointed out on IRC slightly later, private file maps also need
+->anon_vma and those actually have ->vm_ops IIRC so the condition needs
+to be slightly more complicated.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
