@@ -1,75 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 867776B02C3
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 12:37:21 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id o63so20209875qkb.4
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 09:37:21 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t8si5899727qki.28.2017.08.30.09.37.19
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CFCAD6B0292
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 12:47:27 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id r133so13266990pgr.6
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 09:47:27 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id f15sor4878885pln.9.2017.08.30.09.47.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Aug 2017 09:37:19 -0700 (PDT)
-Date: Wed, 30 Aug 2017 18:37:14 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] mm, uprobes: fix multiple free of
- ->uprobes_state.xol_area
-Message-ID: <20170830163714.GA24774@redhat.com>
-References: <20170830033303.17927-1-ebiggers3@gmail.com>
+        (Google Transport Security);
+        Wed, 30 Aug 2017 09:47:26 -0700 (PDT)
+Date: Wed, 30 Aug 2017 09:47:24 -0700
+From: Tycho Andersen <tycho@docker.com>
+Subject: Re: [kernel-hardening] [PATCH v5 04/10] arm64: Add __flush_tlb_one()
+Message-ID: <20170830164724.m6bbogd46ix4qp4o@docker>
+References: <20170809200755.11234-1-tycho@docker.com>
+ <20170809200755.11234-5-tycho@docker.com>
+ <20170812112603.GB16374@remoulade>
+ <20170814163536.6njceqc3dip5lrlu@smitten>
+ <20170814165047.GB23428@leverpostej>
+ <20170823165842.k5lbxom45avvd7g2@smitten>
+ <20170823170443.GD12567@leverpostej>
+ <2428d66f-3c31-fa73-0d6a-c16fafa99455@canonical.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170830033303.17927-1-ebiggers3@gmail.com>
+In-Reply-To: <2428d66f-3c31-fa73-0d6a-c16fafa99455@canonical.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Biggers <ebiggers3@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Eric Biggers <ebiggers@google.com>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Ingo Molnar <mingo@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Mark Rutland <mark.rutland@arm.com>, Michal Hocko <mhocko@suse.com>, Peter Zijlstra <peterz@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org
+To: Juerg Haefliger <juerg.haefliger@canonical.com>
+Cc: Mark Rutland <mark.rutland@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>
 
-On 08/29, Eric Biggers wrote:
->
-> --- a/kernel/events/uprobes.c
-> +++ b/kernel/events/uprobes.c
-> @@ -1262,8 +1262,6 @@ void uprobe_end_dup_mmap(void)
->  
->  void uprobe_dup_mmap(struct mm_struct *oldmm, struct mm_struct *newmm)
->  {
-> -	newmm->uprobes_state.xol_area = NULL;
-> -
->  	if (test_bit(MMF_HAS_UPROBES, &oldmm->flags)) {
->  		set_bit(MMF_HAS_UPROBES, &newmm->flags);
->  		/* unconditionally, dup_mmap() skips VM_DONTCOPY vmas */
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index cbbea277b3fb..b7e9e57b71ea 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -785,6 +785,13 @@ static void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
->  #endif
->  }
->  
-> +static void mm_init_uprobes_state(struct mm_struct *mm)
-> +{
-> +#ifdef CONFIG_UPROBES
-> +	mm->uprobes_state.xol_area = NULL;
-> +#endif
-> +}
-> +
->  static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
->  	struct user_namespace *user_ns)
->  {
-> @@ -812,6 +819,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
->  #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
->  	mm->pmd_huge_pte = NULL;
->  #endif
-> +	mm_init_uprobes_state(mm);
+On Wed, Aug 30, 2017 at 07:31:25AM +0200, Juerg Haefliger wrote:
+> 
+> 
+> On 08/23/2017 07:04 PM, Mark Rutland wrote:
+> > On Wed, Aug 23, 2017 at 10:58:42AM -0600, Tycho Andersen wrote:
+> >> Hi Mark,
+> >>
+> >> On Mon, Aug 14, 2017 at 05:50:47PM +0100, Mark Rutland wrote:
+> >>> That said, is there any reason not to use flush_tlb_kernel_range()
+> >>> directly?
+> >>
+> >> So it turns out that there is a difference between __flush_tlb_one() and
+> >> flush_tlb_kernel_range() on x86: flush_tlb_kernel_range() flushes all the TLBs
+> >> via on_each_cpu(), where as __flush_tlb_one() only flushes the local TLB (which
+> >> I think is enough here).
+> > 
+> > That sounds suspicious; I don't think that __flush_tlb_one() is
+> > sufficient.
+> > 
+> > If you only do local TLB maintenance, then the page is left accessible
+> > to other CPUs via the (stale) kernel mappings. i.e. the page isn't
+> > exclusively mapped by userspace.
+> 
+> We flush all CPUs to get rid of stale entries when a new page is
+> allocated to userspace that was previously allocated to the kernel.
+> Is that the scenario you were thinking of?
 
-ACK, but I have cosmetic nit, this doesn't match other uprobe helpers.
+I think there are two cases, the one you describe above, where the
+pages are first allocated, and a second one, where e.g. the pages are
+mapped into the kernel because of DMA or whatever. In the case you
+describe above, I think we're doing the right thing (which is why my
+test worked correctly, because it tested this case).
 
-I'd suggest to add uprobe_init_state() into kernel/events/uprobes.c and
-the dummy !CONFIG_UPROBES version into include/linux/uprobes.h.
+In the second case, when the pages are unmapped (i.e. the kernel is
+done doing DMA), do we need to flush the other CPUs TLBs? I think the
+current code is not quite correct, because if multiple tasks (CPUs)
+map the pages, only the TLB of the last one is flushed when the
+mapping is cleared, because the tlb is only flushed when ->mapcount
+drops to zero, leaving stale entries in the other TLBs. It's not clear
+to me what to do about this case.
 
-Not that I think this will be more clean, personally I would simply add a
-ifdef(CONFIG_UPROBES) line into mm_init(), but this will be more consistent.
+Thoughts?
 
-Oleg.
+Tycho
+
+> ...Juerg
+> 
+> 
+> > Thanks,
+> > Mark.
+> > 
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
