@@ -1,62 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CA352803A5
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 01:27:01 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id v2so904487wmd.11
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 22:27:01 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id p17si3538668wra.451.2017.08.29.22.26.59
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 55CE82803A5
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 01:31:29 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id t82so915735wmd.10
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 22:31:29 -0700 (PDT)
+Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
+        by mx.google.com with ESMTPS id f13si4763405edb.32.2017.08.29.22.31.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 29 Aug 2017 22:27:00 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v7U5O1ZK112226
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 01:26:59 -0400
-Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2cndnvvdut-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 01:26:58 -0400
-Received: from localhost
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 30 Aug 2017 15:26:56 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v7U5Pdm240108270
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 15:25:39 +1000
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v7U5PTP2016996
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 15:25:29 +1000
-Subject: Re: [PATCH v2 14/20] mm: Provide speculative fault infrastructure
-References: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1503007519-26777-15-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170827001823.n5wgkfq36z6snvf2@node.shutemov.name>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Wed, 30 Aug 2017 10:55:27 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 29 Aug 2017 22:31:28 -0700 (PDT)
+Received: from mail-wr0-f200.google.com ([209.85.128.200])
+	by youngberry.canonical.com with esmtps (TLS1.0:RSA_AES_128_CBC_SHA1:16)
+	(Exim 4.76)
+	(envelope-from <juerg.haefliger@canonical.com>)
+	id 1dmvb5-0003yz-Tj
+	for linux-mm@kvack.org; Wed, 30 Aug 2017 05:31:27 +0000
+Received: by mail-wr0-f200.google.com with SMTP id a47so7438418wra.0
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 22:31:27 -0700 (PDT)
+Subject: Re: [kernel-hardening] [PATCH v5 04/10] arm64: Add __flush_tlb_one()
+References: <20170809200755.11234-1-tycho@docker.com>
+ <20170809200755.11234-5-tycho@docker.com> <20170812112603.GB16374@remoulade>
+ <20170814163536.6njceqc3dip5lrlu@smitten>
+ <20170814165047.GB23428@leverpostej>
+ <20170823165842.k5lbxom45avvd7g2@smitten>
+ <20170823170443.GD12567@leverpostej>
+From: Juerg Haefliger <juerg.haefliger@canonical.com>
+Message-ID: <2428d66f-3c31-fa73-0d6a-c16fafa99455@canonical.com>
+Date: Wed, 30 Aug 2017 07:31:25 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170827001823.n5wgkfq36z6snvf2@node.shutemov.name>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <f6927138-5863-82f8-8c85-2ff96d5e9434@linux.vnet.ibm.com>
+In-Reply-To: <20170823170443.GD12567@leverpostej>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="A6exSVd4e9U3pOIGSQJPXxWSpn5KhIE8w"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Mark Rutland <mark.rutland@arm.com>, Tycho Andersen <tycho@docker.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>
 
-On 08/27/2017 05:48 AM, Kirill A. Shutemov wrote:
->> +	/* Transparent huge pages are not supported. */
->> +	if (unlikely(pmd_trans_huge(*pmd)))
->> +		goto out_walk;
-> That's looks like a blocker to me.
-> 
-> Is there any problem with making it supported (besides plain coding)?
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--A6exSVd4e9U3pOIGSQJPXxWSpn5KhIE8w
+Content-Type: multipart/mixed; boundary="irH4NmKN7wMDrNE8J2tbOkjU4JO732xNG";
+ protected-headers="v1"
+From: Juerg Haefliger <juerg.haefliger@canonical.com>
+To: Mark Rutland <mark.rutland@arm.com>, Tycho Andersen <tycho@docker.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ kernel-hardening@lists.openwall.com,
+ Marco Benatto <marco.antonio.780@gmail.com>
+Message-ID: <2428d66f-3c31-fa73-0d6a-c16fafa99455@canonical.com>
+Subject: Re: [kernel-hardening] [PATCH v5 04/10] arm64: Add __flush_tlb_one()
+References: <20170809200755.11234-1-tycho@docker.com>
+ <20170809200755.11234-5-tycho@docker.com> <20170812112603.GB16374@remoulade>
+ <20170814163536.6njceqc3dip5lrlu@smitten>
+ <20170814165047.GB23428@leverpostej>
+ <20170823165842.k5lbxom45avvd7g2@smitten>
+ <20170823170443.GD12567@leverpostej>
+In-Reply-To: <20170823170443.GD12567@leverpostej>
 
-IIUC we would have to reattempt once for each PMD level fault because
-of the lack of a page table entry there. Besides do we want to support
-huge pages in general as part of speculative page fault path ? The
-number of faults will be very less (256 times lower on POWER and 512
-times lower on X86). So is it worth it ? BTW calling hugetlb_fault()
-after figuring out the VMA, works correctly inside handle_speculative
-_fault() last time I checked.
+--irH4NmKN7wMDrNE8J2tbOkjU4JO732xNG
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
+
+
+
+On 08/23/2017 07:04 PM, Mark Rutland wrote:
+> On Wed, Aug 23, 2017 at 10:58:42AM -0600, Tycho Andersen wrote:
+>> Hi Mark,
+>>
+>> On Mon, Aug 14, 2017 at 05:50:47PM +0100, Mark Rutland wrote:
+>>> That said, is there any reason not to use flush_tlb_kernel_range()
+>>> directly?
+>>
+>> So it turns out that there is a difference between __flush_tlb_one() a=
+nd
+>> flush_tlb_kernel_range() on x86: flush_tlb_kernel_range() flushes all =
+the TLBs
+>> via on_each_cpu(), where as __flush_tlb_one() only flushes the local T=
+LB (which
+>> I think is enough here).
+>=20
+> That sounds suspicious; I don't think that __flush_tlb_one() is
+> sufficient.
+>=20
+> If you only do local TLB maintenance, then the page is left accessible
+> to other CPUs via the (stale) kernel mappings. i.e. the page isn't
+> exclusively mapped by userspace.
+
+We flush all CPUs to get rid of stale entries when a new page is
+allocated to userspace that was previously allocated to the kernel.
+Is that the scenario you were thinking of?
+
+=2E..Juerg
+
+
+> Thanks,
+> Mark.
+>=20
+
+
+--irH4NmKN7wMDrNE8J2tbOkjU4JO732xNG--
+
+--A6exSVd4e9U3pOIGSQJPXxWSpn5KhIE8w
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQI7BAEBCAAlBQJZpk2tHhxqdWVyZy5oYWVmbGlnZXJAY2Fub25pY2FsLmNvbQAK
+CRB1TDqW+fi0jDAIEACVZxelTLbWy+NwTXC/GcrJ9nHlD6y65VQ3czwQhdSOdY6K
+QfzpYKvXVbxYhf+2zqEacg3mSskZs5XU6p9wVjf6JLmNulDJLJxpNYyMYTSIm4oh
+O/EBDMiQTpACQXzPWZwgOYhviepx022E37Soonp3r8PlAeRvJWXlpITP4sDEDDB6
+3dVHAciqdgihh2kbtY93G/uiHAS44CBKis93IWKXLorXLuKu21DJzk2GSwLfUINq
+ZdbDsbjAUWxjrOS479BZJKp4X3/zigP8vNLBF8qx6Z+6WwwYLQzQD+0hHmXTa5GL
+VND4FqWU9y9U9ORwOI7cVYS+S/00PNA9jAvwm4Qm1oQUDX+bHHSuXgDK79wgAsr0
+9caduoFoPlsPtF/MlfEgVOjYTWEY040IEFGJQyIZIauGUqWe/4Z1IsokuS0qIJJt
+252lXFh6qfXu7A6W+fQ4kSED57gD4t/pJAT1c7MansvGl2q+W2qIC7QjWrmqSKD2
++Rk5GsIWAND0wSOz+O/2pM4KTwrDRlMutiTSlsueqEFwNmO6V+UTKLOz5nTwEAU0
+uhBLctbblPLEjXpZv38H3heN8qTpwz2g98hv0hf8sa7D7FHaYuTd2/Zn2QNmhRC8
+O0AiPoc6FxyJwj2VWYigF6YDZecP9FOB+C+t8pbLKaSdepfL/BF/rjU+bC6P7g==
+=+9Xg
+-----END PGP SIGNATURE-----
+
+--A6exSVd4e9U3pOIGSQJPXxWSpn5KhIE8w--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
