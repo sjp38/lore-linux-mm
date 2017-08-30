@@ -1,59 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9255F6B02B4
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 14:55:09 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id m62so10050246qki.9
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 11:55:09 -0700 (PDT)
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 70D776B02C3
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 14:55:54 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id n64so21353422qki.10
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 11:55:54 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 81si728647qkw.3.2017.08.30.11.55.08
+        by mx.google.com with ESMTPS id c21si5834910qtc.506.2017.08.30.11.55.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Aug 2017 11:55:09 -0700 (PDT)
-Message-ID: <1504119305.26846.78.camel@redhat.com>
-Subject: Re: [kernel-hardening] [PATCH v2 27/30] x86: Implement
- thread_struct whitelist for hardened usercopy
+        Wed, 30 Aug 2017 11:55:53 -0700 (PDT)
+Message-ID: <1504119351.26846.79.camel@redhat.com>
+Subject: Re: [kernel-hardening] [PATCH v2 25/30] fork: Define usercopy
+ region in thread_stack slab caches
 From: Rik van Riel <riel@redhat.com>
-Date: Wed, 30 Aug 2017 14:55:05 -0400
-In-Reply-To: <1503956111-36652-28-git-send-email-keescook@chromium.org>
+Date: Wed, 30 Aug 2017 14:55:51 -0400
+In-Reply-To: <1503956111-36652-26-git-send-email-keescook@chromium.org>
 References: <1503956111-36652-1-git-send-email-keescook@chromium.org>
-	 <1503956111-36652-28-git-send-email-keescook@chromium.org>
+	 <1503956111-36652-26-git-send-email-keescook@chromium.org>
 Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-GJL8Jf6wR815Diotm9MM"
+	protocol="application/pgp-signature"; boundary="=-5yNfw2/9DwlhFVGK3aNK"
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Borislav Petkov <bp@suse.de>, Andy Lutomirski <luto@kernel.org>, Mathias Krause <minipli@googlemail.com>, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, David Windsor <dave@nullcore.net>
+Cc: David Windsor <dave@nullcore.net>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Andy Lutomirski <luto@kernel.org>, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
 
---=-GJL8Jf6wR815Diotm9MM
+--=-5yNfw2/9DwlhFVGK3aNK
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 
 On Mon, 2017-08-28 at 14:35 -0700, Kees Cook wrote:
-> This whitelists the FPU register state portion of the thread_struct
-> for
-> copying to userspace, instead of the default entire struct.
+> From: David Windsor <dave@nullcore.net>
 >=20
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: "H. Peter Anvin" <hpa@zytor.com>
-> Cc: x86@kernel.org
-> Cc: Borislav Petkov <bp@suse.de>
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Mathias Krause <minipli@googlemail.com>
-> Signed-off-by: Kees Cook <keescook@chromium.org>
-> ---
-> =C2=A0arch/x86/Kconfig=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0| 1 +
-> =C2=A0arch/x86/include/asm/processor.h | 8 ++++++++
-> =C2=A02 files changed, 9 insertions(+)
+> In support of usercopy hardening, this patch defines a region in the
+> thread_stack slab caches in which userspace copy operations are
+> allowed.
+> Since the entire thread_stack needs to be available to userspace, the
+> entire slab contents are whitelisted. Note that the slab-based thread
+> stack is only present on systems with THREAD_SIZE < PAGE_SIZE and
+> !CONFIG_VMAP_STACK.
 >=20
+
 Acked-by: Rik van Riel <riel@redhat.com>
 
 --=20
 All rights reversed
---=-GJL8Jf6wR815Diotm9MM
+--=-5yNfw2/9DwlhFVGK3aNK
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: This is a digitally signed message part
 Content-Transfer-Encoding: 7bit
@@ -61,16 +54,16 @@ Content-Transfer-Encoding: 7bit
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v2
 
-iQEcBAABCAAGBQJZpwoJAAoJEM553pKExN6DsSQH/0VY7WDADR5um/B5cwN1bEKS
-ZuNml+6jJPGiYITji6vsSRiKmz/SR+QK85eUUMRPar3j2ufsaz8LhlhOKMhbj3Yk
-k1rRtB7pvZsKopJy/jU9wND2TUS79HIVOl5Bs+zhq2Sv+LEkGX/nrn8DEezQ4XYL
-zIFkvvFCi9fki5yyEyCJtodge1FJjnrEe87isbH7adipzldhzmmUWMNjaaLsFOIl
-vAfdvjKIQROyfGn/mS+k9WyfMcFQt8O9gDcotDmBLmF9t+are7+Lh/m/iaE9FPTQ
-fhPmVHykEkD5CzpG4DT7MBq3WyKHNp6QjJQwWa6dkr1uuqvD/DsPKIPRbd1CKeo=
-=mLYx
+iQEcBAABCAAGBQJZpwo3AAoJEM553pKExN6DTIAIAICxbgOqL7sjfwNyLMbbVJnN
+UrgRUrD2Hx7/6O7LWTaS8sWotYyl5bPxKSBajvhqLEs+H2LRYhpjPXmHH5sA5e8T
+2o8NV7Li3EjqUgRm5tYP0lz3ejdk7OJPpI8Tc6lMgGRW7B7f9mI8WlR7f6cV9fVx
+p2hA2wLF1IxMOtI99O/JyeAaDleKuLjc+TUN5j5HM/UZ97EZkXAag2eLxtrMWyHF
+jOSuYe7Jf0gXggS2KyWIGo7fxhERhqRuLsLTJexDGb5LZsxGDDr2sJebv59Q8reS
+oL70reLJLvcoVkgXzeKay1nYChEv/rH4+N1AwJOCXJ4ny79k7O/vp0ESvRgTA+Y=
+=uqD+
 -----END PGP SIGNATURE-----
 
---=-GJL8Jf6wR815Diotm9MM--
+--=-5yNfw2/9DwlhFVGK3aNK--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
