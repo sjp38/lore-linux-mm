@@ -1,148 +1,241 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C7DF6B0292
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 03:49:47 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id k9so3951901wre.11
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 00:49:47 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 73si1134035wmw.171.2017.08.30.00.49.45
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Aug 2017 00:49:45 -0700 (PDT)
-Date: Wed, 30 Aug 2017 09:49:43 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm/hugetlb.c: make huge_pte_offset() consistent and
- document behaviour
-Message-ID: <20170830074943.f4jm42l2fdaordn2@dhcp22.suse.cz>
-References: <20170725154114.24131-2-punit.agrawal@arm.com>
- <20170818145415.7588-1-punit.agrawal@arm.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F1AFE6B0292
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 04:06:16 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id r187so10543645pfr.8
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 01:06:16 -0700 (PDT)
+Received: from ipmail01.adl6.internode.on.net (ipmail01.adl6.internode.on.net. [150.101.137.136])
+        by mx.google.com with ESMTP id p2si4490583pll.134.2017.08.30.01.06.14
+        for <linux-mm@kvack.org>;
+        Wed, 30 Aug 2017 01:06:15 -0700 (PDT)
+Date: Wed, 30 Aug 2017 18:05:58 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v2 15/30] xfs: Define usercopy region in xfs_inode slab
+ cache
+Message-ID: <20170830080558.GK10621@dastard>
+References: <1503956111-36652-1-git-send-email-keescook@chromium.org>
+ <1503956111-36652-16-git-send-email-keescook@chromium.org>
+ <20170829081453.GA10196@infradead.org>
+ <20170829123126.GB10621@dastard>
+ <20170829124536.GA26339@infradead.org>
+ <20170829215157.GC10621@dastard>
+ <20170830071403.GA8904@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170818145415.7588-1-punit.agrawal@arm.com>
+In-Reply-To: <20170830071403.GA8904@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Punit Agrawal <punit.agrawal@arm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Steve Capper <steve.capper@arm.com>, Will Deacon <will.deacon@arm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, David Windsor <dave@nullcore.net>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-On Fri 18-08-17 15:54:15, Punit Agrawal wrote:
-> When walking the page tables to resolve an address that points to
-> !p*d_present() entry, huge_pte_offset() returns inconsistent values
-> depending on the level of page table (PUD or PMD).
+On Wed, Aug 30, 2017 at 12:14:03AM -0700, Christoph Hellwig wrote:
+> On Wed, Aug 30, 2017 at 07:51:57AM +1000, Dave Chinner wrote:
+> > Right, I've looked at btrees, too, but it's more complex than just
+> > using an rbtree. I originally looked at using Peter Z's old
+> > RCU-aware btree code, but it doesn't hold data in the tree leaves.
+> > So that needed significant modification to make work without a
+> > memory alloc per extent and that didn't work with original aim of
+> > RCU-safe extent lookups.  I also looked at that "generic" btree
+> > stuff that came from logfs, and after a little while ran away
+> > screaming.
 > 
-> It returns NULL in the case of a PUD entry while in the case of a PMD
-> entry, it returns a pointer to the page table entry.
-> 
-> A similar inconsitency exists when handling swap entries - returns NULL
-> for a PUD entry while a pointer to the pte_t is retured for the PMD entry.
-> 
-> Update huge_pte_offset() to make the behaviour consistent - return a
-> pointer to the pte_t for hugepage or swap entries. Only return NULL in
-> instances where we have a p*d_none() entry and the size parameter
-> doesn't match the hugepage size at this level of the page table.
-> 
-> Document the behaviour to clarify the expected behaviour of this function.
-> This is to set clear semantics for architecture specific implementations
-> of huge_pte_offset().
-> 
-> Signed-off-by: Punit Agrawal <punit.agrawal@arm.com>
-> Cc: Catalin Marinas <catalin.marinas@arm.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Steve Capper <steve.capper@arm.com>
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> I started with the latter, but it's not really looking like it any more:
+> there nodes are formatted as a series of u64s instead of all the
+> long magic,
 
-I always thought that the weird semantic is a result of the hugetlb pte
-sharing. But now that I dug into history it has been added by
-02b0ccef903e ("[PATCH] hugetlb: check p?d_present in huge_pte_offset()")
-for a completely different reason. I suspec the weird semantic just
-wasn't noticed back then.
+Yeah, that was about where I started to run away and look for
+something nicer....
 
-Anyway, I didn't find any problem with the patch
-Acked-by: Michal Hocko <mhocko@suse.com>
+> and the data is stored inline - in fact I use a cute
+> trick to keep the size down, derived from our "compressed" on disk
+> extent format:
+> 
+> Key:
+> 
+>  +-------+----------------------------+
+>  | 00:51 | all 52 bits of startoff    |
+>  | 52:63 | low 12 bits of startblock  |
+>  +-------+----------------------------+
+> 
+> Value
+> 
+>  +-------+----------------------------+
+>  | 00:20 | all 21 bits of length      |
+>  |    21 | unwritten extent bit       |
+>  | 22:63 | high 42 bits of startblock |
+>  +-------+----------------------------+
+> 
+> So we only need a 64-bit key and a 64-bit value by abusing parts
+> of the key to store bits of the startblock.
 
-> ---
+Neat! :)
+
+> For non-leaf nodes we iterate through the keys only, never touching
+> the cache lines for the value.  For the leaf nodes we have to touch
+> the value anyway because we have to do a range lookup to find the
+> exact record.
 > 
-> Hi Andrew,
+> This works fine so far in an isolated simulator, and now I'm ammending
+> it to be a b+tree with pointers to the previous and next node so
+> that we can nicely implement our extent iterators instead of doing
+> full lookups.
+
+Ok, that sounds exactly what I have been looking towards....
+
+> > The sticking point, IMO, is the extent array index based lookups in
+> > all the bmbt code.  I've been looking at converting all that to use
+> > offset based lookups and a cursor w/ lookup/inc/dec/insert/delete
+> > ioperations wrapping xfs_iext_lookup_ext() and friends. This means
+> > the modifications are pretty much identical to the on-disk extent
+> > btree, so they can be abstracted out into a single extent update
+> > interface for both trees.  Have you planned/done any cleanup/changes
+> > with this code?
 > 
-> >From discussions on the arm64 implementation of huge_pte_offset()[0]
-> we realised that there is benefit from returning a pte_t* in the case
-> of p*d_none().
-> 
-> The fault handling code in hugetlb_fault() can handle p*d_none()
-> entries and saves an extra round trip to huge_pte_alloc(). Other
-> callers of huge_pte_offset() should be ok as well.
-> 
-> Apologies for sending a late update but I thought if we are defining
-> the semantics, it's worth getting them right.
-> 
-> Could you please pick this version please?
-> 
-> Thanks,
-> Punit
-> 
-> [0] http://www.spinics.net/lists/linux-mm/msg133699.html
-> 
-> v2: 
-> 
->  mm/hugetlb.c | 24 +++++++++++++++++++++---
->  1 file changed, 21 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 31e207cb399b..1d54a131bdd5 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -4600,6 +4600,15 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
->  	return pte;
->  }
->  
-> +/*
-> + * huge_pte_offset() - Walk the page table to resolve the hugepage
-> + * entry at address @addr
-> + *
-> + * Return: Pointer to page table or swap entry (PUD or PMD) for
-> + * address @addr, or NULL if a p*d_none() entry is encountered and the
-> + * size @sz doesn't match the hugepage size at this level of the page
-> + * table.
-> + */
->  pte_t *huge_pte_offset(struct mm_struct *mm,
->  		       unsigned long addr, unsigned long sz)
->  {
-> @@ -4614,13 +4623,22 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
->  	p4d = p4d_offset(pgd, addr);
->  	if (!p4d_present(*p4d))
->  		return NULL;
-> +
->  	pud = pud_offset(p4d, addr);
-> -	if (!pud_present(*pud))
-> +	if (sz != PUD_SIZE && pud_none(*pud))
->  		return NULL;
-> -	if (pud_huge(*pud))
-> +	/* hugepage or swap? */
-> +	if (pud_huge(*pud) || !pud_present(*pud))
->  		return (pte_t *)pud;
-> +
->  	pmd = pmd_offset(pud, addr);
-> -	return (pte_t *) pmd;
-> +	if (sz != PMD_SIZE && pmd_none(*pmd))
-> +		return NULL;
-> +	/* hugepage or swap? */
-> +	if (pmd_huge(*pmd) || !pmd_present(*pmd))
-> +		return (pte_t *)pmd;
-> +
-> +	return NULL;
->  }
->  
->  #endif /* CONFIG_ARCH_WANT_GENERAL_HUGETLB */
-> -- 
-> 2.13.2
-> 
+> I've done various cleanups, but I've not yet consolidated the two.
+> Basically step one at the moment is to move everyone to
+> xfs_iext_lookup_extent + xfs_iext_get_extent that removes all the
+> bad intrusion.
+
+Yup.
+
+> Once we move to the actual b+trees the extnum_t cursor will be replaced
+> with a real cursor structure that contains a pointer to the current
+> b+tree leaf node, and an index inside that, which will allows us very
+> efficient iteration.  The xfs_iext_get_extent calls will be replaced
+> with more specific xfs_iext_prev_extent, xfs_iext_next_extent calls
+> that include the now slightly more complex cursor decrement, increment
+> as well as a new xfs_iext_last_extent helper for the last extent
+> that we need in a few places.
+
+Ok, that's sounds like it'll fit right in with what I've been
+prototyping for the extent code in xfs_bmap.c. I can make that work
+with a cursor-based lookup/inc/dec/ins/del API similar to the bmbt
+API. I've been looking to abstract the extent manipulations out into
+functions that modify both trees like this:
+
+[note: just put template code in to get my thoughts straight, it's
+not working code]
+
++static int
++xfs_bmex_delete(
++       struct xfs_iext_cursor          *icur,
++       struct xfs_btree_cursor         *cur,
++       int                             *nextents)
++{
++       int                             i;
++
++       xfs_iext_remove(bma->ip, bma->idx + 1, 2, state);
++       if (nextents)
++               (*nextents)--;
++       if (!cur)
++               return 0;
++       error = xfs_btree_delete(cur, &i);
++       if (error)
++               return error;
++       XFS_WANT_CORRUPTED_RETURN(cur->bc_mp, i == 1);
++       return 0;
++}
++
++static int
++xfs_bmex_increment(
++       struct xfs_iext_cursor          *icur,
++       struct xfs_btree_cursor         *cur)
++{
++       int                             i;
++
++       icur->ep = xfs_iext_get_right_ext(icur->ep);
++       if (!cur)
++               return 0;
++       error = xfs_btree_increment(cur, 0, &i);
++       if (error)
++               return error;
++       XFS_WANT_CORRUPTED_RETURN(cur->bc_mp, i == 1);
++       return 0;
++}
++
++static int
++xfs_bmex_decrement(
++       struct xfs_iext_cursor          *icur,
++       struct xfs_btree_cursor         *cur)
++{
++       int                             i;
++
++       icur->ep = xfs_iext_get_left_ext(icur->ep);
++       if (!cur)
++               return 0;
++       error = xfs_btree_decrement(cur, 0, &i);
++       if (error)
++               return error;
++       XFS_WANT_CORRUPTED_RETURN(cur->bc_mp, i == 1);
++       return 0;
++}
+
+And so what you're doing would fit straight into that. I'm
+ending up with is extent operations that look like this:
+
+xfs_bmap_add_extent_delay_real()
+.....
+	case BMAP_LEFT_FILLING | BMAP_LEFT_CONTIG |
+             BMAP_RIGHT_FILLING | BMAP_RIGHT_CONTIG:
+                /*
+                 * Filling in all of a previously delayed allocation extent.
+                 * The left and right neighbors are both contiguous with new.
+                 */
++               rval |= XFS_ILOG_CORE;
++
++               /* remove the incore delalloc extent first */
++               error = xfs_bmex_delete(&icur, NULL, nextents);
++               if (error)
++                       goto done;
++
++               /*
++                * update incore and bmap extent trees
++                *      1. set cursors to the right extent
++                *      2. remove the right extent
++                *      3. update the left extent to span all 3 extent ranges
++                */
++               error = xfs_bmex_lookup_eq(&icur, bma->cur, RIGHT.br_startoff,
++                               RIGHT.br_startblock, RIGHT.br_blockcount, 1);
++               if (error)
++                       goto done;
++               error = xfs_bmex_delete(&icur, bma->cur, NULL);
++               if (error)
++                       goto done;
++               error = xfs_bmex_decrement(&icur, bma->cur);
++               if (error)
++                       goto done;
++               error = xfs_bmex_update(&icur, bma->cur, LEFT.br_startoff,
++                               LEFT.br_startblock,
++                               LEFT.br_blockcount + PREV.br_blockcount +
++                                       RIGHT.br_blockcount,
++                               LEFT.br_state);
++               if (error)
++                       goto done;
+ 		break;
+....
+
+And I'm starting to see where there are common extent manipulations
+being done so there's probably a fair amount of further factoring
+that can be done on top of this....
+
+> insert/delete remain very similar to what they do right now, they'll
+> get a different cursor type, and the manual xfs_iext_add calls will
+> go away.  The new xfs_iext_update_extent helper I posted to the list
+> yesterday will become a bit more complex, as changing the startoff
+> will have to be propagated up the tree.
+
+I've had a quick look at them and pulled it down into my tree for
+testing (which had a cpu burning hang on xfs/020 a few minutes ago),
+but I'll spend more time grokking them tomorrow.
+
+Cheers,
+
+Dave.
 
 -- 
-Michal Hocko
-SUSE Labs
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
