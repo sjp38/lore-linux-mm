@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 349236B025F
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 06:55:54 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id i76so1861951wme.2
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 03:55:54 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id r16si4172999wra.205.2017.08.30.03.55.51
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 491446B0292
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 06:57:45 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id l2so7339315ywe.7
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 03:57:45 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id d10si1297960ybf.485.2017.08.30.03.57.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Aug 2017 03:55:52 -0700 (PDT)
-Date: Wed, 30 Aug 2017 11:55:24 +0100
+        Wed, 30 Aug 2017 03:57:43 -0700 (PDT)
+Date: Wed, 30 Aug 2017 11:57:19 +0100
 From: Roman Gushchin <guro@fb.com>
 Subject: Re: [PATCH] mm: memcontrol: use per-cpu stocks for socket memory
  uncharging
-Message-ID: <20170830105524.GA2852@castle.dhcp.TheFacebook.com>
+Message-ID: <20170830105719.GB2852@castle.dhcp.TheFacebook.com>
 References: <20170829100150.4580-1-guro@fb.com>
  <20170829192621.GA5447@cmpxchg.org>
 MIME-Version: 1.0
@@ -22,8 +22,8 @@ Content-Disposition: inline
 In-Reply-To: <20170829192621.GA5447@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, kernel-team@fb.com, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
 On Tue, Aug 29, 2017 at 03:26:21PM -0400, Johannes Weiner wrote:
 > On Tue, Aug 29, 2017 at 11:01:50AM +0100, Roman Gushchin wrote:
@@ -88,16 +88,14 @@ On Tue, Aug 29, 2017 at 03:26:21PM -0400, Johannes Weiner wrote:
 > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 > 
 > Neat!
-> 
-> As far as other types of pages go: page cache and anon are already
-> batched pretty well, but I think kmem might benefit from this
-> too. Have you considered using the stock in memcg_kmem_uncharge()?
 
-Good idea!
-I'll try to find an appropriate testcase and check if it really
-brings any benefits. If so, I'll master a patch.
+Hi, Andrew!
 
-Thanks!
+Can you, please, pull this patch?
+
+Thank you!
+
+Roman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
