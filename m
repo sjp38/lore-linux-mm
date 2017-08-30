@@ -1,64 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AFB606B02B4
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 15:29:28 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id q38so22176254qte.4
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 12:29:28 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u58si5978284qtk.313.2017.08.30.12.29.27
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B1756B0292
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 15:33:00 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id w84so4161723vkd.6
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 12:33:00 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id i12si2855564uaf.291.2017.08.30.12.32.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Aug 2017 12:29:27 -0700 (PDT)
-Message-ID: <1504121364.26846.80.camel@redhat.com>
-Subject: Re: [kernel-hardening] [PATCH v2 24/30] fork: Define usercopy
- region in mm_struct slab caches
-From: Rik van Riel <riel@redhat.com>
-Date: Wed, 30 Aug 2017 15:29:24 -0400
-In-Reply-To: <1503956111-36652-25-git-send-email-keescook@chromium.org>
-References: <1503956111-36652-1-git-send-email-keescook@chromium.org>
-	 <1503956111-36652-25-git-send-email-keescook@chromium.org>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-o+32mO1p2qCsUgwGVrLy"
-Mime-Version: 1.0
+        Wed, 30 Aug 2017 12:32:59 -0700 (PDT)
+Subject: Re: [PATCH 11/13] xen/gntdev: update to new mmu_notifier semantic
+References: <20170829235447.10050-1-jglisse@redhat.com>
+ <20170829235447.10050-12-jglisse@redhat.com>
+From: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Message-ID: <df815f86-aaa2-e82c-5c17-fed3632194b7@oracle.com>
+Date: Wed, 30 Aug 2017 15:32:47 -0400
+MIME-Version: 1.0
+In-Reply-To: <20170829235447.10050-12-jglisse@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org
-Cc: David Windsor <dave@nullcore.net>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Andy Lutomirski <luto@kernel.org>, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, =?UTF-8?Q?Roger_Pau_Monn=c3=a9?= <roger.pau@citrix.com>, xen-devel@lists.xenproject.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 
+On 08/29/2017 07:54 PM, JA(C)rA'me Glisse wrote:
+> Call to mmu_notifier_invalidate_page() are replaced by call to
+> mmu_notifier_invalidate_range() and thus call are bracketed by
+> call to mmu_notifier_invalidate_range_start()/end()
+>
+> Remove now useless invalidate_page callback.
+>
+> Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> Cc: Roger Pau MonnA(C) <roger.pau@citrix.com>
+> Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+> Cc: xen-devel@lists.xenproject.org
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  drivers/xen/gntdev.c | 8 --------
+>  1 file changed, 8 deletions(-)
 
---=-o+32mO1p2qCsUgwGVrLy
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
 
-On Mon, 2017-08-28 at 14:35 -0700, Kees Cook wrote:
-> From: David Windsor <dave@nullcore.net>
->=20
-> In support of usercopy hardening, this patch defines a region in the
-> mm_struct slab caches in which userspace copy operations are allowed.
-> Only the auxv field is copied to userspace.
->=20
-Acked-by: Rik van Riel <riel@redhat.com>
+I also ran a bunch of tests (mostly bringing up/tearing down various Xen
+guests). Haven't seen any issues.
 
---=20
-All rights reversed
---=-o+32mO1p2qCsUgwGVrLy
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJZpxIUAAoJEM553pKExN6DdRcIAMBgD6cpezITkPTYqS7q0Eox
-UGeb0/1FZcS7HsgyOJWXHP5dJxtFUUwiH/VwYnFhck9ne6ZZ1lzIsnnosPQvGxk/
-O1kHDW7/4G7TejZUaWxvrxdAIgLFIlUDoFmjlq4vQmuT1y1UPmZwyBfvCFUKyqHq
-dz2bztfedO6Ffw/r5iACiqJnzrWm0fqxh9oBCEEcVbUeGoshUcfRJeVlUvOW7F4k
-JAdtoYzmsqx06isMAQNSenB4mLGasziWBomf6vH974tATVHtzF2GuJwiDLaFuZ0T
-ABDQ7XUerekUPWreWKQQShxaEN4eajJ0kSvzSnQmV7balnugjIDXyLKQ9aYYNdE=
-=Ne21
------END PGP SIGNATURE-----
-
---=-o+32mO1p2qCsUgwGVrLy--
+-boris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
