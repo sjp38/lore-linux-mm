@@ -1,96 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CBF78280395
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 03:33:09 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id l185so7975426oib.4
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 00:33:09 -0700 (PDT)
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 46BAD280395
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 03:33:34 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id l185so7976545oib.4
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 00:33:34 -0700 (PDT)
 Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
-        by mx.google.com with ESMTPS id p62si2144963oig.123.2017.08.30.00.33.08
+        by mx.google.com with ESMTPS id n62si3961824oih.305.2017.08.30.00.33.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Aug 2017 00:33:08 -0700 (PDT)
+        Wed, 30 Aug 2017 00:33:33 -0700 (PDT)
 From: Prakash Gupta <guptap@codeaurora.org>
-Subject: [PATCH 1/2] arm64: stacktrace: avoid listing stacktrace functions in stacktrace
-Date: Wed, 30 Aug 2017 13:02:22 +0530
-Message-Id: <1504078343-28754-1-git-send-email-guptap@codeaurora.org>
+Subject: [PATCH 2/2] mm, page_owner: Skip unnecessary stack_trace entries
+Date: Wed, 30 Aug 2017 13:02:23 +0530
+Message-Id: <1504078343-28754-2-git-send-email-guptap@codeaurora.org>
+In-Reply-To: <1504078343-28754-1-git-send-email-guptap@codeaurora.org>
+References: <1504078343-28754-1-git-send-email-guptap@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, will.deacon@arm.com, catalin.marinas@arm.com, iamjoonsoo.kim@lge.com, rmk+kernel@arm.linux.org.uk, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Prakash Gupta <guptap@codeaurora.org>
 
-The stacktraces always begin as follows:
+The page_owner stacktrace always begin as follows:
 
- [<c00117b4>] save_stack_trace_tsk+0x0/0x98
- [<c0011870>] save_stack_trace+0x24/0x28
- ...
+[<ffffff987bfd48f4>] save_stack+0x40/0xc8
+[<ffffff987bfd4da8>] __set_page_owner+0x3c/0x6c
 
-This is because the stack trace code includes the stack frames for itself.
-This is incorrect behaviour, and also leads to "skip" doing the wrong thing
-(which is the number of stack frames to avoid recording.)
+These two entries do not provide any useful information and limits the
+available stacktrace depth.  The page_owner stacktrace was skipping caller
+function from stack entries but this was missed with commit f2ca0b557107
+("mm/page_owner: use stackdepot to store stacktrace")
 
-Perversely, it does the right thing when passed a non-current thread.  Fix
-this by ensuring that we have a known constant number of frames above the
-main stack trace function, and always skip these.
+Example page_owner entry after the patch:
 
-This was fixed for arch arm by Commit 3683f44c42e9 ("ARM: stacktrace: avoid
-listing stacktrace functions in stacktrace")
+Page allocated via order 0, mask 0x8(ffffff80085fb714)
+PFN 654411 type Movable Block 639 type CMA Flags 0x0(ffffffbe5c7f12c0)
+[<ffffff9b64989c14>] post_alloc_hook+0x70/0x80
+...
+[<ffffff9b651216e8>] msm_comm_try_state+0x5f8/0x14f4
+[<ffffff9b6512486c>] msm_vidc_open+0x5e4/0x7d0
+[<ffffff9b65113674>] msm_v4l2_open+0xa8/0x224
 
+Fixes: f2ca0b557107 ("mm/page_owner: use stackdepot to store stacktrace")
 Signed-off-by: Prakash Gupta <guptap@codeaurora.org>
 ---
- arch/arm64/kernel/stacktrace.c | 18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
+ mm/page_owner.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/arch/arm64/kernel/stacktrace.c b/arch/arm64/kernel/stacktrace.c
-index 3144584617e7..76809ccd309c 100644
---- a/arch/arm64/kernel/stacktrace.c
-+++ b/arch/arm64/kernel/stacktrace.c
-@@ -140,7 +140,8 @@ void save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
- 		trace->entries[trace->nr_entries++] = ULONG_MAX;
- }
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index 10d16fc45bd9..75b7c39bf1df 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -139,7 +139,7 @@ static noinline depot_stack_handle_t save_stack(gfp_t flags)
+ 		.nr_entries = 0,
+ 		.entries = entries,
+ 		.max_entries = PAGE_OWNER_STACK_DEPTH,
+-		.skip = 0
++		.skip = 2
+ 	};
+ 	depot_stack_handle_t handle;
  
--void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
-+static noinline void __save_stack_trace(struct task_struct *tsk,
-+	struct stack_trace *trace, unsigned int nosched)
- {
- 	struct stack_trace_data data;
- 	struct stackframe frame;
-@@ -150,15 +151,16 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
- 
- 	data.trace = trace;
- 	data.skip = trace->skip;
-+	data.no_sched_functions = nosched;
- 
- 	if (tsk != current) {
--		data.no_sched_functions = 1;
- 		frame.fp = thread_saved_fp(tsk);
- 		frame.pc = thread_saved_pc(tsk);
- 	} else {
--		data.no_sched_functions = 0;
-+		/* We don't want this function nor the caller */
-+		data.skip += 2;
- 		frame.fp = (unsigned long)__builtin_frame_address(0);
--		frame.pc = (unsigned long)save_stack_trace_tsk;
-+		frame.pc = (unsigned long)__save_stack_trace;
- 	}
- #ifdef CONFIG_FUNCTION_GRAPH_TRACER
- 	frame.graph = tsk->curr_ret_stack;
-@@ -172,9 +174,15 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
- }
- EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
- 
-+void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
-+{
-+	__save_stack_trace(tsk, trace, 1);
-+}
-+
- void save_stack_trace(struct stack_trace *trace)
- {
--	save_stack_trace_tsk(current, trace);
-+	__save_stack_trace(current, trace, 0);
- }
-+
- EXPORT_SYMBOL_GPL(save_stack_trace);
- #endif
 -- 
 QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
 member of the Code Aurora Forum, hosted by The Linux Foundation
