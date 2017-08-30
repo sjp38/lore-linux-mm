@@ -1,65 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BC436B0292
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 18:38:34 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id q68so14503379pgq.11
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 15:38:34 -0700 (PDT)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [184.105.139.130])
-        by mx.google.com with ESMTPS id d23si5329589pgn.676.2017.08.30.15.38.33
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A7C306B0292
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 19:01:30 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id m62so11690313qki.9
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 16:01:30 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k184si6339244qkf.266.2017.08.30.16.01.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Aug 2017 15:38:33 -0700 (PDT)
-Date: Wed, 30 Aug 2017 15:38:30 -0700 (PDT)
-Message-Id: <20170830.153830.2267882580011615008.davem@davemloft.net>
-Subject: Re: [PATCH v7 9/9] sparc64: Add support for ADI (Application Data
- Integrity)
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <7b8216b8-e732-0b31-a374-1a817d4fbc80@oracle.com>
-References: <3a687666c2e7972fb6d2379848f31006ac1dd59a.1502219353.git.khalid.aziz@oracle.com>
-	<F65BCC2D-8FA4-453F-8378-3369C44B0319@oracle.com>
-	<7b8216b8-e732-0b31-a374-1a817d4fbc80@oracle.com>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+        Wed, 30 Aug 2017 16:01:29 -0700 (PDT)
+Date: Thu, 31 Aug 2017 01:01:25 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 02/13] mm/rmap: update to new mmu_notifier semantic
+Message-ID: <20170830230125.GL13559@redhat.com>
+References: <20170829235447.10050-1-jglisse@redhat.com>
+ <20170829235447.10050-3-jglisse@redhat.com>
+ <20170830165250.GD13559@redhat.com>
+ <CA+55aFxiyrqasfojwS5rG4aKJfaZpw1H=QAPH+9PRq=HT0W8AQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CA+55aFxiyrqasfojwS5rG4aKJfaZpw1H=QAPH+9PRq=HT0W8AQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: khalid.aziz@oracle.com
-Cc: anthony.yznaga@oracle.com, dave.hansen@linux.intel.com, corbet@lwn.net, bob.picco@oracle.com, steven.sistare@oracle.com, pasha.tatashin@oracle.com, mike.kravetz@oracle.com, mingo@kernel.org, nitin.m.gupta@oracle.com, kirill.shutemov@linux.intel.com, tom.hromatka@oracle.com, eric.saint.etienne@oracle.com, allen.pais@oracle.com, cmetcalf@mellanox.com, akpm@linux-foundation.org, geert@linux-m68k.org, tklauser@distanz.ch, atish.patra@oracle.com, vijay.ac.kumar@oracle.com, peterz@infradead.org, mhocko@suse.com, jack@suse.cz, lstoakes@gmail.com, hughd@google.com, thomas.tai@oracle.com, paul.gortmaker@windriver.com, ross.zwisler@linux.intel.com, dave.jiang@intel.com, willy@infradead.org, ying.huang@intel.com, zhongjiang@huawei.com, minchan@kernel.org, vegard.nossum@oracle.com, imbrenda@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, khalid@gonehiking.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Bernhard Held <berny156@gmx.de>, Adam Borowski <kilobyte@angband.pl>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Wanpeng Li <kernellwp@gmail.com>, Paolo Bonzini <pbonzini@redhat.com>, Takashi Iwai <tiwai@suse.de>, Nadav Amit <nadav.amit@gmail.com>, Mike Galbraith <efault@gmx.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, axie <axie@amd.com>, Andrew Morton <akpm@linux-foundation.org>
 
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Date: Wed, 30 Aug 2017 16:27:54 -0600
-
->>> +#define arch_calc_vm_prot_bits(prot, pkey)
->>> sparc_calc_vm_prot_bits(prot)
->>> +static inline unsigned long sparc_calc_vm_prot_bits(unsigned long
->>> prot)
->>> +{
->>> +	if (prot & PROT_ADI) {
->>> +		struct pt_regs *regs;
->>> +
->>> +		if (!current->mm->context.adi) {
->>> +			regs = task_pt_regs(current);
->>> +			regs->tstate |= TSTATE_MCDE;
->>> +			current->mm->context.adi = true;
->> If a process is multi-threaded when it enables ADI on some memory for
->> the first time, TSTATE_MCDE will only be set for the calling thread
->> and it will not be possible to enable it for the other threads.
->> One possible way to handle this is to enable TSTATE_MCDE for all user
->> threads when they are initialized if adi_capable() returns true.
->> 
+On Wed, Aug 30, 2017 at 02:53:38PM -0700, Linus Torvalds wrote:
+> On Wed, Aug 30, 2017 at 9:52 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> >
+> > I pointed out in earlier email ->invalidate_range can only be
+> > implemented (as mutually exclusive alternative to
+> > ->invalidate_range_start/end) by secondary MMUs that shares the very
+> > same pagetables with the core linux VM of the primary MMU, and those
+> > invalidate_range are already called by
+> > __mmu_notifier_invalidate_range_end.
 > 
-> Or set TSTATE_MCDE unconditionally here by removing "if
-> (!current->mm->context.adi)"?
+> I have to admit that I didn't notice that fact - that we are already
+> in the situation that
+> invalidate_range is called by by the rand_end() nofifier.
+> 
+> I agree that that should simplify all the code, and means that we
+> don't have to worry about the few cases that already implemented only
+> the "invalidate_page()" and "invalidate_range()" cases.
+> 
+> So I think that simplifies Jerome's patch further - once you have put
+> the range_start/end() cases around the inner loop, you can just drop
+> the invalidate_page() things entirely.
+> 
+> > So this conversion from invalidate_page to invalidate_range looks
+> > superflous and the final mmu_notifier_invalidate_range_end should be
+> > enough.
+> 
+> Yes. I missed the fact that we already called range() from range_end().
+> 
+> That said, the double call shouldn't hurt correctness, and it's
+> "closer" to old behavior for those people who only did the range/page
+> ones, so I wonder if we can keep Jerome's patch in its current state
+> for 4.13.
 
-I think you have to make "ADI enabled" a property of the mm_struct.
+Yes, the double call doesn't hurt correctness. Keeping it in current
+state is safer if something, so I've no objection to it other than I'd
+like to optimize it further if possible, but it can be done later.
 
-Then you can broadcast to mm->cpu_vm_mask a per-cpu interrupt that
-updates regs->tstate of a thread using 'mm' is currently executing.
+We're already running the double call in various fast paths too in
+fact, and rmap walk isn't the fastest path that would be doing such
+double call, so it's not a major concern.
 
-And in the context switch code you set TSTATE_MCDE if it's not set
-already.
+Also not a bug, but one further (but more obviously safe) enhancement
+I would like is to restrict those rmap invalidation ranges to
+PAGE_SIZE << compound_order(page) instead of PMD_SIZE/PMD_MASK.
 
-That should cover all threaded case.
++	/*
++	 * We have to assume the worse case ie pmd for invalidation. Note that
++	 * the page can not be free in this function as call of try_to_unmap()
++	 * must hold a reference on the page.
++	 */
++	end = min(vma->vm_end, (start & PMD_MASK) + PMD_SIZE);
++	mmu_notifier_invalidate_range_start(vma->vm_mm, start, end);
+
+We don't need to invalidate 2MB of secondary MMU mappings surrounding
+a 4KB page, just to swapout a 4k page. split_huge_page can't run while
+holding the rmap locks, so compound_order(page) is safe to use there.
+
+It can also be optimized incrementally later.
+
+> Because I still want to release 4.13 this weekend, despite this
+> upheaval. Otherwise I'll have timing problems during the next merge
+> window.
+> 
+> Andrea, do you otherwise agree with the whole series as is?
+
+I only wish we had more time to test Jerome's patchset, but I sure
+agree in principle and I don't see regressions in it.
+
+The callouts to ->invalidate_page seems to have diminished over time
+(for the various reasons we know) so if we don't use it for the fast
+paths, using it only in rmap walk slow paths probably wasn't providing
+much performance benefit.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
