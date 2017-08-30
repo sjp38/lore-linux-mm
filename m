@@ -1,89 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F0F026B02F4
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 19:24:32 -0400 (EDT)
-Received: by mail-ua0-f197.google.com with SMTP id g11so3920599uah.7
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 16:24:32 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id p104si2691234uap.66.2017.08.30.16.24.31
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BEE6A6B02F4
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 19:25:59 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id r62so13744746pfj.5
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 16:25:59 -0700 (PDT)
+Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
+        by mx.google.com with ESMTPS id n18si5273603pgd.449.2017.08.30.16.25.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Aug 2017 16:24:31 -0700 (PDT)
-Subject: Re: [PATCH v7 9/9] sparc64: Add support for ADI (Application Data
- Integrity)
-References: <3a687666c2e7972fb6d2379848f31006ac1dd59a.1502219353.git.khalid.aziz@oracle.com>
- <F65BCC2D-8FA4-453F-8378-3369C44B0319@oracle.com>
- <7b8216b8-e732-0b31-a374-1a817d4fbc80@oracle.com>
- <20170830.153830.2267882580011615008.davem@davemloft.net>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Message-ID: <b5d9bbb2-a575-ee47-33aa-11994edef702@oracle.com>
-Date: Wed, 30 Aug 2017 17:23:37 -0600
-MIME-Version: 1.0
-In-Reply-To: <20170830.153830.2267882580011615008.davem@davemloft.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Wed, 30 Aug 2017 16:25:58 -0700 (PDT)
+Received: by mail-pf0-x232.google.com with SMTP id r62so23322787pfj.0
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 16:25:58 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
+Subject: Re: [PATCH 02/13] mm/rmap: update to new mmu_notifier semantic
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <20170830212514.GI13559@redhat.com>
+Date: Wed, 30 Aug 2017 16:25:54 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <75825BFF-8ACC-4CAB-93EB-AD9673747518@gmail.com>
+References: <20170829235447.10050-1-jglisse@redhat.com>
+ <20170829235447.10050-3-jglisse@redhat.com>
+ <6D58FBE4-5D03-49CC-AAFF-3C1279A5A849@gmail.com>
+ <20170830172747.GE13559@redhat.com>
+ <003685D9-4DA9-42DC-AF46-7A9F8A43E61F@gmail.com>
+ <20170830212514.GI13559@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: anthony.yznaga@oracle.com, dave.hansen@linux.intel.com, corbet@lwn.net, bob.picco@oracle.com, steven.sistare@oracle.com, pasha.tatashin@oracle.com, mike.kravetz@oracle.com, mingo@kernel.org, nitin.m.gupta@oracle.com, kirill.shutemov@linux.intel.com, tom.hromatka@oracle.com, eric.saint.etienne@oracle.com, allen.pais@oracle.com, cmetcalf@mellanox.com, akpm@linux-foundation.org, geert@linux-m68k.org, tklauser@distanz.ch, atish.patra@oracle.com, vijay.ac.kumar@oracle.com, peterz@infradead.org, mhocko@suse.com, jack@suse.cz, lstoakes@gmail.com, hughd@google.com, thomas.tai@oracle.com, paul.gortmaker@windriver.com, ross.zwisler@linux.intel.com, dave.jiang@intel.com, willy@infradead.org, ying.huang@intel.com, zhongjiang@huawei.com, minchan@kernel.org, vegard.nossum@oracle.com, imbrenda@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, khalid@gonehiking.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Bernhard Held <berny156@gmx.de>, Adam Borowski <kilobyte@angband.pl>, =?utf-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Wanpeng Li <kernellwp@gmail.com>, Paolo Bonzini <pbonzini@redhat.com>, Takashi Iwai <tiwai@suse.de>, Mike Galbraith <efault@gmx.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, axie <axie@amd.com>, Andrew Morton <akpm@linux-foundation.org>, Joerg Roedel <joro@8bytes.org>, iommu <iommu@lists.linux-foundation.org>
 
-On 08/30/2017 04:38 PM, David Miller wrote:
-> From: Khalid Aziz <khalid.aziz@oracle.com>
-> Date: Wed, 30 Aug 2017 16:27:54 -0600
-> 
->>>> +#define arch_calc_vm_prot_bits(prot, pkey)
->>>> sparc_calc_vm_prot_bits(prot)
->>>> +static inline unsigned long sparc_calc_vm_prot_bits(unsigned long
->>>> prot)
->>>> +{
->>>> +	if (prot & PROT_ADI) {
->>>> +		struct pt_regs *regs;
->>>> +
->>>> +		if (!current->mm->context.adi) {
->>>> +			regs = task_pt_regs(current);
->>>> +			regs->tstate |= TSTATE_MCDE;
->>>> +			current->mm->context.adi = true;
->>> If a process is multi-threaded when it enables ADI on some memory for
->>> the first time, TSTATE_MCDE will only be set for the calling thread
->>> and it will not be possible to enable it for the other threads.
->>> One possible way to handle this is to enable TSTATE_MCDE for all user
->>> threads when they are initialized if adi_capable() returns true.
->>>
->>
->> Or set TSTATE_MCDE unconditionally here by removing "if
->> (!current->mm->context.adi)"?
-> 
-> I think you have to make "ADI enabled" a property of the mm_struct.
-> 
-> Then you can broadcast to mm->cpu_vm_mask a per-cpu interrupt that
-> updates regs->tstate of a thread using 'mm' is currently executing.
-> 
-> And in the context switch code you set TSTATE_MCDE if it's not set
-> already.
-> 
-> That should cover all threaded case.
+[cc=E2=80=99ing IOMMU people, which for some reason are not cc=E2=80=99d]
 
-That is an interesting idea. This would enable TSTATE_MCDE on all 
-threads of a process as soon as one thread enables it. If we consider 
-the case where the parent creates a shared memory area and spawns a 
-bunch of threads. These threads access the shared memory without ADI 
-enabled. Now one of the threads decides to enable ADI on the shared 
-memory. As soon as it does that, we enable TSTATE_MCDE across all 
-threads and since threads are all using the same TTE for the shared 
-memory, every thread becomes subject to ADI verification. If one of the 
-other threads was in the middle of accessing the shared memory, it will 
-get a sigsegv. If we did not enable TSTATE_MCDE across all threads, it 
-could have continued execution without fault. In other words, updating 
-TSTATE_MCDE across all threads will eliminate the option of running some 
-threads with ADI enabled and some not while accessing the same shared 
-memory. This could be necessary at least for short periods of time 
-before threads can communicate with each other and all switch to 
-accessing shared memory with ADI enabled using same tag. Does that sound 
-like a valid use case or am I off in the weeds here?
+Andrea Arcangeli <aarcange@redhat.com> wrote:
 
-Thanks,
-Khalid
+> On Wed, Aug 30, 2017 at 11:00:32AM -0700, Nadav Amit wrote:
+>> It is not trivial to flush TLBs (primary or secondary) without =
+holding the
+>> page-table lock, and as we recently encountered this resulted in =
+several
+>> bugs [1]. The main problem is that even if you perform the TLB flush
+>> immediately after the PT-lock is released, you cause a situation in =
+which
+>> other threads may make decisions based on the updated PTE value, =
+without
+>> being aware that a TLB flush is needed.
+>>=20
+>> For example, we recently encountered a Linux bug when two threads run
+>> MADV_DONTNEED concurrently on the same address range [2]. One of the =
+threads
+>> may update a PTE, setting it as non-present, and then deferring the =
+TLB
+>> flush (for batching). As a result, however, it would cause the second
+>> thread, which also changes the PTEs to assume that the PTE is already
+>> non-present and TLB flush is not necessary. As a result the second =
+core may
+>> still hold stale PTEs in its TLB following MADV_DONTNEED.
+>=20
+> The source of those complex races that requires taking into account
+> nested tlb gather to solve it, originates from skipping primary MMU
+> tlb flushes depending on the value of the pagetables (as an
+> optimization).
+>=20
+> For mmu_notifier_invalidate_range_end we always ignore the value of
+> the pagetables and mmu_notifier_invalidate_range_end always runs
+> unconditionally invalidating the secondary MMU for the whole range
+> under consideration. There are no optimizations that attempts to skip
+> mmu_notifier_invalidate_range_end depending on the pagetable value and
+> there's no TLB gather for secondary MMUs either. That is to keep it
+> simple of course.
+>=20
+> As long as those mmu_notifier_invalidate_range_end stay unconditional,
+> I don't see how those races you linked, can be possibly relevant in
+> evaluating if ->invalidate_range (again only for iommuv2 and
+> intel-svm) has to run inside the PT lock or not.
+
+Thanks for the clarifications. It now makes much more sense.
+
+>=20
+>> There is a swarm of such problems, and some are not too trivial. =
+Deferring
+>> TLB flushes needs to be done in a very careful manner.
+>=20
+> I agree it's not trivial, but I don't think any complexity comes from
+> above.
+>=20
+> The only complexity is about, what if the page is copied to some other
+> page and replaced, because the copy is the only case where coherency
+> could be retained by the primary MMU. What if the primary MMU starts
+> working on the new page in between PT lock release and
+> mmu_notifier_invalidate_range_end, while the secondary MMU is stuck on
+> the old page? That is the only problem we deal with here, the copy to
+> other page and replace. Any other case that doesn't involve the copy
+> seems non coherent by definition, and you couldn't measure it.
+>=20
+> I can't think of a scenario that requires the explicit
+> mmu_notifier_invalidate_range call before releasing the PT lock, at
+> least for try_to_unmap_one.
+>=20
+> Could you think of a scenario where calling ->invalidate_range inside
+> mmu_notifier_invalidate_range_end post PT lock breaks iommuv2 or
+> intel-svm? Those two are the only ones requiring
+> ->invalidate_range calls, all other mmu notifier users are safe
+> without running mmu_notifier_invalidate_range_end under PT lock thanks
+> to mmu_notifier_invalidate_range_start blocking the secondary MMU.
+>=20
+> Could you post a tangible scenario that invalidates my theory that
+> those mmu_notifier_invalidate_range calls inside PT lock would be
+> superfluous?
+>=20
+> Some of the scenarios under consideration:
+>=20
+> 1) migration entry -> migration_entry_wait -> page lock, plus
+>   migrate_pages taking the lock so it can't race with try_to_unmap
+>   from other places
+> 2) swap entry -> lookup_swap_cache -> page lock (page not really =
+replaced)
+> 3) CoW -> do_wp_page -> page lock on old page
+> 4) KSM -> replace_page -> page lock on old page
+> 5) if the pte is zapped as in MADV_DONTNEED, no coherency possible so
+>   it's not measurable that we let the guest run a bit longer on the
+>   old page past PT lock release
+
+For both CoW and KSM, the correctness is maintained by calling
+ptep_clear_flush_notify(). If you defer the secondary MMU invalidation
+(i.e., replacing ptep_clear_flush_notify() with ptep_clear_flush() ), =
+you
+will cause memory corruption, and page-lock would not be enough.
+
+BTW: I see some calls to ptep_clear_flush_notify() which are followed
+immediately after by set_pte_at_notify(). I do not understand why it =
+makes
+sense, as both notifications end up doing the same thing - invalidating =
+the
+secondary MMU. The set_pte_at_notify() in these cases can be changed to
+set_pte(). No?
+
+> If you could post a multi CPU trace that shows how iommuv2 or
+> intel-svm are broken if ->invalidate_range is run inside
+> mmu_notifier_invalidate_range_end post PT lock in try_to_unmap_one it
+> would help.
+>=20
+> Of course if we run mmu_notifier_invalidate_range inside PT lock and
+> we remove ->invalidate_range from mmu_notifier_invalidate_range_stop
+> all will be obviously safe, so we could just do it to avoid thinking
+> about the above, but the resulting code will be uglier and less
+> optimal (even when disarmed there will be dummy branches I wouldn't
+> love) and I currently can't see why it wouldn't be safe.
+>=20
+> Replacing a page completely without any relation to the old page
+> content allows no coherency anyway, so even if it breaks you cannot
+> measure it because it's undefined.
+>=20
+> If the page has a relation with the old contents and coherency has to
+> be provided for both primary MMU and secondary MMUs, this relation
+> between old and new page during the replacement, is enforced by some
+> other mean besides the PT lock, migration entry on locked old page
+> with migration_entry_wait and page lock in migrate_pages etc..
+
+I think that basically you are correct, and assuming that you always
+notify/invalidate unconditionally any PTE range you read/write, you are
+safe. Yet, I want to have another look at the code. Anyhow, just =
+deferring
+all the TLB flushes, including those of set_pte_at_notify(), is likely =
+to
+result in errors.
+
+Regards,
+Nadav=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
