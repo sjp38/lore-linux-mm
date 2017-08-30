@@ -1,88 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 71E5E6B0311
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 02:13:54 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id p69so10101673pfk.10
-        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 23:13:54 -0700 (PDT)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00073.outbound.protection.outlook.com. [40.107.0.73])
-        by mx.google.com with ESMTPS id y14si3715034pgc.771.2017.08.29.23.13.53
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CB056B0313
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 02:18:56 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 83so10862974pgb.1
+        for <linux-mm@kvack.org>; Tue, 29 Aug 2017 23:18:56 -0700 (PDT)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0082.outbound.protection.outlook.com. [104.47.34.82])
+        by mx.google.com with ESMTPS id l9si3861335pgf.637.2017.08.29.23.18.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 29 Aug 2017 23:13:53 -0700 (PDT)
-Date: Wed, 30 Aug 2017 09:13:45 +0300
-From: Leon Romanovsky <leonro@mellanox.com>
-Subject: Re: [PATCH 05/13] IB/umem: update to new mmu_notifier semantic
-Message-ID: <20170830061345.GA26572@mtr-leonro.local>
+        Tue, 29 Aug 2017 23:18:54 -0700 (PDT)
+Subject: Re: [PATCH 04/13] drm/amdgpu: update to new mmu_notifier semantic
 References: <20170829235447.10050-1-jglisse@redhat.com>
- <20170829235447.10050-6-jglisse@redhat.com>
+ <20170829235447.10050-5-jglisse@redhat.com>
+From: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
+Message-ID: <2bdbe5bd-ab1f-831b-5f0e-c2381b0cd14f@amd.com>
+Date: Wed, 30 Aug 2017 08:18:37 +0200
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="RnlQjJ0d97Da+TV1"
-Content-Disposition: inline
-In-Reply-To: <20170829235447.10050-6-jglisse@redhat.com>
+In-Reply-To: <20170829235447.10050-5-jglisse@redhat.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-rdma@vger.kernel.org, Artemy Kovalyov <artemyko@mellanox.com>, Doug Ledford <dledford@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: amd-gfx@lists.freedesktop.org, Felix Kuehling <Felix.Kuehling@amd.com>, Alex Deucher <alexander.deucher@amd.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 
-
---RnlQjJ0d97Da+TV1
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-
-On Tue, Aug 29, 2017 at 07:54:39PM -0400, J=E9r=F4me Glisse wrote:
+Am 30.08.2017 um 01:54 schrieb JA(C)rA'me Glisse:
 > Call to mmu_notifier_invalidate_page() are replaced by call to
 > mmu_notifier_invalidate_range() and thus call are bracketed by
 > call to mmu_notifier_invalidate_range_start()/end()
 >
 > Remove now useless invalidate_page callback.
 >
-> Signed-off-by: J=E9r=F4me Glisse <jglisse@redhat.com>
-> Cc: Leon Romanovsky <leonro@mellanox.com>
-> Cc: linux-rdma@vger.kernel.org
-> Cc: Artemy Kovalyov <artemyko@mellanox.com>
-> Cc: Doug Ledford <dledford@redhat.com>
+> Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+
+Reviewed-by: Christian KA?nig <christian.koenig@amd.com>
+
+The general approach is Acked-by: Christian KA?nig 
+<christian.koenig@amd.com>.
+
+It's something very welcome since I was one of the people (together with 
+the Intel guys) which failed to recognize what this callback really does.
+
+Regards,
+Christian.
+
+> Cc: amd-gfx@lists.freedesktop.org
+> Cc: Felix Kuehling <Felix.Kuehling@amd.com>
+> Cc: Christian KA?nig <christian.koenig@amd.com>
+> Cc: Alex Deucher <alexander.deucher@amd.com>
 > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 > Cc: Andrew Morton <akpm@linux-foundation.org>
 > Cc: Linus Torvalds <torvalds@linux-foundation.org>
 > Cc: Andrea Arcangeli <aarcange@redhat.com>
 > ---
->  drivers/infiniband/core/umem_odp.c | 19 -------------------
->  1 file changed, 19 deletions(-)
+>   drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c | 31 -------------------------------
+>   1 file changed, 31 deletions(-)
 >
+> diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
+> index 6558a3ed57a7..e1cde6b80027 100644
+> --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
+> +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c
+> @@ -147,36 +147,6 @@ static void amdgpu_mn_invalidate_node(struct amdgpu_mn_node *node,
+>   }
+>   
+>   /**
+> - * amdgpu_mn_invalidate_page - callback to notify about mm change
+> - *
+> - * @mn: our notifier
+> - * @mn: the mm this callback is about
+> - * @address: address of invalidate page
+> - *
+> - * Invalidation of a single page. Blocks for all BOs mapping it
+> - * and unmap them by move them into system domain again.
+> - */
+> -static void amdgpu_mn_invalidate_page(struct mmu_notifier *mn,
+> -				      struct mm_struct *mm,
+> -				      unsigned long address)
+> -{
+> -	struct amdgpu_mn *rmn = container_of(mn, struct amdgpu_mn, mn);
+> -	struct interval_tree_node *it;
+> -
+> -	mutex_lock(&rmn->lock);
+> -
+> -	it = interval_tree_iter_first(&rmn->objects, address, address);
+> -	if (it) {
+> -		struct amdgpu_mn_node *node;
+> -
+> -		node = container_of(it, struct amdgpu_mn_node, it);
+> -		amdgpu_mn_invalidate_node(node, address, address);
+> -	}
+> -
+> -	mutex_unlock(&rmn->lock);
+> -}
+> -
+> -/**
+>    * amdgpu_mn_invalidate_range_start - callback to notify about mm change
+>    *
+>    * @mn: our notifier
+> @@ -215,7 +185,6 @@ static void amdgpu_mn_invalidate_range_start(struct mmu_notifier *mn,
+>   
+>   static const struct mmu_notifier_ops amdgpu_mn_ops = {
+>   	.release = amdgpu_mn_release,
+> -	.invalidate_page = amdgpu_mn_invalidate_page,
+>   	.invalidate_range_start = amdgpu_mn_invalidate_range_start,
+>   };
+>   
 
-Hi Jerome,
-
-I took this series for the tests on Mellanox ConnectX-4/5 cards which
-are devices beneath of this UMEM ODP code.
-
-As a reference, I took latest Doug's for-next + Linus's master
-(36fde05f3fb5) + whole series.
-
-Thanks
-
---RnlQjJ0d97Da+TV1
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEkhr/r4Op1/04yqaB5GN7iDZyWKcFAlmmV5kACgkQ5GN7iDZy
-WKe2YQ/9EF+XXUYz7ntKUCKJISQ1Ys7lDOcg6ejNNRKL/8BSTvy+TZnHpJAwohpx
-wh2yQ19Sb1v5WSOqm8XgYfYDp5tnultmLFgZnV4XgPuJ62D4RovI5lULKDOqXkXJ
-DNqSPIP6VS0dZfO4T5IdaXAOyZ5pCxgM4fhAFH2nrfft/PoIxRcB0NKSwxcviC/s
-C6vs3GJGvFfJ++HsuUo6Rfil8/RDfU12aoLAVccSOuIPMIvm4XlzpZOoNeOOLymL
-Uh8mYog8m4L0t8OpD2XABqhYgHLPQZMdyES3Bp6lW7iaiXJ88GsgJz7UW1X1j1l2
-eCdqzA0QkPwuh9MURZ8KH8vwyEm+W5aOLmjy+GnVURrwK7gZ+ewHzGQlgcx/ZEfE
-T4j1aTHjLU67eHAhZ+886Y9qEuem4DyIOswqADg96LSq42Y1XtO23FAcSMTk1MEO
-CJN8FeA1mqRKn7A7K59PDS7SU+1NDejVX1pUJQGLqzrMKcLwjezNC0nCXrjUezCC
-Pi2TMcn65H2Fs057jPKIT1xqBzRa+DJ++HV0smnoWANwa8jVv19GcUQS4PzmTFcJ
-a0NWwofSLr199e/Z87o6yI1vVNtK07DFEJlUQr3zAIYkVATe99q7hCnWPKActHW0
-onOhsJR8dpjm0pE31oJyQt2hXGVjdECRN4g+c9P6r1Pm67/fXMA=
-=pTRo
------END PGP SIGNATURE-----
-
---RnlQjJ0d97Da+TV1--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
