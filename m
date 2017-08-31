@@ -1,85 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 16E9B6B02C3
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 01:33:47 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id 8so5995009wra.8
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 22:33:47 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 64si3092494wrq.378.2017.08.30.22.33.45
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EBA06B0292
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 02:28:39 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id f5so12332566oic.10
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 23:28:39 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id k70si5829631oib.414.2017.08.30.23.28.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Aug 2017 22:33:45 -0700 (PDT)
-Date: Thu, 31 Aug 2017 07:33:42 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, memory_hotplug: do not back off draining pcp free
- pages from kworker context
-Message-ID: <20170831053342.fo7x4hnhicxikme4@dhcp22.suse.cz>
-References: <20170828093341.26341-1-mhocko@kernel.org>
- <20170828153359.f9b252f99647eebd339a3a89@linux-foundation.org>
- <6e138348-aa28-8660-d902-96efafe1dcb2@I-love.SAKURA.ne.jp>
- <20170829112823.GA12413@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Aug 2017 23:28:37 -0700 (PDT)
+Subject: Re: [PATCH 1/2] arm64: stacktrace: avoid listing stacktrace functions
+ in stacktrace
+References: <1504078343-28754-1-git-send-email-guptap@codeaurora.org>
+ <20170830132828.0bf9b9bc64f51362a64a6694@linux-foundation.org>
+From: Prakash Gupta <guptap@codeaurora.org>
+Message-ID: <9ce9206f-cffa-99c5-2a34-e5988bd0b603@codeaurora.org>
+Date: Thu, 31 Aug 2017 11:58:31 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170829112823.GA12413@dhcp22.suse.cz>
+In-Reply-To: <20170830132828.0bf9b9bc64f51362a64a6694@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: mhocko@suse.com, vbabka@suse.cz, will.deacon@arm.com, catalin.marinas@arm.com, iamjoonsoo.kim@lge.com, rmk+kernel@arm.linux.org.uk, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 29-08-17 13:28:23, Michal Hocko wrote:
-> On Tue 29-08-17 20:20:39, Tetsuo Handa wrote:
-> > On 2017/08/29 7:33, Andrew Morton wrote:
-> > > On Mon, 28 Aug 2017 11:33:41 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-> > > 
-> > >> drain_all_pages backs off when called from a kworker context since
-> > >> 0ccce3b924212 ("mm, page_alloc: drain per-cpu pages from workqueue
-> > >> context") because the original IPI based pcp draining has been replaced
-> > >> by a WQ based one and the check wanted to prevent from recursion and
-> > >> inter workers dependencies. This has made some sense at the time
-> > >> because the system WQ has been used and one worker holding the lock
-> > >> could be blocked while waiting for new workers to emerge which can be a
-> > >> problem under OOM conditions.
-> > >>
-> > >> Since then ce612879ddc7 ("mm: move pcp and lru-pcp draining into single
-> > >> wq") has moved draining to a dedicated (mm_percpu_wq) WQ with a rescuer
-> > >> so we shouldn't depend on any other WQ activity to make a forward
-> > >> progress so calling drain_all_pages from a worker context is safe as
-> > >> long as this doesn't happen from mm_percpu_wq itself which is not the
-> > >> case because all workers are required to _not_ depend on any MM locks.
-> > >>
-> > >> Why is this a problem in the first place? ACPI driven memory hot-remove
-> > >> (acpi_device_hotplug) is executed from the worker context. We end
-> > >> up calling __offline_pages to free all the pages and that requires
-> > >> both lru_add_drain_all_cpuslocked and drain_all_pages to do their job
-> > >> otherwise we can have dangling pages on pcp lists and fail the offline
-> > >> operation (__test_page_isolated_in_pageblock would see a page with 0
-> > >> ref. count but without PageBuddy set).
-> > >>
-> > >> Fix the issue by removing the worker check in drain_all_pages.
-> > >> lru_add_drain_all_cpuslocked doesn't have this restriction so it works
-> > >> as expected.
-> > >>
-> > >> Fixes: 0ccce3b924212 ("mm, page_alloc: drain per-cpu pages from workqueue context")
-> > >> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > > 
-> > > No cc:stable?
-> > > 
-> > 
-> > Michal, are you sure that this patch does not cause deadlock?
-> > 
-> > As shown in "[PATCH] mm: Use WQ_HIGHPRI for mm_percpu_wq." thread, currently work
-> > items on mm_percpu_wq seem to be blocked by other work items not on mm_percpu_wq.
+
+
+On 8/31/2017 1:58 AM, Andrew Morton wrote:
+> On Wed, 30 Aug 2017 13:02:22 +0530 Prakash Gupta <guptap@codeaurora.org> wrote:
 > 
-> But we have a rescuer so we should make a forward progress eventually.
-> Or am I missing something. Tejun, could you have a look please?
+>> The stacktraces always begin as follows:
+>>
+>>   [<c00117b4>] save_stack_trace_tsk+0x0/0x98
+>>   [<c0011870>] save_stack_trace+0x24/0x28
+>>   ...
+>>
+>> This is because the stack trace code includes the stack frames for itself.
+>> This is incorrect behaviour, and also leads to "skip" doing the wrong thing
+>> (which is the number of stack frames to avoid recording.)
+>>
+>> Perversely, it does the right thing when passed a non-current thread.  Fix
+>> this by ensuring that we have a known constant number of frames above the
+>> main stack trace function, and always skip these.
+>>
+>> This was fixed for arch arm by Commit 3683f44c42e9 ("ARM: stacktrace: avoid
+>> listing stacktrace functions in stacktrace")
+> 
+> I can take this (with acks, please?)
+> 
+> 3683f44c42e9 has a cc:stable but your patch does not.  Should it?
+> 
 
-ping... I would really appreaciate if you could double check my thinking
-Tejun. This is a tricky area and I would like to prevent further subtle
-issues here.
+My bad, it should be copied to stable as well.
+
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+
 -- 
-Michal Hocko
-SUSE Labs
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a 
+member of the Code Aurora Forum, hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
