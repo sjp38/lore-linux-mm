@@ -1,89 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1633B6B0292
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 03:31:49 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id n74so2130039ioe.3
-        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 00:31:49 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id m197si6778829iom.353.2017.08.31.00.31.47
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 996AB6B02C3
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 03:34:59 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id z91so11929017wrc.2
+        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 00:34:59 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d6si5705556wrb.525.2017.08.31.00.34.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Aug 2017 00:31:47 -0700 (PDT)
-Date: Thu, 31 Aug 2017 09:31:22 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v2 14/20] mm: Provide speculative fault infrastructure
-Message-ID: <20170831073121.ptxjsvibekxudzbx@hirez.programming.kicks-ass.net>
-References: <1503007519-26777-15-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170827001823.n5wgkfq36z6snvf2@node.shutemov.name>
- <507e79d5-59df-c5b5-106d-970c9353d9bc@linux.vnet.ibm.com>
- <20170829120426.4ar56rbmiupbqmio@hirez.programming.kicks-ass.net>
- <848fa2c6-dbda-9a1e-2efd-3ce9b083365e@linux.vnet.ibm.com>
- <20170829134550.t7du5zdssvlzemtk@hirez.programming.kicks-ass.net>
- <ab0634c4-274d-208f-fc4b-43991986bacf@linux.vnet.ibm.com>
- <20170830055800.GG32112@worktop.programming.kicks-ass.net>
- <12d54f18-6dec-5067-db87-d1a176d5160f@linux.vnet.ibm.com>
- <0add5ad0-fd3d-efb7-f00c-7232dfc768af@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 31 Aug 2017 00:34:58 -0700 (PDT)
+Subject: Re: [PATCH 2/2] mm, page_owner: Skip unnecessary stack_trace entries
+References: <1504078343-28754-1-git-send-email-guptap@codeaurora.org>
+ <1504078343-28754-2-git-send-email-guptap@codeaurora.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <82346e0c-176a-dc11-c535-47d023f237a8@suse.cz>
+Date: Thu, 31 Aug 2017 09:34:38 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0add5ad0-fd3d-efb7-f00c-7232dfc768af@linux.vnet.ibm.com>
+In-Reply-To: <1504078343-28754-2-git-send-email-guptap@codeaurora.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Laurent Dufour <ldufour@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Prakash Gupta <guptap@codeaurora.org>, akpm@linux-foundation.org, mhocko@suse.com, will.deacon@arm.com, catalin.marinas@arm.com, iamjoonsoo.kim@lge.com, rmk+kernel@arm.linux.org.uk, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Aug 31, 2017 at 12:25:16PM +0530, Anshuman Khandual wrote:
-> On 08/30/2017 03:02 PM, Laurent Dufour wrote:
-> > On 30/08/2017 07:58, Peter Zijlstra wrote:
-> >> On Wed, Aug 30, 2017 at 10:33:50AM +0530, Anshuman Khandual wrote:
-> >>> diff --git a/mm/filemap.c b/mm/filemap.c
-> >>> index a497024..08f3042 100644
-> >>> --- a/mm/filemap.c
-> >>> +++ b/mm/filemap.c
-> >>> @@ -1181,6 +1181,18 @@ int __lock_page_killable(struct page *__page)
-> >>>  int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
-> >>>                          unsigned int flags)
-> >>>  {
-> >>> +       if (flags & FAULT_FLAG_SPECULATIVE) {
-> >>> +               if (flags & FAULT_FLAG_KILLABLE) {
-> >>> +                       int ret;
-> >>> +
-> >>> +                       ret = __lock_page_killable(page);
-> >>> +                       if (ret)
-> >>> +                               return 0;
-> >>> +               } else
-> >>> +                       __lock_page(page);
-> >>> +               return 1;
-> >>> +       }
-> >>> +
-> >>>         if (flags & FAULT_FLAG_ALLOW_RETRY) {
-> >>>                 /*
-> >>>                  * CAUTION! In this case, mmap_sem is not released
-> >>
-> >> Yeah, that looks right.
-> > 
-> > Hum, I'm wondering if FAULT_FLAG_RETRY_NOWAIT should be forced in the
-> > speculative path in that case to match the semantics of
-> > __lock_page_or_retry().
+On 08/30/2017 09:32 AM, Prakash Gupta wrote:
+> The page_owner stacktrace always begin as follows:
 > 
-> Doing that would force us to have another retry through classic fault
-> path wasting all the work done till now through SPF. Hence it may be
-> better to just wait, get the lock here and complete the fault. Peterz,
-> would you agree ? Or we should do as suggested by Laurent. More over,
-> forcing FAULT_FLAG_RETRY_NOWAIT on FAULT_FLAG_SPECULTIVE at this point
-> would look like a hack.
+> [<ffffff987bfd48f4>] save_stack+0x40/0xc8
+> [<ffffff987bfd4da8>] __set_page_owner+0x3c/0x6c
 
-Is there ever a situation where SPECULATIVE and NOWAIT are used
-together? That seems like something to avoid.
+Hmm, on x86_64 it looks like this:
 
-A git-grep seems to suggest gup() can set it, but gup() will not be
-doing speculative faults. s390 also sets it, but then again, they don't
-have speculative fault support yet and when they do they can avoid
-setting them together.
+ save_stack_trace+0x16/0x20
+ save_stack+0x43/0xe0
+ __set_page_owner+0x24/0x50
 
-So maybe put in a WARN_ON_ONCE() on having both of them, it is not
-something that makes sense to me, but maybe someone sees a rationale for
-it?
+So after your patch there's still __set_page_owner. Seems x86 needs
+something similar to your arm64 patch 1/2?
+
+> These two entries do not provide any useful information and limits the
+> available stacktrace depth.  The page_owner stacktrace was skipping caller
+> function from stack entries but this was missed with commit f2ca0b557107
+> ("mm/page_owner: use stackdepot to store stacktrace")
+> 
+> Example page_owner entry after the patch:
+> 
+> Page allocated via order 0, mask 0x8(ffffff80085fb714)
+> PFN 654411 type Movable Block 639 type CMA Flags 0x0(ffffffbe5c7f12c0)
+> [<ffffff9b64989c14>] post_alloc_hook+0x70/0x80
+> ...
+> [<ffffff9b651216e8>] msm_comm_try_state+0x5f8/0x14f4
+> [<ffffff9b6512486c>] msm_vidc_open+0x5e4/0x7d0
+> [<ffffff9b65113674>] msm_v4l2_open+0xa8/0x224
+> 
+> Fixes: f2ca0b557107 ("mm/page_owner: use stackdepot to store stacktrace")
+> Signed-off-by: Prakash Gupta <guptap@codeaurora.org>
+
+The patch itself improves the output regardless of whether we fix the
+x86 internals, so:
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> ---
+>  mm/page_owner.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_owner.c b/mm/page_owner.c
+> index 10d16fc45bd9..75b7c39bf1df 100644
+> --- a/mm/page_owner.c
+> +++ b/mm/page_owner.c
+> @@ -139,7 +139,7 @@ static noinline depot_stack_handle_t save_stack(gfp_t flags)
+>  		.nr_entries = 0,
+>  		.entries = entries,
+>  		.max_entries = PAGE_OWNER_STACK_DEPTH,
+> -		.skip = 0
+> +		.skip = 2
+>  	};
+>  	depot_stack_handle_t handle;
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
