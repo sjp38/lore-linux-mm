@@ -1,51 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A6726B0292
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 05:51:35 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id p42so244439wrb.1
-        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 02:51:35 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 64si3455361wrq.378.2017.08.31.02.51.33
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A033C6B0292
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 06:02:03 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id m85so5683727wma.8
+        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 03:02:03 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id 193si4775280wmp.6.2017.08.31.03.02.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 31 Aug 2017 02:51:33 -0700 (PDT)
-Date: Thu, 31 Aug 2017 11:51:14 +0200
-From: Borislav Petkov <bp@suse.de>
-Subject: Re: [PATCH v8 02/28] x86/boot: Relocate definition of the initial
- state of CR0
-Message-ID: <20170831095113.huidayjchfsdabjz@pd.tnic>
-References: <20170819002809.111312-1-ricardo.neri-calderon@linux.intel.com>
- <20170819002809.111312-3-ricardo.neri-calderon@linux.intel.com>
- <20170825174133.r5xhcv5utfipsujo@pd.tnic>
- <1504152258.51857.8.camel@ranerica-desktop>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 Aug 2017 03:02:02 -0700 (PDT)
+Date: Thu, 31 Aug 2017 12:02:01 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH 1/2] vfs: add flags parameter to ->mmap() in 'struct
+	file_operations'
+Message-ID: <20170831100201.GC21443@lst.de>
+References: <150413449482.5923.1348069619036923853.stgit@dwillia2-desk3.amr.corp.intel.com> <150413450036.5923.13851061508172314879.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1504152258.51857.8.camel@ranerica-desktop>
+In-Reply-To: <150413450036.5923.13851061508172314879.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ricardo Neri <ricardo.neri-calderon@linux.intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Brian Gerst <brgerst@gmail.com>, Chris Metcalf <cmetcalf@mellanox.com>, Dave Hansen <dave.hansen@linux.intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Masami Hiramatsu <mhiramat@kernel.org>, Huang Rui <ray.huang@amd.com>, Jiri Slaby <jslaby@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Michael S. Tsirkin" <mst@redhat.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Vlastimil Babka <vbabka@suse.cz>, Chen Yucong <slaoub@gmail.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Shuah Khan <shuah@kernel.org>, linux-kernel@vger.kernel.org, x86@kernel.org, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-mm@kvack.org, jack@suse.cz, linux-nvdimm@lists.01.org, David Airlie <airlied@linux.ie>, linux-api@vger.kernel.org, Takashi Iwai <tiwai@suse.com>, dri-devel@lists.freedesktop.org, Julia Lawall <julia.lawall@lip6.fr>, luto@kernel.org, Daniel Vetter <daniel.vetter@intel.com>, akpm@linux-foundation.org, torvalds@linux-foundation.org, hch@lst.de
 
-On Wed, Aug 30, 2017 at 09:04:18PM -0700, Ricardo Neri wrote:
-> Thank you! Is it necessary for me to submit a v9 with these updates?
-> Perhaps I can make these updates in branch for the maintainers to pull
-> when/if this series is ack'ed.
+> -static int ecryptfs_mmap(struct file *file, struct vm_area_struct *vma)
+> +static int ecryptfs_mmap(struct file *file, struct vm_area_struct *vma,
+> +			 unsigned long map_flags)
+>  {
+>  	struct file *lower_file = ecryptfs_file_to_lower(file);
+>  	/*
+> @@ -179,7 +180,7 @@ static int ecryptfs_mmap(struct file *file, struct vm_area_struct *vma)
+>  	 */
+>  	if (!lower_file->f_op->mmap)
+>  		return -ENODEV;
+> -	return generic_file_mmap(file, vma);
+> +	return generic_file_mmap(file, vma, 0);
 
-Don't do anything and let me go through the rest of them first. It is
-too late for this merge window anyway so we can take our time. Once you
-receive full feedback from me (and hopefully others) you can send what
-looks like to be a final v9 with all feedback incorporated. :-)
+Shouldn't ecryptfs pass on the flags?  Same for coda_file_mmap and
+shm_mmap.
 
-Thx.
+> -static inline int call_mmap(struct file *file, struct vm_area_struct *vma)
+> +static inline int call_mmap(struct file *file, struct vm_area_struct *vma,
+> +			    unsigned long flags)
+>  {
+> -	return file->f_op->mmap(file, vma);
+> +	return file->f_op->mmap(file, vma, flags);
+>  }
 
--- 
-Regards/Gruss,
-    Boris.
-
-SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
--- 
+It would be great to kill this pointless wrapper while we're at it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
