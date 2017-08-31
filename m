@@ -1,159 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 60C2F6B0495
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 17:18:14 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id l65so2414035qkc.1
-        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 14:18:14 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x14si645553qtx.541.2017.08.31.14.18.13
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 316606B039F
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 17:21:47 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id n7so4551959pfi.7
+        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 14:21:47 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id b3sor435161pli.11.2017.08.31.14.21.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Aug 2017 14:18:13 -0700 (PDT)
-From: jglisse@redhat.com
-Subject: [PATCH 13/13] mm/mmu_notifier: kill invalidate_page
-Date: Thu, 31 Aug 2017 17:17:38 -0400
-Message-Id: <20170831211738.17922-14-jglisse@redhat.com>
-In-Reply-To: <20170831211738.17922-1-jglisse@redhat.com>
-References: <20170831211738.17922-1-jglisse@redhat.com>
+        (Google Transport Security);
+        Thu, 31 Aug 2017 14:21:45 -0700 (PDT)
+Date: Thu, 31 Aug 2017 14:21:43 -0700
+From: Tycho Andersen <tycho@docker.com>
+Subject: Re: [kernel-hardening] [PATCH v5 04/10] arm64: Add __flush_tlb_one()
+Message-ID: <20170831212143.3rzgru3kmci6vnxd@docker>
+References: <20170809200755.11234-5-tycho@docker.com>
+ <20170812112603.GB16374@remoulade>
+ <20170814163536.6njceqc3dip5lrlu@smitten>
+ <20170814165047.GB23428@leverpostej>
+ <20170823165842.k5lbxom45avvd7g2@smitten>
+ <20170823170443.GD12567@leverpostej>
+ <2428d66f-3c31-fa73-0d6a-c16fafa99455@canonical.com>
+ <20170830164724.m6bbogd46ix4qp4o@docker>
+ <b50951e4-0b80-6d0e-39ed-fd9d67a51db3@canonical.com>
+ <20170831094726.GB15031@leverpostej>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170831094726.GB15031@leverpostej>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Bernhard Held <berny156@gmx.de>, Adam Borowski <kilobyte@angband.pl>, Andrea Arcangeli <aarcange@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Wanpeng Li <kernellwp@gmail.com>, Paolo Bonzini <pbonzini@redhat.com>, Takashi Iwai <tiwai@suse.de>, Nadav Amit <nadav.amit@gmail.com>, Mike Galbraith <efault@gmx.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, axie <axie@amd.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Juerg Haefliger <juerg.haefliger@canonical.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>
 
-From: JA(C)rA'me Glisse <jglisse@redhat.com>
+Hi all,
 
-The invalidate_page callback suffered from 2 pitfalls. First it use to
-happen after page table lock was release and thus a new page might have
-setup before the call to invalidate_page() happened.
+On Thu, Aug 31, 2017 at 10:47:27AM +0100, Mark Rutland wrote:
+> On Thu, Aug 31, 2017 at 11:43:53AM +0200, Juerg Haefliger wrote:
+> > On 08/30/2017 06:47 PM, Tycho Andersen wrote:
+> > > On Wed, Aug 30, 2017 at 07:31:25AM +0200, Juerg Haefliger wrote:
+> > >>
+> > >>
+> > >> On 08/23/2017 07:04 PM, Mark Rutland wrote:
+> > >>> On Wed, Aug 23, 2017 at 10:58:42AM -0600, Tycho Andersen wrote:
+> > >>>> Hi Mark,
+> > >>>>
+> > >>>> On Mon, Aug 14, 2017 at 05:50:47PM +0100, Mark Rutland wrote:
+> > >>>>> That said, is there any reason not to use flush_tlb_kernel_range()
+> > >>>>> directly?
+> > >>>>
+> > >>>> So it turns out that there is a difference between __flush_tlb_one() and
+> > >>>> flush_tlb_kernel_range() on x86: flush_tlb_kernel_range() flushes all the TLBs
+> > >>>> via on_each_cpu(), where as __flush_tlb_one() only flushes the local TLB (which
+> > >>>> I think is enough here).
+> > >>>
+> > >>> That sounds suspicious; I don't think that __flush_tlb_one() is
+> > >>> sufficient.
+> > >>>
+> > >>> If you only do local TLB maintenance, then the page is left accessible
+> > >>> to other CPUs via the (stale) kernel mappings. i.e. the page isn't
+> > >>> exclusively mapped by userspace.
+> > >>
+> > >> We flush all CPUs to get rid of stale entries when a new page is
+> > >> allocated to userspace that was previously allocated to the kernel.
+> > >> Is that the scenario you were thinking of?
+> > > 
+> > > I think there are two cases, the one you describe above, where the
+> > > pages are first allocated, and a second one, where e.g. the pages are
+> > > mapped into the kernel because of DMA or whatever. In the case you
+> > > describe above, I think we're doing the right thing (which is why my
+> > > test worked correctly, because it tested this case).
+> > > 
+> > > In the second case, when the pages are unmapped (i.e. the kernel is
+> > > done doing DMA), do we need to flush the other CPUs TLBs? I think the
+> > > current code is not quite correct, because if multiple tasks (CPUs)
+> > > map the pages, only the TLB of the last one is flushed when the
+> > > mapping is cleared, because the tlb is only flushed when ->mapcount
+> > > drops to zero, leaving stale entries in the other TLBs. It's not clear
+> > > to me what to do about this case.
+> > 
+> > For this to happen, multiple CPUs need to have the same userspace page
+> > mapped at the same time. Is this a valid scenario?
+> 
+> I believe so. I think you could trigger that with a multi-threaded
+> application running across several CPUs. All those threads would share
+> the same page tables.
 
-This is in a weird way fix by c7ab0d2fdc840266b39db94538f74207ec2afbf6
-that moved the callback under the page table lock but this also break
-several existing user of the mmu_notifier API that assumed they could
-sleep inside this callback.
+I played around with trying to track this per-cpu, and I'm not sure
+there's a nice way to do it (see the patch below, and the comment
+about correctness [never mind that this patch calls alloc_percpu from
+a possibly atomic context]).
 
-The second pitfall was invalidate_page being the only callback not taking
-a range of address in respect to invalidation but was giving an address
-and a page. Lot of the callback implementer assumed this could never be
-THP and thus failed to invalidate the appropriate range for THP.
+I think it may be best to just flush all the TLBs of the DMA range
+when the last task unmaps it. This would leave a small exploitable
+race where a task had mapped/unmapped the page, but some other page
+still had it mapped.
 
-By killing this callback we unify the mmu_notifier callback API to always
-take a virtual address range as input.
+If anyone has any better ideas please let me know, otherwise I'll just
+flush all the TLBs when the use count drops to zero, and post the next
+version Soon (TM).
 
-Finaly this also simplify the end user life as there is now 2 clear
-choice:
-  - invalidate_range_start()/end() callback (which allow you to sleep)
-  - invalidate_range() where you can not sleep but happen right after
-    page table update under page table lock
+Cheers,
 
-Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Bernhard Held <berny156@gmx.de>
-Cc: Adam Borowski <kilobyte@angband.pl>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Radim KrA?mA!A? <rkrcmar@redhat.com>
-Cc: Wanpeng Li <kernellwp@gmail.com>
-Cc: Paolo Bonzini <pbonzini@redhat.com>
-Cc: Takashi Iwai <tiwai@suse.de>
-Cc: Nadav Amit <nadav.amit@gmail.com>
-Cc: Mike Galbraith <efault@gmx.de>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: axie <axie@amd.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- include/linux/mmu_notifier.h | 25 -------------------------
- mm/mmu_notifier.c            | 14 --------------
- 2 files changed, 39 deletions(-)
-
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index c91b3bcd158f..7b2e31b1745a 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -95,17 +95,6 @@ struct mmu_notifier_ops {
- 			   pte_t pte);
- 
- 	/*
--	 * Before this is invoked any secondary MMU is still ok to
--	 * read/write to the page previously pointed to by the Linux
--	 * pte because the page hasn't been freed yet and it won't be
--	 * freed until this returns. If required set_page_dirty has to
--	 * be called internally to this method.
--	 */
--	void (*invalidate_page)(struct mmu_notifier *mn,
--				struct mm_struct *mm,
--				unsigned long address);
--
--	/*
- 	 * invalidate_range_start() and invalidate_range_end() must be
- 	 * paired and are called only when the mmap_sem and/or the
- 	 * locks protecting the reverse maps are held. If the subsystem
-@@ -220,8 +209,6 @@ extern int __mmu_notifier_test_young(struct mm_struct *mm,
- 				     unsigned long address);
- extern void __mmu_notifier_change_pte(struct mm_struct *mm,
- 				      unsigned long address, pte_t pte);
--extern void __mmu_notifier_invalidate_page(struct mm_struct *mm,
--					  unsigned long address);
- extern void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end);
- extern void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
-@@ -268,13 +255,6 @@ static inline void mmu_notifier_change_pte(struct mm_struct *mm,
- 		__mmu_notifier_change_pte(mm, address, pte);
- }
- 
--static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
--					  unsigned long address)
--{
--	if (mm_has_notifiers(mm))
--		__mmu_notifier_invalidate_page(mm, address);
--}
--
- static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end)
- {
-@@ -442,11 +422,6 @@ static inline void mmu_notifier_change_pte(struct mm_struct *mm,
- {
- }
- 
--static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
--					  unsigned long address)
--{
--}
--
- static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end)
- {
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index 54ca54562928..314285284e6e 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -174,20 +174,6 @@ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
- 	srcu_read_unlock(&srcu, id);
- }
- 
--void __mmu_notifier_invalidate_page(struct mm_struct *mm,
--					  unsigned long address)
--{
--	struct mmu_notifier *mn;
--	int id;
--
--	id = srcu_read_lock(&srcu);
--	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
--		if (mn->ops->invalidate_page)
--			mn->ops->invalidate_page(mn, mm, address);
--	}
--	srcu_read_unlock(&srcu, id);
--}
--
- void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end)
- {
--- 
-2.13.5
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Tycho
