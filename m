@@ -1,117 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DDFD6B0292
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 19:37:24 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id l87so5637485pfj.3
-        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 16:37:24 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id m1si673836pgm.668.2017.08.31.16.37.22
-        for <linux-mm@kvack.org>;
-        Thu, 31 Aug 2017 16:37:23 -0700 (PDT)
-From: Kyeongdon Kim <kyeongdon.kim@lge.com>
-Subject: [PATCH] mm/vmstats: add counters for the page frag cache
-Date: Fri,  1 Sep 2017 08:37:11 +0900
-Message-Id: <1504222631-2635-1-git-send-email-kyeongdon.kim@lge.com>
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 70CB96B0292
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 19:41:38 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id s187so7104955ywf.1
+        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 16:41:38 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t8sor651068ywi.217.2017.08.31.16.41.37
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 31 Aug 2017 16:41:37 -0700 (PDT)
+Date: Thu, 31 Aug 2017 19:41:25 -0400
+Subject: Re: [PATCH] mm: kvfree the swap cluster info if the swap file is
+ unsatisfactory
+Message-ID: <5d2dc29d-0593-4c06-b3e9-bd12a8f9d172@gmail.com>
+In-Reply-To: <20170831233515.GR3775@magnolia>
+References: <20170831233515.GR3775@magnolia>
+From: taskboxtester@gmail.com
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="--_com.boxer.email_3717920953233330"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, sfr@canb.auug.org.au
-Cc: ying.huang@intel.com, vbabka@suse.cz, hannes@cmpxchg.org, xieyisheng1@huawei.com, khlebnikov@yandex-team.ru, luto@kernel.org, shli@fb.com, mhocko@suse.com, mgorman@techsingularity.net, hillf.zj@alibaba-inc.com, kemi.wang@intel.com, rientjes@google.com, bigeasy@linutronix.de, iamjoonsoo.kim@lge.com, bongkyu.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kyeongdon Kim <kyeongdon.kim@lge.com>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, ying.huang@intel.com
 
-There was a memory leak problem when we did stressful test
-on Android device.
-The root cause of this was from page_frag_cache alloc
-and it was very hard to find out.
+----_com.boxer.email_3717920953233330
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: base64
 
-We add to count the page frag allocation and free with function call.
-The gap between pgfrag_alloc and pgfrag_free is good to to calculate
-for the amount of page.
-The gap between pgfrag_alloc_calls and pgfrag_free_calls is for
-sub-indicator.
-They can see trends of memory usage during the test.
-Without it, it's difficult to check page frag usage so I believe we
-should add it.
+dGFza2JveHRlc3RlckBnbWFpbC5jb20gbGlrZWQgeW91ciBtZXNzYWdlIHdpdGggQm94ZXIgZm9y
+IEFuZHJvaWQuCgoKT24gQXVnIDMxLCAyMDE3IDc6MzYgUE0sICJEYXJyaWNrIEouIFdvbmciIDxk
+YXJyaWNrLndvbmdAb3JhY2xlLmNvbT4gd3JvdGU6CgpJZiBpbml0aWFsaXppbmcgYSBzbWFsbCBz
+d2FwIGZpbGUgZmFpbHMgYmVjYXVzZSB0aGUgc3dhcCBmaWxlIGhhcyBhCnByb2JsZW0gKGhvbGVz
+LCBldGMuKSB0aGVuIHdlIG5lZWQgdG8gZnJlZSB0aGUgY2x1c3RlciBpbmZvIGFzIHBhcnQgb2YK
+Y2xlYW51cC4gIFVuZm9ydHVuYXRlbHkgYSBwcmV2aW91cyBwYXRjaCBjaGFuZ2VkIHRoZSBjb2Rl
+IHRvIHVzZQprdnphbGxvYyBidXQgZGlkIG5vdCBjaGFuZ2UgYWxsIHRoZSB2ZnJlZSBjYWxscyB0
+byB1c2Uga3ZmcmVlLgoKRm91bmQgYnkgcnVubmluZyBnZW5lcmljLzM1NyBmcm9tIHhmc3Rlc3Rz
+LgoKU2lnbmVkLW9mZi1ieTogRGFycmljayBKLiBXb25nIDxkYXJyaWNrLndvbmdAb3JhY2xlLmNv
+bT4KLS0tCm1tL3N3YXBmaWxlLmMgfCAgICAyICstCjEgZmlsZSBjaGFuZ2VkLCAxIGluc2VydGlv
+bigrKSwgMSBkZWxldGlvbigtKQoKZGlmZiAtLWdpdCBhL21tL3N3YXBmaWxlLmMgYi9tbS9zd2Fw
+ZmlsZS5jCmluZGV4IDZiYTRhYWIuLmMxZGViMDEgMTAwNjQ0Ci0tLSBhL21tL3N3YXBmaWxlLmMK
+KysrIGIvbW0vc3dhcGZpbGUuYwpAQCAtMzA1Miw3ICszMDUyLDcgQEAgU1lTQ0FMTF9ERUZJTkUy
+KHN3YXBvbiwgY29uc3QgY2hhciBfX3VzZXIgKiwgc3BlY2lhbGZpbGUsIGludCwgc3dhcF9mbGFn
+cykKcC0+ZmxhZ3MgPSAwOwpzcGluX3VubG9jaygmc3dhcF9sb2NrKTsKdmZyZWUoc3dhcF9tYXAp
+OwotdmZyZWUoY2x1c3Rlcl9pbmZvKTsKK2t2ZnJlZShjbHVzdGVyX2luZm8pOwppZiAoc3dhcF9m
+aWxlKSB7CmlmIChpbm9kZSAmJiBTX0lTUkVHKGlub2RlLT5pX21vZGUpKSB7Cmlub2RlX3VubG9j
+ayhpbm9kZSk7Cgo=
+----_com.boxer.email_3717920953233330
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: base64
 
-Signed-off-by: Kyeongdon Kim <kyeongdon.kim@lge.com>
----
- include/linux/vm_event_item.h | 4 ++++
- mm/page_alloc.c               | 9 +++++++--
- mm/vmstat.c                   | 4 ++++
- 3 files changed, 15 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index d77bc35..75425d4 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -110,6 +110,10 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		SWAP_RA,
- 		SWAP_RA_HIT,
- #endif
-+		PGFRAG_ALLOC,
-+		PGFRAG_FREE,
-+		PGFRAG_ALLOC_CALLS,
-+		PGFRAG_FREE_CALLS,
- 		NR_VM_EVENT_ITEMS
- };
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index db2d25f..b3ddd76 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4322,6 +4322,7 @@ void __page_frag_cache_drain(struct page *page, unsigned int count)
- 			free_hot_cold_page(page, false);
- 		else
- 			__free_pages_ok(page, order);
-+		__count_vm_events(PGFRAG_FREE, 1 << order);
- 	}
- }
- EXPORT_SYMBOL(__page_frag_cache_drain);
-@@ -4338,7 +4339,7 @@ void *page_frag_alloc(struct page_frag_cache *nc,
- 		page = __page_frag_cache_refill(nc, gfp_mask);
- 		if (!page)
- 			return NULL;
--
-+		__count_vm_events(PGFRAG_ALLOC, 1 << compound_order(page));
- #if (PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
- 		/* if size can vary use size else just use PAGE_SIZE */
- 		size = nc->size;
-@@ -4375,6 +4376,7 @@ void *page_frag_alloc(struct page_frag_cache *nc,
- 
- 	nc->pagecnt_bias--;
- 	nc->offset = offset;
-+	__count_vm_event(PGFRAG_ALLOC_CALLS);
- 
- 	return nc->va + offset;
- }
-@@ -4387,8 +4389,11 @@ void page_frag_free(void *addr)
- {
- 	struct page *page = virt_to_head_page(addr);
- 
--	if (unlikely(put_page_testzero(page)))
-+	if (unlikely(put_page_testzero(page))) {
-+		__count_vm_events(PGFRAG_FREE, 1 << compound_order(page));
- 		__free_pages_ok(page, compound_order(page));
-+	}
-+	__count_vm_event(PGFRAG_FREE_CALLS);
- }
- EXPORT_SYMBOL(page_frag_free);
- 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 4bb13e7..c00fe05 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1217,6 +1217,10 @@ const char * const vmstat_text[] = {
- 	"swap_ra",
- 	"swap_ra_hit",
- #endif
-+	"pgfrag_alloc",
-+	"pgfrag_free",
-+	"pgfrag_alloc_calls",
-+	"pgfrag_free_calls",
- #endif /* CONFIG_VM_EVENTS_COUNTERS */
- };
- #endif /* CONFIG_PROC_FS || CONFIG_SYSFS || CONFIG_NUMA */
--- 
-2.6.2
+PGh0bWw+PGJvZHk+PHA+dGFza2JveHRlc3RlckBnbWFpbC5jb20gbGlrZWQgeW91ciBtZXNzYWdl
+IHdpdGggPGEgaHJlZj1odHRwOi8vYnhyLmlvL1BCSUdVPkJveGVyIGZvciBBbmRyb2lkPC9hPi48
+L3A+PC9ib2R5PjwvaHRtbD48YnIvPjxkaXYgY2xhc3M9InF1b3RlIj5PbiBBdWcgMzEsIDIwMTcg
+NzozNiBQTSwgJnF1b3Q7RGFycmljayBKLiBXb25nJnF1b3Q7ICZsdDtkYXJyaWNrLndvbmdAb3Jh
+Y2xlLmNvbSZndDsgd3JvdGU6PGJyIHR5cGU9J2F0dHJpYnV0aW9uJz48YmxvY2txdW90ZSBjbGFz
+cz0icXVvdGUiIHN0eWxlPSJtYXJnaW46MCAwIDAgLjhleDtib3JkZXItbGVmdDoxcHggI2NjYyBz
+b2xpZDtwYWRkaW5nLWxlZnQ6MWV4Ij48cCBkaXI9Imx0ciI+SWYgaW5pdGlhbGl6aW5nIGEgc21h
+bGwgc3dhcCBmaWxlIGZhaWxzIGJlY2F1c2UgdGhlIHN3YXAgZmlsZSBoYXMgYSYjMTM7PGJyPgpw
+cm9ibGVtIChob2xlcywgZXRjLikgdGhlbiB3ZSBuZWVkIHRvIGZyZWUgdGhlIGNsdXN0ZXIgaW5m
+byBhcyBwYXJ0IG9mJiMxMzs8YnI+CmNsZWFudXAuJm5ic3A7IFVuZm9ydHVuYXRlbHkgYSBwcmV2
+aW91cyBwYXRjaCBjaGFuZ2VkIHRoZSBjb2RlIHRvIHVzZSYjMTM7PGJyPgprdnphbGxvYyBidXQg
+ZGlkIG5vdCBjaGFuZ2UgYWxsIHRoZSB2ZnJlZSBjYWxscyB0byB1c2Uga3ZmcmVlLiYjMTM7PGJy
+PgomIzEzOzxicj4KRm91bmQgYnkgcnVubmluZyBnZW5lcmljLzM1NyBmcm9tIHhmc3Rlc3RzLiYj
+MTM7PGJyPgomIzEzOzxicj4KU2lnbmVkLW9mZi1ieTogRGFycmljayBKLiBXb25nICZsdDtkYXJy
+aWNrLndvbmdAb3JhY2xlLmNvbSZndDsmIzEzOzxicj4KLS0tJiMxMzs8YnI+CiBtbS9zd2FwZmls
+ZS5jIHwmbmJzcDsmbmJzcDsmbmJzcDsgMiArLSYjMTM7PGJyPgogMSBmaWxlIGNoYW5nZWQsIDEg
+aW5zZXJ0aW9uKCspLCAxIGRlbGV0aW9uKC0pJiMxMzs8YnI+CiYjMTM7PGJyPgpkaWZmIC0tZ2l0
+IGEvbW0vc3dhcGZpbGUuYyBiL21tL3N3YXBmaWxlLmMmIzEzOzxicj4KaW5kZXggNmJhNGFhYi4u
+YzFkZWIwMSAxMDA2NDQmIzEzOzxicj4KLS0tIGEvbW0vc3dhcGZpbGUuYyYjMTM7PGJyPgorKysg
+Yi9tbS9zd2FwZmlsZS5jJiMxMzs8YnI+CkBAIC0zMDUyLDcgKzMwNTIsNyBAQCBTWVNDQUxMX0RF
+RklORTIoc3dhcG9uLCBjb25zdCBjaGFyIF9fdXNlciAqLCBzcGVjaWFsZmlsZSwgaW50LCBzd2Fw
+X2ZsYWdzKSYjMTM7PGJyPgogJiM5O3AtJmd0O2ZsYWdzID0gMDsmIzEzOzxicj4KICYjOTtzcGlu
+X3VubG9jaygmYW1wO3N3YXBfbG9jayk7JiMxMzs8YnI+CiAmIzk7dmZyZWUoc3dhcF9tYXApOyYj
+MTM7PGJyPgotJiM5O3ZmcmVlKGNsdXN0ZXJfaW5mbyk7JiMxMzs8YnI+CismIzk7a3ZmcmVlKGNs
+dXN0ZXJfaW5mbyk7JiMxMzs8YnI+CiAmIzk7aWYgKHN3YXBfZmlsZSkgeyYjMTM7PGJyPgogJiM5
+OyYjOTtpZiAoaW5vZGUgJmFtcDsmYW1wOyBTX0lTUkVHKGlub2RlLSZndDtpX21vZGUpKSB7JiMx
+Mzs8YnI+CiAmIzk7JiM5OyYjOTtpbm9kZV91bmxvY2soaW5vZGUpOyYjMTM7PGJyPgo8L3A+Cjwv
+YmxvY2txdW90ZT48L2Rpdj4=
+----_com.boxer.email_3717920953233330--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
