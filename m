@@ -1,83 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 01EBA6B0292
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 21:40:05 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id u15so15278140pgb.7
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 18:40:04 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id l91si5586577plb.721.2017.08.30.18.40.02
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5852D6B0292
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 21:41:55 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id m15so15319160pgc.2
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 18:41:55 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id x10si5511818pgo.266.2017.08.30.18.41.53
         for <linux-mm@kvack.org>;
-        Wed, 30 Aug 2017 18:40:03 -0700 (PDT)
-Date: Thu, 31 Aug 2017 10:40:49 +0900
+        Wed, 30 Aug 2017 18:41:54 -0700 (PDT)
+Date: Thu, 31 Aug 2017 10:42:41 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 1/3] mm/cma: manage the memory of the CMA area by using
- the ZONE_MOVABLE
-Message-ID: <20170831014048.GA24271@js1304-P5Q-DELUXE>
-References: <1503556593-10720-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1503556593-10720-2-git-send-email-iamjoonsoo.kim@lge.com>
- <adae04f0-73f4-7772-d056-9ed13122af0e@suse.cz>
+Subject: Re: [PATCH 2/2] mm/slub: don't use reserved highatomic pageblock for
+ optimistic try
+Message-ID: <20170831014241.GB24271@js1304-P5Q-DELUXE>
+References: <1503882675-17910-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1503882675-17910-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <b50bd39f-931f-7016-f380-62d65babb03f@suse.cz>
+ <20170828130829.GL17097@dhcp22.suse.cz>
+ <20170829003344.GB14489@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <adae04f0-73f4-7772-d056-9ed13122af0e@suse.cz>
+In-Reply-To: <20170829003344.GB14489@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>
 
-On Tue, Aug 29, 2017 at 11:16:18AM +0200, Vlastimil Babka wrote:
-> On 08/24/2017 08:36 AM, js1304@gmail.com wrote:
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Tue, Aug 29, 2017 at 09:33:44AM +0900, Joonsoo Kim wrote:
+> On Mon, Aug 28, 2017 at 03:08:29PM +0200, Michal Hocko wrote:
+> > On Mon 28-08-17 13:29:29, Vlastimil Babka wrote:
+> > > On 08/28/2017 03:11 AM, js1304@gmail.com wrote:
+> > > > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > > > 
+> > > > High-order atomic allocation is difficult to succeed since we cannot
+> > > > reclaim anything in this context. So, we reserves the pageblock for
+> > > > this kind of request.
+> > > > 
+> > > > In slub, we try to allocate higher-order page more than it actually
+> > > > needs in order to get the best performance. If this optimistic try is
+> > > > used with GFP_ATOMIC, alloc_flags will be set as ALLOC_HARDER and
+> > > > the pageblock reserved for high-order atomic allocation would be used.
+> > > > Moreover, this request would reserve the MIGRATE_HIGHATOMIC pageblock
+> > > > ,if succeed, to prepare further request. It would not be good to use
+> > > > MIGRATE_HIGHATOMIC pageblock in terms of fragmentation management
+> > > > since it unconditionally set a migratetype to request's migratetype
+> > > > when unreserving the pageblock without considering the migratetype of
+> > > > used pages in the pageblock.
+> > > > 
+> > > > This is not what we don't intend so fix it by unconditionally setting
+> > > > __GFP_NOMEMALLOC in order to not set ALLOC_HARDER.
+> > > 
+> > > I wonder if it would be more robust to strip GFP_ATOMIC from alloc_gfp.
+> > > E.g. __GFP_NOMEMALLOC does seem to prevent ALLOC_HARDER, but not
+> > > ALLOC_HIGH. Or maybe we should adjust __GFP_NOMEMALLOC implementation
+> > > and document it more thoroughly? CC Michal Hocko
 > > 
-> > 0. History
-> > 
-> > This patchset is the follow-up of the discussion about the
-> > "Introduce ZONE_CMA (v7)" [1]. Please reference it if more information
-> > is needed.
-> > 
+> > Yeah, __GFP_NOMEMALLOC is rather inconsistent. It has been added to
+> > override __GFP_MEMALLOC resp. PF_MEMALLOC AFAIK. In this particular
+> > case I would agree that dropping __GFP_HIGH and __GFP_ATOMIC would
+> > be more precise. I am not sure we want to touch the existing semantic of
+> > __GFP_NOMEMALLOC though. This would require auditing all the existing
+> > users (something tells me that quite some of those will be incorrect...)
 > 
-> [...]
-> 
-> > 
-> > [1]: lkml.kernel.org/r/1491880640-9944-1-git-send-email-iamjoonsoo.kim@lge.com
-> > [2]: https://lkml.org/lkml/2014/10/15/623
-> > [3]: http://www.spinics.net/lists/linux-mm/msg100562.html
-> > 
-> > Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> > Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> 
-> The previous version has introduced ZONE_CMA, so I would think switching
-> to ZONE_MOVABLE is enough to drop previous reviews. Perhaps most of the
-> code involved is basically the same, though?
+> Hmm... now I realize that there is another reason that we need to use
+> __GFP_NOMEMALLOC. Even if this allocation comes from PF_MEMALLOC user,
+> this optimistic try should not use the reserved memory below the
+> watermark. That is, it should not use ALLOC_NO_WATERMARKS. It can
+> only be accomplished by using __GFP_NOMEMALLOC.
 
-Yes, most of the code involved is the same. I considered to drop
-previous review tags but most of the code and concept is the same so I
-decide to keep review tags. I should mention it in cover-letter but I
-forgot to mention it. Sorry about that.
-
-> Anyway I checked the current patch and did some basic tests with qemu,
-> so you can keep my ack.
-
-Thanks!
-
-> 
-> BTW, if we dropped NR_FREE_CMA_PAGES, could we also drop MIGRATE_CMA and
-> related hooks? Is that counter really that useful as it works right now?
-> It will decrease both by CMA allocations (which has to be explicitly
-> freed) and by movable allocations (which can be migrated). What if only
-> CMA alloc/release touched it?
-
-I think that NR_FREE_CMA_PAGES would not be as useful as previous. We
-can remove it.
-
-However, removing MIGRATE_CMA has a problem. There is an usecase to
-check if the page comes from the CMA area or not. See
-check_page_span() in mm/usercopy.c. I can implement it differently by
-iterating whole CMA area and finding the match, but I'm not sure it's
-performance effect. I guess that it would be marginal.
-
-Anyway, I'd like not to cause any side-effect now. After patches are
-settle down on mainline, I will try to remove them as you suggested.
+Michal, Vlastimil, Any thought?
 
 Thanks.
 
