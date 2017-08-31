@@ -1,97 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 241076B0292
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 09:35:00 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 63so2496262pgc.0
-        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 06:35:00 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id w88si6482468pfa.172.2017.08.31.06.34.58
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 125D86B0292
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 09:43:11 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id i1so1305332oib.2
+        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 06:43:11 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id p137si6338761oic.407.2017.08.31.06.43.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Aug 2017 06:34:58 -0700 (PDT)
-Date: Thu, 31 Aug 2017 14:34:23 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v6 2/4] mm, oom: cgroup-aware OOM killer
-Message-ID: <20170831133423.GA30125@castle.DHCP.thefacebook.com>
-References: <20170823165201.24086-3-guro@fb.com>
- <20170824114706.GG5943@dhcp22.suse.cz>
- <20170824122846.GA15916@castle.DHCP.thefacebook.com>
- <20170824125811.GK5943@dhcp22.suse.cz>
- <20170824135842.GA21167@castle.DHCP.thefacebook.com>
- <20170824141336.GP5943@dhcp22.suse.cz>
- <20170824145801.GA23457@castle.DHCP.thefacebook.com>
- <20170825081402.GG25498@dhcp22.suse.cz>
- <20170830112240.GA4751@castle.dhcp.TheFacebook.com>
- <alpine.DEB.2.10.1708301349130.79465@chino.kir.corp.google.com>
+        Thu, 31 Aug 2017 06:43:09 -0700 (PDT)
+Date: Thu, 31 Aug 2017 09:43:06 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH 1/5] tracing, mm: Record pfn instead of pointer to
+ struct page
+Message-ID: <20170831094306.0fb655a5@gandalf.local.home>
+In-Reply-To: <897eb045-d63c-b9e3-c6e7-0f6b94536c0f@suse.cz>
+References: <1428963302-31538-1-git-send-email-acme@kernel.org>
+	<1428963302-31538-2-git-send-email-acme@kernel.org>
+	<897eb045-d63c-b9e3-c6e7-0f6b94536c0f@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1708301349130.79465@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Arnaldo Carvalho de Melo <acme@kernel.org>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, Namhyung Kim <namhyung@kernel.org>, David Ahern <dsahern@gmail.com>, Jiri Olsa <jolsa@redhat.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org
 
-On Wed, Aug 30, 2017 at 01:56:22PM -0700, David Rientjes wrote:
-> On Wed, 30 Aug 2017, Roman Gushchin wrote:
+On Mon, 31 Jul 2017 09:43:41 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
+
+> On 04/14/2015 12:14 AM, Arnaldo Carvalho de Melo wrote:
+> > From: Namhyung Kim <namhyung@kernel.org>
+> > 
+> > The struct page is opaque for userspace tools, so it'd be better to save
+> > pfn in order to identify page frames.
+> > 
+> > The textual output of $debugfs/tracing/trace file remains unchanged and
+> > only raw (binary) data format is changed - but thanks to libtraceevent,
+> > userspace tools which deal with the raw data (like perf and trace-cmd)
+> > can parse the format easily.  
 > 
-> > I've spent some time to implement such a version.
-> > 
-> > It really became shorter and more existing code were reused,
-> > howewer I've met a couple of serious issues:
-> > 
-> > 1) Simple summing of per-task oom_score doesn't make sense.
-> >    First, we calculate oom_score per-task, while should sum per-process values,
-> >    or, better, per-mm struct. We can take only threa-group leader's score
-> >    into account, but it's also not 100% accurate.
-> >    And, again, we have a question what to do with per-task oom_score_adj,
-> >    if we don't task the task's oom_score into account.
-> > 
-> >    Using memcg stats still looks to me as a more accurate and consistent
-> >    way of estimating memcg memory footprint.
-> > 
+> Hmm it seems trace-cmd doesn't work that well, at least on current
+> x86_64 kernel where I noticed it:
 > 
-> The patchset is introducing a new methodology for selecting oom victims so 
-> you can define how cgroups are compared vs other cgroups with your own 
-> "badness" calculation.  I think your implementation based heavily on anon 
-> and unevictable lrus and unreclaimable slab is fine and you can describe 
-> that detail in the documentation (along with the caveat that it is only 
-> calculated for nodes in the allocation's mempolicy).  With 
-> memory.oom_priority, the user has full ability to change that selection.  
-> Process selection heuristics have changed over time themselves, it's not 
-> something that must be backwards compatibile and trying to sum the usage 
-> from each of the cgroup's mm_struct's and respect oom_score_adj is 
-> unnecessarily complex.
+>  trace-cmd-22020 [003] 105219.542610: mm_page_alloc:        [FAILED TO PARSE] pfn=0x165cb4 order=0 gfp_flags=29491274 migratetype=1
 
-I agree.
+Which version of trace-cmd failed? It parses for me. Hmm, the
+vmemmap_base isn't in the event format file. It's the actually address.
+That's probably what failed to parse.
 
-So, it looks to me that we're close to an acceptable version,
-and the only remaining question is the default behavior
-(when oom_group is not set).
+> 
+> I'm quite sure it's due to the "page=%p" part, which uses pfn_to_page().
+> The events/kmem/mm_page_alloc/format file contains this for page:
+> 
+> REC->pfn != -1UL ? (((struct page *)vmemmap_base) + (REC->pfn)) : ((void *)0)
 
-Michal suggests to ignore non-oom_group memcgs, and compare tasks with
-memcgs with oom_group set. This makes the whole thing completely opt-in,
-but then we probably need another knob (or value) to select between
-"select memcg, kill biggest task" and "select memcg, kill all tasks".
-Also, as the whole thing is based on comparison between processes and
-memcgs, we probably need oom_priority for processes.
-I'm not necessary against this options, but I do worry about the complexity
-of resulting interface.
+But yeah, I think the output is wrong. I just ran this:
 
-In my implementation we always select a victim memcg first (or a task
-in root memcg), and then kill the biggest task inside.
-It actually changes the victim selection policy. By doing this
-we achieve per-memcg fairness, which makes sense in a containerized
-environment.
-I believe it's acceptable, but I can also add a cgroup v2 mount option
-to completely revert to the per-process OOM killer for those users, who
-for some reasons depend on the existing victim selection policy.
+ page=0xffffea00000a62f4 pfn=680692 order=0 migratetype=0 gfp_flags=GFP_KERNEL_ACCOUNT|__GFP_ZERO|__GFP_NOTRACK
 
-Any thoughts/objections?
+But running it with trace-cmd report -R (raw format):
 
-Thanks!
+ mm_page_alloc:         pfn=0xa62f4 order=0 gfp_flags=24150208 migratetype=0
 
-Roman
+The parser currently ignores types, so it doesn't do pointer
+arithmetic correctly, and would be hard to here as it doesn't know the
+size of the struct page. What could work is if we changed the printf
+fmt to be:
+
+  (unsigned long)(0xffffea0000000000UL) + (REC->pfn * sizeof(struct page))
+
+
+> 
+> I think userspace can't know vmmemap_base nor the implied sizeof(struct
+> page) for pointer arithmetic?
+> 
+> On older 4.4-based kernel:
+> 
+> REC->pfn != -1UL ? (((struct page *)(0xffffea0000000000UL)) + (REC->pfn)) : ((void *)0)
+
+This is what I have on 4.13-rc7
+
+> 
+> This also fails to parse, so it must be the struct page part?
+
+Again, what version of trace-cmd do you have?
+
+
+> 
+> I think the problem is, even if ve solve this with some more
+> preprocessor trickery to make the format file contain only constant
+> numbers, pfn_to_page() on e.g. sparse memory model without vmmemap is
+> more complicated than simple arithmetic, and can't be exported in the
+> format file.
+> 
+> I'm afraid that to support userspace parsing of the trace data, we will
+> have to store both struct page and pfn... or perhaps give up on reporting
+> the struct page pointer completely. Thoughts?
+
+Had some thoughts up above.
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
