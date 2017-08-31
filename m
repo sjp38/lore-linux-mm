@@ -1,28 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CD1B6B02B4
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 19:41:40 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id l2so6725328ywe.7
-        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 16:41:40 -0700 (PDT)
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B7CD6B02C3
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 19:42:05 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id w138so1910333yww.2
+        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 16:42:05 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g6sor703899ywf.191.2017.08.31.16.41.39
+        by mx.google.com with SMTPS id p62sor638874ywb.265.2017.08.31.16.42.04
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 31 Aug 2017 16:41:39 -0700 (PDT)
-Date: Thu, 31 Aug 2017 19:41:26 -0400
+        Thu, 31 Aug 2017 16:42:04 -0700 (PDT)
+Date: Thu, 31 Aug 2017 19:41:38 -0400
 Subject: Re: [PATCH] mm/vmstats: add counters for the page frag cache
-Message-ID: <60884168-4201-4915-b81f-86a02d727cc3@gmail.com>
+Message-ID: <532904f1-8da5-4dd7-9ca1-42be972c4993@gmail.com>
 In-Reply-To: <1504222631-2635-1-git-send-email-kyeongdon.kim@lge.com>
 References: <1504222631-2635-1-git-send-email-kyeongdon.kim@lge.com>
 From: taskboxtester@gmail.com
 MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="--_com.boxer.email_3717951196592691"
+Content-Type: multipart/alternative; boundary="--_com.boxer.email_3718197656516564"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Kyeongdon Kim <kyeongdon.kim@lge.com>
 Cc: kemi.wang@intel.com, mhocko@suse.com, xieyisheng1@huawei.com, bigeasy@linutronix.de, luto@kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, khlebnikov@yandex-team.ru, akpm@linux-foundation.org, shli@fb.com, linux-kernel@vger.kernel.org, iamjoonsoo.kim@lge.com, sfr@canb.auug.org.au, bongkyu.kim@lge.com, mgorman@techsingularity.net, rientjes@google.com, vbabka@suse.cz, hillf.zj@alibaba-inc.com, ying.huang@intel.com
 
-----_com.boxer.email_3717951196592691
+----_com.boxer.email_3718197656516564
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: base64
 
@@ -78,7 +78,7 @@ YyIsCisicGdmcmFnX2ZyZWUiLAorInBnZnJhZ19hbGxvY19jYWxscyIsCisicGdmcmFnX2ZyZWVf
 Y2FsbHMiLAojZW5kaWYgLyogQ09ORklHX1ZNX0VWRU5UU19DT1VOVEVSUyAqLwp9OwojZW5kaWYg
 LyogQ09ORklHX1BST0NfRlMgfHwgQ09ORklHX1NZU0ZTIHx8IENPTkZJR19OVU1BICovCi0tIAoy
 LjYuMgoK
-----_com.boxer.email_3717951196592691
+----_com.boxer.email_3718197656516564
 Content-Type: text/html; charset=utf-8
 Content-Transfer-Encoding: base64
 
@@ -161,7 +161,7 @@ X2ZyZWVfY2FsbHMiLCYjMTM7PGJyPgogI2VuZGlmIC8qIENPTkZJR19WTV9FVkVOVFNfQ09VTlRF
 UlMgKi8mIzEzOzxicj4KIH07JiMxMzs8YnI+CiAjZW5kaWYgLyogQ09ORklHX1BST0NfRlMgfHwg
 Q09ORklHX1NZU0ZTIHx8IENPTkZJR19OVU1BICovJiMxMzs8YnI+Ci0tICYjMTM7PGJyPgoyLjYu
 MiYjMTM7PGJyPgomIzEzOzxicj4KPC9wPgo8L2Jsb2NrcXVvdGU+PC9kaXY+
-----_com.boxer.email_3717951196592691--
+----_com.boxer.email_3718197656516564--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
