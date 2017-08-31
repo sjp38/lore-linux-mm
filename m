@@ -1,82 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2674F6B0292
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 01:29:39 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z91so11582169wrc.2
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 22:29:39 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 16E9B6B02C3
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 01:33:47 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 8so5995009wra.8
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 22:33:47 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 139si4559198wmi.4.2017.08.30.22.29.37
+        by mx.google.com with ESMTPS id 64si3092494wrq.378.2017.08.30.22.33.45
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 30 Aug 2017 22:29:38 -0700 (PDT)
-Date: Thu, 31 Aug 2017 07:29:35 +0200
+        Wed, 30 Aug 2017 22:33:45 -0700 (PDT)
+Date: Thu, 31 Aug 2017 07:33:42 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom_reaper: skip mm structs with mmu notifiers
-Message-ID: <20170831052935.x3vo3wu6gc6l6w3p@dhcp22.suse.cz>
-References: <20170830084600.17491-1-mhocko@kernel.org>
- <20170830174904.GF13559@redhat.com>
+Subject: Re: [PATCH] mm, memory_hotplug: do not back off draining pcp free
+ pages from kworker context
+Message-ID: <20170831053342.fo7x4hnhicxikme4@dhcp22.suse.cz>
+References: <20170828093341.26341-1-mhocko@kernel.org>
+ <20170828153359.f9b252f99647eebd339a3a89@linux-foundation.org>
+ <6e138348-aa28-8660-d902-96efafe1dcb2@I-love.SAKURA.ne.jp>
+ <20170829112823.GA12413@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170830174904.GF13559@redhat.com>
+In-Reply-To: <20170829112823.GA12413@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 30-08-17 19:49:04, Andrea Arcangeli wrote:
-> Hello Michal,
+On Tue 29-08-17 13:28:23, Michal Hocko wrote:
+> On Tue 29-08-17 20:20:39, Tetsuo Handa wrote:
+> > On 2017/08/29 7:33, Andrew Morton wrote:
+> > > On Mon, 28 Aug 2017 11:33:41 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+> > > 
+> > >> drain_all_pages backs off when called from a kworker context since
+> > >> 0ccce3b924212 ("mm, page_alloc: drain per-cpu pages from workqueue
+> > >> context") because the original IPI based pcp draining has been replaced
+> > >> by a WQ based one and the check wanted to prevent from recursion and
+> > >> inter workers dependencies. This has made some sense at the time
+> > >> because the system WQ has been used and one worker holding the lock
+> > >> could be blocked while waiting for new workers to emerge which can be a
+> > >> problem under OOM conditions.
+> > >>
+> > >> Since then ce612879ddc7 ("mm: move pcp and lru-pcp draining into single
+> > >> wq") has moved draining to a dedicated (mm_percpu_wq) WQ with a rescuer
+> > >> so we shouldn't depend on any other WQ activity to make a forward
+> > >> progress so calling drain_all_pages from a worker context is safe as
+> > >> long as this doesn't happen from mm_percpu_wq itself which is not the
+> > >> case because all workers are required to _not_ depend on any MM locks.
+> > >>
+> > >> Why is this a problem in the first place? ACPI driven memory hot-remove
+> > >> (acpi_device_hotplug) is executed from the worker context. We end
+> > >> up calling __offline_pages to free all the pages and that requires
+> > >> both lru_add_drain_all_cpuslocked and drain_all_pages to do their job
+> > >> otherwise we can have dangling pages on pcp lists and fail the offline
+> > >> operation (__test_page_isolated_in_pageblock would see a page with 0
+> > >> ref. count but without PageBuddy set).
+> > >>
+> > >> Fix the issue by removing the worker check in drain_all_pages.
+> > >> lru_add_drain_all_cpuslocked doesn't have this restriction so it works
+> > >> as expected.
+> > >>
+> > >> Fixes: 0ccce3b924212 ("mm, page_alloc: drain per-cpu pages from workqueue context")
+> > >> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > > 
+> > > No cc:stable?
+> > > 
+> > 
+> > Michal, are you sure that this patch does not cause deadlock?
+> > 
+> > As shown in "[PATCH] mm: Use WQ_HIGHPRI for mm_percpu_wq." thread, currently work
+> > items on mm_percpu_wq seem to be blocked by other work items not on mm_percpu_wq.
 > 
-> On Wed, Aug 30, 2017 at 10:46:00AM +0200, Michal Hocko wrote:
-> > +	 * TODO: we really want to get rid of this ugly hack and make sure that
-> > +	 * notifiers cannot block for unbounded amount of time and add
-> > +	 * mmu_notifier_invalidate_range_{start,end} around unmap_page_range
-> 
-> KVM already should be ok in that respect. However the major reason to
-> prefer mmu_notifier_invalidate_range_start/end is those can block and
-> schedule waiting for stuff happening behind the PCI bus easily. So I'm
-> not sure if the TODO is good idea to keep.
+> But we have a rescuer so we should make a forward progress eventually.
+> Or am I missing something. Tejun, could you have a look please?
 
-Long term, I was thinking about a flag to reflect that all registered
-notifiers are oom safe (aka they do not depend on memory allocations
-or any locks which depend on an allocation) and then we can call into
-notifiers. So the check would end up
-	if (!mm_has_safe_notifiers(mm))
-		...
- 
-> > +	 */
-> > +	if (mm_has_notifiers(mm)) {
-> > +		schedule_timeout_idle(HZ);
-> 
-> Why the schedule_timeout? What's the difference with the OOM
-> reaper going to sleep again in the main loop instead?
-
-Well, this is what I had initially - basically to return false here
-and rely on oom_reap_task to retry. But my current understanding is that
-mm_has_notifiers is likely to be a semi-permanent state (once set it
-won't likely go away) so I figured it would be better to simply wait
-here and fail right away. If my assumption is not correct then I will
-simply return false here.
-
-> 
-> > +		goto unlock_oom;
-> > +	}
-> 
-> mm_has_notifiers stops changing after obtaining the mmap_sem for
-> reading. See the do_mmu_notifier_register. So it's better to put the
-> mm_has_notifiers check immediately after the below:
-> 
-> >  	if (!down_read_trylock(&mm->mmap_sem)) {
-> >  		ret = false;
-> >  		trace_skip_task_reaping(tsk->pid);
-> 
-> If we succeed taking the mmap_sem for reading then we read a stable
-> value out of mm_has_notifiers and be sure it won't be set from under
-> us.
-
-OK, I will move it.
-
-Thanks!
+ping... I would really appreaciate if you could double check my thinking
+Tejun. This is a tricky area and I would like to prevent further subtle
+issues here.
 -- 
 Michal Hocko
 SUSE Labs
