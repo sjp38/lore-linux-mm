@@ -1,72 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 000166B0292
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 12:39:39 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id u26so189950wma.3
-        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 09:39:39 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id k10si492533edl.273.2017.08.31.09.39.37
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D3D16B0292
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 12:49:55 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id b2so998985iof.5
+        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 09:49:55 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 129sor295175itk.68.2017.08.31.09.49.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Aug 2017 09:39:38 -0700 (PDT)
-Subject: Re: [PATCH v7 9/9] sparc64: Add support for ADI (Application Data
- Integrity)
-References: <7b8216b8-e732-0b31-a374-1a817d4fbc80@oracle.com>
- <20170830.153830.2267882580011615008.davem@davemloft.net>
- <b5d9bbb2-a575-ee47-33aa-11994edef702@oracle.com>
- <20170830.170925.386619891775278628.davem@davemloft.net>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Message-ID: <3ff76988-43f2-85e4-eaf4-cc0d10b420a3@oracle.com>
-Date: Thu, 31 Aug 2017 10:38:30 -0600
+        (Google Transport Security);
+        Thu, 31 Aug 2017 09:49:54 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170830.170925.386619891775278628.davem@davemloft.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <150413450616.5923.7069852068237042023.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <150413449482.5923.1348069619036923853.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <150413450616.5923.7069852068237042023.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 31 Aug 2017 09:49:52 -0700
+Message-ID: <CA+55aFzo4oV87tVjEzx+cHVxfihm=31+fWtsdWow3AmfsdzJJw@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: introduce MAP_VALIDATE, a mechanism for for
+ safely defining new mmap flags
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: anthony.yznaga@oracle.com, dave.hansen@linux.intel.com, corbet@lwn.net, bob.picco@oracle.com, steven.sistare@oracle.com, pasha.tatashin@oracle.com, mike.kravetz@oracle.com, mingo@kernel.org, nitin.m.gupta@oracle.com, kirill.shutemov@linux.intel.com, tom.hromatka@oracle.com, eric.saint.etienne@oracle.com, allen.pais@oracle.com, cmetcalf@mellanox.com, akpm@linux-foundation.org, geert@linux-m68k.org, tklauser@distanz.ch, atish.patra@oracle.com, vijay.ac.kumar@oracle.com, peterz@infradead.org, mhocko@suse.com, jack@suse.cz, lstoakes@gmail.com, hughd@google.com, thomas.tai@oracle.com, paul.gortmaker@windriver.com, ross.zwisler@linux.intel.com, dave.jiang@intel.com, willy@infradead.org, ying.huang@intel.com, zhongjiang@huawei.com, minchan@kernel.org, vegard.nossum@oracle.com, imbrenda@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, khalid@gonehiking.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-mm <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, Andrew Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
 
-On 08/30/2017 06:09 PM, David Miller wrote:
-> From: Khalid Aziz <khalid.aziz@oracle.com>
-> Date: Wed, 30 Aug 2017 17:23:37 -0600
-> 
->> That is an interesting idea. This would enable TSTATE_MCDE on all
->> threads of a process as soon as one thread enables it. If we consider
->> the case where the parent creates a shared memory area and spawns a
->> bunch of threads. These threads access the shared memory without ADI
->> enabled. Now one of the threads decides to enable ADI on the shared
->> memory. As soon as it does that, we enable TSTATE_MCDE across all
->> threads and since threads are all using the same TTE for the shared
->> memory, every thread becomes subject to ADI verification. If one of
->> the other threads was in the middle of accessing the shared memory, it
->> will get a sigsegv. If we did not enable TSTATE_MCDE across all
->> threads, it could have continued execution without fault. In other
->> words, updating TSTATE_MCDE across all threads will eliminate the
->> option of running some threads with ADI enabled and some not while
->> accessing the same shared memory. This could be necessary at least for
->> short periods of time before threads can communicate with each other
->> and all switch to accessing shared memory with ADI enabled using same
->> tag. Does that sound like a valid use case or am I off in the weeds
->> here?
-> 
-> A threaded application needs to synchronize and properly orchestrate
-> access to shared memory.
-> 
-> When a change is made to a mappping, in this case setting ADI
-> attributes, it's being done for the address space not the thread.
-> 
-> And the address space is shared amongst threads.
-> 
-> Therefore ADI is not really a per-thread property but rather
-> a per-address-space property.
-> 
+This patch strikes me as insane.
 
-That does make sense.
+On Wed, Aug 30, 2017 at 4:08 PM, Dan Williams <dan.j.williams@intel.com> wrote:
+>                 switch (flags & MAP_TYPE) {
+> +               case (MAP_SHARED|MAP_VALIDATE):
+> +                       /* TODO: new map flags */
+> +                       return -EINVAL;
+>                 case MAP_SHARED:
+>                         if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE))
+>                                 return -EACCES;
 
-Thanks,
-Khalid
+So you "add" support for MAP_SHARED|MAP_VALIDATE, but then error out on it.
+
+And you don't add support for MAP_PRIVATE|MAP_VALIDATE at all, so that
+errors out too.
+
+Which makes me think that you actually only want MAP:_VALIDATE support
+for shared mappings.
+
+Which in turn means that all your blathering about how this cannot
+work on HP-UX is just complete garbage, because you might as well just
+realize that MAP_TYPE isn't a mask of _bitmasks_, it's a mask of
+values.
+
+So just make MAP_VALIDATE be 0x3. Which works for everybody. Make it
+mean the same as MAP_SHARED with flag validation. End of story.
+
+None of these stupid games that are complete and utter garbage, and
+make people think that the MAP_TYPE bits are somehow a bitmask. They
+aren't. The bitmasks are all the *other* bits that aren't in
+MAP_TYTPE.
+
+Yes, yes, I see why you *think* you want a bitmap. You think you want
+a bitmap because you want to make MAP_VALIDATE be part of MAP_SYNC
+etc, so that people can do
+
+    ret = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED |
+MAP_SYNC, fd, 0);
+
+and "know" that MAP_SYNC actually takes.
+
+And I'm saying that whole wish is bogus. You're fundamentally
+depending on special semantics, just make it explicit. It's already
+not portable, so don't try to make it so.
+
+Rename that MAP_VALIDATE as MAP_SHARED_VALIDATE, make it have a valud
+of 0x3, and make people do
+
+   ret = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED_VALIDATE
+| MAP_SYNC, fd, 0);
+
+and then the kernel side is easier too (none of that random garbage
+playing games with looking at the "MAP_VALIDATE bit", but just another
+case statement in that map type thing.
+
+Boom. Done.
+
+               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
