@@ -1,60 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A1306B02C3
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 05:33:09 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id x184so248807oia.8
-        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 02:33:09 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id k83si2814021oih.269.2017.08.31.02.33.07
-        for <linux-mm@kvack.org>;
-        Thu, 31 Aug 2017 02:33:08 -0700 (PDT)
-Date: Thu, 31 Aug 2017 10:31:47 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH 1/3] kcov: support comparison operands collection
-Message-ID: <20170831093146.GA15031@leverpostej>
-References: <cover.1504109849.git.dvyukov@google.com>
- <663c2a30de845dd13cf3cf64c3dfd437295d5ce2.1504109849.git.dvyukov@google.com>
- <20170830182357.GD32493@leverpostej>
- <CACT4Y+bRVdvgFkkWxAZm0dv5vTQat=OhGN5cU+nAVAHA-AndfA@mail.gmail.com>
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EAA66B0292
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 05:43:38 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id u93so274034wrc.10
+        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 02:43:38 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t76si90374wme.39.2017.08.31.02.43.36
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 31 Aug 2017 02:43:36 -0700 (PDT)
+Date: Thu, 31 Aug 2017 10:29:09 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC PATCH] treewide: remove GFP_TEMPORARY allocation flag
+Message-ID: <20170831092909.kavmkrdisq7xx2eu@suse.de>
+References: <20170728091904.14627-1-mhocko@kernel.org>
+ <20170823175709.GA22743@xo-6d-61-c0.localdomain>
+ <20170825063545.GA25498@dhcp22.suse.cz>
+ <20170825072818.GA15494@amd>
+ <20170825080442.GF25498@dhcp22.suse.cz>
+ <20170825213936.GA13576@amd>
+ <87pobjhssq.fsf@notabene.neil.brown.name>
+ <20170828123657.GK17097@dhcp22.suse.cz>
+ <20170831090722.GA12920@amd>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <CACT4Y+bRVdvgFkkWxAZm0dv5vTQat=OhGN5cU+nAVAHA-AndfA@mail.gmail.com>
+In-Reply-To: <20170831090722.GA12920@amd>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Victor Chibotaru <tchibo@google.com>, Alexander Popov <alex.popov@linux.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Kees Cook <keescook@chromium.org>, Vegard Nossum <vegard.nossum@oracle.com>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, syzkaller <syzkaller@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, NeilBrown <neilb@suse.com>, linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Neil Brown <neilb@suse.de>, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Aug 30, 2017 at 09:08:43PM +0200, Dmitry Vyukov wrote:
-> On Wed, Aug 30, 2017 at 8:23 PM, Mark Rutland <mark.rutland@arm.com> wrote:
-> > On Wed, Aug 30, 2017 at 06:23:29PM +0200, Dmitry Vyukov wrote:
-> >> From: Victor Chibotaru <tchibo@google.com>
-> >>
-> >> Enables kcov to collect comparison operands from instrumented code.
-> >> This is done by using Clang's -fsanitize=trace-cmp instrumentation
-> >> (currently not available for GCC).
-
-> >> Clang instrumentation:
-> >> https://clang.llvm.org/docs/SanitizerCoverage.html#tracing-data-flow
-> >
-> > How stable is this?
-> >
-> > The comment at the end says "This interface is a subject to change."
+On Thu, Aug 31, 2017 at 11:07:22AM +0200, Pavel Machek wrote:
+> > > > "This allocation is temporary. It lasts milliseconds, not hours."
+> > > 
+> > > It isn't sufficient to give a rule for when GFP_TEMPORARY will be used,
+> > > you also need to explain (at least in general terms) how the information
+> > > will be used.  Also you need to give guidelines on whether the flag
+> > > should be set for allocation that will last seconds or minutes.
+> > > 
+> > > If we have a flag that doesn't have a well defined meaning that actually
+> > > affects behavior, it will not be used consistently, and if we ever
+> > > change exactly how it behaves we can expect things to break.  So it is
+> > > better not to have a flag, than to have a poorly defined flag.
+> > 
+> > Absolutely agreed!
+> > 
+> > > My current thoughts is that the important criteria is not how long the
+> > > allocation will be used for, but whether it is reclaimable.  Allocations
+> > > that will only last 5 msecs are reclaimable by calling "usleep(5000)".
+> > > Other allocations might be reclaimable in other ways.  Allocations that
+> > > are not reclaimable may well be directed to a more restricted pool of
+> > > memory, and might be more likely to fail.  If we grew a strong
+> > > "reclaimable" concept, this 'temporary' concept that you want to hold on
+> > > to would become a burden.
+> > 
+> > ... and here again. The whole motivation for the flag was to gather
+> > these objects together and reduce chances of internal fragmentation
+> > due to long lived objects mixed with short term ones. Without an
+> > explicit way to reclaim those objects or having a clear checkpoint to
+> > wait for it is not really helping us to reach desired outcome (less
+> > fragmented memory).
 > 
-> The intention is that this is not subject to change anymore (since we
-> are using it in kernel).
-> I've mailed change to docs: https://reviews.llvm.org/D37303
+> Really?
+> 
+> If you group allocations that last << 1 second, and ones that last >>
+> 1 second, I'm pretty sure it reduces fragmentation... "reclaimable" or
+> not.
+> 
 
-Ok; thanks for confirming.
+If this was always done reliably then sure, it makes sense. At the time it
+was introduced by me, proc was used to relay large amounts of information
+to userspace. The patch had a noticable impact but on limited memory,
+32-bit and this proc relay was in use. In retrospect, it's possible that
+it was the monitoring itself that showed a "benefit" for the patch.
 
-> FWIW, there is patch in flight that adds this instrumentation to gcc:
-> https://groups.google.com/forum/#!topic/syzkaller/CSLynn6nI-A
-> It seems to be stalled on review phase, though.
+If the flag is used incorrectly even once then the value is diminished
+and it can even cause harm (not as severe as misusing __GFP_MOVABLE but
+harmful nonetheless). It only has a benefit if there is a large source of
+temporary allocations that are long-lived enough to cause fragmentation
+during small intervals and to be honest, directly measuring that is
+extremely difficult. The benefit is too marginal, the potential for harm
+is high and Michal is right to remove it.
 
-Let's hope it gets unblocked soon. :)
-
-Thanks,
-Mark.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
