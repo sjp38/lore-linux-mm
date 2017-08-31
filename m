@@ -1,95 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 75E616B0292
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 00:04:20 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id n7so15948076pfi.7
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 21:04:20 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id c21si5579287pfb.528.2017.08.30.21.04.18
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 657596B0292
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 01:21:38 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id w62so11552095wrc.9
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 22:21:38 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s9si3061600wma.253.2017.08.30.22.21.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Aug 2017 21:04:19 -0700 (PDT)
-Message-ID: <1504152258.51857.8.camel@ranerica-desktop>
-Subject: Re: [PATCH v8 02/28] x86/boot: Relocate definition of the initial
- state of CR0
-From: Ricardo Neri <ricardo.neri-calderon@linux.intel.com>
-Date: Wed, 30 Aug 2017 21:04:18 -0700
-In-Reply-To: <20170825174133.r5xhcv5utfipsujo@pd.tnic>
-References: <20170819002809.111312-1-ricardo.neri-calderon@linux.intel.com>
-	 <20170819002809.111312-3-ricardo.neri-calderon@linux.intel.com>
-	 <20170825174133.r5xhcv5utfipsujo@pd.tnic>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 30 Aug 2017 22:21:36 -0700 (PDT)
+Date: Thu, 31 Aug 2017 07:21:33 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] mm/slub: don't use reserved highatomic pageblock for
+ optimistic try
+Message-ID: <20170831052133.g6ds3nfelljgwnv2@dhcp22.suse.cz>
+References: <1503882675-17910-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1503882675-17910-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <b50bd39f-931f-7016-f380-62d65babb03f@suse.cz>
+ <20170828130829.GL17097@dhcp22.suse.cz>
+ <20170829003344.GB14489@js1304-P5Q-DELUXE>
+ <20170831014241.GB24271@js1304-P5Q-DELUXE>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170831014241.GB24271@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@suse.de>
-Cc: Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Brian Gerst <brgerst@gmail.com>, Chris Metcalf <cmetcalf@mellanox.com>, Dave Hansen <dave.hansen@linux.intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Liang Z Li <liang.z.li@intel.com>, Masami Hiramatsu <mhiramat@kernel.org>, Huang Rui <ray.huang@amd.com>, Jiri Slaby <jslaby@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Michael S. Tsirkin" <mst@redhat.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Vlastimil Babka <vbabka@suse.cz>, Chen Yucong <slaoub@gmail.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Shuah Khan <shuah@kernel.org>, linux-kernel@vger.kernel.org, x86@kernel.org, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>
 
-On Fri, 2017-08-25 at 19:41 +0200, Borislav Petkov wrote:
-
-Thanks Borislav for your feedback!
-
-> On Fri, Aug 18, 2017 at 05:27:43PM -0700, Ricardo Neri wrote:
-> > Both head_32.S and head_64.S utilize the same value to initialize the
-> > control register CR0. Also, other parts of the kernel might want to access
-> > to this initial definition (e.g., emulation code for User-Mode Instruction
-> 
-> s/to //
-> 
-> > Prevention uses this state to provide a sane dummy value for CR0 when
-
-I'll make this change.
-
-> > emulating the smsw instruction). Thus, relocate this definition to a
-> > header file from which it can be conveniently accessed.
+On Thu 31-08-17 10:42:41, Joonsoo Kim wrote:
+> On Tue, Aug 29, 2017 at 09:33:44AM +0900, Joonsoo Kim wrote:
+> > On Mon, Aug 28, 2017 at 03:08:29PM +0200, Michal Hocko wrote:
+> > > On Mon 28-08-17 13:29:29, Vlastimil Babka wrote:
+> > > > On 08/28/2017 03:11 AM, js1304@gmail.com wrote:
+> > > > > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > > > > 
+> > > > > High-order atomic allocation is difficult to succeed since we cannot
+> > > > > reclaim anything in this context. So, we reserves the pageblock for
+> > > > > this kind of request.
+> > > > > 
+> > > > > In slub, we try to allocate higher-order page more than it actually
+> > > > > needs in order to get the best performance. If this optimistic try is
+> > > > > used with GFP_ATOMIC, alloc_flags will be set as ALLOC_HARDER and
+> > > > > the pageblock reserved for high-order atomic allocation would be used.
+> > > > > Moreover, this request would reserve the MIGRATE_HIGHATOMIC pageblock
+> > > > > ,if succeed, to prepare further request. It would not be good to use
+> > > > > MIGRATE_HIGHATOMIC pageblock in terms of fragmentation management
+> > > > > since it unconditionally set a migratetype to request's migratetype
+> > > > > when unreserving the pageblock without considering the migratetype of
+> > > > > used pages in the pageblock.
+> > > > > 
+> > > > > This is not what we don't intend so fix it by unconditionally setting
+> > > > > __GFP_NOMEMALLOC in order to not set ALLOC_HARDER.
+> > > > 
+> > > > I wonder if it would be more robust to strip GFP_ATOMIC from alloc_gfp.
+> > > > E.g. __GFP_NOMEMALLOC does seem to prevent ALLOC_HARDER, but not
+> > > > ALLOC_HIGH. Or maybe we should adjust __GFP_NOMEMALLOC implementation
+> > > > and document it more thoroughly? CC Michal Hocko
+> > > 
+> > > Yeah, __GFP_NOMEMALLOC is rather inconsistent. It has been added to
+> > > override __GFP_MEMALLOC resp. PF_MEMALLOC AFAIK. In this particular
+> > > case I would agree that dropping __GFP_HIGH and __GFP_ATOMIC would
+> > > be more precise. I am not sure we want to touch the existing semantic of
+> > > __GFP_NOMEMALLOC though. This would require auditing all the existing
+> > > users (something tells me that quite some of those will be incorrect...)
 > > 
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: Andy Lutomirski <luto@amacapital.net>
-> > Cc: Andy Lutomirski <luto@kernel.org>
-> > Cc: Borislav Petkov <bp@alien8.de>
-> > Cc: Brian Gerst <brgerst@gmail.com>
-> > Cc: Dave Hansen <dave.hansen@intel.com>
-> > Cc: Denys Vlasenko <dvlasenk@redhat.com>
-> > Cc: H. Peter Anvin <hpa@zytor.com>
-> > Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-> > Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> > Cc: Peter Zijlstra <peterz@infradead.org>
-> > Cc: Thomas Gleixner <tglx@linutronix.de>
-> > Cc: linux-arch@vger.kernel.org
-> > Cc: linux-mm@kvack.org
-> > Suggested-by: Borislav Petkov <bp@alien8.de>
-> > Signed-off-by: Ricardo Neri <ricardo.neri-calderon@linux.intel.com>
-> > ---
-> >  arch/x86/include/uapi/asm/processor-flags.h | 6 ++++++
-> >  arch/x86/kernel/head_32.S                   | 3 ---
-> >  arch/x86/kernel/head_64.S                   | 3 ---
-> >  3 files changed, 6 insertions(+), 6 deletions(-)
-> > 
-> > diff --git a/arch/x86/include/uapi/asm/processor-flags.h b/arch/x86/include/uapi/asm/processor-flags.h
-> > index 185f3d10c194..aae1f2aa7563 100644
-> > --- a/arch/x86/include/uapi/asm/processor-flags.h
-> > +++ b/arch/x86/include/uapi/asm/processor-flags.h
-> > @@ -151,5 +151,11 @@
-> >  #define CX86_ARR_BASE	0xc4
-> >  #define CX86_RCR_BASE	0xdc
-> >  
-> > +/*
-> > + * Initial state of CR0 for head_32/64.S
-> > + */
+> > Hmm... now I realize that there is another reason that we need to use
+> > __GFP_NOMEMALLOC. Even if this allocation comes from PF_MEMALLOC user,
+> > this optimistic try should not use the reserved memory below the
+> > watermark. That is, it should not use ALLOC_NO_WATERMARKS. It can
+> > only be accomplished by using __GFP_NOMEMALLOC.
 > 
-> No need for that comment.
-> 
-> With the minor nitpicks addressed, you can add:
-> 
-> Reviewed-by: Borislav Petkov <bp@suse.de>
+> Michal, Vlastimil, Any thought?
 
-Thank you! Is it necessary for me to submit a v9 with these updates?
-Perhaps I can make these updates in branch for the maintainers to pull
-when/if this series is ack'ed.
+Hmm, I would go with a helper like below and use it in slub
 
-Thanks and BR,
-Ricardo
+gfp_t gfp_drop_reserves(gfp_t mask)
+{
+	mask &= ~(__GFP_HIGH|__GFP_ATOMIC)
+	mask |= __GFP_NOMEMALLOC;
+
+	return mask;
+}
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
