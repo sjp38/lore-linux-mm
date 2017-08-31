@@ -1,122 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 96D136B0292
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 21:44:45 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id q68so15305314pgq.11
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 18:44:45 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id m124si5697210pga.299.2017.08.30.18.44.43
-        for <linux-mm@kvack.org>;
-        Wed, 30 Aug 2017 18:44:44 -0700 (PDT)
-Date: Thu, 31 Aug 2017 10:45:31 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
- ZONE_MOVABLE request
-Message-ID: <20170831014531.GC24271@js1304-P5Q-DELUXE>
-References: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
- <e919c65e-bc2f-6b3b-41fc-3589590a84ac@suse.cz>
- <20170825002031.GD29701@js1304-P5Q-DELUXE>
- <20170825073841.GD25498@dhcp22.suse.cz>
- <20170828001551.GA9167@js1304-P5Q-DELUXE>
- <20170828095616.GG17097@dhcp22.suse.cz>
- <20170829004546.GD14489@js1304-P5Q-DELUXE>
- <20170829133945.at7q7u2vk6qwrhjh@dhcp22.suse.cz>
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 20A276B0292
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 21:46:15 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id p13so24447515qtp.5
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 18:46:15 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k7sor2232518qkf.18.2017.08.30.18.46.14
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 30 Aug 2017 18:46:14 -0700 (PDT)
+Date: Wed, 30 Aug 2017 18:46:10 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] mm: Use WQ_HIGHPRI for mm_percpu_wq.
+Message-ID: <20170831014610.GE491396@devbig577.frc2.facebook.com>
+References: <20170828230256.GF491396@devbig577.frc2.facebook.com>
+ <20170828230924.GG491396@devbig577.frc2.facebook.com>
+ <201708292014.JHH35412.FMVFHOQOJtSLOF@I-love.SAKURA.ne.jp>
+ <20170829143817.GK491396@devbig577.frc2.facebook.com>
+ <20170829214104.GW491396@devbig577.frc2.facebook.com>
+ <201708302251.GDI75812.OFOQSVJOFMHFLt@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170829133945.at7q7u2vk6qwrhjh@dhcp22.suse.cz>
+In-Reply-To: <201708302251.GDI75812.OFOQSVJOFMHFLt@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, mgorman@suse.de, vbabka@suse.cz
 
-On Tue, Aug 29, 2017 at 03:39:45PM +0200, Michal Hocko wrote:
-> On Tue 29-08-17 09:45:47, Joonsoo Kim wrote:
-> > On Mon, Aug 28, 2017 at 11:56:16AM +0200, Michal Hocko wrote:
-> > > On Mon 28-08-17 09:15:52, Joonsoo Kim wrote:
-> > > > On Fri, Aug 25, 2017 at 09:38:42AM +0200, Michal Hocko wrote:
-> > > > > On Fri 25-08-17 09:20:31, Joonsoo Kim wrote:
-> > > > > > On Thu, Aug 24, 2017 at 11:41:58AM +0200, Vlastimil Babka wrote:
-> > > > > > > On 08/24/2017 07:45 AM, js1304@gmail.com wrote:
-> > > > > > > > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > > > > > > > 
-> > > > > > > > Freepage on ZONE_HIGHMEM doesn't work for kernel memory so it's not that
-> > > > > > > > important to reserve. When ZONE_MOVABLE is used, this problem would
-> > > > > > > > theorectically cause to decrease usable memory for GFP_HIGHUSER_MOVABLE
-> > > > > > > > allocation request which is mainly used for page cache and anon page
-> > > > > > > > allocation. So, fix it.
-> > > > > > > > 
-> > > > > > > > And, defining sysctl_lowmem_reserve_ratio array by MAX_NR_ZONES - 1 size
-> > > > > > > > makes code complex. For example, if there is highmem system, following
-> > > > > > > > reserve ratio is activated for *NORMAL ZONE* which would be easyily
-> > > > > > > > misleading people.
-> > > > > > > > 
-> > > > > > > >  #ifdef CONFIG_HIGHMEM
-> > > > > > > >  32
-> > > > > > > >  #endif
-> > > > > > > > 
-> > > > > > > > This patch also fix this situation by defining sysctl_lowmem_reserve_ratio
-> > > > > > > > array by MAX_NR_ZONES and place "#ifdef" to right place.
-> > > > > > > > 
-> > > > > > > > Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> > > > > > > > Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> > > > > > > 
-> > > > > > > Looks like I did that almost year ago, so definitely had to refresh my
-> > > > > > > memory now :)
-> > > > > > > 
-> > > > > > > Anyway now I looked more thoroughly and noticed that this change leaks
-> > > > > > > into the reported sysctl. On a 64bit system with ZONE_MOVABLE:
-> > > > > > > 
-> > > > > > > before the patch:
-> > > > > > > vm.lowmem_reserve_ratio = 256   256     32
-> > > > > > > 
-> > > > > > > after the patch:
-> > > > > > > vm.lowmem_reserve_ratio = 256   256     32      2147483647
-> > > > > > > 
-> > > > > > > So if we indeed remove HIGHMEM from protection (c.f. Michal's mail), we
-> > > > > > > should do that differently than with the INT_MAX trick, IMHO.
-> > > > > > 
-> > > > > > Hmm, this is already pointed by Minchan and I have answered that.
-> > > > > > 
-> > > > > > lkml.kernel.org/r/<20170421013243.GA13966@js1304-desktop>
-> > > > > > 
-> > > > > > If you have a better idea, please let me know.
-> > > > > 
-> > > > > Why don't we just use 0. In fact we are reserving 0 pages... Using
-> > > > > INT_MAX is just wrong.
-> > > > 
-> > > > The number of reserved pages is calculated by "managed_pages /
-> > > > ratio". Using INT_MAX, net result would be 0.
-> > > 
-> > > Why cannot we simply special case 0?
-> > > 
-> > > > There is a logic converting ratio 0 to ratio 1.
-> > > > 
-> > > > if (sysctl_lowmem_reserve_ratio[idx] < 1)
-> > > >         sysctl_lowmem_reserve_ratio[idx] = 1
-> > > 
-> > > This code just tries to prevent from division by 0 but I am wondering
-> > > we should simply set lowmem_reserve to 0 in that case.
-> > > 
-> > > > If I use 0 to represent 0 reserved page, there would be a user
-> > > > who is affected by this change. So, I don't use 0 for this patch.
-> > > 
-> > > I am sorry but I do not understand? Could you be more specific please?
-> > 
-> > If there is a user that manually set sysctl_lowmem_reserve_ratio and
-> > he/she uses '0' to set ratio to '1', your suggestion making '0' as
-> > a special value changes his/her system behaviour. I'm afraid this
-> > case.
+Hello,
+
+On Wed, Aug 30, 2017 at 10:51:57PM +0900, Tetsuo Handa wrote:
+> Here are logs from the patch applied on top of linux-next-20170828.
+> Can you find some clue?
 > 
-> Documentation (Documentation/sysctl/vm.txt) explicitly states that 1
-> is minimum. So I wouldn't afraid all that much. And you can actually
-> printk_once if 0 is set and explain that this disables memory reserve
-> for the particular zone altogether.
+> http://I-love.SAKURA.ne.jp/tmp/serial-20170830.txt.xz :
+> 
+> [  150.580362] Showing busy workqueues and worker pools:
+> [  150.580425] workqueue events_power_efficient: flags=0x80
+> [  150.580452]   pwq 0: cpus=0 node=0 flags=0x0 nice=0 active=1/256
+> [  150.580456]     in-flight: 57:fb_flashcursor{53}
+> [  150.580486] workqueue mm_percpu_wq: flags=0x18
+> [  150.580513]   pwq 3: cpus=1 node=0 flags=0x0 nice=-20 active=1/256
+> [  150.580516]     pending: drain_local_pages_wq{14139} BAR(1706){14139}
 
-Great! If documentation says that, we can freely use the value, zero.
-I will do it as this way.
+So, there clear are work items queued
+
+> [  150.580558] workqueue writeback: flags=0x4e
+> [  150.580559]   pwq 256: cpus=0-127 flags=0x4 nice=0 active=2/256
+> [  150.580562]     in-flight: 400:wb_workfn{0} wb_workfn{0}
+> [  150.581413] pool 0: cpus=0 node=0 flags=0x0 nice=0 hung=0s workers=3 idle: 178 3
+> [  150.581417] pool 1: cpus=0 node=0 flags=0x0 nice=-20 hung=0s workers=2 idle: 4 98
+> [  150.581420] pool 2: cpus=1 node=0 flags=0x0 nice=0 hung=15s workers=4 idle: 81 2104 17 285
+> [  150.581424] pool 3: cpus=1 node=0 flags=0x0 nice=-20 hung=14s workers=2 idle: 18 92
+
+But all of the pool's workers are staying idle.  The only two
+possibilities I can think of are
+
+1. Concurrency management is completely broken for some reason.  One
+   reason this could happen is if a work item changes the affinity of
+   a per-cpu worker thread.  I don't think this is too likely here.
+
+2. Somehow high memory pressure is preventing the worker to leave
+   idle.  I have no idea how this would happen but it *could* be that
+   there is somehow memory allocation dependency in the worker waking
+   up path.  Can you strip down your kernel config to bare minimum and
+   see whether the problem still persists.  Alternatively, we can dump
+   stack traces of the tasks after a stall detection and try to see if
+   the kworkers are stuck somewhere.
 
 Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
