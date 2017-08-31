@@ -1,54 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A033C6B0292
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 06:02:03 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id m85so5683727wma.8
-        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 03:02:03 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 893EA6B0292
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 06:04:01 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id k94so351934wrc.6
+        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 03:04:01 -0700 (PDT)
 Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id 193si4775280wmp.6.2017.08.31.03.02.02
+        by mx.google.com with ESMTPS id e84si5106659wmi.217.2017.08.31.03.04.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Aug 2017 03:02:02 -0700 (PDT)
-Date: Thu, 31 Aug 2017 12:02:01 +0200
+        Thu, 31 Aug 2017 03:04:00 -0700 (PDT)
+Date: Thu, 31 Aug 2017 12:03:59 +0200
 From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 1/2] vfs: add flags parameter to ->mmap() in 'struct
-	file_operations'
-Message-ID: <20170831100201.GC21443@lst.de>
-References: <150413449482.5923.1348069619036923853.stgit@dwillia2-desk3.amr.corp.intel.com> <150413450036.5923.13851061508172314879.stgit@dwillia2-desk3.amr.corp.intel.com>
+Subject: Re: [PATCH 2/2] mm: introduce MAP_VALIDATE, a mechanism for for
+	safely defining new mmap flags
+Message-ID: <20170831100359.GD21443@lst.de>
+References: <150413449482.5923.1348069619036923853.stgit@dwillia2-desk3.amr.corp.intel.com> <150413450616.5923.7069852068237042023.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <150413450036.5923.13851061508172314879.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <150413450616.5923.7069852068237042023.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-mm@kvack.org, jack@suse.cz, linux-nvdimm@lists.01.org, David Airlie <airlied@linux.ie>, linux-api@vger.kernel.org, Takashi Iwai <tiwai@suse.com>, dri-devel@lists.freedesktop.org, Julia Lawall <julia.lawall@lip6.fr>, luto@kernel.org, Daniel Vetter <daniel.vetter@intel.com>, akpm@linux-foundation.org, torvalds@linux-foundation.org, hch@lst.de
+Cc: linux-mm@kvack.org, jack@suse.cz, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, luto@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, hch@lst.de
 
-> -static int ecryptfs_mmap(struct file *file, struct vm_area_struct *vma)
-> +static int ecryptfs_mmap(struct file *file, struct vm_area_struct *vma,
-> +			 unsigned long map_flags)
->  {
->  	struct file *lower_file = ecryptfs_file_to_lower(file);
->  	/*
-> @@ -179,7 +180,7 @@ static int ecryptfs_mmap(struct file *file, struct vm_area_struct *vma)
->  	 */
->  	if (!lower_file->f_op->mmap)
->  		return -ENODEV;
-> -	return generic_file_mmap(file, vma);
-> +	return generic_file_mmap(file, vma, 0);
+> +/*
+> + * The historical set of flags that all mmap implementations implicitly
+> + * support when file_operations.mmap_supported_mask is zero. With the
+> + * mmap3 syscall the deprecated MAP_DENYWRITE and MAP_EXECUTABLE bit
+> + * values are explicitly rejected with EOPNOTSUPP rather than being
+> + * silently accepted.
+> + */
 
-Shouldn't ecryptfs pass on the flags?  Same for coda_file_mmap and
-shm_mmap.
+no mmap3 syscall here :)
 
-> -static inline int call_mmap(struct file *file, struct vm_area_struct *vma)
-> +static inline int call_mmap(struct file *file, struct vm_area_struct *vma,
-> +			    unsigned long flags)
->  {
-> -	return file->f_op->mmap(file, vma);
-> +	return file->f_op->mmap(file, vma, flags);
->  }
-
-It would be great to kill this pointless wrapper while we're at it.
+Do you also need to update the nommu mmap implementation?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
