@@ -1,75 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5852D6B0292
-	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 21:41:55 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id m15so15319160pgc.2
-        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 18:41:55 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id x10si5511818pgo.266.2017.08.30.18.41.53
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 96D136B0292
+	for <linux-mm@kvack.org>; Wed, 30 Aug 2017 21:44:45 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id q68so15305314pgq.11
+        for <linux-mm@kvack.org>; Wed, 30 Aug 2017 18:44:45 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id m124si5697210pga.299.2017.08.30.18.44.43
         for <linux-mm@kvack.org>;
-        Wed, 30 Aug 2017 18:41:54 -0700 (PDT)
-Date: Thu, 31 Aug 2017 10:42:41 +0900
+        Wed, 30 Aug 2017 18:44:44 -0700 (PDT)
+Date: Thu, 31 Aug 2017 10:45:31 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 2/2] mm/slub: don't use reserved highatomic pageblock for
- optimistic try
-Message-ID: <20170831014241.GB24271@js1304-P5Q-DELUXE>
-References: <1503882675-17910-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1503882675-17910-2-git-send-email-iamjoonsoo.kim@lge.com>
- <b50bd39f-931f-7016-f380-62d65babb03f@suse.cz>
- <20170828130829.GL17097@dhcp22.suse.cz>
- <20170829003344.GB14489@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH] mm/page_alloc: don't reserve ZONE_HIGHMEM for
+ ZONE_MOVABLE request
+Message-ID: <20170831014531.GC24271@js1304-P5Q-DELUXE>
+References: <1503553546-27450-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <e919c65e-bc2f-6b3b-41fc-3589590a84ac@suse.cz>
+ <20170825002031.GD29701@js1304-P5Q-DELUXE>
+ <20170825073841.GD25498@dhcp22.suse.cz>
+ <20170828001551.GA9167@js1304-P5Q-DELUXE>
+ <20170828095616.GG17097@dhcp22.suse.cz>
+ <20170829004546.GD14489@js1304-P5Q-DELUXE>
+ <20170829133945.at7q7u2vk6qwrhjh@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170829003344.GB14489@js1304-P5Q-DELUXE>
+In-Reply-To: <20170829133945.at7q7u2vk6qwrhjh@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Aug 29, 2017 at 09:33:44AM +0900, Joonsoo Kim wrote:
-> On Mon, Aug 28, 2017 at 03:08:29PM +0200, Michal Hocko wrote:
-> > On Mon 28-08-17 13:29:29, Vlastimil Babka wrote:
-> > > On 08/28/2017 03:11 AM, js1304@gmail.com wrote:
-> > > > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Tue, Aug 29, 2017 at 03:39:45PM +0200, Michal Hocko wrote:
+> On Tue 29-08-17 09:45:47, Joonsoo Kim wrote:
+> > On Mon, Aug 28, 2017 at 11:56:16AM +0200, Michal Hocko wrote:
+> > > On Mon 28-08-17 09:15:52, Joonsoo Kim wrote:
+> > > > On Fri, Aug 25, 2017 at 09:38:42AM +0200, Michal Hocko wrote:
+> > > > > On Fri 25-08-17 09:20:31, Joonsoo Kim wrote:
+> > > > > > On Thu, Aug 24, 2017 at 11:41:58AM +0200, Vlastimil Babka wrote:
+> > > > > > > On 08/24/2017 07:45 AM, js1304@gmail.com wrote:
+> > > > > > > > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > > > > > > > 
+> > > > > > > > Freepage on ZONE_HIGHMEM doesn't work for kernel memory so it's not that
+> > > > > > > > important to reserve. When ZONE_MOVABLE is used, this problem would
+> > > > > > > > theorectically cause to decrease usable memory for GFP_HIGHUSER_MOVABLE
+> > > > > > > > allocation request which is mainly used for page cache and anon page
+> > > > > > > > allocation. So, fix it.
+> > > > > > > > 
+> > > > > > > > And, defining sysctl_lowmem_reserve_ratio array by MAX_NR_ZONES - 1 size
+> > > > > > > > makes code complex. For example, if there is highmem system, following
+> > > > > > > > reserve ratio is activated for *NORMAL ZONE* which would be easyily
+> > > > > > > > misleading people.
+> > > > > > > > 
+> > > > > > > >  #ifdef CONFIG_HIGHMEM
+> > > > > > > >  32
+> > > > > > > >  #endif
+> > > > > > > > 
+> > > > > > > > This patch also fix this situation by defining sysctl_lowmem_reserve_ratio
+> > > > > > > > array by MAX_NR_ZONES and place "#ifdef" to right place.
+> > > > > > > > 
+> > > > > > > > Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> > > > > > > > Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> > > > > > > 
+> > > > > > > Looks like I did that almost year ago, so definitely had to refresh my
+> > > > > > > memory now :)
+> > > > > > > 
+> > > > > > > Anyway now I looked more thoroughly and noticed that this change leaks
+> > > > > > > into the reported sysctl. On a 64bit system with ZONE_MOVABLE:
+> > > > > > > 
+> > > > > > > before the patch:
+> > > > > > > vm.lowmem_reserve_ratio = 256   256     32
+> > > > > > > 
+> > > > > > > after the patch:
+> > > > > > > vm.lowmem_reserve_ratio = 256   256     32      2147483647
+> > > > > > > 
+> > > > > > > So if we indeed remove HIGHMEM from protection (c.f. Michal's mail), we
+> > > > > > > should do that differently than with the INT_MAX trick, IMHO.
+> > > > > > 
+> > > > > > Hmm, this is already pointed by Minchan and I have answered that.
+> > > > > > 
+> > > > > > lkml.kernel.org/r/<20170421013243.GA13966@js1304-desktop>
+> > > > > > 
+> > > > > > If you have a better idea, please let me know.
+> > > > > 
+> > > > > Why don't we just use 0. In fact we are reserving 0 pages... Using
+> > > > > INT_MAX is just wrong.
 > > > > 
-> > > > High-order atomic allocation is difficult to succeed since we cannot
-> > > > reclaim anything in this context. So, we reserves the pageblock for
-> > > > this kind of request.
-> > > > 
-> > > > In slub, we try to allocate higher-order page more than it actually
-> > > > needs in order to get the best performance. If this optimistic try is
-> > > > used with GFP_ATOMIC, alloc_flags will be set as ALLOC_HARDER and
-> > > > the pageblock reserved for high-order atomic allocation would be used.
-> > > > Moreover, this request would reserve the MIGRATE_HIGHATOMIC pageblock
-> > > > ,if succeed, to prepare further request. It would not be good to use
-> > > > MIGRATE_HIGHATOMIC pageblock in terms of fragmentation management
-> > > > since it unconditionally set a migratetype to request's migratetype
-> > > > when unreserving the pageblock without considering the migratetype of
-> > > > used pages in the pageblock.
-> > > > 
-> > > > This is not what we don't intend so fix it by unconditionally setting
-> > > > __GFP_NOMEMALLOC in order to not set ALLOC_HARDER.
+> > > > The number of reserved pages is calculated by "managed_pages /
+> > > > ratio". Using INT_MAX, net result would be 0.
 > > > 
-> > > I wonder if it would be more robust to strip GFP_ATOMIC from alloc_gfp.
-> > > E.g. __GFP_NOMEMALLOC does seem to prevent ALLOC_HARDER, but not
-> > > ALLOC_HIGH. Or maybe we should adjust __GFP_NOMEMALLOC implementation
-> > > and document it more thoroughly? CC Michal Hocko
+> > > Why cannot we simply special case 0?
+> > > 
+> > > > There is a logic converting ratio 0 to ratio 1.
+> > > > 
+> > > > if (sysctl_lowmem_reserve_ratio[idx] < 1)
+> > > >         sysctl_lowmem_reserve_ratio[idx] = 1
+> > > 
+> > > This code just tries to prevent from division by 0 but I am wondering
+> > > we should simply set lowmem_reserve to 0 in that case.
+> > > 
+> > > > If I use 0 to represent 0 reserved page, there would be a user
+> > > > who is affected by this change. So, I don't use 0 for this patch.
+> > > 
+> > > I am sorry but I do not understand? Could you be more specific please?
 > > 
-> > Yeah, __GFP_NOMEMALLOC is rather inconsistent. It has been added to
-> > override __GFP_MEMALLOC resp. PF_MEMALLOC AFAIK. In this particular
-> > case I would agree that dropping __GFP_HIGH and __GFP_ATOMIC would
-> > be more precise. I am not sure we want to touch the existing semantic of
-> > __GFP_NOMEMALLOC though. This would require auditing all the existing
-> > users (something tells me that quite some of those will be incorrect...)
+> > If there is a user that manually set sysctl_lowmem_reserve_ratio and
+> > he/she uses '0' to set ratio to '1', your suggestion making '0' as
+> > a special value changes his/her system behaviour. I'm afraid this
+> > case.
 > 
-> Hmm... now I realize that there is another reason that we need to use
-> __GFP_NOMEMALLOC. Even if this allocation comes from PF_MEMALLOC user,
-> this optimistic try should not use the reserved memory below the
-> watermark. That is, it should not use ALLOC_NO_WATERMARKS. It can
-> only be accomplished by using __GFP_NOMEMALLOC.
+> Documentation (Documentation/sysctl/vm.txt) explicitly states that 1
+> is minimum. So I wouldn't afraid all that much. And you can actually
+> printk_once if 0 is set and explain that this disables memory reserve
+> for the particular zone altogether.
 
-Michal, Vlastimil, Any thought?
+Great! If documentation says that, we can freely use the value, zero.
+I will do it as this way.
 
 Thanks.
 
