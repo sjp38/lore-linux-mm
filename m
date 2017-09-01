@@ -1,70 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E60C6B0292
-	for <linux-mm@kvack.org>; Fri,  1 Sep 2017 05:05:47 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 187so3060165wmn.2
-        for <linux-mm@kvack.org>; Fri, 01 Sep 2017 02:05:47 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e4si1510604wrc.165.2017.09.01.02.05.45
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FB136B0292
+	for <linux-mm@kvack.org>; Fri,  1 Sep 2017 05:12:40 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id a126so2186790lfa.5
+        for <linux-mm@kvack.org>; Fri, 01 Sep 2017 02:12:40 -0700 (PDT)
+Received: from forwardcorp1o.cmail.yandex.net (forwardcorp1o.cmail.yandex.net. [37.9.109.47])
+        by mx.google.com with ESMTPS id r64si813978lfr.322.2017.09.01.02.12.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 01 Sep 2017 02:05:45 -0700 (PDT)
-Subject: Re: [PATCH] mm/mempolicy: Move VMA address bound checks inside
- mpol_misplaced()
-References: <20170901070228.19954-1-khandual@linux.vnet.ibm.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <268bbc32-7c1a-cdb8-039a-f1ea5d75b009@suse.cz>
-Date: Fri, 1 Sep 2017 11:05:44 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Sep 2017 02:12:38 -0700 (PDT)
+Subject: Re: [PATCH] mm/vmstats: add counters for the page frag cache
+References: <1504222631-2635-1-git-send-email-kyeongdon.kim@lge.com>
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Message-ID: <50592560-af4d-302c-c0bc-1e854e35139d@yandex-team.ru>
+Date: Fri, 1 Sep 2017 12:12:36 +0300
 MIME-Version: 1.0
-In-Reply-To: <20170901070228.19954-1-khandual@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+In-Reply-To: <1504222631-2635-1-git-send-email-kyeongdon.kim@lge.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: ru-RU
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org
+To: Kyeongdon Kim <kyeongdon.kim@lge.com>, akpm@linux-foundation.org, sfr@canb.auug.org.au
+Cc: ying.huang@intel.com, vbabka@suse.cz, hannes@cmpxchg.org, xieyisheng1@huawei.com, luto@kernel.org, shli@fb.com, mhocko@suse.com, mgorman@techsingularity.net, hillf.zj@alibaba-inc.com, kemi.wang@intel.com, rientjes@google.com, bigeasy@linutronix.de, iamjoonsoo.kim@lge.com, bongkyu.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 09/01/2017 09:02 AM, Anshuman Khandual wrote:
-> The VMA address bound checks are applicable to all memory policy modes,
-> not just MPOL_INTERLEAVE.
+IMHO that's too much counters.
+Per-node NR_FRAGMENT_PAGES should be enough for guessing what's going on.
+Perf probes provides enough features for furhter debugging.
 
-But only MPOL_INTERLEAVE actually uses addr and vma->vm_start.
-
-> Hence move it to the front and make it common.
+On 01.09.2017 02:37, Kyeongdon Kim wrote:
+> There was a memory leak problem when we did stressful test
+> on Android device.
+> The root cause of this was from page_frag_cache alloc
+> and it was very hard to find out.
 > 
-> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-
-I would just remove them instead. Together with the BUG_ON(!vma). Looks
-like just leftover from development.
-
+> We add to count the page frag allocation and free with function call.
+> The gap between pgfrag_alloc and pgfrag_free is good to to calculate
+> for the amount of page.
+> The gap between pgfrag_alloc_calls and pgfrag_free_calls is for
+> sub-indicator.
+> They can see trends of memory usage during the test.
+> Without it, it's difficult to check page frag usage so I believe we
+> should add it.
+> 
+> Signed-off-by: Kyeongdon Kim <kyeongdon.kim@lge.com>
 > ---
->  mm/mempolicy.c | 5 ++---
->  1 file changed, 2 insertions(+), 3 deletions(-)
+>   include/linux/vm_event_item.h | 4 ++++
+>   mm/page_alloc.c               | 9 +++++++--
+>   mm/vmstat.c                   | 4 ++++
+>   3 files changed, 15 insertions(+), 2 deletions(-)
 > 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 618ab12..7ec6694 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -2173,6 +2173,8 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
->  	int ret = -1;
->  
->  	BUG_ON(!vma);
-> +	BUG_ON(addr >= vma->vm_end);
-> +	BUG_ON(addr < vma->vm_start);
->  
->  	pol = get_vma_policy(vma, addr);
->  	if (!(pol->flags & MPOL_F_MOF))
-> @@ -2180,9 +2182,6 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
->  
->  	switch (pol->mode) {
->  	case MPOL_INTERLEAVE:
-> -		BUG_ON(addr >= vma->vm_end);
-> -		BUG_ON(addr < vma->vm_start);
+> diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+> index d77bc35..75425d4 100644
+> --- a/include/linux/vm_event_item.h
+> +++ b/include/linux/vm_event_item.h
+> @@ -110,6 +110,10 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+>   		SWAP_RA,
+>   		SWAP_RA_HIT,
+>   #endif
+> +		PGFRAG_ALLOC,
+> +		PGFRAG_FREE,
+> +		PGFRAG_ALLOC_CALLS,
+> +		PGFRAG_FREE_CALLS,
+>   		NR_VM_EVENT_ITEMS
+>   };
+>   
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index db2d25f..b3ddd76 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4322,6 +4322,7 @@ void __page_frag_cache_drain(struct page *page, unsigned int count)
+>   			free_hot_cold_page(page, false);
+>   		else
+>   			__free_pages_ok(page, order);
+> +		__count_vm_events(PGFRAG_FREE, 1 << order);
+>   	}
+>   }
+>   EXPORT_SYMBOL(__page_frag_cache_drain);
+> @@ -4338,7 +4339,7 @@ void *page_frag_alloc(struct page_frag_cache *nc,
+>   		page = __page_frag_cache_refill(nc, gfp_mask);
+>   		if (!page)
+>   			return NULL;
 > -
->  		pgoff = vma->vm_pgoff;
->  		pgoff += (addr - vma->vm_start) >> PAGE_SHIFT;
->  		polnid = offset_il_node(pol, vma, pgoff);
+> +		__count_vm_events(PGFRAG_ALLOC, 1 << compound_order(page));
+>   #if (PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
+>   		/* if size can vary use size else just use PAGE_SIZE */
+>   		size = nc->size;
+> @@ -4375,6 +4376,7 @@ void *page_frag_alloc(struct page_frag_cache *nc,
+>   
+>   	nc->pagecnt_bias--;
+>   	nc->offset = offset;
+> +	__count_vm_event(PGFRAG_ALLOC_CALLS);
+>   
+>   	return nc->va + offset;
+>   }
+> @@ -4387,8 +4389,11 @@ void page_frag_free(void *addr)
+>   {
+>   	struct page *page = virt_to_head_page(addr);
+>   
+> -	if (unlikely(put_page_testzero(page)))
+> +	if (unlikely(put_page_testzero(page))) {
+> +		__count_vm_events(PGFRAG_FREE, 1 << compound_order(page));
+>   		__free_pages_ok(page, compound_order(page));
+> +	}
+> +	__count_vm_event(PGFRAG_FREE_CALLS);
+>   }
+>   EXPORT_SYMBOL(page_frag_free);
+>   
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 4bb13e7..c00fe05 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -1217,6 +1217,10 @@ const char * const vmstat_text[] = {
+>   	"swap_ra",
+>   	"swap_ra_hit",
+>   #endif
+> +	"pgfrag_alloc",
+> +	"pgfrag_free",
+> +	"pgfrag_alloc_calls",
+> +	"pgfrag_free_calls",
+>   #endif /* CONFIG_VM_EVENTS_COUNTERS */
+>   };
+>   #endif /* CONFIG_PROC_FS || CONFIG_SYSFS || CONFIG_NUMA */
 > 
 
 --
