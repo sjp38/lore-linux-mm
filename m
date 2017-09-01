@@ -1,63 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C95266B0292
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 21:33:58 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id q16so6580078pgc.3
-        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 18:33:58 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id 33si768821pll.647.2017.08.31.18.33.57
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C6EE6B02C3
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 21:40:10 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id n74so7275080ioe.3
+        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 18:40:10 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v127sor228350itc.27.2017.08.31.18.40.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Aug 2017 18:33:57 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH] mm: kvfree the swap cluster info if the swap file is unsatisfactory
-References: <20170831233515.GR3775@magnolia>
-Date: Fri, 01 Sep 2017 09:33:54 +0800
-In-Reply-To: <20170831233515.GR3775@magnolia> (Darrick J. Wong's message of
-	"Thu, 31 Aug 2017 16:35:15 -0700")
-Message-ID: <8760d3w6bh.fsf@yhuang-dev.intel.com>
+        (Google Transport Security);
+        Thu, 31 Aug 2017 18:40:09 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <CA+55aFwsfUj1f41w8hqt9LN3-ajmJ=2AB1Nb6ZzwHgE1OKxGOw@mail.gmail.com>
+References: <150413449482.5923.1348069619036923853.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <150413450616.5923.7069852068237042023.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20170831100359.GD21443@lst.de> <CAPcyv4jvTB4Aiei1-fGybyJNopXQy9zADpnFcuRNdZCS4Mf1QQ@mail.gmail.com>
+ <CA+55aFwsfUj1f41w8hqt9LN3-ajmJ=2AB1Nb6ZzwHgE1OKxGOw@mail.gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 31 Aug 2017 18:40:08 -0700
+Message-ID: <CAA9_cmdn3BVjkMTLhcdPqaNcnuPHLjmrG9k4vmpb7bSM8SxpJw@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: introduce MAP_VALIDATE, a mechanism for for
+ safely defining new mmap flags
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: akpm@linux-foundation.org, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-"Darrick J. Wong" <darrick.wong@oracle.com> writes:
-
-> If initializing a small swap file fails because the swap file has a
-> problem (holes, etc.) then we need to free the cluster info as part of
-> cleanup.  Unfortunately a previous patch changed the code to use
-> kvzalloc but did not change all the vfree calls to use kvfree.
+On Thu, Aug 31, 2017 at 6:27 PM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+> On Thu, Aug 31, 2017 at 6:01 PM, Dan Williams <dan.j.williams@intel.com> wrote:
+>>
+>> Ugh, nommu defeats the MAP_SHARED_VALIDATE proposal from Linus.
+>>
+>>         if ((flags & MAP_TYPE) != MAP_PRIVATE &&
+>>             (flags & MAP_TYPE) != MAP_SHARED)
+>>                 return -EINVAL;
+>>
+>> ...parisc strikes again.
 >
-> Found by running generic/357 from xfstests.
+> Why? That's no different from the case statement for the mmu case,
+> just written differently.
 >
-> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-
-Thanks for fixing!
-
-Reviewed-by: "Huang, Ying" <ying.huang@intel.com>
-
-Best Regards,
-Huang, Ying
-
-> ---
->  mm/swapfile.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+> You *want* existing kernels to fail, since they don't test the bits
+> you want to test.
 >
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 6ba4aab..c1deb01 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -3052,7 +3052,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
->  	p->flags = 0;
->  	spin_unlock(&swap_lock);
->  	vfree(swap_map);
-> -	vfree(cluster_info);
-> +	kvfree(cluster_info);
->  	if (swap_file) {
->  		if (inode && S_ISREG(inode->i_mode)) {
->  			inode_unlock(inode);
+> So you just want to rewrite these all as
+>
+>     switch (flags & MAP_TYPE) {
+>     case MAP_SHARED_VALIDATE:
+>         .. validate the other bits...
+>         /* fallhtough */
+>     case MAP_SHARED:
+>         .. do the shared case ..
+>     case MAP_PRIVATE:
+>         .. do the private case ..
+>     default:
+>         return -EINVAL;
+>     }
+>
+> and you're all good.
+>
+> I'm not seeing the problem.
+
+Right, I went cross-eyed for a second. There is no problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
