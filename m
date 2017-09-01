@@ -1,70 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BB0BF6B0292
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 21:27:33 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id 63so7229969ioe.1
-        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 18:27:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 67sor307214iom.100.2017.08.31.18.27.32
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C95266B0292
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 21:33:58 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id q16so6580078pgc.3
+        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 18:33:58 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id 33si768821pll.647.2017.08.31.18.33.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 31 Aug 2017 18:27:32 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 Aug 2017 18:33:57 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH] mm: kvfree the swap cluster info if the swap file is unsatisfactory
+References: <20170831233515.GR3775@magnolia>
+Date: Fri, 01 Sep 2017 09:33:54 +0800
+In-Reply-To: <20170831233515.GR3775@magnolia> (Darrick J. Wong's message of
+	"Thu, 31 Aug 2017 16:35:15 -0700")
+Message-ID: <8760d3w6bh.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4jvTB4Aiei1-fGybyJNopXQy9zADpnFcuRNdZCS4Mf1QQ@mail.gmail.com>
-References: <150413449482.5923.1348069619036923853.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150413450616.5923.7069852068237042023.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20170831100359.GD21443@lst.de> <CAPcyv4jvTB4Aiei1-fGybyJNopXQy9zADpnFcuRNdZCS4Mf1QQ@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 31 Aug 2017 18:27:31 -0700
-Message-ID: <CA+55aFwsfUj1f41w8hqt9LN3-ajmJ=2AB1Nb6ZzwHgE1OKxGOw@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm: introduce MAP_VALIDATE, a mechanism for for
- safely defining new mmap flags
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: akpm@linux-foundation.org, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Aug 31, 2017 at 6:01 PM, Dan Williams <dan.j.williams@intel.com> wrote:
+"Darrick J. Wong" <darrick.wong@oracle.com> writes:
+
+> If initializing a small swap file fails because the swap file has a
+> problem (holes, etc.) then we need to free the cluster info as part of
+> cleanup.  Unfortunately a previous patch changed the code to use
+> kvzalloc but did not change all the vfree calls to use kvfree.
 >
-> Ugh, nommu defeats the MAP_SHARED_VALIDATE proposal from Linus.
+> Found by running generic/357 from xfstests.
 >
->         if ((flags & MAP_TYPE) != MAP_PRIVATE &&
->             (flags & MAP_TYPE) != MAP_SHARED)
->                 return -EINVAL;
+> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+
+Thanks for fixing!
+
+Reviewed-by: "Huang, Ying" <ying.huang@intel.com>
+
+Best Regards,
+Huang, Ying
+
+> ---
+>  mm/swapfile.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 >
-> ...parisc strikes again.
-
-Why? That's no different from the case statement for the mmu case,
-just written differently.
-
-You *want* existing kernels to fail, since they don't test the bits
-you want to test.
-
-So you just want to rewrite these all as
-
-    switch (flags & MAP_TYPE) {
-    case MAP_SHARED_VALIDATE:
-        .. validate the other bits...
-        /* fallhtough */
-    case MAP_SHARED:
-        .. do the shared case ..
-    case MAP_PRIVATE:
-        .. do the private case ..
-    default:
-        return -EINVAL;
-    }
-
-and you're all good.
-
-I'm not seeing the problem.
-
-Of course, I also suspect that for nommu you might as well just always
-return -EINVAL anyway. The only people who would ever use
-MAP_SHARED_VALIDATE are the kinds of people who do things that just
-aren't likely relevant on nommu, but whatever..
-
-               Linus
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 6ba4aab..c1deb01 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -3052,7 +3052,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
+>  	p->flags = 0;
+>  	spin_unlock(&swap_lock);
+>  	vfree(swap_map);
+> -	vfree(cluster_info);
+> +	kvfree(cluster_info);
+>  	if (swap_file) {
+>  		if (inode && S_ISREG(inode->i_mode)) {
+>  			inode_unlock(inode);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
