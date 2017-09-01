@@ -1,69 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 159396B0292
-	for <linux-mm@kvack.org>; Fri,  1 Sep 2017 07:15:46 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id x133so5207468oif.6
-        for <linux-mm@kvack.org>; Fri, 01 Sep 2017 04:15:46 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id g184si1665633oib.42.2017.09.01.04.15.44
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 451106B0292
+	for <linux-mm@kvack.org>; Fri,  1 Sep 2017 08:17:34 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id p37so57278wrc.5
+        for <linux-mm@kvack.org>; Fri, 01 Sep 2017 05:17:34 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id y192si34488wmc.9.2017.09.01.05.17.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Sep 2017 04:15:44 -0700 (PDT)
-Date: Fri, 1 Sep 2017 07:15:41 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH 1/5] tracing, mm: Record pfn instead of pointer to
- struct page
-Message-ID: <20170901071541.30293b95@gandalf.local.home>
-In-Reply-To: <50a3640a-df45-c164-e89a-6e306b4c3937@suse.cz>
-References: <1428963302-31538-1-git-send-email-acme@kernel.org>
-	<1428963302-31538-2-git-send-email-acme@kernel.org>
-	<897eb045-d63c-b9e3-c6e7-0f6b94536c0f@suse.cz>
-	<20170831094306.0fb655a5@gandalf.local.home>
-	<ea9f2ead-e69a-ff6a-debd-73f8e52cc620@suse.cz>
-	<20170831104410.09777356@gandalf.local.home>
-	<50a3640a-df45-c164-e89a-6e306b4c3937@suse.cz>
+        Fri, 01 Sep 2017 05:17:32 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v81CA987053403
+	for <linux-mm@kvack.org>; Fri, 1 Sep 2017 08:17:31 -0400
+Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com [202.81.31.146])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2cq6g8vg5s-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 01 Sep 2017 08:17:31 -0400
+Received: from localhost
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Fri, 1 Sep 2017 22:17:28 +1000
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v81CHQgm31326318
+	for <linux-mm@kvack.org>; Fri, 1 Sep 2017 22:17:26 +1000
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v81CHIEo009466
+	for <linux-mm@kvack.org>; Fri, 1 Sep 2017 22:17:18 +1000
+Subject: Re: [PATCH] mm/mempolicy: Move VMA address bound checks inside
+ mpol_misplaced()
+References: <20170901070228.19954-1-khandual@linux.vnet.ibm.com>
+ <268bbc32-7c1a-cdb8-039a-f1ea5d75b009@suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Fri, 1 Sep 2017 17:47:22 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <268bbc32-7c1a-cdb8-039a-f1ea5d75b009@suse.cz>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
+Message-Id: <8e40fafd-dcee-9baa-738e-1a870ee54b41@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Arnaldo Carvalho de Melo <acme@kernel.org>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, Namhyung Kim <namhyung@kernel.org>, David Ahern <dsahern@gmail.com>, Jiri Olsa <jolsa@redhat.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org
 
-On Fri, 1 Sep 2017 10:16:21 +0200
-Vlastimil Babka <vbabka@suse.cz> wrote:
- 
-> > Right, but that should work with the latest trace-cmd. Does it?  
+On 09/01/2017 02:35 PM, Vlastimil Babka wrote:
+> On 09/01/2017 09:02 AM, Anshuman Khandual wrote:
+>> The VMA address bound checks are applicable to all memory policy modes,
+>> not just MPOL_INTERLEAVE.
 > 
-> Hmm, by "sparse memory model without vmemmap" I don't mean there's a
-> number instead of "vmemmap_base". I mean CONFIG_SPARSEMEM=y
-> 
-> Then __pfn_to_page() looks like this:
-> 
-> #define __page_to_pfn(pg)                                       \
-> ({      const struct page *__pg = (pg);                         \
->         int __sec = page_to_section(__pg);                      \
->         (unsigned long)(__pg - __section_mem_map_addr(__nr_to_section(__sec))); \
-> })
-> 
-> Then the part of format file looks like this:
-> 
-> REC->pfn != -1UL ? ({ unsigned long __pfn = (REC->pfn); struct mem_section *__sec = __pfn_to_section(__pfn); __section_mem_map_addr(__sec) + __pfn; }) : ((void *)0)
+> But only MPOL_INTERLEAVE actually uses addr and vma->vm_start.
 
-Ouch.
+I thought them to be just general sanity checks.
 
 > 
-> The section things involve some array lookups, so I don't see how we
-> could pass it to tracing userspace. Would we want to special-case
-> this config to store both pfn and struct page in the trace frame? And
-> make sure the simpler ones work despite all the exsisting gotchas?
-> I'd rather say we should either store both pfn and page pointer, or
-> just throw away the page pointer as the pfn is enough to e.g. match
-> alloc and free, and also much more deterministic.
+>> Hence move it to the front and make it common.
+>>
+>> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> 
+> I would just remove them instead. Together with the BUG_ON(!vma). Looks
+> like just leftover from development.
 
-Write up a patch and we'll take a look.
-
--- Steve
+sure, resend with suggested changes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
