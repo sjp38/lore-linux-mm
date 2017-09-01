@@ -1,71 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C8766B0292
-	for <linux-mm@kvack.org>; Fri,  1 Sep 2017 04:33:56 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id n7so8416003pfi.7
-        for <linux-mm@kvack.org>; Fri, 01 Sep 2017 01:33:56 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id d130sor1119595pgc.264.2017.09.01.01.33.54
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E60C6B0292
+	for <linux-mm@kvack.org>; Fri,  1 Sep 2017 05:05:47 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 187so3060165wmn.2
+        for <linux-mm@kvack.org>; Fri, 01 Sep 2017 02:05:47 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e4si1510604wrc.165.2017.09.01.02.05.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 01 Sep 2017 01:33:55 -0700 (PDT)
-Date: Fri, 1 Sep 2017 01:33:53 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: kvfree the swap cluster info if the swap file is
- unsatisfactory
-In-Reply-To: <20170831233515.GR3775@magnolia>
-Message-ID: <alpine.DEB.2.10.1709010123020.102682@chino.kir.corp.google.com>
-References: <20170831233515.GR3775@magnolia>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 01 Sep 2017 02:05:45 -0700 (PDT)
+Subject: Re: [PATCH] mm/mempolicy: Move VMA address bound checks inside
+ mpol_misplaced()
+References: <20170901070228.19954-1-khandual@linux.vnet.ibm.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <268bbc32-7c1a-cdb8-039a-f1ea5d75b009@suse.cz>
+Date: Fri, 1 Sep 2017 11:05:44 +0200
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20170901070228.19954-1-khandual@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org
 
-On Thu, 31 Aug 2017, Darrick J. Wong wrote:
+On 09/01/2017 09:02 AM, Anshuman Khandual wrote:
+> The VMA address bound checks are applicable to all memory policy modes,
+> not just MPOL_INTERLEAVE.
 
-> If initializing a small swap file fails because the swap file has a
-> problem (holes, etc.) then we need to free the cluster info as part of
-> cleanup.  Unfortunately a previous patch changed the code to use
-> kvzalloc but did not change all the vfree calls to use kvfree.
+But only MPOL_INTERLEAVE actually uses addr and vma->vm_start.
+
+> Hence move it to the front and make it common.
 > 
+> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-Hopefully this can make it into 4.13.
+I would just remove them instead. Together with the BUG_ON(!vma). Looks
+like just leftover from development.
 
-Fixes: 54f180d3c181 ("mm, swap: use kvzalloc to allocate some swap data structures")
-Cc: stable@vger.kernel.org [4.12]
-
-> Found by running generic/357 from xfstests.
+> ---
+>  mm/mempolicy.c | 5 ++---
+>  1 file changed, 2 insertions(+), 3 deletions(-)
 > 
-> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-
-Acked-by: David Rientjes <rientjes@google.com>
-
-But I think there's also a memory leak and we need this on top of your 
-fix:
-
-
-mm, swapfile: fix swapon frontswap_map memory leak on error 
-
-Free frontswap_map if an error is encountered before enable_swap_info().
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/swapfile.c | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/mm/swapfile.c b/mm/swapfile.c
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -3053,6 +3053,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	spin_unlock(&swap_lock);
- 	vfree(swap_map);
- 	kvfree(cluster_info);
-+	kvfree(frontswap_map);
- 	if (swap_file) {
- 		if (inode && S_ISREG(inode->i_mode)) {
- 			inode_unlock(inode);
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 618ab12..7ec6694 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -2173,6 +2173,8 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
+>  	int ret = -1;
+>  
+>  	BUG_ON(!vma);
+> +	BUG_ON(addr >= vma->vm_end);
+> +	BUG_ON(addr < vma->vm_start);
+>  
+>  	pol = get_vma_policy(vma, addr);
+>  	if (!(pol->flags & MPOL_F_MOF))
+> @@ -2180,9 +2182,6 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
+>  
+>  	switch (pol->mode) {
+>  	case MPOL_INTERLEAVE:
+> -		BUG_ON(addr >= vma->vm_end);
+> -		BUG_ON(addr < vma->vm_start);
+> -
+>  		pgoff = vma->vm_pgoff;
+>  		pgoff += (addr - vma->vm_start) >> PAGE_SHIFT;
+>  		polnid = offset_il_node(pol, vma, pgoff);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
