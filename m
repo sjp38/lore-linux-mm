@@ -1,68 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B32C6B02C3
-	for <linux-mm@kvack.org>; Fri,  1 Sep 2017 09:16:14 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l19so276497wmi.1
-        for <linux-mm@kvack.org>; Fri, 01 Sep 2017 06:16:14 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a13si96890wrf.368.2017.09.01.06.16.12
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 52BCD6B025F
+	for <linux-mm@kvack.org>; Fri,  1 Sep 2017 09:47:54 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id t13so414958qtc.7
+        for <linux-mm@kvack.org>; Fri, 01 Sep 2017 06:47:54 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id a21sor6188805qkb.4.2017.09.01.06.47.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 01 Sep 2017 06:16:13 -0700 (PDT)
-Subject: Re: [PATCH] mm/mempolicy: Remove BUG_ON() checks for VMA inside
- mpol_misplaced()
-References: <b28e0081-6e10-2d55-7414-afb0574a11a1@linux.vnet.ibm.com>
- <20170901130137.7617-1-khandual@linux.vnet.ibm.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <8896e04b-9db2-53cd-cdb8-58105a94f84a@suse.cz>
-Date: Fri, 1 Sep 2017 15:16:12 +0200
+        (Google Transport Security);
+        Fri, 01 Sep 2017 06:47:53 -0700 (PDT)
+Date: Fri, 1 Sep 2017 06:47:49 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] mm: Use WQ_HIGHPRI for mm_percpu_wq.
+Message-ID: <20170901134748.GC1599492@devbig577.frc2.facebook.com>
+References: <20170829214104.GW491396@devbig577.frc2.facebook.com>
+ <201708302251.GDI75812.OFOQSVJOFMHFLt@I-love.SAKURA.ne.jp>
+ <20170831014610.GE491396@devbig577.frc2.facebook.com>
+ <201708312352.CCC87558.OFMLOVtQOFJFHS@I-love.SAKURA.ne.jp>
+ <20170831152523.nwdbjock6b6tams5@dhcp22.suse.cz>
+ <201709010707.ABI69774.OLSVMOOFHFQJtF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20170901130137.7617-1-khandual@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201709010707.ABI69774.OLSVMOOFHFQJtF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, mgorman@suse.de, vbabka@suse.cz
 
-On 09/01/2017 03:01 PM, Anshuman Khandual wrote:
-> VMA and its address bounds checks are too late in this function.
-> They must have been verified earlier in the page fault sequence.
-> Hence just remove them.
-> 
-> Suggested-by: Vlastimil Babka <vbabka@suse.cz>
-> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Hello,
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+On Fri, Sep 01, 2017 at 07:07:25AM +0900, Tetsuo Handa wrote:
+> cond_resched() from !PF_WQ_WORKER threads is sufficient for PF_WQ_WORKER threads to run.
+> But cond_resched() is not sufficient for rescuer threads to start processing a pending work.
+> An explicit scheduling (e.g. schedule_timeout_*()) by PF_WQ_WORKER threads is needed for
+> rescuer threads to start processing a pending work.
 
-> ---
->  mm/mempolicy.c | 5 -----
->  1 file changed, 5 deletions(-)
-> 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 618ab12..3509b84 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -2172,17 +2172,12 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
->  	int polnid = -1;
->  	int ret = -1;
->  
-> -	BUG_ON(!vma);
-> -
->  	pol = get_vma_policy(vma, addr);
->  	if (!(pol->flags & MPOL_F_MOF))
->  		goto out;
->  
->  	switch (pol->mode) {
->  	case MPOL_INTERLEAVE:
-> -		BUG_ON(addr >= vma->vm_end);
-> -		BUG_ON(addr < vma->vm_start);
-> -
->  		pgoff = vma->vm_pgoff;
->  		pgoff += (addr - vma->vm_start) >> PAGE_SHIFT;
->  		polnid = offset_il_node(pol, vma, pgoff);
-> 
+I'm not even sure this is the case.  Unless I'm mistaken, in your
+workqueue dumps, the available workers couldn't even leave idle which
+means that they likely didn't get scheduled at all.  It looks like
+genuine multi minute starvation by competing direct reclaims.  What's
+the load number like while these events are in progress?
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
