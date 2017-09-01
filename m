@@ -1,128 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FB136B0292
-	for <linux-mm@kvack.org>; Fri,  1 Sep 2017 05:12:40 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id a126so2186790lfa.5
-        for <linux-mm@kvack.org>; Fri, 01 Sep 2017 02:12:40 -0700 (PDT)
-Received: from forwardcorp1o.cmail.yandex.net (forwardcorp1o.cmail.yandex.net. [37.9.109.47])
-        by mx.google.com with ESMTPS id r64si813978lfr.322.2017.09.01.02.12.38
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A5236B0292
+	for <linux-mm@kvack.org>; Fri,  1 Sep 2017 05:21:14 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id p42so3419147wrb.1
+        for <linux-mm@kvack.org>; Fri, 01 Sep 2017 02:21:14 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p140si1775151wmb.175.2017.09.01.02.21.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Sep 2017 02:12:38 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 01 Sep 2017 02:21:12 -0700 (PDT)
+Date: Fri, 1 Sep 2017 11:21:08 +0200
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH] mm/vmstats: add counters for the page frag cache
+Message-ID: <20170901092108.lb3jla2hpczjvrh5@dhcp22.suse.cz>
 References: <1504222631-2635-1-git-send-email-kyeongdon.kim@lge.com>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <50592560-af4d-302c-c0bc-1e854e35139d@yandex-team.ru>
-Date: Fri, 1 Sep 2017 12:12:36 +0300
+ <50592560-af4d-302c-c0bc-1e854e35139d@yandex-team.ru>
 MIME-Version: 1.0
-In-Reply-To: <1504222631-2635-1-git-send-email-kyeongdon.kim@lge.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: ru-RU
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50592560-af4d-302c-c0bc-1e854e35139d@yandex-team.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kyeongdon Kim <kyeongdon.kim@lge.com>, akpm@linux-foundation.org, sfr@canb.auug.org.au
-Cc: ying.huang@intel.com, vbabka@suse.cz, hannes@cmpxchg.org, xieyisheng1@huawei.com, luto@kernel.org, shli@fb.com, mhocko@suse.com, mgorman@techsingularity.net, hillf.zj@alibaba-inc.com, kemi.wang@intel.com, rientjes@google.com, bigeasy@linutronix.de, iamjoonsoo.kim@lge.com, bongkyu.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: Kyeongdon Kim <kyeongdon.kim@lge.com>, akpm@linux-foundation.org, sfr@canb.auug.org.au, ying.huang@intel.com, vbabka@suse.cz, hannes@cmpxchg.org, xieyisheng1@huawei.com, luto@kernel.org, shli@fb.com, mgorman@techsingularity.net, hillf.zj@alibaba-inc.com, kemi.wang@intel.com, rientjes@google.com, bigeasy@linutronix.de, iamjoonsoo.kim@lge.com, bongkyu.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-IMHO that's too much counters.
-Per-node NR_FRAGMENT_PAGES should be enough for guessing what's going on.
-Perf probes provides enough features for furhter debugging.
+On Fri 01-09-17 12:12:36, Konstantin Khlebnikov wrote:
+> IMHO that's too much counters.
+> Per-node NR_FRAGMENT_PAGES should be enough for guessing what's going on.
+> Perf probes provides enough features for furhter debugging.
 
-On 01.09.2017 02:37, Kyeongdon Kim wrote:
-> There was a memory leak problem when we did stressful test
-> on Android device.
-> The root cause of this was from page_frag_cache alloc
-> and it was very hard to find out.
-> 
-> We add to count the page frag allocation and free with function call.
-> The gap between pgfrag_alloc and pgfrag_free is good to to calculate
-> for the amount of page.
-> The gap between pgfrag_alloc_calls and pgfrag_free_calls is for
-> sub-indicator.
-> They can see trends of memory usage during the test.
-> Without it, it's difficult to check page frag usage so I believe we
-> should add it.
-> 
-> Signed-off-by: Kyeongdon Kim <kyeongdon.kim@lge.com>
-> ---
->   include/linux/vm_event_item.h | 4 ++++
->   mm/page_alloc.c               | 9 +++++++--
->   mm/vmstat.c                   | 4 ++++
->   3 files changed, 15 insertions(+), 2 deletions(-)
-> 
-> diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-> index d77bc35..75425d4 100644
-> --- a/include/linux/vm_event_item.h
-> +++ b/include/linux/vm_event_item.h
-> @@ -110,6 +110,10 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
->   		SWAP_RA,
->   		SWAP_RA_HIT,
->   #endif
-> +		PGFRAG_ALLOC,
-> +		PGFRAG_FREE,
-> +		PGFRAG_ALLOC_CALLS,
-> +		PGFRAG_FREE_CALLS,
->   		NR_VM_EVENT_ITEMS
->   };
->   
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index db2d25f..b3ddd76 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4322,6 +4322,7 @@ void __page_frag_cache_drain(struct page *page, unsigned int count)
->   			free_hot_cold_page(page, false);
->   		else
->   			__free_pages_ok(page, order);
-> +		__count_vm_events(PGFRAG_FREE, 1 << order);
->   	}
->   }
->   EXPORT_SYMBOL(__page_frag_cache_drain);
-> @@ -4338,7 +4339,7 @@ void *page_frag_alloc(struct page_frag_cache *nc,
->   		page = __page_frag_cache_refill(nc, gfp_mask);
->   		if (!page)
->   			return NULL;
-> -
-> +		__count_vm_events(PGFRAG_ALLOC, 1 << compound_order(page));
->   #if (PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
->   		/* if size can vary use size else just use PAGE_SIZE */
->   		size = nc->size;
-> @@ -4375,6 +4376,7 @@ void *page_frag_alloc(struct page_frag_cache *nc,
->   
->   	nc->pagecnt_bias--;
->   	nc->offset = offset;
-> +	__count_vm_event(PGFRAG_ALLOC_CALLS);
->   
->   	return nc->va + offset;
->   }
-> @@ -4387,8 +4389,11 @@ void page_frag_free(void *addr)
->   {
->   	struct page *page = virt_to_head_page(addr);
->   
-> -	if (unlikely(put_page_testzero(page)))
-> +	if (unlikely(put_page_testzero(page))) {
-> +		__count_vm_events(PGFRAG_FREE, 1 << compound_order(page));
->   		__free_pages_ok(page, compound_order(page));
-> +	}
-> +	__count_vm_event(PGFRAG_FREE_CALLS);
->   }
->   EXPORT_SYMBOL(page_frag_free);
->   
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 4bb13e7..c00fe05 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -1217,6 +1217,10 @@ const char * const vmstat_text[] = {
->   	"swap_ra",
->   	"swap_ra_hit",
->   #endif
-> +	"pgfrag_alloc",
-> +	"pgfrag_free",
-> +	"pgfrag_alloc_calls",
-> +	"pgfrag_free_calls",
->   #endif /* CONFIG_VM_EVENTS_COUNTERS */
->   };
->   #endif /* CONFIG_PROC_FS || CONFIG_SYSFS || CONFIG_NUMA */
-> 
+I would tend to agree. Adding a counter based on a single debugging
+instance sounds like an overkill to me. Counters should be pretty cheep
+but this is way too specialized API to export to the userspace.
+
+We have other interfaces to debug memory leaks like page_owner.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
