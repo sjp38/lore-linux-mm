@@ -1,73 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3876A6B0292
-	for <linux-mm@kvack.org>; Fri,  1 Sep 2017 03:02:38 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 83so8525789pgb.1
-        for <linux-mm@kvack.org>; Fri, 01 Sep 2017 00:02:38 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id i86si1344967pfj.539.2017.09.01.00.02.36
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9436F6B0292
+	for <linux-mm@kvack.org>; Fri,  1 Sep 2017 03:31:48 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id p37so2987698wrc.5
+        for <linux-mm@kvack.org>; Fri, 01 Sep 2017 00:31:48 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b10si1520221wmi.106.2017.09.01.00.31.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Sep 2017 00:02:36 -0700 (PDT)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v816x334057336
-	for <linux-mm@kvack.org>; Fri, 1 Sep 2017 03:02:36 -0400
-Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com [202.81.31.146])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2cpuva7wtu-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 01 Sep 2017 03:02:35 -0400
-Received: from localhost
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Fri, 1 Sep 2017 17:02:33 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v8172W5o40435730
-	for <linux-mm@kvack.org>; Fri, 1 Sep 2017 17:02:32 +1000
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v8172XGc030051
-	for <linux-mm@kvack.org>; Fri, 1 Sep 2017 17:02:33 +1000
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [PATCH] mm/mempolicy: Move VMA address bound checks inside mpol_misplaced()
-Date: Fri,  1 Sep 2017 12:32:28 +0530
-Message-Id: <20170901070228.19954-1-khandual@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 01 Sep 2017 00:31:46 -0700 (PDT)
+Subject: Re: [PATCH 1/3] mm/cma: manage the memory of the CMA area by using
+ the ZONE_MOVABLE
+References: <1503556593-10720-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1503556593-10720-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <adae04f0-73f4-7772-d056-9ed13122af0e@suse.cz>
+ <20170831014048.GA24271@js1304-P5Q-DELUXE>
+ <ac4c6a09-7697-ae98-907e-75fb26346352@suse.cz>
+ <f791c5d1-efe3-e0ec-9683-fe05f9137978@redhat.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <61029e90-2835-8195-3682-442d469fed39@suse.cz>
+Date: Fri, 1 Sep 2017 09:31:43 +0200
+MIME-Version: 1.0
+In-Reply-To: <f791c5d1-efe3-e0ec-9683-fe05f9137978@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org
+To: Laura Abbott <labbott@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Kees Cook <keescook@chromium.org>
 
-The VMA address bound checks are applicable to all memory policy modes,
-not just MPOL_INTERLEAVE. Hence move it to the front and make it common.
+On 08/31/2017 05:07 PM, Laura Abbott wrote:
+> On 08/31/2017 07:32 AM, Vlastimil Babka wrote:
+>> On 08/31/2017 03:40 AM, Joonsoo Kim wrote:
+>>> On Tue, Aug 29, 2017 at 11:16:18AM +0200, Vlastimil Babka wrote:
+>>>>
+>>>> BTW, if we dropped NR_FREE_CMA_PAGES, could we also drop MIGRATE_CMA and
+>>>> related hooks? Is that counter really that useful as it works right now?
+>>>> It will decrease both by CMA allocations (which has to be explicitly
+>>>> freed) and by movable allocations (which can be migrated). What if only
+>>>> CMA alloc/release touched it?
+>>>
+>>> I think that NR_FREE_CMA_PAGES would not be as useful as previous. We
+>>> can remove it.
+>>>
+>>> However, removing MIGRATE_CMA has a problem. There is an usecase to
+>>> check if the page comes from the CMA area or not. See
+>>> check_page_span() in mm/usercopy.c. I can implement it differently by
+>>> iterating whole CMA area and finding the match, but I'm not sure it's
+>>> performance effect. I guess that it would be marginal.
+>>
+>> +CC Kees Cook
+>>
+>> Hmm, seems like this check is to make sure we don't copy from/to parts
+>> of kernel memory we're not supposed to? Then I believe checking that
+>> pages are in ZONE_MOVABLE should then give the same guarantees as
+>> MIGRATE_CMA.
+>>
+> 
+> The check is to make sure we are copying only to a single page unless
+> that page is allocated with __GFP_COMP. CMA needs extra checks since
+> its allocations have nothing to do with compound page. Checking
+> ZONE_MOVABLE might cause us to miss some cases of copying to vanilla
+> ZONE_MOVABLE pages.
 
-Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
----
- mm/mempolicy.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+How big problem is that? ZONE_MOVABLE should not contain kernel pages,
+so from the kernel protection side we are OK? I expect there's another
+check somewhere that the pages are not userspace, as that would be
+unexpected on a wrong side of copy_to/from_user, no?
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 618ab12..7ec6694 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -2173,6 +2173,8 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
- 	int ret = -1;
- 
- 	BUG_ON(!vma);
-+	BUG_ON(addr >= vma->vm_end);
-+	BUG_ON(addr < vma->vm_start);
- 
- 	pol = get_vma_policy(vma, addr);
- 	if (!(pol->flags & MPOL_F_MOF))
-@@ -2180,9 +2182,6 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
- 
- 	switch (pol->mode) {
- 	case MPOL_INTERLEAVE:
--		BUG_ON(addr >= vma->vm_end);
--		BUG_ON(addr < vma->vm_start);
--
- 		pgoff = vma->vm_pgoff;
- 		pgoff += (addr - vma->vm_start) >> PAGE_SHIFT;
- 		polnid = offset_il_node(pol, vma, pgoff);
--- 
-1.8.5.2
+Also you can already miss some cases with the is_migrate_cma check,
+because pages might be in the CMA pageblocks but not be allocated by CMA
+itself - movable pages allocation can fallback here.
+
+>> BTW the comment says "Reject if range is entirely either Reserved or
+>> CMA" but the code does the opposite thing. I assume the comment is wrong?
+>>
+> 
+> Yes, I think that needs clarification.
+> 
+> Thanks,
+> Laura
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
