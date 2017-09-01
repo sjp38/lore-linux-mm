@@ -1,54 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EEE36B02C3
-	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 21:01:04 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id u206so2910524oif.5
-        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 18:01:04 -0700 (PDT)
-Received: from mail-oi0-x229.google.com (mail-oi0-x229.google.com. [2607:f8b0:4003:c06::229])
-        by mx.google.com with ESMTPS id d198si726715oib.307.2017.08.31.18.01.03
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BB0BF6B0292
+	for <linux-mm@kvack.org>; Thu, 31 Aug 2017 21:27:33 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id 63so7229969ioe.1
+        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 18:27:33 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 67sor307214iom.100.2017.08.31.18.27.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Aug 2017 18:01:03 -0700 (PDT)
-Received: by mail-oi0-x229.google.com with SMTP id w10so10409546oie.1
-        for <linux-mm@kvack.org>; Thu, 31 Aug 2017 18:01:03 -0700 (PDT)
+        (Google Transport Security);
+        Thu, 31 Aug 2017 18:27:32 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20170831100359.GD21443@lst.de>
+In-Reply-To: <CAPcyv4jvTB4Aiei1-fGybyJNopXQy9zADpnFcuRNdZCS4Mf1QQ@mail.gmail.com>
 References: <150413449482.5923.1348069619036923853.stgit@dwillia2-desk3.amr.corp.intel.com>
  <150413450616.5923.7069852068237042023.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20170831100359.GD21443@lst.de>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 31 Aug 2017 18:01:02 -0700
-Message-ID: <CAPcyv4jvTB4Aiei1-fGybyJNopXQy9zADpnFcuRNdZCS4Mf1QQ@mail.gmail.com>
+ <20170831100359.GD21443@lst.de> <CAPcyv4jvTB4Aiei1-fGybyJNopXQy9zADpnFcuRNdZCS4Mf1QQ@mail.gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 31 Aug 2017 18:27:31 -0700
+Message-ID: <CA+55aFwsfUj1f41w8hqt9LN3-ajmJ=2AB1Nb6ZzwHgE1OKxGOw@mail.gmail.com>
 Subject: Re: [PATCH 2/2] mm: introduce MAP_VALIDATE, a mechanism for for
  safely defining new mmap flags
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Aug 31, 2017 at 3:03 AM, Christoph Hellwig <hch@lst.de> wrote:
->> +/*
->> + * The historical set of flags that all mmap implementations implicitly
->> + * support when file_operations.mmap_supported_mask is zero. With the
->> + * mmap3 syscall the deprecated MAP_DENYWRITE and MAP_EXECUTABLE bit
->> + * values are explicitly rejected with EOPNOTSUPP rather than being
->> + * silently accepted.
->> + */
+On Thu, Aug 31, 2017 at 6:01 PM, Dan Williams <dan.j.williams@intel.com> wrote:
 >
-> no mmap3 syscall here :)
+> Ugh, nommu defeats the MAP_SHARED_VALIDATE proposal from Linus.
+>
+>         if ((flags & MAP_TYPE) != MAP_PRIVATE &&
+>             (flags & MAP_TYPE) != MAP_SHARED)
+>                 return -EINVAL;
+>
+> ...parisc strikes again.
 
-True, that's stale.
+Why? That's no different from the case statement for the mmu case,
+just written differently.
 
-> Do you also need to update the nommu mmap implementation?
+You *want* existing kernels to fail, since they don't test the bits
+you want to test.
 
-Ugh, nommu defeats the MAP_SHARED_VALIDATE proposal from Linus.
+So you just want to rewrite these all as
 
-        if ((flags & MAP_TYPE) != MAP_PRIVATE &&
-            (flags & MAP_TYPE) != MAP_SHARED)
-                return -EINVAL;
+    switch (flags & MAP_TYPE) {
+    case MAP_SHARED_VALIDATE:
+        .. validate the other bits...
+        /* fallhtough */
+    case MAP_SHARED:
+        .. do the shared case ..
+    case MAP_PRIVATE:
+        .. do the private case ..
+    default:
+        return -EINVAL;
+    }
 
-...parisc strikes again.
+and you're all good.
+
+I'm not seeing the problem.
+
+Of course, I also suspect that for nommu you might as well just always
+return -EINVAL anyway. The only people who would ever use
+MAP_SHARED_VALIDATE are the kinds of people who do things that just
+aren't likely relevant on nommu, but whatever..
+
+               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
