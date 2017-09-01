@@ -1,51 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CA1C6B0292
-	for <linux-mm@kvack.org>; Fri,  1 Sep 2017 09:15:31 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id i1so338550oib.2
-        for <linux-mm@kvack.org>; Fri, 01 Sep 2017 06:15:31 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id j131si119550oih.225.2017.09.01.06.15.29
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B32C6B02C3
+	for <linux-mm@kvack.org>; Fri,  1 Sep 2017 09:16:14 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l19so276497wmi.1
+        for <linux-mm@kvack.org>; Fri, 01 Sep 2017 06:16:14 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a13si96890wrf.368.2017.09.01.06.16.12
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 01 Sep 2017 06:15:30 -0700 (PDT)
-Subject: Re: [PATCH 1/2] mm,page_alloc: don't call __node_reclaim() without scoped allocation constraints.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1504269608-9202-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20170901125524.p3xtglunuufgfqcq@dhcp22.suse.cz>
-In-Reply-To: <20170901125524.p3xtglunuufgfqcq@dhcp22.suse.cz>
-Message-Id: <201709012215.BBB43272.OOLFMFQHFVSJOt@I-love.SAKURA.ne.jp>
-Date: Fri, 1 Sep 2017 22:15:24 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Fri, 01 Sep 2017 06:16:13 -0700 (PDT)
+Subject: Re: [PATCH] mm/mempolicy: Remove BUG_ON() checks for VMA inside
+ mpol_misplaced()
+References: <b28e0081-6e10-2d55-7414-afb0574a11a1@linux.vnet.ibm.com>
+ <20170901130137.7617-1-khandual@linux.vnet.ibm.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <8896e04b-9db2-53cd-cdb8-58105a94f84a@suse.cz>
+Date: Fri, 1 Sep 2017 15:16:12 +0200
+MIME-Version: 1.0
+In-Reply-To: <20170901130137.7617-1-khandual@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rientjes@google.com, mgorman@suse.de, vbabka@suse.cz
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org
 
-Michal Hocko wrote:
-> On Fri 01-09-17 21:40:07, Tetsuo Handa wrote:
-> > We are doing the first allocation attempt before calling
-> > current_gfp_context(). But since slab shrinker functions might depend on
-> > __GFP_FS and/or __GFP_IO masking, calling slab shrinker functions from
-> > node_reclaim() from get_page_from_freelist() without calling
-> > current_gfp_context() has possibility of deadlock. Therefore, make sure
-> > that the first memory allocation attempt does not call slab shrinker
-> > functions.
+On 09/01/2017 03:01 PM, Anshuman Khandual wrote:
+> VMA and its address bounds checks are too late in this function.
+> They must have been verified earlier in the page fault sequence.
+> Hence just remove them.
 > 
-> But we do filter gfp_mask at __node_reclaim layer. Not really ideal from
-> the readability point of view and maybe it could be cleaned up there
-> shouldn't be any bug AFAICS. On the other hand we can save few cycles on
-> the hot path that way and there are people who care about every cycle
-> there and node reclaim is absolutely the last thing they care about.
+> Suggested-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-Ah, indeed. We later do
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-struct scan_control sc = {
-	.gfp_mask = current_gfp_context(gfp_mask),
-}
-
-in __node_reclaim(). OK, there will be no problem.
+> ---
+>  mm/mempolicy.c | 5 -----
+>  1 file changed, 5 deletions(-)
+> 
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 618ab12..3509b84 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -2172,17 +2172,12 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
+>  	int polnid = -1;
+>  	int ret = -1;
+>  
+> -	BUG_ON(!vma);
+> -
+>  	pol = get_vma_policy(vma, addr);
+>  	if (!(pol->flags & MPOL_F_MOF))
+>  		goto out;
+>  
+>  	switch (pol->mode) {
+>  	case MPOL_INTERLEAVE:
+> -		BUG_ON(addr >= vma->vm_end);
+> -		BUG_ON(addr < vma->vm_start);
+> -
+>  		pgoff = vma->vm_pgoff;
+>  		pgoff += (addr - vma->vm_start) >> PAGE_SHIFT;
+>  		polnid = offset_il_node(pol, vma, pgoff);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
