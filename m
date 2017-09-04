@@ -1,168 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A5B96B03A1
-	for <linux-mm@kvack.org>; Sun,  3 Sep 2017 22:20:39 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id p12so10834548qkl.0
-        for <linux-mm@kvack.org>; Sun, 03 Sep 2017 19:20:39 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 49si5835986qtv.219.2017.09.03.19.20.37
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DDB1F6B03B4
+	for <linux-mm@kvack.org>; Sun,  3 Sep 2017 23:14:21 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id 190so7706148itx.7
+        for <linux-mm@kvack.org>; Sun, 03 Sep 2017 20:14:21 -0700 (PDT)
+Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id t1si1401454ite.132.2017.09.03.20.14.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 Sep 2017 19:20:38 -0700 (PDT)
-Date: Sun, 3 Sep 2017 19:20:02 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: kernel BUG at fs/xfs/xfs_aops.c:853! in kernel 4.13 rc6
-Message-ID: <20170904022002.GD4671@magnolia>
-References: <CABXGCsOL+_OgC0dpO1+Zeg=iu7ryZRZT4S7k-io8EGB0ZRgZGw@mail.gmail.com>
- <20170903074306.GA8351@infradead.org>
- <20170904014353.GG10621@dastard>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 03 Sep 2017 20:14:20 -0700 (PDT)
+Subject: Re: [HMM-v25 19/19] mm/hmm: add new helper to hotplug CDM memory
+ region v3
+References: <20170817000548.32038-1-jglisse@redhat.com>
+ <20170817000548.32038-20-jglisse@redhat.com>
+From: Bob Liu <liubo95@huawei.com>
+Message-ID: <a42b13a4-9f58-dcbb-e9de-c573fbafbc2f@huawei.com>
+Date: Mon, 4 Sep 2017 11:09:14 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+In-Reply-To: <20170817000548.32038-20-jglisse@redhat.com>
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170904014353.GG10621@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Christoph Hellwig <hch@infradead.org>, =?utf-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, majiuyue <majiuyue@huawei.com>, "xieyisheng (A)" <xieyisheng1@huawei.com>
 
-[add jan kara to cc]
+On 2017/8/17 8:05, JA(C)rA'me Glisse wrote:
+> Unlike unaddressable memory, coherent device memory has a real
+> resource associated with it on the system (as CPU can address
+> it). Add a new helper to hotplug such memory within the HMM
+> framework.
+> 
 
-On Mon, Sep 04, 2017 at 11:43:53AM +1000, Dave Chinner wrote:
-> On Sun, Sep 03, 2017 at 12:43:06AM -0700, Christoph Hellwig wrote:
-> > On Sun, Sep 03, 2017 at 09:22:17AM +0500, D?D,N?D?D,D>> D?D?D2N?D,D>>D 3/4 D2 wrote:
-> > > [281502.961248] ------------[ cut here ]------------
-> > > [281502.961257] kernel BUG at fs/xfs/xfs_aops.c:853!
-> > 
-> > This is:
-> > 
-> > 	bh = head = page_buffers(page);
-> > 
-> > Which looks odd and like some sort of VM/writeback change might
-> > have triggered that we get a page without buffers, despite always
-> > creating buffers in iomap_begin/end and page_mkwrite.
+Got an new question, coherent device( e.g CCIX) memory are likely reported to OS 
+through ACPI and recognized as NUMA memory node.
+Then how can their memory be captured and managed by HMM framework?
+
+--
+Regards,
+Bob Liu
+
+> Changed since v2:
+>   - s/host/public
+> Changed since v1:
+>   - s/public/host
 > 
-> Pretty sure this can still happen when buffer_heads_over_limit comes
-> true. In that case, shrink_active_list() will attempt to strip
-> the bufferheads off the page even if it's a dirty page. i.e. this
-> code:
+> Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+> Reviewed-by: Balbir Singh <bsingharora@gmail.com>
+> ---
+>  include/linux/hmm.h |  3 ++
+>  mm/hmm.c            | 88 ++++++++++++++++++++++++++++++++++++++++++++++++++---
+>  2 files changed, 86 insertions(+), 5 deletions(-)
 > 
->                 if (unlikely(buffer_heads_over_limit)) {
->                         if (page_has_private(page) && trylock_page(page)) {
->                                 if (page_has_private(page))
->                                         try_to_release_page(page, 0);
->                                 unlock_page(page);
->                         }
->                 }
-> 
-> 
-> There was some discussion about this a while back, the consensus was
-> that it is a mm bug, but nobody wanted to add a PageDirty check
-> to try_to_release_page() and so nothing ended up being done about
-> it in the mm/ subsystem. Instead, filesystems needed to avoid it
-> if it was a problem for them. Indeed, we fixed it in the filesystem
-> in 4.8:
-> 
-> 99579ccec4e2 xfs: skip dirty pages in ->releasepage()
-> 
-> diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-> index 3ba0809e0be8..6135787500fc 100644
-> --- a/fs/xfs/xfs_aops.c
-> +++ b/fs/xfs/xfs_aops.c
-> @@ -1040,6 +1040,20 @@ xfs_vm_releasepage(
+> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> index 79e63178fd87..5866f3194c26 100644
+> --- a/include/linux/hmm.h
+> +++ b/include/linux/hmm.h
+> @@ -443,6 +443,9 @@ struct hmm_devmem {
+>  struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+>  				  struct device *device,
+>  				  unsigned long size);
+> +struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
+> +					   struct device *device,
+> +					   struct resource *res);
+>  void hmm_devmem_remove(struct hmm_devmem *devmem);
 >  
->         trace_xfs_releasepage(page->mapping->host, page, 0, 0);
+>  /*
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 1a1e79d390c1..3faa4d40295e 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -854,7 +854,11 @@ static void hmm_devmem_release(struct device *dev, void *data)
+>  	zone = page_zone(page);
 >  
-> +       /*
-> +        * mm accommodates an old ext3 case where clean pages might not have had
-> +        * the dirty bit cleared. Thus, it can send actual dirty pages to
-> +        * ->releasepage() via shrink_active_list(). Conversely,
-> +        * block_invalidatepage() can send pages that are still marked dirty
-> +        * but otherwise have invalidated buffers.
-> +        *
-> +        * We've historically freed buffers on the latter. Instead, quietly
-> +        * filter out all dirty pages to avoid spurious buffer state warnings.
-> +        * This can likely be removed once shrink_active_list() is fixed.
-> +        */
-> +       if (PageDirty(page))
-> +               return 0;
+>  	mem_hotplug_begin();
+> -	__remove_pages(zone, start_pfn, npages);
+> +	if (resource->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY)
+> +		__remove_pages(zone, start_pfn, npages);
+> +	else
+> +		arch_remove_memory(start_pfn << PAGE_SHIFT,
+> +				   npages << PAGE_SHIFT);
+>  	mem_hotplug_done();
+>  
+>  	hmm_devmem_radix_release(resource);
+> @@ -890,7 +894,11 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
+>  	if (is_ram == REGION_INTERSECTS)
+>  		return -ENXIO;
+>  
+> -	devmem->pagemap.type = MEMORY_DEVICE_PRIVATE;
+> +	if (devmem->resource->desc == IORES_DESC_DEVICE_PUBLIC_MEMORY)
+> +		devmem->pagemap.type = MEMORY_DEVICE_PUBLIC;
+> +	else
+> +		devmem->pagemap.type = MEMORY_DEVICE_PRIVATE;
 > +
->         xfs_count_page_state(page, &delalloc, &unwritten);
+>  	devmem->pagemap.res = devmem->resource;
+>  	devmem->pagemap.page_fault = hmm_devmem_fault;
+>  	devmem->pagemap.page_free = hmm_devmem_free;
+> @@ -935,9 +943,15 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
+>  	 * over the device memory is un-accessible thus we do not want to
+>  	 * create a linear mapping for the memory like arch_add_memory()
+>  	 * would do.
+> +	 *
+> +	 * For device public memory, which is accesible by the CPU, we do
+> +	 * want the linear mapping and thus use arch_add_memory().
+>  	 */
+> -	ret = add_pages(nid, align_start >> PAGE_SHIFT,
+> -			align_size >> PAGE_SHIFT, false);
+> +	if (devmem->pagemap.type == MEMORY_DEVICE_PUBLIC)
+> +		ret = arch_add_memory(nid, align_start, align_size, false);
+> +	else
+> +		ret = add_pages(nid, align_start >> PAGE_SHIFT,
+> +				align_size >> PAGE_SHIFT, false);
+>  	if (ret) {
+>  		mem_hotplug_done();
+>  		goto error_add_memory;
+> @@ -1084,6 +1098,67 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+>  }
+>  EXPORT_SYMBOL(hmm_devmem_add);
+>  
+> +struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
+> +					   struct device *device,
+> +					   struct resource *res)
+> +{
+> +	struct hmm_devmem *devmem;
+> +	int ret;
+> +
+> +	if (res->desc != IORES_DESC_DEVICE_PUBLIC_MEMORY)
+> +		return ERR_PTR(-EINVAL);
+> +
+> +	static_branch_enable(&device_private_key);
+> +
+> +	devmem = devres_alloc_node(&hmm_devmem_release, sizeof(*devmem),
+> +				   GFP_KERNEL, dev_to_node(device));
+> +	if (!devmem)
+> +		return ERR_PTR(-ENOMEM);
+> +
+> +	init_completion(&devmem->completion);
+> +	devmem->pfn_first = -1UL;
+> +	devmem->pfn_last = -1UL;
+> +	devmem->resource = res;
+> +	devmem->device = device;
+> +	devmem->ops = ops;
+> +
+> +	ret = percpu_ref_init(&devmem->ref, &hmm_devmem_ref_release,
+> +			      0, GFP_KERNEL);
+> +	if (ret)
+> +		goto error_percpu_ref;
+> +
+> +	ret = devm_add_action(device, hmm_devmem_ref_exit, &devmem->ref);
+> +	if (ret)
+> +		goto error_devm_add_action;
+> +
+> +
+> +	devmem->pfn_first = devmem->resource->start >> PAGE_SHIFT;
+> +	devmem->pfn_last = devmem->pfn_first +
+> +			   (resource_size(devmem->resource) >> PAGE_SHIFT);
+> +
+> +	ret = hmm_devmem_pages_create(devmem);
+> +	if (ret)
+> +		goto error_devm_add_action;
+> +
+> +	devres_add(device, devmem);
+> +
+> +	ret = devm_add_action(device, hmm_devmem_ref_kill, &devmem->ref);
+> +	if (ret) {
+> +		hmm_devmem_remove(devmem);
+> +		return ERR_PTR(ret);
+> +	}
+> +
+> +	return devmem;
+> +
+> +error_devm_add_action:
+> +	hmm_devmem_ref_kill(&devmem->ref);
+> +	hmm_devmem_ref_exit(&devmem->ref);
+> +error_percpu_ref:
+> +	devres_free(devmem);
+> +	return ERR_PTR(ret);
+> +}
+> +EXPORT_SYMBOL(hmm_devmem_add_resource);
+> +
+>  /*
+>   * hmm_devmem_remove() - remove device memory (kill and free ZONE_DEVICE)
+>   *
+> @@ -1097,6 +1172,7 @@ void hmm_devmem_remove(struct hmm_devmem *devmem)
+>  {
+>  	resource_size_t start, size;
+>  	struct device *device;
+> +	bool cdm = false;
+>  
+>  	if (!devmem)
+>  		return;
+> @@ -1105,11 +1181,13 @@ void hmm_devmem_remove(struct hmm_devmem *devmem)
+>  	start = devmem->resource->start;
+>  	size = resource_size(devmem->resource);
+>  
+> +	cdm = devmem->resource->desc == IORES_DESC_DEVICE_PUBLIC_MEMORY;
+>  	hmm_devmem_ref_kill(&devmem->ref);
+>  	hmm_devmem_ref_exit(&devmem->ref);
+>  	hmm_devmem_pages_remove(devmem);
+>  
+> -	devm_release_mem_region(device, start, size);
+> +	if (!cdm)
+> +		devm_release_mem_region(device, start, size);
+>  }
+>  EXPORT_SYMBOL(hmm_devmem_remove);
+>  
 > 
-> But looking at the current code, the comment is still mostly there
-> but the PageDirty() check isn't.
-> 
-> <sigh>
-> 
-> In 4.10, this was done:
-> 
-> commit 0a417b8dc1f10b03e8f558b8a831f07ec4c23795
-> Author: Jan Kara <jack@suse.cz>
-> Date:   Wed Jan 11 10:20:04 2017 -0800
-> 
->     xfs: Timely free truncated dirty pages
->     
->     Commit 99579ccec4e2 "xfs: skip dirty pages in ->releasepage()" started
->     to skip dirty pages in xfs_vm_releasepage() which also has the effect
->     that if a dirty page is truncated, it does not get freed by
->     block_invalidatepage() and is lingering in LRU list waiting for reclaim.
->     So a simple loop like:
->     
->     while true; do
->             dd if=/dev/zero of=file bs=1M count=100
->             rm file
->     done
->     
->     will keep using more and more memory until we hit low watermarks and
->     start pagecache reclaim which will eventually reclaim also the truncate
->     pages. Keeping these truncated (and thus never usable) pages in memory
->     is just a waste of memory, is unnecessarily stressing page cache
->     reclaim, and reportedly also leads to anonymous mmap(2) returning ENOMEM
->     prematurely.
->     
->     So instead of just skipping dirty pages in xfs_vm_releasepage(), return
->     to old behavior of skipping them only if they have delalloc or unwritten
->     buffers and fix the spurious warnings by warning only if the page is
->     clean.
->     
->     CC: stable@vger.kernel.org
->     CC: Brian Foster <bfoster@redhat.com>
->     CC: Vlastimil Babka <vbabka@suse.cz>
->     Reported-by: Petr Ti? 1/2 ma <petr.tuma@d3s.mff.cuni.cz>
->     Fixes: 99579ccec4e271c3d4d4e7c946058766812afdab
->     Signed-off-by: Jan Kara <jack@suse.cz>
->     Reviewed-by: Brian Foster <bfoster@redhat.com>
->     Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-> 
-> 
-> So, yeah, we reverted the fix for a crash rather than trying to fix
-> the adverse behaviour caused by invalidation of a dirty page.
-> 
-> e.g. why didn't we simply clear the PageDirty flag in
-> xfs_vm_invalidatepage()?  The page is being invalidated - it's
-> contents will never get written back - so having delalloc or
-> unwritten extents over that page at the time it is invalidated is a
-> bug and the original fix would have triggered warnings about
-> this....
 
-Seems like a reasonable revert/change, but given that ext3 was killed
-off long ago, is it even still the case that the mm can feed releasepage
-a dirty clean page?  If that is the case, then isn't it time to fix the
-mm too?
-
---D
-
-> 
-> Cheers,
-> 
-> Dave.
-> -- 
-> Dave Chinner
-> david@fromorbit.com
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-xfs" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
