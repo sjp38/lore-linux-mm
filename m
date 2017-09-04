@@ -1,67 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A5C26B049B
-	for <linux-mm@kvack.org>; Mon,  4 Sep 2017 04:47:19 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id u26so8791968wma.3
-        for <linux-mm@kvack.org>; Mon, 04 Sep 2017 01:47:19 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B6F286B049D
+	for <linux-mm@kvack.org>; Mon,  4 Sep 2017 05:01:18 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l19so8851742wmi.1
+        for <linux-mm@kvack.org>; Mon, 04 Sep 2017 02:01:18 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f15si4544769wmg.82.2017.09.04.01.47.17
+        by mx.google.com with ESMTPS id c2si4801614wrf.192.2017.09.04.02.01.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 04 Sep 2017 01:47:17 -0700 (PDT)
-Date: Mon, 4 Sep 2017 10:47:15 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm,page_alloc: apply gfp_allowed_mask before the first
- allocation attempt.
-Message-ID: <20170904084715.aeyckbfciif7g2z2@dhcp22.suse.cz>
-References: <1504275091-4427-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20170901142845.nqcn2na4vy6giyhm@dhcp22.suse.cz>
- <201709020016.ADJ21342.OFLJHOOSMFVtFQ@I-love.SAKURA.ne.jp>
- <c03a89e8-e422-9fde-bb49-dac71a8fd7c6@suse.cz>
+        Mon, 04 Sep 2017 02:01:17 -0700 (PDT)
+Date: Mon, 4 Sep 2017 11:01:14 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] mm, memory_hotplug: remove timeout from
+ __offline_memory
+Message-ID: <20170904090114.mrjxipvucieadxa6@dhcp22.suse.cz>
+References: <20170904082148.23131-1-mhocko@kernel.org>
+ <20170904082148.23131-3-mhocko@kernel.org>
+ <59AD15B6.7080304@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <c03a89e8-e422-9fde-bb49-dac71a8fd7c6@suse.cz>
+In-Reply-To: <59AD15B6.7080304@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, brouer@redhat.com, mgorman@techsingularity.net
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 04-09-17 10:22:59, Vlastimil Babka wrote:
-> On 09/01/2017 05:16 PM, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> >> On Fri 01-09-17 23:11:31, Tetsuo Handa wrote:
-> >>> We are by error initializing alloc_flags before gfp_allowed_mask is
-> >>> applied. Apply gfp_allowed_mask before initializing alloc_flags so that
-> >>> the first allocation attempt uses correct flags.
-> >>
-> >> It would be worth noting that this will not matter in most cases,
-> >> actually when only the node reclaim is enabled we can misbehave because
-> >> NOFS request for PM paths would be ignored.
+On Mon 04-09-17 16:58:30, Xishi Qiu wrote:
+> On 2017/9/4 16:21, Michal Hocko wrote:
 > 
-> Hmm don't we have the same problem with the god-damned node reclaim by
-> applying current_gfp_context() also only after the first attempt? But
-> that would be present since 21caf2fc1931b.
-> Hm, actually no, because reclaim calls current_gfp_context() by itself.
-> Good.
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > We have a hardcoded 120s timeout after which the memory offline fails
+> > basically since the hot remove has been introduced. This is essentially
+> > a policy implemented in the kernel. Moreover there is no way to adjust
+> > the timeout and so we are sometimes facing memory offline failures if
+> > the system is under a heavy memory pressure or very intensive CPU
+> > workload on large machines.
+> > 
+> > It is not very clear what purpose the timeout actually serves. The
+> > offline operation is interruptible by a signal so if userspace wants
+> 
+> Hi Michal,
+> 
+> If the user know what he should do if migration for a long time,
+> it is OK, but I don't think all the users know this operation
+> (e.g. ctrl + c) and the affect.
 
-Yes.
+How is this operation any different from other potentially long
+interruptible syscalls?
 
-> Maybe reclaim should also do the gfp_allowed_mask filtering?
-
-I would rather not spread it more than it is really needed.
-
-> I wonder how safe the pm_restrict_gfp_mask() update is when an
-> allocation is already looping in __alloc_pages_slowpath()...
-
-It will be broken
-
-> What exactly are your ideas to get rid of gfp_allowed_mask, Michal?
-
-Well I planned to actually examine why do we need it in the first place
-and whether the original intention still applies and if yes then replace
-it by memalloc_noio_save. It would still be proken in a similar way you
-pointed out but something tells me that it is just obsolete.
 -- 
 Michal Hocko
 SUSE Labs
