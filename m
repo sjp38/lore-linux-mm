@@ -1,81 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6926C6B02F4
-	for <linux-mm@kvack.org>; Sun,  3 Sep 2017 20:58:16 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id n7so14588981pfi.7
-        for <linux-mm@kvack.org>; Sun, 03 Sep 2017 17:58:16 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id m190si4032963pfc.400.2017.09.03.17.58.15
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 Sep 2017 17:58:15 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH] mm: kvfree the swap cluster info if the swap file is unsatisfactory
-References: <20170831233515.GR3775@magnolia>
-	<alpine.DEB.2.10.1709010123020.102682@chino.kir.corp.google.com>
-Date: Mon, 04 Sep 2017 08:58:12 +0800
-In-Reply-To: <alpine.DEB.2.10.1709010123020.102682@chino.kir.corp.google.com>
-	(David Rientjes's message of "Fri, 1 Sep 2017 01:33:53 -0700")
-Message-ID: <87o9qrqnyz.fsf@yhuang-dev.intel.com>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CDB5E6B02FD
+	for <linux-mm@kvack.org>; Sun,  3 Sep 2017 21:35:07 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id t193so15681022pgc.4
+        for <linux-mm@kvack.org>; Sun, 03 Sep 2017 18:35:07 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id g68si4069663pgc.807.2017.09.03.18.35.05
+        for <linux-mm@kvack.org>;
+        Sun, 03 Sep 2017 18:35:06 -0700 (PDT)
+Subject: Re: Re: [PATCH] mm/vmstats: add counters for the page frag cache
+References: <1504222631-2635-1-git-send-email-kyeongdon.kim@lge.com>
+ <50592560-af4d-302c-c0bc-1e854e35139d@yandex-team.ru>
+From: Kyeongdon Kim <kyeongdon.kim@lge.com>
+Message-ID: <19156a13-6153-f570-317b-7b80505347e7@lge.com>
+Date: Mon, 4 Sep 2017 10:35:00 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <50592560-af4d-302c-c0bc-1e854e35139d@yandex-team.ru>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, akpm@linux-foundation.org, sfr@canb.auug.org.au
+Cc: ying.huang@intel.com, vbabka@suse.cz, hannes@cmpxchg.org, xieyisheng1@huawei.com, luto@kernel.org, shli@fb.com, mhocko@suse.com, mgorman@techsingularity.net, hillf.zj@alibaba-inc.com, kemi.wang@intel.com, rientjes@google.com, bigeasy@linutronix.de, iamjoonsoo.kim@lge.com, bongkyu.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-David Rientjes <rientjes@google.com> writes:
+Thanks for your reply,
+But I couldn't find "NR_FRAGMENT_PAGES" in linux-next.git .. is that 
+vmstat counter? or others?
 
-> On Thu, 31 Aug 2017, Darrick J. Wong wrote:
->
->> If initializing a small swap file fails because the swap file has a
->> problem (holes, etc.) then we need to free the cluster info as part of
->> cleanup.  Unfortunately a previous patch changed the code to use
->> kvzalloc but did not change all the vfree calls to use kvfree.
->> 
->
-> Hopefully this can make it into 4.13.
->
-> Fixes: 54f180d3c181 ("mm, swap: use kvzalloc to allocate some swap data structures")
-> Cc: stable@vger.kernel.org [4.12]
->
->> Found by running generic/357 from xfstests.
->> 
->> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
->
-> Acked-by: David Rientjes <rientjes@google.com>
->
-> But I think there's also a memory leak and we need this on top of your 
-> fix:
->
->
-> mm, swapfile: fix swapon frontswap_map memory leak on error 
->
-> Free frontswap_map if an error is encountered before enable_swap_info().
->
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/swapfile.c | 1 +
->  1 file changed, 1 insertion(+)
->
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -3053,6 +3053,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
->  	spin_unlock(&swap_lock);
->  	vfree(swap_map);
->  	kvfree(cluster_info);
-> +	kvfree(frontswap_map);
->  	if (swap_file) {
->  		if (inode && S_ISREG(inode->i_mode)) {
->  			inode_unlock(inode);
+As you know, page_frag_alloc() directly calls __alloc_pages_nodemask() 
+function,
+so that makes too difficult to see memory usage in real time even though 
+we have "/meminfo or /slabinfo.." information.
+If there was a way already to figure out the memory leakage from 
+page_frag_cache in mainline, I agree your opinion
+but I think we don't have it now.
 
-Yes.  There is a memory leak.
+If those counters too much in my patch,
+I can say two values (pgfrag_alloc and pgfrag_free) are enough to guess 
+what will happen
+and would remove pgfrag_alloc_calls and pgfrag_free_calls.
 
-Reviewed-by: "Huang, Ying" <ying.huang@intel.com>
+Thanks,
+Kyeongdon Kim
 
-Best Regards,
-Huang, Ying
+On 2017-09-01 i??i?? 6:12, Konstantin Khlebnikov wrote:
+> IMHO that's too much counters.
+> Per-node NR_FRAGMENT_PAGES should be enough for guessing what's going on.
+> Perf probes provides enough features for furhter debugging.
+>
+> On 01.09.2017 02:37, Kyeongdon Kim wrote:
+> > There was a memory leak problem when we did stressful test
+> > on Android device.
+> > The root cause of this was from page_frag_cache alloc
+> > and it was very hard to find out.
+> >
+> > We add to count the page frag allocation and free with function call.
+> > The gap between pgfrag_alloc and pgfrag_free is good to to calculate
+> > for the amount of page.
+> > The gap between pgfrag_alloc_calls and pgfrag_free_calls is for
+> > sub-indicator.
+> > They can see trends of memory usage during the test.
+> > Without it, it's difficult to check page frag usage so I believe we
+> > should add it.
+> >
+> > Signed-off-by: Kyeongdon Kim <kyeongdon.kim@lge.com>
+> > ---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
