@@ -1,234 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A9376B0499
-	for <linux-mm@kvack.org>; Mon,  4 Sep 2017 04:32:24 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id k126so11923496qkb.3
-        for <linux-mm@kvack.org>; Mon, 04 Sep 2017 01:32:24 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id o22si6625085qtk.120.2017.09.04.01.32.22
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A5C26B049B
+	for <linux-mm@kvack.org>; Mon,  4 Sep 2017 04:47:19 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id u26so8791968wma.3
+        for <linux-mm@kvack.org>; Mon, 04 Sep 2017 01:47:19 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f15si4544769wmg.82.2017.09.04.01.47.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Sep 2017 01:32:22 -0700 (PDT)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v848T88t033331
-	for <linux-mm@kvack.org>; Mon, 4 Sep 2017 04:32:22 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2cs1evw3fu-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 04 Sep 2017 04:32:22 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Mon, 4 Sep 2017 09:32:20 +0100
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: [PATCH] x86/mm: Fix fault error path using unsafe vma pointer
-Date: Mon,  4 Sep 2017 10:32:15 +0200
-Message-Id: <1504513935-12742-1-git-send-email-ldufour@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 04 Sep 2017 01:47:17 -0700 (PDT)
+Date: Mon, 4 Sep 2017 10:47:15 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm,page_alloc: apply gfp_allowed_mask before the first
+ allocation attempt.
+Message-ID: <20170904084715.aeyckbfciif7g2z2@dhcp22.suse.cz>
+References: <1504275091-4427-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20170901142845.nqcn2na4vy6giyhm@dhcp22.suse.cz>
+ <201709020016.ADJ21342.OFLJHOOSMFVtFQ@I-love.SAKURA.ne.jp>
+ <c03a89e8-e422-9fde-bb49-dac71a8fd7c6@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c03a89e8-e422-9fde-bb49-dac71a8fd7c6@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, brouer@redhat.com, mgorman@techsingularity.net
 
-The commit 7b2d0dbac489 ("x86/mm/pkeys: Pass VMA down in to fault signal
-generation code") pass down a vma pointer to the error path, but that is
-done once the mmap_sem is released when calling mm_fault_error() from
-__do_page_fault().
+On Mon 04-09-17 10:22:59, Vlastimil Babka wrote:
+> On 09/01/2017 05:16 PM, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> >> On Fri 01-09-17 23:11:31, Tetsuo Handa wrote:
+> >>> We are by error initializing alloc_flags before gfp_allowed_mask is
+> >>> applied. Apply gfp_allowed_mask before initializing alloc_flags so that
+> >>> the first allocation attempt uses correct flags.
+> >>
+> >> It would be worth noting that this will not matter in most cases,
+> >> actually when only the node reclaim is enabled we can misbehave because
+> >> NOFS request for PM paths would be ignored.
+> 
+> Hmm don't we have the same problem with the god-damned node reclaim by
+> applying current_gfp_context() also only after the first attempt? But
+> that would be present since 21caf2fc1931b.
+> Hm, actually no, because reclaim calls current_gfp_context() by itself.
+> Good.
 
-This is dangerous as the pointed vma structure is no more safe to be used
-once the mmap_sem has been released. As only the protection key value is
-required in the error processing, we could just pass down this value.
+Yes.
 
-This patch fixes this by passing a pointer to a protection key value down
-to the fault signal generation code. The use of a pointer allows to keep
-the check generating a warning message in fill_sig_info_pkey() when the vma
-was not known. If the pointer is valid, the protection value can be
-accessed by deferencing the pointer.
+> Maybe reclaim should also do the gfp_allowed_mask filtering?
 
-Fixes: 7b2d0dbac489 ("x86/mm/pkeys: Pass VMA down in to fault signal
-generation code")
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
----
- arch/x86/mm/fault.c | 47 ++++++++++++++++++++++++-----------------------
- 1 file changed, 24 insertions(+), 23 deletions(-)
+I would rather not spread it more than it is really needed.
 
-diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index 2a1fa10c6a98..c18e737c5f9b 100644
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -192,8 +192,7 @@ is_prefetch(struct pt_regs *regs, unsigned long error_code, unsigned long addr)
-  * 6. T1   : reaches here, sees vma_pkey(vma)=5, when we really
-  *	     faulted on a pte with its pkey=4.
-  */
--static void fill_sig_info_pkey(int si_code, siginfo_t *info,
--		struct vm_area_struct *vma)
-+static void fill_sig_info_pkey(int si_code, siginfo_t *info, int *pkey)
- {
- 	/* This is effectively an #ifdef */
- 	if (!boot_cpu_has(X86_FEATURE_OSPKE))
-@@ -209,7 +208,7 @@ static void fill_sig_info_pkey(int si_code, siginfo_t *info,
- 	 * valid VMA, so we should never reach this without a
- 	 * valid VMA.
- 	 */
--	if (!vma) {
-+	if (!pkey) {
- 		WARN_ONCE(1, "PKU fault with no VMA passed in");
- 		info->si_pkey = 0;
- 		return;
-@@ -219,13 +218,12 @@ static void fill_sig_info_pkey(int si_code, siginfo_t *info,
- 	 * absolutely guranteed to be 100% accurate because of
- 	 * the race explained above.
- 	 */
--	info->si_pkey = vma_pkey(vma);
-+	info->si_pkey = *pkey;
- }
- 
- static void
- force_sig_info_fault(int si_signo, int si_code, unsigned long address,
--		     struct task_struct *tsk, struct vm_area_struct *vma,
--		     int fault)
-+		     struct task_struct *tsk, int *pkey, int fault)
- {
- 	unsigned lsb = 0;
- 	siginfo_t info;
-@@ -240,7 +238,7 @@ force_sig_info_fault(int si_signo, int si_code, unsigned long address,
- 		lsb = PAGE_SHIFT;
- 	info.si_addr_lsb = lsb;
- 
--	fill_sig_info_pkey(si_code, &info, vma);
-+	fill_sig_info_pkey(si_code, &info, pkey);
- 
- 	force_sig_info(si_signo, &info, tsk);
- }
-@@ -758,8 +756,6 @@ no_context(struct pt_regs *regs, unsigned long error_code,
- 	struct task_struct *tsk = current;
- 	unsigned long flags;
- 	int sig;
--	/* No context means no VMA to pass down */
--	struct vm_area_struct *vma = NULL;
- 
- 	/* Are we prepared to handle this kernel fault? */
- 	if (fixup_exception(regs, X86_TRAP_PF)) {
-@@ -784,7 +780,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
- 
- 			/* XXX: hwpoison faults will set the wrong code. */
- 			force_sig_info_fault(signal, si_code, address,
--					     tsk, vma, 0);
-+					     tsk, NULL, 0);
- 		}
- 
- 		/*
-@@ -893,8 +889,7 @@ show_signal_msg(struct pt_regs *regs, unsigned long error_code,
- 
- static void
- __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
--		       unsigned long address, struct vm_area_struct *vma,
--		       int si_code)
-+		       unsigned long address, int *pkey, int si_code)
- {
- 	struct task_struct *tsk = current;
- 
-@@ -942,7 +937,7 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
- 		tsk->thread.error_code	= error_code;
- 		tsk->thread.trap_nr	= X86_TRAP_PF;
- 
--		force_sig_info_fault(SIGSEGV, si_code, address, tsk, vma, 0);
-+		force_sig_info_fault(SIGSEGV, si_code, address, tsk, pkey, 0);
- 
- 		return;
- 	}
-@@ -955,9 +950,9 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
- 
- static noinline void
- bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
--		     unsigned long address, struct vm_area_struct *vma)
-+		     unsigned long address, int *pkey)
- {
--	__bad_area_nosemaphore(regs, error_code, address, vma, SEGV_MAPERR);
-+	__bad_area_nosemaphore(regs, error_code, address, pkey, SEGV_MAPERR);
- }
- 
- static void
-@@ -965,6 +960,10 @@ __bad_area(struct pt_regs *regs, unsigned long error_code,
- 	   unsigned long address,  struct vm_area_struct *vma, int si_code)
- {
- 	struct mm_struct *mm = current->mm;
-+	int pkey;
-+
-+	if (vma)
-+		pkey = vma_pkey(vma);
- 
- 	/*
- 	 * Something tried to access memory that isn't in our memory map..
-@@ -972,7 +971,8 @@ __bad_area(struct pt_regs *regs, unsigned long error_code,
- 	 */
- 	up_read(&mm->mmap_sem);
- 
--	__bad_area_nosemaphore(regs, error_code, address, vma, si_code);
-+	__bad_area_nosemaphore(regs, error_code, address,
-+			       (vma) ? &pkey : NULL, si_code);
- }
- 
- static noinline void
-@@ -1015,7 +1015,7 @@ bad_area_access_error(struct pt_regs *regs, unsigned long error_code,
- 
- static void
- do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
--	  struct vm_area_struct *vma, unsigned int fault)
-+	  int *pkey, unsigned int fault)
- {
- 	struct task_struct *tsk = current;
- 	int code = BUS_ADRERR;
-@@ -1042,13 +1042,12 @@ do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
- 		code = BUS_MCEERR_AR;
- 	}
- #endif
--	force_sig_info_fault(SIGBUS, code, address, tsk, vma, fault);
-+	force_sig_info_fault(SIGBUS, code, address, tsk, pkey, fault);
- }
- 
- static noinline void
- mm_fault_error(struct pt_regs *regs, unsigned long error_code,
--	       unsigned long address, struct vm_area_struct *vma,
--	       unsigned int fault)
-+	       unsigned long address, int *pkey, unsigned int fault)
- {
- 	if (fatal_signal_pending(current) && !(error_code & PF_USER)) {
- 		no_context(regs, error_code, address, 0, 0);
-@@ -1072,9 +1071,9 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
- 	} else {
- 		if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|
- 			     VM_FAULT_HWPOISON_LARGE))
--			do_sigbus(regs, error_code, address, vma, fault);
-+			do_sigbus(regs, error_code, address, pkey, fault);
- 		else if (fault & VM_FAULT_SIGSEGV)
--			bad_area_nosemaphore(regs, error_code, address, vma);
-+			bad_area_nosemaphore(regs, error_code, address, pkey);
- 		else
- 			BUG();
- 	}
-@@ -1268,6 +1267,7 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code,
- 	struct mm_struct *mm;
- 	int fault, major = 0;
- 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
-+	int pkey;
- 
- 	tsk = current;
- 	mm = tsk->mm;
-@@ -1468,9 +1468,10 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code,
- 		return;
- 	}
- 
-+	pkey = vma_pkey(vma);
- 	up_read(&mm->mmap_sem);
- 	if (unlikely(fault & VM_FAULT_ERROR)) {
--		mm_fault_error(regs, error_code, address, vma, fault);
-+		mm_fault_error(regs, error_code, address, &pkey, fault);
- 		return;
- 	}
- 
+> I wonder how safe the pm_restrict_gfp_mask() update is when an
+> allocation is already looping in __alloc_pages_slowpath()...
+
+It will be broken
+
+> What exactly are your ideas to get rid of gfp_allowed_mask, Michal?
+
+Well I planned to actually examine why do we need it in the first place
+and whether the original intention still applies and if yes then replace
+it by memalloc_noio_save. It would still be proken in a similar way you
+pointed out but something tells me that it is just obsolete.
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
