@@ -1,105 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 488A36B04BB
-	for <linux-mm@kvack.org>; Mon,  4 Sep 2017 10:22:11 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id q68so903730pgq.6
-        for <linux-mm@kvack.org>; Mon, 04 Sep 2017 07:22:11 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id c26si2290214pfh.248.2017.09.04.07.22.09
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F2DEE6B04BD
+	for <linux-mm@kvack.org>; Mon,  4 Sep 2017 11:51:29 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id p12so916386qkl.0
+        for <linux-mm@kvack.org>; Mon, 04 Sep 2017 08:51:29 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s62si5866448qkl.491.2017.09.04.08.51.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Sep 2017 07:22:10 -0700 (PDT)
-From: Roman Gushchin <guro@fb.com>
-Subject: [v7 5/5] mm, oom: cgroup v2 mount option to disable cgroup-aware OOM killer
-Date: Mon, 4 Sep 2017 15:21:08 +0100
-Message-ID: <20170904142108.7165-6-guro@fb.com>
-In-Reply-To: <20170904142108.7165-1-guro@fb.com>
-References: <20170904142108.7165-1-guro@fb.com>
+        Mon, 04 Sep 2017 08:51:28 -0700 (PDT)
+Date: Mon, 4 Sep 2017 11:51:23 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [HMM-v25 19/19] mm/hmm: add new helper to hotplug CDM memory
+ region v3
+Message-ID: <20170904155123.GA3161@redhat.com>
+References: <20170817000548.32038-1-jglisse@redhat.com>
+ <20170817000548.32038-20-jglisse@redhat.com>
+ <a42b13a4-9f58-dcbb-e9de-c573fbafbc2f@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <a42b13a4-9f58-dcbb-e9de-c573fbafbc2f@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Bob Liu <liubo95@huawei.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, majiuyue <majiuyue@huawei.com>, "xieyisheng (A)" <xieyisheng1@huawei.com>
 
-Introducing of cgroup-aware OOM killer changes the victim selection
-algorithm used by default: instead of picking the largest process,
-it will pick the largest memcg and then the largest process inside.
+On Mon, Sep 04, 2017 at 11:09:14AM +0800, Bob Liu wrote:
+> On 2017/8/17 8:05, Jerome Glisse wrote:
+> > Unlike unaddressable memory, coherent device memory has a real
+> > resource associated with it on the system (as CPU can address
+> > it). Add a new helper to hotplug such memory within the HMM
+> > framework.
+> > 
+> 
+> Got an new question, coherent device( e.g CCIX) memory are likely reported to OS 
+> through ACPI and recognized as NUMA memory node.
+> Then how can their memory be captured and managed by HMM framework?
+> 
 
-This affects only cgroup v2 users.
+Only platform that has such memory today is powerpc and it is not reported
+as regular memory by the firmware hence why they need this helper.
 
-To provide a way to use cgroups v2 if the old OOM victim selection
-algorithm is preferred for some reason, the nogroupoom mount option
-is added.
+I don't think anyone has defined anything yet for x86 and acpi. As this is
+memory on PCIE like interface then i don't expect it to be reported as NUMA
+memory node but as io range like any regular PCIE resources. Device driver
+through capabilities flags would then figure out if the link between the
+device and CPU is CCIX capable if so it can use this helper to hotplug it
+as device memory.
 
-If set, the OOM selection is performed in a "traditional" per-process
-way. Both oom_priority and oom_group memcg knobs are ignored.
-
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: kernel-team@fb.com
-Cc: cgroups@vger.kernel.org
-Cc: linux-doc@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
----
- Documentation/admin-guide/kernel-parameters.txt | 1 +
- mm/memcontrol.c                                 | 8 ++++++++
- 2 files changed, 9 insertions(+)
-
-diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index 28f1a0f84456..07891f1030aa 100644
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -489,6 +489,7 @@
- 			Format: <string>
- 			nosocket -- Disable socket memory accounting.
- 			nokmem -- Disable kernel memory accounting.
-+			nogroupoom -- Disable cgroup-aware OOM killer.
- 
- 	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
- 			Format: { "0" | "1" }
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index d7dd293897ca..6a8235dc41f6 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -87,6 +87,9 @@ static bool cgroup_memory_nosocket;
- /* Kernel memory accounting disabled? */
- static bool cgroup_memory_nokmem;
- 
-+/* Cgroup-aware OOM  disabled? */
-+static bool cgroup_memory_nogroupoom;
-+
- /* Whether the swap controller is active */
- #ifdef CONFIG_MEMCG_SWAP
- int do_swap_account __read_mostly;
-@@ -2822,6 +2825,9 @@ bool mem_cgroup_select_oom_victim(struct oom_control *oc)
- 	if (mem_cgroup_disabled())
- 		return false;
- 
-+	if (cgroup_memory_nogroupoom)
-+		return false;
-+
- 	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys))
- 		return false;
- 
-@@ -6188,6 +6194,8 @@ static int __init cgroup_memory(char *s)
- 			cgroup_memory_nosocket = true;
- 		if (!strcmp(token, "nokmem"))
- 			cgroup_memory_nokmem = true;
-+		if (!strcmp(token, "nogroupoom"))
-+			cgroup_memory_nogroupoom = true;
- 	}
- 	return 0;
- }
--- 
-2.13.5
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
