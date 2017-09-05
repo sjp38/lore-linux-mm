@@ -1,186 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B54B2803A0
-	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 10:57:05 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id w12so5071266wrc.2
-        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 07:57:05 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 820752803A0
+	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 11:13:06 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l19so4304717wmi.1
+        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 08:13:06 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t14si516783wrg.91.2017.09.05.07.57.03
+        by mx.google.com with ESMTPS id r14si490890wrr.428.2017.09.05.08.13.04
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 05 Sep 2017 07:57:04 -0700 (PDT)
-Date: Tue, 5 Sep 2017 16:57:00 +0200
+        Tue, 05 Sep 2017 08:13:05 -0700 (PDT)
+Date: Tue, 5 Sep 2017 17:12:51 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v7 2/5] mm, oom: cgroup-aware OOM killer
-Message-ID: <20170905145700.fd7jjd37xf4tb55h@dhcp22.suse.cz>
+Subject: Re: [v7 5/5] mm, oom: cgroup v2 mount option to disable cgroup-aware
+ OOM killer
+Message-ID: <20170905151251.luh4wogjd3msfqgf@dhcp22.suse.cz>
 References: <20170904142108.7165-1-guro@fb.com>
- <20170904142108.7165-3-guro@fb.com>
+ <20170904142108.7165-6-guro@fb.com>
+ <20170905134412.qdvqcfhvbdzmarna@dhcp22.suse.cz>
+ <20170905143021.GA28599@castle.dhcp.TheFacebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170904142108.7165-3-guro@fb.com>
+In-Reply-To: <20170905143021.GA28599@castle.dhcp.TheFacebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Roman Gushchin <guro@fb.com>
 Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon 04-09-17 15:21:05, Roman Gushchin wrote:
+On Tue 05-09-17 15:30:21, Roman Gushchin wrote:
+> On Tue, Sep 05, 2017 at 03:44:12PM +0200, Michal Hocko wrote:
 [...]
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index a69d23082abf..97813c56163b 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2649,6 +2649,213 @@ static inline bool memcg_has_children(struct mem_cgroup *memcg)
->  	return ret;
->  }
->  
-> +static long memcg_oom_badness(struct mem_cgroup *memcg,
-> +			      const nodemask_t *nodemask)
-> +{
-> +	long points = 0;
-> +	int nid;
-> +	pg_data_t *pgdat;
-> +
-> +	for_each_node_state(nid, N_MEMORY) {
-> +		if (nodemask && !node_isset(nid, *nodemask))
-> +			continue;
-> +
-> +		points += mem_cgroup_node_nr_lru_pages(memcg, nid,
-> +				LRU_ALL_ANON | BIT(LRU_UNEVICTABLE));
+> > Why is this an opt out rather than opt-in? IMHO the original oom logic
+> > should be preserved by default and specific workloads should opt in for
+> > the cgroup aware logic. Changing the global behavior depending on
+> > whether cgroup v2 interface is in use is more than unexpected and IMHO
+> > wrong approach to take. I think we should instead go with 
+> > oom_strategy=[alloc_task,biggest_task,cgroup]
+> > 
+> > we currently have alloc_task (via sysctl_oom_kill_allocating_task) and
+> > biggest_task which is the default. You are adding cgroup and the more I
+> > think about the more I agree that it doesn't really make sense to try to
+> > fit thew new semantic into the existing one (compare tasks to kill-all
+> > memcgs). Just introduce a new strategy and define a new semantic from
+> > scratch. Memcg priority and kill-all are a natural extension of this new
+> > strategy. This will make the life easier and easier to understand by
+> > users.
+> > 
+> > Does that make sense to you?
+> 
+> Absolutely.
+> 
+> The only thing: I'm not sure that we have to preserve the existing logic
+> as default option. For most users (except few very specific usecases),
+> it should be at least as good, as the existing one.
 
-Why don't you consider file LRUs here? What if there is a lot of page
-cache which is not reclaimed because it is protected by memcg->low.
-Should we hide that from the OOM killer?
+But this is really an unexpected change. Users even might not know that
+they are using cgroup v2 and memcg is in use.
 
-[...]
-> +static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
-> +{
-> +	struct mem_cgroup *iter, *parent;
-> +
-> +	for_each_mem_cgroup_tree(iter, root) {
-> +		if (memcg_has_children(iter)) {
-> +			iter->oom_score = 0;
-> +			continue;
-> +		}
+> Making it opt-in means that corresponding code will be executed only
+> by few users, who cares.
 
-Do we really need this check? If it is a mere optimization then
-we should probably check for tasks in the memcg rather than
-descendant. More on that below.
+Yeah, which is the way we should introduce new features no?
 
-> +
-> +		iter->oom_score = oom_evaluate_memcg(iter, oc->nodemask);
-> +
-> +		/*
-> +		 * Ignore empty and non-eligible memory cgroups.
-> +		 */
-> +		if (iter->oom_score == 0)
-> +			continue;
-> +
-> +		/*
-> +		 * If there are inflight OOM victims, we don't need to look
-> +		 * further for new victims.
-> +		 */
-> +		if (iter->oom_score == -1) {
-> +			oc->chosen_memcg = INFLIGHT_VICTIM;
-> +			mem_cgroup_iter_break(root, iter);
-> +			return;
-> +		}
-> +
-> +		for (parent = parent_mem_cgroup(iter); parent && parent != root;
-> +		     parent = parent_mem_cgroup(parent))
-> +			parent->oom_score += iter->oom_score;
+> Then we should probably hide corresponding
+> cgroup interface (oom_group and oom_priority knobs) by default,
+> and it feels as unnecessary complication and is overall against
+> cgroup v2 interface design.
 
-Hmm. The changelog says "By default, it will look for the biggest leaf
-cgroup, and kill the largest task inside." But you are accumulating
-oom_score up the hierarchy and so parents will have higher score than
-the layer of their children and the larger the sub-hierarchy the more
-biased it will become. Say you have
-	root
-         /\
-        /  \
-       A    D
-      / \
-     B   C
+Why. If we care enough, we could simply return EINVAL when those knobs
+are written while the corresponding strategy is not used.
 
-B (5), C(15) thus A(20) and D(20). Unless I am missing something we are
-going to go down A path and then chose C even though D is the largest
-leaf group, right?
+> > I think we should instead go with
+> > oom_strategy=[alloc_task,biggest_task,cgroup]
+> 
+> It would be a really nice interface; although I've no idea how to implement it:
+> "alloc_task" is an existing sysctl, which we have to preserve;
 
-> +	}
-> +
-> +	for (;;) {
-> +		struct cgroup_subsys_state *css;
-> +		struct mem_cgroup *memcg = NULL;
-> +		long score = LONG_MIN;
-> +
-> +		css_for_each_child(css, &root->css) {
-> +			struct mem_cgroup *iter = mem_cgroup_from_css(css);
-> +
-> +			/*
-> +			 * Ignore empty and non-eligible memory cgroups.
-> +			 */
-> +			if (iter->oom_score == 0)
-> +				continue;
-> +
-> +			if (iter->oom_score > score) {
-> +				memcg = iter;
-> +				score = iter->oom_score;
-> +			}
-> +		}
-> +
-> +		if (!memcg) {
-> +			if (oc->memcg && root == oc->memcg) {
-> +				oc->chosen_memcg = oc->memcg;
-> +				css_get(&oc->chosen_memcg->css);
-> +				oc->chosen_points = oc->memcg->oom_score;
-> +			}
-> +			break;
-> +		}
-> +
-> +		if (memcg->oom_group || !memcg_has_children(memcg)) {
-> +			oc->chosen_memcg = memcg;
-> +			css_get(&oc->chosen_memcg->css);
-> +			oc->chosen_points = score;
-> +			break;
-> +		}
-> +
-> +		root = memcg;
-> +	}
-> +}
-> +
-[...]
-> +	/*
-> +	 * For system-wide OOMs we should consider tasks in the root cgroup
-> +	 * with oom_score larger than oc->chosen_points.
-> +	 */
-> +	if (!oc->memcg) {
-> +		select_victim_root_cgroup_task(oc);
+I would argue that we should simply deprecate and later drop the sysctl.
+I _strongly_ suspect anybody is using this. If yes it is not that hard
+to change the kernel command like rather than select the sysctl. The
+deprecation process would be
+	- warn when somebody writes to the sysctl and check both boot
+	  and sysctl values
+	[ wait some time ]
+	- keep the sysctl but return EINVAL
+	[ wait some time ]
+	- remove the sysctl
 
-I do not understand why do we have to handle root cgroup specially here.
-select_victim_memcg already iterates all memcgs in the oom hierarchy
-(including root) so if the root memcg is the largest one then we
-should simply consider it no? You are skipping root there because of
-memcg_has_children but I suspect this and the whole accumulate up the
-hierarchy approach just makes the whole thing more complex than necessary. With
-"tasks only in leafs" cgroup policy we should only see any pages on LRUs
-on the global root memcg and leaf cgroups. The same applies to memcg
-stats. So why cannot we simply do the tree walk, calculate
-badness/check the priority and select the largest memcg in one go?
+> while "cgroup" depends on cgroup v2.
 
-> @@ -810,6 +810,9 @@ static void __oom_kill_process(struct task_struct *victim)
->  	struct mm_struct *mm;
->  	bool can_oom_reap = true;
->  
-> +	if (is_global_init(victim) || (victim->flags & PF_KTHREAD))
-> +		return;
-> +
-
-This will leak a reference to the victim AFACS
-
->  	p = find_lock_task_mm(victim);
->  	if (!p) {
->  		put_task_struct(victim);
-
+Which is not a big deal either. Simply fall back to default if there are
+no cgroup v2. The implementation would have essentially the same effect
+because there won't be any kill-all cgroups and so we will select the
+largest task.
 -- 
 Michal Hocko
 SUSE Labs
