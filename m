@@ -1,76 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 796732803D0
-	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 17:53:56 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id u26so4888375wma.4
-        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 14:53:56 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id p5si1389937edb.369.2017.09.05.14.53.55
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 05 Sep 2017 14:53:55 -0700 (PDT)
-Date: Tue, 5 Sep 2017 17:53:44 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [v7 5/5] mm, oom: cgroup v2 mount option to disable cgroup-aware
- OOM killer
-Message-ID: <20170905215344.GA27427@cmpxchg.org>
-References: <20170904142108.7165-1-guro@fb.com>
- <20170904142108.7165-6-guro@fb.com>
- <20170905134412.qdvqcfhvbdzmarna@dhcp22.suse.cz>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3927E2803FE
+	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 19:43:42 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id v82so9942161pgb.5
+        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 16:43:42 -0700 (PDT)
+Received: from ipmail01.adl2.internode.on.net (ipmail01.adl2.internode.on.net. [150.101.137.133])
+        by mx.google.com with ESMTP id h5si97921pfg.403.2017.09.05.16.43.39
+        for <linux-mm@kvack.org>;
+        Tue, 05 Sep 2017 16:43:40 -0700 (PDT)
+Date: Wed, 6 Sep 2017 09:42:56 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: kernel BUG at fs/xfs/xfs_aops.c:853! in kernel 4.13 rc6
+Message-ID: <20170905234256.GP17782@dastard>
+References: <CABXGCsOL+_OgC0dpO1+Zeg=iu7ryZRZT4S7k-io8EGB0ZRgZGw@mail.gmail.com>
+ <20170903074306.GA8351@infradead.org>
+ <20170904014353.GG10621@dastard>
+ <20170904022002.GD4671@magnolia>
+ <20170904121452.GC1761@quack2.suse.cz>
+ <20170904223648.GH10621@dastard>
+ <20170905161734.GA25379@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170905134412.qdvqcfhvbdzmarna@dhcp22.suse.cz>
+In-Reply-To: <20170905161734.GA25379@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, Christoph Hellwig <hch@infradead.org>, =?utf-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Sep 05, 2017 at 03:44:12PM +0200, Michal Hocko wrote:
-> Why is this an opt out rather than opt-in? IMHO the original oom logic
-> should be preserved by default and specific workloads should opt in for
-> the cgroup aware logic. Changing the global behavior depending on
-> whether cgroup v2 interface is in use is more than unexpected and IMHO
-> wrong approach to take. I think we should instead go with 
-> oom_strategy=[alloc_task,biggest_task,cgroup]
+On Tue, Sep 05, 2017 at 06:17:34PM +0200, Jan Kara wrote:
+> On Tue 05-09-17 08:36:48, Dave Chinner wrote:
+> > On Mon, Sep 04, 2017 at 02:14:52PM +0200, Jan Kara wrote:
+> > > > Seems like a reasonable revert/change, but given that ext3 was killed
+> > > > off long ago, is it even still the case that the mm can feed releasepage
+> > > > a dirty clean page?  If that is the case, then isn't it time to fix the
+> > > > mm too?
+> > > 
+> > > Yes, ->releasepage() can still get PageDirty page. Whether the page can or
+> > > cannot be reclaimed is still upto filesystem to decide.
+> > 
+> > Yes, and so we have to handle it.  For all I know right now we could
+> > be chasing single bit memory error/corruptions....
 > 
-> we currently have alloc_task (via sysctl_oom_kill_allocating_task) and
-> biggest_task which is the default. You are adding cgroup and the more I
-> think about the more I agree that it doesn't really make sense to try to
-> fit thew new semantic into the existing one (compare tasks to kill-all
-> memcgs). Just introduce a new strategy and define a new semantic from
-> scratch. Memcg priority and kill-all are a natural extension of this new
-> strategy. This will make the life easier and easier to understand by
-> users.
+> Possibly, although I'm not convinced - as I've mentioned I've seen exact
+> same assertion failure in XFS on our SLE12-SP2 kernel (4.4 based) in one of
+> customers setup. And I've seen two or three times ext4 barfing for exactly
+> same reason - buffers stripped from dirty page.
 
-oom_kill_allocating_task is actually a really good example of why
-cgroup-awareness *should* be the new default.
+Yeah, we're chasing ghosts at the moment. :/
 
-Before we had the oom killer victim selection, we simply killed the
-faulting/allocating task. While a valid answer to the problem, it's
-not very fair or representative of what the user wants or intends.
+[....]
+> > > Now XFS shouldn't
+> > > really end up freeing such page - either because those delalloc / unwritten
+> > > checks trigger or because try_to_free_buffers() refuses to free dirty
+> > > buffers.
+> > 
+> > Except if the dirty page has come through the block_invalidation()
+> > path, because all the buffers on the page have been invalidated and
+> > cleaned. i.e. we've already removed BH_Dirty, BH_Delay and
+> > BH_unwritten from all the buffer heads, so invalidated dirty pages
+> > will run right through buffers will be removed.
+> > 
+> > Every caller to ->releasepage() - except the invalidatepage path and
+> > the than the bufferhead stripper - checks PageDirty *after* the
+> > ->releasepage call and return without doing anything because they
+> > aren't supposed to be releasing dirty pages. So if XFS has decided
+> > the page can be released, but a mapping invalidation call then notes
+> > the page is dirty, it won't invalidate the pagei but it will have
+> > had the bufferheads stripped. That's another possible vector, and
+> > one that explicit checking of the page dirty flag will avoid.
+> 
+> Are you speaking about the PageDirty check in __remove_mapping()? I agree
+> that checking PageDirty in releasepage would narrow that window for
+> corruption although won't close it completely - there are places in the
+> kernel that call set_page_dirty() without page lock held and can thus race
+> with page invalidation. But I didn't find how any such callsite could race
+> to cause what we are observing...
 
-Then we added code to kill the biggest offender instead, which should
-have been the case from the start and was hence made the new default.
-The oom_kill_allocating_task was added on the off-chance that there
-might be setups who, for historical reasons, rely on the old behavior.
-But our default was chosen based on what behavior is fair, expected,
-and most reflective of the user's intentions.
+I was referring to invalidate_complete_page2() - I didn't look down
+the __remove_mapping() path after I found the first example in
+icp2....
 
-The cgroup-awareness in the OOM killer is exactly the same thing. It
-should have been the default from the beginning, because the user
-configures a group of tasks to be an interdependent, terminal unit of
-memory consumption, and it's undesirable for the OOM killer to ignore
-this intention and compare members across these boundaries.
+> > Hence my question about XFS being able to cancel the page dirty flag
+> > before calling block_invalidation() so that we can untangle the mess
+> > where we can't tell the difference between a "must release a dirty
+> > invalidated page because we've already invalidated the bufferheads"
+> > context and the other "release page only if not dirty" caller
+> > context?
+> 
+> Yeah, I agree that if you add cancel_dirty_page() into
+> xfs_vm_invalidatepage() before calling block_invalidatepage() and then bail
+> on dirty page in xfs_vm_releasepage(), things should work as well and they
+> would be more robust.
 
-We should go the same way here as with kill_alloc_task: the default
-should be what's sane and expected by the vast majority of our users,
-with a knob (I would prefer a sysctl here, actually) to switch back in
-case somebody - unexpectedly - actually relies on the old behavior.
+Ok, I'll put together a patch to do that. Thanks Jan!
 
-I don't see why couldn't change user-visible behavior here if we don't
-expect anyone (quirky setups aside) to rely on it AND we provide a
-knob to revert in the field for the exceptions.
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
