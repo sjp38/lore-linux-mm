@@ -1,118 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C68DC2803C2
-	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 15:36:49 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id p12so6138635qkl.0
-        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 12:36:49 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h3si1140466qkc.496.2017.09.05.12.36.48
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 482672803F3
+	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 16:24:31 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id x87so5976597ioi.0
+        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 13:24:31 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id c3si1036252iog.297.2017.09.05.13.24.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Sep 2017 12:36:48 -0700 (PDT)
-Date: Tue, 5 Sep 2017 15:36:44 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 0/6] Cache coherent device memory (CDM) with HMM v5
-Message-ID: <20170905193644.GD19397@redhat.com>
-References: <20170713211532.970-1-jglisse@redhat.com>
- <2d534afc-28c5-4c81-c452-7e4c013ab4d0@huawei.com>
- <20170718153816.GA3135@redhat.com>
- <b6f9d812-a1f5-d647-0a6a-39a08023c3b4@huawei.com>
- <20170719022537.GA6911@redhat.com>
- <f571a0a5-69ff-10b7-d612-353e53ba16fd@huawei.com>
- <20170720150305.GA2767@redhat.com>
- <ab3e67d5-5ed5-816f-6f8e-3228866be1fe@huawei.com>
- <20170721014106.GB25991@redhat.com>
- <CAPcyv4jJraGPW214xJ+wU3G=88UUP45YiA6hV5_NvNZSNB4qGA@mail.gmail.com>
+        Tue, 05 Sep 2017 13:24:29 -0700 (PDT)
+Date: Tue, 5 Sep 2017 21:23:57 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v7 2/5] mm, oom: cgroup-aware OOM killer
+Message-ID: <20170905202357.GA10535@castle.DHCP.thefacebook.com>
+References: <20170904142108.7165-1-guro@fb.com>
+ <20170904142108.7165-3-guro@fb.com>
+ <20170905145700.fd7jjd37xf4tb55h@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAPcyv4jJraGPW214xJ+wU3G=88UUP45YiA6hV5_NvNZSNB4qGA@mail.gmail.com>
+In-Reply-To: <20170905145700.fd7jjd37xf4tb55h@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Bob Liu <liubo95@huawei.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Jul 20, 2017 at 08:48:20PM -0700, Dan Williams wrote:
-> On Thu, Jul 20, 2017 at 6:41 PM, Jerome Glisse <jglisse@redhat.com> wrote:
-> > On Fri, Jul 21, 2017 at 09:15:29AM +0800, Bob Liu wrote:
-> >> On 2017/7/20 23:03, Jerome Glisse wrote:
-> >> > On Wed, Jul 19, 2017 at 05:09:04PM +0800, Bob Liu wrote:
-> >> >> On 2017/7/19 10:25, Jerome Glisse wrote:
-> >> >>> On Wed, Jul 19, 2017 at 09:46:10AM +0800, Bob Liu wrote:
-> >> >>>> On 2017/7/18 23:38, Jerome Glisse wrote:
-> >> >>>>> On Tue, Jul 18, 2017 at 11:26:51AM +0800, Bob Liu wrote:
-> >> >>>>>> On 2017/7/14 5:15, Jerome Glisse wrote:
-
-[...]
-
-> >> > Second device driver are not integrated that closely within mm and the
-> >> > scheduler kernel code to allow to efficiently plug in device access
-> >> > notification to page (ie to update struct page so that numa worker
-> >> > thread can migrate memory base on accurate informations).
-> >> >
-> >> > Third it can be hard to decide who win between CPU and device access
-> >> > when it comes to updating thing like last CPU id.
-> >> >
-> >> > Fourth there is no such thing like device id ie equivalent of CPU id.
-> >> > If we were to add something the CPU id field in flags of struct page
-> >> > would not be big enough so this can have repercusion on struct page
-> >> > size. This is not an easy sell.
-> >> >
-> >> > They are other issues i can't think of right now. I think for now it
-> >>
-> >> My opinion is most of the issues are the same no matter use CDM or HMM-CDM.
-> >> I just care about a more complete solution no matter CDM,HMM-CDM or other ways.
-> >> HMM or HMM-CDM depends on device driver, but haven't see a public/full driver to
-> >> demonstrate the whole solution works fine.
-> >
-> > I am working with NVidia close source driver team to make sure that it works
-> > well for them. I am also working on nouveau open source driver for same NVidia
-> > hardware thought it will be of less use as what is missing there is a solid
-> > open source userspace to leverage this. Nonetheless open source driver are in
-> > the work.
+On Tue, Sep 05, 2017 at 04:57:00PM +0200, Michal Hocko wrote:
+> On Mon 04-09-17 15:21:05, Roman Gushchin wrote:
+> [...]
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index a69d23082abf..97813c56163b 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -2649,6 +2649,213 @@ static inline bool memcg_has_children(struct mem_cgroup *memcg)
+> >  	return ret;
+> >  }
+> >  
+> > +static long memcg_oom_badness(struct mem_cgroup *memcg,
+> > +			      const nodemask_t *nodemask)
+> > +{
+> > +	long points = 0;
+> > +	int nid;
+> > +	pg_data_t *pgdat;
+> > +
+> > +	for_each_node_state(nid, N_MEMORY) {
+> > +		if (nodemask && !node_isset(nid, *nodemask))
+> > +			continue;
+> > +
+> > +		points += mem_cgroup_node_nr_lru_pages(memcg, nid,
+> > +				LRU_ALL_ANON | BIT(LRU_UNEVICTABLE));
 > 
-> Can you point to the nouveau patches? I still find these HMM patches
-> un-reviewable without an upstream consumer.
+> Why don't you consider file LRUs here? What if there is a lot of page
+> cache which is not reclaimed because it is protected by memcg->low.
+> Should we hide that from the OOM killer?
 
-So i pushed a branch with WIP for nouveau to use HMM:
+I'm not sure here.
+I agree with your argument, although memcg->low should not cause OOMs
+in the current implementation (which is a separate problem).
+Also I can imagine some edge cases with mlocked pagecache belonging
+to a process from a different cgroup.
 
-https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-nouveau
+I would suggest to refine this later.
 
-Top 16 patches are HMM related (implementic logic inside the driver to use
-HMM). The next 16 patches are hardware specific patches and some nouveau
-changes needed to allow page fault.
+> 
+> [...]
+> > +static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+> > +{
+> > +	struct mem_cgroup *iter, *parent;
+> > +
+> > +	for_each_mem_cgroup_tree(iter, root) {
+> > +		if (memcg_has_children(iter)) {
+> > +			iter->oom_score = 0;
+> > +			continue;
+> > +		}
+> 
+> Do we really need this check? If it is a mere optimization then
+> we should probably check for tasks in the memcg rather than
+> descendant. More on that below.
 
-It is enough to have simple malloc test case working:
+The idea is to traverse memcg only once: we're resetting oom_score
+for non-leaf cgroups, and for each leaf cgroup calculate the score
+and propagate it upwards.
 
-https://cgit.freedesktop.org/~glisse/compote
+> 
+> > +
+> > +		iter->oom_score = oom_evaluate_memcg(iter, oc->nodemask);
+> > +
+> > +		/*
+> > +		 * Ignore empty and non-eligible memory cgroups.
+> > +		 */
+> > +		if (iter->oom_score == 0)
+> > +			continue;
+> > +
+> > +		/*
+> > +		 * If there are inflight OOM victims, we don't need to look
+> > +		 * further for new victims.
+> > +		 */
+> > +		if (iter->oom_score == -1) {
+> > +			oc->chosen_memcg = INFLIGHT_VICTIM;
+> > +			mem_cgroup_iter_break(root, iter);
+> > +			return;
+> > +		}
+> > +
+> > +		for (parent = parent_mem_cgroup(iter); parent && parent != root;
+> > +		     parent = parent_mem_cgroup(parent))
+> > +			parent->oom_score += iter->oom_score;
+> 
+> Hmm. The changelog says "By default, it will look for the biggest leaf
+> cgroup, and kill the largest task inside." But you are accumulating
+> oom_score up the hierarchy and so parents will have higher score than
+> the layer of their children and the larger the sub-hierarchy the more
+> biased it will become. Say you have
+> 	root
+>          /\
+>         /  \
+>        A    D
+>       / \
+>      B   C
+> 
+> B (5), C(15) thus A(20) and D(20). Unless I am missing something we are
+> going to go down A path and then chose C even though D is the largest
+> leaf group, right?
 
-There is 2 program here the old one is existing way you use GPU for compute
-task while the new one is what HMM allow to achieve ie use malloc memory
-directly.
+You're right, changelog is not accurate, I'll fix it.
+The behavior is correct, IMO.
 
+> 
+> > +	}
+> > +
+> > +	for (;;) {
+> > +		struct cgroup_subsys_state *css;
+> > +		struct mem_cgroup *memcg = NULL;
+> > +		long score = LONG_MIN;
+> > +
+> > +		css_for_each_child(css, &root->css) {
+> > +			struct mem_cgroup *iter = mem_cgroup_from_css(css);
+> > +
+> > +			/*
+> > +			 * Ignore empty and non-eligible memory cgroups.
+> > +			 */
+> > +			if (iter->oom_score == 0)
+> > +				continue;
+> > +
+> > +			if (iter->oom_score > score) {
+> > +				memcg = iter;
+> > +				score = iter->oom_score;
+> > +			}
+> > +		}
+> > +
+> > +		if (!memcg) {
+> > +			if (oc->memcg && root == oc->memcg) {
+> > +				oc->chosen_memcg = oc->memcg;
+> > +				css_get(&oc->chosen_memcg->css);
+> > +				oc->chosen_points = oc->memcg->oom_score;
+> > +			}
+> > +			break;
+> > +		}
+> > +
+> > +		if (memcg->oom_group || !memcg_has_children(memcg)) {
+> > +			oc->chosen_memcg = memcg;
+> > +			css_get(&oc->chosen_memcg->css);
+> > +			oc->chosen_points = score;
+> > +			break;
+> > +		}
+> > +
+> > +		root = memcg;
+> > +	}
+> > +}
+> > +
+> [...]
+> > +	/*
+> > +	 * For system-wide OOMs we should consider tasks in the root cgroup
+> > +	 * with oom_score larger than oc->chosen_points.
+> > +	 */
+> > +	if (!oc->memcg) {
+> > +		select_victim_root_cgroup_task(oc);
+> 
+> I do not understand why do we have to handle root cgroup specially here.
+> select_victim_memcg already iterates all memcgs in the oom hierarchy
+> (including root) so if the root memcg is the largest one then we
+> should simply consider it no?
 
-I haven't added yet the device memory support it is in work and i will push
-update to this branch and repo for that. Probably next week if no pressing
-bug preempt my time.
+We don't have necessary stats for the root cgroup, so we can't calculate
+it's oom_score.
 
+> You are skipping root there because of
+> memcg_has_children but I suspect this and the whole accumulate up the
+> hierarchy approach just makes the whole thing more complex than necessary. With
+> "tasks only in leafs" cgroup policy we should only see any pages on LRUs
+> on the global root memcg and leaf cgroups. The same applies to memcg
+> stats. So why cannot we simply do the tree walk, calculate
+> badness/check the priority and select the largest memcg in one go?
 
-So there is a lot of ugliness in all this and i don't expect this to be what
-end up upstream. Right now there is a large rework of nouveau vm (virtual
-memory) code happening to rework completely how we do address space management
-within nouveau. This work is prerequisite for a clean implementation for HMM
-inside nouveau (it will also lift the 40bits address space limitation that
-exist today inside nouveau driver). Once that work land i will work on clean
-upstreamable implementation for nouveau to use HMM as well as userspace to
-leverage it (this is requirement for upstream GPU driver to have open source
-userspace that make use of features). All this is a lot of work and there is
-not many people working on this.
+We have to traverse from top to bottom to make priority-based decision,
+but size-based oom_score is calculated as sum of descending leaf cgroup scores.
 
+For example:
+ 	root
+          /\
+         /  \
+        A    D
+       / \
+      B   C
+A and D have same priorities, B has larger priority than C.
 
-They are other initiatives under way related to this that i can not talk about
-publicly but if they bare fruit they might help to speedup all this.
+In this case we need to calculate size-based score for A, which requires
+summing oom_score of the sub-tree (B an C), despite we don't need it
+for choosing between B and C.
 
-Jerome
+Maybe I don't see it, but I don't know how to implement it more optimal.
+
+> 
+> > @@ -810,6 +810,9 @@ static void __oom_kill_process(struct task_struct *victim)
+> >  	struct mm_struct *mm;
+> >  	bool can_oom_reap = true;
+> >  
+> > +	if (is_global_init(victim) || (victim->flags & PF_KTHREAD))
+> > +		return;
+> > +
+> 
+> This will leak a reference to the victim AFACS
+
+Good catch!
+I didn't fix this after moving reference dropping into __oom_kill_process().
+Fixed.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
