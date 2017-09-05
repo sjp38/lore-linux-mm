@@ -1,54 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8614428030E
-	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 03:03:56 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id v109so3022146wrc.5
-        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 00:03:56 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id h34si23872wrh.238.2017.09.05.00.03.54
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EB29028030E
+	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 03:13:11 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id x189so2959268wmg.5
+        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 00:13:11 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k128si27743wmb.185.2017.09.05.00.13.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Sep 2017 00:03:55 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v856xQ4l029587
-	for <linux-mm@kvack.org>; Tue, 5 Sep 2017 03:03:53 -0400
-Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2csnjh4ghj-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 05 Sep 2017 03:03:53 -0400
-Received: from localhost
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 5 Sep 2017 17:03:50 +1000
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v8572WG234406404
-	for <linux-mm@kvack.org>; Tue, 5 Sep 2017 17:02:32 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v8572WZ4017018
-	for <linux-mm@kvack.org>; Tue, 5 Sep 2017 17:02:32 +1000
-Subject: Re: [PATCH] mm, sparse: fix typo in online_mem_sections
-References: <20170904112210.3401-1-mhocko@kernel.org>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Tue, 5 Sep 2017 12:32:28 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 05 Sep 2017 00:13:10 -0700 (PDT)
+Date: Tue, 5 Sep 2017 09:13:07 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm, memory_hotplug: do not fail offlining too early
+Message-ID: <20170905071307.7aggprk66r3cem4p@dhcp22.suse.cz>
+References: <20170904082148.23131-1-mhocko@kernel.org>
+ <20170904082148.23131-2-mhocko@kernel.org>
+ <b8e8ffdf-4f7b-2a02-5869-53b23da645d0@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20170904112210.3401-1-mhocko@kernel.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <4d648f70-325d-3f60-8620-94c232b380d8@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b8e8ffdf-4f7b-2a02-5869-53b23da645d0@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 09/04/2017 04:52 PM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Tue 05-09-17 11:59:36, Anshuman Khandual wrote:
+[...]
+> > @@ -1634,43 +1634,25 @@ static int __ref __offline_pages(unsigned long start_pfn,
+> >  
+> >  	pfn = start_pfn;
+> >  	expire = jiffies + timeout;
+> > -	drain = 0;
+> > -	retry_max = 5;
+> >  repeat:
+> >  	/* start memory hot removal */
+> > -	ret = -EAGAIN;
+> > +	ret = -EBUSY;
+> >  	if (time_after(jiffies, expire))
+> >  		goto failed_removal;
+> >  	ret = -EINTR;
+> >  	if (signal_pending(current))
+> >  		goto failed_removal;
+> > -	ret = 0;
+> > -	if (drain) {
+> > -		lru_add_drain_all_cpuslocked();
+> > -		cond_resched();
+> > -		drain_all_pages(zone);
+> > -	}
 > 
-> online_mem_sections accidentally marks online only the first section in
-> the given range. This is a typo which hasn't been noticed because I
-> haven't tested large 2GB blocks previously. All users of
-
-Section sizes are normally less than 2GB. Could you please elaborate
-why this never got noticed before ?
+> Why we had this condition before that only when we fail in migration
+> later in do_migrate_range function, drain the lru lists in the next
+> attempt. Why not from the first attempt itself ? Just being curious.
+ 
+I can only guess but draining used to invoke IPIs and that is really
+costly so an optimistic attempt could try without draining and do that
+only if the migration fails. Now that we have it all done in WQ context
+there shouldn't be any reason to optimize for draining.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
