@@ -1,102 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AF9776B04C2
-	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 13:21:26 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id m35so5657509qte.1
-        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 10:21:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 5si866486qkm.538.2017.09.05.10.21.25
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B9212803C2
+	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 14:54:17 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id s137so8567638pfs.4
+        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 11:54:17 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id r6si721940pgp.20.2017.09.05.11.54.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Sep 2017 10:21:25 -0700 (PDT)
-Date: Tue, 5 Sep 2017 13:21:21 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM-v25 10/19] mm/memcontrol: support MEMORY_DEVICE_PRIVATE v4
-Message-ID: <20170905172120.GB19397@redhat.com>
+        Tue, 05 Sep 2017 11:54:16 -0700 (PDT)
+Date: Tue, 5 Sep 2017 12:54:14 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [HMM-v25 19/19] mm/hmm: add new helper to hotplug CDM memory
+ region v3
+Message-ID: <20170905185414.GB24073@linux.intel.com>
 References: <20170817000548.32038-1-jglisse@redhat.com>
- <20170817000548.32038-11-jglisse@redhat.com>
- <f239d1c2-7006-5ce4-7848-7d82e67533a9@linux.vnet.ibm.com>
+ <20170817000548.32038-20-jglisse@redhat.com>
+ <a42b13a4-9f58-dcbb-e9de-c573fbafbc2f@huawei.com>
+ <20170904155123.GA3161@redhat.com>
+ <7026dfda-9fd0-2661-5efc-66063dfdf6bc@huawei.com>
+ <20170905023826.GA4836@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <f239d1c2-7006-5ce4-7848-7d82e67533a9@linux.vnet.ibm.com>
+In-Reply-To: <20170905023826.GA4836@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Bob Liu <liubo95@huawei.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, majiuyue <majiuyue@huawei.com>, "xieyisheng (A)" <xieyisheng1@huawei.com>, ross.zwisler@linux.intel.com
 
-On Tue, Sep 05, 2017 at 07:13:15PM +0200, Laurent Dufour wrote:
-> On 17/08/2017 02:05, Jerome Glisse wrote:
-> > HMM pages (private or public device pages) are ZONE_DEVICE page and
-> > thus need special handling when it comes to lru or refcount. This
-> > patch make sure that memcontrol properly handle those when it face
-> > them. Those pages are use like regular pages in a process address
-> > space either as anonymous page or as file back page. So from memcg
-> > point of view we want to handle them like regular page for now at
-> > least.
+On Mon, Sep 04, 2017 at 10:38:27PM -0400, Jerome Glisse wrote:
+> On Tue, Sep 05, 2017 at 09:13:24AM +0800, Bob Liu wrote:
+> > On 2017/9/4 23:51, Jerome Glisse wrote:
+> > > On Mon, Sep 04, 2017 at 11:09:14AM +0800, Bob Liu wrote:
+> > >> On 2017/8/17 8:05, Jerome Glisse wrote:
+> > >>> Unlike unaddressable memory, coherent device memory has a real
+> > >>> resource associated with it on the system (as CPU can address
+> > >>> it). Add a new helper to hotplug such memory within the HMM
+> > >>> framework.
+> > >>>
+> > >>
+> > >> Got an new question, coherent device( e.g CCIX) memory are likely reported to OS 
+> > >> through ACPI and recognized as NUMA memory node.
+> > >> Then how can their memory be captured and managed by HMM framework?
+> > >>
+> > > 
+> > > Only platform that has such memory today is powerpc and it is not reported
+> > > as regular memory by the firmware hence why they need this helper.
+> > > 
+> > > I don't think anyone has defined anything yet for x86 and acpi. As this is
 > > 
-> > Changed since v3:
-> >   - remove public support and move those chunk to separate patch
-> > Changed since v2:
-> >   - s/host/public
-> > Changed since v1:
-> >   - s/public/host
-> >   - add comments explaining how device memory behave and why
+> > Not yet, but now the ACPI spec has Heterogeneous Memory Attribute
+> > Table (HMAT) table defined in ACPI 6.2.
+> > The HMAT can cover CPU-addressable memory types(though not non-cache
+> > coherent on-device memory).
 > > 
-> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> > Acked-by: Balbir Singh <bsingharora@gmail.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Michal Hocko <mhocko@kernel.org>
-> > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> > Cc: cgroups@vger.kernel.org
-> > ---
-> >  kernel/memremap.c |  1 +
-> >  mm/memcontrol.c   | 52 ++++++++++++++++++++++++++++++++++++++++++++++++----
-> >  2 files changed, 49 insertions(+), 4 deletions(-)
+> > Ross from Intel already done some work on this, see:
+> > https://lwn.net/Articles/724562/
 > > 
-> > diff --git a/kernel/memremap.c b/kernel/memremap.c
-> > index 398630c1fba3..f42d7483e886 100644
-> > --- a/kernel/memremap.c
-> > +++ b/kernel/memremap.c
-> > @@ -492,6 +492,7 @@ void put_zone_device_private_page(struct page *page)
-> >  		__ClearPageWaiters(page);
-> > 
-> >  		page->mapping = NULL;
-> > +		mem_cgroup_uncharge(page);
-> > 
-> >  		page->pgmap->page_free(page, page->pgmap->data);
-> >  	} else if (!count)
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 604fb3ca8028..977d1cf3493a 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -4407,12 +4407,13 @@ enum mc_target_type {
-> >  	MC_TARGET_NONE = 0,
-> >  	MC_TARGET_PAGE,
-> >  	MC_TARGET_SWAP,
-> > +	MC_TARGET_DEVICE,
-> >  };
-> > 
-> >  static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
-> >  						unsigned long addr, pte_t ptent)
-> >  {
-> > -	struct page *page = vm_normal_page(vma, addr, ptent);
-> > +	struct page *page = _vm_normal_page(vma, addr, ptent, true);
+> > arm64 supports APCI also, there is likely more this kind of device when CCIX
+> > is out (should be very soon if on schedule).
 > 
-> Hi Jerome,
+> HMAT is not for the same thing, AFAIK HMAT is for deep "hierarchy" memory ie
+> when you have several kind of memory each with different characteristics:
+>   - HBM very fast (latency) and high bandwidth, non persistent, somewhat
+>     small (ie few giga bytes)
+>   - Persistent memory, slower (both latency and bandwidth) big (tera bytes)
+>   - DDR (good old memory) well characteristics are between HBM and persistent
 > 
-> As _vm_normal_page() is defined later in the patch 18, so this patch should
->  break the bisectability.
+> So AFAICT this has nothing to do with what HMM is for, ie device memory. Note
+> that device memory can have a hierarchy of memory themself (HBM, GDDR and in
+> maybe even persistent memory).
+> 
+> > > memory on PCIE like interface then i don't expect it to be reported as NUMA
+> > > memory node but as io range like any regular PCIE resources. Device driver
+> > > through capabilities flags would then figure out if the link between the
+> > > device and CPU is CCIX capable if so it can use this helper to hotplug it
+> > > as device memory.
+> > > 
+> > 
+> > From my point of view,  Cache coherent device memory will popular soon and
+> > reported through ACPI/UEFI. Extending NUMA policy still sounds more reasonable
+> > to me.
+> 
+> Cache coherent device will be reported through standard mecanisms defined by
+> the bus standard they are using. To my knowledge all the standard are either
+> on top of PCIE or are similar to PCIE.
+> 
+> It is true that on many platform PCIE resource is manage/initialize by the
+> bios (UEFI) but it is platform specific. In some case we reprogram what the
+> bios pick.
+> 
+> So like i was saying i don't expect the BIOS/UEFI to report device memory as
+> regular memory. It will be reported as a regular PCIE resources and then the
+> device driver will be able to determine through some flags if the link between
+> the CPU(s) and the device is cache coherent or not. At that point the device
+> driver can use register it with HMM helper.
+> 
+> 
+> The whole NUMA discussion happen several time in the past i suggest looking
+> on mm list archive for them. But it was rule out for several reasons. Top of
+> my head:
+>   - people hate CPU less node and device memory is inherently CPU less
 
-Correct, it seems i miss that when re-org patch order. The vm_normal_page()
-changes can be move to patch 18 as it would be more logical to change call
-site with the patch that adds the new special function.
+With the introduction of the HMAT in ACPI 6.2 one of the things that was added
+was the ability to have an ACPI proximity domain that isn't associated with a
+CPU.  This can be seen in the changes in the text of the "Proximity Domain"
+field in table 5-73 which describes the "Memory Affinity Structure".  One of
+the major features of the HMAT was the separation of "Initiator" proximity
+domains (CPUs, devices that initiate memory transfers), and "target" proximity
+domains (memory regions, be they attached to a CPU or some other device).
 
-Dunno if patch can be edited now ?
+ACPI proximity domains map directly to Linux NUMA nodes, so I think we're
+already in a place where we have to support CPU-less NUMA nodes.
 
-Cheers,
-Jerome
+>   - device driver want total control over memory and thus to be isolated from
+>     mm mecanism and doing all those special cases was not welcome
+
+I agree that the kernel doesn't have enough information to be able to
+accurately handle all the use cases for the various types of heterogeneous
+memory.   The goal of my HMAT enabling is to allow that memory to be reserved
+from kernel use via the "Reservation Hint" in the HMAT's Memory Subsystem
+Address Range Structure, then provide userspace with enough information to be
+able to distinguish between the various types of memory in the system so it
+can allocate & utilize it appropriately.
+
+>   - existing NUMA migration mecanism are ill suited for this memory as
+>     access by the device to the memory is unknown to core mm and there
+>     is no easy way to report it or track it (this kind of depends on the
+>     platform and hardware)
+> 
+> I am likely missing other big points.
+> 
+> Cheers,
+> Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
