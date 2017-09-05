@@ -1,85 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 24B13280300
-	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 12:21:24 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id x78so7975330pff.7
-        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 09:21:24 -0700 (PDT)
-Received: from g4t3427.houston.hpe.com (g4t3427.houston.hpe.com. [15.241.140.73])
-        by mx.google.com with ESMTPS id v8si543805plp.729.2017.09.05.09.21.19
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 09FFF280300
+	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 12:43:59 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id 97so5339727wrb.1
+        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 09:43:58 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 36si660961wrf.59.2017.09.05.09.43.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Sep 2017 09:21:19 -0700 (PDT)
-Date: Tue, 5 Sep 2017 11:21:12 -0500
-From: Dimitri Sivanich <sivanich@hpe.com>
-Subject: Re: [PATCH 10/13] sgi-gru: update to new mmu_notifier semantic
-Message-ID: <20170905162112.GC14176@hpe.com>
-References: <20170831211738.17922-1-jglisse@redhat.com>
- <20170831211738.17922-11-jglisse@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 05 Sep 2017 09:43:57 -0700 (PDT)
+Date: Tue, 5 Sep 2017 18:43:42 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: Fix mem_cgroup_oom_disable() call missing
+Message-ID: <20170905164342.wrzof7kn4o4ybeg5@dhcp22.suse.cz>
+References: <1504625439-31313-1-git-send-email-ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170831211738.17922-11-jglisse@redhat.com>
+In-Reply-To: <1504625439-31313-1-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jglisse@redhat.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dimitri Sivanich <sivanich@hpe.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill@shutemov.name, linux-kernel@vger.kernel.org
 
-Acked-by: Dimitri Sivanich <sivanich@hpe.com>
+On Tue 05-09-17 17:30:39, Laurent Dufour wrote:
+> Seen while reading the code, in handle_mm_fault(), in the case
+> arch_vma_access_permitted() is failing the call to mem_cgroup_oom_disable()
+> is not made.
+> 
+> To fix that, move the call to mem_cgroup_oom_enable() after calling
+> arch_vma_access_permitted() as it should not have entered the memcg OOM.
+> 
+> Fixes: bae473a423f6 ("mm: introduce fault_env")
+> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 
-On Thu, Aug 31, 2017 at 05:17:35PM -0400, jglisse@redhat.com wrote:
-> From: Jerome Glisse <jglisse@redhat.com>
-> 
-> Call to mmu_notifier_invalidate_page() are replaced by call to
-> mmu_notifier_invalidate_range() and thus call are bracketed by
-> call to mmu_notifier_invalidate_range_start()/end()
-> 
-> Remove now useless invalidate_page callback.
-> 
-> Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> Cc: Dimitri Sivanich <sivanich@sgi.com>
-> Cc: Jack Steiner <steiner@sgi.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+
 > ---
->  drivers/misc/sgi-gru/grutlbpurge.c | 12 ------------
->  1 file changed, 12 deletions(-)
+>  mm/memory.c | 10 +++++-----
+>  1 file changed, 5 insertions(+), 5 deletions(-)
 > 
-> diff --git a/drivers/misc/sgi-gru/grutlbpurge.c b/drivers/misc/sgi-gru/grutlbpurge.c
-> index e936d43895d2..9918eda0e05f 100644
-> --- a/drivers/misc/sgi-gru/grutlbpurge.c
-> +++ b/drivers/misc/sgi-gru/grutlbpurge.c
-> @@ -247,17 +247,6 @@ static void gru_invalidate_range_end(struct mmu_notifier *mn,
->  	gru_dbg(grudev, "gms %p, start 0x%lx, end 0x%lx\n", gms, start, end);
->  }
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 56e48e4593cb..274547075486 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3888,6 +3888,11 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+>  	/* do counter updates before entering really critical section. */
+>  	check_sync_rss_stat(current);
 >  
-> -static void gru_invalidate_page(struct mmu_notifier *mn, struct mm_struct *mm,
-> -				unsigned long address)
-> -{
-> -	struct gru_mm_struct *gms = container_of(mn, struct gru_mm_struct,
-> -						 ms_notifier);
+> +	if (!arch_vma_access_permitted(vma, flags & FAULT_FLAG_WRITE,
+> +					    flags & FAULT_FLAG_INSTRUCTION,
+> +					    flags & FAULT_FLAG_REMOTE))
+> +		return VM_FAULT_SIGSEGV;
+> +
+>  	/*
+>  	 * Enable the memcg OOM handling for faults triggered in user
+>  	 * space.  Kernel faults are handled more gracefully.
+> @@ -3895,11 +3900,6 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+>  	if (flags & FAULT_FLAG_USER)
+>  		mem_cgroup_oom_enable();
+>  
+> -	if (!arch_vma_access_permitted(vma, flags & FAULT_FLAG_WRITE,
+> -					    flags & FAULT_FLAG_INSTRUCTION,
+> -					    flags & FAULT_FLAG_REMOTE))
+> -		return VM_FAULT_SIGSEGV;
 > -
-> -	STAT(mmu_invalidate_page);
-> -	gru_flush_tlb_range(gms, address, PAGE_SIZE);
-> -	gru_dbg(grudev, "gms %p, address 0x%lx\n", gms, address);
-> -}
-> -
->  static void gru_release(struct mmu_notifier *mn, struct mm_struct *mm)
->  {
->  	struct gru_mm_struct *gms = container_of(mn, struct gru_mm_struct,
-> @@ -269,7 +258,6 @@ static void gru_release(struct mmu_notifier *mn, struct mm_struct *mm)
->  
->  
->  static const struct mmu_notifier_ops gru_mmuops = {
-> -	.invalidate_page	= gru_invalidate_page,
->  	.invalidate_range_start	= gru_invalidate_range_start,
->  	.invalidate_range_end	= gru_invalidate_range_end,
->  	.release		= gru_release,
+>  	if (unlikely(is_vm_hugetlb_page(vma)))
+>  		ret = hugetlb_fault(vma->vm_mm, vma, address, flags);
+>  	else
 > -- 
-> 2.13.5
+> 2.7.4
 > 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
