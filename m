@@ -1,76 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 78AE96B04C5
-	for <linux-mm@kvack.org>; Mon,  4 Sep 2017 21:40:56 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id v82so3934436pgb.5
-        for <linux-mm@kvack.org>; Mon, 04 Sep 2017 18:40:56 -0700 (PDT)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id x188si5812684pfx.13.2017.09.04.18.40.54
-        for <linux-mm@kvack.org>;
-        Mon, 04 Sep 2017 18:40:55 -0700 (PDT)
-From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH] swapon: fix vfree() badness
-Date: Tue,  5 Sep 2017 11:40:51 +1000
-Message-Id: <20170905014051.11112-1-david@fromorbit.com>
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B39996B0292
+	for <linux-mm@kvack.org>; Mon,  4 Sep 2017 22:38:33 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id o77so2797708qke.1
+        for <linux-mm@kvack.org>; Mon, 04 Sep 2017 19:38:33 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e32si8482911qtd.469.2017.09.04.19.38.32
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Sep 2017 19:38:32 -0700 (PDT)
+Date: Mon, 4 Sep 2017 22:38:27 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [HMM-v25 19/19] mm/hmm: add new helper to hotplug CDM memory
+ region v3
+Message-ID: <20170905023826.GA4836@redhat.com>
+References: <20170817000548.32038-1-jglisse@redhat.com>
+ <20170817000548.32038-20-jglisse@redhat.com>
+ <a42b13a4-9f58-dcbb-e9de-c573fbafbc2f@huawei.com>
+ <20170904155123.GA3161@redhat.com>
+ <7026dfda-9fd0-2661-5efc-66063dfdf6bc@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <7026dfda-9fd0-2661-5efc-66063dfdf6bc@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: Bob Liu <liubo95@huawei.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, majiuyue <majiuyue@huawei.com>, "xieyisheng (A)" <xieyisheng1@huawei.com>, ross.zwisler@linux.intel.com
 
-From: Dave Chinner <dchinner@redhat.com>
+On Tue, Sep 05, 2017 at 09:13:24AM +0800, Bob Liu wrote:
+> On 2017/9/4 23:51, Jerome Glisse wrote:
+> > On Mon, Sep 04, 2017 at 11:09:14AM +0800, Bob Liu wrote:
+> >> On 2017/8/17 8:05, Jerome Glisse wrote:
+> >>> Unlike unaddressable memory, coherent device memory has a real
+> >>> resource associated with it on the system (as CPU can address
+> >>> it). Add a new helper to hotplug such memory within the HMM
+> >>> framework.
+> >>>
+> >>
+> >> Got an new question, coherent device( e.g CCIX) memory are likely reported to OS 
+> >> through ACPI and recognized as NUMA memory node.
+> >> Then how can their memory be captured and managed by HMM framework?
+> >>
+> > 
+> > Only platform that has such memory today is powerpc and it is not reported
+> > as regular memory by the firmware hence why they need this helper.
+> > 
+> > I don't think anyone has defined anything yet for x86 and acpi. As this is
+> 
+> Not yet, but now the ACPI spec has Heterogeneous Memory Attribute
+> Table (HMAT) table defined in ACPI 6.2.
+> The HMAT can cover CPU-addressable memory types(though not non-cache
+> coherent on-device memory).
+> 
+> Ross from Intel already done some work on this, see:
+> https://lwn.net/Articles/724562/
+> 
+> arm64 supports APCI also, there is likely more this kind of device when CCIX
+> is out (should be very soon if on schedule).
 
-The cluster_info structure is allocated with kvzalloc(), which can
-return kmalloc'd or vmalloc'd memory. It must be paired with
-kvfree(), but sys_swapon uses vfree(), resultin in this warning
-from xfstests generic/357:
+HMAT is not for the same thing, AFAIK HMAT is for deep "hierarchy" memory ie
+when you have several kind of memory each with different characteristics:
+  - HBM very fast (latency) and high bandwidth, non persistent, somewhat
+    small (ie few giga bytes)
+  - Persistent memory, slower (both latency and bandwidth) big (tera bytes)
+  - DDR (good old memory) well characteristics are between HBM and persistent
 
-[ 1985.294915] swapon: swapfile has holes
-[ 1985.296012] Trying to vfree() bad address (ffff88011569ac00)
-[ 1985.297769] ------------[ cut here ]------------
-[ 1985.299017] WARNING: CPU: 4 PID: 980 at mm/vmalloc.c:1521 __vunmap+0x97/0xb0
-[ 1985.300868] CPU: 4 PID: 980 Comm: swapon Tainted: G        W       4.13.0-dgc #55
-[ 1985.303086] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1 04/01/2014
-[ 1985.305421] task: ffff88083599c800 task.stack: ffffc90006d68000
-[ 1985.306896] RIP: 0010:__vunmap+0x97/0xb0
-[ 1985.307866] RSP: 0018:ffffc90006d6be68 EFLAGS: 00010296
-[ 1985.309300] RAX: 0000000000000030 RBX: ffff88011569ac00 RCX: 0000000000000000
-[ 1985.311066] RDX: ffff88013fc949d8 RSI: ffff88013fc8cb98 RDI: ffff88013fc8cb98
-[ 1985.312803] RBP: ffffc90006d6be80 R08: 000000000004844c R09: 0000000000001578
-[ 1985.314672] R10: ffffffff82271b20 R11: ffffffff8256e16d R12: 000000000000000a
-[ 1985.316444] R13: 0000000000000001 R14: 00000000ffffffea R15: ffff880139a96000
-[ 1985.318230] FS:  00007fb23ac0e880(0000) GS:ffff88013fc80000(0000) knlGS:0000000000000000
-[ 1985.320081] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[ 1985.321503] CR2: 0000564cdb0c7000 CR3: 0000000137448000 CR4: 00000000000406e0
-[ 1985.323140] Call Trace:
-[ 1985.323727]  vfree+0x2e/0x70
-[ 1985.324403]  SyS_swapon+0x433/0x1080
-[ 1985.325365]  entry_SYSCALL_64_fastpath+0x1a/0xa5
+So AFAICT this has nothing to do with what HMM is for, ie device memory. Note
+that device memory can have a hierarchy of memory themself (HBM, GDDR and in
+maybe even persistent memory).
 
-Fix this as well as the memory leak caused by a missing kvfree(frontswap_map) in
-the error handling code.
+> > memory on PCIE like interface then i don't expect it to be reported as NUMA
+> > memory node but as io range like any regular PCIE resources. Device driver
+> > through capabilities flags would then figure out if the link between the
+> > device and CPU is CCIX capable if so it can use this helper to hotplug it
+> > as device memory.
+> > 
+> 
+> From my point of view,  Cache coherent device memory will popular soon and
+> reported through ACPI/UEFI. Extending NUMA policy still sounds more reasonable
+> to me.
 
-cc: <stable@vger.kernel.org>
-Signed-Off-By: Dave Chinner <dchinner@redhat.com>
----
- mm/swapfile.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+Cache coherent device will be reported through standard mecanisms defined by
+the bus standard they are using. To my knowledge all the standard are either
+on top of PCIE or are similar to PCIE.
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 6ba4aab2db0b..a8952b6563c6 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -3052,7 +3052,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	p->flags = 0;
- 	spin_unlock(&swap_lock);
- 	vfree(swap_map);
--	vfree(cluster_info);
-+	kvfree(cluster_info);
-+	kvfree(frontswap_map);
- 	if (swap_file) {
- 		if (inode && S_ISREG(inode->i_mode)) {
- 			inode_unlock(inode);
--- 
-2.13.3
+It is true that on many platform PCIE resource is manage/initialize by the
+bios (UEFI) but it is platform specific. In some case we reprogram what the
+bios pick.
+
+So like i was saying i don't expect the BIOS/UEFI to report device memory as
+regular memory. It will be reported as a regular PCIE resources and then the
+device driver will be able to determine through some flags if the link between
+the CPU(s) and the device is cache coherent or not. At that point the device
+driver can use register it with HMM helper.
+
+
+The whole NUMA discussion happen several time in the past i suggest looking
+on mm list archive for them. But it was rule out for several reasons. Top of
+my head:
+  - people hate CPU less node and device memory is inherently CPU less
+  - device driver want total control over memory and thus to be isolated from
+    mm mecanism and doing all those special cases was not welcome
+  - existing NUMA migration mecanism are ill suited for this memory as
+    access by the device to the memory is unknown to core mm and there
+    is no easy way to report it or track it (this kind of depends on the
+    platform and hardware)
+
+I am likely missing other big points.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
