@@ -1,141 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C8CB6B04B6
-	for <linux-mm@kvack.org>; Mon,  4 Sep 2017 23:52:46 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id q76so4419566pfq.5
-        for <linux-mm@kvack.org>; Mon, 04 Sep 2017 20:52:46 -0700 (PDT)
-Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id f15si6415033pln.287.2017.09.04.20.52.42
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 082C16B04C9
+	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 01:48:26 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id x189so2724930wmg.5
+        for <linux-mm@kvack.org>; Mon, 04 Sep 2017 22:48:25 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 5si6645841wry.0.2017.09.04.22.48.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 04 Sep 2017 20:52:45 -0700 (PDT)
-Subject: Re: [HMM-v25 19/19] mm/hmm: add new helper to hotplug CDM memory
- region v3
-References: <20170817000548.32038-1-jglisse@redhat.com>
- <20170817000548.32038-20-jglisse@redhat.com>
- <a42b13a4-9f58-dcbb-e9de-c573fbafbc2f@huawei.com>
- <20170904155123.GA3161@redhat.com>
- <7026dfda-9fd0-2661-5efc-66063dfdf6bc@huawei.com>
- <20170905023826.GA4836@redhat.com>
-From: Bob Liu <liubo95@huawei.com>
-Message-ID: <c7997016-7932-649d-cf27-17caa33cd856@huawei.com>
-Date: Tue, 5 Sep 2017 11:50:57 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Sep 2017 22:48:24 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v855i7eb136656
+	for <linux-mm@kvack.org>; Tue, 5 Sep 2017 01:48:23 -0400
+Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2csnjh1a74-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 05 Sep 2017 01:48:23 -0400
+Received: from localhost
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 5 Sep 2017 15:48:20 +1000
+Received: from d23av06.au.ibm.com (d23av06.au.ibm.com [9.190.235.151])
+	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v855l39938928442
+	for <linux-mm@kvack.org>; Tue, 5 Sep 2017 15:47:03 +1000
+Received: from d23av06.au.ibm.com (localhost [127.0.0.1])
+	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v855l2wF010652
+	for <linux-mm@kvack.org>; Tue, 5 Sep 2017 15:47:03 +1000
+Subject: Re: [PATCH 2/2] mm, memory_hotplug: remove timeout from
+ __offline_memory
+References: <20170904082148.23131-1-mhocko@kernel.org>
+ <20170904082148.23131-3-mhocko@kernel.org> <59AD15B6.7080304@huawei.com>
+ <20170904090114.mrjxipvucieadxa6@dhcp22.suse.cz>
+ <59AD174B.4020807@huawei.com>
+ <20170904091505.xffd7orldpwlmrlx@dhcp22.suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 5 Sep 2017 11:16:57 +0530
 MIME-Version: 1.0
-In-Reply-To: <20170905023826.GA4836@redhat.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170904091505.xffd7orldpwlmrlx@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <c217dbb1-6ee9-1401-04f1-a46f13488aaf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, majiuyue <majiuyue@huawei.com>, "xieyisheng (A)" <xieyisheng1@huawei.com>, ross.zwisler@linux.intel.com, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 2017/9/5 10:38, Jerome Glisse wrote:
-> On Tue, Sep 05, 2017 at 09:13:24AM +0800, Bob Liu wrote:
->> On 2017/9/4 23:51, Jerome Glisse wrote:
->>> On Mon, Sep 04, 2017 at 11:09:14AM +0800, Bob Liu wrote:
->>>> On 2017/8/17 8:05, Jerome Glisse wrote:
->>>>> Unlike unaddressable memory, coherent device memory has a real
->>>>> resource associated with it on the system (as CPU can address
->>>>> it). Add a new helper to hotplug such memory within the HMM
->>>>> framework.
+On 09/04/2017 02:45 PM, Michal Hocko wrote:
+> On Mon 04-09-17 17:05:15, Xishi Qiu wrote:
+>> On 2017/9/4 17:01, Michal Hocko wrote:
+>>
+>>> On Mon 04-09-17 16:58:30, Xishi Qiu wrote:
+>>>> On 2017/9/4 16:21, Michal Hocko wrote:
+>>>>
+>>>>> From: Michal Hocko <mhocko@suse.com>
 >>>>>
+>>>>> We have a hardcoded 120s timeout after which the memory offline fails
+>>>>> basically since the hot remove has been introduced. This is essentially
+>>>>> a policy implemented in the kernel. Moreover there is no way to adjust
+>>>>> the timeout and so we are sometimes facing memory offline failures if
+>>>>> the system is under a heavy memory pressure or very intensive CPU
+>>>>> workload on large machines.
+>>>>>
+>>>>> It is not very clear what purpose the timeout actually serves. The
+>>>>> offline operation is interruptible by a signal so if userspace wants
+>>>> Hi Michal,
 >>>>
->>>> Got an new question, coherent device( e.g CCIX) memory are likely reported to OS 
->>>> through ACPI and recognized as NUMA memory node.
->>>> Then how can their memory be captured and managed by HMM framework?
->>>>
+>>>> If the user know what he should do if migration for a long time,
+>>>> it is OK, but I don't think all the users know this operation
+>>>> (e.g. ctrl + c) and the affect.
+>>> How is this operation any different from other potentially long
+>>> interruptible syscalls?
 >>>
->>> Only platform that has such memory today is powerpc and it is not reported
->>> as regular memory by the firmware hence why they need this helper.
->>>
->>> I don't think anyone has defined anything yet for x86 and acpi. As this is
+>> Hi Michal,
 >>
->> Not yet, but now the ACPI spec has Heterogeneous Memory Attribute
->> Table (HMAT) table defined in ACPI 6.2.
->> The HMAT can cover CPU-addressable memory types(though not non-cache
->> coherent on-device memory).
->>
->> Ross from Intel already done some work on this, see:
->> https://lwn.net/Articles/724562/
->>
->> arm64 supports APCI also, there is likely more this kind of device when CCIX
->> is out (should be very soon if on schedule).
-> 
-> HMAT is not for the same thing, AFAIK HMAT is for deep "hierarchy" memory ie
-> when you have several kind of memory each with different characteristics:
->   - HBM very fast (latency) and high bandwidth, non persistent, somewhat
->     small (ie few giga bytes)
->   - Persistent memory, slower (both latency and bandwidth) big (tera bytes)
->   - DDR (good old memory) well characteristics are between HBM and persistent
-> 
+>> I means the user should stop it by himself if migration always retry in endless.
+> If the memory is migrateable then the migration should finish
+> eventually. It can take some time but it shouldn't be an endless loop.
 
-Okay, then how the kernel handle the situation of "kind of memory each with different characteristics"?
-Does someone have any suggestion?  I thought HMM can do this.
-Numa policy/node distance is good but perhaps require a few extending, e.g a HBM node can't be
-swap, can't accept DDR fallback allocation.
-
-> So AFAICT this has nothing to do with what HMM is for, ie device memory. Note
-> that device memory can have a hierarchy of memory themself (HBM, GDDR and in
-> maybe even persistent memory).
-> 
-
-This looks like a subset of HMAT when CPU can address device memory directly in cache-coherent way.
-
-
->>> memory on PCIE like interface then i don't expect it to be reported as NUMA
->>> memory node but as io range like any regular PCIE resources. Device driver
->>> through capabilities flags would then figure out if the link between the
->>> device and CPU is CCIX capable if so it can use this helper to hotplug it
->>> as device memory.
->>>
->>
->> From my point of view,  Cache coherent device memory will popular soon and
->> reported through ACPI/UEFI. Extending NUMA policy still sounds more reasonable
->> to me.
-> 
-> Cache coherent device will be reported through standard mecanisms defined by
-> the bus standard they are using. To my knowledge all the standard are either
-> on top of PCIE or are similar to PCIE.
-> 
-> It is true that on many platform PCIE resource is manage/initialize by the
-> bios (UEFI) but it is platform specific. In some case we reprogram what the
-> bios pick.
-> 
-> So like i was saying i don't expect the BIOS/UEFI to report device memory as
-
-But it's happening.
-In my understanding, that's why HMAT was introduced.
-For reporting device memory as regular memory(with different characteristics).
-
---
-Regards,
-Bob Liu
-
-> regular memory. It will be reported as a regular PCIE resources and then the
-> device driver will be able to determine through some flags if the link between
-> the CPU(s) and the device is cache coherent or not. At that point the device
-> driver can use register it with HMM helper.
-> 
-> 
-> The whole NUMA discussion happen several time in the past i suggest looking
-> on mm list archive for them. But it was rule out for several reasons. Top of
-> my head:
->   - people hate CPU less node and device memory is inherently CPU less
->   - device driver want total control over memory and thus to be isolated from
->     mm mecanism and doing all those special cases was not welcome
->   - existing NUMA migration mecanism are ill suited for this memory as
->     access by the device to the memory is unknown to core mm and there
->     is no easy way to report it or track it (this kind of depends on the
->     platform and hardware)
-> 
-> I am likely missing other big points.
-> 
-> Cheers,
-> Jerome
-> 
-> .
-> 
-
+But what if some how the temporary condition (page removed from the PCP
+LRU list and has not been freed yet to the buddy) happens again and again.
+I understand we have schedule() and yield() to make sure that the context
+does not hold the CPU for ever but it can take theoretically very long
+time if not endless to finish. In that case sending signal to the user
+space process who initiated the offline request is the only way to stop
+this retry loop. I think this is still a better approach than the 120
+second timeout which was kind of arbitrary.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
