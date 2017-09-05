@@ -1,53 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C14C328030E
-	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 03:37:34 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id p14so3044192wrg.7
-        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 00:37:34 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q14si58753wrc.485.2017.09.05.00.37.33
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DA2EA280300
+	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 04:19:24 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id 40so3808250wrv.4
+        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 01:19:24 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id a18si137584wrd.327.2017.09.05.01.19.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 05 Sep 2017 00:37:33 -0700 (PDT)
-Date: Tue, 5 Sep 2017 09:37:30 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, sparse: fix typo in online_mem_sections
-Message-ID: <20170905073730.4reirga47o4athse@dhcp22.suse.cz>
-References: <20170904112210.3401-1-mhocko@kernel.org>
- <4d648f70-325d-3f60-8620-94c232b380d8@linux.vnet.ibm.com>
- <20170905072836.i4dxrukevojty4ub@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 05 Sep 2017 01:19:23 -0700 (PDT)
+Date: Tue, 5 Sep 2017 10:19:13 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: possible circular locking dependency
+ mmap_sem/cpu_hotplug_lock.rw_sem
+In-Reply-To: <20170904140353.k5mo3f4wela5nxqe@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1709051013380.1900@nanos>
+References: <20170807140947.nhfz2gel6wytl6ia@shodan.usersys.redhat.com> <alpine.DEB.2.20.1708161605050.1987@nanos> <20170830141543.qhipikpog6mkqe5b@dhcp22.suse.cz> <20170830154315.sa57wasw64rvnuhe@dhcp22.suse.cz>
+ <20170904140353.k5mo3f4wela5nxqe@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170905072836.i4dxrukevojty4ub@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Artem Savkov <asavkov@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Tue 05-09-17 09:28:36, Michal Hocko wrote:
-> On Tue 05-09-17 12:32:28, Anshuman Khandual wrote:
-> > On 09/04/2017 04:52 PM, Michal Hocko wrote:
-> > > From: Michal Hocko <mhocko@suse.com>
-> > > 
-> > > online_mem_sections accidentally marks online only the first section in
-> > > the given range. This is a typo which hasn't been noticed because I
-> > > haven't tested large 2GB blocks previously. All users of
-> > 
-> > Section sizes are normally less than 2GB. Could you please elaborate
-> > why this never got noticed before ?
-> 
-> Section size is 128MB which is the default block size as well. So we
-> have one section per block. But if the amount of memory is very large
-> (64GB - see probe_memory_block_size) then we have a 2GB memory blocks
-> so multiple sections per block.
+On Mon, 4 Sep 2017, Michal Hocko wrote:
 
-And just to clarify. Not that 64G would be too large but the original
-patch has been merged in 4.13 so nobody probably managed to hit that
-_yet_.
--- 
-Michal Hocko
-SUSE Labs
+> Thomas, Johannes,
+> could you double check my thinking here? I will repost the patch to
+> Andrew if you are OK with this.
+> > +	/*
+> > +	 * The only protection from memory hotplug vs. drain_stock races is
+> > +	 * that we always operate on local CPU stock here with IRQ disabled
+> > +	 */
+> >  	local_irq_save(flags);
+> >  
+> >  	stock = this_cpu_ptr(&memcg_stock);
+> > @@ -1807,26 +1811,27 @@ static void drain_all_stock(struct mem_cgroup *root_memcg)
+> >  	if (!mutex_trylock(&percpu_charge_mutex))
+> >  		return;
+> >  	/* Notify other cpus that system-wide "drain" is running */
+> > -	get_online_cpus();
+> >  	curcpu = get_cpu();
+
+The problem here is that this does only protect you against a CPU being
+unplugged, but not against a CPU coming online concurrently. I have no idea
+whether that might be a problem, but at least you should put a comment in
+which explains why it is not.
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
