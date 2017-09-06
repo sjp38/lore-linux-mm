@@ -1,65 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A276C280415
-	for <linux-mm@kvack.org>; Wed,  6 Sep 2017 04:42:46 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id a47so6973089wra.0
-        for <linux-mm@kvack.org>; Wed, 06 Sep 2017 01:42:46 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 63EA42802FE
+	for <linux-mm@kvack.org>; Wed,  6 Sep 2017 05:20:20 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id d6so1420068wrd.7
+        for <linux-mm@kvack.org>; Wed, 06 Sep 2017 02:20:20 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x7si2108517wrb.444.2017.09.06.01.42.45
+        by mx.google.com with ESMTPS id 141si816545wmj.70.2017.09.06.02.20.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 06 Sep 2017 01:42:45 -0700 (PDT)
-Date: Wed, 6 Sep 2017 10:42:42 +0200
+        Wed, 06 Sep 2017 02:20:18 -0700 (PDT)
+Date: Wed, 6 Sep 2017 11:20:14 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v7 5/5] mm, oom: cgroup v2 mount option to disable cgroup-aware
- OOM killer
-Message-ID: <20170906084242.l4rcx6n3hdzxvil6@dhcp22.suse.cz>
-References: <20170904142108.7165-1-guro@fb.com>
- <20170904142108.7165-6-guro@fb.com>
- <20170905134412.qdvqcfhvbdzmarna@dhcp22.suse.cz>
- <20170905143021.GA28599@castle.dhcp.TheFacebook.com>
- <20170905151251.luh4wogjd3msfqgf@dhcp22.suse.cz>
- <20170905191609.GA19687@castle.dhcp.TheFacebook.com>
+Subject: Re: [PATCH 2/2] mm/slub: don't use reserved memory for optimistic try
+Message-ID: <20170906092014.6z73x5mfxn32lbg6@dhcp22.suse.cz>
+References: <1504672666-19682-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1504672666-19682-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <f3af7a0e-d04d-e47d-12c6-8e379d04265a@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170905191609.GA19687@castle.dhcp.TheFacebook.com>
+In-Reply-To: <f3af7a0e-d04d-e47d-12c6-8e379d04265a@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Tue 05-09-17 20:16:09, Roman Gushchin wrote:
-> On Tue, Sep 05, 2017 at 05:12:51PM +0200, Michal Hocko wrote:
-[...]
-> > > Then we should probably hide corresponding
-> > > cgroup interface (oom_group and oom_priority knobs) by default,
-> > > and it feels as unnecessary complication and is overall against
-> > > cgroup v2 interface design.
+On Wed 06-09-17 10:10:22, Vlastimil Babka wrote:
+> On 09/06/2017 06:37 AM, js1304@gmail.com wrote:
+> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > > 
-> > Why. If we care enough, we could simply return EINVAL when those knobs
-> > are written while the corresponding strategy is not used.
-> 
-> It doesn't look as a nice default interface.
-
-I do not have a strong opinion on this. A printk_once could explain why
-the knob is ignored and instruct the admin how to enable the feature
-completely.
- 
-> > > > I think we should instead go with
-> > > > oom_strategy=[alloc_task,biggest_task,cgroup]
-> > > 
-> > > It would be a really nice interface; although I've no idea how to implement it:
-> > > "alloc_task" is an existing sysctl, which we have to preserve;
+> > High-order atomic allocation is difficult to succeed since we cannot
+> > reclaim anything in this context. So, we reserves the pageblock for
+> > this kind of request.
 > > 
-> > I would argue that we should simply deprecate and later drop the sysctl.
-> > I _strongly_ suspect anybody is using this. If yes it is not that hard
-> > to change the kernel command like rather than select the sysctl.
+> > In slub, we try to allocate higher-order page more than it actually
+> > needs in order to get the best performance. If this optimistic try is
+> > used with GFP_ATOMIC, alloc_flags will be set as ALLOC_HARDER and
+> > the pageblock reserved for high-order atomic allocation would be used.
+> > Moreover, this request would reserve the MIGRATE_HIGHATOMIC pageblock
+> > ,if succeed, to prepare further request. It would not be good to use
+> > MIGRATE_HIGHATOMIC pageblock in terms of fragmentation management
+> > since it unconditionally set a migratetype to request's migratetype
+> > when unreserving the pageblock without considering the migratetype of
+> > used pages in the pageblock.
+> > 
+> > This is not what we don't intend so fix it by unconditionally masking
+> > out __GFP_ATOMIC in order to not set ALLOC_HARDER.
+> > 
+> > And, it is also undesirable to use reserved memory for optimistic try
+> > so mask out __GFP_HIGH. This patch also adds __GFP_NOMEMALLOC since
+> > we don't want to use the reserved memory for optimistic try even if
+> > the user has PF_MEMALLOC flag.
+> > 
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > ---
+> >  include/linux/gfp.h | 1 +
+> >  mm/page_alloc.c     | 8 ++++++++
+> >  mm/slub.c           | 6 ++----
+> >  3 files changed, 11 insertions(+), 4 deletions(-)
+> > 
+> > diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> > index f780718..1f5658e 100644
+> > --- a/include/linux/gfp.h
+> > +++ b/include/linux/gfp.h
+> > @@ -568,6 +568,7 @@ extern gfp_t gfp_allowed_mask;
+> >  
+> >  /* Returns true if the gfp_mask allows use of ALLOC_NO_WATERMARK */
+> >  bool gfp_pfmemalloc_allowed(gfp_t gfp_mask);
+> > +gfp_t gfp_drop_reserves(gfp_t gfp_mask);
+> >  
+> >  extern void pm_restrict_gfp_mask(void);
+> >  extern void pm_restore_gfp_mask(void);
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 6dbc49e..0f34356 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -3720,6 +3720,14 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+> >  	return !!__gfp_pfmemalloc_flags(gfp_mask);
+> >  }
+> >  
+> > +gfp_t gfp_drop_reserves(gfp_t gfp_mask)
+> > +{
+> > +	gfp_mask &= ~(__GFP_HIGH | __GFP_ATOMIC);
+> > +	gfp_mask |= __GFP_NOMEMALLOC;
+> > +
+> > +	return gfp_mask;
+> > +}
+> > +
 > 
-> I agree. And if so, why do we need a new interface for an useless feature?
+> I think it's wasteful to do a function call for this, inline definition
+> in header would be better (gfp_pfmemalloc_allowed() is different as it
+> relies on a rather heavyweight __gfp_pfmemalloc_flags().
 
-Well, I won't be opposed just deprecating the sysfs and only add a
-"real" kill-allocate strategy if somebody explicitly asks for it.
+Agreed. If you do that, feel free to add
+Acked-by: Michal Hocko <mhocko@suse.com>
 -- 
 Michal Hocko
 SUSE Labs
