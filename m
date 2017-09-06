@@ -1,107 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 44AEC2802FE
-	for <linux-mm@kvack.org>; Wed,  6 Sep 2017 16:34:06 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id v109so7947349wrc.5
-        for <linux-mm@kvack.org>; Wed, 06 Sep 2017 13:34:06 -0700 (PDT)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.15.15])
-        by mx.google.com with ESMTPS id v9si1950902wmg.166.2017.09.06.13.34.04
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 13F20280442
+	for <linux-mm@kvack.org>; Wed,  6 Sep 2017 16:59:45 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id r133so12783516pgr.0
+        for <linux-mm@kvack.org>; Wed, 06 Sep 2017 13:59:45 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id u8sor365316plh.137.2017.09.06.13.59.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Sep 2017 13:34:05 -0700 (PDT)
-From: Helge Deller <deller@gmx.de>
-Subject: [PATCH 12/14] mm/memblock: Use %pS printk format for direct addresses
-Date: Wed,  6 Sep 2017 22:27:59 +0200
-Message-Id: <1504729681-3504-13-git-send-email-deller@gmx.de>
-In-Reply-To: <1504729681-3504-1-git-send-email-deller@gmx.de>
-References: <1504729681-3504-1-git-send-email-deller@gmx.de>
+        (Google Transport Security);
+        Wed, 06 Sep 2017 13:59:44 -0700 (PDT)
+Date: Wed, 6 Sep 2017 13:59:42 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [v7 5/5] mm, oom: cgroup v2 mount option to disable cgroup-aware
+ OOM killer
+In-Reply-To: <20170906174043.GA12579@castle.DHCP.thefacebook.com>
+Message-ID: <alpine.DEB.2.10.1709061355001.70553@chino.kir.corp.google.com>
+References: <20170904142108.7165-1-guro@fb.com> <20170904142108.7165-6-guro@fb.com> <20170905134412.qdvqcfhvbdzmarna@dhcp22.suse.cz> <20170905143021.GA28599@castle.dhcp.TheFacebook.com> <20170905151251.luh4wogjd3msfqgf@dhcp22.suse.cz>
+ <20170905191609.GA19687@castle.dhcp.TheFacebook.com> <20170906084242.l4rcx6n3hdzxvil6@dhcp22.suse.cz> <20170906174043.GA12579@castle.DHCP.thefacebook.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Petr Mladek <pmladek@suse.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Roman Gushchin <guro@fb.com>, Christopher Lameter <cl@linux.com>, nzimmer@sgi.com, holt@sgi.com
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-The debug code in memblock uses wrongly the %pF instead of the %pS printk
-format specifier for printing symbols for the address returned by
-_builtin_return_address(0)/_RET_IP_. Fix it for the ia64, ppc64 and parisc64
-architectures.
+On Wed, 6 Sep 2017, Roman Gushchin wrote:
 
-Signed-off-by: Helge Deller <deller@gmx.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
- mm/memblock.c | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+> From f6e2339926a07500834d86548f3f116af7335d71 Mon Sep 17 00:00:00 2001
+> From: Roman Gushchin <guro@fb.com>
+> Date: Wed, 6 Sep 2017 17:43:44 +0100
+> Subject: [PATCH] mm, oom: first step towards oom_kill_allocating_task
+>  deprecation
+> 
+> The oom_kill_allocating_task sysctl which causes the OOM killer
+> to simple kill the allocating task is useless. Killing the random
+> task is not the best idea.
+> 
+> Nobody likes it, and hopefully nobody uses it.
+> We want to completely deprecate it at some point.
+> 
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 9120578..7f1590d 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -597,7 +597,7 @@ int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
- {
- 	phys_addr_t end = base + size - 1;
- 
--	memblock_dbg("memblock_add: [%pa-%pa] %pF\n",
-+	memblock_dbg("memblock_add: [%pa-%pa] %pS\n",
- 		     &base, &end, (void *)_RET_IP_);
- 
- 	return memblock_add_range(&memblock.memory, base, size, MAX_NUMNODES, 0);
-@@ -704,7 +704,7 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
- {
- 	phys_addr_t end = base + size - 1;
- 
--	memblock_dbg("   memblock_free: [%pa-%pa] %pF\n",
-+	memblock_dbg("   memblock_free: [%pa-%pa] %pS\n",
- 		     &base, &end, (void *)_RET_IP_);
- 
- 	kmemleak_free_part_phys(base, size);
-@@ -715,7 +715,7 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
- {
- 	phys_addr_t end = base + size - 1;
- 
--	memblock_dbg("memblock_reserve: [%pa-%pa] %pF\n",
-+	memblock_dbg("memblock_reserve: [%pa-%pa] %pS\n",
- 		     &base, &end, (void *)_RET_IP_);
- 
- 	return memblock_add_range(&memblock.reserved, base, size, MAX_NUMNODES, 0);
-@@ -1362,7 +1362,7 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
- 				phys_addr_t min_addr, phys_addr_t max_addr,
- 				int nid)
- {
--	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
-+	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pS\n",
- 		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
- 		     (u64)max_addr, (void *)_RET_IP_);
- 	return memblock_virt_alloc_internal(size, align, min_addr,
-@@ -1394,7 +1394,7 @@ void * __init memblock_virt_alloc_try_nid(
- {
- 	void *ptr;
- 
--	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
-+	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pS\n",
- 		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
- 		     (u64)max_addr, (void *)_RET_IP_);
- 	ptr = memblock_virt_alloc_internal(size, align,
-@@ -1418,7 +1418,7 @@ void * __init memblock_virt_alloc_try_nid(
-  */
- void __init __memblock_free_early(phys_addr_t base, phys_addr_t size)
- {
--	memblock_dbg("%s: [%#016llx-%#016llx] %pF\n",
-+	memblock_dbg("%s: [%#016llx-%#016llx] %pS\n",
- 		     __func__, (u64)base, (u64)base + size - 1,
- 		     (void *)_RET_IP_);
- 	kmemleak_free_part_phys(base, size);
-@@ -1438,7 +1438,7 @@ void __init __memblock_free_late(phys_addr_t base, phys_addr_t size)
- {
- 	u64 cursor, end;
- 
--	memblock_dbg("%s: [%#016llx-%#016llx] %pF\n",
-+	memblock_dbg("%s: [%#016llx-%#016llx] %pS\n",
- 		     __func__, (u64)base, (u64)base + size - 1,
- 		     (void *)_RET_IP_);
- 	kmemleak_free_part_phys(base, size);
--- 
-2.1.0
+SGI required it when it was introduced simply to avoid the very expensive 
+tasklist scan.  Adding Christoph Lameter to the cc since he was involved 
+back then.
+
+I attempted to deprecate the old /proc/pid/oom_adj in this same manner; we 
+warned about it for over a year and then finally removed it, one person 
+complained of breakage, and it was reverted with a strict policy that 
+Linux doesn't break userspace.
+
+Although it would be good to do, I'm not sure that this is possible unless 
+it can be shown nobody is using it.  Talking to SGI would be the first 
+step.
+
+I'm not sure what this has to do with the overall patchset though :)
+
+> To make a first step towards deprecation, let's warn potential
+> users about deprecation plans.
+> 
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
+> ---
+>  kernel/sysctl.c | 13 ++++++++++++-
+>  1 file changed, 12 insertions(+), 1 deletion(-)
+> 
+> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+> index 655686d546cb..9158f1980584 100644
+> --- a/kernel/sysctl.c
+> +++ b/kernel/sysctl.c
+> @@ -220,6 +220,17 @@ static int sysrq_sysctl_handler(struct ctl_table *table, int write,
+>  
+>  #endif
+>  
+> +static int proc_oom_kill_allocating_tasks(struct ctl_table *table, int write,
+> +				   void __user *buffer, size_t *lenp,
+> +				   loff_t *ppos)
+> +{
+> +	pr_warn_once("The oom_kill_allocating_task sysctl will be deprecated.\n"
+> +		     "If you're using it, please, report to "
+> +		     "linux-mm@kvack.kernel.org.\n");
+> +
+> +	return proc_dointvec(table, write, buffer, lenp, ppos);
+> +}
+> +
+>  static struct ctl_table kern_table[];
+>  static struct ctl_table vm_table[];
+>  static struct ctl_table fs_table[];
+> @@ -1235,7 +1246,7 @@ static struct ctl_table vm_table[] = {
+>  		.data		= &sysctl_oom_kill_allocating_task,
+>  		.maxlen		= sizeof(sysctl_oom_kill_allocating_task),
+>  		.mode		= 0644,
+> -		.proc_handler	= proc_dointvec,
+> +		.proc_handler	= proc_oom_kill_allocating_tasks,
+>  	},
+>  	{
+>  		.procname	= "oom_dump_tasks",
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
