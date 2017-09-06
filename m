@@ -1,106 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 13F20280442
-	for <linux-mm@kvack.org>; Wed,  6 Sep 2017 16:59:45 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id r133so12783516pgr.0
-        for <linux-mm@kvack.org>; Wed, 06 Sep 2017 13:59:45 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id u8sor365316plh.137.2017.09.06.13.59.43
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EA18B28043E
+	for <linux-mm@kvack.org>; Wed,  6 Sep 2017 18:32:08 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id f4so135150wmh.7
+        for <linux-mm@kvack.org>; Wed, 06 Sep 2017 15:32:08 -0700 (PDT)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id l81si1234172wmf.31.2017.09.06.15.32.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 06 Sep 2017 13:59:44 -0700 (PDT)
-Date: Wed, 6 Sep 2017 13:59:42 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [v7 5/5] mm, oom: cgroup v2 mount option to disable cgroup-aware
- OOM killer
-In-Reply-To: <20170906174043.GA12579@castle.DHCP.thefacebook.com>
-Message-ID: <alpine.DEB.2.10.1709061355001.70553@chino.kir.corp.google.com>
-References: <20170904142108.7165-1-guro@fb.com> <20170904142108.7165-6-guro@fb.com> <20170905134412.qdvqcfhvbdzmarna@dhcp22.suse.cz> <20170905143021.GA28599@castle.dhcp.TheFacebook.com> <20170905151251.luh4wogjd3msfqgf@dhcp22.suse.cz>
- <20170905191609.GA19687@castle.dhcp.TheFacebook.com> <20170906084242.l4rcx6n3hdzxvil6@dhcp22.suse.cz> <20170906174043.GA12579@castle.DHCP.thefacebook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Sep 2017 15:32:07 -0700 (PDT)
+Date: Thu, 7 Sep 2017 00:32:06 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH v7 9/9] sparc64: Add support for ADI (Application Data
+ Integrity)
+Message-ID: <20170906223206.GA11481@amd>
+References: <cover.1502219353.git.khalid.aziz@oracle.com>
+ <3a687666c2e7972fb6d2379848f31006ac1dd59a.1502219353.git.khalid.aziz@oracle.com>
+ <20170904162530.GA21781@amd>
+ <20170905.144456.431070706382873486.davem@davemloft.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="MGYHOYXEY6WxJCY8"
+Content-Disposition: inline
+In-Reply-To: <20170905.144456.431070706382873486.davem@davemloft.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>, Christopher Lameter <cl@linux.com>, nzimmer@sgi.com, holt@sgi.com
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: David Miller <davem@davemloft.net>
+Cc: khalid.aziz@oracle.com, dave.hansen@linux.intel.com, corbet@lwn.net, bob.picco@oracle.com, steven.sistare@oracle.com, pasha.tatashin@oracle.com, mike.kravetz@oracle.com, mingo@kernel.org, nitin.m.gupta@oracle.com, kirill.shutemov@linux.intel.com, tom.hromatka@oracle.com, eric.saint.etienne@oracle.com, allen.pais@oracle.com, cmetcalf@mellanox.com, akpm@linux-foundation.org, geert@linux-m68k.org, tklauser@distanz.ch, atish.patra@oracle.com, vijay.ac.kumar@oracle.com, peterz@infradead.org, mhocko@suse.com, jack@suse.cz, lstoakes@gmail.com, hughd@google.com, thomas.tai@oracle.com, paul.gortmaker@windriver.com, ross.zwisler@linux.intel.com, dave.jiang@intel.com, willy@infradead.org, ying.huang@intel.com, zhongjiang@huawei.com, minchan@kernel.org, vegard.nossum@oracle.com, imbrenda@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, khalid@gonehiking.org
 
-On Wed, 6 Sep 2017, Roman Gushchin wrote:
 
-> From f6e2339926a07500834d86548f3f116af7335d71 Mon Sep 17 00:00:00 2001
-> From: Roman Gushchin <guro@fb.com>
-> Date: Wed, 6 Sep 2017 17:43:44 +0100
-> Subject: [PATCH] mm, oom: first step towards oom_kill_allocating_task
->  deprecation
-> 
-> The oom_kill_allocating_task sysctl which causes the OOM killer
-> to simple kill the allocating task is useless. Killing the random
-> task is not the best idea.
-> 
-> Nobody likes it, and hopefully nobody uses it.
-> We want to completely deprecate it at some point.
-> 
+--MGYHOYXEY6WxJCY8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-SGI required it when it was introduced simply to avoid the very expensive 
-tasklist scan.  Adding Christoph Lameter to the cc since he was involved 
-back then.
+On Tue 2017-09-05 14:44:56, David Miller wrote:
+> From: Pavel Machek <pavel@ucw.cz>
+> Date: Mon, 4 Sep 2017 18:25:30 +0200
+>=20
+> > Will gcc be able to compile code that uses these automatically? That
+> > does not sound easy to me. Can libc automatically use this in malloc()
+> > to prevent accessing freed data when buffers are overrun?
+> >=20
+> > Is this for benefit of JITs?
+>=20
+> Anything that can control mappings and the virtual address used to
+> access memory can use ADI.
+>=20
+> malloc() is of course one such case.  It can map memory with ADI
+> enabled, and return buffer addresses to malloc() callers with the
+> proper virtual address bits set to satisfy the ADI key checks.
+>=20
+> And by induction anything using malloc() for it's memory allocation
+> gets ADI protection as well.
 
-I attempted to deprecate the old /proc/pid/oom_adj in this same manner; we 
-warned about it for over a year and then finally removed it, one person 
-complained of breakage, and it was reverted with a strict policy that 
-Linux doesn't break userspace.
+I see; that's actually quite a nice trick.
 
-Although it would be good to do, I'm not sure that this is possible unless 
-it can be shown nobody is using it.  Talking to SGI would be the first 
-step.
+I guess it does not protect against stack-based overflows, but should
+help against heap-based overflows, so it improves security a bit, too.
 
-I'm not sure what this has to do with the overall patchset though :)
+Nice, thanks for explanation.
+									Pavel
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
 
-> To make a first step towards deprecation, let's warn potential
-> users about deprecation plans.
-> 
-> Signed-off-by: Roman Gushchin <guro@fb.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: linux-mm@kvack.org
-> Cc: linux-kernel@vger.kernel.org
-> ---
->  kernel/sysctl.c | 13 ++++++++++++-
->  1 file changed, 12 insertions(+), 1 deletion(-)
-> 
-> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-> index 655686d546cb..9158f1980584 100644
-> --- a/kernel/sysctl.c
-> +++ b/kernel/sysctl.c
-> @@ -220,6 +220,17 @@ static int sysrq_sysctl_handler(struct ctl_table *table, int write,
->  
->  #endif
->  
-> +static int proc_oom_kill_allocating_tasks(struct ctl_table *table, int write,
-> +				   void __user *buffer, size_t *lenp,
-> +				   loff_t *ppos)
-> +{
-> +	pr_warn_once("The oom_kill_allocating_task sysctl will be deprecated.\n"
-> +		     "If you're using it, please, report to "
-> +		     "linux-mm@kvack.kernel.org.\n");
-> +
-> +	return proc_dointvec(table, write, buffer, lenp, ppos);
-> +}
-> +
->  static struct ctl_table kern_table[];
->  static struct ctl_table vm_table[];
->  static struct ctl_table fs_table[];
-> @@ -1235,7 +1246,7 @@ static struct ctl_table vm_table[] = {
->  		.data		= &sysctl_oom_kill_allocating_task,
->  		.maxlen		= sizeof(sysctl_oom_kill_allocating_task),
->  		.mode		= 0644,
-> -		.proc_handler	= proc_dointvec,
-> +		.proc_handler	= proc_oom_kill_allocating_tasks,
->  	},
->  	{
->  		.procname	= "oom_dump_tasks",
+--MGYHOYXEY6WxJCY8
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iEYEARECAAYFAlmwd2YACgkQMOfwapXb+vKZhQCghY433I84q+xJeU22IpRBNPMU
+NLUAn2ZpOyO6CGTigbKV2RxaxhElPZ5X
+=MKww
+-----END PGP SIGNATURE-----
+
+--MGYHOYXEY6WxJCY8--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
