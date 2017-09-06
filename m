@@ -1,106 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3927E2803FE
-	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 19:43:42 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id v82so9942161pgb.5
-        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 16:43:42 -0700 (PDT)
-Received: from ipmail01.adl2.internode.on.net (ipmail01.adl2.internode.on.net. [150.101.137.133])
-        by mx.google.com with ESMTP id h5si97921pfg.403.2017.09.05.16.43.39
-        for <linux-mm@kvack.org>;
-        Tue, 05 Sep 2017 16:43:40 -0700 (PDT)
-Date: Wed, 6 Sep 2017 09:42:56 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: kernel BUG at fs/xfs/xfs_aops.c:853! in kernel 4.13 rc6
-Message-ID: <20170905234256.GP17782@dastard>
-References: <CABXGCsOL+_OgC0dpO1+Zeg=iu7ryZRZT4S7k-io8EGB0ZRgZGw@mail.gmail.com>
- <20170903074306.GA8351@infradead.org>
- <20170904014353.GG10621@dastard>
- <20170904022002.GD4671@magnolia>
- <20170904121452.GC1761@quack2.suse.cz>
- <20170904223648.GH10621@dastard>
- <20170905161734.GA25379@quack2.suse.cz>
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4733A280400
+	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 21:29:25 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id v140so7659829oif.7
+        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 18:29:25 -0700 (PDT)
+Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id m189si1000014oib.465.2017.09.05.18.29.21
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 05 Sep 2017 18:29:23 -0700 (PDT)
+Subject: Re: [HMM-v25 19/19] mm/hmm: add new helper to hotplug CDM memory
+ region v3
+References: <20170817000548.32038-1-jglisse@redhat.com>
+ <20170817000548.32038-20-jglisse@redhat.com>
+ <a42b13a4-9f58-dcbb-e9de-c573fbafbc2f@huawei.com>
+ <20170904155123.GA3161@redhat.com>
+ <7026dfda-9fd0-2661-5efc-66063dfdf6bc@huawei.com>
+ <20170905023826.GA4836@redhat.com> <20170905185414.GB24073@linux.intel.com>
+From: Bob Liu <liubo95@huawei.com>
+Message-ID: <0bc5047d-d27c-65b6-acab-921263e715c8@huawei.com>
+Date: Wed, 6 Sep 2017 09:25:36 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170905161734.GA25379@quack2.suse.cz>
+In-Reply-To: <20170905185414.GB24073@linux.intel.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, Christoph Hellwig <hch@infradead.org>, =?utf-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, Jerome Glisse <jglisse@redhat.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, majiuyue <majiuyue@huawei.com>, "xieyisheng (A)" <xieyisheng1@huawei.com>
 
-On Tue, Sep 05, 2017 at 06:17:34PM +0200, Jan Kara wrote:
-> On Tue 05-09-17 08:36:48, Dave Chinner wrote:
-> > On Mon, Sep 04, 2017 at 02:14:52PM +0200, Jan Kara wrote:
-> > > > Seems like a reasonable revert/change, but given that ext3 was killed
-> > > > off long ago, is it even still the case that the mm can feed releasepage
-> > > > a dirty clean page?  If that is the case, then isn't it time to fix the
-> > > > mm too?
-> > > 
-> > > Yes, ->releasepage() can still get PageDirty page. Whether the page can or
-> > > cannot be reclaimed is still upto filesystem to decide.
-> > 
-> > Yes, and so we have to handle it.  For all I know right now we could
-> > be chasing single bit memory error/corruptions....
+On 2017/9/6 2:54, Ross Zwisler wrote:
+> On Mon, Sep 04, 2017 at 10:38:27PM -0400, Jerome Glisse wrote:
+>> On Tue, Sep 05, 2017 at 09:13:24AM +0800, Bob Liu wrote:
+>>> On 2017/9/4 23:51, Jerome Glisse wrote:
+>>>> On Mon, Sep 04, 2017 at 11:09:14AM +0800, Bob Liu wrote:
+>>>>> On 2017/8/17 8:05, Jerome Glisse wrote:
+>>>>>> Unlike unaddressable memory, coherent device memory has a real
+>>>>>> resource associated with it on the system (as CPU can address
+>>>>>> it). Add a new helper to hotplug such memory within the HMM
+>>>>>> framework.
+>>>>>>
+>>>>>
+>>>>> Got an new question, coherent device( e.g CCIX) memory are likely reported to OS 
+>>>>> through ACPI and recognized as NUMA memory node.
+>>>>> Then how can their memory be captured and managed by HMM framework?
+>>>>>
+>>>>
+>>>> Only platform that has such memory today is powerpc and it is not reported
+>>>> as regular memory by the firmware hence why they need this helper.
+>>>>
+>>>> I don't think anyone has defined anything yet for x86 and acpi. As this is
+>>>
+>>> Not yet, but now the ACPI spec has Heterogeneous Memory Attribute
+>>> Table (HMAT) table defined in ACPI 6.2.
+>>> The HMAT can cover CPU-addressable memory types(though not non-cache
+>>> coherent on-device memory).
+>>>
+>>> Ross from Intel already done some work on this, see:
+>>> https://lwn.net/Articles/724562/
+>>>
+>>> arm64 supports APCI also, there is likely more this kind of device when CCIX
+>>> is out (should be very soon if on schedule).
+>>
+>> HMAT is not for the same thing, AFAIK HMAT is for deep "hierarchy" memory ie
+>> when you have several kind of memory each with different characteristics:
+>>   - HBM very fast (latency) and high bandwidth, non persistent, somewhat
+>>     small (ie few giga bytes)
+>>   - Persistent memory, slower (both latency and bandwidth) big (tera bytes)
+>>   - DDR (good old memory) well characteristics are between HBM and persistent
+>>
+>> So AFAICT this has nothing to do with what HMM is for, ie device memory. Note
+>> that device memory can have a hierarchy of memory themself (HBM, GDDR and in
+>> maybe even persistent memory).
+>>
+>>>> memory on PCIE like interface then i don't expect it to be reported as NUMA
+>>>> memory node but as io range like any regular PCIE resources. Device driver
+>>>> through capabilities flags would then figure out if the link between the
+>>>> device and CPU is CCIX capable if so it can use this helper to hotplug it
+>>>> as device memory.
+>>>>
+>>>
+>>> From my point of view,  Cache coherent device memory will popular soon and
+>>> reported through ACPI/UEFI. Extending NUMA policy still sounds more reasonable
+>>> to me.
+>>
+>> Cache coherent device will be reported through standard mecanisms defined by
+>> the bus standard they are using. To my knowledge all the standard are either
+>> on top of PCIE or are similar to PCIE.
+>>
+>> It is true that on many platform PCIE resource is manage/initialize by the
+>> bios (UEFI) but it is platform specific. In some case we reprogram what the
+>> bios pick.
+>>
+>> So like i was saying i don't expect the BIOS/UEFI to report device memory as
+>> regular memory. It will be reported as a regular PCIE resources and then the
+>> device driver will be able to determine through some flags if the link between
+>> the CPU(s) and the device is cache coherent or not. At that point the device
+>> driver can use register it with HMM helper.
+>>
+>>
+>> The whole NUMA discussion happen several time in the past i suggest looking
+>> on mm list archive for them. But it was rule out for several reasons. Top of
+>> my head:
+>>   - people hate CPU less node and device memory is inherently CPU less
 > 
-> Possibly, although I'm not convinced - as I've mentioned I've seen exact
-> same assertion failure in XFS on our SLE12-SP2 kernel (4.4 based) in one of
-> customers setup. And I've seen two or three times ext4 barfing for exactly
-> same reason - buffers stripped from dirty page.
-
-Yeah, we're chasing ghosts at the moment. :/
-
-[....]
-> > > Now XFS shouldn't
-> > > really end up freeing such page - either because those delalloc / unwritten
-> > > checks trigger or because try_to_free_buffers() refuses to free dirty
-> > > buffers.
-> > 
-> > Except if the dirty page has come through the block_invalidation()
-> > path, because all the buffers on the page have been invalidated and
-> > cleaned. i.e. we've already removed BH_Dirty, BH_Delay and
-> > BH_unwritten from all the buffer heads, so invalidated dirty pages
-> > will run right through buffers will be removed.
-> > 
-> > Every caller to ->releasepage() - except the invalidatepage path and
-> > the than the bufferhead stripper - checks PageDirty *after* the
-> > ->releasepage call and return without doing anything because they
-> > aren't supposed to be releasing dirty pages. So if XFS has decided
-> > the page can be released, but a mapping invalidation call then notes
-> > the page is dirty, it won't invalidate the pagei but it will have
-> > had the bufferheads stripped. That's another possible vector, and
-> > one that explicit checking of the page dirty flag will avoid.
+> With the introduction of the HMAT in ACPI 6.2 one of the things that was added
+> was the ability to have an ACPI proximity domain that isn't associated with a
+> CPU.  This can be seen in the changes in the text of the "Proximity Domain"
+> field in table 5-73 which describes the "Memory Affinity Structure".  One of
+> the major features of the HMAT was the separation of "Initiator" proximity
+> domains (CPUs, devices that initiate memory transfers), and "target" proximity
+> domains (memory regions, be they attached to a CPU or some other device).
 > 
-> Are you speaking about the PageDirty check in __remove_mapping()? I agree
-> that checking PageDirty in releasepage would narrow that window for
-> corruption although won't close it completely - there are places in the
-> kernel that call set_page_dirty() without page lock held and can thus race
-> with page invalidation. But I didn't find how any such callsite could race
-> to cause what we are observing...
-
-I was referring to invalidate_complete_page2() - I didn't look down
-the __remove_mapping() path after I found the first example in
-icp2....
-
-> > Hence my question about XFS being able to cancel the page dirty flag
-> > before calling block_invalidation() so that we can untangle the mess
-> > where we can't tell the difference between a "must release a dirty
-> > invalidated page because we've already invalidated the bufferheads"
-> > context and the other "release page only if not dirty" caller
-> > context?
+> ACPI proximity domains map directly to Linux NUMA nodes, so I think we're
+> already in a place where we have to support CPU-less NUMA nodes.
 > 
-> Yeah, I agree that if you add cancel_dirty_page() into
-> xfs_vm_invalidatepage() before calling block_invalidatepage() and then bail
-> on dirty page in xfs_vm_releasepage(), things should work as well and they
-> would be more robust.
+>>   - device driver want total control over memory and thus to be isolated from
+>>     mm mecanism and doing all those special cases was not welcome
+> 
+> I agree that the kernel doesn't have enough information to be able to
+> accurately handle all the use cases for the various types of heterogeneous
+> memory.   The goal of my HMAT enabling is to allow that memory to be reserved
+> from kernel use via the "Reservation Hint" in the HMAT's Memory Subsystem
+> Address Range Structure, then provide userspace with enough information to be
+> able to distinguish between the various types of memory in the system so it
+> can allocate & utilize it appropriately.
+> 
 
-Ok, I'll put together a patch to do that. Thanks Jan!
+Does this mean require an user space memory management library to deal with all alloc/free/defragment..
+But how to do with virtual <-> physical address mapping from userspace?
 
-Cheers,
+--
+Regards,
+Bob Liu
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+>>   - existing NUMA migration mecanism are ill suited for this memory as
+>>     access by the device to the memory is unknown to core mm and there
+>>     is no easy way to report it or track it (this kind of depends on the
+>>     platform and hardware)
+>>
+>> I am likely missing other big points.
+>>
+>> Cheers,
+>> Jerome
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
