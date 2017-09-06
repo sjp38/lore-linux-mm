@@ -1,85 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 805562802FE
-	for <linux-mm@kvack.org>; Wed,  6 Sep 2017 10:08:08 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id v82so13272693pgb.5
-        for <linux-mm@kvack.org>; Wed, 06 Sep 2017 07:08:08 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id 34si1321036plz.491.2017.09.06.07.08.06
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CA2D82802FE
+	for <linux-mm@kvack.org>; Wed,  6 Sep 2017 10:10:38 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l19so6301793wmi.1
+        for <linux-mm@kvack.org>; Wed, 06 Sep 2017 07:10:38 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e11si1277780wme.168.2017.09.06.07.10.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Sep 2017 07:08:07 -0700 (PDT)
-From: "Arumugam, Kamenee" <kamenee.arumugam@intel.com>
-Subject: RE: [PATCH 06/13] IB/hfi1: update to new mmu_notifier semantic
-Date: Wed, 6 Sep 2017 14:08:04 +0000
-Message-ID: <A503C24F5B2FB844864C0DD400A8F742BE12B1@ORSMSX113.amr.corp.intel.com>
-References: <20170829235447.10050-1-jglisse@redhat.com>
- <20170829235447.10050-7-jglisse@redhat.com>
-In-Reply-To: <20170829235447.10050-7-jglisse@redhat.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 06 Sep 2017 07:10:37 -0700 (PDT)
+Date: Wed, 6 Sep 2017 16:10:34 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v7 2/5] mm, oom: cgroup-aware OOM killer
+Message-ID: <20170906141034.aw2nzl577m5tt6om@dhcp22.suse.cz>
+References: <20170904142108.7165-1-guro@fb.com>
+ <20170904142108.7165-3-guro@fb.com>
+ <20170905145700.fd7jjd37xf4tb55h@dhcp22.suse.cz>
+ <20170905202357.GA10535@castle.DHCP.thefacebook.com>
+ <20170906083158.gvqx6pekrsy2ya47@dhcp22.suse.cz>
+ <20170906125750.GB12904@castle>
+ <20170906132249.c2llo5zyrzgviqzc@dhcp22.suse.cz>
+ <20170906134142.GA15796@castle.DHCP.thefacebook.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170906134142.GA15796@castle.DHCP.thefacebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, "Luick, Dean" <dean.luick@intel.com>, "Weiny, Ira" <ira.weiny@intel.com>, Doug Ledford <dledford@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-VGVzdGVkIHRoaXMgcGF0Y2ggd2l0aCBoZmkxIGRyaXZlciBhbmQgbm8gaXNzdWUgZm91bmQuIA0K
-DQpUZXN0ZWQtYnk6IEthbWVuZWUgQXJ1bXVnYW0gPGthbWVuZWUuYXJ1bXVnYW1AaW50ZWwuY29t
-Pg0KDQotLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KRnJvbTogbGludXgtcmRtYS1vd25lckB2
-Z2VyLmtlcm5lbC5vcmcgW21haWx0bzpsaW51eC1yZG1hLW93bmVyQHZnZXIua2VybmVsLm9yZ10g
-T24gQmVoYWxmIE9mIErDqXLDtG1lIEdsaXNzZQ0KU2VudDogVHVlc2RheSwgQXVndXN0IDI5LCAy
-MDE3IDc6NTUgUE0NClRvOiBsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnOyBsaW51eC1tbUBr
-dmFjay5vcmcNCkNjOiBKw6lyw7RtZSBHbGlzc2UgPGpnbGlzc2VAcmVkaGF0LmNvbT47IGxpbnV4
-LXJkbWFAdmdlci5rZXJuZWwub3JnOyBMdWljaywgRGVhbiA8ZGVhbi5sdWlja0BpbnRlbC5jb20+
-OyBXZWlueSwgSXJhIDxpcmEud2VpbnlAaW50ZWwuY29tPjsgRG91ZyBMZWRmb3JkIDxkbGVkZm9y
-ZEByZWRoYXQuY29tPjsgS2lyaWxsIEEgLiBTaHV0ZW1vdiA8a2lyaWxsLnNodXRlbW92QGxpbnV4
-LmludGVsLmNvbT47IEFuZHJldyBNb3J0b24gPGFrcG1AbGludXgtZm91bmRhdGlvbi5vcmc+OyBM
-aW51cyBUb3J2YWxkcyA8dG9ydmFsZHNAbGludXgtZm91bmRhdGlvbi5vcmc+OyBBbmRyZWEgQXJj
-YW5nZWxpIDxhYXJjYW5nZUByZWRoYXQuY29tPg0KU3ViamVjdDogW1BBVENIIDA2LzEzXSBJQi9o
-ZmkxOiB1cGRhdGUgdG8gbmV3IG1tdV9ub3RpZmllciBzZW1hbnRpYw0KDQpDYWxsIHRvIG1tdV9u
-b3RpZmllcl9pbnZhbGlkYXRlX3BhZ2UoKSBhcmUgcmVwbGFjZWQgYnkgY2FsbCB0bw0KbW11X25v
-dGlmaWVyX2ludmFsaWRhdGVfcmFuZ2UoKSBhbmQgdGh1cyBjYWxsIGFyZSBicmFja2V0ZWQgYnkg
-Y2FsbCB0byBtbXVfbm90aWZpZXJfaW52YWxpZGF0ZV9yYW5nZV9zdGFydCgpL2VuZCgpDQoNClJl
-bW92ZSBub3cgdXNlbGVzcyBpbnZhbGlkYXRlX3BhZ2UgY2FsbGJhY2suDQoNClNpZ25lZC1vZmYt
-Ynk6IErDqXLDtG1lIEdsaXNzZSA8amdsaXNzZUByZWRoYXQuY29tPg0KQ2M6IGxpbnV4LXJkbWFA
-dmdlci5rZXJuZWwub3JnDQpDYzogRGVhbiBMdWljayA8ZGVhbi5sdWlja0BpbnRlbC5jb20+DQpD
-YzogSXJhIFdlaW55IDxpcmEud2VpbnlAaW50ZWwuY29tPg0KQ2M6IERvdWcgTGVkZm9yZCA8ZGxl
-ZGZvcmRAcmVkaGF0LmNvbT4NCkNjOiBLaXJpbGwgQS4gU2h1dGVtb3YgPGtpcmlsbC5zaHV0ZW1v
-dkBsaW51eC5pbnRlbC5jb20+DQpDYzogQW5kcmV3IE1vcnRvbiA8YWtwbUBsaW51eC1mb3VuZGF0
-aW9uLm9yZz4NCkNjOiBMaW51cyBUb3J2YWxkcyA8dG9ydmFsZHNAbGludXgtZm91bmRhdGlvbi5v
-cmc+DQpDYzogQW5kcmVhIEFyY2FuZ2VsaSA8YWFyY2FuZ2VAcmVkaGF0LmNvbT4NCi0tLQ0KIGRy
-aXZlcnMvaW5maW5pYmFuZC9ody9oZmkxL21tdV9yYi5jIHwgOSAtLS0tLS0tLS0NCiAxIGZpbGUg
-Y2hhbmdlZCwgOSBkZWxldGlvbnMoLSkNCg0KZGlmZiAtLWdpdCBhL2RyaXZlcnMvaW5maW5pYmFu
-ZC9ody9oZmkxL21tdV9yYi5jIGIvZHJpdmVycy9pbmZpbmliYW5kL2h3L2hmaTEvbW11X3JiLmMN
-CmluZGV4IGNjYmY1MmM4ZmY2Zi4uZTRiNTZhMGRkNmQwIDEwMDY0NA0KLS0tIGEvZHJpdmVycy9p
-bmZpbmliYW5kL2h3L2hmaTEvbW11X3JiLmMNCisrKyBiL2RyaXZlcnMvaW5maW5pYmFuZC9ody9o
-ZmkxL21tdV9yYi5jDQpAQCAtNjcsOCArNjcsNiBAQCBzdHJ1Y3QgbW11X3JiX2hhbmRsZXIgew0K
-IA0KIHN0YXRpYyB1bnNpZ25lZCBsb25nIG1tdV9ub2RlX3N0YXJ0KHN0cnVjdCBtbXVfcmJfbm9k
-ZSAqKTsgIHN0YXRpYyB1bnNpZ25lZCBsb25nIG1tdV9ub2RlX2xhc3Qoc3RydWN0IG1tdV9yYl9u
-b2RlICopOyAtc3RhdGljIGlubGluZSB2b2lkIG1tdV9ub3RpZmllcl9wYWdlKHN0cnVjdCBtbXVf
-bm90aWZpZXIgKiwgc3RydWN0IG1tX3N0cnVjdCAqLA0KLQkJCQkgICAgIHVuc2lnbmVkIGxvbmcp
-Ow0KIHN0YXRpYyBpbmxpbmUgdm9pZCBtbXVfbm90aWZpZXJfcmFuZ2Vfc3RhcnQoc3RydWN0IG1t
-dV9ub3RpZmllciAqLA0KIAkJCQkJICAgIHN0cnVjdCBtbV9zdHJ1Y3QgKiwNCiAJCQkJCSAgICB1
-bnNpZ25lZCBsb25nLCB1bnNpZ25lZCBsb25nKTsgQEAgLTgyLDcgKzgwLDYgQEAgc3RhdGljIHZv
-aWQgZG9fcmVtb3ZlKHN0cnVjdCBtbXVfcmJfaGFuZGxlciAqaGFuZGxlciwgIHN0YXRpYyB2b2lk
-IGhhbmRsZV9yZW1vdmUoc3RydWN0IHdvcmtfc3RydWN0ICp3b3JrKTsNCiANCiBzdGF0aWMgY29u
-c3Qgc3RydWN0IG1tdV9ub3RpZmllcl9vcHMgbW5fb3B0cyA9IHsNCi0JLmludmFsaWRhdGVfcGFn
-ZSA9IG1tdV9ub3RpZmllcl9wYWdlLA0KIAkuaW52YWxpZGF0ZV9yYW5nZV9zdGFydCA9IG1tdV9u
-b3RpZmllcl9yYW5nZV9zdGFydCwgIH07DQogDQpAQCAtMjg1LDEyICsyODIsNiBAQCB2b2lkIGhm
-aTFfbW11X3JiX3JlbW92ZShzdHJ1Y3QgbW11X3JiX2hhbmRsZXIgKmhhbmRsZXIsDQogCWhhbmRs
-ZXItPm9wcy0+cmVtb3ZlKGhhbmRsZXItPm9wc19hcmcsIG5vZGUpOyAgfQ0KIA0KLXN0YXRpYyBp
-bmxpbmUgdm9pZCBtbXVfbm90aWZpZXJfcGFnZShzdHJ1Y3QgbW11X25vdGlmaWVyICptbiwNCi0J
-CQkJICAgICBzdHJ1Y3QgbW1fc3RydWN0ICptbSwgdW5zaWduZWQgbG9uZyBhZGRyKQ0KLXsNCi0J
-bW11X25vdGlmaWVyX21lbV9pbnZhbGlkYXRlKG1uLCBtbSwgYWRkciwgYWRkciArIFBBR0VfU0la
-RSk7DQotfQ0KLQ0KIHN0YXRpYyBpbmxpbmUgdm9pZCBtbXVfbm90aWZpZXJfcmFuZ2Vfc3RhcnQo
-c3RydWN0IG1tdV9ub3RpZmllciAqbW4sDQogCQkJCQkgICAgc3RydWN0IG1tX3N0cnVjdCAqbW0s
-DQogCQkJCQkgICAgdW5zaWduZWQgbG9uZyBzdGFydCwNCi0tDQoyLjEzLjUNCg0KLS0NClRvIHVu
-c3Vic2NyaWJlIGZyb20gdGhpcyBsaXN0OiBzZW5kIHRoZSBsaW5lICJ1bnN1YnNjcmliZSBsaW51
-eC1yZG1hIiBpbiB0aGUgYm9keSBvZiBhIG1lc3NhZ2UgdG8gbWFqb3Jkb21vQHZnZXIua2VybmVs
-Lm9yZyBNb3JlIG1ham9yZG9tbyBpbmZvIGF0ICBodHRwOi8vdmdlci5rZXJuZWwub3JnL21ham9y
-ZG9tby1pbmZvLmh0bWwNCg==
+On Wed 06-09-17 14:41:42, Roman Gushchin wrote:
+[...]
+> Although, I don't think the whole thing is useful without any way
+> to adjust the memcg selection, so we can't postpone if for too long.
+> Anyway, if you think it's a way to go forward, let's do it.
+
+I am not really sure we are in a rush here. The whole oom_score_adj
+fiasco has showed that most users tend to only care "to never kill this
+and that". A better fine tuned oom control sounds useful at first but
+apart from very special usecases turns out very impractical to set
+up. At least that is my experience. There are special cases of course
+but we should target general use first.
+
+Kill the whole memcg is a really useful feature on its own for proper
+container cleanup.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
