@@ -1,58 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2253A6B04E2
-	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 22:15:09 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id a2so10231733pfj.2
-        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 19:15:09 -0700 (PDT)
-Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id m25si307265pfe.214.2017.09.05.19.15.07
+	by kanga.kvack.org (Postfix) with ESMTP id B436D6B0492
+	for <linux-mm@kvack.org>; Tue,  5 Sep 2017 23:54:10 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id y68so10568978pfd.6
+        for <linux-mm@kvack.org>; Tue, 05 Sep 2017 20:54:10 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id n16si498562pll.49.2017.09.05.20.54.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 05 Sep 2017 19:15:08 -0700 (PDT)
-Message-ID: <59AF5A20.2000101@huawei.com>
-Date: Wed, 6 Sep 2017 10:14:56 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 05 Sep 2017 20:54:09 -0700 (PDT)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v863rnwq029508
+	for <linux-mm@kvack.org>; Tue, 5 Sep 2017 23:54:08 -0400
+Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com [202.81.31.143])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2ct76a7vkq-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 05 Sep 2017 23:54:08 -0400
+Received: from localhost
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Wed, 6 Sep 2017 13:54:05 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v863s2SO38338786
+	for <linux-mm@kvack.org>; Wed, 6 Sep 2017 13:54:02 +1000
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v863rr1J011308
+	for <linux-mm@kvack.org>; Wed, 6 Sep 2017 13:53:53 +1000
+Subject: Re: [RFC] mm/tlbbatch: Introduce arch_tlbbatch_should_defer()
+References: <20170905144540.3365-1-khandual@linux.vnet.ibm.com>
+ <20170905155000.gasnjvor4slvgkst@suse.de>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Wed, 6 Sep 2017 09:23:49 +0530
 MIME-Version: 1.0
-Subject: [RFC] a question about stack size form /proc/pid/task/child pid/limits
-Content-Type: text/plain; charset="ISO-8859-1"
+In-Reply-To: <20170905155000.gasnjvor4slvgkst@suse.de>
+Content-Type: text/plain; charset=iso-8859-15
 Content-Transfer-Encoding: 7bit
+Message-Id: <c5e4e0ad-131a-8002-859c-1251096687f7@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, zhong jiang <zhongjiang@huawei.com>
+To: Mel Gorman <mgorman@suse.de>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org
 
-Hi, I find if I use a defined stack size to create a child thread,
-then the max stack size from /proc/pid/task/child pid/limits still
-shows "Max stack size            8388608", it doesn't update to
-the user defined size, is it a problem?
+On 09/05/2017 09:20 PM, Mel Gorman wrote:
+> On Tue, Sep 05, 2017 at 08:15:40PM +0530, Anshuman Khandual wrote:
+>> The entire scheme of deferred TLB flush in reclaim path rests on the
+>> fact that the cost to refill TLB entries is less than flushing out
+>> individual entries by sending IPI to remote CPUs. But architecture
+>> can have different ways to evaluate that. Hence apart from checking
+>> TTU_BATCH_FLUSH in the TTU flags, rest of the decision should be
+>> architecture specific.
+>>
+>> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> 
+> There is only one arch implementation given and if an arch knows that
+> the flush should not be deferred then why would it implement support in
+> the first place? I'm struggling to see the point of the patch.
 
-Here is the test code:
-		...
-                pthread_attr_t attr;
-                ret = pthread_attr_init(&attr);
-                if (ret)
-                        printf("error\n");
-                ret = pthread_attr_setstacksize(&attr, 83886080);
-                if (ret)
-                        printf("error\n");
-                ret = pthread_create(&id_1[i], &attr, (void  *)thread_alloc, NULL);
-		...
-
-I use strace to track the app, it shows glibc will call mmap to
-alloc the child thread stack. So should gilbc call setrlimit to
-update the stack limit too?
-
-And glibc will only insert a guard at the start of the stack vma,
-so the stack vma maybe merged to another vma at the end, right?
-
-...
-mmap(NULL, 83890176, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK, -1, 0) = 0x7fca1d6a6000
-mprotect(0x7fca1d6a6000, 4096, PROT_NONE) = 0
-clone(child_stack=0x7fca226a5fb0, flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, parent_tidptr=0x7fca226a69d0, tls=0x7fca226a6700, child_tidptr=0x7fca226a69d0) = 21043
-...
-
-Thanks,
-Xishi Qiu
+Even if the arch supports deferring of TLB flush like in the existing
+case, it still checks if mm_cpumask(mm) contains anything other than
+the current CPU (which indicates need for an IPI for a TLB flush) to
+decide whether the TLB batch flush should be deferred or not. The
+point is some architectures might do something different for a given
+struct mm other than checking for presence of remote CPU in the mask
+mm_cpumask(mm). It might be specific to the situation, struct mm etc.
+Hence arch callback should be used instead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
