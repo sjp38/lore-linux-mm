@@ -1,64 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 324722802FE
-	for <linux-mm@kvack.org>; Wed,  6 Sep 2017 04:18:26 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 97so6923897wrb.1
-        for <linux-mm@kvack.org>; Wed, 06 Sep 2017 01:18:26 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A8ECF280415
+	for <linux-mm@kvack.org>; Wed,  6 Sep 2017 04:29:04 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 187so5705348wmn.2
+        for <linux-mm@kvack.org>; Wed, 06 Sep 2017 01:29:04 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d23si1915769wrb.528.2017.09.06.01.18.19
+        by mx.google.com with ESMTPS id f8si2079832wra.259.2017.09.06.01.29.03
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 06 Sep 2017 01:18:19 -0700 (PDT)
-Subject: Re: [PATCH] mm, sparse: fix typo in online_mem_sections
-References: <20170904112210.3401-1-mhocko@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <a5386f27-cbdf-dbab-ee9f-cc2a1ee48572@suse.cz>
-Date: Wed, 6 Sep 2017 10:18:18 +0200
+        Wed, 06 Sep 2017 01:29:03 -0700 (PDT)
+Date: Wed, 6 Sep 2017 10:28:59 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v7 5/5] mm, oom: cgroup v2 mount option to disable cgroup-aware
+ OOM killer
+Message-ID: <20170906082859.qlqenftxuib64j35@dhcp22.suse.cz>
+References: <20170904142108.7165-1-guro@fb.com>
+ <20170904142108.7165-6-guro@fb.com>
+ <20170905134412.qdvqcfhvbdzmarna@dhcp22.suse.cz>
+ <20170905215344.GA27427@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20170904112210.3401-1-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170905215344.GA27427@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 09/04/2017 01:22 PM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Tue 05-09-17 17:53:44, Johannes Weiner wrote:
+> On Tue, Sep 05, 2017 at 03:44:12PM +0200, Michal Hocko wrote:
+> > Why is this an opt out rather than opt-in? IMHO the original oom logic
+> > should be preserved by default and specific workloads should opt in for
+> > the cgroup aware logic. Changing the global behavior depending on
+> > whether cgroup v2 interface is in use is more than unexpected and IMHO
+> > wrong approach to take. I think we should instead go with 
+> > oom_strategy=[alloc_task,biggest_task,cgroup]
+> > 
+> > we currently have alloc_task (via sysctl_oom_kill_allocating_task) and
+> > biggest_task which is the default. You are adding cgroup and the more I
+> > think about the more I agree that it doesn't really make sense to try to
+> > fit thew new semantic into the existing one (compare tasks to kill-all
+> > memcgs). Just introduce a new strategy and define a new semantic from
+> > scratch. Memcg priority and kill-all are a natural extension of this new
+> > strategy. This will make the life easier and easier to understand by
+> > users.
 > 
-> online_mem_sections accidentally marks online only the first section in
-> the given range. This is a typo which hasn't been noticed because I
-> haven't tested large 2GB blocks previously. All users of
-> pfn_to_online_page would get confused on the the rest of the pfn range
-> in the block.
+> oom_kill_allocating_task is actually a really good example of why
+> cgroup-awareness *should* be the new default.
 > 
-> All we need to fix this is to use iterator (pfn) rather than start_pfn.
+> Before we had the oom killer victim selection, we simply killed the
+> faulting/allocating task. While a valid answer to the problem, it's
+> not very fair or representative of what the user wants or intends.
 > 
-> Fixes: 2d070eab2e82 ("mm: consider zone which is not fully populated to have holes")
-> Cc: stable
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> Then we added code to kill the biggest offender instead, which should
+> have been the case from the start and was hence made the new default.
+> The oom_kill_allocating_task was added on the off-chance that there
+> might be setups who, for historical reasons, rely on the old behavior.
+> But our default was chosen based on what behavior is fair, expected,
+> and most reflective of the user's intentions.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+I am not sure this is how things evolved actually. This is way before
+my time so my git log interpretation might be imprecise. We do have
+oom_badness heuristic since out_of_memory has been introduced and
+oom_kill_allocating_task has been introduced much later because of large
+boxes with zillions of tasks (SGI I suspect) which took too long to
+select a victim so David has added this heuristic.
+ 
+> The cgroup-awareness in the OOM killer is exactly the same thing. It
+> should have been the default from the beginning, because the user
+> configures a group of tasks to be an interdependent, terminal unit of
+> memory consumption, and it's undesirable for the OOM killer to ignore
+> this intention and compare members across these boundaries.
 
-> ---
->  mm/sparse.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index a9783acf2bb9..83b3bf6461af 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -626,7 +626,7 @@ void online_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
->  	unsigned long pfn;
->  
->  	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-> -		unsigned long section_nr = pfn_to_section_nr(start_pfn);
-> +		unsigned long section_nr = pfn_to_section_nr(pfn);
->  		struct mem_section *ms;
->  
->  		/* onlining code should never touch invalid ranges */
-> 
+I would agree if that was true in general. I can completely see how the
+cgroup awareness is useful in e.g. containerized environments (especially
+with kill-all enabled) but memcgs are used in a large variety of
+usecases and I cannot really say all of them really demand the new
+semantic. Say I have a workload which doesn't want to see reclaim
+interference from others on the same machine. Why should I kill a
+process from that particular memcg just because it is the largest one
+when there is a memory hog/leak outside of this memcg?
+
+>From my point of view the safest (in a sense of the least surprise)
+way to go with opt-in for the new heuristic. I am pretty sure all who
+would benefit from the new behavior will enable it while others will not
+regress in unexpected way.
+
+We can talk about the way _how_ to control these oom strategies, of
+course. But I would be really reluctant to change the default which is
+used for years and people got used to it.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
