@@ -1,53 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CA2D82802FE
-	for <linux-mm@kvack.org>; Wed,  6 Sep 2017 10:10:38 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id l19so6301793wmi.1
-        for <linux-mm@kvack.org>; Wed, 06 Sep 2017 07:10:38 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e11si1277780wme.168.2017.09.06.07.10.37
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 158702802FE
+	for <linux-mm@kvack.org>; Wed,  6 Sep 2017 10:12:36 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id x85so3680476vkx.4
+        for <linux-mm@kvack.org>; Wed, 06 Sep 2017 07:12:36 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id 30si1700108uaz.390.2017.09.06.07.12.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 06 Sep 2017 07:10:37 -0700 (PDT)
-Date: Wed, 6 Sep 2017 16:10:34 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v7 2/5] mm, oom: cgroup-aware OOM killer
-Message-ID: <20170906141034.aw2nzl577m5tt6om@dhcp22.suse.cz>
-References: <20170904142108.7165-1-guro@fb.com>
- <20170904142108.7165-3-guro@fb.com>
- <20170905145700.fd7jjd37xf4tb55h@dhcp22.suse.cz>
- <20170905202357.GA10535@castle.DHCP.thefacebook.com>
- <20170906083158.gvqx6pekrsy2ya47@dhcp22.suse.cz>
- <20170906125750.GB12904@castle>
- <20170906132249.c2llo5zyrzgviqzc@dhcp22.suse.cz>
- <20170906134142.GA15796@castle.DHCP.thefacebook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Sep 2017 07:12:34 -0700 (PDT)
+Subject: Re: [PATCH v7 9/9] sparc64: Add support for ADI (Application Data
+ Integrity)
+References: <cover.1502219353.git.khalid.aziz@oracle.com>
+ <3a687666c2e7972fb6d2379848f31006ac1dd59a.1502219353.git.khalid.aziz@oracle.com>
+ <20170904162530.GA21781@amd>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Message-ID: <6494b4c4-6d5b-7e45-f053-00535bb898aa@oracle.com>
+Date: Wed, 6 Sep 2017 08:10:05 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170906134142.GA15796@castle.DHCP.thefacebook.com>
+In-Reply-To: <20170904162530.GA21781@amd>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Pavel Machek <pavel@ucw.cz>
+Cc: davem@davemloft.net, dave.hansen@linux.intel.com, corbet@lwn.net, bob.picco@oracle.com, steven.sistare@oracle.com, pasha.tatashin@oracle.com, mike.kravetz@oracle.com, mingo@kernel.org, nitin.m.gupta@oracle.com, kirill.shutemov@linux.intel.com, tom.hromatka@oracle.com, eric.saint.etienne@oracle.com, allen.pais@oracle.com, cmetcalf@mellanox.com, akpm@linux-foundation.org, geert@linux-m68k.org, tklauser@distanz.ch, atish.patra@oracle.com, vijay.ac.kumar@oracle.com, peterz@infradead.org, mhocko@suse.com, jack@suse.cz, lstoakes@gmail.com, hughd@google.com, thomas.tai@oracle.com, paul.gortmaker@windriver.com, ross.zwisler@linux.intel.com, dave.jiang@intel.com, willy@infradead.org, ying.huang@intel.com, zhongjiang@huawei.com, minchan@kernel.org, vegard.nossum@oracle.com, imbrenda@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, Khalid Aziz <khalid@gonehiking.org>
 
-On Wed 06-09-17 14:41:42, Roman Gushchin wrote:
-[...]
-> Although, I don't think the whole thing is useful without any way
-> to adjust the memcg selection, so we can't postpone if for too long.
-> Anyway, if you think it's a way to go forward, let's do it.
+On 09/04/2017 10:25 AM, Pavel Machek wrote:
+> Hi!
+> 
+>> ADI is a new feature supported on SPARC M7 and newer processors to allow
+>> hardware to catch rogue accesses to memory. ADI is supported for data
+>> fetches only and not instruction fetches. An app can enable ADI on its
+>> data pages, set version tags on them and use versioned addresses to
+>> access the data pages. Upper bits of the address contain the version
+>> tag. On M7 processors, upper four bits (bits 63-60) contain the version
+>> tag. If a rogue app attempts to access ADI enabled data pages, its
+>> access is blocked and processor generates an exception. Please see
+>> Documentation/sparc/adi.txt for further details.
+> 
+> I'm afraid I still don't understand what this is meant to prevent.
+> 
+> IOMMU ignores these, so this is not to prevent rogue DMA from doing
+> bad stuff.
+> 
+> Will gcc be able to compile code that uses these automatically? That
+> does not sound easy to me. Can libc automatically use this in malloc()
+> to prevent accessing freed data when buffers are overrun?
+> 
+> Is this for benefit of JITs?
+> 
 
-I am not really sure we are in a rush here. The whole oom_score_adj
-fiasco has showed that most users tend to only care "to never kill this
-and that". A better fine tuned oom control sounds useful at first but
-apart from very special usecases turns out very impractical to set
-up. At least that is my experience. There are special cases of course
-but we should target general use first.
+David explained it well. Yes, preventing buffer overflow is one of the 
+uses of ADI. Protecting critical data from wild writes caused by 
+programming errors is another use. ADI can be used for debugging as well 
+during development.
 
-Kill the whole memcg is a really useful feature on its own for proper
-container cleanup.
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Khalid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
