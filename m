@@ -1,195 +1,285 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 476876B0301
-	for <linux-mm@kvack.org>; Thu,  7 Sep 2017 13:37:16 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id d6so255147itc.6
-        for <linux-mm@kvack.org>; Thu, 07 Sep 2017 10:37:16 -0700 (PDT)
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 881B16B0301
+	for <linux-mm@kvack.org>; Thu,  7 Sep 2017 13:37:17 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id b142so418617ioe.7
+        for <linux-mm@kvack.org>; Thu, 07 Sep 2017 10:37:17 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 30sor80594ioi.378.2017.09.07.10.37.15
+        by mx.google.com with SMTPS id z188sor20928itg.100.2017.09.07.10.37.16
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 07 Sep 2017 10:37:15 -0700 (PDT)
+        Thu, 07 Sep 2017 10:37:16 -0700 (PDT)
 From: Tycho Andersen <tycho@docker.com>
-Subject: [PATCH v6 10/11] mm: add a user_virt_to_phys symbol
-Date: Thu,  7 Sep 2017 11:36:08 -0600
-Message-Id: <20170907173609.22696-11-tycho@docker.com>
+Subject: [PATCH v6 11/11] lkdtm: Add test for XPFO
+Date: Thu,  7 Sep 2017 11:36:09 -0600
+Message-Id: <20170907173609.22696-12-tycho@docker.com>
 In-Reply-To: <20170907173609.22696-1-tycho@docker.com>
 References: <20170907173609.22696-1-tycho@docker.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Tycho Andersen <tycho@docker.com>, linux-arm-kernel@lists.infradead.org, x86@kernel.org
+Cc: linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Tycho Andersen <tycho@docker.com>
 
-We need someting like this for testing XPFO. Since it's architecture
-specific, putting it in the test code is slightly awkward, so let's make it
-an arch-specific symbol and export it for use in LKDTM.
+From: Juerg Haefliger <juerg.haefliger@canonical.com>
 
-v6: * add a definition of user_virt_to_phys in the !CONFIG_XPFO case
+This test simply reads from userspace memory via the kernel's linear
+map.
 
-CC: linux-arm-kernel@lists.infradead.org
-CC: x86@kernel.org
+v6: * drop an #ifdef, just let the test fail if XPFO is not supported
+    * add XPFO_SMP test to try and test the case when one CPU does an xpfo
+      unmap of an address, that it can't be used accidentally by other
+      CPUs.
+
+Signed-off-by: Juerg Haefliger <juerg.haefliger@canonical.com>
 Signed-off-by: Tycho Andersen <tycho@docker.com>
 Tested-by: Marco Benatto <marco.antonio.780@gmail.com>
 ---
- arch/arm64/mm/xpfo.c | 51 ++++++++++++++++++++++++++++++++++++++++++++++
- arch/x86/mm/xpfo.c   | 57 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- include/linux/xpfo.h |  5 +++++
- 3 files changed, 113 insertions(+)
+ drivers/misc/Makefile     |   1 +
+ drivers/misc/lkdtm.h      |   5 ++
+ drivers/misc/lkdtm_core.c |   3 +
+ drivers/misc/lkdtm_xpfo.c | 194 ++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 203 insertions(+)
 
-diff --git a/arch/arm64/mm/xpfo.c b/arch/arm64/mm/xpfo.c
-index 342a9ccb93c1..94a667d94e15 100644
---- a/arch/arm64/mm/xpfo.c
-+++ b/arch/arm64/mm/xpfo.c
-@@ -74,3 +74,54 @@ void xpfo_dma_map_unmap_area(bool map, const void *addr, size_t size,
+diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
+index b0b766416306..8447b42a447d 100644
+--- a/drivers/misc/Makefile
++++ b/drivers/misc/Makefile
+@@ -62,6 +62,7 @@ lkdtm-$(CONFIG_LKDTM)		+= lkdtm_heap.o
+ lkdtm-$(CONFIG_LKDTM)		+= lkdtm_perms.o
+ lkdtm-$(CONFIG_LKDTM)		+= lkdtm_rodata_objcopy.o
+ lkdtm-$(CONFIG_LKDTM)		+= lkdtm_usercopy.o
++lkdtm-$(CONFIG_LKDTM)		+= lkdtm_xpfo.o
  
- 	xpfo_temp_unmap(addr, size, mapping, sizeof(mapping[0]) * num_pages);
- }
+ KCOV_INSTRUMENT_lkdtm_rodata.o	:= n
+ 
+diff --git a/drivers/misc/lkdtm.h b/drivers/misc/lkdtm.h
+index 3b4976396ec4..34a6ee37f216 100644
+--- a/drivers/misc/lkdtm.h
++++ b/drivers/misc/lkdtm.h
+@@ -64,4 +64,9 @@ void lkdtm_USERCOPY_STACK_FRAME_FROM(void);
+ void lkdtm_USERCOPY_STACK_BEYOND(void);
+ void lkdtm_USERCOPY_KERNEL(void);
+ 
++/* lkdtm_xpfo.c */
++void lkdtm_XPFO_READ_USER(void);
++void lkdtm_XPFO_READ_USER_HUGE(void);
++void lkdtm_XPFO_SMP(void);
 +
-+/* Convert a user space virtual address to a physical address.
-+ * Shamelessly copied from slow_virt_to_phys() and lookup_address() in
-+ * arch/x86/mm/pageattr.c
+ #endif
+diff --git a/drivers/misc/lkdtm_core.c b/drivers/misc/lkdtm_core.c
+index 42d2b8e31e6b..9544e329de4b 100644
+--- a/drivers/misc/lkdtm_core.c
++++ b/drivers/misc/lkdtm_core.c
+@@ -235,6 +235,9 @@ struct crashtype crashtypes[] = {
+ 	CRASHTYPE(USERCOPY_STACK_FRAME_FROM),
+ 	CRASHTYPE(USERCOPY_STACK_BEYOND),
+ 	CRASHTYPE(USERCOPY_KERNEL),
++	CRASHTYPE(XPFO_READ_USER),
++	CRASHTYPE(XPFO_READ_USER_HUGE),
++	CRASHTYPE(XPFO_SMP),
+ };
+ 
+ 
+diff --git a/drivers/misc/lkdtm_xpfo.c b/drivers/misc/lkdtm_xpfo.c
+new file mode 100644
+index 000000000000..d903063bdd0b
+--- /dev/null
++++ b/drivers/misc/lkdtm_xpfo.c
+@@ -0,0 +1,194 @@
++/*
++ * This is for all the tests related to XPFO (eXclusive Page Frame Ownership).
 + */
-+phys_addr_t user_virt_to_phys(unsigned long addr)
++
++#include "lkdtm.h"
++
++#include <linux/cpumask.h>
++#include <linux/mman.h>
++#include <linux/uaccess.h>
++#include <linux/xpfo.h>
++#include <linux/kthread.h>
++
++#include <linux/delay.h>
++#include <linux/sched/task.h>
++
++#define XPFO_DATA 0xdeadbeef
++
++static unsigned long do_map(unsigned long flags)
++{
++	unsigned long user_addr, user_data = XPFO_DATA;
++
++	user_addr = vm_mmap(NULL, 0, PAGE_SIZE,
++			    PROT_READ | PROT_WRITE | PROT_EXEC,
++			    flags, 0);
++	if (user_addr >= TASK_SIZE) {
++		pr_warn("Failed to allocate user memory\n");
++		return 0;
++	}
++
++	if (copy_to_user((void __user *)user_addr, &user_data,
++			 sizeof(user_data))) {
++		pr_warn("copy_to_user failed\n");
++		goto free_user;
++	}
++
++	return user_addr;
++
++free_user:
++	vm_munmap(user_addr, PAGE_SIZE);
++	return 0;
++}
++
++static unsigned long *user_to_kernel(unsigned long user_addr)
 +{
 +	phys_addr_t phys_addr;
-+	unsigned long offset;
-+	pgd_t *pgd;
-+	p4d_t *p4d;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+	pte_t *pte;
++	void *virt_addr;
 +
-+	pgd = pgd_offset(current->mm, addr);
-+	if (pgd_none(*pgd))
-+		return 0;
-+
-+	p4d = p4d_offset(pgd, addr);
-+	if (p4d_none(*p4d))
-+		return 0;
-+
-+	pud = pud_offset(p4d, addr);
-+	if (pud_none(*pud))
-+		return 0;
-+
-+	if (pud_sect(*pud) || !pud_present(*pud)) {
-+		phys_addr = (unsigned long)pud_pfn(*pud) << PAGE_SHIFT;
-+		offset = addr & ~PUD_MASK;
-+		goto out;
++	phys_addr = user_virt_to_phys(user_addr);
++	if (!phys_addr) {
++		pr_warn("Failed to get physical address of user memory\n");
++		return NULL;
 +	}
 +
-+	pmd = pmd_offset(pud, addr);
-+	if (pmd_none(*pmd))
-+		return 0;
-+
-+	if (pmd_sect(*pmd) || !pmd_present(*pmd)) {
-+		phys_addr = (unsigned long)pmd_pfn(*pmd) << PAGE_SHIFT;
-+		offset = addr & ~PMD_MASK;
-+		goto out;
++	virt_addr = phys_to_virt(phys_addr);
++	if (phys_addr != virt_to_phys(virt_addr)) {
++		pr_warn("Physical address of user memory seems incorrect\n");
++		return NULL;
 +	}
 +
-+	pte =  pte_offset_kernel(pmd, addr);
-+	phys_addr = (phys_addr_t)pte_pfn(*pte) << PAGE_SHIFT;
-+	offset = addr & ~PAGE_MASK;
-+
-+out:
-+	return (phys_addr_t)(phys_addr | offset);
++	return virt_addr;
 +}
-+EXPORT_SYMBOL(user_virt_to_phys);
-diff --git a/arch/x86/mm/xpfo.c b/arch/x86/mm/xpfo.c
-index 6794d6724ab5..d24cf2c600e8 100644
---- a/arch/x86/mm/xpfo.c
-+++ b/arch/x86/mm/xpfo.c
-@@ -112,3 +112,60 @@ inline void xpfo_flush_kernel_tlb(struct page *page, int order)
- 
- 	flush_tlb_kernel_range(kaddr, kaddr + (1 << order) * size);
- }
 +
-+/* Convert a user space virtual address to a physical address.
-+ * Shamelessly copied from slow_virt_to_phys() and lookup_address() in
-+ * arch/x86/mm/pageattr.c
-+ */
-+phys_addr_t user_virt_to_phys(unsigned long addr)
++static void read_map(unsigned long *virt_addr)
 +{
-+	phys_addr_t phys_addr;
-+	unsigned long offset;
-+	pgd_t *pgd;
-+	p4d_t *p4d;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+	pte_t *pte;
-+
-+	pgd = pgd_offset(current->mm, addr);
-+	if (pgd_none(*pgd))
-+		return 0;
-+
-+	p4d = p4d_offset(pgd, addr);
-+	if (p4d_none(*p4d))
-+		return 0;
-+
-+	if (p4d_large(*p4d) || !p4d_present(*p4d)) {
-+		phys_addr = (unsigned long)p4d_pfn(*p4d) << PAGE_SHIFT;
-+		offset = addr & ~P4D_MASK;
-+		goto out;
-+	}
-+
-+	pud = pud_offset(p4d, addr);
-+	if (pud_none(*pud))
-+		return 0;
-+
-+	if (pud_large(*pud) || !pud_present(*pud)) {
-+		phys_addr = (unsigned long)pud_pfn(*pud) << PAGE_SHIFT;
-+		offset = addr & ~PUD_MASK;
-+		goto out;
-+	}
-+
-+	pmd = pmd_offset(pud, addr);
-+	if (pmd_none(*pmd))
-+		return 0;
-+
-+	if (pmd_large(*pmd) || !pmd_present(*pmd)) {
-+		phys_addr = (unsigned long)pmd_pfn(*pmd) << PAGE_SHIFT;
-+		offset = addr & ~PMD_MASK;
-+		goto out;
-+	}
-+
-+	pte =  pte_offset_kernel(pmd, addr);
-+	phys_addr = (phys_addr_t)pte_pfn(*pte) << PAGE_SHIFT;
-+	offset = addr & ~PAGE_MASK;
-+
-+out:
-+	return (phys_addr_t)(phys_addr | offset);
++	pr_info("Attempting bad read from kernel address %p\n", virt_addr);
++	if (*(unsigned long *)virt_addr == XPFO_DATA)
++		pr_err("FAIL: Bad read succeeded?!\n");
++	else
++		pr_err("FAIL: Bad read didn't fail but data is incorrect?!\n");
 +}
-+EXPORT_SYMBOL(user_virt_to_phys);
-diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h
-index 1693af1a0293..be72da5fba26 100644
---- a/include/linux/xpfo.h
-+++ b/include/linux/xpfo.h
-@@ -19,6 +19,7 @@
- #ifdef CONFIG_XPFO
- 
- #include <linux/dma-mapping.h>
-+#include <linux/types.h>
- 
- extern struct page_ext_operations page_xpfo_ops;
- 
-@@ -45,6 +46,8 @@ void xpfo_temp_unmap(const void *addr, size_t size, void **mapping,
- 
- bool xpfo_enabled(void);
- 
-+phys_addr_t user_virt_to_phys(unsigned long addr);
 +
- #else /* !CONFIG_XPFO */
- 
- static inline void xpfo_kmap(void *kaddr, struct page *page) { }
-@@ -69,6 +72,8 @@ static inline void xpfo_temp_unmap(const void *addr, size_t size,
- 
- static inline bool xpfo_enabled(void) { return false; }
- 
-+static inline phys_addr_t user_virt_to_phys(unsigned long addr) { return 0; }
++static void read_user_with_flags(unsigned long flags)
++{
++	unsigned long user_addr, *kernel;
 +
- #endif /* CONFIG_XPFO */
- 
- #endif /* _LINUX_XPFO_H */
++	user_addr = do_map(flags);
++	if (!user_addr) {
++		pr_err("FAIL: map failed\n");
++		return;
++	}
++
++	kernel = user_to_kernel(user_addr);
++	if (!kernel) {
++		pr_err("FAIL: user to kernel conversion failed\n");
++		goto free_user;
++	}
++
++	read_map(kernel);
++
++free_user:
++	vm_munmap(user_addr, PAGE_SIZE);
++}
++
++/* Read from userspace via the kernel's linear map. */
++void lkdtm_XPFO_READ_USER(void)
++{
++	read_user_with_flags(MAP_PRIVATE | MAP_ANONYMOUS);
++}
++
++void lkdtm_XPFO_READ_USER_HUGE(void)
++{
++	read_user_with_flags(MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB);
++}
++
++struct smp_arg {
++	unsigned long *virt_addr;
++	unsigned int cpu;
++};
++
++static int smp_reader(void *parg)
++{
++	struct smp_arg *arg = parg;
++	unsigned long *virt_addr;
++
++	if (arg->cpu != smp_processor_id()) {
++		pr_err("FAIL: scheduled on wrong CPU?\n");
++		return 0;
++	}
++
++	virt_addr = smp_cond_load_acquire(&arg->virt_addr, VAL != NULL);
++	read_map(virt_addr);
++
++	return 0;
++}
++
++#ifdef CONFIG_X86
++#define XPFO_SMP_KILLED SIGKILL
++#elif CONFIG_ARM64
++#define XPFO_SMP_KILLED SIGSEGV
++#else
++#error unsupported arch
++#endif
++
++/* The idea here is to read from the kernel's map on a different thread than
++ * did the mapping (and thus the TLB flushing), to make sure that the page
++ * faults on other cores too.
++ */
++void lkdtm_XPFO_SMP(void)
++{
++	unsigned long user_addr, *virt_addr;
++	struct task_struct *thread;
++	int ret;
++	struct smp_arg arg;
++
++	if (num_online_cpus() < 2) {
++		pr_err("not enough to do a multi cpu test\n");
++		return;
++	}
++
++	arg.virt_addr = NULL;
++	arg.cpu = (smp_processor_id() + 1) % num_online_cpus();
++	thread = kthread_create(smp_reader, &arg, "lkdtm_xpfo_test");
++	if (IS_ERR(thread)) {
++		pr_err("couldn't create kthread? %ld\n", PTR_ERR(thread));
++		return;
++	}
++
++	kthread_bind(thread, arg.cpu);
++	get_task_struct(thread);
++	wake_up_process(thread);
++
++	user_addr = do_map(MAP_PRIVATE | MAP_ANONYMOUS);
++	if (!user_addr)
++		goto kill_thread;
++
++	virt_addr = user_to_kernel(user_addr);
++	if (!virt_addr) {
++		/*
++		 * let's store something that will fail, so we can unblock the
++		 * thread
++		 */
++		smp_store_release(&arg.virt_addr, &arg);
++		goto free_user;
++	}
++
++	smp_store_release(&arg.virt_addr, virt_addr);
++
++	/* there must be a better way to do this. */
++	while (1) {
++		if (thread->exit_state)
++			break;
++		msleep_interruptible(100);
++	}
++
++free_user:
++	if (user_addr)
++		vm_munmap(user_addr, PAGE_SIZE);
++
++kill_thread:
++	ret = kthread_stop(thread);
++	if (ret != XPFO_SMP_KILLED)
++		pr_err("FAIL: thread wasn't killed: %d\n", ret);
++	put_task_struct(thread);
++}
 -- 
 2.11.0
 
