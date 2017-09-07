@@ -1,49 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BDEED6B031F
-	for <linux-mm@kvack.org>; Thu,  7 Sep 2017 16:39:13 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id q77so1054913qke.4
-        for <linux-mm@kvack.org>; Thu, 07 Sep 2017 13:39:13 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 410606B0320
+	for <linux-mm@kvack.org>; Thu,  7 Sep 2017 17:56:00 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 6so1576225pgh.0
+        for <linux-mm@kvack.org>; Thu, 07 Sep 2017 14:56:00 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y14sor141354qta.61.2017.09.07.13.39.12
+        by mx.google.com with SMTPS id u205sor337257pgb.145.2017.09.07.14.55.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 07 Sep 2017 13:39:12 -0700 (PDT)
-Date: Thu, 7 Sep 2017 13:39:09 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] idr: remove WARN_ON_ONCE() when trying to replace
- negative ID
-Message-ID: <20170907203909.GV1774378@devbig577.frc2.facebook.com>
-References: <20170906235306.20534-1-ebiggers3@gmail.com>
+        Thu, 07 Sep 2017 14:55:58 -0700 (PDT)
+Date: Thu, 7 Sep 2017 14:55:56 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [v7 5/5] mm, oom: cgroup v2 mount option to disable cgroup-aware
+ OOM killer
+In-Reply-To: <alpine.DEB.2.20.1709070939340.19539@nuc-kabylake>
+Message-ID: <alpine.DEB.2.10.1709071454220.141461@chino.kir.corp.google.com>
+References: <20170904142108.7165-1-guro@fb.com> <20170904142108.7165-6-guro@fb.com> <20170905134412.qdvqcfhvbdzmarna@dhcp22.suse.cz> <20170905143021.GA28599@castle.dhcp.TheFacebook.com> <20170905151251.luh4wogjd3msfqgf@dhcp22.suse.cz>
+ <20170905191609.GA19687@castle.dhcp.TheFacebook.com> <20170906084242.l4rcx6n3hdzxvil6@dhcp22.suse.cz> <20170906174043.GA12579@castle.DHCP.thefacebook.com> <alpine.DEB.2.10.1709061355001.70553@chino.kir.corp.google.com>
+ <alpine.DEB.2.20.1709070939340.19539@nuc-kabylake>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170906235306.20534-1-ebiggers3@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Biggers <ebiggers3@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Chris Wilson <chris@chris-wilson.co.uk>, Dmitry Vyukov <dvyukov@google.com>, Matthew Wilcox <mawilcox@microsoft.com>, dri-devel@lists.freedesktop.org, stable@vger.kernel.org
+To: Christopher Lameter <cl@linux.com>
+Cc: Roman Gushchin <guro@fb.com>, nzimmer@sgi.com, holt@sgi.com, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sivanich@sgi.com
 
-On Wed, Sep 06, 2017 at 04:53:06PM -0700, Eric Biggers wrote:
-> From: Eric Biggers <ebiggers@google.com>
+On Thu, 7 Sep 2017, Christopher Lameter wrote:
+
+> > SGI required it when it was introduced simply to avoid the very expensive
+> > tasklist scan.  Adding Christoph Lameter to the cc since he was involved
+> > back then.
 > 
-> IDR only supports non-negative IDs.  There used to be a
-> 'WARN_ON_ONCE(id < 0)' in idr_replace(), but it was intentionally
-> removed by commit 2e1c9b286765 ("idr: remove WARN_ON_ONCE() on negative
-> IDs").  Then it was added back by commit 0a835c4f090a ("Reimplement IDR
-> and IDA using the radix tree").  However it seems that adding it back
-> was a mistake, given that some users such as drm_gem_handle_delete()
-> (DRM_IOCTL_GEM_CLOSE) pass in a value from userspace to idr_replace(),
-> allowing the WARN_ON_ONCE to be triggered.  drm_gem_handle_delete()
-> actually just wants idr_replace() to return an error code if the ID is
-> not allocated, including in the case where the ID is invalid (negative).
+> Really? From what I know and worked on way back when: The reason was to be
+> able to contain the affected application in a cpuset. Multiple apps may
+> have been running in multiple cpusets on a large NUMA machine and the OOM
+> condition in one cpuset should not affect the other. It also helped to
+> isolate the application behavior causing the oom in numerous cases.
+> 
+> Doesnt this requirement transfer to cgroups in the same way?
+> 
+> Left SGI in 2008 so adding Dimitri who may know about the current
+> situation. Robin Holt also left SGI as far as I know.
+> 
 
-Acked-by: Tejun Heo <tj@kernel.org>
-
-Thanks.
-
--- 
-tejun
+It may have been Paul Jackson, but I remember the oom_kill_allocating_task 
+knob being required due to very slow oom killer due to the very lengthy 
+iteration of the tasklist.  It would be helpful if someone from SGI could 
+confirm whether or not they actively use this sysctl.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
