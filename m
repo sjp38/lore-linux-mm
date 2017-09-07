@@ -1,78 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EF7E46B04E6
-	for <linux-mm@kvack.org>; Thu,  7 Sep 2017 11:09:20 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id e64so1731544wmi.0
-        for <linux-mm@kvack.org>; Thu, 07 Sep 2017 08:09:20 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id o29si2278398wrf.25.2017.09.07.08.09.19
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 55D0C6B0538
+	for <linux-mm@kvack.org>; Thu,  7 Sep 2017 12:15:11 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k20so149130wre.6
+        for <linux-mm@kvack.org>; Thu, 07 Sep 2017 09:15:11 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id m30si37259edj.280.2017.09.07.09.15.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Sep 2017 08:09:19 -0700 (PDT)
-Date: Thu, 7 Sep 2017 08:09:16 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [mmotm:master 143/319] include/linux/swapops.h:224:16: error:
- empty scalar initializer
-Message-Id: <20170907080916.a55a3a63ff26424c0d4d49f0@linux-foundation.org>
-In-Reply-To: <A8D9CC43-5D31-46D7-B049-A88A027835EA@cs.rutgers.edu>
-References: <201709071117.XZRVgPlb%fengguang.wu@intel.com>
-	<20170906215017.a95d6bc457a7c0327e6872c3@linux-foundation.org>
-	<A8D9CC43-5D31-46D7-B049-A88A027835EA@cs.rutgers.edu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 07 Sep 2017 09:15:09 -0700 (PDT)
+Date: Thu, 7 Sep 2017 12:14:57 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [v7 5/5] mm, oom: cgroup v2 mount option to disable cgroup-aware
+ OOM killer
+Message-ID: <20170907161457.GA1728@cmpxchg.org>
+References: <20170904142108.7165-1-guro@fb.com>
+ <20170904142108.7165-6-guro@fb.com>
+ <20170905134412.qdvqcfhvbdzmarna@dhcp22.suse.cz>
+ <20170905215344.GA27427@cmpxchg.org>
+ <20170906082859.qlqenftxuib64j35@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170906082859.qlqenftxuib64j35@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, 07 Sep 2017 06:54:20 -0400 "Zi Yan" <zi.yan@cs.rutgers.edu> wrote:
+On Wed, Sep 06, 2017 at 10:28:59AM +0200, Michal Hocko wrote:
+> On Tue 05-09-17 17:53:44, Johannes Weiner wrote:
+> > The cgroup-awareness in the OOM killer is exactly the same thing. It
+> > should have been the default from the beginning, because the user
+> > configures a group of tasks to be an interdependent, terminal unit of
+> > memory consumption, and it's undesirable for the OOM killer to ignore
+> > this intention and compare members across these boundaries.
+> 
+> I would agree if that was true in general. I can completely see how the
+> cgroup awareness is useful in e.g. containerized environments (especially
+> with kill-all enabled) but memcgs are used in a large variety of
+> usecases and I cannot really say all of them really demand the new
+> semantic. Say I have a workload which doesn't want to see reclaim
+> interference from others on the same machine. Why should I kill a
+> process from that particular memcg just because it is the largest one
+> when there is a memory hog/leak outside of this memcg?
 
-> On 7 Sep 2017, at 0:50, Andrew Morton wrote:
-> 
-> > On Thu, 7 Sep 2017 11:37:19 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
-> >
-> >> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> >> head:   5e52cc028671694cd84e649e0a43c99a53b1fea1
-> >> commit: ebacb62aac74e6683be1031fed6bfd029732d155 [143/319] mm-thp-enable-thp-migration-in-generic-path-fix-fix-fix
-> >> config: arm-at91_dt_defconfig (attached as .config)
-> >> compiler: arm-linux-gnueabi-gcc (Debian 6.1.1-9) 6.1.1 20160705
-> >> reproduce:
-> >>         wget https://na01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fintel%2Flkp-tests%2Fmaster%2Fsbin%2Fmake.cross&data=02%7C01%7Czi.yan%40cs.rutgers.edu%7C6ac33fb5121b4518eb6308d4f5abf197%7Cb92d2b234d35447093ff69aca6632ffe%7C1%7C0%7C636403566227996732&sdata=eSBomrixcY9RpH%2BkKovnCQmHlpaOcWXaZ02J0cX%2FQlg%3D&reserved=0 -O ~/bin/make.cross
-> >>         chmod +x ~/bin/make.cross
-> >>         git checkout ebacb62aac74e6683be1031fed6bfd029732d155
-> >>         # save the attached .config to linux build tree
-> >>         make.cross ARCH=arm
-> >>
-> >> All errors (new ones prefixed by >>):
-> >>
-> >>    In file included from fs/proc/task_mmu.c:15:0:
-> >>    include/linux/swapops.h: In function 'swp_entry_to_pmd':
-> >>>> include/linux/swapops.h:224:16: error: empty scalar initializer
-> >>      return (pmd_t){};
-> >>                    ^
-> >>    include/linux/swapops.h:224:16: note: (near initialization for '(anonymous)')
-> >>
-> >> vim +224 include/linux/swapops.h
-> >>
-> >>    221	
-> >>    222	static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
-> >>    223	{
-> >>> 224		return (pmd_t){};
-> >>    225	}
-> >>    226	
-> >
-> > Sigh, I tried.
-> >
-> > Zi Yan, we're going to need to find a fix for this.  Rapidly, please.
-> 
-> 
-> Hi Andrew,
-> 
-> Why cannot we use __pmd(0) instead? My sparc32 fix is in 4.13 now.
-> commit is 9157259d16a8ee8116a98d32f29b797689327e8d.
+Sure, it's always possible to come up with a config for which this
+isn't the optimal behavior. But this is about picking a default that
+makes sense to most users, and that type of cgroup usage just isn't
+the common case.
 
-I didn't know that.  So we should be OK now.  Thanks.
+> From my point of view the safest (in a sense of the least surprise)
+> way to go with opt-in for the new heuristic. I am pretty sure all who
+> would benefit from the new behavior will enable it while others will not
+> regress in unexpected way.
+
+This thinking simply needs to be balanced against the need to make an
+unsurprising and consistent final interface.
+
+The current behavior breaks isolation by letting tasks in different
+cgroups compete with each other during an OOM kill. While you can
+rightfully argue that it's possible for usecases to rely on this, you
+cannot tell me that this is the least-surprising thing we can offer
+users; certainly not new users, but also not many/most existing ones.
+
+> We can talk about the way _how_ to control these oom strategies, of
+> course. But I would be really reluctant to change the default which is
+> used for years and people got used to it.
+
+I really doubt there are many cgroup users that rely on that
+particular global OOM behavior.
+
+We have to agree to disagree, I guess.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
