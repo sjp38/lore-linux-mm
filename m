@@ -1,69 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BEEF6B04E4
-	for <linux-mm@kvack.org>; Thu,  7 Sep 2017 10:53:11 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id d6so2499472itc.6
-        for <linux-mm@kvack.org>; Thu, 07 Sep 2017 07:53:11 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id n4si2536343ioc.56.2017.09.07.07.53.10
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EF7E46B04E6
+	for <linux-mm@kvack.org>; Thu,  7 Sep 2017 11:09:20 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id e64so1731544wmi.0
+        for <linux-mm@kvack.org>; Thu, 07 Sep 2017 08:09:20 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o29si2278398wrf.25.2017.09.07.08.09.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Sep 2017 07:53:10 -0700 (PDT)
-Date: Thu, 7 Sep 2017 15:52:39 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v7 5/5] mm, oom: cgroup v2 mount option to disable cgroup-aware
- OOM killer
-Message-ID: <20170907145239.GA19022@castle.DHCP.thefacebook.com>
-References: <20170904142108.7165-1-guro@fb.com>
- <20170904142108.7165-6-guro@fb.com>
- <20170905134412.qdvqcfhvbdzmarna@dhcp22.suse.cz>
- <20170905143021.GA28599@castle.dhcp.TheFacebook.com>
- <20170905151251.luh4wogjd3msfqgf@dhcp22.suse.cz>
- <20170905191609.GA19687@castle.dhcp.TheFacebook.com>
- <20170906084242.l4rcx6n3hdzxvil6@dhcp22.suse.cz>
- <20170906174043.GA12579@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.10.1709061355001.70553@chino.kir.corp.google.com>
- <alpine.DEB.2.20.1709070939340.19539@nuc-kabylake>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1709070939340.19539@nuc-kabylake>
+        Thu, 07 Sep 2017 08:09:19 -0700 (PDT)
+Date: Thu, 7 Sep 2017 08:09:16 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [mmotm:master 143/319] include/linux/swapops.h:224:16: error:
+ empty scalar initializer
+Message-Id: <20170907080916.a55a3a63ff26424c0d4d49f0@linux-foundation.org>
+In-Reply-To: <A8D9CC43-5D31-46D7-B049-A88A027835EA@cs.rutgers.edu>
+References: <201709071117.XZRVgPlb%fengguang.wu@intel.com>
+	<20170906215017.a95d6bc457a7c0327e6872c3@linux-foundation.org>
+	<A8D9CC43-5D31-46D7-B049-A88A027835EA@cs.rutgers.edu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: David Rientjes <rientjes@google.com>, nzimmer@sgi.com, holt@sgi.com, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sivanich@sgi.com
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Thu, Sep 07, 2017 at 09:43:30AM -0500, Christopher Lameter wrote:
-> On Wed, 6 Sep 2017, David Rientjes wrote:
+On Thu, 07 Sep 2017 06:54:20 -0400 "Zi Yan" <zi.yan@cs.rutgers.edu> wrote:
+
+> On 7 Sep 2017, at 0:50, Andrew Morton wrote:
 > 
-> > > The oom_kill_allocating_task sysctl which causes the OOM killer
-> > > to simple kill the allocating task is useless. Killing the random
-> > > task is not the best idea.
-> > >
-> > > Nobody likes it, and hopefully nobody uses it.
-> > > We want to completely deprecate it at some point.
-> > >
+> > On Thu, 7 Sep 2017 11:37:19 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 > >
-> > SGI required it when it was introduced simply to avoid the very expensive
-> > tasklist scan.  Adding Christoph Lameter to the cc since he was involved
-> > back then.
+> >> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> >> head:   5e52cc028671694cd84e649e0a43c99a53b1fea1
+> >> commit: ebacb62aac74e6683be1031fed6bfd029732d155 [143/319] mm-thp-enable-thp-migration-in-generic-path-fix-fix-fix
+> >> config: arm-at91_dt_defconfig (attached as .config)
+> >> compiler: arm-linux-gnueabi-gcc (Debian 6.1.1-9) 6.1.1 20160705
+> >> reproduce:
+> >>         wget https://na01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fintel%2Flkp-tests%2Fmaster%2Fsbin%2Fmake.cross&data=02%7C01%7Czi.yan%40cs.rutgers.edu%7C6ac33fb5121b4518eb6308d4f5abf197%7Cb92d2b234d35447093ff69aca6632ffe%7C1%7C0%7C636403566227996732&sdata=eSBomrixcY9RpH%2BkKovnCQmHlpaOcWXaZ02J0cX%2FQlg%3D&reserved=0 -O ~/bin/make.cross
+> >>         chmod +x ~/bin/make.cross
+> >>         git checkout ebacb62aac74e6683be1031fed6bfd029732d155
+> >>         # save the attached .config to linux build tree
+> >>         make.cross ARCH=arm
+> >>
+> >> All errors (new ones prefixed by >>):
+> >>
+> >>    In file included from fs/proc/task_mmu.c:15:0:
+> >>    include/linux/swapops.h: In function 'swp_entry_to_pmd':
+> >>>> include/linux/swapops.h:224:16: error: empty scalar initializer
+> >>      return (pmd_t){};
+> >>                    ^
+> >>    include/linux/swapops.h:224:16: note: (near initialization for '(anonymous)')
+> >>
+> >> vim +224 include/linux/swapops.h
+> >>
+> >>    221	
+> >>    222	static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+> >>    223	{
+> >>> 224		return (pmd_t){};
+> >>    225	}
+> >>    226	
+> >
+> > Sigh, I tried.
+> >
+> > Zi Yan, we're going to need to find a fix for this.  Rapidly, please.
 > 
-> Really? From what I know and worked on way back when: The reason was to be
-> able to contain the affected application in a cpuset. Multiple apps may
-> have been running in multiple cpusets on a large NUMA machine and the OOM
-> condition in one cpuset should not affect the other. It also helped to
-> isolate the application behavior causing the oom in numerous cases.
 > 
-> Doesnt this requirement transfer to cgroups in the same way?
-
-We have per-node memory stats and plan to use them during the OOM victim
-selection. Hopefully it can help.
-
+> Hi Andrew,
 > 
-> Left SGI in 2008 so adding Dimitri who may know about the current
-> situation. Robin Holt also left SGI as far as I know.
+> Why cannot we use __pmd(0) instead? My sparc32 fix is in 4.13 now.
+> commit is 9157259d16a8ee8116a98d32f29b797689327e8d.
 
-Thanks!
+I didn't know that.  So we should be OK now.  Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
