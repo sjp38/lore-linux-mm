@@ -1,38 +1,40 @@
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/2] mm/slub: wake up kswapd for initial high order
- allocation
-Date: Wed, 6 Sep 2017 10:59:09 -0500 (CDT)
-Message-ID: <alpine.DEB.2.20.1709061056270.13344@nuc-kabylake>
-References: <1504672666-19682-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [v7 5/5] mm, oom: cgroup v2 mount option to disable cgroup-aware
+ OOM killer
+Date: Thu, 7 Sep 2017 09:43:30 -0500 (CDT)
+Message-ID: <alpine.DEB.2.20.1709070939340.19539@nuc-kabylake>
+References: <20170904142108.7165-1-guro@fb.com> <20170904142108.7165-6-guro@fb.com> <20170905134412.qdvqcfhvbdzmarna@dhcp22.suse.cz> <20170905143021.GA28599@castle.dhcp.TheFacebook.com> <20170905151251.luh4wogjd3msfqgf@dhcp22.suse.cz>
+ <20170905191609.GA19687@castle.dhcp.TheFacebook.com> <20170906084242.l4rcx6n3hdzxvil6@dhcp22.suse.cz> <20170906174043.GA12579@castle.DHCP.thefacebook.com> <alpine.DEB.2.10.1709061355001.70553@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <1504672666-19682-1-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <alpine.DEB.2.10.1709061355001.70553@chino.kir.corp.google.com>
 Sender: linux-kernel-owner@vger.kernel.org
-To: js1304@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Roman Gushchin <guro@fb.com>, nzimmer@sgi.com, holt@sgi.com, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sivanich@sgi.com
 List-Id: linux-mm.kvack.org
 
-On Wed, 6 Sep 2017, js1304@gmail.com wrote:
+On Wed, 6 Sep 2017, David Rientjes wrote:
 
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -1578,8 +1578,12 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
->  	 * so we fall-back to the minimum order allocation.
->  	 */
->  	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
-> -	if ((alloc_gfp & __GFP_DIRECT_RECLAIM) && oo_order(oo) > oo_order(s->min))
-> -		alloc_gfp = (alloc_gfp | __GFP_NOMEMALLOC) & ~(__GFP_RECLAIM|__GFP_NOFAIL);
-> +	if (oo_order(oo) > oo_order(s->min)) {
-> +		if (alloc_gfp & __GFP_DIRECT_RECLAIM) {
-> +			alloc_gfp |= __GFP_NOMEMALLOC;
-> +			alloc_gfp &= ~__GFP_DIRECT_RECLAIM;
-> +		}
-> +	}
+> > The oom_kill_allocating_task sysctl which causes the OOM killer
+> > to simple kill the allocating task is useless. Killing the random
+> > task is not the best idea.
+> >
+> > Nobody likes it, and hopefully nobody uses it.
+> > We want to completely deprecate it at some point.
+> >
 >
+> SGI required it when it was introduced simply to avoid the very expensive
+> tasklist scan.  Adding Christoph Lameter to the cc since he was involved
+> back then.
 
-Can we come up with another inline function in gfp.h for this as well?
+Really? From what I know and worked on way back when: The reason was to be
+able to contain the affected application in a cpuset. Multiple apps may
+have been running in multiple cpusets on a large NUMA machine and the OOM
+condition in one cpuset should not affect the other. It also helped to
+isolate the application behavior causing the oom in numerous cases.
 
-Well and needing these functions to manipulate flags actually indicates
-that we may need a cleanup of the GFP flags at some point. There is a buch
-of flags that disable things and some that enable things.
+Doesnt this requirement transfer to cgroups in the same way?
+
+Left SGI in 2008 so adding Dimitri who may know about the current
+situation. Robin Holt also left SGI as far as I know.
