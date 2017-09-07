@@ -1,64 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 65E9E2806D8
-	for <linux-mm@kvack.org>; Thu,  7 Sep 2017 00:50:22 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id g50so2964533wra.4
-        for <linux-mm@kvack.org>; Wed, 06 Sep 2017 21:50:22 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id y88si1386962wrb.448.2017.09.06.21.50.20
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DEE946B04C2
+	for <linux-mm@kvack.org>; Thu,  7 Sep 2017 04:46:45 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e199so17288169pfh.3
+        for <linux-mm@kvack.org>; Thu, 07 Sep 2017 01:46:45 -0700 (PDT)
+Received: from smtpbgsg2.qq.com (smtpbgsg2.qq.com. [54.254.200.128])
+        by mx.google.com with ESMTPS id j6si1622568plt.64.2017.09.07.01.46.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Sep 2017 21:50:20 -0700 (PDT)
-Date: Wed, 6 Sep 2017 21:50:17 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [mmotm:master 143/319] include/linux/swapops.h:224:16: error:
- empty scalar initializer
-Message-Id: <20170906215017.a95d6bc457a7c0327e6872c3@linux-foundation.org>
-In-Reply-To: <201709071117.XZRVgPlb%fengguang.wu@intel.com>
-References: <201709071117.XZRVgPlb%fengguang.wu@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 07 Sep 2017 01:46:44 -0700 (PDT)
+From: Huacai Chen <chenhc@lemote.com>
+Subject: [PATCH 1/2] mm: dmapool: Align to ARCH_DMA_MINALIGN in non-coherent DMA mode
+Date: Thu,  7 Sep 2017 16:47:51 +0800
+Message-Id: <1504774071-11581-1-git-send-email-chenhc@lemote.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Johannes Weiner <hannes@cmpxchg.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Fuxin Zhang <zhangfx@lemote.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huacai Chen <chenhc@lemote.com>, stable@vger.kernel.org
 
-On Thu, 7 Sep 2017 11:37:19 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+In non-coherent DMA mode, kernel uses cache flushing operations to
+maintain I/O coherency, so the dmapool objects should be aligned to
+ARCH_DMA_MINALIGN.
 
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   5e52cc028671694cd84e649e0a43c99a53b1fea1
-> commit: ebacb62aac74e6683be1031fed6bfd029732d155 [143/319] mm-thp-enable-thp-migration-in-generic-path-fix-fix-fix
-> config: arm-at91_dt_defconfig (attached as .config)
-> compiler: arm-linux-gnueabi-gcc (Debian 6.1.1-9) 6.1.1 20160705
-> reproduce:
->         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         git checkout ebacb62aac74e6683be1031fed6bfd029732d155
->         # save the attached .config to linux build tree
->         make.cross ARCH=arm 
-> 
-> All errors (new ones prefixed by >>):
-> 
->    In file included from fs/proc/task_mmu.c:15:0:
->    include/linux/swapops.h: In function 'swp_entry_to_pmd':
-> >> include/linux/swapops.h:224:16: error: empty scalar initializer
->      return (pmd_t){};
->                    ^
->    include/linux/swapops.h:224:16: note: (near initialization for '(anonymous)')
-> 
-> vim +224 include/linux/swapops.h
-> 
->    221	
->    222	static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
->    223	{
->  > 224		return (pmd_t){};
->    225	}
->    226	
+Cc: stable@vger.kernel.org
+Signed-off-by: Huacai Chen <chenhc@lemote.com>
+---
+ mm/dmapool.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
-Sigh, I tried.
+diff --git a/mm/dmapool.c b/mm/dmapool.c
+index 4d90a64..2ac6f4a 100644
+--- a/mm/dmapool.c
++++ b/mm/dmapool.c
+@@ -140,6 +140,9 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
+ 	else if (align & (align - 1))
+ 		return NULL;
+ 
++	if (!plat_device_is_coherent(dev))
++		align = max_t(size_t, align, dma_get_cache_alignment());
++
+ 	if (size == 0)
+ 		return NULL;
+ 	else if (size < 4)
+-- 
+2.7.0
 
-Zi Yan, we're going to need to find a fix for this.  Rapidly, please.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
