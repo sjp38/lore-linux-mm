@@ -1,51 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DEE946B04C2
-	for <linux-mm@kvack.org>; Thu,  7 Sep 2017 04:46:45 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e199so17288169pfh.3
-        for <linux-mm@kvack.org>; Thu, 07 Sep 2017 01:46:45 -0700 (PDT)
-Received: from smtpbgsg2.qq.com (smtpbgsg2.qq.com. [54.254.200.128])
-        by mx.google.com with ESMTPS id j6si1622568plt.64.2017.09.07.01.46.43
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Sep 2017 01:46:44 -0700 (PDT)
-From: Huacai Chen <chenhc@lemote.com>
-Subject: [PATCH 1/2] mm: dmapool: Align to ARCH_DMA_MINALIGN in non-coherent DMA mode
-Date: Thu,  7 Sep 2017 16:47:51 +0800
-Message-Id: <1504774071-11581-1-git-send-email-chenhc@lemote.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 96C632806D8
+	for <linux-mm@kvack.org>; Thu,  7 Sep 2017 06:37:39 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id s137so17703438pfs.4
+        for <linux-mm@kvack.org>; Thu, 07 Sep 2017 03:37:39 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g2si283598pfc.180.2017.09.07.03.37.37
+        for <linux-mm@kvack.org>;
+        Thu, 07 Sep 2017 03:37:38 -0700 (PDT)
+Date: Thu, 7 Sep 2017 11:36:16 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: "BUG: Bad rss-counter state" in v4.13 / arm64
+Message-ID: <20170907103616.GC1990@leverpostej>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Fuxin Zhang <zhangfx@lemote.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huacai Chen <chenhc@lemote.com>, stable@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, syzkaller@googlegroups.com
+Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Peter Zijlstra <peterz@infradead.org>
 
-In non-coherent DMA mode, kernel uses cache flushing operations to
-maintain I/O coherency, so the dmapool objects should be aligned to
-ARCH_DMA_MINALIGN.
+Hi,
 
-Cc: stable@vger.kernel.org
-Signed-off-by: Huacai Chen <chenhc@lemote.com>
----
- mm/dmapool.c | 3 +++
- 1 file changed, 3 insertions(+)
+I'm hitting splats like below when fuzzing v4.13 on arm64:
 
-diff --git a/mm/dmapool.c b/mm/dmapool.c
-index 4d90a64..2ac6f4a 100644
---- a/mm/dmapool.c
-+++ b/mm/dmapool.c
-@@ -140,6 +140,9 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
- 	else if (align & (align - 1))
- 		return NULL;
- 
-+	if (!plat_device_is_coherent(dev))
-+		align = max_t(size_t, align, dma_get_cache_alignment());
-+
- 	if (size == 0)
- 		return NULL;
- 	else if (size < 4)
--- 
-2.7.0
+BUG: Bad rss-counter state mm:ffff80002fa35f00 idx:1 val:1
+BUG: Bad rss-counter state mm:ffff80002fa35f00 idx:3 val:-1
 
+It looks like we're mis-accounting shared memory pages as anonymous
+pages somewhere, or vice-versa.
 
+Syzkaller came up with the two reproducers, which trigger the issue
+intermittently:
+
+Reproducer 1
+----
+# {Threaded:false Collide:false Repeat:true Procs:2 Sandbox:setuid Fault:false FaultCall:-1 FaultNth:0 EnableTun:true UseTmpDir:true HandleSegv:true WaitRepeat:true Debug:false Repro:false}
+mmap(&(0x7f0000000000/0x5b2000)=nil, 0x5b2000, 0x3, 0x32, 0xffffffffffffffff, 0x0)
+perf_event_open(&(0x7f000000b000-0x78)={0x1, 0x78, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0x7ffffffe, 0x3, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x101, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, 0x0, 0xffffffffffffffff, 0xffffffffffffffff, 0x0)
+clone(0x0, &(0x7f0000d18000-0x2)="", &(0x7f00006b5000-0x4)=0x0, &(0x7f00002c2000-0x4)=0x0, &(0x7f0000415000)="")
+move_pages(0x0, 0x1, &(0x7f00002f8000-0x38)=[&(0x7f00000b9000/0x2000)=nil], 0x0, &(0x7f00002f6000-0x4)=[], 0x0)
+shmat(0x0, &(0x7f000000a000/0x4000)=nil, 0x5ffe)
+pivot_root(&(0x7f00003f7000-0x8)="2e2f66696c653000", &(0x7f00005b1000)="2e2f66696c653000")
+ioctl$DRM_IOCTL_PRIME_HANDLE_TO_FD(0xffffffffffffffff, 0xc00c642d, &(0x7f00002eb000)={0x0, 0x80000, 0xffffffffffffff9c})
+----
+
+Reproducer 2
+----
+# {Threaded:true Collide:false Repeat:true Procs:2 Sandbox:none Fault:false FaultCall:-1 FaultNth:0 EnableTun:true UseTmpDir:true HandleSegv:true WaitRepeat:true Debug:false Repro:false}
+mmap(&(0x7f0000000000/0x592000)=nil, 0x592000, 0x3, 0x32, 0xffffffffffffffff, 0x0)
+ioctl$VT_DISALLOCATE(0xffffffffffffffff, 0x5608)
+io_setup(0x80, &(0x7f00002ea000-0x8)=0x0)
+shmat(0x0, &(0x7f0000193000/0x3000)=nil, 0x6000)
+rt_sigtimedwait(&(0x7f00002fa000)={0xae}, 0x0, &(0x7f0000045000-0x10)={0x0, 0x989680}, 0x8)
+clone(0x0, &(0x7f0000d18000-0x2)="", &(0x7f00006b5000-0x4)=0x0, &(0x7f00002c2000-0x4)=0x0, &(0x7f0000415000)="")
+move_pages(0x0, 0x1, &(0x7f00002f8000-0x38)=[&(0x7f00000b9000/0x2000)=nil], 0x0, &(0x7f00002f6000-0x4)=[], 0x0)
+openat$ptmx(0xffffffffffffff9c, &(0x7f000000d000)="2f6465762f70746d7800", 0x0, 0x0)
+syz_extract_tcp_res$synack(&(0x7f0000591000-0x8)={0x0, 0x0}, 0x1, 0x0)
+syz_open_dev$vcsn(&(0x7f0000591000)="2f6465762f7663732300", 0x2, 0x0)
+----
+
+I haven't yet had the time to investigate this or run a bisect.
+
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
