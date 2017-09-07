@@ -1,120 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D4DA6B02ED
-	for <linux-mm@kvack.org>; Thu,  7 Sep 2017 13:27:34 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id d70so401246qkc.3
-        for <linux-mm@kvack.org>; Thu, 07 Sep 2017 10:27:34 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 33si217476qty.157.2017.09.07.10.27.33
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F090F6B02F1
+	for <linux-mm@kvack.org>; Thu,  7 Sep 2017 13:37:03 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id d6so254673itc.6
+        for <linux-mm@kvack.org>; Thu, 07 Sep 2017 10:37:03 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id b130sor100380ioe.48.2017.09.07.10.37.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Sep 2017 10:27:33 -0700 (PDT)
-Date: Thu, 7 Sep 2017 13:27:31 -0400 (EDT)
-From: Jerome Glisse <jglisse@redhat.com>
-Message-ID: <1726639990.10465990.1504805251676.JavaMail.zimbra@redhat.com>
-In-Reply-To: <4f4a2196-228d-5d54-5386-72c3ffb1481b@huawei.com>
-References: <20170817000548.32038-1-jglisse@redhat.com> <20170904155123.GA3161@redhat.com> <7026dfda-9fd0-2661-5efc-66063dfdf6bc@huawei.com> <20170905023826.GA4836@redhat.com> <20170905185414.GB24073@linux.intel.com> <0bc5047d-d27c-65b6-acab-921263e715c8@huawei.com> <20170906021216.GA23436@redhat.com> <4f4a2196-228d-5d54-5386-72c3ffb1481b@huawei.com>
-Subject: Re: [HMM-v25 19/19] mm/hmm: add new helper to hotplug CDM memory
- region v3
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Thu, 07 Sep 2017 10:37:02 -0700 (PDT)
+From: Tycho Andersen <tycho@docker.com>
+Subject: [PATCH v6 00/11] Add support for eXclusive Page Frame Ownership
+Date: Thu,  7 Sep 2017 11:35:58 -0600
+Message-Id: <20170907173609.22696-1-tycho@docker.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <liubo95@huawei.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, majiuyue <majiuyue@huawei.com>, "xieyisheng (A)" <xieyisheng1@huawei.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Tycho Andersen <tycho@docker.com>
 
-> On 2017/9/6 10:12, Jerome Glisse wrote:
-> > On Wed, Sep 06, 2017 at 09:25:36AM +0800, Bob Liu wrote:
-> >> On 2017/9/6 2:54, Ross Zwisler wrote:
-> >>> On Mon, Sep 04, 2017 at 10:38:27PM -0400, Jerome Glisse wrote:
-> >>>> On Tue, Sep 05, 2017 at 09:13:24AM +0800, Bob Liu wrote:
-> >>>>> On 2017/9/4 23:51, Jerome Glisse wrote:
-> >>>>>> On Mon, Sep 04, 2017 at 11:09:14AM +0800, Bob Liu wrote:
-> >>>>>>> On 2017/8/17 8:05, J=C3=A9r=C3=B4me Glisse wrote:
+Hi all,
 
-[...]
+Here is v6 of the XPFO set; see v5 discussion here:
+https://lkml.org/lkml/2017/8/9/803
 
-> > For HMM each process give hint (somewhat similar to mbind) for range of
-> > virtual address to the device kernel driver (through some API like Open=
-CL
-> > or CUDA for GPU for instance). All this being device driver specific io=
-ctl.
-> >=20
-> > The kernel device driver have an overall view of all the process that u=
-se
-> > the device and each of the memory advise they gave. From that informati=
-ons
-> > the kernel device driver decide what part of each process address space=
- to
-> > migrate to device memory.
->=20
-> Oh, I mean CDM-HMM.  I'm fine with HMM.
+Changelogs are in the individual patch notes, but the highlights are:
+* add primitives for ensuring memory areas are mapped (although these are quite
+  ugly, using stack allocation; I'm open to better suggestions)
+* instead of not flushing caches, re-map pages using the above
+* TLB flushing is much more correct (i.e. we're always flushing everything
+  everywhere). I suspect we may be able to back this off in some cases, but I'm
+  still trying to collect performance numbers to prove this is worth doing.
 
-They are one and the same really. In both cases HMM is just a set of helper=
-s
-for device driver.
+I have no TODOs left for this set myself, other than fixing whatever review
+feedback people have. Thoughts and testing welcome!
 
-> > This obviously dynamic and likely to change over the process lifetime.
-> >=20
-> > My understanding is that HMAT want similar API to allow process to give
-> > direction on
-> > where each range of virtual address should be allocated. It is expected
-> > that most
->=20
-> Right, but not clear who should manage the physical memory allocation and
-> setup the pagetable mapping. An new driver or the kernel?
+Cheers,
 
-Physical device memory is manage by the kernel device driver as it is today
-and has it will be tomorrow. HMM does not change that, nor does it requires
-any change to that.
+Tycho
 
-Migrating process memory to or from device is done by the kernel through
-the regular page migration. HMM provides new helper for device driver to
-initiate such migration. There is no mechanisms like auto numa migration
-for the reasons i explain previously.
+Juerg Haefliger (6):
+  mm, x86: Add support for eXclusive Page Frame Ownership (XPFO)
+  swiotlb: Map the buffer if it was unmapped by XPFO
+  arm64/mm: Add support for XPFO
+  arm64/mm, xpfo: temporarily map dcache regions
+  arm64/mm: Add support for XPFO to swiotlb
+  lkdtm: Add test for XPFO
 
-Kernel device driver use all knowledge it has to decide what to migrate to
-device memory. Nothing new here either, it is what happens today for specia=
-l
-allocated device object and it will just happen all the same for regular
-mmap memory (private anonymous or mmap of a regular file of a filesystem).
+Tycho Andersen (5):
+  mm: add MAP_HUGETLB support to vm_mmap
+  x86: always set IF before oopsing from page fault
+  xpfo: add primitives for mapping underlying memory
+  arm64/mm: disable section/contiguous mappings if XPFO is enabled
+  mm: add a user_virt_to_phys symbol
 
+ Documentation/admin-guide/kernel-parameters.txt |   2 +
+ arch/arm64/Kconfig                              |   1 +
+ arch/arm64/include/asm/cacheflush.h             |  11 +
+ arch/arm64/mm/Makefile                          |   2 +
+ arch/arm64/mm/dma-mapping.c                     |  32 +--
+ arch/arm64/mm/flush.c                           |   7 +
+ arch/arm64/mm/mmu.c                             |   2 +-
+ arch/arm64/mm/xpfo.c                            | 127 +++++++++++
+ arch/x86/Kconfig                                |   1 +
+ arch/x86/include/asm/pgtable.h                  |  25 +++
+ arch/x86/mm/Makefile                            |   1 +
+ arch/x86/mm/fault.c                             |   6 +
+ arch/x86/mm/pageattr.c                          |  22 +-
+ arch/x86/mm/xpfo.c                              | 171 +++++++++++++++
+ drivers/misc/Makefile                           |   1 +
+ drivers/misc/lkdtm.h                            |   5 +
+ drivers/misc/lkdtm_core.c                       |   3 +
+ drivers/misc/lkdtm_xpfo.c                       | 194 +++++++++++++++++
+ include/linux/highmem.h                         |  15 +-
+ include/linux/mm.h                              |   2 +
+ include/linux/xpfo.h                            |  79 +++++++
+ lib/swiotlb.c                                   |   3 +-
+ mm/Makefile                                     |   1 +
+ mm/mmap.c                                       |  19 +-
+ mm/page_alloc.c                                 |   2 +
+ mm/page_ext.c                                   |   4 +
+ mm/util.c                                       |  32 +++
+ mm/xpfo.c                                       | 273 ++++++++++++++++++++++++
+ security/Kconfig                                |  19 ++
+ 29 files changed, 1005 insertions(+), 57 deletions(-)
+ create mode 100644 arch/arm64/mm/xpfo.c
+ create mode 100644 arch/x86/mm/xpfo.c
+ create mode 100644 drivers/misc/lkdtm_xpfo.c
+ create mode 100644 include/linux/xpfo.h
+ create mode 100644 mm/xpfo.c
 
-So every low level thing happen in the kernel. Userspace only provides
-directive to the kernel device driver through device specific API. But the
-kernel device driver can ignore or override those directive.
-
-
-> > software can easily infer what part of its address will need more
-> > bandwidth, smaller
-> > latency versus what part is sparsely accessed ...
-> >=20
-> > For HMAT i think first target is HBM and persistent memory and device
-> > memory might
-> > be added latter if that make sense.
-> >=20
->=20
-> Okay, so there are two potential ways for CPU-addressable cache-coherent
-> device memory
-> (or cpu-less numa memory or "target domain" memory in ACPI spec )?
-> 1. CDM-HMM
-> 2. HMAT
-
-No this are 2 orthogonal thing, they do not conflict with each others quite
-the contrary. HMM (the CDM part is no different) is a set of helpers, see
-it as a toolbox, for device driver.
-
-HMAT is a way for firmware to report memory resources with more information=
-s
-that just range of physical address. HMAT is specific to platform that rely
-on ACPI. HMAT does not provide any helpers to manage these memory.
-
-So a device driver can get informations about device memory from HMAT and t=
-hen
-use HMM to help in managing and using this memory.
-
-J=C3=A9r=C3=B4me
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
