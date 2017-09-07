@@ -1,32 +1,38 @@
-From: Christopher Lameter <cl-vYTEC60ixJUAvxtiuMwx3w@public.gmane.org>
+From: Christopher Lameter <cl@linux.com>
 Subject: Re: [v7 5/5] mm, oom: cgroup v2 mount option to disable cgroup-aware
  OOM killer
-Date: Thu, 7 Sep 2017 11:21:22 -0500 (CDT)
-Message-ID: <alpine.DEB.2.20.1709071120020.20082@nuc-kabylake>
-References: <20170904142108.7165-1-guro@fb.com> <20170904142108.7165-6-guro@fb.com> <20170905134412.qdvqcfhvbdzmarna@dhcp22.suse.cz> <20170905143021.GA28599@castle.dhcp.TheFacebook.com> <20170905151251.luh4wogjd3msfqgf@dhcp22.suse.cz>
+Date: Thu, 7 Sep 2017 11:27:30 -0500 (CDT)
+Message-ID: <alpine.DEB.2.20.1709071122360.20082@nuc-kabylake>
+References: <20170904142108.7165-1-guro@fb.com> <20170904142108.7165-6-guro@fb.com> <20170905134412.qdvqcfhvbdzmarna@dhcp22.suse.cz> <20170905215344.GA27427@cmpxchg.org> <20170906082859.qlqenftxuib64j35@dhcp22.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Return-path: <cgroups-owner-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>
-In-Reply-To: <20170905151251.luh4wogjd3msfqgf-2MMpYkNvuYDjFM9bn6wA6Q@public.gmane.org>
-Sender: cgroups-owner-u79uwXL29TY76Z2rM5mHXA@public.gmane.org
-To: Michal Hocko <mhocko-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org>
-Cc: Roman Gushchin <guro-b10kYP2dOMg@public.gmane.org>, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, Vladimir Davydov <vdavydov.dev-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org>, Johannes Weiner <hannes-druUgvl0LCNAfugRpC6u6w@public.gmane.org>, Tetsuo Handa <penguin-kernel-JPay3/Yim36HaxMnTkn67Xf5DAMn2ifp@public.gmane.org>, David Rientjes <rientjes-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, Andrew Morton <akpm-de/tnXTf+JLsfHDXvbKv3WD2FQJk+8+b@public.gmane.org>, Tejun Heo <tj-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org>, kernel-team-b10kYP2dOMg@public.gmane.org, cgroups-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-doc-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org
+Return-path: <linux-kernel-owner@vger.kernel.org>
+In-Reply-To: <20170906082859.qlqenftxuib64j35@dhcp22.suse.cz>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 List-Id: linux-mm.kvack.org
 
-On Tue, 5 Sep 2017, Michal Hocko wrote:
+On Wed, 6 Sep 2017, Michal Hocko wrote:
 
-> I would argue that we should simply deprecate and later drop the sysctl.
-> I _strongly_ suspect anybody is using this. If yes it is not that hard
-> to change the kernel command like rather than select the sysctl. The
-> deprecation process would be
-> 	- warn when somebody writes to the sysctl and check both boot
-> 	  and sysctl values
-> 	[ wait some time ]
-> 	- keep the sysctl but return EINVAL
-> 	[ wait some time ]
-> 	- remove the sysctl
+> I am not sure this is how things evolved actually. This is way before
+> my time so my git log interpretation might be imprecise. We do have
+> oom_badness heuristic since out_of_memory has been introduced and
+> oom_kill_allocating_task has been introduced much later because of large
+> boxes with zillions of tasks (SGI I suspect) which took too long to
+> select a victim so David has added this heuristic.
 
-Note that the behavior that would be enabled by the sysctl is the default
-behavior for the case of a constrained allocation. If a process does an
-mbind to numa node 3 and it runs out of memory then that process should be
-killed and the rest is fine.
+Nope. The logic was required for tasks that run out of memory when the
+restriction on the allocation did not allow the use of all of memory.
+cpuset restrictions and memory policy restrictions where the prime
+considerations at the time.
+
+It has *nothing* to do with zillions of tasks. Its amusing that the SGI
+ghost is still haunting the discussion here. The company died a couple of
+years ago finally (ok somehow HP has an "SGI" brand now I believe). But
+there are multiple companies that have large NUMA configurations and they
+all have configurations where they want to restrict allocations of a
+process to subset of system memory. This is even more important now that
+we get new forms of memory (NVDIMM, PCI-E device memory etc). You need to
+figure out what to do with allocations that fail because the *allowed*
+memory pools are empty.
