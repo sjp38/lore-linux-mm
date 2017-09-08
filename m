@@ -1,133 +1,252 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F3F1A6B0325
-	for <linux-mm@kvack.org>; Thu,  7 Sep 2017 22:02:41 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id r20so1919739oie.0
-        for <linux-mm@kvack.org>; Thu, 07 Sep 2017 19:02:41 -0700 (PDT)
-Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id 124si482617oig.274.2017.09.07.19.02.38
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C890C6B0327
+	for <linux-mm@kvack.org>; Thu,  7 Sep 2017 23:37:08 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id b82so1909721qkc.2
+        for <linux-mm@kvack.org>; Thu, 07 Sep 2017 20:37:08 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l27si1130757qta.36.2017.09.07.20.37.07
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Sep 2017 19:02:40 -0700 (PDT)
-Subject: Re: [HMM-v25 19/19] mm/hmm: add new helper to hotplug CDM memory
- region v3
-References: <20170817000548.32038-1-jglisse@redhat.com>
- <20170904155123.GA3161@redhat.com>
- <7026dfda-9fd0-2661-5efc-66063dfdf6bc@huawei.com>
- <20170905023826.GA4836@redhat.com> <20170905185414.GB24073@linux.intel.com>
- <0bc5047d-d27c-65b6-acab-921263e715c8@huawei.com>
- <20170906021216.GA23436@redhat.com>
- <4f4a2196-228d-5d54-5386-72c3ffb1481b@huawei.com>
- <1726639990.10465990.1504805251676.JavaMail.zimbra@redhat.com>
-From: Bob Liu <liubo95@huawei.com>
-Message-ID: <863afc77-ed84-fed5-ebb8-d88e636816a3@huawei.com>
-Date: Fri, 8 Sep 2017 09:59:15 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Sep 2017 20:37:07 -0700 (PDT)
+Date: Fri, 8 Sep 2017 06:36:46 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v15 3/5] virtio-balloon: VIRTIO_BALLOON_F_SG
+Message-ID: <20170908062748-mutt-send-email-mst@kernel.org>
+References: <1503914913-28893-1-git-send-email-wei.w.wang@intel.com>
+ <1503914913-28893-4-git-send-email-wei.w.wang@intel.com>
+ <20170828204659-mutt-send-email-mst@kernel.org>
+ <59A4DADE.5050303@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1726639990.10465990.1504805251676.JavaMail.zimbra@redhat.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <59A4DADE.5050303@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, majiuyue <majiuyue@huawei.com>, "xieyisheng (A)" <xieyisheng1@huawei.com>
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On 2017/9/8 1:27, Jerome Glisse wrote:
->> On 2017/9/6 10:12, Jerome Glisse wrote:
->>> On Wed, Sep 06, 2017 at 09:25:36AM +0800, Bob Liu wrote:
->>>> On 2017/9/6 2:54, Ross Zwisler wrote:
->>>>> On Mon, Sep 04, 2017 at 10:38:27PM -0400, Jerome Glisse wrote:
->>>>>> On Tue, Sep 05, 2017 at 09:13:24AM +0800, Bob Liu wrote:
->>>>>>> On 2017/9/4 23:51, Jerome Glisse wrote:
->>>>>>>> On Mon, Sep 04, 2017 at 11:09:14AM +0800, Bob Liu wrote:
->>>>>>>>> On 2017/8/17 8:05, JA(C)rA'me Glisse wrote:
+On Tue, Aug 29, 2017 at 11:09:18AM +0800, Wei Wang wrote:
+> On 08/29/2017 02:03 AM, Michael S. Tsirkin wrote:
+> > On Mon, Aug 28, 2017 at 06:08:31PM +0800, Wei Wang wrote:
+> > > Add a new feature, VIRTIO_BALLOON_F_SG, which enables the transfer
+> > > of balloon (i.e. inflated/deflated) pages using scatter-gather lists
+> > > to the host.
+> > > 
+> > > The implementation of the previous virtio-balloon is not very
+> > > efficient, because the balloon pages are transferred to the
+> > > host one by one. Here is the breakdown of the time in percentage
+> > > spent on each step of the balloon inflating process (inflating
+> > > 7GB of an 8GB idle guest).
+> > > 
+> > > 1) allocating pages (6.5%)
+> > > 2) sending PFNs to host (68.3%)
+> > > 3) address translation (6.1%)
+> > > 4) madvise (19%)
+> > > 
+> > > It takes about 4126ms for the inflating process to complete.
+> > > The above profiling shows that the bottlenecks are stage 2)
+> > > and stage 4).
+> > > 
+> > > This patch optimizes step 2) by transferring pages to the host in
+> > > sgs. An sg describes a chunk of guest physically continuous pages.
+> > > With this mechanism, step 4) can also be optimized by doing address
+> > > translation and madvise() in chunks rather than page by page.
+> > > 
+> > > With this new feature, the above ballooning process takes ~597ms
+> > > resulting in an improvement of ~86%.
+> > > 
+> > > TODO: optimize stage 1) by allocating/freeing a chunk of pages
+> > > instead of a single page each time.
+> > > 
+> > > Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+> > > Signed-off-by: Liang Li <liang.z.li@intel.com>
+> > > Suggested-by: Michael S. Tsirkin <mst@redhat.com>
+> > > ---
+> > >   drivers/virtio/virtio_balloon.c     | 171 ++++++++++++++++++++++++++++++++----
+> > >   include/uapi/linux/virtio_balloon.h |   1 +
+> > >   2 files changed, 155 insertions(+), 17 deletions(-)
+> > > 
+> > > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> > > index f0b3a0b..8ecc1d4 100644
+> > > --- a/drivers/virtio/virtio_balloon.c
+> > > +++ b/drivers/virtio/virtio_balloon.c
+> > > @@ -32,6 +32,8 @@
+> > >   #include <linux/mm.h>
+> > >   #include <linux/mount.h>
+> > >   #include <linux/magic.h>
+> > > +#include <linux/xbitmap.h>
+> > > +#include <asm/page.h>
+> > >   /*
+> > >    * Balloon device works in 4K page units.  So each page is pointed to by
+> > > @@ -79,6 +81,9 @@ struct virtio_balloon {
+> > >   	/* Synchronize access/update to this struct virtio_balloon elements */
+> > >   	struct mutex balloon_lock;
+> > > +	/* The xbitmap used to record balloon pages */
+> > > +	struct xb page_xb;
+> > > +
+> > >   	/* The array of pfns we tell the Host about. */
+> > >   	unsigned int num_pfns;
+> > >   	__virtio32 pfns[VIRTIO_BALLOON_ARRAY_PFNS_MAX];
+> > > @@ -141,13 +146,111 @@ static void set_page_pfns(struct virtio_balloon *vb,
+> > >   					  page_to_balloon_pfn(page) + i);
+> > >   }
+> > > +static int add_one_sg(struct virtqueue *vq, void *addr, uint32_t size)
+> > > +{
+> > > +	struct scatterlist sg;
+> > > +
+> > > +	sg_init_one(&sg, addr, size);
+> > > +	return virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
+> > > +}
+> > > +
+> > > +static void send_balloon_page_sg(struct virtio_balloon *vb,
+> > > +				 struct virtqueue *vq,
+> > > +				 void *addr,
+> > > +				 uint32_t size,
+> > > +				 bool batch)
+> > > +{
+> > > +	unsigned int len;
+> > > +	int err;
+> > > +
+> > > +	err = add_one_sg(vq, addr, size);
+> > > +	/* Sanity check: this can't really happen */
+> > > +	WARN_ON(err);
+> > It might be cleaner to detect that add failed due to
+> > ring full and kick then. Just an idea, up to you
+> > whether to do it.
+> > 
+> > > +
+> > > +	/* If batching is in use, we batch the sgs till the vq is full. */
+> > > +	if (!batch || !vq->num_free) {
+> > > +		virtqueue_kick(vq);
+> > > +		wait_event(vb->acked, virtqueue_get_buf(vq, &len));
+> > > +		/* Release all the entries if there are */
+> > Meaning
+> > 	Account for all used entries if any
+> > ?
+> > 
+> > > +		while (virtqueue_get_buf(vq, &len))
+> > > +			;
+> > 
+> > Above code is reused below. Add a function?
+> > 
+> > > +	}
+> > > +}
+> > > +
+> > > +/*
+> > > + * Send balloon pages in sgs to host. The balloon pages are recorded in the
+> > > + * page xbitmap. Each bit in the bitmap corresponds to a page of PAGE_SIZE.
+> > > + * The page xbitmap is searched for continuous "1" bits, which correspond
+> > > + * to continuous pages, to chunk into sgs.
+> > > + *
+> > > + * @page_xb_start and @page_xb_end form the range of bits in the xbitmap that
+> > > + * need to be searched.
+> > > + */
+> > > +static void tell_host_sgs(struct virtio_balloon *vb,
+> > > +			  struct virtqueue *vq,
+> > > +			  unsigned long page_xb_start,
+> > > +			  unsigned long page_xb_end)
+> > > +{
+> > > +	unsigned long sg_pfn_start, sg_pfn_end;
+> > > +	void *sg_addr;
+> > > +	uint32_t sg_len, sg_max_len = round_down(UINT_MAX, PAGE_SIZE);
+> > > +
+> > > +	sg_pfn_start = page_xb_start;
+> > > +	while (sg_pfn_start < page_xb_end) {
+> > > +		sg_pfn_start = xb_find_next_bit(&vb->page_xb, sg_pfn_start,
+> > > +						page_xb_end, 1);
+> > > +		if (sg_pfn_start == page_xb_end + 1)
+> > > +			break;
+> > > +		sg_pfn_end = xb_find_next_bit(&vb->page_xb, sg_pfn_start + 1,
+> > > +					      page_xb_end, 0);
+> > > +		sg_addr = (void *)pfn_to_kaddr(sg_pfn_start);
+> > > +		sg_len = (sg_pfn_end - sg_pfn_start) << PAGE_SHIFT;
+> > > +		while (sg_len > sg_max_len) {
+> > > +			send_balloon_page_sg(vb, vq, sg_addr, sg_max_len, 1);
+> > Last argument should be true, not 1.
+> > 
+> > > +			sg_addr += sg_max_len;
+> > > +			sg_len -= sg_max_len;
+> > > +		}
+> > > +		send_balloon_page_sg(vb, vq, sg_addr, sg_len, 1);
+> > > +		xb_zero(&vb->page_xb, sg_pfn_start, sg_pfn_end);
+> > > +		sg_pfn_start = sg_pfn_end + 1;
+> > > +	}
+> > > +
+> > > +	/*
+> > > +	 * The last few sgs may not reach the batch size, but need a kick to
+> > > +	 * notify the device to handle them.
+> > > +	 */
+> > > +	if (vq->num_free != virtqueue_get_vring_size(vq)) {
+> > > +		virtqueue_kick(vq);
+> > > +		wait_event(vb->acked, virtqueue_get_buf(vq, &sg_len));
+> > > +		while (virtqueue_get_buf(vq, &sg_len))
+> > > +			;
+> > Some entries can get used after a pause. Looks like they will leak then?
+> > One fix would be to convert above if to a while loop.
+> > I don't know whether to do it like this in send_balloon_page_sg too.
+> > 
 > 
-> [...]
+> Thanks for the above comments. I've re-written this part of code.
+> Please have a check below if there is anything more we could improve:
 > 
->>> For HMM each process give hint (somewhat similar to mbind) for range of
->>> virtual address to the device kernel driver (through some API like OpenCL
->>> or CUDA for GPU for instance). All this being device driver specific ioctl.
->>>
->>> The kernel device driver have an overall view of all the process that use
->>> the device and each of the memory advise they gave. From that informations
->>> the kernel device driver decide what part of each process address space to
->>> migrate to device memory.
->>
->> Oh, I mean CDM-HMM.  I'm fine with HMM.
+> static void kick_and_wait(struct virtqueue *vq, wait_queue_head_t wq_head)
+> {
+>         unsigned int len;
 > 
-> They are one and the same really. In both cases HMM is just a set of helpers
-> for device driver.
-> 
->>> This obviously dynamic and likely to change over the process lifetime.
->>>
->>> My understanding is that HMAT want similar API to allow process to give
->>> direction on
->>> where each range of virtual address should be allocated. It is expected
->>> that most
->>
->> Right, but not clear who should manage the physical memory allocation and
->> setup the pagetable mapping. An new driver or the kernel?
-> 
-> Physical device memory is manage by the kernel device driver as it is today
-> and has it will be tomorrow. HMM does not change that, nor does it requires
-> any change to that.
-> 
+>         virtqueue_kick(vq);
+>         wait_event(wq_head, virtqueue_get_buf(vq, &len));
+>         /* Detach all the used buffers from the vq */
+>         while (virtqueue_get_buf(vq, &len))
+>                 ;
 
-Can someone from Intel give more information about the plan of managing HMAT reported memory?
+I would move this last part to before add_buf. Increases chances
+it succeeds even in case of a bug.
 
-> Migrating process memory to or from device is done by the kernel through
-> the regular page migration. HMM provides new helper for device driver to
-> initiate such migration. There is no mechanisms like auto numa migration
-> for the reasons i explain previously.
+> }
 > 
-> Kernel device driver use all knowledge it has to decide what to migrate to
-> device memory. Nothing new here either, it is what happens today for special
-> allocated device object and it will just happen all the same for regular
-> mmap memory (private anonymous or mmap of a regular file of a filesystem).
+> static int add_one_sg(struct virtqueue *vq, void *addr, uint32_t size)
+> {
+>         struct scatterlist sg;
+>         int ret;
 > 
-> 
-> So every low level thing happen in the kernel. Userspace only provides
-> directive to the kernel device driver through device specific API. But the
-> kernel device driver can ignore or override those directive.
-> 
-> 
->>> software can easily infer what part of its address will need more
->>> bandwidth, smaller
->>> latency versus what part is sparsely accessed ...
->>>
->>> For HMAT i think first target is HBM and persistent memory and device
->>> memory might
->>> be added latter if that make sense.
->>>
->>
->> Okay, so there are two potential ways for CPU-addressable cache-coherent
->> device memory
->> (or cpu-less numa memory or "target domain" memory in ACPI spec )?
->> 1. CDM-HMM
->> 2. HMAT
-> 
-> No this are 2 orthogonal thing, they do not conflict with each others quite
-> the contrary. HMM (the CDM part is no different) is a set of helpers, see
-> it as a toolbox, for device driver.
-> 
-> HMAT is a way for firmware to report memory resources with more informations
-> that just range of physical address. HMAT is specific to platform that rely
-> on ACPI. HMAT does not provide any helpers to manage these memory.
-> 
-> So a device driver can get informations about device memory from HMAT and then
-> use HMM to help in managing and using this memory.
-> 
+>         sg_init_one(&sg, addr, size);
+>         ret = virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
+>         if (unlikely(ret == -ENOSPC))
+>                 dev_warn(&vq->vdev->dev, "%s: failed due to ring full\n",
+>                                  __func__);
 
-Yes, but as Balbir mentioned requires :
-1. Don't online the memory as a NUMA node
-2. Use the HMM-CDM API's to map the memory to ZONE DEVICE via the driver
+So if this ever triggers then kick and wait might fail, right?
+I think you should not special-case this one then.
 
-And I'm not sure whether Intel going to use this HMM-CDM based method for their "target domain" memory ? 
-Or they prefer to NUMA approach?   Rossi 1/4 ? Dan?
+> 
+>         return ret;
+> }
+> 
+> static void send_balloon_page_sg(struct virtio_balloon *vb,
+>                                                       struct virtqueue *vq,
+>                                                       void *addr,
+>                                                       uint32_t size,
+>                                                       bool batch)
+> {
+>         int err;
+> 
+>         do {
+>                 err = add_one_sg(vq, addr, size);
+>                 if (err == -ENOSPC || !batch || !vq->num_free)
+>                         kick_and_wait(vq, vb->acked);
+>         } while (err == -ENOSPC);
+> }
+> 
+> 
+> Best,
+> Wei
 
---
-Thanks,
-Bob Liu
+I think this fixes the bug, yes. I would skip trying to handle ENOSPC,
+it's more a less a bug if it triggers. Just bail out on any error.
 
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
