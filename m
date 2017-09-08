@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D63E46B0342
-	for <linux-mm@kvack.org>; Fri,  8 Sep 2017 13:26:09 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id b9so3032367wra.3
-        for <linux-mm@kvack.org>; Fri, 08 Sep 2017 10:26:09 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B1176B0347
+	for <linux-mm@kvack.org>; Fri,  8 Sep 2017 13:27:31 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id k20so3022842wre.6
+        for <linux-mm@kvack.org>; Fri, 08 Sep 2017 10:27:31 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i71si1920002wme.59.2017.09.08.10.26.08
+        by mx.google.com with ESMTPS id n9si1811113wre.227.2017.09.08.10.27.29
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 08 Sep 2017 10:26:08 -0700 (PDT)
-Subject: Re: [PATCH 1/2] mm, memory_hotplug: do not fail offlining too early
+        Fri, 08 Sep 2017 10:27:29 -0700 (PDT)
+Subject: Re: [PATCH 2/2] mm, memory_hotplug: remove timeout from
+ __offline_memory
 References: <20170904082148.23131-1-mhocko@kernel.org>
- <20170904082148.23131-2-mhocko@kernel.org>
+ <20170904082148.23131-3-mhocko@kernel.org>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <eb5bf356-f498-b430-1ae8-4ff1ad15ad7f@suse.cz>
-Date: Fri, 8 Sep 2017 19:26:06 +0200
+Message-ID: <d88f141b-f782-4352-f2b0-00639352097e@suse.cz>
+Date: Fri, 8 Sep 2017 19:27:28 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170904082148.23131-2-mhocko@kernel.org>
+In-Reply-To: <20170904082148.23131-3-mhocko@kernel.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -28,130 +29,71 @@ Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.
 On 09/04/2017 10:21 AM, Michal Hocko wrote:
 > From: Michal Hocko <mhocko@suse.com>
 > 
-> Memory offlining can fail just too eagerly under a heavy memory pressure.
+> We have a hardcoded 120s timeout after which the memory offline fails
+> basically since the hot remove has been introduced. This is essentially
+> a policy implemented in the kernel. Moreover there is no way to adjust
+> the timeout and so we are sometimes facing memory offline failures if
+> the system is under a heavy memory pressure or very intensive CPU
+> workload on large machines.
 > 
-> [ 5410.336792] page:ffffea22a646bd00 count:255 mapcount:252 mapping:ffff88ff926c9f38 index:0x3
-> [ 5410.336809] flags: 0x9855fe40010048(uptodate|active|mappedtodisk)
-> [ 5410.336811] page dumped because: isolation failed
-> [ 5410.336813] page->mem_cgroup:ffff8801cd662000
-> [ 5420.655030] memory offlining [mem 0x18b580000000-0x18b5ffffffff] failed
+> It is not very clear what purpose the timeout actually serves. The
+> offline operation is interruptible by a signal so if userspace wants
+> some timeout based termination this can be done trivially by sending a
+> signal.
 > 
-> Isolation has failed here because the page is not on LRU. Most probably
-> because it was on the pcp LRU cache or it has been removed from the LRU
-> already but it hasn't been freed yet. In both cases the page doesn't look
-> non-migrable so retrying more makes sense.
-> 
-> __offline_pages seems rather cluttered when it comes to the retry
-> logic. We have 5 retries at maximum and a timeout. We could argue
-> whether the timeout makes sense but failing just because of a race when
-> somebody isoltes a page from LRU or puts it on a pcp LRU lists is just
-> wrong. It only takes it to race with a process which unmaps some pages
-> and remove them from the LRU list and we can fail the whole offline
-> because of something that is a temporary condition and actually not
-> harmful for the offline. Please note that unmovable pages should be
-> already excluded during start_isolate_page_range.
-
-Hmm, the has_unmovable_pages() check doesn't offer any strict guarantees due to
-races, per its comment. Also at the very quick glance, I see a check where it
-assumes that MIGRATE_MOVABLE pageblock will have no unmovable pages. There is no
-such guarantee even without races.
-
-> Fix this by removing the max retry count and only rely on the timeout
-> resp. interruption by a signal from the userspace. Also retry rather
-> than fail when check_pages_isolated sees some !free pages because those
-> could be a result of the race as well.
+> If there is a strong usecase to do this from the kernel then we should
+> do it properly and have a it tunable from the userspace with the timeout
+> disabled by default along with the explanation who uses it and for what
+> purporse.
 > 
 > Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Even within a movable node where has_unmovable_pages() is a non-issue, you could
-have pinned movable pages where the pinning is not temporary. So after this
-patch, this will really keep retrying forever. I'm not saying it's wrong, just
-pointing it out, since the changelog seems to assume there would be only
-temporary failures possible and thus unbound retries are always correct.
-The obvious problem if we wanted to avoid this, is how to recognize
-non-temporary failures...
+Makes sense to me.
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 > ---
->  mm/memory_hotplug.c | 40 ++++++++++------------------------------
->  1 file changed, 10 insertions(+), 30 deletions(-)
+>  mm/memory_hotplug.c | 10 +++-------
+>  1 file changed, 3 insertions(+), 7 deletions(-)
 > 
 > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 459bbc182d10..c9dcbe6d2ac6 100644
+> index c9dcbe6d2ac6..b8a85c11360e 100644
 > --- a/mm/memory_hotplug.c
 > +++ b/mm/memory_hotplug.c
-> @@ -1597,7 +1597,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
+> @@ -1593,9 +1593,9 @@ static void node_states_clear_node(int node, struct memory_notify *arg)
+>  }
+>  
+>  static int __ref __offline_pages(unsigned long start_pfn,
+> -		  unsigned long end_pfn, unsigned long timeout)
+> +		  unsigned long end_pfn)
 >  {
->  	unsigned long pfn, nr_pages, expire;
+> -	unsigned long pfn, nr_pages, expire;
+> +	unsigned long pfn, nr_pages;
 >  	long offlined_pages;
-> -	int ret, drain, retry_max, node;
-> +	int ret, node;
+>  	int ret, node;
 >  	unsigned long flags;
->  	unsigned long valid_start, valid_end;
->  	struct zone *zone;
-> @@ -1634,43 +1634,25 @@ static int __ref __offline_pages(unsigned long start_pfn,
+> @@ -1633,12 +1633,8 @@ static int __ref __offline_pages(unsigned long start_pfn,
+>  		goto failed_removal;
 >  
 >  	pfn = start_pfn;
->  	expire = jiffies + timeout;
-> -	drain = 0;
-> -	retry_max = 5;
+> -	expire = jiffies + timeout;
 >  repeat:
 >  	/* start memory hot removal */
-> -	ret = -EAGAIN;
-> +	ret = -EBUSY;
->  	if (time_after(jiffies, expire))
->  		goto failed_removal;
+> -	ret = -EBUSY;
+> -	if (time_after(jiffies, expire))
+> -		goto failed_removal;
 >  	ret = -EINTR;
 >  	if (signal_pending(current))
 >  		goto failed_removal;
-> -	ret = 0;
-> -	if (drain) {
-> -		lru_add_drain_all_cpuslocked();
-> -		cond_resched();
-> -		drain_all_pages(zone);
-> -	}
-> +
-> +	cond_resched();
-> +	lru_add_drain_all_cpuslocked();
-> +	drain_all_pages(zone);
+> @@ -1711,7 +1707,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
+>  /* Must be protected by mem_hotplug_begin() or a device_lock */
+>  int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
+>  {
+> -	return __offline_pages(start_pfn, start_pfn + nr_pages, 120 * HZ);
+> +	return __offline_pages(start_pfn, start_pfn + nr_pages);
+>  }
+>  #endif /* CONFIG_MEMORY_HOTREMOVE */
 >  
->  	pfn = scan_movable_pages(start_pfn, end_pfn);
->  	if (pfn) { /* We have movable pages */
->  		ret = do_migrate_range(pfn, end_pfn);
-> -		if (!ret) {
-> -			drain = 1;
-> -			goto repeat;
-> -		} else {
-> -			if (ret < 0)
-> -				if (--retry_max == 0)
-> -					goto failed_removal;
-> -			yield();
-> -			drain = 1;
-> -			goto repeat;
-> -		}
-> +		goto repeat;
->  	}
-> -	/* drain all zone's lru pagevec, this is asynchronous... */
-> -	lru_add_drain_all_cpuslocked();
-> -	yield();
-> -	/* drain pcp pages, this is synchronous. */
-> -	drain_all_pages(zone);
-> +
->  	/*
->  	 * dissolve free hugepages in the memory block before doing offlining
->  	 * actually in order to make hugetlbfs's object counting consistent.
-> @@ -1680,10 +1662,8 @@ static int __ref __offline_pages(unsigned long start_pfn,
->  		goto failed_removal;
->  	/* check again */
->  	offlined_pages = check_pages_isolated(start_pfn, end_pfn);
-> -	if (offlined_pages < 0) {
-> -		ret = -EBUSY;
-> -		goto failed_removal;
-> -	}
-> +	if (offlined_pages < 0)
-> +		goto repeat;
->  	pr_info("Offlined Pages %ld\n", offlined_pages);
->  	/* Ok, all of our target is isolated.
->  	   We cannot do rollback at this point. */
 > 
 
 --
