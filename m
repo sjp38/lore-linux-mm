@@ -1,264 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 93BAF6B04A6
-	for <linux-mm@kvack.org>; Fri,  8 Sep 2017 15:41:39 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id y77so199074pfd.2
-        for <linux-mm@kvack.org>; Fri, 08 Sep 2017 12:41:39 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id o13si2240780pli.560.2017.09.08.12.41.38
+	by kanga.kvack.org (Postfix) with ESMTP id AD6D96B04AC
+	for <linux-mm@kvack.org>; Fri,  8 Sep 2017 15:43:47 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id g13so6211425pfm.0
+        for <linux-mm@kvack.org>; Fri, 08 Sep 2017 12:43:47 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id o6si2184961plk.553.2017.09.08.12.43.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Sep 2017 12:41:38 -0700 (PDT)
-Subject: [RFC PATCH v8 2/2] mm: introduce MAP_SHARED_VALIDATE,
- a mechanism to safely define new mmap flags
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 08 Sep 2017 12:35:13 -0700
-Message-ID: <150489931339.29460.8760855724603300792.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <150489930202.29460.5141541423730649272.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <150489930202.29460.5141541423730649272.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Fri, 08 Sep 2017 12:43:46 -0700 (PDT)
+Date: Fri, 8 Sep 2017 13:43:44 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [HMM-v25 19/19] mm/hmm: add new helper to hotplug CDM memory
+ region v3
+Message-ID: <20170908194344.GA1956@linux.intel.com>
+References: <20170817000548.32038-1-jglisse@redhat.com>
+ <20170817000548.32038-20-jglisse@redhat.com>
+ <a42b13a4-9f58-dcbb-e9de-c573fbafbc2f@huawei.com>
+ <20170904155123.GA3161@redhat.com>
+ <7026dfda-9fd0-2661-5efc-66063dfdf6bc@huawei.com>
+ <20170905023826.GA4836@redhat.com>
+ <c7997016-7932-649d-cf27-17caa33cd856@huawei.com>
+ <20170905135017.GA19397@redhat.com>
+ <20170905190013.GC24073@linux.intel.com>
+ <20170905192050.GC19397@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170905192050.GC19397@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: torvalds@linux-foundation.org
-Cc: Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, hch@lst.de
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Bob Liu <liubo95@huawei.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, majiuyue <majiuyue@huawei.com>, "xieyisheng (A)" <xieyisheng1@huawei.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@kernel.org>
 
-The mmap(2) syscall suffers from the ABI anti-pattern of not validating
-unknown flags. However, proposals like MAP_SYNC and MAP_DIRECT need a
-mechanism to define new behavior that is known to fail on older kernels
-without the support. Define a new MAP_SHARED_VALIDATE flag pattern that
-is guaranteed to fail on all legacy mmap implementations.
+On Tue, Sep 05, 2017 at 03:20:50PM -0400, Jerome Glisse wrote:
+<>
+> Does HMAT support device hotplug ? I am unfamiliar with the whole inner working
+> of ACPI versus PCIE. Anyway i don't see any issue with device memory also showing
+> through HMAT but like i said device driver for the device will want to be in total
+> control of that memory.
 
-With this in place new flags can be defined as:
+Yep, the HMAT will support device hotplug via the _HMA method (section 6.2.18
+of ACPI 6.2).  This basically supplies an entirely new HMAT that the system
+will use to replace the current one.
 
-    #define MAP_new (MAP_SHARED_VALIDATE | val)
+I don't yet have support for _HMA in my enabling, but I do intend to add
+support for it once we settle on a sysfs API for the regular boot-time case.
 
-It is worth noting that the original proposal was for a standalone
-MAP_VALIDATE flag. However, when that  could not be supported by all
-archs Linus observed:
+> Like i said issue here is that core kernel is unaware of the device activity ie
+> on what part of memory the device is actively working. So core mm can not make
+> inform decision on what should be migrated to device memory. Also we do not want
+> regular memory allocation to end in device memory unless explicitly ask for.
+> Few reasons for that. First this memory might not only be use for compute task
+> but also for graphic and in that case they are hard constraint on physically
+> contiguous memory allocation that require the GPU to move thing around to make
+> room for graphic object (can't allow GUP).
+> 
+> Second reasons, the device memory is inherently unreliable. If there is a bug
+> in the device driver or the user manage to trigger a faulty condition on GPU
+> the device might need a hard reset (ie cut PCIE power to device) which leads
+> to loss of memory content. While GPU are becoming more and more resilient they
+> are still prone to lockup.
+> 
+> Finaly for GPU there is a common pattern of memory over-commit. You pretend to
+> each application as if they were the only one and allow each of them to allocate
+> all of the device memory or more than could with strict sharing. As GPU have
+> long timeslice between switching to different context/application they can
+> easily move out and in large chunk of the process memory at context/application
+> switching. This is have proven to be a key aspect to allow maximum performances
+> accross several concurrent application/context.
+> 
+> To implement this easiest solution is for the device to lie about how much memory
+> it has and use the system memory as an overflow.
 
-    I see why you *think* you want a bitmap. You think you want
-    a bitmap because you want to make MAP_VALIDATE be part of MAP_SYNC
-    etc, so that people can do
+I don't think any of this precludes the HMAT being involved.  This is all very
+similar to what I think we need to do for high bandwidth memory, for example.
+We don't want the OS to use it for anything, and we want all of it to be
+available for applications to allocate and use for their specific workload.
+We don't want to make any assumptions about how it can or should be used.
 
-    ret = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED
-		    | MAP_SYNC, fd, 0);
+The HMAT is just there to give us a few things:
 
-    and "know" that MAP_SYNC actually takes.
+1) It provides us with an explicit way of telling the OS not to use the
+memory, in the form of the "Reservation hint" flag in the Memory Subsystem
+Address Range Structure (ACPI 6.2 section 5.2.27.3).  I expect that this will
+be set for persistent memory and HBM, and it sounds like you'd expect it to be
+set for your device memory as well.
 
-    And I'm saying that whole wish is bogus. You're fundamentally
-    depending on special semantics, just make it explicit. It's already
-    not portable, so don't try to make it so.
+2) It provides us with a way of telling userspace "hey, I know about some
+memory, and I can tell you its performance characteristics".  All control of
+how this memory is allocated and used is still left to userspace.
 
-    Rename that MAP_VALIDATE as MAP_SHARED_VALIDATE, make it have a value
-    of 0x3, and make people do
+> I am not saying that NUMA is not the way forward, i am saying that as it is today
+> it is not suited for this. It is lacking metric, it is lacking logic, it is lacking
+> features. We could add all this but it is a lot of work and i don't feel that we
+> have enough real world experience to do so now. I would rather have each devices
+> grow proper infrastructure in their driver through device specific API.
 
-    ret = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED_VALIDATE
-		    | MAP_SYNC, fd, 0);
+To be clear, I'm not proposing that we teach the NUMA code how to
+automatically allocate for a given numa node, balance, etc. memory described
+by the HMAT.  All I want is an API that says "here is some memory, I'll tell
+you all I can about it and let you do with it what you will", and perhaps a
+way to manually allocate what you want.
 
-    and then the kernel side is easier too (none of that random garbage
-    playing games with looking at the "MAP_VALIDATE bit", but just another
-    case statement in that map type thing.
+And yes, this is very hand-wavy at this point. :)  After I get the sysfs
+portion sussed out the next step is to work on enabling something like
+libnuma to allow the memory to be manually allocated.
 
-    Boom. Done.
+I think this works for both my use case and yours, correct?
 
-Similar to ->fallocate() we also want the ability to validate the
-support for new flags on a per ->mmap() 'struct file_operations'
-instance basis.  Towards that end arrange for flags to be generically
-validated against a mmap_supported_mask exported by 'struct
-file_operations'. By default all existing flags are implicitly
-supported, but new flags require MAP_SHARED_VALIDATE and
-per-instance-opt-in.
+> Then identify common pattern and from there try to build a sane API (if any such
+> thing exist :)) rather than trying today to build the whole house from the ground
+> up with just a foggy idea of how it should looks in the end.
 
-Cc: Jan Kara <jack@suse.cz>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Suggested-by: Christoph Hellwig <hch@lst.de>
-Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- arch/alpha/include/uapi/asm/mman.h           |    1 +
- arch/mips/include/uapi/asm/mman.h            |    1 +
- arch/parisc/include/uapi/asm/mman.h          |    1 +
- arch/xtensa/include/uapi/asm/mman.h          |    1 +
- include/linux/fs.h                           |    1 +
- include/linux/mman.h                         |   44 ++++++++++++++++++++++++++
- include/uapi/asm-generic/mman-common.h       |    1 +
- mm/mmap.c                                    |   10 +++++-
- tools/include/uapi/asm-generic/mman-common.h |    1 +
- 9 files changed, 60 insertions(+), 1 deletion(-)
+Yea, I do see your point.  My worry is that if I define an API, and you define
+an API, we'll end up in two different places with people using our different
+APIs, then:
 
-diff --git a/arch/alpha/include/uapi/asm/mman.h b/arch/alpha/include/uapi/asm/mman.h
-index 3b26cc62dadb..c32276c4196a 100644
---- a/arch/alpha/include/uapi/asm/mman.h
-+++ b/arch/alpha/include/uapi/asm/mman.h
-@@ -14,6 +14,7 @@
- #define MAP_TYPE	0x0f		/* Mask for type of mapping (OSF/1 is _wrong_) */
- #define MAP_FIXED	0x100		/* Interpret addr exactly */
- #define MAP_ANONYMOUS	0x10		/* don't use a file */
-+#define MAP_SHARED_VALIDATE (MAP_SHARED|MAP_PRIVATE) /* validate extension flags */
- 
- /* not used by linux, but here to make sure we don't clash with OSF/1 defines */
- #define _MAP_HASSEMAPHORE 0x0200
-diff --git a/arch/mips/include/uapi/asm/mman.h b/arch/mips/include/uapi/asm/mman.h
-index da3216007fe0..9abca34eab2c 100644
---- a/arch/mips/include/uapi/asm/mman.h
-+++ b/arch/mips/include/uapi/asm/mman.h
-@@ -30,6 +30,7 @@
- #define MAP_PRIVATE	0x002		/* Changes are private */
- #define MAP_TYPE	0x00f		/* Mask for type of mapping */
- #define MAP_FIXED	0x010		/* Interpret addr exactly */
-+#define MAP_SHARED_VALIDATE (MAP_SHARED|MAP_PRIVATE) /* validate extension flags */
- 
- /* not used by linux, but here to make sure we don't clash with ABI defines */
- #define MAP_RENAME	0x020		/* Assign page to file */
-diff --git a/arch/parisc/include/uapi/asm/mman.h b/arch/parisc/include/uapi/asm/mman.h
-index 775b5d5e41a1..0459bd8642dd 100644
---- a/arch/parisc/include/uapi/asm/mman.h
-+++ b/arch/parisc/include/uapi/asm/mman.h
-@@ -14,6 +14,7 @@
- #define MAP_TYPE	0x03		/* Mask for type of mapping */
- #define MAP_FIXED	0x04		/* Interpret addr exactly */
- #define MAP_ANONYMOUS	0x10		/* don't use a file */
-+#define MAP_SHARED_VALIDATE (MAP_SHARED|MAP_PRIVATE) /* validate extension flags */
- 
- #define MAP_DENYWRITE	0x0800		/* ETXTBSY */
- #define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
-diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
-index b15b278aa314..8cf11f7402ac 100644
---- a/arch/xtensa/include/uapi/asm/mman.h
-+++ b/arch/xtensa/include/uapi/asm/mman.h
-@@ -37,6 +37,7 @@
- #define MAP_PRIVATE	0x002		/* Changes are private */
- #define MAP_TYPE	0x00f		/* Mask for type of mapping */
- #define MAP_FIXED	0x010		/* Interpret addr exactly */
-+#define MAP_SHARED_VALIDATE (MAP_SHARED|MAP_PRIVATE) /* validate extension flags */
- 
- /* not used by linux, but here to make sure we don't clash with ABI defines */
- #define MAP_RENAME	0x020		/* Assign page to file */
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 2a4d8016bbf7..db2edf8815b2 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1674,6 +1674,7 @@ struct file_operations {
- 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
- 	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
- 	int (*mmap) (struct file *, struct vm_area_struct *, unsigned long);
-+	unsigned long mmap_supported_mask;
- 	int (*open) (struct inode *, struct file *);
- 	int (*flush) (struct file *, fl_owner_t id);
- 	int (*release) (struct inode *, struct file *);
-diff --git a/include/linux/mman.h b/include/linux/mman.h
-index c8367041fafd..26609ee46079 100644
---- a/include/linux/mman.h
-+++ b/include/linux/mman.h
-@@ -7,6 +7,50 @@
- #include <linux/atomic.h>
- #include <uapi/linux/mman.h>
- 
-+/*
-+ * Arrange for legacy / undefined architecture specific flags to be
-+ * ignored by default in LEGACY_MAP_MASK.
-+ */
-+#ifndef MAP_32BIT
-+#define MAP_32BIT 0
-+#endif
-+#ifndef MAP_HUGE_2MB
-+#define MAP_HUGE_2MB 0
-+#endif
-+#ifndef MAP_HUGE_1GB
-+#define MAP_HUGE_1GB 0
-+#endif
-+#ifndef MAP_UNINITIALIZED
-+#define MAP_UNINITIALIZED 0
-+#endif
-+
-+/*
-+ * The historical set of flags that all mmap implementations implicitly
-+ * support when file_operations.mmap_supported_mask is zero. Deprecated
-+ * flags like MAP_DENYWRITE and MAP_EXECUTABLE continue to be silently
-+ * accepted. Only new flags defined with MAP_SHARED_VALIDATE are
-+ * explicitly checked.
-+ */
-+#define LEGACY_MAP_MASK (MAP_SHARED \
-+		| MAP_PRIVATE \
-+		| MAP_FIXED \
-+		| MAP_ANONYMOUS \
-+		| MAP_DENYWRITE \
-+		| MAP_EXECUTABLE \
-+		| MAP_UNINITIALIZED \
-+		| MAP_GROWSDOWN \
-+		| MAP_LOCKED \
-+		| MAP_NORESERVE \
-+		| MAP_POPULATE \
-+		| MAP_NONBLOCK \
-+		| MAP_STACK \
-+		| MAP_HUGETLB \
-+		| MAP_32BIT \
-+		| MAP_HUGE_2MB \
-+		| MAP_HUGE_1GB)
-+
-+#define	MAP_SUPPORTED_MASK (LEGACY_MAP_MASK)
-+
- extern int sysctl_overcommit_memory;
- extern int sysctl_overcommit_ratio;
- extern unsigned long sysctl_overcommit_kbytes;
-diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
-index 203268f9231e..2404db8c71df 100644
---- a/include/uapi/asm-generic/mman-common.h
-+++ b/include/uapi/asm-generic/mman-common.h
-@@ -24,6 +24,7 @@
- #else
- # define MAP_UNINITIALIZED 0x0		/* Don't support this flag */
- #endif
-+#define MAP_SHARED_VALIDATE (MAP_SHARED|MAP_PRIVATE) /* validate extension flags */
- 
- /*
-  * Flags for mlock
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 77d5aecf49dc..f43f2c444e2b 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1387,8 +1387,16 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 
- 	if (file) {
- 		struct inode *inode = file_inode(file);
-+		unsigned long f_supported;
- 
- 		switch (flags & MAP_TYPE) {
-+		case (MAP_SHARED_VALIDATE):
-+			f_supported = file->f_op->mmap_supported_mask;
-+			if (!f_supported)
-+				f_supported = LEGACY_MAP_MASK;
-+			if (flags & ~f_supported)
-+				return -EOPNOTSUPP;
-+			/* fall through */
- 		case MAP_SHARED:
- 			if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE))
- 				return -EACCES;
-@@ -1465,7 +1473,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 			vm_flags |= VM_NORESERVE;
- 	}
- 
--	addr = mmap_region(file, addr, len, vm_flags, pgoff, uf, 0);
-+	addr = mmap_region(file, addr, len, vm_flags, pgoff, uf, flags);
- 	if (!IS_ERR_VALUE(addr) &&
- 	    ((vm_flags & VM_LOCKED) ||
- 	     (flags & (MAP_POPULATE | MAP_NONBLOCK)) == MAP_POPULATE))
-diff --git a/tools/include/uapi/asm-generic/mman-common.h b/tools/include/uapi/asm-generic/mman-common.h
-index 8c27db0c5c08..911aea581928 100644
---- a/tools/include/uapi/asm-generic/mman-common.h
-+++ b/tools/include/uapi/asm-generic/mman-common.h
-@@ -24,6 +24,7 @@
- #else
- # define MAP_UNINITIALIZED 0x0		/* Don't support this flag */
- #endif
-+#define MAP_SHARED_VALIDATE (MAP_SHARED|MAP_PRIVATE) /* validate extension flags */
- 
- /*
-  * Flags for mlock
+https://xkcd.com/927/
+
+:)
+
+The HMAT enabling I'm trying to do is very passive - it doesn't actively do
+*anything* with the memory, it's entire purpose is to give userspace more
+information about the memory so userspace can make informed decisions.
+
+Would you be willing to look at the sysfs API I have defined, and see if it
+would work for you?
+
+https://lkml.org/lkml/2017/7/6/749
+
+I'll look harder at your enabling and see if we can figure out some common
+ground.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
