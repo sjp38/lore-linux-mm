@@ -1,85 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3981C6B04B9
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5350D6B04BA
 	for <linux-mm@kvack.org>; Fri,  8 Sep 2017 16:43:07 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id i50so4725263qtf.0
+Received: by mail-oi0-f71.google.com with SMTP id x190so4436470oix.6
         for <linux-mm@kvack.org>; Fri, 08 Sep 2017 13:43:07 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z9sor1501183qti.23.2017.09.08.13.43.06
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id q67sor1326320oib.131.2017.09.08.13.43.06
         for <linux-mm@kvack.org>
         (Google Transport Security);
         Fri, 08 Sep 2017 13:43:06 -0700 (PDT)
-Subject: [PATCH] mm/memory_hotplug: fix wrong casting for __remove_section()
-From: YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
-Message-ID: <51a59ec3-e7ba-2562-1917-036b8181092c@gmail.com>
-Date: Fri, 8 Sep 2017 16:43:04 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <863afc77-ed84-fed5-ebb8-d88e636816a3@huawei.com>
+References: <20170817000548.32038-1-jglisse@redhat.com> <20170904155123.GA3161@redhat.com>
+ <7026dfda-9fd0-2661-5efc-66063dfdf6bc@huawei.com> <20170905023826.GA4836@redhat.com>
+ <20170905185414.GB24073@linux.intel.com> <0bc5047d-d27c-65b6-acab-921263e715c8@huawei.com>
+ <20170906021216.GA23436@redhat.com> <4f4a2196-228d-5d54-5386-72c3ffb1481b@huawei.com>
+ <1726639990.10465990.1504805251676.JavaMail.zimbra@redhat.com> <863afc77-ed84-fed5-ebb8-d88e636816a3@huawei.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 8 Sep 2017 13:43:05 -0700
+Message-ID: <CAPcyv4iWPG9wVqe1GW+Ewk4rqELZB6SRR=sF0G8NaabUu2jH_w@mail.gmail.com>
+Subject: Re: [HMM-v25 19/19] mm/hmm: add new helper to hotplug CDM memory
+ region v3
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Michal Hocko <mhocko@suse.com>, LKML <linux-kernel@vger.kernel.org>, qiuxishi@huawei.com, arbab@linux.vnet.ibm.com, Vlastimil Babka <vbabka@suse.cz>Reza Arbab <arbab@linux.vnet.ibm.com>
+To: Bob Liu <liubo95@huawei.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, majiuyue <majiuyue@huawei.com>, "xieyisheng (A)" <xieyisheng1@huawei.com>
 
-__remove_section() calls __remove_zone() to shrink zone and pgdat.
-But due to wrong castings, __remvoe_zone() cannot shrink zone
-and pgdat correctly if pfn is over 0xffffffff.
+On Thu, Sep 7, 2017 at 6:59 PM, Bob Liu <liubo95@huawei.com> wrote:
+> On 2017/9/8 1:27, Jerome Glisse wrote:
+[..]
+>> No this are 2 orthogonal thing, they do not conflict with each others qu=
+ite
+>> the contrary. HMM (the CDM part is no different) is a set of helpers, se=
+e
+>> it as a toolbox, for device driver.
+>>
+>> HMAT is a way for firmware to report memory resources with more informat=
+ions
+>> that just range of physical address. HMAT is specific to platform that r=
+ely
+>> on ACPI. HMAT does not provide any helpers to manage these memory.
+>>
+>> So a device driver can get informations about device memory from HMAT an=
+d then
+>> use HMM to help in managing and using this memory.
+>>
+>
+> Yes, but as Balbir mentioned requires :
+> 1. Don't online the memory as a NUMA node
+> 2. Use the HMM-CDM API's to map the memory to ZONE DEVICE via the driver
+>
+> And I'm not sure whether Intel going to use this HMM-CDM based method for=
+ their "target domain" memory ?
+> Or they prefer to NUMA approach?   Ross=EF=BC=9F Dan?
 
-So the patch fixes the following 3 wrong castings.
+The starting / strawman proposal for performance differentiated memory
+ranges is to get platform firmware to mark them reserved by default.
+Then, after we parse the HMAT, make them available via the device-dax
+mechanism so that applications that need 100% guaranteed access to
+these potentially high-value / limited-capacity ranges can be sure to
+get them by default, i.e. before any random kernel objects are placed
+in them. Otherwise, if there are no dedicated users for the memory
+ranges via device-dax, or they don't need the total capacity, we want
+to hotplug that memory into the general purpose memory allocator with
+a numa node number so typical numactl and memory-management flows are
+enabled.
 
-  1. find_smallest_section_pfn() returns 0 or start_pfn which defined
-     as unsigned long. But the function always returns 32bit value
-     since the function is defined as int.
-
-  2. find_biggest_section_pfn() returns 0 or pfn which defined as
-     unsigned long. the function always returns 32bit value
-     since the function is defined as int.
-
-  3. __remove_section() calculates start_pfn using section_nr_to_pfn()
-     and scn_nr. section_nr_to_pfn() just shifts scn_nr by
-     PFN_SECTION_SHIFT bit. But since scn_nr is defined as int,
-     section_nr_to_pfn() always return 32 bit value.
-
-The patch fixes the wrong castings.
-
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
----
- mm/memory_hotplug.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 73bf17d..3514ef2 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -331,7 +331,7 @@ int __ref __add_pages(int nid, unsigned long phys_start_pfn,
-
- #ifdef CONFIG_MEMORY_HOTREMOVE
- /* find the smallest valid pfn in the range [start_pfn, end_pfn) */
--static int find_smallest_section_pfn(int nid, struct zone *zone,
-+static unsigned long find_smallest_section_pfn(int nid, struct zone *zone,
- 				     unsigned long start_pfn,
- 				     unsigned long end_pfn)
- {
-@@ -356,7 +356,7 @@ static int find_smallest_section_pfn(int nid, struct zone *zone,
- }
-
- /* find the biggest valid pfn in the range [start_pfn, end_pfn). */
--static int find_biggest_section_pfn(int nid, struct zone *zone,
-+static unsigned long find_biggest_section_pfn(int nid, struct zone *zone,
- 				    unsigned long start_pfn,
- 				    unsigned long end_pfn)
- {
-@@ -544,7 +544,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
- 		return ret;
-
- 	scn_nr = __section_nr(ms);
--	start_pfn = section_nr_to_pfn(scn_nr);
-+	start_pfn = section_nr_to_pfn((unsigned long)scn_nr);
- 	__remove_zone(zone, start_pfn);
-
- 	sparse_remove_one_section(zone, ms, map_offset);
--- 
-1.8.3.1
+Ideally this would not be specific to HMAT and any agent that knows
+differentiated performance characteristics of a memory range could use
+this scheme.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
