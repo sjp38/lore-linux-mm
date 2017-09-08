@@ -1,87 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DCFDD6B034B
-	for <linux-mm@kvack.org>; Fri,  8 Sep 2017 13:34:48 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id v109so3040940wrc.5
-        for <linux-mm@kvack.org>; Fri, 08 Sep 2017 10:34:48 -0700 (PDT)
-Received: from smtp3-g21.free.fr (smtp3-g21.free.fr. [2a01:e0c:1:1599::12])
-        by mx.google.com with ESMTPS id m64si1798489wmd.210.2017.09.08.10.34.47
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A53916B034D
+	for <linux-mm@kvack.org>; Fri,  8 Sep 2017 13:44:40 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id i198so2352689wmf.5
+        for <linux-mm@kvack.org>; Fri, 08 Sep 2017 10:44:40 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id j196si1855011wmg.120.2017.09.08.10.44.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Sep 2017 10:34:47 -0700 (PDT)
-From: Laurent Dufour <laurent.du4@free.fr>
-Subject: [PATCH v3 01/20] mm: Dont assume page-table invariance during faults
-Date: Fri,  8 Sep 2017 19:32:22 +0200
-Message-Id: <1504891961-22990-2-git-send-email-laurent.du4@free.fr>
-In-Reply-To: <1504891961-22990-1-git-send-email-laurent.du4@free.fr>
+        Fri, 08 Sep 2017 10:44:39 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v88HiEpt015117
+	for <linux-mm@kvack.org>; Fri, 8 Sep 2017 13:44:38 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2cux3kn2qd-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 08 Sep 2017 13:44:37 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Fri, 8 Sep 2017 18:44:36 +0100
+Subject: Re: [PATCH v3 00/20] Speculative page faults
 References: <1504891961-22990-1-git-send-email-laurent.du4@free.fr>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Fri, 8 Sep 2017 19:44:27 +0200
+MIME-Version: 1.0
+In-Reply-To: <1504891961-22990-1-git-send-email-laurent.du4@free.fr>
+Content-Type: text/plain; charset=utf-8
+Content-Language: fr
+Content-Transfer-Encoding: 7bit
+Message-Id: <ed8d253c-d5d5-b12c-91ed-5a98197428bf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-From: Peter Zijlstra <peterz@infradead.org>
+On 08/09/2017 19:32, Laurent Dufour wrote:
+> This is a port on kernel 4.13 of the work done by Peter Zijlstra to
+> handle page fault without holding the mm semaphore [1].
 
-One of the side effects of speculating on faults (without holding
-mmap_sem) is that we can race with free_pgtables() and therefore we
-cannot assume the page-tables will stick around.
+Sorry for the noise, I got trouble sending the whole series through this
+email. I will try again.
 
-Remove the reliance on the pte pointer.
-
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
----
- mm/memory.c | 29 -----------------------------
- 1 file changed, 29 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index ec4e15494901..30bccfa00630 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2270,30 +2270,6 @@ int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
- }
- EXPORT_SYMBOL_GPL(apply_to_page_range);
- 
--/*
-- * handle_pte_fault chooses page fault handler according to an entry which was
-- * read non-atomically.  Before making any commitment, on those architectures
-- * or configurations (e.g. i386 with PAE) which might give a mix of unmatched
-- * parts, do_swap_page must check under lock before unmapping the pte and
-- * proceeding (but do_wp_page is only called after already making such a check;
-- * and do_anonymous_page can safely check later on).
-- */
--static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
--				pte_t *page_table, pte_t orig_pte)
--{
--	int same = 1;
--#if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
--	if (sizeof(pte_t) > sizeof(unsigned long)) {
--		spinlock_t *ptl = pte_lockptr(mm, pmd);
--		spin_lock(ptl);
--		same = pte_same(*page_table, orig_pte);
--		spin_unlock(ptl);
--	}
--#endif
--	pte_unmap(page_table);
--	return same;
--}
--
- static inline void cow_user_page(struct page *dst, struct page *src, unsigned long va, struct vm_area_struct *vma)
- {
- 	debug_dma_assert_idle(src);
-@@ -2854,11 +2830,6 @@ int do_swap_page(struct vm_fault *vmf)
- 
- 	if (vma_readahead)
- 		page = swap_readahead_detect(vmf, &swap_ra);
--	if (!pte_unmap_same(vma->vm_mm, vmf->pmd, vmf->pte, vmf->orig_pte)) {
--		if (page)
--			put_page(page);
--		goto out;
--	}
- 
- 	entry = pte_to_swp_entry(vmf->orig_pte);
- 	if (unlikely(non_swap_entry(entry))) {
--- 
-2.7.4
+Cheers,
+Laurent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
