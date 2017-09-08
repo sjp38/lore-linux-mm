@@ -1,120 +1,321 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 58FFB6B0383
-	for <linux-mm@kvack.org>; Fri,  8 Sep 2017 14:08:10 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id t190so2385272wmt.6
-        for <linux-mm@kvack.org>; Fri, 08 Sep 2017 11:08:10 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 32si1823368wri.174.2017.09.08.11.08.08
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 690716B0385
+	for <linux-mm@kvack.org>; Fri,  8 Sep 2017 14:08:16 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id q75so5882327pfl.1
+        for <linux-mm@kvack.org>; Fri, 08 Sep 2017 11:08:16 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id g195si1929419pfb.282.2017.09.08.11.08.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Sep 2017 11:08:09 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v88I4YD4056588
-	for <linux-mm@kvack.org>; Fri, 8 Sep 2017 14:08:07 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2cuw4n1b25-1
+        Fri, 08 Sep 2017 11:08:14 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v88I7bmA105593
+	for <linux-mm@kvack.org>; Fri, 8 Sep 2017 14:08:13 -0400
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2cuys5153v-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 08 Sep 2017 14:08:07 -0400
+	for <linux-mm@kvack.org>; Fri, 08 Sep 2017 14:08:13 -0400
 Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Fri, 8 Sep 2017 19:08:05 +0100
+	Fri, 8 Sep 2017 19:08:10 +0100
 From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: [PATCH v3 15/20] mm: Try spin lock in speculative path
-Date: Fri,  8 Sep 2017 20:06:59 +0200
+Subject: [PATCH v3 16/20] mm: Adding speculative page fault failure trace events
+Date: Fri,  8 Sep 2017 20:07:00 +0200
 In-Reply-To: <1504894024-2750-1-git-send-email-ldufour@linux.vnet.ibm.com>
 References: <1504894024-2750-1-git-send-email-ldufour@linux.vnet.ibm.com>
-Message-Id: <1504894024-2750-16-git-send-email-ldufour@linux.vnet.ibm.com>
+Message-Id: <1504894024-2750-17-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-There is a deadlock when a CPU is doing a speculative page fault and
-another one is calling do_unmap().
-
-The deadlock occurred because the speculative path try to spinlock the
-pte while the interrupt are disabled. When the other CPU in the
-unmap's path has locked the pte then is waiting for all the CPU to
-invalidate the TLB. As the CPU doing the speculative fault have the
-interrupt disable it can't invalidate the TLB, and can't get the lock.
-
-Since we are in a speculative path, we can race with other mm action.
-So let assume that the lock may not get acquired and fail the
-speculative page fault.
-
-Here are the stacks captured during the deadlock:
-
-	CPU 0
-	native_flush_tlb_others+0x7c/0x260
-	flush_tlb_mm_range+0x6a/0x220
-	tlb_flush_mmu_tlbonly+0x63/0xc0
-	unmap_page_range+0x897/0x9d0
-	? unmap_single_vma+0x7d/0xe0
-	? release_pages+0x2b3/0x360
-	unmap_single_vma+0x7d/0xe0
-	unmap_vmas+0x51/0xa0
-	unmap_region+0xbd/0x130
-	do_munmap+0x279/0x460
-	SyS_munmap+0x53/0x70
-
-	CPU 1
-	do_raw_spin_lock+0x14e/0x160
-	_raw_spin_lock+0x5d/0x80
-	? pte_map_lock+0x169/0x1b0
-	pte_map_lock+0x169/0x1b0
-	handle_pte_fault+0xbf2/0xd80
-	? trace_hardirqs_on+0xd/0x10
-	handle_speculative_fault+0x272/0x280
-	handle_speculative_fault+0x5/0x280
-	__do_page_fault+0x187/0x580
-	trace_do_page_fault+0x52/0x260
-	do_async_page_fault+0x19/0x70
-	async_page_fault+0x28/0x30
+This patch a set of new trace events to collect the speculative page fault
+event failures.
 
 Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 ---
- mm/memory.c | 19 ++++++++++++++++---
- 1 file changed, 16 insertions(+), 3 deletions(-)
+ include/trace/events/pagefault.h | 87 ++++++++++++++++++++++++++++++++++++++++
+ mm/memory.c                      | 59 ++++++++++++++++++++++-----
+ 2 files changed, 135 insertions(+), 11 deletions(-)
+ create mode 100644 include/trace/events/pagefault.h
 
+diff --git a/include/trace/events/pagefault.h b/include/trace/events/pagefault.h
+new file mode 100644
+index 000000000000..d7d56f8102d1
+--- /dev/null
++++ b/include/trace/events/pagefault.h
+@@ -0,0 +1,87 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM pagefault
++
++#if !defined(_TRACE_PAGEFAULT_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_PAGEFAULT_H
++
++#include <linux/tracepoint.h>
++#include <linux/mm.h>
++
++DECLARE_EVENT_CLASS(spf,
++
++	TP_PROTO(unsigned long caller,
++		 struct vm_area_struct *vma, unsigned long address),
++
++	TP_ARGS(caller, vma, address),
++
++	TP_STRUCT__entry(
++		__field(unsigned long, caller)
++		__field(unsigned long, vm_start)
++		__field(unsigned long, vm_end)
++		__field(unsigned long, address)
++	),
++
++	TP_fast_assign(
++		__entry->caller		= caller;
++		__entry->vm_start	= vma->vm_start;
++		__entry->vm_end		= vma->vm_end;
++		__entry->address	= address;
++	),
++
++	TP_printk("ip:%lx vma:%lu-%lx address:%lx",
++		  __entry->caller, __entry->vm_start, __entry->vm_end,
++		  __entry->address)
++);
++
++DEFINE_EVENT(spf, spf_pte_lock,
++
++	TP_PROTO(unsigned long caller,
++		 struct vm_area_struct *vma, unsigned long address),
++
++	TP_ARGS(caller, vma, address)
++);
++
++DEFINE_EVENT(spf, spf_vma_changed,
++
++	TP_PROTO(unsigned long caller,
++		 struct vm_area_struct *vma, unsigned long address),
++
++	TP_ARGS(caller, vma, address)
++);
++
++DEFINE_EVENT(spf, spf_vma_dead,
++
++	TP_PROTO(unsigned long caller,
++		 struct vm_area_struct *vma, unsigned long address),
++
++	TP_ARGS(caller, vma, address)
++);
++
++DEFINE_EVENT(spf, spf_vma_noanon,
++
++	TP_PROTO(unsigned long caller,
++		 struct vm_area_struct *vma, unsigned long address),
++
++	TP_ARGS(caller, vma, address)
++);
++
++DEFINE_EVENT(spf, spf_vma_notsup,
++
++	TP_PROTO(unsigned long caller,
++		 struct vm_area_struct *vma, unsigned long address),
++
++	TP_ARGS(caller, vma, address)
++);
++
++DEFINE_EVENT(spf, spf_vma_access,
++
++	TP_PROTO(unsigned long caller,
++		 struct vm_area_struct *vma, unsigned long address),
++
++	TP_ARGS(caller, vma, address)
++);
++
++#endif /* _TRACE_PAGEFAULT_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
 diff --git a/mm/memory.c b/mm/memory.c
-index 5e98259c7ac0..18b39f930ce1 100644
+index 18b39f930ce1..c2a52ddc850b 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -2432,7 +2432,8 @@ static bool pte_spinlock(struct vm_fault *vmf)
+@@ -81,6 +81,9 @@
+ 
+ #include "internal.h"
+ 
++#define CREATE_TRACE_POINTS
++#include <trace/events/pagefault.h>
++
+ #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+ #warning Unfortunate NUMA and NUMA Balancing config, growing page-frame for last_cpupid.
+ #endif
+@@ -2428,15 +2431,20 @@ static bool pte_spinlock(struct vm_fault *vmf)
+ 	}
+ 
+ 	local_irq_disable();
+-	if (vma_has_changed(vmf))
++	if (vma_has_changed(vmf)) {
++		trace_spf_vma_changed(_RET_IP_, vmf->vma, vmf->address);
  		goto out;
++	}
  
  	vmf->ptl = pte_lockptr(vmf->vma->vm_mm, vmf->pmd);
--	spin_lock(vmf->ptl);
-+	if (unlikely(!spin_trylock(vmf->ptl)))
-+		goto out;
+-	if (unlikely(!spin_trylock(vmf->ptl)))
++	if (unlikely(!spin_trylock(vmf->ptl))) {
++		trace_spf_pte_lock(_RET_IP_, vmf->vma, vmf->address);
+ 		goto out;
++	}
  
  	if (vma_has_changed(vmf)) {
  		spin_unlock(vmf->ptl);
-@@ -2468,8 +2469,20 @@ static bool pte_map_lock(struct vm_fault *vmf)
- 	if (vma_has_changed(vmf))
++		trace_spf_vma_changed(_RET_IP_, vmf->vma, vmf->address);
  		goto out;
+ 	}
  
--	pte = pte_offset_map_lock(vmf->vma->vm_mm, vmf->pmd,
--				  vmf->address, &ptl);
-+	/*
-+	 * Same as pte_offset_map_lock() except that we call
-+	 * spin_trylock() in place of spin_lock() to avoid race with
-+	 * unmap path which may have the lock and wait for this CPU
-+	 * to invalidate TLB but this CPU has irq disabled.
-+	 * Since we are in a speculative patch, accept it could fail
-+	 */
-+	ptl = pte_lockptr(vmf->vma->vm_mm, vmf->pmd);
-+	pte = pte_offset_map(vmf->pmd, vmf->address);
-+	if (unlikely(!spin_trylock(ptl))) {
-+		pte_unmap(pte);
-+		goto out;
+@@ -2466,8 +2474,10 @@ static bool pte_map_lock(struct vm_fault *vmf)
+ 	 * block on the PTL and thus we're safe.
+ 	 */
+ 	local_irq_disable();
+-	if (vma_has_changed(vmf))
++	if (vma_has_changed(vmf)) {
++		trace_spf_vma_changed(_RET_IP_, vmf->vma, vmf->address);
+ 		goto out;
 +	}
-+
+ 
+ 	/*
+ 	 * Same as pte_offset_map_lock() except that we call
+@@ -2480,11 +2490,13 @@ static bool pte_map_lock(struct vm_fault *vmf)
+ 	pte = pte_offset_map(vmf->pmd, vmf->address);
+ 	if (unlikely(!spin_trylock(ptl))) {
+ 		pte_unmap(pte);
++		trace_spf_pte_lock(_RET_IP_, vmf->vma, vmf->address);
+ 		goto out;
+ 	}
+ 
  	if (vma_has_changed(vmf)) {
  		pte_unmap_unlock(pte, ptl);
++		trace_spf_vma_changed(_RET_IP_, vmf->vma, vmf->address);
  		goto out;
+ 	}
+ 
+@@ -4164,32 +4176,45 @@ int handle_speculative_fault(struct mm_struct *mm, unsigned long address,
+ 	 * Validate the VMA found by the lockless lookup.
+ 	 */
+ 	dead = RB_EMPTY_NODE(&vma->vm_rb);
++	if (dead) {
++		trace_spf_vma_dead(_RET_IP_, vma, address);
++		goto unlock;
++	}
++
+ 	seq = raw_read_seqcount(&vma->vm_sequence); /* rmb <-> seqlock,vma_rb_erase() */
+-	if ((seq & 1) || dead)
++	if (seq & 1) {
++		trace_spf_vma_changed(_RET_IP_, vma, address);
+ 		goto unlock;
++	}
+ 
+ 	/*
+ 	 * Can't call vm_ops service has we don't know what they would do
+ 	 * with the VMA.
+ 	 * This include huge page from hugetlbfs.
+ 	 */
+-	if (vma->vm_ops)
++	if (vma->vm_ops) {
++		trace_spf_vma_notsup(_RET_IP_, vma, address);
+ 		goto unlock;
++	}
+ 
+ 	/*
+ 	 * __anon_vma_prepare() requires the mmap_sem to be held
+ 	 * because vm_next and vm_prev must be safe. This can't be guaranteed
+ 	 * in the speculative path.
+ 	 */
+-	if (unlikely(!vma->anon_vma))
++	if (unlikely(!vma->anon_vma)) {
++		trace_spf_vma_notsup(_RET_IP_, vma, address);
+ 		goto unlock;
++	}
+ 
+ 	vmf.vma_flags = READ_ONCE(vma->vm_flags);
+ 	vmf.vma_page_prot = READ_ONCE(vma->vm_page_prot);
+ 
+ 	/* Can't call userland page fault handler in the speculative path */
+-	if (unlikely(vmf.vma_flags & VM_UFFD_MISSING))
++	if (unlikely(vmf.vma_flags & VM_UFFD_MISSING)) {
++		trace_spf_vma_notsup(_RET_IP_, vma, address);
+ 		goto unlock;
++	}
+ 
+ #ifdef CONFIG_NUMA
+ 	/*
+@@ -4199,25 +4224,32 @@ int handle_speculative_fault(struct mm_struct *mm, unsigned long address,
+ 	pol = __get_vma_policy(vma, address);
+ 	if (!pol)
+ 		pol = get_task_policy(current);
+-	if (pol && pol->mode == MPOL_INTERLEAVE)
++	if (pol && pol->mode == MPOL_INTERLEAVE) {
++		trace_spf_vma_notsup(_RET_IP_, vma, address);
+ 		goto unlock;
++	}
+ #endif
+ 
+-	if (vmf.vma_flags & VM_GROWSDOWN || vmf.vma_flags & VM_GROWSUP)
++	if (vmf.vma_flags & VM_GROWSDOWN || vmf.vma_flags & VM_GROWSUP) {
+ 		/*
+ 		 * This could be detected by the check address against VMA's
+ 		 * boundaries but we want to trace it as not supported instead
+ 		 * of changed.
+ 		 */
++		trace_spf_vma_notsup(_RET_IP_, vma, address);
+ 		goto unlock;
++	}
+ 
+ 	if (address < READ_ONCE(vma->vm_start)
+-	    || READ_ONCE(vma->vm_end) <= address)
++	    || READ_ONCE(vma->vm_end) <= address) {
++		trace_spf_vma_changed(_RET_IP_, vma, address);
+ 		goto unlock;
++	}
+ 
+ 	if (!arch_vma_access_permitted(vma, flags & FAULT_FLAG_WRITE,
+ 				       flags & FAULT_FLAG_INSTRUCTION,
+ 				       flags & FAULT_FLAG_REMOTE)) {
++		trace_spf_vma_access(_RET_IP_, vma, address);
+ 		ret = VM_FAULT_SIGSEGV;
+ 		goto unlock;
+ 	}
+@@ -4225,10 +4257,12 @@ int handle_speculative_fault(struct mm_struct *mm, unsigned long address,
+ 	/* This is one is required to check that the VMA has write access set */
+ 	if (flags & FAULT_FLAG_WRITE) {
+ 		if (unlikely(!(vmf.vma_flags & VM_WRITE))) {
++			trace_spf_vma_access(_RET_IP_, vma, address);
+ 			ret = VM_FAULT_SIGSEGV;
+ 			goto unlock;
+ 		}
+ 	} else if (unlikely(!(vmf.vma_flags & (VM_READ|VM_EXEC|VM_WRITE)))) {
++		trace_spf_vma_access(_RET_IP_, vma, address);
+ 		ret = VM_FAULT_SIGSEGV;
+ 		goto unlock;
+ 	}
+@@ -4282,8 +4316,10 @@ int handle_speculative_fault(struct mm_struct *mm, unsigned long address,
+ 	 * We need to re-validate the VMA after checking the bounds, otherwise
+ 	 * we might have a false positive on the bounds.
+ 	 */
+-	if (read_seqcount_retry(&vma->vm_sequence, seq))
++	if (read_seqcount_retry(&vma->vm_sequence, seq)) {
++		trace_spf_vma_changed(_RET_IP_, vma, address);
+ 		goto unlock;
++	}
+ 
+ 	ret = handle_pte_fault(&vmf);
+ 
+@@ -4292,6 +4328,7 @@ int handle_speculative_fault(struct mm_struct *mm, unsigned long address,
+ 	return ret;
+ 
+ out_walk:
++	trace_spf_vma_notsup(_RET_IP_, vma, address);
+ 	local_irq_enable();
+ 	goto unlock;
+ }
 -- 
 2.7.4
 
