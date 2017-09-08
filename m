@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 60A796B04CA
-	for <linux-mm@kvack.org>; Fri,  8 Sep 2017 17:56:25 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id q75so6621211pfl.1
-        for <linux-mm@kvack.org>; Fri, 08 Sep 2017 14:56:25 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id h63si2074838pgc.833.2017.09.08.14.56.23
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DC4FB6B04CC
+	for <linux-mm@kvack.org>; Fri,  8 Sep 2017 17:56:54 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id v82so6792483pgb.5
+        for <linux-mm@kvack.org>; Fri, 08 Sep 2017 14:56:54 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id s66si2151974pfj.26.2017.09.08.14.56.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Sep 2017 14:56:24 -0700 (PDT)
+        Fri, 08 Sep 2017 14:56:53 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 2/2] mm, x86: Fix performance regression in get_user_pages_fast()
-Date: Sat,  9 Sep 2017 00:56:03 +0300
-Message-Id: <20170908215603.9189-3-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 1/2] mm: Add infrastructure for get_user_pages_fast() benchmarking
+Date: Sat,  9 Sep 2017 00:56:02 +0300
+Message-Id: <20170908215603.9189-2-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170908215603.9189-1-kirill.shutemov@linux.intel.com>
 References: <20170908215603.9189-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,171 +20,267 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>
 Cc: x86@kernel.org, Thorsten Leemhuis <regressions@leemhuis.info>, Jonathan Corbet <corbet@lwn.net>, Huang Ying <ying.huang@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-0-day found[1] performance regression that was tracked down to switching
-x86 to generic get_user_pages_fast().
+Performance of get_user_pages_fast() is critical for some workloads, but
+it's tricky to test it directly.
 
-The regression was caused by the fact that we now use local_irq_save() +
-local_irq_restore() in get_user_pages_fast() to disable interrupts.
-In x86 implementation local_irq_disable() + local_irq_enable() was used.
+This patch provides /sys/kernel/debug/gup_benchmark that helps with
+testing performance of it.
 
-The fix is to make get_user_pages_fast() use local_irq_disable(),
-leaving local_irq_save() for __get_user_pages_fast() that can be called
-with interrupts disabled.
-
-Numbers for pinning a gigabyte of memory, one page a time, 20 repeats:
-
-Before
-	Average: 14911.15 us, Standard Deviation: 449.26 us
-After
-	Average: 10761.6 us, Standard Deviation: 181.67 us
-
-[1] http://lkml.kernel.org/r/20170710024020.GA26389@yexl-desktop
+See tools/testing/selftests/vm/gup_benchmark.c for userspace
+counterpart.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Fixes: e585513b76f7 ("x86/mm/gup: Switch GUP to the generic get_user_page_fast() implementation")
 ---
- mm/gup.c | 97 ++++++++++++++++++++++++++++++++++++++--------------------------
- 1 file changed, 58 insertions(+), 39 deletions(-)
+ mm/Kconfig                                 |   9 +++
+ mm/Makefile                                |   1 +
+ mm/gup_benchmark.c                         | 100 +++++++++++++++++++++++++++++
+ tools/testing/selftests/vm/Makefile        |   1 +
+ tools/testing/selftests/vm/gup_benchmark.c |  91 ++++++++++++++++++++++++++
+ 5 files changed, 202 insertions(+)
+ create mode 100644 mm/gup_benchmark.c
+ create mode 100644 tools/testing/selftests/vm/gup_benchmark.c
 
-diff --git a/mm/gup.c b/mm/gup.c
-index 33d651deeae2..c6bf94bc814c 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -1618,6 +1618,47 @@ static int gup_p4d_range(pgd_t pgd, unsigned long addr, unsigned long end,
- 	return 1;
- }
- 
-+static void gup_pgd_range(unsigned long addr, unsigned long end,
-+		int write, struct page **pages, int *nr)
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 0ded10a22639..97eda34b9a81 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -704,3 +704,12 @@ config PERCPU_STATS
+ 	  This feature collects and exposes statistics via debugfs. The
+ 	  information includes global and per chunk statistics, which can
+ 	  be used to help understand percpu memory usage.
++
++config GUP_BENCHMARK
++	bool "Enable infrastructure for get_user_pages_fast() benchmarking"
++	default n
++	help
++	  Provides /sys/kernel/debug/gup_benchmark that helps with testing
++	  performance of get_user_pages_fast().
++
++	  See tools/testing/selftests/vm/gup_benchmark.c
+diff --git a/mm/Makefile b/mm/Makefile
+index 411bd24d4a7c..2f788a5970f8 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -104,3 +104,4 @@ obj-$(CONFIG_FRAME_VECTOR) += frame_vector.o
+ obj-$(CONFIG_DEBUG_PAGE_REF) += debug_page_ref.o
+ obj-$(CONFIG_HARDENED_USERCOPY) += usercopy.o
+ obj-$(CONFIG_PERCPU_STATS) += percpu-stats.o
++obj-$(CONFIG_GUP_BENCHMARK) += gup_benchmark.o
+diff --git a/mm/gup_benchmark.c b/mm/gup_benchmark.c
+new file mode 100644
+index 000000000000..5c8e2abeaa15
+--- /dev/null
++++ b/mm/gup_benchmark.c
+@@ -0,0 +1,100 @@
++#include <linux/kernel.h>
++#include <linux/mm.h>
++#include <linux/slab.h>
++#include <linux/uaccess.h>
++#include <linux/ktime.h>
++#include <linux/debugfs.h>
++
++#define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_benchmark)
++
++struct gup_benchmark {
++	__u64 delta_usec;
++	__u64 addr;
++	__u64 size;
++	__u32 nr_pages_per_call;
++	__u32 flags;
++};
++
++static int __gup_benchmark_ioctl(unsigned int cmd,
++		struct gup_benchmark *gup)
 +{
-+	unsigned long next;
-+	pgd_t *pgdp;
++	ktime_t start_time, end_time;
++	unsigned long i, nr, nr_pages, addr, next;
++	struct page **pages;
 +
-+	pgdp = pgd_offset(current->mm, addr);
-+	do {
-+		pgd_t pgd = READ_ONCE(*pgdp);
++	nr_pages = gup->size / PAGE_SIZE;
++	pages = kvmalloc(sizeof(void *) * nr_pages, GFP_KERNEL);
++	if (!pages)
++		return -ENOMEM;
 +
-+		next = pgd_addr_end(addr, end);
-+		if (pgd_none(pgd))
-+			return;
-+		if (unlikely(pgd_huge(pgd))) {
-+			if (!gup_huge_pgd(pgd, pgdp, addr, next, write,
-+					  pages, nr))
-+				return;
-+		} else if (unlikely(is_hugepd(__hugepd(pgd_val(pgd))))) {
-+			if (!gup_huge_pd(__hugepd(pgd_val(pgd)), addr,
-+					 PGDIR_SHIFT, next, write, pages, nr))
-+				return;
-+		} else if (!gup_p4d_range(pgd, addr, next, write, pages, nr))
-+			return;
-+	} while (pgdp++, addr = next, addr != end);
-+}
++	i = 0;
++	nr = gup->nr_pages_per_call;
++	start_time = ktime_get();
++	for (addr = gup->addr; addr < gup->addr + gup->size; addr = next) {
++		if (nr != gup->nr_pages_per_call)
++			break;
 +
-+#ifndef gup_fast_permitted
-+/*
-+ * Check if it's allowed to use __get_user_pages_fast() for the range, or
-+ * we need to fall back to the slow version:
-+ */
-+bool gup_fast_permitted(unsigned long start, int nr_pages, int write)
-+{
-+	unsigned long len, end;
++		next = addr + nr * PAGE_SIZE;
++		if (next > gup->addr + gup->size) {
++			next = gup->addr + gup->size;
++			nr = (next - addr) / PAGE_SIZE;
++		}
 +
-+	len = (unsigned long) nr_pages << PAGE_SHIFT;
-+	end = start + len;
-+	return end >= start;
-+}
-+#endif
-+
- /*
-  * Like get_user_pages_fast() except it's IRQ-safe in that it won't fall back to
-  * the regular GUP. It will only return non-negative values.
-@@ -1625,10 +1666,8 @@ static int gup_p4d_range(pgd_t pgd, unsigned long addr, unsigned long end,
- int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 			  struct page **pages)
- {
--	struct mm_struct *mm = current->mm;
- 	unsigned long addr, len, end;
--	unsigned long next, flags;
--	pgd_t *pgdp;
-+	unsigned long flags;
- 	int nr = 0;
- 
- 	start &= PAGE_MASK;
-@@ -1652,45 +1691,15 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 	 * block IPIs that come from THPs splitting.
- 	 */
- 
--	local_irq_save(flags);
--	pgdp = pgd_offset(mm, addr);
--	do {
--		pgd_t pgd = READ_ONCE(*pgdp);
--
--		next = pgd_addr_end(addr, end);
--		if (pgd_none(pgd))
--			break;
--		if (unlikely(pgd_huge(pgd))) {
--			if (!gup_huge_pgd(pgd, pgdp, addr, next, write,
--					  pages, &nr))
--				break;
--		} else if (unlikely(is_hugepd(__hugepd(pgd_val(pgd))))) {
--			if (!gup_huge_pd(__hugepd(pgd_val(pgd)), addr,
--					 PGDIR_SHIFT, next, write, pages, &nr))
--				break;
--		} else if (!gup_p4d_range(pgd, addr, next, write, pages, &nr))
--			break;
--	} while (pgdp++, addr = next, addr != end);
--	local_irq_restore(flags);
-+	if (gup_fast_permitted(start, nr_pages, write)) {
-+		local_irq_save(flags);
-+		gup_pgd_range(addr, end, write, pages, &nr);
-+		local_irq_restore(flags);
++		nr = get_user_pages_fast(addr, nr, gup->flags & 1, pages + i);
++		i += nr;
 +	}
- 
- 	return nr;
- }
- 
--#ifndef gup_fast_permitted
--/*
-- * Check if it's allowed to use __get_user_pages_fast() for the range, or
-- * we need to fall back to the slow version:
-- */
--bool gup_fast_permitted(unsigned long start, int nr_pages, int write)
--{
--	unsigned long len, end;
--
--	len = (unsigned long) nr_pages << PAGE_SHIFT;
--	end = start + len;
--	return end >= start;
--}
--#endif
--
- /**
-  * get_user_pages_fast() - pin user pages in memory
-  * @start:	starting user address
-@@ -1710,12 +1719,22 @@ bool gup_fast_permitted(unsigned long start, int nr_pages, int write)
- int get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 			struct page **pages)
- {
-+	unsigned long addr, len, end;
- 	int nr = 0, ret = 0;
- 
- 	start &= PAGE_MASK;
-+	addr = start;
-+	len = (unsigned long) nr_pages << PAGE_SHIFT;
-+	end = start + len;
++	end_time = ktime_get();
 +
-+	if (unlikely(!access_ok(write ? VERIFY_WRITE : VERIFY_READ,
-+					(void __user *)start, len)))
-+		return 0;
++	gup->delta_usec = ktime_us_delta(end_time, start_time);
++	gup->size = addr - gup->addr;
++
++	for (i = 0; i < nr_pages; i++) {
++		if (!pages[i])
++			break;
++		put_page(pages[i]);
++	}
++
++	kvfree(pages);
++	return 0;
++}
++
++static long gup_benchmark_ioctl(struct file *filep, unsigned int cmd,
++		unsigned long arg)
++{
++	struct gup_benchmark gup;
++	int ret;
++
++	if (cmd != GUP_FAST_BENCHMARK)
++		return -EINVAL;
++
++	if (copy_from_user(&gup, (void __user *)arg, sizeof(gup)))
++		return -EFAULT;
++
++	ret = __gup_benchmark_ioctl(cmd, &gup);
++	if (ret)
++		return ret;
++
++	if (copy_to_user((void __user *)arg, &gup, sizeof(gup)))
++		return -EFAULT;
++
++	return 0;
++}
++
++static const struct file_operations gup_benchmark_fops = {
++	.open = nonseekable_open,
++	.unlocked_ioctl = gup_benchmark_ioctl,
++};
++
++static int gup_benchmark_init(void)
++{
++	void *ret;
++
++	ret = debugfs_create_file_unsafe("gup_benchmark", 0600, NULL, NULL,
++			&gup_benchmark_fops);
++	if (!ret)
++		pr_warn("Failed to create gup_benchmark in debugfs");
++
++	return 0;
++}
++
++late_initcall(gup_benchmark_init);
+diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
+index cbb29e41ef2b..084212d9e3e2 100644
+--- a/tools/testing/selftests/vm/Makefile
++++ b/tools/testing/selftests/vm/Makefile
+@@ -17,6 +17,7 @@ TEST_GEN_FILES += transhuge-stress
+ TEST_GEN_FILES += userfaultfd
+ TEST_GEN_FILES += mlock-random-test
+ TEST_GEN_FILES += virtual_address_range
++TEST_GEN_FILES += gup_benchmark
  
- 	if (gup_fast_permitted(start, nr_pages, write)) {
--		nr = __get_user_pages_fast(start, nr_pages, write, pages);
-+		local_irq_disable();
-+		gup_pgd_range(addr, end, write, pages, &nr);
-+		local_irq_enable();
- 		ret = nr;
- 	}
+ TEST_PROGS := run_vmtests
  
+diff --git a/tools/testing/selftests/vm/gup_benchmark.c b/tools/testing/selftests/vm/gup_benchmark.c
+new file mode 100644
+index 000000000000..36df55132036
+--- /dev/null
++++ b/tools/testing/selftests/vm/gup_benchmark.c
+@@ -0,0 +1,91 @@
++#include <fcntl.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <unistd.h>
++
++#include <sys/ioctl.h>
++#include <sys/mman.h>
++#include <sys/prctl.h>
++#include <sys/stat.h>
++#include <sys/types.h>
++
++#include <linux/types.h>
++
++#define MB (1UL << 20)
++#define PAGE_SIZE sysconf(_SC_PAGESIZE)
++
++#define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_benchmark)
++
++struct gup_benchmark {
++	__u64 delta_usec;
++	__u64 addr;
++	__u64 size;
++	__u32 nr_pages_per_call;
++	__u32 flags;
++};
++
++int main(int argc, char **argv)
++{
++	struct gup_benchmark gup;
++	unsigned long size = 128 * MB;
++	int i, fd, opt, nr_pages = 1, thp = -1, repeats = 1, write = 0;
++	char *p;
++
++	while ((opt = getopt(argc, argv, "m:r:n:tT")) != -1) {
++		switch (opt) {
++		case 'm':
++			size = atoi(optarg) * MB;
++			break;
++		case 'r':
++			repeats = atoi(optarg);
++			break;
++		case 'n':
++			nr_pages = atoi(optarg);
++			break;
++		case 't':
++			thp = 1;
++			break;
++		case 'T':
++			thp = 0;
++			break;
++		case 'w':
++			write = 1;
++		default:
++			return -1;
++		}
++	}
++
++	gup.nr_pages_per_call = nr_pages;
++	gup.flags = write;
++
++	fd = open("/sys/kernel/debug/gup_benchmark", O_RDWR);
++	if (fd == -1)
++		perror("open"), exit(1);
++
++	p = mmap(NULL, size, PROT_READ | PROT_WRITE,
++			MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
++	if (p == MAP_FAILED)
++		perror("mmap"), exit(1);
++	gup.addr = (unsigned long)p;
++
++	if (thp == 1)
++		madvise(p, size, MADV_HUGEPAGE);
++	else if (thp == 0)
++		madvise(p, size, MADV_NOHUGEPAGE);
++
++	for (; (unsigned long)p < gup.addr + size; p += PAGE_SIZE)
++		p[0] = 0;
++
++	for (i = 0; i < repeats; i++) {
++		gup.size = size;
++		if (ioctl(fd, GUP_FAST_BENCHMARK, &gup))
++			perror("ioctl"), exit(1);
++
++		printf("Time: %lld us", gup.delta_usec);
++		if (gup.size != size)
++			printf(", truncated (size: %lld)", gup.size);
++		printf("\n");
++	}
++
++	return 0;
++}
 -- 
 2.14.1
 
