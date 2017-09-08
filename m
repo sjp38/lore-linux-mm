@@ -1,252 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C890C6B0327
-	for <linux-mm@kvack.org>; Thu,  7 Sep 2017 23:37:08 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id b82so1909721qkc.2
-        for <linux-mm@kvack.org>; Thu, 07 Sep 2017 20:37:08 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l27si1130757qta.36.2017.09.07.20.37.07
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Sep 2017 20:37:07 -0700 (PDT)
-Date: Fri, 8 Sep 2017 06:36:46 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v15 3/5] virtio-balloon: VIRTIO_BALLOON_F_SG
-Message-ID: <20170908062748-mutt-send-email-mst@kernel.org>
-References: <1503914913-28893-1-git-send-email-wei.w.wang@intel.com>
- <1503914913-28893-4-git-send-email-wei.w.wang@intel.com>
- <20170828204659-mutt-send-email-mst@kernel.org>
- <59A4DADE.5050303@intel.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 663FA6B0329
+	for <linux-mm@kvack.org>; Fri,  8 Sep 2017 03:11:20 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id v82so3674275pgb.5
+        for <linux-mm@kvack.org>; Fri, 08 Sep 2017 00:11:20 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id e8si1074929pgq.168.2017.09.08.00.11.18
+        for <linux-mm@kvack.org>;
+        Fri, 08 Sep 2017 00:11:19 -0700 (PDT)
+Subject: Re: Re: [PATCH] mm/vmstats: add counters for the page frag cache
+References: <1504222631-2635-1-git-send-email-kyeongdon.kim@lge.com>
+ <d6120888-344a-4449-4ca6-ac98508bb3cf@yandex-team.ru>
+From: Kyeongdon Kim <kyeongdon.kim@lge.com>
+Message-ID: <a0bf4c5f-3fe6-08c4-a5c4-3be026213f58@lge.com>
+Date: Fri, 8 Sep 2017 16:11:15 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <59A4DADE.5050303@intel.com>
+In-Reply-To: <d6120888-344a-4449-4ca6-ac98508bb3cf@yandex-team.ru>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, akpm@linux-foundation.org, sfr@canb.auug.org.au
+Cc: ying.huang@intel.com, vbabka@suse.cz, hannes@cmpxchg.org, xieyisheng1@huawei.com, luto@kernel.org, shli@fb.com, mhocko@suse.com, mgorman@techsingularity.net, hillf.zj@alibaba-inc.com, kemi.wang@intel.com, rientjes@google.com, bigeasy@linutronix.de, iamjoonsoo.kim@lge.com, bongkyu.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev <netdev@vger.kernel.org>
 
-On Tue, Aug 29, 2017 at 11:09:18AM +0800, Wei Wang wrote:
-> On 08/29/2017 02:03 AM, Michael S. Tsirkin wrote:
-> > On Mon, Aug 28, 2017 at 06:08:31PM +0800, Wei Wang wrote:
-> > > Add a new feature, VIRTIO_BALLOON_F_SG, which enables the transfer
-> > > of balloon (i.e. inflated/deflated) pages using scatter-gather lists
-> > > to the host.
-> > > 
-> > > The implementation of the previous virtio-balloon is not very
-> > > efficient, because the balloon pages are transferred to the
-> > > host one by one. Here is the breakdown of the time in percentage
-> > > spent on each step of the balloon inflating process (inflating
-> > > 7GB of an 8GB idle guest).
-> > > 
-> > > 1) allocating pages (6.5%)
-> > > 2) sending PFNs to host (68.3%)
-> > > 3) address translation (6.1%)
-> > > 4) madvise (19%)
-> > > 
-> > > It takes about 4126ms for the inflating process to complete.
-> > > The above profiling shows that the bottlenecks are stage 2)
-> > > and stage 4).
-> > > 
-> > > This patch optimizes step 2) by transferring pages to the host in
-> > > sgs. An sg describes a chunk of guest physically continuous pages.
-> > > With this mechanism, step 4) can also be optimized by doing address
-> > > translation and madvise() in chunks rather than page by page.
-> > > 
-> > > With this new feature, the above ballooning process takes ~597ms
-> > > resulting in an improvement of ~86%.
-> > > 
-> > > TODO: optimize stage 1) by allocating/freeing a chunk of pages
-> > > instead of a single page each time.
-> > > 
-> > > Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> > > Signed-off-by: Liang Li <liang.z.li@intel.com>
-> > > Suggested-by: Michael S. Tsirkin <mst@redhat.com>
-> > > ---
-> > >   drivers/virtio/virtio_balloon.c     | 171 ++++++++++++++++++++++++++++++++----
-> > >   include/uapi/linux/virtio_balloon.h |   1 +
-> > >   2 files changed, 155 insertions(+), 17 deletions(-)
-> > > 
-> > > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> > > index f0b3a0b..8ecc1d4 100644
-> > > --- a/drivers/virtio/virtio_balloon.c
-> > > +++ b/drivers/virtio/virtio_balloon.c
-> > > @@ -32,6 +32,8 @@
-> > >   #include <linux/mm.h>
-> > >   #include <linux/mount.h>
-> > >   #include <linux/magic.h>
-> > > +#include <linux/xbitmap.h>
-> > > +#include <asm/page.h>
-> > >   /*
-> > >    * Balloon device works in 4K page units.  So each page is pointed to by
-> > > @@ -79,6 +81,9 @@ struct virtio_balloon {
-> > >   	/* Synchronize access/update to this struct virtio_balloon elements */
-> > >   	struct mutex balloon_lock;
-> > > +	/* The xbitmap used to record balloon pages */
-> > > +	struct xb page_xb;
-> > > +
-> > >   	/* The array of pfns we tell the Host about. */
-> > >   	unsigned int num_pfns;
-> > >   	__virtio32 pfns[VIRTIO_BALLOON_ARRAY_PFNS_MAX];
-> > > @@ -141,13 +146,111 @@ static void set_page_pfns(struct virtio_balloon *vb,
-> > >   					  page_to_balloon_pfn(page) + i);
-> > >   }
-> > > +static int add_one_sg(struct virtqueue *vq, void *addr, uint32_t size)
-> > > +{
-> > > +	struct scatterlist sg;
-> > > +
-> > > +	sg_init_one(&sg, addr, size);
-> > > +	return virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
-> > > +}
-> > > +
-> > > +static void send_balloon_page_sg(struct virtio_balloon *vb,
-> > > +				 struct virtqueue *vq,
-> > > +				 void *addr,
-> > > +				 uint32_t size,
-> > > +				 bool batch)
-> > > +{
-> > > +	unsigned int len;
-> > > +	int err;
-> > > +
-> > > +	err = add_one_sg(vq, addr, size);
-> > > +	/* Sanity check: this can't really happen */
-> > > +	WARN_ON(err);
-> > It might be cleaner to detect that add failed due to
-> > ring full and kick then. Just an idea, up to you
-> > whether to do it.
-> > 
-> > > +
-> > > +	/* If batching is in use, we batch the sgs till the vq is full. */
-> > > +	if (!batch || !vq->num_free) {
-> > > +		virtqueue_kick(vq);
-> > > +		wait_event(vb->acked, virtqueue_get_buf(vq, &len));
-> > > +		/* Release all the entries if there are */
-> > Meaning
-> > 	Account for all used entries if any
-> > ?
-> > 
-> > > +		while (virtqueue_get_buf(vq, &len))
-> > > +			;
-> > 
-> > Above code is reused below. Add a function?
-> > 
-> > > +	}
-> > > +}
-> > > +
-> > > +/*
-> > > + * Send balloon pages in sgs to host. The balloon pages are recorded in the
-> > > + * page xbitmap. Each bit in the bitmap corresponds to a page of PAGE_SIZE.
-> > > + * The page xbitmap is searched for continuous "1" bits, which correspond
-> > > + * to continuous pages, to chunk into sgs.
-> > > + *
-> > > + * @page_xb_start and @page_xb_end form the range of bits in the xbitmap that
-> > > + * need to be searched.
-> > > + */
-> > > +static void tell_host_sgs(struct virtio_balloon *vb,
-> > > +			  struct virtqueue *vq,
-> > > +			  unsigned long page_xb_start,
-> > > +			  unsigned long page_xb_end)
-> > > +{
-> > > +	unsigned long sg_pfn_start, sg_pfn_end;
-> > > +	void *sg_addr;
-> > > +	uint32_t sg_len, sg_max_len = round_down(UINT_MAX, PAGE_SIZE);
-> > > +
-> > > +	sg_pfn_start = page_xb_start;
-> > > +	while (sg_pfn_start < page_xb_end) {
-> > > +		sg_pfn_start = xb_find_next_bit(&vb->page_xb, sg_pfn_start,
-> > > +						page_xb_end, 1);
-> > > +		if (sg_pfn_start == page_xb_end + 1)
-> > > +			break;
-> > > +		sg_pfn_end = xb_find_next_bit(&vb->page_xb, sg_pfn_start + 1,
-> > > +					      page_xb_end, 0);
-> > > +		sg_addr = (void *)pfn_to_kaddr(sg_pfn_start);
-> > > +		sg_len = (sg_pfn_end - sg_pfn_start) << PAGE_SHIFT;
-> > > +		while (sg_len > sg_max_len) {
-> > > +			send_balloon_page_sg(vb, vq, sg_addr, sg_max_len, 1);
-> > Last argument should be true, not 1.
-> > 
-> > > +			sg_addr += sg_max_len;
-> > > +			sg_len -= sg_max_len;
-> > > +		}
-> > > +		send_balloon_page_sg(vb, vq, sg_addr, sg_len, 1);
-> > > +		xb_zero(&vb->page_xb, sg_pfn_start, sg_pfn_end);
-> > > +		sg_pfn_start = sg_pfn_end + 1;
-> > > +	}
-> > > +
-> > > +	/*
-> > > +	 * The last few sgs may not reach the batch size, but need a kick to
-> > > +	 * notify the device to handle them.
-> > > +	 */
-> > > +	if (vq->num_free != virtqueue_get_vring_size(vq)) {
-> > > +		virtqueue_kick(vq);
-> > > +		wait_event(vb->acked, virtqueue_get_buf(vq, &sg_len));
-> > > +		while (virtqueue_get_buf(vq, &sg_len))
-> > > +			;
-> > Some entries can get used after a pause. Looks like they will leak then?
-> > One fix would be to convert above if to a while loop.
-> > I don't know whether to do it like this in send_balloon_page_sg too.
-> > 
-> 
-> Thanks for the above comments. I've re-written this part of code.
-> Please have a check below if there is anything more we could improve:
-> 
-> static void kick_and_wait(struct virtqueue *vq, wait_queue_head_t wq_head)
-> {
->         unsigned int len;
-> 
->         virtqueue_kick(vq);
->         wait_event(wq_head, virtqueue_get_buf(vq, &len));
->         /* Detach all the used buffers from the vq */
->         while (virtqueue_get_buf(vq, &len))
->                 ;
+On 2017-09-04 i??i?? 5:30, Konstantin Khlebnikov wrote:
+> On 04.09.2017 04:35, Kyeongdon Kim wrote:
+> > Thanks for your reply,
+> > But I couldn't find "NR_FRAGMENT_PAGES" in linux-next.git .. is that 
+> vmstat counter? or others?
+> >
+>
+> I mean rather than adding bunch vmstat counters for operations it 
+> might be
+> worth to add page counter which will show current amount of these pages.
+> But this seems too low-level for tracking, common counters for all 
+> network
+> buffers would be more useful but much harder to implement.
+>
+Ok, thanks for the comment.
+> As I can see page owner is able to save stacktrace where allocation 
+> happened,
+> this makes debugging mostly trivial without any counters. If it adds 
+> too much
+> overhead - just track random 1% of pages, should be enough for finding 
+> leak.
+>
+As I said, we already used page owner tools to resolve the leak issue.
+But that's extremely difficult to figure it out,
+too much callstack and too much allocation orders(0 or more).
+We couldn't easily get a clue event if we track 1% of pages..
 
-I would move this last part to before add_buf. Increases chances
-it succeeds even in case of a bug.
+In fact, I was writing another email to send a new patch with debug config.
+We added a hash function to pick out address with callstack by using 
+debugfs,
+It could be showing the only page_frag_cache leak with owner.
 
-> }
-> 
-> static int add_one_sg(struct virtqueue *vq, void *addr, uint32_t size)
-> {
->         struct scatterlist sg;
->         int ret;
-> 
->         sg_init_one(&sg, addr, size);
->         ret = virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
->         if (unlikely(ret == -ENOSPC))
->                 dev_warn(&vq->vdev->dev, "%s: failed due to ring full\n",
->                                  __func__);
+for exmaple code :
++++ /mm/page_alloc.c
+@@ -4371,7 +4371,9 @@ void *page_frag_alloc(struct page_frag_cache *nc,
 
-So if this ever triggers then kick and wait might fail, right?
-I think you should not special-case this one then.
+ A A A A A A A  nc->pagecnt_bias--;
+ A A A A A A A  nc->offset = offset;
++#ifdef CONFIG_PGFRAG_DEBUG
++A A A A A A  page_frag_debug_alloc(nc->va + offset);
++#endif
+ A A A A A A A  return nc->va + offset;
+ A }
+ A EXPORT_SYMBOL(page_frag_alloc);
+@@ -4382,7 +4384,9 @@ EXPORT_SYMBOL(page_frag_alloc);
+ A void page_frag_free(void *addr)
+ A {
+ A A A A A A A  struct page *page = virt_to_head_page(addr);
++#ifdef CONFIG_PGFRAG_DEBUG
++A A A A A A  page_frag_debug_free(addr);
++#endif
+ A A A A A A A  if (unlikely(put_page_testzero(page)))
 
-> 
->         return ret;
-> }
-> 
-> static void send_balloon_page_sg(struct virtio_balloon *vb,
->                                                       struct virtqueue *vq,
->                                                       void *addr,
->                                                       uint32_t size,
->                                                       bool batch)
-> {
->         int err;
-> 
->         do {
->                 err = add_one_sg(vq, addr, size);
->                 if (err == -ENOSPC || !batch || !vq->num_free)
->                         kick_and_wait(vq, vb->acked);
->         } while (err == -ENOSPC);
-> }
-> 
-> 
-> Best,
-> Wei
+Those counters that I added may be too much for the linux server or 
+something.
+However, I think the other systems may need to simple debugging method.
+(like Android OS)
 
-I think this fixes the bug, yes. I would skip trying to handle ENOSPC,
-it's more a less a bug if it triggers. Just bail out on any error.
+So if you can accept the patch with debug feature,
+I will send it including counters.
+but still thinking those counters don't need. I won't.
 
--- 
-MST
+Anyway, I'm grateful for your feedback, means a lot to me.
+
+Thanks,
+Kyeongdon Kim
+> > As you know, page_frag_alloc() directly calls 
+> __alloc_pages_nodemask() function,
+> > so that makes too difficult to see memory usage in real time even 
+> though we have "/meminfo or /slabinfo.." information.
+> > If there was a way already to figure out the memory leakage from 
+> page_frag_cache in mainline, I agree your opinion
+> > but I think we don't have it now.
+> >
+> > If those counters too much in my patch,
+> > I can say two values (pgfrag_alloc and pgfrag_free) are enough to 
+> guess what will happen
+> > and would remove pgfrag_alloc_calls and pgfrag_free_calls.
+> >
+> > Thanks,
+> > Kyeongdon Kim
+> >
+>
+> >> IMHO that's too much counters.
+> >> Per-node NR_FRAGMENT_PAGES should be enough for guessing what's 
+> going on.
+> >> Perf probes provides enough features for furhter debugging.
+> >>
+> >> On 01.09.2017 02:37, Kyeongdon Kim wrote:
+> >> > There was a memory leak problem when we did stressful test
+> >> > on Android device.
+> >> > The root cause of this was from page_frag_cache alloc
+> >> > and it was very hard to find out.
+> >> >
+> >> > We add to count the page frag allocation and free with function 
+> call.
+> >> > The gap between pgfrag_alloc and pgfrag_free is good to to calculate
+> >> > for the amount of page.
+> >> > The gap between pgfrag_alloc_calls and pgfrag_free_calls is for
+> >> > sub-indicator.
+> >> > They can see trends of memory usage during the test.
+> >> > Without it, it's difficult to check page frag usage so I believe we
+> >> > should add it.
+> >> >
+> >> > Signed-off-by: Kyeongdon Kim <kyeongdon.kim@lge.com>
+> >> > ---
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
