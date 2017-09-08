@@ -1,224 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D61866B0339
-	for <linux-mm@kvack.org>; Fri,  8 Sep 2017 07:06:26 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id v82so4553158pgb.5
-        for <linux-mm@kvack.org>; Fri, 08 Sep 2017 04:06:26 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id b10si1358435pgr.776.2017.09.08.04.06.23
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 01E4B6B033B
+	for <linux-mm@kvack.org>; Fri,  8 Sep 2017 08:20:06 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id i14so2998517qke.6
+        for <linux-mm@kvack.org>; Fri, 08 Sep 2017 05:20:05 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id e6si1846816qkb.89.2017.09.08.05.20.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Sep 2017 04:06:24 -0700 (PDT)
-Message-ID: <59B27A64.4040604@intel.com>
-Date: Fri, 08 Sep 2017 19:09:24 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        Fri, 08 Sep 2017 05:20:04 -0700 (PDT)
+Subject: Re: [PATCH v7 9/9] sparc64: Add support for ADI (Application Data
+ Integrity)
+References: <cover.1502219353.git.khalid.aziz@oracle.com>
+ <3a687666c2e7972fb6d2379848f31006ac1dd59a.1502219353.git.khalid.aziz@oracle.com>
+ <20170904162530.GA21781@amd>
+ <20170905.144456.431070706382873486.davem@davemloft.net>
+ <20170906223206.GA11481@amd>
+From: Steven Sistare <steven.sistare@oracle.com>
+Message-ID: <8e191b8e-2e72-5ef8-ba0e-abf1cbc2fad0@oracle.com>
+Date: Fri, 8 Sep 2017 08:18:48 -0400
 MIME-Version: 1.0
-Subject: Re: [virtio-dev] Re: [PATCH v15 3/5] virtio-balloon: VIRTIO_BALLOON_F_SG
-References: <1503914913-28893-1-git-send-email-wei.w.wang@intel.com> <1503914913-28893-4-git-send-email-wei.w.wang@intel.com> <20170828204659-mutt-send-email-mst@kernel.org> <59A4DADE.5050303@intel.com> <20170908062748-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20170908062748-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <20170906223206.GA11481@amd>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Pavel Machek <pavel@ucw.cz>, David Miller <davem@davemloft.net>
+Cc: khalid.aziz@oracle.com, dave.hansen@linux.intel.com, corbet@lwn.net, bob.picco@oracle.com, pasha.tatashin@oracle.com, mike.kravetz@oracle.com, mingo@kernel.org, nitin.m.gupta@oracle.com, kirill.shutemov@linux.intel.com, tom.hromatka@oracle.com, eric.saint.etienne@oracle.com, allen.pais@oracle.com, cmetcalf@mellanox.com, akpm@linux-foundation.org, geert@linux-m68k.org, tklauser@distanz.ch, atish.patra@oracle.com, vijay.ac.kumar@oracle.com, peterz@infradead.org, mhocko@suse.com, jack@suse.cz, lstoakes@gmail.com, hughd@google.com, thomas.tai@oracle.com, paul.gortmaker@windriver.com, ross.zwisler@linux.intel.com, dave.jiang@intel.com, willy@infradead.org, ying.huang@intel.com, zhongjiang@huawei.com, minchan@kernel.org, vegard.nossum@oracle.com, imbrenda@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, khalid@gonehiking.org
 
-On 09/08/2017 11:36 AM, Michael S. Tsirkin wrote:
-> On Tue, Aug 29, 2017 at 11:09:18AM +0800, Wei Wang wrote:
->> On 08/29/2017 02:03 AM, Michael S. Tsirkin wrote:
->>> On Mon, Aug 28, 2017 at 06:08:31PM +0800, Wei Wang wrote:
->>>> Add a new feature, VIRTIO_BALLOON_F_SG, which enables the transfer
->>>> of balloon (i.e. inflated/deflated) pages using scatter-gather lists
->>>> to the host.
->>>>
->>>> The implementation of the previous virtio-balloon is not very
->>>> efficient, because the balloon pages are transferred to the
->>>> host one by one. Here is the breakdown of the time in percentage
->>>> spent on each step of the balloon inflating process (inflating
->>>> 7GB of an 8GB idle guest).
->>>>
->>>> 1) allocating pages (6.5%)
->>>> 2) sending PFNs to host (68.3%)
->>>> 3) address translation (6.1%)
->>>> 4) madvise (19%)
->>>>
->>>> It takes about 4126ms for the inflating process to complete.
->>>> The above profiling shows that the bottlenecks are stage 2)
->>>> and stage 4).
->>>>
->>>> This patch optimizes step 2) by transferring pages to the host in
->>>> sgs. An sg describes a chunk of guest physically continuous pages.
->>>> With this mechanism, step 4) can also be optimized by doing address
->>>> translation and madvise() in chunks rather than page by page.
->>>>
->>>> With this new feature, the above ballooning process takes ~597ms
->>>> resulting in an improvement of ~86%.
->>>>
->>>> TODO: optimize stage 1) by allocating/freeing a chunk of pages
->>>> instead of a single page each time.
->>>>
->>>> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
->>>> Signed-off-by: Liang Li <liang.z.li@intel.com>
->>>> Suggested-by: Michael S. Tsirkin <mst@redhat.com>
->>>> ---
->>>>    drivers/virtio/virtio_balloon.c     | 171 ++++++++++++++++++++++++++++++++----
->>>>    include/uapi/linux/virtio_balloon.h |   1 +
->>>>    2 files changed, 155 insertions(+), 17 deletions(-)
->>>>
->>>> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
->>>> index f0b3a0b..8ecc1d4 100644
->>>> --- a/drivers/virtio/virtio_balloon.c
->>>> +++ b/drivers/virtio/virtio_balloon.c
->>>> @@ -32,6 +32,8 @@
->>>>    #include <linux/mm.h>
->>>>    #include <linux/mount.h>
->>>>    #include <linux/magic.h>
->>>> +#include <linux/xbitmap.h>
->>>> +#include <asm/page.h>
->>>>    /*
->>>>     * Balloon device works in 4K page units.  So each page is pointed to by
->>>> @@ -79,6 +81,9 @@ struct virtio_balloon {
->>>>    	/* Synchronize access/update to this struct virtio_balloon elements */
->>>>    	struct mutex balloon_lock;
->>>> +	/* The xbitmap used to record balloon pages */
->>>> +	struct xb page_xb;
->>>> +
->>>>    	/* The array of pfns we tell the Host about. */
->>>>    	unsigned int num_pfns;
->>>>    	__virtio32 pfns[VIRTIO_BALLOON_ARRAY_PFNS_MAX];
->>>> @@ -141,13 +146,111 @@ static void set_page_pfns(struct virtio_balloon *vb,
->>>>    					  page_to_balloon_pfn(page) + i);
->>>>    }
->>>> +static int add_one_sg(struct virtqueue *vq, void *addr, uint32_t size)
->>>> +{
->>>> +	struct scatterlist sg;
->>>> +
->>>> +	sg_init_one(&sg, addr, size);
->>>> +	return virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
->>>> +}
->>>> +
->>>> +static void send_balloon_page_sg(struct virtio_balloon *vb,
->>>> +				 struct virtqueue *vq,
->>>> +				 void *addr,
->>>> +				 uint32_t size,
->>>> +				 bool batch)
->>>> +{
->>>> +	unsigned int len;
->>>> +	int err;
->>>> +
->>>> +	err = add_one_sg(vq, addr, size);
->>>> +	/* Sanity check: this can't really happen */
->>>> +	WARN_ON(err);
->>> It might be cleaner to detect that add failed due to
->>> ring full and kick then. Just an idea, up to you
->>> whether to do it.
->>>
->>>> +
->>>> +	/* If batching is in use, we batch the sgs till the vq is full. */
->>>> +	if (!batch || !vq->num_free) {
->>>> +		virtqueue_kick(vq);
->>>> +		wait_event(vb->acked, virtqueue_get_buf(vq, &len));
->>>> +		/* Release all the entries if there are */
->>> Meaning
->>> 	Account for all used entries if any
->>> ?
->>>
->>>> +		while (virtqueue_get_buf(vq, &len))
->>>> +			;
->>> Above code is reused below. Add a function?
->>>
->>>> +	}
->>>> +}
->>>> +
->>>> +/*
->>>> + * Send balloon pages in sgs to host. The balloon pages are recorded in the
->>>> + * page xbitmap. Each bit in the bitmap corresponds to a page of PAGE_SIZE.
->>>> + * The page xbitmap is searched for continuous "1" bits, which correspond
->>>> + * to continuous pages, to chunk into sgs.
->>>> + *
->>>> + * @page_xb_start and @page_xb_end form the range of bits in the xbitmap that
->>>> + * need to be searched.
->>>> + */
->>>> +static void tell_host_sgs(struct virtio_balloon *vb,
->>>> +			  struct virtqueue *vq,
->>>> +			  unsigned long page_xb_start,
->>>> +			  unsigned long page_xb_end)
->>>> +{
->>>> +	unsigned long sg_pfn_start, sg_pfn_end;
->>>> +	void *sg_addr;
->>>> +	uint32_t sg_len, sg_max_len = round_down(UINT_MAX, PAGE_SIZE);
->>>> +
->>>> +	sg_pfn_start = page_xb_start;
->>>> +	while (sg_pfn_start < page_xb_end) {
->>>> +		sg_pfn_start = xb_find_next_bit(&vb->page_xb, sg_pfn_start,
->>>> +						page_xb_end, 1);
->>>> +		if (sg_pfn_start == page_xb_end + 1)
->>>> +			break;
->>>> +		sg_pfn_end = xb_find_next_bit(&vb->page_xb, sg_pfn_start + 1,
->>>> +					      page_xb_end, 0);
->>>> +		sg_addr = (void *)pfn_to_kaddr(sg_pfn_start);
->>>> +		sg_len = (sg_pfn_end - sg_pfn_start) << PAGE_SHIFT;
->>>> +		while (sg_len > sg_max_len) {
->>>> +			send_balloon_page_sg(vb, vq, sg_addr, sg_max_len, 1);
->>> Last argument should be true, not 1.
->>>
->>>> +			sg_addr += sg_max_len;
->>>> +			sg_len -= sg_max_len;
->>>> +		}
->>>> +		send_balloon_page_sg(vb, vq, sg_addr, sg_len, 1);
->>>> +		xb_zero(&vb->page_xb, sg_pfn_start, sg_pfn_end);
->>>> +		sg_pfn_start = sg_pfn_end + 1;
->>>> +	}
->>>> +
->>>> +	/*
->>>> +	 * The last few sgs may not reach the batch size, but need a kick to
->>>> +	 * notify the device to handle them.
->>>> +	 */
->>>> +	if (vq->num_free != virtqueue_get_vring_size(vq)) {
->>>> +		virtqueue_kick(vq);
->>>> +		wait_event(vb->acked, virtqueue_get_buf(vq, &sg_len));
->>>> +		while (virtqueue_get_buf(vq, &sg_len))
->>>> +			;
->>> Some entries can get used after a pause. Looks like they will leak then?
->>> One fix would be to convert above if to a while loop.
->>> I don't know whether to do it like this in send_balloon_page_sg too.
->>>
->> Thanks for the above comments. I've re-written this part of code.
->> Please have a check below if there is anything more we could improve:
+On 9/6/2017 6:32 PM, Pavel Machek wrote:
+> On Tue 2017-09-05 14:44:56, David Miller wrote:
+>> From: Pavel Machek <pavel@ucw.cz>
+>> Date: Mon, 4 Sep 2017 18:25:30 +0200
 >>
->> static void kick_and_wait(struct virtqueue *vq, wait_queue_head_t wq_head)
->> {
->>          unsigned int len;
+>>> Will gcc be able to compile code that uses these automatically? That
+>>> does not sound easy to me. Can libc automatically use this in malloc()
+>>> to prevent accessing freed data when buffers are overrun?
+>>>
+>>> Is this for benefit of JITs?
 >>
->>          virtqueue_kick(vq);
->>          wait_event(wq_head, virtqueue_get_buf(vq, &len));
->>          /* Detach all the used buffers from the vq */
->>          while (virtqueue_get_buf(vq, &len))
->>                  ;
-> I would move this last part to before add_buf. Increases chances
-> it succeeds even in case of a bug.
+>> Anything that can control mappings and the virtual address used to
+>> access memory can use ADI.
+>>
+>> malloc() is of course one such case.  It can map memory with ADI
+>> enabled, and return buffer addresses to malloc() callers with the
+>> proper virtual address bits set to satisfy the ADI key checks.
+>>
+>> And by induction anything using malloc() for it's memory allocation
+>> gets ADI protection as well.
+> 
+> I see; that's actually quite a nice trick.
+> 
+> I guess it does not protect against stack-based overflows, but should
+> help against heap-based overflows, so it improves security a bit, too.
+> 
+> Nice, thanks for explanation.
 
->
->> }
->>
->> static int add_one_sg(struct virtqueue *vq, void *addr, uint32_t size)
->> {
->>          struct scatterlist sg;
->>          int ret;
->>
->>          sg_init_one(&sg, addr, size);
->>          ret = virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
->>          if (unlikely(ret == -ENOSPC))
->>                  dev_warn(&vq->vdev->dev, "%s: failed due to ring full\n",
->>                                   __func__);
-> So if this ever triggers then kick and wait might fail, right?
-> I think you should not special-case this one then.
+ADI can also be used to protect the stack.  Modify ADI versions for
+a 64B aligned portion of the register save area in the kernel spill
+and fill handlers,  and accidental or malicious access to the area 
+from userland will trap.  Other data on the stack can be corrupted, 
+but one cannot linearly overflow into the next stack frame without 
+tripping over the ADI canary.  There are a few other details to handle,
+such as setjmp/longjmp and JITs that modify the stack, but that is the gist.  
+This is not part of the current patch, but has been implemented on
+Solaris.
 
-OK, I will remove the check above, and take other suggestions as well. 
-Thanks.
+ADI could protect other data on the stack, but that requires 
+compiler code generation changes.
 
-Best,
-Wei
+- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
