@@ -1,103 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 84F706B0375
-	for <linux-mm@kvack.org>; Fri,  8 Sep 2017 14:07:52 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id q75so5881073pfl.1
-        for <linux-mm@kvack.org>; Fri, 08 Sep 2017 11:07:52 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id z15si1926075pff.565.2017.09.08.11.07.51
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A85C66B037B
+	for <linux-mm@kvack.org>; Fri,  8 Sep 2017 14:07:55 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id d6so3103614wrd.7
+        for <linux-mm@kvack.org>; Fri, 08 Sep 2017 11:07:55 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id c2si1864265wrd.180.2017.09.08.11.07.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Sep 2017 11:07:51 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v88I4S6r005479
-	for <linux-mm@kvack.org>; Fri, 8 Sep 2017 14:07:51 -0400
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2cuuw0dj7s-1
+        Fri, 08 Sep 2017 11:07:54 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v88I4Pvv013548
+	for <linux-mm@kvack.org>; Fri, 8 Sep 2017 14:07:53 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2cux39p4em-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 08 Sep 2017 14:07:50 -0400
+	for <linux-mm@kvack.org>; Fri, 08 Sep 2017 14:07:52 -0400
 Received: from localhost
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Fri, 8 Sep 2017 19:07:48 +0100
+	Fri, 8 Sep 2017 19:07:51 +0100
 From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: [PATCH v3 11/20] mm: Introduce __maybe_mkwrite()
-Date: Fri,  8 Sep 2017 20:06:55 +0200
+Subject: [PATCH v3 12/20] mm: Introduce __vm_normal_page()
+Date: Fri,  8 Sep 2017 20:06:56 +0200
 In-Reply-To: <1504894024-2750-1-git-send-email-ldufour@linux.vnet.ibm.com>
 References: <1504894024-2750-1-git-send-email-ldufour@linux.vnet.ibm.com>
-Message-Id: <1504894024-2750-12-git-send-email-ldufour@linux.vnet.ibm.com>
+Message-Id: <1504894024-2750-13-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-The current maybe_mkwrite() is getting passed the pointer to the vma
-structure to fetch the vm_flags field.
+When dealing with the speculative fault path we should use the VMA's field
+cached value stored in the vm_fault structure.
 
-When dealing with the speculative page fault handler, it will be better to
-rely on the cached vm_flags value stored in the vm_fault structure.
+Currently vm_normal_page() is using the pointer to the VMA to fetch the
+vm_flags value. This patch provides a new __vm_normal_page() which is
+receiving the vm_flags flags value as parameter.
 
-This patch introduce a __maybe_mkwrite() service which can be called by
-passing the value of the vm_flags field.
-
-There is no change functional changes expected for the other callers of
-maybe_mkwrite().
+Note: The speculative path is turned on for architecture providing support
+for special PTE flag. So only the first block of vm_normal_page is used
+during the speculative path.
 
 Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 ---
- include/linux/mm.h | 9 +++++++--
- mm/memory.c        | 6 +++---
- 2 files changed, 10 insertions(+), 5 deletions(-)
+ include/linux/mm.h |  7 +++++--
+ mm/memory.c        | 18 ++++++++++--------
+ 2 files changed, 15 insertions(+), 10 deletions(-)
 
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 5fd90ac31317..bb0c87f1c725 100644
+index bb0c87f1c725..a2857aaa03f1 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -673,13 +673,18 @@ void free_compound_page(struct page *page);
-  * pte_mkwrite.  But get_user_pages can cause write faults for mappings
-  * that do not have writing enabled, when used by access_process_vm.
-  */
--static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
-+static inline pte_t __maybe_mkwrite(pte_t pte, unsigned long vma_flags)
- {
--	if (likely(vma->vm_flags & VM_WRITE))
-+	if (likely(vma_flags & VM_WRITE))
- 		pte = pte_mkwrite(pte);
- 	return pte;
- }
+@@ -1246,8 +1246,11 @@ struct zap_details {
+ 	pgoff_t last_index;			/* Highest page->index to unmap */
+ };
  
-+static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
-+{
-+	return __maybe_mkwrite(pte, vma->vm_flags);
-+}
-+
- int alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
- 		struct page *page);
- int finish_fault(struct vm_fault *vmf);
+-struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+-			     pte_t pte, bool with_public_device);
++struct page *__vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
++			      pte_t pte, bool with_public_device,
++			      unsigned long vma_flags);
++#define _vm_normal_page(vma, addr, pte, with_public_device) \
++	__vm_normal_page(vma, addr, pte, with_public_device, (vma)->vm_flags);
+ #define vm_normal_page(vma, addr, pte) _vm_normal_page(vma, addr, pte, false)
+ 
+ struct page *vm_normal_page_pmd(struct vm_area_struct *vma, unsigned long addr,
 diff --git a/mm/memory.c b/mm/memory.c
-index 4583f354be94..c306f1f64c9e 100644
+index c306f1f64c9e..a5b5fe833ed3 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -2408,7 +2408,7 @@ static inline void wp_page_reuse(struct vm_fault *vmf)
+@@ -822,8 +822,9 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
+ #else
+ # define HAVE_PTE_SPECIAL 0
+ #endif
+-struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+-			     pte_t pte, bool with_public_device)
++struct page *__vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
++			      pte_t pte, bool with_public_device,
++			      unsigned long vma_flags)
+ {
+ 	unsigned long pfn = pte_pfn(pte);
  
- 	flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));
- 	entry = pte_mkyoung(vmf->orig_pte);
--	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-+	entry = __maybe_mkwrite(pte_mkdirty(entry), vmf->vma_flags);
- 	if (ptep_set_access_flags(vma, vmf->address, vmf->pte, entry, 1))
- 		update_mmu_cache(vma, vmf->address, vmf->pte);
- 	pte_unmap_unlock(vmf->pte, vmf->ptl);
-@@ -2498,8 +2498,8 @@ static int wp_page_copy(struct vm_fault *vmf)
- 			inc_mm_counter_fast(mm, MM_ANONPAGES);
+@@ -832,7 +833,7 @@ struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+ 			goto check_pfn;
+ 		if (vma->vm_ops && vma->vm_ops->find_special_page)
+ 			return vma->vm_ops->find_special_page(vma, addr);
+-		if (vma->vm_flags & (VM_PFNMAP | VM_MIXEDMAP))
++		if (vma_flags & (VM_PFNMAP | VM_MIXEDMAP))
+ 			return NULL;
+ 		if (is_zero_pfn(pfn))
+ 			return NULL;
+@@ -864,8 +865,8 @@ struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+ 
+ 	/* !HAVE_PTE_SPECIAL case follows: */
+ 
+-	if (unlikely(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP))) {
+-		if (vma->vm_flags & VM_MIXEDMAP) {
++	if (unlikely(vma_flags & (VM_PFNMAP|VM_MIXEDMAP))) {
++		if (vma_flags & VM_MIXEDMAP) {
+ 			if (!pfn_valid(pfn))
+ 				return NULL;
+ 			goto out;
+@@ -874,7 +875,7 @@ struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+ 			off = (addr - vma->vm_start) >> PAGE_SHIFT;
+ 			if (pfn == vma->vm_pgoff + off)
+ 				return NULL;
+-			if (!is_cow_mapping(vma->vm_flags))
++			if (!is_cow_mapping(vma_flags))
+ 				return NULL;
  		}
- 		flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));
--		entry = mk_pte(new_page, vma->vm_page_prot);
--		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-+		entry = mk_pte(new_page, vmf->vma_page_prot);
-+		entry = __maybe_mkwrite(pte_mkdirty(entry), vmf->vma_flags);
+ 	}
+@@ -2687,7 +2688,8 @@ static int do_wp_page(struct vm_fault *vmf)
+ {
+ 	struct vm_area_struct *vma = vmf->vma;
+ 
+-	vmf->page = vm_normal_page(vma, vmf->address, vmf->orig_pte);
++	vmf->page = __vm_normal_page(vma, vmf->address, vmf->orig_pte, false,
++				     vmf->vma_flags);
+ 	if (!vmf->page) {
  		/*
- 		 * Clear the pte entry and flush it first, before updating the
- 		 * pte with the new entry. This will avoid a race condition
+ 		 * VM_MIXEDMAP !pfn_valid() case, or VM_SOFTDIRTY clear on a
+@@ -3749,7 +3751,7 @@ static int do_numa_page(struct vm_fault *vmf)
+ 	ptep_modify_prot_commit(vma->vm_mm, vmf->address, vmf->pte, pte);
+ 	update_mmu_cache(vma, vmf->address, vmf->pte);
+ 
+-	page = vm_normal_page(vma, vmf->address, pte);
++	page = __vm_normal_page(vma, vmf->address, pte, false, vmf->vma_flags);
+ 	if (!page) {
+ 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+ 		return 0;
 -- 
 2.7.4
 
