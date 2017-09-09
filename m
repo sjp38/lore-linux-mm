@@ -1,73 +1,293 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B05F86B037F
-	for <linux-mm@kvack.org>; Sat,  9 Sep 2017 08:46:29 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id t3so8950038pgt.7
-        for <linux-mm@kvack.org>; Sat, 09 Sep 2017 05:46:29 -0700 (PDT)
-Received: from BJEXCAS001.didichuxing.com ([36.110.17.22])
-        by mx.google.com with ESMTPS id q127si3015910pga.603.2017.09.09.05.46.27
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E9BD6B0360
+	for <linux-mm@kvack.org>; Sat,  9 Sep 2017 11:24:53 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id g13so9149578pfm.0
+        for <linux-mm@kvack.org>; Sat, 09 Sep 2017 08:24:53 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id 185si282777pfu.105.2017.09.09.08.24.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sat, 09 Sep 2017 05:46:27 -0700 (PDT)
-Date: Sat, 9 Sep 2017 20:46:20 +0800
-From: weiping zhang <zhangweiping@didichuxing.com>
-Subject: [PATCH] shmem: convert shmem_init_inodecache to void
-Message-ID: <20170909124542.GA35224@bogon.didichuxing.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 09 Sep 2017 08:24:52 -0700 (PDT)
+Date: Sat, 9 Sep 2017 23:24:40 +0800
+From: kbuild test robot <lkp@intel.com>
+Subject: Re: [PATCH 1/2] mm: dmapool: Align to ARCH_DMA_MINALIGN in
+ non-coherent DMA mode
+Message-ID: <201709092344.ujDWMFTj%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: multipart/mixed; boundary="a8Wt8u1KmwUX3Y2C"
 Content-Disposition: inline
+In-Reply-To: <1504774071-11581-1-git-send-email-chenhc@lemote.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hughd@google.com
-Cc: linux-mm@kvack.org
+To: Huacai Chen <chenhc@lemote.com>
+Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Fuxin Zhang <zhangfx@lemote.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-shmem_inode_cachep was created with SLAB_PANIC flag and shmem_init_inodecache
-never return non-zero, hence convert this function to void.
 
-Signed-off-by: weiping zhang <zhangweiping@didichuxing.com>
+--a8Wt8u1KmwUX3Y2C
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+Hi Huacai,
+
+[auto build test ERROR on mmotm/master]
+[also build test ERROR on v4.13 next-20170908]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+
+url:    https://github.com/0day-ci/linux/commits/Huacai-Chen/mm-dmapool-Align-to-ARCH_DMA_MINALIGN-in-non-coherent-DMA-mode/20170909-230504
+base:   git://git.cmpxchg.org/linux-mmotm.git master
+config: i386-tinyconfig (attached as .config)
+compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+reproduce:
+        # save the attached .config to linux build tree
+        make ARCH=i386 
+
+All errors (new ones prefixed by >>):
+
+   mm/dmapool.c: In function 'dma_pool_create':
+>> mm/dmapool.c:143:7: error: implicit declaration of function 'plat_device_is_coherent' [-Werror=implicit-function-declaration]
+     if (!plat_device_is_coherent(dev))
+          ^~~~~~~~~~~~~~~~~~~~~~~
+   cc1: some warnings being treated as errors
+
+vim +/plat_device_is_coherent +143 mm/dmapool.c
+
+   109	
+   110	/**
+   111	 * dma_pool_create - Creates a pool of consistent memory blocks, for dma.
+   112	 * @name: name of pool, for diagnostics
+   113	 * @dev: device that will be doing the DMA
+   114	 * @size: size of the blocks in this pool.
+   115	 * @align: alignment requirement for blocks; must be a power of two
+   116	 * @boundary: returned blocks won't cross this power of two boundary
+   117	 * Context: !in_interrupt()
+   118	 *
+   119	 * Returns a dma allocation pool with the requested characteristics, or
+   120	 * null if one can't be created.  Given one of these pools, dma_pool_alloc()
+   121	 * may be used to allocate memory.  Such memory will all have "consistent"
+   122	 * DMA mappings, accessible by the device and its driver without using
+   123	 * cache flushing primitives.  The actual size of blocks allocated may be
+   124	 * larger than requested because of alignment.
+   125	 *
+   126	 * If @boundary is nonzero, objects returned from dma_pool_alloc() won't
+   127	 * cross that size boundary.  This is useful for devices which have
+   128	 * addressing restrictions on individual DMA transfers, such as not crossing
+   129	 * boundaries of 4KBytes.
+   130	 */
+   131	struct dma_pool *dma_pool_create(const char *name, struct device *dev,
+   132					 size_t size, size_t align, size_t boundary)
+   133	{
+   134		struct dma_pool *retval;
+   135		size_t allocation;
+   136		bool empty = false;
+   137	
+   138		if (align == 0)
+   139			align = 1;
+   140		else if (align & (align - 1))
+   141			return NULL;
+   142	
+ > 143		if (!plat_device_is_coherent(dev))
+   144			align = max_t(size_t, align, dma_get_cache_alignment());
+   145	
+   146		if (size == 0)
+   147			return NULL;
+   148		else if (size < 4)
+   149			size = 4;
+   150	
+   151		if ((size % align) != 0)
+   152			size = ALIGN(size, align);
+   153	
+   154		allocation = max_t(size_t, size, PAGE_SIZE);
+   155	
+   156		if (!boundary)
+   157			boundary = allocation;
+   158		else if ((boundary < size) || (boundary & (boundary - 1)))
+   159			return NULL;
+   160	
+   161		retval = kmalloc_node(sizeof(*retval), GFP_KERNEL, dev_to_node(dev));
+   162		if (!retval)
+   163			return retval;
+   164	
+   165		strlcpy(retval->name, name, sizeof(retval->name));
+   166	
+   167		retval->dev = dev;
+   168	
+   169		INIT_LIST_HEAD(&retval->page_list);
+   170		spin_lock_init(&retval->lock);
+   171		retval->size = size;
+   172		retval->boundary = boundary;
+   173		retval->allocation = allocation;
+   174	
+   175		INIT_LIST_HEAD(&retval->pools);
+   176	
+   177		/*
+   178		 * pools_lock ensures that the ->dma_pools list does not get corrupted.
+   179		 * pools_reg_lock ensures that there is not a race between
+   180		 * dma_pool_create() and dma_pool_destroy() or within dma_pool_create()
+   181		 * when the first invocation of dma_pool_create() failed on
+   182		 * device_create_file() and the second assumes that it has been done (I
+   183		 * know it is a short window).
+   184		 */
+   185		mutex_lock(&pools_reg_lock);
+   186		mutex_lock(&pools_lock);
+   187		if (list_empty(&dev->dma_pools))
+   188			empty = true;
+   189		list_add(&retval->pools, &dev->dma_pools);
+   190		mutex_unlock(&pools_lock);
+   191		if (empty) {
+   192			int err;
+   193	
+   194			err = device_create_file(dev, &dev_attr_pools);
+   195			if (err) {
+   196				mutex_lock(&pools_lock);
+   197				list_del(&retval->pools);
+   198				mutex_unlock(&pools_lock);
+   199				mutex_unlock(&pools_reg_lock);
+   200				kfree(retval);
+   201				return NULL;
+   202			}
+   203		}
+   204		mutex_unlock(&pools_reg_lock);
+   205		return retval;
+   206	}
+   207	EXPORT_SYMBOL(dma_pool_create);
+   208	
+
 ---
- mm/shmem.c | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index ace53a582b..d744296 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -3862,12 +3862,11 @@ static void shmem_init_inode(void *foo)
- 	inode_init_once(&info->vfs_inode);
- }
- 
--static int shmem_init_inodecache(void)
-+static void shmem_init_inodecache(void)
- {
- 	shmem_inode_cachep = kmem_cache_create("shmem_inode_cache",
- 				sizeof(struct shmem_inode_info),
- 				0, SLAB_PANIC|SLAB_ACCOUNT, shmem_init_inode);
--	return 0;
- }
- 
- static void shmem_destroy_inodecache(void)
-@@ -3991,9 +3990,7 @@ int __init shmem_init(void)
- 	if (shmem_inode_cachep)
- 		return 0;
- 
--	error = shmem_init_inodecache();
--	if (error)
--		goto out3;
-+	shmem_init_inodecache();
- 
- 	error = register_filesystem(&shmem_fs_type);
- 	if (error) {
-@@ -4020,7 +4017,6 @@ int __init shmem_init(void)
- 	unregister_filesystem(&shmem_fs_type);
- out2:
- 	shmem_destroy_inodecache();
--out3:
- 	shm_mnt = ERR_PTR(error);
- 	return error;
- }
--- 
-2.9.4
+--a8Wt8u1KmwUX3Y2C
+Content-Type: application/gzip
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
+
+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
+
+--a8Wt8u1KmwUX3Y2C--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
