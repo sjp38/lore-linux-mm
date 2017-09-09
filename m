@@ -1,72 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CC7E6B02C3
-	for <linux-mm@kvack.org>; Sat,  9 Sep 2017 04:45:57 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 11so8441947pge.4
-        for <linux-mm@kvack.org>; Sat, 09 Sep 2017 01:45:57 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id i70sor1689796pfi.35.2017.09.09.01.45.55
+	by kanga.kvack.org (Postfix) with ESMTP id B05F86B037F
+	for <linux-mm@kvack.org>; Sat,  9 Sep 2017 08:46:29 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id t3so8950038pgt.7
+        for <linux-mm@kvack.org>; Sat, 09 Sep 2017 05:46:29 -0700 (PDT)
+Received: from BJEXCAS001.didichuxing.com ([36.110.17.22])
+        by mx.google.com with ESMTPS id q127si3015910pga.603.2017.09.09.05.46.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 09 Sep 2017 01:45:55 -0700 (PDT)
-Date: Sat, 9 Sep 2017 01:45:53 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [v7 5/5] mm, oom: cgroup v2 mount option to disable cgroup-aware
- OOM killer
-In-Reply-To: <alpine.DEB.2.20.1709081601310.27965@nuc-kabylake>
-Message-ID: <alpine.DEB.2.10.1709090132590.53827@chino.kir.corp.google.com>
-References: <20170904142108.7165-1-guro@fb.com> <20170904142108.7165-6-guro@fb.com> <20170905134412.qdvqcfhvbdzmarna@dhcp22.suse.cz> <20170905215344.GA27427@cmpxchg.org> <20170906082859.qlqenftxuib64j35@dhcp22.suse.cz> <alpine.DEB.2.20.1709071122360.20082@nuc-kabylake>
- <alpine.DEB.2.10.1709071502430.143767@chino.kir.corp.google.com> <alpine.DEB.2.20.1709081601310.27965@nuc-kabylake>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sat, 09 Sep 2017 05:46:27 -0700 (PDT)
+Date: Sat, 9 Sep 2017 20:46:20 +0800
+From: weiping zhang <zhangweiping@didichuxing.com>
+Subject: [PATCH] shmem: convert shmem_init_inodecache to void
+Message-ID: <20170909124542.GA35224@bogon.didichuxing.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: hughd@google.com
+Cc: linux-mm@kvack.org
 
-On Fri, 8 Sep 2017, Christopher Lameter wrote:
+shmem_inode_cachep was created with SLAB_PANIC flag and shmem_init_inodecache
+never return non-zero, hence convert this function to void.
 
-> Ok. Certainly there were scalability issues (lots of them) and the sysctl
-> may have helped there if set globally. But the ability to kill the
-> allocating tasks was primarily used in cpusets for constrained allocation.
-> 
+Signed-off-by: weiping zhang <zhangweiping@didichuxing.com>
+---
+ mm/shmem.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
 
-I remember discussing it with him and he had some data with pretty extreme 
-numbers for how long the tasklist iteration was taking.  Regardless, I 
-agree it's not pertinent to the discussion if anybody is actively using 
-the sysctl, just fun to try to remember the discussions from 10 years ago.  
-
-The problem I'm having with the removal, though, is that the kernel source 
-actually uses it itself in tools/testing/fault-injection/failcmd.sh.  
-That, to me, suggests there are people outside the kernel source that are 
-also probably use it.  We use it as part of our unit testing, although we 
-could convert away from it.
-
-These are things that can probably be worked around, but I'm struggling to 
-see the whole benefit of it.  It's only defined, there's generic sysctl 
-handling, and there's a single conditional in the oom killer.  I wouldn't 
-risk the potential userspace breakage.
-
-> The issue of scaling is irrelevant in the context of deciding what to do
-> about the sysctl. You can address the issue differently if it still
-> exists. The systems with super high NUMA nodes (hundreds to a
-> thousand) have somehow fallen out of fashion a bit. So I doubt that this
-> is still an issue. And no one of the old stakeholders is speaking up.
-> 
-> What is the current approach for an OOM occuring in a cpuset or cgroup
-> with a restricted numa node set?
-> 
-
-It's always been shaky, we simply exclude potential kill victims based on 
-whether or not they share mempolicy nodes or cpuset mems with the 
-allocating process.  Of course, this could result in no memory freeing 
-because a potential victim being allowed to allocate on a particular node 
-right now doesn't mean killing it will free memory on that node.  It's 
-just more probable in practice.  Nobody has complained about that 
-methodology, but we do have internal code that simply kills current for 
-mempolicy ooms.  That is because we have priority based oom killing much 
-like this patchset implements and then extends it even further to 
-processes.
+diff --git a/mm/shmem.c b/mm/shmem.c
+index ace53a582b..d744296 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -3862,12 +3862,11 @@ static void shmem_init_inode(void *foo)
+ 	inode_init_once(&info->vfs_inode);
+ }
+ 
+-static int shmem_init_inodecache(void)
++static void shmem_init_inodecache(void)
+ {
+ 	shmem_inode_cachep = kmem_cache_create("shmem_inode_cache",
+ 				sizeof(struct shmem_inode_info),
+ 				0, SLAB_PANIC|SLAB_ACCOUNT, shmem_init_inode);
+-	return 0;
+ }
+ 
+ static void shmem_destroy_inodecache(void)
+@@ -3991,9 +3990,7 @@ int __init shmem_init(void)
+ 	if (shmem_inode_cachep)
+ 		return 0;
+ 
+-	error = shmem_init_inodecache();
+-	if (error)
+-		goto out3;
++	shmem_init_inodecache();
+ 
+ 	error = register_filesystem(&shmem_fs_type);
+ 	if (error) {
+@@ -4020,7 +4017,6 @@ int __init shmem_init(void)
+ 	unregister_filesystem(&shmem_fs_type);
+ out2:
+ 	shmem_destroy_inodecache();
+-out3:
+ 	shm_mnt = ERR_PTR(error);
+ 	return error;
+ }
+-- 
+2.9.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
