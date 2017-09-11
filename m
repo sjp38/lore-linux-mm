@@ -1,52 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id F043F6B02EA
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 16:07:30 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 11so18150522pge.4
-        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 13:07:30 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id f9sor3894732pgp.86.2017.09.11.13.07.29
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5602C6B02EC
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 16:15:10 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id v109so9785752wrc.5
+        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 13:15:10 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f128si2998332wmg.252.2017.09.11.13.15.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 11 Sep 2017 13:07:29 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 11 Sep 2017 13:15:09 -0700 (PDT)
+Date: Mon, 11 Sep 2017 22:15:06 +0200
+From: Jan Kara <jack@suse.cz>
 Subject: Re: [PATCH] mm/backing-dev.c: fix an error handling path in
  'cgwb_create()'
+Message-ID: <20170911201506.GA15044@quack2.suse.cz>
 References: <20170911194323.17833-1-christophe.jaillet@wanadoo.fr>
- <512a90ae-a8bf-7ead-32ba-b4fe36866b20@kernel.dk>
- <1c50dbc9-f765-5b90-1f00-7d87205382d7@wanadoo.fr>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <e24134e3-e063-bbb9-5570-26f00e36a503@kernel.dk>
-Date: Mon, 11 Sep 2017 14:07:27 -0600
 MIME-Version: 1.0
-In-Reply-To: <1c50dbc9-f765-5b90-1f00-7d87205382d7@wanadoo.fr>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170911194323.17833-1-christophe.jaillet@wanadoo.fr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christophe JAILLET <christophe.jaillet@wanadoo.fr>, jack@suse.cz, tj@kernel.org, geliangtang@gmail.com, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-janitors@vger.kernel.org
+To: Christophe JAILLET <christophe.jaillet@wanadoo.fr>
+Cc: axboe@fb.com, jack@suse.cz, tj@kernel.org, geliangtang@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-janitors@vger.kernel.org
 
-On 09/11/2017 02:04 PM, Christophe JAILLET wrote:
-> Le 11/09/2017 A  21:52, Jens Axboe a A(C)crit :
->> On 09/11/2017 01:43 PM, Christophe JAILLET wrote:
->>> If the 'kmalloc' fails, we must go through the existing error handling
->>> path.
->> Looks good to me, probably wants a
->>
->> Fixes: 52ebea749aae ("writeback: make backing_dev_info host cgroup-specific bdi_writebacks")
->>
->> line as well.
->>
-> Hi,
+On Mon 11-09-17 21:43:23, Christophe JAILLET wrote:
+> If the 'kmalloc' fails, we must go through the existing error handling
+> path.
 > 
-> do you want me to resend with the Fixes tag? Or will it be added if merged?
+> Signed-off-by: Christophe JAILLET <christophe.jaillet@wanadoo.fr>
 
-Shouldn't be necessary to resend. Not sure who will queue it up, mm/ always
-ends up being somewhat of a no-mans-land :-)
+Looks good to me. You can add:
 
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+								Honza
+
+> ---
+>  mm/backing-dev.c | 6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index f028a9a472fd..e19606bb41a0 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -569,8 +569,10 @@ static int cgwb_create(struct backing_dev_info *bdi,
+>  
+>  	/* need to create a new one */
+>  	wb = kmalloc(sizeof(*wb), gfp);
+> -	if (!wb)
+> -		return -ENOMEM;
+> +	if (!wb) {
+> +		ret = -ENOMEM;
+> +		goto out_put;
+> +	}
+>  
+>  	ret = wb_init(wb, bdi, blkcg_css->id, gfp);
+>  	if (ret)
+> -- 
+> 2.11.0
+> 
 -- 
-Jens Axboe
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
