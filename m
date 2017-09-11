@@ -1,67 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AD976B02BC
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 07:45:20 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id j16so5520432pga.6
-        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 04:45:20 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 3si159913plf.495.2017.09.11.04.45.18
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D6656B02BE
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 08:50:48 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id q132so6255030lfe.1
+        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 05:50:48 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id 26si3275426lfw.186.2017.09.11.05.50.46
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Sep 2017 04:45:18 -0700 (PDT)
-Date: Mon, 11 Sep 2017 13:45:15 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [RFC PATCH v8 2/2] mm: introduce MAP_SHARED_VALIDATE, a
- mechanism to safely define new mmap flags
-Message-ID: <20170911114515.GG8503@quack2.suse.cz>
-References: <150489930202.29460.5141541423730649272.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150489931339.29460.8760855724603300792.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20170911094714.GD8503@quack2.suse.cz>
- <20170911111030.GA20127@lst.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Sep 2017 05:50:47 -0700 (PDT)
+Date: Mon, 11 Sep 2017 13:50:08 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v7 5/5] mm, oom: cgroup v2 mount option to disable cgroup-aware
+ OOM killer
+Message-ID: <20170911125008.GA4340@castle>
+References: <20170904142108.7165-1-guro@fb.com>
+ <20170904142108.7165-6-guro@fb.com>
+ <20170905134412.qdvqcfhvbdzmarna@dhcp22.suse.cz>
+ <20170905215344.GA27427@cmpxchg.org>
+ <20170906082859.qlqenftxuib64j35@dhcp22.suse.cz>
+ <20170907161457.GA1728@cmpxchg.org>
+ <20170911090559.aknbuyqumsc2gm5j@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170911111030.GA20127@lst.de>
+In-Reply-To: <20170911090559.aknbuyqumsc2gm5j@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>, torvalds@linux-foundation.org, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon 11-09-17 13:10:30, Christoph Hellwig wrote:
-> On Mon, Sep 11, 2017 at 11:47:14AM +0200, Jan Kara wrote:
-> > On Fri 08-09-17 12:35:13, Dan Williams wrote:
-> > > The mmap(2) syscall suffers from the ABI anti-pattern of not validating
-> > > unknown flags. However, proposals like MAP_SYNC and MAP_DIRECT need a
-> > > mechanism to define new behavior that is known to fail on older kernels
-> > > without the support. Define a new MAP_SHARED_VALIDATE flag pattern that
-> > > is guaranteed to fail on all legacy mmap implementations.
+On Mon, Sep 11, 2017 at 11:05:59AM +0200, Michal Hocko wrote:
+> On Thu 07-09-17 12:14:57, Johannes Weiner wrote:
+> > On Wed, Sep 06, 2017 at 10:28:59AM +0200, Michal Hocko wrote:
+> > > On Tue 05-09-17 17:53:44, Johannes Weiner wrote:
+> > > > The cgroup-awareness in the OOM killer is exactly the same thing. It
+> > > > should have been the default from the beginning, because the user
+> > > > configures a group of tasks to be an interdependent, terminal unit of
+> > > > memory consumption, and it's undesirable for the OOM killer to ignore
+> > > > this intention and compare members across these boundaries.
 > > > 
-> > > With this in place new flags can be defined as:
-> > > 
-> > >     #define MAP_new (MAP_SHARED_VALIDATE | val)
+> > > I would agree if that was true in general. I can completely see how the
+> > > cgroup awareness is useful in e.g. containerized environments (especially
+> > > with kill-all enabled) but memcgs are used in a large variety of
+> > > usecases and I cannot really say all of them really demand the new
+> > > semantic. Say I have a workload which doesn't want to see reclaim
+> > > interference from others on the same machine. Why should I kill a
+> > > process from that particular memcg just because it is the largest one
+> > > when there is a memory hog/leak outside of this memcg?
 > > 
-> > Is this changelog stale? Given MAP_SHARED_VALIDATE will be new mapping
-> > type, I'd expect we define new flags just as any other mapping flags...
-> > I see no reason why MAP_SHARED_VALIDATE should be or'ed to that.
+> > Sure, it's always possible to come up with a config for which this
+> > isn't the optimal behavior. But this is about picking a default that
+> > makes sense to most users, and that type of cgroup usage just isn't
+> > the common case.
 > 
-> Btw, I still think it should be a new hidden flag and not a new mapping
-> type.  I brought this up last time, so maybe I missed the answer
-> to my concern.
+> How can you tell, really? Even if cgroup2 is a new interface we still
+> want as many legacy (v1) users to be migrated to the new hierarchy.
+> I have seen quite different usecases over time and I have hard time to
+> tell which of them to call common enough.
+> 
+> > > From my point of view the safest (in a sense of the least surprise)
+> > > way to go with opt-in for the new heuristic. I am pretty sure all who
+> > > would benefit from the new behavior will enable it while others will not
+> > > regress in unexpected way.
+> > 
+> > This thinking simply needs to be balanced against the need to make an
+> > unsurprising and consistent final interface.
+> 
+> Sure. And I _think_ we can come up with a clear interface to configure
+> the oom behavior - e.g. a kernel command line parameter with a default
+> based on a config option.
 
-Hum, I don't remember your concern and the only comment from you to the
-last posting which I've found is:
+I would say cgroup v2 mount option is better, because it allows to change
+the behavior dynamically (without rebooting) and clearly reflects
+cgroup v2 dependency.
 
-"no mmap3 syscall here :)
+Also, it makes systemd (or who is mounting cgroupfs) responsible for the
+default behavior. And makes more or less not important what the default is.
 
-Do you also need to update the nommu mmap implementation?"
-
-So I guess it's something else. So can you remind me or send a link?
 Thanks!
-
-							Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
