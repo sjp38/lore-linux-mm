@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8916E6B02F0
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 16:44:42 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id p5so562707pgn.7
-        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 13:44:42 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CDA276B02F1
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 16:48:41 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id p87so9045302pfj.4
+        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 13:48:41 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id n3sor5067654pld.50.2017.09.11.13.44.41
+        by mx.google.com with SMTPS id j1sor4361483pgn.89.2017.09.11.13.48.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 11 Sep 2017 13:44:41 -0700 (PDT)
-Date: Mon, 11 Sep 2017 13:44:39 -0700 (PDT)
+        Mon, 11 Sep 2017 13:48:40 -0700 (PDT)
+Date: Mon, 11 Sep 2017 13:48:39 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-In-Reply-To: <20170911131742.16482-1-guro@fb.com>
-Message-ID: <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com>
-References: <20170911131742.16482-1-guro@fb.com>
+Subject: Re: [v8 3/4] mm, oom: add cgroup v2 mount option for cgroup-aware
+ OOM killer
+In-Reply-To: <20170911131742.16482-4-guro@fb.com>
+Message-ID: <alpine.DEB.2.10.1709111345320.102819@chino.kir.corp.google.com>
+References: <20170911131742.16482-1-guro@fb.com> <20170911131742.16482-4-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -24,27 +25,21 @@ Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdav
 
 On Mon, 11 Sep 2017, Roman Gushchin wrote:
 
-> This patchset makes the OOM killer cgroup-aware.
+> Add a "groupoom" cgroup v2 mount option to enable the cgroup-aware
+> OOM killer. If not set, the OOM selection is performed in
+> a "traditional" per-process way.
 > 
-> v8:
->   - Do not kill tasks with OOM_SCORE_ADJ -1000
->   - Make the whole thing opt-in with cgroup mount option control
->   - Drop oom_priority for further discussions
+> The behavior can be changed dynamically by remounting the cgroupfs.
 
-Nack, we specifically require oom_priority for this to function correctly, 
-otherwise we cannot prefer to kill from low priority leaf memcgs as 
-required.  v8 appears to implement new functionality that we want, to 
-compare two memcgs based on usage, but without the ability to influence 
-that decision to protect important userspace, so now I'm in a position 
-where (1) nothing has changed if I don't use the new mount option or (2) I 
-get completely different oom kill selection with the new mount option but 
-not the ability to influence it.  I was much happier with the direction 
-that v7 was taking, but since v8 causes us to regress without the ability 
-to change memcg priority, this has to be nacked.
+I can't imagine that Tejun would be happy with a new mount option, 
+especially when it's not required.
 
->   - Kill the whole cgroup if oom_group is set and it's
->     memory.max is reached
->   - Update docs and commit messages
+OOM behavior does not need to be defined at mount time and for the entire 
+hierarchy.  It's possible to very easily implement a tunable as part of 
+mem cgroup that is propagated to descendants and controls the oom scoring 
+behavior for that hierarchy.  It does not need to be system wide and 
+affect scoring of all processes based on which mem cgroup they are 
+attached to at any given time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
