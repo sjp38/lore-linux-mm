@@ -1,55 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 933C26B02D4
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 11:03:46 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id m30so9721808pgn.2
-        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 08:03:46 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id h8sor3632956pgq.67.2017.09.11.08.03.45
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ABC86B02D6
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 11:48:47 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id j189so5804376vka.0
+        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 08:48:47 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id 9si4954035uar.88.2017.09.11.08.48.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 11 Sep 2017 08:03:45 -0700 (PDT)
-Date: Mon, 11 Sep 2017 08:03:42 -0700
-From: Tycho Andersen <tycho@docker.com>
-Subject: Re: [PATCH v6 03/11] mm, x86: Add support for eXclusive Page Frame
- Ownership (XPFO)
-Message-ID: <20170911150342.kf6n5ce4aldqy27a@docker>
-References: <20170907173609.22696-1-tycho@docker.com>
- <20170907173609.22696-4-tycho@docker.com>
- <d4935027-aca6-f7a2-d15b-50b94484ecaf@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <d4935027-aca6-f7a2-d15b-50b94484ecaf@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Sep 2017 08:48:46 -0700 (PDT)
+From: "Liam R. Howlett" <Liam.Howlett@Oracle.com>
+Subject: [RFC Patch 0/1] Change OOM message from hugetlb to include requested size
+Date: Mon, 11 Sep 2017 11:48:19 -0400
+Message-Id: <20170911154820.16203-1-Liam.Howlett@Oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, x86@kernel.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mike Kravetz <mike.kravetz@Oracle.com>, Andrea Arcangeli <aarcange@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, zhong jiang <zhongjiang@huawei.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
 
-On Sat, Sep 09, 2017 at 08:35:17AM -0700, Laura Abbott wrote:
-> On 09/07/2017 10:36 AM, Tycho Andersen wrote:
-> > +static inline struct xpfo *lookup_xpfo(struct page *page)
-> > +{
-> > +	struct page_ext *page_ext = lookup_page_ext(page);
-> > +
-> > +	if (unlikely(!page_ext)) {
-> > +		WARN(1, "xpfo: failed to get page ext");
-> > +		return NULL;
-> > +	}
-> > +
-> > +	return (void *)page_ext + page_xpfo_ops.offset;
-> > +}
-> > +
-> 
-> Just drop the WARN. On my arm64 UEFI machine this spews warnings
-> under most normal operation. This should be normal for some
-> situations but I haven't had the time to dig into why this
-> is so pronounced on arm64.
+This is an attempt to better highlight misconfigured huge pages by showing the
+user what was requested verses what was configured.  Moving the messages within
+the OOM report will make the configuration or misconfiguration more clear when
+an out of memory event occurs.  The previous message has been removed in favour
+of this method.
 
-Will do, thanks! If you figure out under what conditions it's normal,
-I'd be curious :)
+Liam R. Howlett (1):
+  mm/hugetlb: Clarify OOM message on size of hugetlb and requested
+    hugepages total
 
-Tycho
+ include/linux/hugetlb.h |  1 +
+ mm/hugetlb.c            | 35 +++++++++++++++++++++++++++++++----
+ 2 files changed, 32 insertions(+), 4 deletions(-)
+
+-- 
+2.14.1.145.gb3622a4ee
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
