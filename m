@@ -1,46 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AEA446B02EE
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 16:17:12 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id u2so12914769itb.7
-        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 13:17:12 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8916E6B02F0
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 16:44:42 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id p5so562707pgn.7
+        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 13:44:42 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id a64sor3885335iog.208.2017.09.11.13.17.11
+        by mx.google.com with SMTPS id n3sor5067654pld.50.2017.09.11.13.44.41
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 11 Sep 2017 13:17:11 -0700 (PDT)
-Subject: Re: [PATCH] mm/backing-dev.c: fix an error handling path in
- 'cgwb_create()'
-References: <20170911194323.17833-1-christophe.jaillet@wanadoo.fr>
- <20170911201506.GA15044@quack2.suse.cz>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <a0163559-d867-d8e0-d84d-bc99f6f4c43d@kernel.dk>
-Date: Mon, 11 Sep 2017 14:17:09 -0600
+        Mon, 11 Sep 2017 13:44:41 -0700 (PDT)
+Date: Mon, 11 Sep 2017 13:44:39 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [v8 0/4] cgroup-aware OOM killer
+In-Reply-To: <20170911131742.16482-1-guro@fb.com>
+Message-ID: <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com>
+References: <20170911131742.16482-1-guro@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <20170911201506.GA15044@quack2.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>, Christophe JAILLET <christophe.jaillet@wanadoo.fr>
-Cc: tj@kernel.org, geliangtang@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-janitors@vger.kernel.org
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 09/11/2017 02:15 PM, Jan Kara wrote:
-> On Mon 11-09-17 21:43:23, Christophe JAILLET wrote:
->> If the 'kmalloc' fails, we must go through the existing error handling
->> path.
->>
->> Signed-off-by: Christophe JAILLET <christophe.jaillet@wanadoo.fr>
+On Mon, 11 Sep 2017, Roman Gushchin wrote:
+
+> This patchset makes the OOM killer cgroup-aware.
 > 
-> Looks good to me. You can add:
-> 
-> Reviewed-by: Jan Kara <jack@suse.cz>
+> v8:
+>   - Do not kill tasks with OOM_SCORE_ADJ -1000
+>   - Make the whole thing opt-in with cgroup mount option control
+>   - Drop oom_priority for further discussions
 
-I'll queue it up, with your reviewed-by added. Thanks.
+Nack, we specifically require oom_priority for this to function correctly, 
+otherwise we cannot prefer to kill from low priority leaf memcgs as 
+required.  v8 appears to implement new functionality that we want, to 
+compare two memcgs based on usage, but without the ability to influence 
+that decision to protect important userspace, so now I'm in a position 
+where (1) nothing has changed if I don't use the new mount option or (2) I 
+get completely different oom kill selection with the new mount option but 
+not the ability to influence it.  I was much happier with the direction 
+that v7 was taking, but since v8 causes us to regress without the ability 
+to change memcg priority, this has to be nacked.
 
--- 
-Jens Axboe
+>   - Kill the whole cgroup if oom_group is set and it's
+>     memory.max is reached
+>   - Update docs and commit messages
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
