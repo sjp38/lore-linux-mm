@@ -1,89 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C3AA6B02AC
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 04:26:53 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id h16so8084189wrf.0
-        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 01:26:53 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DF37D6B02AE
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 04:49:36 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id d8so15802802pgt.1
+        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 01:49:36 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d23si6268219wrb.528.2017.09.11.01.26.52
+        by mx.google.com with ESMTPS id 3si6390796plv.549.2017.09.11.01.49.35
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Sep 2017 01:26:52 -0700 (PDT)
-Date: Mon, 11 Sep 2017 10:26:50 +0200
+        Mon, 11 Sep 2017 01:49:35 -0700 (PDT)
+Date: Mon, 11 Sep 2017 10:49:31 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: respect the __GFP_NOWARN flag when warning about
- stalls
-Message-ID: <20170911082650.dqfirwc63xy7i33q@dhcp22.suse.cz>
-References: <alpine.LRH.2.02.1709110231010.3666@file01.intranet.prod.int.rdu2.redhat.com>
+Subject: Re: [v7 2/5] mm, oom: cgroup-aware OOM killer
+Message-ID: <20170911084931.zezai6aufcfi2ddt@dhcp22.suse.cz>
+References: <20170904142108.7165-1-guro@fb.com>
+ <20170904142108.7165-3-guro@fb.com>
+ <alpine.DEB.2.20.1709071114560.20082@nuc-kabylake>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1709110231010.3666@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <alpine.DEB.2.20.1709071114560.20082@nuc-kabylake>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christopher Lameter <cl@linux.com>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon 11-09-17 02:52:53, Mikulas Patocka wrote:
-> I am occasionally getting these warnings in khugepaged. It is an old 
-> machine with 550MHz CPU and 512 MB RAM.
+On Thu 07-09-17 11:18:18, Cristopher Lameter wrote:
+> On Mon, 4 Sep 2017, Roman Gushchin wrote
 > 
-> Note that khugepaged has nice value 19, so when the machine is loaded with 
-> some work, khugepaged is stalled and this stall produces warning in the 
-> allocator.
+> > To address these issues, cgroup-aware OOM killer is introduced.
 > 
-> khugepaged does allocations with __GFP_NOWARN, but the flag __GFP_NOWARN
-> is masked off when calling warn_alloc. This patch removes the masking of
-> __GFP_NOWARN, so that the warning is suppressed.
-> 
-> khugepaged: page allocation stalls for 10273ms, order:10, mode:0x4340ca(__GFP_HIGHMEM|__GFP_IO|__GFP_FS|__GFP_COMP|__GFP_NOMEMALLOC|__GFP_HARDWALL|__GFP_MOVABLE|__GFP_DIRECT_RECLAIM), nodemask=(null)
-> CPU: 0 PID: 3936 Comm: khugepaged Not tainted 4.12.3 #1
-> Hardware name: System Manufacturer Product Name/VA-503A, BIOS 4.51 PG 08/02/00
-> Call Trace:
->  ? warn_alloc+0xb9/0x140
->  ? __alloc_pages_nodemask+0x724/0x880
->  ? arch_irq_stat_cpu+0x1/0x40
->  ? detach_if_pending+0x80/0x80
->  ? khugepaged+0x10a/0x1d40
->  ? pick_next_task_fair+0xd2/0x180
->  ? wait_woken+0x60/0x60
->  ? kthread+0xcf/0x100
->  ? release_pte_page+0x40/0x40
->  ? kthread_create_on_node+0x40/0x40
->  ? ret_from_fork+0x19/0x30
-> 
-> Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
-> Cc: stable@vger.kernel.org
-> Fixes: 63f53dea0c98 ("mm: warn about allocations which stall for too long")
+> You are missing a major issue here. Processes may have allocation
+> constraints to memory nodes, special DMA zones etc etc. OOM conditions on
+> such resource constricted allocations need to be dealt with. Killing
+> processes that do not allocate with the same restrictions may not do
+> anything to improve conditions.
 
-This patch hasn't introduced this behavior. It deliberately skipped
-warning on __GFP_NOWARN. This has been introduced later by 822519634142
-("mm: page_alloc: __GFP_NOWARN shouldn't suppress stall warnings"). I
-disagreed [1] but overall consensus was that such a warning won't be
-harmful. Could you be more specific why do you consider it wrong,
-please?
-
-[1] http://lkml.kernel.org/r/20170125184548.GB32041@dhcp22.suse.cz
-
-> 
-> ---
->  mm/page_alloc.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> Index: linux-2.6/mm/page_alloc.c
-> ===================================================================
-> --- linux-2.6.orig/mm/page_alloc.c
-> +++ linux-2.6/mm/page_alloc.c
-> @@ -3923,7 +3923,7 @@ retry:
->  
->  	/* Make sure we know about allocations which stall for too long */
->  	if (time_after(jiffies, alloc_start + stall_timeout)) {
-> -		warn_alloc(gfp_mask & ~__GFP_NOWARN, ac->nodemask,
-> +		warn_alloc(gfp_mask, ac->nodemask,
->  			"page allocation stalls for %ums, order:%u",
->  			jiffies_to_msecs(jiffies-alloc_start), order);
->  		stall_timeout += 10 * HZ;
-
+memcg_oom_badness tries to be node aware - very similar to what the
+oom_badness does for the regular oom killer. Or do you have anything
+else in mind?
 -- 
 Michal Hocko
 SUSE Labs
