@@ -1,84 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D6656B02BE
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 08:50:48 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id q132so6255030lfe.1
-        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 05:50:48 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id 26si3275426lfw.186.2017.09.11.05.50.46
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 908E26B02C0
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 08:55:05 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id d8so16659989pgt.1
+        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 05:55:05 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id 67si6199362pfy.188.2017.09.11.05.55.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Sep 2017 05:50:47 -0700 (PDT)
-Date: Mon, 11 Sep 2017 13:50:08 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v7 5/5] mm, oom: cgroup v2 mount option to disable cgroup-aware
- OOM killer
-Message-ID: <20170911125008.GA4340@castle>
-References: <20170904142108.7165-1-guro@fb.com>
- <20170904142108.7165-6-guro@fb.com>
- <20170905134412.qdvqcfhvbdzmarna@dhcp22.suse.cz>
- <20170905215344.GA27427@cmpxchg.org>
- <20170906082859.qlqenftxuib64j35@dhcp22.suse.cz>
- <20170907161457.GA1728@cmpxchg.org>
- <20170911090559.aknbuyqumsc2gm5j@dhcp22.suse.cz>
+        Mon, 11 Sep 2017 05:55:04 -0700 (PDT)
+Date: Mon, 11 Sep 2017 05:54:56 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v15 1/5] lib/xbitmap: Introduce xbitmap
+Message-ID: <20170911125455.GA32538@bombadil.infradead.org>
+References: <1503914913-28893-1-git-send-email-wei.w.wang@intel.com>
+ <1503914913-28893-2-git-send-email-wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170911090559.aknbuyqumsc2gm5j@dhcp22.suse.cz>
+In-Reply-To: <1503914913-28893-2-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On Mon, Sep 11, 2017 at 11:05:59AM +0200, Michal Hocko wrote:
-> On Thu 07-09-17 12:14:57, Johannes Weiner wrote:
-> > On Wed, Sep 06, 2017 at 10:28:59AM +0200, Michal Hocko wrote:
-> > > On Tue 05-09-17 17:53:44, Johannes Weiner wrote:
-> > > > The cgroup-awareness in the OOM killer is exactly the same thing. It
-> > > > should have been the default from the beginning, because the user
-> > > > configures a group of tasks to be an interdependent, terminal unit of
-> > > > memory consumption, and it's undesirable for the OOM killer to ignore
-> > > > this intention and compare members across these boundaries.
-> > > 
-> > > I would agree if that was true in general. I can completely see how the
-> > > cgroup awareness is useful in e.g. containerized environments (especially
-> > > with kill-all enabled) but memcgs are used in a large variety of
-> > > usecases and I cannot really say all of them really demand the new
-> > > semantic. Say I have a workload which doesn't want to see reclaim
-> > > interference from others on the same machine. Why should I kill a
-> > > process from that particular memcg just because it is the largest one
-> > > when there is a memory hog/leak outside of this memcg?
-> > 
-> > Sure, it's always possible to come up with a config for which this
-> > isn't the optimal behavior. But this is about picking a default that
-> > makes sense to most users, and that type of cgroup usage just isn't
-> > the common case.
+On Mon, Aug 28, 2017 at 06:08:29PM +0800, Wei Wang wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
 > 
-> How can you tell, really? Even if cgroup2 is a new interface we still
-> want as many legacy (v1) users to be migrated to the new hierarchy.
-> I have seen quite different usecases over time and I have hard time to
-> tell which of them to call common enough.
+> The eXtensible Bitmap is a sparse bitmap representation which is
+> efficient for set bits which tend to cluster.  It supports up to
+> 'unsigned long' worth of bits, and this commit adds the bare bones --
+> xb_set_bit(), xb_clear_bit() and xb_test_bit().
 > 
-> > > From my point of view the safest (in a sense of the least surprise)
-> > > way to go with opt-in for the new heuristic. I am pretty sure all who
-> > > would benefit from the new behavior will enable it while others will not
-> > > regress in unexpected way.
-> > 
-> > This thinking simply needs to be balanced against the need to make an
-> > unsurprising and consistent final interface.
-> 
-> Sure. And I _think_ we can come up with a clear interface to configure
-> the oom behavior - e.g. a kernel command line parameter with a default
-> based on a config option.
+> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Michael S. Tsirkin <mst@redhat.com>
 
-I would say cgroup v2 mount option is better, because it allows to change
-the behavior dynamically (without rebooting) and clearly reflects
-cgroup v2 dependency.
+This is quite naughty of you.  You've modified the xbitmap implementation
+without any indication in the changelog that you did so.  I don't
+think the modifications you made are an improvement, but without any
+argumentation from you I don't know why you think they're an improvement.
 
-Also, it makes systemd (or who is mounting cgroupfs) responsible for the
-default behavior. And makes more or less not important what the default is.
+> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+> index 898e879..ee72e2c 100644
+> --- a/lib/radix-tree.c
+> +++ b/lib/radix-tree.c
+> @@ -496,6 +496,7 @@ static int __radix_tree_preload(gfp_t gfp_mask, unsigned nr)
+>  out:
+>  	return ret;
+>  }
+> +EXPORT_SYMBOL(__radix_tree_preload);
+>  
+>  /*
+>   * Load up this CPU's radix_tree_node buffer with sufficient objects to
 
-Thanks!
+You exported this to modules for some reason.  Why?
+
+> @@ -2003,6 +2018,7 @@ static bool __radix_tree_delete(struct radix_tree_root *root,
+>  	replace_slot(slot, NULL, node, -1, exceptional);
+>  	return node && delete_node(root, node, NULL, NULL);
+>  }
+> +EXPORT_SYMBOL(__radix_tree_delete);
+>  
+>  /**
+>   * radix_tree_iter_delete - delete the entry at this iterator position
+
+Ditto?
+
+> diff --git a/lib/xbitmap.c b/lib/xbitmap.c
+> new file mode 100644
+> index 0000000..8c55296
+> --- /dev/null
+> +++ b/lib/xbitmap.c
+> @@ -0,0 +1,176 @@
+> +#include <linux/slab.h>
+> +#include <linux/xbitmap.h>
+> +
+> +/*
+> + * The xbitmap implementation supports up to ULONG_MAX bits, and it is
+> + * implemented based on ida bitmaps. So, given an unsigned long index,
+> + * the high order XB_INDEX_BITS bits of the index is used to find the
+> + * corresponding item (i.e. ida bitmap) from the radix tree, and the low
+> + * order (i.e. ilog2(IDA_BITMAP_BITS)) bits of the index are indexed into
+> + * the ida bitmap to find the bit.
+> + */
+> +#define XB_INDEX_BITS		(BITS_PER_LONG - ilog2(IDA_BITMAP_BITS))
+> +#define XB_MAX_PATH		(DIV_ROUND_UP(XB_INDEX_BITS, \
+> +					      RADIX_TREE_MAP_SHIFT))
+> +#define XB_PRELOAD_SIZE		(XB_MAX_PATH * 2 - 1)
+
+I don't understand why you moved the xb_preload code here from the
+radix tree.  I want all the code which touches the preload implementation
+together in one place, which is the radix tree.
+
+> +enum xb_ops {
+> +	XB_SET,
+> +	XB_CLEAR,
+> +	XB_TEST
+> +};
+> +
+> +static int xb_bit_ops(struct xb *xb, unsigned long bit, enum xb_ops ops)
+> +{
+> +	int ret = 0;
+> +	unsigned long index = bit / IDA_BITMAP_BITS;
+> +	struct radix_tree_root *root = &xb->xbrt;
+> +	struct radix_tree_node *node;
+> +	void **slot;
+> +	struct ida_bitmap *bitmap;
+> +	unsigned long ebit, tmp;
+> +
+> +	bit %= IDA_BITMAP_BITS;
+> +	ebit = bit + RADIX_TREE_EXCEPTIONAL_SHIFT;
+> +
+> +	switch (ops) {
+> +	case XB_SET:
+> +		ret = __radix_tree_create(root, index, 0, &node, &slot);
+> +		if (ret)
+> +			return ret;
+> +		bitmap = rcu_dereference_raw(*slot);
+> +		if (radix_tree_exception(bitmap)) {
+> +			tmp = (unsigned long)bitmap;
+> +			if (ebit < BITS_PER_LONG) {
+> +				tmp |= 1UL << ebit;
+> +				rcu_assign_pointer(*slot, (void *)tmp);
+> +				return 0;
+> +			}
+> +			bitmap = this_cpu_xchg(ida_bitmap, NULL);
+> +			if (!bitmap)
+> +				return -EAGAIN;
+> +			memset(bitmap, 0, sizeof(*bitmap));
+> +			bitmap->bitmap[0] =
+> +					tmp >> RADIX_TREE_EXCEPTIONAL_SHIFT;
+> +			rcu_assign_pointer(*slot, bitmap);
+> +		}
+> +		if (!bitmap) {
+> +			if (ebit < BITS_PER_LONG) {
+> +				bitmap = (void *)((1UL << ebit) |
+> +					RADIX_TREE_EXCEPTIONAL_ENTRY);
+> +				__radix_tree_replace(root, node, slot, bitmap,
+> +						     NULL, NULL);
+> +				return 0;
+> +			}
+> +			bitmap = this_cpu_xchg(ida_bitmap, NULL);
+> +			if (!bitmap)
+> +				return -EAGAIN;
+> +			memset(bitmap, 0, sizeof(*bitmap));
+> +			__radix_tree_replace(root, node, slot, bitmap, NULL,
+> +					     NULL);
+> +		}
+> +		__set_bit(bit, bitmap->bitmap);
+> +		break;
+> +	case XB_CLEAR:
+> +		bitmap = __radix_tree_lookup(root, index, &node, &slot);
+> +		if (radix_tree_exception(bitmap)) {
+> +			tmp = (unsigned long)bitmap;
+> +			if (ebit >= BITS_PER_LONG)
+> +				return 0;
+> +			tmp &= ~(1UL << ebit);
+> +			if (tmp == RADIX_TREE_EXCEPTIONAL_ENTRY)
+> +				__radix_tree_delete(root, node, slot);
+> +			else
+> +				rcu_assign_pointer(*slot, (void *)tmp);
+> +			return 0;
+> +		}
+> +		if (!bitmap)
+> +			return 0;
+> +		__clear_bit(bit, bitmap->bitmap);
+> +		if (bitmap_empty(bitmap->bitmap, IDA_BITMAP_BITS)) {
+> +			kfree(bitmap);
+> +			__radix_tree_delete(root, node, slot);
+> +		}
+> +		break;
+> +	case XB_TEST:
+> +		bitmap = radix_tree_lookup(root, index);
+> +		if (!bitmap)
+> +			return 0;
+> +		if (radix_tree_exception(bitmap)) {
+> +			if (ebit > BITS_PER_LONG)
+> +				return 0;
+> +			return (unsigned long)bitmap & (1UL << bit);
+> +		}
+> +		ret = test_bit(bit, bitmap->bitmap);
+> +		break;
+> +	default:
+> +		return -EINVAL;
+> +	}
+> +	return ret;
+> +}
+
+This is what I have the biggest problem with.  You've spliced
+three functions together into a single 86-line function.  All that
+they share is the first 11 lines of setup!  Go back and read
+Documentation/process/coding-style.rst section 6 again.
+
+
+And you've just deleted the test suite.  Test suites are incredibly
+important!  They keep us from regressing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
