@@ -1,64 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 063086B029E
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 02:28:30 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id j16so4357057pga.6
-        for <linux-mm@kvack.org>; Sun, 10 Sep 2017 23:28:29 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id u7si5639791pfl.547.2017.09.10.23.28.28
+	by kanga.kvack.org (Postfix) with ESMTP id D9A856B02A0
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 02:34:20 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id j16so4379613pga.6
+        for <linux-mm@kvack.org>; Sun, 10 Sep 2017 23:34:20 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b63si5246313plb.433.2017.09.10.23.34.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 10 Sep 2017 23:28:28 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v8B6P4l1078829
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 02:28:27 -0400
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2cwcybhew6-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 02:28:27 -0400
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Mon, 11 Sep 2017 07:28:25 +0100
-Subject: Re: [PATCH v2 00/20] Speculative page faults
-References: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170821022629.GA541@jagdpanzerIV.localdomain>
- <6302a906-221d-c977-4aea-67202eb3d96d@linux.vnet.ibm.com>
- <20170911004523.GA2938@jagdpanzerIV.localdomain>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Mon, 11 Sep 2017 08:28:16 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 10 Sep 2017 23:34:19 -0700 (PDT)
+Subject: Re: [patch 1/2] mm, compaction: kcompactd should not ignore pageblock
+ skip
+References: <alpine.DEB.2.10.1708151638550.106658@chino.kir.corp.google.com>
+ <5d578461-0982-f719-3a04-b2f3552dc7cc@suse.cz>
+ <alpine.DEB.2.10.1709101801200.85650@chino.kir.corp.google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <c4a19acf-20f7-095a-1234-926b8d98c174@suse.cz>
+Date: Mon, 11 Sep 2017 08:34:17 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170911004523.GA2938@jagdpanzerIV.localdomain>
+In-Reply-To: <alpine.DEB.2.10.1709101801200.85650@chino.kir.corp.google.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: fr
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Message-Id: <da0e23a5-f2b9-bd84-8f62-0a84d1194bd7@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 11/09/2017 02:45, Sergey Senozhatsky wrote:
-> On (09/08/17 11:24), Laurent Dufour wrote:
->> Hi Sergey,
->>
->> I can't see where such a chain could happen.
->>
->> I tried to recreate it on top of the latest mm tree, to latest stack output
->> but I can't get it.
->> How did you raised this one ?
+On 09/11/2017 03:07 AM, David Rientjes wrote:
+> On Wed, 23 Aug 2017, Vlastimil Babka wrote:
 > 
-> Hi Laurent,
+>> On 08/16/2017 01:39 AM, David Rientjes wrote:
+>>> Kcompactd is needlessly ignoring pageblock skip information.  It is doing
+>>> MIGRATE_SYNC_LIGHT compaction, which is no more powerful than
+>>> MIGRATE_SYNC compaction.
+>>>
+>>> If compaction recently failed to isolate memory from a set of pageblocks,
+>>> there is nothing to indicate that kcompactd will be able to do so, or
+>>> that it is beneficial from attempting to isolate memory.
+>>>
+>>> Use the pageblock skip hint to avoid rescanning pageblocks needlessly
+>>> until that information is reset.
+>>>
+>>> Signed-off-by: David Rientjes <rientjes@google.com>
+>>
+>> It would be much better if patches like this were accompanied by some
+>> numbers.
+>>
 > 
-> didn't do anything special, the box even wasn't under severe memory
-> pressure. can re-test your new patch set.
+> The numbers were from https://marc.info/?l=linux-mm&m=150231232707999 
+> where very large amounts (>90% of system RAM) were hugetlb pages.  We can 
+> supplement this changelog with the following if it helps:
+> 
+> """
+> Currently, kcompactd ignores pageblock skip information that can become 
+> useful if it is known that memory should not be considered by both the 
+> migration and freeing scanners.  Abundant hugetlb memory is a good example 
+> of memory that is needlessly (and expensively) scanned since the hugepage 
+> order normally matches the pageblock order.
+> 
+> For example, on a sysctl with very large amounts of memory reserved by the 
+> hugetlb subsystem:
+> 
+> compact_migrate_scanned 2931254031294 
+> compact_free_scanned    102707804816705 
+> compact_isolated        1309145254 
+> 
+> Kcompactd ends up successfully isolating ~0.0012% of memory that is 
+> scans (the above does not involve direct compaction).
 
-Hi Sergey,
+Yeah it would be nice to have the numbers also after the patch and to
+see also effect on the kcompactd success rate.
 
-I sent a v3 series, would you please give it a try ?
+> A follow-up change will set the pageblock skip for this memory since it is 
+> never useful for either scanner.
+> """
+> 
+>> Also there's now a danger that in cases where there's no direct
+>> compaction happening (just kcompactd), nothing will ever call
+>> __reset_isolation_suitable().
+>>
+> 
+> I'm not sure that is helpful in a context where no high-order memory can 
+> call direct compaction that kcompactd needlessly scanning the same memory 
+> over and over is beneficial.
 
-Thanks,
-Laurent.
+The point is that if it becomes beneficial again, we won't know as there
+will be still be skip bits.
+
+>>> ---
+>>>  mm/compaction.c | 3 +--
+>>>  1 file changed, 1 insertion(+), 2 deletions(-)
+>>>
+>>> diff --git a/mm/compaction.c b/mm/compaction.c
+>>> --- a/mm/compaction.c
+>>> +++ b/mm/compaction.c
+>>> @@ -1927,9 +1927,8 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+>>>  		.total_free_scanned = 0,
+>>>  		.classzone_idx = pgdat->kcompactd_classzone_idx,
+>>>  		.mode = MIGRATE_SYNC_LIGHT,
+>>> -		.ignore_skip_hint = true,
+>>> +		.ignore_skip_hint = false,
+>>>  		.gfp_mask = GFP_KERNEL,
+>>> -
+>>>  	};
+>>>  	trace_mm_compaction_kcompactd_wake(pgdat->node_id, cc.order,
+>>>  							cc.classzone_idx);
+>>>
+>>
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
