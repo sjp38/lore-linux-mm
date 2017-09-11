@@ -1,52 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C26E6B029B
-	for <linux-mm@kvack.org>; Sun, 10 Sep 2017 21:13:38 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id t3so14011955pgt.7
-        for <linux-mm@kvack.org>; Sun, 10 Sep 2017 18:13:38 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 201sor1596881pfu.68.2017.09.10.18.13.36
+	by kanga.kvack.org (Postfix) with ESMTP id 063086B029E
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 02:28:30 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id j16so4357057pga.6
+        for <linux-mm@kvack.org>; Sun, 10 Sep 2017 23:28:29 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id u7si5639791pfl.547.2017.09.10.23.28.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 10 Sep 2017 18:13:36 -0700 (PDT)
-Date: Sun, 10 Sep 2017 18:13:35 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 2/2] mm, compaction: persistently skip hugetlbfs
- pageblocks
-In-Reply-To: <74a33b7b-0586-c08a-cb2e-1c3d2872815d@suse.cz>
-Message-ID: <alpine.DEB.2.10.1709101812400.85650@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1708151638550.106658@chino.kir.corp.google.com> <alpine.DEB.2.10.1708151639130.106658@chino.kir.corp.google.com> <fa162335-a36d-153a-7b5d-1d9c2d57aebc@suse.cz> <74a33b7b-0586-c08a-cb2e-1c3d2872815d@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 10 Sep 2017 23:28:28 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v8B6P4l1078829
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 02:28:27 -0400
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2cwcybhew6-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 02:28:27 -0400
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Mon, 11 Sep 2017 07:28:25 +0100
+Subject: Re: [PATCH v2 00/20] Speculative page faults
+References: <1503007519-26777-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20170821022629.GA541@jagdpanzerIV.localdomain>
+ <6302a906-221d-c977-4aea-67202eb3d96d@linux.vnet.ibm.com>
+ <20170911004523.GA2938@jagdpanzerIV.localdomain>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Mon, 11 Sep 2017 08:28:16 +0200
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20170911004523.GA2938@jagdpanzerIV.localdomain>
+Content-Type: text/plain; charset=utf-8
+Content-Language: fr
+Content-Transfer-Encoding: 7bit
+Message-Id: <da0e23a5-f2b9-bd84-8f62-0a84d1194bd7@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Fri, 1 Sep 2017, Vlastimil Babka wrote:
+On 11/09/2017 02:45, Sergey Senozhatsky wrote:
+> On (09/08/17 11:24), Laurent Dufour wrote:
+>> Hi Sergey,
+>>
+>> I can't see where such a chain could happen.
+>>
+>> I tried to recreate it on top of the latest mm tree, to latest stack output
+>> but I can't get it.
+>> How did you raised this one ?
+> 
+> Hi Laurent,
+> 
+> didn't do anything special, the box even wasn't under severe memory
+> pressure. can re-test your new patch set.
 
-> The pageblock_skip_persistent() function checks for HugeTLB pages of pageblock
-> order. When clearing pageblock skip bits for compaction, the bits are not
-> cleared for such pageblocks, because they cannot contain base pages suitable
-> for migration, nor free pages to use as migration targets.
-> 
-> This optimization can be simply extended to all compound pages of order equal
-> or larger than pageblock order, because migrating such pages (if they support
-> it) cannot help sub-pageblock fragmentation. This includes THP's and also
-> gigantic HugeTLB pages, which the current implementation doesn't persistently
-> skip due to a strict pageblock_order equality check and not recognizing tail
-> pages.
-> 
-> Additionally, this patch removes the pageblock_skip_persistent() calls from
-> migration and free scanner, since the generic compound page treatment together
-> with update_pageblock_skip() call will also lead to pageblocks starting with a
-> large enough compound page being immediately marked for skipping, which then
-> becomes persistent.
-> 
+Hi Sergey,
 
-As mentioned in my other two emails, I'm not sure that persistently 
-skipping thp memory is necessary and I disagree that we should not be 
-persistently skipping pageblocks when cc->ignore_skip_hint is true.
+I sent a v3 series, would you please give it a try ?
+
+Thanks,
+Laurent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
