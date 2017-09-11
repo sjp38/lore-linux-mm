@@ -1,50 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E0B7F6B02E4
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 15:46:27 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 97so9746737wrb.1
-        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 12:46:27 -0700 (PDT)
-Received: from smtp.smtpout.orange.fr (smtp07.smtpout.orange.fr. [80.12.242.129])
-        by mx.google.com with ESMTPS id 71si7402113wmf.128.2017.09.11.12.46.26
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C74676B02E5
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 15:53:00 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id o200so13454666itg.2
+        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 12:53:00 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m15sor1812528iod.275.2017.09.11.12.52.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Sep 2017 12:46:26 -0700 (PDT)
-From: Christophe JAILLET <christophe.jaillet@wanadoo.fr>
-Subject: [PATCH] mm/backing-dev.c: fix an error handling path in 'cgwb_create()'
-Date: Mon, 11 Sep 2017 21:43:23 +0200
-Message-Id: <20170911194323.17833-1-christophe.jaillet@wanadoo.fr>
+        (Google Transport Security);
+        Mon, 11 Sep 2017 12:52:59 -0700 (PDT)
+Subject: Re: [PATCH] mm/backing-dev.c: fix an error handling path in
+ 'cgwb_create()'
+References: <20170911194323.17833-1-christophe.jaillet@wanadoo.fr>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <512a90ae-a8bf-7ead-32ba-b4fe36866b20@kernel.dk>
+Date: Mon, 11 Sep 2017 13:52:56 -0600
+MIME-Version: 1.0
+In-Reply-To: <20170911194323.17833-1-christophe.jaillet@wanadoo.fr>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: axboe@fb.com, jack@suse.cz, tj@kernel.org, geliangtang@gmail.com, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-janitors@vger.kernel.org, Christophe JAILLET <christophe.jaillet@wanadoo.fr>
+To: Christophe JAILLET <christophe.jaillet@wanadoo.fr>, jack@suse.cz, tj@kernel.org, geliangtang@gmail.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-janitors@vger.kernel.org
 
-If the 'kmalloc' fails, we must go through the existing error handling
-path.
+On 09/11/2017 01:43 PM, Christophe JAILLET wrote:
+> If the 'kmalloc' fails, we must go through the existing error handling
+> path.
 
-Signed-off-by: Christophe JAILLET <christophe.jaillet@wanadoo.fr>
----
- mm/backing-dev.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+Looks good to me, probably wants a
 
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index f028a9a472fd..e19606bb41a0 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -569,8 +569,10 @@ static int cgwb_create(struct backing_dev_info *bdi,
- 
- 	/* need to create a new one */
- 	wb = kmalloc(sizeof(*wb), gfp);
--	if (!wb)
--		return -ENOMEM;
-+	if (!wb) {
-+		ret = -ENOMEM;
-+		goto out_put;
-+	}
- 
- 	ret = wb_init(wb, bdi, blkcg_css->id, gfp);
- 	if (ret)
+Fixes: 52ebea749aae ("writeback: make backing_dev_info host cgroup-specific bdi_writebacks")
+
+line as well.
+
 -- 
-2.11.0
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
