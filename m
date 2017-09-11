@@ -1,44 +1,49 @@
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [v7 5/5] mm, oom: cgroup v2 mount option to disable cgroup-aware
- OOM killer
-Date: Fri, 8 Sep 2017 16:07:21 -0500 (CDT)
-Message-ID: <alpine.DEB.2.20.1709081601310.27965@nuc-kabylake>
-References: <20170904142108.7165-1-guro@fb.com> <20170904142108.7165-6-guro@fb.com> <20170905134412.qdvqcfhvbdzmarna@dhcp22.suse.cz> <20170905215344.GA27427@cmpxchg.org> <20170906082859.qlqenftxuib64j35@dhcp22.suse.cz> <alpine.DEB.2.20.1709071122360.20082@nuc-kabylake>
- <alpine.DEB.2.10.1709071502430.143767@chino.kir.corp.google.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: mm, virtio: possible OOM lockup at virtballoon_oom_notify()
+Date: Mon, 11 Sep 2017 19:27:19 +0900
+Message-ID: <201709111927.IDD00574.tFVJHLOSOOMQFF@I-love.SAKURA.ne.jp>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <alpine.DEB.2.10.1709071502430.143767@chino.kir.corp.google.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <virtualization-bounces@lists.linux-foundation.org>
+List-Unsubscribe: <https://lists.linuxfoundation.org/mailman/options/virtualization>,
+	<mailto:virtualization-request@lists.linux-foundation.org?subject=unsubscribe>
+List-Archive: <http://lists.linuxfoundation.org/pipermail/virtualization/>
+List-Post: <mailto:virtualization@lists.linux-foundation.org>
+List-Help: <mailto:virtualization-request@lists.linux-foundation.org?subject=help>
+List-Subscribe: <https://lists.linuxfoundation.org/mailman/listinfo/virtualization>,
+	<mailto:virtualization-request@lists.linux-foundation.org?subject=subscribe>
+Sender: virtualization-bounces@lists.linux-foundation.org
+Errors-To: virtualization-bounces@lists.linux-foundation.org
+To: mst@redhat.com, jasowang@redhat.com
+Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org
 List-Id: linux-mm.kvack.org
 
-On Thu, 7 Sep 2017, David Rientjes wrote:
+Hello.
 
-> > It has *nothing* to do with zillions of tasks. Its amusing that the SGI
-> > ghost is still haunting the discussion here. The company died a couple of
-> > years ago finally (ok somehow HP has an "SGI" brand now I believe). But
-> > there are multiple companies that have large NUMA configurations and they
-> > all have configurations where they want to restrict allocations of a
-> > process to subset of system memory. This is even more important now that
-> > we get new forms of memory (NVDIMM, PCI-E device memory etc). You need to
-> > figure out what to do with allocations that fail because the *allowed*
-> > memory pools are empty.
-> >
->
-> We already had CONSTRAINT_CPUSET at the time, this was requested by Paul
-> and acked by him in https://marc.info/?l=linux-mm&m=118306851418425.
+I noticed that virtio_balloon is using register_oom_notifier() and
+leak_balloon() from virtballoon_oom_notify() might depend on
+__GFP_DIRECT_RECLAIM memory allocation.
 
-Ok. Certainly there were scalability issues (lots of them) and the sysctl
-may have helped there if set globally. But the ability to kill the
-allocating tasks was primarily used in cpusets for constrained allocation.
+In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
+serialize against fill_balloon(). But in fill_balloon(),
+alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
+called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE] implies
+__GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, this allocation attempt might
+depend on somebody else's __GFP_DIRECT_RECLAIM | !__GFP_NORETRY memory
+allocation. Such __GFP_DIRECT_RECLAIM | !__GFP_NORETRY allocation can reach
+__alloc_pages_may_oom() and hold oom_lock mutex and call out_of_memory().
+And leak_balloon() is called by virtballoon_oom_notify() via
+blocking_notifier_call_chain() callback when vb->balloon_lock mutex is already
+held by fill_balloon(). As a result, despite __GFP_NORETRY is specified,
+fill_balloon() can indirectly get stuck waiting for vb->balloon_lock mutex
+at leak_balloon().
 
-The issue of scaling is irrelevant in the context of deciding what to do
-about the sysctl. You can address the issue differently if it still
-exists. The systems with super high NUMA nodes (hundreds to a
-thousand) have somehow fallen out of fashion a bit. So I doubt that this
-is still an issue. And no one of the old stakeholders is speaking up.
+Also, in leak_balloon(), virtqueue_add_outbuf(GFP_KERNEL) is called via
+tell_host(). Reaching __alloc_pages_may_oom() from this virtqueue_add_outbuf()
+request from leak_balloon() from virtballoon_oom_notify() from
+blocking_notifier_call_chain() from out_of_memory() leads to OOM lockup
+because oom_lock mutex is already held before calling out_of_memory().
 
-What is the current approach for an OOM occuring in a cpuset or cgroup
-with a restricted numa node set?
+OOM notifier callback should not (directly or indirectly) depend on
+__GFP_DIRECT_RECLAIM memory allocation attempt. Can you fix this dependency?
