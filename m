@@ -1,87 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 12E1A6B0253
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 13:42:21 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id q7so15264787ioi.3
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 10:42:21 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EA8426B0038
+	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 14:13:07 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id y77so15694053pfd.2
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 11:13:07 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id m202sor4549513ita.66.2017.09.12.10.42.19
+        by mx.google.com with SMTPS id 188sor4196066pgc.380.2017.09.12.11.13.06
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 12 Sep 2017 10:42:20 -0700 (PDT)
+        Tue, 12 Sep 2017 11:13:06 -0700 (PDT)
+Date: Tue, 12 Sep 2017 11:13:03 -0700
+From: Tycho Andersen <tycho@docker.com>
+Subject: Re: [PATCH v6 03/11] mm, x86: Add support for eXclusive Page Frame
+ Ownership (XPFO)
+Message-ID: <20170912181303.aqjj5ri3mhscw63t@docker>
+References: <20170907173609.22696-1-tycho@docker.com>
+ <20170907173609.22696-4-tycho@docker.com>
+ <302be94d-7e44-001d-286c-2b0cd6098f7b@huawei.com>
+ <20170911145020.fat456njvyagcomu@docker>
+ <57e95ad2-81d8-bf83-3e78-1313daa1bb80@canonical.com>
+ <431e2567-7600-3186-1489-93b855c395bd@huawei.com>
+ <20170912143636.avc3ponnervs43kj@docker>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+bRVdvgFkkWxAZm0dv5vTQat=OhGN5cU+nAVAHA-AndfA@mail.gmail.com>
-References: <cover.1504109849.git.dvyukov@google.com> <663c2a30de845dd13cf3cf64c3dfd437295d5ce2.1504109849.git.dvyukov@google.com>
- <20170830182357.GD32493@leverpostej> <CACT4Y+bRVdvgFkkWxAZm0dv5vTQat=OhGN5cU+nAVAHA-AndfA@mail.gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 12 Sep 2017 19:41:58 +0200
-Message-ID: <CACT4Y+a85z12FdjuGTPzeJXYdYhQiNOMjykO2e0PwXEkqJUOag@mail.gmail.com>
-Subject: Re: [PATCH 1/3] kcov: support comparison operands collection
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170912143636.avc3ponnervs43kj@docker>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Victor Chibotaru <tchibo@google.com>, Alexander Popov <alex.popov@linux.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Kees Cook <keescook@chromium.org>, Vegard Nossum <vegard.nossum@oracle.com>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, syzkaller <syzkaller@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>
+To: Yisheng Xie <xieyisheng1@huawei.com>
+Cc: Juerg Haefliger <juerg.haefliger@canonical.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, x86@kernel.org
 
-On Wed, Aug 30, 2017 at 9:08 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
-> On Wed, Aug 30, 2017 at 8:23 PM, Mark Rutland <mark.rutland@arm.com> wrote:
->> Hi,
->>
->> On Wed, Aug 30, 2017 at 06:23:29PM +0200, Dmitry Vyukov wrote:
->>> From: Victor Chibotaru <tchibo@google.com>
->>>
->>> Enables kcov to collect comparison operands from instrumented code.
->>> This is done by using Clang's -fsanitize=trace-cmp instrumentation
->>> (currently not available for GCC).
->>
->> What's needed to build the kernel with Clang these days?
->>
->> I was under the impression that it still wasn't possible to build arm64
->> with clang due to a number of missing features (e.g. the %a assembler
->> output template).
->>
->>> The comparison operands help a lot in fuzz testing. E.g. they are
->>> used in Syzkaller to cover the interiors of conditional statements
->>> with way less attempts and thus make previously unreachable code
->>> reachable.
->>>
->>> To allow separate collection of coverage and comparison operands two
->>> different work modes are implemented. Mode selection is now done via
->>> a KCOV_ENABLE ioctl call with corresponding argument value.
->>>
->>> Signed-off-by: Victor Chibotaru <tchibo@google.com>
->>> Cc: Andrew Morton <akpm@linux-foundation.org>
->>> Cc: Mark Rutland <mark.rutland@arm.com>
->>> Cc: Alexander Popov <alex.popov@linux.com>
->>> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
->>> Cc: Kees Cook <keescook@chromium.org>
->>> Cc: Vegard Nossum <vegard.nossum@oracle.com>
->>> Cc: Quentin Casasnovas <quentin.casasnovas@oracle.com>
->>> Cc: syzkaller@googlegroups.com
->>> Cc: linux-mm@kvack.org
->>> Cc: linux-kernel@vger.kernel.org
->>> ---
->>> Clang instrumentation:
->>> https://clang.llvm.org/docs/SanitizerCoverage.html#tracing-data-flow
->>
->> How stable is this?
->>
->> The comment at the end says "This interface is a subject to change."
->
->
-> The intention is that this is not subject to change anymore (since we
-> are using it in kernel).
-> I've mailed change to docs: https://reviews.llvm.org/D37303
->
-> FWIW, there is patch in flight that adds this instrumentation to gcc:
-> https://groups.google.com/forum/#!topic/syzkaller/CSLynn6nI-A
-> It seems to be stalled on review phase, though.
+Hi Yisheng,
 
+> On Tue, Sep 12, 2017 at 04:05:22PM +0800, Yisheng Xie wrote:
+> > IMO, before a page is allocated, it is in buddy system, which means it is free
+> > and no other 'map' on the page except direct map. Then if the page is allocated
+> > to user, XPFO should unmap the direct map. otherwise the ret2dir may works at
+> > this window before it is freed. Or maybe I'm still missing anything.
+> 
+> I agree that it seems broken. I'm just not sure why the test doesn't
+> fail. It's certainly worth understanding.
 
-Good news is that this is submitted to gcc in 251801.
+Ok, so I think what's going on is that the page *is* mapped and unmapped by the
+kernel as Juerg described, but only in certain cases. See prep_new_page(),
+which has the following:
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+	if (!free_pages_prezeroed() && (gfp_flags & __GFP_ZERO))
+		for (i = 0; i < (1 << order); i++)
+			clear_highpage(page + i);
+
+clear_highpage() maps and unmaps the pages, so that's why xpfo works with this
+set.
+
+I tried with CONFIG_PAGE_POISONING_ZERO=y and page_poison=y, and the
+XPFO_READ_USER test does not fail, i.e. the read succeeds. So, I think we need
+to include this zeroing condition in xpfo_alloc_pages(), something like the
+patch below. Unfortunately, this fails to boot for me, probably for an
+unrelated reason that I'll look into.
+
+Thanks a lot!
+
+Tycho
