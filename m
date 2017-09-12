@@ -1,117 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4809C6B0300
-	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 21:09:53 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id k101so8822332iod.1
-        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 18:09:53 -0700 (PDT)
-Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id h74si6463064ioi.210.2017.09.11.18.09.50
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Sep 2017 18:09:51 -0700 (PDT)
-Subject: Re: [PATCH 0/6] Cache coherent device memory (CDM) with HMM v5
-References: <20170718153816.GA3135@redhat.com>
- <b6f9d812-a1f5-d647-0a6a-39a08023c3b4@huawei.com>
- <20170719022537.GA6911@redhat.com>
- <f571a0a5-69ff-10b7-d612-353e53ba16fd@huawei.com>
- <20170720150305.GA2767@redhat.com>
- <ab3e67d5-5ed5-816f-6f8e-3228866be1fe@huawei.com>
- <20170721014106.GB25991@redhat.com>
- <CAPcyv4jJraGPW214xJ+wU3G=88UUP45YiA6hV5_NvNZSNB4qGA@mail.gmail.com>
- <20170905193644.GD19397@redhat.com>
- <CAA_GA1ckfyokvqy3aKi-NoSXxSzwiVsrykC6xNxpa3WUz0bqNQ@mail.gmail.com>
- <20170911233649.GA4892@redhat.com>
-From: Bob Liu <liubo95@huawei.com>
-Message-ID: <905f3242-e17b-a4c1-dd03-36f64161fa02@huawei.com>
-Date: Tue, 12 Sep 2017 09:02:19 +0800
-MIME-Version: 1.0
-In-Reply-To: <20170911233649.GA4892@redhat.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 8bit
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A7196B0302
+	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 22:37:24 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id v82so19618598pgb.5
+        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 19:37:24 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id h18si5899226pfk.407.2017.09.11.19.37.21
+        for <linux-mm@kvack.org>;
+        Mon, 11 Sep 2017 19:37:22 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH 2/5] bdi: introduce BDI_CAP_SYNCHRONOUS_IO
+Date: Tue, 12 Sep 2017 11:37:10 +0900
+Message-Id: <1505183833-4739-2-git-send-email-minchan@kernel.org>
+In-Reply-To: <1505183833-4739-1-git-send-email-minchan@kernel.org>
+References: <1505183833-4739-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>, Bob Liu <lliubbo@gmail.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team <kernel-team@lge.com>, Minchan Kim <minchan@kernel.org>, Ilya Dryomov <idryomov@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On 2017/9/12 7:36, Jerome Glisse wrote:
-> On Sun, Sep 10, 2017 at 07:22:58AM +0800, Bob Liu wrote:
->> On Wed, Sep 6, 2017 at 3:36 AM, Jerome Glisse <jglisse@redhat.com> wrote:
->>> On Thu, Jul 20, 2017 at 08:48:20PM -0700, Dan Williams wrote:
->>>> On Thu, Jul 20, 2017 at 6:41 PM, Jerome Glisse <jglisse@redhat.com> wrote:
->>>>> On Fri, Jul 21, 2017 at 09:15:29AM +0800, Bob Liu wrote:
->>>>>> On 2017/7/20 23:03, Jerome Glisse wrote:
->>>>>>> On Wed, Jul 19, 2017 at 05:09:04PM +0800, Bob Liu wrote:
->>>>>>>> On 2017/7/19 10:25, Jerome Glisse wrote:
->>>>>>>>> On Wed, Jul 19, 2017 at 09:46:10AM +0800, Bob Liu wrote:
->>>>>>>>>> On 2017/7/18 23:38, Jerome Glisse wrote:
->>>>>>>>>>> On Tue, Jul 18, 2017 at 11:26:51AM +0800, Bob Liu wrote:
->>>>>>>>>>>> On 2017/7/14 5:15, Jerome Glisse wrote:
->>>
->>> [...]
->>>
->>>>>>> Second device driver are not integrated that closely within mm and the
->>>>>>> scheduler kernel code to allow to efficiently plug in device access
->>>>>>> notification to page (ie to update struct page so that numa worker
->>>>>>> thread can migrate memory base on accurate informations).
->>>>>>>
->>>>>>> Third it can be hard to decide who win between CPU and device access
->>>>>>> when it comes to updating thing like last CPU id.
->>>>>>>
->>>>>>> Fourth there is no such thing like device id ie equivalent of CPU id.
->>>>>>> If we were to add something the CPU id field in flags of struct page
->>>>>>> would not be big enough so this can have repercusion on struct page
->>>>>>> size. This is not an easy sell.
->>>>>>>
->>>>>>> They are other issues i can't think of right now. I think for now it
->>>>>>
->>>>>> My opinion is most of the issues are the same no matter use CDM or HMM-CDM.
->>>>>> I just care about a more complete solution no matter CDM,HMM-CDM or other ways.
->>>>>> HMM or HMM-CDM depends on device driver, but haven't see a public/full driver to
->>>>>> demonstrate the whole solution works fine.
->>>>>
->>>>> I am working with NVidia close source driver team to make sure that it works
->>>>> well for them. I am also working on nouveau open source driver for same NVidia
->>>>> hardware thought it will be of less use as what is missing there is a solid
->>>>> open source userspace to leverage this. Nonetheless open source driver are in
->>>>> the work.
->>>>
->>>> Can you point to the nouveau patches? I still find these HMM patches
->>>> un-reviewable without an upstream consumer.
->>>
->>> So i pushed a branch with WIP for nouveau to use HMM:
->>>
->>> https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-nouveau
->>>
->>
->> Nice to see that.
->> Btw, do you have any plan for a CDM-HMM driver? CPU can write to
->> Device memory directly without extra copy.
-> 
-> Yes nouveau CDM support on PPC (which is the only CDM platform commercialy
-> available today) is on the TODO list. Note that the driver changes for CDM
-> are minimal (probably less than 100 lines of code). From the driver point
-> of view this is memory and it doesn't matter if it is CDM or not.
-> 
-> The real burden is on the application developpers who need to update their
-> code to leverage this.
-> 
+By discussion[1], someday we will remove rw_page function. If so, we need
+something to detect such super-fast storage which synchronous IO operation
+like current rw_page is always win.
 
-Why it's not transparent to application?
-Application just use system malloc() and don't care whether the data is copied or not.
+This patch introduces BDI_CAP_SYNCHRONOUS_IO to indicate such devices.
+With it, we could use various optimization techniques.
 
-> 
-> Also as a data point you want to avoid CPU access to CDM device memory as
-> much as possible. The overhead for single cache line access are high (this
-> is PCIE or derivative protocol and it is a packet protocol).
-> 
+[1] lkml.kernel.org/r/<20170728165604.10455-1-ross.zwisler@linux.intel.com>
 
-Thank you for the hint, we are going to follow cdm-hmm since HMM already merged into upstream.
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ drivers/block/brd.c           | 2 ++
+ drivers/block/zram/zram_drv.c | 2 +-
+ drivers/nvdimm/btt.c          | 3 +++
+ drivers/nvdimm/pmem.c         | 2 ++
+ include/linux/backing-dev.h   | 8 ++++++++
+ 5 files changed, 16 insertions(+), 1 deletion(-)
 
---
-Thanks,
-Bob
-
-
+diff --git a/drivers/block/brd.c b/drivers/block/brd.c
+index bbd0d186cfc0..1fdb736aa882 100644
+--- a/drivers/block/brd.c
++++ b/drivers/block/brd.c
+@@ -20,6 +20,7 @@
+ #include <linux/radix-tree.h>
+ #include <linux/fs.h>
+ #include <linux/slab.h>
++#include <linux/backing-dev.h>
+ #ifdef CONFIG_BLK_DEV_RAM_DAX
+ #include <linux/pfn_t.h>
+ #include <linux/dax.h>
+@@ -449,6 +450,7 @@ static struct brd_device *brd_alloc(int i)
+ 	disk->flags		= GENHD_FL_EXT_DEVT;
+ 	sprintf(disk->disk_name, "ram%d", i);
+ 	set_capacity(disk, rd_size * 2);
++	disk->queue->backing_dev_info->capabilities |= BDI_CAP_SYNCHRONOUS_IO;
+ 
+ #ifdef CONFIG_BLK_DEV_RAM_DAX
+ 	queue_flag_set_unlocked(QUEUE_FLAG_DAX, brd->brd_queue);
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index ba009675fdc0..91a72df41ab0 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -1570,7 +1570,7 @@ static int zram_add(void)
+ 		blk_queue_max_write_zeroes_sectors(zram->disk->queue, UINT_MAX);
+ 
+ 	zram->disk->queue->backing_dev_info->capabilities |=
+-					BDI_CAP_STABLE_WRITES;
++			(BDI_CAP_STABLE_WRITES | BDI_CAP_SYNCHRONOUS_IO);
+ 	add_disk(zram->disk);
+ 
+ 	ret = sysfs_create_group(&disk_to_dev(zram->disk)->kobj,
+diff --git a/drivers/nvdimm/btt.c b/drivers/nvdimm/btt.c
+index d5612bd1cc81..e949e3302af4 100644
+--- a/drivers/nvdimm/btt.c
++++ b/drivers/nvdimm/btt.c
+@@ -23,6 +23,7 @@
+ #include <linux/ndctl.h>
+ #include <linux/fs.h>
+ #include <linux/nd.h>
++#include <linux/backing-dev.h>
+ #include "btt.h"
+ #include "nd.h"
+ 
+@@ -1402,6 +1403,8 @@ static int btt_blk_init(struct btt *btt)
+ 	btt->btt_disk->private_data = btt;
+ 	btt->btt_disk->queue = btt->btt_queue;
+ 	btt->btt_disk->flags = GENHD_FL_EXT_DEVT;
++	btt->btt_disk->queue->backing_dev_info->capabilities |=
++			BDI_CAP_SYNCHRONOUS_IO;
+ 
+ 	blk_queue_make_request(btt->btt_queue, btt_make_request);
+ 	blk_queue_logical_block_size(btt->btt_queue, btt->sector_size);
+diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
+index e9aa453da50c..5fc5999dca6a 100644
+--- a/drivers/nvdimm/pmem.c
++++ b/drivers/nvdimm/pmem.c
+@@ -31,6 +31,7 @@
+ #include <linux/uio.h>
+ #include <linux/dax.h>
+ #include <linux/nd.h>
++#include <linux/backing-dev.h>
+ #include "pmem.h"
+ #include "pfn.h"
+ #include "nd.h"
+@@ -401,6 +402,7 @@ static int pmem_attach_disk(struct device *dev,
+ 	disk->fops		= &pmem_fops;
+ 	disk->queue		= q;
+ 	disk->flags		= GENHD_FL_EXT_DEVT;
++	disk->queue->backing_dev_info->capabilities |= BDI_CAP_SYNCHRONOUS_IO;
+ 	nvdimm_namespace_disk_name(ndns, disk->disk_name);
+ 	set_capacity(disk, (pmem->size - pmem->pfn_pad - pmem->data_offset)
+ 			/ 512);
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index 854e1bdd0b2a..cd41617c6594 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -123,6 +123,8 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
+  * BDI_CAP_STRICTLIMIT:    Keep number of dirty pages below bdi threshold.
+  *
+  * BDI_CAP_CGROUP_WRITEBACK: Supports cgroup-aware writeback.
++ * BDI_CAP_SYNCHRONOUS_IO: Device is so fast that asynchronous IO would be
++ *			   inefficient.
+  */
+ #define BDI_CAP_NO_ACCT_DIRTY	0x00000001
+ #define BDI_CAP_NO_WRITEBACK	0x00000002
+@@ -130,6 +132,7 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
+ #define BDI_CAP_STABLE_WRITES	0x00000008
+ #define BDI_CAP_STRICTLIMIT	0x00000010
+ #define BDI_CAP_CGROUP_WRITEBACK 0x00000020
++#define BDI_CAP_SYNCHRONOUS_IO	0x00000040
+ 
+ #define BDI_CAP_NO_ACCT_AND_WRITEBACK \
+ 	(BDI_CAP_NO_WRITEBACK | BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_ACCT_WB)
+@@ -177,6 +180,11 @@ long wait_iff_congested(struct pglist_data *pgdat, int sync, long timeout);
+ int pdflush_proc_obsolete(struct ctl_table *table, int write,
+ 		void __user *buffer, size_t *lenp, loff_t *ppos);
+ 
++static inline bool bdi_cap_synchronous_io(struct backing_dev_info *bdi)
++{
++	return bdi->capabilities & BDI_CAP_SYNCHRONOUS_IO;
++}
++
+ static inline bool bdi_cap_stable_pages_required(struct backing_dev_info *bdi)
+ {
+ 	return bdi->capabilities & BDI_CAP_STABLE_WRITES;
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
