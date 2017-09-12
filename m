@@ -1,115 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DBBA76B0033
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 12:17:44 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id b1so8871745qtc.4
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 09:17:44 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l4si11614022qth.53.2017.09.12.09.17.42
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F2186B0038
+	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 13:05:46 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id m35so14053654qte.1
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 10:05:46 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a65sor4535758qkd.118.2017.09.12.10.05.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Sep 2017 09:17:43 -0700 (PDT)
-Date: Tue, 12 Sep 2017 12:17:38 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 0/6] Cache coherent device memory (CDM) with HMM v5
-Message-ID: <20170912161738.GA3263@redhat.com>
-References: <20170719022537.GA6911@redhat.com>
- <f571a0a5-69ff-10b7-d612-353e53ba16fd@huawei.com>
- <20170720150305.GA2767@redhat.com>
- <ab3e67d5-5ed5-816f-6f8e-3228866be1fe@huawei.com>
- <20170721014106.GB25991@redhat.com>
- <CAPcyv4jJraGPW214xJ+wU3G=88UUP45YiA6hV5_NvNZSNB4qGA@mail.gmail.com>
- <20170905193644.GD19397@redhat.com>
- <CAA_GA1ckfyokvqy3aKi-NoSXxSzwiVsrykC6xNxpa3WUz0bqNQ@mail.gmail.com>
- <20170911233649.GA4892@redhat.com>
- <905f3242-e17b-a4c1-dd03-36f64161fa02@huawei.com>
+        (Google Transport Security);
+        Tue, 12 Sep 2017 10:05:43 -0700 (PDT)
+Subject: Re: [PATCH] mm/memory_hotplug: fix wrong casting for
+ __remove_section()
+References: <51a59ec3-e7ba-2562-1917-036b8181092c@gmail.com>
+ <20170912124952.uraxdt5bgl25zhf7@dhcp22.suse.cz>
+From: YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
+Message-ID: <587bdecd-2584-21be-94b8-61b427f1b0e8@gmail.com>
+Date: Tue, 12 Sep 2017 13:05:39 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <905f3242-e17b-a4c1-dd03-36f64161fa02@huawei.com>
+In-Reply-To: <20170912124952.uraxdt5bgl25zhf7@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <liubo95@huawei.com>
-Cc: Bob Liu <lliubbo@gmail.com>, Dan Williams <dan.j.williams@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, qiuxishi@huawei.com, arbab@linux.vnet.ibm.com, Vlastimil Babka <vbabka@suse.cz>, yasu.isimatu@gmail.com
 
-On Tue, Sep 12, 2017 at 09:02:19AM +0800, Bob Liu wrote:
-> On 2017/9/12 7:36, Jerome Glisse wrote:
-> > On Sun, Sep 10, 2017 at 07:22:58AM +0800, Bob Liu wrote:
-> >> On Wed, Sep 6, 2017 at 3:36 AM, Jerome Glisse <jglisse@redhat.com> wrote:
-> >>> On Thu, Jul 20, 2017 at 08:48:20PM -0700, Dan Williams wrote:
-> >>>> On Thu, Jul 20, 2017 at 6:41 PM, Jerome Glisse <jglisse@redhat.com> wrote:
-> >>>>> On Fri, Jul 21, 2017 at 09:15:29AM +0800, Bob Liu wrote:
-> >>>>>> On 2017/7/20 23:03, Jerome Glisse wrote:
-> >>>>>>> On Wed, Jul 19, 2017 at 05:09:04PM +0800, Bob Liu wrote:
-> >>>>>>>> On 2017/7/19 10:25, Jerome Glisse wrote:
-> >>>>>>>>> On Wed, Jul 19, 2017 at 09:46:10AM +0800, Bob Liu wrote:
-> >>>>>>>>>> On 2017/7/18 23:38, Jerome Glisse wrote:
-> >>>>>>>>>>> On Tue, Jul 18, 2017 at 11:26:51AM +0800, Bob Liu wrote:
-> >>>>>>>>>>>> On 2017/7/14 5:15, Jerome Glisse wrote:
-> >>>
-> >>> [...]
-> >>>
-> >>>>>>> Second device driver are not integrated that closely within mm and the
-> >>>>>>> scheduler kernel code to allow to efficiently plug in device access
-> >>>>>>> notification to page (ie to update struct page so that numa worker
-> >>>>>>> thread can migrate memory base on accurate informations).
-> >>>>>>>
-> >>>>>>> Third it can be hard to decide who win between CPU and device access
-> >>>>>>> when it comes to updating thing like last CPU id.
-> >>>>>>>
-> >>>>>>> Fourth there is no such thing like device id ie equivalent of CPU id.
-> >>>>>>> If we were to add something the CPU id field in flags of struct page
-> >>>>>>> would not be big enough so this can have repercusion on struct page
-> >>>>>>> size. This is not an easy sell.
-> >>>>>>>
-> >>>>>>> They are other issues i can't think of right now. I think for now it
-> >>>>>>
-> >>>>>> My opinion is most of the issues are the same no matter use CDM or HMM-CDM.
-> >>>>>> I just care about a more complete solution no matter CDM,HMM-CDM or other ways.
-> >>>>>> HMM or HMM-CDM depends on device driver, but haven't see a public/full driver to
-> >>>>>> demonstrate the whole solution works fine.
-> >>>>>
-> >>>>> I am working with NVidia close source driver team to make sure that it works
-> >>>>> well for them. I am also working on nouveau open source driver for same NVidia
-> >>>>> hardware thought it will be of less use as what is missing there is a solid
-> >>>>> open source userspace to leverage this. Nonetheless open source driver are in
-> >>>>> the work.
-> >>>>
-> >>>> Can you point to the nouveau patches? I still find these HMM patches
-> >>>> un-reviewable without an upstream consumer.
-> >>>
-> >>> So i pushed a branch with WIP for nouveau to use HMM:
-> >>>
-> >>> https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-nouveau
-> >>>
-> >>
-> >> Nice to see that.
-> >> Btw, do you have any plan for a CDM-HMM driver? CPU can write to
-> >> Device memory directly without extra copy.
-> > 
-> > Yes nouveau CDM support on PPC (which is the only CDM platform commercialy
-> > available today) is on the TODO list. Note that the driver changes for CDM
-> > are minimal (probably less than 100 lines of code). From the driver point
-> > of view this is memory and it doesn't matter if it is CDM or not.
-> > 
-> > The real burden is on the application developpers who need to update their
-> > code to leverage this.
-> > 
+Hi Michal,
+
+Thanks you for reviewing my patch.
+
+On 09/12/2017 08:49 AM, Michal Hocko wrote:
+> On Fri 08-09-17 16:43:04, YASUAKI ISHIMATSU wrote:
+>> __remove_section() calls __remove_zone() to shrink zone and pgdat.
+>> But due to wrong castings, __remvoe_zone() cannot shrink zone
+>> and pgdat correctly if pfn is over 0xffffffff.
+>>
+>> So the patch fixes the following 3 wrong castings.
+>>
+>>   1. find_smallest_section_pfn() returns 0 or start_pfn which defined
+>>      as unsigned long. But the function always returns 32bit value
+>>      since the function is defined as int.
+>>
+>>   2. find_biggest_section_pfn() returns 0 or pfn which defined as
+>>      unsigned long. the function always returns 32bit value
+>>      since the function is defined as int.
 > 
-> Why it's not transparent to application?
-> Application just use system malloc() and don't care whether the data is copied or not.
+> this is indeed wrong. Pfns over would be really broken 15TB. Not that
+> unrealistic these days
 
-Porting today software to malloc/mmap is easy and apply to both non CDM and
-CDM hardware.
+Why 15TB?
 
-So malloc/mmap is a given what i mean is that having CPU capable of doing
-cache coherent access to device memory is a new thing. It never existed before
-and thus no one ever though of how to take advantages of that ie there is no
-existing program designed with that in mind.
+Actually, all callers use pfn which defined as unsigned long to receive
+the return value of find_{smallest|biggest}_section_nr(). So it will break
+over 16TB.
 
-Cheers,
-Jerome
+> 
+>>
+>>   3. __remove_section() calculates start_pfn using section_nr_to_pfn()
+>>      and scn_nr. section_nr_to_pfn() just shifts scn_nr by
+>>      PFN_SECTION_SHIFT bit. But since scn_nr is defined as int,
+>>      section_nr_to_pfn() always return 32 bit value.
+> 
+> Dohh, those nasty macros. This is hidden quite well. It seems other
+> callers are using unsigned long properly. But I would rather make sure
+> we won't repeat that error again. Can we instead make section_nr_to_pfn
+> resp. pfn_to_section_nr static inline and enfore proper types?
+
+I'll update it.
+
+> 
+> I would also split this into two patches. 
+
+I'll update it.
+
+Thanks,
+Yasuaki Ishimatsu
+
+> 
+> Thanks!
+> 
+>> The patch fixes the wrong castings.
+>>
+>> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>> ---
+>>  mm/memory_hotplug.c | 6 +++---
+>>  1 file changed, 3 insertions(+), 3 deletions(-)
+>>
+>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index 73bf17d..3514ef2 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -331,7 +331,7 @@ int __ref __add_pages(int nid, unsigned long phys_start_pfn,
+>>
+>>  #ifdef CONFIG_MEMORY_HOTREMOVE
+>>  /* find the smallest valid pfn in the range [start_pfn, end_pfn) */
+>> -static int find_smallest_section_pfn(int nid, struct zone *zone,
+>> +static unsigned long find_smallest_section_pfn(int nid, struct zone *zone,
+>>  				     unsigned long start_pfn,
+>>  				     unsigned long end_pfn)
+>>  {
+>> @@ -356,7 +356,7 @@ static int find_smallest_section_pfn(int nid, struct zone *zone,
+>>  }
+>>
+>>  /* find the biggest valid pfn in the range [start_pfn, end_pfn). */
+>> -static int find_biggest_section_pfn(int nid, struct zone *zone,
+>> +static unsigned long find_biggest_section_pfn(int nid, struct zone *zone,
+>>  				    unsigned long start_pfn,
+>>  				    unsigned long end_pfn)
+>>  {
+>> @@ -544,7 +544,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
+>>  		return ret;
+>>
+>>  	scn_nr = __section_nr(ms);
+>> -	start_pfn = section_nr_to_pfn(scn_nr);
+>> +	start_pfn = section_nr_to_pfn((unsigned long)scn_nr);
+>>  	__remove_zone(zone, start_pfn);
+>>
+>>  	sparse_remove_one_section(zone, ms, map_offset);
+>> -- 
+>> 1.8.3.1
+>>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
