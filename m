@@ -1,92 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id ED5E66B0322
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 03:15:15 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id j16so9882160pga.6
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 00:15:15 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j10si7217854pgs.609.2017.09.12.00.15.14
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 044CC6B0324
+	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 03:29:51 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e199so19370210pfh.3
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 00:29:50 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id y73si8353453plh.802.2017.09.12.00.29.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Sep 2017 00:15:14 -0700 (PDT)
-Subject: Re: [PATCH] mm: respect the __GFP_NOWARN flag when warning about
- stalls
-References: <alpine.LRH.2.02.1709110231010.3666@file01.intranet.prod.int.rdu2.redhat.com>
- <20170911082650.dqfirwc63xy7i33q@dhcp22.suse.cz>
- <alpine.LRH.2.02.1709111926480.31898@file01.intranet.prod.int.rdu2.redhat.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <d677d23a-9b1d-e3fd-9ff2-bac8cccfb200@suse.cz>
-Date: Tue, 12 Sep 2017 09:14:05 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Sep 2017 00:29:49 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH 4/5] mm:swap: respect page_cluster for readahead
+References: <1505183833-4739-1-git-send-email-minchan@kernel.org>
+	<1505183833-4739-4-git-send-email-minchan@kernel.org>
+	<87vakopk22.fsf@yhuang-dev.intel.com> <20170912062524.GA1950@bbox>
+	<874ls8pga3.fsf@yhuang-dev.intel.com> <20170912065244.GC2068@bbox>
+Date: Tue, 12 Sep 2017 15:29:45 +0800
+In-Reply-To: <20170912065244.GC2068@bbox> (Minchan Kim's message of "Tue, 12
+	Sep 2017 15:52:44 +0900")
+Message-ID: <87r2vcnzme.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LRH.2.02.1709111926480.31898@file01.intranet.prod.int.rdu2.redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team <kernel-team@lge.com>, Ilya Dryomov <idryomov@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On 09/12/2017 01:36 AM, Mikulas Patocka wrote:
-> 
-> 
-> On Mon, 11 Sep 2017, Michal Hocko wrote:
-> 
->> On Mon 11-09-17 02:52:53, Mikulas Patocka wrote:
->>
->> This patch hasn't introduced this behavior. It deliberately skipped
->> warning on __GFP_NOWARN. This has been introduced later by 822519634142
->> ("mm: page_alloc: __GFP_NOWARN shouldn't suppress stall warnings"). I
->> disagreed [1] but overall consensus was that such a warning won't be
->> harmful. Could you be more specific why do you consider it wrong,
->> please?
-> 
-> I consider the warning wrong, because it warns when nothing goes wrong. 
-> I've got 7 these warnings for 4 weeks of uptime. The warnings typically 
-> happen when I run some compilation.
-> 
-> A process with low priority is expected to be running slowly when there's 
-> some high-priority process, so there's no need to warn that the 
-> low-priority process runs slowly.
-> 
-> What else can be done to avoid the warning? Skip the warning if the 
-> process has lower priority?
+Minchan Kim <minchan@kernel.org> writes:
 
-We would have to consider (instead of jiffies) the time the process was
-either running, or waiting on something that's related to memory
-allocation/reclaim (page lock etc.). I.e. deduct the time the process
-was runable but there was no available cpu. I expect however that such
-level of detail wouldn't be feasible here, though?
+> On Tue, Sep 12, 2017 at 02:44:36PM +0800, Huang, Ying wrote:
+>> Minchan Kim <minchan@kernel.org> writes:
+>> 
+>> > On Tue, Sep 12, 2017 at 01:23:01PM +0800, Huang, Ying wrote:
+>> >> Minchan Kim <minchan@kernel.org> writes:
+>> >> 
+>> >> > page_cluster 0 means "we don't want readahead" so in the case,
+>> >> > let's skip the readahead detection logic.
+>> >> >
+>> >> > Cc: "Huang, Ying" <ying.huang@intel.com>
+>> >> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+>> >> > ---
+>> >> >  include/linux/swap.h | 3 ++-
+>> >> >  1 file changed, 2 insertions(+), 1 deletion(-)
+>> >> >
+>> >> > diff --git a/include/linux/swap.h b/include/linux/swap.h
+>> >> > index 0f54b491e118..739d94397c47 100644
+>> >> > --- a/include/linux/swap.h
+>> >> > +++ b/include/linux/swap.h
+>> >> > @@ -427,7 +427,8 @@ extern bool has_usable_swap(void);
+>> >> >  
+>> >> >  static inline bool swap_use_vma_readahead(void)
+>> >> >  {
+>> >> > -	return READ_ONCE(swap_vma_readahead) && !atomic_read(&nr_rotate_swap);
+>> >> > +	return page_cluster > 0 && READ_ONCE(swap_vma_readahead)
+>> >> > +				&& !atomic_read(&nr_rotate_swap);
+>> >> >  }
+>> >> >  
+>> >> >  /* Swap 50% full? Release swapcache more aggressively.. */
+>> >> 
+>> >> Now the readahead window size of the VMA based swap readahead is
+>> >> controlled by /sys/kernel/mm/swap/vma_ra_max_order, while that of the
+>> >> original swap readahead is controlled by sysctl page_cluster.  It is
+>> >> possible for anonymous memory to use VMA based swap readahead and tmpfs
+>> >> to use original swap readahead algorithm at the same time.  So that, I
+>> >> think it is necessary to use different control knob to control these two
+>> >> algorithm.  So if we want to disable readahead for tmpfs, but keep it
+>> >> for VMA based readahead, we can set 0 to page_cluster but non-zero to
+>> >> /sys/kernel/mm/swap/vma_ra_max_order.  With your change, this will be
+>> >> impossible.
+>> >
+>> > For a long time, page-cluster have been used as controlling swap readahead.
+>> > One of example, zram users have been disabled readahead via 0 page-cluster.
+>> > However, with your change, it would be regressed if it doesn't disable
+>> > vma_ra_max_order.
+>> >
+>> > As well, all of swap users should be aware of vma_ra_max_order as well as
+>> > page-cluster to control swap readahead but I didn't see any document about
+>> > that. Acutaully, I don't like it but want to unify it with page-cluster.
+>> 
+>> The document is in
+>> 
+>> Documentation/ABI/testing/sysfs-kernel-mm-swap
+>> 
+>> The concern of unifying it with page-cluster is as following.
+>> 
+>> Original swap readahead on tmpfs may not work well because the combined
+>> workload is running, so we want to disable or constrain it.  But at the
+>> same time, the VMA based swap readahead may work better.  So I think it
+>> may be necessary to control them separately.
+>
+> My concern is users have been disabled swap readahead by page-cluster would
+> be regressed. Please take care of them.
 
-Vlastimil
+How about disable VMA based swap readahead if zram used as swap?  Like
+we have done for hard disk?
 
-> Mikulas
-> 
->> [1] http://lkml.kernel.org/r/20170125184548.GB32041@dhcp22.suse.cz
->>
->>>
->>> ---
->>>  mm/page_alloc.c |    2 +-
->>>  1 file changed, 1 insertion(+), 1 deletion(-)
->>>
->>> Index: linux-2.6/mm/page_alloc.c
->>> ===================================================================
->>> --- linux-2.6.orig/mm/page_alloc.c
->>> +++ linux-2.6/mm/page_alloc.c
->>> @@ -3923,7 +3923,7 @@ retry:
->>>  
->>>  	/* Make sure we know about allocations which stall for too long */
->>>  	if (time_after(jiffies, alloc_start + stall_timeout)) {
->>> -		warn_alloc(gfp_mask & ~__GFP_NOWARN, ac->nodemask,
->>> +		warn_alloc(gfp_mask, ac->nodemask,
->>>  			"page allocation stalls for %ums, order:%u",
->>>  			jiffies_to_msecs(jiffies-alloc_start), order);
->>>  		stall_timeout += 10 * HZ;
->>
->> -- 
->> Michal Hocko
->> SUSE Labs
->>
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
