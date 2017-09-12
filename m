@@ -1,76 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A9F846B0320
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 03:11:08 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id v137so13982192ywg.4
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 00:11:08 -0700 (PDT)
-Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id k39si2230223ybj.367.2017.09.12.00.11.06
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id ED5E66B0322
+	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 03:15:15 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id j16so9882160pga.6
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 00:15:15 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j10si7217854pgs.609.2017.09.12.00.15.14
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Sep 2017 00:11:07 -0700 (PDT)
-Subject: Re: [PATCH v6 00/11] Add support for eXclusive Page Frame Ownership
-References: <20170907173609.22696-1-tycho@docker.com>
- <23e5bac9-329a-3a32-049e-7e7c9751abd0@huawei.com>
- <20170911150204.nn5v5olbxyzfafou@docker>
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Message-ID: <60c4ad22-d920-2754-30dd-b1f228c0a87d@huawei.com>
-Date: Tue, 12 Sep 2017 15:07:29 +0800
+        Tue, 12 Sep 2017 00:15:14 -0700 (PDT)
+Subject: Re: [PATCH] mm: respect the __GFP_NOWARN flag when warning about
+ stalls
+References: <alpine.LRH.2.02.1709110231010.3666@file01.intranet.prod.int.rdu2.redhat.com>
+ <20170911082650.dqfirwc63xy7i33q@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1709111926480.31898@file01.intranet.prod.int.rdu2.redhat.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <d677d23a-9b1d-e3fd-9ff2-bac8cccfb200@suse.cz>
+Date: Tue, 12 Sep 2017 09:14:05 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170911150204.nn5v5olbxyzfafou@docker>
-Content-Type: text/plain; charset="windows-1252"
+In-Reply-To: <alpine.LRH.2.02.1709111926480.31898@file01.intranet.prod.int.rdu2.redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tycho Andersen <tycho@docker.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>
+To: Mikulas Patocka <mpatocka@redhat.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Tycho,
-
-On 2017/9/11 23:02, Tycho Andersen wrote:
-> Hi Yisheng,
+On 09/12/2017 01:36 AM, Mikulas Patocka wrote:
 > 
-> On Mon, Sep 11, 2017 at 06:34:45PM +0800, Yisheng Xie wrote:
->> Hi Tycho ,
+> 
+> On Mon, 11 Sep 2017, Michal Hocko wrote:
+> 
+>> On Mon 11-09-17 02:52:53, Mikulas Patocka wrote:
 >>
->> On 2017/9/8 1:35, Tycho Andersen wrote:
->>> Hi all,
->>>
->>> Here is v6 of the XPFO set; see v5 discussion here:
->>> https://lkml.org/lkml/2017/8/9/803
->>>
->>> Changelogs are in the individual patch notes, but the highlights are:
->>> * add primitives for ensuring memory areas are mapped (although these are quite
->>>   ugly, using stack allocation; I'm open to better suggestions)
->>> * instead of not flushing caches, re-map pages using the above
->>> * TLB flushing is much more correct (i.e. we're always flushing everything
->>>   everywhere). I suspect we may be able to back this off in some cases, but I'm
->>>   still trying to collect performance numbers to prove this is worth doing.
->>>
->>> I have no TODOs left for this set myself, other than fixing whatever review
->>> feedback people have. Thoughts and testing welcome!
+>> This patch hasn't introduced this behavior. It deliberately skipped
+>> warning on __GFP_NOWARN. This has been introduced later by 822519634142
+>> ("mm: page_alloc: __GFP_NOWARN shouldn't suppress stall warnings"). I
+>> disagreed [1] but overall consensus was that such a warning won't be
+>> harmful. Could you be more specific why do you consider it wrong,
+>> please?
+> 
+> I consider the warning wrong, because it warns when nothing goes wrong. 
+> I've got 7 these warnings for 4 weeks of uptime. The warnings typically 
+> happen when I run some compilation.
+> 
+> A process with low priority is expected to be running slowly when there's 
+> some high-priority process, so there's no need to warn that the 
+> low-priority process runs slowly.
+> 
+> What else can be done to avoid the warning? Skip the warning if the 
+> process has lower priority?
+
+We would have to consider (instead of jiffies) the time the process was
+either running, or waiting on something that's related to memory
+allocation/reclaim (page lock etc.). I.e. deduct the time the process
+was runable but there was no available cpu. I expect however that such
+level of detail wouldn't be feasible here, though?
+
+Vlastimil
+
+> Mikulas
+> 
+>> [1] http://lkml.kernel.org/r/20170125184548.GB32041@dhcp22.suse.cz
 >>
->> According to the paper of Vasileios P. Kemerlis et al, the mainline kernel
->> will not set the Pro. of physmap(direct map area) to RW(X), so do we really
->> need XPFO to protect from ret2dir attack?
-> 
-> I guess you're talking about section 4.3? 
-Yes
-
-> They mention that that x86
-> only gets rw, but that aarch64 is rwx still.
-IIRC, the in kernel of v4.13 the aarch64 is not rwx, I will check it.
-
-> 
-> But in either case this still provides access protection, similar to
-> SMAP. Also, if I understand things correctly the protections are
-> unmanaged, so a page that had the +x bit set at some point, it could
-> be used for ret2dir.
-So you means that the Pro. of direct map area maybe changed to +x, then ret2dir attack can use it?
-
-Thanks
-Yisheng Xie
-
+>>>
+>>> ---
+>>>  mm/page_alloc.c |    2 +-
+>>>  1 file changed, 1 insertion(+), 1 deletion(-)
+>>>
+>>> Index: linux-2.6/mm/page_alloc.c
+>>> ===================================================================
+>>> --- linux-2.6.orig/mm/page_alloc.c
+>>> +++ linux-2.6/mm/page_alloc.c
+>>> @@ -3923,7 +3923,7 @@ retry:
+>>>  
+>>>  	/* Make sure we know about allocations which stall for too long */
+>>>  	if (time_after(jiffies, alloc_start + stall_timeout)) {
+>>> -		warn_alloc(gfp_mask & ~__GFP_NOWARN, ac->nodemask,
+>>> +		warn_alloc(gfp_mask, ac->nodemask,
+>>>  			"page allocation stalls for %ums, order:%u",
+>>>  			jiffies_to_msecs(jiffies-alloc_start), order);
+>>>  		stall_timeout += 10 * HZ;
+>>
+>> -- 
+>> Michal Hocko
+>> SUSE Labs
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
