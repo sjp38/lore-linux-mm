@@ -1,122 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DC56F6B0329
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 04:07:05 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id d8so20994916pgt.1
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 01:07:05 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id y21si4521534pll.578.2017.09.12.01.07.04
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 08F8C6B032C
+	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 04:09:16 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id v140so9020004ita.3
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 01:09:16 -0700 (PDT)
+Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id j203si10098160ioe.226.2017.09.12.01.09.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Sep 2017 01:07:04 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH 4/5] mm:swap: respect page_cluster for readahead
-References: <1505183833-4739-1-git-send-email-minchan@kernel.org>
-	<1505183833-4739-4-git-send-email-minchan@kernel.org>
-	<87vakopk22.fsf@yhuang-dev.intel.com> <20170912062524.GA1950@bbox>
-	<874ls8pga3.fsf@yhuang-dev.intel.com> <20170912065244.GC2068@bbox>
-	<87r2vcnzme.fsf@yhuang-dev.intel.com> <20170912075645.GA2837@bbox>
-Date: Tue, 12 Sep 2017 16:07:01 +0800
-In-Reply-To: <20170912075645.GA2837@bbox> (Minchan Kim's message of "Tue, 12
-	Sep 2017 16:56:45 +0900")
-Message-ID: <87mv60nxwa.fsf@yhuang-dev.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 12 Sep 2017 01:09:15 -0700 (PDT)
+Subject: Re: [PATCH v6 03/11] mm, x86: Add support for eXclusive Page Frame
+ Ownership (XPFO)
+References: <20170907173609.22696-1-tycho@docker.com>
+ <20170907173609.22696-4-tycho@docker.com>
+ <302be94d-7e44-001d-286c-2b0cd6098f7b@huawei.com>
+ <20170911145020.fat456njvyagcomu@docker>
+ <57e95ad2-81d8-bf83-3e78-1313daa1bb80@canonical.com>
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Message-ID: <431e2567-7600-3186-1489-93b855c395bd@huawei.com>
+Date: Tue, 12 Sep 2017 16:05:22 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <57e95ad2-81d8-bf83-3e78-1313daa1bb80@canonical.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team <kernel-team@lge.com>, Ilya Dryomov <idryomov@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Juerg Haefliger <juerg.haefliger@canonical.com>, Tycho Andersen <tycho@docker.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, x86@kernel.org
 
-Minchan Kim <minchan@kernel.org> writes:
 
-> On Tue, Sep 12, 2017 at 03:29:45PM +0800, Huang, Ying wrote:
->> Minchan Kim <minchan@kernel.org> writes:
->> 
->> > On Tue, Sep 12, 2017 at 02:44:36PM +0800, Huang, Ying wrote:
->> >> Minchan Kim <minchan@kernel.org> writes:
->> >> 
->> >> > On Tue, Sep 12, 2017 at 01:23:01PM +0800, Huang, Ying wrote:
->> >> >> Minchan Kim <minchan@kernel.org> writes:
->> >> >> 
->> >> >> > page_cluster 0 means "we don't want readahead" so in the case,
->> >> >> > let's skip the readahead detection logic.
->> >> >> >
->> >> >> > Cc: "Huang, Ying" <ying.huang@intel.com>
->> >> >> > Signed-off-by: Minchan Kim <minchan@kernel.org>
->> >> >> > ---
->> >> >> >  include/linux/swap.h | 3 ++-
->> >> >> >  1 file changed, 2 insertions(+), 1 deletion(-)
->> >> >> >
->> >> >> > diff --git a/include/linux/swap.h b/include/linux/swap.h
->> >> >> > index 0f54b491e118..739d94397c47 100644
->> >> >> > --- a/include/linux/swap.h
->> >> >> > +++ b/include/linux/swap.h
->> >> >> > @@ -427,7 +427,8 @@ extern bool has_usable_swap(void);
->> >> >> >  
->> >> >> >  static inline bool swap_use_vma_readahead(void)
->> >> >> >  {
->> >> >> > -	return READ_ONCE(swap_vma_readahead) && !atomic_read(&nr_rotate_swap);
->> >> >> > +	return page_cluster > 0 && READ_ONCE(swap_vma_readahead)
->> >> >> > +				&& !atomic_read(&nr_rotate_swap);
->> >> >> >  }
->> >> >> >  
->> >> >> >  /* Swap 50% full? Release swapcache more aggressively.. */
->> >> >> 
->> >> >> Now the readahead window size of the VMA based swap readahead is
->> >> >> controlled by /sys/kernel/mm/swap/vma_ra_max_order, while that of the
->> >> >> original swap readahead is controlled by sysctl page_cluster.  It is
->> >> >> possible for anonymous memory to use VMA based swap readahead and tmpfs
->> >> >> to use original swap readahead algorithm at the same time.  So that, I
->> >> >> think it is necessary to use different control knob to control these two
->> >> >> algorithm.  So if we want to disable readahead for tmpfs, but keep it
->> >> >> for VMA based readahead, we can set 0 to page_cluster but non-zero to
->> >> >> /sys/kernel/mm/swap/vma_ra_max_order.  With your change, this will be
->> >> >> impossible.
->> >> >
->> >> > For a long time, page-cluster have been used as controlling swap readahead.
->> >> > One of example, zram users have been disabled readahead via 0 page-cluster.
->> >> > However, with your change, it would be regressed if it doesn't disable
->> >> > vma_ra_max_order.
->> >> >
->> >> > As well, all of swap users should be aware of vma_ra_max_order as well as
->> >> > page-cluster to control swap readahead but I didn't see any document about
->> >> > that. Acutaully, I don't like it but want to unify it with page-cluster.
->> >> 
->> >> The document is in
->> >> 
->> >> Documentation/ABI/testing/sysfs-kernel-mm-swap
->> >> 
->> >> The concern of unifying it with page-cluster is as following.
->> >> 
->> >> Original swap readahead on tmpfs may not work well because the combined
->> >> workload is running, so we want to disable or constrain it.  But at the
->> >> same time, the VMA based swap readahead may work better.  So I think it
->> >> may be necessary to control them separately.
->> >
->> > My concern is users have been disabled swap readahead by page-cluster would
->> > be regressed. Please take care of them.
->> 
->> How about disable VMA based swap readahead if zram used as swap?  Like
->> we have done for hard disk?
->
-> It could be with SWP_SYNCHRONOUS_IO flag which indicates super-fast,
-> no seek cost swap devices if this patchset is merged so VM automatically
-> disables readahead. It is in my TODO but it's orthogonal work.
->
-> The problem I raised is "Why shouldn't we obey user's decision?",
-> not zram sepcific issue.
->
-> A user has used SSD as swap devices decided to disable swap readahead
-> by some reason(e.g., small memory system). Anyway, it has worked
-> via page-cluster for a several years but with vma-based swap devices,
-> it doesn't work any more.
 
-Can they add one more line to their configuration scripts?
+On 2017/9/12 0:03, Juerg Haefliger wrote:
+> 
+> 
+> On 09/11/2017 04:50 PM, Tycho Andersen wrote:
+>> Hi Yisheng,
+>>
+>> On Mon, Sep 11, 2017 at 03:24:09PM +0800, Yisheng Xie wrote:
+>>>> +void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp)
+>>>> +{
+>>>> +	int i, flush_tlb = 0;
+>>>> +	struct xpfo *xpfo;
+>>>> +
+>>>> +	if (!static_branch_unlikely(&xpfo_inited))
+>>>> +		return;
+>>>> +
+>>>> +	for (i = 0; i < (1 << order); i++)  {
+>>>> +		xpfo = lookup_xpfo(page + i);
+>>>> +		if (!xpfo)
+>>>> +			continue;
+>>>> +
+>>>> +		WARN(test_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags),
+>>>> +		     "xpfo: unmapped page being allocated\n");
+>>>> +
+>>>> +		/* Initialize the map lock and map counter */
+>>>> +		if (unlikely(!xpfo->inited)) {
+>>>> +			spin_lock_init(&xpfo->maplock);
+>>>> +			atomic_set(&xpfo->mapcount, 0);
+>>>> +			xpfo->inited = true;
+>>>> +		}
+>>>> +		WARN(atomic_read(&xpfo->mapcount),
+>>>> +		     "xpfo: already mapped page being allocated\n");
+>>>> +
+>>>> +		if ((gfp & GFP_HIGHUSER) == GFP_HIGHUSER) {
+>>>> +			/*
+>>>> +			 * Tag the page as a user page and flush the TLB if it
+>>>> +			 * was previously allocated to the kernel.
+>>>> +			 */
+>>>> +			if (!test_and_set_bit(XPFO_PAGE_USER, &xpfo->flags))
+>>>> +				flush_tlb = 1;
+>>>
+>>> I'm not sure whether I am miss anything, however, when the page was previously allocated
+>>> to kernel,  should we unmap the physmap (the kernel's page table) here? For we allocate
+>>> the page to user now
+>>>
+>> Yes, I think you're right. Oddly, the XPFO_READ_USER test works
 
-echo 0 > /sys/kernel/mm/swap/vma_ra_max_order
+Hi Tycho,
+Could you share this test? I'd like to know how it works.
 
-Best Regards,
-Huang, Ying
+Thanks
+
+>> correctly for me, but I think (?) should not because of this bug...
+> 
+> IIRC, this is an optimization carried forward from the initial
+> implementation. 
+Hi Juerg,
+
+hmm.. If below is the first version, then it seems this exist from the first version:
+https://patchwork.kernel.org/patch/8437451/
+
+> The assumption is that the kernel will map the user
+> buffer so it's not unmapped on allocation but only on the first (and
+> subsequent) call of kunmap.
+
+IMO, before a page is allocated, it is in buddy system, which means it is free
+and no other 'map' on the page except direct map. Then if the page is allocated
+to user, XPFO should unmap the direct map. otherwise the ret2dir may works at
+this window before it is freed. Or maybe I'm still missing anything.
+
+Thanks
+Yisheng Xie
+
+>  I.e.:
+>  - alloc  -> noop
+>  - kmap   -> noop
+>  - kunmap -> unmapped from the kernel
+>  - kmap   -> mapped into the kernel
+>  - kunmap -> unmapped from the kernel
+> and so on until:
+>  - free   -> mapped back into the kernel
+> 
+> I'm not sure if that make sense though since it leaves a window.
+> 
+> ...Juerg
+> 
+> 
+> 
+>> Tycho
+>>
+> 
+> .
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
