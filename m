@@ -1,107 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C101E6B033E
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 08:49:55 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id v109so11831030wrc.5
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 05:49:55 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 2si1291640wmn.251.2017.09.12.05.49.54
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C1ADC6B0341
+	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 09:20:55 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id j16so11323256pga.6
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 06:20:55 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id f3si4398447plf.562.2017.09.12.06.20.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Sep 2017 05:49:54 -0700 (PDT)
-Date: Tue, 12 Sep 2017 14:49:52 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/memory_hotplug: fix wrong casting for
- __remove_section()
-Message-ID: <20170912124952.uraxdt5bgl25zhf7@dhcp22.suse.cz>
-References: <51a59ec3-e7ba-2562-1917-036b8181092c@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Sep 2017 06:20:54 -0700 (PDT)
+Message-ID: <59B7DFED.6060502@intel.com>
+Date: Tue, 12 Sep 2017 21:23:57 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51a59ec3-e7ba-2562-1917-036b8181092c@gmail.com>
+Subject: Re: [PATCH v15 1/5] lib/xbitmap: Introduce xbitmap
+References: <1503914913-28893-1-git-send-email-wei.w.wang@intel.com> <1503914913-28893-2-git-send-email-wei.w.wang@intel.com> <20170911125455.GA32538@bombadil.infradead.org>
+In-Reply-To: <20170911125455.GA32538@bombadil.infradead.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, qiuxishi@huawei.com, arbab@linux.vnet.ibm.com, Vlastimil Babka <vbabka@suse.cz>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On Fri 08-09-17 16:43:04, YASUAKI ISHIMATSU wrote:
-> __remove_section() calls __remove_zone() to shrink zone and pgdat.
-> But due to wrong castings, __remvoe_zone() cannot shrink zone
-> and pgdat correctly if pfn is over 0xffffffff.
-> 
-> So the patch fixes the following 3 wrong castings.
-> 
->   1. find_smallest_section_pfn() returns 0 or start_pfn which defined
->      as unsigned long. But the function always returns 32bit value
->      since the function is defined as int.
-> 
->   2. find_biggest_section_pfn() returns 0 or pfn which defined as
->      unsigned long. the function always returns 32bit value
->      since the function is defined as int.
+On 09/11/2017 08:54 PM, Matthew Wilcox wrote:
+> On Mon, Aug 28, 2017 at 06:08:29PM +0800, Wei Wang wrote:
+>> From: Matthew Wilcox <mawilcox@microsoft.com>
+>>
+>> The eXtensible Bitmap is a sparse bitmap representation which is
+>> efficient for set bits which tend to cluster.  It supports up to
+>> 'unsigned long' worth of bits, and this commit adds the bare bones --
+>> xb_set_bit(), xb_clear_bit() and xb_test_bit().
+>>
+>> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+>> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: Michal Hocko <mhocko@kernel.org>
+>> Cc: Michael S. Tsirkin <mst@redhat.com>
+> This is quite naughty of you.  You've modified the xbitmap implementation
+> without any indication in the changelog that you did so.
 
-this is indeed wrong. Pfns over would be really broken 15TB. Not that
-unrealistic these days
+This was changed in the previous version and included in that
+v13->v14 ChangeLog: https://lkml.org/lkml/2017/8/16/923
 
-> 
->   3. __remove_section() calculates start_pfn using section_nr_to_pfn()
->      and scn_nr. section_nr_to_pfn() just shifts scn_nr by
->      PFN_SECTION_SHIFT bit. But since scn_nr is defined as int,
->      section_nr_to_pfn() always return 32 bit value.
 
-Dohh, those nasty macros. This is hidden quite well. It seems other
-callers are using unsigned long properly. But I would rather make sure
-we won't repeat that error again. Can we instead make section_nr_to_pfn
-resp. pfn_to_section_nr static inline and enfore proper types?
+> I don't
+> think the modifications you made are an improvement, but without any
+> argumentation from you I don't know why you think they're an improvement.
 
-I would also split this into two patches. 
+Probably it shouldn't be modified when the discussion is incomplete:
+https://lkml.org/lkml/2017/8/10/36
+Sorry about that. Hope we could get more feedback from you on the
+changes later.
 
-Thanks!
+If you want, we can continue this part from the the v13 patch, which might
+be closer to the implementation that you like: 
+https://lkml.org/lkml/2017/8/3/60
 
-> The patch fixes the wrong castings.
-> 
-> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> ---
->  mm/memory_hotplug.c | 6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 73bf17d..3514ef2 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -331,7 +331,7 @@ int __ref __add_pages(int nid, unsigned long phys_start_pfn,
-> 
->  #ifdef CONFIG_MEMORY_HOTREMOVE
->  /* find the smallest valid pfn in the range [start_pfn, end_pfn) */
-> -static int find_smallest_section_pfn(int nid, struct zone *zone,
-> +static unsigned long find_smallest_section_pfn(int nid, struct zone *zone,
->  				     unsigned long start_pfn,
->  				     unsigned long end_pfn)
->  {
-> @@ -356,7 +356,7 @@ static int find_smallest_section_pfn(int nid, struct zone *zone,
->  }
-> 
->  /* find the biggest valid pfn in the range [start_pfn, end_pfn). */
-> -static int find_biggest_section_pfn(int nid, struct zone *zone,
-> +static unsigned long find_biggest_section_pfn(int nid, struct zone *zone,
->  				    unsigned long start_pfn,
->  				    unsigned long end_pfn)
->  {
-> @@ -544,7 +544,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
->  		return ret;
-> 
->  	scn_nr = __section_nr(ms);
-> -	start_pfn = section_nr_to_pfn(scn_nr);
-> +	start_pfn = section_nr_to_pfn((unsigned long)scn_nr);
->  	__remove_zone(zone, start_pfn);
-> 
->  	sparse_remove_one_section(zone, ms, map_offset);
-> -- 
-> 1.8.3.1
-> 
+>> diff --git a/lib/xbitmap.c b/lib/xbitmap.c
+>> new file mode 100644
+>> index 0000000..8c55296
+>> --- /dev/null
+>> +++ b/lib/xbitmap.c
+>> @@ -0,0 +1,176 @@
+>> +#include <linux/slab.h>
+>> +#include <linux/xbitmap.h>
+>> +
+>> +/*
+>> + * The xbitmap implementation supports up to ULONG_MAX bits, and it is
+>> + * implemented based on ida bitmaps. So, given an unsigned long index,
+>> + * the high order XB_INDEX_BITS bits of the index is used to find the
+>> + * corresponding item (i.e. ida bitmap) from the radix tree, and the low
+>> + * order (i.e. ilog2(IDA_BITMAP_BITS)) bits of the index are indexed into
+>> + * the ida bitmap to find the bit.
+>> + */
+>> +#define XB_INDEX_BITS		(BITS_PER_LONG - ilog2(IDA_BITMAP_BITS))
+>> +#define XB_MAX_PATH		(DIV_ROUND_UP(XB_INDEX_BITS, \
+>> +					      RADIX_TREE_MAP_SHIFT))
+>> +#define XB_PRELOAD_SIZE		(XB_MAX_PATH * 2 - 1)
+> I don't understand why you moved the xb_preload code here from the
+> radix tree.  I want all the code which touches the preload implementation
+> together in one place, which is the radix tree.
 
--- 
-Michal Hocko
-SUSE Labs
+Based on the previous comments (put all the code to lib/xbitmap.c) and your
+comment here, I will move xb_preload() and the above Macro to radix-tree.c,
+while leaving the rest in xbitmap.c.
+
+Would this be something you expected? Or would you like to move all back
+to radix-tree.c like that in v13?
+
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
