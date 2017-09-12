@@ -1,72 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 989966B0038
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 16:43:39 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id v109so12950206wrc.5
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 13:43:39 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o44sor4569138wrf.86.2017.09.12.13.43.38
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 116146B0038
+	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 16:54:52 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id i131so3176828wma.1
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 13:54:52 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id j128si9529291wmd.145.2017.09.12.13.54.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Sep 2017 13:43:38 -0700 (PDT)
-Date: Tue, 12 Sep 2017 22:43:06 +0200
-From: Alexandru Moise <00moses.alexander00@gmail.com>
-Subject: [PATCH] mm, hugetlb, soft_offline: save compound page order before
- page migration
-Message-ID: <20170912204306.GA12053@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Sep 2017 13:54:51 -0700 (PDT)
+Date: Tue, 12 Sep 2017 13:54:48 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm, hugetlb, soft_offline: save compound page order
+ before page migration
+Message-Id: <20170912135448.341359676c6f8045f4a622f0@linux-foundation.org>
+In-Reply-To: <20170912204306.GA12053@gmail.com>
+References: <20170912204306.GA12053@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, khandual@linux.vnet.ibm.com, akpm@linux-foundation.org, mhocko@suse.com, aarcange@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, shli@fb.com, rppt@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, mgorman@techsingularity.net, rientjes@google.com, riel@redhat.com, linux-mm@kvack.org
+To: Alexandru Moise <00moses.alexander00@gmail.com>
+Cc: linux-kernel@vger.kernel.org, khandual@linux.vnet.ibm.com, mhocko@suse.com, aarcange@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, shli@fb.com, rppt@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, mgorman@techsingularity.net, rientjes@google.com, riel@redhat.com, linux-mm@kvack.org
 
-This fixes a bug in madvise() where if you'd try to soft offline a
-hugepage via madvise(), while walking the address range you'd end up,
-using the wrong page offset due to attempting to get the compound
-order of a former but presently not compound page, due to dissolving
-the huge page (since c3114a8).
+On Tue, 12 Sep 2017 22:43:06 +0200 Alexandru Moise <00moses.alexander00@gmail.com> wrote:
 
-Signed-off-by: Alexandru Moise <00moses.alexander00@gmail.com>
----
- mm/madvise.c | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+> This fixes a bug in madvise() where if you'd try to soft offline a
+> hugepage via madvise(), while walking the address range you'd end up,
+> using the wrong page offset due to attempting to get the compound
+> order of a former but presently not compound page, due to dissolving
+> the huge page (since c3114a8).
 
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 21261ff0466f..25bade36e9ca 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -625,18 +625,26 @@ static int madvise_inject_error(int behavior,
- {
- 	struct page *page;
- 	struct zone *zone;
-+	unsigned int order;
- 
- 	if (!capable(CAP_SYS_ADMIN))
- 		return -EPERM;
- 
--	for (; start < end; start += PAGE_SIZE <<
--				compound_order(compound_head(page))) {
-+
-+	for (; start < end; start += PAGE_SIZE << order) {
- 		int ret;
- 
- 		ret = get_user_pages_fast(start, 1, 0, &page);
- 		if (ret != 1)
- 			return ret;
- 
-+		/*
-+		 * When soft offlining hugepages, after migrating the page
-+		 * we dissolve it, therefore in the second loop "page" will
-+		 * no longer be a compound page, and order will be 0.
-+		 */
-+		order = compound_order(compound_head(page));
-+
- 		if (PageHWPoison(page)) {
- 			put_page(page);
- 			continue;
--- 
-2.14.1
+What are the user visible effects of the bug?  The wrong page is
+offlined?  No offlining occurs?  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
