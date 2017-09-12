@@ -1,133 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 90A7E6B0038
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 16:28:24 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id b76so19582062itb.0
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 13:28:24 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id z2si1708531ite.132.2017.09.12.13.28.23
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 989966B0038
+	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 16:43:39 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id v109so12950206wrc.5
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 13:43:39 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o44sor4569138wrf.86.2017.09.12.13.43.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Sep 2017 13:28:23 -0700 (PDT)
-From: "Prakhya, Sai Praneeth" <sai.praneeth.prakhya@intel.com>
-Subject: RE: [PATCH v4 00/10] PCID and improved laziness
-Date: Tue, 12 Sep 2017 20:28:21 +0000
-Message-ID: <FFF73D592F13FD46B8700F0A279B802F185CCC28@ORSMSX114.amr.corp.intel.com>
-References: <cover.1498751203.git.luto@kernel.org>
- <CALBSrqDW6pGjHxOmzfnkY_KoNeH6F=pTb8-tJ8r-zbu4prw9HQ@mail.gmail.com>
- <1505244724.4482.78.camel@intel.com>
- <428E07CE-6F76-4137-B568-B9794735A51F@amacapital.net>
-In-Reply-To: <428E07CE-6F76-4137-B568-B9794735A51F@amacapital.net>
-Content-Language: en-US
-Content-Type: multipart/alternative;
-	boundary="_000_FFF73D592F13FD46B8700F0A279B802F185CCC28ORSMSX114amrcor_"
+        (Google Transport Security);
+        Tue, 12 Sep 2017 13:43:38 -0700 (PDT)
+Date: Tue, 12 Sep 2017 22:43:06 +0200
+From: Alexandru Moise <00moses.alexander00@gmail.com>
+Subject: [PATCH] mm, hugetlb, soft_offline: save compound page order before
+ page migration
+Message-ID: <20170912204306.GA12053@gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: "x86@kernel.org" <x86@kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mgorman@suse.de" <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "nadav.amit@gmail.com" <nadav.amit@gmail.com>, "riel@redhat.com" <riel@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "arjan@linux.intel.com" <arjan@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, "Luck, Tony" <tony.luck@intel.com>, "Shankar, Ravi V" <ravi.v.shankar@intel.com>, Matt
- Fleming <matt@codeblueprint.co.uk>, "Yu, Fenghua" <fenghua.yu@intel.com>, "mingo@kernel.org" <mingo@kernel.org>
+To: linux-kernel@vger.kernel.org, khandual@linux.vnet.ibm.com, akpm@linux-foundation.org, mhocko@suse.com, aarcange@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, shli@fb.com, rppt@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, mgorman@techsingularity.net, rientjes@google.com, riel@redhat.com, linux-mm@kvack.org
 
---_000_FFF73D592F13FD46B8700F0A279B802F185CCC28ORSMSX114amrcor_
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+This fixes a bug in madvise() where if you'd try to soft offline a
+hugepage via madvise(), while walking the address range you'd end up,
+using the wrong page offset due to attempting to get the compound
+order of a former but presently not compound page, due to dissolving
+the huge page (since c3114a8).
 
-DQoNCkknbSBvbiBteSB3YXkgdG8gTFBDLCBzbyBJIGNhbid0ICBlYXNpbHkgd29yayBvbiB0aGlz
-IHJpZ2h0IHRoaXMgaW5zdGFudC4NCg0KQ2FuIHlvdSB0cnkgdGhpcyBicmFuY2gsIHRob3VnaD8N
-Cg0KaHR0cHM6Ly9naXQua2VybmVsLm9yZy9wdWIvc2NtL2xpbnV4L2tlcm5lbC9naXQvbHV0by9s
-aW51eC5naXQvY29tbWl0Lz9oPXg4Ni9maXhlcyZpZD1jYjg4YWU2MTliNGMzZDgzMmQyMjRmMmM2
-NDE4NDlkYzAyYWVkODY0DQoNCg0KSGkgQW5keSwNCg0KR29vZCBuZXdzISBUaGlzIGJyYW5jaCB3
-b3Jrcy4gSSBoYXZlIGFsc28gYXBwbGllZCDigJx4ODYvbW0vNjQ6IEluaXRpYWxpemUgQ1I0LlBD
-SURFIGVhcmx54oCdIHBhdGNoIG9uIHRvcCBvZiBMaW51c+KAmXMgdHJlZSBhbmQgaXQgZml4ZXMg
-dGhlIGlzc3VlLg0KDQpSZWdhcmRzLA0KU2FpDQoNCg==
+Signed-off-by: Alexandru Moise <00moses.alexander00@gmail.com>
+---
+ mm/madvise.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
---_000_FFF73D592F13FD46B8700F0A279B802F185CCC28ORSMSX114amrcor_
-Content-Type: text/html; charset="utf-8"
-Content-Transfer-Encoding: base64
-
-PGh0bWwgeG1sbnM6dj0idXJuOnNjaGVtYXMtbWljcm9zb2Z0LWNvbTp2bWwiIHhtbG5zOm89InVy
-bjpzY2hlbWFzLW1pY3Jvc29mdC1jb206b2ZmaWNlOm9mZmljZSIgeG1sbnM6dz0idXJuOnNjaGVt
-YXMtbWljcm9zb2Z0LWNvbTpvZmZpY2U6d29yZCIgeG1sbnM6bT0iaHR0cDovL3NjaGVtYXMubWlj
-cm9zb2Z0LmNvbS9vZmZpY2UvMjAwNC8xMi9vbW1sIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcv
-VFIvUkVDLWh0bWw0MCI+DQo8aGVhZD4NCjxtZXRhIGh0dHAtZXF1aXY9IkNvbnRlbnQtVHlwZSIg
-Y29udGVudD0idGV4dC9odG1sOyBjaGFyc2V0PXV0Zi04Ij4NCjxtZXRhIG5hbWU9IkdlbmVyYXRv
-ciIgY29udGVudD0iTWljcm9zb2Z0IFdvcmQgMTUgKGZpbHRlcmVkIG1lZGl1bSkiPg0KPHN0eWxl
-PjwhLS0NCi8qIEZvbnQgRGVmaW5pdGlvbnMgKi8NCkBmb250LWZhY2UNCgl7Zm9udC1mYW1pbHk6
-IkNhbWJyaWEgTWF0aCI7DQoJcGFub3NlLTE6MiA0IDUgMyA1IDQgNiAzIDIgNDt9DQpAZm9udC1m
-YWNlDQoJe2ZvbnQtZmFtaWx5OkNhbGlicmk7DQoJcGFub3NlLTE6MiAxNSA1IDIgMiAyIDQgMyAy
-IDQ7fQ0KLyogU3R5bGUgRGVmaW5pdGlvbnMgKi8NCnAuTXNvTm9ybWFsLCBsaS5Nc29Ob3JtYWws
-IGRpdi5Nc29Ob3JtYWwNCgl7bWFyZ2luOjBpbjsNCgltYXJnaW4tYm90dG9tOi4wMDAxcHQ7DQoJ
-Zm9udC1zaXplOjEyLjBwdDsNCglmb250LWZhbWlseToiVGltZXMgTmV3IFJvbWFuIixzZXJpZjt9
-DQphOmxpbmssIHNwYW4uTXNvSHlwZXJsaW5rDQoJe21zby1zdHlsZS1wcmlvcml0eTo5OTsNCglj
-b2xvcjpibHVlOw0KCXRleHQtZGVjb3JhdGlvbjp1bmRlcmxpbmU7fQ0KYTp2aXNpdGVkLCBzcGFu
-Lk1zb0h5cGVybGlua0ZvbGxvd2VkDQoJe21zby1zdHlsZS1wcmlvcml0eTo5OTsNCgljb2xvcjpw
-dXJwbGU7DQoJdGV4dC1kZWNvcmF0aW9uOnVuZGVybGluZTt9DQpzcGFuLkVtYWlsU3R5bGUxNw0K
-CXttc28tc3R5bGUtdHlwZTpwZXJzb25hbC1yZXBseTsNCglmb250LWZhbWlseToiQ2FsaWJyaSIs
-c2Fucy1zZXJpZjsNCgljb2xvcjojMUY0OTdEO30NCi5Nc29DaHBEZWZhdWx0DQoJe21zby1zdHls
-ZS10eXBlOmV4cG9ydC1vbmx5Ow0KCWZvbnQtc2l6ZToxMC4wcHQ7fQ0KQHBhZ2UgV29yZFNlY3Rp
-b24xDQoJe3NpemU6OC41aW4gMTEuMGluOw0KCW1hcmdpbjoxLjBpbiAxLjBpbiAxLjBpbiAxLjBp
-bjt9DQpkaXYuV29yZFNlY3Rpb24xDQoJe3BhZ2U6V29yZFNlY3Rpb24xO30NCi0tPjwvc3R5bGU+
-PCEtLVtpZiBndGUgbXNvIDldPjx4bWw+DQo8bzpzaGFwZWRlZmF1bHRzIHY6ZXh0PSJlZGl0IiBz
-cGlkbWF4PSIxMDI2IiAvPg0KPC94bWw+PCFbZW5kaWZdLS0+PCEtLVtpZiBndGUgbXNvIDldPjx4
-bWw+DQo8bzpzaGFwZWxheW91dCB2OmV4dD0iZWRpdCI+DQo8bzppZG1hcCB2OmV4dD0iZWRpdCIg
-ZGF0YT0iMSIgLz4NCjwvbzpzaGFwZWxheW91dD48L3htbD48IVtlbmRpZl0tLT4NCjwvaGVhZD4N
-Cjxib2R5IGxhbmc9IkVOLVVTIiBsaW5rPSJibHVlIiB2bGluaz0icHVycGxlIj4NCjxkaXYgY2xh
-c3M9IldvcmRTZWN0aW9uMSI+DQo8cCBjbGFzcz0iTXNvTm9ybWFsIj48c3BhbiBzdHlsZT0iZm9u
-dC1zaXplOjExLjBwdDtmb250LWZhbWlseTomcXVvdDtDYWxpYnJpJnF1b3Q7LHNhbnMtc2VyaWY7
-Y29sb3I6YmxhY2siPjxvOnA+Jm5ic3A7PC9vOnA+PC9zcGFuPjwvcD4NCjxkaXYgc3R5bGU9ImJv
-cmRlcjpub25lO2JvcmRlci1sZWZ0OnNvbGlkIGJsdWUgMS41cHQ7cGFkZGluZzowaW4gMGluIDBp
-biA0LjBwdCI+DQo8ZGl2Pg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+PHNwYW4gc3R5bGU9ImZvbnQt
-c2l6ZToxMS4wcHQ7Zm9udC1mYW1pbHk6JnF1b3Q7Q2FsaWJyaSZxdW90OyxzYW5zLXNlcmlmO2Nv
-bG9yOmJsYWNrIj48bzpwPiZuYnNwOzwvbzpwPjwvc3Bhbj48L3A+DQo8L2Rpdj4NCjxkaXY+DQo8
-cCBjbGFzcz0iTXNvTm9ybWFsIj48c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBwdDtmb250LWZh
-bWlseTomcXVvdDtDYWxpYnJpJnF1b3Q7LHNhbnMtc2VyaWY7Y29sb3I6YmxhY2siPkknbSBvbiBt
-eSB3YXkgdG8gTFBDLCBzbyBJIGNhbid0ICZuYnNwO2Vhc2lseSB3b3JrIG9uIHRoaXMgcmlnaHQg
-dGhpcyBpbnN0YW50LjxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjwvZGl2Pg0KPGRpdj4NCjxwIGNs
-YXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0O2ZvbnQtZmFtaWx5
-OiZxdW90O0NhbGlicmkmcXVvdDssc2Fucy1zZXJpZjtjb2xvcjpibGFjayI+PG86cD4mbmJzcDs8
-L286cD48L3NwYW4+PC9wPg0KPC9kaXY+DQo8ZGl2Pg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+PHNw
-YW4gc3R5bGU9ImZvbnQtc2l6ZToxMS4wcHQ7Zm9udC1mYW1pbHk6JnF1b3Q7Q2FsaWJyaSZxdW90
-OyxzYW5zLXNlcmlmO2NvbG9yOmJsYWNrIj5DYW4geW91IHRyeSB0aGlzIGJyYW5jaCwgdGhvdWdo
-PzxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjwvZGl2Pg0KPGRpdj4NCjxwIGNsYXNzPSJNc29Ob3Jt
-YWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0O2ZvbnQtZmFtaWx5OiZxdW90O0NhbGli
-cmkmcXVvdDssc2Fucy1zZXJpZjtjb2xvcjpibGFjayI+PG86cD4mbmJzcDs8L286cD48L3NwYW4+
-PC9wPg0KPC9kaXY+DQo8ZGl2Pg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+PHNwYW4gc3R5bGU9ImZv
-bnQtc2l6ZToxMS4wcHQ7Zm9udC1mYW1pbHk6JnF1b3Q7Q2FsaWJyaSZxdW90OyxzYW5zLXNlcmlm
-O2NvbG9yOmJsYWNrIj48YSBocmVmPSJodHRwczovL2dpdC5rZXJuZWwub3JnL3B1Yi9zY20vbGlu
-dXgva2VybmVsL2dpdC9sdXRvL2xpbnV4LmdpdC9jb21taXQvP2g9eDg2L2ZpeGVzJmFtcDtpZD1j
-Yjg4YWU2MTliNGMzZDgzMmQyMjRmMmM2NDE4NDlkYzAyYWVkODY0Ij48c3BhbiBzdHlsZT0iY29s
-b3I6YmxhY2siPmh0dHBzOi8vZ2l0Lmtlcm5lbC5vcmcvcHViL3NjbS9saW51eC9rZXJuZWwvZ2l0
-L2x1dG8vbGludXguZ2l0L2NvbW1pdC8/aD14ODYvZml4ZXMmYW1wO2lkPWNiODhhZTYxOWI0YzNk
-ODMyZDIyNGYyYzY0MTg0OWRjMDJhZWQ4NjQ8L3NwYW4+PC9hPjxvOnA+PC9vOnA+PC9zcGFuPjwv
-cD4NCjwvZGl2Pg0KPHAgY2xhc3M9Ik1zb05vcm1hbCIgc3R5bGU9Im1hcmdpbi1sZWZ0OjQuOHB0
-Ij48c3BhbiBzdHlsZT0iZm9udC1zaXplOjExLjBwdDtmb250LWZhbWlseTomcXVvdDtDYWxpYnJp
-JnF1b3Q7LHNhbnMtc2VyaWY7Y29sb3I6YmxhY2siPjxvOnA+Jm5ic3A7PC9vOnA+PC9zcGFuPjwv
-cD4NCjxwIGNsYXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0O2Zv
-bnQtZmFtaWx5OiZxdW90O0NhbGlicmkmcXVvdDssc2Fucy1zZXJpZjtjb2xvcjpibGFjayI+PG86
-cD4mbmJzcDs8L286cD48L3NwYW4+PC9wPg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+PHNwYW4gc3R5
-bGU9ImZvbnQtc2l6ZToxMS4wcHQ7Zm9udC1mYW1pbHk6JnF1b3Q7Q2FsaWJyaSZxdW90OyxzYW5z
-LXNlcmlmO2NvbG9yOmJsYWNrIj5IaSBBbmR5LDxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNs
-YXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0O2ZvbnQtZmFtaWx5
-OiZxdW90O0NhbGlicmkmcXVvdDssc2Fucy1zZXJpZjtjb2xvcjpibGFjayI+PG86cD4mbmJzcDs8
-L286cD48L3NwYW4+PC9wPg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+PHNwYW4gc3R5bGU9ImZvbnQt
-c2l6ZToxMS4wcHQ7Zm9udC1mYW1pbHk6JnF1b3Q7Q2FsaWJyaSZxdW90OyxzYW5zLXNlcmlmO2Nv
-bG9yOmJsYWNrIj5Hb29kIG5ld3MhIFRoaXMgYnJhbmNoIHdvcmtzLiBJIGhhdmUgYWxzbyBhcHBs
-aWVkIOKAnDxzcGFuIHN0eWxlPSJiYWNrZ3JvdW5kOndoaXRlIj54ODYvbW0vNjQ6IEluaXRpYWxp
-emUgQ1I0LlBDSURFIGVhcmx5PC9zcGFuPuKAnSBwYXRjaCBvbiB0b3Agb2YgTGludXPigJlzIHRy
-ZWUgYW5kDQogaXQgZml4ZXMgdGhlIGlzc3VlLjxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNs
-YXNzPSJNc29Ob3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0O2ZvbnQtZmFtaWx5
-OiZxdW90O0NhbGlicmkmcXVvdDssc2Fucy1zZXJpZjtjb2xvcjpibGFjayI+PG86cD4mbmJzcDs8
-L286cD48L3NwYW4+PC9wPg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+PHNwYW4gc3R5bGU9ImZvbnQt
-c2l6ZToxMS4wcHQ7Zm9udC1mYW1pbHk6JnF1b3Q7Q2FsaWJyaSZxdW90OyxzYW5zLXNlcmlmO2Nv
-bG9yOmJsYWNrIj5SZWdhcmRzLDxvOnA+PC9vOnA+PC9zcGFuPjwvcD4NCjxwIGNsYXNzPSJNc29O
-b3JtYWwiPjxzcGFuIHN0eWxlPSJmb250LXNpemU6MTEuMHB0O2ZvbnQtZmFtaWx5OiZxdW90O0Nh
-bGlicmkmcXVvdDssc2Fucy1zZXJpZjtjb2xvcjpibGFjayI+U2FpPG86cD48L286cD48L3NwYW4+
-PC9wPg0KPHAgY2xhc3M9Ik1zb05vcm1hbCI+PHNwYW4gc3R5bGU9ImZvbnQtc2l6ZToxMS4wcHQ7
-Zm9udC1mYW1pbHk6JnF1b3Q7Q2FsaWJyaSZxdW90OyxzYW5zLXNlcmlmO2NvbG9yOmJsYWNrIj48
-bzpwPiZuYnNwOzwvbzpwPjwvc3Bhbj48L3A+DQo8L2Rpdj4NCjwvZGl2Pg0KPC9ib2R5Pg0KPC9o
-dG1sPg0K
-
---_000_FFF73D592F13FD46B8700F0A279B802F185CCC28ORSMSX114amrcor_--
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 21261ff0466f..25bade36e9ca 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -625,18 +625,26 @@ static int madvise_inject_error(int behavior,
+ {
+ 	struct page *page;
+ 	struct zone *zone;
++	unsigned int order;
+ 
+ 	if (!capable(CAP_SYS_ADMIN))
+ 		return -EPERM;
+ 
+-	for (; start < end; start += PAGE_SIZE <<
+-				compound_order(compound_head(page))) {
++
++	for (; start < end; start += PAGE_SIZE << order) {
+ 		int ret;
+ 
+ 		ret = get_user_pages_fast(start, 1, 0, &page);
+ 		if (ret != 1)
+ 			return ret;
+ 
++		/*
++		 * When soft offlining hugepages, after migrating the page
++		 * we dissolve it, therefore in the second loop "page" will
++		 * no longer be a compound page, and order will be 0.
++		 */
++		order = compound_order(compound_head(page));
++
+ 		if (PageHWPoison(page)) {
+ 			put_page(page);
+ 			continue;
+-- 
+2.14.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
