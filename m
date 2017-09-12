@@ -1,31 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F2D076B0038
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 16:58:38 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b68so11435131wme.4
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 13:58:38 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id q25si9607140wrc.186.2017.09.12.13.58.38
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AC056B0038
+	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 17:10:48 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id d6so12998286wrd.7
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 14:10:48 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r9sor3009125wrg.50.2017.09.12.14.10.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Sep 2017 13:58:38 -0700 (PDT)
-Date: Tue, 12 Sep 2017 13:58:35 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+        (Google Transport Security);
+        Tue, 12 Sep 2017 14:10:47 -0700 (PDT)
+Date: Tue, 12 Sep 2017 23:10:39 +0200
+From: Alexandru Moise <00moses.alexander00@gmail.com>
 Subject: Re: [PATCH] mm, hugetlb, soft_offline: save compound page order
  before page migration
-Message-Id: <20170912135835.0b48340ead5570e50529f676@linux-foundation.org>
-In-Reply-To: <20170912135448.341359676c6f8045f4a622f0@linux-foundation.org>
+Message-ID: <20170912211039.GA16850@gmail.com>
 References: <20170912204306.GA12053@gmail.com>
-	<20170912135448.341359676c6f8045f4a622f0@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20170912135448.341359676c6f8045f4a622f0@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170912135448.341359676c6f8045f4a622f0@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexandru Moise <00moses.alexander00@gmail.com>, linux-kernel@vger.kernel.org, khandual@linux.vnet.ibm.com, mhocko@suse.com, aarcange@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, shli@fb.com, rppt@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, mgorman@techsingularity.net, rientjes@google.com, riel@redhat.com, linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, khandual@linux.vnet.ibm.com, mhocko@suse.com, aarcange@redhat.com, minchan@kernel.org, hillf.zj@alibaba-inc.com, shli@fb.com, rppt@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, mgorman@techsingularity.net, rientjes@google.com, riel@redhat.com, linux-mm@kvack.org
 
-On Tue, 12 Sep 2017 13:54:48 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
-
+On Tue, Sep 12, 2017 at 01:54:48PM -0700, Andrew Morton wrote:
 > On Tue, 12 Sep 2017 22:43:06 +0200 Alexandru Moise <00moses.alexander00@gmail.com> wrote:
 > 
 > > This fixes a bug in madvise() where if you'd try to soft offline a
@@ -37,7 +36,9 @@ On Tue, 12 Sep 2017 13:54:48 -0700 Andrew Morton <akpm@linux-foundation.org> wro
 > What are the user visible effects of the bug?  The wrong page is
 > offlined?  No offlining occurs?  
 
-This also affects MADV_HWPOISON?
+I end up with all my free pages getting offlined. Except 1.
+
+../Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
