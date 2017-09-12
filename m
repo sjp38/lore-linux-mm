@@ -1,94 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 88D3A6B031C
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 02:52:47 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 11so20663837pge.4
-        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 23:52:47 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id f4si7135018pgn.769.2017.09.11.23.52.45
-        for <linux-mm@kvack.org>;
-        Mon, 11 Sep 2017 23:52:46 -0700 (PDT)
-Date: Tue, 12 Sep 2017 15:52:44 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 4/5] mm:swap: respect page_cluster for readahead
-Message-ID: <20170912065244.GC2068@bbox>
-References: <1505183833-4739-1-git-send-email-minchan@kernel.org>
- <1505183833-4739-4-git-send-email-minchan@kernel.org>
- <87vakopk22.fsf@yhuang-dev.intel.com>
- <20170912062524.GA1950@bbox>
- <874ls8pga3.fsf@yhuang-dev.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <874ls8pga3.fsf@yhuang-dev.intel.com>
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 004A86B031E
+	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 03:06:23 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id b76so16057560itb.0
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 00:06:22 -0700 (PDT)
+Received: from smtpbgsg2.qq.com (smtpbgsg2.qq.com. [54.254.200.128])
+        by mx.google.com with ESMTPS id i129si6123273oif.151.2017.09.12.00.06.20
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 12 Sep 2017 00:06:21 -0700 (PDT)
+From: Huacai Chen <chenhc@lemote.com>
+Subject: [PATCH V2 2/3] mm: dmapool: Align to ARCH_DMA_MINALIGN in non-coherent DMA mode
+Date: Tue, 12 Sep 2017 15:07:43 +0800
+Message-Id: <1505200063-24592-1-git-send-email-chenhc@lemote.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team <kernel-team@lge.com>, Ilya Dryomov <idryomov@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Fuxin Zhang <zhangfx@lemote.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huacai Chen <chenhc@lemote.com>, stable@vger.kernel.org
 
-On Tue, Sep 12, 2017 at 02:44:36PM +0800, Huang, Ying wrote:
-> Minchan Kim <minchan@kernel.org> writes:
-> 
-> > On Tue, Sep 12, 2017 at 01:23:01PM +0800, Huang, Ying wrote:
-> >> Minchan Kim <minchan@kernel.org> writes:
-> >> 
-> >> > page_cluster 0 means "we don't want readahead" so in the case,
-> >> > let's skip the readahead detection logic.
-> >> >
-> >> > Cc: "Huang, Ying" <ying.huang@intel.com>
-> >> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> >> > ---
-> >> >  include/linux/swap.h | 3 ++-
-> >> >  1 file changed, 2 insertions(+), 1 deletion(-)
-> >> >
-> >> > diff --git a/include/linux/swap.h b/include/linux/swap.h
-> >> > index 0f54b491e118..739d94397c47 100644
-> >> > --- a/include/linux/swap.h
-> >> > +++ b/include/linux/swap.h
-> >> > @@ -427,7 +427,8 @@ extern bool has_usable_swap(void);
-> >> >  
-> >> >  static inline bool swap_use_vma_readahead(void)
-> >> >  {
-> >> > -	return READ_ONCE(swap_vma_readahead) && !atomic_read(&nr_rotate_swap);
-> >> > +	return page_cluster > 0 && READ_ONCE(swap_vma_readahead)
-> >> > +				&& !atomic_read(&nr_rotate_swap);
-> >> >  }
-> >> >  
-> >> >  /* Swap 50% full? Release swapcache more aggressively.. */
-> >> 
-> >> Now the readahead window size of the VMA based swap readahead is
-> >> controlled by /sys/kernel/mm/swap/vma_ra_max_order, while that of the
-> >> original swap readahead is controlled by sysctl page_cluster.  It is
-> >> possible for anonymous memory to use VMA based swap readahead and tmpfs
-> >> to use original swap readahead algorithm at the same time.  So that, I
-> >> think it is necessary to use different control knob to control these two
-> >> algorithm.  So if we want to disable readahead for tmpfs, but keep it
-> >> for VMA based readahead, we can set 0 to page_cluster but non-zero to
-> >> /sys/kernel/mm/swap/vma_ra_max_order.  With your change, this will be
-> >> impossible.
-> >
-> > For a long time, page-cluster have been used as controlling swap readahead.
-> > One of example, zram users have been disabled readahead via 0 page-cluster.
-> > However, with your change, it would be regressed if it doesn't disable
-> > vma_ra_max_order.
-> >
-> > As well, all of swap users should be aware of vma_ra_max_order as well as
-> > page-cluster to control swap readahead but I didn't see any document about
-> > that. Acutaully, I don't like it but want to unify it with page-cluster.
-> 
-> The document is in
-> 
-> Documentation/ABI/testing/sysfs-kernel-mm-swap
-> 
-> The concern of unifying it with page-cluster is as following.
-> 
-> Original swap readahead on tmpfs may not work well because the combined
-> workload is running, so we want to disable or constrain it.  But at the
-> same time, the VMA based swap readahead may work better.  So I think it
-> may be necessary to control them separately.
+In non-coherent DMA mode, kernel uses cache flushing operations to
+maintain I/O coherency, so the dmapool objects should be aligned to
+ARCH_DMA_MINALIGN.
 
-My concern is users have been disabled swap readahead by page-cluster would
-be regressed. Please take care of them.
+Cc: stable@vger.kernel.org
+Signed-off-by: Huacai Chen <chenhc@lemote.com>
+---
+ mm/dmapool.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/mm/dmapool.c b/mm/dmapool.c
+index 4d90a64..2ac6f4a 100644
+--- a/mm/dmapool.c
++++ b/mm/dmapool.c
+@@ -140,6 +140,9 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
+ 	else if (align & (align - 1))
+ 		return NULL;
+ 
++	if (!plat_device_is_coherent(dev))
++		align = max_t(size_t, align, dma_get_cache_alignment());
++
+ 	if (size == 0)
+ 		return NULL;
+ 	else if (size < 4)
+-- 
+2.7.0
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
