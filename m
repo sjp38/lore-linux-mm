@@ -1,66 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B7A96B0033
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 11:07:40 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id i131so2401938wma.1
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 08:07:40 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o43si9355755wrb.207.2017.09.12.08.07.39
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6602C6B0033
+	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 11:39:55 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id q76so21111760pfq.5
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 08:39:55 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id u64si7776612pgd.545.2017.09.12.08.39.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Sep 2017 08:07:39 -0700 (PDT)
-Date: Tue, 12 Sep 2017 17:07:37 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] mm/memblock.c: using uninitialized value idx in
- memblock_add_range()
-Message-ID: <20170912150737.envdkppnpx5xskfy@dhcp22.suse.cz>
-References: <1504908933-31667-1-git-send-email-gurugio@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Description: !
-Content-Disposition: inline
-In-Reply-To: <1504908933-31667-1-git-send-email-gurugio@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Sep 2017 08:39:53 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 02/11] arc: Use generic_pmdp_establish as pmdp_establish
+Date: Tue, 12 Sep 2017 18:39:32 +0300
+Message-Id: <20170912153941.47012-3-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170912153941.47012-1-kirill.shutemov@linux.intel.com>
+References: <20170912153941.47012-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gurugio@gmail.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Gioh Kim <gurugio@hanmail.net>, Gioh Kim <gi-oh.kim@profitbricks.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Sat 09-09-17 00:15:33, gurugio@gmail.com wrote:
-> From: Gioh Kim <gurugio@hanmail.net>
-> 
-> In memblock_add_range(), idx variable is a local value
-> but I cannot find initialization of idx value.
-> I checked idx value on my Qemu emulator. It was zero.
-> Is there any hidden initialization code?
+ARC doesn't support hardware dirty/accessed bits.
+generic_pmdp_establish() is suitable in this case.
 
-Yes for_each_memblock_type. Ugly as hell! Something to clean up I guess.
-Just make the index explicit argument of the macro.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Vineet Gupta <vgupta@synopsys.com>
+---
+ arch/arc/include/asm/hugepage.h | 3 +++
+ 1 file changed, 3 insertions(+)
 
-> 
-> Signed-off-by: Gioh Kim <gi-oh.kim@profitbricks.com>
-> ---
->  mm/memblock.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 7b8a5db..23374bc 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -515,7 +515,7 @@ int __init_memblock memblock_add_range(struct memblock_type *type,
->  	bool insert = false;
->  	phys_addr_t obase = base;
->  	phys_addr_t end = base + memblock_cap_size(base, &size);
-> -	int idx, nr_new;
-> +	int idx = 0, nr_new;
->  	struct memblock_region *rgn;
->  
->  	if (!size)
-> -- 
-> 2.7.4
-
+diff --git a/arch/arc/include/asm/hugepage.h b/arch/arc/include/asm/hugepage.h
+index b18fcb606908..dc8ee011882f 100644
+--- a/arch/arc/include/asm/hugepage.h
++++ b/arch/arc/include/asm/hugepage.h
+@@ -74,4 +74,7 @@ extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
+ extern void flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
+ 				unsigned long end);
+ 
++/* We don't have hardware dirty/accessed bits, generic_pmdp_establish is fine.*/
++#define pmdp_establish generic_pmdp_establish
++
+ #endif
 -- 
-Michal Hocko
-SUSE Labs
+2.14.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
