@@ -1,246 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B84C6B033B
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 05:28:14 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id p17so9808599wmd.3
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 02:28:14 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 81si7121381wmu.117.2017.09.12.02.28.12
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C101E6B033E
+	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 08:49:55 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id v109so11831030wrc.5
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 05:49:55 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 2si1291640wmn.251.2017.09.12.05.49.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Sep 2017 02:28:12 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v8C9NX0d104506
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 05:28:11 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2cxb0aenun-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 05:28:10 -0400
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Tue, 12 Sep 2017 10:28:09 +0100
-Subject: Re: [PATCH] x86/mm: Fix fault error path using unsafe vma pointer
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-References: <1504513935-12742-1-git-send-email-ldufour@linux.vnet.ibm.com>
-Date: Tue, 12 Sep 2017 11:28:05 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 12 Sep 2017 05:49:54 -0700 (PDT)
+Date: Tue, 12 Sep 2017 14:49:52 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/memory_hotplug: fix wrong casting for
+ __remove_section()
+Message-ID: <20170912124952.uraxdt5bgl25zhf7@dhcp22.suse.cz>
+References: <51a59ec3-e7ba-2562-1917-036b8181092c@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1504513935-12742-1-git-send-email-ldufour@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <4fe0c94c-855f-d45f-0d43-560761db8c89@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51a59ec3-e7ba-2562-1917-036b8181092c@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
+To: YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, qiuxishi@huawei.com, arbab@linux.vnet.ibm.com, Vlastimil Babka <vbabka@suse.cz>
 
-On 04/09/2017 10:32, Laurent Dufour wrote:
-> The commit 7b2d0dbac489 ("x86/mm/pkeys: Pass VMA down in to fault signal
-> generation code") pass down a vma pointer to the error path, but that is
-> done once the mmap_sem is released when calling mm_fault_error() from
-> __do_page_fault().
+On Fri 08-09-17 16:43:04, YASUAKI ISHIMATSU wrote:
+> __remove_section() calls __remove_zone() to shrink zone and pgdat.
+> But due to wrong castings, __remvoe_zone() cannot shrink zone
+> and pgdat correctly if pfn is over 0xffffffff.
 > 
-> This is dangerous as the pointed vma structure is no more safe to be used
-> once the mmap_sem has been released. As only the protection key value is
-> required in the error processing, we could just pass down this value.
+> So the patch fixes the following 3 wrong castings.
 > 
-> This patch fixes this by passing a pointer to a protection key value down
-> to the fault signal generation code. The use of a pointer allows to keep
-> the check generating a warning message in fill_sig_info_pkey() when the vma
-> was not known. If the pointer is valid, the protection value can be
-> accessed by deferencing the pointer.
+>   1. find_smallest_section_pfn() returns 0 or start_pfn which defined
+>      as unsigned long. But the function always returns 32bit value
+>      since the function is defined as int.
 > 
-> Fixes: 7b2d0dbac489 ("x86/mm/pkeys: Pass VMA down in to fault signal
-> generation code")
-> Cc: Dave Hansen <dave.hansen@linux.intel.com>
-> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+>   2. find_biggest_section_pfn() returns 0 or pfn which defined as
+>      unsigned long. the function always returns 32bit value
+>      since the function is defined as int.
 
-Hi all, any interest to this ?
+this is indeed wrong. Pfns over would be really broken 15TB. Not that
+unrealistic these days
 
-Cheers,
-Laurent.
+> 
+>   3. __remove_section() calculates start_pfn using section_nr_to_pfn()
+>      and scn_nr. section_nr_to_pfn() just shifts scn_nr by
+>      PFN_SECTION_SHIFT bit. But since scn_nr is defined as int,
+>      section_nr_to_pfn() always return 32 bit value.
 
+Dohh, those nasty macros. This is hidden quite well. It seems other
+callers are using unsigned long properly. But I would rather make sure
+we won't repeat that error again. Can we instead make section_nr_to_pfn
+resp. pfn_to_section_nr static inline and enfore proper types?
+
+I would also split this into two patches. 
+
+Thanks!
+
+> The patch fixes the wrong castings.
+> 
+> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 > ---
->  arch/x86/mm/fault.c | 47 ++++++++++++++++++++++++-----------------------
->  1 file changed, 24 insertions(+), 23 deletions(-)
+>  mm/memory_hotplug.c | 6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
 > 
-> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-> index 2a1fa10c6a98..c18e737c5f9b 100644
-> --- a/arch/x86/mm/fault.c
-> +++ b/arch/x86/mm/fault.c
-> @@ -192,8 +192,7 @@ is_prefetch(struct pt_regs *regs, unsigned long error_code, unsigned long addr)
->   * 6. T1   : reaches here, sees vma_pkey(vma)=5, when we really
->   *	     faulted on a pte with its pkey=4.
->   */
-> -static void fill_sig_info_pkey(int si_code, siginfo_t *info,
-> -		struct vm_area_struct *vma)
-> +static void fill_sig_info_pkey(int si_code, siginfo_t *info, int *pkey)
->  {
->  	/* This is effectively an #ifdef */
->  	if (!boot_cpu_has(X86_FEATURE_OSPKE))
-> @@ -209,7 +208,7 @@ static void fill_sig_info_pkey(int si_code, siginfo_t *info,
->  	 * valid VMA, so we should never reach this without a
->  	 * valid VMA.
->  	 */
-> -	if (!vma) {
-> +	if (!pkey) {
->  		WARN_ONCE(1, "PKU fault with no VMA passed in");
->  		info->si_pkey = 0;
->  		return;
-> @@ -219,13 +218,12 @@ static void fill_sig_info_pkey(int si_code, siginfo_t *info,
->  	 * absolutely guranteed to be 100% accurate because of
->  	 * the race explained above.
->  	 */
-> -	info->si_pkey = vma_pkey(vma);
-> +	info->si_pkey = *pkey;
->  }
->  
->  static void
->  force_sig_info_fault(int si_signo, int si_code, unsigned long address,
-> -		     struct task_struct *tsk, struct vm_area_struct *vma,
-> -		     int fault)
-> +		     struct task_struct *tsk, int *pkey, int fault)
->  {
->  	unsigned lsb = 0;
->  	siginfo_t info;
-> @@ -240,7 +238,7 @@ force_sig_info_fault(int si_signo, int si_code, unsigned long address,
->  		lsb = PAGE_SHIFT;
->  	info.si_addr_lsb = lsb;
->  
-> -	fill_sig_info_pkey(si_code, &info, vma);
-> +	fill_sig_info_pkey(si_code, &info, pkey);
->  
->  	force_sig_info(si_signo, &info, tsk);
->  }
-> @@ -758,8 +756,6 @@ no_context(struct pt_regs *regs, unsigned long error_code,
->  	struct task_struct *tsk = current;
->  	unsigned long flags;
->  	int sig;
-> -	/* No context means no VMA to pass down */
-> -	struct vm_area_struct *vma = NULL;
->  
->  	/* Are we prepared to handle this kernel fault? */
->  	if (fixup_exception(regs, X86_TRAP_PF)) {
-> @@ -784,7 +780,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
->  
->  			/* XXX: hwpoison faults will set the wrong code. */
->  			force_sig_info_fault(signal, si_code, address,
-> -					     tsk, vma, 0);
-> +					     tsk, NULL, 0);
->  		}
->  
->  		/*
-> @@ -893,8 +889,7 @@ show_signal_msg(struct pt_regs *regs, unsigned long error_code,
->  
->  static void
->  __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
-> -		       unsigned long address, struct vm_area_struct *vma,
-> -		       int si_code)
-> +		       unsigned long address, int *pkey, int si_code)
->  {
->  	struct task_struct *tsk = current;
->  
-> @@ -942,7 +937,7 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
->  		tsk->thread.error_code	= error_code;
->  		tsk->thread.trap_nr	= X86_TRAP_PF;
->  
-> -		force_sig_info_fault(SIGSEGV, si_code, address, tsk, vma, 0);
-> +		force_sig_info_fault(SIGSEGV, si_code, address, tsk, pkey, 0);
->  
->  		return;
->  	}
-> @@ -955,9 +950,9 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
->  
->  static noinline void
->  bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
-> -		     unsigned long address, struct vm_area_struct *vma)
-> +		     unsigned long address, int *pkey)
->  {
-> -	__bad_area_nosemaphore(regs, error_code, address, vma, SEGV_MAPERR);
-> +	__bad_area_nosemaphore(regs, error_code, address, pkey, SEGV_MAPERR);
->  }
->  
->  static void
-> @@ -965,6 +960,10 @@ __bad_area(struct pt_regs *regs, unsigned long error_code,
->  	   unsigned long address,  struct vm_area_struct *vma, int si_code)
->  {
->  	struct mm_struct *mm = current->mm;
-> +	int pkey;
-> +
-> +	if (vma)
-> +		pkey = vma_pkey(vma);
->  
->  	/*
->  	 * Something tried to access memory that isn't in our memory map..
-> @@ -972,7 +971,8 @@ __bad_area(struct pt_regs *regs, unsigned long error_code,
->  	 */
->  	up_read(&mm->mmap_sem);
->  
-> -	__bad_area_nosemaphore(regs, error_code, address, vma, si_code);
-> +	__bad_area_nosemaphore(regs, error_code, address,
-> +			       (vma) ? &pkey : NULL, si_code);
->  }
->  
->  static noinline void
-> @@ -1015,7 +1015,7 @@ bad_area_access_error(struct pt_regs *regs, unsigned long error_code,
->  
->  static void
->  do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
-> -	  struct vm_area_struct *vma, unsigned int fault)
-> +	  int *pkey, unsigned int fault)
->  {
->  	struct task_struct *tsk = current;
->  	int code = BUS_ADRERR;
-> @@ -1042,13 +1042,12 @@ do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
->  		code = BUS_MCEERR_AR;
->  	}
->  #endif
-> -	force_sig_info_fault(SIGBUS, code, address, tsk, vma, fault);
-> +	force_sig_info_fault(SIGBUS, code, address, tsk, pkey, fault);
->  }
->  
->  static noinline void
->  mm_fault_error(struct pt_regs *regs, unsigned long error_code,
-> -	       unsigned long address, struct vm_area_struct *vma,
-> -	       unsigned int fault)
-> +	       unsigned long address, int *pkey, unsigned int fault)
->  {
->  	if (fatal_signal_pending(current) && !(error_code & PF_USER)) {
->  		no_context(regs, error_code, address, 0, 0);
-> @@ -1072,9 +1071,9 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
->  	} else {
->  		if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|
->  			     VM_FAULT_HWPOISON_LARGE))
-> -			do_sigbus(regs, error_code, address, vma, fault);
-> +			do_sigbus(regs, error_code, address, pkey, fault);
->  		else if (fault & VM_FAULT_SIGSEGV)
-> -			bad_area_nosemaphore(regs, error_code, address, vma);
-> +			bad_area_nosemaphore(regs, error_code, address, pkey);
->  		else
->  			BUG();
->  	}
-> @@ -1268,6 +1267,7 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code,
->  	struct mm_struct *mm;
->  	int fault, major = 0;
->  	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
-> +	int pkey;
->  
->  	tsk = current;
->  	mm = tsk->mm;
-> @@ -1468,9 +1468,10 @@ __do_page_fault(struct pt_regs *regs, unsigned long error_code,
->  		return;
->  	}
->  
-> +	pkey = vma_pkey(vma);
->  	up_read(&mm->mmap_sem);
->  	if (unlikely(fault & VM_FAULT_ERROR)) {
-> -		mm_fault_error(regs, error_code, address, vma, fault);
-> +		mm_fault_error(regs, error_code, address, &pkey, fault);
->  		return;
->  	}
->  
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 73bf17d..3514ef2 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -331,7 +331,7 @@ int __ref __add_pages(int nid, unsigned long phys_start_pfn,
 > 
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+>  /* find the smallest valid pfn in the range [start_pfn, end_pfn) */
+> -static int find_smallest_section_pfn(int nid, struct zone *zone,
+> +static unsigned long find_smallest_section_pfn(int nid, struct zone *zone,
+>  				     unsigned long start_pfn,
+>  				     unsigned long end_pfn)
+>  {
+> @@ -356,7 +356,7 @@ static int find_smallest_section_pfn(int nid, struct zone *zone,
+>  }
+> 
+>  /* find the biggest valid pfn in the range [start_pfn, end_pfn). */
+> -static int find_biggest_section_pfn(int nid, struct zone *zone,
+> +static unsigned long find_biggest_section_pfn(int nid, struct zone *zone,
+>  				    unsigned long start_pfn,
+>  				    unsigned long end_pfn)
+>  {
+> @@ -544,7 +544,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
+>  		return ret;
+> 
+>  	scn_nr = __section_nr(ms);
+> -	start_pfn = section_nr_to_pfn(scn_nr);
+> +	start_pfn = section_nr_to_pfn((unsigned long)scn_nr);
+>  	__remove_zone(zone, start_pfn);
+> 
+>  	sparse_remove_one_section(zone, ms, map_offset);
+> -- 
+> 1.8.3.1
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
