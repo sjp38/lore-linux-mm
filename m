@@ -1,45 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AD3D6B0310
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 02:05:02 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id x78so19045947pff.7
-        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 23:05:02 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l3sor4059495pld.39.2017.09.11.23.05.00
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 11 Sep 2017 23:05:00 -0700 (PDT)
-Date: Tue, 12 Sep 2017 15:04:56 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH 5/5] mm:swap: skip swapcache for swapin of synchronous
- device
-Message-ID: <20170912060456.GA703@jagdpanzerIV.localdomain>
+	by kanga.kvack.org (Postfix) with ESMTP id AF10E6B0311
+	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 02:25:27 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id x78so19118241pff.7
+        for <linux-mm@kvack.org>; Mon, 11 Sep 2017 23:25:27 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id b13si4237330pgq.18.2017.09.11.23.25.25
+        for <linux-mm@kvack.org>;
+        Mon, 11 Sep 2017 23:25:26 -0700 (PDT)
+Date: Tue, 12 Sep 2017 15:25:24 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 4/5] mm:swap: respect page_cluster for readahead
+Message-ID: <20170912062524.GA1950@bbox>
 References: <1505183833-4739-1-git-send-email-minchan@kernel.org>
- <1505183833-4739-5-git-send-email-minchan@kernel.org>
+ <1505183833-4739-4-git-send-email-minchan@kernel.org>
+ <87vakopk22.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1505183833-4739-5-git-send-email-minchan@kernel.org>
+In-Reply-To: <87vakopk22.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team <kernel-team@lge.com>, Ilya Dryomov <idryomov@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hugh Dickins <hughd@google.com>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team <kernel-team@lge.com>, Ilya Dryomov <idryomov@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On (09/12/17 11:37), Minchan Kim wrote:
-> +		} else {
-> +			/* skip swapcache */
-> +			page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vmf->address);
+On Tue, Sep 12, 2017 at 01:23:01PM +0800, Huang, Ying wrote:
+> Minchan Kim <minchan@kernel.org> writes:
+> 
+> > page_cluster 0 means "we don't want readahead" so in the case,
+> > let's skip the readahead detection logic.
+> >
+> > Cc: "Huang, Ying" <ying.huang@intel.com>
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  include/linux/swap.h | 3 ++-
+> >  1 file changed, 2 insertions(+), 1 deletion(-)
+> >
+> > diff --git a/include/linux/swap.h b/include/linux/swap.h
+> > index 0f54b491e118..739d94397c47 100644
+> > --- a/include/linux/swap.h
+> > +++ b/include/linux/swap.h
+> > @@ -427,7 +427,8 @@ extern bool has_usable_swap(void);
+> >  
+> >  static inline bool swap_use_vma_readahead(void)
+> >  {
+> > -	return READ_ONCE(swap_vma_readahead) && !atomic_read(&nr_rotate_swap);
+> > +	return page_cluster > 0 && READ_ONCE(swap_vma_readahead)
+> > +				&& !atomic_read(&nr_rotate_swap);
+> >  }
+> >  
+> >  /* Swap 50% full? Release swapcache more aggressively.. */
+> 
+> Now the readahead window size of the VMA based swap readahead is
+> controlled by /sys/kernel/mm/swap/vma_ra_max_order, while that of the
+> original swap readahead is controlled by sysctl page_cluster.  It is
+> possible for anonymous memory to use VMA based swap readahead and tmpfs
+> to use original swap readahead algorithm at the same time.  So that, I
+> think it is necessary to use different control knob to control these two
+> algorithm.  So if we want to disable readahead for tmpfs, but keep it
+> for VMA based readahead, we can set 0 to page_cluster but non-zero to
+> /sys/kernel/mm/swap/vma_ra_max_order.  With your change, this will be
+> impossible.
 
-what if alloc_page_vma() fails?
+For a long time, page-cluster have been used as controlling swap readahead.
+One of example, zram users have been disabled readahead via 0 page-cluster.
+However, with your change, it would be regressed if it doesn't disable
+vma_ra_max_order.
 
-> +			__SetPageLocked(page);
-> +			__SetPageSwapBacked(page);
-> +			set_page_private(page, entry.val);
-> +			lru_cache_add_anon(page);
-> +			swap_readpage(page, true);
-> +		}
-
-	-ss
+As well, all of swap users should be aware of vma_ra_max_order as well as
+page-cluster to control swap readahead but I didn't see any document about
+that. Acutaully, I don't like it but want to unify it with page-cluster.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
