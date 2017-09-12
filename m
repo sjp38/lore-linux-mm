@@ -1,97 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A416A6B032E
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 04:12:14 -0400 (EDT)
-Received: by mail-vk0-f69.google.com with SMTP id x85so7053724vkx.4
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 01:12:14 -0700 (PDT)
-Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id r20si5544397uag.53.2017.09.12.01.12.11
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Sep 2017 01:12:13 -0700 (PDT)
-Subject: Re: [PATCH v6 00/11] Add support for eXclusive Page Frame Ownership
-References: <20170907173609.22696-1-tycho@docker.com>
- <23e5bac9-329a-3a32-049e-7e7c9751abd0@huawei.com>
- <20170911150204.nn5v5olbxyzfafou@docker>
- <60c4ad22-d920-2754-30dd-b1f228c0a87d@huawei.com>
- <5af82d7a-474f-aba7-d58e-f028627f8723@canonical.com>
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Message-ID: <c908a45a-c2ef-8efa-2723-355e3a33eb14@huawei.com>
-Date: Tue, 12 Sep 2017 16:11:26 +0800
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B01826B0330
+	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 04:22:57 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id f84so4111244pfj.0
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 01:22:57 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id l4si810127pgu.396.2017.09.12.01.22.55
+        for <linux-mm@kvack.org>;
+        Tue, 12 Sep 2017 01:22:56 -0700 (PDT)
+Date: Tue, 12 Sep 2017 17:22:53 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 4/5] mm:swap: respect page_cluster for readahead
+Message-ID: <20170912082253.GA2875@bbox>
+References: <1505183833-4739-1-git-send-email-minchan@kernel.org>
+ <1505183833-4739-4-git-send-email-minchan@kernel.org>
+ <87vakopk22.fsf@yhuang-dev.intel.com>
+ <20170912062524.GA1950@bbox>
+ <874ls8pga3.fsf@yhuang-dev.intel.com>
+ <20170912065244.GC2068@bbox>
+ <87r2vcnzme.fsf@yhuang-dev.intel.com>
+ <20170912075645.GA2837@bbox>
+ <87mv60nxwa.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <5af82d7a-474f-aba7-d58e-f028627f8723@canonical.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87mv60nxwa.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Juerg Haefliger <juerg.haefliger@canonical.com>, Tycho Andersen <tycho@docker.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team <kernel-team@lge.com>, Ilya Dryomov <idryomov@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-
-
-On 2017/9/12 15:40, Juerg Haefliger wrote:
+On Tue, Sep 12, 2017 at 04:07:01PM +0800, Huang, Ying wrote:
+< snip >
+> >> > My concern is users have been disabled swap readahead by page-cluster would
+> >> > be regressed. Please take care of them.
+> >> 
+> >> How about disable VMA based swap readahead if zram used as swap?  Like
+> >> we have done for hard disk?
+> >
+> > It could be with SWP_SYNCHRONOUS_IO flag which indicates super-fast,
+> > no seek cost swap devices if this patchset is merged so VM automatically
+> > disables readahead. It is in my TODO but it's orthogonal work.
+> >
+> > The problem I raised is "Why shouldn't we obey user's decision?",
+> > not zram sepcific issue.
+> >
+> > A user has used SSD as swap devices decided to disable swap readahead
+> > by some reason(e.g., small memory system). Anyway, it has worked
+> > via page-cluster for a several years but with vma-based swap devices,
+> > it doesn't work any more.
 > 
+> Can they add one more line to their configuration scripts?
 > 
-> On 09/12/2017 09:07 AM, Yisheng Xie wrote:
->> Hi Tycho,
->>
->> On 2017/9/11 23:02, Tycho Andersen wrote:
->>> Hi Yisheng,
->>>
->>> On Mon, Sep 11, 2017 at 06:34:45PM +0800, Yisheng Xie wrote:
->>>> Hi Tycho ,
->>>>
->>>> On 2017/9/8 1:35, Tycho Andersen wrote:
->>>>> Hi all,
->>>>>
->>>>> Here is v6 of the XPFO set; see v5 discussion here:
->>>>> https://lkml.org/lkml/2017/8/9/803
->>>>>
->>>>> Changelogs are in the individual patch notes, but the highlights are:
->>>>> * add primitives for ensuring memory areas are mapped (although these are quite
->>>>>   ugly, using stack allocation; I'm open to better suggestions)
->>>>> * instead of not flushing caches, re-map pages using the above
->>>>> * TLB flushing is much more correct (i.e. we're always flushing everything
->>>>>   everywhere). I suspect we may be able to back this off in some cases, but I'm
->>>>>   still trying to collect performance numbers to prove this is worth doing.
->>>>>
->>>>> I have no TODOs left for this set myself, other than fixing whatever review
->>>>> feedback people have. Thoughts and testing welcome!
->>>>
->>>> According to the paper of Vasileios P. Kemerlis et al, the mainline kernel
->>>> will not set the Pro. of physmap(direct map area) to RW(X), so do we really
->>>> need XPFO to protect from ret2dir attack?
->>>
->>> I guess you're talking about section 4.3? 
->> Yes
->>
->>> They mention that that x86
->>> only gets rw, but that aarch64 is rwx still.
->> IIRC, the in kernel of v4.13 the aarch64 is not rwx, I will check it.
->>
->>>
->>> But in either case this still provides access protection, similar to
->>> SMAP. Also, if I understand things correctly the protections are
->>> unmanaged, so a page that had the +x bit set at some point, it could
->>> be used for ret2dir.
->> So you means that the Pro. of direct map area maybe changed to +x, then ret2dir attack can use it?
-> 
-> XPFO protects against malicious reads from userspace (potentially
-> accessing sensitive data). 
-This sounds reasonable to me.
+> echo 0 > /sys/kernel/mm/swap/vma_ra_max_order
 
-> I've also been told by a security expert that
-> ROP attacks are still possible even if user space memory is
-> non-executable. XPFO is supposed to prevent that but I haven't been able
-> to confirm this. It's way out of my comfort zone.
-It also quite out of knowledge, and I just try hard to understand it. Thanks so much for
-your kind explain.  And hope some security expert can give some more detail explain?
-
-Thanks
-Yisheng Xie
-
-> 
-> ...Juerg
+We call it as "regression", don't we?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
