@@ -1,102 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 044CC6B0324
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 03:29:51 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e199so19370210pfh.3
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 00:29:50 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id y73si8353453plh.802.2017.09.12.00.29.48
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DE5896B0326
+	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 03:40:17 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b68so9529565wme.4
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 00:40:17 -0700 (PDT)
+Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
+        by mx.google.com with ESMTPS id r23si3170922wrr.333.2017.09.12.00.40.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Sep 2017 00:29:49 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH 4/5] mm:swap: respect page_cluster for readahead
-References: <1505183833-4739-1-git-send-email-minchan@kernel.org>
-	<1505183833-4739-4-git-send-email-minchan@kernel.org>
-	<87vakopk22.fsf@yhuang-dev.intel.com> <20170912062524.GA1950@bbox>
-	<874ls8pga3.fsf@yhuang-dev.intel.com> <20170912065244.GC2068@bbox>
-Date: Tue, 12 Sep 2017 15:29:45 +0800
-In-Reply-To: <20170912065244.GC2068@bbox> (Minchan Kim's message of "Tue, 12
-	Sep 2017 15:52:44 +0900")
-Message-ID: <87r2vcnzme.fsf@yhuang-dev.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 12 Sep 2017 00:40:16 -0700 (PDT)
+Received: from mail-wr0-f199.google.com ([209.85.128.199])
+	by youngberry.canonical.com with esmtps (TLS1.0:RSA_AES_128_CBC_SHA1:16)
+	(Exim 4.76)
+	(envelope-from <juerg.haefliger@canonical.com>)
+	id 1drfns-0005Pp-9k
+	for linux-mm@kvack.org; Tue, 12 Sep 2017 07:40:16 +0000
+Received: by mail-wr0-f199.google.com with SMTP id h16so11096696wrf.0
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 00:40:16 -0700 (PDT)
+Subject: Re: [PATCH v6 00/11] Add support for eXclusive Page Frame Ownership
+References: <20170907173609.22696-1-tycho@docker.com>
+ <23e5bac9-329a-3a32-049e-7e7c9751abd0@huawei.com>
+ <20170911150204.nn5v5olbxyzfafou@docker>
+ <60c4ad22-d920-2754-30dd-b1f228c0a87d@huawei.com>
+From: Juerg Haefliger <juerg.haefliger@canonical.com>
+Message-ID: <5af82d7a-474f-aba7-d58e-f028627f8723@canonical.com>
+Date: Tue, 12 Sep 2017 09:40:14 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <60c4ad22-d920-2754-30dd-b1f228c0a87d@huawei.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team <kernel-team@lge.com>, Ilya Dryomov <idryomov@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Yisheng Xie <xieyisheng1@huawei.com>, Tycho Andersen <tycho@docker.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>
 
-Minchan Kim <minchan@kernel.org> writes:
 
-> On Tue, Sep 12, 2017 at 02:44:36PM +0800, Huang, Ying wrote:
->> Minchan Kim <minchan@kernel.org> writes:
->> 
->> > On Tue, Sep 12, 2017 at 01:23:01PM +0800, Huang, Ying wrote:
->> >> Minchan Kim <minchan@kernel.org> writes:
->> >> 
->> >> > page_cluster 0 means "we don't want readahead" so in the case,
->> >> > let's skip the readahead detection logic.
->> >> >
->> >> > Cc: "Huang, Ying" <ying.huang@intel.com>
->> >> > Signed-off-by: Minchan Kim <minchan@kernel.org>
->> >> > ---
->> >> >  include/linux/swap.h | 3 ++-
->> >> >  1 file changed, 2 insertions(+), 1 deletion(-)
->> >> >
->> >> > diff --git a/include/linux/swap.h b/include/linux/swap.h
->> >> > index 0f54b491e118..739d94397c47 100644
->> >> > --- a/include/linux/swap.h
->> >> > +++ b/include/linux/swap.h
->> >> > @@ -427,7 +427,8 @@ extern bool has_usable_swap(void);
->> >> >  
->> >> >  static inline bool swap_use_vma_readahead(void)
->> >> >  {
->> >> > -	return READ_ONCE(swap_vma_readahead) && !atomic_read(&nr_rotate_swap);
->> >> > +	return page_cluster > 0 && READ_ONCE(swap_vma_readahead)
->> >> > +				&& !atomic_read(&nr_rotate_swap);
->> >> >  }
->> >> >  
->> >> >  /* Swap 50% full? Release swapcache more aggressively.. */
->> >> 
->> >> Now the readahead window size of the VMA based swap readahead is
->> >> controlled by /sys/kernel/mm/swap/vma_ra_max_order, while that of the
->> >> original swap readahead is controlled by sysctl page_cluster.  It is
->> >> possible for anonymous memory to use VMA based swap readahead and tmpfs
->> >> to use original swap readahead algorithm at the same time.  So that, I
->> >> think it is necessary to use different control knob to control these two
->> >> algorithm.  So if we want to disable readahead for tmpfs, but keep it
->> >> for VMA based readahead, we can set 0 to page_cluster but non-zero to
->> >> /sys/kernel/mm/swap/vma_ra_max_order.  With your change, this will be
->> >> impossible.
->> >
->> > For a long time, page-cluster have been used as controlling swap readahead.
->> > One of example, zram users have been disabled readahead via 0 page-cluster.
->> > However, with your change, it would be regressed if it doesn't disable
->> > vma_ra_max_order.
->> >
->> > As well, all of swap users should be aware of vma_ra_max_order as well as
->> > page-cluster to control swap readahead but I didn't see any document about
->> > that. Acutaully, I don't like it but want to unify it with page-cluster.
->> 
->> The document is in
->> 
->> Documentation/ABI/testing/sysfs-kernel-mm-swap
->> 
->> The concern of unifying it with page-cluster is as following.
->> 
->> Original swap readahead on tmpfs may not work well because the combined
->> workload is running, so we want to disable or constrain it.  But at the
->> same time, the VMA based swap readahead may work better.  So I think it
->> may be necessary to control them separately.
->
-> My concern is users have been disabled swap readahead by page-cluster would
-> be regressed. Please take care of them.
 
-How about disable VMA based swap readahead if zram used as swap?  Like
-we have done for hard disk?
+On 09/12/2017 09:07 AM, Yisheng Xie wrote:
+> Hi Tycho,
+> 
+> On 2017/9/11 23:02, Tycho Andersen wrote:
+>> Hi Yisheng,
+>>
+>> On Mon, Sep 11, 2017 at 06:34:45PM +0800, Yisheng Xie wrote:
+>>> Hi Tycho ,
+>>>
+>>> On 2017/9/8 1:35, Tycho Andersen wrote:
+>>>> Hi all,
+>>>>
+>>>> Here is v6 of the XPFO set; see v5 discussion here:
+>>>> https://lkml.org/lkml/2017/8/9/803
+>>>>
+>>>> Changelogs are in the individual patch notes, but the highlights are:
+>>>> * add primitives for ensuring memory areas are mapped (although these are quite
+>>>>   ugly, using stack allocation; I'm open to better suggestions)
+>>>> * instead of not flushing caches, re-map pages using the above
+>>>> * TLB flushing is much more correct (i.e. we're always flushing everything
+>>>>   everywhere). I suspect we may be able to back this off in some cases, but I'm
+>>>>   still trying to collect performance numbers to prove this is worth doing.
+>>>>
+>>>> I have no TODOs left for this set myself, other than fixing whatever review
+>>>> feedback people have. Thoughts and testing welcome!
+>>>
+>>> According to the paper of Vasileios P. Kemerlis et al, the mainline kernel
+>>> will not set the Pro. of physmap(direct map area) to RW(X), so do we really
+>>> need XPFO to protect from ret2dir attack?
+>>
+>> I guess you're talking about section 4.3? 
+> Yes
+> 
+>> They mention that that x86
+>> only gets rw, but that aarch64 is rwx still.
+> IIRC, the in kernel of v4.13 the aarch64 is not rwx, I will check it.
+> 
+>>
+>> But in either case this still provides access protection, similar to
+>> SMAP. Also, if I understand things correctly the protections are
+>> unmanaged, so a page that had the +x bit set at some point, it could
+>> be used for ret2dir.
+> So you means that the Pro. of direct map area maybe changed to +x, then ret2dir attack can use it?
 
-Best Regards,
-Huang, Ying
+XPFO protects against malicious reads from userspace (potentially
+accessing sensitive data). I've also been told by a security expert that
+ROP attacks are still possible even if user space memory is
+non-executable. XPFO is supposed to prevent that but I haven't been able
+to confirm this. It's way out of my comfort zone.
+
+...Juerg
+
+
+> Thanks
+> Yisheng Xie
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
