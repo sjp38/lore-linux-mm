@@ -1,97 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C1ADC6B0341
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 09:20:55 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id j16so11323256pga.6
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 06:20:55 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id f3si4398447plf.562.2017.09.12.06.20.54
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 056396B0069
+	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 10:36:41 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id q75so20918592pfl.1
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 07:36:40 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 62sor3970391ply.37.2017.09.12.07.36.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Sep 2017 06:20:54 -0700 (PDT)
-Message-ID: <59B7DFED.6060502@intel.com>
-Date: Tue, 12 Sep 2017 21:23:57 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (Google Transport Security);
+        Tue, 12 Sep 2017 07:36:39 -0700 (PDT)
+Date: Tue, 12 Sep 2017 07:36:36 -0700
+From: Tycho Andersen <tycho@docker.com>
+Subject: Re: [PATCH v6 03/11] mm, x86: Add support for eXclusive Page Frame
+ Ownership (XPFO)
+Message-ID: <20170912143636.avc3ponnervs43kj@docker>
+References: <20170907173609.22696-1-tycho@docker.com>
+ <20170907173609.22696-4-tycho@docker.com>
+ <302be94d-7e44-001d-286c-2b0cd6098f7b@huawei.com>
+ <20170911145020.fat456njvyagcomu@docker>
+ <57e95ad2-81d8-bf83-3e78-1313daa1bb80@canonical.com>
+ <431e2567-7600-3186-1489-93b855c395bd@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v15 1/5] lib/xbitmap: Introduce xbitmap
-References: <1503914913-28893-1-git-send-email-wei.w.wang@intel.com> <1503914913-28893-2-git-send-email-wei.w.wang@intel.com> <20170911125455.GA32538@bombadil.infradead.org>
-In-Reply-To: <20170911125455.GA32538@bombadil.infradead.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <431e2567-7600-3186-1489-93b855c395bd@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Yisheng Xie <xieyisheng1@huawei.com>
+Cc: Juerg Haefliger <juerg.haefliger@canonical.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, x86@kernel.org
 
-On 09/11/2017 08:54 PM, Matthew Wilcox wrote:
-> On Mon, Aug 28, 2017 at 06:08:29PM +0800, Wei Wang wrote:
->> From: Matthew Wilcox <mawilcox@microsoft.com>
->>
->> The eXtensible Bitmap is a sparse bitmap representation which is
->> efficient for set bits which tend to cluster.  It supports up to
->> 'unsigned long' worth of bits, and this commit adds the bare bones --
->> xb_set_bit(), xb_clear_bit() and xb_test_bit().
->>
->> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
->> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Michal Hocko <mhocko@kernel.org>
->> Cc: Michael S. Tsirkin <mst@redhat.com>
-> This is quite naughty of you.  You've modified the xbitmap implementation
-> without any indication in the changelog that you did so.
+On Tue, Sep 12, 2017 at 04:05:22PM +0800, Yisheng Xie wrote:
+> 
+> 
+> On 2017/9/12 0:03, Juerg Haefliger wrote:
+> > 
+> > 
+> > On 09/11/2017 04:50 PM, Tycho Andersen wrote:
+> >> Hi Yisheng,
+> >>
+> >> On Mon, Sep 11, 2017 at 03:24:09PM +0800, Yisheng Xie wrote:
+> >>>> +void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp)
+> >>>> +{
+> >>>> +	int i, flush_tlb = 0;
+> >>>> +	struct xpfo *xpfo;
+> >>>> +
+> >>>> +	if (!static_branch_unlikely(&xpfo_inited))
+> >>>> +		return;
+> >>>> +
+> >>>> +	for (i = 0; i < (1 << order); i++)  {
+> >>>> +		xpfo = lookup_xpfo(page + i);
+> >>>> +		if (!xpfo)
+> >>>> +			continue;
+> >>>> +
+> >>>> +		WARN(test_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags),
+> >>>> +		     "xpfo: unmapped page being allocated\n");
+> >>>> +
+> >>>> +		/* Initialize the map lock and map counter */
+> >>>> +		if (unlikely(!xpfo->inited)) {
+> >>>> +			spin_lock_init(&xpfo->maplock);
+> >>>> +			atomic_set(&xpfo->mapcount, 0);
+> >>>> +			xpfo->inited = true;
+> >>>> +		}
+> >>>> +		WARN(atomic_read(&xpfo->mapcount),
+> >>>> +		     "xpfo: already mapped page being allocated\n");
+> >>>> +
+> >>>> +		if ((gfp & GFP_HIGHUSER) == GFP_HIGHUSER) {
+> >>>> +			/*
+> >>>> +			 * Tag the page as a user page and flush the TLB if it
+> >>>> +			 * was previously allocated to the kernel.
+> >>>> +			 */
+> >>>> +			if (!test_and_set_bit(XPFO_PAGE_USER, &xpfo->flags))
+> >>>> +				flush_tlb = 1;
+> >>>
+> >>> I'm not sure whether I am miss anything, however, when the page was previously allocated
+> >>> to kernel,  should we unmap the physmap (the kernel's page table) here? For we allocate
+> >>> the page to user now
+> >>>
+> >> Yes, I think you're right. Oddly, the XPFO_READ_USER test works
+> 
+> Hi Tycho,
+> Could you share this test? I'd like to know how it works.
 
-This was changed in the previous version and included in that
-v13->v14 ChangeLog: https://lkml.org/lkml/2017/8/16/923
+See the last patch in the series.
 
+> >> correctly for me, but I think (?) should not because of this bug...
+> > 
+> > IIRC, this is an optimization carried forward from the initial
+> > implementation. 
+> Hi Juerg,
+> 
+> hmm.. If below is the first version, then it seems this exist from the first version:
+> https://patchwork.kernel.org/patch/8437451/
+> 
+> > The assumption is that the kernel will map the user
+> > buffer so it's not unmapped on allocation but only on the first (and
+> > subsequent) call of kunmap.
+> 
+> IMO, before a page is allocated, it is in buddy system, which means it is free
+> and no other 'map' on the page except direct map. Then if the page is allocated
+> to user, XPFO should unmap the direct map. otherwise the ret2dir may works at
+> this window before it is freed. Or maybe I'm still missing anything.
 
-> I don't
-> think the modifications you made are an improvement, but without any
-> argumentation from you I don't know why you think they're an improvement.
+I agree that it seems broken. I'm just not sure why the test doesn't
+fail. It's certainly worth understanding.
 
-Probably it shouldn't be modified when the discussion is incomplete:
-https://lkml.org/lkml/2017/8/10/36
-Sorry about that. Hope we could get more feedback from you on the
-changes later.
-
-If you want, we can continue this part from the the v13 patch, which might
-be closer to the implementation that you like: 
-https://lkml.org/lkml/2017/8/3/60
-
->> diff --git a/lib/xbitmap.c b/lib/xbitmap.c
->> new file mode 100644
->> index 0000000..8c55296
->> --- /dev/null
->> +++ b/lib/xbitmap.c
->> @@ -0,0 +1,176 @@
->> +#include <linux/slab.h>
->> +#include <linux/xbitmap.h>
->> +
->> +/*
->> + * The xbitmap implementation supports up to ULONG_MAX bits, and it is
->> + * implemented based on ida bitmaps. So, given an unsigned long index,
->> + * the high order XB_INDEX_BITS bits of the index is used to find the
->> + * corresponding item (i.e. ida bitmap) from the radix tree, and the low
->> + * order (i.e. ilog2(IDA_BITMAP_BITS)) bits of the index are indexed into
->> + * the ida bitmap to find the bit.
->> + */
->> +#define XB_INDEX_BITS		(BITS_PER_LONG - ilog2(IDA_BITMAP_BITS))
->> +#define XB_MAX_PATH		(DIV_ROUND_UP(XB_INDEX_BITS, \
->> +					      RADIX_TREE_MAP_SHIFT))
->> +#define XB_PRELOAD_SIZE		(XB_MAX_PATH * 2 - 1)
-> I don't understand why you moved the xb_preload code here from the
-> radix tree.  I want all the code which touches the preload implementation
-> together in one place, which is the radix tree.
-
-Based on the previous comments (put all the code to lib/xbitmap.c) and your
-comment here, I will move xb_preload() and the above Macro to radix-tree.c,
-while leaving the rest in xbitmap.c.
-
-Would this be something you expected? Or would you like to move all back
-to radix-tree.c like that in v13?
-
-
-Best,
-Wei
+Tycho
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
