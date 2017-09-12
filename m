@@ -1,230 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A08DA6B0303
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AC2936B0304
 	for <linux-mm@kvack.org>; Mon, 11 Sep 2017 22:37:24 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id x78so18301682pff.7
+Received: by mail-pf0-f198.google.com with SMTP id q75so18348676pfl.1
         for <linux-mm@kvack.org>; Mon, 11 Sep 2017 19:37:24 -0700 (PDT)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id 64si7784093ply.46.2017.09.11.19.37.22
+        by mx.google.com with ESMTP id r2si7875318pli.616.2017.09.11.19.37.21
         for <linux-mm@kvack.org>;
         Mon, 11 Sep 2017 19:37:22 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 5/5] mm:swap: skip swapcache for swapin of synchronous device
-Date: Tue, 12 Sep 2017 11:37:13 +0900
-Message-Id: <1505183833-4739-5-git-send-email-minchan@kernel.org>
-In-Reply-To: <1505183833-4739-1-git-send-email-minchan@kernel.org>
-References: <1505183833-4739-1-git-send-email-minchan@kernel.org>
+Subject: [PATCH 1/5] zram: set BDI_CAP_STABLE_WRITES once
+Date: Tue, 12 Sep 2017 11:37:09 +0900
+Message-Id: <1505183833-4739-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team <kernel-team@lge.com>, Minchan Kim <minchan@kernel.org>, Ilya Dryomov <idryomov@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team <kernel-team@lge.com>, Minchan Kim <minchan@kernel.org>, Ilya Dryomov <idryomov@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-With fast swap storage, platform want to use swap more aggressively
-and swap-in is crucial to application latency.
+[1] fixed weird thing(i.e., reset BDI_CAP_STABLE_WRITES flag
+unconditionally whenever revalidat_disk is called) so zram doesn't
+need to reset the flag any more whenever revalidating the bdev.
+Instead, set the flag just once when the zram device is created.
 
-The rw_page based synchronous devices like zram, pmem and btt are such
-fast storage. When I profile swapin performance with zram lz4 decompress
-test, S/W overhead is more than 70%. Maybe, it would be bigger in nvdimm.
+It shouldn't change any behavior.
 
-This patch aims for reducing swap-in latency via skipping swapcache
-if swap device is synchronous device like rw_page based device.
-It enhances 45% my swapin test(5G sequential swapin, no readahead,
-from 2.41sec to 1.64sec).
-
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Hugh Dickins <hughd@google.com>
+[1] 19b7ccf8651d, block: get rid of blk_integrity_revalidate()
+Cc: Ilya Dryomov <idryomov@gmail.com>
+Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- include/linux/swap.h |  1 +
- mm/memory.c          | 48 +++++++++++++++++++++++++++++++++---------------
- mm/page_io.c         |  6 +++---
- mm/swapfile.c        | 11 +++++++----
- 4 files changed, 44 insertions(+), 22 deletions(-)
+ drivers/block/zram/zram_drv.c | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 739d94397c47..fb46a3b55d65 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -462,6 +462,7 @@ extern int page_swapcount(struct page *);
- extern int __swp_swapcount(swp_entry_t entry);
- extern int swp_swapcount(swp_entry_t entry);
- extern struct swap_info_struct *page_swap_info(struct page *);
-+extern struct swap_info_struct *swp_swap_info(swp_entry_t entry);
- extern bool reuse_swap_page(struct page *, int *);
- extern int try_to_free_swap(struct page *);
- struct backing_dev_info;
-diff --git a/mm/memory.c b/mm/memory.c
-index ec4e15494901..130698cd2d98 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2842,7 +2842,7 @@ EXPORT_SYMBOL(unmap_mapping_range);
- int do_swap_page(struct vm_fault *vmf)
- {
- 	struct vm_area_struct *vma = vmf->vma;
--	struct page *page = NULL, *swapcache;
-+	struct page *page = NULL, *swapcache = NULL;
- 	struct mem_cgroup *memcg;
- 	struct vma_swap_readahead swap_ra;
- 	swp_entry_t entry;
-@@ -2881,17 +2881,33 @@ int do_swap_page(struct vm_fault *vmf)
- 		}
- 		goto out;
- 	}
-+
-+
- 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
- 	if (!page)
- 		page = lookup_swap_cache(entry, vma_readahead ? vma : NULL,
- 					 vmf->address);
- 	if (!page) {
--		if (vma_readahead)
--			page = do_swap_page_readahead(entry,
--				GFP_HIGHUSER_MOVABLE, vmf, &swap_ra);
--		else
--			page = swapin_readahead(entry,
--				GFP_HIGHUSER_MOVABLE, vma, vmf->address);
-+		struct swap_info_struct *si = swp_swap_info(entry);
-+
-+		if (!(si->flags & SWP_SYNCHRONOUS_IO)) {
-+			if (vma_readahead)
-+				page = do_swap_page_readahead(entry,
-+					GFP_HIGHUSER_MOVABLE, vmf, &swap_ra);
-+			else
-+				page = swapin_readahead(entry,
-+					GFP_HIGHUSER_MOVABLE, vma, vmf->address);
-+			swapcache = page;
-+		} else {
-+			/* skip swapcache */
-+			page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vmf->address);
-+			__SetPageLocked(page);
-+			__SetPageSwapBacked(page);
-+			set_page_private(page, entry.val);
-+			lru_cache_add_anon(page);
-+			swap_readpage(page, true);
-+		}
-+
- 		if (!page) {
- 			/*
- 			 * Back out if somebody else faulted in this pte
-@@ -2920,7 +2936,6 @@ int do_swap_page(struct vm_fault *vmf)
- 		goto out_release;
- 	}
- 
--	swapcache = page;
- 	locked = lock_page_or_retry(page, vma->vm_mm, vmf->flags);
- 
- 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
-@@ -2935,7 +2950,8 @@ int do_swap_page(struct vm_fault *vmf)
- 	 * test below, are not enough to exclude that.  Even if it is still
- 	 * swapcache, we need to check that the page's swap has not changed.
- 	 */
--	if (unlikely(!PageSwapCache(page) || page_private(page) != entry.val))
-+	if (unlikely((!PageSwapCache(page) ||
-+			page_private(page) != entry.val)) && swapcache)
- 		goto out_page;
- 
- 	page = ksm_might_need_to_copy(page, vma, vmf->address);
-@@ -2988,14 +3004,16 @@ int do_swap_page(struct vm_fault *vmf)
- 		pte = pte_mksoft_dirty(pte);
- 	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, pte);
- 	vmf->orig_pte = pte;
--	if (page == swapcache) {
--		do_page_add_anon_rmap(page, vma, vmf->address, exclusive);
--		mem_cgroup_commit_charge(page, memcg, true, false);
--		activate_page(page);
--	} else { /* ksm created a completely new copy */
-+
-+	/* ksm created a completely new copy */
-+	if (unlikely(page != swapcache && swapcache)) {
- 		page_add_new_anon_rmap(page, vma, vmf->address, false);
- 		mem_cgroup_commit_charge(page, memcg, false, false);
- 		lru_cache_add_active_or_unevictable(page, vma);
-+	} else {
-+		do_page_add_anon_rmap(page, vma, vmf->address, exclusive);
-+		mem_cgroup_commit_charge(page, memcg, true, false);
-+		activate_page(page);
- 	}
- 
- 	swap_free(entry);
-@@ -3003,7 +3021,7 @@ int do_swap_page(struct vm_fault *vmf)
- 	    (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
- 		try_to_free_swap(page);
- 	unlock_page(page);
--	if (page != swapcache) {
-+	if (page != swapcache && swapcache) {
- 		/*
- 		 * Hold the lock to avoid the swap entry to be reused
- 		 * until we take the PT lock for the pte_same() check
-diff --git a/mm/page_io.c b/mm/page_io.c
-index 21502d341a67..d4a98e1f6608 100644
---- a/mm/page_io.c
-+++ b/mm/page_io.c
-@@ -346,7 +346,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
- 	return ret;
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index 2981c27d3aae..ba009675fdc0 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -122,14 +122,6 @@ static inline bool is_partial_io(struct bio_vec *bvec)
  }
+ #endif
  
--int swap_readpage(struct page *page, bool do_poll)
-+int swap_readpage(struct page *page, bool synchronous)
- {
- 	struct bio *bio;
- 	int ret = 0;
-@@ -354,7 +354,7 @@ int swap_readpage(struct page *page, bool do_poll)
- 	blk_qc_t qc;
- 	struct gendisk *disk;
- 
--	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
-+	VM_BUG_ON_PAGE(!PageSwapCache(page) && !synchronous, page);
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	VM_BUG_ON_PAGE(PageUptodate(page), page);
- 	if (frontswap_load(page) == 0) {
-@@ -402,7 +402,7 @@ int swap_readpage(struct page *page, bool do_poll)
- 	count_vm_event(PSWPIN);
- 	bio_get(bio);
- 	qc = submit_bio(bio);
--	while (do_poll) {
-+	while (synchronous) {
- 		set_current_state(TASK_UNINTERRUPTIBLE);
- 		if (!READ_ONCE(bio->bi_private))
- 			break;
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 1305591cde4d..64a3d85226ba 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -3454,10 +3454,15 @@ int swapcache_prepare(swp_entry_t entry)
- 	return __swap_duplicate(entry, SWAP_HAS_CACHE);
- }
- 
-+struct swap_info_struct *swp_swap_info(swp_entry_t entry)
-+{
-+	return swap_info[swp_type(entry)];
-+}
-+
- struct swap_info_struct *page_swap_info(struct page *page)
- {
--	swp_entry_t swap = { .val = page_private(page) };
--	return swap_info[swp_type(swap)];
-+	swp_entry_t entry = { .val = page_private(page) };
-+	return swp_swap_info(entry);
- }
- 
+-static void zram_revalidate_disk(struct zram *zram)
+-{
+-	revalidate_disk(zram->disk);
+-	/* revalidate_disk reset the BDI_CAP_STABLE_WRITES so set again */
+-	zram->disk->queue->backing_dev_info->capabilities |=
+-		BDI_CAP_STABLE_WRITES;
+-}
+-
  /*
-@@ -3465,7 +3470,6 @@ struct swap_info_struct *page_swap_info(struct page *page)
+  * Check if request is within bounds and aligned on zram logical blocks.
   */
- struct address_space *__page_file_mapping(struct page *page)
- {
--	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
- 	return page_swap_info(page)->swap_file->f_mapping;
- }
- EXPORT_SYMBOL_GPL(__page_file_mapping);
-@@ -3473,7 +3477,6 @@ EXPORT_SYMBOL_GPL(__page_file_mapping);
- pgoff_t __page_file_index(struct page *page)
- {
- 	swp_entry_t swap = { .val = page_private(page) };
--	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
- 	return swp_offset(swap);
- }
- EXPORT_SYMBOL_GPL(__page_file_index);
+@@ -1385,7 +1377,8 @@ static ssize_t disksize_store(struct device *dev,
+ 	zram->comp = comp;
+ 	zram->disksize = disksize;
+ 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
+-	zram_revalidate_disk(zram);
++
++	revalidate_disk(zram->disk);
+ 	up_write(&zram->init_lock);
+ 
+ 	return len;
+@@ -1432,7 +1425,7 @@ static ssize_t reset_store(struct device *dev,
+ 	/* Make sure all the pending I/O are finished */
+ 	fsync_bdev(bdev);
+ 	zram_reset_device(zram);
+-	zram_revalidate_disk(zram);
++	revalidate_disk(zram->disk);
+ 	bdput(bdev);
+ 
+ 	mutex_lock(&bdev->bd_mutex);
+@@ -1551,6 +1544,7 @@ static int zram_add(void)
+ 	/* zram devices sort of resembles non-rotational disks */
+ 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, zram->disk->queue);
+ 	queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, zram->disk->queue);
++
+ 	/*
+ 	 * To ensure that we always get PAGE_SIZE aligned
+ 	 * and n*PAGE_SIZED sized I/O requests.
+@@ -1575,6 +1569,8 @@ static int zram_add(void)
+ 	if (ZRAM_LOGICAL_BLOCK_SIZE == PAGE_SIZE)
+ 		blk_queue_max_write_zeroes_sectors(zram->disk->queue, UINT_MAX);
+ 
++	zram->disk->queue->backing_dev_info->capabilities |=
++					BDI_CAP_STABLE_WRITES;
+ 	add_disk(zram->disk);
+ 
+ 	ret = sysfs_create_group(&disk_to_dev(zram->disk)->kobj,
 -- 
 2.7.4
 
