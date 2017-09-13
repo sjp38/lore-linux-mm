@@ -1,79 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id ED7206B0038
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 07:25:19 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id v82so27243294pgb.5
-        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 04:25:19 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u7si9286402pfl.547.2017.09.13.04.25.18
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C53B6B0038
+	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 07:34:33 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id w12so14820901wrc.2
+        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 04:34:33 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g66sor300144wmi.73.2017.09.13.04.34.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Sep 2017 04:25:18 -0700 (PDT)
-Date: Wed, 13 Sep 2017 13:25:09 +0200
+        (Google Transport Security);
+        Wed, 13 Sep 2017 04:34:32 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] ksm: Fix unlocked iteration over vmas in
- cmp_and_merge_page()
-Message-ID: <20170913112509.mus2fuccajoe2l25@dhcp22.suse.cz>
-References: <150512788393.10691.8868381099691121308.stgit@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <150512788393.10691.8868381099691121308.stgit@localhost.localdomain>
+Subject: [PATCH] mm, oom_reaper: skip mm structs with mmu notifiers
+Date: Wed, 13 Sep 2017 13:34:27 +0200
+Message-Id: <20170913113427.2291-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, aarcange@redhat.com, minchan@kernel.org, zhongjiang@huawei.com, mingo@kernel.org, imbrenda@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Argangeli <andrea@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-[CC Claudio and Hugh]
+From: Michal Hocko <mhocko@suse.com>
 
-On Mon 11-09-17 14:05:05, Kirill Tkhai wrote:
-> In this place mm is unlocked, so vmas or list may change.
-> Down read mmap_sem to protect them from modifications.
-> 
-> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
-> (and compile-tested-by)
+Andrea has noticed that the oom_reaper doesn't invalidate the range
+via mmu notifiers (mmu_notifier_invalidate_range_start,
+mmu_notifier_invalidate_range_end) and that can corrupt the memory
+of the kvm guest for example.
 
-Fixes: e86c59b1b12d ("mm/ksm: improve deduplication of zero pages with colouring")
-AFAICS. Maybe even CC: stable as unstable vma can cause large variety of
-issues including memory corruption.
+tlb_flush_mmu_tlbonly already invokes mmu notifiers but that is not
+sufficient as per Andrea:
+: mmu_notifier_invalidate_range cannot be used in replacement of
+: mmu_notifier_invalidate_range_start/end. For KVM
+: mmu_notifier_invalidate_range is a noop and rightfully so. A MMU
+: notifier implementation has to implement either
+: ->invalidate_range method or the invalidate_range_start/end
+: methods, not both. And if you implement invalidate_range_start/end
+: like KVM is forced to do, calling mmu_notifier_invalidate_range in
+: common code is a noop for KVM.
+:
+: For those MMU notifiers that can get away only implementing
+: ->invalidate_range, the ->invalidate_range is implicitly called by
+: mmu_notifier_invalidate_range_end(). And only those secondary MMUs
+: that share the same pagetable with the primary MMU (like AMD
+: iommuv2) can get away only implementing ->invalidate_range.
 
-The fix lookds good to me
-Acked-by: Michal Hocko <mhocko@suse.com>
+As the callback is allowed to sleep and the implementation is out
+of hand of the MM it is safer to simply bail out if there is an
+mmu notifier registered. In order to not fail too early make the
+mm_has_notifiers check under the oom_lock and have a little nap before
+failing to give the current oom victim some more time to exit.
 
-> ---
->  mm/ksm.c |    5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/ksm.c b/mm/ksm.c
-> index db20f8436bc3..86f0db3d6cdb 100644
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -1990,6 +1990,7 @@ static void stable_tree_append(struct rmap_item *rmap_item,
->   */
->  static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
->  {
-> +	struct mm_struct *mm = rmap_item->mm;
->  	struct rmap_item *tree_rmap_item;
->  	struct page *tree_page = NULL;
->  	struct stable_node *stable_node;
-> @@ -2062,9 +2063,11 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
->  	if (ksm_use_zero_pages && (checksum == zero_checksum)) {
->  		struct vm_area_struct *vma;
->  
-> -		vma = find_mergeable_vma(rmap_item->mm, rmap_item->address);
-> +		down_read(&mm->mmap_sem);
-> +		vma = find_mergeable_vma(mm, rmap_item->address);
->  		err = try_to_merge_one_page(vma, page,
->  					    ZERO_PAGE(rmap_item->address));
-> +		up_read(&mm->mmap_sem);
->  		/*
->  		 * In case of failure, the page was not really empty, so we
->  		 * need to continue. Otherwise we're done.
-> 
+Changes since v1
+- move mm_has_notifiers check after we hold mmap_sem to prevent from
+  any potential races as per Andrea
 
+Fixes: aac453635549 ("mm, oom: introduce oom reaper")
+Noticed-by: Andrea Arcangeli <aarcange@redhat.com>
+Cc: stable
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+Hi,
+I have posted this as an RFC previously [1]. I have updated
+the changelog to be more clear about the issue and moved the
+mm_has_notifiers after the lock has been take based on Andrea's
+suggestion.
+
+Can we merge this?
+
+[1] http://lkml.kernel.org/r/20170830084600.17491-1-mhocko@kernel.org
+
+ include/linux/mmu_notifier.h |  5 +++++
+ mm/oom_kill.c                | 16 ++++++++++++++++
+ 2 files changed, 21 insertions(+)
+
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+index 7b2e31b1745a..6866e8126982 100644
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -400,6 +400,11 @@ extern void mmu_notifier_synchronize(void);
+ 
+ #else /* CONFIG_MMU_NOTIFIER */
+ 
++static inline int mm_has_notifiers(struct mm_struct *mm)
++{
++	return 0;
++}
++
+ static inline void mmu_notifier_release(struct mm_struct *mm)
+ {
+ }
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 99736e026712..92804b061e43 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -40,6 +40,7 @@
+ #include <linux/ratelimit.h>
+ #include <linux/kthread.h>
+ #include <linux/init.h>
++#include <linux/mmu_notifier.h>
+ 
+ #include <asm/tlb.h>
+ #include "internal.h"
+@@ -494,6 +495,21 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 		goto unlock_oom;
+ 	}
+ 
++	/*
++	 * If the mm has notifiers then we would need to invalidate them around
++	 * unmap_page_range and that is risky because notifiers can sleep and
++	 * what they do is basically undeterministic. So let's have a short sleep
++	 * to give the oom victim some more time.
++	 * TODO: we really want to get rid of this ugly hack and make sure that
++	 * notifiers cannot block for unbounded amount of time and add
++	 * mmu_notifier_invalidate_range_{start,end} around unmap_page_range
++	 */
++	if (mm_has_notifiers(mm)) {
++		up_read(&mm->mmap_sem);
++		schedule_timeout_idle(HZ);
++		goto unlock_oom;
++	}
++
+ 	/*
+ 	 * MMF_OOM_SKIP is set by exit_mmap when the OOM reaper can't
+ 	 * work on the mm anymore. The check for MMF_OOM_SKIP must run
 -- 
-Michal Hocko
-SUSE Labs
+2.14.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
