@@ -1,148 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 287BB6B0038
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 03:35:26 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id q132so10609866lfe.1
-        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 00:35:26 -0700 (PDT)
-Received: from forwardcorp1g.cmail.yandex.net (forwardcorp1g.cmail.yandex.net. [2a02:6b8:0:1465::fd])
-        by mx.google.com with ESMTPS id v9si5575507lja.157.2017.09.13.00.35.23
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3193A6B0253
+	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 03:43:06 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id m127so2156516wmm.3
+        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 00:43:06 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 75sor160979wma.77.2017.09.13.00.43.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Sep 2017 00:35:23 -0700 (PDT)
-Subject: Re: [PATCH v2] mm/oom_kill: count global and memory cgroup oom kills
-References: <149570810989.203600.9492483715840752937.stgit@buzz>
- <20170605085011.GJ9248@dhcp22.suse.cz>
- <80c9060f-bf80-51fb-39c0-b36f273c0c9c@yandex-team.ru>
- <1969140653.911396.1505278286673@mail.yahoo.com>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <b132f9d1-8898-5301-b7e5-1b3d622e4993@yandex-team.ru>
-Date: Wed, 13 Sep 2017 10:35:22 +0300
+        (Google Transport Security);
+        Wed, 13 Sep 2017 00:43:05 -0700 (PDT)
+Date: Wed, 13 Sep 2017 09:43:01 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v4 00/10] PCID and improved laziness
+Message-ID: <20170913074301.rivpgoaf7juvwkha@gmail.com>
+References: <cover.1498751203.git.luto@kernel.org>
+ <CALBSrqDW6pGjHxOmzfnkY_KoNeH6F=pTb8-tJ8r-zbu4prw9HQ@mail.gmail.com>
+ <1505244724.4482.78.camel@intel.com>
+ <428E07CE-6F76-4137-B568-B9794735A51F@amacapital.net>
 MIME-Version: 1.0
-In-Reply-To: <1969140653.911396.1505278286673@mail.yahoo.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: ru-RU
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <428E07CE-6F76-4137-B568-B9794735A51F@amacapital.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: PINTU KUMAR <pintu_agarwal@yahoo.com>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Roman Guschin <guroan@gmail.com>, David Rientjes <rientjes@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>, x86@kernel.org, linux-kernel <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, torvalds@linux-foundation.org, akpm@linux-foundation.org, mgorman@suse.de, linux-mm@kvack.org, nadav.amit@gmail.com, riel@redhat.com, "Hansen, Dave" <dave.hansen@intel.com>, arjan@linux.intel.com, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, "Luck, Tony" <tony.luck@intel.com>, "Shankar, Ravi V" <ravi.v.shankar@intel.com>, Matt Fleming <matt@codeblueprint.co.uk>, "Yu, Fenghua" <fenghua.yu@intel.com>
 
-On 13.09.2017 07:51, PINTU KUMAR wrote:
-> 
-> 
-> Hi,
-> 
-> I have submitted a similar patch 2 years ago (Oct/2015).
-> But at that time the patch was rejected.
-> Here is the history:
-> https://lkml.org/lkml/2015/10/1/372
-> 
-> Now I see the similar patch got accepted. At least the initial idea and the objective were same.
-> Even I were not included here.
-> On one side I feel happy that my initial idea got accepted now.
-> But on the other side it really hurts :(
-> 
 
-If this makes you feel better: mine version also fixes uncertainty in memory cgroup statistics.
+* Andy Lutomirski <luto@amacapital.net> wrote:
 
+> I'm on my way to LPC, so I can't  easily work on this right this instant.
 > 
-> Thanks,
-> Pintu
+> Can you try this branch, though?
 > 
-> 
-> On Monday 5 June 2017, 7:57:57 PM IST, Konstantin Khlebnikov <khlebnikov@yandex-team.ru> wrote:
-> 
-> 
-> On 05.06.2017 11:50, Michal Hocko wrote:
->  > On Thu 25-05-17 13:28:30, Konstantin Khlebnikov wrote:
->  >> Show count of oom killer invocations in /proc/vmstat and count of
->  >> processes killed in memory cgroup in knob "memory.events"
->  >> (in memory.oom_control for v1 cgroup).
->  >>
->  >> Also describe difference between "oom" and "oom_kill" in memory
->  >> cgroup documentation. Currently oom in memory cgroup kills tasks
->  >> iff shortage has happened inside page fault.
->  >>
->  >> These counters helps in monitoring oom kills - for now
->  >> the only way is grepping for magic words in kernel log.
->  >
->  > Yes this is less than optimal and the counter sounds like a good step
->  > forward. I have 2 comments to the patch though.
->  >
->  > [...]
->  >
->  >> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->  >> index 899949bbb2f9..42296f7001da 100644
->  >> --- a/include/linux/memcontrol.h
->  >> +++ b/include/linux/memcontrol.h
->  >> @@ -556,8 +556,11 @@ static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
->  >>
->  >>      rcu_read_lock();
->  >>      memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
->  >> -    if (likely(memcg))
->  >> +    if (likely(memcg)) {
->  >>          this_cpu_inc(memcg->stat->events[idx]);
->  >> +        if (idx == OOM_KILL)
->  >> +            cgroup_file_notify(&memcg->events_file);
->  >> +    }
->  >>      rcu_read_unlock();
->  >
->  > Well, this is ugly. I see how you want to share the global counter and
->  > the memcg event which needs the notification. But I cannot say this
->  > would be really easy to follow. Can we have at least a comment in
->  > memcg_event_item enum definition?
-> 
-> Yep, this is a little bit ugly.
-> But this funciton is static-inline and idx always constant so resulting code is fine.
-> 
->  >
->  >> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
->  >> index 04c9143a8625..dd30a045ef5b 100644
->  >> --- a/mm/oom_kill.c
->  >> +++ b/mm/oom_kill.c
->  >> @@ -876,6 +876,11 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
->  >>      /* Get a reference to safely compare mm after task_unlock(victim) */
->  >>      mm = victim->mm;
->  >>      mmgrab(mm);
->  >> +
->  >> +    /* Raise event before sending signal: reaper must see this */
->  >> +    count_vm_event(OOM_KILL);
->  >> +    mem_cgroup_count_vm_event(mm, OOM_KILL);
->  >> +
->  >>      /*
->  >>      * We should send SIGKILL before setting TIF_MEMDIE in order to prevent
->  >>      * the OOM victim from depleting the memory reserves from the user
->  >
->  > Why don't you count tasks which share mm with the oom victim?
-> 
-> Yes, this makes sense. But these kills are not logged thus counter will differs from logged events.
-> Also these tasks might live in different cgroups, so counting to mm owner isn't correct.
-> 
-> 
->  > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
->  > index 0e2c925e7826..9a95947a60ba 100644
->  > --- a/mm/oom_kill.c
->  > +++ b/mm/oom_kill.c
->  > @@ -924,6 +924,8 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
->  >          */
->  >          if (unlikely(p->flags & PF_KTHREAD))
->  >              continue;
->  > +        count_vm_event(OOM_KILL);
->  > +        count_memcg_event_mm(mm, OOM_KILL);
->  >          do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
->  >      }
->  >      rcu_read_unlock();
->  >
->  > Other than that looks good to me.
->  > Acked-by: Michal Hocko <mhocko@suse.com>
->  >
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+> https://git.kernel.org/pub/scm/linux/kernel/git/luto/linux.git/commit/?h=x86/fixes&id=cb88ae619b4c3d832d224f2c641849dc02aed864
+
+Any objections against me applying these fixes directly and getting them to Linus 
+later today, to not widen the window of breakage any further?
+
+I'll also apply:
+
+   x86/mm/64: Initialize CR4.PCIDE early
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
