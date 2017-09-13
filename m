@@ -1,89 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 65E1E6B025E
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 16:46:54 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id m30so2019631pgn.2
-        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 13:46:54 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id i9sor494302pgp.382.2017.09.13.13.46.53
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 96D2E6B0069
+	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 17:02:33 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id h16so1341381wrf.0
+        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 14:02:33 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id t205si1764033wmg.21.2017.09.13.14.02.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Sep 2017 13:46:53 -0700 (PDT)
-Date: Wed, 13 Sep 2017 13:46:51 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [v8 2/4] mm, oom: cgroup-aware OOM killer
-In-Reply-To: <20170911131742.16482-3-guro@fb.com>
-Message-ID: <alpine.DEB.2.10.1709131346200.146292@chino.kir.corp.google.com>
-References: <20170911131742.16482-1-guro@fb.com> <20170911131742.16482-3-guro@fb.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Sep 2017 14:02:32 -0700 (PDT)
+Date: Wed, 13 Sep 2017 14:02:29 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm -v4 3/5] mm, swap: VMA based swap readahead
+Message-Id: <20170913140229.8a6cad6f017fa3ea8b53cefc@linux-foundation.org>
+In-Reply-To: <20170913014019.GB29422@bbox>
+References: <20170807054038.1843-1-ying.huang@intel.com>
+	<20170807054038.1843-4-ying.huang@intel.com>
+	<20170913014019.GB29422@bbox>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
 
-On Mon, 11 Sep 2017, Roman Gushchin wrote:
+On Wed, 13 Sep 2017 10:40:19 +0900 Minchan Kim <minchan@kernel.org> wrote:
 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 15af3da5af02..da2b12ea4667 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2661,6 +2661,231 @@ static inline bool memcg_has_children(struct mem_cgroup *memcg)
->  	return ret;
->  }
->  
-> +static long memcg_oom_badness(struct mem_cgroup *memcg,
-> +			      const nodemask_t *nodemask,
-> +			      unsigned long totalpages)
-> +{
-> +	long points = 0;
-> +	int nid;
-> +	pg_data_t *pgdat;
-> +
-> +	/*
-> +	 * We don't have necessary stats for the root memcg,
-> +	 * so we define it's oom_score as the maximum oom_score
-> +	 * of the belonging tasks.
-> +	 */
-> +	if (memcg == root_mem_cgroup) {
-> +		struct css_task_iter it;
-> +		struct task_struct *task;
-> +		long score, max_score = 0;
-> +
-> +		css_task_iter_start(&memcg->css, 0, &it);
-> +		while ((task = css_task_iter_next(&it))) {
-> +			score = oom_badness(task, memcg, nodemask,
-> +					    totalpages);
-> +			if (max_score > score)
+> Every zram users like low-end android device has used 0 page-cluster
+> to disable swap readahead because it has no seek cost and works as
+> synchronous IO operation so if we do readahead multiple pages,
+> swap falut latency would be (4K * readahead window size). IOW,
+> readahead is meaningful only if it doesn't bother faulted page's
+> latency.
+> 
+> However, this patch introduces additional knob /sys/kernel/mm/swap/
+> vma_ra_max_order as well as page-cluster. It means existing users
+> has used disabled swap readahead doesn't work until they should be
+> aware of new knob and modification of their script/code to disable
+> vma_ra_max_order as well as page-cluster.
+> 
+> I say it's a *regression* and wanted to fix it but Huang's opinion
+> is that it's not a functional regression so userspace should be fixed
+> by themselves.
+> Please look into detail of discussion in
+> http://lkml.kernel.org/r/%3C1505183833-4739-4-git-send-email-minchan@kernel.org%3E
 
-score > max_score
+hm, tricky problem.  I do agree that linking the physical and virtual
+readahead schemes in the proposed fashion is unfortunate.  I also agree
+that breaking existing setups (a bit) is also unfortunate.
 
-> +				max_score = score;
-> +		}
-> +		css_task_iter_end(&it);
-> +
-> +		return max_score;
-> +	}
-> +
-> +	for_each_node_state(nid, N_MEMORY) {
-> +		if (nodemask && !node_isset(nid, *nodemask))
-> +			continue;
-> +
-> +		points += mem_cgroup_node_nr_lru_pages(memcg, nid,
-> +				LRU_ALL_ANON | BIT(LRU_UNEVICTABLE));
-> +
-> +		pgdat = NODE_DATA(nid);
-> +		points += lruvec_page_state(mem_cgroup_lruvec(pgdat, memcg),
-> +					    NR_SLAB_UNRECLAIMABLE);
-> +	}
-> +
-> +	points += memcg_page_state(memcg, MEMCG_KERNEL_STACK_KB) /
-> +		(PAGE_SIZE / 1024);
-> +	points += memcg_page_state(memcg, MEMCG_SOCK);
-> +	points += memcg_page_state(memcg, MEMCG_SWAP);
-> +
-> +	return points;
-> +}
+Would it help if, when page-cluster is written to zero, we do
+
+printk_once("physical readahead disabled, virtual readahead still
+enabled.  Disable virtual readhead via
+/sys/kernel/mm/swap/vma_ra_max_order").
+
+Or something like that.  It's pretty lame, but it should help alert the
+zram-readahead-disabling people to the issue?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
