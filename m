@@ -1,206 +1,244 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D77636B0038
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 00:19:02 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id x78so23590425pff.7
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 21:19:02 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id 97si9872770plc.265.2017.09.12.21.19.01
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FD546B0038
+	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 00:57:35 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id t184so19548673qke.0
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 21:57:35 -0700 (PDT)
+Received: from sonic301-29.consmr.mail.bf2.yahoo.com (sonic301-29.consmr.mail.bf2.yahoo.com. [74.6.129.228])
+        by mx.google.com with ESMTPS id s29si14304046qtk.103.2017.09.12.21.57.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Sep 2017 21:19:01 -0700 (PDT)
-Message-ID: <1505276066.15586.11.camel@intel.com>
-Subject: Re: [PATCH v4 00/10] PCID and improved laziness
-From: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
-Date: Tue, 12 Sep 2017 21:14:26 -0700
-In-Reply-To: <1505244724.4482.78.camel@intel.com>
-References: <cover.1498751203.git.luto@kernel.org>
-	 <CALBSrqDW6pGjHxOmzfnkY_KoNeH6F=pTb8-tJ8r-zbu4prw9HQ@mail.gmail.com>
-	 <1505244724.4482.78.camel@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Tue, 12 Sep 2017 21:57:34 -0700 (PDT)
+Date: Wed, 13 Sep 2017 04:51:26 +0000 (UTC)
+From: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Message-ID: <1969140653.911396.1505278286673@mail.yahoo.com>
+In-Reply-To: <80c9060f-bf80-51fb-39c0-b36f273c0c9c@yandex-team.ru>
+References: <149570810989.203600.9492483715840752937.stgit@buzz> <20170605085011.GJ9248@dhcp22.suse.cz> <80c9060f-bf80-51fb-39c0-b36f273c0c9c@yandex-team.ru>
+Subject: Re: [PATCH v2] mm/oom_kill: count global and memory cgroup oom
+ kills
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_Part_911395_232869749.1505278286671"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: x86@kernel.org
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, torvalds@linux-foundation.org, akpm@linux-foundation.org, mgorman@suse.de, linux-mm@kvack.org, nadav.amit@gmail.com, riel@redhat.com, "Hansen, Dave" <dave.hansen@intel.com>, arjan@linux.intel.com, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, "Luck, Tony" <tony.luck@intel.com>, "Shankar,
- Ravi V" <ravi.v.shankar@intel.com>, Matt Fleming <matt@codeblueprint.co.uk>, "Yu, Fenghua" <fenghua.yu@intel.com>, mingo@kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Roman Guschin <guroan@gmail.com>, David Rientjes <rientjes@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-> 
-> 
-> Hi Andy,
-> 
-> I have booted Linus's tree (8fac2f96ab86b0e14ec4e42851e21e9b518bdc55) on
-> Skylake server and noticed that it reboots automatically.
-> 
-> When I booted the same kernel with command line arg "nopcid" it works
-> fine. Please find below a snippet of dmesg. Please let me know if you
-> need more info to debug.
-> 
-> [    0.000000] Kernel command line: BOOT_IMAGE=/boot/vmlinuz-4.13.0+
-> root=UUID=3b8e9636-6e23-4785-a4e2-5954bfe86fd9 ro console=tty0
-> console=ttyS0,115200n8
-> [    0.000000] log_buf_len individual max cpu contribution: 4096 bytes
-> [    0.000000] log_buf_len total cpu_extra contributions: 258048 bytes
-> [    0.000000] log_buf_len min size: 262144 bytes
-> [    0.000000] log_buf_len: 524288 bytes
-> [    0.000000] early log buf free: 212560(81%)
-> [    0.000000] PID hash table entries: 4096 (order: 3, 32768 bytes)
-> [    0.000000] ------------[ cut here ]------------
-> [    0.000000] WARNING: CPU: 0 PID: 0 at arch/x86/mm/tlb.c:245
-> initialize_tlbstate_and_flush+0x6c/0xf0
-> [    0.000000] Modules linked in:
-> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 4.13.0+ #5
-> [    0.000000] task: ffffffff8960f480 task.stack: ffffffff89600000
-> [    0.000000] RIP: 0010:initialize_tlbstate_and_flush+0x6c/0xf0
-> [    0.000000] RSP: 0000:ffffffff89603e60 EFLAGS: 00010046
-> [    0.000000] RAX: 00000000000406b0 RBX: ffff9f1700a17880 RCX:
-> ffffffff8965de60
-> [    0.000000] RDX: 0000008383a0a000 RSI: 000000000960a000 RDI:
-> 0000008383a0a000
-> [    0.000000] RBP: ffffffff89603e60 R08: 0000000000000000 R09:
-> 0000ffffffffffff
-> [    0.000000] R10: ffffffff89603ee8 R11: ffffffff0000ffff R12:
-> 0000000000000000
-> [    0.000000] R13: ffff9f1700a0c3e0 R14: ffffffff8960f480 R15:
-> 0000000000000000
-> [    0.000000] FS:  0000000000000000(0000) GS:ffff9f1700a00000(0000)
-> knlGS:0000000000000000
-> [    0.000000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [    0.000000] CR2: ffff9fa7bffff000 CR3: 0000008383a0a000 CR4:
-> 00000000000406b0
-> [    0.000000] Call Trace:
-> [    0.000000]  cpu_init+0x206/0x4f0
-> [    0.000000]  ? __set_pte_vaddr+0x1d/0x30
-> [    0.000000]  trap_init+0x3e/0x50
-> [    0.000000]  ? trap_init+0x3e/0x50
-> [    0.000000]  start_kernel+0x1e2/0x3f2
-> [    0.000000]  x86_64_start_reservations+0x24/0x26
-> [    0.000000]  x86_64_start_kernel+0x6f/0x72
-> [    0.000000]  secondary_startup_64+0xa5/0xa5
-> [    0.000000] Code: de 00 48 01 f0 48 39 c7 0f 85 92 00 00 00 48 8b 05
-> ee e2 ee 00 a9 00 00 02 00 74 11 65 48 8b 05 8b 9d 7c 77 a9 00 00 02 00
-> 75 02 <0f> ff 48 81 e2 00 f0 ff ff 0f 22 da 65 66 c7 05 66 9d 7c 77 00 
-> [    0.000000] ---[ end trace c258f2d278fe031f ]---
-> [    0.000000] Memory: 791050356K/803934656K available (9585K kernel
-> code, 1313K rwdata, 3000K rodata, 1176K init, 680K bss, 12884300K
-> reserved, 0K cma-reserved)
-> [    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=64,
-> Nodes=4
-> [    0.000000] Hierarchical RCU implementation.
-> [    0.000000] 	RCU event tracing is enabled.
-> [    0.000000] NR_IRQS: 4352, nr_irqs: 3928, preallocated irqs: 16
-> [    0.000000] Console: colour dummy device 80x25
-> [    0.000000] console [tty0] enabled
-> [    0.000000] console [ttyS0] enabled
-> [    0.000000] clocksource: hpet: mask: 0xffffffff max_cycles:
-> 0xffffffff, max_idle_ns: 79635855245 ns
-> [    0.001000] tsc: Detected 2000.000 MHz processor
-> [    0.002000] Calibrating delay loop (skipped), value calculated using
-> timer frequency.. 4000.00 BogoMIPS (lpj=2000000)
-> [    0.003003] pid_max: default: 65536 minimum: 512
-> [    0.004030] ACPI: Core revision 20170728
-> [    0.091853] ACPI: 6 ACPI AML tables successfully acquired and loaded
-> [    0.094143] Security Framework initialized
-> [    0.095004] SELinux:  Initializing.
-> [    0.145612] Dentry cache hash table entries: 33554432 (order: 16,
-> 268435456 bytes)
-> [    0.170544] Inode-cache hash table entries: 16777216 (order: 15,
-> 134217728 bytes)
-> [    0.172699] Mount-cache hash table entries: 524288 (order: 10,
-> 4194304 bytes)
-> [    0.174441] Mountpoint-cache hash table entries: 524288 (order: 10,
-> 4194304 bytes)
-> [    0.176351] CPU: Physical Processor ID: 0
-> [    0.177003] CPU: Processor Core ID: 0
-> [    0.178007] ENERGY_PERF_BIAS: Set to 'normal', was 'performance'
-> [    0.179003] ENERGY_PERF_BIAS: View and update with
-> x86_energy_perf_policy(8)
-> [    0.180013] mce: CPU supports 20 MCE banks
-> [    0.181018] CPU0: Thermal monitoring enabled (TM1)
-> [    0.182057] process: using mwait in idle threads
-> [    0.183005] Last level iTLB entries: 4KB 64, 2MB 8, 4MB 8
-> [    0.184003] Last level dTLB entries: 4KB 64, 2MB 0, 4MB 0, 1GB 4
-> [    0.185223] Freeing SMP alternatives memory: 36K
-> [    0.193912] smpboot: Max logical packages: 8
-> [    0.194017] Switched APIC routing to physical flat.
-> [    0.196496] ..TIMER: vector=0x30 apic1=0 pin1=2 apic2=-1 pin2=-1
-> [    0.206252] smpboot: CPU0: Intel(R) Xeon(R) Platinum 8164 CPU @
-> 2.00GHz (family: 0x6, model: 0x55, stepping: 0x4)
-> [    0.207131] Performance Events: PEBS fmt3+, Skylake events, 32-deep
-> LBR, full-width counters, Intel PMU driver.
-> [    0.208003] ... version:                4
-> [    0.209001] ... bit width:              48
-> [    0.210001] ... generic registers:      4
-> [    0.211001] ... value mask:             0000ffffffffffff
-> [    0.212001] ... max period:             00007fffffffffff
-> [    0.213001] ... fixed-purpose events:   3
-> [    0.214001] ... event mask:             000000070000000f
-> [    0.215078] Hierarchical SRCU implementation.
-> [    0.216867] smp: Bringing up secondary CPUs ...
-> [    0.217085] x86: Booting SMP configuration:
-> [    0.218001] .... node  #0, CPUs:        #1
-> [    0.001000] ------------[ cut here ]------------
-> [    0.001000] WARNING: CPU: 1 PID: 0 at arch/x86/mm/tlb.c:245
-> initialize_tlbstate_and_flush+0x6c/0xf0
-> [    0.001000] Modules linked in:
-> [    0.001000] CPU: 1 PID: 0 Comm: swapper/1 Tainted: G        W
-> 4.13.0+ #5
-> [    0.001000] task: ffff9f16fa393e40 task.stack: ffffaf0e98afc000
-> [    0.001000] RIP: 0010:initialize_tlbstate_and_flush+0x6c/0xf0
-> [    0.001000] RSP: 0000:ffffaf0e98affeb0 EFLAGS: 00010046
-> [    0.001000] RAX: 00000000000000a0 RBX: ffff9f1700a57880 RCX:
-> ffffffff8965de60
-> [    0.001000] RDX: 0000008383a0a000 RSI: 000000000960a000 RDI:
-> 0000008383a0a000
-> [    0.001000] RBP: ffffaf0e98affeb0 R08: 0000000000000000 R09:
-> 0000000000000000
-> [    0.001000] R10: ffffaf0e98affe78 R11: ffffaf0e98affdb6 R12:
-> 0000000000000001
-> [    0.001000] R13: ffff9f1700a4c3e0 R14: ffff9f16fa393e40 R15:
-> 0000000000000001
-> [    0.001000] FS:  0000000000000000(0000) GS:ffff9f1700a40000(0000)
-> knlGS:0000000000000000
-> [    0.001000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [    0.001000] CR2: 0000000000000000 CR3: 0000008383a0a000 CR4:
-> 00000000000000a0
-> [    0.001000] invalid opcode: 0000 [#1] SMP
-> [    0.001000] Modules linked in:
-> [    0.001000] CPU: 1 PID: 0 Comm: swapper/1 Tainted: G        W
-> 4.13.0+ #5
-> [    0.001000] task: ffff9f16fa393e40 task.stack: ffffaf0e98afc000
-> [    0.001000] RIP: 0010:__show_regs+0x255/0x290
-> [    0.001000] RSP: 0000:ffffaf0e98affbc0 EFLAGS: 00010002
-> [    0.001000] RAX: 0000000000000018 RBX: 0000000000000000 RCX:
-> 0000000000000000
-> [    0.001000] RDX: 0000000000000000 RSI: 0000000000000000 RDI:
-> ffffffff898a978c
-> [    0.001000] RBP: ffffaf0e98affc10 R08: 0000000000000001 R09:
-> 0000000000000373
-> [    0.001000] R10: ffffffff8884fb8c R11: ffffffff898ab7cd R12:
-> 00000000ffff0ff0
-> [    0.001000] R13: 0000000000000400 R14: ffff9f1700a40000 R15:
-> 0000000000000000
-> [    0.001000] FS:  0000000000000000(0000) GS:ffff9f1700a40000(0000)
-> knlGS:0000000000000000
-> [    0.001000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [    0.001000] CR2: 0000000000000000 CR3: 0000008383a0a000 CR4:
-> 00000000000000a0
-
-Hi All,
-
-Since I didn't find conversation between Andy and myself on the mailing
-list, I wanted to keep this thread updated. So, sorry! for spamming your
-inbox if it's a duplicate.
-
-Andy has asked me to try a patch that's already in his git repo and it
-fixes the issue.
-
-https://git.kernel.org/pub/scm/linux/kernel/git/luto/linux.git/commit/?h=x86/fixes&id=cb88ae619b4c3d832d224f2c641849dc02aed864
+------=_Part_911395_232869749.1505278286671
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
 
-Regards,
-Sai
+
+Hi,
+
+I have submitted a similar patch 2 years ago (Oct/2015).
+But at that time the patch was rejected.
+Here is the history:
+https://lkml.org/lkml/2015/10/1/372
+
+Now I see the similar patch got accepted. At least the initial idea and the=
+ objective were same.=C2=A0
+Even I were not included here.
+ On one side I feel happy that my initial idea got accepted now.But on the =
+other side it really hurts :(
+
+Thanks,Pintu
+=20
+ On Monday 5 June 2017, 7:57:57 PM IST, Konstantin Khlebnikov <khlebnikov@y=
+andex-team.ru> wrote:=20
+
+
+On 05.06.2017 11:50, Michal Hocko wrote:
+> On Thu 25-05-17 13:28:30, Konstantin Khlebnikov wrote:
+>> Show count of oom killer invocations in /proc/vmstat and count of
+>> processes killed in memory cgroup in knob "memory.events"
+>> (in memory.oom_control for v1 cgroup).
+>>
+>> Also describe difference between "oom" and "oom_kill" in memory
+>> cgroup documentation. Currently oom in memory cgroup kills tasks
+>> iff shortage has happened inside page fault.
+>>
+>> These counters helps in monitoring oom kills - for now
+>> the only way is grepping for magic words in kernel log.
+>=20
+> Yes this is less than optimal and the counter sounds like a good step
+> forward. I have 2 comments to the patch though.
+>=20
+> [...]
+>=20
+>> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+>> index 899949bbb2f9..42296f7001da 100644
+>> --- a/include/linux/memcontrol.h
+>> +++ b/include/linux/memcontrol.h
+>> @@ -556,8 +556,11 @@ static inline void mem_cgroup_count_vm_event(struct=
+ mm_struct *mm,
+>>=C2=A0=20
+>>=C2=A0 =C2=A0=C2=A0=C2=A0 rcu_read_lock();
+>>=C2=A0 =C2=A0=C2=A0=C2=A0 memcg =3D mem_cgroup_from_task(rcu_dereference(=
+mm->owner));
+>> -=C2=A0=C2=A0=C2=A0 if (likely(memcg))
+>> +=C2=A0=C2=A0=C2=A0 if (likely(memcg)) {
+>>=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 this_cpu_inc(memcg->stat->ev=
+ents[idx]);
+>> +=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 if (idx =3D=3D OOM_KILL)
+>> +=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 cgroup_file_no=
+tify(&memcg->events_file);
+>> +=C2=A0=C2=A0=C2=A0 }
+>>=C2=A0 =C2=A0=C2=A0=C2=A0 rcu_read_unlock();
+>=20
+> Well, this is ugly. I see how you want to share the global counter and
+> the memcg event which needs the notification. But I cannot say this
+> would be really easy to follow. Can we have at least a comment in
+> memcg_event_item enum definition?
+
+Yep, this is a little bit ugly.
+But this funciton is static-inline and idx always constant so resulting cod=
+e is fine.
+
+>=20
+>> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+>> index 04c9143a8625..dd30a045ef5b 100644
+>> --- a/mm/oom_kill.c
+>> +++ b/mm/oom_kill.c
+>> @@ -876,6 +876,11 @@ static void oom_kill_process(struct oom_control *oc=
+, const char *message)
+>>=C2=A0 =C2=A0=C2=A0=C2=A0 /* Get a reference to safely compare mm after t=
+ask_unlock(victim) */
+>>=C2=A0 =C2=A0=C2=A0=C2=A0 mm =3D victim->mm;
+>>=C2=A0 =C2=A0=C2=A0=C2=A0 mmgrab(mm);
+>> +
+>> +=C2=A0=C2=A0=C2=A0 /* Raise event before sending signal: reaper must se=
+e this */
+>> +=C2=A0=C2=A0=C2=A0 count_vm_event(OOM_KILL);
+>> +=C2=A0=C2=A0=C2=A0 mem_cgroup_count_vm_event(mm, OOM_KILL);
+>> +
+>>=C2=A0 =C2=A0=C2=A0=C2=A0 /*
+>>=C2=A0 =C2=A0=C2=A0=C2=A0 * We should send SIGKILL before setting TIF_MEM=
+DIE in order to prevent
+>>=C2=A0 =C2=A0=C2=A0=C2=A0 * the OOM victim from depleting the memory rese=
+rves from the user
+>=20
+> Why don't you count tasks which share mm with the oom victim?
+
+Yes, this makes sense. But these kills are not logged thus counter will dif=
+fers from logged events.
+Also these tasks might live in different cgroups, so counting to mm owner i=
+sn't correct.
+
+
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 0e2c925e7826..9a95947a60ba 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -924,6 +924,8 @@ static void oom_kill_process(struct oom_control *oc, =
+const char *message)
+>=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 */
+>=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 if (unlikely(p->flags & PF_KT=
+HREAD))
+>=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 continue;
+> +=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 count_vm_event(OOM_KILL);
+> +=C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 count_memcg_event_mm(mm, OOM_KILL)=
+;
+>=C2=A0 =C2=A0=C2=A0=C2=A0 =C2=A0=C2=A0=C2=A0 do_send_sig_info(SIGKILL, SEN=
+D_SIG_FORCED, p, true);
+>=C2=A0 =C2=A0=C2=A0=C2=A0 }
+>=C2=A0 =C2=A0=C2=A0=C2=A0 rcu_read_unlock();
+>=20
+> Other than that looks good to me.
+> Acked-by: Michal Hocko <mhocko@suse.com>
+>=20
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.=C2=A0 For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+
+
+------=_Part_911395_232869749.1505278286671
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns=3D"http://www.w3.org/1999/xhtml" xmlns:v=3D"urn:schemas-microso=
+ft-com:vml" xmlns:o=3D"urn:schemas-microsoft-com:office:office"><head><!--[=
+if gte mso 9]><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>=
+96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]--></head><bo=
+dy><div style=3D"font-family:courier new, courier, monaco, monospace, sans-=
+serif;font-size:16px;"><br><br>Hi,<br><br>I have submitted a similar patch =
+2 years ago (Oct/2015).<br>But at that time the patch was rejected.<br>Here=
+ is the history:<br>https://lkml.org/lkml/2015/10/1/372<br><br>Now I see th=
+e similar patch got accepted. At least the initial idea and the objective w=
+ere same.&nbsp;<br>Even I were not included here.<br> <div>On one side I fe=
+el happy that my initial idea got accepted now.</div><div>But on the other =
+side it really hurts :(</div><div><br></div><div><br></div><div>Thanks,</di=
+v><div>Pintu</div><div><br></div> <br> On Monday 5 June 2017, 7:57:57 PM IS=
+T, Konstantin Khlebnikov &lt;khlebnikov@yandex-team.ru&gt; wrote: <br><br><=
+br>On 05.06.2017 11:50, Michal Hocko wrote:<br>&gt; On Thu 25-05-17 13:28:3=
+0, Konstantin Khlebnikov wrote:<br>&gt;&gt; Show count of oom killer invoca=
+tions in /proc/vmstat and count of<br>&gt;&gt; processes killed in memory c=
+group in knob "memory.events"<br>&gt;&gt; (in memory.oom_control for v1 cgr=
+oup).<br>&gt;&gt;<br>&gt;&gt; Also describe difference between "oom" and "o=
+om_kill" in memory<br>&gt;&gt; cgroup documentation. Currently oom in memor=
+y cgroup kills tasks<br>&gt;&gt; iff shortage has happened inside page faul=
+t.<br>&gt;&gt;<br>&gt;&gt; These counters helps in monitoring oom kills - f=
+or now<br>&gt;&gt; the only way is grepping for magic words in kernel log.<=
+br>&gt; <br>&gt; Yes this is less than optimal and the counter sounds like =
+a good step<br>&gt; forward. I have 2 comments to the patch though.<br>&gt;=
+ <br>&gt; [...]<br>&gt; <br>&gt;&gt; diff --git a/include/linux/memcontrol.=
+h b/include/linux/memcontrol.h<br>&gt;&gt; index 899949bbb2f9..42296f7001da=
+ 100644<br>&gt;&gt; --- a/include/linux/memcontrol.h<br>&gt;&gt; +++ b/incl=
+ude/linux/memcontrol.h<br>&gt;&gt; @@ -556,8 +556,11 @@ static inline void =
+mem_cgroup_count_vm_event(struct mm_struct *mm,<br>&gt;&gt;&nbsp; <br>&gt;&=
+gt;&nbsp; &nbsp;&nbsp;&nbsp; rcu_read_lock();<br>&gt;&gt;&nbsp; &nbsp;&nbsp=
+;&nbsp; memcg =3D mem_cgroup_from_task(rcu_dereference(mm-&gt;owner));<br>&=
+gt;&gt; -&nbsp;&nbsp;&nbsp; if (likely(memcg))<br>&gt;&gt; +&nbsp;&nbsp;&nb=
+sp; if (likely(memcg)) {<br>&gt;&gt;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&=
+nbsp; this_cpu_inc(memcg-&gt;stat-&gt;events[idx]);<br>&gt;&gt; +&nbsp;&nbs=
+p;&nbsp; &nbsp;&nbsp;&nbsp; if (idx =3D=3D OOM_KILL)<br>&gt;&gt; +&nbsp;&nb=
+sp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; cgroup_file_notify(&amp;mem=
+cg-&gt;events_file);<br>&gt;&gt; +&nbsp;&nbsp;&nbsp; }<br>&gt;&gt;&nbsp; &n=
+bsp;&nbsp;&nbsp; rcu_read_unlock();<br>&gt; <br>&gt; Well, this is ugly. I =
+see how you want to share the global counter and<br>&gt; the memcg event wh=
+ich needs the notification. But I cannot say this<br>&gt; would be really e=
+asy to follow. Can we have at least a comment in<br>&gt; memcg_event_item e=
+num definition?<br><br>Yep, this is a little bit ugly.<br>But this funciton=
+ is static-inline and idx always constant so resulting code is fine.<br><br=
+>&gt; <br>&gt;&gt; diff --git a/mm/oom_kill.c b/mm/oom_kill.c<br>&gt;&gt; i=
+ndex 04c9143a8625..dd30a045ef5b 100644<br>&gt;&gt; --- a/mm/oom_kill.c<br>&=
+gt;&gt; +++ b/mm/oom_kill.c<br>&gt;&gt; @@ -876,6 +876,11 @@ static void oo=
+m_kill_process(struct oom_control *oc, const char *message)<br>&gt;&gt;&nbs=
+p; &nbsp;&nbsp;&nbsp; /* Get a reference to safely compare mm after task_un=
+lock(victim) */<br>&gt;&gt;&nbsp; &nbsp;&nbsp;&nbsp; mm =3D victim-&gt;mm;<=
+br>&gt;&gt;&nbsp; &nbsp;&nbsp;&nbsp; mmgrab(mm);<br>&gt;&gt; +<br>&gt;&gt; =
++&nbsp;&nbsp;&nbsp; /* Raise event before sending signal: reaper must see t=
+his */<br>&gt;&gt; +&nbsp;&nbsp;&nbsp; count_vm_event(OOM_KILL);<br>&gt;&gt=
+; +&nbsp;&nbsp;&nbsp; mem_cgroup_count_vm_event(mm, OOM_KILL);<br>&gt;&gt; =
++<br>&gt;&gt;&nbsp; &nbsp;&nbsp;&nbsp; /*<br>&gt;&gt;&nbsp; &nbsp;&nbsp;&nb=
+sp; * We should send SIGKILL before setting TIF_MEMDIE in order to prevent<=
+br>&gt;&gt;&nbsp; &nbsp;&nbsp;&nbsp; * the OOM victim from depleting the me=
+mory reserves from the user<br>&gt; <br>&gt; Why don't you count tasks whic=
+h share mm with the oom victim?<br><br>Yes, this makes sense. But these kil=
+ls are not logged thus counter will differs from logged events.<br>Also the=
+se tasks might live in different cgroups, so counting to mm owner isn't cor=
+rect.<br><br><br>&gt; diff --git a/mm/oom_kill.c b/mm/oom_kill.c<br>&gt; in=
+dex 0e2c925e7826..9a95947a60ba 100644<br>&gt; --- a/mm/oom_kill.c<br>&gt; +=
+++ b/mm/oom_kill.c<br>&gt; @@ -924,6 +924,8 @@ static void oom_kill_process=
+(struct oom_control *oc, const char *message)<br>&gt;&nbsp; &nbsp;&nbsp;&nb=
+sp; &nbsp;&nbsp;&nbsp; */<br>&gt;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbs=
+p; if (unlikely(p-&gt;flags &amp; PF_KTHREAD))<br>&gt;&nbsp; &nbsp;&nbsp;&n=
+bsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; continue;<br>&gt; +&nbsp;&nbsp;&=
+nbsp; &nbsp;&nbsp;&nbsp; count_vm_event(OOM_KILL);<br>&gt; +&nbsp;&nbsp;&nb=
+sp; &nbsp;&nbsp;&nbsp; count_memcg_event_mm(mm, OOM_KILL);<br>&gt;&nbsp; &n=
+bsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; do_send_sig_info(SIGKILL, SEND_SIG_FORC=
+ED, p, true);<br>&gt;&nbsp; &nbsp;&nbsp;&nbsp; }<br>&gt;&nbsp; &nbsp;&nbsp;=
+&nbsp; rcu_read_unlock();<br>&gt; <br>&gt; Other than that looks good to me=
+.<br>&gt; Acked-by: Michal Hocko &lt;mhocko@suse.com&gt;<br>&gt; <br><br>--=
+<br>To unsubscribe, send a message with 'unsubscribe linux-mm' in<br>the bo=
+dy to majordomo@kvack.org.&nbsp; For more info on Linux MM,<br>see: http://=
+www.linux-mm.org/ .<br>Don't email: &lt;a href=3Dmailto:"dont@kvack.org"&gt=
+; email@kvack.org &lt;/a&gt;<br><br></div></body></html>
+------=_Part_911395_232869749.1505278286671--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
