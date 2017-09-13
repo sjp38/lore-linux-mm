@@ -1,101 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A6486B0038
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 02:07:56 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b68so12452051wme.4
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 23:07:56 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p72si474619wme.267.2017.09.12.23.07.55
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 287BB6B0038
+	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 03:35:26 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id q132so10609866lfe.1
+        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 00:35:26 -0700 (PDT)
+Received: from forwardcorp1g.cmail.yandex.net (forwardcorp1g.cmail.yandex.net. [2a02:6b8:0:1465::fd])
+        by mx.google.com with ESMTPS id v9si5575507lja.157.2017.09.13.00.35.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Sep 2017 23:07:55 -0700 (PDT)
-Date: Wed, 13 Sep 2017 08:07:52 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] swapon: fix vfree() badness
-Message-ID: <20170913060752.6jfmvs7ruipzb6gs@dhcp22.suse.cz>
-References: <20170905014051.11112-1-david@fromorbit.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Sep 2017 00:35:23 -0700 (PDT)
+Subject: Re: [PATCH v2] mm/oom_kill: count global and memory cgroup oom kills
+References: <149570810989.203600.9492483715840752937.stgit@buzz>
+ <20170605085011.GJ9248@dhcp22.suse.cz>
+ <80c9060f-bf80-51fb-39c0-b36f273c0c9c@yandex-team.ru>
+ <1969140653.911396.1505278286673@mail.yahoo.com>
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Message-ID: <b132f9d1-8898-5301-b7e5-1b3d622e4993@yandex-team.ru>
+Date: Wed, 13 Sep 2017 10:35:22 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170905014051.11112-1-david@fromorbit.com>
+In-Reply-To: <1969140653.911396.1505278286673@mail.yahoo.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: ru-RU
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: PINTU KUMAR <pintu_agarwal@yahoo.com>, Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Roman Guschin <guroan@gmail.com>, David Rientjes <rientjes@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On Tue 05-09-17 11:40:51, Dave Chinner wrote:
-> From: Dave Chinner <dchinner@redhat.com>
+On 13.09.2017 07:51, PINTU KUMAR wrote:
 > 
-> The cluster_info structure is allocated with kvzalloc(), which can
-> return kmalloc'd or vmalloc'd memory. It must be paired with
-> kvfree(), but sys_swapon uses vfree(), resultin in this warning
-> from xfstests generic/357:
 > 
-> [ 1985.294915] swapon: swapfile has holes
-> [ 1985.296012] Trying to vfree() bad address (ffff88011569ac00)
-> [ 1985.297769] ------------[ cut here ]------------
-> [ 1985.299017] WARNING: CPU: 4 PID: 980 at mm/vmalloc.c:1521 __vunmap+0x97/0xb0
-> [ 1985.300868] CPU: 4 PID: 980 Comm: swapon Tainted: G        W       4.13.0-dgc #55
-> [ 1985.303086] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1 04/01/2014
-> [ 1985.305421] task: ffff88083599c800 task.stack: ffffc90006d68000
-> [ 1985.306896] RIP: 0010:__vunmap+0x97/0xb0
-> [ 1985.307866] RSP: 0018:ffffc90006d6be68 EFLAGS: 00010296
-> [ 1985.309300] RAX: 0000000000000030 RBX: ffff88011569ac00 RCX: 0000000000000000
-> [ 1985.311066] RDX: ffff88013fc949d8 RSI: ffff88013fc8cb98 RDI: ffff88013fc8cb98
-> [ 1985.312803] RBP: ffffc90006d6be80 R08: 000000000004844c R09: 0000000000001578
-> [ 1985.314672] R10: ffffffff82271b20 R11: ffffffff8256e16d R12: 000000000000000a
-> [ 1985.316444] R13: 0000000000000001 R14: 00000000ffffffea R15: ffff880139a96000
-> [ 1985.318230] FS:  00007fb23ac0e880(0000) GS:ffff88013fc80000(0000) knlGS:0000000000000000
-> [ 1985.320081] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [ 1985.321503] CR2: 0000564cdb0c7000 CR3: 0000000137448000 CR4: 00000000000406e0
-> [ 1985.323140] Call Trace:
-> [ 1985.323727]  vfree+0x2e/0x70
-> [ 1985.324403]  SyS_swapon+0x433/0x1080
-> [ 1985.325365]  entry_SYSCALL_64_fastpath+0x1a/0xa5
+> Hi,
 > 
-> Fix this as well as the memory leak caused by a missing kvfree(frontswap_map) in
-> the error handling code.
+> I have submitted a similar patch 2 years ago (Oct/2015).
+> But at that time the patch was rejected.
+> Here is the history:
+> https://lkml.org/lkml/2015/10/1/372
+> 
+> Now I see the similar patch got accepted. At least the initial idea and the objective were same.
+> Even I were not included here.
+> On one side I feel happy that my initial idea got accepted now.
+> But on the other side it really hurts :(
+> 
 
-Yes the patch is correct. Darrick has posted a similar fix
-http://lkml.kernel.org/r/20170831233515.GR3775@magnolia and it is
-sitting in the Andrew's tree already (with the follow up from David to
-address frontswap_map)
-
-Thanks!
+If this makes you feel better: mine version also fixes uncertainty in memory cgroup statistics.
 
 > 
-> cc: <stable@vger.kernel.org>
-> Signed-Off-By: Dave Chinner <dchinner@redhat.com>
-> ---
->  mm/swapfile.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
+> Thanks,
+> Pintu
 > 
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 6ba4aab2db0b..a8952b6563c6 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -3052,7 +3052,8 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
->  	p->flags = 0;
->  	spin_unlock(&swap_lock);
->  	vfree(swap_map);
-> -	vfree(cluster_info);
-> +	kvfree(cluster_info);
-> +	kvfree(frontswap_map);
->  	if (swap_file) {
->  		if (inode && S_ISREG(inode->i_mode)) {
->  			inode_unlock(inode);
-> -- 
-> 2.13.3
+> 
+> On Monday 5 June 2017, 7:57:57 PM IST, Konstantin Khlebnikov <khlebnikov@yandex-team.ru> wrote:
+> 
+> 
+> On 05.06.2017 11:50, Michal Hocko wrote:
+>  > On Thu 25-05-17 13:28:30, Konstantin Khlebnikov wrote:
+>  >> Show count of oom killer invocations in /proc/vmstat and count of
+>  >> processes killed in memory cgroup in knob "memory.events"
+>  >> (in memory.oom_control for v1 cgroup).
+>  >>
+>  >> Also describe difference between "oom" and "oom_kill" in memory
+>  >> cgroup documentation. Currently oom in memory cgroup kills tasks
+>  >> iff shortage has happened inside page fault.
+>  >>
+>  >> These counters helps in monitoring oom kills - for now
+>  >> the only way is grepping for magic words in kernel log.
+>  >
+>  > Yes this is less than optimal and the counter sounds like a good step
+>  > forward. I have 2 comments to the patch though.
+>  >
+>  > [...]
+>  >
+>  >> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+>  >> index 899949bbb2f9..42296f7001da 100644
+>  >> --- a/include/linux/memcontrol.h
+>  >> +++ b/include/linux/memcontrol.h
+>  >> @@ -556,8 +556,11 @@ static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
+>  >>
+>  >>      rcu_read_lock();
+>  >>      memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
+>  >> -    if (likely(memcg))
+>  >> +    if (likely(memcg)) {
+>  >>          this_cpu_inc(memcg->stat->events[idx]);
+>  >> +        if (idx == OOM_KILL)
+>  >> +            cgroup_file_notify(&memcg->events_file);
+>  >> +    }
+>  >>      rcu_read_unlock();
+>  >
+>  > Well, this is ugly. I see how you want to share the global counter and
+>  > the memcg event which needs the notification. But I cannot say this
+>  > would be really easy to follow. Can we have at least a comment in
+>  > memcg_event_item enum definition?
+> 
+> Yep, this is a little bit ugly.
+> But this funciton is static-inline and idx always constant so resulting code is fine.
+> 
+>  >
+>  >> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+>  >> index 04c9143a8625..dd30a045ef5b 100644
+>  >> --- a/mm/oom_kill.c
+>  >> +++ b/mm/oom_kill.c
+>  >> @@ -876,6 +876,11 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+>  >>      /* Get a reference to safely compare mm after task_unlock(victim) */
+>  >>      mm = victim->mm;
+>  >>      mmgrab(mm);
+>  >> +
+>  >> +    /* Raise event before sending signal: reaper must see this */
+>  >> +    count_vm_event(OOM_KILL);
+>  >> +    mem_cgroup_count_vm_event(mm, OOM_KILL);
+>  >> +
+>  >>      /*
+>  >>      * We should send SIGKILL before setting TIF_MEMDIE in order to prevent
+>  >>      * the OOM victim from depleting the memory reserves from the user
+>  >
+>  > Why don't you count tasks which share mm with the oom victim?
+> 
+> Yes, this makes sense. But these kills are not logged thus counter will differs from logged events.
+> Also these tasks might live in different cgroups, so counting to mm owner isn't correct.
+> 
+> 
+>  > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+>  > index 0e2c925e7826..9a95947a60ba 100644
+>  > --- a/mm/oom_kill.c
+>  > +++ b/mm/oom_kill.c
+>  > @@ -924,6 +924,8 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+>  >          */
+>  >          if (unlikely(p->flags & PF_KTHREAD))
+>  >              continue;
+>  > +        count_vm_event(OOM_KILL);
+>  > +        count_memcg_event_mm(mm, OOM_KILL);
+>  >          do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
+>  >      }
+>  >      rcu_read_unlock();
+>  >
+>  > Other than that looks good to me.
+>  > Acked-by: Michal Hocko <mhocko@suse.com>
+>  >
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux-mm.org/ .
 > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
