@@ -1,128 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F41D6B0038
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 04:32:43 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 187so79594wmn.2
-        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 01:32:43 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 45DA26B0038
+	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 05:00:35 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id f84so9146938pfj.0
+        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 02:00:35 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b123sor216763wme.50.2017.09.13.01.32.41
+        by mx.google.com with SMTPS id y5sor7615965pll.146.2017.09.13.02.00.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 13 Sep 2017 01:32:42 -0700 (PDT)
-Date: Wed, 13 Sep 2017 10:32:34 +0200
-From: Alexandru Moise <00moses.alexander00@gmail.com>
-Subject: Re: [PATCH] mm, hugetlb, soft_offline: save compound page order
- before page migration
-Message-ID: <20170913083233.GA7659@gmail.com>
-References: <20170912204306.GA12053@gmail.com>
- <20170913001308.GA13642@hori1.linux.bs1.fc.nec.co.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170913001308.GA13642@hori1.linux.bs1.fc.nec.co.jp>
+        Wed, 13 Sep 2017 02:00:33 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] mm, memcg: remove hotplug locking from try_charge
+Date: Wed, 13 Sep 2017 11:00:23 +0200
+Message-Id: <20170913090023.28322-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@suse.com" <mhocko@suse.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "minchan@kernel.org" <minchan@kernel.org>, "hillf.zj@alibaba-inc.com" <hillf.zj@alibaba-inc.com>, "shli@fb.com" <shli@fb.com>, "rppt@linux.vnet.ibm.com" <rppt@linux.vnet.ibm.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "rientjes@google.com" <rientjes@google.com>, "riel@redhat.com" <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Artem Savkov <asavkov@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Wed, Sep 13, 2017 at 12:13:09AM +0000, Naoya Horiguchi wrote:
-> Hi Alexandru,
-> 
-> On Tue, Sep 12, 2017 at 10:43:06PM +0200, Alexandru Moise wrote:
-> > This fixes a bug in madvise() where if you'd try to soft offline a
-> > hugepage via madvise(), while walking the address range you'd end up,
-> > using the wrong page offset due to attempting to get the compound
-> > order of a former but presently not compound page, due to dissolving
-> > the huge page (since c3114a8).
-> > 
-> > Signed-off-by: Alexandru Moise <00moses.alexander00@gmail.com>
-> 
-> There was a similar discussion in https://marc.info/?l=linux-kernel&m=150354919510631&w=2
-> over thp. As I stated there, if we give multi-page range into the parameters
-> [start, end), we expect that memory errors are injected to every single page
-> within the range. 
+From: Michal Hocko <mhocko@suse.com>
 
-At the moment we'll end up offlining the i'th subpage of the newly migrated page with
-each itteration. That's why I end up without free pages in hugetlbfs.
+The following lockdep splat has been noticed during LTP testing
 
-With this patch we migrate the hugepage, offline 1 subpage and dissolve the rest,
-which is closer to how mcelog should behave, mcelog will usually try to offline random
-spots within a hugepage, not offline a whole hugepage at once, which doesn't make
-sense as you usually just get 1-2 stuck bits on your DIMM. The whole point of soft
-offlining is as a preventive measure against large number of correctable memory
-errors on a particular page.
+[21002.630252] ======================================================
+[21002.637148] WARNING: possible circular locking dependency detected
+[21002.644045] 4.13.0-rc3-next-20170807 #12 Not tainted
+[21002.649583] ------------------------------------------------------
+[21002.656492] a.out/4771 is trying to acquire lock:
+[21002.661742]  (cpu_hotplug_lock.rw_sem){++++++}, at: [<ffffffff812b4668>] drain_all_stock.part.35+0x18/0x140
+[21002.672629]
+[21002.672629] but task is already holding lock:
+[21002.679137]  (&mm->mmap_sem){++++++}, at: [<ffffffff8106eb35>] __do_page_fault+0x175/0x530
+[21002.688371]
+[21002.688371] which lock already depends on the new lock.
+[21002.688371]
+[21002.697505]
+[21002.697505] the existing dependency chain (in reverse order) is:
+[21002.705856]
+[21002.705856] -> #3 (&mm->mmap_sem){++++++}:
+[21002.712080]        lock_acquire+0xc9/0x230
+[21002.716661]        __might_fault+0x70/0xa0
+[21002.721241]        _copy_to_user+0x23/0x70
+[21002.725814]        filldir+0xa7/0x110
+[21002.729988]        xfs_dir2_sf_getdents.isra.10+0x20c/0x2c0 [xfs]
+[21002.736840]        xfs_readdir+0x1fa/0x2c0 [xfs]
+[21002.742042]        xfs_file_readdir+0x30/0x40 [xfs]
+[21002.747485]        iterate_dir+0x17a/0x1a0
+[21002.752057]        SyS_getdents+0xb0/0x160
+[21002.756638]        entry_SYSCALL_64_fastpath+0x1f/0xbe
+[21002.762371]
+[21002.762371] -> #2 (&type->i_mutex_dir_key#3){++++++}:
+[21002.769661]        lock_acquire+0xc9/0x230
+[21002.774239]        down_read+0x51/0xb0
+[21002.778429]        lookup_slow+0xde/0x210
+[21002.782903]        walk_component+0x160/0x250
+[21002.787765]        link_path_walk+0x1a6/0x610
+[21002.792625]        path_openat+0xe4/0xd50
+[21002.797100]        do_filp_open+0x91/0x100
+[21002.801673]        file_open_name+0xf5/0x130
+[21002.806429]        filp_open+0x33/0x50
+[21002.810620]        kernel_read_file_from_path+0x39/0x80
+[21002.816459]        _request_firmware+0x39f/0x880
+[21002.821610]        request_firmware_direct+0x37/0x50
+[21002.827151]        request_microcode_fw+0x64/0xe0
+[21002.832401]        reload_store+0xf7/0x180
+[21002.836974]        dev_attr_store+0x18/0x30
+[21002.841641]        sysfs_kf_write+0x44/0x60
+[21002.846318]        kernfs_fop_write+0x113/0x1a0
+[21002.851374]        __vfs_write+0x37/0x170
+[21002.855849]        vfs_write+0xc7/0x1c0
+[21002.860128]        SyS_write+0x58/0xc0
+[21002.864313]        do_syscall_64+0x6c/0x1f0
+[21002.868973]        return_from_SYSCALL_64+0x0/0x7a
+[21002.874317]
+[21002.874317] -> #1 (microcode_mutex){+.+.+.}:
+[21002.880748]        lock_acquire+0xc9/0x230
+[21002.885322]        __mutex_lock+0x88/0x960
+[21002.889894]        mutex_lock_nested+0x1b/0x20
+[21002.894854]        microcode_init+0xbb/0x208
+[21002.899617]        do_one_initcall+0x51/0x1a9
+[21002.904481]        kernel_init_freeable+0x208/0x2a7
+[21002.909922]        kernel_init+0xe/0x104
+[21002.914298]        ret_from_fork+0x2a/0x40
+[21002.918867]
+[21002.918867] -> #0 (cpu_hotplug_lock.rw_sem){++++++}:
+[21002.926058]        __lock_acquire+0x153c/0x1550
+[21002.931112]        lock_acquire+0xc9/0x230
+[21002.935688]        cpus_read_lock+0x4b/0x90
+[21002.940353]        drain_all_stock.part.35+0x18/0x140
+[21002.945987]        try_charge+0x3ab/0x6e0
+[21002.950460]        mem_cgroup_try_charge+0x7f/0x2c0
+[21002.955902]        shmem_getpage_gfp+0x25f/0x1050
+[21002.961149]        shmem_fault+0x96/0x200
+[21002.965621]        __do_fault+0x1e/0xa0
+[21002.969905]        __handle_mm_fault+0x9c3/0xe00
+[21002.975056]        handle_mm_fault+0x16e/0x380
+[21002.980013]        __do_page_fault+0x24a/0x530
+[21002.984968]        do_page_fault+0x30/0x80
+[21002.989537]        page_fault+0x28/0x30
+[21002.993812]
+[21002.993812] other info that might help us debug this:
+[21002.993812]
+[21003.002744] Chain exists of:
+[21003.002744]   cpu_hotplug_lock.rw_sem --> &type->i_mutex_dir_key#3 --> &mm->mmap_sem
+[21003.002744]
+[21003.016238]  Possible unsafe locking scenario:
+[21003.016238]
+[21003.022843]        CPU0                    CPU1
+[21003.027896]        ----                    ----
+[21003.032948]   lock(&mm->mmap_sem);
+[21003.036741]                                lock(&type->i_mutex_dir_key#3);
+[21003.044419]                                lock(&mm->mmap_sem);
+[21003.051025]   lock(cpu_hotplug_lock.rw_sem);
+[21003.055788]
+[21003.055788]  *** DEADLOCK ***
+[21003.055788]
+[21003.062393] 2 locks held by a.out/4771:
+[21003.066675]  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff8106eb35>] __do_page_fault+0x175/0x530
+[21003.076391]  #1:  (percpu_charge_mutex){+.+...}, at: [<ffffffff812b4c97>] try_charge+0x397/0x6e0
 
-I agree that if we give a range we should expect all the subpages to be offlined
-although I don't know what value that would add.
+The problem is very similar to the one fixed by a459eeb7b852 ("mm,
+page_alloc: do not depend on cpu hotplug locks inside the allocator").
+We are taking hotplug locks while we can be sitting on top of basically
+arbitrary locks. This just calls for problems.
 
-> 
-> So I start to feel that we should revert the following patch which introduced
-> the multi-page stepping.
-> 
->    commit 20cb6cab52a21b46e3c0dc7bd23f004f810fb421
->    Author: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->    Date:   Mon Sep 30 13:45:21 2013 -0700
->    
->        mm/hwpoison: fix traversal of hugetlbfs pages to avoid printk flood
-> 
-> In order to suppress the printk flood, we can use ratelimit mechanism, or
-> just s/pr_info/pr_debug/ might be ok.
+We can get rid of {get,put}_online_cpus, fortunately. We do not have to
+be worried about races with memory hotplug because drain_local_stock,
+which is called from both the WQ draining and the memory hotplug
+contexts, is always operating on the local cpu stock with IRQs disabled.
 
-I'd rather keep the printouts, it's not really that much of a hot path, if
-they went on forever sure, but if you manually offline 512 pages you should expect
-512 printouts. It's nice to see exactly which PFNs get offlined as well.
+The only thing to be careful about is that the target memcg doesn't
+vanish while we are still in drain_all_stock so take a reference on
+it.
 
-../Alex
+Reported-and-tested-by: Artem Savkov <asavkov@redhat.com>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+Hi,
+this has been reported [1] and the first fix posted [2]. I am reposting
+it with the comment updated based on the review feedback from Thomas.
+The issue is there for quite some time but I didn't get to check when
+it has been introduced. Nor I have marked it for stable tree backport
+because I am not sure it is serious enough. I will help with backporting
+if there is a demand for it.
 
-> 
-> Thanks,
-> Naoya Horiguchi
-> 
-> > ---
-> >  mm/madvise.c | 12 ++++++++++--
-> >  1 file changed, 10 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/mm/madvise.c b/mm/madvise.c
-> > index 21261ff0466f..25bade36e9ca 100644
-> > --- a/mm/madvise.c
-> > +++ b/mm/madvise.c
-> > @@ -625,18 +625,26 @@ static int madvise_inject_error(int behavior,
-> >  {
-> >  	struct page *page;
-> >  	struct zone *zone;
-> > +	unsigned int order;
-> >  
-> >  	if (!capable(CAP_SYS_ADMIN))
-> >  		return -EPERM;
-> >  
-> > -	for (; start < end; start += PAGE_SIZE <<
-> > -				compound_order(compound_head(page))) {
-> > +
-> > +	for (; start < end; start += PAGE_SIZE << order) {
-> >  		int ret;
-> >  
-> >  		ret = get_user_pages_fast(start, 1, 0, &page);
-> >  		if (ret != 1)
-> >  			return ret;
-> >  
-> > +		/*
-> > +		 * When soft offlining hugepages, after migrating the page
-> > +		 * we dissolve it, therefore in the second loop "page" will
-> > +		 * no longer be a compound page, and order will be 0.
-> > +		 */
-> > +		order = compound_order(compound_head(page));
-> > +
-> >  		if (PageHWPoison(page)) {
-> >  			put_page(page);
-> >  			continue;
-> > -- 
-> > 2.14.1
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Can we have this merged?
+
+[1] http://lkml.kernel.org/r/20170807140947.nhfz2gel6wytl6ia@shodan.usersys.redhat.com
+[2] http://lkml.kernel.org/r/20170830154315.sa57wasw64rvnuhe@dhcp22.suse.cz
+
+ mm/memcontrol.c | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 15af3da5af02..696c6529e900 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1777,6 +1777,10 @@ static void drain_local_stock(struct work_struct *dummy)
+ 	struct memcg_stock_pcp *stock;
+ 	unsigned long flags;
+ 
++	/*
++	 * The only protection from memory hotplug vs. drain_stock races is
++	 * that we always operate on local CPU stock here with IRQ disabled
++	 */
+ 	local_irq_save(flags);
+ 
+ 	stock = this_cpu_ptr(&memcg_stock);
+@@ -1821,27 +1825,33 @@ static void drain_all_stock(struct mem_cgroup *root_memcg)
+ 	/* If someone's already draining, avoid adding running more workers. */
+ 	if (!mutex_trylock(&percpu_charge_mutex))
+ 		return;
+-	/* Notify other cpus that system-wide "drain" is running */
+-	get_online_cpus();
++	/*
++	 * Notify other cpus that system-wide "drain" is running
++	 * We do not care about races with the cpu hotplug because cpu down
++	 * as well as workers from this path always operate on the local
++	 * per-cpu data. CPU up doesn't touch memcg_stock at all.
++	 */
+ 	curcpu = get_cpu();
+ 	for_each_online_cpu(cpu) {
+ 		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
+ 		struct mem_cgroup *memcg;
+ 
+ 		memcg = stock->cached;
+-		if (!memcg || !stock->nr_pages)
++		if (!memcg || !stock->nr_pages || !css_tryget(&memcg->css))
+ 			continue;
+-		if (!mem_cgroup_is_descendant(memcg, root_memcg))
++		if (!mem_cgroup_is_descendant(memcg, root_memcg)) {
++			css_put(&memcg->css);
+ 			continue;
++		}
+ 		if (!test_and_set_bit(FLUSHING_CACHED_CHARGE, &stock->flags)) {
+ 			if (cpu == curcpu)
+ 				drain_local_stock(&stock->work);
+ 			else
+ 				schedule_work_on(cpu, &stock->work);
+ 		}
++		css_put(&memcg->css);
+ 	}
+ 	put_cpu();
+-	put_online_cpus();
+ 	mutex_unlock(&percpu_charge_mutex);
+ }
+ 
+-- 
+2.14.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
