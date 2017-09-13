@@ -1,54 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E88506B0033
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 10:14:54 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id g15so415804oib.2
-        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 07:14:54 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id r64si8922944oib.355.2017.09.13.07.14.52
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 747C66B0038
+	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 10:29:41 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id q132so297622lfe.1
+        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 07:29:41 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n190sor3085815lfb.110.2017.09.13.07.29.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Sep 2017 07:14:53 -0700 (PDT)
-Subject: Re: [PATCH] mm: respect the __GFP_NOWARN flag when warning about stalls
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170911082650.dqfirwc63xy7i33q@dhcp22.suse.cz>
-	<alpine.LRH.2.02.1709111926480.31898@file01.intranet.prod.int.rdu2.redhat.com>
-	<20170913115442.4tpbiwu77y7lrz6g@dhcp22.suse.cz>
-	<201709132254.DEE34807.LQOtMFOFJSOVHF@I-love.SAKURA.ne.jp>
-	<bcd7002d-d352-1f24-e15b-49642f978267@suse.cz>
-In-Reply-To: <bcd7002d-d352-1f24-e15b-49642f978267@suse.cz>
-Message-Id: <201709132314.BID39077.HMFOJSLFtVOFOQ@I-love.SAKURA.ne.jp>
-Date: Wed, 13 Sep 2017 23:14:43 +0900
+        (Google Transport Security);
+        Wed, 13 Sep 2017 07:29:39 -0700 (PDT)
+Date: Wed, 13 Sep 2017 16:29:37 +0200
+From: Vitaly Wool <vitalywool@gmail.com>
+Subject: z3fold: fix potential race in z3fold_reclaim_page
+Message-Id: <20170913162937.bfff21c7d12b12a5f47639fd@gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vbabka@suse.cz, mhocko@kernel.org, mpatocka@redhat.com
-Cc: hannes@cmpxchg.org, mgorman@suse.de, dave.hansen@intel.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Oleksiy.Avramchenko@sony.com
 
-Vlastimil Babka wrote:
-> On 09/13/2017 03:54 PM, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> >> Let's see what others think about this.
-> > 
-> > Whether __GFP_NOWARN should warn about stalls is not a topic to discuss.
-> 
-> It is the topic of this thread, which tries to address a concrete
-> problem somebody has experienced. In that context, the rest of your
-> concerns seem to me not related to this problem, IMHO.
+It is possible that on a (partially) unsuccessful page reclaim,
+kref_put() called in z3fold_reclaim_page() does not yield page
+release, but the page is released shortly afterwards by another
+thread. Then z3fold_reclaim_page() would try to list_add() that
+(released) page again which is obviously a bug.
 
-I suggested replacing warn_alloc() with safe/useful one rather than tweaking
-warn_alloc() about __GFP_NOWARN.
+To avoid that, spin_lock() has to be taken earlier, before the
+kref_put() call mentioned earlier.
 
-> 
-> > I consider warn_alloc() for reporting stalls is broken. It fails to provide
-> > backtrace of stalling location. For example, OOM lockup with oom_lock held
-> > cannot be reported by warn_alloc(). It fails to provide readable output when
-> > called concurrently. For example, concurrent calls can cause printk()/
-> > schedule_timeout_killable() lockup with oom_lock held. printk() offloading is
-> > not an option, for there will be situations where printk() offloading cannot
-> > be used (e.g. queuing via printk() is faster than writing to serial consoles
-> > which results in unreadable logs due to log_bug overflow).
+Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+---
+ mm/z3fold.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/mm/z3fold.c b/mm/z3fold.c
+index 486550df32be..b04fa3ba1bf2 100644
+--- a/mm/z3fold.c
++++ b/mm/z3fold.c
+@@ -875,16 +875,18 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+ 				goto next;
+ 		}
+ next:
++		spin_lock(&pool->lock);
+ 		if (test_bit(PAGE_HEADLESS, &page->private)) {
+ 			if (ret == 0) {
++				spin_unlock(&pool->lock);
+ 				free_z3fold_page(page);
+ 				return 0;
+ 			}
+ 		} else if (kref_put(&zhdr->refcount, release_z3fold_page)) {
+ 			atomic64_dec(&pool->pages_nr);
++			spin_unlock(&pool->lock);
+ 			return 0;
+ 		}
+-		spin_lock(&pool->lock);
+ 
+ 		/*
+ 		 * Add to the beginning of LRU.
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
