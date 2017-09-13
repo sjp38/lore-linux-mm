@@ -1,81 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E5A9C6B0038
-	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 19:34:37 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id q75so22590549pfl.1
-        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 16:34:37 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id 3si9285402plx.833.2017.09.12.16.34.35
-        for <linux-mm@kvack.org>;
-        Tue, 12 Sep 2017 16:34:36 -0700 (PDT)
-Date: Wed, 13 Sep 2017 08:34:34 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 4/5] mm:swap: respect page_cluster for readahead
-Message-ID: <20170912233434.GA3686@bbox>
-References: <1505183833-4739-4-git-send-email-minchan@kernel.org>
- <87vakopk22.fsf@yhuang-dev.intel.com>
- <20170912062524.GA1950@bbox>
- <874ls8pga3.fsf@yhuang-dev.intel.com>
- <20170912065244.GC2068@bbox>
- <87r2vcnzme.fsf@yhuang-dev.intel.com>
- <20170912075645.GA2837@bbox>
- <87mv60nxwa.fsf@yhuang-dev.intel.com>
- <20170912082253.GA2875@bbox>
- <87ingonwpg.fsf@yhuang-dev.intel.com>
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6538C6B0038
+	for <linux-mm@kvack.org>; Tue, 12 Sep 2017 20:13:59 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id r20so10265786oie.0
+        for <linux-mm@kvack.org>; Tue, 12 Sep 2017 17:13:59 -0700 (PDT)
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id a89si7894394oic.126.2017.09.12.17.13.57
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Sep 2017 17:13:58 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm, hugetlb, soft_offline: save compound page order
+ before page migration
+Date: Wed, 13 Sep 2017 00:13:09 +0000
+Message-ID: <20170913001308.GA13642@hori1.linux.bs1.fc.nec.co.jp>
+References: <20170912204306.GA12053@gmail.com>
+In-Reply-To: <20170912204306.GA12053@gmail.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <9C528A433BCBDD418B9E6A0E73956283@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87ingonwpg.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team <kernel-team@lge.com>, Ilya Dryomov <idryomov@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Alexandru Moise <00moses.alexander00@gmail.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@suse.com" <mhocko@suse.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "minchan@kernel.org" <minchan@kernel.org>, "hillf.zj@alibaba-inc.com" <hillf.zj@alibaba-inc.com>, "shli@fb.com" <shli@fb.com>, "rppt@linux.vnet.ibm.com" <rppt@linux.vnet.ibm.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "rientjes@google.com" <rientjes@google.com>, "riel@redhat.com" <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Sep 12, 2017 at 04:32:43PM +0800, Huang, Ying wrote:
-> Minchan Kim <minchan@kernel.org> writes:
-> 
-> > On Tue, Sep 12, 2017 at 04:07:01PM +0800, Huang, Ying wrote:
-> > < snip >
-> >> >> > My concern is users have been disabled swap readahead by page-cluster would
-> >> >> > be regressed. Please take care of them.
-> >> >> 
-> >> >> How about disable VMA based swap readahead if zram used as swap?  Like
-> >> >> we have done for hard disk?
-> >> >
-> >> > It could be with SWP_SYNCHRONOUS_IO flag which indicates super-fast,
-> >> > no seek cost swap devices if this patchset is merged so VM automatically
-> >> > disables readahead. It is in my TODO but it's orthogonal work.
-> >> >
-> >> > The problem I raised is "Why shouldn't we obey user's decision?",
-> >> > not zram sepcific issue.
-> >> >
-> >> > A user has used SSD as swap devices decided to disable swap readahead
-> >> > by some reason(e.g., small memory system). Anyway, it has worked
-> >> > via page-cluster for a several years but with vma-based swap devices,
-> >> > it doesn't work any more.
-> >> 
-> >> Can they add one more line to their configuration scripts?
-> >> 
-> >> echo 0 > /sys/kernel/mm/swap/vma_ra_max_order
-> >
-> > We call it as "regression", don't we?
-> 
-> I think this always happen when we switch default algorithm.  For
-> example, if we had switched default IO scheduler, then the user scripts
-> to configure the parameters of old default IO scheduler will fail.
+Hi Alexandru,
 
-I don't follow what you are saying with specific example.
-If kernel did it which breaks something on userspace which has worked well,
-it should be fixed. No doubt.
+On Tue, Sep 12, 2017 at 10:43:06PM +0200, Alexandru Moise wrote:
+> This fixes a bug in madvise() where if you'd try to soft offline a
+> hugepage via madvise(), while walking the address range you'd end up,
+> using the wrong page offset due to attempting to get the compound
+> order of a former but presently not compound page, due to dissolving
+> the huge page (since c3114a8).
+>=20
+> Signed-off-by: Alexandru Moise <00moses.alexander00@gmail.com>
 
-Even although it happened by mistakes, it couldn't be a excuse to break
-new thing, either.
+There was a similar discussion in https://marc.info/?l=3Dlinux-kernel&m=3D1=
+50354919510631&w=3D2
+over thp. As I stated there, if we give multi-page range into the parameter=
+s
+[start, end), we expect that memory errors are injected to every single pag=
+e
+within the range.=20
 
-Simple. Fix the regression. 
+So I start to feel that we should revert the following patch which introduc=
+ed
+the multi-page stepping.
 
-If you insist on "swap users should fix it by themselves via modification
-of their script or it's not a regression", I don't want to waste my time to
-persuade you any more. I will ask reverting your patches to Andrew.
+   commit 20cb6cab52a21b46e3c0dc7bd23f004f810fb421
+   Author: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+   Date:   Mon Sep 30 13:45:21 2013 -0700
+  =20
+       mm/hwpoison: fix traversal of hugetlbfs pages to avoid printk flood
+
+In order to suppress the printk flood, we can use ratelimit mechanism, or
+just s/pr_info/pr_debug/ might be ok.
+
+Thanks,
+Naoya Horiguchi
+
+> ---
+>  mm/madvise.c | 12 ++++++++++--
+>  1 file changed, 10 insertions(+), 2 deletions(-)
+>=20
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index 21261ff0466f..25bade36e9ca 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -625,18 +625,26 @@ static int madvise_inject_error(int behavior,
+>  {
+>  	struct page *page;
+>  	struct zone *zone;
+> +	unsigned int order;
+> =20
+>  	if (!capable(CAP_SYS_ADMIN))
+>  		return -EPERM;
+> =20
+> -	for (; start < end; start +=3D PAGE_SIZE <<
+> -				compound_order(compound_head(page))) {
+> +
+> +	for (; start < end; start +=3D PAGE_SIZE << order) {
+>  		int ret;
+> =20
+>  		ret =3D get_user_pages_fast(start, 1, 0, &page);
+>  		if (ret !=3D 1)
+>  			return ret;
+> =20
+> +		/*
+> +		 * When soft offlining hugepages, after migrating the page
+> +		 * we dissolve it, therefore in the second loop "page" will
+> +		 * no longer be a compound page, and order will be 0.
+> +		 */
+> +		order =3D compound_order(compound_head(page));
+> +
+>  		if (PageHWPoison(page)) {
+>  			put_page(page);
+>  			continue;
+> --=20
+> 2.14.1
+>=20
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
