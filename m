@@ -1,97 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 114786B0038
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 08:32:15 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id q75so117885pfl.1
-        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 05:32:15 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 47C3E6B0038
+	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 08:43:03 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id 97so109378wrb.1
+        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 05:43:03 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k1si2706693pld.524.2017.09.13.05.32.13
+        by mx.google.com with ESMTPS id o30si10934429wrb.197.2017.09.13.05.43.01
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Sep 2017 05:32:13 -0700 (PDT)
-Date: Wed, 13 Sep 2017 14:32:11 +0200
+        Wed, 13 Sep 2017 05:43:02 -0700 (PDT)
+Date: Wed, 13 Sep 2017 14:42:58 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm, memory_hotplug: do not fail offlining too early
-Message-ID: <20170913123211.73ogviibe74wwxnl@dhcp22.suse.cz>
-References: <20170904082148.23131-1-mhocko@kernel.org>
- <20170904082148.23131-2-mhocko@kernel.org>
- <eb5bf356-f498-b430-1ae8-4ff1ad15ad7f@suse.cz>
- <20170911081714.4zc33r7wlj2nnbho@dhcp22.suse.cz>
- <9fad7246-c634-18bb-78f9-b95376c009da@suse.cz>
- <20170913121001.k3a5tkvunmncc5uj@dhcp22.suse.cz>
- <20170913121433.yjzloaf6g447zeq2@dhcp22.suse.cz>
- <25ffda93-0c0d-28b4-bd0b-7fc9df7d678a@suse.cz>
+Subject: Re: [RFC Patch 1/1] mm/hugetlb: Clarify OOM message on size of
+ hugetlb and requested hugepages total
+Message-ID: <20170913124258.dipjsogp6vzqyjf4@dhcp22.suse.cz>
+References: <20170911154820.16203-1-Liam.Howlett@Oracle.com>
+ <20170911154820.16203-2-Liam.Howlett@Oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <25ffda93-0c0d-28b4-bd0b-7fc9df7d678a@suse.cz>
+In-Reply-To: <20170911154820.16203-2-Liam.Howlett@Oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: "Liam R. Howlett" <Liam.Howlett@Oracle.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@Oracle.com>, Andrea Arcangeli <aarcange@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, zhong jiang <zhongjiang@huawei.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
 
-On Wed 13-09-17 14:19:19, Vlastimil Babka wrote:
-> On 09/13/2017 02:14 PM, Michal Hocko wrote:
-> >>>> Do you think that the changelog should be more clear about this?
-> >>>
-> >>> It certainly wouldn't hurt :)
-> >>
-> >> So what do you think about the following wording:
-> > 
-> > Ups, wrong patch
-> > 
-> > 
-> > From 8639496a834b4a7c24972ec23b17e50f0d6a304c Mon Sep 17 00:00:00 2001
-> > From: Michal Hocko <mhocko@suse.com>
-> > Date: Mon, 14 Aug 2017 10:46:12 +0200
-> > Subject: [PATCH 1/2] mm, memory_hotplug: do not fail offlining too early
-> > 
-> > Memory offlining can fail just too eagerly under a heavy memory pressure.
-> > 
-> > [ 5410.336792] page:ffffea22a646bd00 count:255 mapcount:252 mapping:ffff88ff926c9f38 index:0x3
-> > [ 5410.336809] flags: 0x9855fe40010048(uptodate|active|mappedtodisk)
-> > [ 5410.336811] page dumped because: isolation failed
-> > [ 5410.336813] page->mem_cgroup:ffff8801cd662000
-> > [ 5420.655030] memory offlining [mem 0x18b580000000-0x18b5ffffffff] failed
-> > 
-> > Isolation has failed here because the page is not on LRU. Most probably
-> > because it was on the pcp LRU cache or it has been removed from the LRU
-> > already but it hasn't been freed yet. In both cases the page doesn't look
-> > non-migrable so retrying more makes sense.
-> > 
-> > __offline_pages seems rather cluttered when it comes to the retry
-> > logic. We have 5 retries at maximum and a timeout. We could argue
-> > whether the timeout makes sense but failing just because of a race when
-> > somebody isoltes a page from LRU or puts it on a pcp LRU lists is just
-> > wrong. It only takes it to race with a process which unmaps some pages
-> > and remove them from the LRU list and we can fail the whole offline
-> > because of something that is a temporary condition and actually not
-> > harmful for the offline.
-> > 
-> > Please note that unmovable pages should be already excluded during
-> > start_isolate_page_range. We could argue that has_unmovable_pages is
-> > racy and MIGRATE_MOVABLE check doesn't provide any hard guarantee either
-> > but kernel zones (aka < ZONE_MOVABLE) will very likely detect unmovable
-> > pages in most cases and movable zone shouldn't contain unmovable pages
-> > at all. Some of those pages might be pinned but not for ever because
-> > that would be a bug on its own. In any case the context is still
-> > interruptible and so the userspace can easily bail out when the
-> > operation takes too long. This is certainly better behavior than a
-> > hardcoded retry loop which is racy.
-> > 
-> > Fix this by removing the max retry count and only rely on the timeout
-> > resp. interruption by a signal from the userspace. Also retry rather
-> > than fail when check_pages_isolated sees some !free pages because those
-> > could be a result of the race as well.
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+On Mon 11-09-17 11:48:20, Liam R. Howlett wrote:
+> Change the output of hugetlb_show_meminfo to give the size of the
+> hugetlb in more than just Kb and add a warning message if the requested
+> hugepages is larger than the allocated hugepages.  The warning message
+> for very badly configured hugepages has been removed in favour of this
+> method.
 > 
-> Yeah, that's better, thanks.
+> The new messages look like this:
+> ----
+> Node 0 hugepages_total=1 hugepages_free=1 hugepages_surp=0
+> hugepages_size=1.00 GiB
 > 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Node 0 hugepages_total=1326 hugepages_free=1326 hugepages_surp=0
+> hugepages_size=2.00 MiB
+> 
+> hugepage_size 1.00 GiB: Requested 5 hugepages (5.00 GiB) but 1 hugepages
+> (1.00 GiB) were allocated.
+> 
+> hugepage_size 2.00 MiB: Requested 4000 hugepages (7.81 GiB) but 1326
+> hugepages (2.59 GiB) were allocated.
+> ----
+> 
+> The old messages look like this:
+> ----
+> Node 0 hugepages_total=1 hugepages_free=1 hugepages_surp=0
+> hugepages_size=1048576kB
+> 
+> Node 0 hugepages_total=1435 hugepages_free=1435 hugepages_surp=0
+> hugepages_size=2048kB
+> ----
+> 
+> Signed-off-by: Liam R. Howlett <Liam.Howlett@Oracle.com>
 
-Thanks. I will give it a day and repost the series. If somebody still
-have some concerns please speak up.
+To be honest, I really dislike this. It doesn't really add anything
+really new to the OOM report. We already know how much memory is
+unreclaimable because it is reserved for hugetlb usage. Why does the
+requested size make any difference? We could fail to allocate requested
+number of pages because of memory pressure or fragmentation without any
+sign of misconfiguration.
+
+Also req_max_huge_pages would have to be per NUMA node othwerise you are
+just losing information when allocation hugetlb pages via sysfs per node
+interface.
+
+> ---
+>  include/linux/hugetlb.h |  1 +
+>  mm/hugetlb.c            | 35 +++++++++++++++++++++++++++++++----
+>  2 files changed, 32 insertions(+), 4 deletions(-)
+> 
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index b857fc8cc2ec..9f188d621ae0 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -313,6 +313,7 @@ struct hstate {
+>  	unsigned int order;
+>  	unsigned long mask;
+>  	unsigned long max_huge_pages;
+> +	unsigned long req_max_huge_pages;
+>  	unsigned long nr_huge_pages;
+>  	unsigned long free_huge_pages;
+>  	unsigned long resv_huge_pages;
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 3eedb187e549..83c06ce89bfd 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1461,6 +1461,7 @@ static int dissolve_free_huge_page(struct page *page)
+>  		h->free_huge_pages--;
+>  		h->free_huge_pages_node[nid]--;
+>  		h->max_huge_pages--;
+> +		h->req_max_huge_pages--;
+>  		update_and_free_page(h, head);
+>  	}
+>  out:
+> @@ -2430,6 +2431,7 @@ static ssize_t __nr_hugepages_store_common(bool obey_mempolicy,
+>  		goto out;
+>  	}
+>  
+> +	h->req_max_huge_pages = count;
+>  	if (nid == NUMA_NO_NODE) {
+>  		/*
+>  		 * global hstate attribute
+> @@ -3026,14 +3028,39 @@ void hugetlb_show_meminfo(void)
+>  	if (!hugepages_supported())
+>  		return;
+>  
+> -	for_each_node_state(nid, N_MEMORY)
+> -		for_each_hstate(h)
+> -			pr_info("Node %d hugepages_total=%u hugepages_free=%u hugepages_surp=%u hugepages_size=%lukB\n",
+> +	for_each_node_state(nid, N_MEMORY) {
+> +		for_each_hstate(h) {
+> +			char hp_size[32];
+> +
+> +			string_get_size(huge_page_size(h), 1, STRING_UNITS_2,
+> +					hp_size, 32);
+> +			pr_info("Node %d hugepages_total=%u hugepages_free=%u hugepages_surp=%u hugepages_size=%s\n",
+>  				nid,
+>  				h->nr_huge_pages_node[nid],
+>  				h->free_huge_pages_node[nid],
+>  				h->surplus_huge_pages_node[nid],
+> -				1UL << (huge_page_order(h) + PAGE_SHIFT - 10));
+> +				hp_size);
+> +		}
+> +	}
+> +
+> +	for_each_hstate(h) {
+> +		if (h->max_huge_pages < h->req_max_huge_pages) {
+> +			char hp_size[32];
+> +			char hpr_size[32];
+> +			char hpt_size[32];
+> +
+> +			string_get_size(huge_page_size(h), 1, STRING_UNITS_2,
+> +					hp_size, 32);
+> +			string_get_size(huge_page_size(h),
+> +					h->req_max_huge_pages, STRING_UNITS_2,
+> +					hpr_size, 32);
+> +			string_get_size(huge_page_size(h), h->max_huge_pages,
+> +					STRING_UNITS_2, hpt_size, 32);
+> +			pr_warn("hugepage_size %s: Requested %lu hugepages (%s) but %lu hugepages (%s) were allocated.\n",
+> +				hp_size, h->req_max_huge_pages, hpr_size,
+> +				h->max_huge_pages, hpt_size);
+> +		}
+> +	}
+>  }
+>  
+>  void hugetlb_report_usage(struct seq_file *m, struct mm_struct *mm)
+> -- 
+> 2.14.1.145.gb3622a4ee
+> 
 
 -- 
 Michal Hocko
