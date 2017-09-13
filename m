@@ -1,64 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 38E276B0038
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 16:46:14 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id 188so2004333pgb.3
-        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 13:46:14 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 65E1E6B025E
+	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 16:46:54 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id m30so2019631pgn.2
+        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 13:46:54 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id u68sor5953203pgb.328.2017.09.13.13.46.10
+        by mx.google.com with SMTPS id i9sor494302pgp.382.2017.09.13.13.46.53
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 13 Sep 2017 13:46:10 -0700 (PDT)
-Date: Wed, 13 Sep 2017 13:46:08 -0700 (PDT)
+        Wed, 13 Sep 2017 13:46:53 -0700 (PDT)
+Date: Wed, 13 Sep 2017 13:46:51 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-In-Reply-To: <20170913122914.5gdksbmkolum7ita@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1709131340020.146292@chino.kir.corp.google.com>
-References: <20170911131742.16482-1-guro@fb.com> <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com> <20170913122914.5gdksbmkolum7ita@dhcp22.suse.cz>
+Subject: Re: [v8 2/4] mm, oom: cgroup-aware OOM killer
+In-Reply-To: <20170911131742.16482-3-guro@fb.com>
+Message-ID: <alpine.DEB.2.10.1709131346200.146292@chino.kir.corp.google.com>
+References: <20170911131742.16482-1-guro@fb.com> <20170911131742.16482-3-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, 13 Sep 2017, Michal Hocko wrote:
+On Mon, 11 Sep 2017, Roman Gushchin wrote:
 
-> > > This patchset makes the OOM killer cgroup-aware.
-> > > 
-> > > v8:
-> > >   - Do not kill tasks with OOM_SCORE_ADJ -1000
-> > >   - Make the whole thing opt-in with cgroup mount option control
-> > >   - Drop oom_priority for further discussions
-> > 
-> > Nack, we specifically require oom_priority for this to function correctly, 
-> > otherwise we cannot prefer to kill from low priority leaf memcgs as 
-> > required.
-> 
-> While I understand that your usecase might require priorities I do not
-> think this part missing is a reason to nack the cgroup based selection
-> and kill-all parts. This can be done on top. The only important part
-> right now is the current selection semantic - only leaf memcgs vs. size
-> of the hierarchy). I strongly believe that comparing only leaf memcgs
-> is more straightforward and it doesn't lead to unexpected results as
-> mentioned before (kill a small memcg which is a part of the larger
-> sub-hierarchy).
-> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 15af3da5af02..da2b12ea4667 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2661,6 +2661,231 @@ static inline bool memcg_has_children(struct mem_cgroup *memcg)
+>  	return ret;
+>  }
+>  
+> +static long memcg_oom_badness(struct mem_cgroup *memcg,
+> +			      const nodemask_t *nodemask,
+> +			      unsigned long totalpages)
+> +{
+> +	long points = 0;
+> +	int nid;
+> +	pg_data_t *pgdat;
+> +
+> +	/*
+> +	 * We don't have necessary stats for the root memcg,
+> +	 * so we define it's oom_score as the maximum oom_score
+> +	 * of the belonging tasks.
+> +	 */
+> +	if (memcg == root_mem_cgroup) {
+> +		struct css_task_iter it;
+> +		struct task_struct *task;
+> +		long score, max_score = 0;
+> +
+> +		css_task_iter_start(&memcg->css, 0, &it);
+> +		while ((task = css_task_iter_next(&it))) {
+> +			score = oom_badness(task, memcg, nodemask,
+> +					    totalpages);
+> +			if (max_score > score)
 
-The problem is that we cannot enable the cgroup-aware oom killer and 
-oom_group behavior because, without oom priorities, we have no ability to 
-influence the cgroup that it chooses.  It is doing two things: providing 
-more fairness amongst cgroups by selecting based on cumulative usage 
-rather than single large process (good!), and effectively is removing all 
-userspace control of oom selection (bad).  We want the former, but it 
-needs to be coupled with support so that we can protect vital cgroups, 
-regardless of their usage.
+score > max_score
 
-It is certainly possible to add oom priorities on top before it is merged, 
-but I don't see why it isn't part of the patchset.  We need it before its 
-merged to avoid users playing with /proc/pid/oom_score_adj to prevent any 
-killing in the most preferable memcg when they could have simply changed 
-the oom priority.
+> +				max_score = score;
+> +		}
+> +		css_task_iter_end(&it);
+> +
+> +		return max_score;
+> +	}
+> +
+> +	for_each_node_state(nid, N_MEMORY) {
+> +		if (nodemask && !node_isset(nid, *nodemask))
+> +			continue;
+> +
+> +		points += mem_cgroup_node_nr_lru_pages(memcg, nid,
+> +				LRU_ALL_ANON | BIT(LRU_UNEVICTABLE));
+> +
+> +		pgdat = NODE_DATA(nid);
+> +		points += lruvec_page_state(mem_cgroup_lruvec(pgdat, memcg),
+> +					    NR_SLAB_UNRECLAIMABLE);
+> +	}
+> +
+> +	points += memcg_page_state(memcg, MEMCG_KERNEL_STACK_KB) /
+> +		(PAGE_SIZE / 1024);
+> +	points += memcg_page_state(memcg, MEMCG_SOCK);
+> +	points += memcg_page_state(memcg, MEMCG_SWAP);
+> +
+> +	return points;
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
