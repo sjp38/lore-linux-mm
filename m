@@ -1,42 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 27B9D6B0038
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 10:52:06 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id i6so546917oih.1
-        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 07:52:06 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p25sor6268421oie.207.2017.09.13.07.52.04
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AC6C36B0038
+	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 11:52:32 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id c82so307928vkd.2
+        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 08:52:32 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id g30si8497019uab.241.2017.09.13.08.52.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Sep 2017 07:52:04 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Sep 2017 08:52:31 -0700 (PDT)
+Date: Wed, 13 Sep 2017 11:52:05 -0400
+From: "Liam R. Howlett" <Liam.Howlett@Oracle.com>
+Subject: Re: [RFC Patch 1/1] mm/hugetlb: Clarify OOM message on size of
+ hugetlb and requested hugepages total
+Message-ID: <20170913155204.w75sgaosyqi6it57@oracle.com>
+References: <20170911154820.16203-1-Liam.Howlett@Oracle.com>
+ <20170911154820.16203-2-Liam.Howlett@Oracle.com>
+ <20170913124258.dipjsogp6vzqyjf4@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <d677d23a-9b1d-e3fd-9ff2-bac8cccfb200@suse.cz>
-References: <alpine.LRH.2.02.1709110231010.3666@file01.intranet.prod.int.rdu2.redhat.com>
- <20170911082650.dqfirwc63xy7i33q@dhcp22.suse.cz> <alpine.LRH.2.02.1709111926480.31898@file01.intranet.prod.int.rdu2.redhat.com>
- <d677d23a-9b1d-e3fd-9ff2-bac8cccfb200@suse.cz>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Wed, 13 Sep 2017 07:52:02 -0700
-Message-ID: <CALvZod7J+0iVkto_JkTqWFo0wfVfHdEXps+Pt7pGAxDCMDkDwQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: respect the __GFP_NOWARN flag when warning about stalls
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170913124258.dipjsogp6vzqyjf4@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mikulas Patocka <mpatocka@redhat.com>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@Oracle.com>, Andrea Arcangeli <aarcange@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, zhong jiang <zhongjiang@huawei.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
 
->
-> We would have to consider (instead of jiffies) the time the process was
-> either running, or waiting on something that's related to memory
-> allocation/reclaim (page lock etc.). I.e. deduct the time the process
-> was runable but there was no available cpu. I expect however that such
-> level of detail wouldn't be feasible here, though?
->
+* Michal Hocko <mhocko@kernel.org> [170913 08:43]:
+> On Mon 11-09-17 11:48:20, Liam R. Howlett wrote:
+> > Change the output of hugetlb_show_meminfo to give the size of the
+> > hugetlb in more than just Kb and add a warning message if the requested
+> > hugepages is larger than the allocated hugepages.  The warning message
+> > for very badly configured hugepages has been removed in favour of this
+> > method.
+> > 
+> > The new messages look like this:
+> > ----
+> > Node 0 hugepages_total=1 hugepages_free=1 hugepages_surp=0
+> > hugepages_size=1.00 GiB
+> > 
+> > Node 0 hugepages_total=1326 hugepages_free=1326 hugepages_surp=0
+> > hugepages_size=2.00 MiB
+> > 
+> > hugepage_size 1.00 GiB: Requested 5 hugepages (5.00 GiB) but 1 hugepages
+> > (1.00 GiB) were allocated.
+> > 
+> > hugepage_size 2.00 MiB: Requested 4000 hugepages (7.81 GiB) but 1326
+> > hugepages (2.59 GiB) were allocated.
+> > ----
+> > 
+> > The old messages look like this:
+> > ----
+> > Node 0 hugepages_total=1 hugepages_free=1 hugepages_surp=0
+> > hugepages_size=1048576kB
+> > 
+> > Node 0 hugepages_total=1435 hugepages_free=1435 hugepages_surp=0
+> > hugepages_size=2048kB
+> > ----
+> > 
+> > Signed-off-by: Liam R. Howlett <Liam.Howlett@Oracle.com>
+> 
+> To be honest, I really dislike this. It doesn't really add anything
+> really new to the OOM report. We already know how much memory is
+> unreclaimable because it is reserved for hugetlb usage. Why does the
+> requested size make any difference? We could fail to allocate requested
+> number of pages because of memory pressure or fragmentation without any
+> sign of misconfiguration.
 
-Johannes' memdelay work (once merged) might be useful here. I think
-memdalay can differentiate between an allocating process getting
-delayed due to preemption or due to unsuccessful reclaim/compaction.
-If the delay is due to unsuccessful reclaim/compaction then we should
-warn here.
+Okay, thanks.  I was trying to address the issues you had with the
+previous logging addition.
+
+I understand that the OOM report is clear to many, but I thought it
+would be more clear if the hugepage size was printed in a human readable
+format instead of KB, especially with platforms supporting a lot of
+huge page sizes and we already use the formatting elsewhere.
+
+My thoughts for the requested size was to expose the failure to allocate
+a resource which currently doesn't have any reporting back to the user -
+except on boot failures, which you also disliked.  I thought reporting
+in the OOM message would be less of a change than reporting at
+allocation time and it would be more clear what happened on poorly
+configured systems as the failure would be printed closer to the panic.
+
+> 
+> Also req_max_huge_pages would have to be per NUMA node othwerise you are
+> just losing information when allocation hugetlb pages via sysfs per node
+> interface.
+> 
+
+Thank you for your thorough review and time,
+Liam
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
