@@ -1,83 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E8B126B0033
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 09:18:34 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id i14so206888qke.6
-        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 06:18:34 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p4si461592qkc.285.2017.09.13.06.18.33
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A13A6B0033
+	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 09:30:42 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id m127so791601wmm.3
+        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 06:30:42 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 186sor419484wmp.64.2017.09.13.06.30.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Sep 2017 06:18:33 -0700 (PDT)
-Date: Wed, 13 Sep 2017 15:18:30 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm, oom_reaper: skip mm structs with mmu notifiers
-Message-ID: <20170913131830.GA12833@redhat.com>
-References: <20170913113427.2291-1-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170913113427.2291-1-mhocko@kernel.org>
+        (Google Transport Security);
+        Wed, 13 Sep 2017 06:30:41 -0700 (PDT)
+From: Gioh Kim <gi-oh.kim@profitbricks.com>
+Subject: [PATCH v2] mm/memblock.c: make the index explicit argument of for_each_memblock_type
+Date: Wed, 13 Sep 2017 15:30:29 +0200
+Message-Id: <20170913133029.28911-1-gi-oh.kim@profitbricks.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: mhocko@suse.com
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gioh Kim <gi-oh.kim@profitbricks.com>
 
-On Wed, Sep 13, 2017 at 01:34:27PM +0200, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> Andrea has noticed that the oom_reaper doesn't invalidate the range
-> via mmu notifiers (mmu_notifier_invalidate_range_start,
-> mmu_notifier_invalidate_range_end) and that can corrupt the memory
-> of the kvm guest for example.
-> 
-> tlb_flush_mmu_tlbonly already invokes mmu notifiers but that is not
-> sufficient as per Andrea:
-> : mmu_notifier_invalidate_range cannot be used in replacement of
-> : mmu_notifier_invalidate_range_start/end. For KVM
-> : mmu_notifier_invalidate_range is a noop and rightfully so. A MMU
-> : notifier implementation has to implement either
-> : ->invalidate_range method or the invalidate_range_start/end
-> : methods, not both. And if you implement invalidate_range_start/end
-> : like KVM is forced to do, calling mmu_notifier_invalidate_range in
-> : common code is a noop for KVM.
-> :
-> : For those MMU notifiers that can get away only implementing
-> : ->invalidate_range, the ->invalidate_range is implicitly called by
-> : mmu_notifier_invalidate_range_end(). And only those secondary MMUs
-> : that share the same pagetable with the primary MMU (like AMD
-> : iommuv2) can get away only implementing ->invalidate_range.
-> 
-> As the callback is allowed to sleep and the implementation is out
-> of hand of the MM it is safer to simply bail out if there is an
-> mmu notifier registered. In order to not fail too early make the
-> mm_has_notifiers check under the oom_lock and have a little nap before
-> failing to give the current oom victim some more time to exit.
-> 
-> Changes since v1
-> - move mm_has_notifiers check after we hold mmap_sem to prevent from
->   any potential races as per Andrea
-> 
-> Fixes: aac453635549 ("mm, oom: introduce oom reaper")
-> Noticed-by: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: stable
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
-> Hi,
-> I have posted this as an RFC previously [1]. I have updated
-> the changelog to be more clear about the issue and moved the
-> mm_has_notifiers after the lock has been take based on Andrea's
-> suggestion.
-> 
-> Can we merge this?
-> 
-> [1] http://lkml.kernel.org/r/20170830084600.17491-1-mhocko@kernel.org
-> 
->  include/linux/mmu_notifier.h |  5 +++++
->  mm/oom_kill.c                | 16 ++++++++++++++++
->  2 files changed, 21 insertions(+)
+for_each_memblock_type macro function relies on idx variable defined in
+the caller context. Silent macro arguments are almost always wrong thing
+to do. They make code harder to read and easier to get wrong. Let's
+use an explicit iterator parameter for for_each_memblock_type and make
+the code more obious. This patch is a mere cleanup and it shouldn't
+introduce any functional change.
 
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Gioh Kim <gi-oh.kim@profitbricks.com>
+---
+ include/linux/memblock.h | 8 ++++----
+ mm/memblock.c            | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index bae11c7e7bf3..ce0e5634c2f9 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -389,10 +389,10 @@ static inline unsigned long memblock_region_reserved_end_pfn(const struct memblo
+ 	     region < (memblock.memblock_type.regions + memblock.memblock_type.cnt);	\
+ 	     region++)
+ 
+-#define for_each_memblock_type(memblock_type, rgn)			\
+-	for (idx = 0, rgn = &memblock_type->regions[0];			\
+-	     idx < memblock_type->cnt;					\
+-	     idx++, rgn = &memblock_type->regions[idx])
++#define for_each_memblock_type(i, memblock_type, rgn)			\
++	for (i = 0, rgn = &memblock_type->regions[0];			\
++	     i < memblock_type->cnt;					\
++	     i++, rgn = &memblock_type->regions[i])
+ 
+ #ifdef CONFIG_MEMTEST
+ extern void early_memtest(phys_addr_t start, phys_addr_t end);
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 91205780e6b1..18dbb69086bc 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -533,7 +533,7 @@ int __init_memblock memblock_add_range(struct memblock_type *type,
+ 	base = obase;
+ 	nr_new = 0;
+ 
+-	for_each_memblock_type(type, rgn) {
++	for_each_memblock_type(idx, type, rgn) {
+ 		phys_addr_t rbase = rgn->base;
+ 		phys_addr_t rend = rbase + rgn->size;
+ 
+@@ -637,7 +637,7 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
+ 		if (memblock_double_array(type, base, size) < 0)
+ 			return -ENOMEM;
+ 
+-	for_each_memblock_type(type, rgn) {
++	for_each_memblock_type(idx, type, rgn) {
+ 		phys_addr_t rbase = rgn->base;
+ 		phys_addr_t rend = rbase + rgn->size;
+ 
+@@ -1715,7 +1715,7 @@ static void __init_memblock memblock_dump(struct memblock_type *type)
+ 
+ 	pr_info(" %s.cnt  = 0x%lx\n", type->name, type->cnt);
+ 
+-	for_each_memblock_type(type, rgn) {
++	for_each_memblock_type(idx, type, rgn) {
+ 		char nid_buf[32] = "";
+ 
+ 		base = rgn->base;
+@@ -1739,7 +1739,7 @@ memblock_reserved_memory_within(phys_addr_t start_addr, phys_addr_t end_addr)
+ 	unsigned long size = 0;
+ 	int idx;
+ 
+-	for_each_memblock_type((&memblock.reserved), rgn) {
++	for_each_memblock_type(idx, (&memblock.reserved), rgn) {
+ 		phys_addr_t start, end;
+ 
+ 		if (rgn->base + rgn->size < start_addr)
+-- 
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
