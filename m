@@ -1,128 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C53B6B0038
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 07:34:33 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id w12so14820901wrc.2
-        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 04:34:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g66sor300144wmi.73.2017.09.13.04.34.32
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 12BB16B0038
+	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 07:41:25 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id q76so25121765pfq.5
+        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 04:41:25 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v75si9407632pfa.181.2017.09.13.04.41.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Sep 2017 04:34:32 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mm, oom_reaper: skip mm structs with mmu notifiers
-Date: Wed, 13 Sep 2017 13:34:27 +0200
-Message-Id: <20170913113427.2291-1-mhocko@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 13 Sep 2017 04:41:23 -0700 (PDT)
+Subject: Re: [PATCH 1/2] mm, memory_hotplug: do not fail offlining too early
+References: <20170904082148.23131-1-mhocko@kernel.org>
+ <20170904082148.23131-2-mhocko@kernel.org>
+ <eb5bf356-f498-b430-1ae8-4ff1ad15ad7f@suse.cz>
+ <20170911081714.4zc33r7wlj2nnbho@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <9fad7246-c634-18bb-78f9-b95376c009da@suse.cz>
+Date: Wed, 13 Sep 2017 13:41:20 +0200
+MIME-Version: 1.0
+In-Reply-To: <20170911081714.4zc33r7wlj2nnbho@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Argangeli <andrea@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-From: Michal Hocko <mhocko@suse.com>
+On 09/11/2017 10:17 AM, Michal Hocko wrote:
+> On Fri 08-09-17 19:26:06, Vlastimil Babka wrote:
+>> On 09/04/2017 10:21 AM, Michal Hocko wrote:
+>>> From: Michal Hocko <mhocko@suse.com>
+>>>
+>>> Fix this by removing the max retry count and only rely on the timeout
+>>> resp. interruption by a signal from the userspace. Also retry rather
+>>> than fail when check_pages_isolated sees some !free pages because those
+>>> could be a result of the race as well.
+>>>
+>>> Signed-off-by: Michal Hocko <mhocko@suse.com>
+>>
+>> Even within a movable node where has_unmovable_pages() is a non-issue, you could
+>> have pinned movable pages where the pinning is not temporary.
+> 
+> Who would pin those pages? Such a page would be unreclaimable as well
+> and thus a memory leak and I would argue it would be a bug.
 
-Andrea has noticed that the oom_reaper doesn't invalidate the range
-via mmu notifiers (mmu_notifier_invalidate_range_start,
-mmu_notifier_invalidate_range_end) and that can corrupt the memory
-of the kvm guest for example.
+I don't know who exactly, but generally it's a problem for CMA and a
+reason why there was some effort from PeterZ to introduce an API for
+long-term pinning.
 
-tlb_flush_mmu_tlbonly already invokes mmu notifiers but that is not
-sufficient as per Andrea:
-: mmu_notifier_invalidate_range cannot be used in replacement of
-: mmu_notifier_invalidate_range_start/end. For KVM
-: mmu_notifier_invalidate_range is a noop and rightfully so. A MMU
-: notifier implementation has to implement either
-: ->invalidate_range method or the invalidate_range_start/end
-: methods, not both. And if you implement invalidate_range_start/end
-: like KVM is forced to do, calling mmu_notifier_invalidate_range in
-: common code is a noop for KVM.
-:
-: For those MMU notifiers that can get away only implementing
-: ->invalidate_range, the ->invalidate_range is implicitly called by
-: mmu_notifier_invalidate_range_end(). And only those secondary MMUs
-: that share the same pagetable with the primary MMU (like AMD
-: iommuv2) can get away only implementing ->invalidate_range.
+>> So after this
+>> patch, this will really keep retrying forever. I'm not saying it's wrong, just
+>> pointing it out, since the changelog seems to assume there would be only
+>> temporary failures possible and thus unbound retries are always correct.
+>> The obvious problem if we wanted to avoid this, is how to recognize
+>> non-temporary failures...
+> 
+> Yes, we should be able to distinguish the two and hopefully we can teach
+> the migration code to distinguish between EBUSY (likely permanent) and
+> EGAIN (temporal) failure. This sound like something we should aim for
+> longterm I guess. Anyway as I've said in other email. If somebody really
+> wants to have a guaratee of a bounded retry then it is trivial to set up
+> an alarm and send a signal itself to bail out.
 
-As the callback is allowed to sleep and the implementation is out
-of hand of the MM it is safer to simply bail out if there is an
-mmu notifier registered. In order to not fail too early make the
-mm_has_notifiers check under the oom_lock and have a little nap before
-failing to give the current oom victim some more time to exit.
+Sure, I would just be careful about not breaking existing userspace
+(udev?) when offline triggered via ACPI from some management interface
+(or whatever the exact mechanism is).
 
-Changes since v1
-- move mm_has_notifiers check after we hold mmap_sem to prevent from
-  any potential races as per Andrea
+> Do you think that the changelog should be more clear about this?
 
-Fixes: aac453635549 ("mm, oom: introduce oom reaper")
-Noticed-by: Andrea Arcangeli <aarcange@redhat.com>
-Cc: stable
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-Hi,
-I have posted this as an RFC previously [1]. I have updated
-the changelog to be more clear about the issue and moved the
-mm_has_notifiers after the lock has been take based on Andrea's
-suggestion.
-
-Can we merge this?
-
-[1] http://lkml.kernel.org/r/20170830084600.17491-1-mhocko@kernel.org
-
- include/linux/mmu_notifier.h |  5 +++++
- mm/oom_kill.c                | 16 ++++++++++++++++
- 2 files changed, 21 insertions(+)
-
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index 7b2e31b1745a..6866e8126982 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -400,6 +400,11 @@ extern void mmu_notifier_synchronize(void);
- 
- #else /* CONFIG_MMU_NOTIFIER */
- 
-+static inline int mm_has_notifiers(struct mm_struct *mm)
-+{
-+	return 0;
-+}
-+
- static inline void mmu_notifier_release(struct mm_struct *mm)
- {
- }
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 99736e026712..92804b061e43 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -40,6 +40,7 @@
- #include <linux/ratelimit.h>
- #include <linux/kthread.h>
- #include <linux/init.h>
-+#include <linux/mmu_notifier.h>
- 
- #include <asm/tlb.h>
- #include "internal.h"
-@@ -494,6 +495,21 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 		goto unlock_oom;
- 	}
- 
-+	/*
-+	 * If the mm has notifiers then we would need to invalidate them around
-+	 * unmap_page_range and that is risky because notifiers can sleep and
-+	 * what they do is basically undeterministic. So let's have a short sleep
-+	 * to give the oom victim some more time.
-+	 * TODO: we really want to get rid of this ugly hack and make sure that
-+	 * notifiers cannot block for unbounded amount of time and add
-+	 * mmu_notifier_invalidate_range_{start,end} around unmap_page_range
-+	 */
-+	if (mm_has_notifiers(mm)) {
-+		up_read(&mm->mmap_sem);
-+		schedule_timeout_idle(HZ);
-+		goto unlock_oom;
-+	}
-+
- 	/*
- 	 * MMF_OOM_SKIP is set by exit_mmap when the OOM reaper can't
- 	 * work on the mm anymore. The check for MMF_OOM_SKIP must run
--- 
-2.14.1
+It certainly wouldn't hurt :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
