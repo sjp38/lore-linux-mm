@@ -1,51 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B09E6B0038
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 05:24:25 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id g15so11831406oib.2
-        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 02:24:25 -0700 (PDT)
-Received: from smtpbgau1.qq.com (smtpbgau1.qq.com. [54.206.16.166])
-        by mx.google.com with ESMTPS id 2si9232036oik.166.2017.09.13.02.24.22
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AA90D6B0038
+	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 06:55:43 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id h16so14740254wrf.0
+        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 03:55:43 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 31si10840721wrf.176.2017.09.13.03.55.42
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Sep 2017 02:24:24 -0700 (PDT)
-From: Huacai Chen <chenhc@lemote.com>
-Subject: [PATCH V3 2/3] mm: dmapool: Align to ARCH_DMA_MINALIGN in non-coherent DMA mode
-Date: Wed, 13 Sep 2017 17:20:51 +0800
-Message-Id: <1505294451-21312-1-git-send-email-chenhc@lemote.com>
+        Wed, 13 Sep 2017 03:55:42 -0700 (PDT)
+Date: Wed, 13 Sep 2017 12:55:39 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/memblock.c: make the index explicit argument of
+ for_each_memblock_type
+Message-ID: <20170913105539.ijfwfrfbn3bici6g@dhcp22.suse.cz>
+References: <20170913090606.16412-1-gi-oh.kim@profitbricks.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170913090606.16412-1-gi-oh.kim@profitbricks.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Fuxin Zhang <zhangfx@lemote.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huacai Chen <chenhc@lemote.com>, stable@vger.kernel.org
+To: Gioh Kim <gi-oh.kim@profitbricks.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-In non-coherent DMA mode, kernel uses cache flushing operations to
-maintain I/O coherency, so the dmapool objects should be aligned to
-ARCH_DMA_MINALIGN.
+On Wed 13-09-17 11:06:06, Gioh Kim wrote:
+> for_each_memblock_type macro function uses idx variable that is
+> the local variable of caller. This patch makes for_each_memblock_type
+> use only its own arguments.
 
-Cc: stable@vger.kernel.org
-Signed-off-by: Huacai Chen <chenhc@lemote.com>
----
- mm/dmapool.c | 3 +++
- 1 file changed, 3 insertions(+)
+strictly speaking this changelog doesn't explain _why_ the original code
+is wrong/suboptimal and why you are changing that. I would use the
+folloging
 
-diff --git a/mm/dmapool.c b/mm/dmapool.c
-index 4d90a64..2ac6f4a 100644
---- a/mm/dmapool.c
-+++ b/mm/dmapool.c
-@@ -140,6 +140,9 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
- 	else if (align & (align - 1))
- 		return NULL;
- 
-+	if (!plat_device_is_coherent(dev))
-+		align = max_t(size_t, align, dma_get_cache_alignment());
-+
- 	if (size == 0)
- 		return NULL;
- 	else if (size < 4)
+"
+for_each_memblock_type macro function relies on idx variable defined in
+the caller context. Silent macro arguments are almost always wrong thing
+to do. They make code harder to read and easier to get wrong. Let's
+use an explicit iterator parameter for for_each_memblock_type and make
+the code more obious. This patch is a mere cleanup and it shouldn't
+introduce any functional change.
+"
+
+> Signed-off-by: Gioh Kim <gi-oh.kim@profitbricks.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  include/linux/memblock.h | 8 ++++----
+>  mm/memblock.c            | 8 ++++----
+>  2 files changed, 8 insertions(+), 8 deletions(-)
+> 
+> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> index bae11c7e7bf3..ce0e5634c2f9 100644
+> --- a/include/linux/memblock.h
+> +++ b/include/linux/memblock.h
+> @@ -389,10 +389,10 @@ static inline unsigned long memblock_region_reserved_end_pfn(const struct memblo
+>  	     region < (memblock.memblock_type.regions + memblock.memblock_type.cnt);	\
+>  	     region++)
+>  
+> -#define for_each_memblock_type(memblock_type, rgn)			\
+> -	for (idx = 0, rgn = &memblock_type->regions[0];			\
+> -	     idx < memblock_type->cnt;					\
+> -	     idx++, rgn = &memblock_type->regions[idx])
+> +#define for_each_memblock_type(i, memblock_type, rgn)			\
+> +	for (i = 0, rgn = &memblock_type->regions[0];			\
+> +	     i < memblock_type->cnt;					\
+> +	     i++, rgn = &memblock_type->regions[i])
+>  
+>  #ifdef CONFIG_MEMTEST
+>  extern void early_memtest(phys_addr_t start, phys_addr_t end);
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index 91205780e6b1..18dbb69086bc 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -533,7 +533,7 @@ int __init_memblock memblock_add_range(struct memblock_type *type,
+>  	base = obase;
+>  	nr_new = 0;
+>  
+> -	for_each_memblock_type(type, rgn) {
+> +	for_each_memblock_type(idx, type, rgn) {
+>  		phys_addr_t rbase = rgn->base;
+>  		phys_addr_t rend = rbase + rgn->size;
+>  
+> @@ -637,7 +637,7 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
+>  		if (memblock_double_array(type, base, size) < 0)
+>  			return -ENOMEM;
+>  
+> -	for_each_memblock_type(type, rgn) {
+> +	for_each_memblock_type(idx, type, rgn) {
+>  		phys_addr_t rbase = rgn->base;
+>  		phys_addr_t rend = rbase + rgn->size;
+>  
+> @@ -1715,7 +1715,7 @@ static void __init_memblock memblock_dump(struct memblock_type *type)
+>  
+>  	pr_info(" %s.cnt  = 0x%lx\n", type->name, type->cnt);
+>  
+> -	for_each_memblock_type(type, rgn) {
+> +	for_each_memblock_type(idx, type, rgn) {
+>  		char nid_buf[32] = "";
+>  
+>  		base = rgn->base;
+> @@ -1739,7 +1739,7 @@ memblock_reserved_memory_within(phys_addr_t start_addr, phys_addr_t end_addr)
+>  	unsigned long size = 0;
+>  	int idx;
+>  
+> -	for_each_memblock_type((&memblock.reserved), rgn) {
+> +	for_each_memblock_type(idx, (&memblock.reserved), rgn) {
+>  		phys_addr_t start, end;
+>  
+>  		if (rgn->base + rgn->size < start_addr)
+> -- 
+> 2.11.0
+> 
+
 -- 
-2.7.0
-
-
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
