@@ -1,162 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 47C3E6B0038
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 08:43:03 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 97so109378wrb.1
-        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 05:43:03 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o30si10934429wrb.197.2017.09.13.05.43.01
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E8B126B0033
+	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 09:18:34 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id i14so206888qke.6
+        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 06:18:34 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p4si461592qkc.285.2017.09.13.06.18.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Sep 2017 05:43:02 -0700 (PDT)
-Date: Wed, 13 Sep 2017 14:42:58 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC Patch 1/1] mm/hugetlb: Clarify OOM message on size of
- hugetlb and requested hugepages total
-Message-ID: <20170913124258.dipjsogp6vzqyjf4@dhcp22.suse.cz>
-References: <20170911154820.16203-1-Liam.Howlett@Oracle.com>
- <20170911154820.16203-2-Liam.Howlett@Oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Sep 2017 06:18:33 -0700 (PDT)
+Date: Wed, 13 Sep 2017 15:18:30 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mm, oom_reaper: skip mm structs with mmu notifiers
+Message-ID: <20170913131830.GA12833@redhat.com>
+References: <20170913113427.2291-1-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170911154820.16203-2-Liam.Howlett@Oracle.com>
+In-Reply-To: <20170913113427.2291-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Liam R. Howlett" <Liam.Howlett@Oracle.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@Oracle.com>, Andrea Arcangeli <aarcange@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, zhong jiang <zhongjiang@huawei.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Mon 11-09-17 11:48:20, Liam R. Howlett wrote:
-> Change the output of hugetlb_show_meminfo to give the size of the
-> hugetlb in more than just Kb and add a warning message if the requested
-> hugepages is larger than the allocated hugepages.  The warning message
-> for very badly configured hugepages has been removed in favour of this
-> method.
+On Wed, Sep 13, 2017 at 01:34:27PM +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> The new messages look like this:
-> ----
-> Node 0 hugepages_total=1 hugepages_free=1 hugepages_surp=0
-> hugepages_size=1.00 GiB
+> Andrea has noticed that the oom_reaper doesn't invalidate the range
+> via mmu notifiers (mmu_notifier_invalidate_range_start,
+> mmu_notifier_invalidate_range_end) and that can corrupt the memory
+> of the kvm guest for example.
 > 
-> Node 0 hugepages_total=1326 hugepages_free=1326 hugepages_surp=0
-> hugepages_size=2.00 MiB
+> tlb_flush_mmu_tlbonly already invokes mmu notifiers but that is not
+> sufficient as per Andrea:
+> : mmu_notifier_invalidate_range cannot be used in replacement of
+> : mmu_notifier_invalidate_range_start/end. For KVM
+> : mmu_notifier_invalidate_range is a noop and rightfully so. A MMU
+> : notifier implementation has to implement either
+> : ->invalidate_range method or the invalidate_range_start/end
+> : methods, not both. And if you implement invalidate_range_start/end
+> : like KVM is forced to do, calling mmu_notifier_invalidate_range in
+> : common code is a noop for KVM.
+> :
+> : For those MMU notifiers that can get away only implementing
+> : ->invalidate_range, the ->invalidate_range is implicitly called by
+> : mmu_notifier_invalidate_range_end(). And only those secondary MMUs
+> : that share the same pagetable with the primary MMU (like AMD
+> : iommuv2) can get away only implementing ->invalidate_range.
 > 
-> hugepage_size 1.00 GiB: Requested 5 hugepages (5.00 GiB) but 1 hugepages
-> (1.00 GiB) were allocated.
+> As the callback is allowed to sleep and the implementation is out
+> of hand of the MM it is safer to simply bail out if there is an
+> mmu notifier registered. In order to not fail too early make the
+> mm_has_notifiers check under the oom_lock and have a little nap before
+> failing to give the current oom victim some more time to exit.
 > 
-> hugepage_size 2.00 MiB: Requested 4000 hugepages (7.81 GiB) but 1326
-> hugepages (2.59 GiB) were allocated.
-> ----
+> Changes since v1
+> - move mm_has_notifiers check after we hold mmap_sem to prevent from
+>   any potential races as per Andrea
 > 
-> The old messages look like this:
-> ----
-> Node 0 hugepages_total=1 hugepages_free=1 hugepages_surp=0
-> hugepages_size=1048576kB
-> 
-> Node 0 hugepages_total=1435 hugepages_free=1435 hugepages_surp=0
-> hugepages_size=2048kB
-> ----
-> 
-> Signed-off-by: Liam R. Howlett <Liam.Howlett@Oracle.com>
-
-To be honest, I really dislike this. It doesn't really add anything
-really new to the OOM report. We already know how much memory is
-unreclaimable because it is reserved for hugetlb usage. Why does the
-requested size make any difference? We could fail to allocate requested
-number of pages because of memory pressure or fragmentation without any
-sign of misconfiguration.
-
-Also req_max_huge_pages would have to be per NUMA node othwerise you are
-just losing information when allocation hugetlb pages via sysfs per node
-interface.
-
+> Fixes: aac453635549 ("mm, oom: introduce oom reaper")
+> Noticed-by: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: stable
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 > ---
->  include/linux/hugetlb.h |  1 +
->  mm/hugetlb.c            | 35 +++++++++++++++++++++++++++++++----
->  2 files changed, 32 insertions(+), 4 deletions(-)
+> Hi,
+> I have posted this as an RFC previously [1]. I have updated
+> the changelog to be more clear about the issue and moved the
+> mm_has_notifiers after the lock has been take based on Andrea's
+> suggestion.
 > 
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index b857fc8cc2ec..9f188d621ae0 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -313,6 +313,7 @@ struct hstate {
->  	unsigned int order;
->  	unsigned long mask;
->  	unsigned long max_huge_pages;
-> +	unsigned long req_max_huge_pages;
->  	unsigned long nr_huge_pages;
->  	unsigned long free_huge_pages;
->  	unsigned long resv_huge_pages;
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 3eedb187e549..83c06ce89bfd 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1461,6 +1461,7 @@ static int dissolve_free_huge_page(struct page *page)
->  		h->free_huge_pages--;
->  		h->free_huge_pages_node[nid]--;
->  		h->max_huge_pages--;
-> +		h->req_max_huge_pages--;
->  		update_and_free_page(h, head);
->  	}
->  out:
-> @@ -2430,6 +2431,7 @@ static ssize_t __nr_hugepages_store_common(bool obey_mempolicy,
->  		goto out;
->  	}
->  
-> +	h->req_max_huge_pages = count;
->  	if (nid == NUMA_NO_NODE) {
->  		/*
->  		 * global hstate attribute
-> @@ -3026,14 +3028,39 @@ void hugetlb_show_meminfo(void)
->  	if (!hugepages_supported())
->  		return;
->  
-> -	for_each_node_state(nid, N_MEMORY)
-> -		for_each_hstate(h)
-> -			pr_info("Node %d hugepages_total=%u hugepages_free=%u hugepages_surp=%u hugepages_size=%lukB\n",
-> +	for_each_node_state(nid, N_MEMORY) {
-> +		for_each_hstate(h) {
-> +			char hp_size[32];
-> +
-> +			string_get_size(huge_page_size(h), 1, STRING_UNITS_2,
-> +					hp_size, 32);
-> +			pr_info("Node %d hugepages_total=%u hugepages_free=%u hugepages_surp=%u hugepages_size=%s\n",
->  				nid,
->  				h->nr_huge_pages_node[nid],
->  				h->free_huge_pages_node[nid],
->  				h->surplus_huge_pages_node[nid],
-> -				1UL << (huge_page_order(h) + PAGE_SHIFT - 10));
-> +				hp_size);
-> +		}
-> +	}
-> +
-> +	for_each_hstate(h) {
-> +		if (h->max_huge_pages < h->req_max_huge_pages) {
-> +			char hp_size[32];
-> +			char hpr_size[32];
-> +			char hpt_size[32];
-> +
-> +			string_get_size(huge_page_size(h), 1, STRING_UNITS_2,
-> +					hp_size, 32);
-> +			string_get_size(huge_page_size(h),
-> +					h->req_max_huge_pages, STRING_UNITS_2,
-> +					hpr_size, 32);
-> +			string_get_size(huge_page_size(h), h->max_huge_pages,
-> +					STRING_UNITS_2, hpt_size, 32);
-> +			pr_warn("hugepage_size %s: Requested %lu hugepages (%s) but %lu hugepages (%s) were allocated.\n",
-> +				hp_size, h->req_max_huge_pages, hpr_size,
-> +				h->max_huge_pages, hpt_size);
-> +		}
-> +	}
->  }
->  
->  void hugetlb_report_usage(struct seq_file *m, struct mm_struct *mm)
-> -- 
-> 2.14.1.145.gb3622a4ee
+> Can we merge this?
 > 
+> [1] http://lkml.kernel.org/r/20170830084600.17491-1-mhocko@kernel.org
+> 
+>  include/linux/mmu_notifier.h |  5 +++++
+>  mm/oom_kill.c                | 16 ++++++++++++++++
+>  2 files changed, 21 insertions(+)
 
--- 
-Michal Hocko
-SUSE Labs
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
