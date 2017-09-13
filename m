@@ -1,54 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 972B66B0038
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 08:29:17 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 187so640247wmn.2
-        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 05:29:17 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 114786B0038
+	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 08:32:15 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id q75so117885pfl.1
+        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 05:32:15 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m20si11133792wrf.300.2017.09.13.05.29.16
+        by mx.google.com with ESMTPS id k1si2706693pld.524.2017.09.13.05.32.13
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Sep 2017 05:29:16 -0700 (PDT)
-Date: Wed, 13 Sep 2017 14:29:14 +0200
+        Wed, 13 Sep 2017 05:32:13 -0700 (PDT)
+Date: Wed, 13 Sep 2017 14:32:11 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-Message-ID: <20170913122914.5gdksbmkolum7ita@dhcp22.suse.cz>
-References: <20170911131742.16482-1-guro@fb.com>
- <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com>
+Subject: Re: [PATCH 1/2] mm, memory_hotplug: do not fail offlining too early
+Message-ID: <20170913123211.73ogviibe74wwxnl@dhcp22.suse.cz>
+References: <20170904082148.23131-1-mhocko@kernel.org>
+ <20170904082148.23131-2-mhocko@kernel.org>
+ <eb5bf356-f498-b430-1ae8-4ff1ad15ad7f@suse.cz>
+ <20170911081714.4zc33r7wlj2nnbho@dhcp22.suse.cz>
+ <9fad7246-c634-18bb-78f9-b95376c009da@suse.cz>
+ <20170913121001.k3a5tkvunmncc5uj@dhcp22.suse.cz>
+ <20170913121433.yjzloaf6g447zeq2@dhcp22.suse.cz>
+ <25ffda93-0c0d-28b4-bd0b-7fc9df7d678a@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com>
+In-Reply-To: <25ffda93-0c0d-28b4-bd0b-7fc9df7d678a@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 11-09-17 13:44:39, David Rientjes wrote:
-> On Mon, 11 Sep 2017, Roman Gushchin wrote:
-> 
-> > This patchset makes the OOM killer cgroup-aware.
+On Wed 13-09-17 14:19:19, Vlastimil Babka wrote:
+> On 09/13/2017 02:14 PM, Michal Hocko wrote:
+> >>>> Do you think that the changelog should be more clear about this?
+> >>>
+> >>> It certainly wouldn't hurt :)
+> >>
+> >> So what do you think about the following wording:
 > > 
-> > v8:
-> >   - Do not kill tasks with OOM_SCORE_ADJ -1000
-> >   - Make the whole thing opt-in with cgroup mount option control
-> >   - Drop oom_priority for further discussions
+> > Ups, wrong patch
+> > 
+> > 
+> > From 8639496a834b4a7c24972ec23b17e50f0d6a304c Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.com>
+> > Date: Mon, 14 Aug 2017 10:46:12 +0200
+> > Subject: [PATCH 1/2] mm, memory_hotplug: do not fail offlining too early
+> > 
+> > Memory offlining can fail just too eagerly under a heavy memory pressure.
+> > 
+> > [ 5410.336792] page:ffffea22a646bd00 count:255 mapcount:252 mapping:ffff88ff926c9f38 index:0x3
+> > [ 5410.336809] flags: 0x9855fe40010048(uptodate|active|mappedtodisk)
+> > [ 5410.336811] page dumped because: isolation failed
+> > [ 5410.336813] page->mem_cgroup:ffff8801cd662000
+> > [ 5420.655030] memory offlining [mem 0x18b580000000-0x18b5ffffffff] failed
+> > 
+> > Isolation has failed here because the page is not on LRU. Most probably
+> > because it was on the pcp LRU cache or it has been removed from the LRU
+> > already but it hasn't been freed yet. In both cases the page doesn't look
+> > non-migrable so retrying more makes sense.
+> > 
+> > __offline_pages seems rather cluttered when it comes to the retry
+> > logic. We have 5 retries at maximum and a timeout. We could argue
+> > whether the timeout makes sense but failing just because of a race when
+> > somebody isoltes a page from LRU or puts it on a pcp LRU lists is just
+> > wrong. It only takes it to race with a process which unmaps some pages
+> > and remove them from the LRU list and we can fail the whole offline
+> > because of something that is a temporary condition and actually not
+> > harmful for the offline.
+> > 
+> > Please note that unmovable pages should be already excluded during
+> > start_isolate_page_range. We could argue that has_unmovable_pages is
+> > racy and MIGRATE_MOVABLE check doesn't provide any hard guarantee either
+> > but kernel zones (aka < ZONE_MOVABLE) will very likely detect unmovable
+> > pages in most cases and movable zone shouldn't contain unmovable pages
+> > at all. Some of those pages might be pinned but not for ever because
+> > that would be a bug on its own. In any case the context is still
+> > interruptible and so the userspace can easily bail out when the
+> > operation takes too long. This is certainly better behavior than a
+> > hardcoded retry loop which is racy.
+> > 
+> > Fix this by removing the max retry count and only rely on the timeout
+> > resp. interruption by a signal from the userspace. Also retry rather
+> > than fail when check_pages_isolated sees some !free pages because those
+> > could be a result of the race as well.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > 
-> Nack, we specifically require oom_priority for this to function correctly, 
-> otherwise we cannot prefer to kill from low priority leaf memcgs as 
-> required.
+> Yeah, that's better, thanks.
+> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-While I understand that your usecase might require priorities I do not
-think this part missing is a reason to nack the cgroup based selection
-and kill-all parts. This can be done on top. The only important part
-right now is the current selection semantic - only leaf memcgs vs. size
-of the hierarchy). I strongly believe that comparing only leaf memcgs
-is more straightforward and it doesn't lead to unexpected results as
-mentioned before (kill a small memcg which is a part of the larger
-sub-hierarchy).
+Thanks. I will give it a day and repost the series. If somebody still
+have some concerns please speak up.
 
-I didn't get to read the new version of this series yet and hope to get
-to it soon.
 -- 
 Michal Hocko
 SUSE Labs
