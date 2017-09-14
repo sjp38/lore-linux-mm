@@ -1,111 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3783A6B0253
-	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 12:06:19 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id q8so4029664qtb.2
-        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 09:06:19 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id 32si14882421qtu.211.2017.09.14.09.06.16
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D569C6B0038
+	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 12:49:44 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id q76so6121670pfq.5
+        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 09:49:44 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0059.outbound.protection.outlook.com. [104.47.2.59])
+        by mx.google.com with ESMTPS id 87si11830267pft.107.2017.09.14.09.49.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Sep 2017 09:06:17 -0700 (PDT)
-Date: Thu, 14 Sep 2017 09:05:48 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-Message-ID: <20170914160548.GA30441@castle>
-References: <20170911131742.16482-1-guro@fb.com>
- <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com>
- <20170913122914.5gdksbmkolum7ita@dhcp22.suse.cz>
- <20170913215607.GA19259@castle>
- <20170914134014.wqemev2kgychv7m5@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 14 Sep 2017 09:49:43 -0700 (PDT)
+From: Tariq Toukan <tariqt@mellanox.com>
+Subject: Page allocator bottleneck
+Message-ID: <cef85936-10b2-5d76-9f97-cb03b418fd94@mellanox.com>
+Date: Thu, 14 Sep 2017 19:49:31 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20170914134014.wqemev2kgychv7m5@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: David Miller <davem@davemloft.net>, Jesper Dangaard Brouer <brouer@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Eric Dumazet <eric.dumazet@gmail.com>, Alexei Starovoitov <ast@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Eran Ben Elisha <eranbe@mellanox.com>, Linux Kernel Network Developers <netdev@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm <linux-mm@kvack.org>
 
-On Thu, Sep 14, 2017 at 03:40:14PM +0200, Michal Hocko wrote:
-> On Wed 13-09-17 14:56:07, Roman Gushchin wrote:
-> > On Wed, Sep 13, 2017 at 02:29:14PM +0200, Michal Hocko wrote:
-> [...]
-> > > I strongly believe that comparing only leaf memcgs
-> > > is more straightforward and it doesn't lead to unexpected results as
-> > > mentioned before (kill a small memcg which is a part of the larger
-> > > sub-hierarchy).
-> > 
-> > One of two main goals of this patchset is to introduce cgroup-level
-> > fairness: bigger cgroups should be affected more than smaller,
-> > despite the size of tasks inside. I believe the same principle
-> > should be used for cgroups.
-> 
-> Yes bigger cgroups should be preferred but I fail to see why bigger
-> hierarchies should be considered as well if they are not kill-all. And
-> whether non-leaf memcgs should allow kill-all is not entirely clear to
-> me. What would be the usecase?
+Hi all,
 
-We definitely want to support kill-all for non-leaf cgroups.
-A workload can consist of several cgroups and we want to clean up
-the whole thing on OOM. I don't see any reasons to limit
-this functionality to leaf cgroups only.
+As part of the efforts to support increasing next-generation NIC speeds,
+I am investigating SW bottlenecks in network stack receive flow.
 
-Hierarchies are memory consumers, we do account their usage,
-we do apply limits and guarantees for the hierarchies. The same is
-with OOM victim selection: we are reclaiming memory from the
-biggest consumer. Kill-all knob only defines the way _how_ we do that:
-by killing one or all processes.
+Here I share some numbers I got for a simple experiment, in which I 
+simulate the page allocation rate needed in 200Gpbs NICs.
 
-Just for example, we might want to take memory.low into account at
-some point: prefer cgroups which are above their guarantees, avoid
-killing those who fit. It would be hard if we're comparing cgroups
-from different hierarchies. The same will be with introducing
-oom_priorities, which is much more required functionality.
+I ran the test below over 3 different (modified) mlx5 driver versions,
+loaded on server side (RX):
+1) RX page cache disabled, 2 packets per page.
+2) RX page cache disabled, one packet per page.
+3) Huge RX page cache, one packet per page.
 
-> Consider that it might be not your choice (as a user) how deep is your
-> leaf memcg. I can already see how people complain that their memcg has
-> been killed just because it was one level deeper in the hierarchy...
+All page allocations are of order 0.
 
-The kill-all functionality is enforced by parent, and it seems to be
-following the overall memcg design. The parent cgroup enforces memory
-limit, memory low limit, etc.
+NIC: Connectx-5 100 Gbps.
+CPU: Intel(R) Xeon(R) CPU E5-2680 v3 @ 2.50GHz
 
-I don't know why OOM control should be different.
+Test:
+128 TCP streams (using super_netperf).
+Changing num of RX queues.
+HW LRO OFF, GRO ON, MTU 1500.
+Observe: BW as a function of num RX queues.
 
-> 
-> I would really start simple and only allow kill-all on leaf memcgs and
-> only compare leaf memcgs & root. If we ever need to kill whole
-> hierarchies then allow kill-all on intermediate memcgs as well and then
-> consider cumulative consumptions only on those that have kill-all
-> enabled.
+Results:
 
-This sounds hacky to me: the whole thing is depending on cgroup v2 and
-is additionally explicitly opt-in.
+Driver #1:
+#rings	BW (Mbps)
+1	23,813
+2	44,086
+3	62,128
+4	78,058
+6	94,210 (linerate)
+8	94,205 (linerate)
+12	94,202 (linerate)
+16	94,191 (linerate)
 
-Why do we need to introduce such incomplete functionality first,
-and then suffer trying to extend it and provide backward compatibility?
+Driver #2:
+#rings	BW (Mbps)
+1	18,835
+2	36,716
+3	50,521
+4	61,746
+6	63,637
+8	60,299
+12	51,048
+16	43,337
 
-Also, I think we should compare root cgroup with top-level cgroups,
-rather than leaf cgroups. A process in the root cgroup is definitely
-system-level entity, and we should compare it with other top-level
-entities (other containerized workloads), rather then some random
-leaf cgroup deep inside the tree. If we decided, that we're not comparing
-random tasks from different cgroups, why should we do this for leaf
-cgroups? Is sounds like making only one step towards right direction,
-while we can do more.
+Driver #3:
+#rings	BW (Mbps)
+1	19,316
+2	44,850
+3	69,549
+4	87,434
+6	94,342 (linerate)
+8	94,350 (linerate)
+12	94,327 (linerate)
+16	94,327 (linerate)
 
-> 
-> Or do I miss any reasonable usecase that would suffer from such a
-> semantic?
 
-Kill-all for sub-trees is definitely required.
-Enforcing oom_priorities for sub-trees is something that I would expect
-very useful too. Comparing leaf cgroups system-wide instead of processes
-doesn't sound good for me, we're lacking hierarchical fairness, which
-was one of two goals of this patchset.
+Insights:
+Major degradation between #1 and #2, not getting any close to linerate!
+Degradation is fixed between #2 and #3.
+This is because page allocator cannot stand the higher allocation rate.
+In #2, we also see that the addition of rings (cores) reduces BW (!!), 
+as result of increasing congestion over shared resources.
 
-Thanks!
+Congestion in this case is very clear.
+When monitored in perf top:
+85.58% [kernel] [k] queued_spin_lock_slowpath
+
+I think that page allocator issues should be discussed separately:
+1) Rate: Increase the allocation rate on a single core.
+2) Scalability: Reduce congestion and sync overhead between cores.
+
+This is clearly the current bottleneck in the network stack receive flow.
+
+I know about some efforts that were made in the past two years.
+For example the ones from Jesper et al.:
+- Page-pool (not accepted AFAIK).
+- Page-allocation bulking.
+- Optimize order-0 allocations in Per-Cpu-Pages.
+
+I am not an mm expert, but wanted to raise the issue again, to combine 
+the efforts and hear from you guys about status and possible directions.
+
+Best regards,
+Tariq Toukan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
