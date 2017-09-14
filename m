@@ -1,53 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 09BAE6B0253
-	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 17:21:44 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id e64so1184449wmi.0
-        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 14:21:43 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id s74si721872wmb.175.2017.09.14.14.21.42
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ADF256B0033
+	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 18:36:12 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id q132so496048lfe.1
+        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 15:36:12 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id 21si3531181lju.208.2017.09.14.15.36.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Sep 2017 14:21:43 -0700 (PDT)
-Date: Thu, 14 Sep 2017 14:21:40 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm -v4 3/5] mm, swap: VMA based swap readahead
-Message-Id: <20170914142140.9c5e3ef37e6bad1d68899e64@linux-foundation.org>
-In-Reply-To: <20170914131446.GA12850@bgram>
-References: <20170807054038.1843-1-ying.huang@intel.com>
-	<20170807054038.1843-4-ying.huang@intel.com>
-	<20170913014019.GB29422@bbox>
-	<20170913140229.8a6cad6f017fa3ea8b53cefc@linux-foundation.org>
-	<20170914075345.GA5533@bbox>
-	<87h8w5jxph.fsf@yhuang-dev.intel.com>
-	<20170914131446.GA12850@bgram>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 14 Sep 2017 15:36:11 -0700 (PDT)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [PATCH v8 04/11] sparc64: simplify vmemmap_populate
+Date: Thu, 14 Sep 2017 18:35:10 -0400
+Message-Id: <20170914223517.8242-5-pasha.tatashin@oracle.com>
+In-Reply-To: <20170914223517.8242-1-pasha.tatashin@oracle.com>
+References: <20170914223517.8242-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
+To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, Steven.Sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On Thu, 14 Sep 2017 22:14:46 +0900 Minchan Kim <minchan@kernel.org> wrote:
+Remove duplicating code by using common functions
+vmemmap_pud_populate and vmemmap_pgd_populate.
 
-> > Now.  Users can choose between VMA based readahead and original
-> > readahead via a knob as follow at runtime,
-> > 
-> > /sys/kernel/mm/swap/vma_ra_enabled
-> 
-> It's not a config option and is enabled by default. IOW, it's under the radar
-> so current users cannot notice it. That's why we want to emit big fat warnning.
-> when old user set 0 to page-cluster. However, as Andrew said, it's lame.
-> 
-> If we make it config option, product maker/kernel upgrade user can have
-> a chance to notice and read description so they could be aware of two weird
-> knobs and help to solve the problem in advance without printk_once warn.
-> If user has no interest about swap-readahead or skip the new config option
-> by mistake, it works physcial readahead which means no regression.
+Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
+Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+Reviewed-by: Bob Picco <bob.picco@oracle.com>
+Acked-by: David S. Miller <davem@davemloft.net>
+---
+ arch/sparc/mm/init_64.c | 23 ++++++-----------------
+ 1 file changed, 6 insertions(+), 17 deletions(-)
 
-Yup, a Kconfig option sounds like a good idea.  And that's a bit more
-friendly to tiny kernels as well.
+diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
+index 078f1352736e..fc47afa518f5 100644
+--- a/arch/sparc/mm/init_64.c
++++ b/arch/sparc/mm/init_64.c
+@@ -2642,30 +2642,19 @@ int __meminit vmemmap_populate(unsigned long vstart, unsigned long vend,
+ 	vstart = vstart & PMD_MASK;
+ 	vend = ALIGN(vend, PMD_SIZE);
+ 	for (; vstart < vend; vstart += PMD_SIZE) {
+-		pgd_t *pgd = pgd_offset_k(vstart);
++		pgd_t *pgd = vmemmap_pgd_populate(vstart, node);
+ 		unsigned long pte;
+ 		pud_t *pud;
+ 		pmd_t *pmd;
+ 
+-		if (pgd_none(*pgd)) {
+-			pud_t *new = vmemmap_alloc_block(PAGE_SIZE, node);
++		if (!pgd)
++			return -ENOMEM;
+ 
+-			if (!new)
+-				return -ENOMEM;
+-			pgd_populate(&init_mm, pgd, new);
+-		}
+-
+-		pud = pud_offset(pgd, vstart);
+-		if (pud_none(*pud)) {
+-			pmd_t *new = vmemmap_alloc_block(PAGE_SIZE, node);
+-
+-			if (!new)
+-				return -ENOMEM;
+-			pud_populate(&init_mm, pud, new);
+-		}
++		pud = vmemmap_pud_populate(pgd, vstart, node);
++		if (!pud)
++			return -ENOMEM;
+ 
+ 		pmd = pmd_offset(pud, vstart);
+-
+ 		pte = pmd_val(*pmd);
+ 		if (!(pte & _PAGE_VALID)) {
+ 			void *block = vmemmap_alloc_block(PMD_SIZE, node);
+-- 
+2.14.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
