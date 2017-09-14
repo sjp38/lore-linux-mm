@@ -1,78 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6065F6B0033
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 20:53:10 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id q75so2656023pfl.1
-        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 17:53:10 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id t66si9793496pgc.220.2017.09.13.17.53.08
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F1256B0033
+	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 21:13:56 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id 93so3743463iol.2
+        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 18:13:56 -0700 (PDT)
+Received: from smtpbgau2.qq.com (smtpbgau2.qq.com. [54.206.34.216])
+        by mx.google.com with ESMTPS id a5si10022879oii.346.2017.09.13.18.13.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Sep 2017 17:53:09 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm -v4 3/5] mm, swap: VMA based swap readahead
-References: <20170807054038.1843-1-ying.huang@intel.com>
-	<20170807054038.1843-4-ying.huang@intel.com>
-	<20170913014019.GB29422@bbox>
-	<20170913140229.8a6cad6f017fa3ea8b53cefc@linux-foundation.org>
-Date: Thu, 14 Sep 2017 08:53:04 +0800
-In-Reply-To: <20170913140229.8a6cad6f017fa3ea8b53cefc@linux-foundation.org>
-	(Andrew Morton's message of "Wed, 13 Sep 2017 14:02:29 -0700")
-Message-ID: <87lglim77z.fsf@yhuang-dev.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 13 Sep 2017 18:13:55 -0700 (PDT)
+From: "=?utf-8?B?6ZmI5Y2O5omN?=" <chenhc@lemote.com>
+Subject: Re: [PATCH V3 2/3] mm: dmapool: Align to ARCH_DMA_MINALIGN innon-coherent DMA mode
+Mime-Version: 1.0
+Content-Type: text/plain;
+	charset="utf-8"
+Content-Transfer-Encoding: base64
+Date: Thu, 14 Sep 2017 09:13:47 +0800
+Message-ID: <tencent_31D6F9A339CED0D66B83CBD8@qq.com>
+References: <1505294451-21312-1-git-send-email-chenhc@lemote.com>
+	<20170913145249.f89678a57842da122aa062fd@linux-foundation.org>
+In-Reply-To: <20170913145249.f89678a57842da122aa062fd@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, "Huang, Ying" <ying.huang@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
+To: =?utf-8?B?QW5kcmV3IE1vcnRvbg==?= <akpm@linux-foundation.org>
+Cc: =?utf-8?B?RnV4aW4gWmhhbmc=?= <zhangfx@lemote.com>, =?utf-8?B?bGludXgtbW0=?= <linux-mm@kvack.org>, =?utf-8?B?bGludXgta2VybmVs?= <linux-kernel@vger.kernel.org>, =?utf-8?B?c3RhYmxl?= <stable@vger.kernel.org>
 
-Hi, Andrew,
+SGksIEFuZHJldywNCg0KSXQgd2lsbCBjYXVzZSBkYXRhIGNvcnJ1cHRpb24sIGF0IGxlYXN0
+IG9uIE1JUFM6DQpzdGVwIDEsIGRtYV9tYXBfc2luZ2xlDQpzdGVwIDIsIGNhY2hlX2ludmFs
+aWRhdGUgKG5vIHdyaXRlYmFjaykNCnN0ZXAgMywgZG1hX2Zyb21fZGV2aWNlDQpzdGVwIDQs
+IGRtYV91bm1hcF9zaW5nbGUNCklmIGEgRE1BIGJ1ZmZlciBhbmQgYSBrZXJuZWwgc3RydWN0
+dXJlIHNoYXJlIGEgc2FtZSBjYWNoZSBsaW5lLCBhbmQgaWYgdGhlIGtlcm5lbCBzdHJ1Y3R1
+cmUgaGFzIGRpcnR5IGRhdGEsIGNhY2hlX2ludmFsaWRhdGUgKG5vIHdyaXRlYmFjaykgbWF5
+IGNhdXNlIGRhdGEgbG9zdC4NCiANCkh1YWNhaQ0KIA0KLS0tLS0tLS0tLS0tLS0tLS0tIE9y
+aWdpbmFsIC0tLS0tLS0tLS0tLS0tLS0tLQ0KRnJvbTogICJBbmRyZXcgTW9ydG9uIjxha3Bt
+QGxpbnV4LWZvdW5kYXRpb24ub3JnPjsNCkRhdGU6ICBUaHUsIFNlcCAxNCwgMjAxNyAwNTo1
+MiBBTQ0KVG86ICAiSHVhY2FpIENoZW4iPGNoZW5oY0BsZW1vdGUuY29tPjsgDQpDYzogICJG
+dXhpbiBaaGFuZyI8emhhbmdmeEBsZW1vdGUuY29tPjsgImxpbnV4LW1tIjxsaW51eC1tbUBr
+dmFjay5vcmc+OyAibGludXgta2VybmVsIjxsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3Jn
+PjsgInN0YWJsZSI8c3RhYmxlQHZnZXIua2VybmVsLm9yZz47IA0KU3ViamVjdDogIFJlOiBb
+UEFUQ0ggVjMgMi8zXSBtbTogZG1hcG9vbDogQWxpZ24gdG8gQVJDSF9ETUFfTUlOQUxJR04g
+aW5ub24tY29oZXJlbnQgRE1BIG1vZGUNCg0KIA0KT24gV2VkLCAxMyBTZXAgMjAxNyAxNzoy
+MDo1MSArMDgwMCBIdWFjYWkgQ2hlbiA8Y2hlbmhjQGxlbW90ZS5jb20+IHdyb3RlOg0KDQo+
+IEluIG5vbi1jb2hlcmVudCBETUEgbW9kZSwga2VybmVsIHVzZXMgY2FjaGUgZmx1c2hpbmcg
+b3BlcmF0aW9ucyB0bw0KPiBtYWludGFpbiBJL08gY29oZXJlbmN5LCBzbyB0aGUgZG1hcG9v
+bCBvYmplY3RzIHNob3VsZCBiZSBhbGlnbmVkIHRvDQo+IEFSQ0hfRE1BX01JTkFMSUdOLg0K
+DQpXaGF0IGFyZSB0aGUgdXNlci12aXNpYmxlIGVmZmVjdHMgb2YgdGhpcyBidWc/
 
-Andrew Morton <akpm@linux-foundation.org> writes:
 
-> On Wed, 13 Sep 2017 10:40:19 +0900 Minchan Kim <minchan@kernel.org> wrote:
->
->> Every zram users like low-end android device has used 0 page-cluster
->> to disable swap readahead because it has no seek cost and works as
->> synchronous IO operation so if we do readahead multiple pages,
->> swap falut latency would be (4K * readahead window size). IOW,
->> readahead is meaningful only if it doesn't bother faulted page's
->> latency.
->> 
->> However, this patch introduces additional knob /sys/kernel/mm/swap/
->> vma_ra_max_order as well as page-cluster. It means existing users
->> has used disabled swap readahead doesn't work until they should be
->> aware of new knob and modification of their script/code to disable
->> vma_ra_max_order as well as page-cluster.
->> 
->> I say it's a *regression* and wanted to fix it but Huang's opinion
->> is that it's not a functional regression so userspace should be fixed
->> by themselves.
->> Please look into detail of discussion in
->> http://lkml.kernel.org/r/%3C1505183833-4739-4-git-send-email-minchan@kernel.org%3E
->
-> hm, tricky problem.  I do agree that linking the physical and virtual
-> readahead schemes in the proposed fashion is unfortunate.  I also agree
-> that breaking existing setups (a bit) is also unfortunate.
->
-> Would it help if, when page-cluster is written to zero, we do
->
-> printk_once("physical readahead disabled, virtual readahead still
-> enabled.  Disable virtual readhead via
-> /sys/kernel/mm/swap/vma_ra_max_order").
->
-> Or something like that.  It's pretty lame, but it should help alert the
-> zram-readahead-disabling people to the issue?
-
-This sounds good for me.
-
-Hi, Minchan, what do you think about this?  I think for low-end android
-device, the end-user may have no opportunity to upgrade to the latest
-kernel, the device vendor should care about this.  For desktop users,
-the warning proposed by Andrew may help to remind them for the new knob.
-
-Best Regards,
-Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
