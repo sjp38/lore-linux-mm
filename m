@@ -1,49 +1,30 @@
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: mm, virtio: possible OOM lockup at virtballoon_oom_notify()
-Date: Mon, 11 Sep 2017 19:27:19 +0900
-Message-ID: <201709111927.IDD00574.tFVJHLOSOOMQFF@I-love.SAKURA.ne.jp>
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH 2/2 v2] sched/wait: Introduce lock breaker in
+ wake_up_page_bit
+Date: Thu, 14 Sep 2017 11:39:53 -0500 (CDT)
+Message-ID: <alpine.DEB.2.20.1709141138340.30688@nuc-kabylake>
+References: <83f675ad385d67760da4b99cd95ee912ca7c0b44.1503677178.git.tim.c.chen@linux.intel.com> <f10f4c25-49c0-7ef5-55c2-769c8fd9bf90@linux.intel.com> <CA+55aFzNikMsuPAaExxT1Z8MfOeU6EhSn6UPDkkz-MRqamcemg@mail.gmail.com> <CA+55aFx67j0u=GNRKoCWpsLRDcHdrjfVvWRS067wLUSfzstgoQ@mail.gmail.com>
+ <CA+55aFzy981a8Ab+89APi6Qnb9U9xap=0A6XNc+wZsAWngWPzA@mail.gmail.com> <CA+55aFwyCSh1RbJ3d5AXURa4_r5OA_=ZZKQrFX0=Z1J3ZgVJ5g@mail.gmail.com> <CA+55aFy18WCqZGwkxH6dTZR9LD9M5nXWqEN8DBeZ4LvNo4Y0BQ@mail.gmail.com> <37D7C6CF3E00A74B8858931C1DB2F077537A07E9@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFzotfXc07UoVtxvDpQOP8tEt8pgxeYe+cGs=BDUC_A4pA@mail.gmail.com> <37D7C6CF3E00A74B8858931C1DB2F077537A1C19@SHSMSX103.ccr.corp.intel.com> <CA+55aFwECeY-x=_du67qAxkta_0LeUw_BQA1kP337SBV3znN2Q@mail.gmail.com> <bd2d09ea-47d1-c0a7-8d4d-604bb4bc28bc@linux.intel.com>
+ <CA+55aFx3WY00yvEDBg7TagX4h_-QO71=HAq5GAT8awtewRXONQ@mail.gmail.com> <a9e74f64-dee6-dc23-128e-8ef8c7383d77@linux.intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Return-path: <virtualization-bounces@lists.linux-foundation.org>
-List-Unsubscribe: <https://lists.linuxfoundation.org/mailman/options/virtualization>,
-	<mailto:virtualization-request@lists.linux-foundation.org?subject=unsubscribe>
-List-Archive: <http://lists.linuxfoundation.org/pipermail/virtualization/>
-List-Post: <mailto:virtualization@lists.linux-foundation.org>
-List-Help: <mailto:virtualization-request@lists.linux-foundation.org?subject=help>
-List-Subscribe: <https://lists.linuxfoundation.org/mailman/listinfo/virtualization>,
-	<mailto:virtualization-request@lists.linux-foundation.org?subject=subscribe>
-Sender: virtualization-bounces@lists.linux-foundation.org
-Errors-To: virtualization-bounces@lists.linux-foundation.org
-To: mst@redhat.com, jasowang@redhat.com
-Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org
+Content-Type: text/plain; charset=US-ASCII
+Return-path: <linux-kernel-owner@vger.kernel.org>
+In-Reply-To: <a9e74f64-dee6-dc23-128e-8ef8c7383d77@linux.intel.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Liang, Kan" <kan.liang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, "Eric W . Biederman" <ebiederm@xmission.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-Hello.
+On Wed, 13 Sep 2017, Tim Chen wrote:
 
-I noticed that virtio_balloon is using register_oom_notifier() and
-leak_balloon() from virtballoon_oom_notify() might depend on
-__GFP_DIRECT_RECLAIM memory allocation.
+> Here's what the customer think happened and is willing to tell us.
+> They have a parent process that spawns off 10 children per core and
+> kicked them to run. The child processes all access a common library.
+> We have 384 cores so 3840 child processes running.  When migration occur on
+> a page in the common library, the first child that access the page will
+> page fault and lock the page, with the other children also page faulting
+> quickly and pile up in the page wait list, till the first child is done.
 
-In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
-serialize against fill_balloon(). But in fill_balloon(),
-alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
-called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE] implies
-__GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, this allocation attempt might
-depend on somebody else's __GFP_DIRECT_RECLAIM | !__GFP_NORETRY memory
-allocation. Such __GFP_DIRECT_RECLAIM | !__GFP_NORETRY allocation can reach
-__alloc_pages_may_oom() and hold oom_lock mutex and call out_of_memory().
-And leak_balloon() is called by virtballoon_oom_notify() via
-blocking_notifier_call_chain() callback when vb->balloon_lock mutex is already
-held by fill_balloon(). As a result, despite __GFP_NORETRY is specified,
-fill_balloon() can indirectly get stuck waiting for vb->balloon_lock mutex
-at leak_balloon().
-
-Also, in leak_balloon(), virtqueue_add_outbuf(GFP_KERNEL) is called via
-tell_host(). Reaching __alloc_pages_may_oom() from this virtqueue_add_outbuf()
-request from leak_balloon() from virtballoon_oom_notify() from
-blocking_notifier_call_chain() from out_of_memory() leads to OOM lockup
-because oom_lock mutex is already held before calling out_of_memory().
-
-OOM notifier callback should not (directly or indirectly) depend on
-__GFP_DIRECT_RECLAIM memory allocation attempt. Can you fix this dependency?
+I think we need some way to avoid migration in cases like this. This is
+crazy. Page migration was not written to deal with something like this.
