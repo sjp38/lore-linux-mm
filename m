@@ -1,152 +1,269 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C2F7B6B0069
-	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 18:36:12 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id 23so497292lfs.0
-        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 15:36:12 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 171956B0253
+	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 18:36:13 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id 80so481510lfy.5
+        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 15:36:13 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id v20si4652401lje.398.2017.09.14.15.36.10
+        by mx.google.com with ESMTPS id 201si6339229lfz.493.2017.09.14.15.36.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 14 Sep 2017 15:36:11 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v8 08/11] mm: zero reserved and unavailable struct pages
-Date: Thu, 14 Sep 2017 18:35:14 -0400
-Message-Id: <20170914223517.8242-9-pasha.tatashin@oracle.com>
+Subject: [PATCH v8 03/11] mm: deferred_init_memmap improvements
+Date: Thu, 14 Sep 2017 18:35:09 -0400
+Message-Id: <20170914223517.8242-4-pasha.tatashin@oracle.com>
 In-Reply-To: <20170914223517.8242-1-pasha.tatashin@oracle.com>
 References: <20170914223517.8242-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, Steven.Sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-Some memory is reserved but unavailable: not present in memblock.memory
-(because not backed by physical pages), but present in memblock.reserved.
-Such memory has backing struct pages, but they are not initialized by going
-through __init_single_page().
+This patch fixes two issues in deferred_init_memmap
 
-In some cases these struct pages are accessed even if they do not contain
-any data. One example is page_to_pfn() might access page->flags if this is
-where section information is stored (CONFIG_SPARSEMEM,
-SECTION_IN_PAGE_FLAGS).
+=====
+In deferred_init_memmap() where all deferred struct pages are initialized
+we have a check like this:
 
-Since, struct pages are zeroed in __init_single_page(), and not during
-allocation time, we must zero such struct pages explicitly.
+if (page->flags) {
+	VM_BUG_ON(page_zone(page) != zone);
+	goto free_range;
+}
 
-The patch involves adding a new memblock iterator:
-	for_each_resv_unavail_range(i, p_start, p_end)
+This way we are checking if the current deferred page has already been
+initialized. It works, because memory for struct pages has been zeroed, and
+the only way flags are not zero if it went through __init_single_page()
+before.  But, once we change the current behavior and won't zero the memory
+in memblock allocator, we cannot trust anything inside "struct page"es
+until they are initialized. This patch fixes this.
 
-Which iterates through reserved && !memory lists, and we zero struct pages
-explicitly by calling mm_zero_struct_page().
+The deferred_init_memmap() is re-written to loop through only free memory
+ranges provided by memblock.
+
+=====
+This patch fixes another existing issue on systems that have holes in
+zones i.e CONFIG_HOLES_IN_ZONE is defined.
+
+In for_each_mem_pfn_range() we have code like this:
+
+if (!pfn_valid_within(pfn)
+	goto free_range;
+
+Note: 'page' is not set to NULL and is not incremented but 'pfn' advances.
+Thus means if deferred struct pages are enabled on systems with these kind
+of holes, linux would get memory corruptions. I have fixed this issue by
+defining a new macro that performs all the necessary operations when we
+free the current set of pages.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
 Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 Reviewed-by: Bob Picco <bob.picco@oracle.com>
 ---
- include/linux/memblock.h | 16 ++++++++++++++++
- include/linux/mm.h       |  6 ++++++
- mm/page_alloc.c          | 30 ++++++++++++++++++++++++++++++
- 3 files changed, 52 insertions(+)
+ mm/page_alloc.c | 161 +++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 78 insertions(+), 83 deletions(-)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index bae11c7e7bf3..bdd4268f9323 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -237,6 +237,22 @@ unsigned long memblock_next_valid_pfn(unsigned long pfn, unsigned long max_pfn);
- 	for_each_mem_range_rev(i, &memblock.memory, &memblock.reserved,	\
- 			       nid, flags, p_start, p_end, p_nid)
- 
-+/**
-+ * for_each_resv_unavail_range - iterate through reserved and unavailable memory
-+ * @i: u64 used as loop variable
-+ * @flags: pick from blocks based on memory attributes
-+ * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
-+ * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
-+ *
-+ * Walks over unavailabled but reserved (reserved && !memory) areas of memblock.
-+ * Available as soon as memblock is initialized.
-+ * Note: because this memory does not belong to any physical node, flags and
-+ * nid arguments do not make sense and thus not exported as arguments.
-+ */
-+#define for_each_resv_unavail_range(i, p_start, p_end)			\
-+	for_each_mem_range(i, &memblock.reserved, &memblock.memory,	\
-+			   NUMA_NO_NODE, MEMBLOCK_NONE, p_start, p_end, NULL)
-+
- static inline void memblock_set_region_flags(struct memblock_region *r,
- 					     unsigned long flags)
- {
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 50b74d628243..a7bba4ce79ba 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2010,6 +2010,12 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
- 					struct mminit_pfnnid_cache *state);
- #endif
- 
-+#ifdef CONFIG_HAVE_MEMBLOCK
-+void zero_resv_unavail(void);
-+#else
-+static inline void zero_resv_unavail(void) {}
-+#endif
-+
- extern void set_dma_reserve(unsigned long new_dma_reserve);
- extern void memmap_init_zone(unsigned long, int, unsigned long,
- 				unsigned long, enum memmap_context);
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4b630ee91430..1d38d391dffd 100644
+index c841af88836a..d132c801d2c1 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -6202,6 +6202,34 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
- 	free_area_init_core(pgdat);
+@@ -1410,14 +1410,17 @@ void clear_zone_contiguous(struct zone *zone)
  }
  
-+#ifdef CONFIG_HAVE_MEMBLOCK
-+/*
-+ * Only struct pages that are backed by physical memory are zeroed and
-+ * initialized by going through __init_single_page(). But, there are some
-+ * struct pages which are reserved in memblock allocator and their fields
-+ * may be accessed (for example page_to_pfn() on some configuration accesses
-+ * flags). We must explicitly zero those struct pages.
-+ */
-+void __paginginit zero_resv_unavail(void)
-+{
-+	phys_addr_t start, end;
-+	unsigned long pfn;
-+	u64 i, pgcnt;
+ #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+-static void __init deferred_free_range(struct page *page,
+-					unsigned long pfn, int nr_pages)
++static void __init deferred_free_range(unsigned long pfn,
++				       unsigned long nr_pages)
+ {
+-	int i;
++	struct page *page;
++	unsigned long i;
+ 
+-	if (!page)
++	if (!nr_pages)
+ 		return;
+ 
++	page = pfn_to_page(pfn);
 +
-+	/* Loop through ranges that are reserved, but do not have reported
-+	 * physical memory backing.
-+	 */
-+	pgcnt = 0;
-+	for_each_resv_unavail_range(i, &start, &end) {
-+		for (pfn = PFN_DOWN(start); pfn < PFN_UP(end); pfn++) {
-+			mm_zero_struct_page(pfn_to_page(pfn));
-+			pgcnt++;
+ 	/* Free a large naturally-aligned chunk if possible */
+ 	if (nr_pages == pageblock_nr_pages &&
+ 	    (pfn & (pageblock_nr_pages - 1)) == 0) {
+@@ -1443,19 +1446,82 @@ static inline void __init pgdat_init_report_one_done(void)
+ 		complete(&pgdat_init_all_done_comp);
+ }
+ 
++#define DEFERRED_FREE(nr_free, free_base_pfn, page)			\
++({									\
++	unsigned long nr = (nr_free);					\
++									\
++	deferred_free_range((free_base_pfn), (nr));			\
++	(free_base_pfn) = 0;						\
++	(nr_free) = 0;							\
++	page = NULL;							\
++	nr;								\
++})
++
++static unsigned long deferred_init_range(int nid, int zid, unsigned long pfn,
++					 unsigned long end_pfn)
++{
++	struct mminit_pfnnid_cache nid_init_state = { };
++	unsigned long nr_pgmask = pageblock_nr_pages - 1;
++	unsigned long free_base_pfn = 0;
++	unsigned long nr_pages = 0;
++	unsigned long nr_free = 0;
++	struct page *page = NULL;
++
++	for (; pfn < end_pfn; pfn++) {
++		/*
++		 * First we check if pfn is valid on architectures where it is
++		 * possible to have holes within pageblock_nr_pages. On systems
++		 * where it is not possible, this function is optimized out.
++		 *
++		 * Then, we check if a current large page is valid by only
++		 * checking the validity of the head pfn.
++		 *
++		 * meminit_pfn_in_nid is checked on systems where pfns can
++		 * interleave within a node: a pfn is between start and end
++		 * of a node, but does not belong to this memory node.
++		 *
++		 * Finally, we minimize pfn page lookups and scheduler checks by
++		 * performing it only once every pageblock_nr_pages.
++		 */
++		if (!pfn_valid_within(pfn)) {
++			nr_pages += DEFERRED_FREE(nr_free, free_base_pfn, page);
++		} else if (!(pfn & nr_pgmask) && !pfn_valid(pfn)) {
++			nr_pages += DEFERRED_FREE(nr_free, free_base_pfn, page);
++		} else if (!meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
++			nr_pages += DEFERRED_FREE(nr_free, free_base_pfn, page);
++		} else if (page && (pfn & nr_pgmask)) {
++			page++;
++			__init_single_page(page, pfn, zid, nid);
++			nr_free++;
++		} else {
++			nr_pages += DEFERRED_FREE(nr_free, free_base_pfn, page);
++			page = pfn_to_page(pfn);
++			__init_single_page(page, pfn, zid, nid);
++			free_base_pfn = pfn;
++			nr_free = 1;
++			cond_resched();
 +		}
 +	}
-+	pr_info("Reserved but unavailable: %lld pages", pgcnt);
-+}
-+#endif /* CONFIG_HAVE_MEMBLOCK */
++	/* Free the last block of pages to allocator */
++	nr_pages += DEFERRED_FREE(nr_free, free_base_pfn, page);
 +
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 
- #if MAX_NUMNODES > 1
-@@ -6625,6 +6653,7 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
- 			node_set_state(nid, N_MEMORY);
- 		check_for_memory(pgdat, nid);
- 	}
-+	zero_resv_unavail();
- }
- 
- static int __init cmdline_parse_core(char *p, unsigned long *core)
-@@ -6788,6 +6817,7 @@ void __init free_area_init(unsigned long *zones_size)
++	return nr_pages;
++}
++
+ /* Initialise remaining memory on a node */
+ static int __init deferred_init_memmap(void *data)
  {
- 	free_area_init_node(0, zones_size,
- 			__pa(PAGE_OFFSET) >> PAGE_SHIFT, NULL);
-+	zero_resv_unavail();
- }
+ 	pg_data_t *pgdat = data;
+ 	int nid = pgdat->node_id;
+-	struct mminit_pfnnid_cache nid_init_state = { };
+ 	unsigned long start = jiffies;
+ 	unsigned long nr_pages = 0;
+-	unsigned long walk_start, walk_end;
+-	int i, zid;
++	unsigned long spfn, epfn;
++	phys_addr_t spa, epa;
++	int zid;
+ 	struct zone *zone;
+ 	unsigned long first_init_pfn = pgdat->first_deferred_pfn;
+ 	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
++	u64 i;
  
- static int page_alloc_cpu_dead(unsigned int cpu)
+ 	if (first_init_pfn == ULONG_MAX) {
+ 		pgdat_init_report_one_done();
+@@ -1477,83 +1543,12 @@ static int __init deferred_init_memmap(void *data)
+ 		if (first_init_pfn < zone_end_pfn(zone))
+ 			break;
+ 	}
++	first_init_pfn = max(zone->zone_start_pfn, first_init_pfn);
+ 
+-	for_each_mem_pfn_range(i, nid, &walk_start, &walk_end, NULL) {
+-		unsigned long pfn, end_pfn;
+-		struct page *page = NULL;
+-		struct page *free_base_page = NULL;
+-		unsigned long free_base_pfn = 0;
+-		int nr_to_free = 0;
+-
+-		end_pfn = min(walk_end, zone_end_pfn(zone));
+-		pfn = first_init_pfn;
+-		if (pfn < walk_start)
+-			pfn = walk_start;
+-		if (pfn < zone->zone_start_pfn)
+-			pfn = zone->zone_start_pfn;
+-
+-		for (; pfn < end_pfn; pfn++) {
+-			if (!pfn_valid_within(pfn))
+-				goto free_range;
+-
+-			/*
+-			 * Ensure pfn_valid is checked every
+-			 * pageblock_nr_pages for memory holes
+-			 */
+-			if ((pfn & (pageblock_nr_pages - 1)) == 0) {
+-				if (!pfn_valid(pfn)) {
+-					page = NULL;
+-					goto free_range;
+-				}
+-			}
+-
+-			if (!meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
+-				page = NULL;
+-				goto free_range;
+-			}
+-
+-			/* Minimise pfn page lookups and scheduler checks */
+-			if (page && (pfn & (pageblock_nr_pages - 1)) != 0) {
+-				page++;
+-			} else {
+-				nr_pages += nr_to_free;
+-				deferred_free_range(free_base_page,
+-						free_base_pfn, nr_to_free);
+-				free_base_page = NULL;
+-				free_base_pfn = nr_to_free = 0;
+-
+-				page = pfn_to_page(pfn);
+-				cond_resched();
+-			}
+-
+-			if (page->flags) {
+-				VM_BUG_ON(page_zone(page) != zone);
+-				goto free_range;
+-			}
+-
+-			__init_single_page(page, pfn, zid, nid);
+-			if (!free_base_page) {
+-				free_base_page = page;
+-				free_base_pfn = pfn;
+-				nr_to_free = 0;
+-			}
+-			nr_to_free++;
+-
+-			/* Where possible, batch up pages for a single free */
+-			continue;
+-free_range:
+-			/* Free the current block of pages to allocator */
+-			nr_pages += nr_to_free;
+-			deferred_free_range(free_base_page, free_base_pfn,
+-								nr_to_free);
+-			free_base_page = NULL;
+-			free_base_pfn = nr_to_free = 0;
+-		}
+-		/* Free the last block of pages to allocator */
+-		nr_pages += nr_to_free;
+-		deferred_free_range(free_base_page, free_base_pfn, nr_to_free);
+-
+-		first_init_pfn = max(end_pfn, first_init_pfn);
++	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
++		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
++		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
++		nr_pages += deferred_init_range(nid, zid, spfn, epfn);
+ 	}
+ 
+ 	/* Sanity check that the next zone really is unpopulated */
 -- 
 2.14.1
 
