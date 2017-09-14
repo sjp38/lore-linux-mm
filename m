@@ -1,51 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F1256B0033
-	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 21:13:56 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id 93so3743463iol.2
-        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 18:13:56 -0700 (PDT)
-Received: from smtpbgau2.qq.com (smtpbgau2.qq.com. [54.206.34.216])
-        by mx.google.com with ESMTPS id a5si10022879oii.346.2017.09.13.18.13.54
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DFFBC6B0033
+	for <linux-mm@kvack.org>; Wed, 13 Sep 2017 22:12:26 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id m30so3311239pgn.2
+        for <linux-mm@kvack.org>; Wed, 13 Sep 2017 19:12:26 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id g8si2504236plk.474.2017.09.13.19.12.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Sep 2017 18:13:55 -0700 (PDT)
-From: "=?utf-8?B?6ZmI5Y2O5omN?=" <chenhc@lemote.com>
-Subject: Re: [PATCH V3 2/3] mm: dmapool: Align to ARCH_DMA_MINALIGN innon-coherent DMA mode
-Mime-Version: 1.0
-Content-Type: text/plain;
-	charset="utf-8"
-Content-Transfer-Encoding: base64
-Date: Thu, 14 Sep 2017 09:13:47 +0800
-Message-ID: <tencent_31D6F9A339CED0D66B83CBD8@qq.com>
-References: <1505294451-21312-1-git-send-email-chenhc@lemote.com>
-	<20170913145249.f89678a57842da122aa062fd@linux-foundation.org>
-In-Reply-To: <20170913145249.f89678a57842da122aa062fd@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Sep 2017 19:12:25 -0700 (PDT)
+Subject: Re: [PATCH 2/2 v2] sched/wait: Introduce lock breaker in
+ wake_up_page_bit
+References: <83f675ad385d67760da4b99cd95ee912ca7c0b44.1503677178.git.tim.c.chen@linux.intel.com>
+ <CA+55aFyErsNw8bqTOCzcrarDZBdj+Ev=1N3sV-gxtLTH03bBFQ@mail.gmail.com>
+ <f10f4c25-49c0-7ef5-55c2-769c8fd9bf90@linux.intel.com>
+ <CA+55aFzNikMsuPAaExxT1Z8MfOeU6EhSn6UPDkkz-MRqamcemg@mail.gmail.com>
+ <CA+55aFx67j0u=GNRKoCWpsLRDcHdrjfVvWRS067wLUSfzstgoQ@mail.gmail.com>
+ <CA+55aFzy981a8Ab+89APi6Qnb9U9xap=0A6XNc+wZsAWngWPzA@mail.gmail.com>
+ <CA+55aFwyCSh1RbJ3d5AXURa4_r5OA_=ZZKQrFX0=Z1J3ZgVJ5g@mail.gmail.com>
+ <CA+55aFy18WCqZGwkxH6dTZR9LD9M5nXWqEN8DBeZ4LvNo4Y0BQ@mail.gmail.com>
+ <37D7C6CF3E00A74B8858931C1DB2F077537A07E9@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFzotfXc07UoVtxvDpQOP8tEt8pgxeYe+cGs=BDUC_A4pA@mail.gmail.com>
+ <37D7C6CF3E00A74B8858931C1DB2F077537A1C19@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFwECeY-x=_du67qAxkta_0LeUw_BQA1kP337SBV3znN2Q@mail.gmail.com>
+ <bd2d09ea-47d1-c0a7-8d4d-604bb4bc28bc@linux.intel.com>
+ <CA+55aFx3WY00yvEDBg7TagX4h_-QO71=HAq5GAT8awtewRXONQ@mail.gmail.com>
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Message-ID: <a9e74f64-dee6-dc23-128e-8ef8c7383d77@linux.intel.com>
+Date: Wed, 13 Sep 2017 19:12:23 -0700
+MIME-Version: 1.0
+In-Reply-To: <CA+55aFx3WY00yvEDBg7TagX4h_-QO71=HAq5GAT8awtewRXONQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?B?QW5kcmV3IE1vcnRvbg==?= <akpm@linux-foundation.org>
-Cc: =?utf-8?B?RnV4aW4gWmhhbmc=?= <zhangfx@lemote.com>, =?utf-8?B?bGludXgtbW0=?= <linux-mm@kvack.org>, =?utf-8?B?bGludXgta2VybmVs?= <linux-kernel@vger.kernel.org>, =?utf-8?B?c3RhYmxl?= <stable@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: "Liang, Kan" <kan.liang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Christopher Lameter <cl@linux.com>, "Eric W . Biederman" <ebiederm@xmission.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-SGksIEFuZHJldywNCg0KSXQgd2lsbCBjYXVzZSBkYXRhIGNvcnJ1cHRpb24sIGF0IGxlYXN0
-IG9uIE1JUFM6DQpzdGVwIDEsIGRtYV9tYXBfc2luZ2xlDQpzdGVwIDIsIGNhY2hlX2ludmFs
-aWRhdGUgKG5vIHdyaXRlYmFjaykNCnN0ZXAgMywgZG1hX2Zyb21fZGV2aWNlDQpzdGVwIDQs
-IGRtYV91bm1hcF9zaW5nbGUNCklmIGEgRE1BIGJ1ZmZlciBhbmQgYSBrZXJuZWwgc3RydWN0
-dXJlIHNoYXJlIGEgc2FtZSBjYWNoZSBsaW5lLCBhbmQgaWYgdGhlIGtlcm5lbCBzdHJ1Y3R1
-cmUgaGFzIGRpcnR5IGRhdGEsIGNhY2hlX2ludmFsaWRhdGUgKG5vIHdyaXRlYmFjaykgbWF5
-IGNhdXNlIGRhdGEgbG9zdC4NCiANCkh1YWNhaQ0KIA0KLS0tLS0tLS0tLS0tLS0tLS0tIE9y
-aWdpbmFsIC0tLS0tLS0tLS0tLS0tLS0tLQ0KRnJvbTogICJBbmRyZXcgTW9ydG9uIjxha3Bt
-QGxpbnV4LWZvdW5kYXRpb24ub3JnPjsNCkRhdGU6ICBUaHUsIFNlcCAxNCwgMjAxNyAwNTo1
-MiBBTQ0KVG86ICAiSHVhY2FpIENoZW4iPGNoZW5oY0BsZW1vdGUuY29tPjsgDQpDYzogICJG
-dXhpbiBaaGFuZyI8emhhbmdmeEBsZW1vdGUuY29tPjsgImxpbnV4LW1tIjxsaW51eC1tbUBr
-dmFjay5vcmc+OyAibGludXgta2VybmVsIjxsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3Jn
-PjsgInN0YWJsZSI8c3RhYmxlQHZnZXIua2VybmVsLm9yZz47IA0KU3ViamVjdDogIFJlOiBb
-UEFUQ0ggVjMgMi8zXSBtbTogZG1hcG9vbDogQWxpZ24gdG8gQVJDSF9ETUFfTUlOQUxJR04g
-aW5ub24tY29oZXJlbnQgRE1BIG1vZGUNCg0KIA0KT24gV2VkLCAxMyBTZXAgMjAxNyAxNzoy
-MDo1MSArMDgwMCBIdWFjYWkgQ2hlbiA8Y2hlbmhjQGxlbW90ZS5jb20+IHdyb3RlOg0KDQo+
-IEluIG5vbi1jb2hlcmVudCBETUEgbW9kZSwga2VybmVsIHVzZXMgY2FjaGUgZmx1c2hpbmcg
-b3BlcmF0aW9ucyB0bw0KPiBtYWludGFpbiBJL08gY29oZXJlbmN5LCBzbyB0aGUgZG1hcG9v
-bCBvYmplY3RzIHNob3VsZCBiZSBhbGlnbmVkIHRvDQo+IEFSQ0hfRE1BX01JTkFMSUdOLg0K
-DQpXaGF0IGFyZSB0aGUgdXNlci12aXNpYmxlIGVmZmVjdHMgb2YgdGhpcyBidWc/
+On 08/29/2017 09:24 AM, Linus Torvalds wrote:
+> On Tue, Aug 29, 2017 at 9:13 AM, Tim Chen <tim.c.chen@linux.intel.com> wrote:
+>>
+>> It is affecting not a production use, but the customer's acceptance
+>> test for their systems.  So I suspect it is a stress test.
+> 
+> Can you gently poke them and ask if they might make theie stress test
+> code available?
+> 
+> Tell them that we have a fix, but right now it's delayed into 4.14
+> because we have no visibility into what it is that it actually fixes,
+> and whether it's all that critical or just some microbenchmark.
+> 
+>
 
+Linus,
+
+Here's what the customer think happened and is willing to tell us.
+They have a parent process that spawns off 10 children per core and
+kicked them to run. The child processes all access a common library.
+We have 384 cores so 3840 child processes running.  When migration occur on
+a page in the common library, the first child that access the page will
+page fault and lock the page, with the other children also page faulting
+quickly and pile up in the page wait list, till the first child is done.
+
+Probably some kind of access pattern of the common library induces the
+page migration to happen.
+
+BTW, will you be merging these 2 patches in 4.14?
+
+Thanks.
+
+Tim
 
 
 --
