@@ -1,256 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 53DB86B0261
-	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 10:10:51 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id y15so2699367lfd.6
-        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 07:10:51 -0700 (PDT)
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3227B6B0033
+	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 11:43:15 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id b1so3912121qtc.4
+        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 08:43:15 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u23sor3732473lfg.102.2017.09.14.07.10.49
+        by mx.google.com with SMTPS id m4sor6499674qta.58.2017.09.14.08.43.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 14 Sep 2017 07:10:49 -0700 (PDT)
-From: Timofey Titovets <nefelim4ag@gmail.com>
-Subject: [RFC PATCH 1/1] ksm: allow dedup all tasks memory
-Date: Thu, 14 Sep 2017 17:10:40 +0300
-Message-Id: <20170914141040.9497-2-nefelim4ag@gmail.com>
-In-Reply-To: <20170914141040.9497-1-nefelim4ag@gmail.com>
-References: <20170914141040.9497-1-nefelim4ag@gmail.com>
+        Thu, 14 Sep 2017 08:43:13 -0700 (PDT)
+Subject: Re: [PATCH] mm/memory_hotplug: fix wrong casting for
+ __remove_section()
+References: <51a59ec3-e7ba-2562-1917-036b8181092c@gmail.com>
+ <20170912124952.uraxdt5bgl25zhf7@dhcp22.suse.cz>
+ <587bdecd-2584-21be-94b8-61b427f1b0e8@gmail.com>
+ <20170913055914.3npcxevhdwghcmdd@dhcp22.suse.cz>
+From: YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
+Message-ID: <509197e7-135d-1304-76f1-32ae1fcbf223@gmail.com>
+Date: Thu, 14 Sep 2017 11:43:10 -0400
+MIME-Version: 1.0
+In-Reply-To: <20170913055914.3npcxevhdwghcmdd@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Timofey Titovets <nefelim4ag@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, qiuxishi@huawei.com, arbab@linux.vnet.ibm.com, Vlastimil Babka <vbabka@suse.cz>, yasu.isimatu@gmail.com
 
-ksm by default working only on memory that added by
-madvice().
+Hi Michal,
 
-And only way get that work on other applications:
- - Use LD_PRELOAD and libraries
- - Patch kernel
+On 09/13/2017 01:59 AM, Michal Hocko wrote:
+> On Tue 12-09-17 13:05:39, YASUAKI ISHIMATSU wrote:
+>> Hi Michal,
+>>
+>> Thanks you for reviewing my patch.
+>>
+>> On 09/12/2017 08:49 AM, Michal Hocko wrote:
+>>> On Fri 08-09-17 16:43:04, YASUAKI ISHIMATSU wrote:
+>>>> __remove_section() calls __remove_zone() to shrink zone and pgdat.
+>>>> But due to wrong castings, __remvoe_zone() cannot shrink zone
+>>>> and pgdat correctly if pfn is over 0xffffffff.
+>>>>
+>>>> So the patch fixes the following 3 wrong castings.
+>>>>
+>>>>   1. find_smallest_section_pfn() returns 0 or start_pfn which defined
+>>>>      as unsigned long. But the function always returns 32bit value
+>>>>      since the function is defined as int.
+>>>>
+>>>>   2. find_biggest_section_pfn() returns 0 or pfn which defined as
+>>>>      unsigned long. the function always returns 32bit value
+>>>>      since the function is defined as int.
+>>>
+>>> this is indeed wrong. Pfns over would be really broken 15TB. Not that
+>>> unrealistic these days
+>>
+>> Why 15TB?
+> 
+> 0xffffffff>>28
+> 
 
-So add new attribute "mode"
-Two passible values:
- - normal [default] - ksm use only madvice
- - always [new]     - ksm will search vma over all processes memory and try dedup it
+Even thought I see your explanation, I cannot understand.
 
-For now ksm import all vma per process per loop.
+In my understanding, find_{smallest|biggest}_section_pfn() return integer.
+So the functions always return 0x00000000 - 0xffffffff. Therefore if pfn is over
+0xffffffff (under 16TB), then the function cannot work correctly.
 
-Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
----
- Documentation/vm/ksm.txt |   3 +
- mm/ksm.c                 | 139 ++++++++++++++++++++++++++++++++++++++++-------
- 2 files changed, 121 insertions(+), 21 deletions(-)
+What am I wrong?
 
-diff --git a/Documentation/vm/ksm.txt b/Documentation/vm/ksm.txt
-index 6686bd267dc9..3ba6a558c48e 100644
---- a/Documentation/vm/ksm.txt
-+++ b/Documentation/vm/ksm.txt
-@@ -84,6 +84,9 @@ run              - set 0 to stop ksmd from running but keep merged pages,
-                    Default: 0 (must be changed to 1 to activate KSM,
-                                except if CONFIG_SYSFS is disabled)
-
-+mode             - set always to allow ksm dedup whole memory
-+                   set normal to use only madvice [default]
-+
- use_zero_pages   - specifies whether empty pages (i.e. allocated pages
-                    that only contain zeroes) should be treated specially.
-                    When set to 1, empty pages are merged with the kernel
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 15dd7415f7b3..78ecb62ad7e6 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -276,6 +276,10 @@ static int ksm_nr_node_ids = 1;
- static unsigned long ksm_run = KSM_RUN_STOP;
- static void wait_while_offlining(void);
-
-+#define KSM_MODE_NORMAL 0
-+#define KSM_MODE_ALWAYS	1
-+static unsigned long ksm_mode = KSM_MODE_NORMAL;
-+
- static DECLARE_WAIT_QUEUE_HEAD(ksm_thread_wait);
- static DEFINE_MUTEX(ksm_thread_mutex);
- static DEFINE_SPINLOCK(ksm_mmlist_lock);
-@@ -284,6 +288,11 @@ static DEFINE_SPINLOCK(ksm_mmlist_lock);
- 		sizeof(struct __struct), __alignof__(struct __struct),\
- 		(__flags), NULL)
-
-+static inline int ksm_mode_always(void)
-+{
-+	return (ksm_mode == KSM_MODE_ALWAYS);
-+}
-+
- static int __init ksm_slab_init(void)
- {
- 	rmap_item_cache = KSM_KMEM_CACHE(rmap_item, 0);
-@@ -2314,17 +2323,91 @@ static void ksm_do_scan(unsigned int scan_npages)
-
- static int ksmd_should_run(void)
- {
--	return (ksm_run & KSM_RUN_MERGE) && !list_empty(&ksm_mm_head.mm_list);
-+	return (ksm_run & KSM_RUN_MERGE) &&
-+		(!list_empty(&ksm_mm_head.mm_list) || ksm_mode_always());
-+}
-+
-+
-+int ksm_enter(struct mm_struct *mm, unsigned long *vm_flags)
-+{
-+	int err;
-+
-+	if (*vm_flags & (VM_MERGEABLE | VM_SHARED  | VM_MAYSHARE   |
-+			 VM_PFNMAP    | VM_IO      | VM_DONTEXPAND |
-+			 VM_HUGETLB | VM_MIXEDMAP))
-+		return 0;
-+
-+#ifdef VM_SAO
-+	if (*vm_flags & VM_SAO)
-+		return 0;
-+#endif
-+
-+	if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
-+		err = __ksm_enter(mm);
-+		if (err)
-+			return err;
-+	}
-+
-+	*vm_flags |= VM_MERGEABLE;
-+
-+	return 0;
-+}
-+
-+/*
-+ * Register all vmas for all processes in the system with KSM.
-+ * Note that every call to ksm_madvise, for a given vma, after the first
-+ * does nothing but set flags.
-+ */
-+void ksm_import_task_vma(struct task_struct *task)
-+{
-+	struct vm_area_struct *vma;
-+	struct mm_struct *mm;
-+	int error;
-+
-+	mm = get_task_mm(task);
-+	if (!mm)
-+		return;
-+	down_write(&mm->mmap_sem);
-+	vma = mm->mmap;
-+	while (vma) {
-+		error = ksm_enter(vma->vm_mm, &vma->vm_flags);
-+		vma = vma->vm_next;
-+	}
-+	up_write(&mm->mmap_sem);
-+	mmput(mm);
-+	return;
- }
-
- static int ksm_scan_thread(void *nothing)
- {
-+	pid_t last_pid = 1;
-+	pid_t curr_pid;
-+	struct task_struct *task;
-+
- 	set_freezable();
- 	set_user_nice(current, 5);
-
- 	while (!kthread_should_stop()) {
- 		mutex_lock(&ksm_thread_mutex);
- 		wait_while_offlining();
-+		if (ksm_mode_always()) {
-+			/*
-+			 * import one task's vma per run
-+			 */
-+			read_lock(&tasklist_lock);
-+
-+			for_each_process(task) {
-+				curr_pid = task_pid_nr(task);
-+				if (curr_pid == last_pid)
-+					break;
-+			}
-+
-+			task = next_task(task);
-+			last_pid = task_pid_nr(task);
-+
-+			ksm_import_task_vma(task);
-+			read_unlock(&tasklist_lock);
-+		}
- 		if (ksmd_should_run())
- 			ksm_do_scan(ksm_thread_pages_to_scan);
- 		mutex_unlock(&ksm_thread_mutex);
-@@ -2350,26 +2433,9 @@ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
-
- 	switch (advice) {
- 	case MADV_MERGEABLE:
--		/*
--		 * Be somewhat over-protective for now!
--		 */
--		if (*vm_flags & (VM_MERGEABLE | VM_SHARED  | VM_MAYSHARE   |
--				 VM_PFNMAP    | VM_IO      | VM_DONTEXPAND |
--				 VM_HUGETLB | VM_MIXEDMAP))
--			return 0;		/* just ignore the advice */
--
--#ifdef VM_SAO
--		if (*vm_flags & VM_SAO)
--			return 0;
--#endif
--
--		if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
--			err = __ksm_enter(mm);
--			if (err)
--				return err;
--		}
--
--		*vm_flags |= VM_MERGEABLE;
-+		err = ksm_enter(mm, vm_flags);
-+		if (err)
-+			return err;
- 		break;
-
- 	case MADV_UNMERGEABLE:
-@@ -2769,6 +2835,36 @@ static ssize_t pages_to_scan_store(struct kobject *kobj,
- }
- KSM_ATTR(pages_to_scan);
-
-+static ssize_t mode_show(struct kobject *kobj, struct kobj_attribute *attr,
-+			char *buf)
-+{
-+	switch (ksm_mode) {
-+		case KSM_MODE_NORMAL:
-+			return sprintf(buf, "always [normal]\n");
-+			break;
-+		case KSM_MODE_ALWAYS:
-+			return sprintf(buf, "[always] normal\n");
-+			break;
-+	}
-+
-+	return sprintf(buf, "always [normal]\n");
-+}
-+
-+static ssize_t mode_store(struct kobject *kobj, struct kobj_attribute *attr,
-+			 const char *buf, size_t count)
-+{
-+	if (!memcmp("always", buf, min(sizeof("always")-1, count))) {
-+		ksm_mode = KSM_MODE_ALWAYS;
-+		wake_up_interruptible(&ksm_thread_wait);
-+	} else if (!memcmp("normal", buf, min(sizeof("normal")-1, count))) {
-+		ksm_mode = KSM_MODE_NORMAL;
-+	} else
-+		return -EINVAL;
-+
-+	return count;
-+}
-+KSM_ATTR(mode);
-+
- static ssize_t run_show(struct kobject *kobj, struct kobj_attribute *attr,
- 			char *buf)
- {
-@@ -3026,6 +3122,7 @@ KSM_ATTR_RO(full_scans);
- static struct attribute *ksm_attrs[] = {
- 	&sleep_millisecs_attr.attr,
- 	&pages_to_scan_attr.attr,
-+	&mode_attr.attr,
- 	&run_attr.attr,
- 	&pages_shared_attr.attr,
- 	&pages_sharing_attr.attr,
---
-2.14.1
+Thanks,
+Yasuaki Ishimatsu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
