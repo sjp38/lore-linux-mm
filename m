@@ -1,69 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D23636B0260
-	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 09:59:40 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id c8so2684743lfe.4
-        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 06:59:40 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 8AD2D6B0260
+	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 10:10:50 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id l196so2713482lfl.2
+        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 07:10:50 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 2sor3461844lji.72.2017.09.14.06.59.39
+        by mx.google.com with SMTPS id x4sor489435ljd.52.2017.09.14.07.10.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 14 Sep 2017 06:59:39 -0700 (PDT)
-Date: Thu, 14 Sep 2017 15:59:36 +0200
-From: Vitaly Wool <vitalywool@gmail.com>
-Subject: [PATCH] z3fold: fix stale list handling
-Message-Id: <20170914155936.697bf347a00dacee7e7f3778@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 14 Sep 2017 07:10:49 -0700 (PDT)
+From: Timofey Titovets <nefelim4ag@gmail.com>
+Subject: [RFC PATCH 0/1] ksm allow dedup all process memory
+Date: Thu, 14 Sep 2017 17:10:39 +0300
+Message-Id: <20170914141040.9497-1-nefelim4ag@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
-Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Oleksiy.Avramchenko@sony.com
+To: linux-mm@kvack.org
+Cc: Timofey Titovets <nefelim4ag@gmail.com>
 
-Fix the situation when clear_bit() is called for page->private before
-the page pointer is actually assigned. While at it, remove work_busy()
-check because it is costly and does not give 100% guarantee anyway.
+Hi, about 3 years ago i firstly write to linux-mm,
+when i acking about UKSM and make some ugly patches (like that [1]).
 
-Signed-of-by: Vitaly Wool <vitalywool@gmail.com>
----
- mm/z3fold.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+It's difficult to find conversation (for me at least, i only find
+my patches).
+So IIRC:
+ - I trying add support KSM to all process memory
+   for that i patch several memory places to call hooks like madvise.
+   MM folks not like that and at now i'm not only agree, i can fix that another way.
 
-diff --git a/mm/z3fold.c b/mm/z3fold.c
-index b04fa3ba1bf2..b2ba2ba585f3 100644
---- a/mm/z3fold.c
-+++ b/mm/z3fold.c
-@@ -250,6 +250,7 @@ static void __release_z3fold_page(struct z3fold_header *zhdr, bool locked)
- 
- 	WARN_ON(!list_empty(&zhdr->buddy));
- 	set_bit(PAGE_STALE, &page->private);
-+	clear_bit(NEEDS_COMPACTING, &page->private);
- 	spin_lock(&pool->lock);
- 	if (!list_empty(&page->lru))
- 		list_del(&page->lru);
-@@ -303,7 +304,6 @@ static void free_pages_work(struct work_struct *w)
- 		list_del(&zhdr->buddy);
- 		if (WARN_ON(!test_bit(PAGE_STALE, &page->private)))
- 			continue;
--		clear_bit(NEEDS_COMPACTING, &page->private);
- 		spin_unlock(&pool->stale_lock);
- 		cancel_work_sync(&zhdr->work);
- 		free_z3fold_page(page);
-@@ -624,10 +624,8 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
- 	 * stale pages list. cancel_work_sync() can sleep so we must make
- 	 * sure it won't be called in case we're in atomic context.
- 	 */
--	if (zhdr && (can_sleep || !work_pending(&zhdr->work) ||
--	    !unlikely(work_busy(&zhdr->work)))) {
-+	if (zhdr && (can_sleep || !work_pending(&zhdr->work))) {
- 		list_del(&zhdr->buddy);
--		clear_bit(NEEDS_COMPACTING, &page->private);
- 		spin_unlock(&pool->stale_lock);
- 		if (can_sleep)
- 			cancel_work_sync(&zhdr->work);
--- 
-2.11.0
+First i try look at hugepagesd, but hugepages have a much different usecase.
+As example it's bad idea add ksm hook to page_fault.
+
+So:
+ I use kernel task list in ksm_scan_thread and add logic to allow ksm
+ import VMA from tasks.
+ That behaviour controlled by new attribute: mode
+ I try mimic hugepages attribute, so mode have two states:
+  - normal [old default behaviour]
+  - always [new] - allow ksm to get tasks vma and try working on that.
+
+To reduce CPU load & tasklist locking time, ksm try import one VMA per loop.
+
+Patch mirror: https://github.com/Nefelim4ag/linux/commit/be6a94e171bf214a26f8186bb76b1d365ccb3b08
+
+Thanks, any comments are appricated!
+
+(Yes i can split patch, but it's RFC and it's too small)
+
+1. https://lkml.org/lkml/2014/11/8/208
+
+Timofey Titovets (1):
+  ksm: allow dedup all tasks memory
+
+ Documentation/vm/ksm.txt |   3 +
+ mm/ksm.c                 | 139 ++++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 121 insertions(+), 21 deletions(-)
+
+--
+2.14.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
