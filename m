@@ -1,118 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D569C6B0038
-	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 12:49:44 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id q76so6121670pfq.5
-        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 09:49:44 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0059.outbound.protection.outlook.com. [104.47.2.59])
-        by mx.google.com with ESMTPS id 87si11830267pft.107.2017.09.14.09.49.43
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EF0426B0038
+	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 12:51:01 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id y77so6148943pfd.2
+        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 09:51:01 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id s187si11309766pfs.374.2017.09.14.09.51.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 14 Sep 2017 09:49:43 -0700 (PDT)
-From: Tariq Toukan <tariqt@mellanox.com>
-Subject: Page allocator bottleneck
-Message-ID: <cef85936-10b2-5d76-9f97-cb03b418fd94@mellanox.com>
-Date: Thu, 14 Sep 2017 19:49:31 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Sep 2017 09:51:00 -0700 (PDT)
+Subject: Re: [PATCH 2/2 v2] sched/wait: Introduce lock breaker in
+ wake_up_page_bit
+References: <83f675ad385d67760da4b99cd95ee912ca7c0b44.1503677178.git.tim.c.chen@linux.intel.com>
+ <CA+55aFzNikMsuPAaExxT1Z8MfOeU6EhSn6UPDkkz-MRqamcemg@mail.gmail.com>
+ <CA+55aFx67j0u=GNRKoCWpsLRDcHdrjfVvWRS067wLUSfzstgoQ@mail.gmail.com>
+ <CA+55aFzy981a8Ab+89APi6Qnb9U9xap=0A6XNc+wZsAWngWPzA@mail.gmail.com>
+ <CA+55aFwyCSh1RbJ3d5AXURa4_r5OA_=ZZKQrFX0=Z1J3ZgVJ5g@mail.gmail.com>
+ <CA+55aFy18WCqZGwkxH6dTZR9LD9M5nXWqEN8DBeZ4LvNo4Y0BQ@mail.gmail.com>
+ <37D7C6CF3E00A74B8858931C1DB2F077537A07E9@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFzotfXc07UoVtxvDpQOP8tEt8pgxeYe+cGs=BDUC_A4pA@mail.gmail.com>
+ <37D7C6CF3E00A74B8858931C1DB2F077537A1C19@SHSMSX103.ccr.corp.intel.com>
+ <CA+55aFwECeY-x=_du67qAxkta_0LeUw_BQA1kP337SBV3znN2Q@mail.gmail.com>
+ <bd2d09ea-47d1-c0a7-8d4d-604bb4bc28bc@linux.intel.com>
+ <CA+55aFx3WY00yvEDBg7TagX4h_-QO71=HAq5GAT8awtewRXONQ@mail.gmail.com>
+ <a9e74f64-dee6-dc23-128e-8ef8c7383d77@linux.intel.com>
+ <CA+55aFx1aBJeq0AsRBsq_mguBz4Qo1fRygn-a19BcMvBA=J=ug@mail.gmail.com>
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Message-ID: <67545647-1371-4540-84ae-e33d1c5c8465@linux.intel.com>
+Date: Thu, 14 Sep 2017 09:50:53 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <CA+55aFx1aBJeq0AsRBsq_mguBz4Qo1fRygn-a19BcMvBA=J=ug@mail.gmail.com>
+Content-Type: multipart/mixed;
+ boundary="------------6FCB008D4044BC0FB06AB2CD"
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>, Jesper Dangaard Brouer <brouer@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Eric Dumazet <eric.dumazet@gmail.com>, Alexei Starovoitov <ast@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Eran Ben Elisha <eranbe@mellanox.com>, Linux Kernel Network Developers <netdev@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: "Liang, Kan" <kan.liang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@elte.hu>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Christopher Lameter <cl@linux.com>, "Eric W . Biederman" <ebiederm@xmission.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Hi all,
+This is a multi-part message in MIME format.
+--------------6FCB008D4044BC0FB06AB2CD
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 
-As part of the efforts to support increasing next-generation NIC speeds,
-I am investigating SW bottlenecks in network stack receive flow.
+On 09/13/2017 07:27 PM, Linus Torvalds wrote:
+> On Wed, Sep 13, 2017 at 7:12 PM, Tim Chen <tim.c.chen@linux.intel.com> wrote:
+>>
+>> BTW, will you be merging these 2 patches in 4.14?
+> 
+> Yes, and thanks for reminding me.
+> 
+> In fact, would you mind sending me the latest versions, rather than me
+> digging them out of the disaster area that is my mailbox and possibly
+> picking an older version?
+> 
+>                  Linus
+> 
 
-Here I share some numbers I got for a simple experiment, in which I 
-simulate the page allocation rate needed in 200Gpbs NICs.
+Attached the two patches that you have updated to sync with your other
+page wait queue clean up and sent to Kan and me:
+https://marc.info/?l=linux-kernel&m=150393893927105&w=2
 
-I ran the test below over 3 different (modified) mlx5 driver versions,
-loaded on server side (RX):
-1) RX page cache disabled, 2 packets per page.
-2) RX page cache disabled, one packet per page.
-3) Huge RX page cache, one packet per page.
+Kan tested this before so it should be still good. 
+I checked that it applied cleanly on latest master.
 
-All page allocations are of order 0.
+Thanks.
 
-NIC: Connectx-5 100 Gbps.
-CPU: Intel(R) Xeon(R) CPU E5-2680 v3 @ 2.50GHz
+Tim
 
-Test:
-128 TCP streams (using super_netperf).
-Changing num of RX queues.
-HW LRO OFF, GRO ON, MTU 1500.
-Observe: BW as a function of num RX queues.
-
-Results:
-
-Driver #1:
-#rings	BW (Mbps)
-1	23,813
-2	44,086
-3	62,128
-4	78,058
-6	94,210 (linerate)
-8	94,205 (linerate)
-12	94,202 (linerate)
-16	94,191 (linerate)
-
-Driver #2:
-#rings	BW (Mbps)
-1	18,835
-2	36,716
-3	50,521
-4	61,746
-6	63,637
-8	60,299
-12	51,048
-16	43,337
-
-Driver #3:
-#rings	BW (Mbps)
-1	19,316
-2	44,850
-3	69,549
-4	87,434
-6	94,342 (linerate)
-8	94,350 (linerate)
-12	94,327 (linerate)
-16	94,327 (linerate)
+--------------6FCB008D4044BC0FB06AB2CD
+Content-Type: text/x-patch;
+ name="0001-sched-wait-Break-up-long-wake-list-walk.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="0001-sched-wait-Break-up-long-wake-list-walk.patch"
 
 
-Insights:
-Major degradation between #1 and #2, not getting any close to linerate!
-Degradation is fixed between #2 and #3.
-This is because page allocator cannot stand the higher allocation rate.
-In #2, we also see that the addition of rings (cores) reduces BW (!!), 
-as result of increasing congestion over shared resources.
-
-Congestion in this case is very clear.
-When monitored in perf top:
-85.58% [kernel] [k] queued_spin_lock_slowpath
-
-I think that page allocator issues should be discussed separately:
-1) Rate: Increase the allocation rate on a single core.
-2) Scalability: Reduce congestion and sync overhead between cores.
-
-This is clearly the current bottleneck in the network stack receive flow.
-
-I know about some efforts that were made in the past two years.
-For example the ones from Jesper et al.:
-- Page-pool (not accepted AFAIK).
-- Page-allocation bulking.
-- Optimize order-0 allocations in Per-Cpu-Pages.
-
-I am not an mm expert, but wanted to raise the issue again, to combine 
-the efforts and hear from you guys about status and possible directions.
-
-Best regards,
-Tariq Toukan
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--------------6FCB008D4044BC0FB06AB2CD--
