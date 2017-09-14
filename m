@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 389226B0271
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E5A16B026B
 	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 09:18:44 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id r136so86558wmf.4
+Received: by mail-wr0-f197.google.com with SMTP id w12so3372428wrc.2
         for <linux-mm@kvack.org>; Thu, 14 Sep 2017 06:18:44 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i10si2267443edk.533.2017.09.14.06.18.38
+        by mx.google.com with ESMTPS id s5si6200462edd.251.2017.09.14.06.18.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Thu, 14 Sep 2017 06:18:38 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 13/15] ceph: Use pagevec_lookup_range_nr_tag()
-Date: Thu, 14 Sep 2017 15:18:17 +0200
-Message-Id: <20170914131819.26266-14-jack@suse.cz>
+Subject: [PATCH 07/15] f2fs: Use find_get_pages_tag() for looking up single page
+Date: Thu, 14 Sep 2017 15:18:11 +0200
+Message-Id: <20170914131819.26266-8-jack@suse.cz>
 In-Reply-To: <20170914131819.26266-1-jack@suse.cz>
 References: <20170914131819.26266-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,32 +20,47 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, Jaegeuk Kim <jaegeuk@kernel.org>, ceph-devel@vger.kernel.org, "Yan, Zheng" <zyan@redhat.com>, Ilya Dryomov <idryomov@gmail.com>, Jan Kara <jack@suse.cz>
 
-Use new function for looking up pages since nr_pages argument from
-pagevec_lookup_range_tag() is going away.
+__get_first_dirty_index() wants to lookup only the first dirty page
+after given index. There's no point in using pagevec_lookup_tag() for
+that. Just use find_get_pages_tag() directly.
 
+CC: Jaegeuk Kim <jaegeuk@kernel.org>
+CC: linux-f2fs-devel@lists.sourceforge.net
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/ceph/addr.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ fs/f2fs/file.c | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
 
-diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
-index e57e9d37bf2d..87789c477381 100644
---- a/fs/ceph/addr.c
-+++ b/fs/ceph/addr.c
-@@ -869,11 +869,9 @@ static int ceph_writepages_start(struct address_space *mapping,
- 		max_pages = wsize >> PAGE_SHIFT;
+diff --git a/fs/f2fs/file.c b/fs/f2fs/file.c
+index 517e112c8a9a..f78b76ec4707 100644
+--- a/fs/f2fs/file.c
++++ b/fs/f2fs/file.c
+@@ -313,18 +313,19 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
+ static pgoff_t __get_first_dirty_index(struct address_space *mapping,
+ 						pgoff_t pgofs, int whence)
+ {
+-	struct pagevec pvec;
++	struct page *page;
+ 	int nr_pages;
  
- get_more_pages:
--		pvec_pages = min_t(unsigned, PAGEVEC_SIZE,
--				   max_pages - locked_pages);
--		pvec_pages = pagevec_lookup_range_tag(&pvec, mapping, &index,
-+		pvec_pages = pagevec_lookup_range_nr_tag(&pvec, mapping, &index,
- 						end, PAGECACHE_TAG_DIRTY,
--						pvec_pages);
-+						max_pages - locked_pages);
- 		dout("pagevec_lookup_range_tag got %d\n", pvec_pages);
- 		if (!pvec_pages && !locked_pages)
- 			break;
+ 	if (whence != SEEK_DATA)
+ 		return 0;
+ 
+ 	/* find first dirty page index */
+-	pagevec_init(&pvec, 0);
+-	nr_pages = pagevec_lookup_tag(&pvec, mapping, &pgofs,
+-					PAGECACHE_TAG_DIRTY, 1);
+-	pgofs = nr_pages ? pvec.pages[0]->index : ULONG_MAX;
+-	pagevec_release(&pvec);
++	nr_pages = find_get_pages_tag(mapping, &pgofs, PAGECACHE_TAG_DIRTY,
++				      1, &page);
++	if (!nr_pages)
++		return ULONG_MAX;
++	pgofs = page->index;
++	put_page(page);
+ 	return pgofs;
+ }
+ 
 -- 
 2.12.3
 
