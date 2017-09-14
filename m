@@ -1,216 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CE21F6B0287
-	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 09:42:21 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r74so138902wme.5
-        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 06:42:21 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k33si4023118edc.198.2017.09.14.06.42.20
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D23636B0260
+	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 09:59:40 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id c8so2684743lfe.4
+        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 06:59:40 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 2sor3461844lji.72.2017.09.14.06.59.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Sep 2017 06:42:20 -0700 (PDT)
-Date: Thu, 14 Sep 2017 15:42:18 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v8 1/4] mm, oom: refactor the oom_kill_process() function
-Message-ID: <20170914134218.bs54itpijfeh54ph@dhcp22.suse.cz>
-References: <20170911131742.16482-1-guro@fb.com>
- <20170911131742.16482-2-guro@fb.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170911131742.16482-2-guro@fb.com>
+        (Google Transport Security);
+        Thu, 14 Sep 2017 06:59:39 -0700 (PDT)
+Date: Thu, 14 Sep 2017 15:59:36 +0200
+From: Vitaly Wool <vitalywool@gmail.com>
+Subject: [PATCH] z3fold: fix stale list handling
+Message-Id: <20170914155936.697bf347a00dacee7e7f3778@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Oleksiy.Avramchenko@sony.com
 
-On Mon 11-09-17 14:17:39, Roman Gushchin wrote:
-> The oom_kill_process() function consists of two logical parts:
-> the first one is responsible for considering task's children as
-> a potential victim and printing the debug information.
-> The second half is responsible for sending SIGKILL to all
-> tasks sharing the mm struct with the given victim.
-> 
-> This commit splits the oom_kill_process() function with
-> an intention to re-use the the second half: __oom_kill_process().
-> 
-> The cgroup-aware OOM killer will kill multiple tasks
-> belonging to the victim cgroup. We don't need to print
-> the debug information for the each task, as well as play
-> with task selection (considering task's children),
-> so we can't use the existing oom_kill_process().
-> 
-> Signed-off-by: Roman Gushchin <guro@fb.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Tejun Heo <tj@kernel.org>
-> Cc: kernel-team@fb.com
-> Cc: cgroups@vger.kernel.org
-> Cc: linux-doc@vger.kernel.org
-> Cc: linux-kernel@vger.kernel.org
-> Cc: linux-mm@kvack.org
+Fix the situation when clear_bit() is called for page->private before
+the page pointer is actually assigned. While at it, remove work_busy()
+check because it is costly and does not give 100% guarantee anyway.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+Signed-of-by: Vitaly Wool <vitalywool@gmail.com>
+---
+ mm/z3fold.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
-> ---
->  mm/oom_kill.c | 123 +++++++++++++++++++++++++++++++---------------------------
->  1 file changed, 65 insertions(+), 58 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 99736e026712..f061b627092c 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -804,68 +804,12 @@ static bool task_will_free_mem(struct task_struct *task)
->  	return ret;
->  }
->  
-> -static void oom_kill_process(struct oom_control *oc, const char *message)
-> +static void __oom_kill_process(struct task_struct *victim)
->  {
-> -	struct task_struct *p = oc->chosen;
-> -	unsigned int points = oc->chosen_points;
-> -	struct task_struct *victim = p;
-> -	struct task_struct *child;
-> -	struct task_struct *t;
-> +	struct task_struct *p;
->  	struct mm_struct *mm;
-> -	unsigned int victim_points = 0;
-> -	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
-> -					      DEFAULT_RATELIMIT_BURST);
->  	bool can_oom_reap = true;
->  
-> -	/*
-> -	 * If the task is already exiting, don't alarm the sysadmin or kill
-> -	 * its children or threads, just give it access to memory reserves
-> -	 * so it can die quickly
-> -	 */
-> -	task_lock(p);
-> -	if (task_will_free_mem(p)) {
-> -		mark_oom_victim(p);
-> -		wake_oom_reaper(p);
-> -		task_unlock(p);
-> -		put_task_struct(p);
-> -		return;
-> -	}
-> -	task_unlock(p);
-> -
-> -	if (__ratelimit(&oom_rs))
-> -		dump_header(oc, p);
-> -
-> -	pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
-> -		message, task_pid_nr(p), p->comm, points);
-> -
-> -	/*
-> -	 * If any of p's children has a different mm and is eligible for kill,
-> -	 * the one with the highest oom_badness() score is sacrificed for its
-> -	 * parent.  This attempts to lose the minimal amount of work done while
-> -	 * still freeing memory.
-> -	 */
-> -	read_lock(&tasklist_lock);
-> -	for_each_thread(p, t) {
-> -		list_for_each_entry(child, &t->children, sibling) {
-> -			unsigned int child_points;
-> -
-> -			if (process_shares_mm(child, p->mm))
-> -				continue;
-> -			/*
-> -			 * oom_badness() returns 0 if the thread is unkillable
-> -			 */
-> -			child_points = oom_badness(child,
-> -				oc->memcg, oc->nodemask, oc->totalpages);
-> -			if (child_points > victim_points) {
-> -				put_task_struct(victim);
-> -				victim = child;
-> -				victim_points = child_points;
-> -				get_task_struct(victim);
-> -			}
-> -		}
-> -	}
-> -	read_unlock(&tasklist_lock);
-> -
->  	p = find_lock_task_mm(victim);
->  	if (!p) {
->  		put_task_struct(victim);
-> @@ -939,6 +883,69 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
->  }
->  #undef K
->  
-> +static void oom_kill_process(struct oom_control *oc, const char *message)
-> +{
-> +	struct task_struct *p = oc->chosen;
-> +	unsigned int points = oc->chosen_points;
-> +	struct task_struct *victim = p;
-> +	struct task_struct *child;
-> +	struct task_struct *t;
-> +	unsigned int victim_points = 0;
-> +	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
-> +					      DEFAULT_RATELIMIT_BURST);
-> +
-> +	/*
-> +	 * If the task is already exiting, don't alarm the sysadmin or kill
-> +	 * its children or threads, just give it access to memory reserves
-> +	 * so it can die quickly
-> +	 */
-> +	task_lock(p);
-> +	if (task_will_free_mem(p)) {
-> +		mark_oom_victim(p);
-> +		wake_oom_reaper(p);
-> +		task_unlock(p);
-> +		put_task_struct(p);
-> +		return;
-> +	}
-> +	task_unlock(p);
-> +
-> +	if (__ratelimit(&oom_rs))
-> +		dump_header(oc, p);
-> +
-> +	pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
-> +		message, task_pid_nr(p), p->comm, points);
-> +
-> +	/*
-> +	 * If any of p's children has a different mm and is eligible for kill,
-> +	 * the one with the highest oom_badness() score is sacrificed for its
-> +	 * parent.  This attempts to lose the minimal amount of work done while
-> +	 * still freeing memory.
-> +	 */
-> +	read_lock(&tasklist_lock);
-> +	for_each_thread(p, t) {
-> +		list_for_each_entry(child, &t->children, sibling) {
-> +			unsigned int child_points;
-> +
-> +			if (process_shares_mm(child, p->mm))
-> +				continue;
-> +			/*
-> +			 * oom_badness() returns 0 if the thread is unkillable
-> +			 */
-> +			child_points = oom_badness(child,
-> +				oc->memcg, oc->nodemask, oc->totalpages);
-> +			if (child_points > victim_points) {
-> +				put_task_struct(victim);
-> +				victim = child;
-> +				victim_points = child_points;
-> +				get_task_struct(victim);
-> +			}
-> +		}
-> +	}
-> +	read_unlock(&tasklist_lock);
-> +
-> +	__oom_kill_process(victim);
-> +}
-> +
->  /*
->   * Determines whether the kernel must panic because of the panic_on_oom sysctl.
->   */
-> -- 
-> 2.13.5
-
+diff --git a/mm/z3fold.c b/mm/z3fold.c
+index b04fa3ba1bf2..b2ba2ba585f3 100644
+--- a/mm/z3fold.c
++++ b/mm/z3fold.c
+@@ -250,6 +250,7 @@ static void __release_z3fold_page(struct z3fold_header *zhdr, bool locked)
+ 
+ 	WARN_ON(!list_empty(&zhdr->buddy));
+ 	set_bit(PAGE_STALE, &page->private);
++	clear_bit(NEEDS_COMPACTING, &page->private);
+ 	spin_lock(&pool->lock);
+ 	if (!list_empty(&page->lru))
+ 		list_del(&page->lru);
+@@ -303,7 +304,6 @@ static void free_pages_work(struct work_struct *w)
+ 		list_del(&zhdr->buddy);
+ 		if (WARN_ON(!test_bit(PAGE_STALE, &page->private)))
+ 			continue;
+-		clear_bit(NEEDS_COMPACTING, &page->private);
+ 		spin_unlock(&pool->stale_lock);
+ 		cancel_work_sync(&zhdr->work);
+ 		free_z3fold_page(page);
+@@ -624,10 +624,8 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+ 	 * stale pages list. cancel_work_sync() can sleep so we must make
+ 	 * sure it won't be called in case we're in atomic context.
+ 	 */
+-	if (zhdr && (can_sleep || !work_pending(&zhdr->work) ||
+-	    !unlikely(work_busy(&zhdr->work)))) {
++	if (zhdr && (can_sleep || !work_pending(&zhdr->work))) {
+ 		list_del(&zhdr->buddy);
+-		clear_bit(NEEDS_COMPACTING, &page->private);
+ 		spin_unlock(&pool->stale_lock);
+ 		if (can_sleep)
+ 			cancel_work_sync(&zhdr->work);
 -- 
-Michal Hocko
-SUSE Labs
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
