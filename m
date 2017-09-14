@@ -1,72 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 01CBF6B0253
-	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 04:14:05 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id d8so4790169pgt.1
-        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 01:14:04 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 99sor7566987pla.117.2017.09.14.01.14.03
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 14 Sep 2017 01:14:03 -0700 (PDT)
-Date: Thu, 14 Sep 2017 17:13:58 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v3 04/20] mm: VMA sequence count
-Message-ID: <20170914081358.GG599@jagdpanzerIV.localdomain>
-References: <1504894024-2750-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1504894024-2750-5-git-send-email-ldufour@linux.vnet.ibm.com>
- <20170913115354.GA7756@jagdpanzerIV.localdomain>
- <44849c10-bc67-b55e-5788-d3c6bb5e7ad1@linux.vnet.ibm.com>
- <20170914003116.GA599@jagdpanzerIV.localdomain>
- <441ff1c6-72a7-5d96-02c8-063578affb62@linux.vnet.ibm.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 4CF1A6B0253
+	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 04:15:51 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id v82so4766566pgb.5
+        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 01:15:51 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id r84si1876062pfi.228.2017.09.14.01.15.49
+        for <linux-mm@kvack.org>;
+        Thu, 14 Sep 2017 01:15:50 -0700 (PDT)
+Date: Thu, 14 Sep 2017 17:15:47 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH -mm -v4 3/5] mm, swap: VMA based swap readahead
+Message-ID: <20170914081547.GC5533@bbox>
+References: <20170807054038.1843-1-ying.huang@intel.com>
+ <20170807054038.1843-4-ying.huang@intel.com>
+ <20170913014019.GB29422@bbox>
+ <20170913140229.8a6cad6f017fa3ea8b53cefc@linux-foundation.org>
+ <87lglim77z.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <441ff1c6-72a7-5d96-02c8-063578affb62@linux.vnet.ibm.com>
+In-Reply-To: <87lglim77z.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
 
-Hi,
-
-On (09/14/17 09:55), Laurent Dufour wrote:
-[..]
-> > so if there are two CPUs, one doing write_seqcount() and the other one
-> > doing read_seqcount() then what can happen is something like this
-> > 
-> > 	CPU0					CPU1
-> > 
-> > 						fs_reclaim_acquire()
-> > 	write_seqcount_begin()
-> > 	fs_reclaim_acquire()			read_seqcount_begin()
-> > 	write_seqcount_end()
-> > 
-> > CPU0 can't write_seqcount_end() because of fs_reclaim_acquire() from
-> > CPU1, CPU1 can't read_seqcount_begin() because CPU0 did write_seqcount_begin()
-> > and now waits for fs_reclaim_acquire(). makes sense?
+On Thu, Sep 14, 2017 at 08:53:04AM +0800, Huang, Ying wrote:
+> Hi, Andrew,
 > 
-> Yes, this makes sense.
+> Andrew Morton <akpm@linux-foundation.org> writes:
 > 
-> But in the case of this series, there is no call to
-> __read_seqcount_begin(), and the reader (the speculative page fault
-> handler), is just checking for (vm_seq & 1) and if this is true, simply
-> exit the speculative path without waiting.
-> So there is no deadlock possibility.
+> > On Wed, 13 Sep 2017 10:40:19 +0900 Minchan Kim <minchan@kernel.org> wrote:
+> >
+> >> Every zram users like low-end android device has used 0 page-cluster
+> >> to disable swap readahead because it has no seek cost and works as
+> >> synchronous IO operation so if we do readahead multiple pages,
+> >> swap falut latency would be (4K * readahead window size). IOW,
+> >> readahead is meaningful only if it doesn't bother faulted page's
+> >> latency.
+> >> 
+> >> However, this patch introduces additional knob /sys/kernel/mm/swap/
+> >> vma_ra_max_order as well as page-cluster. It means existing users
+> >> has used disabled swap readahead doesn't work until they should be
+> >> aware of new knob and modification of their script/code to disable
+> >> vma_ra_max_order as well as page-cluster.
+> >> 
+> >> I say it's a *regression* and wanted to fix it but Huang's opinion
+> >> is that it's not a functional regression so userspace should be fixed
+> >> by themselves.
+> >> Please look into detail of discussion in
+> >> http://lkml.kernel.org/r/%3C1505183833-4739-4-git-send-email-minchan@kernel.org%3E
+> >
+> > hm, tricky problem.  I do agree that linking the physical and virtual
+> > readahead schemes in the proposed fashion is unfortunate.  I also agree
+> > that breaking existing setups (a bit) is also unfortunate.
+> >
+> > Would it help if, when page-cluster is written to zero, we do
+> >
+> > printk_once("physical readahead disabled, virtual readahead still
+> > enabled.  Disable virtual readhead via
+> > /sys/kernel/mm/swap/vma_ra_max_order").
+> >
+> > Or something like that.  It's pretty lame, but it should help alert the
+> > zram-readahead-disabling people to the issue?
+> 
+> This sounds good for me.
+> 
+> Hi, Minchan, what do you think about this?  I think for low-end android
+> device, the end-user may have no opportunity to upgrade to the latest
+> kernel, the device vendor should care about this.  For desktop users,
+> the warning proposed by Andrew may help to remind them for the new knob.
 
-probably lockdep just knows that those locks interleave at some
-point.
+Yes, it would be option. At least, we should alert to the user to make
+a chance to fix. However, can't we make vma-based readahead new config
+option? Please look at the detail in my reply of andrew.
 
-
-by the way, I think there is one path that can spin
-
-find_vma_srcu()
- read_seqbegin()
-  read_seqcount_begin()
-   raw_read_seqcount_begin()
-    __read_seqcount_begin()
-
-	-ss
+With that, there is no regression with current users and as a bonus,
+user can measure both algorithm with their real workload with both
+algorithm rather than artificial benchmark. I think recency vs spartial
+locality would have each pros and cons so that kind soft landing would
+be safer option rather than sudden replacing.
+After a while, we can set new algorithm as default.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
