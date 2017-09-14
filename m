@@ -1,269 +1,255 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 171956B0253
-	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 18:36:13 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id 80so481510lfy.5
-        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 15:36:13 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 311AC6B025E
+	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 18:36:14 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p87so1064913pfj.4
+        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 15:36:14 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 201si6339229lfz.493.2017.09.14.15.36.11
+        by mx.google.com with ESMTPS id 33si13158473pla.343.2017.09.14.15.36.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Sep 2017 15:36:11 -0700 (PDT)
+        Thu, 14 Sep 2017 15:36:12 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v8 03/11] mm: deferred_init_memmap improvements
-Date: Thu, 14 Sep 2017 18:35:09 -0400
-Message-Id: <20170914223517.8242-4-pasha.tatashin@oracle.com>
+Subject: [PATCH v8 05/11] mm: defining memblock_virt_alloc_try_nid_raw
+Date: Thu, 14 Sep 2017 18:35:11 -0400
+Message-Id: <20170914223517.8242-6-pasha.tatashin@oracle.com>
 In-Reply-To: <20170914223517.8242-1-pasha.tatashin@oracle.com>
 References: <20170914223517.8242-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, Steven.Sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-This patch fixes two issues in deferred_init_memmap
+* A new variant of memblock_virt_alloc_* allocations:
+memblock_virt_alloc_try_nid_raw()
+    - Does not zero the allocated memory
+    - Does not panic if request cannot be satisfied
 
-=====
-In deferred_init_memmap() where all deferred struct pages are initialized
-we have a check like this:
+* optimize early system hash allocations
 
-if (page->flags) {
-	VM_BUG_ON(page_zone(page) != zone);
-	goto free_range;
-}
+Clients can call alloc_large_system_hash() with flag: HASH_ZERO to specify
+that memory that was allocated for system hash needs to be zeroed,
+otherwise the memory does not need to be zeroed, and client will initialize
+it.
 
-This way we are checking if the current deferred page has already been
-initialized. It works, because memory for struct pages has been zeroed, and
-the only way flags are not zero if it went through __init_single_page()
-before.  But, once we change the current behavior and won't zero the memory
-in memblock allocator, we cannot trust anything inside "struct page"es
-until they are initialized. This patch fixes this.
+If memory does not need to be zero'd, call the new
+memblock_virt_alloc_raw() interface, and thus improve the boot performance.
 
-The deferred_init_memmap() is re-written to loop through only free memory
-ranges provided by memblock.
+* debug for raw alloctor
 
-=====
-This patch fixes another existing issue on systems that have holes in
-zones i.e CONFIG_HOLES_IN_ZONE is defined.
-
-In for_each_mem_pfn_range() we have code like this:
-
-if (!pfn_valid_within(pfn)
-	goto free_range;
-
-Note: 'page' is not set to NULL and is not incremented but 'pfn' advances.
-Thus means if deferred struct pages are enabled on systems with these kind
-of holes, linux would get memory corruptions. I have fixed this issue by
-defining a new macro that performs all the necessary operations when we
-free the current set of pages.
+When CONFIG_DEBUG_VM is enabled, this patch sets all the memory that is
+returned by memblock_virt_alloc_try_nid_raw() to ones to ensure that no
+places excpect zeroed memory.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
 Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 Reviewed-by: Bob Picco <bob.picco@oracle.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/page_alloc.c | 161 +++++++++++++++++++++++++++-----------------------------
- 1 file changed, 78 insertions(+), 83 deletions(-)
+ include/linux/bootmem.h | 27 ++++++++++++++++++++++
+ mm/memblock.c           | 60 +++++++++++++++++++++++++++++++++++++++++++------
+ mm/page_alloc.c         | 15 ++++++-------
+ 3 files changed, 87 insertions(+), 15 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c841af88836a..d132c801d2c1 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1410,14 +1410,17 @@ void clear_zone_contiguous(struct zone *zone)
+diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
+index e223d91b6439..ea30b3987282 100644
+--- a/include/linux/bootmem.h
++++ b/include/linux/bootmem.h
+@@ -160,6 +160,9 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
+ #define BOOTMEM_ALLOC_ANYWHERE		(~(phys_addr_t)0)
+ 
+ /* FIXME: Move to memblock.h at a point where we remove nobootmem.c */
++void *memblock_virt_alloc_try_nid_raw(phys_addr_t size, phys_addr_t align,
++				      phys_addr_t min_addr,
++				      phys_addr_t max_addr, int nid);
+ void *memblock_virt_alloc_try_nid_nopanic(phys_addr_t size,
+ 		phys_addr_t align, phys_addr_t min_addr,
+ 		phys_addr_t max_addr, int nid);
+@@ -176,6 +179,14 @@ static inline void * __init memblock_virt_alloc(
+ 					    NUMA_NO_NODE);
  }
  
- #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
--static void __init deferred_free_range(struct page *page,
--					unsigned long pfn, int nr_pages)
-+static void __init deferred_free_range(unsigned long pfn,
-+				       unsigned long nr_pages)
- {
--	int i;
-+	struct page *page;
-+	unsigned long i;
- 
--	if (!page)
-+	if (!nr_pages)
- 		return;
- 
-+	page = pfn_to_page(pfn);
-+
- 	/* Free a large naturally-aligned chunk if possible */
- 	if (nr_pages == pageblock_nr_pages &&
- 	    (pfn & (pageblock_nr_pages - 1)) == 0) {
-@@ -1443,19 +1446,82 @@ static inline void __init pgdat_init_report_one_done(void)
- 		complete(&pgdat_init_all_done_comp);
- }
- 
-+#define DEFERRED_FREE(nr_free, free_base_pfn, page)			\
-+({									\
-+	unsigned long nr = (nr_free);					\
-+									\
-+	deferred_free_range((free_base_pfn), (nr));			\
-+	(free_base_pfn) = 0;						\
-+	(nr_free) = 0;							\
-+	page = NULL;							\
-+	nr;								\
-+})
-+
-+static unsigned long deferred_init_range(int nid, int zid, unsigned long pfn,
-+					 unsigned long end_pfn)
++static inline void * __init memblock_virt_alloc_raw(
++					phys_addr_t size,  phys_addr_t align)
 +{
-+	struct mminit_pfnnid_cache nid_init_state = { };
-+	unsigned long nr_pgmask = pageblock_nr_pages - 1;
-+	unsigned long free_base_pfn = 0;
-+	unsigned long nr_pages = 0;
-+	unsigned long nr_free = 0;
-+	struct page *page = NULL;
-+
-+	for (; pfn < end_pfn; pfn++) {
-+		/*
-+		 * First we check if pfn is valid on architectures where it is
-+		 * possible to have holes within pageblock_nr_pages. On systems
-+		 * where it is not possible, this function is optimized out.
-+		 *
-+		 * Then, we check if a current large page is valid by only
-+		 * checking the validity of the head pfn.
-+		 *
-+		 * meminit_pfn_in_nid is checked on systems where pfns can
-+		 * interleave within a node: a pfn is between start and end
-+		 * of a node, but does not belong to this memory node.
-+		 *
-+		 * Finally, we minimize pfn page lookups and scheduler checks by
-+		 * performing it only once every pageblock_nr_pages.
-+		 */
-+		if (!pfn_valid_within(pfn)) {
-+			nr_pages += DEFERRED_FREE(nr_free, free_base_pfn, page);
-+		} else if (!(pfn & nr_pgmask) && !pfn_valid(pfn)) {
-+			nr_pages += DEFERRED_FREE(nr_free, free_base_pfn, page);
-+		} else if (!meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
-+			nr_pages += DEFERRED_FREE(nr_free, free_base_pfn, page);
-+		} else if (page && (pfn & nr_pgmask)) {
-+			page++;
-+			__init_single_page(page, pfn, zid, nid);
-+			nr_free++;
-+		} else {
-+			nr_pages += DEFERRED_FREE(nr_free, free_base_pfn, page);
-+			page = pfn_to_page(pfn);
-+			__init_single_page(page, pfn, zid, nid);
-+			free_base_pfn = pfn;
-+			nr_free = 1;
-+			cond_resched();
-+		}
-+	}
-+	/* Free the last block of pages to allocator */
-+	nr_pages += DEFERRED_FREE(nr_free, free_base_pfn, page);
-+
-+	return nr_pages;
++	return memblock_virt_alloc_try_nid_raw(size, align, BOOTMEM_LOW_LIMIT,
++					    BOOTMEM_ALLOC_ACCESSIBLE,
++					    NUMA_NO_NODE);
 +}
 +
- /* Initialise remaining memory on a node */
- static int __init deferred_init_memmap(void *data)
+ static inline void * __init memblock_virt_alloc_nopanic(
+ 					phys_addr_t size, phys_addr_t align)
  {
- 	pg_data_t *pgdat = data;
- 	int nid = pgdat->node_id;
--	struct mminit_pfnnid_cache nid_init_state = { };
- 	unsigned long start = jiffies;
- 	unsigned long nr_pages = 0;
--	unsigned long walk_start, walk_end;
--	int i, zid;
-+	unsigned long spfn, epfn;
-+	phys_addr_t spa, epa;
-+	int zid;
- 	struct zone *zone;
- 	unsigned long first_init_pfn = pgdat->first_deferred_pfn;
- 	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
-+	u64 i;
+@@ -257,6 +268,14 @@ static inline void * __init memblock_virt_alloc(
+ 	return __alloc_bootmem(size, align, BOOTMEM_LOW_LIMIT);
+ }
  
- 	if (first_init_pfn == ULONG_MAX) {
- 		pgdat_init_report_one_done();
-@@ -1477,83 +1543,12 @@ static int __init deferred_init_memmap(void *data)
- 		if (first_init_pfn < zone_end_pfn(zone))
- 			break;
- 	}
-+	first_init_pfn = max(zone->zone_start_pfn, first_init_pfn);
++static inline void * __init memblock_virt_alloc_raw(
++					phys_addr_t size,  phys_addr_t align)
++{
++	if (!align)
++		align = SMP_CACHE_BYTES;
++	return __alloc_bootmem_nopanic(size, align, BOOTMEM_LOW_LIMIT);
++}
++
+ static inline void * __init memblock_virt_alloc_nopanic(
+ 					phys_addr_t size, phys_addr_t align)
+ {
+@@ -309,6 +328,14 @@ static inline void * __init memblock_virt_alloc_try_nid(phys_addr_t size,
+ 					  min_addr);
+ }
  
--	for_each_mem_pfn_range(i, nid, &walk_start, &walk_end, NULL) {
--		unsigned long pfn, end_pfn;
--		struct page *page = NULL;
--		struct page *free_base_page = NULL;
--		unsigned long free_base_pfn = 0;
--		int nr_to_free = 0;
--
--		end_pfn = min(walk_end, zone_end_pfn(zone));
--		pfn = first_init_pfn;
--		if (pfn < walk_start)
--			pfn = walk_start;
--		if (pfn < zone->zone_start_pfn)
--			pfn = zone->zone_start_pfn;
--
--		for (; pfn < end_pfn; pfn++) {
--			if (!pfn_valid_within(pfn))
--				goto free_range;
--
--			/*
--			 * Ensure pfn_valid is checked every
--			 * pageblock_nr_pages for memory holes
--			 */
--			if ((pfn & (pageblock_nr_pages - 1)) == 0) {
--				if (!pfn_valid(pfn)) {
--					page = NULL;
--					goto free_range;
--				}
--			}
--
--			if (!meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
--				page = NULL;
--				goto free_range;
--			}
--
--			/* Minimise pfn page lookups and scheduler checks */
--			if (page && (pfn & (pageblock_nr_pages - 1)) != 0) {
--				page++;
--			} else {
--				nr_pages += nr_to_free;
--				deferred_free_range(free_base_page,
--						free_base_pfn, nr_to_free);
--				free_base_page = NULL;
--				free_base_pfn = nr_to_free = 0;
--
--				page = pfn_to_page(pfn);
--				cond_resched();
--			}
--
--			if (page->flags) {
--				VM_BUG_ON(page_zone(page) != zone);
--				goto free_range;
--			}
--
--			__init_single_page(page, pfn, zid, nid);
--			if (!free_base_page) {
--				free_base_page = page;
--				free_base_pfn = pfn;
--				nr_to_free = 0;
--			}
--			nr_to_free++;
--
--			/* Where possible, batch up pages for a single free */
--			continue;
--free_range:
--			/* Free the current block of pages to allocator */
--			nr_pages += nr_to_free;
--			deferred_free_range(free_base_page, free_base_pfn,
--								nr_to_free);
--			free_base_page = NULL;
--			free_base_pfn = nr_to_free = 0;
--		}
--		/* Free the last block of pages to allocator */
--		nr_pages += nr_to_free;
--		deferred_free_range(free_base_page, free_base_pfn, nr_to_free);
--
--		first_init_pfn = max(end_pfn, first_init_pfn);
-+	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
-+		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
-+		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
-+		nr_pages += deferred_init_range(nid, zid, spfn, epfn);
- 	}
++static inline void * __init memblock_virt_alloc_try_nid_raw(
++			phys_addr_t size, phys_addr_t align,
++			phys_addr_t min_addr, phys_addr_t max_addr, int nid)
++{
++	return ___alloc_bootmem_node_nopanic(NODE_DATA(nid), size, align,
++				min_addr, max_addr);
++}
++
+ static inline void * __init memblock_virt_alloc_try_nid_nopanic(
+ 			phys_addr_t size, phys_addr_t align,
+ 			phys_addr_t min_addr, phys_addr_t max_addr, int nid)
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 91205780e6b1..1f299fb1eb08 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1327,7 +1327,6 @@ static void * __init memblock_virt_alloc_internal(
+ 	return NULL;
+ done:
+ 	ptr = phys_to_virt(alloc);
+-	memset(ptr, 0, size);
  
- 	/* Sanity check that the next zone really is unpopulated */
+ 	/*
+ 	 * The min_count is set to 0 so that bootmem allocated blocks
+@@ -1340,6 +1339,45 @@ static void * __init memblock_virt_alloc_internal(
+ 	return ptr;
+ }
+ 
++/**
++ * memblock_virt_alloc_try_nid_raw - allocate boot memory block without zeroing
++ * memory and without panicking
++ * @size: size of memory block to be allocated in bytes
++ * @align: alignment of the region and block's size
++ * @min_addr: the lower bound of the memory region from where the allocation
++ *	  is preferred (phys address)
++ * @max_addr: the upper bound of the memory region from where the allocation
++ *	      is preferred (phys address), or %BOOTMEM_ALLOC_ACCESSIBLE to
++ *	      allocate only from memory limited by memblock.current_limit value
++ * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
++ *
++ * Public function, provides additional debug information (including caller
++ * info), if enabled. Does not zero allocated memory, does not panic if request
++ * cannot be satisfied.
++ *
++ * RETURNS:
++ * Virtual address of allocated memory block on success, NULL on failure.
++ */
++void * __init memblock_virt_alloc_try_nid_raw(
++			phys_addr_t size, phys_addr_t align,
++			phys_addr_t min_addr, phys_addr_t max_addr,
++			int nid)
++{
++	void *ptr;
++
++	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
++		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
++		     (u64)max_addr, (void *)_RET_IP_);
++
++	ptr = memblock_virt_alloc_internal(size, align,
++					   min_addr, max_addr, nid);
++#ifdef CONFIG_DEBUG_VM
++	if (ptr && size > 0)
++		memset(ptr, 0xff, size);
++#endif
++	return ptr;
++}
++
+ /**
+  * memblock_virt_alloc_try_nid_nopanic - allocate boot memory block
+  * @size: size of memory block to be allocated in bytes
+@@ -1351,8 +1389,8 @@ static void * __init memblock_virt_alloc_internal(
+  *	      allocate only from memory limited by memblock.current_limit value
+  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
+  *
+- * Public version of _memblock_virt_alloc_try_nid_nopanic() which provides
+- * additional debug information (including caller info), if enabled.
++ * Public function, provides additional debug information (including caller
++ * info), if enabled. This function zeroes the allocated memory.
+  *
+  * RETURNS:
+  * Virtual address of allocated memory block on success, NULL on failure.
+@@ -1362,11 +1400,17 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
+ 				phys_addr_t min_addr, phys_addr_t max_addr,
+ 				int nid)
+ {
++	void *ptr;
++
+ 	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
+ 		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
+ 		     (u64)max_addr, (void *)_RET_IP_);
+-	return memblock_virt_alloc_internal(size, align, min_addr,
+-					     max_addr, nid);
++
++	ptr = memblock_virt_alloc_internal(size, align,
++					   min_addr, max_addr, nid);
++	if (ptr)
++		memset(ptr, 0, size);
++	return ptr;
+ }
+ 
+ /**
+@@ -1380,7 +1424,7 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
+  *	      allocate only from memory limited by memblock.current_limit value
+  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
+  *
+- * Public panicking version of _memblock_virt_alloc_try_nid_nopanic()
++ * Public panicking version of memblock_virt_alloc_try_nid_nopanic()
+  * which provides debug information (including caller info), if enabled,
+  * and panics if the request can not be satisfied.
+  *
+@@ -1399,8 +1443,10 @@ void * __init memblock_virt_alloc_try_nid(
+ 		     (u64)max_addr, (void *)_RET_IP_);
+ 	ptr = memblock_virt_alloc_internal(size, align,
+ 					   min_addr, max_addr, nid);
+-	if (ptr)
++	if (ptr) {
++		memset(ptr, 0, size);
+ 		return ptr;
++	}
+ 
+ 	panic("%s: Failed to allocate %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx\n",
+ 	      __func__, (u64)size, (u64)align, nid, (u64)min_addr,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d132c801d2c1..a8dbd405ed94 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7299,18 +7299,17 @@ void *__init alloc_large_system_hash(const char *tablename,
+ 
+ 	log2qty = ilog2(numentries);
+ 
+-	/*
+-	 * memblock allocator returns zeroed memory already, so HASH_ZERO is
+-	 * currently not used when HASH_EARLY is specified.
+-	 */
+ 	gfp_flags = (flags & HASH_ZERO) ? GFP_ATOMIC | __GFP_ZERO : GFP_ATOMIC;
+ 	do {
+ 		size = bucketsize << log2qty;
+-		if (flags & HASH_EARLY)
+-			table = memblock_virt_alloc_nopanic(size, 0);
+-		else if (hashdist)
++		if (flags & HASH_EARLY) {
++			if (flags & HASH_ZERO)
++				table = memblock_virt_alloc_nopanic(size, 0);
++			else
++				table = memblock_virt_alloc_raw(size, 0);
++		} else if (hashdist) {
+ 			table = __vmalloc(size, gfp_flags, PAGE_KERNEL);
+-		else {
++		} else {
+ 			/*
+ 			 * If bucketsize is not a power-of-two, we may free
+ 			 * some pages at the end of hash table which
 -- 
 2.14.1
 
