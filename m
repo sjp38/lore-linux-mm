@@ -1,60 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 70A456B0287
-	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 09:40:18 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id h16so3434737wrf.0
-        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 06:40:18 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CE21F6B0287
+	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 09:42:21 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id r74so138902wme.5
+        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 06:42:21 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d31si16325698edc.407.2017.09.14.06.40.17
+        by mx.google.com with ESMTPS id k33si4023118edc.198.2017.09.14.06.42.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Sep 2017 06:40:17 -0700 (PDT)
-Date: Thu, 14 Sep 2017 15:40:14 +0200
+        Thu, 14 Sep 2017 06:42:20 -0700 (PDT)
+Date: Thu, 14 Sep 2017 15:42:18 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-Message-ID: <20170914134014.wqemev2kgychv7m5@dhcp22.suse.cz>
+Subject: Re: [v8 1/4] mm, oom: refactor the oom_kill_process() function
+Message-ID: <20170914134218.bs54itpijfeh54ph@dhcp22.suse.cz>
 References: <20170911131742.16482-1-guro@fb.com>
- <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com>
- <20170913122914.5gdksbmkolum7ita@dhcp22.suse.cz>
- <20170913215607.GA19259@castle>
+ <20170911131742.16482-2-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170913215607.GA19259@castle>
+In-Reply-To: <20170911131742.16482-2-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Roman Gushchin <guro@fb.com>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 13-09-17 14:56:07, Roman Gushchin wrote:
-> On Wed, Sep 13, 2017 at 02:29:14PM +0200, Michal Hocko wrote:
-[...]
-> > I strongly believe that comparing only leaf memcgs
-> > is more straightforward and it doesn't lead to unexpected results as
-> > mentioned before (kill a small memcg which is a part of the larger
-> > sub-hierarchy).
+On Mon 11-09-17 14:17:39, Roman Gushchin wrote:
+> The oom_kill_process() function consists of two logical parts:
+> the first one is responsible for considering task's children as
+> a potential victim and printing the debug information.
+> The second half is responsible for sending SIGKILL to all
+> tasks sharing the mm struct with the given victim.
 > 
-> One of two main goals of this patchset is to introduce cgroup-level
-> fairness: bigger cgroups should be affected more than smaller,
-> despite the size of tasks inside. I believe the same principle
-> should be used for cgroups.
+> This commit splits the oom_kill_process() function with
+> an intention to re-use the the second half: __oom_kill_process().
+> 
+> The cgroup-aware OOM killer will kill multiple tasks
+> belonging to the victim cgroup. We don't need to print
+> the debug information for the each task, as well as play
+> with task selection (considering task's children),
+> so we can't use the existing oom_kill_process().
+> 
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: kernel-team@fb.com
+> Cc: cgroups@vger.kernel.org
+> Cc: linux-doc@vger.kernel.org
+> Cc: linux-kernel@vger.kernel.org
+> Cc: linux-mm@kvack.org
 
-Yes bigger cgroups should be preferred but I fail to see why bigger
-hierarchies should be considered as well if they are not kill-all. And
-whether non-leaf memcgs should allow kill-all is not entirely clear to
-me. What would be the usecase?
-Consider that it might be not your choice (as a user) how deep is your
-leaf memcg. I can already see how people complain that their memcg has
-been killed just because it was one level deeper in the hierarchy...
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-I would really start simple and only allow kill-all on leaf memcgs and
-only compare leaf memcgs & root. If we ever need to kill whole
-hierarchies then allow kill-all on intermediate memcgs as well and then
-consider cumulative consumptions only on those that have kill-all
-enabled.
+> ---
+>  mm/oom_kill.c | 123 +++++++++++++++++++++++++++++++---------------------------
+>  1 file changed, 65 insertions(+), 58 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 99736e026712..f061b627092c 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -804,68 +804,12 @@ static bool task_will_free_mem(struct task_struct *task)
+>  	return ret;
+>  }
+>  
+> -static void oom_kill_process(struct oom_control *oc, const char *message)
+> +static void __oom_kill_process(struct task_struct *victim)
+>  {
+> -	struct task_struct *p = oc->chosen;
+> -	unsigned int points = oc->chosen_points;
+> -	struct task_struct *victim = p;
+> -	struct task_struct *child;
+> -	struct task_struct *t;
+> +	struct task_struct *p;
+>  	struct mm_struct *mm;
+> -	unsigned int victim_points = 0;
+> -	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+> -					      DEFAULT_RATELIMIT_BURST);
+>  	bool can_oom_reap = true;
+>  
+> -	/*
+> -	 * If the task is already exiting, don't alarm the sysadmin or kill
+> -	 * its children or threads, just give it access to memory reserves
+> -	 * so it can die quickly
+> -	 */
+> -	task_lock(p);
+> -	if (task_will_free_mem(p)) {
+> -		mark_oom_victim(p);
+> -		wake_oom_reaper(p);
+> -		task_unlock(p);
+> -		put_task_struct(p);
+> -		return;
+> -	}
+> -	task_unlock(p);
+> -
+> -	if (__ratelimit(&oom_rs))
+> -		dump_header(oc, p);
+> -
+> -	pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
+> -		message, task_pid_nr(p), p->comm, points);
+> -
+> -	/*
+> -	 * If any of p's children has a different mm and is eligible for kill,
+> -	 * the one with the highest oom_badness() score is sacrificed for its
+> -	 * parent.  This attempts to lose the minimal amount of work done while
+> -	 * still freeing memory.
+> -	 */
+> -	read_lock(&tasklist_lock);
+> -	for_each_thread(p, t) {
+> -		list_for_each_entry(child, &t->children, sibling) {
+> -			unsigned int child_points;
+> -
+> -			if (process_shares_mm(child, p->mm))
+> -				continue;
+> -			/*
+> -			 * oom_badness() returns 0 if the thread is unkillable
+> -			 */
+> -			child_points = oom_badness(child,
+> -				oc->memcg, oc->nodemask, oc->totalpages);
+> -			if (child_points > victim_points) {
+> -				put_task_struct(victim);
+> -				victim = child;
+> -				victim_points = child_points;
+> -				get_task_struct(victim);
+> -			}
+> -		}
+> -	}
+> -	read_unlock(&tasklist_lock);
+> -
+>  	p = find_lock_task_mm(victim);
+>  	if (!p) {
+>  		put_task_struct(victim);
+> @@ -939,6 +883,69 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+>  }
+>  #undef K
+>  
+> +static void oom_kill_process(struct oom_control *oc, const char *message)
+> +{
+> +	struct task_struct *p = oc->chosen;
+> +	unsigned int points = oc->chosen_points;
+> +	struct task_struct *victim = p;
+> +	struct task_struct *child;
+> +	struct task_struct *t;
+> +	unsigned int victim_points = 0;
+> +	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+> +					      DEFAULT_RATELIMIT_BURST);
+> +
+> +	/*
+> +	 * If the task is already exiting, don't alarm the sysadmin or kill
+> +	 * its children or threads, just give it access to memory reserves
+> +	 * so it can die quickly
+> +	 */
+> +	task_lock(p);
+> +	if (task_will_free_mem(p)) {
+> +		mark_oom_victim(p);
+> +		wake_oom_reaper(p);
+> +		task_unlock(p);
+> +		put_task_struct(p);
+> +		return;
+> +	}
+> +	task_unlock(p);
+> +
+> +	if (__ratelimit(&oom_rs))
+> +		dump_header(oc, p);
+> +
+> +	pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
+> +		message, task_pid_nr(p), p->comm, points);
+> +
+> +	/*
+> +	 * If any of p's children has a different mm and is eligible for kill,
+> +	 * the one with the highest oom_badness() score is sacrificed for its
+> +	 * parent.  This attempts to lose the minimal amount of work done while
+> +	 * still freeing memory.
+> +	 */
+> +	read_lock(&tasklist_lock);
+> +	for_each_thread(p, t) {
+> +		list_for_each_entry(child, &t->children, sibling) {
+> +			unsigned int child_points;
+> +
+> +			if (process_shares_mm(child, p->mm))
+> +				continue;
+> +			/*
+> +			 * oom_badness() returns 0 if the thread is unkillable
+> +			 */
+> +			child_points = oom_badness(child,
+> +				oc->memcg, oc->nodemask, oc->totalpages);
+> +			if (child_points > victim_points) {
+> +				put_task_struct(victim);
+> +				victim = child;
+> +				victim_points = child_points;
+> +				get_task_struct(victim);
+> +			}
+> +		}
+> +	}
+> +	read_unlock(&tasklist_lock);
+> +
+> +	__oom_kill_process(victim);
+> +}
+> +
+>  /*
+>   * Determines whether the kernel must panic because of the panic_on_oom sysctl.
+>   */
+> -- 
+> 2.13.5
 
-Or do I miss any reasonable usecase that would suffer from such a
-semantic?
 -- 
 Michal Hocko
 SUSE Labs
