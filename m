@@ -1,50 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 683926B0033
-	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 13:53:34 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id y29so99773pff.6
-        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 10:53:34 -0700 (PDT)
-Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
-        by mx.google.com with ESMTPS id r12si4039108pgf.738.2017.09.14.10.53.31
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 925446B0033
+	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 13:58:41 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id d8so165602pgt.1
+        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 10:58:41 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h7si2737183pll.139.2017.09.14.10.58.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Sep 2017 10:53:33 -0700 (PDT)
-Subject: Re: [PATCH 1/3] mm: slab: output reclaimable flag in /proc/slabinfo
-References: <1505409289-57031-1-git-send-email-yang.s@alibaba-inc.com>
- <1505409289-57031-2-git-send-email-yang.s@alibaba-inc.com>
- <alpine.DEB.2.20.1709141227010.529@nuc-kabylake>
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-Message-ID: <baa5a2e5-9a20-3baa-2156-3d00c2445541@alibaba-inc.com>
-Date: Fri, 15 Sep 2017 01:53:13 +0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 14 Sep 2017 10:58:40 -0700 (PDT)
+Date: Thu, 14 Sep 2017 19:57:07 +0200
+From: David Sterba <dsterba@suse.cz>
+Subject: Re: [PATCH 02/15] btrfs: Use pagevec_lookup_range_tag()
+Message-ID: <20170914175707.GX29043@twin.jikos.cz>
+Reply-To: dsterba@suse.cz
+References: <20170914131819.26266-1-jack@suse.cz>
+ <20170914131819.26266-3-jack@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1709141227010.529@nuc-kabylake>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170914131819.26266-3-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, Jaegeuk Kim <jaegeuk@kernel.org>, ceph-devel@vger.kernel.org, "Yan, Zheng" <zyan@redhat.com>, Ilya Dryomov <idryomov@gmail.com>, linux-btrfs@vger.kernel.org, David Sterba <dsterba@suse.com>
 
-
-
-On 9/14/17 10:27 AM, Christopher Lameter wrote:
-> Well /proc/slabinfo is a legacy interface. The infomation if a slab is
-> reclaimable is available via the slabinfo tool. We would break a format
-> that is relied upon by numerous tools.
-
-Thanks for pointing this out. It would be unacceptable if it would break 
-the backward compatibility.
-
-A follow-up question is do we know what tools rely on the slabinfo format?
-
- From my point of view, although /proc/slabinfo is legacy, it sounds it 
-is still used very often by the users.
-
-Thanks,
-Yang
-
+On Thu, Sep 14, 2017 at 03:18:06PM +0200, Jan Kara wrote:
+> We want only pages from given range in btree_write_cache_pages() and
+> extent_write_cache_pages(). Use pagevec_lookup_range_tag() instead of
+> pagevec_lookup_tag() and remove unnecessary code.
 > 
+> CC: linux-btrfs@vger.kernel.org
+> CC: David Sterba <dsterba@suse.com>
+> Signed-off-by: Jan Kara <jack@suse.cz>
+
+Reviewed-by: David Sterba <dsterba@suse.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
