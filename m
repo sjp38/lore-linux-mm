@@ -1,24 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A3E556B0038
-	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 13:49:04 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id j16so94950pga.6
-        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 10:49:04 -0700 (PDT)
-Received: from out0-230.mail.aliyun.com (out0-230.mail.aliyun.com. [140.205.0.230])
-        by mx.google.com with ESMTPS id c10si11777129pfl.6.2017.09.14.10.49.02
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 683926B0033
+	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 13:53:34 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id y29so99773pff.6
+        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 10:53:34 -0700 (PDT)
+Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
+        by mx.google.com with ESMTPS id r12si4039108pgf.738.2017.09.14.10.53.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Sep 2017 10:49:03 -0700 (PDT)
-Subject: Re: [PATCH 3/3] mm: oom: show unreclaimable slab info when kernel
- panic
+        Thu, 14 Sep 2017 10:53:33 -0700 (PDT)
+Subject: Re: [PATCH 1/3] mm: slab: output reclaimable flag in /proc/slabinfo
 References: <1505409289-57031-1-git-send-email-yang.s@alibaba-inc.com>
- <1505409289-57031-4-git-send-email-yang.s@alibaba-inc.com>
- <alpine.DEB.2.20.1709141231430.529@nuc-kabylake>
+ <1505409289-57031-2-git-send-email-yang.s@alibaba-inc.com>
+ <alpine.DEB.2.20.1709141227010.529@nuc-kabylake>
 From: "Yang Shi" <yang.s@alibaba-inc.com>
-Message-ID: <9037e387-2828-8f77-2dab-01f290187119@alibaba-inc.com>
-Date: Fri, 15 Sep 2017 01:48:56 +0800
+Message-ID: <baa5a2e5-9a20-3baa-2156-3d00c2445541@alibaba-inc.com>
+Date: Fri, 15 Sep 2017 01:53:13 +0800
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1709141231430.529@nuc-kabylake>
+In-Reply-To: <alpine.DEB.2.20.1709141227010.529@nuc-kabylake>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -29,19 +28,22 @@ Cc: penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-
 
 
 
-On 9/14/17 10:32 AM, Christopher Lameter wrote:
-> I am not sure that this is generally useful at OOM times unless this is
-> not a rare occurrence.
+On 9/14/17 10:27 AM, Christopher Lameter wrote:
+> Well /proc/slabinfo is a legacy interface. The infomation if a slab is
+> reclaimable is available via the slabinfo tool. We would break a format
+> that is relied upon by numerous tools.
 
-I would say it is not very rare. But, it is definitely troublesome to 
-narrow down without certain information about slab usage when it happens.
+Thanks for pointing this out. It would be unacceptable if it would break 
+the backward compatibility.
+
+A follow-up question is do we know what tools rely on the slabinfo format?
+
+ From my point of view, although /proc/slabinfo is legacy, it sounds it 
+is still used very often by the users.
 
 Thanks,
 Yang
 
-> 
-> Certainly information like that would create more support for making
-> objects movable
 > 
 
 --
