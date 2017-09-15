@@ -1,89 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 604ED6B0038
-	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 17:54:43 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id d70so4897126qkc.3
-        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 14:54:43 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id l27si1961295qta.36.2017.09.15.14.54.42
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Sep 2017 14:54:42 -0700 (PDT)
-Subject: Re: [patch] memfd_create.2: Add description of MFD_HUGETLB
- (hugetlbfs) support
-References: <20170915214305.7148-1-mike.kravetz@oracle.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <c5c038a8-38e3-546d-5b87-2a5f957f63ed@oracle.com>
-Date: Fri, 15 Sep 2017 14:54:37 -0700
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C36086B0038
+	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 18:12:53 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id l74so113105oih.5
+        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 15:12:53 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id v193si1094049oia.486.2017.09.15.15.12.52
+        for <linux-mm@kvack.org>;
+        Fri, 15 Sep 2017 15:12:52 -0700 (PDT)
+Date: Fri, 15 Sep 2017 22:51:48 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH v8 10/11] arm64/kasan: explicitly zero kasan shadow memory
+Message-ID: <20170915215147.GA11849@remoulade>
+References: <20170914223517.8242-1-pasha.tatashin@oracle.com>
+ <20170914223517.8242-11-pasha.tatashin@oracle.com>
+ <20170915011035.GA6936@remoulade>
+ <c76f72fc-21ed-62d0-014e-8509c0374f96@oracle.com>
+ <20170915203852.GA10749@remoulade>
+ <bff836ec-3922-1783-6cb4-94d1be92544b@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20170915214305.7148-1-mike.kravetz@oracle.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <bff836ec-3922-1783-6cb4-94d1be92544b@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mtk.manpages@gmail.com
-Cc: linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, Steven.Sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-CC: linux-mm
+On Fri, Sep 15, 2017 at 05:20:59PM -0400, Pavel Tatashin wrote:
+> Hi Mark,
+> 
+> I had this optionA  back upto version 3, where zero flag was passed into
+> vmemmap_alloc_block(), but I was asked to remove it, because it required too
+> many changes in other places.
 
-On 09/15/2017 02:43 PM, Mike Kravetz wrote:
-> hugetlbfs support for memfd_create was recently merged by Linus and
-> should be in the Linux 4.14 release.  To request hugetlbfs support
-> a new memfd_create flag (MFD_HUGETLB) was added.
-> 
-> This patch documents the following commit:
-> 
-> commit 749df87bd7bee5a79cef073f5d032ddb2b211de8
-> Author: Mike Kravetz <mike.kravetz@oracle.com>
-> Date:   Wed Sep 6 16:24:16 2017 -0700
-> 
->     mm/shmem: add hugetlbfs support to memfd_create()
-> 
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> ---
->  man2/memfd_create.2 | 27 +++++++++++++++++++++++++++
->  1 file changed, 27 insertions(+)
-> 
-> diff --git a/man2/memfd_create.2 b/man2/memfd_create.2
-> index 4dfd1bb2d..b61254bb8 100644
-> --- a/man2/memfd_create.2
-> +++ b/man2/memfd_create.2
-> @@ -100,6 +100,33 @@ If this flag is not set, the initial set of seals will be
->  meaning that no other seals can be set on the file.
->  .\" FIXME Why is the MFD_ALLOW_SEALING behavior not simply the default?
->  .\" Is it worth adding some text explaining this?
-> +.TP
-> +.BR MFD_HUGETLB " (since Linux 4.14)"
-> +The anonymous file will be created in the hugetlbfs filesystem using
-> +huge pages.  See the Linux kernel source file
-> +.I Documentation/vm/hugetlbpage.txt
-> +for more information about hugetlbfs.  The hugetlbfs filesystem does
-> +not support file sealing operations.  Therefore, specifying both
-> +.B MFD_HUGETLB
-> +and
-> +.B MFD_ALLOW_SEALING
-> +will result in an error
-> +.RB (EINVAL)
-> +being returned.
-> +
-> +.TP
-> +.BR MFD_HUGE_2MB ", " MFD_HUGE_1GB ", " "..."
-> +Used in conjunction with
-> +.B MFD_HUGETLB
-> +to select alternative hugetlb page sizes (respectively, 2 MB, 1 GB, ...)
-> +on systems that support multiple hugetlb page sizes.  Definitions for known
-> +huge page sizes are included in the header file
-> +.I <sys/memfd.h>.
-> +
-> +For details on encoding huge page sizes not included in the header file,
-> +see the discussion of the similarly named constants in
-> +.BR mmap (2).
-> +
->  .PP
->  Unused bits in
->  .I flags
-> 
+Ok. Sorry for bringing back a point that had already been covered.
+
+> So, the current approach is cleaner, but the idea is that kasan should use
+> its own version of vmemmap_populate() for both x86 and ARM, but I think it is
+> outside of the scope of this work.
+
+I appreciate that this is unrelated to your ultimate goal, and that this is
+somewhat frustrating given the KASAN code is arguably abusing the
+vmemmap_populate() interface.
+
+However, I do think we need to migrate the KASAN code to a proper interface
+immediately, rather than making it worse in the interim.
+
+> If you think I should add these function in this project, than sure I can
+> send a new version with kasanmap_populate() functions.
+
+I would very much appreciate if you could send a version with a
+kasan_map_populate() interface. I'm more than happy to review/test that portion
+of the series, or to help if there's some problem which makes that difficult.
+
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
