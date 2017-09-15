@@ -1,54 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A22416B0033
-	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 20:16:33 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id f84so1457906pfj.0
-        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 17:16:33 -0700 (PDT)
-Received: from rcdn-iport-7.cisco.com (rcdn-iport-7.cisco.com. [173.37.86.78])
-        by mx.google.com with ESMTPS id k1si5361065pld.524.2017.09.14.17.16.30
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Sep 2017 17:16:32 -0700 (PDT)
-Content-Type: text/plain; charset="utf-8"
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8336C6B0033
+	for <linux-mm@kvack.org>; Thu, 14 Sep 2017 21:10:44 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id k101so3337797iod.1
+        for <linux-mm@kvack.org>; Thu, 14 Sep 2017 18:10:44 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id s22si119866oih.120.2017.09.14.18.10.42
+        for <linux-mm@kvack.org>;
+        Thu, 14 Sep 2017 18:10:43 -0700 (PDT)
+Date: Fri, 15 Sep 2017 02:10:36 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH v8 10/11] arm64/kasan: explicitly zero kasan shadow memory
+Message-ID: <20170915011035.GA6936@remoulade>
+References: <20170914223517.8242-1-pasha.tatashin@oracle.com>
+ <20170914223517.8242-11-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-From: Taras Kondratiuk <takondra@cisco.com>
-Message-ID: <150543458765.3781.10192373650821598320@takondra-t460s>
-Subject: Detecting page cache trashing state
-Date: Thu, 14 Sep 2017 17:16:27 -0700
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170914223517.8242-11-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: xe-linux-external@cisco.com, Ruslan Ruslichenko <rruslich@cisco.com>, linux-kernel@vger.kernel.org
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, Steven.Sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-Hi
+On Thu, Sep 14, 2017 at 06:35:16PM -0400, Pavel Tatashin wrote:
+> To optimize the performance of struct page initialization,
+> vmemmap_populate() will no longer zero memory.
+> 
+> We must explicitly zero the memory that is allocated by vmemmap_populate()
+> for kasan, as this memory does not go through struct page initialization
+> path.
+> 
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
+> Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+> Reviewed-by: Bob Picco <bob.picco@oracle.com>
+> ---
+>  arch/arm64/mm/kasan_init.c | 42 ++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 42 insertions(+)
+> 
+> diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
+> index 81f03959a4ab..e78a9ecbb687 100644
+> --- a/arch/arm64/mm/kasan_init.c
+> +++ b/arch/arm64/mm/kasan_init.c
+> @@ -135,6 +135,41 @@ static void __init clear_pgds(unsigned long start,
+>  		set_pgd(pgd_offset_k(start), __pgd(0));
+>  }
+>  
+> +/*
+> + * Memory that was allocated by vmemmap_populate is not zeroed, so we must
+> + * zero it here explicitly.
+> + */
+> +static void
+> +zero_vmemmap_populated_memory(void)
+> +{
+> +	struct memblock_region *reg;
+> +	u64 start, end;
+> +
+> +	for_each_memblock(memory, reg) {
+> +		start = __phys_to_virt(reg->base);
+> +		end = __phys_to_virt(reg->base + reg->size);
+> +
+> +		if (start >= end)
+> +			break;
+> +
+> +		start = (u64)kasan_mem_to_shadow((void *)start);
+> +		end = (u64)kasan_mem_to_shadow((void *)end);
+> +
+> +		/* Round to the start end of the mapped pages */
+> +		start = round_down(start, SWAPPER_BLOCK_SIZE);
+> +		end = round_up(end, SWAPPER_BLOCK_SIZE);
+> +		memset((void *)start, 0, end - start);
+> +	}
+> +
+> +	start = (u64)kasan_mem_to_shadow(_text);
+> +	end = (u64)kasan_mem_to_shadow(_end);
+> +
+> +	/* Round to the start end of the mapped pages */
+> +	start = round_down(start, SWAPPER_BLOCK_SIZE);
+> +	end = round_up(end, SWAPPER_BLOCK_SIZE);
+> +	memset((void *)start, 0, end - start);
+> +}
 
-In our devices under low memory conditions we often get into a trashing
-state when system spends most of the time re-reading pages of .text
-sections from a file system (squashfs in our case). Working set doesn't
-fit into available page cache, so it is expected. The issue is that
-OOM killer doesn't get triggered because there is still memory for
-reclaiming. System may stuck in this state for a quite some time and
-usually dies because of watchdogs.
+I really don't see the need to duplicate the existing logic to iterate over
+memblocks, calculate the addresses, etc.
 
-We are trying to detect such trashing state early to take some
-preventive actions. It should be a pretty common issue, but for now we
-haven't find any existing VM/IO statistics that can reliably detect such
-state.
+Why can't we just have a zeroing wrapper? e.g. something like the below.
 
-Most of metrics provide absolute values: number/rate of page faults,
-rate of IO operations, number of stolen pages, etc. For a specific
-device configuration we can determine threshold values for those
-parameters that will detect trashing state, but it is not feasible for
-hundreds of device configurations.
+I really don't see why we couldn't have a generic function in core code to do
+this, even if vmemmap_populate() doesn't.
 
-We are looking for some relative metric like "percent of CPU time spent
-handling major page faults". With such relative metric we could use a
-common threshold across all devices. For now we have added such metric
-to /proc/stat in our kernel, but we would like to find some mechanism
-available in upstream kernel.
+Thanks,
+Mark.
 
-Has somebody faced similar issue? How are you solving it?
+---->8----
+diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
+index 81f0395..698d065 100644
+--- a/arch/arm64/mm/kasan_init.c
++++ b/arch/arm64/mm/kasan_init.c
+@@ -135,6 +135,17 @@ static void __init clear_pgds(unsigned long start,
+                set_pgd(pgd_offset_k(start), __pgd(0));
+ }
+ 
++void kasan_populate_shadow(unsigned long shadow_start, unsigned long shadow_end,
++                          nid_t nid)
++{
++       shadow_start = round_down(shadow_start, SWAPPER_BLOCK_SIZE);
++       shadow_end = round_up(shadow_end, SWAPPER_BLOCK_SIZE);
++
++       vmemmap_populate(shadow_start, shadow_end, nid);
++
++       memset((void *)shadow_start, 0, shadow_end - shadow_start);
++}
++
+ void __init kasan_init(void)
+ {
+        u64 kimg_shadow_start, kimg_shadow_end;
+@@ -161,8 +172,8 @@ void __init kasan_init(void)
+ 
+        clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
+ 
+-       vmemmap_populate(kimg_shadow_start, kimg_shadow_end,
+-                        pfn_to_nid(virt_to_pfn(lm_alias(_text))));
++       kasah_populate_shadow(kimg_shadow_start, kimg_shadow_end,
++                             pfn_to_nid(virt_to_pfn(lm_alias(_text))));
+ 
+        /*
+         * vmemmap_populate() has populated the shadow region that covers the
+@@ -191,9 +202,9 @@ void __init kasan_init(void)
+                if (start >= end)
+                        break;
+ 
+-               vmemmap_populate((unsigned long)kasan_mem_to_shadow(start),
+-                               (unsigned long)kasan_mem_to_shadow(end),
+-                               pfn_to_nid(virt_to_pfn(start)));
++               kasan_populate_shadow((unsigned long)kasan_mem_to_shadow(start),
++                                     (unsigned long)kasan_mem_to_shadow(end),
++                                     pfn_to_nid(virt_to_pfn(start)));
+        }
+ 
+        /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
