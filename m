@@ -1,80 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E4DB36B0033
-	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 05:36:59 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 97so1911977wrb.1
-        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 02:36:59 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w14si932932edk.421.2017.09.15.02.36.58
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B96D26B0033
+	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 05:59:09 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id g32so5351632ioj.0
+        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 02:59:09 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n21sor233281oig.28.2017.09.15.02.59.08
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Sep 2017 02:36:58 -0700 (PDT)
-Date: Fri, 15 Sep 2017 11:36:56 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/memory_hotplug: fix wrong casting for
- __remove_section()
-Message-ID: <20170915093656.jxnc55qhap3kswew@dhcp22.suse.cz>
-References: <51a59ec3-e7ba-2562-1917-036b8181092c@gmail.com>
- <20170912124952.uraxdt5bgl25zhf7@dhcp22.suse.cz>
- <587bdecd-2584-21be-94b8-61b427f1b0e8@gmail.com>
- <20170913055914.3npcxevhdwghcmdd@dhcp22.suse.cz>
- <509197e7-135d-1304-76f1-32ae1fcbf223@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <509197e7-135d-1304-76f1-32ae1fcbf223@gmail.com>
+        (Google Transport Security);
+        Fri, 15 Sep 2017 02:59:08 -0700 (PDT)
+From: wang Yu <yuwang668899@gmail.com>
+Subject: [PATCH] mm,page_alloc: softlockup on warn_alloc on
+Date: Fri, 15 Sep 2017 17:58:49 +0800
+Message-Id: <20170915095849.9927-1-yuwang668899@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, qiuxishi@huawei.com, arbab@linux.vnet.ibm.com, Vlastimil Babka <vbabka@suse.cz>
+To: mhocko@suse.com, penguin-kernel@i-love.sakura.ne.jp, linux-mm@kvack.org
+Cc: chenggang.qcg@alibaba-inc.com, yuwang.yuwang@alibaba-inc.com
 
-On Thu 14-09-17 11:43:10, YASUAKI ISHIMATSU wrote:
-> Hi Michal,
-> 
-> On 09/13/2017 01:59 AM, Michal Hocko wrote:
-> > On Tue 12-09-17 13:05:39, YASUAKI ISHIMATSU wrote:
-> >> Hi Michal,
-> >>
-> >> Thanks you for reviewing my patch.
-> >>
-> >> On 09/12/2017 08:49 AM, Michal Hocko wrote:
-> >>> On Fri 08-09-17 16:43:04, YASUAKI ISHIMATSU wrote:
-> >>>> __remove_section() calls __remove_zone() to shrink zone and pgdat.
-> >>>> But due to wrong castings, __remvoe_zone() cannot shrink zone
-> >>>> and pgdat correctly if pfn is over 0xffffffff.
-> >>>>
-> >>>> So the patch fixes the following 3 wrong castings.
-> >>>>
-> >>>>   1. find_smallest_section_pfn() returns 0 or start_pfn which defined
-> >>>>      as unsigned long. But the function always returns 32bit value
-> >>>>      since the function is defined as int.
-> >>>>
-> >>>>   2. find_biggest_section_pfn() returns 0 or pfn which defined as
-> >>>>      unsigned long. the function always returns 32bit value
-> >>>>      since the function is defined as int.
-> >>>
-> >>> this is indeed wrong. Pfns over would be really broken 15TB. Not that
-> >>> unrealistic these days
-> >>
-> >> Why 15TB?
-> > 
-> > 0xffffffff>>28
-> > 
-> 
-> Even thought I see your explanation, I cannot understand.
-> 
-> In my understanding, find_{smallest|biggest}_section_pfn() return integer.
-> So the functions always return 0x00000000 - 0xffffffff. Therefore if pfn is over
-> 0xffffffff (under 16TB), then the function cannot work correctly.
-> 
-> What am I wrong?
+From: "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
 
-You are not wrong. We are talking about the same thing AFAICS. I was
-just less precise...
+I found a softlockup when running some stress testcase in 4.9.x,
+but i think the mainline have the same problem.
 
+call trace:
+[365724.502896] NMI watchdog: BUG: soft lockup - CPU#31 stuck for 22s!
+[jbd2/sda3-8:1164]
+...
+...
+[365724.503258] Call Trace:
+[365724.503260]  [<ffffffff811ace5f>] warn_alloc+0x13f/0x170
+[365724.503264]  [<ffffffff811ad8c2>] __alloc_pages_slowpath+0x9b2/0xc10
+[365724.503265]  [<ffffffff811add43>] __alloc_pages_nodemask+0x223/0x2a0
+[365724.503268]  [<ffffffff811fe838>] alloc_pages_current+0x88/0x120
+[365724.503270]  [<ffffffff811a3644>] __page_cache_alloc+0xb4/0xc0
+[365724.503272]  [<ffffffff811a49e9>] pagecache_get_page+0x59/0x230
+[365724.503275]  [<ffffffff8126b2db>] __getblk_gfp+0xfb/0x2f0
+[365724.503281]  [<ffffffffa00f9cee>]
+jbd2_journal_get_descriptor_buffer+0x5e/0xe0 [jbd2]
+[365724.503286]  [<ffffffffa00f2a01>]
+jbd2_journal_commit_transaction+0x901/0x1880 [jbd2]
+[365724.503291]  [<ffffffff8102d6a5>] ? __switch_to+0x215/0x730
+[365724.503294]  [<ffffffff810f962d>] ? lock_timer_base+0x7d/0xa0
+[365724.503298]  [<ffffffffa00f7cda>] kjournald2+0xca/0x260 [jbd2]
+[365724.503300]  [<ffffffff810cfb00>] ? prepare_to_wait_event+0xf0/0xf0
+[365724.503304]  [<ffffffffa00f7c10>] ? commit_timeout+0x10/0x10 [jbd2]
+[365724.503307]  [<ffffffff810a8d66>] kthread+0xe6/0x100
+[365724.503309]  [<ffffffff810a8c80>] ? kthread_park+0x60/0x60
+[365724.503313]  [<ffffffff816f3795>] ret_from_fork+0x25/0x30
+
+we can limit the warn_alloc caller to workaround it.
+__alloc_pages_slowpath only call once warn_alloc each time.
+
+Signed-off-by: yuwang.yuwang <yuwang.yuwang@alibaba-inc.com>
+Suggested-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+---
+ mm/page_alloc.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2abf8d5..8b86686 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3525,6 +3525,7 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 	unsigned long alloc_start = jiffies;
+ 	unsigned int stall_timeout = 10 * HZ;
+ 	unsigned int cpuset_mems_cookie;
++	static unsigned long stall_warn_lock;
+ 
+ 	/*
+ 	 * In the slowpath, we sanity check order to avoid ever trying to
+@@ -3698,11 +3699,13 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 		goto nopage;
+ 
+ 	/* Make sure we know about allocations which stall for too long */
+-	if (time_after(jiffies, alloc_start + stall_timeout)) {
++	if (time_after(jiffies, alloc_start + stall_timeout) &&
++		!test_and_set_bit_lock(0, &stall_warn_lock)) {
+ 		warn_alloc(gfp_mask,
+ 			"page allocation stalls for %ums, order:%u",
+ 			jiffies_to_msecs(jiffies-alloc_start), order);
+-		stall_timeout += 10 * HZ;
++		stall_timeout = jiffies - alloc_start + 10 * HZ;
++		clear_bit_unlock(0, &stall_warn_lock);
+ 	}
+ 
+ 	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
