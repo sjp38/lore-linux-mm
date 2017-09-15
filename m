@@ -1,81 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 17EC56B0038
-	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 17:08:32 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id o77so4795613qke.1
-        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 14:08:32 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id n18si1854118qtf.239.2017.09.15.14.08.30
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Sep 2017 14:08:31 -0700 (PDT)
-Date: Fri, 15 Sep 2017 14:08:07 -0700
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-Message-ID: <20170915210807.GA5238@castle>
-References: <20170911131742.16482-1-guro@fb.com>
- <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com>
- <20170913122914.5gdksbmkolum7ita@dhcp22.suse.cz>
- <20170913215607.GA19259@castle>
- <20170914134014.wqemev2kgychv7m5@dhcp22.suse.cz>
- <20170914160548.GA30441@castle>
- <20170915105826.hq5afcu2ij7hevb4@dhcp22.suse.cz>
- <20170915152301.GA29379@castle>
- <alpine.DEB.2.10.1709151249290.76069@chino.kir.corp.google.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D1806B0253
+	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 17:15:32 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id v82so6522640pgb.5
+        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 14:15:32 -0700 (PDT)
+Received: from shells.gnugeneration.com (shells.gnugeneration.com. [66.240.222.126])
+        by mx.google.com with ESMTP id z185si1152949pgb.162.2017.09.15.14.15.30
+        for <linux-mm@kvack.org>;
+        Fri, 15 Sep 2017 14:15:31 -0700 (PDT)
+Date: Fri, 15 Sep 2017 14:20:28 -0700
+From: vcaputo@pengaru.com
+Subject: Re: Detecting page cache trashing state
+Message-ID: <20170915212028.GZ9731@shells.gnugeneration.com>
+References: <150543458765.3781.10192373650821598320@takondra-t460s>
+ <20170915143619.2ifgex2jxck2xt5u@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1709151249290.76069@chino.kir.corp.google.com>
+In-Reply-To: <20170915143619.2ifgex2jxck2xt5u@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Taras Kondratiuk <takondra@cisco.com>, linux-mm@kvack.org, xe-linux-external@cisco.com, Ruslan Ruslichenko <rruslich@cisco.com>, linux-kernel@vger.kernel.org
 
-On Fri, Sep 15, 2017 at 12:55:55PM -0700, David Rientjes wrote:
-> On Fri, 15 Sep 2017, Roman Gushchin wrote:
+On Fri, Sep 15, 2017 at 04:36:19PM +0200, Michal Hocko wrote:
+> On Thu 14-09-17 17:16:27, Taras Kondratiuk wrote:
+> > Hi
+> > 
+> > In our devices under low memory conditions we often get into a trashing
+> > state when system spends most of the time re-reading pages of .text
+> > sections from a file system (squashfs in our case). Working set doesn't
+> > fit into available page cache, so it is expected. The issue is that
+> > OOM killer doesn't get triggered because there is still memory for
+> > reclaiming. System may stuck in this state for a quite some time and
+> > usually dies because of watchdogs.
+> > 
+> > We are trying to detect such trashing state early to take some
+> > preventive actions. It should be a pretty common issue, but for now we
+> > haven't find any existing VM/IO statistics that can reliably detect such
+> > state.
+> > 
+> > Most of metrics provide absolute values: number/rate of page faults,
+> > rate of IO operations, number of stolen pages, etc. For a specific
+> > device configuration we can determine threshold values for those
+> > parameters that will detect trashing state, but it is not feasible for
+> > hundreds of device configurations.
+> > 
+> > We are looking for some relative metric like "percent of CPU time spent
+> > handling major page faults". With such relative metric we could use a
+> > common threshold across all devices. For now we have added such metric
+> > to /proc/stat in our kernel, but we would like to find some mechanism
+> > available in upstream kernel.
+> > 
+> > Has somebody faced similar issue? How are you solving it?
 > 
-> > > But then you just enforce a structural restriction on your configuration
-> > > because
-> > > 	root
-> > >         /  \
-> > >        A    D
-> > >       /\   
-> > >      B  C
-> > > 
-> > > is a different thing than
-> > > 	root
-> > >         / | \
-> > >        B  C  D
-> > >
-> > 
-> > I actually don't have a strong argument against an approach to select
-> > largest leaf or kill-all-set memcg. I think, in practice there will be
-> > no much difference.
-> > 
-> > The only real concern I have is that then we have to do the same with
-> > oom_priorities (select largest priority tree-wide), and this will limit
-> > an ability to enforce the priority by parent cgroup.
-> > 
+> Yes this is a pain point for a _long_ time. And we still do not have a
+> good answer upstream. Johannes has been playing in this area [1].
+> The main problem is that our OOM detection logic is based on the ability
+> to reclaim memory to allocate new memory. And that is pretty much true
+> for the pagecache when you are trashing. So we do not know that
+> basically whole time is spent refaulting the memory back and forth.
+> We do have some refault stats for the page cache but that is not
+> integrated to the oom detection logic because this is really a
+> non-trivial problem to solve without triggering early oom killer
+> invocations.
 > 
-> Yes, oom_priority cannot select the largest priority tree-wide for exactly 
-> that reason.  We need the ability to control from which subtree the kill 
-> occurs in ancestor cgroups.  If multiple jobs are allocated their own 
-> cgroups and they can own memory.oom_priority for their own subcontainers, 
-> this becomes quite powerful so they can define their own oom priorities.   
-> Otherwise, they can easily override the oom priorities of other cgroups.
+> [1] http://lkml.kernel.org/r/20170727153010.23347-1-hannes@cmpxchg.org
 
-I believe, it's a solvable problem: we can require CAP_SYS_RESOURCE to set
-the oom_priority below parent's value, or something like this.
+For desktop users running without swap, couldn't we just provide a kernel
+setting which marks all executable pages as unevictable when first faulted
+in?  Then at least thrashing within the space occupied by executables and
+shared libraries before eventual OOM would be avoided, and only the
+remaining file-backed non-executable pages would be thrashable.
 
-But it looks more complex, and I'm not sure there are real examples,
-when we have to compare memcgs, which are on different levels
-(or in different subtrees).
+On my swapless laptops I'd much rather have OOM killer kick in immediately
+rather than wait for a few minutes of thrashing to pass while the bogged
+down system crawls through depleting what's left of technically reclaimable
+memory.  It's much improved on modern SSDs, but still annoying.
 
-In any case, oom_priorities and size-based comparison should share the
-same tree-walking policy. And I still would prefer comparing sizes and
-priorities independently on each level.
-
-Thanks!
+Regards,
+Vito Caputo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
