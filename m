@@ -1,98 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8402E6B0038
-	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 13:31:30 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id u48so3335144qtc.3
-        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 10:31:30 -0700 (PDT)
-Received: from rcdn-iport-1.cisco.com (rcdn-iport-1.cisco.com. [173.37.86.72])
-        by mx.google.com with ESMTPS id l40si1450193qta.160.2017.09.15.10.31.28
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DE1946B0038
+	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 13:40:39 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id j16so5709812pga.6
+        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 10:40:39 -0700 (PDT)
+Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
+        by mx.google.com with ESMTPS id 11si925357pfi.308.2017.09.15.10.40.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Sep 2017 10:31:29 -0700 (PDT)
-Subject: Re: Detecting page cache trashing state
-References: <150543458765.3781.10192373650821598320@takondra-t460s>
- <a5232e66-e05a-e89c-a7ba-2d3572b609d9@cisco.com>
- <150549350270.4512.4357187826510021894@takondra-t460s>
-From: Daniel Walker <danielwa@cisco.com>
-Message-ID: <35118dbb-6a03-aa84-a005-aafa4b9929c7@cisco.com>
-Date: Fri, 15 Sep 2017 10:31:27 -0700
+        Fri, 15 Sep 2017 10:40:38 -0700 (PDT)
+Subject: Re: [PATCH 3/3] mm: oom: show unreclaimable slab info when kernel
+ panic
+References: <1505409289-57031-1-git-send-email-yang.s@alibaba-inc.com>
+ <1505409289-57031-4-git-send-email-yang.s@alibaba-inc.com>
+ <2f7b69d1-8aa2-c2b8-92bd-167998145a28@I-love.SAKURA.ne.jp>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <ade43170-d968-4bd1-bc2d-61bafc3bc88e@alibaba-inc.com>
+Date: Sat, 16 Sep 2017 01:40:17 +0800
 MIME-Version: 1.0
-In-Reply-To: <150549350270.4512.4357187826510021894@takondra-t460s>
+In-Reply-To: <2f7b69d1-8aa2-c2b8-92bd-167998145a28@I-love.SAKURA.ne.jp>
 Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
 Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Taras Kondratiuk <takondra@cisco.com>, linux-mm@kvack.org
-Cc: xe-linux-external@cisco.com, Ruslan Ruslichenko <rruslich@cisco.com>, linux-kernel@vger.kernel.org
-
-On 09/15/2017 09:38 AM, Taras Kondratiuk wrote:
-> Quoting Daniel Walker (2017-09-15 07:22:27)
->> On 09/14/2017 05:16 PM, Taras Kondratiuk wrote:
->>> Hi
->>>
->>> In our devices under low memory conditions we often get into a trashing
->>> state when system spends most of the time re-reading pages of .text
->>> sections from a file system (squashfs in our case). Working set doesn't
->>> fit into available page cache, so it is expected. The issue is that
->>> OOM killer doesn't get triggered because there is still memory for
->>> reclaiming. System may stuck in this state for a quite some time and
->>> usually dies because of watchdogs.
->>>
->>> We are trying to detect such trashing state early to take some
->>> preventive actions. It should be a pretty common issue, but for now we
->>> haven't find any existing VM/IO statistics that can reliably detect such
->>> state.
->>>
->>> Most of metrics provide absolute values: number/rate of page faults,
->>> rate of IO operations, number of stolen pages, etc. For a specific
->>> device configuration we can determine threshold values for those
->>> parameters that will detect trashing state, but it is not feasible for
->>> hundreds of device configurations.
->>>
->>> We are looking for some relative metric like "percent of CPU time spent
->>> handling major page faults". With such relative metric we could use a
->>> common threshold across all devices. For now we have added such metric
->>> to /proc/stat in our kernel, but we would like to find some mechanism
->>> available in upstream kernel.
->>>
->>> Has somebody faced similar issue? How are you solving it?
->>
->> Did you make any attempt to tune swappiness ?
->>
->> Documentation/sysctl/vm.txt
->>
->> swappiness
->>
->> This control is used to define how aggressive the kernel will swap
->> memory pages.  Higher values will increase agressiveness, lower values
->> decrease the amount of swap.
->>
->> The default value is 60.
->> =======================================================
->>
->> Since your using squashfs I would guess that's going to act like swap.
->> The default tune of 60 is most likely for x86 servers which may not be a
->> good value for some other device.
-> Swap is disabled in our systems, so anonymous pages can't be evicted.
-> As per my understanding swappiness tune is irrelevant.
->
-> Even with enabled swap swappiness tune can't help much in this case. If
-> working set doesn't fit into available page cache we will hit the same
-> trashing state.
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
-I think it's our lack of understanding of how the VM works. If the 
-system has no swap, then the system shouldn't start evicting pages 
-unless you have %100 memory utilization, then the only place for those 
-pages to go is back into the backing store, squashfs in this case.
 
-What your suggesting is that there is still free memory, which means 
-something must be evicting page more aggressively then waiting till %100 
-utilization. Maybe someone more knownlegable about the VM subsystem can 
-clear this up.
+On 9/15/17 5:00 AM, Tetsuo Handa wrote:
+> On 2017/09/15 2:14, Yang Shi wrote:
+>> @@ -1274,6 +1276,29 @@ static int slab_show(struct seq_file *m, void *p)
+>>   	return 0;
+>>   }
+>>   
+>> +void show_unreclaimable_slab()
+>> +{
+>> +	struct kmem_cache *s = NULL;
+>> +	struct slabinfo sinfo;
+>> +
+>> +	memset(&sinfo, 0, sizeof(sinfo));
+>> +
+>> +	printk("Unreclaimable slabs:\n");
+>> +	mutex_lock(&slab_mutex);
+> 
+> Please avoid sleeping locks which potentially depend on memory allocation.
+> There are
+> 
+> 	mutex_lock(&slab_mutex);
+> 	kmalloc(GFP_KERNEL);
+> 	mutex_unlock(&slab_mutex);
+> 
+> users which will fail to call panic() if they hit this path
+Thanks for the heads up. Since this is just called by oom in panic path, 
+so it sounds safe to just discard the mutex_lock()/mutex_unlock call 
+since nobody can allocate memory without GFP_ATOMIC to change the 
+statistics of slab.
 
-Daniel
+Even though some GFP_ATOMIC callers allocate memory successfully, it 
+should not have obvious impact to the slabinfo we need capture since 
+typically GFP_ATOMIC allocation is small.
+
+I will drop the mutext in v2 if no one has objection.
+
+Thanks,
+Yang
+
+> 
+>> +	list_for_each_entry(s, &slab_caches, list) {
+>> +		if (!is_root_cache(s))
+>> +			continue;
+>> +
+>> +		get_slabinfo(s, &sinfo);
+>> +
+>> +		if (!is_reclaimable(s) && sinfo.num_objs > 0)
+>> +			printk("%-17s %luKB\n", cache_name(s), K(sinfo.num_objs * s->size));
+>> +	}
+>> +	mutex_unlock(&slab_mutex);
+>> +}
+>> +EXPORT_SYMBOL(show_unreclaimable_slab);
+>> +#undef K
+>> +
+>>   #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+>>   void *memcg_slab_start(struct seq_file *m, loff_t *pos)
+>>   {
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
