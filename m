@@ -1,73 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E0A56B0253
-	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 17:21:38 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 97so3508561wrb.1
-        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 14:21:38 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id u10si2152417edf.218.2017.09.15.14.21.36
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F08036B0038
+	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 17:53:26 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id 4so8404315itv.4
+        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 14:53:26 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id q10si249555ite.31.2017.09.15.14.53.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Sep 2017 14:21:37 -0700 (PDT)
-Subject: Re: [PATCH v8 10/11] arm64/kasan: explicitly zero kasan shadow memory
-References: <20170914223517.8242-1-pasha.tatashin@oracle.com>
- <20170914223517.8242-11-pasha.tatashin@oracle.com>
- <20170915011035.GA6936@remoulade>
- <c76f72fc-21ed-62d0-014e-8509c0374f96@oracle.com>
- <20170915203852.GA10749@remoulade>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <bff836ec-3922-1783-6cb4-94d1be92544b@oracle.com>
-Date: Fri, 15 Sep 2017 17:20:59 -0400
+        Fri, 15 Sep 2017 14:53:25 -0700 (PDT)
+Subject: Re: [patch] mremap.2: Add description of old_size == 0 functionality
+References: <20170915213745.6821-1-mike.kravetz@oracle.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <a6e59a7f-fd15-9e49-356e-ed439f17e9df@oracle.com>
+Date: Fri, 15 Sep 2017 14:53:19 -0700
 MIME-Version: 1.0
-In-Reply-To: <20170915203852.GA10749@remoulade>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170915213745.6821-1-mike.kravetz@oracle.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, Steven.Sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: mtk.manpages@gmail.com
+Cc: linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org
 
-Hi Mark,
+CC: linux-mm
 
-I had this optionA  back upto version 3, where zero flag was passed into 
-vmemmap_alloc_block(), but I was asked to remove it, because it required 
-too many changes in other places. So, the current approach is cleaner, 
-but the idea is that kasan should use its own version of 
-vmemmap_populate() for both x86 and ARM, but I think it is outside of 
-the scope of this work.
-
-See this comment from Ard Biesheuvel:
-https://lkml.org/lkml/2017/8/3/948
-
-"
-KASAN uses vmemmap_populate as a convenience: kasan has nothing to do
-with vmemmap, but the function already existed and happened to do what
-KASAN requires.
-
-Given that that will no longer be the case, it would be far better to
-stop using vmemmap_populate altogether, and clone it into a KASAN
-specific version (with an appropriate name) with the zeroing folded
-into it.
-"
-
-If you think I should add these function in this project, than sure I 
-can send a new version with kasanmap_populate() functions.
-
-Thank you,
-Pasha
-
-On 09/15/2017 04:38 PM, Mark Rutland wrote:
-> On Thu, Sep 14, 2017 at 09:30:28PM -0400, Pavel Tatashin wrote:
->> Hi Mark, Thank you for looking at this. We can't do this because page 
->> table is not set until cpu_replace_ttbr1() is called. So, we can't do 
->> memset() on this memory until then. 
-> I see. Sorry, I had missed that we were on the temporary tables at 
-> this point in time. I'm still not keen on duplicating the iteration. 
-> Can we split the vmemmap code so that we have a variant that takes a 
-> GFP? That way we could explicitly pass __GFP_ZERO for those cases 
-> where we want a zeroed page, and are happy to pay the cost of 
-> initialization. Thanks Mark.
+On 09/15/2017 02:37 PM, Mike Kravetz wrote:
+> Since at least the 2.6 time frame, mremap would create a new mapping
+> of the same pages if 'old_size == 0'.  It would also leave the original
+> mapping.  This was used to create a 'duplicate mapping'.
+> 
+> Document the behavior and return codes.  But, also mention that the
+> functionality is deprecated and discourage its use.
+> 
+> A recent change was made to mremap so that an attempt to create a
+> duplicate a private mapping will fail.
+> 
+> commit dba58d3b8c5045ad89c1c95d33d01451e3964db7
+> Author: Mike Kravetz <mike.kravetz@oracle.com>
+> Date:   Wed Sep 6 16:20:55 2017 -0700
+> 
+>     mm/mremap: fail map duplication attempts for private mappings
+> 
+> This return code is also documented here.
+> 
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> ---
+>  man2/mremap.2 | 23 ++++++++++++++++++++++-
+>  1 file changed, 22 insertions(+), 1 deletion(-)
+> 
+> diff --git a/man2/mremap.2 b/man2/mremap.2
+> index 98643c640..98df7d5fa 100644
+> --- a/man2/mremap.2
+> +++ b/man2/mremap.2
+> @@ -58,6 +58,21 @@ may be provided; see the description of
+>  .B MREMAP_FIXED
+>  below.
+>  .PP
+> +If the value of \fIold_size\fP is zero, and \fIold_address\fP refers to
+> +a private anonymous mapping, then
+> +.BR mremap ()
+> +will create a new mapping of the same pages. \fInew_size\fP
+> +will be the size of the new mapping and the location of the new mapping
+> +may be specified with \fInew_address\fP, see the description of
+> +.B MREMAP_FIXED
+> +below.  If a new mapping is requested via this method, then the
+> +.B MREMAP_MAYMOVE
+> +flag must also be specified.  This functionality is deprecated, and no
+> +new code should be written to use this feature.  A better method of
+> +obtaining multiple mappings of the same private anonymous memory is via the
+> +.BR memfd_create()
+> +system call.
+> +.PP
+>  In Linux the memory is divided into pages.
+>  A user process has (one or)
+>  several linear virtual memory segments.
+> @@ -174,7 +189,12 @@ and
+>  or
+>  .B MREMAP_FIXED
+>  was specified without also specifying
+> -.BR MREMAP_MAYMOVE .
+> +.BR MREMAP_MAYMOVE ;
+> +or \fIold_size\fP was zero and \fIold_address\fP does not refer to a
+> +private anonymous mapping;
+> +or \fIold_size\fP was zero and the
+> +.BR MREMAP_MAYMOVE
+> +flag was not specified.
+>  .TP
+>  .B ENOMEM
+>  The memory area cannot be expanded at the current virtual address, and the
+> @@ -210,6 +230,7 @@ if the area cannot be populated.
+>  .BR brk (2),
+>  .BR getpagesize (2),
+>  .BR getrlimit (2),
+> +.BR memfd_create(2),
+>  .BR mlock (2),
+>  .BR mmap (2),
+>  .BR sbrk (2),
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
