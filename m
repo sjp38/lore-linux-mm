@@ -1,59 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 06D776B0033
-	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 04:34:57 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id q132so1414889lfe.1
-        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 01:34:56 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q7sor117085lfq.42.2017.09.15.01.34.54
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CEEF6B0033
+	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 05:24:48 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id y29so3490757pff.6
+        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 02:24:48 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id o1si419828pll.166.2017.09.15.02.24.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 15 Sep 2017 01:34:54 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20170914141532.9339436e0fb0fd85b99b8dbf@linux-foundation.org>
-References: <20170914155936.697bf347a00dacee7e7f3778@gmail.com> <20170914141532.9339436e0fb0fd85b99b8dbf@linux-foundation.org>
-From: Vitaly Wool <vitalywool@gmail.com>
-Date: Fri, 15 Sep 2017 10:34:53 +0200
-Message-ID: <CAMJBoFPrf_O4SeE9ve0zo1qaZdocwq=u+mYVAFQTm2NNbx9xqg@mail.gmail.com>
-Subject: Re: [PATCH] z3fold: fix stale list handling
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Sep 2017 02:24:46 -0700 (PDT)
+From: Kemi Wang <kemi.wang@intel.com>
+Subject: [PATCH 0/3] Handle zone statistics distinctively based-on
+Date: Fri, 15 Sep 2017 17:23:23 +0800
+Message-Id: <1505467406-9945-1-git-send-email-kemi.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dan Streetman <ddstreet@ieee.org>, Oleksiy.Avramchenko@sony.com
+To: "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: Dave <dave.hansen@linux.intel.com>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Kemi Wang <kemi.wang@intel.com>, Proc sysctl <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-Hi Andrew,
+Each page allocation updates a set of per-zone statistics with a call to
+zone_statistics(). As discussed in 2017 MM summit.
+A link to the MM summit slides:
+http://people.netfilter.org/hawk/presentations/MM-summit2017/MM-summit2017
+-JesperBrouer.pdf
 
-2017-09-14 23:15 GMT+02:00 Andrew Morton <akpm@linux-foundation.org>:
-> On Thu, 14 Sep 2017 15:59:36 +0200 Vitaly Wool <vitalywool@gmail.com> wrote:
->
->> Fix the situation when clear_bit() is called for page->private before
->> the page pointer is actually assigned. While at it, remove work_busy()
->> check because it is costly and does not give 100% guarantee anyway.
->
-> Does this fix https://bugzilla.kernel.org/show_bug.cgi?id=196877 ?  If
-> so, the bugzilla references and a reported-by should be added.
+This is the second step for optimizing zone statistics, the first patch
+introduces a tunable interface that allow VM statistics configurable(see
+the first patch for details):
+if vmstat_mode = auto, automatic detection of VM statistics
+if vmstat_mode = strict, keep all the VM statistics
+if vmstat_mode = coarse, ignore unimportant VM statistics
+As suggested by Dave Hansen and Ying Huang.
 
-I wish it did but it doesn't. The bug you are referring to happens
-with the "unbuddied" list, and the current version of
-z3fold_reclaim_page() just doesn't have that code.
-This patch fixes the processing of "stale" lists, with stale lists
-having been introduced with the per-CPU unbuddied lists patch, which
-is pretty recent.
-To fix https://bugzilla.kernel.org/show_bug.cgi?id=196877, we'll have
-to either backport per-CPU unbuddied lists plus the two fixes, or
-propose a separate fix.
+With this interface, the second patch handles numa counters distinctively
+according to different vmstat mode, and the test result shows about 4.8%
+(185->176) drop of cpu cycles with single thread and 8.1% (343->315) drop
+of of cpu cycles with 88 threads for single page allocation.
 
-> What are the end-user visible effects of the bug?  Please always
-> include this info when fixing bugs.
+The third patch updates ABI document accordingly.
 
-If page is NULL, clear_bit for page->private will result in a kernel crash.
+Kemi Wang (3):
+  mm, sysctl: make VM stats configurable
+  mm: Handle numa statistics distinctively based-on different VM stats
+    modes
+  sysctl/vm.txt: Update document
 
-> Should this fix be backported into -stable kernels?
+ Documentation/sysctl/vm.txt |  26 ++++++++++
+ drivers/base/node.c         |   2 +
+ include/linux/vmstat.h      |  20 +++++++
+ kernel/sysctl.c             |   7 +++
+ mm/page_alloc.c             |  13 +++++
+ mm/vmstat.c                 | 124 ++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 192 insertions(+)
 
-No, this patch fixes the code that is not in any released kernel yet.
-
-~vitaly
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
