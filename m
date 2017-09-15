@@ -1,79 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E2D506B0253
-	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 10:22:33 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id y77so4533643pfd.2
-        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 07:22:33 -0700 (PDT)
-Received: from rcdn-iport-6.cisco.com (rcdn-iport-6.cisco.com. [173.37.86.77])
-        by mx.google.com with ESMTPS id a7si702823pgu.221.2017.09.15.07.22.31
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D29DE6B0253
+	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 10:24:00 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id 97so2608513wrb.1
+        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 07:24:00 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b11si1490688edb.0.2017.09.15.07.23.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Sep 2017 07:22:32 -0700 (PDT)
-Subject: Re: Detecting page cache trashing state
-References: <150543458765.3781.10192373650821598320@takondra-t460s>
-From: Daniel Walker <danielwa@cisco.com>
-Message-ID: <a5232e66-e05a-e89c-a7ba-2d3572b609d9@cisco.com>
-Date: Fri, 15 Sep 2017 07:22:27 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 15 Sep 2017 07:23:59 -0700 (PDT)
+Date: Fri, 15 Sep 2017 16:23:57 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm,page_alloc: softlockup on warn_alloc on
+Message-ID: <20170915142357.vpuwiv3gzdjtn2vr@dhcp22.suse.cz>
+References: <20170915103957.64r5xln7s6wlu3ro@dhcp22.suse.cz>
+ <201709152038.BHF26323.LFOMFHOFOJSVQt@I-love.SAKURA.ne.jp>
+ <20170915120020.diakzyzsx73ygnfx@dhcp22.suse.cz>
+ <201709152109.AID48261.FtHOFMFQOJVLOS@I-love.SAKURA.ne.jp>
+ <20170915121401.eaoncsmahh2stqn2@dhcp22.suse.cz>
+ <201709152312.EGB69283.VFQOOtFMOFHJSL@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <150543458765.3781.10192373650821598320@takondra-t460s>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201709152312.EGB69283.VFQOOtFMOFHJSL@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Taras Kondratiuk <takondra@cisco.com>, linux-mm@kvack.org
-Cc: xe-linux-external@cisco.com, Ruslan Ruslichenko <rruslich@cisco.com>, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: yuwang668899@gmail.com, vbabka@suse.cz, mpatocka@redhat.com, hannes@cmpxchg.org, mgorman@suse.de, dave.hansen@intel.com, akpm@linux-foundation.org, linux-mm@kvack.org, chenggang.qcg@alibaba-inc.com, yuwang.yuwang@alibaba-inc.com
 
-On 09/14/2017 05:16 PM, Taras Kondratiuk wrote:
-> Hi
->
-> In our devices under low memory conditions we often get into a trashing
-> state when system spends most of the time re-reading pages of .text
-> sections from a file system (squashfs in our case). Working set doesn't
-> fit into available page cache, so it is expected. The issue is that
-> OOM killer doesn't get triggered because there is still memory for
-> reclaiming. System may stuck in this state for a quite some time and
-> usually dies because of watchdogs.
->
-> We are trying to detect such trashing state early to take some
-> preventive actions. It should be a pretty common issue, but for now we
-> haven't find any existing VM/IO statistics that can reliably detect such
-> state.
->
-> Most of metrics provide absolute values: number/rate of page faults,
-> rate of IO operations, number of stolen pages, etc. For a specific
-> device configuration we can determine threshold values for those
-> parameters that will detect trashing state, but it is not feasible for
-> hundreds of device configurations.
->
-> We are looking for some relative metric like "percent of CPU time spent
-> handling major page faults". With such relative metric we could use a
-> common threshold across all devices. For now we have added such metric
-> to /proc/stat in our kernel, but we would like to find some mechanism
-> available in upstream kernel.
->
-> Has somebody faced similar issue? How are you solving it?
+On Fri 15-09-17 23:12:24, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Fri 15-09-17 21:09:29, Tetsuo Handa wrote:
+> > > Michal Hocko wrote:
+> > > > On Fri 15-09-17 20:38:49, Tetsuo Handa wrote:
+> > > > [...]
+> > > > > You said "identify _why_ we see the lockup trigerring in the first
+> > > > > place" without providing means to identify it. Unless you provide
+> > > > > means to identify it (in a form which can be immediately and easily
+> > > > > backported to 4.9 kernels; that is, backporting not-yet-accepted
+> > > > > printk() offloading patchset is not a choice), this patch cannot be
+> > > > > refused.
+> > > > 
+> > > > I fail to see why. It simply workarounds an existing problem elsewhere
+> > > > in the kernel without deeper understanding on where the problem is. You
+> > > > can add your own instrumentation to debug and describe the problem. This
+> > > > is no different to any other kernel bugs...
+> > > 
+> > > Please do show us your patch for that. Normal users cannot afford developing
+> > > such instrumentation to debug and describe the problem.
+> > 
+> > Stop this nonsense already! Any kernel bug/lockup needs a debugging
+> > which might be non-trivial and it is necessary to understand the real
+> > culprit. We do not add random hacks to silence a problem. We aim at
+> > fixing it!
+> 
+> Assuming that Wang Yu's trace has
+> 
+>   RIP: 0010:[<...>]  [<...>] dump_stack+0x.../0x...
+> 
+> line in the omitted part (like Cong Wang's trace did), I suspect that a thread
+> which is holding dump_lock is unable to leave console_unlock() from printk() for
+> so long because many other threads are trying to call printk() from warn_alloc()
+> while consuming all CPU time.
 
-
-Did you make any attempt to tune swappiness ?
-
-Documentation/sysctl/vm.txt
-
-swappiness
-
-This control is used to define how aggressive the kernel will swap
-memory pages.  Higher values will increase agressiveness, lower values
-decrease the amount of swap.
-
-The default value is 60.
-=======================================================
-
-Since your using squashfs I would guess that's going to act like swap. 
-The default tune of 60 is most likely for x86 servers which may not be a 
-good value for some other device.
-
-
-Daniel
+__dump_stack should be an atomic context AFAIR. But as we already
+discussed some time ago this lock is not fair and one function might
+bounce for too long.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
