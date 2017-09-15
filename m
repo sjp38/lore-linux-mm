@@ -1,73 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AFB0A6B0253
-	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 10:36:24 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id m30so5032228pgn.2
-        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 07:36:24 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s15si741607pgs.89.2017.09.15.07.36.22
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C19EB6B0253
+	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 10:37:42 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b195so3325973wmb.6
+        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 07:37:42 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id b26si1389185edj.541.2017.09.15.07.37.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Sep 2017 07:36:23 -0700 (PDT)
-Date: Fri, 15 Sep 2017 16:36:19 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Detecting page cache trashing state
-Message-ID: <20170915143619.2ifgex2jxck2xt5u@dhcp22.suse.cz>
-References: <150543458765.3781.10192373650821598320@takondra-t460s>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 15 Sep 2017 07:37:41 -0700 (PDT)
+Date: Fri, 15 Sep 2017 07:37:32 -0700
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm,page_alloc: softlockup on warn_alloc on
+Message-ID: <20170915143732.GA8397@cmpxchg.org>
+References: <20170915095849.9927-1-yuwang668899@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <150543458765.3781.10192373650821598320@takondra-t460s>
+In-Reply-To: <20170915095849.9927-1-yuwang668899@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Taras Kondratiuk <takondra@cisco.com>
-Cc: linux-mm@kvack.org, xe-linux-external@cisco.com, Ruslan Ruslichenko <rruslich@cisco.com>, linux-kernel@vger.kernel.org
+To: wang Yu <yuwang668899@gmail.com>
+Cc: mhocko@suse.com, penguin-kernel@i-love.sakura.ne.jp, linux-mm@kvack.org, chenggang.qcg@alibaba-inc.com, yuwang.yuwang@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu 14-09-17 17:16:27, Taras Kondratiuk wrote:
-> Hi
+On Fri, Sep 15, 2017 at 05:58:49PM +0800, wang Yu wrote:
+> From: "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
 > 
-> In our devices under low memory conditions we often get into a trashing
-> state when system spends most of the time re-reading pages of .text
-> sections from a file system (squashfs in our case). Working set doesn't
-> fit into available page cache, so it is expected. The issue is that
-> OOM killer doesn't get triggered because there is still memory for
-> reclaiming. System may stuck in this state for a quite some time and
-> usually dies because of watchdogs.
+> I found a softlockup when running some stress testcase in 4.9.x,
+> but i think the mainline have the same problem.
 > 
-> We are trying to detect such trashing state early to take some
-> preventive actions. It should be a pretty common issue, but for now we
-> haven't find any existing VM/IO statistics that can reliably detect such
-> state.
-> 
-> Most of metrics provide absolute values: number/rate of page faults,
-> rate of IO operations, number of stolen pages, etc. For a specific
-> device configuration we can determine threshold values for those
-> parameters that will detect trashing state, but it is not feasible for
-> hundreds of device configurations.
-> 
-> We are looking for some relative metric like "percent of CPU time spent
-> handling major page faults". With such relative metric we could use a
-> common threshold across all devices. For now we have added such metric
-> to /proc/stat in our kernel, but we would like to find some mechanism
-> available in upstream kernel.
-> 
-> Has somebody faced similar issue? How are you solving it?
+> call trace:
+> [365724.502896] NMI watchdog: BUG: soft lockup - CPU#31 stuck for 22s!
+> [jbd2/sda3-8:1164]
 
-Yes this is a pain point for a _long_ time. And we still do not have a
-good answer upstream. Johannes has been playing in this area [1].
-The main problem is that our OOM detection logic is based on the ability
-to reclaim memory to allocate new memory. And that is pretty much true
-for the pagecache when you are trashing. So we do not know that
-basically whole time is spent refaulting the memory back and forth.
-We do have some refault stats for the page cache but that is not
-integrated to the oom detection logic because this is really a
-non-trivial problem to solve without triggering early oom killer
-invocations.
+We've started seeing the same thing on 4.11. Tons and tons of
+allocation stall warnings followed by the soft lock-ups.
 
-[1] http://lkml.kernel.org/r/20170727153010.23347-1-hannes@cmpxchg.org
--- 
-Michal Hocko
-SUSE Labs
+These allocation stalls happen when the allocating task reclaims
+successfully yet isn't able to allocate, meaning other threads are
+stealing those pages.
+
+Now, it *looks* like something changed recently to make this race
+window wider, and there might well be a bug there. But regardless, we
+have a real livelock or at least starvation window here, where
+reclaimers have their bounty continuously stolen by concurrent allocs;
+but instead of recognizing and handling the situation, we flood the
+console which in many cases adds fuel to the fire.
+
+When threads cannibalize each other to the point where one of them can
+reclaim but not allocate for 10s, it's safe to say we are out of
+memory. I think we need something like the below regardless of any
+other investigations and fixes into the root cause here.
+
+But Michal, this needs an answer. We don't want to paper over bugs,
+but we also cannot continue to ship a kernel that has a known issue
+and for which there are mitigation fixes, root-caused or not.
+
+How can we figure out if there is a bug here? Can we time the calls to
+__alloc_pages_direct_reclaim() and __alloc_pages_direct_compact() and
+drill down from there? Print out the number of times we have retried?
+We're counting no_progress_loops, but we are also very much interested
+in progress_loops that didn't result in a successful allocation. Too
+many of those and I think we want to OOM kill as per above.
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index bec5e96f3b88..01736596389a 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3830,6 +3830,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 			"page allocation stalls for %ums, order:%u",
+ 			jiffies_to_msecs(jiffies-alloc_start), order);
+ 		stall_timeout += 10 * HZ;
++		goto oom;
+ 	}
+ 
+ 	/* Avoid recursion of direct reclaim */
+@@ -3882,6 +3883,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	if (read_mems_allowed_retry(cpuset_mems_cookie))
+ 		goto retry_cpuset;
+ 
++oom:
+ 	/* Reclaim has failed us, start killing things */
+ 	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
+ 	if (page)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
