@@ -1,93 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B96D26B0033
-	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 05:59:09 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id g32so5351632ioj.0
-        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 02:59:09 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n21sor233281oig.28.2017.09.15.02.59.08
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BBAE6B0033
+	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 06:23:32 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b195so2712583wmb.6
+        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 03:23:32 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id q30si543577wra.109.2017.09.15.03.23.31
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 15 Sep 2017 02:59:08 -0700 (PDT)
-From: wang Yu <yuwang668899@gmail.com>
-Subject: [PATCH] mm,page_alloc: softlockup on warn_alloc on
-Date: Fri, 15 Sep 2017 17:58:49 +0800
-Message-Id: <20170915095849.9927-1-yuwang668899@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 15 Sep 2017 03:23:31 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 149DB99682
+	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 10:23:31 +0000 (UTC)
+Date: Fri, 15 Sep 2017 11:23:20 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: Page allocator bottleneck
+Message-ID: <20170915102320.zqceocmvvkyybekj@techsingularity.net>
+References: <cef85936-10b2-5d76-9f97-cb03b418fd94@mellanox.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <cef85936-10b2-5d76-9f97-cb03b418fd94@mellanox.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, penguin-kernel@i-love.sakura.ne.jp, linux-mm@kvack.org
-Cc: chenggang.qcg@alibaba-inc.com, yuwang.yuwang@alibaba-inc.com
+To: Tariq Toukan <tariqt@mellanox.com>
+Cc: David Miller <davem@davemloft.net>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Alexei Starovoitov <ast@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Eran Ben Elisha <eranbe@mellanox.com>, Linux Kernel Network Developers <netdev@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm <linux-mm@kvack.org>
 
-From: "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
+On Thu, Sep 14, 2017 at 07:49:31PM +0300, Tariq Toukan wrote:
+> Insights:
+> Major degradation between #1 and #2, not getting any close to linerate!
+> Degradation is fixed between #2 and #3.
+> This is because page allocator cannot stand the higher allocation rate.
+> In #2, we also see that the addition of rings (cores) reduces BW (!!), as
+> result of increasing congestion over shared resources.
+> 
 
-I found a softlockup when running some stress testcase in 4.9.x,
-but i think the mainline have the same problem.
+Unfortunately, no surprises there. 
 
-call trace:
-[365724.502896] NMI watchdog: BUG: soft lockup - CPU#31 stuck for 22s!
-[jbd2/sda3-8:1164]
-...
-...
-[365724.503258] Call Trace:
-[365724.503260]  [<ffffffff811ace5f>] warn_alloc+0x13f/0x170
-[365724.503264]  [<ffffffff811ad8c2>] __alloc_pages_slowpath+0x9b2/0xc10
-[365724.503265]  [<ffffffff811add43>] __alloc_pages_nodemask+0x223/0x2a0
-[365724.503268]  [<ffffffff811fe838>] alloc_pages_current+0x88/0x120
-[365724.503270]  [<ffffffff811a3644>] __page_cache_alloc+0xb4/0xc0
-[365724.503272]  [<ffffffff811a49e9>] pagecache_get_page+0x59/0x230
-[365724.503275]  [<ffffffff8126b2db>] __getblk_gfp+0xfb/0x2f0
-[365724.503281]  [<ffffffffa00f9cee>]
-jbd2_journal_get_descriptor_buffer+0x5e/0xe0 [jbd2]
-[365724.503286]  [<ffffffffa00f2a01>]
-jbd2_journal_commit_transaction+0x901/0x1880 [jbd2]
-[365724.503291]  [<ffffffff8102d6a5>] ? __switch_to+0x215/0x730
-[365724.503294]  [<ffffffff810f962d>] ? lock_timer_base+0x7d/0xa0
-[365724.503298]  [<ffffffffa00f7cda>] kjournald2+0xca/0x260 [jbd2]
-[365724.503300]  [<ffffffff810cfb00>] ? prepare_to_wait_event+0xf0/0xf0
-[365724.503304]  [<ffffffffa00f7c10>] ? commit_timeout+0x10/0x10 [jbd2]
-[365724.503307]  [<ffffffff810a8d66>] kthread+0xe6/0x100
-[365724.503309]  [<ffffffff810a8c80>] ? kthread_park+0x60/0x60
-[365724.503313]  [<ffffffff816f3795>] ret_from_fork+0x25/0x30
+> Congestion in this case is very clear.
+> When monitored in perf top:
+> 85.58% [kernel] [k] queued_spin_lock_slowpath
+> 
 
-we can limit the warn_alloc caller to workaround it.
-__alloc_pages_slowpath only call once warn_alloc each time.
+While it's not proven, the most likely candidate is the zone lock and
+that should be confirmed using a call-graph profile. If so, then the
+suggestion to tune to the size of the per-cpu allocator would mitigate
+the problem.
 
-Signed-off-by: yuwang.yuwang <yuwang.yuwang@alibaba-inc.com>
-Suggested-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
----
- mm/page_alloc.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+> I think that page allocator issues should be discussed separately:
+> 1) Rate: Increase the allocation rate on a single core.
+> 2) Scalability: Reduce congestion and sync overhead between cores.
+> 
+> This is clearly the current bottleneck in the network stack receive flow.
+> 
+> I know about some efforts that were made in the past two years.
+> For example the ones from Jesper et al.:
+> - Page-pool (not accepted AFAIK).
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2abf8d5..8b86686 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3525,6 +3525,7 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
- 	unsigned long alloc_start = jiffies;
- 	unsigned int stall_timeout = 10 * HZ;
- 	unsigned int cpuset_mems_cookie;
-+	static unsigned long stall_warn_lock;
- 
- 	/*
- 	 * In the slowpath, we sanity check order to avoid ever trying to
-@@ -3698,11 +3699,13 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
- 		goto nopage;
- 
- 	/* Make sure we know about allocations which stall for too long */
--	if (time_after(jiffies, alloc_start + stall_timeout)) {
-+	if (time_after(jiffies, alloc_start + stall_timeout) &&
-+		!test_and_set_bit_lock(0, &stall_warn_lock)) {
- 		warn_alloc(gfp_mask,
- 			"page allocation stalls for %ums, order:%u",
- 			jiffies_to_msecs(jiffies-alloc_start), order);
--		stall_timeout += 10 * HZ;
-+		stall_timeout = jiffies - alloc_start + 10 * HZ;
-+		clear_bit_unlock(0, &stall_warn_lock);
- 	}
- 
- 	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
+Indeed not and it would also need driver conversion.
+
+> - Page-allocation bulking.
+
+Prototypes exist but it's pointless without the pool or driver
+conversion so it's in the back burner for the moment.
+
+> - Optimize order-0 allocations in Per-Cpu-Pages.
+> 
+
+This had a prototype that was reverted as it must be able to cope with
+both irq and noirq contexts. Unfortunately I never found the time to
+revisit it but a split there to handle both would mitigate the problem.
+Probably not enough to actually reach line speed though so tuning of the
+per-cpu allocator sizes would still be needed. I don't know when I'll
+get the chance to revisit it. I'm travelling all next week and am mostly
+occupied with other work at the moment that is consuming all my
+concentration.
+
+> I am not an mm expert, but wanted to raise the issue again, to combine the
+> efforts and hear from you guys about status and possible directions.
+
+The recent effort to reduce overhead from stats will help mitigate the
+problem. Finishing the page pool, the bulk allocator and converting drivers
+would be the most likely successful path forward but it's currently stalled
+as everyone that was previously involved is too busy.
+
 -- 
-1.8.3.1
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
