@@ -1,88 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C19EB6B0253
-	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 10:37:42 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b195so3325973wmb.6
-        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 07:37:42 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id b26si1389185edj.541.2017.09.15.07.37.41
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 52C416B0038
+	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 11:23:31 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id b1so2965995qtc.4
+        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 08:23:31 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id x139si1130698qkb.68.2017.09.15.08.23.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 15 Sep 2017 07:37:41 -0700 (PDT)
-Date: Fri, 15 Sep 2017 07:37:32 -0700
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm,page_alloc: softlockup on warn_alloc on
-Message-ID: <20170915143732.GA8397@cmpxchg.org>
-References: <20170915095849.9927-1-yuwang668899@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Sep 2017 08:23:30 -0700 (PDT)
+Date: Fri, 15 Sep 2017 08:23:01 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v8 0/4] cgroup-aware OOM killer
+Message-ID: <20170915152301.GA29379@castle>
+References: <20170911131742.16482-1-guro@fb.com>
+ <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com>
+ <20170913122914.5gdksbmkolum7ita@dhcp22.suse.cz>
+ <20170913215607.GA19259@castle>
+ <20170914134014.wqemev2kgychv7m5@dhcp22.suse.cz>
+ <20170914160548.GA30441@castle>
+ <20170915105826.hq5afcu2ij7hevb4@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170915095849.9927-1-yuwang668899@gmail.com>
+In-Reply-To: <20170915105826.hq5afcu2ij7hevb4@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wang Yu <yuwang668899@gmail.com>
-Cc: mhocko@suse.com, penguin-kernel@i-love.sakura.ne.jp, linux-mm@kvack.org, chenggang.qcg@alibaba-inc.com, yuwang.yuwang@alibaba-inc.com, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Sep 15, 2017 at 05:58:49PM +0800, wang Yu wrote:
-> From: "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
+On Fri, Sep 15, 2017 at 12:58:26PM +0200, Michal Hocko wrote:
+> On Thu 14-09-17 09:05:48, Roman Gushchin wrote:
+> > On Thu, Sep 14, 2017 at 03:40:14PM +0200, Michal Hocko wrote:
+> > > On Wed 13-09-17 14:56:07, Roman Gushchin wrote:
+> > > > On Wed, Sep 13, 2017 at 02:29:14PM +0200, Michal Hocko wrote:
+> > > [...]
+> > > > > I strongly believe that comparing only leaf memcgs
+> > > > > is more straightforward and it doesn't lead to unexpected results as
+> > > > > mentioned before (kill a small memcg which is a part of the larger
+> > > > > sub-hierarchy).
+> > > > 
+> > > > One of two main goals of this patchset is to introduce cgroup-level
+> > > > fairness: bigger cgroups should be affected more than smaller,
+> > > > despite the size of tasks inside. I believe the same principle
+> > > > should be used for cgroups.
+> > > 
+> > > Yes bigger cgroups should be preferred but I fail to see why bigger
+> > > hierarchies should be considered as well if they are not kill-all. And
+> > > whether non-leaf memcgs should allow kill-all is not entirely clear to
+> > > me. What would be the usecase?
+> > 
+> > We definitely want to support kill-all for non-leaf cgroups.
+> > A workload can consist of several cgroups and we want to clean up
+> > the whole thing on OOM.
 > 
-> I found a softlockup when running some stress testcase in 4.9.x,
-> but i think the mainline have the same problem.
+> Could you be more specific about such a workload? E.g. how can be such a
+> hierarchy handled consistently when its sub-tree gets killed due to
+> internal memory pressure?
+
+Or just system-wide OOM.
+
+> Or do you expect that none of the subtree will
+> have hard limit configured?
+
+And this can also be a case: the whole workload may have hard limit
+configured, while internal memcgs have only memory.low set for "soft"
+prioritization.
+
 > 
-> call trace:
-> [365724.502896] NMI watchdog: BUG: soft lockup - CPU#31 stuck for 22s!
-> [jbd2/sda3-8:1164]
+> But then you just enforce a structural restriction on your configuration
+> because
+> 	root
+>         /  \
+>        A    D
+>       /\   
+>      B  C
+> 
+> is a different thing than
+> 	root
+>         / | \
+>        B  C  D
+>
 
-We've started seeing the same thing on 4.11. Tons and tons of
-allocation stall warnings followed by the soft lock-ups.
+I actually don't have a strong argument against an approach to select
+largest leaf or kill-all-set memcg. I think, in practice there will be
+no much difference.
 
-These allocation stalls happen when the allocating task reclaims
-successfully yet isn't able to allocate, meaning other threads are
-stealing those pages.
+The only real concern I have is that then we have to do the same with
+oom_priorities (select largest priority tree-wide), and this will limit
+an ability to enforce the priority by parent cgroup.
 
-Now, it *looks* like something changed recently to make this race
-window wider, and there might well be a bug there. But regardless, we
-have a real livelock or at least starvation window here, where
-reclaimers have their bounty continuously stolen by concurrent allocs;
-but instead of recognizing and handling the situation, we flood the
-console which in many cases adds fuel to the fire.
-
-When threads cannibalize each other to the point where one of them can
-reclaim but not allocate for 10s, it's safe to say we are out of
-memory. I think we need something like the below regardless of any
-other investigations and fixes into the root cause here.
-
-But Michal, this needs an answer. We don't want to paper over bugs,
-but we also cannot continue to ship a kernel that has a known issue
-and for which there are mitigation fixes, root-caused or not.
-
-How can we figure out if there is a bug here? Can we time the calls to
-__alloc_pages_direct_reclaim() and __alloc_pages_direct_compact() and
-drill down from there? Print out the number of times we have retried?
-We're counting no_progress_loops, but we are also very much interested
-in progress_loops that didn't result in a successful allocation. Too
-many of those and I think we want to OOM kill as per above.
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index bec5e96f3b88..01736596389a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3830,6 +3830,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 			"page allocation stalls for %ums, order:%u",
- 			jiffies_to_msecs(jiffies-alloc_start), order);
- 		stall_timeout += 10 * HZ;
-+		goto oom;
- 	}
- 
- 	/* Avoid recursion of direct reclaim */
-@@ -3882,6 +3883,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	if (read_mems_allowed_retry(cpuset_mems_cookie))
- 		goto retry_cpuset;
- 
-+oom:
- 	/* Reclaim has failed us, start killing things */
- 	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
- 	if (page)
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
