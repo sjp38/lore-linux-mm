@@ -1,54 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C9BBC6B0253
-	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 10:16:25 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id 6so4971728pgh.0
-        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 07:16:25 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id h14si765102plk.375.2017.09.15.07.16.24
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E2D506B0253
+	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 10:22:33 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id y77so4533643pfd.2
+        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 07:22:33 -0700 (PDT)
+Received: from rcdn-iport-6.cisco.com (rcdn-iport-6.cisco.com. [173.37.86.77])
+        by mx.google.com with ESMTPS id a7si702823pgu.221.2017.09.15.07.22.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Sep 2017 07:16:24 -0700 (PDT)
-Subject: Re: [PATCH 1/3] mm, sysctl: make VM stats configurable
-References: <1505467406-9945-1-git-send-email-kemi.wang@intel.com>
- <1505467406-9945-2-git-send-email-kemi.wang@intel.com>
- <20170915114952.czb7nbsioqguxxk3@dhcp22.suse.cz>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <b8d952c5-2803-eea2-cd9a-20463a48075e@linux.intel.com>
-Date: Fri, 15 Sep 2017 07:16:23 -0700
+        Fri, 15 Sep 2017 07:22:32 -0700 (PDT)
+Subject: Re: Detecting page cache trashing state
+References: <150543458765.3781.10192373650821598320@takondra-t460s>
+From: Daniel Walker <danielwa@cisco.com>
+Message-ID: <a5232e66-e05a-e89c-a7ba-2d3572b609d9@cisco.com>
+Date: Fri, 15 Sep 2017 07:22:27 -0700
 MIME-Version: 1.0
-In-Reply-To: <20170915114952.czb7nbsioqguxxk3@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+In-Reply-To: <150543458765.3781.10192373650821598320@takondra-t460s>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Kemi Wang <kemi.wang@intel.com>
-Cc: "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, Hillf Danton <hillf.zj@alibaba-inc.com>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Proc sysctl <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Taras Kondratiuk <takondra@cisco.com>, linux-mm@kvack.org
+Cc: xe-linux-external@cisco.com, Ruslan Ruslichenko <rruslich@cisco.com>, linux-kernel@vger.kernel.org
 
-On 09/15/2017 04:49 AM, Michal Hocko wrote:
-> Why do we need an auto-mode? Is it safe to enforce by default.
+On 09/14/2017 05:16 PM, Taras Kondratiuk wrote:
+> Hi
+>
+> In our devices under low memory conditions we often get into a trashing
+> state when system spends most of the time re-reading pages of .text
+> sections from a file system (squashfs in our case). Working set doesn't
+> fit into available page cache, so it is expected. The issue is that
+> OOM killer doesn't get triggered because there is still memory for
+> reclaiming. System may stuck in this state for a quite some time and
+> usually dies because of watchdogs.
+>
+> We are trying to detect such trashing state early to take some
+> preventive actions. It should be a pretty common issue, but for now we
+> haven't find any existing VM/IO statistics that can reliably detect such
+> state.
+>
+> Most of metrics provide absolute values: number/rate of page faults,
+> rate of IO operations, number of stolen pages, etc. For a specific
+> device configuration we can determine threshold values for those
+> parameters that will detect trashing state, but it is not feasible for
+> hundreds of device configurations.
+>
+> We are looking for some relative metric like "percent of CPU time spent
+> handling major page faults". With such relative metric we could use a
+> common threshold across all devices. For now we have added such metric
+> to /proc/stat in our kernel, but we would like to find some mechanism
+> available in upstream kernel.
+>
+> Has somebody faced similar issue? How are you solving it?
 
-Do we *need* it?  Not really.
 
-But, it does offer the best of both worlds: The vast majority of users
-see virtually no impact from the counters.  The minority that do need
-them pay the cost *and* don't have to change their tooling at all.
+Did you make any attempt to tune swappiness ?
 
-> Is it> possible that userspace can get confused to see 0 NUMA stats in
-the
-> first read while other allocation stats are non-zero?
+Documentation/sysctl/vm.txt
 
-I doubt it.  Those counters are pretty worthless by themselves.  I have
-tooling that goes and reads them, but it aways displays deltas.  Read
-stats, sleep one second, read again, print the difference.
+swappiness
 
-The only scenario I can see mattering is someone who is seeing a
-performance issue due to NUMA allocation misses (or whatever) and wants
-to go look *back* in the past.
+This control is used to define how aggressive the kernel will swap
+memory pages.  Higher values will increase agressiveness, lower values
+decrease the amount of swap.
 
-A single-time printk could also go a long way to keeping folks from
-getting confused.
+The default value is 60.
+=======================================================
+
+Since your using squashfs I would guess that's going to act like swap. 
+The default tune of 60 is most likely for x86 servers which may not be a 
+good value for some other device.
+
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
