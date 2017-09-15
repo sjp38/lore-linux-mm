@@ -1,75 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 009046B0069
-	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 11:24:09 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id d6so6713363itc.6
-        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 08:24:08 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id x95si1025456ioi.147.2017.09.15.08.24.06
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 538736B0038
+	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 12:38:25 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id t184so3940361qke.0
+        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 09:38:25 -0700 (PDT)
+Received: from alln-iport-4.cisco.com (alln-iport-4.cisco.com. [173.37.142.91])
+        by mx.google.com with ESMTPS id z47si1342916qta.96.2017.09.15.09.38.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Sep 2017 08:24:07 -0700 (PDT)
-Subject: Re: [PATCH] mm,page_alloc: softlockup on warn_alloc on
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170915095849.9927-1-yuwang668899@gmail.com>
-	<20170915143732.GA8397@cmpxchg.org>
-In-Reply-To: <20170915143732.GA8397@cmpxchg.org>
-Message-Id: <201709160023.CAE05229.MQHFSJFOOFOVtL@I-love.SAKURA.ne.jp>
-Date: Sat, 16 Sep 2017 00:23:53 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Sep 2017 09:38:24 -0700 (PDT)
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: quoted-printable
+From: Taras Kondratiuk <takondra@cisco.com>
+In-Reply-To: <a5232e66-e05a-e89c-a7ba-2d3572b609d9@cisco.com>
+References: <150543458765.3781.10192373650821598320@takondra-t460s>
+ <a5232e66-e05a-e89c-a7ba-2d3572b609d9@cisco.com>
+Message-ID: <150549350270.4512.4357187826510021894@takondra-t460s>
+Subject: Re: Detecting page cache trashing state
+Date: Fri, 15 Sep 2017 09:38:22 -0700
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org, yuwang668899@gmail.com
-Cc: mhocko@suse.com, linux-mm@kvack.org, chenggang.qcg@alibaba-inc.com, yuwang.yuwang@alibaba-inc.com, akpm@linux-foundation.org
+To: Daniel Walker <danielwa@cisco.com>, linux-mm@kvack.org
+Cc: xe-linux-external@cisco.com, Ruslan Ruslichenko <rruslich@cisco.com>, linux-kernel@vger.kernel.org
 
-Johannes Weiner wrote:
-> How can we figure out if there is a bug here? Can we time the calls to
-> __alloc_pages_direct_reclaim() and __alloc_pages_direct_compact() and
-> drill down from there? Print out the number of times we have retried?
-> We're counting no_progress_loops, but we are also very much interested
-> in progress_loops that didn't result in a successful allocation. Too
-> many of those and I think we want to OOM kill as per above.
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index bec5e96f3b88..01736596389a 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3830,6 +3830,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  			"page allocation stalls for %ums, order:%u",
->  			jiffies_to_msecs(jiffies-alloc_start), order);
->  		stall_timeout += 10 * HZ;
-> +		goto oom;
->  	}
->  
->  	/* Avoid recursion of direct reclaim */
-> @@ -3882,6 +3883,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	if (read_mems_allowed_retry(cpuset_mems_cookie))
->  		goto retry_cpuset;
->  
-> +oom:
->  	/* Reclaim has failed us, start killing things */
->  	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
->  	if (page)
-> 
+Quoting Daniel Walker (2017-09-15 07:22:27)
+> On 09/14/2017 05:16 PM, Taras Kondratiuk wrote:
+> > Hi
+> >
+> > In our devices under low memory conditions we often get into a trashing
+> > state when system spends most of the time re-reading pages of .text
+> > sections from a file system (squashfs in our case). Working set doesn't
+> > fit into available page cache, so it is expected. The issue is that
+> > OOM killer doesn't get triggered because there is still memory for
+> > reclaiming. System may stuck in this state for a quite some time and
+> > usually dies because of watchdogs.
+> >
+> > We are trying to detect such trashing state early to take some
+> > preventive actions. It should be a pretty common issue, but for now we
+> > haven't find any existing VM/IO statistics that can reliably detect such
+> > state.
+> >
+> > Most of metrics provide absolute values: number/rate of page faults,
+> > rate of IO operations, number of stolen pages, etc. For a specific
+> > device configuration we can determine threshold values for those
+> > parameters that will detect trashing state, but it is not feasible for
+> > hundreds of device configurations.
+> >
+> > We are looking for some relative metric like "percent of CPU time spent
+> > handling major page faults". With such relative metric we could use a
+> > common threshold across all devices. For now we have added such metric
+> > to /proc/stat in our kernel, but we would like to find some mechanism
+> > available in upstream kernel.
+> >
+> > Has somebody faced similar issue? How are you solving it?
+> =
 
-According to my stress tests, it is mutex_trylock() in __alloc_pages_may_oom()
-that causes warn_alloc() to be called for so many times. The comment
+> =
 
-	/*
-	 * Acquire the oom lock.  If that fails, somebody else is
-	 * making progress for us.
-	 */
+> Did you make any attempt to tune swappiness ?
+> =
 
-is true only if the owner of oom_lock can call out_of_memory() and is __GFP_FS
-allocation. Consider a situation where there are 1 GFP_KERNEL allocating thread
-and 99 GFP_NOFS/GFP_NOIO allocating threads contending the oom_lock. How likely
-the OOM killer is invoked? It is very unlikely because GFP_KERNEL allocating thread
-likely fails to grab oom_lock because GFP_NOFS/GFP_NOIO allocating threads is
-grabing oom_lock. And GFP_KERNEL allocating thread yields CPU time for
-GFP_NOFS/GFP_NOIO allocating threads to waste pointlessly.
-s/!mutex_trylock(&oom_lock)/mutex_lock_killable()/ significantly improves
-this situation for my stress tests. How is your case?
+> Documentation/sysctl/vm.txt
+> =
+
+> swappiness
+> =
+
+> This control is used to define how aggressive the kernel will swap
+> memory pages.  Higher values will increase agressiveness, lower values
+> decrease the amount of swap.
+> =
+
+> The default value is 60.
+> =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D
+> =
+
+> Since your using squashfs I would guess that's going to act like swap. =
+
+> The default tune of 60 is most likely for x86 servers which may not be a =
+
+> good value for some other device.
+
+Swap is disabled in our systems, so anonymous pages can't be evicted.
+As per my understanding swappiness tune is irrelevant.
+
+Even with enabled swap swappiness tune can't help much in this case. If
+working set doesn't fit into available page cache we will hit the same
+trashing state.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
