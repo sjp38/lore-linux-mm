@@ -1,105 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 215106B0253
-	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 06:40:02 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id v82so4136319pgb.5
-        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 03:40:02 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 246C26B0033
+	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 06:58:31 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id g50so2095722wra.4
+        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 03:58:31 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f3si489383pld.531.2017.09.15.03.40.00
+        by mx.google.com with ESMTPS id y2si996657edy.370.2017.09.15.03.58.29
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Sep 2017 03:40:00 -0700 (PDT)
-Date: Fri, 15 Sep 2017 12:39:57 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm,page_alloc: softlockup on warn_alloc on
-Message-ID: <20170915103957.64r5xln7s6wlu3ro@dhcp22.suse.cz>
-References: <20170915095849.9927-1-yuwang668899@gmail.com>
+        Fri, 15 Sep 2017 03:58:29 -0700 (PDT)
+Date: Fri, 15 Sep 2017 12:58:26 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v8 0/4] cgroup-aware OOM killer
+Message-ID: <20170915105826.hq5afcu2ij7hevb4@dhcp22.suse.cz>
+References: <20170911131742.16482-1-guro@fb.com>
+ <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com>
+ <20170913122914.5gdksbmkolum7ita@dhcp22.suse.cz>
+ <20170913215607.GA19259@castle>
+ <20170914134014.wqemev2kgychv7m5@dhcp22.suse.cz>
+ <20170914160548.GA30441@castle>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170915095849.9927-1-yuwang668899@gmail.com>
+In-Reply-To: <20170914160548.GA30441@castle>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wang Yu <yuwang668899@gmail.com>
-Cc: penguin-kernel@i-love.sakura.ne.jp, linux-mm@kvack.org, chenggang.qcg@alibaba-inc.com, yuwang.yuwang@alibaba-inc.com
+To: Roman Gushchin <guro@fb.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri 15-09-17 17:58:49, wang Yu wrote:
-> From: "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
+On Thu 14-09-17 09:05:48, Roman Gushchin wrote:
+> On Thu, Sep 14, 2017 at 03:40:14PM +0200, Michal Hocko wrote:
+> > On Wed 13-09-17 14:56:07, Roman Gushchin wrote:
+> > > On Wed, Sep 13, 2017 at 02:29:14PM +0200, Michal Hocko wrote:
+> > [...]
+> > > > I strongly believe that comparing only leaf memcgs
+> > > > is more straightforward and it doesn't lead to unexpected results as
+> > > > mentioned before (kill a small memcg which is a part of the larger
+> > > > sub-hierarchy).
+> > > 
+> > > One of two main goals of this patchset is to introduce cgroup-level
+> > > fairness: bigger cgroups should be affected more than smaller,
+> > > despite the size of tasks inside. I believe the same principle
+> > > should be used for cgroups.
+> > 
+> > Yes bigger cgroups should be preferred but I fail to see why bigger
+> > hierarchies should be considered as well if they are not kill-all. And
+> > whether non-leaf memcgs should allow kill-all is not entirely clear to
+> > me. What would be the usecase?
 > 
-> I found a softlockup when running some stress testcase in 4.9.x,
-> but i think the mainline have the same problem.
-> 
-> call trace:
-> [365724.502896] NMI watchdog: BUG: soft lockup - CPU#31 stuck for 22s!
-> [jbd2/sda3-8:1164]
-> ...
-> ...
-> [365724.503258] Call Trace:
-> [365724.503260]  [<ffffffff811ace5f>] warn_alloc+0x13f/0x170
-> [365724.503264]  [<ffffffff811ad8c2>] __alloc_pages_slowpath+0x9b2/0xc10
-> [365724.503265]  [<ffffffff811add43>] __alloc_pages_nodemask+0x223/0x2a0
-> [365724.503268]  [<ffffffff811fe838>] alloc_pages_current+0x88/0x120
-> [365724.503270]  [<ffffffff811a3644>] __page_cache_alloc+0xb4/0xc0
-> [365724.503272]  [<ffffffff811a49e9>] pagecache_get_page+0x59/0x230
-> [365724.503275]  [<ffffffff8126b2db>] __getblk_gfp+0xfb/0x2f0
-> [365724.503281]  [<ffffffffa00f9cee>]
-> jbd2_journal_get_descriptor_buffer+0x5e/0xe0 [jbd2]
-> [365724.503286]  [<ffffffffa00f2a01>]
-> jbd2_journal_commit_transaction+0x901/0x1880 [jbd2]
-> [365724.503291]  [<ffffffff8102d6a5>] ? __switch_to+0x215/0x730
-> [365724.503294]  [<ffffffff810f962d>] ? lock_timer_base+0x7d/0xa0
-> [365724.503298]  [<ffffffffa00f7cda>] kjournald2+0xca/0x260 [jbd2]
-> [365724.503300]  [<ffffffff810cfb00>] ? prepare_to_wait_event+0xf0/0xf0
-> [365724.503304]  [<ffffffffa00f7c10>] ? commit_timeout+0x10/0x10 [jbd2]
-> [365724.503307]  [<ffffffff810a8d66>] kthread+0xe6/0x100
-> [365724.503309]  [<ffffffff810a8c80>] ? kthread_park+0x60/0x60
-> [365724.503313]  [<ffffffff816f3795>] ret_from_fork+0x25/0x30
-> 
-> we can limit the warn_alloc caller to workaround it.
-> __alloc_pages_slowpath only call once warn_alloc each time.
+> We definitely want to support kill-all for non-leaf cgroups.
+> A workload can consist of several cgroups and we want to clean up
+> the whole thing on OOM.
 
-similar attempts to add a lock there were tried in the past and refused.
-Anyway using a normal lock would be preferred over a bit lock. But the
-most important part is to identify _why_ we see the lockup trigerring in
-the first place. And try to fix it rather than workaround it here.
+Could you be more specific about such a workload? E.g. how can be such a
+hierarchy handled consistently when its sub-tree gets killed due to
+internal memory pressure? Or do you expect that none of the subtree will
+have hard limit configured?
 
-> Signed-off-by: yuwang.yuwang <yuwang.yuwang@alibaba-inc.com>
-> Suggested-by: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-> ---
->  mm/page_alloc.c | 7 +++++--
->  1 file changed, 5 insertions(+), 2 deletions(-)
+> I don't see any reasons to limit this functionality to leaf cgroups
+> only.
+
+Well, I wanted to start simple first and extend on top. Memcg v1 is full
+of seemingly interesting and very generic concepts which turned out
+being a headache long term.
+
+> Hierarchies are memory consumers, we do account their usage,
+> we do apply limits and guarantees for the hierarchies. The same is
+> with OOM victim selection: we are reclaiming memory from the
+> biggest consumer. Kill-all knob only defines the way _how_ we do that:
+> by killing one or all processes.
+
+But then you just enforce a structural restriction on your configuration
+because
+	root
+        /  \
+       A    D
+      /\   
+     B  C
+
+is a different thing than
+	root
+        / | \
+       B  C  D
+
+And consider that the sole purpose of A might be a control over
+a non-memory resource (e.g. a cpu share distribution). Why should we
+discriminate B and C in such a case?
+
+> Just for example, we might want to take memory.low into account at
+> some point: prefer cgroups which are above their guarantees, avoid
+> killing those who fit. It would be hard if we're comparing cgroups
+> from different hierarchies.
+
+This can be reflected in the memcg oom score calculation I believe. We
+already do something similar during the reclaim.
+
+> The same will be with introducing oom_priorities, which is much more
+> required functionality.
+
+More on that below.
+
+> > Consider that it might be not your choice (as a user) how deep is your
+> > leaf memcg. I can already see how people complain that their memcg has
+> > been killed just because it was one level deeper in the hierarchy...
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 2abf8d5..8b86686 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3525,6 +3525,7 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
->  	unsigned long alloc_start = jiffies;
->  	unsigned int stall_timeout = 10 * HZ;
->  	unsigned int cpuset_mems_cookie;
-> +	static unsigned long stall_warn_lock;
->  
->  	/*
->  	 * In the slowpath, we sanity check order to avoid ever trying to
-> @@ -3698,11 +3699,13 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
->  		goto nopage;
->  
->  	/* Make sure we know about allocations which stall for too long */
-> -	if (time_after(jiffies, alloc_start + stall_timeout)) {
-> +	if (time_after(jiffies, alloc_start + stall_timeout) &&
-> +		!test_and_set_bit_lock(0, &stall_warn_lock)) {
->  		warn_alloc(gfp_mask,
->  			"page allocation stalls for %ums, order:%u",
->  			jiffies_to_msecs(jiffies-alloc_start), order);
-> -		stall_timeout += 10 * HZ;
-> +		stall_timeout = jiffies - alloc_start + 10 * HZ;
-> +		clear_bit_unlock(0, &stall_warn_lock);
->  	}
->  
->  	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
-> -- 
-> 1.8.3.1
+> The kill-all functionality is enforced by parent, and it seems to be
+> following the overall memcg design. The parent cgroup enforces memory
+> limit, memory low limit, etc.
 
+And the same is true for the memcg oom killer. It enforces the selection
+to the out-of-memory subtree. We are trying to be proportional on the
+size of the _reclaimable_ memory in that scope. Same way as with the
+LRU reclaim. We do not prefer larger hierarchies over smaller. We just
+iterate over those that have pages on LRUs (leaf memcgs with v2) and
+scan/reclaim proportionally to their size. Why should the oom killer
+decision be any different in that regards?
+
+> I don't know why OOM control should be different.
+
+I am not arguing that kill-all functionality on non-leaf is wrong. I
+just haven't heard the usecase for it yet. I am also not opposed to
+consider the cumulative size of non-leaf memcg if it is kill-all as the
+cumulative size will be reclaimed then. But I fail to see why we should
+prefer larger hierarchies when the resulting memcg victim is much
+smaller in the end.
+
+> > I would really start simple and only allow kill-all on leaf memcgs and
+> > only compare leaf memcgs & root. If we ever need to kill whole
+> > hierarchies then allow kill-all on intermediate memcgs as well and then
+> > consider cumulative consumptions only on those that have kill-all
+> > enabled.
+> 
+> This sounds hacky to me: the whole thing is depending on cgroup v2 and
+> is additionally explicitly opt-in.
+> 
+> Why do we need to introduce such incomplete functionality first,
+> and then suffer trying to extend it and provide backward compatibility?
+
+Why would a backward compatibility be a problem? kill-all on non-leaf
+memcgs should be seamless. We would simply allow setting the knob. Adding
+a priority shouldn't be a problem either. A new knob would be added. Any
+memcg with a non-zero priority would be considered during selection for
+example (cumulative size would be considered as a tie-breaker for
+non-leaf memcgs and a victim selected from the largest hierarchy/leaf
+memcg - but that really needs to be thought through and hear about
+specific usecases).
+ 
+> Also, I think we should compare root cgroup with top-level cgroups,
+> rather than leaf cgroups. A process in the root cgroup is definitely
+> system-level entity, and we should compare it with other top-level
+> entities (other containerized workloads), rather then some random
+> leaf cgroup deep inside the tree. If we decided, that we're not comparing
+> random tasks from different cgroups, why should we do this for leaf
+> cgroups? Is sounds like making only one step towards right direction,
+> while we can do more.
+
+The main problem I have with that is mentioned above. A single hierarchy
+enforces some structural constrains when multiple controllers are in
+place.
 -- 
 Michal Hocko
 SUSE Labs
