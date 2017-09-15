@@ -1,103 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F08036B0038
-	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 17:53:26 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id 4so8404315itv.4
-        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 14:53:26 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id q10si249555ite.31.2017.09.15.14.53.25
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 604ED6B0038
+	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 17:54:43 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id d70so4897126qkc.3
+        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 14:54:43 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id l27si1961295qta.36.2017.09.15.14.54.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Sep 2017 14:53:25 -0700 (PDT)
-Subject: Re: [patch] mremap.2: Add description of old_size == 0 functionality
-References: <20170915213745.6821-1-mike.kravetz@oracle.com>
+        Fri, 15 Sep 2017 14:54:42 -0700 (PDT)
+Subject: Re: [patch] memfd_create.2: Add description of MFD_HUGETLB
+ (hugetlbfs) support
+References: <20170915214305.7148-1-mike.kravetz@oracle.com>
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <a6e59a7f-fd15-9e49-356e-ed439f17e9df@oracle.com>
-Date: Fri, 15 Sep 2017 14:53:19 -0700
+Message-ID: <c5c038a8-38e3-546d-5b87-2a5f957f63ed@oracle.com>
+Date: Fri, 15 Sep 2017 14:54:37 -0700
 MIME-Version: 1.0
-In-Reply-To: <20170915213745.6821-1-mike.kravetz@oracle.com>
+In-Reply-To: <20170915214305.7148-1-mike.kravetz@oracle.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mtk.manpages@gmail.com
-Cc: linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org
+Cc: linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org
 
 CC: linux-mm
 
-On 09/15/2017 02:37 PM, Mike Kravetz wrote:
-> Since at least the 2.6 time frame, mremap would create a new mapping
-> of the same pages if 'old_size == 0'.  It would also leave the original
-> mapping.  This was used to create a 'duplicate mapping'.
+On 09/15/2017 02:43 PM, Mike Kravetz wrote:
+> hugetlbfs support for memfd_create was recently merged by Linus and
+> should be in the Linux 4.14 release.  To request hugetlbfs support
+> a new memfd_create flag (MFD_HUGETLB) was added.
 > 
-> Document the behavior and return codes.  But, also mention that the
-> functionality is deprecated and discourage its use.
+> This patch documents the following commit:
 > 
-> A recent change was made to mremap so that an attempt to create a
-> duplicate a private mapping will fail.
-> 
-> commit dba58d3b8c5045ad89c1c95d33d01451e3964db7
+> commit 749df87bd7bee5a79cef073f5d032ddb2b211de8
 > Author: Mike Kravetz <mike.kravetz@oracle.com>
-> Date:   Wed Sep 6 16:20:55 2017 -0700
+> Date:   Wed Sep 6 16:24:16 2017 -0700
 > 
->     mm/mremap: fail map duplication attempts for private mappings
-> 
-> This return code is also documented here.
+>     mm/shmem: add hugetlbfs support to memfd_create()
 > 
 > Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 > ---
->  man2/mremap.2 | 23 ++++++++++++++++++++++-
->  1 file changed, 22 insertions(+), 1 deletion(-)
+>  man2/memfd_create.2 | 27 +++++++++++++++++++++++++++
+>  1 file changed, 27 insertions(+)
 > 
-> diff --git a/man2/mremap.2 b/man2/mremap.2
-> index 98643c640..98df7d5fa 100644
-> --- a/man2/mremap.2
-> +++ b/man2/mremap.2
-> @@ -58,6 +58,21 @@ may be provided; see the description of
->  .B MREMAP_FIXED
->  below.
+> diff --git a/man2/memfd_create.2 b/man2/memfd_create.2
+> index 4dfd1bb2d..b61254bb8 100644
+> --- a/man2/memfd_create.2
+> +++ b/man2/memfd_create.2
+> @@ -100,6 +100,33 @@ If this flag is not set, the initial set of seals will be
+>  meaning that no other seals can be set on the file.
+>  .\" FIXME Why is the MFD_ALLOW_SEALING behavior not simply the default?
+>  .\" Is it worth adding some text explaining this?
+> +.TP
+> +.BR MFD_HUGETLB " (since Linux 4.14)"
+> +The anonymous file will be created in the hugetlbfs filesystem using
+> +huge pages.  See the Linux kernel source file
+> +.I Documentation/vm/hugetlbpage.txt
+> +for more information about hugetlbfs.  The hugetlbfs filesystem does
+> +not support file sealing operations.  Therefore, specifying both
+> +.B MFD_HUGETLB
+> +and
+> +.B MFD_ALLOW_SEALING
+> +will result in an error
+> +.RB (EINVAL)
+> +being returned.
+> +
+> +.TP
+> +.BR MFD_HUGE_2MB ", " MFD_HUGE_1GB ", " "..."
+> +Used in conjunction with
+> +.B MFD_HUGETLB
+> +to select alternative hugetlb page sizes (respectively, 2 MB, 1 GB, ...)
+> +on systems that support multiple hugetlb page sizes.  Definitions for known
+> +huge page sizes are included in the header file
+> +.I <sys/memfd.h>.
+> +
+> +For details on encoding huge page sizes not included in the header file,
+> +see the discussion of the similarly named constants in
+> +.BR mmap (2).
+> +
 >  .PP
-> +If the value of \fIold_size\fP is zero, and \fIold_address\fP refers to
-> +a private anonymous mapping, then
-> +.BR mremap ()
-> +will create a new mapping of the same pages. \fInew_size\fP
-> +will be the size of the new mapping and the location of the new mapping
-> +may be specified with \fInew_address\fP, see the description of
-> +.B MREMAP_FIXED
-> +below.  If a new mapping is requested via this method, then the
-> +.B MREMAP_MAYMOVE
-> +flag must also be specified.  This functionality is deprecated, and no
-> +new code should be written to use this feature.  A better method of
-> +obtaining multiple mappings of the same private anonymous memory is via the
-> +.BR memfd_create()
-> +system call.
-> +.PP
->  In Linux the memory is divided into pages.
->  A user process has (one or)
->  several linear virtual memory segments.
-> @@ -174,7 +189,12 @@ and
->  or
->  .B MREMAP_FIXED
->  was specified without also specifying
-> -.BR MREMAP_MAYMOVE .
-> +.BR MREMAP_MAYMOVE ;
-> +or \fIold_size\fP was zero and \fIold_address\fP does not refer to a
-> +private anonymous mapping;
-> +or \fIold_size\fP was zero and the
-> +.BR MREMAP_MAYMOVE
-> +flag was not specified.
->  .TP
->  .B ENOMEM
->  The memory area cannot be expanded at the current virtual address, and the
-> @@ -210,6 +230,7 @@ if the area cannot be populated.
->  .BR brk (2),
->  .BR getpagesize (2),
->  .BR getrlimit (2),
-> +.BR memfd_create(2),
->  .BR mlock (2),
->  .BR mmap (2),
->  .BR sbrk (2),
+>  Unused bits in
+>  .I flags
 > 
 
 --
