@@ -1,45 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 55B5B6B027A
-	for <linux-mm@kvack.org>; Sat, 16 Sep 2017 00:12:45 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id q7so9114248ioi.3
-        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 21:12:45 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id i87si2175148ioo.219.2017.09.15.21.12.43
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D30B6B0038
+	for <linux-mm@kvack.org>; Sat, 16 Sep 2017 05:34:15 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 187so5188610wmn.2
+        for <linux-mm@kvack.org>; Sat, 16 Sep 2017 02:34:15 -0700 (PDT)
+Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
+        by mx.google.com with ESMTPS id k10si2935964edi.383.2017.09.16.02.34.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Sep 2017 21:12:43 -0700 (PDT)
-Subject: Re: [PATCH] mm,page_alloc: softlockup on warn_alloc on
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170915095849.9927-1-yuwang668899@gmail.com>
-	<20170915143732.GA8397@cmpxchg.org>
-In-Reply-To: <20170915143732.GA8397@cmpxchg.org>
-Message-Id: <201709161312.CAJ73470.FSOHFMVJLFQOOt@I-love.SAKURA.ne.jp>
-Date: Sat, 16 Sep 2017 13:12:24 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 16 Sep 2017 02:34:14 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id A4C521C26B5
+	for <linux-mm@kvack.org>; Sat, 16 Sep 2017 10:34:13 +0100 (IST)
+Date: Sat, 16 Sep 2017 10:34:12 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm: meminit: mark init_reserved_page as __meminit
+Message-ID: <20170916093412.xdqb7wne4s5xufeq@techsingularity.net>
+References: <20170915193149.901180-1-arnd@arndb.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20170915193149.901180-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org
-Cc: yuwang668899@gmail.com, mhocko@suse.com, linux-mm@kvack.org, chenggang.qcg@alibaba-inc.com, yuwang.yuwang@alibaba-inc.com, akpm@linux-foundation.org
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Johannes Weiner wrote:
-> On Fri, Sep 15, 2017 at 05:58:49PM +0800, wang Yu wrote:
-> > From: "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
-> > 
-> > I found a softlockup when running some stress testcase in 4.9.x,
-> > but i think the mainline have the same problem.
-> > 
-> > call trace:
-> > [365724.502896] NMI watchdog: BUG: soft lockup - CPU#31 stuck for 22s!
-> > [jbd2/sda3-8:1164]
+On Fri, Sep 15, 2017 at 09:31:30PM +0200, Arnd Bergmann wrote:
+> The function is called from __meminit context and calls other
+> __meminit functions but isn't it self mark as such today:
 > 
-> We've started seeing the same thing on 4.11. Tons and tons of
-> allocation stall warnings followed by the soft lock-ups.
+> WARNING: vmlinux.o(.text.unlikely+0x4516): Section mismatch in reference from the function init_reserved_page() to the function .meminit.text:early_pfn_to_nid()
+> The function init_reserved_page() references
+> the function __meminit early_pfn_to_nid().
+> This is often because init_reserved_page lacks a __meminit
+> annotation or the annotation of early_pfn_to_nid is wrong.
+> 
+> On most compilers, we don't notice this because the function
+> gets inlined all the time. Adding __meminit here fixes the
+> harmless warning for the old versions and is generally the
+> correct annotation.
+> 
+> Fixes: 7e18adb4f80b ("mm: meminit: initialise remaining struct pages in parallel with kswapd")
+> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
 
-Forgot to comment. Since you are able to reproduce the problem (aren't you?),
-please try setting 1 to /proc/sys/kernel/softlockup_all_cpu_backtrace so that
-we can know what other CPUs are doing. It does not need to patch kernels.
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
