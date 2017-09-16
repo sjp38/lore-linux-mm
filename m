@@ -1,86 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 86C046B0273
-	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 22:10:11 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 188so7514755pgb.3
-        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 19:10:11 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id y3si1585930pln.504.2017.09.15.19.10.09
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 381866B0275
+	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 22:52:23 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id f24so4474053qte.7
+        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 19:52:23 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 84sor1011358qkx.153.2017.09.15.19.52.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Sep 2017 19:10:10 -0700 (PDT)
-From: "Wang, Kemi" <kemi.wang@intel.com>
-Subject: RE: [PATCH 1/3] mm, sysctl: make VM stats configurable
-Date: Sat, 16 Sep 2017 02:10:05 +0000
-Message-ID: <25017BF213203E48912DB000DE5F5E1E6B3EAE9E@SHSMSX101.ccr.corp.intel.com>
-References: <1505467406-9945-1-git-send-email-kemi.wang@intel.com>
- <1505467406-9945-2-git-send-email-kemi.wang@intel.com>
- <20170915114952.czb7nbsioqguxxk3@dhcp22.suse.cz>
-In-Reply-To: <20170915114952.czb7nbsioqguxxk3@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Fri, 15 Sep 2017 19:52:22 -0700 (PDT)
+Subject: [PATCH 1/2] mm/memory_hotplug: Change
+ pfn_to_section_nr/section_nr_to_pfn macro to inline function
+From: YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
+Message-ID: <e643a387-e573-6bbf-d418-c60c8ee3d15e@gmail.com>
+Date: Fri, 15 Sep 2017 22:52:20 -0400
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, Hillf Danton <hillf.zj@alibaba-inc.com>, Dave <dave.hansen@linux.intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, "Huang, Ying" <ying.huang@intel.com>, "Lu, Aaron" <aaron.lu@intel.com>, Proc sysctl <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux
- Kernel <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@suse.com>, qiuxishi@huawei.com, arbab@linux.vnet.ibm.com, vbabka@suse.czarbab@linux.vnet.ibm.com, linux-kernel@vger.kernel.org
 
------Original Message-----
-From: Michal Hocko [mailto:mhocko@kernel.org]=20
-Sent: Friday, September 15, 2017 7:50 PM
-To: Wang, Kemi <kemi.wang@intel.com>
-Cc: Luis R . Rodriguez <mcgrof@kernel.org>; Kees Cook <keescook@chromium.or=
-g>; Andrew Morton <akpm@linux-foundation.org>; Jonathan Corbet <corbet@lwn.=
-net>; Mel Gorman <mgorman@techsingularity.net>; Johannes Weiner <hannes@cmp=
-xchg.org>; Christopher Lameter <cl@linux.com>; Sebastian Andrzej Siewior <b=
-igeasy@linutronix.de>; Vlastimil Babka <vbabka@suse.cz>; Hillf Danton <hill=
-f.zj@alibaba-inc.com>; Dave <dave.hansen@linux.intel.com>; Chen, Tim C <tim=
-.c.chen@intel.com>; Kleen, Andi <andi.kleen@intel.com>; Jesper Dangaard Bro=
-uer <brouer@redhat.com>; Huang, Ying <ying.huang@intel.com>; Lu, Aaron <aar=
-on.lu@intel.com>; Proc sysctl <linux-fsdevel@vger.kernel.org>; Linux MM <li=
-nux-mm@kvack.org>; Linux Kernel <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 1/3] mm, sysctl: make VM stats configurable
+pfn_to_section_nr() and section_nr_to_pfn() are defined as macro.
+pfn_to_section_nr() has no issue even if it is defined as macro.
+But section_nr_to_pfn() has overflow issue if sec is defined as int.
 
-On Fri 15-09-17 17:23:24, Kemi Wang wrote:
-> This patch adds a tunable interface that allows VM stats configurable, as
-> suggested by Dave Hansen and Ying Huang.
->=20
-> When performance becomes a bottleneck and you can tolerate some possible
-> tool breakage and some decreased counter precision (e.g. numa counter), y=
-ou
-> can do:
-> 	echo [C|c]oarse > /proc/sys/vm/vmstat_mode
->=20
-> When performance is not a bottleneck and you want all tooling to work, yo=
-u
-> can do:
-> 	echo [S|s]trict > /proc/sys/vm/vmstat_mode
->=20
-> We recommend automatic detection of virtual memory statistics by system,
-> this is also system default configuration, you can do:
-> 	echo [A|a]uto > /proc/sys/vm/vmstat_mode
->=20
-> The next patch handles numa statistics distinctively based-on different V=
-M
-> stats mode.
+section_nr_to_pfn() just shifts sec by PFN_SECTION_SHIFT. If sec
+is defined as unsigned long, section_nr_to_pfn() returns pfn as 64
+bit value. But if sec is defined as int, section_nr_to_pfn() returns
+pfn as 32 bit value.
 
-I would just merge this with the second patch so that it is clear how
-those modes are implemented. I am also wondering why cannot we have a
-much simpler interface and implementation to enable/disable numa stats
-(btw. sysctl_vm_numa_stats would be more descriptive IMHO).
+__remove_section() calculates start_pfn using section_nr_to_pfn() and
+scn_nr defined as int. So if hot-removed memory address is over 16TB,
+overflow issue occurs and section_nr_to_pfn() does not calculate
+correct pfn.
 
-The motivation is that we propose a general tunable  interface for VM stats=
-.
-This would be more scalable, since we don't have to add an individual
-Interface for each type of counter that can be configurable.
-In the second patch, NUMA stats, as an example, can benefit for that.
+To make callers use proper arg, the patch changes the macros to
+inline functions.
 
-If you still hold your idea, I don't mind to merge them together.
---=20
-Michal Hocko
-SUSE Labs
+Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+---
+ include/linux/mmzone.h | 10 ++++++++--
+ mm/memory_hotplug.c    |  2 +-
+ 2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index ef6a13b..6ae12b2 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -1073,8 +1073,14 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
+ #error Allocator MAX_ORDER exceeds SECTION_SIZE
+ #endif
+
+-#define pfn_to_section_nr(pfn) ((pfn) >> PFN_SECTION_SHIFT)
+-#define section_nr_to_pfn(sec) ((sec) << PFN_SECTION_SHIFT)
++static inline unsigned long pfn_to_section_nr(unsigned long pfn)
++{
++	return pfn >> PFN_SECTION_SHIFT;
++}
++static inline unsigned long section_nr_to_pfn(unsigned long sec)
++{
++	return sec << PFN_SECTION_SHIFT;
++}
+
+ #define SECTION_ALIGN_UP(pfn)	(((pfn) + PAGES_PER_SECTION - 1) & PAGE_SECTION_MASK)
+ #define SECTION_ALIGN_DOWN(pfn)	((pfn) & PAGE_SECTION_MASK)
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index b63d7d1..38c3c37 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -798,7 +798,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
+ 		return ret;
+
+ 	scn_nr = __section_nr(ms);
+-	start_pfn = section_nr_to_pfn(scn_nr);
++	start_pfn = section_nr_to_pfn((unsigned long)scn_nr);
+ 	__remove_zone(zone, start_pfn);
+
+ 	sparse_remove_one_section(zone, ms, map_offset);
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
