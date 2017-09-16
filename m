@@ -1,103 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8763E6B0038
-	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 19:40:03 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id b1so4225917qtc.4
-        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 16:40:03 -0700 (PDT)
-Received: from rcdn-iport-6.cisco.com (rcdn-iport-6.cisco.com. [173.37.86.77])
-        by mx.google.com with ESMTPS id f1si2027589qkd.79.2017.09.15.16.40.01
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D12B6B0253
+	for <linux-mm@kvack.org>; Fri, 15 Sep 2017 20:25:48 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id c195so8735126itb.5
+        for <linux-mm@kvack.org>; Fri, 15 Sep 2017 17:25:48 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id l189si1780382ioa.162.2017.09.15.17.25.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Sep 2017 16:40:02 -0700 (PDT)
-Content-Type: text/plain; charset="utf-8"
-MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-From: Taras Kondratiuk <takondra@cisco.com>
-In-Reply-To: <20170915212028.GZ9731@shells.gnugeneration.com>
-References: <150543458765.3781.10192373650821598320@takondra-t460s>
- <20170915143619.2ifgex2jxck2xt5u@dhcp22.suse.cz>
- <20170915212028.GZ9731@shells.gnugeneration.com>
-Message-ID: <150551880069.3028.17086017203169162136@takondra-t460s>
-Subject: Re: Detecting page cache trashing state
-Date: Fri, 15 Sep 2017 16:40:00 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 15 Sep 2017 17:25:46 -0700 (PDT)
+Subject: Re: [PATCH] mm,page_alloc: softlockup on warn_alloc on
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170915095849.9927-1-yuwang668899@gmail.com>
+	<20170915143732.GA8397@cmpxchg.org>
+	<201709160023.CAE05229.MQHFSJFOOFOVtL@I-love.SAKURA.ne.jp>
+	<20170915184449.GA9859@cmpxchg.org>
+In-Reply-To: <20170915184449.GA9859@cmpxchg.org>
+Message-Id: <201709160925.GAC18219.FFVOtHJOQFOSLM@I-love.SAKURA.ne.jp>
+Date: Sat, 16 Sep 2017 09:25:26 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, vcaputo@pengaru.com
-Cc: linux-mm@kvack.org, xe-linux-external@cisco.com, Ruslan Ruslichenko <rruslich@cisco.com>, linux-kernel@vger.kernel.org
+To: hannes@cmpxchg.org
+Cc: yuwang668899@gmail.com, mhocko@suse.com, linux-mm@kvack.org, chenggang.qcg@alibaba-inc.com, yuwang.yuwang@alibaba-inc.com, akpm@linux-foundation.org
 
-Quoting vcaputo@pengaru.com (2017-09-15 14:20:28)
-> On Fri, Sep 15, 2017 at 04:36:19PM +0200, Michal Hocko wrote:
-> > On Thu 14-09-17 17:16:27, Taras Kondratiuk wrote:
-> > > Hi
-> > > =
+Johannes Weiner wrote:
+> On Sat, Sep 16, 2017 at 12:23:53AM +0900, Tetsuo Handa wrote:
+> > Johannes Weiner wrote:
+> > > How can we figure out if there is a bug here? Can we time the calls to
+> > > __alloc_pages_direct_reclaim() and __alloc_pages_direct_compact() and
+> > > drill down from there? Print out the number of times we have retried?
+> > > We're counting no_progress_loops, but we are also very much interested
+> > > in progress_loops that didn't result in a successful allocation. Too
+> > > many of those and I think we want to OOM kill as per above.
+> > > 
+> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > index bec5e96f3b88..01736596389a 100644
+> > > --- a/mm/page_alloc.c
+> > > +++ b/mm/page_alloc.c
+> > > @@ -3830,6 +3830,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+> > >  			"page allocation stalls for %ums, order:%u",
+> > >  			jiffies_to_msecs(jiffies-alloc_start), order);
+> > >  		stall_timeout += 10 * HZ;
+> > > +		goto oom;
+> > >  	}
+> > >  
+> > >  	/* Avoid recursion of direct reclaim */
+> > > @@ -3882,6 +3883,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+> > >  	if (read_mems_allowed_retry(cpuset_mems_cookie))
+> > >  		goto retry_cpuset;
+> > >  
+> > > +oom:
+> > >  	/* Reclaim has failed us, start killing things */
+> > >  	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
+> > >  	if (page)
+> > > 
+> > 
+> > According to my stress tests, it is mutex_trylock() in __alloc_pages_may_oom()
+> > that causes warn_alloc() to be called for so many times. The comment
+> > 
+> > 	/*
+> > 	 * Acquire the oom lock.  If that fails, somebody else is
+> > 	 * making progress for us.
+> > 	 */
+> > 
+> > is true only if the owner of oom_lock can call out_of_memory() and is __GFP_FS
+> > allocation. Consider a situation where there are 1 GFP_KERNEL allocating thread
+> > and 99 GFP_NOFS/GFP_NOIO allocating threads contending the oom_lock. How likely
+> > the OOM killer is invoked? It is very unlikely because GFP_KERNEL allocating thread
+> > likely fails to grab oom_lock because GFP_NOFS/GFP_NOIO allocating threads is
+> > grabing oom_lock. And GFP_KERNEL allocating thread yields CPU time for
+> > GFP_NOFS/GFP_NOIO allocating threads to waste pointlessly.
+> > s/!mutex_trylock(&oom_lock)/mutex_lock_killable()/ significantly improves
+> > this situation for my stress tests. How is your case?
+> 
+> Interesting analysis, that definitely sounds plausible.
+> 
+> It just started happening to us in production and I haven't isolated
+> it yet. If you already have a reproducer, that's excellent.
 
-> > > In our devices under low memory conditions we often get into a trashi=
-ng
-> > > state when system spends most of the time re-reading pages of .text
-> > > sections from a file system (squashfs in our case). Working set doesn=
-'t
-> > > fit into available page cache, so it is expected. The issue is that
-> > > OOM killer doesn't get triggered because there is still memory for
-> > > reclaiming. System may stuck in this state for a quite some time and
-> > > usually dies because of watchdogs.
-> > > =
+Well, my reproducer is an artificial stressor. I think you want to test
+using natural programs used in your production environment.
 
-> > > We are trying to detect such trashing state early to take some
-> > > preventive actions. It should be a pretty common issue, but for now we
-> > > haven't find any existing VM/IO statistics that can reliably detect s=
-uch
-> > > state.
-> > > =
+> 
+> The synchronization has worked this way for a long time (trylock
+> failure assuming progress, but the order/NOFS/zone bailouts from
+> actually OOM-killing inside the locked section). We should really fix
+> *that* rather than serializing warn_alloc().
+> 
+> For GFP_NOFS, it seems to go back to 9879de7373fc ("mm: page_alloc:
+> embed OOM killing naturally into allocation slowpath"). Before that we
+> didn't use to call __alloc_pages_may_oom() for NOFS allocations. So I
+> still wonder why this only now appears to be causing problems.
+> 
+> In any case, converting that trylock to a sleeping lock in this case
+> makes sense to me. Nobody is blocking under this lock (except that one
+> schedule_timeout_killable(1) after dispatching a victim) and it's not
+> obvious to me why we'd need that level of concurrency under OOM.
 
-> > > Most of metrics provide absolute values: number/rate of page faults,
-> > > rate of IO operations, number of stolen pages, etc. For a specific
-> > > device configuration we can determine threshold values for those
-> > > parameters that will detect trashing state, but it is not feasible for
-> > > hundreds of device configurations.
-> > > =
+You can try http://lkml.kernel.org/r/1500202791-5427-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
+and http://lkml.kernel.org/r/1503577106-9196-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp together.
+Then, we can remove mutex_lock(&oom_lock) serialization from __oom_reap_task_mm()
+which still exists because Andrea's patch was accepted instead of Michal's patch.
 
-> > > We are looking for some relative metric like "percent of CPU time spe=
-nt
-> > > handling major page faults". With such relative metric we could use a
-> > > common threshold across all devices. For now we have added such metric
-> > > to /proc/stat in our kernel, but we would like to find some mechanism
-> > > available in upstream kernel.
-> > > =
-
-> > > Has somebody faced similar issue? How are you solving it?
-> > =
-
-> > Yes this is a pain point for a _long_ time. And we still do not have a
-> > good answer upstream. Johannes has been playing in this area [1].
-> > The main problem is that our OOM detection logic is based on the ability
-> > to reclaim memory to allocate new memory. And that is pretty much true
-> > for the pagecache when you are trashing. So we do not know that
-> > basically whole time is spent refaulting the memory back and forth.
-> > We do have some refault stats for the page cache but that is not
-> > integrated to the oom detection logic because this is really a
-> > non-trivial problem to solve without triggering early oom killer
-> > invocations.
-> > =
-
-> > [1] http://lkml.kernel.org/r/20170727153010.23347-1-hannes@cmpxchg.org
-> =
-
-> For desktop users running without swap, couldn't we just provide a kernel
-> setting which marks all executable pages as unevictable when first faulted
-> in?  Then at least thrashing within the space occupied by executables and
-> shared libraries before eventual OOM would be avoided, and only the
-> remaining file-backed non-executable pages would be thrashable.
-> =
-
-> On my swapless laptops I'd much rather have OOM killer kick in immediately
-> rather than wait for a few minutes of thrashing to pass while the bogged
-> down system crawls through depleting what's left of technically reclaimab=
-le
-> memory.  It's much improved on modern SSDs, but still annoying.
-
-Usually a significant part of executable is used rarely or only once
-during initialization. Pinning all executable pages forever will waste
-a lot of memory.
+By the way, your environment is not using virtio, is it?
+At least virtballoon_oom_notify() is blocking (i.e. might wait for memory
+allocation) under oom_lock.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
