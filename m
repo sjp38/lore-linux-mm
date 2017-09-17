@@ -1,36 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EE4586B0038
-	for <linux-mm@kvack.org>; Sun, 17 Sep 2017 13:39:47 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id u138so1589835wmu.2
-        for <linux-mm@kvack.org>; Sun, 17 Sep 2017 10:39:47 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id 2si4505693wrp.1.2017.09.17.10.39.46
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B75146B0038
+	for <linux-mm@kvack.org>; Sun, 17 Sep 2017 13:45:42 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id q7so13405326ioi.3
+        for <linux-mm@kvack.org>; Sun, 17 Sep 2017 10:45:42 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u134si3360612oif.186.2017.09.17.10.45.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 17 Sep 2017 10:39:46 -0700 (PDT)
-Date: Sun, 17 Sep 2017 19:39:45 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH v4 2/3] mm: introduce MAP_VALIDATE a mechanism for
-	adding new mmap flags
-Message-ID: <20170917173945.GA22200@lst.de>
-References: <150277752553.23945.13932394738552748440.stgit@dwillia2-desk3.amr.corp.intel.com> <150277753660.23945.11500026891611444016.stgit@dwillia2-desk3.amr.corp.intel.com> <20170815122701.GF27505@quack2.suse.cz> <CAA9_cmc0vejxCsc1NWp5b4C0CSsO5xetF3t6LCoCuEYB6yPiwQ@mail.gmail.com>
+        Sun, 17 Sep 2017 10:45:41 -0700 (PDT)
+Date: Sun, 17 Sep 2017 10:45:34 -0700
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH] mm/memcg: avoid page count check for zone device
+Message-ID: <20170917174534.GC11906@redhat.com>
+References: <20170914190011.5217-1-jglisse@redhat.com>
+ <20170915070100.2vuxxxk2zf2yceca@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <CAA9_cmc0vejxCsc1NWp5b4C0CSsO5xetF3t6LCoCuEYB6yPiwQ@mail.gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170915070100.2vuxxxk2zf2yceca@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jan Kara <jack@suse.cz>, "Darrick J. Wong" <darrick.wong@oracle.com>, Arnd Bergmann <arnd@arndb.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On Sat, Sep 16, 2017 at 08:44:14PM -0700, Dan Williams wrote:
-> So it wasn't all that easy, and Linus declined to take it. I think we
-> should add a new ->mmap_validate() file operation and save the
-> tree-wide cleanup until later.
+On Fri, Sep 15, 2017 at 09:01:00AM +0200, Michal Hocko wrote:
+> On Thu 14-09-17 15:00:11, jglisse@redhat.com wrote:
+> > From: Jerome Glisse <jglisse@redhat.com>
+> > 
+> > Fix for 4.14, zone device page always have an elevated refcount
+> > of one and thus page count sanity check in uncharge_page() is
+> > inappropriate for them.
+> > 
+> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> > Reported-by: Evgeny Baskakov <ebaskakov@nvidia.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > Cc: Michal Hocko <mhocko@kernel.org>
+> > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> 
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> 
+> Side note. Wouldn't it be better to re-organize the check a bit? It is
+> true that this is VM_BUG so it is not usually compiled in but when it
+> preferably checks for unlikely cases first while the ref count will be
+> 0 in the prevailing cases. So can we have
+> 	VM_BUG_ON_PAGE(page_count(page) && !is_zone_device_page(page) &&
+> 			!PageHWPoison(page), page);
+> 
+> I would simply fold this nano optimization into the patch as you are
+> touching it already. Not sure it is worth a separate commit.
 
-Note that we already have a mmap_capabilities callout for nommu,
-I wonder if we could generalize that.
+I am traveling sorry for late answer. This nano optimization make sense
+Andrew do you want me to respin or should we leave it be ? I don't mind
+either way.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
