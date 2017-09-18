@@ -1,24 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2580A6B0038
-	for <linux-mm@kvack.org>; Sun, 17 Sep 2017 23:08:40 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id f84so13625510pfj.0
-        for <linux-mm@kvack.org>; Sun, 17 Sep 2017 20:08:40 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id v8si4502208plp.435.2017.09.17.20.08.38
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 047FF6B0038
+	for <linux-mm@kvack.org>; Sun, 17 Sep 2017 23:23:57 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id q76so13632673pfq.5
+        for <linux-mm@kvack.org>; Sun, 17 Sep 2017 20:23:56 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id n10si4003608pgc.725.2017.09.17.20.23.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 17 Sep 2017 20:08:39 -0700 (PDT)
-Subject: Re: [PATCH 2/3] mm: Handle numa statistics distinctively based-on
- different VM stats modes
+        Sun, 17 Sep 2017 20:23:55 -0700 (PDT)
+Subject: Re: [PATCH 1/3] mm, sysctl: make VM stats configurable
 References: <1505467406-9945-1-git-send-email-kemi.wang@intel.com>
- <1505467406-9945-3-git-send-email-kemi.wang@intel.com>
- <20170915115049.vqthfawg3y4r6ogh@dhcp22.suse.cz>
+ <1505467406-9945-2-git-send-email-kemi.wang@intel.com>
+ <20170915114952.czb7nbsioqguxxk3@dhcp22.suse.cz>
 From: kemi <kemi.wang@intel.com>
-Message-ID: <26bd25c8-294f-d3cc-8ba2-845a6da33fe5@intel.com>
-Date: Mon, 18 Sep 2017 11:07:20 +0800
+Message-ID: <8cb99df9-3db3-99fc-8fc1-c9f14b2d9017@intel.com>
+Date: Mon, 18 Sep 2017 11:22:37 +0800
 MIME-Version: 1.0
-In-Reply-To: <20170915115049.vqthfawg3y4r6ogh@dhcp22.suse.cz>
+In-Reply-To: <20170915114952.czb7nbsioqguxxk3@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -29,32 +28,41 @@ Cc: "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>,
 
 
 
-On 2017a1'09ae??15ae?JPY 19:50, Michal Hocko wrote:
-> On Fri 15-09-17 17:23:25, Kemi Wang wrote:
-> [...]
->> @@ -2743,6 +2745,17 @@ static inline void zone_statistics(struct zone *preferred_zone, struct zone *z)
->>  #ifdef CONFIG_NUMA
->>  	enum numa_stat_item local_stat = NUMA_LOCAL;
->>  
->> +	/*
->> +	 * skip zone_statistics() if vmstat is a coarse mode or zone statistics
->> +	 * is inactive in auto vmstat mode
->> +	 */
->> +
->> +	if (vmstat_mode) {
->> +		if (vmstat_mode == VMSTAT_COARSE_MODE)
->> +			return;
->> +	} else if (disable_zone_statistics)
->> +		return;
->> +
->>  	if (z->node != numa_node_id())
->>  		local_stat = NUMA_OTHER;
+On 2017a1'09ae??15ae?JPY 19:49, Michal Hocko wrote:
+> On Fri 15-09-17 17:23:24, Kemi Wang wrote:
+>> This patch adds a tunable interface that allows VM stats configurable, as
+>> suggested by Dave Hansen and Ying Huang.
+>>
+>> When performance becomes a bottleneck and you can tolerate some possible
+>> tool breakage and some decreased counter precision (e.g. numa counter), you
+>> can do:
+>> 	echo [C|c]oarse > /proc/sys/vm/vmstat_mode
+>>
+>> When performance is not a bottleneck and you want all tooling to work, you
+>> can do:
+>> 	echo [S|s]trict > /proc/sys/vm/vmstat_mode
+>>
+>> We recommend automatic detection of virtual memory statistics by system,
+>> this is also system default configuration, you can do:
+>> 	echo [A|a]uto > /proc/sys/vm/vmstat_mode
+>>
+>> The next patch handles numa statistics distinctively based-on different VM
+>> stats mode.
 > 
-> A jump label could make this completely out of the way for the case
-> where every single cycle matters.
+> I would just merge this with the second patch so that it is clear how
+> those modes are implemented. I am also wondering why cannot we have a
+> much simpler interface and implementation to enable/disable numa stats
+> (btw. sysctl_vm_numa_stats would be more descriptive IMHO).
 > 
 
-Could you be more explicit for how to implement it here. Thanks very much.
+Apologize for resending it, because I found my previous reply mixed with
+Michal's in many email client.
+
+The motivation is that we propose a general tunable  interface for VM stats.
+This would be more scalable, since we don't have to add an individual
+Interface for each type of counter that can be configurable.
+In the second patch, NUMA stats, as an example, can benefit for that.
+If you still hold your idea, I don't mind to merge them together.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
