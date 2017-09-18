@@ -1,82 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 78A8C6B0253
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 05:45:04 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id j26so421989iod.5
-        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 02:45:04 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id c4si4260965oih.306.2017.09.18.02.45.02
-        for <linux-mm@kvack.org>;
-        Mon, 18 Sep 2017 02:45:03 -0700 (PDT)
-Subject: Re: [V5, 2/3] mm: dmapool: Align to ARCH_DMA_MINALIGN in non-coherent
- DMA mode
-References: <1505708548-4750-1-git-send-email-chenhc@lemote.com>
-From: Robin Murphy <robin.murphy@arm.com>
-Message-ID: <601437ae-2860-c48a-aa7c-4da37aeb6256@arm.com>
-Date: Mon, 18 Sep 2017 10:44:54 +0100
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 84CD86B0253
+	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 06:22:48 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id u138so388986wmu.2
+        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 03:22:48 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n11si490267edi.417.2017.09.18.03.22.46
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 18 Sep 2017 03:22:47 -0700 (PDT)
+Date: Mon, 18 Sep 2017 12:22:44 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mm: introduce sanity check on dirty ratio sysctl value
+Message-ID: <20170918102244.GJ32516@quack2.suse.cz>
+References: <1505669968-12593-1-git-send-email-laoar.shao@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1505708548-4750-1-git-send-email-chenhc@lemote.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1505669968-12593-1-git-send-email-laoar.shao@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Huacai Chen <chenhc@lemote.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Fuxin Zhang <zhangfx@lemote.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: akpm@linux-foundation.org, jack@suse.cz, hannes@cmpxchg.org, mhocko@suse.com, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, tytso@mit.edu, mawilcox@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 18/09/17 05:22, Huacai Chen wrote:
-> In non-coherent DMA mode, kernel uses cache flushing operations to
-> maintain I/O coherency, so the dmapool objects should be aligned to
-> ARCH_DMA_MINALIGN. Otherwise, it will cause data corruption, at least
-> on MIPS:
+On Mon 18-09-17 01:39:28, Yafang Shao wrote:
+> we can find the logic in domain_dirty_limits() that
+> when dirty bg_thresh is bigger than dirty thresh,
+> bg_thresh will be set as thresh * 1 / 2.
+> 	if (bg_thresh >= thresh)
+> 		bg_thresh = thresh / 2;
 > 
-> 	Step 1, dma_map_single
-> 	Step 2, cache_invalidate (no writeback)
-> 	Step 3, dma_from_device
-> 	Step 4, dma_unmap_single
-
-This is a massive red warning flag for the whole series, because DMA
-pools don't work like that. At best, this will do nothing, and at worst
-it is papering over egregious bugs elsewhere. Streaming mappings of
-coherent allocations means completely broken code.
-
-> If a DMA buffer and a kernel structure share a same cache line, and if
-> the kernel structure has dirty data, cache_invalidate (no writeback)
-> will cause data lost.
-
-DMA pools are backed by coherent allocations, and those should already
-be at *page* granularity, so this doubly cannot happen for correct code.
-
-More generally, the whole point of having the DMA APIs is that drivers
-and subsystems should not have to be aware of details like hardware
-coherency. Besides, cache line sharing that could pose a correctness
-issue for non-hardware-coherent systems could still be a performance
-issue in the presence of hardware coherency (due to unnecessary line
-migration), so there's still an argument for not treating them differently.
-
-Robin.
-
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Huacai Chen <chenhc@lemote.com>
-> ---
->  mm/dmapool.c | 3 +++
->  1 file changed, 3 insertions(+)
+> But actually we can set dirty_background_raio bigger than
+> dirty_ratio successfully. This behavior may mislead us.
+> So we should do this sanity check at the beginning.
 > 
-> diff --git a/mm/dmapool.c b/mm/dmapool.c
-> index 4d90a64..6263905 100644
-> --- a/mm/dmapool.c
-> +++ b/mm/dmapool.c
-> @@ -140,6 +140,9 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
->  	else if (align & (align - 1))
->  		return NULL;
+> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+
+...
+
+>  {
+> +	int old_ratio = dirty_background_ratio;
+> +	unsigned long bytes;
+>  	int ret;
 >  
-> +	if (!device_is_coherent(dev))
-> +		align = max_t(size_t, align, dma_get_cache_alignment());
+>  	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+> -	if (ret == 0 && write)
+> -		dirty_background_bytes = 0;
 > +
->  	if (size == 0)
->  		return NULL;
->  	else if (size < 4)
-> 
+> +	if (ret == 0 && write) {
+> +		if (vm_dirty_ratio > 0) {
+> +			if (dirty_background_ratio >= vm_dirty_ratio)
+> +				ret = -EINVAL;
+> +		} else if (vm_dirty_bytes > 0) {
+> +			bytes = global_dirtyable_memory() * PAGE_SIZE *
+> +					dirty_background_ratio / 100;
+> +			if (bytes >= vm_dirty_bytes)
+> +				ret = -EINVAL;
+> +		}
+> +
+> +		if (ret == 0)
+> +			dirty_background_bytes = 0;
+> +		else
+> +			dirty_background_ratio = old_ratio;
+> +	}
+> +
+
+How about implementing something like
+
+bool vm_dirty_settings_valid(void)
+
+helper which would validate whether current dirtiness settings are
+consistent. That way we would not have to repeat very similar checks four
+times. Also the arithmetics in:
+
+global_dirtyable_memory() * PAGE_SIZE * dirty_background_ratio / 100 
+
+could overflow so I'd prefer to first divide by 100 and then multiply by
+dirty_background_ratio...
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
