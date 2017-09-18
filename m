@@ -1,63 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B75146B0038
-	for <linux-mm@kvack.org>; Sun, 17 Sep 2017 13:45:42 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id q7so13405326ioi.3
-        for <linux-mm@kvack.org>; Sun, 17 Sep 2017 10:45:42 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u134si3360612oif.186.2017.09.17.10.45.41
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 328856B0038
+	for <linux-mm@kvack.org>; Sun, 17 Sep 2017 21:53:08 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id 93so14737729iol.2
+        for <linux-mm@kvack.org>; Sun, 17 Sep 2017 18:53:08 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id c83sor2631445ioa.240.2017.09.17.18.53.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 17 Sep 2017 10:45:41 -0700 (PDT)
-Date: Sun, 17 Sep 2017 10:45:34 -0700
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH] mm/memcg: avoid page count check for zone device
-Message-ID: <20170917174534.GC11906@redhat.com>
-References: <20170914190011.5217-1-jglisse@redhat.com>
- <20170915070100.2vuxxxk2zf2yceca@dhcp22.suse.cz>
+        (Google Transport Security);
+        Sun, 17 Sep 2017 18:53:07 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170915070100.2vuxxxk2zf2yceca@dhcp22.suse.cz>
+In-Reply-To: <20170915213745.6821-1-mike.kravetz@oracle.com>
+References: <20170915213745.6821-1-mike.kravetz@oracle.com>
+From: Jann Horn <jannh@google.com>
+Date: Sun, 17 Sep 2017 18:52:46 -0700
+Message-ID: <CAG48ez0AAtzdQJPdW8sqj+mvYLdZezDe3x-_XgSvaN3ZwE=5GQ@mail.gmail.com>
+Subject: Re: [patch] mremap.2: Add description of old_size == 0 functionality
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Michael Kerrisk-manpages <mtk.manpages@gmail.com>, linux-man@vger.kernel.org, kernel list <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org
 
-On Fri, Sep 15, 2017 at 09:01:00AM +0200, Michal Hocko wrote:
-> On Thu 14-09-17 15:00:11, jglisse@redhat.com wrote:
-> > From: Jerome Glisse <jglisse@redhat.com>
-> > 
-> > Fix for 4.14, zone device page always have an elevated refcount
-> > of one and thus page count sanity check in uncharge_page() is
-> > inappropriate for them.
-> > 
-> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> > Reported-by: Evgeny Baskakov <ebaskakov@nvidia.com>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Michal Hocko <mhocko@kernel.org>
-> > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> 
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> Side note. Wouldn't it be better to re-organize the check a bit? It is
-> true that this is VM_BUG so it is not usually compiled in but when it
-> preferably checks for unlikely cases first while the ref count will be
-> 0 in the prevailing cases. So can we have
-> 	VM_BUG_ON_PAGE(page_count(page) && !is_zone_device_page(page) &&
-> 			!PageHWPoison(page), page);
-> 
-> I would simply fold this nano optimization into the patch as you are
-> touching it already. Not sure it is worth a separate commit.
+On Fri, Sep 15, 2017 at 2:37 PM, Mike Kravetz <mike.kravetz@oracle.com> wrote:
+[...]
+> A recent change was made to mremap so that an attempt to create a
+> duplicate a private mapping will fail.
+>
+> commit dba58d3b8c5045ad89c1c95d33d01451e3964db7
+> Author: Mike Kravetz <mike.kravetz@oracle.com>
+> Date:   Wed Sep 6 16:20:55 2017 -0700
+>
+>     mm/mremap: fail map duplication attempts for private mappings
+>
+> This return code is also documented here.
+[...]
+> diff --git a/man2/mremap.2 b/man2/mremap.2
+[...]
+> @@ -174,7 +189,12 @@ and
+>  or
+>  .B MREMAP_FIXED
+>  was specified without also specifying
+> -.BR MREMAP_MAYMOVE .
+> +.BR MREMAP_MAYMOVE ;
+> +or \fIold_size\fP was zero and \fIold_address\fP does not refer to a
+> +private anonymous mapping;
 
-I am traveling sorry for late answer. This nano optimization make sense
-Andrew do you want me to respin or should we leave it be ? I don't mind
-either way.
-
-Cheers,
-Jerome
+Shouldn't this be the other way around? "or old_size was zero and
+old_address refers to a private anonymous mapping"?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
