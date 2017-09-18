@@ -1,91 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 713A26B0033
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 15:27:17 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id i50so1534872qtf.0
-        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 12:27:17 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w198sor3377019qkw.158.2017.09.18.12.27.15
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D19576B0038
+	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 16:56:13 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id g32so3538463ioj.0
+        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 13:56:13 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id c129sor3134490iof.189.2017.09.18.13.56.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 18 Sep 2017 12:27:16 -0700 (PDT)
-Date: Mon, 18 Sep 2017 15:27:14 -0400
-From: Josef Bacik <josef@toxicpanda.com>
-Subject: Re: [PATCH] mm: memcontrol: use vmalloc fallback for large kmem
- memcg arrays
-Message-ID: <20170918192713.6b333yiolkrc7ofo@destiny>
-References: <20170918184919.20644-1-hannes@cmpxchg.org>
+        Mon, 18 Sep 2017 13:56:12 -0700 (PDT)
+Date: Mon, 18 Sep 2017 14:56:09 -0600
+From: Tycho Andersen <tycho@docker.com>
+Subject: Re: [kernel-hardening] [PATCH v6 10/11] mm: add a user_virt_to_phys
+ symbol
+Message-ID: <20170918205609.hntcd3nfaq2gjj64@docker>
+References: <20170907173609.22696-1-tycho@docker.com>
+ <20170907173609.22696-11-tycho@docker.com>
+ <20170914183401.GC1711@remoulade>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170918184919.20644-1-hannes@cmpxchg.org>
+In-Reply-To: <20170914183401.GC1711@remoulade>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, linux-arm-kernel@lists.infradead.org, x86@kernel.org
 
-On Mon, Sep 18, 2017 at 02:49:19PM -0400, Johannes Weiner wrote:
-> For quick per-memcg indexing, slab caches and list_lru structures
-> maintain linear arrays of descriptors. As the number of concurrent
-> memory cgroups in the system goes up, this requires large contiguous
-> allocations (8k cgroups = order-5, 16k cgroups = order-6 etc.) for
-> every existing slab cache and list_lru, which can easily fail on
-> loaded systems. E.g.:
-> 
-> mkdir: page allocation failure: order:5, mode:0x14040c0(GFP_KERNEL|__GFP_COMP), nodemask=(null)
-> CPU: 1 PID: 6399 Comm: mkdir Not tainted 4.13.0-mm1-00065-g720bbe532b7c-dirty #481
-> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-20170228_101828-anatol 04/01/2014
-> Call Trace:
->  dump_stack+0x70/0x9d
->  warn_alloc+0xd6/0x170
->  ? __alloc_pages_direct_compact+0x4c/0x110
->  __alloc_pages_nodemask+0xf50/0x1430
->  ? __lock_acquire+0xd19/0x1360
->  ? memcg_update_all_list_lrus+0x2e/0x2e0
->  ? __mutex_lock+0x7c/0x950
->  ? memcg_update_all_list_lrus+0x2e/0x2e0
->  alloc_pages_current+0x60/0xc0
->  kmalloc_order_trace+0x29/0x1b0
->  __kmalloc+0x1f4/0x320
->  memcg_update_all_list_lrus+0xca/0x2e0
->  mem_cgroup_css_alloc+0x612/0x670
->  cgroup_apply_control_enable+0x19e/0x360
->  cgroup_mkdir+0x322/0x490
->  kernfs_iop_mkdir+0x55/0x80
->  vfs_mkdir+0xd0/0x120
->  SyS_mkdirat+0x6c/0xe0
->  SyS_mkdir+0x14/0x20
->  entry_SYSCALL_64_fastpath+0x18/0xad
-> RIP: 0033:0x7f9ff36cee87
-> RSP: 002b:00007ffc7612d758 EFLAGS: 00000202 ORIG_RAX: 0000000000000053
-> RAX: ffffffffffffffda RBX: 00007ffc7612da48 RCX: 00007f9ff36cee87
-> RDX: 00000000000001ff RSI: 00000000000001ff RDI: 00007ffc7612de86
-> RBP: 0000000000000002 R08: 00000000000001ff R09: 0000000000401db0
-> R10: 00000000000001e2 R11: 0000000000000202 R12: 0000000000000000
-> R13: 00007ffc7612da40 R14: 0000000000000000 R15: 0000000000000000
-> Mem-Info:
-> active_anon:2965 inactive_anon:19 isolated_anon:0
->  active_file:100270 inactive_file:98846 isolated_file:0
->  unevictable:0 dirty:0 writeback:0 unstable:0
->  slab_reclaimable:7328 slab_unreclaimable:16402
->  mapped:771 shmem:52 pagetables:278 bounce:0
->  free:13718 free_pcp:0 free_cma:0
-> 
-> This output is from an artificial reproducer, but we have repeatedly
-> observed order-7 failures in production in the Facebook fleet. These
-> systems become useless as they cannot run more jobs, even though there
-> is plenty of memory to allocate 128 individual pages.
-> 
-> Use kvmalloc and kvzalloc to fall back to vmalloc space if these
-> arrays prove too large for allocating them physically contiguous.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Hi Mark,
 
-Reviewed-by: Josef Bacik <jbacik@fb.com>
+On Thu, Sep 14, 2017 at 07:34:02PM +0100, Mark Rutland wrote:
+> On Thu, Sep 07, 2017 at 11:36:08AM -0600, Tycho Andersen wrote:
+> > We need someting like this for testing XPFO. Since it's architecture
+> > specific, putting it in the test code is slightly awkward, so let's make it
+> > an arch-specific symbol and export it for use in LKDTM.
+> > 
+> > v6: * add a definition of user_virt_to_phys in the !CONFIG_XPFO case
+> > 
+> > CC: linux-arm-kernel@lists.infradead.org
+> > CC: x86@kernel.org
+> > Signed-off-by: Tycho Andersen <tycho@docker.com>
+> > Tested-by: Marco Benatto <marco.antonio.780@gmail.com>
+> > ---
+> >  arch/arm64/mm/xpfo.c | 51 ++++++++++++++++++++++++++++++++++++++++++++++
+> >  arch/x86/mm/xpfo.c   | 57 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+> >  include/linux/xpfo.h |  5 +++++
+> >  3 files changed, 113 insertions(+)
+> > 
+> > diff --git a/arch/arm64/mm/xpfo.c b/arch/arm64/mm/xpfo.c
+> > index 342a9ccb93c1..94a667d94e15 100644
+> > --- a/arch/arm64/mm/xpfo.c
+> > +++ b/arch/arm64/mm/xpfo.c
+> > @@ -74,3 +74,54 @@ void xpfo_dma_map_unmap_area(bool map, const void *addr, size_t size,
+> >  
+> >  	xpfo_temp_unmap(addr, size, mapping, sizeof(mapping[0]) * num_pages);
+> >  }
+> > +
+> > +/* Convert a user space virtual address to a physical address.
+> > + * Shamelessly copied from slow_virt_to_phys() and lookup_address() in
+> > + * arch/x86/mm/pageattr.c
+> > + */
+> 
+> When can this be called? What prevents concurrent modification of the user page
+> tables?
+> 
+> i.e. must mmap_sem be held?
 
-Thanks,
+Yes, it should be. Since we're moving this back into the lkdtm test
+code I think it's less important, since nothing should be modifying
+the tables while the thread is doing the lookup, but I'll add it in
+the next version.
 
-Josef
+> > +phys_addr_t user_virt_to_phys(unsigned long addr)
+> 
+> Does this really need to be architecture specific?
+> 
+> Core mm code manages to walk user page tables just fine...
+
+I think so since we don't support section mappings right now, so
+p*d_sect will always be false.
+
+> > +{
+> > +	phys_addr_t phys_addr;
+> > +	unsigned long offset;
+> > +	pgd_t *pgd;
+> > +	p4d_t *p4d;
+> > +	pud_t *pud;
+> > +	pmd_t *pmd;
+> > +	pte_t *pte;
+> > +
+> > +	pgd = pgd_offset(current->mm, addr);
+> > +	if (pgd_none(*pgd))
+> > +		return 0;
+> 
+> Can we please separate the address and return value? e.g. pass the PA by
+> reference and return an error code.
+> 
+> AFAIK, zero is a valid PA, and even if the tables exist, they might point there
+> in the presence of an error.
+
+Sure, I'll rearrange this.
+
+> > +
+> > +	p4d = p4d_offset(pgd, addr);
+> > +	if (p4d_none(*p4d))
+> > +		return 0;
+> > +
+> > +	pud = pud_offset(p4d, addr);
+> > +	if (pud_none(*pud))
+> > +		return 0;
+> > +
+> > +	if (pud_sect(*pud) || !pud_present(*pud)) {
+> > +		phys_addr = (unsigned long)pud_pfn(*pud) << PAGE_SHIFT;
+> 
+> Was there some problem with:
+> 
+> 	phys_addr = pmd_page_paddr(*pud);
+> 
+> ... and similar for the other levels?
+> 
+> ... I'd rather introduce new helpers than more open-coded calculations.
+
+I wasn't aware of these; we could define a similar set of functions
+for x86 and then make it not arch-specific.
+
+I wonder if we could also use follow_page_pte(), since we know that
+the page is always present (given that it's been allocated).
+Unfortunately follow_page_pte() is not exported.
+
+Tycho
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
