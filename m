@@ -1,80 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7768F6B0038
-	for <linux-mm@kvack.org>; Sun, 17 Sep 2017 22:46:12 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id f84so13564501pfj.0
-        for <linux-mm@kvack.org>; Sun, 17 Sep 2017 19:46:12 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id 12si4309143plb.264.2017.09.17.19.46.10
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2580A6B0038
+	for <linux-mm@kvack.org>; Sun, 17 Sep 2017 23:08:40 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id f84so13625510pfj.0
+        for <linux-mm@kvack.org>; Sun, 17 Sep 2017 20:08:40 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id v8si4502208plp.435.2017.09.17.20.08.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 17 Sep 2017 19:46:11 -0700 (PDT)
-Subject: Re: [PATCH 1/3] mm, sysctl: make VM stats configurable
+        Sun, 17 Sep 2017 20:08:39 -0700 (PDT)
+Subject: Re: [PATCH 2/3] mm: Handle numa statistics distinctively based-on
+ different VM stats modes
 References: <1505467406-9945-1-git-send-email-kemi.wang@intel.com>
- <1505467406-9945-2-git-send-email-kemi.wang@intel.com>
- <20170915114952.czb7nbsioqguxxk3@dhcp22.suse.cz>
- <b8d952c5-2803-eea2-cd9a-20463a48075e@linux.intel.com>
- <20170915142823.jlhsba6rdhx5glfe@dhcp22.suse.cz>
+ <1505467406-9945-3-git-send-email-kemi.wang@intel.com>
+ <20170915115049.vqthfawg3y4r6ogh@dhcp22.suse.cz>
 From: kemi <kemi.wang@intel.com>
-Message-ID: <acbff0c6-ddd8-3843-597c-99cfadcd4e61@intel.com>
-Date: Mon, 18 Sep 2017 10:44:52 +0800
+Message-ID: <26bd25c8-294f-d3cc-8ba2-845a6da33fe5@intel.com>
+Date: Mon, 18 Sep 2017 11:07:20 +0800
 MIME-Version: 1.0
-In-Reply-To: <20170915142823.jlhsba6rdhx5glfe@dhcp22.suse.cz>
+In-Reply-To: <20170915115049.vqthfawg3y4r6ogh@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>
-Cc: "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, Hillf Danton <hillf.zj@alibaba-inc.com>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Proc sysctl <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, kemi <kemi.wang@intel.com>, Dave <dave.hansen@linux.intel.com>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Proc sysctl <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
 
 
-On 2017a1'09ae??15ae?JPY 22:28, Michal Hocko wrote:
-> On Fri 15-09-17 07:16:23, Dave Hansen wrote:
->> On 09/15/2017 04:49 AM, Michal Hocko wrote:
->>> Why do we need an auto-mode? Is it safe to enforce by default.
->>
->> Do we *need* it?  Not really.
->>
->> But, it does offer the best of both worlds: The vast majority of users
->> see virtually no impact from the counters.  The minority that do need
->> them pay the cost *and* don't have to change their tooling at all.
+On 2017a1'09ae??15ae?JPY 19:50, Michal Hocko wrote:
+> On Fri 15-09-17 17:23:25, Kemi Wang wrote:
+> [...]
+>> @@ -2743,6 +2745,17 @@ static inline void zone_statistics(struct zone *preferred_zone, struct zone *z)
+>>  #ifdef CONFIG_NUMA
+>>  	enum numa_stat_item local_stat = NUMA_LOCAL;
+>>  
+>> +	/*
+>> +	 * skip zone_statistics() if vmstat is a coarse mode or zone statistics
+>> +	 * is inactive in auto vmstat mode
+>> +	 */
+>> +
+>> +	if (vmstat_mode) {
+>> +		if (vmstat_mode == VMSTAT_COARSE_MODE)
+>> +			return;
+>> +	} else if (disable_zone_statistics)
+>> +		return;
+>> +
+>>  	if (z->node != numa_node_id())
+>>  		local_stat = NUMA_OTHER;
 > 
-> Just to make it clear, I am not really opposing. It just adds some code
-> which we can safe... It is also rather chatty for something that can be
-> true/false.
-> 
-
-It has benefit, as Dave mentioned above.
-Actually, it adds some coding complexity to provide a tuning interface with
-on/off/auto mode. Using human-readable string instead of magic number makes
-it easier to use, people probably don't need to review the ABI doc again
-before using it. So, I don't think that should be a problem 
- 
->>> Is it> possible that userspace can get confused to see 0 NUMA stats in
->> the
->>> first read while other allocation stats are non-zero?
->>
->> I doubt it.  Those counters are pretty worthless by themselves.  I have
->> tooling that goes and reads them, but it aways displays deltas.  Read
->> stats, sleep one second, read again, print the difference.
-> 
-> This is how I use them as well.
->  
->> The only scenario I can see mattering is someone who is seeing a
->> performance issue due to NUMA allocation misses (or whatever) and wants
->> to go look *back* in the past.
-> 
-> yes
+> A jump label could make this completely out of the way for the case
+> where every single cycle matters.
 > 
 
-If it really matters, setting vmstat_mode=strict as a default option is a simple 
-way to fix it. What's your idea? thanks
-
->> A single-time printk could also go a long way to keeping folks from
->> getting confused.
-> 
+Could you be more explicit for how to implement it here. Thanks very much.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
