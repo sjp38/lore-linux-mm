@@ -1,62 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 41C1E6B0253
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 02:31:47 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 188so16144309pgb.3
-        for <linux-mm@kvack.org>; Sun, 17 Sep 2017 23:31:47 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w61si4489276plb.277.2017.09.17.23.31.45
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D09E6B025E
+	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 02:31:53 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id 93so15576821iol.2
+        for <linux-mm@kvack.org>; Sun, 17 Sep 2017 23:31:53 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id b70si4166814itc.32.2017.09.17.23.31.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 17 Sep 2017 23:31:46 -0700 (PDT)
-Date: Mon, 18 Sep 2017 08:31:41 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/memcg: avoid page count check for zone device
-Message-ID: <20170918063141.6coovns7cb45bfly@dhcp22.suse.cz>
-References: <20170914190011.5217-1-jglisse@redhat.com>
- <20170915070100.2vuxxxk2zf2yceca@dhcp22.suse.cz>
- <20170917174534.GC11906@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170917174534.GC11906@redhat.com>
+        Sun, 17 Sep 2017 23:31:52 -0700 (PDT)
+Subject: Re: [PATCH] mm,page_alloc: softlockup on warn_alloc on
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170915143732.GA8397@cmpxchg.org>
+	<201709160023.CAE05229.MQHFSJFOOFOVtL@I-love.SAKURA.ne.jp>
+	<20170915184449.GA9859@cmpxchg.org>
+	<201709160925.GAC18219.FFVOtHJOQFOSLM@I-love.SAKURA.ne.jp>
+	<20170918060524.sut26yl65j2cf3jk@dhcp22.suse.cz>
+In-Reply-To: <20170918060524.sut26yl65j2cf3jk@dhcp22.suse.cz>
+Message-Id: <201709181531.HGI09326.OFQMFOtVHFJSLO@I-love.SAKURA.ne.jp>
+Date: Mon, 18 Sep 2017 15:31:31 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: mhocko@suse.com
+Cc: hannes@cmpxchg.org, yuwang668899@gmail.com, linux-mm@kvack.org, chenggang.qcg@alibaba-inc.com, yuwang.yuwang@alibaba-inc.com, akpm@linux-foundation.org
 
-On Sun 17-09-17 10:45:34, Jerome Glisse wrote:
-> On Fri, Sep 15, 2017 at 09:01:00AM +0200, Michal Hocko wrote:
-> > On Thu 14-09-17 15:00:11, jglisse@redhat.com wrote:
-> > > From: Jerome Glisse <jglisse@redhat.com>
+Michal Hocko wrote:
+> > > The synchronization has worked this way for a long time (trylock
+> > > failure assuming progress, but the order/NOFS/zone bailouts from
+> > > actually OOM-killing inside the locked section). We should really fix
+> > > *that* rather than serializing warn_alloc().
 > > > 
-> > > Fix for 4.14, zone device page always have an elevated refcount
-> > > of one and thus page count sanity check in uncharge_page() is
-> > > inappropriate for them.
+> > > For GFP_NOFS, it seems to go back to 9879de7373fc ("mm: page_alloc:
+> > > embed OOM killing naturally into allocation slowpath"). Before that we
+> > > didn't use to call __alloc_pages_may_oom() for NOFS allocations. So I
+> > > still wonder why this only now appears to be causing problems.
 > > > 
-> > > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> > > Reported-by: Evgeny Baskakov <ebaskakov@nvidia.com>
-> > > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > > Cc: Michal Hocko <mhocko@kernel.org>
-> > > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> > > In any case, converting that trylock to a sleeping lock in this case
+> > > makes sense to me. Nobody is blocking under this lock (except that one
+> > > schedule_timeout_killable(1) after dispatching a victim) and it's not
+> > > obvious to me why we'd need that level of concurrency under OOM.
 > > 
-> > Acked-by: Michal Hocko <mhocko@suse.com>
-> > 
-> > Side note. Wouldn't it be better to re-organize the check a bit? It is
-> > true that this is VM_BUG so it is not usually compiled in but when it
-> > preferably checks for unlikely cases first while the ref count will be
-> > 0 in the prevailing cases. So can we have
-> > 	VM_BUG_ON_PAGE(page_count(page) && !is_zone_device_page(page) &&
-> > 			!PageHWPoison(page), page);
-> > 
-> > I would simply fold this nano optimization into the patch as you are
-> > touching it already. Not sure it is worth a separate commit.
+> > You can try http://lkml.kernel.org/r/1500202791-5427-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
+> > and http://lkml.kernel.org/r/1503577106-9196-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp together.
+> > Then, we can remove mutex_lock(&oom_lock) serialization from __oom_reap_task_mm()
+> > which still exists because Andrea's patch was accepted instead of Michal's patch.
 > 
-> I am traveling sorry for late answer. This nano optimization make sense
-> Andrew do you want me to respin or should we leave it be ? I don't mind
-> either way.
+> We can safely drop the oom_lock from __oom_reap_task_mm now. Andrea
+> didn't want to do it in his patch because that is a separate thing
+> logically. But nothing should prefent the removal now that AFAICS.
 
-Andrew, could you fold this into the patch then?
----
+No! The oom_lock in __oom_reap_task_mm() is still required due to lack of
+really last second allocation attempt. If we do really last second
+allocation attempt, we can remove the oom_lock from __oom_reap_task_mm().
+
+
+
+Enter __alloc_pages_may_oom()              Enter __oom_reap_task_mm()
+
+  Take oom_lock
+
+  Try last get_page_from_freelist()
+
+                                             No "take oom_lock" here
+
+                                             Reap memory
+
+                                             Set MMF_OOM_SKIP
+
+                                             No "release oom_lock" here
+
+                                           Leave __oom_reap_task_mm()
+
+  Enter out_of_memory()
+
+    Enter select_bad_process()
+
+      Enter oom_evaluate_task()
+
+        Check if MMF_OOM_SKIP is already set
+
+      Leave oom_evaluate_task()
+
+    Leave select_bad_process()
+
+    No "really last get_page_from_freelist()" here
+
+    Kill the next victim needlessly
+
+  Leave out_of_memory()
+
+  Release oom_lock
+
+Leave __alloc_pages_may_oom()
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
