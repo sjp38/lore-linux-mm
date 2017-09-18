@@ -1,219 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9295B6B025E
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 14:27:14 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id m30so1938333pgn.2
-        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 11:27:14 -0700 (PDT)
-Received: from out4439.biz.mail.alibaba.com (out4439.biz.mail.alibaba.com. [47.88.44.39])
-        by mx.google.com with ESMTPS id s24si2539694plp.380.2017.09.18.11.27.11
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CD0D6B0261
+	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 14:49:29 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id f4so1586560wmh.7
+        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 11:49:29 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id a10si1383158edi.183.2017.09.18.11.49.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Sep 2017 11:27:12 -0700 (PDT)
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-Subject: [PATCH 2/2] mm: oom: show unreclaimable slab info when kernel panic
-Date: Tue, 19 Sep 2017 02:26:49 +0800
-Message-Id: <1505759209-102539-3-git-send-email-yang.s@alibaba-inc.com>
-In-Reply-To: <1505759209-102539-1-git-send-email-yang.s@alibaba-inc.com>
-References: <1505759209-102539-1-git-send-email-yang.s@alibaba-inc.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 18 Sep 2017 11:49:27 -0700 (PDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [PATCH] mm: memcontrol: use vmalloc fallback for large kmem memcg arrays
+Date: Mon, 18 Sep 2017 14:49:19 -0400
+Message-Id: <20170918184919.20644-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org
-Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Kernel may panic when oom happens without killable process sometimes it
-is caused by huge unreclaimable slabs used by kernel.
+For quick per-memcg indexing, slab caches and list_lru structures
+maintain linear arrays of descriptors. As the number of concurrent
+memory cgroups in the system goes up, this requires large contiguous
+allocations (8k cgroups = order-5, 16k cgroups = order-6 etc.) for
+every existing slab cache and list_lru, which can easily fail on
+loaded systems. E.g.:
 
-Altough kdump could help debug such problem, however, kdump is not
-available on all architectures and it might be malfunction sometime.
-And, since kernel already panic it is worthy capturing such information
-in dmesg to aid touble shooting.
+mkdir: page allocation failure: order:5, mode:0x14040c0(GFP_KERNEL|__GFP_COMP), nodemask=(null)
+CPU: 1 PID: 6399 Comm: mkdir Not tainted 4.13.0-mm1-00065-g720bbe532b7c-dirty #481
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-20170228_101828-anatol 04/01/2014
+Call Trace:
+ dump_stack+0x70/0x9d
+ warn_alloc+0xd6/0x170
+ ? __alloc_pages_direct_compact+0x4c/0x110
+ __alloc_pages_nodemask+0xf50/0x1430
+ ? __lock_acquire+0xd19/0x1360
+ ? memcg_update_all_list_lrus+0x2e/0x2e0
+ ? __mutex_lock+0x7c/0x950
+ ? memcg_update_all_list_lrus+0x2e/0x2e0
+ alloc_pages_current+0x60/0xc0
+ kmalloc_order_trace+0x29/0x1b0
+ __kmalloc+0x1f4/0x320
+ memcg_update_all_list_lrus+0xca/0x2e0
+ mem_cgroup_css_alloc+0x612/0x670
+ cgroup_apply_control_enable+0x19e/0x360
+ cgroup_mkdir+0x322/0x490
+ kernfs_iop_mkdir+0x55/0x80
+ vfs_mkdir+0xd0/0x120
+ SyS_mkdirat+0x6c/0xe0
+ SyS_mkdir+0x14/0x20
+ entry_SYSCALL_64_fastpath+0x18/0xad
+RIP: 0033:0x7f9ff36cee87
+RSP: 002b:00007ffc7612d758 EFLAGS: 00000202 ORIG_RAX: 0000000000000053
+RAX: ffffffffffffffda RBX: 00007ffc7612da48 RCX: 00007f9ff36cee87
+RDX: 00000000000001ff RSI: 00000000000001ff RDI: 00007ffc7612de86
+RBP: 0000000000000002 R08: 00000000000001ff R09: 0000000000401db0
+R10: 00000000000001e2 R11: 0000000000000202 R12: 0000000000000000
+R13: 00007ffc7612da40 R14: 0000000000000000 R15: 0000000000000000
+Mem-Info:
+active_anon:2965 inactive_anon:19 isolated_anon:0
+ active_file:100270 inactive_file:98846 isolated_file:0
+ unevictable:0 dirty:0 writeback:0 unstable:0
+ slab_reclaimable:7328 slab_unreclaimable:16402
+ mapped:771 shmem:52 pagetables:278 bounce:0
+ free:13718 free_pcp:0 free_cma:0
 
-Add a field in struct slibinfo to show if this slab is reclaimable or
-not, and a helper function to achieve the value from
-SLAB_RECLAIM_ACCOUNT flag.
+This output is from an artificial reproducer, but we have repeatedly
+observed order-7 failures in production in the Facebook fleet. These
+systems become useless as they cannot run more jobs, even though there
+is plenty of memory to allocate 128 individual pages.
 
-Print out unreclaimable slab info which actual memory usage is not zero
-(num_objs * size != 0) when panic_on_oom is set or no killable process.
-Since such information is just showed when kernel panic, so it will not
-lead too verbose message for normal oom.
+Use kvmalloc and kvzalloc to fall back to vmalloc space if these
+arrays prove too large for allocating them physically contiguous.
 
-The output looks like:
-
-rpc_buffers 31KB
-rpc_tasks 31KB
-avtab_node 46735KB
-xfs_buf 624KB
-xfs_ili 48KB
-xfs_efi_item 31KB
-xfs_efd_item 31KB
-xfs_buf_item 78KB
-xfs_log_item_desc 141KB
-xfs_trans 108KB
-xfs_ifork 744KB
-xfs_trans 108KB
-xfs_ifork 744KB
-xfs_da_state 126KB
-
-Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/oom_kill.c    | 13 +++++++++++--
- mm/slab.c        |  1 +
- mm/slab.h        |  7 +++++++
- mm/slab_common.c | 30 ++++++++++++++++++++++++++++++
- mm/slub.c        |  1 +
- 5 files changed, 50 insertions(+), 2 deletions(-)
+ mm/list_lru.c    | 12 ++++++------
+ mm/slab_common.c | 22 +++++++++++++++-------
+ 2 files changed, 21 insertions(+), 13 deletions(-)
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 99736e0..173c423 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -43,6 +43,7 @@
- 
- #include <asm/tlb.h>
- #include "internal.h"
-+#include "slab.h"
- 
- #define CREATE_TRACE_POINTS
- #include <trace/events/oom.h>
-@@ -427,6 +428,14 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
- 		dump_tasks(oc->memcg, oc->nodemask);
- }
- 
-+static void dump_header_with_slabinfo(struct oom_control *oc, struct task_struct *p)
-+{
-+	dump_header(oc, p);
-+
-+	if (IS_ENABLED(CONFIG_SLABINFO))
-+		show_unreclaimable_slab();
-+}
-+
- /*
-  * Number of OOM victims in flight
-  */
-@@ -959,7 +968,7 @@ static void check_panic_on_oom(struct oom_control *oc,
- 	/* Do not panic for oom kills triggered by sysrq */
- 	if (is_sysrq_oom(oc))
- 		return;
--	dump_header(oc, NULL);
-+	dump_header_with_slabinfo(oc, NULL);
- 	panic("Out of memory: %s panic_on_oom is enabled\n",
- 		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
- }
-@@ -1043,7 +1052,7 @@ bool out_of_memory(struct oom_control *oc)
- 	select_bad_process(oc);
- 	/* Found nothing?!?! Either we hang forever, or we panic. */
- 	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
--		dump_header(oc, NULL);
-+		dump_header_with_slabinfo(oc, NULL);
- 		panic("Out of memory and no killable processes...\n");
- 	}
- 	if (oc->chosen && oc->chosen != (void *)-1UL) {
-diff --git a/mm/slab.c b/mm/slab.c
-index 04dec48..4f4971c 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -4132,6 +4132,7 @@ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
- 	sinfo->shared = cachep->shared;
- 	sinfo->objects_per_slab = cachep->num;
- 	sinfo->cache_order = cachep->gfporder;
-+	sinfo->reclaim = is_reclaimable(cachep);
- }
- 
- void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *cachep)
-diff --git a/mm/slab.h b/mm/slab.h
-index 0733628..2f1ebce 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -186,6 +186,7 @@ struct slabinfo {
- 	unsigned int shared;
- 	unsigned int objects_per_slab;
- 	unsigned int cache_order;
-+	unsigned int reclaim;
- };
- 
- void get_slabinfo(struct kmem_cache *s, struct slabinfo *sinfo);
-@@ -352,6 +353,11 @@ static inline void memcg_link_cache(struct kmem_cache *s)
- 
- #endif /* CONFIG_MEMCG && !CONFIG_SLOB */
- 
-+static inline bool is_reclaimable(struct kmem_cache *s)
-+{
-+	return (s->flags & SLAB_RECLAIM_ACCOUNT) ? true : false;
-+}
-+
- static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
+diff --git a/mm/list_lru.c b/mm/list_lru.c
+index 7a40fa2be858..f141f0c80ff3 100644
+--- a/mm/list_lru.c
++++ b/mm/list_lru.c
+@@ -325,12 +325,12 @@ static int memcg_init_list_lru_node(struct list_lru_node *nlru)
  {
- 	struct kmem_cache *cachep;
-@@ -504,6 +510,7 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
- void *memcg_slab_next(struct seq_file *m, void *p, loff_t *pos);
- void memcg_slab_stop(struct seq_file *m, void *p);
- int memcg_slab_show(struct seq_file *m, void *p);
-+void show_unreclaimable_slab(void);
+ 	int size = memcg_nr_cache_ids;
  
- void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr);
+-	nlru->memcg_lrus = kmalloc(size * sizeof(void *), GFP_KERNEL);
++	nlru->memcg_lrus = kvmalloc(size * sizeof(void *), GFP_KERNEL);
+ 	if (!nlru->memcg_lrus)
+ 		return -ENOMEM;
  
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 904a83b..665baf2 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -35,6 +35,8 @@
- static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
- 		    slab_caches_to_rcu_destroy_workfn);
+ 	if (__memcg_init_list_lru_node(nlru->memcg_lrus, 0, size)) {
+-		kfree(nlru->memcg_lrus);
++		kvfree(nlru->memcg_lrus);
+ 		return -ENOMEM;
+ 	}
  
-+#define K(x) ((x)/1024)
-+
- /*
-  * Set of flags that will prevent slab merging
-  */
-@@ -1272,6 +1274,34 @@ static int slab_show(struct seq_file *m, void *p)
+@@ -340,7 +340,7 @@ static int memcg_init_list_lru_node(struct list_lru_node *nlru)
+ static void memcg_destroy_list_lru_node(struct list_lru_node *nlru)
+ {
+ 	__memcg_destroy_list_lru_node(nlru->memcg_lrus, 0, memcg_nr_cache_ids);
+-	kfree(nlru->memcg_lrus);
++	kvfree(nlru->memcg_lrus);
+ }
+ 
+ static int memcg_update_list_lru_node(struct list_lru_node *nlru,
+@@ -351,12 +351,12 @@ static int memcg_update_list_lru_node(struct list_lru_node *nlru,
+ 	BUG_ON(old_size > new_size);
+ 
+ 	old = nlru->memcg_lrus;
+-	new = kmalloc(new_size * sizeof(void *), GFP_KERNEL);
++	new = kvmalloc(new_size * sizeof(void *), GFP_KERNEL);
+ 	if (!new)
+ 		return -ENOMEM;
+ 
+ 	if (__memcg_init_list_lru_node(new, old_size, new_size)) {
+-		kfree(new);
++		kvfree(new);
+ 		return -ENOMEM;
+ 	}
+ 
+@@ -373,7 +373,7 @@ static int memcg_update_list_lru_node(struct list_lru_node *nlru,
+ 	nlru->memcg_lrus = new;
+ 	spin_unlock_irq(&nlru->lock);
+ 
+-	kfree(old);
++	kvfree(old);
  	return 0;
  }
  
-+void show_unreclaimable_slab()
-+{
-+	struct kmem_cache *s = NULL;
-+	struct slabinfo sinfo;
-+
-+	memset(&sinfo, 0, sizeof(sinfo));
-+
-+	printk("Unreclaimable slabs:\n");
-+
-+	/*
-+	 * Here acquiring slab_mutex is unnecessary since we don't prefer to
-+	 * get sleep in oom path right before kernel panic, and avoid race condition.
-+	 * Since it is already oom, so there should be not any big allocation
-+	 * which could change the statistics significantly.
-+	 */
-+	list_for_each_entry(s, &slab_caches, list) {
-+		if (!is_root_cache(s))
-+			continue;
-+
-+		get_slabinfo(s, &sinfo);
-+
-+		if (!is_reclaimable(s) && sinfo.num_objs > 0)
-+			printk("%-17s %luKB\n", cache_name(s), K(sinfo.num_objs * s->size));
-+	}
-+}
-+EXPORT_SYMBOL(show_unreclaimable_slab);
-+#undef K
-+
- #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
- void *memcg_slab_start(struct seq_file *m, loff_t *pos)
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 904a83be82de..80164599ca5d 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -165,9 +165,9 @@ static int init_memcg_params(struct kmem_cache *s,
+ 	if (!memcg_nr_cache_ids)
+ 		return 0;
+ 
+-	arr = kzalloc(sizeof(struct memcg_cache_array) +
+-		      memcg_nr_cache_ids * sizeof(void *),
+-		      GFP_KERNEL);
++	arr = kvzalloc(sizeof(struct memcg_cache_array) +
++		       memcg_nr_cache_ids * sizeof(void *),
++		       GFP_KERNEL);
+ 	if (!arr)
+ 		return -ENOMEM;
+ 
+@@ -178,15 +178,23 @@ static int init_memcg_params(struct kmem_cache *s,
+ static void destroy_memcg_params(struct kmem_cache *s)
  {
-diff --git a/mm/slub.c b/mm/slub.c
-index 163352c..5c17c0a 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -5872,6 +5872,7 @@ void get_slabinfo(struct kmem_cache *s, struct slabinfo *sinfo)
- 	sinfo->num_slabs = nr_slabs;
- 	sinfo->objects_per_slab = oo_objects(s->oo);
- 	sinfo->cache_order = oo_order(s->oo);
-+	sinfo->reclaim = is_reclaimable(s);
+ 	if (is_root_cache(s))
+-		kfree(rcu_access_pointer(s->memcg_params.memcg_caches));
++		kvfree(rcu_access_pointer(s->memcg_params.memcg_caches));
++}
++
++static void free_memcg_params(struct rcu_head *rcu)
++{
++	struct memcg_cache_array *old;
++
++	old = container_of(rcu, struct memcg_cache_array, rcu);
++	kvfree(old);
  }
  
- void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *s)
+ static int update_memcg_params(struct kmem_cache *s, int new_array_size)
+ {
+ 	struct memcg_cache_array *old, *new;
+ 
+-	new = kzalloc(sizeof(struct memcg_cache_array) +
+-		      new_array_size * sizeof(void *), GFP_KERNEL);
++	new = kvzalloc(sizeof(struct memcg_cache_array) +
++		       new_array_size * sizeof(void *), GFP_KERNEL);
+ 	if (!new)
+ 		return -ENOMEM;
+ 
+@@ -198,7 +206,7 @@ static int update_memcg_params(struct kmem_cache *s, int new_array_size)
+ 
+ 	rcu_assign_pointer(s->memcg_params.memcg_caches, new);
+ 	if (old)
+-		kfree_rcu(old, rcu);
++		call_rcu(&old->rcu, free_memcg_params);
+ 	return 0;
+ }
+ 
 -- 
-1.8.3.1
+2.14.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
