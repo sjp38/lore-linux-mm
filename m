@@ -1,124 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 10FAB6B025F
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 06:56:14 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id q76so129919pfq.5
-        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 03:56:14 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id f8si4754117pln.598.2017.09.18.03.56.10
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 13BF76B0260
+	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 06:56:16 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id f84so161121pfj.0
+        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 03:56:16 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id p64si4368199pga.766.2017.09.18.03.56.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Sep 2017 03:56:11 -0700 (PDT)
+        Mon, 18 Sep 2017 03:56:14 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv7 00/19] Boot-time switching between 4- and 5-level paging for 4.15
-Date: Mon, 18 Sep 2017 13:55:34 +0300
-Message-Id: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv7 09/19] x86/mm: Make MAX_PHYSADDR_BITS and MAX_PHYSMEM_BITS dynamic
+Date: Mon, 18 Sep 2017 13:55:43 +0300
+Message-Id: <20170918105553.27914-10-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
+References: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The basic idea is to implement the same logic as pgtable-nop4d.h provides,
-but at runtime.
+For boot-time switching between paging modes, we need to be able to
+adjust size of physical address space at runtime.
 
-Runtime folding is only implemented for CONFIG_X86_5LEVEL=y case. With the
-option disabled, we do compile-time folding as before.
+As part of making physical address space size variable, we have to make
+X86_5LEVEL dependent on SPARSEMEM_VMEMMAP. !SPARSEMEM_VMEMMAP
+configuration doesn't work well with variable MAX_PHYSMEM_BITS.
 
-Initially, I tried to fold pgd instread. I've got to shell, but it
-required a lot of hacks as kernel threats pgd in a special way.
+Affect on kernel image size:
 
-Ingo, if no objections, could you apply the series?
+   text    data     bss     dec     hex filename
+10710340        4880000  860160 16450500         fb03c4 vmlinux.before
+10710666        4880000  860160 16450826         fb050a vmlinux.after
 
-v7:
- - Rebased to up-to-date tip/master;
- - Use xor instead of mov for zeroing registers in assembly;
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ arch/x86/Kconfig                        | 1 +
+ arch/x86/include/asm/pgtable_64_types.h | 2 +-
+ arch/x86/include/asm/sparsemem.h        | 9 ++-------
+ arch/x86/kernel/setup.c                 | 5 ++---
+ 4 files changed, 6 insertions(+), 11 deletions(-)
 
-v6:
- - Fix few checkpatch warnings;
-
-v5:
- - Split changes into more patches;
- - Rename p4d_folded to pgtable_l5_enabled and reverse logic around it;
- - Update commit messages to reflect effect on kernel image size;
-
-v4:
- - Use ALTERNATIVE to patch return_from_SYSCALL_64 (Andi);
- - Use __read_mostly where appropriate (Andi);
- - Make X86_5LEVEL dependant on SPARSEMEM_VMEMMAP;
- - Fix build errors and warnings;
-
-v3:
- - Make sparsemem data structures allocation dynamic to lower memory overhead on
-   4-level paging machines;
- - Allow XEN_PV and XEN_PVH to be enabled with X86_5LEVEL;
- - XEN cleanups;
-
-
-Kirill A. Shutemov (19):
-  mm/sparsemem: Allocate mem_section at runtime for SPARSEMEM_EXTREME
-  mm/zsmalloc: Prepare to variable MAX_PHYSMEM_BITS
-  x86/kasan: Use the same shadow offset for 4- and 5-level paging
-  x86/xen: Provide pre-built page tables only for XEN_PV and XEN_PVH
-  x86/xen: Drop 5-level paging support code from XEN_PV code
-  x86/boot/compressed/64: Detect and handle 5-level paging at boot-time
-  x86/mm: Make virtual memory layout movable for CONFIG_X86_5LEVEL
-  x86/mm: Make PGDIR_SHIFT and PTRS_PER_P4D variable
-  x86/mm: Make MAX_PHYSADDR_BITS and MAX_PHYSMEM_BITS dynamic
-  x86/mm: Make __PHYSICAL_MASK_SHIFT and __VIRTUAL_MASK_SHIFT dynamic
-  x86/mm: Make STACK_TOP_MAX dynamic
-  x86/mm: Adjust virtual address space layout in early boot.
-  x86/mm: Make early boot code support boot-time switching of paging
-    modes
-  x86/mm: Fold p4d page table layer at runtime
-  x86/mm: Replace compile-time checks for 5-level with runtime-time
-  x86/mm: Allow to boot without la57 if CONFIG_X86_5LEVEL=y
-  x86/xen: Allow XEN_PV and XEN_PVH to be enabled with X86_5LEVEL
-  x86/mm: Redefine some of page table helpers as macros
-  x86/mm: Offset boot-time paging mode switching cost
-
- Documentation/x86/x86_64/5level-paging.txt |   9 +-
- arch/x86/Kconfig                           |   6 +-
- arch/x86/boot/compressed/head_64.S         |  24 ++++
- arch/x86/boot/compressed/kaslr.c           |  14 +++
- arch/x86/boot/compressed/misc.h            |   5 +
- arch/x86/entry/entry_64.S                  |   5 +
- arch/x86/include/asm/kaslr.h               |   4 -
- arch/x86/include/asm/page_64.h             |   4 +
- arch/x86/include/asm/page_64_types.h       |  15 +--
- arch/x86/include/asm/paravirt.h            |  21 ++--
- arch/x86/include/asm/pgalloc.h             |   5 +-
- arch/x86/include/asm/pgtable.h             |  10 +-
- arch/x86/include/asm/pgtable_32.h          |   2 +
- arch/x86/include/asm/pgtable_32_types.h    |   2 +
- arch/x86/include/asm/pgtable_64_types.h    |  53 ++++++---
- arch/x86/include/asm/pgtable_types.h       |  67 +++--------
- arch/x86/include/asm/processor.h           |   2 +-
- arch/x86/include/asm/required-features.h   |   8 +-
- arch/x86/include/asm/sparsemem.h           |   9 +-
- arch/x86/kernel/Makefile                   |   3 +-
- arch/x86/kernel/head64.c                   |  81 +++++++++++--
- arch/x86/kernel/head_64.S                  |  29 +++--
- arch/x86/kernel/setup.c                    |   5 +-
- arch/x86/mm/dump_pagetables.c              |  20 ++--
- arch/x86/mm/fault.c                        |   2 +-
- arch/x86/mm/ident_map.c                    |   2 +-
- arch/x86/mm/init_64.c                      |  32 ++---
- arch/x86/mm/kasan_init_64.c                |  98 ++++++++++++----
- arch/x86/mm/kaslr.c                        |  27 ++---
- arch/x86/platform/efi/efi_64.c             |   6 +-
- arch/x86/power/hibernate_64.c              |   6 +-
- arch/x86/xen/Kconfig                       |   5 -
- arch/x86/xen/mmu_pv.c                      | 180 +++++++++++++----------------
- include/asm-generic/5level-fixup.h         |   1 +
- include/asm-generic/pgtable-nop4d.h        |   1 +
- include/linux/kasan.h                      |   2 +-
- include/linux/mmzone.h                     |   6 +-
- mm/kasan/kasan_init.c                      |   2 +-
- mm/page_alloc.c                            |  10 ++
- mm/sparse.c                                |  17 ++-
- mm/zsmalloc.c                              |   6 +
- 41 files changed, 483 insertions(+), 323 deletions(-)
-
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 6a15297140ff..f75723d62c25 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1403,6 +1403,7 @@ config X86_PAE
+ config X86_5LEVEL
+ 	bool "Enable 5-level page tables support"
+ 	depends on X86_64
++	depends on SPARSEMEM_VMEMMAP
+ 	---help---
+ 	  5-level paging enables access to larger address space:
+ 	  upto 128 PiB of virtual address space and 4 PiB of
+diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
+index 163a049bbb56..51364e705b35 100644
+--- a/arch/x86/include/asm/pgtable_64_types.h
++++ b/arch/x86/include/asm/pgtable_64_types.h
+@@ -86,7 +86,7 @@ extern unsigned int ptrs_per_p4d;
+ #define PGDIR_MASK	(~(PGDIR_SIZE - 1))
+ 
+ /* See Documentation/x86/x86_64/mm.txt for a description of the memory map. */
+-#define MAXMEM		_AC(__AC(1, UL) << MAX_PHYSMEM_BITS, UL)
++#define MAXMEM		(1UL << MAX_PHYSMEM_BITS)
+ #ifdef CONFIG_X86_5LEVEL
+ #define VMALLOC_SIZE_TB _AC(16384, UL)
+ #define __VMALLOC_BASE	_AC(0xff92000000000000, UL)
+diff --git a/arch/x86/include/asm/sparsemem.h b/arch/x86/include/asm/sparsemem.h
+index 1f5bee2c202f..b857715633de 100644
+--- a/arch/x86/include/asm/sparsemem.h
++++ b/arch/x86/include/asm/sparsemem.h
+@@ -26,13 +26,8 @@
+ # endif
+ #else /* CONFIG_X86_32 */
+ # define SECTION_SIZE_BITS	27 /* matt - 128 is convenient right now */
+-# ifdef CONFIG_X86_5LEVEL
+-#  define MAX_PHYSADDR_BITS	52
+-#  define MAX_PHYSMEM_BITS	52
+-# else
+-#  define MAX_PHYSADDR_BITS	44
+-#  define MAX_PHYSMEM_BITS	46
+-# endif
++# define MAX_PHYSADDR_BITS	(pgtable_l5_enabled ? 52 : 44)
++# define MAX_PHYSMEM_BITS	(pgtable_l5_enabled ? 52 : 46)
+ #endif
+ 
+ #endif /* CONFIG_SPARSEMEM */
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index 82559867e0a9..e0af72c5e133 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -190,9 +190,7 @@ struct ist_info ist_info;
+ #endif
+ 
+ #else
+-struct cpuinfo_x86 boot_cpu_data __read_mostly = {
+-	.x86_phys_bits = MAX_PHYSMEM_BITS,
+-};
++struct cpuinfo_x86 boot_cpu_data __read_mostly;
+ EXPORT_SYMBOL(boot_cpu_data);
+ #endif
+ 
+@@ -880,6 +878,7 @@ void __init setup_arch(char **cmdline_p)
+ 	__flush_tlb_all();
+ #else
+ 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
++	boot_cpu_data.x86_phys_bits = MAX_PHYSMEM_BITS;
+ #endif
+ 
+ 	/*
 -- 
 2.14.1
 
