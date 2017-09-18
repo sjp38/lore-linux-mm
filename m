@@ -1,67 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A0C6A6B0253
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 02:08:10 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id m30so16081856pgn.2
-        for <linux-mm@kvack.org>; Sun, 17 Sep 2017 23:08:10 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 665716B0253
+	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 02:14:13 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id b9so8302617wra.3
+        for <linux-mm@kvack.org>; Sun, 17 Sep 2017 23:14:13 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l123si4000222pfc.619.2017.09.17.23.08.09
+        by mx.google.com with ESMTPS id a2si6368331ede.338.2017.09.17.23.14.12
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 17 Sep 2017 23:08:09 -0700 (PDT)
-Date: Mon, 18 Sep 2017 08:08:00 +0200
+        Sun, 17 Sep 2017 23:14:12 -0700 (PDT)
+Date: Mon, 18 Sep 2017 08:14:05 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: + include-linux-sched-mmh-uninline-mmdrop_async-etc.patch added
- to -mm tree
-Message-ID: <20170918060800.mh6abseaj7ndtlso@dhcp22.suse.cz>
-References: <59bae45a.Fmr8uSXzjRP94/2V%akpm@linux-foundation.org>
- <20170915070731.y5ddmgtzvjz5aot3@dhcp22.suse.cz>
- <20170915071228.bw5f2atahrfhj7zp@dhcp22.suse.cz>
- <20170915110520.69c2b26b32f03f0c34e2d2a1@linux-foundation.org>
+Subject: Re: [v8 0/4] cgroup-aware OOM killer
+Message-ID: <20170918061405.pcrf5vauvul4c2nr@dhcp22.suse.cz>
+References: <20170911131742.16482-1-guro@fb.com>
+ <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com>
+ <20170913122914.5gdksbmkolum7ita@dhcp22.suse.cz>
+ <20170913215607.GA19259@castle>
+ <20170914134014.wqemev2kgychv7m5@dhcp22.suse.cz>
+ <20170914160548.GA30441@castle>
+ <20170915105826.hq5afcu2ij7hevb4@dhcp22.suse.cz>
+ <20170915152301.GA29379@castle>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170915110520.69c2b26b32f03f0c34e2d2a1@linux-foundation.org>
+In-Reply-To: <20170915152301.GA29379@castle>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, mingo@kernel.org, oleg@redhat.com, peterz@infradead.org, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: Roman Gushchin <guro@fb.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri 15-09-17 11:05:20, Andrew Morton wrote:
-> On Fri, 15 Sep 2017 09:12:28 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-> 
-> > On Fri 15-09-17 09:07:31, Michal Hocko wrote:
-> > > On Thu 14-09-17 13:19:38, Andrew Morton wrote:
-> > > > From: Andrew Morton <akpm@linux-foundation.org>
-> > > > Subject: include/linux/sched/mm.h: uninline mmdrop_async(), etc
+On Fri 15-09-17 08:23:01, Roman Gushchin wrote:
+> On Fri, Sep 15, 2017 at 12:58:26PM +0200, Michal Hocko wrote:
+> > On Thu 14-09-17 09:05:48, Roman Gushchin wrote:
+> > > On Thu, Sep 14, 2017 at 03:40:14PM +0200, Michal Hocko wrote:
+> > > > On Wed 13-09-17 14:56:07, Roman Gushchin wrote:
+> > > > > On Wed, Sep 13, 2017 at 02:29:14PM +0200, Michal Hocko wrote:
+> > > > [...]
+> > > > > > I strongly believe that comparing only leaf memcgs
+> > > > > > is more straightforward and it doesn't lead to unexpected results as
+> > > > > > mentioned before (kill a small memcg which is a part of the larger
+> > > > > > sub-hierarchy).
+> > > > > 
+> > > > > One of two main goals of this patchset is to introduce cgroup-level
+> > > > > fairness: bigger cgroups should be affected more than smaller,
+> > > > > despite the size of tasks inside. I believe the same principle
+> > > > > should be used for cgroups.
 > > > > 
-> > > > mmdrop_async() is only used in fork.c.  Move that and its support
-> > > > functions into fork.c, uninline it all.
+> > > > Yes bigger cgroups should be preferred but I fail to see why bigger
+> > > > hierarchies should be considered as well if they are not kill-all. And
+> > > > whether non-leaf memcgs should allow kill-all is not entirely clear to
+> > > > me. What would be the usecase?
 > > > 
-> > > Is this really an improvement? Why do we want to discourage more code
-> > > paths to use mmdrop_async? It sounds like a useful api and it has been
-> > > removed only because it lost its own user in oom code. Now that we have
-> > > a user I would just keep it where it was before.
+> > > We definitely want to support kill-all for non-leaf cgroups.
+> > > A workload can consist of several cgroups and we want to clean up
+> > > the whole thing on OOM.
 > > 
-> > Dohh, I have mixed mmput_async with mmdrop_async. Anyway I still think
-> > that this is universal enough to have it in a header rather than hiding
-> > it in fork.c
+> > Could you be more specific about such a workload? E.g. how can be such a
+> > hierarchy handled consistently when its sub-tree gets killed due to
+> > internal memory pressure?
 > 
-> Async free is a hack.  It consumes more resources (runtime and memory)
-> than a synchronous free.  It introduces a risk of memory exhaustion
-> when an unbounded number of async frees are pending, not yet serviced. 
-> It introduces a risk of unbounded latency when an unbounded number of
-> async frees are serviced by the kernel thread.
+> Or just system-wide OOM.
+> 
+> > Or do you expect that none of the subtree will
+> > have hard limit configured?
+> 
+> And this can also be a case: the whole workload may have hard limit
+> configured, while internal memcgs have only memory.low set for "soft"
+> prioritization.
+> 
+> > 
+> > But then you just enforce a structural restriction on your configuration
+> > because
+> > 	root
+> >         /  \
+> >        A    D
+> >       /\   
+> >      B  C
+> > 
+> > is a different thing than
+> > 	root
+> >         / | \
+> >        B  C  D
+> >
+> 
+> I actually don't have a strong argument against an approach to select
+> largest leaf or kill-all-set memcg. I think, in practice there will be
+> no much difference.
 
-It is our standard technique of postponing an action to a more relaxed
-context when we cannot afford an action from the current context.
- 
-> Synchronous frees are simply better, so we shouldn't encourage the use
-> of async frees.
-
-No questions about that. But we have a clear demand for the deferred
-implementation as well. And we have learned that having our own
-private, thing usually leads people to invent their own wheel.
+Well, I am worried that the difference will come unexpected when a
+deeper hierarchy is needed because of the structural needs.
 
 -- 
 Michal Hocko
