@@ -1,53 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BC936B0253
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 02:55:17 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id g32so15661564ioj.0
-        for <linux-mm@kvack.org>; Sun, 17 Sep 2017 23:55:17 -0700 (PDT)
-Received: from smtpbg65.qq.com (smtpbg65.qq.com. [103.7.28.233])
-        by mx.google.com with ESMTPS id b9si4064725oif.108.2017.09.17.23.55.12
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CEAB96B0253
+	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 03:10:13 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id r136so8568667wmf.4
+        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 00:10:13 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c10sor2355904wrc.60.2017.09.18.00.10.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 17 Sep 2017 23:55:13 -0700 (PDT)
-From: "=?utf-8?B?6ZmI5Y2O5omN?=" <chenhc@lemote.com>
-Subject: Re: [PATCH V5 2/3] mm: dmapool: Align to ARCH_DMA_MINALIGN innon-coherent DMA mode
-Mime-Version: 1.0
-Content-Type: text/plain;
-	charset="utf-8"
-Content-Transfer-Encoding: base64
-Date: Mon, 18 Sep 2017 14:55:08 +0800
-Message-ID: <tencent_68A77D143FD0DC0E5D6D1C1E@qq.com>
-References: <1505708548-4750-1-git-send-email-chenhc@lemote.com>
-	<20170918052208.GB29118@infradead.org>
-In-Reply-To: <20170918052208.GB29118@infradead.org>
+        (Google Transport Security);
+        Mon, 18 Sep 2017 00:10:12 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH v2 0/2] mm, memory_hotplug: redefine memory offline retry logic
+Date: Mon, 18 Sep 2017 09:08:32 +0200
+Message-Id: <20170918070834.13083-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?B?Q2hyaXN0b3BoIEhlbGx3aWc=?= <hch@infradead.org>
-Cc: =?utf-8?B?QW5kcmV3IE1vcnRvbg==?= <akpm@linux-foundation.org>, =?utf-8?B?RnV4aW4gWmhhbmc=?= <zhangfx@lemote.com>, =?utf-8?B?bGludXgtbW0=?= <linux-mm@kvack.org>, =?utf-8?B?bGludXgta2VybmVs?= <linux-kernel@vger.kernel.org>, =?utf-8?B?c3RhYmxl?= <stable@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>
 
-SGksIENocmlzdG9waCwNCg0KTWF5YmUgeW91IG1pc3NlZCBzb21ldGhpbmcuDQoxLCBwb29s
-X2FsbG9jX3BhZ2UoKSB1c2UgZG1hX2FsbG9jX2NvaGVyZW50KCkgdG8gYWxsb2NhdGUgcG9v
-bCBwYWdlcywgYW5kIG9mIGNvdXJzZSB0aGVzZSBwYWdlcyBhcmUgYWxpZ25lZCB0byAgQVJD
-SF9ETUFfTUlOQUxJR04uDQoyLCBkbWFfcG9vbF9hbGxvYygpIGlzIHRoZSBlbGVtZW50IGFs
-bG9jYXRvciwgYnV0IGl0IGRvZXNuJ3QgdXNlIGRtYV9hbGxvY19jb2hlcmVudCgpLiBFbGVt
-ZW50cyBvbmx5IGFsaWduIHRvIHBvb2wtPnNpemUsIGJ1dCBwb29sLT5zaXplIGlzIHVzdWFs
-bHkgbGVzcyB0aGFuIEFSQ0hfRE1BX01JTkFMSUdOLg0KMywgQVJDSF9ETUFfTUlOQUxJR04g
-aXMgbm93IG9ubHkgdXNlZCBpbiBzZXJ2ZXJhbCBkcml2ZXJzLCBubyBkbWFfb3BzIHVzZSBp
-dC4NCg0KSHVhY2FpDQogDQotLS0tLS0tLS0tLS0tLS0tLS0gT3JpZ2luYWwgLS0tLS0tLS0t
-LS0tLS0tLS0tDQpGcm9tOiAgIkNocmlzdG9waCBIZWxsd2lnIjxoY2hAaW5mcmFkZWFkLm9y
-Zz47DQpEYXRlOiAgTW9uLCBTZXAgMTgsIDIwMTcgMDE6MjIgUE0NClRvOiAgIkh1YWNhaSBD
-aGVuIjxjaGVuaGNAbGVtb3RlLmNvbT47DQpDYzogICJBbmRyZXcgTW9ydG9uIjxha3BtQGxp
-bnV4LWZvdW5kYXRpb24ub3JnPjsgIkZ1eGluIFpoYW5nIjx6aGFuZ2Z4QGxlbW90ZS5jb20+
-OyAibGludXgtbW0iPGxpbnV4LW1tQGt2YWNrLm9yZz47ICJsaW51eC1rZXJuZWwiPGxpbnV4
-LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc+OyAic3RhYmxlIjxzdGFibGVAdmdlci5rZXJuZWwu
-b3JnPjsNClN1YmplY3Q6ICBSZTogW1BBVENIIFY1IDIvM10gbW06IGRtYXBvb2w6IEFsaWdu
-IHRvIEFSQ0hfRE1BX01JTkFMSUdOIGlubm9uLWNvaGVyZW50IERNQSBtb2RlDQogDQpUaGUg
-ZG1hcG9vbCBjb2RlIHVzZXMgZG1hX2FsbG9jX2NvaGVyZW50IHRvIGFsbG9jYXRlIGVhY2gg
-ZWxlbWVudCwNCmFuZCBkbWFfYWxsb2NfY29oZXJlbnQgbXVzdCBhbGlnbiB0byBBUkNIX0RN
-QV9NSU5BTElHTiBhbHJlYWR5Lg0KSWYgeW91IGltcGxlbWVudGF0aW9uIGRvZXNuJ3QgZG8g
-dGhhdCBpdCBuZWVkcyB0byBiZSBmaXhlZC4=
+Hi,
+this has been previously sent http://lkml.kernel.org/r/20170904082148.23131-1-mhocko@kernel.org
+No fundamental objections have been raised. There were some questions about
+potential permanent migration failures but those are deemed unlikely and
+not really problematic because the context is interruptible. I have tried
+to clarify the wording to be more clear.
 
+original changelog:
+While testing memory hotplug on a large 4TB machine we have noticed that
+memory offlining is just too eager to fail. The primary reason is that
+the retry logic is just too easy to give up. We have 4 ways out of the
+offline
+	- we have a permanent failure (isolation or memory notifiers fail,
+	  or hugetlb pages cannot be dropped)
+	- userspace sends a signal
+	- a hardcoded 120s timeout expires
+	- page migration fails 5 times
+This is way too convoluted and it doesn't scale very well. We have seen both
+temporary migration failures as well as 120s being triggered. After removing
+those restrictions we were able to pass stress testing during memory hot
+remove without any other negative side effects observed. Therefore I suggest
+dropping both hard coded policies. I couldn't have found any specific reason
+for them in the changelog. I neither didn't get any response [1] from Kamezawa.
+If we need some upper bound - e.g. timeout based - then we should have a proper
+and user defined policy for that. In any case there should be a clear use case
+when introducing it.
 
+Any comments, objections?
+
+Shortlog
+Michal Hocko (2):
+      mm, memory_hotplug: do not fail offlining too early
+      mm, memory_hotplug: remove timeout from __offline_memory
+
+Diffstat
+ mm/memory_hotplug.c | 48 ++++++++++++------------------------------------
+ 1 file changed, 12 insertions(+), 36 deletions(-)
+
+[1] http://lkml.kernel.org/r/20170828094316.GF17097@dhcp22.suse.cz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
