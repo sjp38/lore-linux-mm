@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 13BF76B0260
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 45B746B0261
 	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 06:56:16 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id f84so161121pfj.0
+Received: by mail-pg0-f72.google.com with SMTP id 188so163085pgb.3
         for <linux-mm@kvack.org>; Mon, 18 Sep 2017 03:56:16 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id p64si4368199pga.766.2017.09.18.03.56.14
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id f6si4655269plf.94.2017.09.18.03.56.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 18 Sep 2017 03:56:14 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv7 09/19] x86/mm: Make MAX_PHYSADDR_BITS and MAX_PHYSMEM_BITS dynamic
-Date: Mon, 18 Sep 2017 13:55:43 +0300
-Message-Id: <20170918105553.27914-10-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv7 06/19] x86/boot/compressed/64: Detect and handle 5-level paging at boot-time
+Date: Mon, 18 Sep 2017 13:55:40 +0300
+Message-Id: <20170918105553.27914-7-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
 References: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,95 +20,56 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For boot-time switching between paging modes, we need to be able to
-adjust size of physical address space at runtime.
-
-As part of making physical address space size variable, we have to make
-X86_5LEVEL dependent on SPARSEMEM_VMEMMAP. !SPARSEMEM_VMEMMAP
-configuration doesn't work well with variable MAX_PHYSMEM_BITS.
-
-Affect on kernel image size:
-
-   text    data     bss     dec     hex filename
-10710340        4880000  860160 16450500         fb03c4 vmlinux.before
-10710666        4880000  860160 16450826         fb050a vmlinux.after
+This patch prepare decompression code to boot-time switching between 4-
+and 5-level paging.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/Kconfig                        | 1 +
- arch/x86/include/asm/pgtable_64_types.h | 2 +-
- arch/x86/include/asm/sparsemem.h        | 9 ++-------
- arch/x86/kernel/setup.c                 | 5 ++---
- 4 files changed, 6 insertions(+), 11 deletions(-)
+ arch/x86/boot/compressed/head_64.S | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 6a15297140ff..f75723d62c25 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1403,6 +1403,7 @@ config X86_PAE
- config X86_5LEVEL
- 	bool "Enable 5-level page tables support"
- 	depends on X86_64
-+	depends on SPARSEMEM_VMEMMAP
- 	---help---
- 	  5-level paging enables access to larger address space:
- 	  upto 128 PiB of virtual address space and 4 PiB of
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 163a049bbb56..51364e705b35 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -86,7 +86,7 @@ extern unsigned int ptrs_per_p4d;
- #define PGDIR_MASK	(~(PGDIR_SIZE - 1))
+diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
+index b4a5d284391c..09c85e8558eb 100644
+--- a/arch/x86/boot/compressed/head_64.S
++++ b/arch/x86/boot/compressed/head_64.S
+@@ -288,6 +288,28 @@ ENTRY(startup_64)
+ 	leaq	boot_stack_end(%rbx), %rsp
  
- /* See Documentation/x86/x86_64/mm.txt for a description of the memory map. */
--#define MAXMEM		_AC(__AC(1, UL) << MAX_PHYSMEM_BITS, UL)
-+#define MAXMEM		(1UL << MAX_PHYSMEM_BITS)
  #ifdef CONFIG_X86_5LEVEL
- #define VMALLOC_SIZE_TB _AC(16384, UL)
- #define __VMALLOC_BASE	_AC(0xff92000000000000, UL)
-diff --git a/arch/x86/include/asm/sparsemem.h b/arch/x86/include/asm/sparsemem.h
-index 1f5bee2c202f..b857715633de 100644
---- a/arch/x86/include/asm/sparsemem.h
-+++ b/arch/x86/include/asm/sparsemem.h
-@@ -26,13 +26,8 @@
- # endif
- #else /* CONFIG_X86_32 */
- # define SECTION_SIZE_BITS	27 /* matt - 128 is convenient right now */
--# ifdef CONFIG_X86_5LEVEL
--#  define MAX_PHYSADDR_BITS	52
--#  define MAX_PHYSMEM_BITS	52
--# else
--#  define MAX_PHYSADDR_BITS	44
--#  define MAX_PHYSMEM_BITS	46
--# endif
-+# define MAX_PHYSADDR_BITS	(pgtable_l5_enabled ? 52 : 44)
-+# define MAX_PHYSMEM_BITS	(pgtable_l5_enabled ? 52 : 46)
++	/* Preserve rbx across cpuid */
++	movq	%rbx, %r8
++
++	/* Check if leaf 7 is supported */
++	xorl	%eax, %eax
++	cpuid
++	cmpl	$7, %eax
++	jb	lvl5
++
++	/*
++	 * Check if la57 is supported.
++	 * The feature is enumerated with CPUID.(EAX=07H, ECX=0):ECX[bit 16]
++	 */
++	movl	$7, %eax
++	xorl	%ecx, %ecx
++	cpuid
++	andl	$(1 << 16), %ecx
++	jz	lvl5
++
++	/* Restore rbx */
++	movq	%r8, %rbx
++
+ 	/* Check if 5-level paging has already enabled */
+ 	movq	%cr4, %rax
+ 	testl	$X86_CR4_LA57, %eax
+@@ -327,6 +349,8 @@ ENTRY(startup_64)
+ 	pushq	%rax
+ 	lretq
+ lvl5:
++	/* Restore rbx */
++	movq	%r8, %rbx
  #endif
  
- #endif /* CONFIG_SPARSEMEM */
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index 82559867e0a9..e0af72c5e133 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -190,9 +190,7 @@ struct ist_info ist_info;
- #endif
- 
- #else
--struct cpuinfo_x86 boot_cpu_data __read_mostly = {
--	.x86_phys_bits = MAX_PHYSMEM_BITS,
--};
-+struct cpuinfo_x86 boot_cpu_data __read_mostly;
- EXPORT_SYMBOL(boot_cpu_data);
- #endif
- 
-@@ -880,6 +878,7 @@ void __init setup_arch(char **cmdline_p)
- 	__flush_tlb_all();
- #else
- 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
-+	boot_cpu_data.x86_phys_bits = MAX_PHYSMEM_BITS;
- #endif
- 
- 	/*
+ 	/* Zero EFLAGS */
 -- 
 2.14.1
 
