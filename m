@@ -1,87 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 84CD86B0253
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 06:22:48 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id u138so388986wmu.2
-        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 03:22:48 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n11si490267edi.417.2017.09.18.03.22.46
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B5576B0253
+	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 06:56:12 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id p5so137915pgn.7
+        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 03:56:12 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id p64si4368199pga.766.2017.09.18.03.56.10
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Sep 2017 03:22:47 -0700 (PDT)
-Date: Mon, 18 Sep 2017 12:22:44 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm: introduce sanity check on dirty ratio sysctl value
-Message-ID: <20170918102244.GJ32516@quack2.suse.cz>
-References: <1505669968-12593-1-git-send-email-laoar.shao@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1505669968-12593-1-git-send-email-laoar.shao@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Sep 2017 03:56:11 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv7 03/19] x86/kasan: Use the same shadow offset for 4- and 5-level paging
+Date: Mon, 18 Sep 2017 13:55:37 +0300
+Message-Id: <20170918105553.27914-4-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
+References: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: akpm@linux-foundation.org, jack@suse.cz, hannes@cmpxchg.org, mhocko@suse.com, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, tytso@mit.edu, mawilcox@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-On Mon 18-09-17 01:39:28, Yafang Shao wrote:
-> we can find the logic in domain_dirty_limits() that
-> when dirty bg_thresh is bigger than dirty thresh,
-> bg_thresh will be set as thresh * 1 / 2.
-> 	if (bg_thresh >= thresh)
-> 		bg_thresh = thresh / 2;
-> 
-> But actually we can set dirty_background_raio bigger than
-> dirty_ratio successfully. This behavior may mislead us.
-> So we should do this sanity check at the beginning.
-> 
-> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+We are going to support boot-time switching between 4- and 5-level
+paging. For KASAN it means we cannot have different KASAN_SHADOW_OFFSET
+for different paging modes: the constant is passed to gcc to generate
+code and cannot be changed at runtime.
 
-...
+This patch changes KASAN code to use 0xdffffc0000000000 as shadow offset
+for both 4- and 5-level paging.
 
->  {
-> +	int old_ratio = dirty_background_ratio;
-> +	unsigned long bytes;
->  	int ret;
->  
->  	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-> -	if (ret == 0 && write)
-> -		dirty_background_bytes = 0;
-> +
-> +	if (ret == 0 && write) {
-> +		if (vm_dirty_ratio > 0) {
-> +			if (dirty_background_ratio >= vm_dirty_ratio)
-> +				ret = -EINVAL;
-> +		} else if (vm_dirty_bytes > 0) {
-> +			bytes = global_dirtyable_memory() * PAGE_SIZE *
-> +					dirty_background_ratio / 100;
-> +			if (bytes >= vm_dirty_bytes)
-> +				ret = -EINVAL;
-> +		}
-> +
-> +		if (ret == 0)
-> +			dirty_background_bytes = 0;
-> +		else
-> +			dirty_background_ratio = old_ratio;
-> +	}
-> +
+For 5-level paging it means that shadow memory region is not aligned to
+PGD boundary anymore and we have to handle unaligned parts of the region
+properly.
 
-How about implementing something like
+In addition, we have to exclude paravirt code from KASAN instrumentation
+as we now use set_pgd() before KASAN is fully ready.
 
-bool vm_dirty_settings_valid(void)
+Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+[kirill.shutemov@linux.intel.com: clenaup, changelog message]
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ arch/x86/Kconfig            |  1 -
+ arch/x86/kernel/Makefile    |  3 +-
+ arch/x86/mm/kasan_init_64.c | 86 ++++++++++++++++++++++++++++++++++-----------
+ 3 files changed, 67 insertions(+), 23 deletions(-)
 
-helper which would validate whether current dirtiness settings are
-consistent. That way we would not have to repeat very similar checks four
-times. Also the arithmetics in:
-
-global_dirtyable_memory() * PAGE_SIZE * dirty_background_ratio / 100 
-
-could overflow so I'd prefer to first divide by 100 and then multiply by
-dirty_background_ratio...
-
-								Honza
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 64e99d3c5169..6a15297140ff 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -303,7 +303,6 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+ config KASAN_SHADOW_OFFSET
+ 	hex
+ 	depends on KASAN
+-	default 0xdff8000000000000 if X86_5LEVEL
+ 	default 0xdffffc0000000000
+ 
+ config HAVE_INTEL_TXT
+diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+index fd0a7895b63f..a97a6b611531 100644
+--- a/arch/x86/kernel/Makefile
++++ b/arch/x86/kernel/Makefile
+@@ -24,7 +24,8 @@ endif
+ KASAN_SANITIZE_head$(BITS).o				:= n
+ KASAN_SANITIZE_dumpstack.o				:= n
+ KASAN_SANITIZE_dumpstack_$(BITS).o			:= n
+-KASAN_SANITIZE_stacktrace.o := n
++KASAN_SANITIZE_stacktrace.o				:= n
++KASAN_SANITIZE_paravirt.o				:= n
+ 
+ OBJECT_FILES_NON_STANDARD_head_$(BITS).o		:= y
+ OBJECT_FILES_NON_STANDARD_relocate_kernel_$(BITS).o	:= y
+diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+index bc84b73684b7..f6b4db2647b5 100644
+--- a/arch/x86/mm/kasan_init_64.c
++++ b/arch/x86/mm/kasan_init_64.c
+@@ -15,6 +15,8 @@
+ 
+ extern struct range pfn_mapped[E820_MAX_ENTRIES];
+ 
++static p4d_t tmp_p4d_table[PTRS_PER_P4D] __initdata __aligned(PAGE_SIZE);
++
+ static int __init map_range(struct range *range)
+ {
+ 	unsigned long start;
+@@ -30,8 +32,9 @@ static void __init clear_pgds(unsigned long start,
+ 			unsigned long end)
+ {
+ 	pgd_t *pgd;
++	unsigned long pgd_end = end & PGDIR_MASK;
+ 
+-	for (; start < end; start += PGDIR_SIZE) {
++	for (; start < pgd_end; start += PGDIR_SIZE) {
+ 		pgd = pgd_offset_k(start);
+ 		/*
+ 		 * With folded p4d, pgd_clear() is nop, use p4d_clear()
+@@ -42,29 +45,60 @@ static void __init clear_pgds(unsigned long start,
+ 		else
+ 			pgd_clear(pgd);
+ 	}
++
++	pgd = pgd_offset_k(start);
++	for (; start < end; start += P4D_SIZE)
++		p4d_clear(p4d_offset(pgd, start));
++}
++
++static inline p4d_t *early_p4d_offset(pgd_t *pgd, unsigned long addr)
++{
++	unsigned long p4d;
++
++	if (!IS_ENABLED(CONFIG_X86_5LEVEL))
++		return (p4d_t *)pgd;
++
++	p4d = __pa_nodebug(pgd_val(*pgd)) & PTE_PFN_MASK;
++	p4d += __START_KERNEL_map - phys_base;
++	return (p4d_t *)p4d + p4d_index(addr);
++}
++
++static void __init kasan_early_p4d_populate(pgd_t *pgd,
++		unsigned long addr,
++		unsigned long end)
++{
++	pgd_t pgd_entry;
++	p4d_t *p4d, p4d_entry;
++	unsigned long next;
++
++	if (pgd_none(*pgd)) {
++		pgd_entry = __pgd(_KERNPG_TABLE | __pa_nodebug(kasan_zero_p4d));
++		set_pgd(pgd, pgd_entry);
++	}
++
++	p4d = early_p4d_offset(pgd, addr);
++	do {
++		next = p4d_addr_end(addr, end);
++
++		if (!p4d_none(*p4d))
++			continue;
++
++		p4d_entry = __p4d(_KERNPG_TABLE | __pa_nodebug(kasan_zero_pud));
++		set_p4d(p4d, p4d_entry);
++	} while (p4d++, addr = next, addr != end && p4d_none(*p4d));
+ }
+ 
+ static void __init kasan_map_early_shadow(pgd_t *pgd)
+ {
+-	int i;
+-	unsigned long start = KASAN_SHADOW_START;
++	unsigned long addr = KASAN_SHADOW_START & PGDIR_MASK;
+ 	unsigned long end = KASAN_SHADOW_END;
++	unsigned long next;
+ 
+-	for (i = pgd_index(start); start < end; i++) {
+-		switch (CONFIG_PGTABLE_LEVELS) {
+-		case 4:
+-			pgd[i] = __pgd(__pa_nodebug(kasan_zero_pud) |
+-					_KERNPG_TABLE);
+-			break;
+-		case 5:
+-			pgd[i] = __pgd(__pa_nodebug(kasan_zero_p4d) |
+-					_KERNPG_TABLE);
+-			break;
+-		default:
+-			BUILD_BUG();
+-		}
+-		start += PGDIR_SIZE;
+-	}
++	pgd += pgd_index(addr);
++	do {
++		next = pgd_addr_end(addr, end);
++		kasan_early_p4d_populate(pgd, addr, next);
++	} while (pgd++, addr = next, addr != end);
+ }
+ 
+ #ifdef CONFIG_KASAN_INLINE
+@@ -101,7 +135,7 @@ void __init kasan_early_init(void)
+ 	for (i = 0; i < PTRS_PER_PUD; i++)
+ 		kasan_zero_pud[i] = __pud(pud_val);
+ 
+-	for (i = 0; CONFIG_PGTABLE_LEVELS >= 5 && i < PTRS_PER_P4D; i++)
++	for (i = 0; IS_ENABLED(CONFIG_X86_5LEVEL) && i < PTRS_PER_P4D; i++)
+ 		kasan_zero_p4d[i] = __p4d(p4d_val);
+ 
+ 	kasan_map_early_shadow(early_top_pgt);
+@@ -117,12 +151,22 @@ void __init kasan_init(void)
+ #endif
+ 
+ 	memcpy(early_top_pgt, init_top_pgt, sizeof(early_top_pgt));
++
++	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
++		void *ptr;
++
++		ptr = (void *)pgd_page_vaddr(*pgd_offset_k(KASAN_SHADOW_END));
++		memcpy(tmp_p4d_table, (void *)ptr, sizeof(tmp_p4d_table));
++		set_pgd(&early_top_pgt[pgd_index(KASAN_SHADOW_END)],
++				__pgd(__pa(tmp_p4d_table) | _KERNPG_TABLE));
++	}
++
+ 	load_cr3(early_top_pgt);
+ 	__flush_tlb_all();
+ 
+-	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
++	clear_pgds(KASAN_SHADOW_START & PGDIR_MASK, KASAN_SHADOW_END);
+ 
+-	kasan_populate_zero_shadow((void *)KASAN_SHADOW_START,
++	kasan_populate_zero_shadow((void *)(KASAN_SHADOW_START & PGDIR_MASK),
+ 			kasan_mem_to_shadow((void *)PAGE_OFFSET));
+ 
+ 	for (i = 0; i < E820_MAX_ENTRIES; i++) {
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+2.14.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
