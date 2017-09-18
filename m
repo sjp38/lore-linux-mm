@@ -1,211 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B5576B0253
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 99D3B6B025E
 	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 06:56:12 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id p5so137915pgn.7
+Received: by mail-pf0-f200.google.com with SMTP id y77so146795pfd.2
         for <linux-mm@kvack.org>; Mon, 18 Sep 2017 03:56:12 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id p64si4368199pga.766.2017.09.18.03.56.10
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id g8si4837029pll.716.2017.09.18.03.56.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 18 Sep 2017 03:56:11 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv7 03/19] x86/kasan: Use the same shadow offset for 4- and 5-level paging
-Date: Mon, 18 Sep 2017 13:55:37 +0300
-Message-Id: <20170918105553.27914-4-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv7 01/19] mm/sparsemem: Allocate mem_section at runtime for SPARSEMEM_EXTREME
+Date: Mon, 18 Sep 2017 13:55:35 +0300
+Message-Id: <20170918105553.27914-2-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
 References: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We are going to support boot-time switching between 4- and 5-level
-paging. For KASAN it means we cannot have different KASAN_SHADOW_OFFSET
-for different paging modes: the constant is passed to gcc to generate
-code and cannot be changed at runtime.
+Size of mem_section array depends on size of physical address space.
 
-This patch changes KASAN code to use 0xdffffc0000000000 as shadow offset
-for both 4- and 5-level paging.
+In preparation for boot-time switching between paging modes on x86-64
+we need to make allocation of mem_section dynamic.
 
-For 5-level paging it means that shadow memory region is not aligned to
-PGD boundary anymore and we have to handle unaligned parts of the region
-properly.
+The patch allocates the array on the first call to
+sparse_memory_present_with_active_regions().
 
-In addition, we have to exclude paravirt code from KASAN instrumentation
-as we now use set_pgd() before KASAN is fully ready.
-
-Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-[kirill.shutemov@linux.intel.com: clenaup, changelog message]
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/Kconfig            |  1 -
- arch/x86/kernel/Makefile    |  3 +-
- arch/x86/mm/kasan_init_64.c | 86 ++++++++++++++++++++++++++++++++++-----------
- 3 files changed, 67 insertions(+), 23 deletions(-)
+ include/linux/mmzone.h |  6 +++++-
+ mm/page_alloc.c        | 10 ++++++++++
+ mm/sparse.c            | 17 +++++++++++------
+ 3 files changed, 26 insertions(+), 7 deletions(-)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 64e99d3c5169..6a15297140ff 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -303,7 +303,6 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
- config KASAN_SHADOW_OFFSET
- 	hex
- 	depends on KASAN
--	default 0xdff8000000000000 if X86_5LEVEL
- 	default 0xdffffc0000000000
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 356a814e7c8e..a48b55fbb502 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -1144,13 +1144,17 @@ struct mem_section {
+ #define SECTION_ROOT_MASK	(SECTIONS_PER_ROOT - 1)
  
- config HAVE_INTEL_TXT
-diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
-index fd0a7895b63f..a97a6b611531 100644
---- a/arch/x86/kernel/Makefile
-+++ b/arch/x86/kernel/Makefile
-@@ -24,7 +24,8 @@ endif
- KASAN_SANITIZE_head$(BITS).o				:= n
- KASAN_SANITIZE_dumpstack.o				:= n
- KASAN_SANITIZE_dumpstack_$(BITS).o			:= n
--KASAN_SANITIZE_stacktrace.o := n
-+KASAN_SANITIZE_stacktrace.o				:= n
-+KASAN_SANITIZE_paravirt.o				:= n
- 
- OBJECT_FILES_NON_STANDARD_head_$(BITS).o		:= y
- OBJECT_FILES_NON_STANDARD_relocate_kernel_$(BITS).o	:= y
-diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
-index bc84b73684b7..f6b4db2647b5 100644
---- a/arch/x86/mm/kasan_init_64.c
-+++ b/arch/x86/mm/kasan_init_64.c
-@@ -15,6 +15,8 @@
- 
- extern struct range pfn_mapped[E820_MAX_ENTRIES];
- 
-+static p4d_t tmp_p4d_table[PTRS_PER_P4D] __initdata __aligned(PAGE_SIZE);
-+
- static int __init map_range(struct range *range)
- {
- 	unsigned long start;
-@@ -30,8 +32,9 @@ static void __init clear_pgds(unsigned long start,
- 			unsigned long end)
- {
- 	pgd_t *pgd;
-+	unsigned long pgd_end = end & PGDIR_MASK;
- 
--	for (; start < end; start += PGDIR_SIZE) {
-+	for (; start < pgd_end; start += PGDIR_SIZE) {
- 		pgd = pgd_offset_k(start);
- 		/*
- 		 * With folded p4d, pgd_clear() is nop, use p4d_clear()
-@@ -42,29 +45,60 @@ static void __init clear_pgds(unsigned long start,
- 		else
- 			pgd_clear(pgd);
- 	}
-+
-+	pgd = pgd_offset_k(start);
-+	for (; start < end; start += P4D_SIZE)
-+		p4d_clear(p4d_offset(pgd, start));
-+}
-+
-+static inline p4d_t *early_p4d_offset(pgd_t *pgd, unsigned long addr)
-+{
-+	unsigned long p4d;
-+
-+	if (!IS_ENABLED(CONFIG_X86_5LEVEL))
-+		return (p4d_t *)pgd;
-+
-+	p4d = __pa_nodebug(pgd_val(*pgd)) & PTE_PFN_MASK;
-+	p4d += __START_KERNEL_map - phys_base;
-+	return (p4d_t *)p4d + p4d_index(addr);
-+}
-+
-+static void __init kasan_early_p4d_populate(pgd_t *pgd,
-+		unsigned long addr,
-+		unsigned long end)
-+{
-+	pgd_t pgd_entry;
-+	p4d_t *p4d, p4d_entry;
-+	unsigned long next;
-+
-+	if (pgd_none(*pgd)) {
-+		pgd_entry = __pgd(_KERNPG_TABLE | __pa_nodebug(kasan_zero_p4d));
-+		set_pgd(pgd, pgd_entry);
-+	}
-+
-+	p4d = early_p4d_offset(pgd, addr);
-+	do {
-+		next = p4d_addr_end(addr, end);
-+
-+		if (!p4d_none(*p4d))
-+			continue;
-+
-+		p4d_entry = __p4d(_KERNPG_TABLE | __pa_nodebug(kasan_zero_pud));
-+		set_p4d(p4d, p4d_entry);
-+	} while (p4d++, addr = next, addr != end && p4d_none(*p4d));
- }
- 
- static void __init kasan_map_early_shadow(pgd_t *pgd)
- {
--	int i;
--	unsigned long start = KASAN_SHADOW_START;
-+	unsigned long addr = KASAN_SHADOW_START & PGDIR_MASK;
- 	unsigned long end = KASAN_SHADOW_END;
-+	unsigned long next;
- 
--	for (i = pgd_index(start); start < end; i++) {
--		switch (CONFIG_PGTABLE_LEVELS) {
--		case 4:
--			pgd[i] = __pgd(__pa_nodebug(kasan_zero_pud) |
--					_KERNPG_TABLE);
--			break;
--		case 5:
--			pgd[i] = __pgd(__pa_nodebug(kasan_zero_p4d) |
--					_KERNPG_TABLE);
--			break;
--		default:
--			BUILD_BUG();
--		}
--		start += PGDIR_SIZE;
--	}
-+	pgd += pgd_index(addr);
-+	do {
-+		next = pgd_addr_end(addr, end);
-+		kasan_early_p4d_populate(pgd, addr, next);
-+	} while (pgd++, addr = next, addr != end);
- }
- 
- #ifdef CONFIG_KASAN_INLINE
-@@ -101,7 +135,7 @@ void __init kasan_early_init(void)
- 	for (i = 0; i < PTRS_PER_PUD; i++)
- 		kasan_zero_pud[i] = __pud(pud_val);
- 
--	for (i = 0; CONFIG_PGTABLE_LEVELS >= 5 && i < PTRS_PER_P4D; i++)
-+	for (i = 0; IS_ENABLED(CONFIG_X86_5LEVEL) && i < PTRS_PER_P4D; i++)
- 		kasan_zero_p4d[i] = __p4d(p4d_val);
- 
- 	kasan_map_early_shadow(early_top_pgt);
-@@ -117,12 +151,22 @@ void __init kasan_init(void)
+ #ifdef CONFIG_SPARSEMEM_EXTREME
+-extern struct mem_section *mem_section[NR_SECTION_ROOTS];
++extern struct mem_section **mem_section;
+ #else
+ extern struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT];
  #endif
  
- 	memcpy(early_top_pgt, init_top_pgt, sizeof(early_top_pgt));
+ static inline struct mem_section *__nr_to_section(unsigned long nr)
+ {
++#ifdef CONFIG_SPARSEMEM_EXTREME
++	if (!mem_section)
++		return NULL;
++#endif
+ 	if (!mem_section[SECTION_NR_TO_ROOT(nr)])
+ 		return NULL;
+ 	return &mem_section[SECTION_NR_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index c841af88836a..8034651b916e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5645,6 +5645,16 @@ void __init sparse_memory_present_with_active_regions(int nid)
+ 	unsigned long start_pfn, end_pfn;
+ 	int i, this_nid;
+ 
++#ifdef CONFIG_SPARSEMEM_EXTREME
++	if (!mem_section) {
++		unsigned long size, align;
 +
-+	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
-+		void *ptr;
++		size = sizeof(struct mem_section) * NR_SECTION_ROOTS;
++		align = 1 << (INTERNODE_CACHE_SHIFT);
++		mem_section = memblock_virt_alloc(size, align);
++	}
++#endif
 +
-+		ptr = (void *)pgd_page_vaddr(*pgd_offset_k(KASAN_SHADOW_END));
-+		memcpy(tmp_p4d_table, (void *)ptr, sizeof(tmp_p4d_table));
-+		set_pgd(&early_top_pgt[pgd_index(KASAN_SHADOW_END)],
-+				__pgd(__pa(tmp_p4d_table) | _KERNPG_TABLE));
+ 	for_each_mem_pfn_range(i, nid, &start_pfn, &end_pfn, &this_nid)
+ 		memory_present(this_nid, start_pfn, end_pfn);
+ }
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 83b3bf6461af..b00a97398795 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -22,8 +22,7 @@
+  * 1) mem_section	- memory sections, mem_map's for valid memory
+  */
+ #ifdef CONFIG_SPARSEMEM_EXTREME
+-struct mem_section *mem_section[NR_SECTION_ROOTS]
+-	____cacheline_internodealigned_in_smp;
++struct mem_section **mem_section;
+ #else
+ struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT]
+ 	____cacheline_internodealigned_in_smp;
+@@ -100,7 +99,7 @@ static inline int sparse_index_init(unsigned long section_nr, int nid)
+ int __section_nr(struct mem_section* ms)
+ {
+ 	unsigned long root_nr;
+-	struct mem_section* root;
++	struct mem_section *root = NULL;
+ 
+ 	for (root_nr = 0; root_nr < NR_SECTION_ROOTS; root_nr++) {
+ 		root = __nr_to_section(root_nr * SECTIONS_PER_ROOT);
+@@ -111,7 +110,7 @@ int __section_nr(struct mem_section* ms)
+ 		     break;
+ 	}
+ 
+-	VM_BUG_ON(root_nr == NR_SECTION_ROOTS);
++	VM_BUG_ON(!root);
+ 
+ 	return (root_nr * SECTIONS_PER_ROOT) + (ms - root);
+ }
+@@ -329,11 +328,17 @@ sparse_early_usemaps_alloc_pgdat_section(struct pglist_data *pgdat,
+ static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
+ {
+ 	unsigned long usemap_snr, pgdat_snr;
+-	static unsigned long old_usemap_snr = NR_MEM_SECTIONS;
+-	static unsigned long old_pgdat_snr = NR_MEM_SECTIONS;
++	static unsigned long old_usemap_snr;
++	static unsigned long old_pgdat_snr;
+ 	struct pglist_data *pgdat = NODE_DATA(nid);
+ 	int usemap_nid;
+ 
++	/* First call */
++	if (!old_usemap_snr) {
++		old_usemap_snr = NR_MEM_SECTIONS;
++		old_pgdat_snr = NR_MEM_SECTIONS;
 +	}
 +
- 	load_cr3(early_top_pgt);
- 	__flush_tlb_all();
- 
--	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
-+	clear_pgds(KASAN_SHADOW_START & PGDIR_MASK, KASAN_SHADOW_END);
- 
--	kasan_populate_zero_shadow((void *)KASAN_SHADOW_START,
-+	kasan_populate_zero_shadow((void *)(KASAN_SHADOW_START & PGDIR_MASK),
- 			kasan_mem_to_shadow((void *)PAGE_OFFSET));
- 
- 	for (i = 0; i < E820_MAX_ENTRIES; i++) {
+ 	usemap_snr = pfn_to_section_nr(__pa(usemap) >> PAGE_SHIFT);
+ 	pgdat_snr = pfn_to_section_nr(__pa(pgdat) >> PAGE_SHIFT);
+ 	if (usemap_snr == pgdat_snr)
 -- 
 2.14.1
 
