@@ -1,69 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B7B116B0253
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 12:34:44 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id b9so1004856wra.3
-        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 09:34:44 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id q7si3593524edl.274.2017.09.18.09.34.43
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 217A46B0253
+	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 13:11:54 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b195so1385519wmb.6
+        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 10:11:54 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id r184si6165396wmg.188.2017.09.18.10.11.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 18 Sep 2017 09:34:43 -0700 (PDT)
-Date: Mon, 18 Sep 2017 09:34:34 -0700
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: Detecting page cache trashing state
-Message-ID: <20170918163434.GA11236@cmpxchg.org>
-References: <150543458765.3781.10192373650821598320@takondra-t460s>
- <20170915143619.2ifgex2jxck2xt5u@dhcp22.suse.cz>
- <150549651001.4512.15084374619358055097@takondra-t460s>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Sep 2017 10:11:52 -0700 (PDT)
+Subject: Re: [patch] mremap.2: Add description of old_size == 0 functionality
+References: <20170915213745.6821-1-mike.kravetz@oracle.com>
+ <a6e59a7f-fd15-9e49-356e-ed439f17e9df@oracle.com>
+ <fb013ae6-6f47-248b-db8b-a0abae530377@redhat.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <ee87215d-9704-7269-4ec1-226f2e32a751@oracle.com>
+Date: Mon, 18 Sep 2017 10:11:44 -0700
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="xHFwDpU9dbj6ez1V"
-Content-Disposition: inline
-In-Reply-To: <150549651001.4512.15084374619358055097@takondra-t460s>
+In-Reply-To: <fb013ae6-6f47-248b-db8b-a0abae530377@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Taras Kondratiuk <takondra@cisco.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, xe-linux-external@cisco.com, Ruslan Ruslichenko <rruslich@cisco.com>, linux-kernel@vger.kernel.org
+To: Florian Weimer <fweimer@redhat.com>, mtk.manpages@gmail.com
+Cc: linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org
 
-
---xHFwDpU9dbj6ez1V
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-Hi Taras,
-
-On Fri, Sep 15, 2017 at 10:28:30AM -0700, Taras Kondratiuk wrote:
-> Quoting Michal Hocko (2017-09-15 07:36:19)
-> > On Thu 14-09-17 17:16:27, Taras Kondratiuk wrote:
-> > > Has somebody faced similar issue? How are you solving it?
-> > 
-> > Yes this is a pain point for a _long_ time. And we still do not have a
-> > good answer upstream. Johannes has been playing in this area [1].
-> > The main problem is that our OOM detection logic is based on the ability
-> > to reclaim memory to allocate new memory. And that is pretty much true
-> > for the pagecache when you are trashing. So we do not know that
-> > basically whole time is spent refaulting the memory back and forth.
-> > We do have some refault stats for the page cache but that is not
-> > integrated to the oom detection logic because this is really a
-> > non-trivial problem to solve without triggering early oom killer
-> > invocations.
-> > 
-> > [1] http://lkml.kernel.org/r/20170727153010.23347-1-hannes@cmpxchg.org
+On 09/18/2017 06:45 AM, Florian Weimer wrote:
+> On 09/15/2017 11:53 PM, Mike Kravetz wrote:
+>> +If the value of \fIold_size\fP is zero, and \fIold_address\fP refers to
+>> +a private anonymous mapping, then
+>> +.BR mremap ()
+>> +will create a new mapping of the same pages. \fInew_size\fP
+>> +will be the size of the new mapping and the location of the new mapping
+>> +may be specified with \fInew_address\fP, see the description of
+>> +.B MREMAP_FIXED
+>> +below.  If a new mapping is requested via this method, then the
+>> +.B MREMAP_MAYMOVE
+>> +flag must also be specified.  This functionality is deprecated, and no
+>> +new code should be written to use this feature.  A better method of
+>> +obtaining multiple mappings of the same private anonymous memory is via the
+>> +.BR memfd_create()
+>> +system call.
 > 
-> Thanks Michal. memdelay looks promising. We will check it.
+> Is there any particular reason to deprecate this?
+> 
+> In glibc, we cannot use memfd_create and keep the file descriptor around because the application can close descriptors beneath us.
+> 
+> (We might want to use alias mappings to avoid run-time code generation for PLT-less LD_AUDIT interceptors.)
+> 
 
-Great, I'm obviously interested in more users of it :) Please find
-attached the latest version of the patch series based on v4.13.
+Hi Florian,
 
-It needs a bit more refactoring in the scheduler bits before
-resubmission, but it already contains a couple of fixes and
-improvements since the first version I sent out.
+When I brought up this mremap 'duplicate mapping' functionality on the mm
+mail list, most developers were surprised.  It seems this functionality exists
+mostly 'by chance', and it was not really designed.  It certainly was never
+documented.  There were suggestions to remove the functionality, which led
+to my claim that it was being deprecated.  However, in hindsight that may
+have been too strong.
 
-Let me know if you need help rebasing to a different kernel version.
+I can drop this wording, but would still like to suggest memfd_create as
+the preferred method of creating duplicate mappings.  It would be good if
+others on Cc: could comment as well.
 
---xHFwDpU9dbj6ez1V
-Content-Type: text/x-diff; charset=us-ascii
-Content-Disposition: attachment; filename="0001-sched-loadavg-consolidate-LOAD_INT-LOAD_FRAC-macros.patch"
+Just curious, does glibc make use of this today?  Or, is this just something
+that you think may be useful.
 
+-- 
+Mike Kravetz
 
---xHFwDpU9dbj6ez1V--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
