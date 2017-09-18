@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DA356B0273
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D52046B0275
 	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 06:56:20 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id p5so138330pgn.7
+Received: by mail-pg0-f71.google.com with SMTP id 188so163310pgb.3
         for <linux-mm@kvack.org>; Mon, 18 Sep 2017 03:56:20 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id n3si4693523pld.294.2017.09.18.03.56.18
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id f6si4655269plf.94.2017.09.18.03.56.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 18 Sep 2017 03:56:18 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv7 17/19] x86/xen: Allow XEN_PV and XEN_PVH to be enabled with X86_5LEVEL
-Date: Mon, 18 Sep 2017 13:55:51 +0300
-Message-Id: <20170918105553.27914-18-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv7 13/19] x86/mm: Make early boot code support boot-time switching of paging modes
+Date: Mon, 18 Sep 2017 13:55:47 +0300
+Message-Id: <20170918105553.27914-14-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
 References: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,111 +20,135 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With boot-time switching between paging modes, XEN_PV and XEN_PVH can be
-boot into 4-level paging mode.
+Early boot code, that setup page table should be able to initialize page
+tables for both 4- and 5-level paging modes.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reviewed-by: Juergen Gross <jgross@suse.com>
-Tested-by: Juergen Gross <jgross@suse.com>
 ---
- arch/x86/kernel/head_64.S | 12 ++++++------
- arch/x86/xen/Kconfig      |  5 -----
- arch/x86/xen/mmu_pv.c     | 21 +++++++++++++++++++++
- 3 files changed, 27 insertions(+), 11 deletions(-)
+ arch/x86/kernel/head64.c  | 33 ++++++++++++++++++++++-----------
+ arch/x86/kernel/head_64.S | 10 ++++------
+ 2 files changed, 26 insertions(+), 17 deletions(-)
 
+diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
+index 2dabb2d1b64b..617b42c9bdbb 100644
+--- a/arch/x86/kernel/head64.c
++++ b/arch/x86/kernel/head64.c
+@@ -74,13 +74,13 @@ static unsigned int __head *fixup_int(void *ptr, unsigned long physaddr)
+ 	return fixup_pointer(ptr, physaddr);
+ }
+ 
+-static void __head check_la57_support(unsigned long physaddr)
++static bool __head check_la57_support(unsigned long physaddr)
+ {
+ 	if (native_cpuid_eax(0) < 7)
+-		return;
++		return false;
+ 
+ 	if (!(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31))))
+-		return;
++		return false;
+ 
+ 	*fixup_int(&pgtable_l5_enabled, physaddr) = 1;
+ 	*fixup_int(&pgdir_shift, physaddr) = 48;
+@@ -88,24 +88,30 @@ static void __head check_la57_support(unsigned long physaddr)
+ 	*fixup_long(&page_offset_base, physaddr) = __PAGE_OFFSET_BASE57;
+ 	*fixup_long(&vmalloc_base, physaddr) = __VMALLOC_BASE57;
+ 	*fixup_long(&vmemmap_base, physaddr) = __VMEMMAP_BASE57;
++
++	return true;
+ }
+ #else
+-static void __head check_la57_support(unsigned long physaddr) {}
++static bool __head check_la57_support(unsigned long physaddr)
++{
++	return false;
++}
+ #endif
+ 
+ unsigned long __head __startup_64(unsigned long physaddr,
+ 				  struct boot_params *bp)
+ {
+-	unsigned long load_delta;
++	unsigned long load_delta, *p;
+ 	unsigned long pgtable_flags;
+ 	pgdval_t *pgd;
+ 	p4dval_t *p4d;
+ 	pudval_t *pud;
+ 	pmdval_t *pmd, pmd_entry;
++	bool la57;
+ 	int i;
+ 	unsigned int *next_pgt_ptr;
+ 
+-	check_la57_support(physaddr);
++	la57 = check_la57_support(physaddr);
+ 
+ 	/* Is the address too large? */
+ 	if (physaddr >> MAX_PHYSMEM_BITS)
+@@ -130,9 +136,14 @@ unsigned long __head __startup_64(unsigned long physaddr,
+ 	/* Fixup the physical addresses in the page table */
+ 
+ 	pgd = fixup_pointer(&early_top_pgt, physaddr);
+-	pgd[pgd_index(__START_KERNEL_map)] += load_delta;
+-
+-	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
++	p = pgd + pgd_index(__START_KERNEL_map);
++	if (la57)
++		*p = (unsigned long)level4_kernel_pgt;
++	else
++		*p = (unsigned long)level3_kernel_pgt;
++	*p += _PAGE_TABLE_NOENC - __START_KERNEL_map + load_delta;
++
++	if (la57) {
+ 		p4d = fixup_pointer(&level4_kernel_pgt, physaddr);
+ 		p4d[511] += load_delta;
+ 	}
+@@ -157,7 +168,7 @@ unsigned long __head __startup_64(unsigned long physaddr,
+ 
+ 	pgtable_flags = _KERNPG_TABLE_NOENC + sme_get_me_mask();
+ 
+-	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
++	if (la57) {
+ 		p4d = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
+ 
+ 		i = (physaddr >> PGDIR_SHIFT) % PTRS_PER_PGD;
+@@ -254,7 +265,7 @@ int __init __early_make_pgtable(unsigned long address, pmdval_t pmd)
+ 	 * critical -- __PAGE_OFFSET would point us back into the dynamic
+ 	 * range and we might end up looping forever...
+ 	 */
+-	if (!IS_ENABLED(CONFIG_X86_5LEVEL))
++	if (!pgtable_l5_enabled)
+ 		p4d_p = pgd_p;
+ 	else if (pgd)
+ 		p4d_p = (p4dval_t *)((pgd & PTE_PFN_MASK) + __START_KERNEL_map - phys_base);
 diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
-index 49f8bb43d107..e137f2665fc2 100644
+index a8409cd23b35..49f8bb43d107 100644
 --- a/arch/x86/kernel/head_64.S
 +++ b/arch/x86/kernel/head_64.S
-@@ -37,12 +37,12 @@
-  *
-  */
+@@ -121,7 +121,10 @@ ENTRY(secondary_startup_64)
+ 	/* Enable PAE mode, PGE and LA57 */
+ 	movl	$(X86_CR4_PAE | X86_CR4_PGE), %ecx
+ #ifdef CONFIG_X86_5LEVEL
++	testl	$1, pgtable_l5_enabled(%rip)
++	jz	1f
+ 	orl	$X86_CR4_LA57, %ecx
++1:
+ #endif
+ 	movq	%rcx, %cr4
  
-+#define l4_index(x)	(((x) >> 39) & 511)
- #define pud_index(x)	(((x) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
+@@ -350,12 +353,7 @@ GLOBAL(name)
  
--#if defined(CONFIG_XEN_PV) || defined(CONFIG_XEN_PVH)
--PGD_PAGE_OFFSET = pgd_index(__PAGE_OFFSET_BASE48)
--PGD_START_KERNEL = pgd_index(__START_KERNEL_map)
+ 	__INITDATA
+ NEXT_PAGE(early_top_pgt)
+-	.fill	511,8,0
+-#ifdef CONFIG_X86_5LEVEL
+-	.quad	level4_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
+-#else
+-	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
 -#endif
-+L4_PAGE_OFFSET = l4_index(__PAGE_OFFSET_BASE48)
-+L4_START_KERNEL = l4_index(__START_KERNEL_map)
-+
- L3_START_KERNEL = pud_index(__START_KERNEL_map)
++	.fill	512,8,0
  
- 	.text
-@@ -363,9 +363,9 @@ NEXT_PAGE(early_dynamic_pgts)
- #if defined(CONFIG_XEN_PV) || defined(CONFIG_XEN_PVH)
- NEXT_PAGE(init_top_pgt)
- 	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
--	.org    init_top_pgt + PGD_PAGE_OFFSET*8, 0
-+	.org    init_top_pgt + L4_PAGE_OFFSET*8, 0
- 	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
--	.org    init_top_pgt + PGD_START_KERNEL*8, 0
-+	.org    init_top_pgt + L4_START_KERNEL*8, 0
- 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
- 	.quad   level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
- 
-diff --git a/arch/x86/xen/Kconfig b/arch/x86/xen/Kconfig
-index 1ecd419811a2..027987638e98 100644
---- a/arch/x86/xen/Kconfig
-+++ b/arch/x86/xen/Kconfig
-@@ -17,9 +17,6 @@ config XEN_PV
- 	bool "Xen PV guest support"
- 	default y
- 	depends on XEN
--	# XEN_PV is not ready to work with 5-level paging.
--	# Changes to hypervisor are also required.
--	depends on !X86_5LEVEL
- 	select XEN_HAVE_PVMMU
- 	select XEN_HAVE_VPMU
- 	help
-@@ -78,6 +75,4 @@ config XEN_DEBUG_FS
- config XEN_PVH
- 	bool "Support for running as a PVH guest"
- 	depends on XEN && XEN_PVHVM && ACPI
--	# Pre-built page tables are not ready to handle 5-level paging.
--	depends on !X86_5LEVEL
- 	def_bool n
-diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c
-index 5811815cc6ef..e81bf881847f 100644
---- a/arch/x86/xen/mmu_pv.c
-+++ b/arch/x86/xen/mmu_pv.c
-@@ -538,6 +538,22 @@ static void xen_set_p4d(p4d_t *ptr, p4d_t val)
- 
- 	xen_mc_issue(PARAVIRT_LAZY_MMU);
- }
-+
-+#if CONFIG_PGTABLE_LEVELS >= 5
-+__visible p4dval_t xen_p4d_val(p4d_t p4d)
-+{
-+	return pte_mfn_to_pfn(p4d.p4d);
-+}
-+PV_CALLEE_SAVE_REGS_THUNK(xen_p4d_val);
-+
-+__visible p4d_t xen_make_p4d(p4dval_t p4d)
-+{
-+	p4d = pte_pfn_to_mfn(p4d);
-+
-+	return native_make_p4d(p4d);
-+}
-+PV_CALLEE_SAVE_REGS_THUNK(xen_make_p4d);
-+#endif  /* CONFIG_PGTABLE_LEVELS >= 5 */
- #endif	/* CONFIG_X86_64 */
- 
- static int xen_pmd_walk(struct mm_struct *mm, pmd_t *pmd,
-@@ -2408,6 +2424,11 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
- 
- 	.alloc_pud = xen_alloc_pmd_init,
- 	.release_pud = xen_release_pmd_init,
-+
-+#if CONFIG_PGTABLE_LEVELS >= 5
-+	.p4d_val = PV_CALLEE_SAVE(xen_p4d_val),
-+	.make_p4d = PV_CALLEE_SAVE(xen_make_p4d),
-+#endif
- #endif	/* CONFIG_X86_64 */
- 
- 	.activate_mm = xen_activate_mm,
+ NEXT_PAGE(early_dynamic_pgts)
+ 	.fill	512*EARLY_DYNAMIC_PAGE_TABLES,8,0
 -- 
 2.14.1
 
