@@ -1,95 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 09F606B0253
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 02:35:47 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id h16so8352144wrf.0
-        for <linux-mm@kvack.org>; Sun, 17 Sep 2017 23:35:46 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 0CB7C6B0038
+	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 02:37:10 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id b9so8343998wra.3
+        for <linux-mm@kvack.org>; Sun, 17 Sep 2017 23:37:10 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h3si6130924edd.498.2017.09.17.23.35.45
+        by mx.google.com with ESMTPS id 34si5919187edi.226.2017.09.17.23.37.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 17 Sep 2017 23:35:45 -0700 (PDT)
-Date: Mon, 18 Sep 2017 08:35:38 +0200
+        Sun, 17 Sep 2017 23:37:09 -0700 (PDT)
+Date: Mon, 18 Sep 2017 08:37:03 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm/memory_hotplug: Change
- pfn_to_section_nr/section_nr_to_pfn macro to inline function
-Message-ID: <20170918063538.k3zddvfecp2yxon6@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/2] mm/memory_hotplug: define
+ find_{smallest|biggest}_section_pfn as unsigned long
+Message-ID: <20170918063703.lippdq3ovrqmpun6@dhcp22.suse.cz>
 References: <e643a387-e573-6bbf-d418-c60c8ee3d15e@gmail.com>
+ <d9d5593a-d0a4-c4be-ab08-493df59a85c6@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <e643a387-e573-6bbf-d418-c60c8ee3d15e@gmail.com>
+In-Reply-To: <d9d5593a-d0a4-c4be-ab08-493df59a85c6@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
 Cc: linux-mm@kvack.org, qiuxishi@huawei.com, arbab@linux.vnet.ibm.com, vbabka@suse.cz, linux-kernel@vger.kernel.org
 
-On Fri 15-09-17 22:52:20, YASUAKI ISHIMATSU wrote:
-> pfn_to_section_nr() and section_nr_to_pfn() are defined as macro.
-> pfn_to_section_nr() has no issue even if it is defined as macro.
-> But section_nr_to_pfn() has overflow issue if sec is defined as int.
+On Fri 15-09-17 22:53:49, YASUAKI ISHIMATSU wrote:
+> find_{smallest|biggest}_section_pfn()s find the smallest/biggest section
+> and return the pfn of the section. But the functions are defined as int.
+> So the functions always return 0x00000000 - 0xffffffff. It means
+> if memory address is over 16TB, the functions does not work correctly.
 > 
-> section_nr_to_pfn() just shifts sec by PFN_SECTION_SHIFT. If sec
-> is defined as unsigned long, section_nr_to_pfn() returns pfn as 64
-> bit value. But if sec is defined as int, section_nr_to_pfn() returns
-> pfn as 32 bit value.
+> To handle 64 bit value, the patch defines find_{smallest|biggest}_section_pfn()
+> as unsigned long.
 > 
-> __remove_section() calculates start_pfn using section_nr_to_pfn() and
-> scn_nr defined as int. So if hot-removed memory address is over 16TB,
-> overflow issue occurs and section_nr_to_pfn() does not calculate
-> correct pfn.
-> 
-> To make callers use proper arg, the patch changes the macros to
-> inline functions.
-> 
-
-I guess the following is due
 
 Fixes: 815121d2b5cd ("memory_hotplug: clear zone when removing the memory")
 > Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
 Acked-by: Michal Hocko <mhocko@suse.com>
 
-Thanks!
 > ---
->  include/linux/mmzone.h | 10 ++++++++--
->  mm/memory_hotplug.c    |  2 +-
->  2 files changed, 9 insertions(+), 3 deletions(-)
+>  mm/memory_hotplug.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 > 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index ef6a13b..6ae12b2 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -1073,8 +1073,14 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
->  #error Allocator MAX_ORDER exceeds SECTION_SIZE
->  #endif
-> 
-> -#define pfn_to_section_nr(pfn) ((pfn) >> PFN_SECTION_SHIFT)
-> -#define section_nr_to_pfn(sec) ((sec) << PFN_SECTION_SHIFT)
-> +static inline unsigned long pfn_to_section_nr(unsigned long pfn)
-> +{
-> +	return pfn >> PFN_SECTION_SHIFT;
-> +}
-> +static inline unsigned long section_nr_to_pfn(unsigned long sec)
-> +{
-> +	return sec << PFN_SECTION_SHIFT;
-> +}
-> 
->  #define SECTION_ALIGN_UP(pfn)	(((pfn) + PAGES_PER_SECTION - 1) & PAGE_SECTION_MASK)
->  #define SECTION_ALIGN_DOWN(pfn)	((pfn) & PAGE_SECTION_MASK)
 > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index b63d7d1..38c3c37 100644
+> index 38c3c37..120e45b 100644
 > --- a/mm/memory_hotplug.c
 > +++ b/mm/memory_hotplug.c
-> @@ -798,7 +798,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms,
->  		return ret;
+> @@ -582,7 +582,7 @@ int __ref __add_pages(int nid, struct zone *zone, unsigned long phys_start_pfn,
 > 
->  	scn_nr = __section_nr(ms);
-> -	start_pfn = section_nr_to_pfn(scn_nr);
-> +	start_pfn = section_nr_to_pfn((unsigned long)scn_nr);
->  	__remove_zone(zone, start_pfn);
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+>  /* find the smallest valid pfn in the range [start_pfn, end_pfn) */
+> -static int find_smallest_section_pfn(int nid, struct zone *zone,
+> +static unsigned long find_smallest_section_pfn(int nid, struct zone *zone,
+>  				     unsigned long start_pfn,
+>  				     unsigned long end_pfn)
+>  {
+> @@ -607,7 +607,7 @@ static int find_smallest_section_pfn(int nid, struct zone *zone,
+>  }
 > 
->  	sparse_remove_one_section(zone, ms, map_offset);
+>  /* find the biggest valid pfn in the range [start_pfn, end_pfn). */
+> -static int find_biggest_section_pfn(int nid, struct zone *zone,
+> +static unsigned long find_biggest_section_pfn(int nid, struct zone *zone,
+>  				    unsigned long start_pfn,
+>  				    unsigned long end_pfn)
+>  {
 > -- 
 > 1.8.3.1
 
