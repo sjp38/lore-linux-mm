@@ -1,63 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C1C9E6B0038
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 04:35:51 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id r74so127950wme.5
-        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 01:35:51 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o62si645772eda.6.2017.09.18.01.35.50
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AA3756B0038
+	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 05:16:23 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 188so16646987pgb.3
+        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 02:16:23 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0041.outbound.protection.outlook.com. [104.47.0.41])
+        by mx.google.com with ESMTPS id x86si4182317pfk.293.2017.09.18.02.16.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Sep 2017 01:35:50 -0700 (PDT)
-Date: Mon, 18 Sep 2017 10:35:46 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] bdi: fix cleanup when fail to percpu_counter_init
-Message-ID: <20170918083546.GC32516@quack2.suse.cz>
-References: <20170915182700.GA2489@localhost.didichuxing.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 18 Sep 2017 02:16:22 -0700 (PDT)
+Subject: Re: Page allocator bottleneck
+References: <cef85936-10b2-5d76-9f97-cb03b418fd94@mellanox.com>
+ <20170915102320.zqceocmvvkyybekj@techsingularity.net>
+From: Tariq Toukan <tariqt@mellanox.com>
+Message-ID: <d8cfaf8b-7601-2712-f9f2-8327c720db5a@mellanox.com>
+Date: Mon, 18 Sep 2017 12:16:09 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170915182700.GA2489@localhost.didichuxing.com>
+In-Reply-To: <20170915102320.zqceocmvvkyybekj@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: weiping zhang <zhangweiping@didichuxing.com>
-Cc: axboe@fb.com, jack@suse.cz, tj@kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@techsingularity.net>, Tariq Toukan <tariqt@mellanox.com>
+Cc: David Miller <davem@davemloft.net>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Alexei Starovoitov <ast@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Eran Ben Elisha <eranbe@mellanox.com>, Linux Kernel Network Developers <netdev@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm <linux-mm@kvack.org>
 
-On Sat 16-09-17 02:27:05, weiping zhang wrote:
-> when percpu_counter_init fail at i, 0 ~ (i-1) should be destoried, not
-> 1 ~ i.
+
+
+On 15/09/2017 1:23 PM, Mel Gorman wrote:
+> On Thu, Sep 14, 2017 at 07:49:31PM +0300, Tariq Toukan wrote:
+>> Insights: Major degradation between #1 and #2, not getting any
+>> close to linerate! Degradation is fixed between #2 and #3. This is
+>> because page allocator cannot stand the higher allocation rate. In
+>> #2, we also see that the addition of rings (cores) reduces BW (!!),
+>> as result of increasing congestion over shared resources.
+>> 
 > 
-> Signed-off-by: weiping zhang <zhangweiping@didichuxing.com>
-
-Good catch. You can add:
-
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-								Honza
-
-> ---
->  mm/backing-dev.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+> Unfortunately, no surprises there.
 > 
-> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> index e19606b..d399d3c 100644
-> --- a/mm/backing-dev.c
-> +++ b/mm/backing-dev.c
-> @@ -334,7 +334,7 @@ static int wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi,
->  	return 0;
->  
->  out_destroy_stat:
-> -	while (i--)
-> +	while (--i >= 0)
->  		percpu_counter_destroy(&wb->stat[i]);
->  	fprop_local_destroy_percpu(&wb->completions);
->  out_put_cong:
-> -- 
-> 2.9.4
+>> Congestion in this case is very clear. When monitored in perf top: 
+>> 85.58% [kernel] [k] queued_spin_lock_slowpath
+>> 
 > 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> While it's not proven, the most likely candidate is the zone lock
+> and that should be confirmed using a call-graph profile. If so, then
+> the suggestion to tune to the size of the per-cpu allocator would
+> mitigate the problem.
+> 
+Indeed, I tuned the per-cpu allocator and bottleneck is released.
+
+>> I think that page allocator issues should be discussed separately: 
+>> 1) Rate: Increase the allocation rate on a single core. 2)
+>> Scalability: Reduce congestion and sync overhead between cores.
+>> 
+>> This is clearly the current bottleneck in the network stack receive
+>> flow.
+>> 
+>> I know about some efforts that were made in the past two years. For
+>> example the ones from Jesper et al.: - Page-pool (not accepted
+>> AFAIK).
+> 
+> Indeed not and it would also need driver conversion.
+> 
+>> - Page-allocation bulking.
+> 
+> Prototypes exist but it's pointless without the pool or driver 
+> conversion so it's in the back burner for the moment.
+> 
+
+As I already mentioned in another reply (to Jesper), this would
+perfectly fit with our Striding RQ feature, as we have large descriptors
+that serve several packets, requiring the allocation of several pages at
+once. I'd gladly move to using the bulking API.
+
+>> - Optimize order-0 allocations in Per-Cpu-Pages.
+>> 
+> 
+> This had a prototype that was reverted as it must be able to cope
+> with both irq and noirq contexts.
+Yeah, I remember that I tested and reported the issue.
+
+Unfortunately I never found the time to
+> revisit it but a split there to handle both would mitigate the
+> problem. Probably not enough to actually reach line speed though so
+> tuning of the per-cpu allocator sizes would still be needed. I don't
+> know when I'll get the chance to revisit it. I'm travelling all next
+> week and am mostly occupied with other work at the moment that is
+> consuming all my concentration.
+> 
+>> I am not an mm expert, but wanted to raise the issue again, to
+>> combine the efforts and hear from you guys about status and
+>> possible directions.
+> 
+> The recent effort to reduce overhead from stats will help mitigate
+> the problem.
+I should get more familiar with these stats, check how costly they are, 
+and whether they can be turned off in Kconfig.
+
+> Finishing the page pool, the bulk allocator and converting drivers 
+> would be the most likely successful path forward but it's currently
+> stalled as everyone that was previously involved is too busy.
+> 
+I think we should consider changing the default allocation of PCP 
+fraction as well, or implement some smart dynamic heuristic.
+This turned on to have significant effect over networking performance.
+
+Many thanks Mel!
+
+Regards,
+Tariq
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
