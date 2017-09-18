@@ -1,67 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DABFF6B0038
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 03:53:48 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id y29so14333129pff.6
-        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 00:53:48 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C1C9E6B0038
+	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 04:35:51 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id r74so127950wme.5
+        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 01:35:51 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 136si4206597pgf.326.2017.09.18.00.53.47
+        by mx.google.com with ESMTPS id o62si645772eda.6.2017.09.18.01.35.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Sep 2017 00:53:47 -0700 (PDT)
-Date: Mon, 18 Sep 2017 09:53:43 +0200
+        Mon, 18 Sep 2017 01:35:50 -0700 (PDT)
+Date: Mon, 18 Sep 2017 10:35:46 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 13/15] ceph: Use pagevec_lookup_range_nr_tag()
-Message-ID: <20170918075343.GB32516@quack2.suse.cz>
-References: <20170914131819.26266-1-jack@suse.cz>
- <20170914131819.26266-14-jack@suse.cz>
- <CAAM7YAnHjkGRhzeUUXOMnux70UKqnQ3kG6x0jRpzasSNeyAVCg@mail.gmail.com>
+Subject: Re: [PATCH] bdi: fix cleanup when fail to percpu_counter_init
+Message-ID: <20170918083546.GC32516@quack2.suse.cz>
+References: <20170915182700.GA2489@localhost.didichuxing.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAAM7YAnHjkGRhzeUUXOMnux70UKqnQ3kG6x0jRpzasSNeyAVCg@mail.gmail.com>
+In-Reply-To: <20170915182700.GA2489@localhost.didichuxing.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Yan, Zheng" <ukernel@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Linux FS-devel Mailing List <linux-fsdevel@vger.kernel.org>, "Linux F2FS DEV, Mailing List" <linux-f2fs-devel@lists.sourceforge.net>, Jaegeuk Kim <jaegeuk@kernel.org>, ceph-devel <ceph-devel@vger.kernel.org>, "Yan, Zheng" <zyan@redhat.com>, Ilya Dryomov <idryomov@gmail.com>
+To: weiping zhang <zhangweiping@didichuxing.com>
+Cc: axboe@fb.com, jack@suse.cz, tj@kernel.org, linux-mm@kvack.org
 
-On Mon 18-09-17 13:35:50, Yan, Zheng wrote:
-> On Thu, Sep 14, 2017 at 9:18 PM, Jan Kara <jack@suse.cz> wrote:
-> > Use new function for looking up pages since nr_pages argument from
-> > pagevec_lookup_range_tag() is going away.
-> >
-> > Signed-off-by: Jan Kara <jack@suse.cz>
-> > ---
-> >  fs/ceph/addr.c | 6 ++----
-> >  1 file changed, 2 insertions(+), 4 deletions(-)
-> >
-> > diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
-> > index e57e9d37bf2d..87789c477381 100644
-> > --- a/fs/ceph/addr.c
-> > +++ b/fs/ceph/addr.c
-> > @@ -869,11 +869,9 @@ static int ceph_writepages_start(struct address_space *mapping,
-> >                 max_pages = wsize >> PAGE_SHIFT;
-> >
-> >  get_more_pages:
-> > -               pvec_pages = min_t(unsigned, PAGEVEC_SIZE,
-> > -                                  max_pages - locked_pages);
-> > -               pvec_pages = pagevec_lookup_range_tag(&pvec, mapping, &index,
-> > +               pvec_pages = pagevec_lookup_range_nr_tag(&pvec, mapping, &index,
-> >                                                 end, PAGECACHE_TAG_DIRTY,
-> > -                                               pvec_pages);
-> > +                                               max_pages - locked_pages);
-> >                 dout("pagevec_lookup_range_tag got %d\n", pvec_pages);
-> >                 if (!pvec_pages && !locked_pages)
-> >                         break;
-> > --
-> > 2.12.3
-> >
+On Sat 16-09-17 02:27:05, weiping zhang wrote:
+> when percpu_counter_init fail at i, 0 ~ (i-1) should be destoried, not
+> 1 ~ i.
 > 
-> Reviewed-by: "Yan, Zheng" <zyan@redhat.com>
+> Signed-off-by: weiping zhang <zhangweiping@didichuxing.com>
 
-Thanks for the review!
+Good catch. You can add:
+
+Reviewed-by: Jan Kara <jack@suse.cz>
 
 								Honza
+
+> ---
+>  mm/backing-dev.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index e19606b..d399d3c 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -334,7 +334,7 @@ static int wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi,
+>  	return 0;
+>  
+>  out_destroy_stat:
+> -	while (i--)
+> +	while (--i >= 0)
+>  		percpu_counter_destroy(&wb->stat[i]);
+>  	fprop_local_destroy_percpu(&wb->completions);
+>  out_put_cong:
+> -- 
+> 2.9.4
+> 
 -- 
 Jan Kara <jack@suse.com>
 SUSE Labs, CR
