@@ -1,33 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 254EC6B0069
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 08:17:09 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b195so623887wmb.6
-        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 05:17:09 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 32E916B025E
+	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 08:17:21 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id e64so647518wmi.0
+        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 05:17:21 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 90si6335276edr.482.2017.09.18.05.17.08
+        by mx.google.com with ESMTPS id k7si6465156edj.304.2017.09.18.05.17.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Sep 2017 05:17:08 -0700 (PDT)
-Date: Mon, 18 Sep 2017 14:17:07 +0200
+        Mon, 18 Sep 2017 05:17:20 -0700 (PDT)
+Date: Mon, 18 Sep 2017 14:17:18 +0200
 From: Johannes Thumshirn <jthumshirn@suse.de>
-Subject: Re: [PATCH 2/3] mm, page_alloc: add scheduling point to
- memmap_init_zone
-Message-ID: <20170918121707.snlzrc7gbv5l3gsz@linux-x5ow.site>
+Subject: Re: [PATCH 3/3] memremap: add scheduling point to devm_memremap_pages
+Message-ID: <20170918121718.dblbelqnlh5l3jj6@linux-x5ow.site>
 References: <20170918121410.24466-1-mhocko@kernel.org>
- <20170918121410.24466-3-mhocko@kernel.org>
+ <20170918121410.24466-4-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20170918121410.24466-3-mhocko@kernel.org>
+In-Reply-To: <20170918121410.24466-4-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>
 
 Tested-by: Johannes Thumshirn <jthumshirn@suse.de>
-
 -- 
 Johannes Thumshirn                                          Storage
 jthumshirn@suse.de                                +49 911 74053 689
