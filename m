@@ -1,114 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 05C206B0261
-	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 19:03:36 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id x78so1531918pff.7
-        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 16:03:35 -0700 (PDT)
-Received: from out4439.biz.mail.alibaba.com (out4439.biz.mail.alibaba.com. [47.88.44.39])
-        by mx.google.com with ESMTPS id k184si2148803pga.79.2017.09.19.16.03.33
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E28D06B0268
+	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 19:15:21 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id o200so1950511itg.2
+        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 16:15:21 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id 192si2552042itw.92.2017.09.19.16.15.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Sep 2017 16:03:34 -0700 (PDT)
-Subject: Re: [PATCH 2/2] mm: oom: show unreclaimable slab info when kernel
- panic
-References: <1505759209-102539-1-git-send-email-yang.s@alibaba-inc.com>
- <1505759209-102539-3-git-send-email-yang.s@alibaba-inc.com>
- <alpine.DEB.2.10.1709191356020.7458@chino.kir.corp.google.com>
- <01f4cce4-d7a3-2fcb-06e0-382eff8e83e5@alibaba-inc.com>
- <alpine.DEB.2.10.1709191539010.137005@chino.kir.corp.google.com>
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-Message-ID: <11acb4bd-a1bf-cc32-a124-d98bf746f201@alibaba-inc.com>
-Date: Wed, 20 Sep 2017 07:03:14 +0800
+        Tue, 19 Sep 2017 16:15:20 -0700 (PDT)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: DAX error inject/page poison
+Message-ID: <11e8c954-7d54-ae4f-f4fe-459da79c2990@oracle.com>
+Date: Tue, 19 Sep 2017 16:15:13 -0700
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1709191539010.137005@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: cl@linux.com, penberg@kernel.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-nvdimm@lists.01.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+Cc: Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Vishal L Verma <vishal.l.verma@intel.com>
 
 
+We were trying to simulate pmem errors in an environment where a DAX
+filesystem is used (ext4 although I suspect it does not matter).  The
+sequence attempted on a DAX filesystem is:
+- Populate a file in the DAX filesystem
+- mmap the file
+- madvise(MADV_HWPOISON)
 
-On 9/19/17 3:41 PM, David Rientjes wrote:
-> On Wed, 20 Sep 2017, Yang Shi wrote:
-> 
->>>> --- a/mm/slab_common.c
->>>> +++ b/mm/slab_common.c
->>>> @@ -35,6 +35,8 @@
->>>>    static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
->>>>    		    slab_caches_to_rcu_destroy_workfn);
->>>>    +#define K(x) ((x)/1024)
->>>> +
->>>>    /*
->>>>     * Set of flags that will prevent slab merging
->>>>     */
->>>> @@ -1272,6 +1274,34 @@ static int slab_show(struct seq_file *m, void *p)
->>>>    	return 0;
->>>>    }
->>>>    +void show_unreclaimable_slab()
->>>> +{
->>>> +	struct kmem_cache *s = NULL;
->>>> +	struct slabinfo sinfo;
->>>> +
->>>> +	memset(&sinfo, 0, sizeof(sinfo));
->>>> +
->>>> +	printk("Unreclaimable slabs:\n");
->>>> +
->>>> +	/*
->>>> +	 * Here acquiring slab_mutex is unnecessary since we don't prefer to
->>>> +	 * get sleep in oom path right before kernel panic, and avoid race
->>>> condition.
->>>> +	 * Since it is already oom, so there should be not any big allocation
->>>> +	 * which could change the statistics significantly.
->>>> +	 */
->>>> +	list_for_each_entry(s, &slab_caches, list) {
->>>> +		if (!is_root_cache(s))
->>>> +			continue;
->>>> +
->>>> +		get_slabinfo(s, &sinfo);
->>>> +
->>>> +		if (!is_reclaimable(s) && sinfo.num_objs > 0)
->>>> +			printk("%-17s %luKB\n", cache_name(s),
->>>> K(sinfo.num_objs * s->size));
->>>> +	}
->>>
->>> I like this, but could we be even more helpful by giving the user more
->>> information from sinfo beyond just the total size of objects allocated?
->>
->> Sure, we definitely can. But, the question is what info is helpful to users to
->> diagnose oom other than the size.
->>
->> I think of the below:
->> 	- the number of active objs, the number of total objs, the percentage
->> of active objs per cache
->> 	- the number of active slabs, the number of total slabs, the
->> percentage of active slabs per cache
->>
->> Anything else?
->>
-> 
-> Right now it's a useful tool to find out what unreclaimable slab is
-> sitting around that is causing the system to run out of memory.  If we
-> knew how much of this slab is actually in use vs free, it can determine if
-> its stranding or if there's a bug in the slab allocator itself.
+The madvise operation fails with EFAULT.  This appears to come from
+get_user_pages() as there are no struct pages for such mappings?
 
-I see. You prefer to have a report which looks like:
+The idea is to make sure an application can recover from such errors
+by hole punching and repopulating with another page.
 
-Cache		Used size		Free size
-mm_struct	100K			50K
+A couple questions:
+It seems like madvise(MADV_HWPOISON) is not going to work (ever?) in
+such situations.  If so, should we perhaps add a IS_DAX like check and
+return something like EINVAL?  Or, at least document expected behavior?
 
-Or show the total size (used + free) instead of free size. And, may plus 
-the number of objs and the number of total objs.
+If madvise(MADV_HWPOISON) will not work, how can one inject errors to
+test error handling code?
 
-Thanks,
-Yang
-
-> 
-> We wouldn't need percentages, we can calculate that directly from the
-> data if necessary.
-> 
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
