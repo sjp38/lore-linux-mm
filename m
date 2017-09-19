@@ -1,38 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E45836B0033
-	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 15:53:14 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id y29so914197pff.6
-        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 12:53:14 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EED356B0069
+	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 15:53:16 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id f84so961443pfj.0
+        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 12:53:16 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id t137sor1187851pgb.211.2017.09.19.12.53.12
+        by mx.google.com with SMTPS id l15sor1333264pgn.183.2017.09.19.12.53.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 19 Sep 2017 12:53:13 -0700 (PDT)
+        Tue, 19 Sep 2017 12:53:15 -0700 (PDT)
 From: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 0/6] More graceful flusher thread memory reclaim wakeup
-Date: Tue, 19 Sep 2017 13:53:01 -0600
-Message-Id: <1505850787-18311-1-git-send-email-axboe@kernel.dk>
+Subject: [PATCH 1/6] buffer: cleanup free_more_memory() flusher wakeup
+Date: Tue, 19 Sep 2017 13:53:02 -0600
+Message-Id: <1505850787-18311-2-git-send-email-axboe@kernel.dk>
+In-Reply-To: <1505850787-18311-1-git-send-email-axboe@kernel.dk>
+References: <1505850787-18311-1-git-send-email-axboe@kernel.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-Cc: hannes@cmpxchg.org, clm@fb.com, jack@suse.cz
+Cc: hannes@cmpxchg.org, clm@fb.com, jack@suse.cz, Jens Axboe <axboe@kernel.dk>
 
-We've had some issues with writeback in presence of memory reclaim
-at Facebook, and this patch set attempts to fix it up. The real
-functional change is the last patch in the series, the first 5 are
-prep and cleanup patches.
+This whole function is... interesting. Change the wakeup call
+to the flusher threads to pass in nr_pages == 0, instead of
+some random number of pages. This matches more closely what
+similar cases do for memory shortage/reclaim.
 
-The basic idea is that we have callers that call
-wakeup_flusher_threads() with nr_pages == 0. This means 'writeback
-everything'. For memory reclaim situations, we can end up queuing
-a TON of these kinds of writeback units. This can cause softlockups
-and further memory issues, since we allocate huge amounts of
-struct wb_writeback_work to handle this writeback. Handle this
-situation more gracefully.
+Signed-off-by: Jens Axboe <axboe@kernel.dk>
+---
+ fs/buffer.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 170df856bdb9..9471a445e370 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -260,7 +260,7 @@ static void free_more_memory(void)
+ 	struct zoneref *z;
+ 	int nid;
+ 
+-	wakeup_flusher_threads(1024, WB_REASON_FREE_MORE_MEM);
++	wakeup_flusher_threads(0, WB_REASON_FREE_MORE_MEM);
+ 	yield();
+ 
+ 	for_each_online_node(nid) {
 -- 
-Jens Axboe
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
