@@ -1,215 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C674E6B0033
-	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 07:48:02 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id 4so7068440itv.4
-        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 04:48:02 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c22sor576183itb.126.2017.09.19.04.48.01
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 73FB06B0033
+	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 08:11:25 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id k101so7062044iod.1
+        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 05:11:25 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l130si5983530oif.124.2017.09.19.05.11.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Sep 2017 04:48:01 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Sep 2017 05:11:24 -0700 (PDT)
+Subject: Re: [patch] mremap.2: Add description of old_size == 0 functionality
+References: <20170915213745.6821-1-mike.kravetz@oracle.com>
+ <a6e59a7f-fd15-9e49-356e-ed439f17e9df@oracle.com>
+ <fb013ae6-6f47-248b-db8b-a0abae530377@redhat.com>
+ <ee87215d-9704-7269-4ec1-226f2e32a751@oracle.com>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <a5d279cb-a015-f74c-2e40-a231aa7f7a8c@redhat.com>
+Date: Tue, 19 Sep 2017 14:11:19 +0200
 MIME-Version: 1.0
-In-Reply-To: <20170919083554.GC3216@quack2.suse.cz>
-References: <1505775180-12014-1-git-send-email-laoar.shao@gmail.com> <20170919083554.GC3216@quack2.suse.cz>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Tue, 19 Sep 2017 19:48:00 +0800
-Message-ID: <CALOAHbAhnno94Jo1uLe3QzYhbAsc=wuHVXTvurCoVhe6YFnPyw@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: introduce validity check on vm dirtiness settings
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <ee87215d-9704-7269-4ec1-226f2e32a751@oracle.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: akpm@linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>, mhocko@suse.com, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, Theodore Ts'o <tytso@mit.edu>, mawilcox@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mike Kravetz <mike.kravetz@oracle.com>, mtk.manpages@gmail.com
+Cc: linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org
 
-2017-09-19 16:35 GMT+08:00 Jan Kara <jack@suse.cz>:
-> On Tue 19-09-17 06:53:00, Yafang Shao wrote:
->> we can find the logic in domain_dirty_limits() that
->> when dirty bg_thresh is bigger than dirty thresh,
->> bg_thresh will be set as thresh * 1 / 2.
->>       if (bg_thresh >= thresh)
->>               bg_thresh = thresh / 2;
+On 09/18/2017 07:11 PM, Mike Kravetz wrote:
+> On 09/18/2017 06:45 AM, Florian Weimer wrote:
+>> On 09/15/2017 11:53 PM, Mike Kravetz wrote:
+>>> +If the value of \fIold_size\fP is zero, and \fIold_address\fP refers to
+>>> +a private anonymous mapping, then
+>>> +.BR mremap ()
+>>> +will create a new mapping of the same pages. \fInew_size\fP
+>>> +will be the size of the new mapping and the location of the new mapping
+>>> +may be specified with \fInew_address\fP, see the description of
+>>> +.B MREMAP_FIXED
+>>> +below.  If a new mapping is requested via this method, then the
+>>> +.B MREMAP_MAYMOVE
+>>> +flag must also be specified.  This functionality is deprecated, and no
+>>> +new code should be written to use this feature.  A better method of
+>>> +obtaining multiple mappings of the same private anonymous memory is via the
+>>> +.BR memfd_create()
+>>> +system call.
 >>
->> But actually we can set vm background dirtiness bigger than
->> vm dirtiness successfully. This behavior may mislead us.
->> We'd better do this validity check at the beginning.
+>> Is there any particular reason to deprecate this?
 >>
->> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
->
-> The patch looks mostly good now. Just some small comments below.
->
->> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
->> index 9baf66a..5de02f6 100644
->> --- a/Documentation/sysctl/vm.txt
->> +++ b/Documentation/sysctl/vm.txt
->> @@ -156,6 +156,8 @@ read.
->>  Note: the minimum value allowed for dirty_bytes is two pages (in bytes); any
->>  value lower than this limit will be ignored and the old configuration will be
->>  retained.
->> +dirty_bytes can't less than dirty_background_bytes or
->> +available_memory / 100 * dirty_ratio.
->
-> I would phrase this like:
->
-> Note: the value of dirty_bytes also cannot be set lower than
-> dirty_background_bytes or the amount of memory corresponding to
-> dirty_background_ratio.
->
-
-Thanks :)
-
->>  ==============================================================
+>> In glibc, we cannot use memfd_create and keep the file descriptor around because the application can close descriptors beneath us.
 >>
->> @@ -176,6 +178,9 @@ generating disk writes will itself start writing out dirty data.
+>> (We might want to use alias mappings to avoid run-time code generation for PLT-less LD_AUDIT interceptors.)
 >>
->>  The total available memory is not equal to total system memory.
->>
->> +Note: dirty_ratio can't less than dirty_background_ratio or
->> +dirty_background_bytes / available_memory * 100.
->> +
->
-> And similarly here:
->
-> Note: dirty_ratio cannot be set lower than dirty_background_ratio or
-> ratio corresponding to dirty_background_bytes.
->
-Thanks :)
+> 
+> Hi Florian,
+> 
+> When I brought up this mremap 'duplicate mapping' functionality on the mm
+> mail list, most developers were surprised.  It seems this functionality exists
+> mostly 'by chance', and it was not really designed.  It certainly was never
+> documented.  There were suggestions to remove the functionality, which led
+> to my claim that it was being deprecated.  However, in hindsight that may
+> have been too strong.
 
->
->> @@ -511,15 +511,68 @@ bool node_dirty_ok(struct pglist_data *pgdat)
->>       return nr_pages <= limit;
->>  }
->>
->> +static bool vm_dirty_settings_valid(void)
->> +{
->> +     bool ret = true;
->> +     unsigned long bytes;
->> +
->> +     if (vm_dirty_ratio > 0) {
->> +             if (dirty_background_ratio >= vm_dirty_ratio) {
->> +                     ret = false;
->> +                     goto out;
->> +             }
->> +
->> +             bytes = global_dirtyable_memory() * PAGE_SIZE / 100 *
->> +                             vm_dirty_ratio;
->> +             if (dirty_background_bytes >= bytes) {
->> +                     ret = false;
->> +                     goto out;
->> +             }
->> +     }
->> +
->> +     if (vm_dirty_bytes > 0) {
->> +             if (dirty_background_bytes >= vm_dirty_bytes) {
->> +                     ret = false;
->> +                     goto out;
->> +             }
->> +
->> +             bytes = global_dirtyable_memory() * PAGE_SIZE / 100 *
->> +                             dirty_background_ratio;
->> +
->> +             if (bytes >= vm_dirty_bytes) {
->> +                     ret = false;
->> +                     goto out;
->> +             }
->> +     }
->> +
->> +     if (vm_dirty_bytes == 0 && vm_dirty_ratio == 0 &&
->> +             (dirty_background_bytes != 0 || dirty_background_ratio != 0))
->> +             ret = false;
->
-> Hum, why not just:
->         if ((vm_dirty_bytes == 0 && vm_dirty_ratio) ||
->             (dirty_background_bytes == 0 && dirty_background_ratio == 0))
->                 ret = false;
->
-> IMHO setting either tunable to 0 is just wrong and actively dangerous...
->
+This history is certainly a bit odd.
 
-Because these four variables all could be set to 0 before, and I'm not
-sure if this
-is needed under some certain conditions, although I think this is
-dangerous but I have
-to keep it as before.
+> I can drop this wording, but would still like to suggest memfd_create as
+> the preferred method of creating duplicate mappings.  It would be good if
+> others on Cc: could comment as well.
 
-If you think that is wrong, then I will modified it as you suggested.
+mremap seems to work with non-anonymous mappings, too:
 
->> +out:
->> +     if (!ret)
->> +             pr_err("vm dirtiness can't less than vm background dirtiness\n");
->
-> I would refrain from spamming logs with the error message. In my opinion it
-> is not needed.
->
->>  int dirty_background_ratio_handler(struct ctl_table *table, int write,
->>               void __user *buffer, size_t *lenp,
->>               loff_t *ppos)
->>  {
->>       int ret;
->> +     int old_ratio = dirty_background_ratio;
->>
->>       ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
->> -     if (ret == 0 && write)
->> -             dirty_background_bytes = 0;
->> +     if (ret == 0 && write) {
->> +             if (dirty_background_ratio != old_ratio &&
->> +                     !vm_dirty_settings_valid()) {
->
-> Why do you check whether new ratio is different here? If it is really
-> needed, it would deserve a comment.
->
+#include <err.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
-There're two reseaons,
-1.  if you set a value same with the old value, it's needn't to do this check.
-2. there's another behavior that I'm not sure whether it is reaonable.  i.e.
-     if the old value is,
-            vm.dirty_background_bytes = 0;
-            vm.dirty_background_ratio=10;
-      then I execute the bellow command,
-            sysctl -w vm.dirty_background_bytes=0
-     at the end these two values will be,
-            vm.dirty_background_bytes = 0;
-            vm.dirty_background_ratio=0;
-I'm not sure if this is needed under some certain conditons, So I have
-to keep it as before.
+/* Hopefully large enough to prevent crossing of a page boundary in
+    the implementation.  */
+__attribute__ ((aligned (256), noclone, noinline, weak))
+int
+callback (void)
+{
+   return 17;
+}
 
+int
+main (void)
+{
+   long pagesize = sysconf (_SC_PAGESIZE);
+   if (pagesize < 0)
+     err (1, "sysconf");
+   uintptr_t addr = (uintptr_t) &callback;
+   addr = addr / pagesize * pagesize;
+   printf ("old function address: %p\n", &callback);
+   ptrdiff_t page_offset = (uintptr_t) &callback - addr;
+   void *newaddr = mremap ((void *) addr, 0, pagesize, MREMAP_MAYMOVE);
+   if (newaddr == MAP_FAILED)
+     err (1, "mremap");
+   if (memcmp ((void *) addr, newaddr, pagesize) != 0)
+     errx (1, "page contents differs");
+   int (*newfunc) (void) = newaddr + page_offset;
+   printf ("new function address: %p\n", newfunc);
+   if (newfunc () != 17)
+     errx (1, "invalid return value from newfunc");
+   if (callback () != 17)
+     errx (1, "invalid return value from callback");
+   return 0;
+}
 
+(The code needs adjustment for architectures where function pointers 
+point to a descriptor and not the actual code.)
 
+This looks very useful for generating arbitrary callback wrappers 
+without actual run-time code generation.  memfd_create would not work 
+for that.
 
->> +                     dirty_background_ratio = old_ratio;
->> +                     ret = -EINVAL;
->> +             } else
->> +                     dirty_background_bytes = 0;
->> +     }
->> +
->>       return ret;
->>  }
->>
->> @@ -528,10 +581,17 @@ int dirty_background_bytes_handler(struct ctl_table *table, int write,
->>               loff_t *ppos)
->>  {
->>       int ret;
->> +     unsigned long old_bytes = dirty_background_bytes;
->>
->>       ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
->> -     if (ret == 0 && write)
->> -             dirty_background_ratio = 0;
->> +     if (ret == 0 && write) {
->> +             if (dirty_background_bytes != old_bytes &&
->> +                     !vm_dirty_settings_valid()) {
->
-> The same here...
->
+> Just curious, does glibc make use of this today?  Or, is this just something
+> that you think may be useful.
 
+To my knowledge, we do not use this today.  But it certainly looks very 
+useful.
 
-
->                                                                 Honza
-> --
-> Jan Kara <jack@suse.com>
-> SUSE Labs, CR
-
-Thanks
-Yafang
+Thanks,
+Florian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
