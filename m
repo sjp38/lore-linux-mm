@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CEDE6B025E
-	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 15:53:20 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id y77so943602pfd.2
-        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 12:53:20 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 778EF6B025F
+	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 15:53:22 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id x78so903756pff.7
+        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 12:53:22 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id k127sor1198391pgc.280.2017.09.19.12.53.18
+        by mx.google.com with SMTPS id k28sor1211389pgn.85.2017.09.19.12.53.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 19 Sep 2017 12:53:18 -0700 (PDT)
+        Tue, 19 Sep 2017 12:53:21 -0700 (PDT)
 From: Jens Axboe <axboe@kernel.dk>
-Subject: [PATCH 3/6] page-writeback: pass in '0' for nr_pages writeback in laptop mode
-Date: Tue, 19 Sep 2017 13:53:04 -0600
-Message-Id: <1505850787-18311-4-git-send-email-axboe@kernel.dk>
+Subject: [PATCH 4/6] fs-writeback: make wb_start_writeback() static
+Date: Tue, 19 Sep 2017 13:53:05 -0600
+Message-Id: <1505850787-18311-5-git-send-email-axboe@kernel.dk>
 In-Reply-To: <1505850787-18311-1-git-send-email-axboe@kernel.dk>
 References: <1505850787-18311-1-git-send-email-axboe@kernel.dk>
 Sender: owner-linux-mm@kvack.org
@@ -20,48 +20,43 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 Cc: hannes@cmpxchg.org, clm@fb.com, jack@suse.cz, Jens Axboe <axboe@kernel.dk>
 
-Laptop mode really wants to writeback the number of dirty
-pages and inodes. Instead of calculating this in the caller,
-just pass in 0 and let wakeup_flusher_threads() handle it.
-
-Use the new wakeup_flusher_threads_bdi() instead of rolling
-our own.
+We don't have any callers outside of fs-writeback.c anymore,
+make it private.
 
 Signed-off-by: Jens Axboe <axboe@kernel.dk>
 ---
- mm/page-writeback.c | 18 ++----------------
- 1 file changed, 2 insertions(+), 16 deletions(-)
+ fs/fs-writeback.c           | 4 ++--
+ include/linux/backing-dev.h | 2 --
+ 2 files changed, 2 insertions(+), 4 deletions(-)
 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 0b9c5cbe8eba..1933778c52c4 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1980,23 +1980,9 @@ int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
- void laptop_mode_timer_fn(unsigned long data)
- {
- 	struct request_queue *q = (struct request_queue *)data;
--	int nr_pages = global_node_page_state(NR_FILE_DIRTY) +
--		global_node_page_state(NR_UNSTABLE_NFS);
--	struct bdi_writeback *wb;
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 03fda0830bf8..7564347914f8 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -933,8 +933,8 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
  
--	/*
--	 * We want to write everything out, not just down to the dirty
--	 * threshold
--	 */
--	if (!bdi_has_dirty_io(q->backing_dev_info))
--		return;
--
--	rcu_read_lock();
--	list_for_each_entry_rcu(wb, &q->backing_dev_info->wb_list, bdi_node)
--		if (wb_has_dirty_io(wb))
--			wb_start_writeback(wb, nr_pages, true,
--					   WB_REASON_LAPTOP_TIMER);
--	rcu_read_unlock();
-+	wakeup_flusher_threads_bdi(q->backing_dev_info, 0,
-+					WB_REASON_LAPTOP_TIMER);
+ #endif	/* CONFIG_CGROUP_WRITEBACK */
+ 
+-void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
+-			bool range_cyclic, enum wb_reason reason)
++static void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
++			       bool range_cyclic, enum wb_reason reason)
+ {
+ 	struct wb_writeback_work *work;
+ 
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index 854e1bdd0b2a..157e950a70dc 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -38,8 +38,6 @@ static inline struct backing_dev_info *bdi_alloc(gfp_t gfp_mask)
+ 	return bdi_alloc_node(gfp_mask, NUMA_NO_NODE);
  }
  
- /*
+-void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
+-			bool range_cyclic, enum wb_reason reason);
+ void wb_start_background_writeback(struct bdi_writeback *wb);
+ void wb_workfn(struct work_struct *work);
+ void wb_wakeup_delayed(struct bdi_writeback *wb);
 -- 
 2.7.4
 
