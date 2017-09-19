@@ -1,60 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BD4C6B0033
-	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 10:03:54 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id d8so6695942pgt.1
-        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 07:03:54 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id 68si7138284ple.516.2017.09.19.07.03.52
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6210B6B0033
+	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 10:12:33 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id l196so2763358lfl.2
+        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 07:12:33 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p11sor2034926ljb.104.2017.09.19.07.12.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Sep 2017 07:03:52 -0700 (PDT)
-Date: Tue, 19 Sep 2017 17:03:46 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCHv7 08/19] x86/mm: Make PGDIR_SHIFT and PTRS_PER_P4D
- variable
-Message-ID: <20170919140345.hienjh7hoegc4ffm@black.fi.intel.com>
-References: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
- <20170918105553.27914-9-kirill.shutemov@linux.intel.com>
+        (Google Transport Security);
+        Tue, 19 Sep 2017 07:12:31 -0700 (PDT)
+Date: Tue, 19 Sep 2017 17:12:28 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH] mm: memcontrol: use vmalloc fallback for large kmem
+ memcg arrays
+Message-ID: <20170919141228.jlwjo35zornelmc5@esperanza>
+References: <20170918184919.20644-1-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170918105553.27914-9-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170918184919.20644-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Mon, Sep 18, 2017 at 10:55:42AM +0000, Kirill A. Shutemov wrote:
-> For boot-time switching between 4- and 5-level paging we need to be able
-> to fold p4d page table level at runtime. It requires variable
-> PGDIR_SHIFT and PTRS_PER_P4D.
+On Mon, Sep 18, 2017 at 02:49:19PM -0400, Johannes Weiner wrote:
+> For quick per-memcg indexing, slab caches and list_lru structures
+> maintain linear arrays of descriptors. As the number of concurrent
+> memory cgroups in the system goes up, this requires large contiguous
+> allocations (8k cgroups = order-5, 16k cgroups = order-6 etc.) for
+> every existing slab cache and list_lru, which can easily fail on
+> loaded systems. E.g.:
 > 
-> The change doesn't affect the kernel image size much:
+> mkdir: page allocation failure: order:5, mode:0x14040c0(GFP_KERNEL|__GFP_COMP), nodemask=(null)
+> CPU: 1 PID: 6399 Comm: mkdir Not tainted 4.13.0-mm1-00065-g720bbe532b7c-dirty #481
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-20170228_101828-anatol 04/01/2014
+> Call Trace:
+>  dump_stack+0x70/0x9d
+>  warn_alloc+0xd6/0x170
+>  ? __alloc_pages_direct_compact+0x4c/0x110
+>  __alloc_pages_nodemask+0xf50/0x1430
+>  ? __lock_acquire+0xd19/0x1360
+>  ? memcg_update_all_list_lrus+0x2e/0x2e0
+>  ? __mutex_lock+0x7c/0x950
+>  ? memcg_update_all_list_lrus+0x2e/0x2e0
+>  alloc_pages_current+0x60/0xc0
+>  kmalloc_order_trace+0x29/0x1b0
+>  __kmalloc+0x1f4/0x320
+>  memcg_update_all_list_lrus+0xca/0x2e0
+>  mem_cgroup_css_alloc+0x612/0x670
+>  cgroup_apply_control_enable+0x19e/0x360
+>  cgroup_mkdir+0x322/0x490
+>  kernfs_iop_mkdir+0x55/0x80
+>  vfs_mkdir+0xd0/0x120
+>  SyS_mkdirat+0x6c/0xe0
+>  SyS_mkdir+0x14/0x20
+>  entry_SYSCALL_64_fastpath+0x18/0xad
+> RIP: 0033:0x7f9ff36cee87
+> RSP: 002b:00007ffc7612d758 EFLAGS: 00000202 ORIG_RAX: 0000000000000053
+> RAX: ffffffffffffffda RBX: 00007ffc7612da48 RCX: 00007f9ff36cee87
+> RDX: 00000000000001ff RSI: 00000000000001ff RDI: 00007ffc7612de86
+> RBP: 0000000000000002 R08: 00000000000001ff R09: 0000000000401db0
+> R10: 00000000000001e2 R11: 0000000000000202 R12: 0000000000000000
+> R13: 00007ffc7612da40 R14: 0000000000000000 R15: 0000000000000000
+> Mem-Info:
+> active_anon:2965 inactive_anon:19 isolated_anon:0
+>  active_file:100270 inactive_file:98846 isolated_file:0
+>  unevictable:0 dirty:0 writeback:0 unstable:0
+>  slab_reclaimable:7328 slab_unreclaimable:16402
+>  mapped:771 shmem:52 pagetables:278 bounce:0
+>  free:13718 free_pcp:0 free_cma:0
 > 
->    text    data     bss     dec     hex filename
-> 10710172        4879964  860160 16450296         fb02f8 vmlinux.before
-> 10710340        4880000  860160 16450500         fb03c4 vmlinux.after
+> This output is from an artificial reproducer, but we have repeatedly
+> observed order-7 failures in production in the Facebook fleet. These
+> systems become useless as they cannot run more jobs, even though there
+> is plenty of memory to allocate 128 individual pages.
 > 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Use kvmalloc and kvzalloc to fall back to vmalloc space if these
+> arrays prove too large for allocating them physically contiguous.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Fixup for the patch:
+Thanks to kvmalloc/kvfree helpers this looks really neat.
+Should've been done like that long ago.
 
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index a1d983a45ab0..10dcbec70ef9 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -428,7 +428,7 @@ static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
- }
- 
- #define pgd_large(a) (pgtable_l5_enabled ? pgd_large(a) : p4d_large(__p4d(pgd_val(a))))
--#define pgd_none(a)  (pgtable_l5_enabled ? pgd_none(a) : pgd_none(a))
-+#define pgd_none(a)  (pgtable_l5_enabled ? pgd_none(a) : p4d_none(__p4d(pgd_val(a))))
- 
- static inline bool is_hypervisor_range(int idx)
- {
--- 
- Kirill A. Shutemov
+Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
