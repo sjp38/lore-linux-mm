@@ -1,84 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B92B6B0033
-	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 09:28:09 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id u2so7514511itb.7
-        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 06:28:09 -0700 (PDT)
-Received: from BJEXCAS003.didichuxing.com ([36.110.17.22])
-        by mx.google.com with ESMTPS id y127si1447597itf.179.2017.09.19.06.28.07
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BD4C6B0033
+	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 10:03:54 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id d8so6695942pgt.1
+        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 07:03:54 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id 68si7138284ple.516.2017.09.19.07.03.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 19 Sep 2017 06:28:07 -0700 (PDT)
-Date: Tue, 19 Sep 2017 21:27:37 +0800
-From: weiping zhang <zhangweiping@didichuxing.com>
-Subject: Re: [PATCH] shmem: convert shmem_init_inodecache to void
-Message-ID: <20170919132737.GA3946@localhost.didichuxing.com>
-References: <20170909124542.GA35224@bogon.didichuxing.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Sep 2017 07:03:52 -0700 (PDT)
+Date: Tue, 19 Sep 2017 17:03:46 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCHv7 08/19] x86/mm: Make PGDIR_SHIFT and PTRS_PER_P4D
+ variable
+Message-ID: <20170919140345.hienjh7hoegc4ffm@black.fi.intel.com>
+References: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
+ <20170918105553.27914-9-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170909124542.GA35224@bogon.didichuxing.com>
+In-Reply-To: <20170918105553.27914-9-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hughd@google.com
-Cc: linux-mm@kvack.org
+To: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, Sep 09, 2017 at 08:46:19PM +0800, weiping zhang wrote:
-> shmem_inode_cachep was created with SLAB_PANIC flag and shmem_init_inodecache
-> never return non-zero, hence convert this function to void.
+On Mon, Sep 18, 2017 at 10:55:42AM +0000, Kirill A. Shutemov wrote:
+> For boot-time switching between 4- and 5-level paging we need to be able
+> to fold p4d page table level at runtime. It requires variable
+> PGDIR_SHIFT and PTRS_PER_P4D.
 > 
-> Signed-off-by: weiping zhang <zhangweiping@didichuxing.com>
-> ---
->  mm/shmem.c | 8 ++------
->  1 file changed, 2 insertions(+), 6 deletions(-)
+> The change doesn't affect the kernel image size much:
 > 
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index ace53a582b..d744296 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -3862,12 +3862,11 @@ static void shmem_init_inode(void *foo)
->  	inode_init_once(&info->vfs_inode);
->  }
->  
-> -static int shmem_init_inodecache(void)
-> +static void shmem_init_inodecache(void)
->  {
->  	shmem_inode_cachep = kmem_cache_create("shmem_inode_cache",
->  				sizeof(struct shmem_inode_info),
->  				0, SLAB_PANIC|SLAB_ACCOUNT, shmem_init_inode);
-> -	return 0;
->  }
->  
->  static void shmem_destroy_inodecache(void)
-> @@ -3991,9 +3990,7 @@ int __init shmem_init(void)
->  	if (shmem_inode_cachep)
->  		return 0;
->  
-> -	error = shmem_init_inodecache();
-> -	if (error)
-> -		goto out3;
-> +	shmem_init_inodecache();
->  
->  	error = register_filesystem(&shmem_fs_type);
->  	if (error) {
-> @@ -4020,7 +4017,6 @@ int __init shmem_init(void)
->  	unregister_filesystem(&shmem_fs_type);
->  out2:
->  	shmem_destroy_inodecache();
-> -out3:
->  	shm_mnt = ERR_PTR(error);
->  	return error;
->  }
-> -- 
-> 2.9.4
+>    text    data     bss     dec     hex filename
+> 10710172        4879964  860160 16450296         fb02f8 vmlinux.before
+> 10710340        4880000  860160 16450500         fb03c4 vmlinux.after
 > 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-Hello Hughd,
+Fixup for the patch:
 
-Did you have time to look into this ?
-
-Thanks,
-Weiping
+diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+index a1d983a45ab0..10dcbec70ef9 100644
+--- a/arch/x86/mm/dump_pagetables.c
++++ b/arch/x86/mm/dump_pagetables.c
+@@ -428,7 +428,7 @@ static void walk_p4d_level(struct seq_file *m, struct pg_state *st, pgd_t addr,
+ }
+ 
+ #define pgd_large(a) (pgtable_l5_enabled ? pgd_large(a) : p4d_large(__p4d(pgd_val(a))))
+-#define pgd_none(a)  (pgtable_l5_enabled ? pgd_none(a) : pgd_none(a))
++#define pgd_none(a)  (pgtable_l5_enabled ? pgd_none(a) : p4d_none(__p4d(pgd_val(a))))
+ 
+ static inline bool is_hypervisor_range(int idx)
+ {
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
