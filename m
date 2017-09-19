@@ -1,62 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 894B26B0033
-	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 03:10:06 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 188so4978382pgb.3
-        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 00:10:06 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 25E2C6B0069
+	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 03:10:07 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id d8so4991644pgt.1
+        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 00:10:07 -0700 (PDT)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id c5si915827pfj.45.2017.09.19.00.10.04
+        by mx.google.com with ESMTP id f14si942171pgt.803.2017.09.19.00.10.05
         for <linux-mm@kvack.org>;
-        Tue, 19 Sep 2017 00:10:04 -0700 (PDT)
+        Tue, 19 Sep 2017 00:10:05 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2 0/4] skip swapcache for super fast device
-Date: Tue, 19 Sep 2017 16:09:57 +0900
-Message-Id: <1505805001-30187-1-git-send-email-minchan@kernel.org>
+Subject: [PATCH v2 2/4] bdi: introduce BDI_CAP_SYNCHRONOUS_IO
+Date: Tue, 19 Sep 2017 16:09:59 +0900
+Message-Id: <1505805001-30187-3-git-send-email-minchan@kernel.org>
+In-Reply-To: <1505805001-30187-1-git-send-email-minchan@kernel.org>
+References: <1505805001-30187-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kernel-team <kernel-team@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>
+Cc: kernel-team <kernel-team@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-With fast swap storage, platform want to use swap more aggressively
-and swap-in is crucial to application latency.
+By discussion[1], someday we will remove rw_page function. If so, we need
+something to detect such super-fast storage which synchronous IO operation
+like current rw_page is always win.
 
-The rw_page based synchronous devices like zram, pmem and btt are such
-fast storage. When I profile swapin performance with zram lz4 decompress
-test, S/W overhead is more than 70%. Maybe, it would be bigger in nvdimm.
+This patch introduces BDI_CAP_SYNCHRONOUS_IO to indicate such devices.
+With it, we could use various optimization techniques.
 
-This patch aims for reducing swap-in latency via skipping swapcache
-if swap device is synchronous device like rw_page based device.
+[1] lkml.kernel.org/r/<20170728165604.10455-1-ross.zwisler@linux.intel.com>
 
-It enhances 45% my swapin test(5G sequential swapin, no readahead,
-from 2.41sec to 1.64sec).
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ drivers/block/brd.c           | 2 ++
+ drivers/block/zram/zram_drv.c | 2 +-
+ drivers/nvdimm/btt.c          | 3 +++
+ drivers/nvdimm/pmem.c         | 2 ++
+ include/linux/backing-dev.h   | 8 ++++++++
+ 5 files changed, 16 insertions(+), 1 deletion(-)
 
-Andrew, [1] is zram specific patch so could be applied separately
-but this patch is based on that so I include it in this series.
-
-* From v1
-  * style fix
-  * a bug fix
-  * drop page-cluster based readahead off
-    * This regression could be solved by other patch from Huang.
-      http://lkml.kernel.org/r/87tw04in60.fsf@yhuang-dev.intel.com
-  
-Minchan Kim (4):
-  [1] zram: set BDI_CAP_STABLE_WRITES once
-  [2] bdi: introduce BDI_CAP_SYNCHRONOUS_IO
-  [3] mm:swap: introduce SWP_SYNCHRONOUS_IO
-  [4] mm:swap: skip swapcache for swapin of synchronous device
-
- drivers/block/brd.c           |  2 ++
- drivers/block/zram/zram_drv.c | 16 +++++--------
- drivers/nvdimm/btt.c          |  3 +++
- drivers/nvdimm/pmem.c         |  2 ++
- include/linux/backing-dev.h   |  8 +++++++
- include/linux/swap.h          | 14 +++++++++++-
- mm/memory.c                   | 52 ++++++++++++++++++++++++++++++-------------
- mm/page_io.c                  |  6 ++---
- mm/swapfile.c                 | 14 ++++++++----
- 9 files changed, 83 insertions(+), 34 deletions(-)
-
+diff --git a/drivers/block/brd.c b/drivers/block/brd.c
+index bbd0d186cfc0..1fdb736aa882 100644
+--- a/drivers/block/brd.c
++++ b/drivers/block/brd.c
+@@ -20,6 +20,7 @@
+ #include <linux/radix-tree.h>
+ #include <linux/fs.h>
+ #include <linux/slab.h>
++#include <linux/backing-dev.h>
+ #ifdef CONFIG_BLK_DEV_RAM_DAX
+ #include <linux/pfn_t.h>
+ #include <linux/dax.h>
+@@ -449,6 +450,7 @@ static struct brd_device *brd_alloc(int i)
+ 	disk->flags		= GENHD_FL_EXT_DEVT;
+ 	sprintf(disk->disk_name, "ram%d", i);
+ 	set_capacity(disk, rd_size * 2);
++	disk->queue->backing_dev_info->capabilities |= BDI_CAP_SYNCHRONOUS_IO;
+ 
+ #ifdef CONFIG_BLK_DEV_RAM_DAX
+ 	queue_flag_set_unlocked(QUEUE_FLAG_DAX, brd->brd_queue);
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index 98ef1a8389b0..23172641fc01 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -1556,7 +1556,7 @@ static int zram_add(void)
+ 		blk_queue_max_write_zeroes_sectors(zram->disk->queue, UINT_MAX);
+ 
+ 	zram->disk->queue->backing_dev_info->capabilities |=
+-					BDI_CAP_STABLE_WRITES;
++			(BDI_CAP_STABLE_WRITES | BDI_CAP_SYNCHRONOUS_IO);
+ 	add_disk(zram->disk);
+ 
+ 	ret = sysfs_create_group(&disk_to_dev(zram->disk)->kobj,
+diff --git a/drivers/nvdimm/btt.c b/drivers/nvdimm/btt.c
+index d5612bd1cc81..e949e3302af4 100644
+--- a/drivers/nvdimm/btt.c
++++ b/drivers/nvdimm/btt.c
+@@ -23,6 +23,7 @@
+ #include <linux/ndctl.h>
+ #include <linux/fs.h>
+ #include <linux/nd.h>
++#include <linux/backing-dev.h>
+ #include "btt.h"
+ #include "nd.h"
+ 
+@@ -1402,6 +1403,8 @@ static int btt_blk_init(struct btt *btt)
+ 	btt->btt_disk->private_data = btt;
+ 	btt->btt_disk->queue = btt->btt_queue;
+ 	btt->btt_disk->flags = GENHD_FL_EXT_DEVT;
++	btt->btt_disk->queue->backing_dev_info->capabilities |=
++			BDI_CAP_SYNCHRONOUS_IO;
+ 
+ 	blk_queue_make_request(btt->btt_queue, btt_make_request);
+ 	blk_queue_logical_block_size(btt->btt_queue, btt->sector_size);
+diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
+index 39dfd7affa31..7fbc5c5dc8e1 100644
+--- a/drivers/nvdimm/pmem.c
++++ b/drivers/nvdimm/pmem.c
+@@ -31,6 +31,7 @@
+ #include <linux/uio.h>
+ #include <linux/dax.h>
+ #include <linux/nd.h>
++#include <linux/backing-dev.h>
+ #include "pmem.h"
+ #include "pfn.h"
+ #include "nd.h"
+@@ -394,6 +395,7 @@ static int pmem_attach_disk(struct device *dev,
+ 	disk->fops		= &pmem_fops;
+ 	disk->queue		= q;
+ 	disk->flags		= GENHD_FL_EXT_DEVT;
++	disk->queue->backing_dev_info->capabilities |= BDI_CAP_SYNCHRONOUS_IO;
+ 	nvdimm_namespace_disk_name(ndns, disk->disk_name);
+ 	set_capacity(disk, (pmem->size - pmem->pfn_pad - pmem->data_offset)
+ 			/ 512);
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index 854e1bdd0b2a..cd41617c6594 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -123,6 +123,8 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
+  * BDI_CAP_STRICTLIMIT:    Keep number of dirty pages below bdi threshold.
+  *
+  * BDI_CAP_CGROUP_WRITEBACK: Supports cgroup-aware writeback.
++ * BDI_CAP_SYNCHRONOUS_IO: Device is so fast that asynchronous IO would be
++ *			   inefficient.
+  */
+ #define BDI_CAP_NO_ACCT_DIRTY	0x00000001
+ #define BDI_CAP_NO_WRITEBACK	0x00000002
+@@ -130,6 +132,7 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
+ #define BDI_CAP_STABLE_WRITES	0x00000008
+ #define BDI_CAP_STRICTLIMIT	0x00000010
+ #define BDI_CAP_CGROUP_WRITEBACK 0x00000020
++#define BDI_CAP_SYNCHRONOUS_IO	0x00000040
+ 
+ #define BDI_CAP_NO_ACCT_AND_WRITEBACK \
+ 	(BDI_CAP_NO_WRITEBACK | BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_ACCT_WB)
+@@ -177,6 +180,11 @@ long wait_iff_congested(struct pglist_data *pgdat, int sync, long timeout);
+ int pdflush_proc_obsolete(struct ctl_table *table, int write,
+ 		void __user *buffer, size_t *lenp, loff_t *ppos);
+ 
++static inline bool bdi_cap_synchronous_io(struct backing_dev_info *bdi)
++{
++	return bdi->capabilities & BDI_CAP_SYNCHRONOUS_IO;
++}
++
+ static inline bool bdi_cap_stable_pages_required(struct backing_dev_info *bdi)
+ {
+ 	return bdi->capabilities & BDI_CAP_STABLE_WRITES;
 -- 
 2.7.4
 
