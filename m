@@ -1,59 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F0686B0033
-	for <linux-mm@kvack.org>; Mon, 18 Sep 2017 23:38:26 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id i14so3146969qke.6
-        for <linux-mm@kvack.org>; Mon, 18 Sep 2017 20:38:26 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id q3sor4218334qta.90.2017.09.18.20.38.25
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 18 Sep 2017 20:38:25 -0700 (PDT)
-Date: Mon, 18 Sep 2017 20:38:22 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] mm, memory_hotplug: do not back off draining pcp free
- pages from kworker context
-Message-ID: <20170919033821.GR378890@devbig577.frc2.facebook.com>
-References: <20170828093341.26341-1-mhocko@kernel.org>
- <20170828153359.f9b252f99647eebd339a3a89@linux-foundation.org>
- <6e138348-aa28-8660-d902-96efafe1dcb2@I-love.SAKURA.ne.jp>
- <20170829112823.GA12413@dhcp22.suse.cz>
- <20170831053342.fo7x4hnhicxikme4@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170831053342.fo7x4hnhicxikme4@dhcp22.suse.cz>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 894B26B0033
+	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 03:10:06 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 188so4978382pgb.3
+        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 00:10:06 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id c5si915827pfj.45.2017.09.19.00.10.04
+        for <linux-mm@kvack.org>;
+        Tue, 19 Sep 2017 00:10:04 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH v2 0/4] skip swapcache for super fast device
+Date: Tue, 19 Sep 2017 16:09:57 +0900
+Message-Id: <1505805001-30187-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kernel-team <kernel-team@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>
 
-Hello, Sorry about the delay.
+With fast swap storage, platform want to use swap more aggressively
+and swap-in is crucial to application latency.
 
-On Thu, Aug 31, 2017 at 07:33:42AM +0200, Michal Hocko wrote:
-> > > Michal, are you sure that this patch does not cause deadlock?
-> > > 
-> > > As shown in "[PATCH] mm: Use WQ_HIGHPRI for mm_percpu_wq." thread, currently work
-> > > items on mm_percpu_wq seem to be blocked by other work items not on mm_percpu_wq.
+The rw_page based synchronous devices like zram, pmem and btt are such
+fast storage. When I profile swapin performance with zram lz4 decompress
+test, S/W overhead is more than 70%. Maybe, it would be bigger in nvdimm.
 
-IIUC that wasn't a deadlock but more a legitimate starvation from too
-many tasks trying to reclaim directly.
+This patch aims for reducing swap-in latency via skipping swapcache
+if swap device is synchronous device like rw_page based device.
 
-> > But we have a rescuer so we should make a forward progress eventually.
-> > Or am I missing something. Tejun, could you have a look please?
-> 
-> ping... I would really appreaciate if you could double check my thinking
-> Tejun. This is a tricky area and I would like to prevent further subtle
-> issues here.
+It enhances 45% my swapin test(5G sequential swapin, no readahead,
+from 2.41sec to 1.64sec).
 
-So, this shouldn't be an issue.  This may get affected by direct
-reclaim frenzy but it's only a small piece of the whole symptom and we
-gotta fix that at the source.
+Andrew, [1] is zram specific patch so could be applied separately
+but this patch is based on that so I include it in this series.
 
-Thanks.
+* From v1
+  * style fix
+  * a bug fix
+  * drop page-cluster based readahead off
+    * This regression could be solved by other patch from Huang.
+      http://lkml.kernel.org/r/87tw04in60.fsf@yhuang-dev.intel.com
+  
+Minchan Kim (4):
+  [1] zram: set BDI_CAP_STABLE_WRITES once
+  [2] bdi: introduce BDI_CAP_SYNCHRONOUS_IO
+  [3] mm:swap: introduce SWP_SYNCHRONOUS_IO
+  [4] mm:swap: skip swapcache for swapin of synchronous device
+
+ drivers/block/brd.c           |  2 ++
+ drivers/block/zram/zram_drv.c | 16 +++++--------
+ drivers/nvdimm/btt.c          |  3 +++
+ drivers/nvdimm/pmem.c         |  2 ++
+ include/linux/backing-dev.h   |  8 +++++++
+ include/linux/swap.h          | 14 +++++++++++-
+ mm/memory.c                   | 52 ++++++++++++++++++++++++++++++-------------
+ mm/page_io.c                  |  6 ++---
+ mm/swapfile.c                 | 14 ++++++++----
+ 9 files changed, 83 insertions(+), 34 deletions(-)
 
 -- 
-tejun
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
