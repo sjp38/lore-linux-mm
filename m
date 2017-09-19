@@ -1,61 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C46C96B0033
-	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 05:45:26 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 11so5630944pge.4
-        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 02:45:26 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r16si1113223pfk.88.2017.09.19.02.45.25
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 366F76B0033
+	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 06:32:11 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id o200so6782473itg.2
+        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 03:32:11 -0700 (PDT)
+Received: from BJEXCAS002.didichuxing.com ([36.110.17.22])
+        by mx.google.com with ESMTPS id x1si1224965ite.192.2017.09.19.03.32.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Sep 2017 02:45:25 -0700 (PDT)
-Date: Tue, 19 Sep 2017 11:45:21 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, memory_hotplug: do not back off draining pcp free
- pages from kworker context
-Message-ID: <20170919094521.2vqcnqrx3q2h2axb@dhcp22.suse.cz>
-References: <20170828093341.26341-1-mhocko@kernel.org>
- <20170828153359.f9b252f99647eebd339a3a89@linux-foundation.org>
- <6e138348-aa28-8660-d902-96efafe1dcb2@I-love.SAKURA.ne.jp>
- <20170829112823.GA12413@dhcp22.suse.cz>
- <20170831053342.fo7x4hnhicxikme4@dhcp22.suse.cz>
- <20170919033821.GR378890@devbig577.frc2.facebook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 19 Sep 2017 03:32:09 -0700 (PDT)
+Date: Tue, 19 Sep 2017 18:31:39 +0800
+From: weiping zhang <zhangweiping@didichuxing.com>
+Subject: Re: [PATCH] bdi: fix cleanup when fail to percpu_counter_init
+Message-ID: <20170919103139.GA1553@localhost.didichuxing.com>
+References: <20170915182700.GA2489@localhost.didichuxing.com>
+ <21c323b8-7ec4-518f-5fe5-3ed724506c31@kernel.dk>
+ <20170919081331.GB3216@quack2.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170919033821.GR378890@devbig577.frc2.facebook.com>
+In-Reply-To: <20170919081331.GB3216@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Jens Axboe <axboe@kernel.dk>, tj@kernel.org, linux-mm@kvack.org
 
-On Mon 18-09-17 20:38:22, Tejun Heo wrote:
-> Hello, Sorry about the delay.
-> 
-> On Thu, Aug 31, 2017 at 07:33:42AM +0200, Michal Hocko wrote:
-> > > > Michal, are you sure that this patch does not cause deadlock?
-> > > > 
-> > > > As shown in "[PATCH] mm: Use WQ_HIGHPRI for mm_percpu_wq." thread, currently work
-> > > > items on mm_percpu_wq seem to be blocked by other work items not on mm_percpu_wq.
-> 
-> IIUC that wasn't a deadlock but more a legitimate starvation from too
-> many tasks trying to reclaim directly.
-> 
-> > > But we have a rescuer so we should make a forward progress eventually.
-> > > Or am I missing something. Tejun, could you have a look please?
+On Tue, Sep 19, 2017 at 10:13:31AM +0200, Jan Kara wrote:
+> On Mon 18-09-17 08:04:04, Jens Axboe wrote:
+> > On 09/15/2017 12:27 PM, weiping zhang wrote:
+> > > when percpu_counter_init fail at i, 0 ~ (i-1) should be destoried, not
+> > > 1 ~ i.
+> > > 
+> > > Signed-off-by: weiping zhang <zhangweiping@didichuxing.com>
+> > > ---
+> > >  mm/backing-dev.c | 2 +-
+> > >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > > 
+> > > diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> > > index e19606b..d399d3c 100644
+> > > --- a/mm/backing-dev.c
+> > > +++ b/mm/backing-dev.c
+> > > @@ -334,7 +334,7 @@ static int wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi,
+> > >  	return 0;
+> > >  
+> > >  out_destroy_stat:
+> > > -	while (i--)
+> > > +	while (--i >= 0)
 > > 
-> > ping... I would really appreaciate if you could double check my thinking
-> > Tejun. This is a tricky area and I would like to prevent further subtle
-> > issues here.
+> > These two constructs will produce identical results.
 > 
-> So, this shouldn't be an issue.  This may get affected by direct
-> reclaim frenzy but it's only a small piece of the whole symptom and we
-> gotta fix that at the source.
+> Bah, you are correct. I got confused.
+> 
 
-OK, so there shouldn't be any issue with the patch, right?
--- 
-Michal Hocko
-SUSE Labs
+It's my fault, thanks all of you, ^_^
+
+weiping
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
