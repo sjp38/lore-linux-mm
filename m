@@ -1,198 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 13A9C6B0253
-	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 10:57:15 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id x78so6127021pff.7
-        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 07:57:15 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x10sor5462946plv.65.2017.09.19.07.57.13
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E88D86B025F
+	for <linux-mm@kvack.org>; Tue, 19 Sep 2017 11:06:42 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id m30so6970838pgn.2
+        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 08:06:42 -0700 (PDT)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00101.outbound.protection.outlook.com. [40.107.0.101])
+        by mx.google.com with ESMTPS id z64si1503419pfj.102.2017.09.19.08.06.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Sep 2017 07:57:13 -0700 (PDT)
-From: Yafang Shao <laoar.shao@gmail.com>
-Subject: [PATCH v3] mm: introduce validity check on vm dirtiness settings
-Date: Wed, 20 Sep 2017 06:43:35 +0800
-Message-Id: <1505861015-11919-1-git-send-email-laoar.shao@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 19 Sep 2017 08:06:41 -0700 (PDT)
+Subject: [PATCH] mm: Make count list_lru_one::nr_items lockless
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Date: Tue, 19 Sep 2017 18:06:33 +0300
+Message-ID: <150583358557.26700.8490036563698102569.stgit@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jack@suse.cz
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@suse.com, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, tytso@mit.edu, mawilcox@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, laoar.shao@gmail.com
+To: vdavydov.dev@gmail.com, apolyakov@beget.ru, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aryabinin@virtuozzo.com, akpm@linux-foundation.org
 
-we can find the logic in domain_dirty_limits() that
-when dirty bg_thresh is bigger than dirty thresh,
-bg_thresh will be set as thresh * 1 / 2.
-	if (bg_thresh >= thresh)
-		bg_thresh = thresh / 2;
+During the reclaiming slab of a memcg, shrink_slab iterates
+over all registered shrinkers in the system, and tries to count
+and consume objects related to the cgroup. In case of memory
+pressure, this behaves bad: I observe high system time and
+time spent in list_lru_count_one() for many processes on RHEL7
+kernel (collected via $perf record --call-graph fp -j k -a):
 
-But actually we can set vm background dirtiness bigger than
-vm dirtiness successfully. This behavior may mislead us.
-We'd better do this validity check at the beginning.
+0,50%  nixstatsagent  [kernel.vmlinux]  [k] _raw_spin_lock                [k] _raw_spin_lock
+0,26%  nixstatsagent  [kernel.vmlinux]  [k] shrink_slab                   [k] shrink_slab
+0,23%  nixstatsagent  [kernel.vmlinux]  [k] super_cache_count             [k] super_cache_count
+0,15%  nixstatsagent  [kernel.vmlinux]  [k] __list_lru_count_one.isra.2   [k] _raw_spin_lock
+0,15%  nixstatsagent  [kernel.vmlinux]  [k] list_lru_count_one            [k] __list_lru_count_one.isra.2
 
-Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+0,94%  mysqld         [kernel.vmlinux]  [k] _raw_spin_lock                [k] _raw_spin_lock
+0,57%  mysqld         [kernel.vmlinux]  [k] shrink_slab                   [k] shrink_slab
+0,51%  mysqld         [kernel.vmlinux]  [k] super_cache_count             [k] super_cache_count
+0,32%  mysqld         [kernel.vmlinux]  [k] __list_lru_count_one.isra.2   [k] _raw_spin_lock
+0,32%  mysqld         [kernel.vmlinux]  [k] list_lru_count_one            [k] __list_lru_count_one.isra.2
+
+0,73%  sshd           [kernel.vmlinux]  [k] _raw_spin_lock                [k] _raw_spin_lock
+0,35%  sshd           [kernel.vmlinux]  [k] shrink_slab                   [k] shrink_slab
+0,32%  sshd           [kernel.vmlinux]  [k] super_cache_count             [k] super_cache_count
+0,21%  sshd           [kernel.vmlinux]  [k] __list_lru_count_one.isra.2   [k] _raw_spin_lock
+0,21%  sshd           [kernel.vmlinux]  [k] list_lru_count_one            [k] __list_lru_count_one.isra.2
+
+This patch aims to make super_cache_count() (and other functions,
+which count LRU nr_items) more effective.
+It allows list_lru_node::memcg_lrus to be RCU-accessed, and makes
+__list_lru_count_one() count nr_items lockless to minimize
+overhead introduced by locking operation, and to make parallel
+reclaims more scalable.
+
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
 ---
- Documentation/sysctl/vm.txt |  6 +++
- mm/page-writeback.c         | 92 +++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 90 insertions(+), 8 deletions(-)
+ include/linux/list_lru.h |    3 ++
+ mm/list_lru.c            |   59 +++++++++++++++++++++++++++++-----------------
+ 2 files changed, 39 insertions(+), 23 deletions(-)
 
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index 9baf66a..0bab85d 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -156,6 +156,9 @@ read.
- Note: the minimum value allowed for dirty_bytes is two pages (in bytes); any
- value lower than this limit will be ignored and the old configuration will be
- retained.
-+Note: the value of dirty_bytes also cannot be set lower than
-+dirty_background_bytes or the amount of memory corresponding to
-+dirty_background_ratio.
+diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+index fa7fd03cb5f9..a55258100e40 100644
+--- a/include/linux/list_lru.h
++++ b/include/linux/list_lru.h
+@@ -31,6 +31,7 @@ struct list_lru_one {
+ };
  
- ==============================================================
- 
-@@ -176,6 +179,9 @@ generating disk writes will itself start writing out dirty data.
- 
- The total available memory is not equal to total system memory.
- 
-+Note: dirty_ratio cannot be set lower than dirty_background_ratio or
-+ratio corresponding to dirty_background_bytes.
-+
- ==============================================================
- 
- dirty_writeback_centisecs
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 0b9c5cb..fadb1d7 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -511,15 +511,71 @@ bool node_dirty_ok(struct pglist_data *pgdat)
- 	return nr_pages <= limit;
+ struct list_lru_memcg {
++	struct rcu_head		rcu;
+ 	/* array of per cgroup lists, indexed by memcg_cache_id */
+ 	struct list_lru_one	*lru[0];
+ };
+@@ -42,7 +43,7 @@ struct list_lru_node {
+ 	struct list_lru_one	lru;
+ #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+ 	/* for cgroup aware lrus points to per cgroup lists, otherwise NULL */
+-	struct list_lru_memcg	*memcg_lrus;
++	struct list_lru_memcg	__rcu *memcg_lrus;
+ #endif
+ 	long nr_items;
+ } ____cacheline_aligned_in_smp;
+diff --git a/mm/list_lru.c b/mm/list_lru.c
+index 7a40fa2be858..9fdb24818dae 100644
+--- a/mm/list_lru.c
++++ b/mm/list_lru.c
+@@ -52,14 +52,15 @@ static inline bool list_lru_memcg_aware(struct list_lru *lru)
+ static inline struct list_lru_one *
+ list_lru_from_memcg_idx(struct list_lru_node *nlru, int idx)
+ {
++	struct list_lru_memcg *memcg_lrus;
+ 	/*
+-	 * The lock protects the array of per cgroup lists from relocation
+-	 * (see memcg_update_list_lru_node).
++	 * Either lock or RCU protects the array of per cgroup lists
++	 * from relocation (see memcg_update_list_lru_node).
+ 	 */
+-	lockdep_assert_held(&nlru->lock);
+-	if (nlru->memcg_lrus && idx >= 0)
+-		return nlru->memcg_lrus->lru[idx];
+-
++	memcg_lrus = rcu_dereference_check(nlru->memcg_lrus,
++					   lockdep_is_held(&nlru->lock));
++	if (memcg_lrus && idx >= 0)
++		return memcg_lrus->lru[idx];
+ 	return &nlru->lru;
  }
  
-+static bool vm_dirty_settings_valid(void)
-+{
-+	bool ret = true;
-+	unsigned long bytes;
-+
-+	if (vm_dirty_ratio > 0) {
-+		if (dirty_background_ratio >= vm_dirty_ratio) {
-+			ret = false;
-+			goto out;
-+		}
-+
-+		bytes = global_dirtyable_memory() * PAGE_SIZE / 100 *
-+				vm_dirty_ratio;
-+		if (dirty_background_bytes >= bytes) {
-+			ret = false;
-+			goto out;
-+		}
-+	}
-+
-+	if (vm_dirty_bytes > 0) {
-+		if (dirty_background_bytes >= vm_dirty_bytes) {
-+			ret = false;
-+			goto out;
-+		}
-+
-+		bytes = global_dirtyable_memory() * PAGE_SIZE / 100 *
-+				dirty_background_ratio;
-+
-+		if (bytes >= vm_dirty_bytes) {
-+			ret = false;
-+			goto out;
-+		}
-+	}
-+
-+	if ((vm_dirty_bytes == 0 && vm_dirty_ratio == 0) ||
-+		(dirty_background_bytes == 0 && dirty_background_ratio == 0))
-+		ret = false;
-+
-+out:
-+	return ret;
-+}
-+
- int dirty_background_ratio_handler(struct ctl_table *table, int write,
- 		void __user *buffer, size_t *lenp,
- 		loff_t *ppos)
- {
- 	int ret;
-+	int old_ratio = dirty_background_ratio;
+@@ -168,10 +169,10 @@ static unsigned long __list_lru_count_one(struct list_lru *lru,
+ 	struct list_lru_one *l;
+ 	unsigned long count;
  
- 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
--	if (ret == 0 && write)
--		dirty_background_bytes = 0;
-+
-+	/* When dirty_background_ratio is 0 and dirty_background_bytes isn't 0,
-+	 * it's not correct to set dirty_background_bytes to 0 if we reset
-+	 * dirty_background_ratio to 0.
-+	 * So do nothing if the new ratio is not different.
+-	spin_lock(&nlru->lock);
++	rcu_read_lock();
+ 	l = list_lru_from_memcg_idx(nlru, memcg_idx);
+ 	count = l->nr_items;
+-	spin_unlock(&nlru->lock);
++	rcu_read_unlock();
+ 
+ 	return count;
+ }
+@@ -323,24 +324,33 @@ static int __memcg_init_list_lru_node(struct list_lru_memcg *memcg_lrus,
+ 
+ static int memcg_init_list_lru_node(struct list_lru_node *nlru)
+ {
++	struct list_lru_memcg *memcg_lrus;
+ 	int size = memcg_nr_cache_ids;
+ 
+-	nlru->memcg_lrus = kmalloc(size * sizeof(void *), GFP_KERNEL);
+-	if (!nlru->memcg_lrus)
++	memcg_lrus = kmalloc(sizeof(*memcg_lrus) +
++			     size * sizeof(void *), GFP_KERNEL);
++	if (!memcg_lrus)
+ 		return -ENOMEM;
+ 
+-	if (__memcg_init_list_lru_node(nlru->memcg_lrus, 0, size)) {
+-		kfree(nlru->memcg_lrus);
++	if (__memcg_init_list_lru_node(memcg_lrus, 0, size)) {
++		kfree(memcg_lrus);
+ 		return -ENOMEM;
+ 	}
++	RCU_INIT_POINTER(nlru->memcg_lrus, memcg_lrus);
+ 
+ 	return 0;
+ }
+ 
+ static void memcg_destroy_list_lru_node(struct list_lru_node *nlru)
+ {
+-	__memcg_destroy_list_lru_node(nlru->memcg_lrus, 0, memcg_nr_cache_ids);
+-	kfree(nlru->memcg_lrus);
++	struct list_lru_memcg *memcg_lrus;
++	/*
++	 * This is called when shrinker has already been unregistered,
++	 * and nobody can use it. So, there is no need to use kfree_rcu().
 +	 */
-+	if (ret == 0 && write && dirty_background_ratio != old_ratio) {
-+		if (vm_dirty_settings_valid())
-+			dirty_background_bytes = 0;
-+		else {
-+			dirty_background_ratio = old_ratio;
-+			ret = -EINVAL;
-+		}
-+	}
-+
- 	return ret;
++	memcg_lrus = rcu_dereference_protected(nlru->memcg_lrus, true);
++	__memcg_destroy_list_lru_node(memcg_lrus, 0, memcg_nr_cache_ids);
++	kfree(memcg_lrus);
  }
  
-@@ -528,10 +584,20 @@ int dirty_background_bytes_handler(struct ctl_table *table, int write,
- 		loff_t *ppos)
+ static int memcg_update_list_lru_node(struct list_lru_node *nlru,
+@@ -350,8 +360,9 @@ static int memcg_update_list_lru_node(struct list_lru_node *nlru,
+ 
+ 	BUG_ON(old_size > new_size);
+ 
+-	old = nlru->memcg_lrus;
+-	new = kmalloc(new_size * sizeof(void *), GFP_KERNEL);
++	old = rcu_dereference_protected(nlru->memcg_lrus,
++					lockdep_is_held(&list_lrus_mutex));
++	new = kmalloc(sizeof(*new) + new_size * sizeof(void *), GFP_KERNEL);
+ 	if (!new)
+ 		return -ENOMEM;
+ 
+@@ -360,29 +371,33 @@ static int memcg_update_list_lru_node(struct list_lru_node *nlru,
+ 		return -ENOMEM;
+ 	}
+ 
+-	memcpy(new, old, old_size * sizeof(void *));
++	memcpy(&new->lru, &old->lru, old_size * sizeof(void *));
+ 
+ 	/*
+-	 * The lock guarantees that we won't race with a reader
+-	 * (see list_lru_from_memcg_idx).
++	 * The locking below allows readers that hold nlru->lock avoid taking
++	 * rcu_read_lock (see list_lru_from_memcg_idx).
+ 	 *
+ 	 * Since list_lru_{add,del} may be called under an IRQ-safe lock,
+ 	 * we have to use IRQ-safe primitives here to avoid deadlock.
+ 	 */
+ 	spin_lock_irq(&nlru->lock);
+-	nlru->memcg_lrus = new;
++	rcu_assign_pointer(nlru->memcg_lrus, new);
+ 	spin_unlock_irq(&nlru->lock);
+ 
+-	kfree(old);
++	kfree_rcu(old, rcu);
+ 	return 0;
+ }
+ 
+ static void memcg_cancel_update_list_lru_node(struct list_lru_node *nlru,
+ 					      int old_size, int new_size)
  {
- 	int ret;
-+	unsigned long old_bytes = dirty_background_bytes;
- 
- 	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
--	if (ret == 0 && write)
--		dirty_background_ratio = 0;
++	struct list_lru_memcg *memcg_lrus;
 +
-+	/* the reson is same as above */
-+	if (ret == 0 && write && dirty_background_bytes != old_bytes) {
-+		if (vm_dirty_settings_valid())
-+			dirty_background_ratio = 0;
-+		else {
-+			dirty_background_bytes = old_bytes;
-+			ret = -EINVAL;
-+		}
-+	}
-+
- 	return ret;
++	memcg_lrus = rcu_dereference_protected(nlru->memcg_lrus,
++					       lockdep_is_held(&list_lrus_mutex));
+ 	/* do not bother shrinking the array back to the old size, because we
+ 	 * cannot handle allocation failures here */
+-	__memcg_destroy_list_lru_node(nlru->memcg_lrus, old_size, new_size);
++	__memcg_destroy_list_lru_node(memcg_lrus, old_size, new_size);
  }
  
-@@ -544,8 +610,13 @@ int dirty_ratio_handler(struct ctl_table *table, int write,
- 
- 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
- 	if (ret == 0 && write && vm_dirty_ratio != old_ratio) {
--		writeback_set_ratelimit();
--		vm_dirty_bytes = 0;
-+		if (vm_dirty_settings_valid()) {
-+			writeback_set_ratelimit();
-+			vm_dirty_bytes = 0;
-+		} else {
-+			vm_dirty_ratio = old_ratio;
-+			ret = -EINVAL;
-+		}
- 	}
- 	return ret;
- }
-@@ -559,8 +630,13 @@ int dirty_bytes_handler(struct ctl_table *table, int write,
- 
- 	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
- 	if (ret == 0 && write && vm_dirty_bytes != old_bytes) {
--		writeback_set_ratelimit();
--		vm_dirty_ratio = 0;
-+		if (vm_dirty_settings_valid()) {
-+			writeback_set_ratelimit();
-+			vm_dirty_ratio = 0;
-+		} else {
-+			vm_dirty_bytes = old_bytes;
-+			ret = -EINVAL;
-+		}
- 	}
- 	return ret;
- }
--- 
-1.8.3.1
+ static int memcg_init_list_lru(struct list_lru *lru, bool memcg_aware)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
