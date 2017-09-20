@@ -1,80 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 24CC86B027C
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:45:37 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id y29so6462462pff.6
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:45:37 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 57F8E6B027F
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:45:58 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 6so7423042pgh.0
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:45:58 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id z11sor1332184plo.122.2017.09.20.13.45.35
+        by mx.google.com with SMTPS id y11sor1323960plt.26.2017.09.20.13.45.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Sep 2017 13:45:35 -0700 (PDT)
-Date: Wed, 20 Sep 2017 13:45:33 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] tools: slabinfo: add "-U" option to show unreclaimable
- slabs only
-In-Reply-To: <1505934576-9749-2-git-send-email-yang.s@alibaba-inc.com>
-Message-ID: <alpine.DEB.2.10.1709201343320.97971@chino.kir.corp.google.com>
-References: <1505934576-9749-1-git-send-email-yang.s@alibaba-inc.com> <1505934576-9749-2-git-send-email-yang.s@alibaba-inc.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Wed, 20 Sep 2017 13:45:57 -0700 (PDT)
+From: Kees Cook <keescook@chromium.org>
+Subject: [PATCH v3 04/31] dcache: Define usercopy region in dentry_cache slab cache
+Date: Wed, 20 Sep 2017 13:45:10 -0700
+Message-Id: <1505940337-79069-5-git-send-email-keescook@chromium.org>
+In-Reply-To: <1505940337-79069-1-git-send-email-keescook@chromium.org>
+References: <1505940337-79069-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.s@alibaba-inc.com>
-Cc: cl@linux.com, penberg@kernel.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-On Thu, 21 Sep 2017, Yang Shi wrote:
+From: David Windsor <dave@nullcore.net>
 
-> diff --git a/tools/vm/slabinfo.c b/tools/vm/slabinfo.c
-> index b9d34b3..9673190 100644
-> --- a/tools/vm/slabinfo.c
-> +++ b/tools/vm/slabinfo.c
-> @@ -83,6 +83,7 @@ struct aliasinfo {
->  int sort_loss;
->  int extended_totals;
->  int show_bytes;
-> +int unreclaim_only;
->  
->  /* Debug options */
->  int sanity;
-> @@ -132,6 +133,7 @@ static void usage(void)
->  		"-L|--Loss              Sort by loss\n"
->  		"-X|--Xtotals           Show extended summary information\n"
->  		"-B|--Bytes             Show size in bytes\n"
-> +		"-U|--unreclaim		Show unreclaimable slabs only\n"
->  		"\nValid debug options (FZPUT may be combined)\n"
->  		"a / A          Switch on all debug options (=FZUP)\n"
->  		"-              Switch off all debug options\n"
+When a dentry name is short enough, it can be stored directly in the
+dentry itself (instead in a separate kmalloc allocation). These dentry
+short names, stored in struct dentry.d_iname and therefore contained in
+the dentry_cache slab cache, need to be coped to userspace.
 
-I suppose this should be s/unreclaim/Unreclaim/
+cache object allocation:
+    fs/dcache.c:
+        __d_alloc(...):
+            ...
+            dentry = kmem_cache_alloc(dentry_cache, ...);
+            ...
+            dentry->d_name.name = dentry->d_iname;
 
-> @@ -568,6 +570,9 @@ static void slabcache(struct slabinfo *s)
->  	if (strcmp(s->name, "*") == 0)
->  		return;
->  
-> +	if (unreclaim_only && s->reclaim_account)
-> +		return;
-> +		
->  	if (actual_slabs == 1) {
->  		report(s);
->  		return;
-> @@ -1346,6 +1351,7 @@ struct option opts[] = {
->  	{ "Loss", no_argument, NULL, 'L'},
->  	{ "Xtotals", no_argument, NULL, 'X'},
->  	{ "Bytes", no_argument, NULL, 'B'},
-> +	{ "unreclaim", no_argument, NULL, 'U'},
->  	{ NULL, 0, NULL, 0 }
->  };
->  
+example usage trace:
+    filldir+0xb0/0x140
+    dcache_readdir+0x82/0x170
+    iterate_dir+0x142/0x1b0
+    SyS_getdents+0xb5/0x160
 
-Same.
+    fs/readdir.c:
+        (called via ctx.actor by dir_emit)
+        filldir(..., const char *name, ...):
+            ...
+            copy_to_user(..., name, namlen)
 
-After that:
+    fs/libfs.c:
+        dcache_readdir(...):
+            ...
+            next = next_positive(dentry, p, 1)
+            ...
+            dir_emit(..., next->d_name.name, ...)
 
-Acked-by: David Rientjes <rientjes@google.com>
+In support of usercopy hardening, this patch defines a region in the
+dentry_cache slab cache in which userspace copy operations are allowed.
 
-Also, you may find it better to remove the "RFC" tag from the patchset's 
-header email since it's agreed that we want this.
+This region is known as the slab cache's usercopy region. Slab caches can
+now check that each copy operation involving cache-managed memory falls
+entirely within the slab's usercopy region.
+
+This patch is modified from Brad Spengler/PaX Team's PAX_USERCOPY
+whitelisting code in the last public patch of grsecurity/PaX based on my
+understanding of the code. Changes or omissions from the original code are
+mine and don't reflect the original grsecurity/PaX code.
+
+Signed-off-by: David Windsor <dave@nullcore.net>
+[kees: adjust hunks for kmalloc-specific things moved later]
+[kees: adjust commit log, provide usage trace]
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: linux-fsdevel@vger.kernel.org
+Signed-off-by: Kees Cook <keescook@chromium.org>
+---
+ fs/dcache.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/fs/dcache.c b/fs/dcache.c
+index f90141387f01..5f5e7c1fcf4b 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -3603,8 +3603,9 @@ static void __init dcache_init(void)
+ 	 * but it is probably not worth it because of the cache nature
+ 	 * of the dcache.
+ 	 */
+-	dentry_cache = KMEM_CACHE(dentry,
+-		SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD|SLAB_ACCOUNT);
++	dentry_cache = KMEM_CACHE_USERCOPY(dentry,
++		SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
++		d_iname);
+ 
+ 	/* Hash may have been set up in dcache_init_early */
+ 	if (!hashdist)
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
