@@ -1,84 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9ECA36B0271
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:18:14 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id i14so5139969qke.6
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:18:14 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id f68si2394282qkc.474.2017.09.20.13.18.12
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 24CC86B027C
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:45:37 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id y29so6462462pff.6
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:45:37 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id z11sor1332184plo.122.2017.09.20.13.45.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Sep 2017 13:18:13 -0700 (PDT)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v9 06/12] mm: zero struct pages during initialization
-Date: Wed, 20 Sep 2017 16:17:08 -0400
-Message-Id: <20170920201714.19817-7-pasha.tatashin@oracle.com>
-In-Reply-To: <20170920201714.19817-1-pasha.tatashin@oracle.com>
-References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
+        (Google Transport Security);
+        Wed, 20 Sep 2017 13:45:35 -0700 (PDT)
+Date: Wed, 20 Sep 2017 13:45:33 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/2] tools: slabinfo: add "-U" option to show unreclaimable
+ slabs only
+In-Reply-To: <1505934576-9749-2-git-send-email-yang.s@alibaba-inc.com>
+Message-ID: <alpine.DEB.2.10.1709201343320.97971@chino.kir.corp.google.com>
+References: <1505934576-9749-1-git-send-email-yang.s@alibaba-inc.com> <1505934576-9749-2-git-send-email-yang.s@alibaba-inc.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: Yang Shi <yang.s@alibaba-inc.com>
+Cc: cl@linux.com, penberg@kernel.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Add struct page zeroing as a part of initialization of other fields in
-__init_single_page().
+On Thu, 21 Sep 2017, Yang Shi wrote:
 
-This single thread performance collected on: Intel(R) Xeon(R) CPU E7-8895
-v3 @ 2.60GHz with 1T of memory (268400646 pages in 8 nodes):
+> diff --git a/tools/vm/slabinfo.c b/tools/vm/slabinfo.c
+> index b9d34b3..9673190 100644
+> --- a/tools/vm/slabinfo.c
+> +++ b/tools/vm/slabinfo.c
+> @@ -83,6 +83,7 @@ struct aliasinfo {
+>  int sort_loss;
+>  int extended_totals;
+>  int show_bytes;
+> +int unreclaim_only;
+>  
+>  /* Debug options */
+>  int sanity;
+> @@ -132,6 +133,7 @@ static void usage(void)
+>  		"-L|--Loss              Sort by loss\n"
+>  		"-X|--Xtotals           Show extended summary information\n"
+>  		"-B|--Bytes             Show size in bytes\n"
+> +		"-U|--unreclaim		Show unreclaimable slabs only\n"
+>  		"\nValid debug options (FZPUT may be combined)\n"
+>  		"a / A          Switch on all debug options (=FZUP)\n"
+>  		"-              Switch off all debug options\n"
 
-                        BASE            FIX
-sparse_init     11.244671836s   0.007199623s
-zone_sizes_init  4.879775891s   8.355182299s
-                  --------------------------
-Total           16.124447727s   8.362381922s
+I suppose this should be s/unreclaim/Unreclaim/
 
-sparse_init is where memory for struct pages is zeroed, and the zeroing
-part is moved later in this patch into __init_single_page(), which is
-called from zone_sizes_init().
+> @@ -568,6 +570,9 @@ static void slabcache(struct slabinfo *s)
+>  	if (strcmp(s->name, "*") == 0)
+>  		return;
+>  
+> +	if (unreclaim_only && s->reclaim_account)
+> +		return;
+> +		
+>  	if (actual_slabs == 1) {
+>  		report(s);
+>  		return;
+> @@ -1346,6 +1351,7 @@ struct option opts[] = {
+>  	{ "Loss", no_argument, NULL, 'L'},
+>  	{ "Xtotals", no_argument, NULL, 'X'},
+>  	{ "Bytes", no_argument, NULL, 'B'},
+> +	{ "unreclaim", no_argument, NULL, 'U'},
+>  	{ NULL, 0, NULL, 0 }
+>  };
+>  
 
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
-Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-Reviewed-by: Bob Picco <bob.picco@oracle.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
----
- include/linux/mm.h | 9 +++++++++
- mm/page_alloc.c    | 1 +
- 2 files changed, 10 insertions(+)
+Same.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index f8c10d336e42..50b74d628243 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -94,6 +94,15 @@ extern int mmap_rnd_compat_bits __read_mostly;
- #define mm_forbids_zeropage(X)	(0)
- #endif
- 
-+/*
-+ * On some architectures it is expensive to call memset() for small sizes.
-+ * Those architectures should provide their own implementation of "struct page"
-+ * zeroing by defining this macro in <asm/pgtable.h>.
-+ */
-+#ifndef mm_zero_struct_page
-+#define mm_zero_struct_page(pp)  ((void)memset((pp), 0, sizeof(struct page)))
-+#endif
-+
- /*
-  * Default maximum number of active map areas, this limits the number of vmas
-  * per mm struct. Users can overwrite this number by sysctl but there is a
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a8dbd405ed94..4b630ee91430 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1170,6 +1170,7 @@ static void free_one_page(struct zone *zone,
- static void __meminit __init_single_page(struct page *page, unsigned long pfn,
- 				unsigned long zone, int nid)
- {
-+	mm_zero_struct_page(page);
- 	set_page_links(page, zone, nid, pfn);
- 	init_page_count(page);
- 	page_mapcount_reset(page);
--- 
-2.14.1
+After that:
+
+Acked-by: David Rientjes <rientjes@google.com>
+
+Also, you may find it better to remove the "RFC" tag from the patchset's 
+header email since it's agreed that we want this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
