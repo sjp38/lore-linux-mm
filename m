@@ -1,99 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B79D6B02AB
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:52:55 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id p87so6504241pfj.4
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:52:55 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 525F16B02AF
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:52:56 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id j16so7393835pga.6
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:52:56 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id j91sor1328232pld.136.2017.09.20.13.52.54
+        by mx.google.com with SMTPS id q80sor2534906pfg.121.2017.09.20.13.52.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Sep 2017 13:52:54 -0700 (PDT)
+        Wed, 20 Sep 2017 13:52:55 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v3 17/31] scsi: Define usercopy region in scsi_sense_cache slab cache
-Date: Wed, 20 Sep 2017 13:45:23 -0700
-Message-Id: <1505940337-79069-18-git-send-email-keescook@chromium.org>
+Subject: [PATCH v3 23/31] net: Restrict unwhitelisted proto caches to size 0
+Date: Wed, 20 Sep 2017 13:45:29 -0700
+Message-Id: <1505940337-79069-24-git-send-email-keescook@chromium.org>
 In-Reply-To: <1505940337-79069-1-git-send-email-keescook@chromium.org>
 References: <1505940337-79069-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, "James E.J. Bottomley" <jejb@linux.vnet.ibm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, linux-scsi@vger.kernel.org, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+Cc: Kees Cook <keescook@chromium.org>, "David S. Miller" <davem@davemloft.net>, Eric Dumazet <edumazet@google.com>, Paolo Abeni <pabeni@redhat.com>, David Howells <dhowells@redhat.com>, netdev@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, David Windsor <dave@nullcore.net>
 
-From: David Windsor <dave@nullcore.net>
+Now that protocols have been annotated (the copy of icsk_ca_ops->name
+is of an ops field from outside the slab cache):
 
-SCSI sense buffers, stored in struct scsi_cmnd.sense and therefore
-contained in the scsi_sense_cache slab cache, need to be copied to/from
-userspace.
+$ git grep 'copy_.*_user.*sk.*->'
+caif/caif_socket.c: copy_from_user(&cf_sk->conn_req.param.data, ov, ol)) {
+ipv4/raw.c:   if (copy_from_user(&raw_sk(sk)->filter, optval, optlen))
+ipv4/raw.c:       copy_to_user(optval, &raw_sk(sk)->filter, len))
+ipv4/tcp.c:       if (copy_to_user(optval, icsk->icsk_ca_ops->name, len))
+ipv4/tcp.c:       if (copy_to_user(optval, icsk->icsk_ulp_ops->name, len))
+ipv6/raw.c:       if (copy_from_user(&raw6_sk(sk)->filter, optval, optlen))
+ipv6/raw.c:           if (copy_to_user(optval, &raw6_sk(sk)->filter, len))
+sctp/socket.c: if (copy_from_user(&sctp_sk(sk)->subscribe, optval, optlen))
+sctp/socket.c: if (copy_to_user(optval, &sctp_sk(sk)->subscribe, len))
+sctp/socket.c: if (copy_to_user(optval, &sctp_sk(sk)->initmsg, len))
 
-cache object allocation:
-    drivers/scsi/scsi_lib.c:
-        scsi_select_sense_cache(...):
-            return ... ? scsi_sense_isadma_cache : scsi_sense_cache
+we can switch the default proto usercopy region to size 0. Any protocols
+needing to add whitelisted regions must annotate the fields with the
+useroffset and usersize fields of struct proto.
 
-        scsi_alloc_sense_buffer(...):
-            return kmem_cache_alloc_node(scsi_select_sense_cache(), ...);
+This patch is modified from Brad Spengler/PaX Team's PAX_USERCOPY
+whitelisting code in the last public patch of grsecurity/PaX based on my
+understanding of the code. Changes or omissions from the original code are
+mine and don't reflect the original grsecurity/PaX code.
 
-        scsi_init_request(...):
-            ...
-            cmd->sense_buffer = scsi_alloc_sense_buffer(...);
-            ...
-            cmd->req.sense = cmd->sense_buffer
-
-example usage trace:
-
-    block/scsi_ioctl.c:
-        (inline from sg_io)
-        blk_complete_sghdr_rq(...):
-            struct scsi_request *req = scsi_req(rq);
-            ...
-            copy_to_user(..., req->sense, len)
-
-        scsi_cmd_ioctl(...):
-            sg_io(...);
-
-In support of usercopy hardening, this patch defines a region in
-the scsi_sense_cache slab cache in which userspace copy operations
-are allowed.
-
-This region is known as the slab cache's usercopy region.  Slab
-caches can now check that each copy operation involving cache-managed
-memory falls entirely within the slab's usercopy region.
-
-Signed-off-by: David Windsor <dave@nullcore.net>
-[kees: adjust commit log, provide usage trace]
-Cc: "James E.J. Bottomley" <jejb@linux.vnet.ibm.com>
-Cc: "Martin K. Petersen" <martin.petersen@oracle.com>
-Cc: linux-scsi@vger.kernel.org
+Cc: "David S. Miller" <davem@davemloft.net>
+Cc: Eric Dumazet <edumazet@google.com>
+Cc: Paolo Abeni <pabeni@redhat.com>
+Cc: David Howells <dhowells@redhat.com>
+Cc: netdev@vger.kernel.org
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- drivers/scsi/scsi_lib.c | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ net/core/sock.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
-diff --git a/drivers/scsi/scsi_lib.c b/drivers/scsi/scsi_lib.c
-index 9cf6a80fe297..88bfab251693 100644
---- a/drivers/scsi/scsi_lib.c
-+++ b/drivers/scsi/scsi_lib.c
-@@ -79,14 +79,15 @@ int scsi_init_sense_cache(struct Scsi_Host *shost)
- 	if (shost->unchecked_isa_dma) {
- 		scsi_sense_isadma_cache =
- 			kmem_cache_create("scsi_sense_cache(DMA)",
--			SCSI_SENSE_BUFFERSIZE, 0,
--			SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA, NULL);
-+				SCSI_SENSE_BUFFERSIZE, 0,
-+				SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA, NULL);
- 		if (!scsi_sense_isadma_cache)
- 			ret = -ENOMEM;
- 	} else {
- 		scsi_sense_cache =
--			kmem_cache_create("scsi_sense_cache",
--			SCSI_SENSE_BUFFERSIZE, 0, SLAB_HWCACHE_ALIGN, NULL);
-+			kmem_cache_create_usercopy("scsi_sense_cache",
-+				SCSI_SENSE_BUFFERSIZE, 0, SLAB_HWCACHE_ALIGN,
-+				0, SCSI_SENSE_BUFFERSIZE, NULL);
- 		if (!scsi_sense_cache)
- 			ret = -ENOMEM;
- 	}
+diff --git a/net/core/sock.c b/net/core/sock.c
+index 832dfb03102e..84cd0b362a02 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -3168,9 +3168,7 @@ int proto_register(struct proto *prot, int alloc_slab)
+ 		prot->slab = kmem_cache_create_usercopy(prot->name,
+ 					prot->obj_size, 0,
+ 					SLAB_HWCACHE_ALIGN | prot->slab_flags,
+-					prot->usersize ? prot->useroffset : 0,
+-					prot->usersize ? prot->usersize
+-						       : prot->obj_size,
++					prot->useroffset, prot->usersize,
+ 					NULL);
+ 
+ 		if (prot->slab == NULL) {
 -- 
 2.7.4
 
