@@ -1,53 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D5FA6B02C1
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 17:21:48 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id e9so6475723iod.4
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 14:21:48 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id d205sor78124itg.142.2017.09.20.14.21.47
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 665906B02C3
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 17:28:42 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id d8so7567389pgt.1
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 14:28:42 -0700 (PDT)
+Received: from out0-206.mail.aliyun.com (out0-206.mail.aliyun.com. [140.205.0.206])
+        by mx.google.com with ESMTPS id 33si1928832plk.494.2017.09.20.14.28.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Sep 2017 14:21:47 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Sep 2017 14:28:41 -0700 (PDT)
+Subject: Re: [PATCH 1/2] tools: slabinfo: add "-U" option to show
+ unreclaimable slabs only
+References: <1505934576-9749-1-git-send-email-yang.s@alibaba-inc.com>
+ <1505934576-9749-2-git-send-email-yang.s@alibaba-inc.com>
+ <alpine.DEB.2.10.1709201343320.97971@chino.kir.corp.google.com>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <58f316bb-8e2a-1854-70b5-36e87f95f96e@alibaba-inc.com>
+Date: Thu, 21 Sep 2017 05:28:33 +0800
 MIME-Version: 1.0
-In-Reply-To: <20170920205642.GA20023@infradead.org>
-References: <1505940337-79069-1-git-send-email-keescook@chromium.org>
- <1505940337-79069-15-git-send-email-keescook@chromium.org> <20170920205642.GA20023@infradead.org>
-From: Kees Cook <keescook@chromium.org>
-Date: Wed, 20 Sep 2017 14:21:45 -0700
-Message-ID: <CAGXu5j+hr0UwB5NsvPSKVVfM6NFHHhnNeUZbuwyTRppSOx9Ucw@mail.gmail.com>
-Subject: Re: [PATCH v3 14/31] vxfs: Define usercopy region in vxfs_inode slab cache
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <alpine.DEB.2.10.1709201343320.97971@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, David Windsor <dave@nullcore.net>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Network Development <netdev@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: David Rientjes <rientjes@google.com>
+Cc: cl@linux.com, penberg@kernel.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Sep 20, 2017 at 1:56 PM, Christoph Hellwig <hch@infradead.org> wrote:
-> Hi Kees,
->
-> I've only got this single email from you, which on it's own doesn't
-> compile and seems to be part of a 31 patch series.
->
-> So as-is NAK, doesn't work.
->
-> Please make sure to always send every patch in a series to every
-> developer you want to include.
 
-This is why I included several other lists on the full CC (am I
-unlucky enough to have you not subscribed to any of them?). Adding a
-CC for everyone can result in a huge CC list, especially for the
-forth-coming 300-patch timer_list series. ;)
 
-Do you want me to resend the full series to you, or would you prefer
-something else like a patchwork bundle? (I'll explicitly add you to CC
-for any future versions, though.)
+On 9/20/17 1:45 PM, David Rientjes wrote:
+> On Thu, 21 Sep 2017, Yang Shi wrote:
+> 
+>> diff --git a/tools/vm/slabinfo.c b/tools/vm/slabinfo.c
+>> index b9d34b3..9673190 100644
+>> --- a/tools/vm/slabinfo.c
+>> +++ b/tools/vm/slabinfo.c
+>> @@ -83,6 +83,7 @@ struct aliasinfo {
+>>   int sort_loss;
+>>   int extended_totals;
+>>   int show_bytes;
+>> +int unreclaim_only;
+>>   
+>>   /* Debug options */
+>>   int sanity;
+>> @@ -132,6 +133,7 @@ static void usage(void)
+>>   		"-L|--Loss              Sort by loss\n"
+>>   		"-X|--Xtotals           Show extended summary information\n"
+>>   		"-B|--Bytes             Show size in bytes\n"
+>> +		"-U|--unreclaim		Show unreclaimable slabs only\n"
+>>   		"\nValid debug options (FZPUT may be combined)\n"
+>>   		"a / A          Switch on all debug options (=FZUP)\n"
+>>   		"-              Switch off all debug options\n"
+> 
+> I suppose this should be s/unreclaim/Unreclaim/
+> 
+>> @@ -568,6 +570,9 @@ static void slabcache(struct slabinfo *s)
+>>   	if (strcmp(s->name, "*") == 0)
+>>   		return;
+>>   
+>> +	if (unreclaim_only && s->reclaim_account)
+>> +		return;
+>> +		
+>>   	if (actual_slabs == 1) {
+>>   		report(s);
+>>   		return;
+>> @@ -1346,6 +1351,7 @@ struct option opts[] = {
+>>   	{ "Loss", no_argument, NULL, 'L'},
+>>   	{ "Xtotals", no_argument, NULL, 'X'},
+>>   	{ "Bytes", no_argument, NULL, 'B'},
+>> +	{ "unreclaim", no_argument, NULL, 'U'},
+>>   	{ NULL, 0, NULL, 0 }
+>>   };
+>>   
+> 
+> Same.
+> 
+> After that:
+> 
+> Acked-by: David Rientjes <rientjes@google.com>
+> 
+> Also, you may find it better to remove the "RFC" tag from the patchset's
+> header email since it's agreed that we want this.
 
--Kees
+Thanks, will get fixed in v4.
 
--- 
-Kees Cook
-Pixel Security
+Yang
+
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
