@@ -1,61 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 321646B0253
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 11:19:17 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id u2so4452723itb.7
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 08:19:17 -0700 (PDT)
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E86856B025F
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 11:33:17 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id f72so4787003ioj.7
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 08:33:17 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 64sor885260iol.11.2017.09.20.08.19.08
+        by mx.google.com with SMTPS id b10sor2013963itc.5.2017.09.20.08.33.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Sep 2017 08:19:08 -0700 (PDT)
-Subject: Re: [PATCH 3/6] page-writeback: pass in '0' for nr_pages writeback in
- laptop mode
-References: <1505850787-18311-1-git-send-email-axboe@kernel.dk>
- <1505850787-18311-4-git-send-email-axboe@kernel.dk>
- <20170920143505.GD11106@quack2.suse.cz>
+        Wed, 20 Sep 2017 08:33:15 -0700 (PDT)
 From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <b6aaf770-6543-728a-1f10-1268d3827b8a@kernel.dk>
-Date: Wed, 20 Sep 2017 09:19:05 -0600
-MIME-Version: 1.0
-In-Reply-To: <20170920143505.GD11106@quack2.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH 0/7 v2] More graceful flusher thread memory reclaim wakeup
+Date: Wed, 20 Sep 2017 09:32:55 -0600
+Message-Id: <1505921582-26709-1-git-send-email-axboe@kernel.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, clm@fb.com
+To: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+Cc: hannes@cmpxchg.org, clm@fb.com, jack@suse.cz
 
-On 09/20/2017 08:35 AM, Jan Kara wrote:
-> On Tue 19-09-17 13:53:04, Jens Axboe wrote:
->> Laptop mode really wants to writeback the number of dirty
->> pages and inodes. Instead of calculating this in the caller,
->> just pass in 0 and let wakeup_flusher_threads() handle it.
->>
->> Use the new wakeup_flusher_threads_bdi() instead of rolling
->> our own.
->>
->> Signed-off-by: Jens Axboe <axboe@kernel.dk>
-> ...
->> -	rcu_read_lock();
->> -	list_for_each_entry_rcu(wb, &q->backing_dev_info->wb_list, bdi_node)
->> -		if (wb_has_dirty_io(wb))
->> -			wb_start_writeback(wb, nr_pages, true,
->> -					   WB_REASON_LAPTOP_TIMER);
->> -	rcu_read_unlock();
->> +	wakeup_flusher_threads_bdi(q->backing_dev_info, 0,
->> +					WB_REASON_LAPTOP_TIMER);
->>  }
-> 
-> So this slightly changes the semantics since previously we were doing
-> range_cyclic writeback and now we don't. I don't think this matters in
-> practice but please mention that in the changelog. With that you can add:
+We've had some issues with writeback in presence of memory reclaim
+at Facebook, and this patch set attempts to fix it up. The real
+functional change is the last patch in the series, the first 5 are
+prep and cleanup patches.
 
-Thanks, I added a note about that in the commit message.
+The basic idea is that we have callers that call
+wakeup_flusher_threads() with nr_pages == 0. This means 'writeback
+everything'. For memory reclaim situations, we can end up queuing
+a TON of these kinds of writeback units. This can cause softlockups
+and further memory issues, since we allocate huge amounts of
+struct wb_writeback_work to handle this writeback. Handle this
+situation more gracefully.
+
+Changes since v1:
+
+- Rename WB_zero_pages to WB_start_all (Amir).
+- Remove a test_bit() for a condition where we always expect the bit
+  to be set.
+- Remove 'nr_pages' from the wakeup flusher threads helpers, since
+  everybody now passes in zero. Enables further cleanups in later
+  patches too (Jan).
+- Fix a case where I forgot to clear WB_start_all if 'work' allocation
+  failed.
+- Get rid of cond_resched() in the wb_do_writeback() loop.
 
 -- 
 Jens Axboe
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
