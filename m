@@ -1,69 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DAC8D6B02A9
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:52:52 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id r83so6491009pfj.5
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:52:52 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6436E6B02AB
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:52:54 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 188so7414554pgb.3
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:52:54 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id t61sor1303868plb.141.2017.09.20.13.52.51
+        by mx.google.com with SMTPS id k3sor2569793pgn.309.2017.09.20.13.52.53
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Sep 2017 13:52:51 -0700 (PDT)
+        Wed, 20 Sep 2017 13:52:53 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v3 29/31] arm: Implement thread_struct whitelist for hardened usercopy
-Date: Wed, 20 Sep 2017 13:45:35 -0700
-Message-Id: <1505940337-79069-30-git-send-email-keescook@chromium.org>
+Subject: [PATCH v3 26/31] fork: Provide usercopy whitelisting for task_struct
+Date: Wed, 20 Sep 2017 13:45:32 -0700
+Message-Id: <1505940337-79069-27-git-send-email-keescook@chromium.org>
 In-Reply-To: <1505940337-79069-1-git-send-email-keescook@chromium.org>
 References: <1505940337-79069-1-git-send-email-keescook@chromium.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Kees Cook <keescook@chromium.org>, Russell King <linux@armlinux.org.uk>, Ingo Molnar <mingo@kernel.org>, Christian Borntraeger <borntraeger@de.ibm.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, linux-arm-kernel@lists.infradead.org, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, David Windsor <dave@nullcore.net>
+Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Nicholas Piggin <npiggin@gmail.com>, Laura Abbott <labbott@redhat.com>, =?UTF-8?q?Micka=C3=ABl=20Sala=C3=BCn?= <mic@digikod.net>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Andy Lutomirski <luto@kernel.org>, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, David Windsor <dave@nullcore.net>
 
-ARM does not carry FPU state in the thread structure, so it can declare
-no usercopy whitelist at all.
+While the blocked and saved_sigmask fields of task_struct are copied to
+userspace (via sigmask_to_save() and setup_rt_frame()), it is always
+copied with a static length (i.e. sizeof(sigset_t)), so they are implictly
+whitelisted.
 
-Cc: Russell King <linux@armlinux.org.uk>
+The only portion of task_struct that is potentially dynamically sized and
+may be copied to userspace is in the architecture-specific thread_struct
+at the end of task_struct.
+
+cache object allocation:
+    kernel/fork.c:
+        alloc_task_struct_node(...):
+            return kmem_cache_alloc_node(task_struct_cachep, ...);
+
+        dup_task_struct(...):
+            ...
+            tsk = alloc_task_struct_node(node);
+
+        copy_process(...):
+            ...
+            dup_task_struct(...)
+
+        _do_fork(...):
+            ...
+            copy_process(...)
+
+example usage trace:
+
+    arch/x86/kernel/fpu/signal.c:
+        __fpu__restore_sig(...):
+            ...
+            struct task_struct *tsk = current;
+            struct fpu *fpu = &tsk->thread.fpu;
+            ...
+            __copy_from_user(&fpu->state.xsave, ..., state_size);
+
+        fpu__restore_sig(...):
+            ...
+            return __fpu__restore_sig(...);
+
+    arch/x86/kernel/signal.c:
+        restore_sigcontext(...):
+            ...
+            fpu__restore_sig(...)
+
+This introduces arch_thread_struct_whitelist() to let an architecture
+declare specifically where the whitelist should be within thread_struct.
+If undefined, the entire thread_struct field is left whitelisted.
+
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nicholas Piggin <npiggin@gmail.com>
+Cc: Laura Abbott <labbott@redhat.com>
+Cc: "MickaA<<l SalaA 1/4 n" <mic@digikod.net>
 Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: "Peter Zijlstra (Intel)" <peterz@infradead.org>
-Cc: linux-arm-kernel@lists.infradead.org
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andy Lutomirski <luto@kernel.org>
 Signed-off-by: Kees Cook <keescook@chromium.org>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
- arch/arm/Kconfig                 | 1 +
- arch/arm/include/asm/processor.h | 7 +++++++
- 2 files changed, 8 insertions(+)
+ arch/Kconfig               | 11 +++++++++++
+ include/linux/sched/task.h | 14 ++++++++++++++
+ kernel/fork.c              | 22 ++++++++++++++++++++--
+ 3 files changed, 45 insertions(+), 2 deletions(-)
 
-diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 7888c9803eb0..4f1ab6c6b8c0 100644
---- a/arch/arm/Kconfig
-+++ b/arch/arm/Kconfig
-@@ -48,6 +48,7 @@ config ARM
- 	select HAVE_ARCH_KGDB if !CPU_ENDIAN_BE32 && MMU
- 	select HAVE_ARCH_MMAP_RND_BITS if MMU
- 	select HAVE_ARCH_SECCOMP_FILTER if (AEABI && !OABI_COMPAT)
-+	select HAVE_ARCH_THREAD_STRUCT_WHITELIST
- 	select HAVE_ARCH_TRACEHOOK
- 	select HAVE_ARM_SMCCC if CPU_V7
- 	select HAVE_EBPF_JIT if !CPU_ENDIAN_BE32
-diff --git a/arch/arm/include/asm/processor.h b/arch/arm/include/asm/processor.h
-index c3d5fc124a05..d6dc45c92ee5 100644
---- a/arch/arm/include/asm/processor.h
-+++ b/arch/arm/include/asm/processor.h
-@@ -45,6 +45,13 @@ struct thread_struct {
- 	struct debug_info	debug;
- };
+diff --git a/arch/Kconfig b/arch/Kconfig
+index 1aafb4efbb51..43f2e7b033ca 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -241,6 +241,17 @@ config ARCH_INIT_TASK
+ config ARCH_TASK_STRUCT_ALLOCATOR
+ 	bool
  
-+/* Nothing needs to be usercopy-whitelisted from thread_struct. */
++config HAVE_ARCH_THREAD_STRUCT_WHITELIST
++	bool
++	depends on !ARCH_TASK_STRUCT_ALLOCATOR
++	help
++	  An architecture should select this to provide hardened usercopy
++	  knowledge about what region of the thread_struct should be
++	  whitelisted for copying to userspace. Normally this is only the
++	  FPU registers. Specifically, arch_thread_struct_whitelist()
++	  should be implemented. Without this, the entire thread_struct
++	  field in task_struct will be left whitelisted.
++
+ # Select if arch has its private alloc_thread_stack() function
+ config ARCH_THREAD_STACK_ALLOCATOR
+ 	bool
+diff --git a/include/linux/sched/task.h b/include/linux/sched/task.h
+index 79a2a744648d..a5e6f0913f74 100644
+--- a/include/linux/sched/task.h
++++ b/include/linux/sched/task.h
+@@ -103,6 +103,20 @@ extern int arch_task_struct_size __read_mostly;
+ # define arch_task_struct_size (sizeof(struct task_struct))
+ #endif
+ 
++#ifndef CONFIG_HAVE_ARCH_THREAD_STRUCT_WHITELIST
++/*
++ * If an architecture has not declared a thread_struct whitelist we
++ * must assume something there may need to be copied to userspace.
++ */
 +static inline void arch_thread_struct_whitelist(unsigned long *offset,
 +						unsigned long *size)
 +{
-+	*offset = *size = 0;
++	*offset = 0;
++	/* Handle dynamically sized thread_struct. */
++	*size = arch_task_struct_size - offsetof(struct task_struct, thread);
++}
++#endif
++
+ #ifdef CONFIG_VMAP_STACK
+ static inline struct vm_struct *task_stack_vm_area(const struct task_struct *t)
+ {
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 720109dc723a..d8dcd8f8e82f 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -454,6 +454,21 @@ static void set_max_threads(unsigned int max_threads_suggested)
+ int arch_task_struct_size __read_mostly;
+ #endif
+ 
++static void task_struct_whitelist(unsigned long *offset, unsigned long *size)
++{
++	/* Fetch thread_struct whitelist for the architecture. */
++	arch_thread_struct_whitelist(offset, size);
++
++	/*
++	 * Handle zero-sized whitelist or empty thread_struct, otherwise
++	 * adjust offset to position of thread_struct in task_struct.
++	 */
++	if (unlikely(*size == 0))
++		*offset = 0;
++	else
++		*offset += offsetof(struct task_struct, thread);
 +}
 +
- #define INIT_THREAD  {	}
+ void __init fork_init(void)
+ {
+ 	int i;
+@@ -462,11 +477,14 @@ void __init fork_init(void)
+ #define ARCH_MIN_TASKALIGN	0
+ #endif
+ 	int align = max_t(int, L1_CACHE_BYTES, ARCH_MIN_TASKALIGN);
++	unsigned long useroffset, usersize;
  
- #ifdef CONFIG_MMU
+ 	/* create a slab on which task_structs can be allocated */
+-	task_struct_cachep = kmem_cache_create("task_struct",
++	task_struct_whitelist(&useroffset, &usersize);
++	task_struct_cachep = kmem_cache_create_usercopy("task_struct",
+ 			arch_task_struct_size, align,
+-			SLAB_PANIC|SLAB_NOTRACK|SLAB_ACCOUNT, NULL);
++			SLAB_PANIC|SLAB_NOTRACK|SLAB_ACCOUNT,
++			useroffset, usersize, NULL);
+ #endif
+ 
+ 	/* do the arch specific task caches init */
 -- 
 2.7.4
 
