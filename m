@@ -1,123 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C8D5A6B0033
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 12:01:19 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 97so3516455wrb.1
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 09:01:19 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id i48sor926327wrf.19.2017.09.20.09.01.18
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5404C6B0038
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 12:20:01 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id j16so6288549pga.6
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 09:20:01 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id a6si1548337pll.406.2017.09.20.09.19.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Sep 2017 09:01:18 -0700 (PDT)
-Date: Wed, 20 Sep 2017 18:01:13 +0200
-From: =?UTF-8?B?VG9tw6HFoSBHb2xlbWJpb3Zza8O9?= <tgolembi@redhat.com>
-Subject: Re: [PATCH] virtio_balloon: include buffers and chached memory
- statistics
-Message-ID: <20170920180113.73b76041@fiorina>
-In-Reply-To: <0bc0c49663fafdf3b03844fe048cac3216d88c5b.1505922364.git.tgolembi@redhat.com>
-References: <0bc0c49663fafdf3b03844fe048cac3216d88c5b.1505922364.git.tgolembi@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Sep 2017 09:19:59 -0700 (PDT)
+Subject: Re: [PATCH v5 03/10] swiotlb: Map the buffer if it was unmapped by
+ XPFO
+References: <20170809200755.11234-1-tycho@docker.com>
+ <20170809200755.11234-4-tycho@docker.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <5877eed8-0e8e-0dec-fdc7-de01bdbdafa8@intel.com>
+Date: Wed, 20 Sep 2017 09:19:56 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20170809200755.11234-4-tycho@docker.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, virtio-dev@lists.oasis-open.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, virtualization@lists.linux-foundation.org
-Cc: Wei Wang <wei.w.wang@intel.com>, Shaohua Li <shli@fb.com>, Huang Ying <ying.huang@intel.com>, "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>
+To: Tycho Andersen <tycho@docker.com>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Juerg Haefliger <juerg.haefliger@hpe.com>
 
-On Wed, 20 Sep 2017 17:48:36 +0200
-Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com> wrote:
+On 08/09/2017 01:07 PM, Tycho Andersen wrote:
+> --- a/lib/swiotlb.c
+> +++ b/lib/swiotlb.c
+> @@ -420,8 +420,9 @@ static void swiotlb_bounce(phys_addr_t orig_addr, phys_addr_t tlb_addr,
+>  {
+>  	unsigned long pfn = PFN_DOWN(orig_addr);
+>  	unsigned char *vaddr = phys_to_virt(tlb_addr);
+> +	struct page *page = pfn_to_page(pfn);
+>  
+> -	if (PageHighMem(pfn_to_page(pfn))) {
+> +	if (PageHighMem(page) || xpfo_page_is_unmapped(page)) {
+>  		/* The buffer does not have a mapping.  Map it in and copy */
+>  		unsigned int offset = orig_addr & ~PAGE_MASK;
+>  		char *buffer;
 
-> Add a new fields, VIRTIO_BALLOON_S_BUFFERS and VIRTIO_BALLOON_S_CACHED,
-> to virtio_balloon memory statistics protocol. The values correspond to
-> 'Buffers' and 'Cached' in /proc/meminfo.
->=20
-> To be able to compute the value of 'Cached' memory it is necessary to
-> export total_swapcache_pages() to modules.
->=20
-> Signed-off-by: Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com>
-> ---
->  drivers/virtio/virtio_balloon.c     | 11 +++++++++++
->  include/uapi/linux/virtio_balloon.h |  4 +++-
->  mm/swap_state.c                     |  1 +
->  3 files changed, 15 insertions(+), 1 deletion(-)
->=20
-> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_ball=
-oon.c
-> index f0b3a0b9d42f..c2558ec47a62 100644
-> --- a/drivers/virtio/virtio_balloon.c
-> +++ b/drivers/virtio/virtio_balloon.c
-> @@ -244,12 +244,19 @@ static unsigned int update_balloon_stats(struct vir=
-tio_balloon *vb)
->  	struct sysinfo i;
->  	unsigned int idx =3D 0;
->  	long available;
-> +	long cached;
-> =20
->  	all_vm_events(events);
->  	si_meminfo(&i);
-> =20
->  	available =3D si_mem_available();
-> =20
-> +	cached =3D global_node_page_state(NR_FILE_PAGES) -
-> +			total_swapcache_pages() - i.bufferram;
-> +	if (cached < 0)
-> +		cached =3D 0;
-> +
-> +
->  #ifdef CONFIG_VM_EVENT_COUNTERS
->  	update_stat(vb, idx++, VIRTIO_BALLOON_S_SWAP_IN,
->  				pages_to_bytes(events[PSWPIN]));
-> @@ -264,6 +271,10 @@ static unsigned int update_balloon_stats(struct virt=
-io_balloon *vb)
->  				pages_to_bytes(i.totalram));
->  	update_stat(vb, idx++, VIRTIO_BALLOON_S_AVAIL,
->  				pages_to_bytes(available));
-> +	update_stat(vb, idx++, VIRTIO_BALLOON_S_BUFFERS,
-> +				pages_to_bytes(i.bufferram));
-> +	update_stat(vb, idx++, VIRTIO_BALLOON_S_CACHED,
-> +				pages_to_bytes(cached));
-> =20
->  	return idx;
->  }
-> diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/vir=
-tio_balloon.h
-> index 343d7ddefe04..119224c34389 100644
-> --- a/include/uapi/linux/virtio_balloon.h
-> +++ b/include/uapi/linux/virtio_balloon.h
-> @@ -52,7 +52,9 @@ struct virtio_balloon_config {
->  #define VIRTIO_BALLOON_S_MEMFREE  4   /* Total amount of free memory */
->  #define VIRTIO_BALLOON_S_MEMTOT   5   /* Total amount of memory */
->  #define VIRTIO_BALLOON_S_AVAIL    6   /* Available memory as in /proc */
-> -#define VIRTIO_BALLOON_S_NR       7
-> +#define VIRTIO_BALLOON_S_BUFFERS  7   /* Bufferes memory as in /proc */
+This is a little scary.  I wonder how many more of these are in the
+kernel, like:
 
-I've just noticed I have a typo in the comment: 'Bufferes' should be
-'Buffers'.
+> static inline void *skcipher_map(struct scatter_walk *walk)
+> {
+>         struct page *page = scatterwalk_page(walk);
+> 
+>         return (PageHighMem(page) ? kmap_atomic(page) : page_address(page)) +
+>                offset_in_page(walk->offset);
+> }
 
-> +#define VIRTIO_BALLOON_S_CACHED   8   /* Cached memory as in /proc */
-> +#define VIRTIO_BALLOON_S_NR       9
-> =20
->  /*
->   * Memory statistics structure.
-> diff --git a/mm/swap_state.c b/mm/swap_state.c
-> index 71ce2d1ccbf7..f3a4ff7d6c52 100644
-> --- a/mm/swap_state.c
-> +++ b/mm/swap_state.c
-> @@ -95,6 +95,7 @@ unsigned long total_swapcache_pages(void)
->  	rcu_read_unlock();
->  	return ret;
->  }
-> +EXPORT_SYMBOL_GPL(total_swapcache_pages);
-> =20
->  static atomic_t swapin_readahead_hits =3D ATOMIC_INIT(4);
-> =20
-> --=20
-> 2.14.1
->=20
-
-
---=20
-Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com>
+Is there any better way to catch these?  Like, can we add some debugging
+to check for XPFO pages in __va()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
