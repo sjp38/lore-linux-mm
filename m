@@ -1,111 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D9D9B6B02BD
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:53:02 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 188so7415012pgb.3
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:53:02 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b34sor1231165plc.37.2017.09.20.13.53.01
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 68CDA6B02BF
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:56:49 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id m103so6342309iod.6
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:56:49 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id f198si99761ita.170.2017.09.20.13.56.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Sep 2017 13:53:01 -0700 (PDT)
-From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v3 21/31] sctp: Define usercopy region in SCTP proto slab cache
-Date: Wed, 20 Sep 2017 13:45:27 -0700
-Message-Id: <1505940337-79069-22-git-send-email-keescook@chromium.org>
-In-Reply-To: <1505940337-79069-1-git-send-email-keescook@chromium.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Sep 2017 13:56:44 -0700 (PDT)
+Date: Wed, 20 Sep 2017 13:56:42 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v3 14/31] vxfs: Define usercopy region in vxfs_inode slab
+ cache
+Message-ID: <20170920205642.GA20023@infradead.org>
 References: <1505940337-79069-1-git-send-email-keescook@chromium.org>
+ <1505940337-79069-15-git-send-email-keescook@chromium.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1505940337-79069-15-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, Vlad Yasevich <vyasevich@gmail.com>, Neil Horman <nhorman@tuxdriver.com>, "David S. Miller" <davem@davemloft.net>, linux-sctp@vger.kernel.org, netdev@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+To: Kees Cook <keescook@chromium.org>
+Cc: linux-kernel@vger.kernel.org, David Windsor <dave@nullcore.net>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-From: David Windsor <dave@nullcore.net>
+Hi Kees,
 
-The SCTP socket event notification subscription information need to be
-copied to/from userspace. In support of usercopy hardening, this patch
-defines a region in the struct proto slab cache in which userspace copy
-operations are allowed. Additionally moves the usercopy fields to be
-adjacent for the region to cover both.
+I've only got this single email from you, which on it's own doesn't
+compile and seems to be part of a 31 patch series.
 
-example usage trace:
+So as-is NAK, doesn't work.
 
-    net/sctp/socket.c:
-        sctp_getsockopt_events(...):
-            ...
-            copy_to_user(..., &sctp_sk(sk)->subscribe, len)
-
-        sctp_setsockopt_events(...):
-            ...
-            copy_from_user(&sctp_sk(sk)->subscribe, ..., optlen)
-
-        sctp_getsockopt_initmsg(...):
-            ...
-            copy_to_user(..., &sctp_sk(sk)->initmsg, len)
-
-This region is known as the slab cache's usercopy region. Slab caches can
-now check that each copy operation involving cache-managed memory falls
-entirely within the slab's usercopy region.
-
-This patch is modified from Brad Spengler/PaX Team's PAX_USERCOPY
-whitelisting code in the last public patch of grsecurity/PaX based on my
-understanding of the code. Changes or omissions from the original code are
-mine and don't reflect the original grsecurity/PaX code.
-
-Signed-off-by: David Windsor <dave@nullcore.net>
-[kees: split from network patch, move struct member adjacent, provide usage]
-Cc: Vlad Yasevich <vyasevich@gmail.com>
-Cc: Neil Horman <nhorman@tuxdriver.com>
-Cc: "David S. Miller" <davem@davemloft.net>
-Cc: linux-sctp@vger.kernel.org
-Cc: netdev@vger.kernel.org
-Signed-off-by: Kees Cook <keescook@chromium.org>
----
- include/net/sctp/structs.h | 9 +++++++--
- net/sctp/socket.c          | 4 ++++
- 2 files changed, 11 insertions(+), 2 deletions(-)
-
-diff --git a/include/net/sctp/structs.h b/include/net/sctp/structs.h
-index 0477945de1a3..f2da107983d9 100644
---- a/include/net/sctp/structs.h
-+++ b/include/net/sctp/structs.h
-@@ -202,12 +202,17 @@ struct sctp_sock {
- 	/* Flags controlling Heartbeat, SACK delay, and Path MTU Discovery. */
- 	__u32 param_flags;
- 
--	struct sctp_initmsg initmsg;
- 	struct sctp_rtoinfo rtoinfo;
- 	struct sctp_paddrparams paddrparam;
--	struct sctp_event_subscribe subscribe;
- 	struct sctp_assocparams assocparams;
- 
-+	/*
-+	 * These two structures must be grouped together for the usercopy
-+	 * whitelist region.
-+	 */
-+	struct sctp_event_subscribe subscribe;
-+	struct sctp_initmsg initmsg;
-+
- 	int user_frag;
- 
- 	__u32 autoclose;
-diff --git a/net/sctp/socket.c b/net/sctp/socket.c
-index d4730ada7f32..aa4f86d64545 100644
---- a/net/sctp/socket.c
-+++ b/net/sctp/socket.c
-@@ -8246,6 +8246,10 @@ struct proto sctp_prot = {
- 	.unhash      =	sctp_unhash,
- 	.get_port    =	sctp_get_port,
- 	.obj_size    =  sizeof(struct sctp_sock),
-+	.useroffset  =  offsetof(struct sctp_sock, subscribe),
-+	.usersize    =  offsetof(struct sctp_sock, initmsg) -
-+				offsetof(struct sctp_sock, subscribe) +
-+				sizeof_field(struct sctp_sock, initmsg),
- 	.sysctl_mem  =  sysctl_sctp_mem,
- 	.sysctl_rmem =  sysctl_sctp_rmem,
- 	.sysctl_wmem =  sysctl_sctp_wmem,
--- 
-2.7.4
+Please make sure to always send every patch in a series to every
+developer you want to include.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
