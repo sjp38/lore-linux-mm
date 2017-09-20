@@ -1,260 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E1CC76B0266
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 01:43:35 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id j16so3529912pga.6
-        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 22:43:35 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id g202si2474450pfb.563.2017.09.19.22.43.33
-        for <linux-mm@kvack.org>;
-        Tue, 19 Sep 2017 22:43:34 -0700 (PDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2 4/4] mm:swap: skip swapcache for swapin of synchronous device
-Date: Wed, 20 Sep 2017 14:43:25 +0900
-Message-Id: <1505886205-9671-5-git-send-email-minchan@kernel.org>
-In-Reply-To: <1505886205-9671-1-git-send-email-minchan@kernel.org>
-References: <1505886205-9671-1-git-send-email-minchan@kernel.org>
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DE0CE6B026D
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 02:05:23 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id e191so3363929ywh.4
+        for <linux-mm@kvack.org>; Tue, 19 Sep 2017 23:05:23 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l124sor432838ywd.166.2017.09.19.23.05.22
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 19 Sep 2017 23:05:22 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <eebaf6e6-63be-2759-67b2-62d980cdd8f8@kernel.dk>
+References: <1505850787-18311-1-git-send-email-axboe@kernel.dk>
+ <1505850787-18311-7-git-send-email-axboe@kernel.dk> <CAOQ4uxjxgtNvNFh936SK2+kbPvj5zDR_tx66u2s6jiOTSrRLUQ@mail.gmail.com>
+ <eebaf6e6-63be-2759-67b2-62d980cdd8f8@kernel.dk>
+From: Amir Goldstein <amir73il@gmail.com>
+Date: Wed, 20 Sep 2017 09:05:21 +0300
+Message-ID: <CAOQ4uxhwX-r_aVGUuvyxb6GsjJJ5hMOfHyw=oEYM87mxDEnznA@mail.gmail.com>
+Subject: Re: [PATCH 6/6] fs-writeback: only allow one inflight and pending
+ !nr_pages flush
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team <kernel-team@lge.com>, Christoph Hellwig <hch@lst.de>, Minchan Kim <minchan@kernel.org>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hugh Dickins <hughd@google.com>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, hannes@cmpxchg.org, Chris Mason <clm@fb.com>, Jan Kara <jack@suse.cz>
 
-With fast swap storage, platform want to use swap more aggressively
-and swap-in is crucial to application latency.
+On Wed, Sep 20, 2017 at 7:13 AM, Jens Axboe <axboe@kernel.dk> wrote:
+> On 09/19/2017 09:10 PM, Amir Goldstein wrote:
+>> On Tue, Sep 19, 2017 at 10:53 PM, Jens Axboe <axboe@kernel.dk> wrote:
+>>> A few callers pass in nr_pages == 0 when they wakeup the flusher
+>>> threads, which means that the flusher should just flush everything
+>>> that was currently dirty. If we are tight on memory, we can get
+>>> tons of these queued from kswapd/vmscan. This causes (at least)
+>>> two problems:
+>>>
+>>> 1) We consume a ton of memory just allocating writeback work items.
+>>> 2) We spend so much time processing these work items, that we
+>>>    introduce a softlockup in writeback processing.
+>>>
+>>> Fix this by adding a 'zero_pages' bit to the writeback structure,
+>>> and set that when someone queues a nr_pages==0 flusher thread
+>>> wakeup. The bit is cleared when we start writeback on that work
+>>> item. If the bit is already set when we attempt to queue !nr_pages
+>>> writeback, then we simply ignore it.
+>>>
+>>> This provides us one of full flush in flight, with one pending as
+>>> well, and makes for more efficient handling of this type of
+>>> writeback.
+>>>
+>>> Signed-off-by: Jens Axboe <axboe@kernel.dk>
+>>> ---
+>>>  fs/fs-writeback.c                | 30 ++++++++++++++++++++++++++++--
+>>>  include/linux/backing-dev-defs.h |  1 +
+>>>  2 files changed, 29 insertions(+), 2 deletions(-)
+>>>
+>>> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+>>> index a9a86644cb9f..e0240110b36f 100644
+>>> --- a/fs/fs-writeback.c
+>>> +++ b/fs/fs-writeback.c
+>>> @@ -53,6 +53,7 @@ struct wb_writeback_work {
+>>>         unsigned int for_background:1;
+>>>         unsigned int for_sync:1;        /* sync(2) WB_SYNC_ALL writeback */
+>>>         unsigned int auto_free:1;       /* free on completion */
+>>> +       unsigned int zero_pages:1;      /* nr_pages == 0 writeback */
+>>
+>> Suggest: use a name that describes the intention (e.g. WB_everything)
+>
+> Agree, the name isn't the best. WB_everything isn't great either, though,
+> since this isn't an integrity write. WB_start_all would be better,
+> I'll make that change.
+>
+>>>         enum wb_reason reason;          /* why was writeback initiated? */
+>>>
+>>>         struct list_head list;          /* pending work list */
+>>> @@ -948,15 +949,25 @@ static void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
+>>>                                bool range_cyclic, enum wb_reason reason)
+>>>  {
+>>>         struct wb_writeback_work *work;
+>>> +       bool zero_pages = false;
+>>>
+>>>         if (!wb_has_dirty_io(wb))
+>>>                 return;
+>>>
+>>>         /*
+>>> -        * If someone asked for zero pages, we write out the WORLD
+>>> +        * If someone asked for zero pages, we write out the WORLD.
+>>> +        * Places like vmscan and laptop mode want to queue a wakeup to
+>>> +        * the flusher threads to clean out everything. To avoid potentially
+>>> +        * having tons of these pending, ensure that we only allow one of
+>>> +        * them pending and inflight at the time
+>>>          */
+>>> -       if (!nr_pages)
+>>> +       if (!nr_pages) {
+>>> +               if (test_bit(WB_zero_pages, &wb->state))
+>>> +                       return;
+>>> +               set_bit(WB_zero_pages, &wb->state);
+>>
+>> Shouldn't this be test_and_set? not the worst outcome if you have more
+>> than one pending work item, but still.
+>
+> If the frequency of these is high, and they were to trigger the bad
+> conditions we saw, then a split test + set is faster as it won't
+> keep re-dirtying the same cacheline from multiple locations. It's
+> better to leave it a little racy, but faster.
+>
 
-The rw_page based synchronous devices like zram, pmem and btt are such
-fast storage. When I profile swapin performance with zram lz4 decompress
-test, S/W overhead is more than 70%. Maybe, it would be bigger in nvdimm.
+Fare enough, but then better change the language of the commit message and
+comment above not to claim that there can be only one pending work item.
 
-This patch aims for reducing swap-in latency via skipping swapcache
-if swap device is synchronous device like rw_page based device.
-It enhances 45% my swapin test(5G sequential swapin, no readahead,
-from 2.41sec to 1.64sec).
-
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Hugh Dickins <hughd@google.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- include/linux/swap.h | 11 +++++++++++
- mm/memory.c          | 52 ++++++++++++++++++++++++++++++++++++----------------
- mm/page_io.c         |  6 +++---
- mm/swapfile.c        | 11 +++++++----
- 4 files changed, 57 insertions(+), 23 deletions(-)
-
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index fbb33919d1c6..cd2f66fdfc2d 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -461,6 +461,7 @@ extern int page_swapcount(struct page *);
- extern int __swp_swapcount(swp_entry_t entry);
- extern int swp_swapcount(swp_entry_t entry);
- extern struct swap_info_struct *page_swap_info(struct page *);
-+extern struct swap_info_struct *swp_swap_info(swp_entry_t entry);
- extern bool reuse_swap_page(struct page *, int *);
- extern int try_to_free_swap(struct page *);
- struct backing_dev_info;
-@@ -469,6 +470,16 @@ extern void exit_swap_address_space(unsigned int type);
- 
- #else /* CONFIG_SWAP */
- 
-+static inline int swap_readpage(struct page *page, bool do_poll)
-+{
-+	return 0;
-+}
-+
-+static inline struct swap_info_struct *swp_swap_info(swp_entry_t entry)
-+{
-+	return NULL;
-+}
-+
- #define swap_address_space(entry)		(NULL)
- #define get_nr_swap_pages()			0L
- #define total_swap_pages			0L
-diff --git a/mm/memory.c b/mm/memory.c
-index ec4e15494901..163ab2062385 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2842,7 +2842,7 @@ EXPORT_SYMBOL(unmap_mapping_range);
- int do_swap_page(struct vm_fault *vmf)
- {
- 	struct vm_area_struct *vma = vmf->vma;
--	struct page *page = NULL, *swapcache;
-+	struct page *page = NULL, *swapcache = NULL;
- 	struct mem_cgroup *memcg;
- 	struct vma_swap_readahead swap_ra;
- 	swp_entry_t entry;
-@@ -2881,17 +2881,35 @@ int do_swap_page(struct vm_fault *vmf)
- 		}
- 		goto out;
- 	}
-+
-+
- 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
- 	if (!page)
- 		page = lookup_swap_cache(entry, vma_readahead ? vma : NULL,
- 					 vmf->address);
- 	if (!page) {
--		if (vma_readahead)
--			page = do_swap_page_readahead(entry,
--				GFP_HIGHUSER_MOVABLE, vmf, &swap_ra);
--		else
--			page = swapin_readahead(entry,
--				GFP_HIGHUSER_MOVABLE, vma, vmf->address);
-+		struct swap_info_struct *si = swp_swap_info(entry);
-+
-+		if (!(si->flags & SWP_SYNCHRONOUS_IO)) {
-+			if (vma_readahead)
-+				page = do_swap_page_readahead(entry,
-+					GFP_HIGHUSER_MOVABLE, vmf, &swap_ra);
-+			else
-+				page = swapin_readahead(entry,
-+					GFP_HIGHUSER_MOVABLE, vma, vmf->address);
-+			swapcache = page;
-+		} else {
-+			/* skip swapcache */
-+			page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vmf->address);
-+			if (page) {
-+				__SetPageLocked(page);
-+				__SetPageSwapBacked(page);
-+				set_page_private(page, entry.val);
-+				lru_cache_add_anon(page);
-+				swap_readpage(page, true);
-+			}
-+		}
-+
- 		if (!page) {
- 			/*
- 			 * Back out if somebody else faulted in this pte
-@@ -2920,7 +2938,6 @@ int do_swap_page(struct vm_fault *vmf)
- 		goto out_release;
- 	}
- 
--	swapcache = page;
- 	locked = lock_page_or_retry(page, vma->vm_mm, vmf->flags);
- 
- 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
-@@ -2935,7 +2952,8 @@ int do_swap_page(struct vm_fault *vmf)
- 	 * test below, are not enough to exclude that.  Even if it is still
- 	 * swapcache, we need to check that the page's swap has not changed.
- 	 */
--	if (unlikely(!PageSwapCache(page) || page_private(page) != entry.val))
-+	if (unlikely((!PageSwapCache(page) ||
-+			page_private(page) != entry.val)) && swapcache)
- 		goto out_page;
- 
- 	page = ksm_might_need_to_copy(page, vma, vmf->address);
-@@ -2988,14 +3006,16 @@ int do_swap_page(struct vm_fault *vmf)
- 		pte = pte_mksoft_dirty(pte);
- 	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, pte);
- 	vmf->orig_pte = pte;
--	if (page == swapcache) {
--		do_page_add_anon_rmap(page, vma, vmf->address, exclusive);
--		mem_cgroup_commit_charge(page, memcg, true, false);
--		activate_page(page);
--	} else { /* ksm created a completely new copy */
-+
-+	/* ksm created a completely new copy */
-+	if (unlikely(page != swapcache && swapcache)) {
- 		page_add_new_anon_rmap(page, vma, vmf->address, false);
- 		mem_cgroup_commit_charge(page, memcg, false, false);
- 		lru_cache_add_active_or_unevictable(page, vma);
-+	} else {
-+		do_page_add_anon_rmap(page, vma, vmf->address, exclusive);
-+		mem_cgroup_commit_charge(page, memcg, true, false);
-+		activate_page(page);
- 	}
- 
- 	swap_free(entry);
-@@ -3003,7 +3023,7 @@ int do_swap_page(struct vm_fault *vmf)
- 	    (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
- 		try_to_free_swap(page);
- 	unlock_page(page);
--	if (page != swapcache) {
-+	if (page != swapcache && swapcache) {
- 		/*
- 		 * Hold the lock to avoid the swap entry to be reused
- 		 * until we take the PT lock for the pte_same() check
-@@ -3036,7 +3056,7 @@ int do_swap_page(struct vm_fault *vmf)
- 	unlock_page(page);
- out_release:
- 	put_page(page);
--	if (page != swapcache) {
-+	if (page != swapcache && swapcache) {
- 		unlock_page(swapcache);
- 		put_page(swapcache);
- 	}
-diff --git a/mm/page_io.c b/mm/page_io.c
-index 21502d341a67..d4a98e1f6608 100644
---- a/mm/page_io.c
-+++ b/mm/page_io.c
-@@ -346,7 +346,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
- 	return ret;
- }
- 
--int swap_readpage(struct page *page, bool do_poll)
-+int swap_readpage(struct page *page, bool synchronous)
- {
- 	struct bio *bio;
- 	int ret = 0;
-@@ -354,7 +354,7 @@ int swap_readpage(struct page *page, bool do_poll)
- 	blk_qc_t qc;
- 	struct gendisk *disk;
- 
--	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
-+	VM_BUG_ON_PAGE(!PageSwapCache(page) && !synchronous, page);
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	VM_BUG_ON_PAGE(PageUptodate(page), page);
- 	if (frontswap_load(page) == 0) {
-@@ -402,7 +402,7 @@ int swap_readpage(struct page *page, bool do_poll)
- 	count_vm_event(PSWPIN);
- 	bio_get(bio);
- 	qc = submit_bio(bio);
--	while (do_poll) {
-+	while (synchronous) {
- 		set_current_state(TASK_UNINTERRUPTIBLE);
- 		if (!READ_ONCE(bio->bi_private))
- 			break;
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 1305591cde4d..64a3d85226ba 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -3454,10 +3454,15 @@ int swapcache_prepare(swp_entry_t entry)
- 	return __swap_duplicate(entry, SWAP_HAS_CACHE);
- }
- 
-+struct swap_info_struct *swp_swap_info(swp_entry_t entry)
-+{
-+	return swap_info[swp_type(entry)];
-+}
-+
- struct swap_info_struct *page_swap_info(struct page *page)
- {
--	swp_entry_t swap = { .val = page_private(page) };
--	return swap_info[swp_type(swap)];
-+	swp_entry_t entry = { .val = page_private(page) };
-+	return swp_swap_info(entry);
- }
- 
- /*
-@@ -3465,7 +3470,6 @@ struct swap_info_struct *page_swap_info(struct page *page)
-  */
- struct address_space *__page_file_mapping(struct page *page)
- {
--	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
- 	return page_swap_info(page)->swap_file->f_mapping;
- }
- EXPORT_SYMBOL_GPL(__page_file_mapping);
-@@ -3473,7 +3477,6 @@ EXPORT_SYMBOL_GPL(__page_file_mapping);
- pgoff_t __page_file_index(struct page *page)
- {
- 	swp_entry_t swap = { .val = page_private(page) };
--	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
- 	return swp_offset(swap);
- }
- EXPORT_SYMBOL_GPL(__page_file_index);
--- 
-2.7.4
+Amir.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
