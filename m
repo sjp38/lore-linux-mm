@@ -1,67 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 791F46B02D8
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 18:47:43 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id 93so6843544iol.2
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 15:47:43 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p185sor8287oih.126.2017.09.20.15.47.42
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CC4916B02DB
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 19:07:12 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id u138so4089712wmu.2
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:07:12 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id v18si399605edc.50.2017.09.20.16.07.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Sep 2017 15:47:42 -0700 (PDT)
-Date: Wed, 20 Sep 2017 16:47:39 -0600
-From: Tycho Andersen <tycho@docker.com>
-Subject: Re: [PATCH v5 03/10] swiotlb: Map the buffer if it was unmapped by
- XPFO
-Message-ID: <20170920224739.3kgzmntabmkedohw@smitten>
-References: <20170809200755.11234-1-tycho@docker.com>
- <20170809200755.11234-4-tycho@docker.com>
- <5877eed8-0e8e-0dec-fdc7-de01bdbdafa8@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Sep 2017 16:07:11 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: [RESEND] proc, coredump: add CoreDumping flag to /proc/pid/status
+Date: Wed, 20 Sep 2017 16:06:34 -0700
+Message-ID: <20170920230634.31572-1-guro@fb.com>
+In-Reply-To: <20170914224431.GA9735@castle>
+References: <20170914224431.GA9735@castle>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5877eed8-0e8e-0dec-fdc7-de01bdbdafa8@intel.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Juerg Haefliger <juerg.haefliger@hpe.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-On Wed, Sep 20, 2017 at 09:19:56AM -0700, Dave Hansen wrote:
-> On 08/09/2017 01:07 PM, Tycho Andersen wrote:
-> > --- a/lib/swiotlb.c
-> > +++ b/lib/swiotlb.c
-> > @@ -420,8 +420,9 @@ static void swiotlb_bounce(phys_addr_t orig_addr, phys_addr_t tlb_addr,
-> >  {
-> >  	unsigned long pfn = PFN_DOWN(orig_addr);
-> >  	unsigned char *vaddr = phys_to_virt(tlb_addr);
-> > +	struct page *page = pfn_to_page(pfn);
-> >  
-> > -	if (PageHighMem(pfn_to_page(pfn))) {
-> > +	if (PageHighMem(page) || xpfo_page_is_unmapped(page)) {
-> >  		/* The buffer does not have a mapping.  Map it in and copy */
-> >  		unsigned int offset = orig_addr & ~PAGE_MASK;
-> >  		char *buffer;
-> 
-> This is a little scary.  I wonder how many more of these are in the
-> kernel, like:
+Right now there is no convenient way to check if a process is being
+coredumped at the moment.
 
-I don't know, but I assume several :)
+It might be necessary to recognize such state to prevent killing
+the process and getting a broken coredump.
+Writing a large core might take significant time, and the process
+is unresponsive during it, so it might be killed by timeout,
+if another process is monitoring and killing/restarting
+hanging tasks.
 
-> > static inline void *skcipher_map(struct scatter_walk *walk)
-> > {
-> >         struct page *page = scatterwalk_page(walk);
-> > 
-> >         return (PageHighMem(page) ? kmap_atomic(page) : page_address(page)) +
-> >                offset_in_page(walk->offset);
-> > }
-> 
-> Is there any better way to catch these?  Like, can we add some debugging
-> to check for XPFO pages in __va()?
+To provide an ability to detect if a process is in the state of
+being coreduped, we can expose a boolean CoreDumping flag
+in /proc/pid/status.
 
-Yes, and perhaps also a debugging check in PageHighMem? Would __va
-have caught either of the two cases you've pointed out?
+Example:
+$ cat core.sh
+  #!/bin/sh
 
-Tycho
+  echo "|/usr/bin/sleep 10" > /proc/sys/kernel/core_pattern
+  sleep 1000 &
+  PID=$!
+
+  cat /proc/$PID/status | grep CoreDumping
+  kill -ABRT $PID
+  sleep 1
+  cat /proc/$PID/status | grep CoreDumping
+
+$ ./core.sh
+  CoreDumping:	0
+  CoreDumping:	1
+
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: kernel-team@fb.com
+Cc: linux-kernel@vger.kernel.org
+---
+ fs/proc/array.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/fs/proc/array.c b/fs/proc/array.c
+index 88c355574aa0..fc4a0aa7f487 100644
+--- a/fs/proc/array.c
++++ b/fs/proc/array.c
+@@ -369,6 +369,11 @@ static void task_cpus_allowed(struct seq_file *m, struct task_struct *task)
+ 		   cpumask_pr_args(&task->cpus_allowed));
+ }
+ 
++static inline void task_core_dumping(struct seq_file *m, struct mm_struct *mm)
++{
++	seq_printf(m, "CoreDumping:\t%d\n", !!mm->core_state);
++}
++
+ int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
+ 			struct pid *pid, struct task_struct *task)
+ {
+@@ -379,6 +384,7 @@ int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
+ 
+ 	if (mm) {
+ 		task_mem(m, mm);
++		task_core_dumping(m, mm);
+ 		mmput(mm);
+ 	}
+ 	task_sig(m, task);
+-- 
+2.13.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
