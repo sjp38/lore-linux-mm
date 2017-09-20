@@ -1,149 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D39B66B0069
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:18:06 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id i131so3787931wma.1
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:18:06 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E7D4B6B025E
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:18:07 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id h16so4121390wrf.0
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:18:07 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id i35si42847edd.391.2017.09.20.13.18.05
+        by mx.google.com with ESMTPS id k56si60390edb.160.2017.09.20.13.18.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 20 Sep 2017 13:18:05 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v9 00/12] complete deferred page initialization
-Date: Wed, 20 Sep 2017 16:17:02 -0400
-Message-Id: <20170920201714.19817-1-pasha.tatashin@oracle.com>
+Subject: [PATCH v9 01/12] x86/mm: setting fields in deferred pages
+Date: Wed, 20 Sep 2017 16:17:03 -0400
+Message-Id: <20170920201714.19817-2-pasha.tatashin@oracle.com>
+In-Reply-To: <20170920201714.19817-1-pasha.tatashin@oracle.com>
+References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-Changelog:
-v9 - v8
-- Addressed comments raised by Mark Rutland and Ard Biesheuvel: changed
-  kasan implementation. Added a new function: kasan_map_populate() that
-  zeroes the allocated and mapped memory
+Without deferred struct page feature (CONFIG_DEFERRED_STRUCT_PAGE_INIT),
+flags and other fields in "struct page"es are never changed prior to first
+initializing struct pages by going through __init_single_page().
 
-v8 - v7
-- Added Acked-by's from Dave Miller for SPARC changes
-- Fixed a minor compiling issue on tile architecture reported by kbuild
+With deferred struct page feature enabled, however, we set fields in
+register_page_bootmem_info that are subsequently clobbered right after in
+free_all_bootmem:
 
-v7 - v6
-- Addressed comments from Michal Hocko
-- memblock_discard() patch was removed from this series and integrated
-  separately
-- Fixed bug reported by kbuild test robot new patch:
-  mm: zero reserved and unavailable struct pages
-- Removed patch
-  x86/mm: reserve only exiting low pages
-  As, it is not needed anymore, because of the previous fix
-- Re-wrote deferred_init_memmap(), found and fixed an existing bug, where
-  page variable is not reset when zone holes present.
-- Merged several patches together per Michal request
-- Added performance data including raw logs
+        mem_init() {
+                register_page_bootmem_info();
+                free_all_bootmem();
+                ...
+        }
 
-v6 - v5
-- Fixed ARM64 + kasan code, as reported by Ard Biesheuvel
-- Tested ARM64 code in qemu and found few more issues, that I fixed in this
-  iteration
-- Added page roundup/rounddown to x86 and arm zeroing routines to zero the
-  whole allocated range, instead of only provided address range.
-- Addressed SPARC related comment from Sam Ravnborg
-- Fixed section mismatch warnings related to memblock_discard().
+When register_page_bootmem_info() is called only non-deferred struct pages
+are initialized. But, this function goes through some reserved pages which
+might be part of the deferred, and thus are not yet initialized.
 
-v5 - v4
-- Fixed build issues reported by kbuild on various configurations
+  mem_init
+   register_page_bootmem_info
+    register_page_bootmem_info_node
+     get_page_bootmem
+      .. setting fields here ..
+      such as: page->freelist = (void *)type;
 
-v4 - v3
-- Rewrote code to zero sturct pages in __init_single_page() as
-  suggested by Michal Hocko
-- Added code to handle issues related to accessing struct page
-  memory before they are initialized.
+  free_all_bootmem()
+   free_low_memory_core_early()
+    for_each_reserved_mem_region()
+     reserve_bootmem_region()
+      init_reserved_page() <- Only if this is deferred reserved page
+       __init_single_pfn()
+        __init_single_page()
+            memset(0) <-- Loose the set fields here
 
-v3 - v2
-- Addressed David Miller comments about one change per patch:
-    * Splited changes to platforms into 4 patches
-    * Made "do not zero vmemmap_buf" as a separate patch
+We end-up with issue where, currently we do not observe problem as memory
+is explicitly zeroed. But, if flag asserts are changed we can start hitting
+issues.
 
-v2 - v1
-- Per request, added s390 to deferred "struct page" zeroing
-- Collected performance data on x86 which proofs the importance to
-  keep memset() as prefetch (see below).
+Also, because in this patch series we will stop zeroing struct page memory
+during allocation, we must make sure that struct pages are properly
+initialized prior to using them.
 
-SMP machines can benefit from the DEFERRED_STRUCT_PAGE_INIT config option,
-which defers initializing struct pages until all cpus have been started so
-it can be done in parallel.
+The deferred-reserved pages are initialized in free_all_bootmem().
+Therefore, the fix is to switch the above calls.
 
-However, this feature is sub-optimal, because the deferred page
-initialization code expects that the struct pages have already been zeroed,
-and the zeroing is done early in boot with a single thread only.  Also, we
-access that memory and set flags before struct pages are initialized. All
-of this is fixed in this patchset.
+Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
+Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+Reviewed-by: Bob Picco <bob.picco@oracle.com>
+---
+ arch/x86/mm/init_64.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
 
-In this work we do the following:
-- Never read access struct page until it was initialized
-- Never set any fields in struct pages before they are initialized
-- Zero struct page at the beginning of struct page initialization
-
-
-==========================================================================
-Performance improvements on x86 machine with 8 nodes:
-Intel(R) Xeon(R) CPU E7-8895 v3 @ 2.60GHz and 1T of memory:
-                        TIME          SPEED UP
-base no deferred:       95.796233s
-fix no deferred:        79.978956s    19.77%
-
-base deferred:          77.254713s
-fix deferred:           55.050509s    40.34%
-==========================================================================
-SPARC M6 3600 MHz with 15T of memory
-                        TIME          SPEED UP
-base no deferred:       358.335727s
-fix no deferred:        302.320936s   18.52%
-
-base deferred:          237.534603s
-fix deferred:           182.103003s   30.44%
-==========================================================================
-Raw dmesg output with timestamps:
-x86 base no deferred:    https://hastebin.com/ofunepurit.scala
-x86 base deferred:       https://hastebin.com/ifazegeyas.scala
-x86 fix no deferred:     https://hastebin.com/pegocohevo.scala
-x86 fix deferred:        https://hastebin.com/ofupevikuk.scala
-sparc base no deferred:  https://hastebin.com/ibobeteken.go
-sparc base deferred:     https://hastebin.com/fariqimiyu.go
-sparc fix no deferred:   https://hastebin.com/muhegoheyi.go
-sparc fix deferred:      https://hastebin.com/xadinobutu.go
-
-Pavel Tatashin (12):
-  x86/mm: setting fields in deferred pages
-  sparc64/mm: setting fields in deferred pages
-  mm: deferred_init_memmap improvements
-  sparc64: simplify vmemmap_populate
-  mm: defining memblock_virt_alloc_try_nid_raw
-  mm: zero struct pages during initialization
-  sparc64: optimized struct page zeroing
-  mm: zero reserved and unavailable struct pages
-  mm/kasan: kasan specific map populate function
-  x86/kasan: use kasan_map_populate()
-  arm64/kasan: use kasan_map_populate()
-  mm: stop zeroing memory during allocation in vmemmap
-
- arch/arm64/include/asm/pgtable.h    |   3 +
- arch/arm64/mm/kasan_init.c          |  12 +--
- arch/sparc/include/asm/pgtable_64.h |  30 ++++++
- arch/sparc/mm/init_64.c             |  31 +++---
- arch/x86/mm/init_64.c               |   9 +-
- arch/x86/mm/kasan_init_64.c         |   8 +-
- include/linux/bootmem.h             |  27 +++++
- include/linux/kasan.h               |   2 +
- include/linux/memblock.h            |  16 +++
- include/linux/mm.h                  |  26 +++++
- mm/kasan/kasan_init.c               |  67 ++++++++++++
- mm/memblock.c                       |  60 +++++++++--
- mm/page_alloc.c                     | 207 ++++++++++++++++++++----------------
- mm/sparse-vmemmap.c                 |  15 ++-
- mm/sparse.c                         |   6 +-
- 15 files changed, 380 insertions(+), 139 deletions(-)
-
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 5ea1c3c2636e..30fe22558720 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1182,12 +1182,17 @@ void __init mem_init(void)
+ 
+ 	/* clear_bss() already clear the empty_zero_page */
+ 
+-	register_page_bootmem_info();
+-
+ 	/* this will put all memory onto the freelists */
+ 	free_all_bootmem();
+ 	after_bootmem = 1;
+ 
++	/* Must be done after boot memory is put on freelist, because here we
++	 * might set fields in deferred struct pages that have not yet been
++	 * initialized, and free_all_bootmem() initializes all the reserved
++	 * deferred pages for us.
++	 */
++	register_page_bootmem_info();
++
+ 	/* Register memory areas for /proc/kcore */
+ 	kclist_add(&kcore_vsyscall, (void *)VSYSCALL_ADDR,
+ 			 PAGE_SIZE, KCORE_OTHER);
 -- 
 2.14.1
 
