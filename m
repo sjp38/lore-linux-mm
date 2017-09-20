@@ -1,54 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E77D16B02E1
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 19:22:25 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id e191so7518448ywh.4
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:22:25 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id z132si15944yba.377.2017.09.20.16.22.24
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BE526B02E3
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 19:25:52 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id j16so7973264pga.6
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:25:52 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id i11si47637plk.746.2017.09.20.16.25.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Sep 2017 16:22:24 -0700 (PDT)
-Date: Wed, 20 Sep 2017 16:22:21 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH v3 14/31] vxfs: Define usercopy region in vxfs_inode slab
- cache
-Message-ID: <20170920232221.GA18311@infradead.org>
-References: <1505940337-79069-1-git-send-email-keescook@chromium.org>
- <1505940337-79069-15-git-send-email-keescook@chromium.org>
- <20170920205642.GA20023@infradead.org>
- <CAGXu5j+hr0UwB5NsvPSKVVfM6NFHHhnNeUZbuwyTRppSOx9Ucw@mail.gmail.com>
+        Wed, 20 Sep 2017 16:25:51 -0700 (PDT)
+Subject: Re: [PATCH v5 03/10] swiotlb: Map the buffer if it was unmapped by
+ XPFO
+References: <20170809200755.11234-1-tycho@docker.com>
+ <20170809200755.11234-4-tycho@docker.com>
+ <5877eed8-0e8e-0dec-fdc7-de01bdbdafa8@intel.com>
+ <20170920224739.3kgzmntabmkedohw@smitten>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <370bb00d-8c1c-1a69-7c7f-f6135b16b4fa@intel.com>
+Date: Wed, 20 Sep 2017 16:25:48 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGXu5j+hr0UwB5NsvPSKVVfM6NFHHhnNeUZbuwyTRppSOx9Ucw@mail.gmail.com>
+In-Reply-To: <20170920224739.3kgzmntabmkedohw@smitten>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Christoph Hellwig <hch@infradead.org>, LKML <linux-kernel@vger.kernel.org>, David Windsor <dave@nullcore.net>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Network Development <netdev@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Tycho Andersen <tycho@docker.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Juerg Haefliger <juerg.haefliger@hpe.com>
 
-On Wed, Sep 20, 2017 at 02:21:45PM -0700, Kees Cook wrote:
-> This is why I included several other lists on the full CC (am I
-> unlucky enough to have you not subscribed to any of them?). Adding a
-> CC for everyone can result in a huge CC list, especially for the
-> forth-coming 300-patch timer_list series. ;)
+On 09/20/2017 03:47 PM, Tycho Andersen wrote:
+> 
+>>> static inline void *skcipher_map(struct scatter_walk *walk)
+>>> {
+>>>         struct page *page = scatterwalk_page(walk);
+>>>
+>>>         return (PageHighMem(page) ? kmap_atomic(page) : page_address(page)) +
+>>>                offset_in_page(walk->offset);
+>>> }
+>> Is there any better way to catch these?  Like, can we add some debugging
+>> to check for XPFO pages in __va()?
+> Yes, and perhaps also a debugging check in PageHighMem?
 
-If you think the lists are enough to review changes include only
-the lists, but don't add CCs for individual patches, that's what
-I usually do for cleanups that touch a lot of drivers, but don't
-really change actual logic in ever little driver touched.
-
-> Do you want me to resend the full series to you, or would you prefer
-> something else like a patchwork bundle? (I'll explicitly add you to CC
-> for any future versions, though.)
-
-I'm fine with not being Cced at all if there isn't anything requiring
-my urgent personal attention.  It's up to you whom you want to Cc,
-but my preference is generally for rather less than more people, and
-rather more than less mailing lists.
-
-But the important bit is to Cc a person or mailinglist either on
-all patches or on none, otherwise a good review isn't possible.
+I'm not sure what PageHighMem() would check.  It's OK to use as long as
+you don't depend on the contents of the page.
+		
+> Would __va have caught either of the two cases you've pointed out?
+Yes.  __va() is what is eventually called by lowmem_page_address(),
+which is only OK to call on things that are actually mapped into the kernel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
