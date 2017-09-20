@@ -1,35 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 833956B02B7
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:53:00 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id a7so6509328pfj.3
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:53:00 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D83486B02BB
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:53:01 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id x78so6471707pff.7
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:53:01 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 142sor2108180pgg.288.2017.09.20.13.52.59
+        by mx.google.com with SMTPS id t137sor2329356pgb.211.2017.09.20.13.53.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Sep 2017 13:52:59 -0700 (PDT)
+        Wed, 20 Sep 2017 13:53:00 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v3 18/31] net: Define usercopy region in struct proto slab cache
-Date: Wed, 20 Sep 2017 13:45:24 -0700
-Message-Id: <1505940337-79069-19-git-send-email-keescook@chromium.org>
+Subject: [PATCH v3 19/31] ip: Define usercopy region in IP proto slab cache
+Date: Wed, 20 Sep 2017 13:45:25 -0700
+Message-Id: <1505940337-79069-20-git-send-email-keescook@chromium.org>
 In-Reply-To: <1505940337-79069-1-git-send-email-keescook@chromium.org>
 References: <1505940337-79069-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, "David S. Miller" <davem@davemloft.net>, Eric Dumazet <edumazet@google.com>, Paolo Abeni <pabeni@redhat.com>, David Howells <dhowells@redhat.com>, netdev@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, "David S. Miller" <davem@davemloft.net>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>, netdev@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
 From: David Windsor <dave@nullcore.net>
 
-In support of usercopy hardening, this patch defines a region in the
-struct proto slab cache in which userspace copy operations are allowed.
-Some protocols need to copy objects to/from userspace, and they can
-declare the region via their proto structure with the new usersize and
-useroffset fields. Initially, if no region is specified (usersize ==
-0), the entire field is marked as whitelisted. This allows protocols
-to be whitelisted in subsequent patches. Once all protocols have been
-annotated, the full-whitelist default can be removed.
+The ICMP filters for IPv4 and IPv6 raw sockets need to be copied to/from
+userspace. In support of usercopy hardening, this patch defines a region
+in the struct proto slab cache in which userspace copy operations are
+allowed.
+
+example usage trace:
+
+    net/ipv4/raw.c:
+        raw_seticmpfilter(...):
+            ...
+            copy_from_user(&raw_sk(sk)->filter, ..., optlen)
+
+        raw_geticmpfilter(...):
+            ...
+            copy_to_user(..., &raw_sk(sk)->filter, len)
+
+    net/ipv6/raw.c:
+        rawv6_seticmpfilter(...):
+            ...
+            copy_from_user(&raw6_sk(sk)->filter, ..., optlen)
+
+        rawv6_geticmpfilter(...):
+            ...
+            copy_to_user(..., &raw6_sk(sk)->filter, len)
 
 This region is known as the slab cache's usercopy region. Slab caches can
 now check that each copy operation involving cache-managed memory falls
@@ -41,50 +57,43 @@ understanding of the code. Changes or omissions from the original code are
 mine and don't reflect the original grsecurity/PaX code.
 
 Signed-off-by: David Windsor <dave@nullcore.net>
-[kees: adjust commit log, split off per-proto patches]
-[kees: add logic for by-default full-whitelist]
+[kees: split from network patch, provide usage trace]
 Cc: "David S. Miller" <davem@davemloft.net>
-Cc: Eric Dumazet <edumazet@google.com>
-Cc: Paolo Abeni <pabeni@redhat.com>
-Cc: David Howells <dhowells@redhat.com>
+Cc: Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
+Cc: Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>
 Cc: netdev@vger.kernel.org
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- include/net/sock.h | 2 ++
- net/core/sock.c    | 6 +++++-
- 2 files changed, 7 insertions(+), 1 deletion(-)
+ net/ipv4/raw.c | 2 ++
+ net/ipv6/raw.c | 2 ++
+ 2 files changed, 4 insertions(+)
 
-diff --git a/include/net/sock.h b/include/net/sock.h
-index 03a362568357..13c2d1b48c86 100644
---- a/include/net/sock.h
-+++ b/include/net/sock.h
-@@ -1106,6 +1106,8 @@ struct proto {
- 	struct kmem_cache	*slab;
- 	unsigned int		obj_size;
- 	int			slab_flags;
-+	size_t			useroffset;	/* Usercopy region offset */
-+	size_t			usersize;	/* Usercopy region size */
- 
- 	struct percpu_counter	*orphan_count;
- 
-diff --git a/net/core/sock.c b/net/core/sock.c
-index 9b7b6bbb2a23..832dfb03102e 100644
---- a/net/core/sock.c
-+++ b/net/core/sock.c
-@@ -3165,8 +3165,12 @@ static int req_prot_init(const struct proto *prot)
- int proto_register(struct proto *prot, int alloc_slab)
- {
- 	if (alloc_slab) {
--		prot->slab = kmem_cache_create(prot->name, prot->obj_size, 0,
-+		prot->slab = kmem_cache_create_usercopy(prot->name,
-+					prot->obj_size, 0,
- 					SLAB_HWCACHE_ALIGN | prot->slab_flags,
-+					prot->usersize ? prot->useroffset : 0,
-+					prot->usersize ? prot->usersize
-+						       : prot->obj_size,
- 					NULL);
- 
- 		if (prot->slab == NULL) {
+diff --git a/net/ipv4/raw.c b/net/ipv4/raw.c
+index 33b70bfd1122..1b6fa4195ac9 100644
+--- a/net/ipv4/raw.c
++++ b/net/ipv4/raw.c
+@@ -970,6 +970,8 @@ struct proto raw_prot = {
+ 	.hash		   = raw_hash_sk,
+ 	.unhash		   = raw_unhash_sk,
+ 	.obj_size	   = sizeof(struct raw_sock),
++	.useroffset	   = offsetof(struct raw_sock, filter),
++	.usersize	   = sizeof_field(struct raw_sock, filter),
+ 	.h.raw_hash	   = &raw_v4_hashinfo,
+ #ifdef CONFIG_COMPAT
+ 	.compat_setsockopt = compat_raw_setsockopt,
+diff --git a/net/ipv6/raw.c b/net/ipv6/raw.c
+index e4462b0ff801..041d1cd5e774 100644
+--- a/net/ipv6/raw.c
++++ b/net/ipv6/raw.c
+@@ -1268,6 +1268,8 @@ struct proto rawv6_prot = {
+ 	.hash		   = raw_hash_sk,
+ 	.unhash		   = raw_unhash_sk,
+ 	.obj_size	   = sizeof(struct raw6_sock),
++	.useroffset	   = offsetof(struct raw6_sock, filter),
++	.usersize	   = sizeof_field(struct raw6_sock, filter),
+ 	.h.raw_hash	   = &raw_v6_hashinfo,
+ #ifdef CONFIG_COMPAT
+ 	.compat_setsockopt = compat_rawv6_setsockopt,
 -- 
 2.7.4
 
