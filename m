@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C45F6B02B3
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:52:58 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id 6so7449537pgh.0
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:52:58 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A9F4A6B02B5
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:52:59 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p87so6504418pfj.4
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:52:59 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id t5sor1219613plj.93.2017.09.20.13.52.56
+        by mx.google.com with SMTPS id z68sor2612040pgb.186.2017.09.20.13.52.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Sep 2017 13:52:57 -0700 (PDT)
+        Wed, 20 Sep 2017 13:52:58 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v3 24/31] fork: Define usercopy region in mm_struct slab caches
-Date: Wed, 20 Sep 2017 13:45:30 -0700
-Message-Id: <1505940337-79069-25-git-send-email-keescook@chromium.org>
+Subject: [PATCH v3 25/31] fork: Define usercopy region in thread_stack slab caches
+Date: Wed, 20 Sep 2017 13:45:31 -0700
+Message-Id: <1505940337-79069-26-git-send-email-keescook@chromium.org>
 In-Reply-To: <1505940337-79069-1-git-send-email-keescook@chromium.org>
 References: <1505940337-79069-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
@@ -23,45 +23,34 @@ Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, Ingo M
 From: David Windsor <dave@nullcore.net>
 
 In support of usercopy hardening, this patch defines a region in the
-mm_struct slab caches in which userspace copy operations are allowed.
-Only the auxv field is copied to userspace.
+thread_stack slab caches in which userspace copy operations are allowed.
+Since the entire thread_stack needs to be available to userspace, the
+entire slab contents are whitelisted. Note that the slab-based thread
+stack is only present on systems with THREAD_SIZE < PAGE_SIZE and
+!CONFIG_VMAP_STACK.
 
 cache object allocation:
     kernel/fork.c:
-        #define allocate_mm()     (kmem_cache_alloc(mm_cachep, GFP_KERNEL))
+        alloc_thread_stack_node(...):
+            return kmem_cache_alloc_node(thread_stack_cache, ...)
 
-        dup_mm():
+        dup_task_struct(...):
             ...
-            mm = allocate_mm();
-
-        copy_mm(...):
+            stack = alloc_thread_stack_node(...)
             ...
-            dup_mm();
+            tsk->stack = stack;
 
         copy_process(...):
             ...
-            copy_mm(...)
+            dup_task_struct(...)
 
         _do_fork(...):
             ...
             copy_process(...)
 
-example usage trace:
-
-    fs/binfmt_elf.c:
-        create_elf_tables(...):
-            ...
-            elf_info = (elf_addr_t *)current->mm->saved_auxv;
-            ...
-            copy_to_user(..., elf_info, ei_index * sizeof(elf_addr_t))
-
-        load_elf_binary(...):
-            ...
-            create_elf_tables(...);
-
-This region is known as the slab cache's usercopy region. Slab caches can
-now check that each copy operation involving cache-managed memory falls
-entirely within the slab's usercopy region.
+This region is known as the slab cache's usercopy region. Slab caches
+can now check that each copy operation involving cache-managed memory
+falls entirely within the slab's usercopy region.
 
 This patch is modified from Brad Spengler/PaX Team's PAX_USERCOPY
 whitelisting code in the last public patch of grsecurity/PaX based on my
@@ -77,26 +66,28 @@ Cc: Andy Lutomirski <luto@kernel.org>
 Signed-off-by: Kees Cook <keescook@chromium.org>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
- kernel/fork.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+I wasn't able to test this, so anyone with a system that can try running
+with a large PAGE_SIZE and without VMAP_STACK would be appreciated.
+---
+ kernel/fork.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/kernel/fork.c b/kernel/fork.c
-index 10646182440f..dc1437f8b702 100644
+index dc1437f8b702..720109dc723a 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
-@@ -2207,9 +2207,11 @@ void __init proc_caches_init(void)
- 	 * maximum number of CPU's we can ever have.  The cpumask_allocation
- 	 * is at the end of the structure, exactly for that reason.
- 	 */
--	mm_cachep = kmem_cache_create("mm_struct",
-+	mm_cachep = kmem_cache_create_usercopy("mm_struct",
- 			sizeof(struct mm_struct), ARCH_MIN_MMSTRUCT_ALIGN,
- 			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_NOTRACK|SLAB_ACCOUNT,
-+			offsetof(struct mm_struct, saved_auxv),
-+			sizeof_field(struct mm_struct, saved_auxv),
- 			NULL);
- 	vm_area_cachep = KMEM_CACHE(vm_area_struct, SLAB_PANIC|SLAB_ACCOUNT);
- 	mmap_init();
+@@ -278,8 +278,9 @@ static void free_thread_stack(struct task_struct *tsk)
+ 
+ void thread_stack_cache_init(void)
+ {
+-	thread_stack_cache = kmem_cache_create("thread_stack", THREAD_SIZE,
+-					      THREAD_SIZE, 0, NULL);
++	thread_stack_cache = kmem_cache_create_usercopy("thread_stack",
++					THREAD_SIZE, THREAD_SIZE, 0, 0,
++					THREAD_SIZE, NULL);
+ 	BUG_ON(thread_stack_cache == NULL);
+ }
+ # endif
 -- 
 2.7.4
 
