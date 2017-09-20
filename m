@@ -1,123 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 583EB6B026F
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 03:25:46 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id e64so1899031wmi.0
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 00:25:46 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d23sor427267wra.39.2017.09.20.00.25.44
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D3486B0033
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 05:01:51 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id a74so1901873oib.7
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 02:01:51 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g17si896216oth.380.2017.09.20.02.01.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Sep 2017 00:25:44 -0700 (PDT)
-Subject: Re: [patch v2] mremap.2: Add description of old_size == 0
- functionality
-References: <a5d279cb-a015-f74c-2e40-a231aa7f7a8c@redhat.com>
- <20170919214224.19561-1-mike.kravetz@oracle.com>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Message-ID: <6fafdae8-4fea-c967-f5cd-d22c205608fa@gmail.com>
-Date: Wed, 20 Sep 2017 09:25:42 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Sep 2017 02:01:50 -0700 (PDT)
+Date: Wed, 20 Sep 2017 11:01:47 +0200
+From: Artem Savkov <asavkov@redhat.com>
+Subject: MADV_FREE is broken
+Message-ID: <20170920090147.5iqdkctmw7ujlmt3@shodan.usersys.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20170919214224.19561-1-mike.kravetz@oracle.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: mtk.manpages@gmail.com, linux-man@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Jann Horn <jannh@google.com>, Florian Weimer <fweimer@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Shaohua Li <shli@fb.com>, Minchan Kim <minchan@kernel.org>
+Cc: Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Jan Stancek <jstancek@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello Mike,
+Hi All,
 
-On 09/19/2017 11:42 PM, Mike Kravetz wrote:
-> v2: Fix incorrect wording noticed by Jann Horn.
->     Remove deprecated and memfd_create discussion as suggested
->     by Florian Weimer.
-> 
-> Since at least the 2.6 time frame, mremap would create a new mapping
-> of the same pages if 'old_size == 0'.  It would also leave the original
-> mapping.  This was used to create a 'duplicate mapping'.
-> 
-> A recent change was made to mremap so that an attempt to create a
-> duplicate a private mapping will fail.
-> 
-> Document the 'old_size == 0' behavior and new return code from
-> below commit.
-> 
-> commit dba58d3b8c5045ad89c1c95d33d01451e3964db7
-> Author: Mike Kravetz <mike.kravetz@oracle.com>
-> Date:   Wed Sep 6 16:20:55 2017 -0700
-> 
->     mm/mremap: fail map duplication attempts for private mappings
-> 
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> ---
->  man2/mremap.2 | 21 ++++++++++++++++++++-
->  1 file changed, 20 insertions(+), 1 deletion(-)
-> 
-> diff --git a/man2/mremap.2 b/man2/mremap.2
-> index 98643c640..235984a96 100644
-> --- a/man2/mremap.2
-> +++ b/man2/mremap.2
-> @@ -58,6 +58,20 @@ may be provided; see the description of
->  .B MREMAP_FIXED
->  below.
->  .PP
-> +If the value of \fIold_size\fP is zero, and \fIold_address\fP refers to
-> +a shareable mapping (see
-> +.BR mmap (2)
-> +.BR MAP_SHARED )
-> +, then
-> +.BR mremap ()
-> +will create a new mapping of the same pages. \fInew_size\fP
-> +will be the size of the new mapping and the location of the new mapping
-> +may be specified with \fInew_address\fP, see the description of
-> +.B MREMAP_FIXED
-> +below.  If a new mapping is requested via this method, then the
-> +.B MREMAP_MAYMOVE
-> +flag must also be specified.
-> +.PP
->  In Linux the memory is divided into pages.
->  A user process has (one or)
->  several linear virtual memory segments.
-> @@ -174,7 +188,12 @@ and
->  or
->  .B MREMAP_FIXED
->  was specified without also specifying
-> -.BR MREMAP_MAYMOVE .
-> +.BR MREMAP_MAYMOVE ;
-> +or \fIold_size\fP was zero and \fIold_address\fP does not refer to a
-> +shareable mapping;
-> +or \fIold_size\fP was zero and the
-> +.BR MREMAP_MAYMOVE
-> +flag was not specified.
->  .TP
->  .B ENOMEM
->  The memory area cannot be expanded at the current virtual address, and the
+We recently started noticing madvise09[1] test from ltp failing strangely. The
+test does the following: maps 32 pages, sets MADV_FREE for the range it got,
+dirties 2 of the pages, creates memory pressure and check that nondirty pages
+are free. The test hanged while accessing the last 4 pages(29-32) of madvised
+range at line 121 [2]. Any other process (gdb/cat) accessing those pages
+would also hang as would rebooting the machine. It doesn't trigger any debug
+warnings or kasan.
 
-I've applied this, and added Reviewed-by tags for Florian and Jann.
-But, I think it's also worth noting the older, now disallowed, behavior,
-and why the behavior was changed. So I added a note in BUGS:
+The issue bisected to "802a3a92ad7a mm: reclaim MADV_FREE pages" (so 4.12 and
+up are affected).
 
-    BUGS
-       Before Linux 4.14, if old_size was zero and the  mapping  referred
-       to  by  old_address  was  a private mapping (mmap(2) MAP_PRIVATE),
-       mremap() created a new private mapping unrelated to  the  original
-       mapping.   This behavior was unintended and probably unexpected in
-       user-space applications (since the intention  of  mremap()  is  to
-       create  a new mapping based on the original mapping).  Since Linux
-       4.14, mremap() fails with the error EINVAL in this scenario.
+I did some poking around and found out that the "bad" pages had SwapBacked flag
+set in shrink_page_list() which confused it a lot. It looks like
+mark_page_lazyfree() only calls lru_lazyfree_fn() when the pagevec is full
+(that is in batches of 14) and never drains the rest (so last four in madvise09
+case).
 
-Does that seem okay?
+The patch below greatly reduces the failure rate, but doesn't fix it
+completely, it still shows up with the same symptoms (hanging trying to access
+last 4 pages) after a bunch of retries.
 
-Cheers,
+[1] https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/syscalls/madvise/madvise09.c
+[2] https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/syscalls/madvise/madvise09.c#L121
 
-Michael
-
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 21261ff0466f..a0b868e8b7d2 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -453,6 +453,7 @@ static void madvise_free_page_range(struct mmu_gather *tlb,
+ 
+ 	tlb_start_vma(tlb, vma);
+ 	walk_page_range(addr, end, &free_walk);
++	lru_add_drain();
+ 	tlb_end_vma(tlb, vma);
+ }
+ 
 
 -- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+Regards,
+  Artem
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
