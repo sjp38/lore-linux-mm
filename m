@@ -1,148 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 860FC6B02D6
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 18:39:17 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id j16so7794574pga.6
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 15:39:17 -0700 (PDT)
-Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
-        by mx.google.com with ESMTPS id y187si11384pgd.62.2017.09.20.15.39.14
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 791F46B02D8
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 18:47:43 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id 93so6843544iol.2
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 15:47:43 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p185sor8287oih.126.2017.09.20.15.47.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Sep 2017 15:39:16 -0700 (PDT)
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-Subject: [PATCH 2/2] mm: oom: show unreclaimable slab info when kernel panic
-Date: Thu, 21 Sep 2017 06:38:52 +0800
-Message-Id: <1505947132-4363-3-git-send-email-yang.s@alibaba-inc.com>
-In-Reply-To: <1505947132-4363-1-git-send-email-yang.s@alibaba-inc.com>
-References: <1505947132-4363-1-git-send-email-yang.s@alibaba-inc.com>
+        (Google Transport Security);
+        Wed, 20 Sep 2017 15:47:42 -0700 (PDT)
+Date: Wed, 20 Sep 2017 16:47:39 -0600
+From: Tycho Andersen <tycho@docker.com>
+Subject: Re: [PATCH v5 03/10] swiotlb: Map the buffer if it was unmapped by
+ XPFO
+Message-ID: <20170920224739.3kgzmntabmkedohw@smitten>
+References: <20170809200755.11234-1-tycho@docker.com>
+ <20170809200755.11234-4-tycho@docker.com>
+ <5877eed8-0e8e-0dec-fdc7-de01bdbdafa8@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5877eed8-0e8e-0dec-fdc7-de01bdbdafa8@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org
-Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, Juerg Haefliger <juerg.haefliger@hpe.com>
 
-Kernel may panic when oom happens without killable process sometimes it
-is caused by huge unreclaimable slabs used by kernel.
+On Wed, Sep 20, 2017 at 09:19:56AM -0700, Dave Hansen wrote:
+> On 08/09/2017 01:07 PM, Tycho Andersen wrote:
+> > --- a/lib/swiotlb.c
+> > +++ b/lib/swiotlb.c
+> > @@ -420,8 +420,9 @@ static void swiotlb_bounce(phys_addr_t orig_addr, phys_addr_t tlb_addr,
+> >  {
+> >  	unsigned long pfn = PFN_DOWN(orig_addr);
+> >  	unsigned char *vaddr = phys_to_virt(tlb_addr);
+> > +	struct page *page = pfn_to_page(pfn);
+> >  
+> > -	if (PageHighMem(pfn_to_page(pfn))) {
+> > +	if (PageHighMem(page) || xpfo_page_is_unmapped(page)) {
+> >  		/* The buffer does not have a mapping.  Map it in and copy */
+> >  		unsigned int offset = orig_addr & ~PAGE_MASK;
+> >  		char *buffer;
+> 
+> This is a little scary.  I wonder how many more of these are in the
+> kernel, like:
 
-Although kdump could help debug such problem, however, kdump is not
-available on all architectures and it might be malfunction sometime.
-And, since kernel already panic it is worthy capturing such information
-in dmesg to aid touble shooting.
+I don't know, but I assume several :)
 
-Print out unreclaimable slab info (used size and total size) which
-actual memory usage is not zero (num_objs * size != 0) when panic_on_oom is set
-or no killable process. Since such information is just showed when kernel
-panic, so it will not lead too verbose message for normal oom.
+> > static inline void *skcipher_map(struct scatter_walk *walk)
+> > {
+> >         struct page *page = scatterwalk_page(walk);
+> > 
+> >         return (PageHighMem(page) ? kmap_atomic(page) : page_address(page)) +
+> >                offset_in_page(walk->offset);
+> > }
+> 
+> Is there any better way to catch these?  Like, can we add some debugging
+> to check for XPFO pages in __va()?
 
-The output looks like:
+Yes, and perhaps also a debugging check in PageHighMem? Would __va
+have caught either of the two cases you've pointed out?
 
-Unreclaimable slab info:
-Name                      Used          Total
-rpc_buffers               31KB         31KB
-rpc_tasks                  7KB          7KB
-ebitmap_node            1964KB       1964KB
-avtab_node              5024KB       5024KB
-xfs_buf                 1402KB       1402KB
-xfs_ili                  134KB        134KB
-xfs_efi_item             115KB        115KB
-xfs_efd_item             115KB        115KB
-xfs_buf_item             134KB        134KB
-xfs_log_item_desc        342KB        342KB
-xfs_trans               1412KB       1412KB
-xfs_ifork                212KB        212KB
-
-Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
----
- mm/oom_kill.c    |  3 +++
- mm/slab.h        |  8 ++++++++
- mm/slab_common.c | 26 ++++++++++++++++++++++++++
- 3 files changed, 37 insertions(+)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 99736e0..bd48d34 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -43,6 +43,7 @@
- 
- #include <asm/tlb.h>
- #include "internal.h"
-+#include "slab.h"
- 
- #define CREATE_TRACE_POINTS
- #include <trace/events/oom.h>
-@@ -960,6 +961,7 @@ static void check_panic_on_oom(struct oom_control *oc,
- 	if (is_sysrq_oom(oc))
- 		return;
- 	dump_header(oc, NULL);
-+	dump_unreclaimable_slab();
- 	panic("Out of memory: %s panic_on_oom is enabled\n",
- 		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
- }
-@@ -1044,6 +1046,7 @@ bool out_of_memory(struct oom_control *oc)
- 	/* Found nothing?!?! Either we hang forever, or we panic. */
- 	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
- 		dump_header(oc, NULL);
-+		dump_unreclaimable_slab();
- 		panic("Out of memory and no killable processes...\n");
- 	}
- 	if (oc->chosen && oc->chosen != (void *)-1UL) {
-diff --git a/mm/slab.h b/mm/slab.h
-index 0733628..734a92d 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -505,6 +505,14 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
- void memcg_slab_stop(struct seq_file *m, void *p);
- int memcg_slab_show(struct seq_file *m, void *p);
- 
-+#ifdef CONFIG_SLABINFO
-+void dump_unreclaimable_slab(void);
-+#else
-+void dump_unreclaimable_slab(void);
-+{
-+}
-+#endif
-+
- void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr);
- 
- #ifdef CONFIG_SLAB_FREELIST_RANDOM
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 904a83b..90d9de3 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -1272,6 +1272,32 @@ static int slab_show(struct seq_file *m, void *p)
- 	return 0;
- }
- 
-+void dump_unreclaimable_slab(void)
-+{
-+	struct kmem_cache *s;
-+	struct slabinfo sinfo;
-+
-+	pr_info("Unreclaimable slab info:\n");
-+	pr_info("Name                      Used          Total\n");
-+
-+	/*
-+	 * Here acquiring slab_mutex is unnecessary since we don't prefer to
-+	 * get sleep in oom path right before kernel panic, and avoid race condition.
-+	 * Since it is already oom, so there should be not any big allocation
-+	 * which could change the statistics significantly.
-+	 */
-+	list_for_each_entry(s, &slab_caches, list) {
-+		if (!is_root_cache(s))
-+			continue;
-+
-+		memset(&sinfo, 0, sizeof(sinfo));
-+		get_slabinfo(s, &sinfo);
-+
-+		if (!(s->flags & SLAB_RECLAIM_ACCOUNT) && sinfo.num_objs > 0)
-+			pr_info("%-17s %10luKB %10luKB\n", cache_name(s), (sinfo.active_objs * s->size) / 1024, (sinfo.num_objs * s->size) / 1024);
-+	}
-+}
-+
- #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
- void *memcg_slab_start(struct seq_file *m, loff_t *pos)
- {
--- 
-1.8.3.1
+Tycho
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
