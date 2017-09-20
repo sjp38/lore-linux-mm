@@ -1,48 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B04706B0038
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 15:29:41 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id o77so5061449qke.1
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 12:29:41 -0700 (PDT)
-Received: from mail.stoffel.org (mail.stoffel.org. [104.236.43.127])
-        by mx.google.com with ESMTPS id p98si2524248qkh.473.2017.09.20.12.29.40
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ED6D6B0038
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 15:32:29 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id q7so5993808ioi.3
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 12:32:29 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id i78sor1102951ioa.24.2017.09.20.12.32.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Sep 2017 12:29:40 -0700 (PDT)
-Date: Wed, 20 Sep 2017 15:29:09 -0400
-From: John Stoffel <john@quad.stoffel.home>
+        (Google Transport Security);
+        Wed, 20 Sep 2017 12:32:28 -0700 (PDT)
 Subject: Re: [PATCH 0/6] More graceful flusher thread memory reclaim wakeup
-Message-ID: <20170920192909.GA27517@quad.stoffel.home>
 References: <1505850787-18311-1-git-send-email-axboe@kernel.dk>
+ <20170920192909.GA27517@quad.stoffel.home>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <8a91a54e-e224-ad79-faac-3f8fe654246a@kernel.dk>
+Date: Wed, 20 Sep 2017 13:32:25 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1505850787-18311-1-git-send-email-axboe@kernel.dk>
+In-Reply-To: <20170920192909.GA27517@quad.stoffel.home>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
+To: John Stoffel <john@quad.stoffel.home>
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, clm@fb.com, jack@suse.cz
 
-On Tue, Sep 19, 2017 at 01:53:01PM -0600, Jens Axboe wrote:
-> We've had some issues with writeback in presence of memory reclaim
-> at Facebook, and this patch set attempts to fix it up. The real
-> functional change is the last patch in the series, the first 5 are
-> prep and cleanup patches.
+On 09/20/2017 01:29 PM, John Stoffel wrote:
+> On Tue, Sep 19, 2017 at 01:53:01PM -0600, Jens Axboe wrote:
+>> We've had some issues with writeback in presence of memory reclaim
+>> at Facebook, and this patch set attempts to fix it up. The real
+>> functional change is the last patch in the series, the first 5 are
+>> prep and cleanup patches.
+>>
+>> The basic idea is that we have callers that call
+>> wakeup_flusher_threads() with nr_pages == 0. This means 'writeback
+>> everything'. For memory reclaim situations, we can end up queuing
+>> a TON of these kinds of writeback units. This can cause softlockups
+>> and further memory issues, since we allocate huge amounts of
+>> struct wb_writeback_work to handle this writeback. Handle this
+>> situation more gracefully.
 > 
-> The basic idea is that we have callers that call
-> wakeup_flusher_threads() with nr_pages == 0. This means 'writeback
-> everything'. For memory reclaim situations, we can end up queuing
-> a TON of these kinds of writeback units. This can cause softlockups
-> and further memory issues, since we allocate huge amounts of
-> struct wb_writeback_work to handle this writeback. Handle this
-> situation more gracefully.
+> This looks nice, but do you have any numbers to show how this improves
+> things?  I read the patches, but I'm not strong enough to comment on
+> them at all.  But I am interested in how this improves writeback under
+> pressure, if at all.
 
-This looks nice, but do you have any numbers to show how this improves
-things?  I read the patches, but I'm not strong enough to comment on
-them at all.  But I am interested in how this improves writeback under
-pressure, if at all.
+Writeback should be about the same, it's mostly about preventing
+softlockups and excessive memory usage, under conditions where we are
+actively trying to reclaim/clean memory. It was bad enough to cause
+softlockups for writeback work processing, while the pending writeback
+work units grew to insane lengths.
 
-John
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
