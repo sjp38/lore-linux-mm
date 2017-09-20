@@ -1,94 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CC4916B02DB
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 19:07:12 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id u138so4089712wmu.2
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:07:12 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id v18si399605edc.50.2017.09.20.16.07.10
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9212E6B02DC
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 19:11:52 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id b9so4446872wra.3
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:11:52 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id z9si308836edk.423.2017.09.20.16.11.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Sep 2017 16:07:11 -0700 (PDT)
-From: Roman Gushchin <guro@fb.com>
-Subject: [RESEND] proc, coredump: add CoreDumping flag to /proc/pid/status
-Date: Wed, 20 Sep 2017 16:06:34 -0700
-Message-ID: <20170920230634.31572-1-guro@fb.com>
-In-Reply-To: <20170914224431.GA9735@castle>
-References: <20170914224431.GA9735@castle>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 20 Sep 2017 16:11:51 -0700 (PDT)
+Date: Wed, 20 Sep 2017 19:11:46 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 0/6] More graceful flusher thread memory reclaim wakeup
+Message-ID: <20170920230910.GA18540@cmpxchg.org>
+References: <1505850787-18311-1-git-send-email-axboe@kernel.dk>
+ <20170920192909.GA27517@quad.stoffel.home>
+ <8a91a54e-e224-ad79-faac-3f8fe654246a@kernel.dk>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <8a91a54e-e224-ad79-faac-3f8fe654246a@kernel.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
+To: Jens Axboe <axboe@kernel.dk>
+Cc: John Stoffel <john@stoffel.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, clm@fb.com, jack@suse.cz
 
-Right now there is no convenient way to check if a process is being
-coredumped at the moment.
+[ Fixed up CC list. John, you're sending email with
+  From: John Stoffel <john@quad.stoffel.home> ]
 
-It might be necessary to recognize such state to prevent killing
-the process and getting a broken coredump.
-Writing a large core might take significant time, and the process
-is unresponsive during it, so it might be killed by timeout,
-if another process is monitoring and killing/restarting
-hanging tasks.
+On Wed, Sep 20, 2017 at 01:32:25PM -0600, Jens Axboe wrote:
+> On 09/20/2017 01:29 PM, John Stoffel wrote:
+> > On Tue, Sep 19, 2017 at 01:53:01PM -0600, Jens Axboe wrote:
+> >> We've had some issues with writeback in presence of memory reclaim
+> >> at Facebook, and this patch set attempts to fix it up. The real
+> >> functional change is the last patch in the series, the first 5 are
+> >> prep and cleanup patches.
+> >>
+> >> The basic idea is that we have callers that call
+> >> wakeup_flusher_threads() with nr_pages == 0. This means 'writeback
+> >> everything'. For memory reclaim situations, we can end up queuing
+> >> a TON of these kinds of writeback units. This can cause softlockups
+> >> and further memory issues, since we allocate huge amounts of
+> >> struct wb_writeback_work to handle this writeback. Handle this
+> >> situation more gracefully.
+> > 
+> > This looks nice, but do you have any numbers to show how this improves
+> > things?  I read the patches, but I'm not strong enough to comment on
+> > them at all.  But I am interested in how this improves writeback under
+> > pressure, if at all.
+> 
+> Writeback should be about the same, it's mostly about preventing
+> softlockups and excessive memory usage, under conditions where we are
+> actively trying to reclaim/clean memory. It was bad enough to cause
+> softlockups for writeback work processing, while the pending writeback
+> work units grew to insane lengths.
 
-To provide an ability to detect if a process is in the state of
-being coreduped, we can expose a boolean CoreDumping flag
-in /proc/pid/status.
+In numbers, we have seen situations where we had 600 million writeback
+work items queued up from reclaim under pressure. That's 35G worth of
+work descriptors, and the machine was struggling to remain responsive
+due to a lack of memory.
 
-Example:
-$ cat core.sh
-  #!/bin/sh
-
-  echo "|/usr/bin/sleep 10" > /proc/sys/kernel/core_pattern
-  sleep 1000 &
-  PID=$!
-
-  cat /proc/$PID/status | grep CoreDumping
-  kill -ABRT $PID
-  sleep 1
-  cat /proc/$PID/status | grep CoreDumping
-
-$ ./core.sh
-  CoreDumping:	0
-  CoreDumping:	1
-
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: kernel-team@fb.com
-Cc: linux-kernel@vger.kernel.org
----
- fs/proc/array.c | 6 ++++++
- 1 file changed, 6 insertions(+)
-
-diff --git a/fs/proc/array.c b/fs/proc/array.c
-index 88c355574aa0..fc4a0aa7f487 100644
---- a/fs/proc/array.c
-+++ b/fs/proc/array.c
-@@ -369,6 +369,11 @@ static void task_cpus_allowed(struct seq_file *m, struct task_struct *task)
- 		   cpumask_pr_args(&task->cpus_allowed));
- }
- 
-+static inline void task_core_dumping(struct seq_file *m, struct mm_struct *mm)
-+{
-+	seq_printf(m, "CoreDumping:\t%d\n", !!mm->core_state);
-+}
-+
- int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
- 			struct pid *pid, struct task_struct *task)
- {
-@@ -379,6 +384,7 @@ int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
- 
- 	if (mm) {
- 		task_mem(m, mm);
-+		task_core_dumping(m, mm);
- 		mmput(mm);
- 	}
- 	task_sig(m, task);
--- 
-2.13.5
+Once writeback against all outstanding dirty pages has been requested,
+there really isn't a need to queue even a second work item; the job is
+already being performed. We can queue the next one when it completes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
