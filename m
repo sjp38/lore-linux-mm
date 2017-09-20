@@ -1,213 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 902476B02C5
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 17:33:02 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id p5so7530842pgn.7
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 14:33:02 -0700 (PDT)
-Received: from out0-223.mail.aliyun.com (out0-223.mail.aliyun.com. [140.205.0.223])
-        by mx.google.com with ESMTPS id u59si1912252plb.351.2017.09.20.14.33.00
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EFBD96B02C7
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 17:54:09 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id e64so3968470wmi.0
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 14:54:09 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id g16si227870edc.164.2017.09.20.14.54.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Sep 2017 14:33:01 -0700 (PDT)
-Subject: Re: [PATCH 2/2] mm: oom: show unreclaimable slab info when kernel
- panic
-References: <1505934576-9749-1-git-send-email-yang.s@alibaba-inc.com>
- <1505934576-9749-3-git-send-email-yang.s@alibaba-inc.com>
- <alpine.DEB.2.10.1709201350490.105729@chino.kir.corp.google.com>
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-Message-ID: <3c1752f9-2443-a1a8-7cb5-84794a6d1d91@alibaba-inc.com>
-Date: Thu, 21 Sep 2017 05:32:53 +0800
+        Wed, 20 Sep 2017 14:54:08 -0700 (PDT)
+Date: Wed, 20 Sep 2017 14:53:41 -0700
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v8 0/4] cgroup-aware OOM killer
+Message-ID: <20170920215341.GA5382@castle>
+References: <20170911131742.16482-1-guro@fb.com>
+ <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com>
+ <20170913122914.5gdksbmkolum7ita@dhcp22.suse.cz>
+ <20170913215607.GA19259@castle>
+ <20170914134014.wqemev2kgychv7m5@dhcp22.suse.cz>
+ <20170914160548.GA30441@castle>
+ <20170915105826.hq5afcu2ij7hevb4@dhcp22.suse.cz>
+ <20170915152301.GA29379@castle>
+ <20170918061405.pcrf5vauvul4c2nr@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1709201350490.105729@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20170918061405.pcrf5vauvul4c2nr@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: cl@linux.com, penberg@kernel.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
+On Mon, Sep 18, 2017 at 08:14:05AM +0200, Michal Hocko wrote:
+> On Fri 15-09-17 08:23:01, Roman Gushchin wrote:
+> > On Fri, Sep 15, 2017 at 12:58:26PM +0200, Michal Hocko wrote:
+> > > On Thu 14-09-17 09:05:48, Roman Gushchin wrote:
+> > > > On Thu, Sep 14, 2017 at 03:40:14PM +0200, Michal Hocko wrote:
+> > > > > On Wed 13-09-17 14:56:07, Roman Gushchin wrote:
+> > > > > > On Wed, Sep 13, 2017 at 02:29:14PM +0200, Michal Hocko wrote:
+> > > > > [...]
+> > > > > > > I strongly believe that comparing only leaf memcgs
+> > > > > > > is more straightforward and it doesn't lead to unexpected results as
+> > > > > > > mentioned before (kill a small memcg which is a part of the larger
+> > > > > > > sub-hierarchy).
+> > > > > > 
+> > > > > > One of two main goals of this patchset is to introduce cgroup-level
+> > > > > > fairness: bigger cgroups should be affected more than smaller,
+> > > > > > despite the size of tasks inside. I believe the same principle
+> > > > > > should be used for cgroups.
+> > > > > 
+> > > > > Yes bigger cgroups should be preferred but I fail to see why bigger
+> > > > > hierarchies should be considered as well if they are not kill-all. And
+> > > > > whether non-leaf memcgs should allow kill-all is not entirely clear to
+> > > > > me. What would be the usecase?
+> > > > 
+> > > > We definitely want to support kill-all for non-leaf cgroups.
+> > > > A workload can consist of several cgroups and we want to clean up
+> > > > the whole thing on OOM.
+> > > 
+> > > Could you be more specific about such a workload? E.g. how can be such a
+> > > hierarchy handled consistently when its sub-tree gets killed due to
+> > > internal memory pressure?
+> > 
+> > Or just system-wide OOM.
+> > 
+> > > Or do you expect that none of the subtree will
+> > > have hard limit configured?
+> > 
+> > And this can also be a case: the whole workload may have hard limit
+> > configured, while internal memcgs have only memory.low set for "soft"
+> > prioritization.
+> > 
+> > > 
+> > > But then you just enforce a structural restriction on your configuration
+> > > because
+> > > 	root
+> > >         /  \
+> > >        A    D
+> > >       /\   
+> > >      B  C
+> > > 
+> > > is a different thing than
+> > > 	root
+> > >         / | \
+> > >        B  C  D
+> > >
+> > 
+> > I actually don't have a strong argument against an approach to select
+> > largest leaf or kill-all-set memcg. I think, in practice there will be
+> > no much difference.
 
+I've tried to implement this approach, and it's really arguable.
+Although your example looks reasonable, the opposite example is also valid:
+you might want to compare whole hierarchies, and it's a quite typical usecase.
 
-On 9/20/17 2:00 PM, David Rientjes wrote:
-> On Thu, 21 Sep 2017, Yang Shi wrote:
-> 
->> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
->> index 99736e0..173c423 100644
->> --- a/mm/oom_kill.c
->> +++ b/mm/oom_kill.c
->> @@ -43,6 +43,7 @@
->>   
->>   #include <asm/tlb.h>
->>   #include "internal.h"
->> +#include "slab.h"
->>   
->>   #define CREATE_TRACE_POINTS
->>   #include <trace/events/oom.h>
->> @@ -427,6 +428,14 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
->>   		dump_tasks(oc->memcg, oc->nodemask);
->>   }
->>   
->> +static void dump_header_with_slabinfo(struct oom_control *oc, struct task_struct *p)
->> +{
->> +	dump_header(oc, p);
->> +
->> +	if (IS_ENABLED(CONFIG_SLABINFO))
->> +		show_unreclaimable_slab();
->> +}
->> +
->>   /*
->>    * Number of OOM victims in flight
->>    */
-> 
-> I don't think we need a new function for this.  Where you want to dump
-> unreclaimable slab before panic, just call a new dump_unreclaimable_slab()
-> function that gets declared in slab.h that is a no-op when CONFIG_SLABINFO
-> is disabled.  We just want to do
-> 
-> 	dump_header(...);
-> 	dump_unreclaimable_slab(...);
-> 	panic(...);
+Assume, you have several containerized workloads on a machine (probably,
+each will be contained in a memcg with memory.max set), with some hierarchy
+of cgroups inside. Then in case of global memory shortage we want to reclaim
+some memory from the biggest workload, and the selection should not depend
+on group_oom settings. It would be really strange, if setting group_oom will
+higher the chances to be killed.
 
-Thanks for the comment, they will be solved in v4.
+In other words, let's imagine processes as leaf nodes in memcg tree. We decided
+to select the biggest memcg and kill one or more processes inside (depending
+on group_oom setting), but the memcg selection doesn't depend on it.
+We do not compare processes from different cgroups, as well as cgroups with
+processes. The same should apply to cgroups: why do we want to compare cgroups
+from different sub-trees?
 
-Yang
+While size-based comparison can be implemented with this approach,
+the priority-based is really weird (as David mentioned).
+If priorities have no hierarchical meaning at all, we lack the very important
+ability to enforce hierarchy oom_priority. Otherwise we have to invent some
+complex rules of oom_priority propagation (e.g. is someone is raising
+the oom_priority in parent, should it be applied to children immediately, etc).
 
-> 
->> diff --git a/mm/slab.c b/mm/slab.c
->> index 04dec48..4f4971c 100644
->> --- a/mm/slab.c
->> +++ b/mm/slab.c
->> @@ -4132,6 +4132,7 @@ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
->>   	sinfo->shared = cachep->shared;
->>   	sinfo->objects_per_slab = cachep->num;
->>   	sinfo->cache_order = cachep->gfporder;
->> +	sinfo->reclaim = is_reclaimable(cachep);
-> 
-> We don't need a new field, we already have cachep->flags accessible.
-> 
->>   }
->>   
->>   void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *cachep)
->> diff --git a/mm/slab.h b/mm/slab.h
->> index 0733628..2f1ebce 100644
->> --- a/mm/slab.h
->> +++ b/mm/slab.h
->> @@ -186,6 +186,7 @@ struct slabinfo {
->>   	unsigned int shared;
->>   	unsigned int objects_per_slab;
->>   	unsigned int cache_order;
->> +	unsigned int reclaim;
-> 
-> Not needed.
-> 
->>   };
->>   
->>   void get_slabinfo(struct kmem_cache *s, struct slabinfo *sinfo);
->> @@ -352,6 +353,11 @@ static inline void memcg_link_cache(struct kmem_cache *s)
->>   
->>   #endif /* CONFIG_MEMCG && !CONFIG_SLOB */
->>   
->> +static inline bool is_reclaimable(struct kmem_cache *s)
->> +{
->> +	return (s->flags & SLAB_RECLAIM_ACCOUNT) ? true : false;
->> +}
->> +
-> 
-> I don't think we need this.
-> 
->>   static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
->>   {
->>   	struct kmem_cache *cachep;
->> @@ -504,6 +510,7 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
->>   void *memcg_slab_next(struct seq_file *m, void *p, loff_t *pos);
->>   void memcg_slab_stop(struct seq_file *m, void *p);
->>   int memcg_slab_show(struct seq_file *m, void *p);
->> +void show_unreclaimable_slab(void);
->>   
->>   void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr);
->>   
->> diff --git a/mm/slab_common.c b/mm/slab_common.c
->> index 904a83b..f2c6200 100644
->> --- a/mm/slab_common.c
->> +++ b/mm/slab_common.c
->> @@ -35,6 +35,8 @@
->>   static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
->>   		    slab_caches_to_rcu_destroy_workfn);
->>   
->> +#define K(x) ((x)/1024)
->> +
-> 
-> I don't think we need this.
-> 
->>   /*
->>    * Set of flags that will prevent slab merging
->>    */
->> @@ -1272,6 +1274,35 @@ static int slab_show(struct seq_file *m, void *p)
->>   	return 0;
->>   }
->>   
->> +void show_unreclaimable_slab()
-> 
-> void show_unreclaimable_slab(void)
-> 
->> +{
->> +	struct kmem_cache *s = NULL;
-> 
-> No initialization needed.
-> 
->> +	struct slabinfo sinfo;
->> +
->> +	memset(&sinfo, 0, sizeof(sinfo));
->> +
->> +	printk("Unreclaimable slab info:\n");
->> +	printk("Name                      Used          Total\n");
->> +
->> +	/*
->> +	 * Here acquiring slab_mutex is unnecessary since we don't prefer to
->> +	 * get sleep in oom path right before kernel panic, and avoid race condition.
->> +	 * Since it is already oom, so there should be not any big allocation
->> +	 * which could change the statistics significantly.
->> +	 */
->> +	list_for_each_entry(s, &slab_caches, list) {
->> +		if (!is_root_cache(s))
->> +			continue;
->> +
-> 
-> We need to do the memset() here.
-> 
->> +		get_slabinfo(s, &sinfo);
->> +
->> +		if (!is_reclaimable(s) && sinfo.num_objs > 0)
->> +			printk("%-17s %10luKB %10luKB\n", cache_name(s), K(sinfo.active_objs * s->size), K(sinfo.num_objs * s->size));
-> 
-> I think you can just check for SLAB_RECLAIM_ACCOUNT here.
-> 
-> Everything in this function should be pr_info().
-> 
->> +	}
->> +}
->> +EXPORT_SYMBOL(show_unreclaimable_slab);
->> +#undef K
->> +
->>   #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
->>   void *memcg_slab_start(struct seq_file *m, loff_t *pos)
->>   {
->> diff --git a/mm/slub.c b/mm/slub.c
->> index 163352c..5c17c0a 100644
->> --- a/mm/slub.c
->> +++ b/mm/slub.c
->> @@ -5872,6 +5872,7 @@ void get_slabinfo(struct kmem_cache *s, struct slabinfo *sinfo)
->>   	sinfo->num_slabs = nr_slabs;
->>   	sinfo->objects_per_slab = oo_objects(s->oo);
->>   	sinfo->cache_order = oo_order(s->oo);
->> +	sinfo->reclaim = is_reclaimable(s);
-> 
-> Not needed.
-> 
->>   }
->>   
->>   void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *s)
+The oom_group knob meaning also becoms more complex. It affects both
+the victim selection and OOM action. _ANY_ mechanism which allows to affect
+OOM victim selection (either priorities, either bpf-based approach) should
+not have global system-wide meaning, it breaks everything.
+
+I do understand your point, but the same is true for other stuff, right?
+E.g. cpu time distribution (and io, etc) depends on hierarchy configuration.
+It's a limitation, but it's ok, as user should create a hierarchy which
+reflects some logical relations between processes and groups of processes.
+Otherwise we're going to the configuration hell.
+
+In any case, OOM is a last resort mechanism. The goal is to reclaim some memory
+and do not crash the system or do not leave it in totally broken state.
+Any really complex mm in userspace should be applied _before_ OOM happens.
+So, I don't think we have to support all possible configurations here,
+if we're able to achieve the main goal (kill some processes and do not leave
+broken systems/containers).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
