@@ -1,186 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B4CA6B0281
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:45:59 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id a7so6486255pfj.3
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:45:59 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 522E26B0282
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:46:00 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id y29so6463686pff.6
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:46:00 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l5sor1459824pli.3.2017.09.20.13.45.57
+        by mx.google.com with SMTPS id h8sor442803pgf.26.2017.09.20.13.45.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Sep 2017 13:45:57 -0700 (PDT)
+        Wed, 20 Sep 2017 13:45:59 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v3 00/31] Hardened usercopy whitelisting
-Date: Wed, 20 Sep 2017 13:45:06 -0700
-Message-Id: <1505940337-79069-1-git-send-email-keescook@chromium.org>
+Subject: [PATCH v3 03/31] usercopy: Mark kmalloc caches as usercopy caches
+Date: Wed, 20 Sep 2017 13:45:09 -0700
+Message-Id: <1505940337-79069-4-git-send-email-keescook@chromium.org>
+In-Reply-To: <1505940337-79069-1-git-send-email-keescook@chromium.org>
+References: <1505940337-79069-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Kees Cook <keescook@chromium.org>, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, David Windsor <dave@nullcore.net>
+Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, kernel-hardening@lists.openwall.com
 
-v3:
-- added LKDTM update patch
-- downgrade BUGs to WARNs and fail closed
-- add Acks/Reviews from v2
+From: David Windsor <dave@nullcore.net>
 
-v2:
-- added tracing of allocation and usage
-- refactored solutions for task_struct
-- split up network patches for readability
+Mark the kmalloc slab caches as entirely whitelisted. These caches
+are frequently used to fulfill kernel allocations that contain data
+to be copied to/from userspace. Internal-only uses are also common,
+but are scattered in the kernel. For now, mark all the kmalloc caches
+as whitelisted.
 
-I intend for this to land via my usercopy hardening tree, so Acks,
-Reviewed, and Tested-bys would be greatly appreciated. I have some
-questions in a few patches (e.g. CIFS and thread_stack) that would be nice
-to get answered for completeness. FWIW, this series has survived generally
-for weeks in 0-day testing, and specifically over a couple days rebased
-on v4.14-rc1, so I intend to put this in -next shortly unless there is
-further feedback.
+This patch is modified from Brad Spengler/PaX Team's PAX_USERCOPY
+whitelisting code in the last public patch of grsecurity/PaX based on my
+understanding of the code. Changes or omissions from the original code are
+mine and don't reflect the original grsecurity/PaX code.
 
-----
+Signed-off-by: David Windsor <dave@nullcore.net>
+[kees: merged in moved kmalloc hunks, adjust commit log]
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
+Cc: linux-xfs@vger.kernel.org
+Signed-off-by: Kees Cook <keescook@chromium.org>
+---
+ mm/slab.c        |  3 ++-
+ mm/slab.h        |  3 ++-
+ mm/slab_common.c | 10 ++++++----
+ 3 files changed, 10 insertions(+), 6 deletions(-)
 
-This series is modified from Brad Spengler/PaX Team's PAX_USERCOPY code
-in the last public patch of grsecurity/PaX based on our understanding
-of the code. Changes or omissions from the original code are ours and
-don't reflect the original grsecurity/PaX code.
-
-David Windsor did the bulk of the porting, refactoring, splitting,
-testing, etc; I did some extra tweaks, hunk moving, traces, and extra
-patches.
-
-Description from patch 1:
-
-
-Currently, hardened usercopy performs dynamic bounds checking on slab
-cache objects. This is good, but still leaves a lot of kernel memory
-available to be copied to/from userspace in the face of bugs. To further
-restrict what memory is available for copying, this creates a way to
-whitelist specific areas of a given slab cache object for copying to/from
-userspace, allowing much finer granularity of access control. Slab caches
-that are never exposed to userspace can declare no whitelist for their
-objects, thereby keeping them unavailable to userspace via dynamic copy
-operations. (Note, an implicit form of whitelisting is the use of constant
-sizes in usercopy operations and get_user()/put_user(); these bypass
-hardened usercopy checks since these sizes cannot change at runtime.)
-
-To support this whitelist annotation, usercopy region offset and size
-members are added to struct kmem_cache. The slab allocator receives a
-new function, kmem_cache_create_usercopy(), that creates a new cache
-with a usercopy region defined, suitable for declaring spans of fields
-within the objects that get copied to/from userspace.
-
-In this patch, the default kmem_cache_create() marks the entire allocation
-as whitelisted, leaving it semantically unchanged. Once all fine-grained
-whitelists have been added (in subsequent patches), this will be changed
-to a usersize of 0, making caches created with kmem_cache_create() not
-copyable to/from userspace.
-
-After the entire usercopy whitelist series is applied, less than 15%
-of the slab cache memory remains exposed to potential usercopy bugs
-after a fresh boot:
-
-Total Slab Memory:           48074720
-Usercopyable Memory:          6367532  13.2%
-         task_struct                    0.2%         4480/1630720
-         RAW                            0.3%            300/96000
-         RAWv6                          2.1%           1408/64768
-         ext4_inode_cache               3.0%       269760/8740224
-         dentry                        11.1%       585984/5273856
-         mm_struct                     29.1%         54912/188448
-         kmalloc-8                    100.0%          24576/24576
-         kmalloc-16                   100.0%          28672/28672
-         kmalloc-32                   100.0%          81920/81920
-         kmalloc-192                  100.0%          96768/96768
-         kmalloc-128                  100.0%        143360/143360
-         names_cache                  100.0%        163840/163840
-         kmalloc-64                   100.0%        167936/167936
-         kmalloc-256                  100.0%        339968/339968
-         kmalloc-512                  100.0%        350720/350720
-         kmalloc-96                   100.0%        455616/455616
-         kmalloc-8192                 100.0%        655360/655360
-         kmalloc-1024                 100.0%        812032/812032
-         kmalloc-4096                 100.0%        819200/819200
-         kmalloc-2048                 100.0%      1310720/1310720
-
-After some kernel build workloads, the percentage (mainly driven by
-dentry and inode caches expanding) drops under 10%:
-
-Total Slab Memory:           95516184
-Usercopyable Memory:          8497452   8.8%
-         task_struct                    0.2%         4000/1456000
-         RAW                            0.3%            300/96000
-         RAWv6                          2.1%           1408/64768
-         ext4_inode_cache               3.0%     1217280/39439872
-         dentry                        11.1%     1623200/14608800
-         mm_struct                     29.1%         73216/251264
-         kmalloc-8                    100.0%          24576/24576
-         kmalloc-16                   100.0%          28672/28672
-         kmalloc-32                   100.0%          94208/94208
-         kmalloc-192                  100.0%          96768/96768
-         kmalloc-128                  100.0%        143360/143360
-         names_cache                  100.0%        163840/163840
-         kmalloc-64                   100.0%        245760/245760
-         kmalloc-256                  100.0%        339968/339968
-         kmalloc-512                  100.0%        350720/350720
-         kmalloc-96                   100.0%        563520/563520
-         kmalloc-8192                 100.0%        655360/655360
-         kmalloc-1024                 100.0%        794624/794624
-         kmalloc-4096                 100.0%        819200/819200
-         kmalloc-2048                 100.0%      1257472/1257472
-
-------
-The patches are broken in several stages of changes:
-
-Prepare and whitelist kmalloc:
-    [PATCH 01/31] usercopy: Prepare for usercopy whitelisting
-    [PATCH 02/31] usercopy: Enforce slab cache usercopy region boundaries
-    [PATCH 03/31] usercopy: Mark kmalloc caches as usercopy caches
-
-Update VFS layer for symlinks and other inline storage:
-    [PATCH 04/31] dcache: Define usercopy region in dentry_cache slab
-    [PATCH 05/31] vfs: Define usercopy region in names_cache slab caches
-    [PATCH 06/31] vfs: Copy struct mount.mnt_id to userspace using
-    [PATCH 07/31] ext4: Define usercopy region in ext4_inode_cache slab
-    [PATCH 08/31] ext2: Define usercopy region in ext2_inode_cache slab
-    [PATCH 09/31] jfs: Define usercopy region in jfs_ip slab cache
-    [PATCH 10/31] befs: Define usercopy region in befs_inode_cache slab
-    [PATCH 11/31] exofs: Define usercopy region in exofs_inode_cache slab
-    [PATCH 12/31] orangefs: Define usercopy region in
-    [PATCH 13/31] ufs: Define usercopy region in ufs_inode_cache slab
-    [PATCH 14/31] vxfs: Define usercopy region in vxfs_inode slab cache
-    [PATCH 15/31] xfs: Define usercopy region in xfs_inode slab cache
-    [PATCH 16/31] cifs: Define usercopy region in cifs_request slab cache
-
-Update scsi layer for inline storage:
-    [PATCH 17/31] scsi: Define usercopy region in scsi_sense_cache slab
-
-Whitelist a few network protocol-specific areas of memory:
-    [PATCH 18/31] net: Define usercopy region in struct proto slab cache
-    [PATCH 19/31] ip: Define usercopy region in IP proto slab cache
-    [PATCH 20/31] caif: Define usercopy region in caif proto slab cache
-    [PATCH 21/31] sctp: Define usercopy region in SCTP proto slab cache
-    [PATCH 22/31] sctp: Copy struct sctp_sock.autoclose to userspace
-    [PATCH 23/31] net: Restrict unwhitelisted proto caches to size 0
-
-Whitelist areas of process memory:
-    [PATCH 24/31] fork: Define usercopy region in mm_struct slab caches
-    [PATCH 25/31] fork: Define usercopy region in thread_stack slab
-
-Deal with per-architecture thread_struct whitelisting:
-    [PATCH 26/31] fork: Provide usercopy whitelisting for task_struct
-    [PATCH 27/31] x86: Implement thread_struct whitelist for hardened
-    [PATCH 28/31] arm64: Implement thread_struct whitelist for hardened
-    [PATCH 29/31] arm: Implement thread_struct whitelist for hardened
-
-Make blacklisting the default:
-    [PATCH 30/31] usercopy: Restrict non-usercopy caches to size 0
-
-Update LKDTM:
-    [PATCH 31/31] lkdtm: Update usercopy tests for whitelisting
-
-
-Thanks!
-
--Kees (and David)
+diff --git a/mm/slab.c b/mm/slab.c
+index df268999cf02..9af16f675927 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1291,7 +1291,8 @@ void __init kmem_cache_init(void)
+ 	 */
+ 	kmalloc_caches[INDEX_NODE] = create_kmalloc_cache(
+ 				kmalloc_info[INDEX_NODE].name,
+-				kmalloc_size(INDEX_NODE), ARCH_KMALLOC_FLAGS);
++				kmalloc_size(INDEX_NODE), ARCH_KMALLOC_FLAGS,
++				0, kmalloc_size(INDEX_NODE));
+ 	slab_state = PARTIAL_NODE;
+ 	setup_kmalloc_cache_index_table();
+ 
+diff --git a/mm/slab.h b/mm/slab.h
+index 044755ff9632..2e0fe357d777 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -97,7 +97,8 @@ struct kmem_cache *kmalloc_slab(size_t, gfp_t);
+ extern int __kmem_cache_create(struct kmem_cache *, unsigned long flags);
+ 
+ extern struct kmem_cache *create_kmalloc_cache(const char *name, size_t size,
+-			unsigned long flags);
++			unsigned long flags, size_t useroffset,
++			size_t usersize);
+ extern void create_boot_cache(struct kmem_cache *, const char *name,
+ 			size_t size, unsigned long flags, size_t useroffset,
+ 			size_t usersize);
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 36408f5f2a34..d4e6442f9bbc 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -920,14 +920,15 @@ void __init create_boot_cache(struct kmem_cache *s, const char *name, size_t siz
+ }
+ 
+ struct kmem_cache *__init create_kmalloc_cache(const char *name, size_t size,
+-				unsigned long flags)
++				unsigned long flags, size_t useroffset,
++				size_t usersize)
+ {
+ 	struct kmem_cache *s = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
+ 
+ 	if (!s)
+ 		panic("Out of memory when creating slab %s\n", name);
+ 
+-	create_boot_cache(s, name, size, flags, 0, size);
++	create_boot_cache(s, name, size, flags, useroffset, usersize);
+ 	list_add(&s->list, &slab_caches);
+ 	memcg_link_cache(s);
+ 	s->refcount = 1;
+@@ -1081,7 +1082,8 @@ void __init setup_kmalloc_cache_index_table(void)
+ static void __init new_kmalloc_cache(int idx, unsigned long flags)
+ {
+ 	kmalloc_caches[idx] = create_kmalloc_cache(kmalloc_info[idx].name,
+-					kmalloc_info[idx].size, flags);
++					kmalloc_info[idx].size, flags, 0,
++					kmalloc_info[idx].size);
+ }
+ 
+ /*
+@@ -1122,7 +1124,7 @@ void __init create_kmalloc_caches(unsigned long flags)
+ 
+ 			BUG_ON(!n);
+ 			kmalloc_dma_caches[i] = create_kmalloc_cache(n,
+-				size, SLAB_CACHE_DMA | flags);
++				size, SLAB_CACHE_DMA | flags, 0, 0);
+ 		}
+ 	}
+ #endif
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
