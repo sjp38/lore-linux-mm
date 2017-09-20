@@ -1,68 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9212E6B02DC
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 19:11:52 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id b9so4446872wra.3
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:11:52 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id z9si308836edk.423.2017.09.20.16.11.51
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 974236B02DE
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 19:21:21 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id r83so6984868pfj.5
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:21:21 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id l6si44179pgs.588.2017.09.20.16.21.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 20 Sep 2017 16:11:51 -0700 (PDT)
-Date: Wed, 20 Sep 2017 19:11:46 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 0/6] More graceful flusher thread memory reclaim wakeup
-Message-ID: <20170920230910.GA18540@cmpxchg.org>
-References: <1505850787-18311-1-git-send-email-axboe@kernel.dk>
- <20170920192909.GA27517@quad.stoffel.home>
- <8a91a54e-e224-ad79-faac-3f8fe654246a@kernel.dk>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Sep 2017 16:21:18 -0700 (PDT)
+Subject: Re: [PATCH v6 03/11] mm, x86: Add support for eXclusive Page Frame
+ Ownership (XPFO)
+References: <20170907173609.22696-1-tycho@docker.com>
+ <20170907173609.22696-4-tycho@docker.com>
+ <34454a32-72c2-c62e-546c-1837e05327e1@intel.com>
+ <20170920223452.vam3egenc533rcta@smitten>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <97475308-1f3d-ea91-5647-39231f3b40e5@intel.com>
+Date: Wed, 20 Sep 2017 16:21:15 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8a91a54e-e224-ad79-faac-3f8fe654246a@kernel.dk>
+In-Reply-To: <20170920223452.vam3egenc533rcta@smitten>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: John Stoffel <john@stoffel.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, clm@fb.com, jack@suse.cz
+To: Tycho Andersen <tycho@docker.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, x86@kernel.org
 
-[ Fixed up CC list. John, you're sending email with
-  From: John Stoffel <john@quad.stoffel.home> ]
-
-On Wed, Sep 20, 2017 at 01:32:25PM -0600, Jens Axboe wrote:
-> On 09/20/2017 01:29 PM, John Stoffel wrote:
-> > On Tue, Sep 19, 2017 at 01:53:01PM -0600, Jens Axboe wrote:
-> >> We've had some issues with writeback in presence of memory reclaim
-> >> at Facebook, and this patch set attempts to fix it up. The real
-> >> functional change is the last patch in the series, the first 5 are
-> >> prep and cleanup patches.
-> >>
-> >> The basic idea is that we have callers that call
-> >> wakeup_flusher_threads() with nr_pages == 0. This means 'writeback
-> >> everything'. For memory reclaim situations, we can end up queuing
-> >> a TON of these kinds of writeback units. This can cause softlockups
-> >> and further memory issues, since we allocate huge amounts of
-> >> struct wb_writeback_work to handle this writeback. Handle this
-> >> situation more gracefully.
-> > 
-> > This looks nice, but do you have any numbers to show how this improves
-> > things?  I read the patches, but I'm not strong enough to comment on
-> > them at all.  But I am interested in how this improves writeback under
-> > pressure, if at all.
+On 09/20/2017 03:34 PM, Tycho Andersen wrote:
+>> I really have to wonder whether there are better ret2dir defenses than
+>> this.  The allocator just seems like the *wrong* place to be doing this
+>> because it's such a hot path.
 > 
-> Writeback should be about the same, it's mostly about preventing
-> softlockups and excessive memory usage, under conditions where we are
-> actively trying to reclaim/clean memory. It was bad enough to cause
-> softlockups for writeback work processing, while the pending writeback
-> work units grew to insane lengths.
+> This might be crazy, but what if we defer flushing of the kernel
+> ranges until just before we return to userspace? We'd still manipulate
+> the prot/xpfo bits for the pages, but then just keep a list of which
+> ranges need to be flushed, and do the right thing before we return.
+> This leaves a little window between the actual allocation and the
+> flush, but userspace would need another thread in its threadgroup to
+> predict the next allocation, write the bad stuff there, and do the
+> exploit all in that window.
 
-In numbers, we have seen situations where we had 600 million writeback
-work items queued up from reclaim under pressure. That's 35G worth of
-work descriptors, and the machine was struggling to remain responsive
-due to a lack of memory.
+I think the common case is still that you enter the kernel, allocate a
+single page (or very few) and then exit.  So, you don't really reduce
+the total number of flushes.
 
-Once writeback against all outstanding dirty pages has been requested,
-there really isn't a need to queue even a second work item; the job is
-already being performed. We can queue the next one when it completes.
+Just think of this in terms of IPIs to do the remote TLB flushes.  A CPU
+can do roughly 1 million page faults and allocations a second.  Say you
+have a 2-socket x 28-core x 2 hyperthead system = 112 CPU threads.
+That's 111M IPI interrupts/second, just for the TLB flushes, *ON* *EACH*
+*CPU*.
+
+I think the only thing that will really help here is if you batch the
+allocations.  For instance, you could make sure that the per-cpu-pageset
+lists always contain either all kernel or all user data.  Then remap the
+entire list at once and do a single flush after the entire list is consumed.
+
+>> Why do you even bother keeping large pages around?  Won't the entire
+>> kernel just degrade to using 4k everywhere, eventually?
+> 
+> Isn't that true of large pages in general? Is there something about
+> xpfo that makes this worse? I thought this would only split things if
+> they had already been split somewhere else, and the protection can't
+> apply to the whole huge page.
+
+Even though the kernel gives out 4k pages, it still *maps* them in the
+kernel linear direct map with the largest size available.  My 16GB
+laptop, for instance, has 3GB of 2MB transparent huge pages, but the
+rest is used as 4k pages.  Yet, from /proc/meminfo:
+
+DirectMap4k:      665280 kB
+DirectMap2M:    11315200 kB
+DirectMap1G:     4194304 kB
+
+Your code pretty much forces 4k pages coming out of the allocator to be
+mapped with 4k mappings.
+>>> +inline void xpfo_flush_kernel_tlb(struct page *page, int order)
+>>> +{
+>>> +	int level;
+>>> +	unsigned long size, kaddr;
+>>> +
+>>> +	kaddr = (unsigned long)page_address(page);
+>>> +
+>>> +	if (unlikely(!lookup_address(kaddr, &level))) {
+>>> +		WARN(1, "xpfo: invalid address to flush %lx %d\n", kaddr, level);
+>>> +		return;
+>>> +	}
+>>> +
+>>> +	switch (level) {
+>>> +	case PG_LEVEL_4K:
+>>> +		size = PAGE_SIZE;
+>>> +		break;
+>>> +	case PG_LEVEL_2M:
+>>> +		size = PMD_SIZE;
+>>> +		break;
+>>> +	case PG_LEVEL_1G:
+>>> +		size = PUD_SIZE;
+>>> +		break;
+>>> +	default:
+>>> +		WARN(1, "xpfo: unsupported page level %x\n", level);
+>>> +		return;
+>>> +	}
+>>> +
+>>> +	flush_tlb_kernel_range(kaddr, kaddr + (1 << order) * size);
+>>> +}
+>>
+>> I'm not sure flush_tlb_kernel_range() is the best primitive to be
+>> calling here.
+>>
+>> Let's say you walk the page tables and find level=PG_LEVEL_1G.  You call
+>> flush_tlb_kernel_range(), you will be above
+>> tlb_single_page_flush_ceiling, and you will do a full TLB flush.  But,
+>> with a 1GB page, you could have just used a single INVLPG and skipped
+>> the global flush.
+>>
+>> I guess the cost of the IPI is way more than the flush itself, but it's
+>> still a shame to toss the entire TLB when you don't have to.
+> 
+> Ok, do you think it's worth making a new helper for others to use? Or
+> should I just keep the logic in this function?
+
+I'd just leave it in place.  Most folks already have a PTE when they do
+the invalidation, so this is a bit of a weirdo.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
