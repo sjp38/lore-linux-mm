@@ -1,74 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F18E66B027E
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:52:48 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id j16so7393439pga.6
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:52:48 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C4A66B02A4
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 16:52:50 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id x78so6471127pff.7
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 13:52:50 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id w22sor2604233pge.200.2017.09.20.13.52.47
+        by mx.google.com with SMTPS id c23sor1348617pli.13.2017.09.20.13.52.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Sep 2017 13:52:47 -0700 (PDT)
+        Wed, 20 Sep 2017 13:52:49 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v3 28/31] arm64: Implement thread_struct whitelist for hardened usercopy
-Date: Wed, 20 Sep 2017 13:45:34 -0700
-Message-Id: <1505940337-79069-29-git-send-email-keescook@chromium.org>
+Subject: [PATCH v3 27/31] x86: Implement thread_struct whitelist for hardened usercopy
+Date: Wed, 20 Sep 2017 13:45:33 -0700
+Message-Id: <1505940337-79069-28-git-send-email-keescook@chromium.org>
 In-Reply-To: <1505940337-79069-1-git-send-email-keescook@chromium.org>
 References: <1505940337-79069-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Kees Cook <keescook@chromium.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Ingo Molnar <mingo@kernel.org>, James Morse <james.morse@arm.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Dave Martin <Dave.Martin@arm.com>, zijun_hu <zijun_hu@htc.com>, linux-arm-kernel@lists.infradead.org, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, David Windsor <dave@nullcore.net>
+Cc: Kees Cook <keescook@chromium.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Borislav Petkov <bp@suse.de>, Andy Lutomirski <luto@kernel.org>, Mathias Krause <minipli@googlemail.com>, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, David Windsor <dave@nullcore.net>
 
 This whitelists the FPU register state portion of the thread_struct for
-copying to userspace, instead of the default entire structure.
+copying to userspace, instead of the default entire struct.
 
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: James Morse <james.morse@arm.com>
-Cc: "Peter Zijlstra (Intel)" <peterz@infradead.org>
-Cc: Dave Martin <Dave.Martin@arm.com>
-Cc: zijun_hu <zijun_hu@htc.com>
-Cc: linux-arm-kernel@lists.infradead.org
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: x86@kernel.org
+Cc: Borislav Petkov <bp@suse.de>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Mathias Krause <minipli@googlemail.com>
 Signed-off-by: Kees Cook <keescook@chromium.org>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
- arch/arm64/Kconfig                 | 1 +
- arch/arm64/include/asm/processor.h | 8 ++++++++
+ arch/x86/Kconfig                 | 1 +
+ arch/x86/include/asm/processor.h | 8 ++++++++
  2 files changed, 9 insertions(+)
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 0df64a6a56d4..e190f9901aef 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -73,6 +73,7 @@ config ARM64
- 	select HAVE_ARCH_MMAP_RND_BITS
- 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if COMPAT
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 971feac13506..6642e8eaff45 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -114,6 +114,7 @@ config X86
+ 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if MMU && COMPAT
+ 	select HAVE_ARCH_COMPAT_MMAP_BASES	if MMU && COMPAT
  	select HAVE_ARCH_SECCOMP_FILTER
 +	select HAVE_ARCH_THREAD_STRUCT_WHITELIST
  	select HAVE_ARCH_TRACEHOOK
  	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
- 	select HAVE_ARCH_VMAP_STACK
-diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/processor.h
-index 29adab8138c3..759c4d90ac7f 100644
---- a/arch/arm64/include/asm/processor.h
-+++ b/arch/arm64/include/asm/processor.h
-@@ -90,6 +90,14 @@ struct thread_struct {
- 	struct debug_info	debug;		/* debugging */
+ 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD if X86_64
+diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
+index 3fa26a61eabc..868235b967ed 100644
+--- a/arch/x86/include/asm/processor.h
++++ b/arch/x86/include/asm/processor.h
+@@ -488,6 +488,14 @@ struct thread_struct {
+ 	 */
  };
  
-+/* Whitelist the fpsimd_state for copying to userspace. */
++/* Whitelist the FPU state from the task_struct for hardened usercopy. */
 +static inline void arch_thread_struct_whitelist(unsigned long *offset,
 +						unsigned long *size)
 +{
-+	*offset = offsetof(struct thread_struct, fpsimd_state);
-+	*size = sizeof(struct fpsimd_state);
++	*offset = offsetof(struct thread_struct, fpu.state);
++	*size = fpu_kernel_xstate_size;
 +}
 +
- #ifdef CONFIG_COMPAT
- #define task_user_tls(t)						\
- ({									\
+ /*
+  * Thread-synchronous status.
+  *
 -- 
 2.7.4
 
