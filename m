@@ -1,99 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A00246B026D
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 21:42:23 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id o200so7177023itg.2
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 18:42:23 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id i7sor278390itb.134.2017.09.20.18.42.22
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E702D6B0038
+	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 01:40:39 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r74so4748915wme.5
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 22:40:39 -0700 (PDT)
+Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
+        by mx.google.com with ESMTPS id o26si361360edf.511.2017.09.20.22.40.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Sep 2017 18:42:22 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 20 Sep 2017 22:40:38 -0700 (PDT)
+Received: from mail-io0-f199.google.com ([209.85.223.199])
+	by youngberry.canonical.com with esmtps (TLS1.0:RSA_AES_128_CBC_SHA1:16)
+	(Exim 4.76)
+	(envelope-from <seth.forshee@canonical.com>)
+	id 1duuE1-00064y-Bm
+	for linux-mm@kvack.org; Thu, 21 Sep 2017 05:40:37 +0000
+Received: by mail-io0-f199.google.com with SMTP id 93so8482505iol.2
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 22:40:37 -0700 (PDT)
+Date: Thu, 21 Sep 2017 00:40:34 -0500
+From: Seth Forshee <seth.forshee@canonical.com>
+Subject: Re: Memory hotplug regression in 4.13
+Message-ID: <20170921054034.judv6ovyg5yks4na@ubuntu-hedt>
+References: <20170919164114.f4ef6oi3yhhjwkqy@ubuntu-xps13>
+ <20170920092931.m2ouxfoy62wr65ld@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170920153326.GH11106@quack2.suse.cz>
-References: <1505775180-12014-1-git-send-email-laoar.shao@gmail.com>
- <20170919083554.GC3216@quack2.suse.cz> <CALOAHbAhnno94Jo1uLe3QzYhbAsc=wuHVXTvurCoVhe6YFnPyw@mail.gmail.com>
- <20170920153326.GH11106@quack2.suse.cz>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Thu, 21 Sep 2017 09:42:21 +0800
-Message-ID: <CALOAHbBCmxOgKNMwHVrwq4sRLfEz3g1Sy3YrSJEV5-9XxUUNEQ@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: introduce validity check on vm dirtiness settings
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170920092931.m2ouxfoy62wr65ld@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: akpm@linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>, mhocko@suse.com, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, Theodore Ts'o <tytso@mit.edu>, mawilcox@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-2017-09-20 23:33 GMT+08:00 Jan Kara <jack@suse.cz>:
-> On Tue 19-09-17 19:48:00, Yafang Shao wrote:
->> 2017-09-19 16:35 GMT+08:00 Jan Kara <jack@suse.cz>:
->> > On Tue 19-09-17 06:53:00, Yafang Shao wrote:
->> >> +     if (vm_dirty_bytes == 0 && vm_dirty_ratio == 0 &&
->> >> +             (dirty_background_bytes != 0 || dirty_background_ratio != 0))
->> >> +             ret = false;
->> >
->> > Hum, why not just:
->> >         if ((vm_dirty_bytes == 0 && vm_dirty_ratio == 0) ||
->> >             (dirty_background_bytes == 0 && dirty_background_ratio == 0))
->> >                 ret = false;
->> >
->> > IMHO setting either tunable to 0 is just wrong and actively dangerous...
->> >
->>
->> Because these four variables all could be set to 0 before, and I'm not
->> sure if this
->> is needed under some certain conditions, although I think this is
->> dangerous but I have
->> to keep it as before.
->>
->> If you think that is wrong, then I will modified it as you suggested.
->
-> OK, I see but see below.
->
->> >>  int dirty_background_ratio_handler(struct ctl_table *table, int write,
->> >>               void __user *buffer, size_t *lenp,
->> >>               loff_t *ppos)
->> >>  {
->> >>       int ret;
->> >> +     int old_ratio = dirty_background_ratio;
->> >>
->> >>       ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
->> >> -     if (ret == 0 && write)
->> >> -             dirty_background_bytes = 0;
->> >> +     if (ret == 0 && write) {
->> >> +             if (dirty_background_ratio != old_ratio &&
->> >> +                     !vm_dirty_settings_valid()) {
->> >
->> > Why do you check whether new ratio is different here? If it is really
->> > needed, it would deserve a comment.
->> >
->>
->> There're two reseaons,
->> 1.  if you set a value same with the old value, it's needn't to do this check.
->> 2. there's another behavior that I'm not sure whether it is reaonable.  i.e.
->>      if the old value is,
->>             vm.dirty_background_bytes = 0;
->>             vm.dirty_background_ratio=10;
->>       then I execute the bellow command,
->>             sysctl -w vm.dirty_background_bytes=0
->>      at the end these two values will be,
->>             vm.dirty_background_bytes = 0;
->>             vm.dirty_background_ratio=0;
->> I'm not sure if this is needed under some certain conditons, So I have
->> to keep it as before.
->
-> OK, this is somewhat the problem of the switching logic between _bytes and
-> _ratio bytes and also the fact that '0' has a special meaning in these
-> files. I think the cleanest would be to just refuse writing of '0' into any
-> of these files which would deal with the problem as well.
-Got it.
-I will submit a new patch then.
+On Wed, Sep 20, 2017 at 11:29:31AM +0200, Michal Hocko wrote:
+> Hi,
+> I am currently at a conference so I will most probably get to this next
+> week but I will try to ASAP.
+> 
+> On Tue 19-09-17 11:41:14, Seth Forshee wrote:
+> > Hi Michal,
+> > 
+> > I'm seeing oopses in various locations when hotplugging memory in an x86
+> > vm while running a 32-bit kernel. The config I'm using is attached. To
+> > reproduce I'm using kvm with the memory options "-m
+> > size=512M,slots=3,maxmem=2G". Then in the qemu monitor I run:
+> > 
+> >   object_add memory-backend-ram,id=mem1,size=512M
+> >   device_add pc-dimm,id=dimm1,memdev=mem1
+> > 
+> > Not long after that I'll see an oops, not always in the same location
+> > but most often in wp_page_copy, like this one:
+> 
+> This is rather surprising. How do you online the memory?
 
->
->                                                                 Honza
-> --
-> Jan Kara <jack@suse.com>
-> SUSE Labs, CR
+The kernel has CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE=y.
+
+> > [   24.673623] BUG: unable to handle kernel paging request at dffff000
+> > [   24.675569] IP: wp_page_copy+0xa8/0x660
+> 
+> could you resolve the IP into the source line?
+
+It seems I don't have that kernel anymore, but I've got a 4.14-rc1 build
+and the problem still occurs there. It's pointing to the call to
+__builtin_memcpy in memcpy (include/linux/string.h line 340), which we
+get to via wp_page_copy -> cow_user_page -> copy_user_highpage.
+
+Thanks,
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
