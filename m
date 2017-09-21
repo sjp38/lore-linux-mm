@@ -1,89 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C59AE6B02E6
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 20:02:14 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id g32so7151494ioj.0
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 17:02:14 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id a9sor57421oih.253.2017.09.20.17.02.13
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 23DF96B02E9
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 20:03:34 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id y29so7130547pff.6
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 17:03:34 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id m26si99004pgd.469.2017.09.20.17.03.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Sep 2017 17:02:13 -0700 (PDT)
-Date: Wed, 20 Sep 2017 18:02:10 -0600
-From: Tycho Andersen <tycho@docker.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Sep 2017 17:03:32 -0700 (PDT)
 Subject: Re: [PATCH v6 03/11] mm, x86: Add support for eXclusive Page Frame
  Ownership (XPFO)
-Message-ID: <20170921000210.drjiywtp4n75yovk@docker>
 References: <20170907173609.22696-1-tycho@docker.com>
  <20170907173609.22696-4-tycho@docker.com>
- <302be94d-7e44-001d-286c-2b0cd6098f7b@huawei.com>
- <20170911145020.fat456njvyagcomu@docker>
- <57e95ad2-81d8-bf83-3e78-1313daa1bb80@canonical.com>
- <431e2567-7600-3186-1489-93b855c395bd@huawei.com>
- <20170912143636.avc3ponnervs43kj@docker>
- <20170912181303.aqjj5ri3mhscw63t@docker>
- <91923595-7f02-3be0-9c59-9c1fd20c82a8@intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <55fa9707-a623-90bd-a0a1-e45920e94103@intel.com>
+Date: Wed, 20 Sep 2017 17:03:28 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <91923595-7f02-3be0-9c59-9c1fd20c82a8@intel.com>
+In-Reply-To: <20170907173609.22696-4-tycho@docker.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Yisheng Xie <xieyisheng1@huawei.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, x86@kernel.org
+To: Tycho Andersen <tycho@docker.com>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, x86@kernel.org
 
-On Wed, Sep 20, 2017 at 04:46:41PM -0700, Dave Hansen wrote:
-> On 09/12/2017 11:13 AM, Tycho Andersen wrote:
-> > -void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp)
-> > +void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp, bool will_map)
-> >  {
-> >  	int i, flush_tlb = 0;
-> >  	struct xpfo *xpfo;
-> > @@ -116,8 +116,14 @@ void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp)
-> >  			 * Tag the page as a user page and flush the TLB if it
-> >  			 * was previously allocated to the kernel.
-> >  			 */
-> > -			if (!test_and_set_bit(XPFO_PAGE_USER, &xpfo->flags))
-> > +			bool was_user = !test_and_set_bit(XPFO_PAGE_USER,
-> > +							  &xpfo->flags);
-> > +
-> > +			if (was_user || !will_map) {
-> > +				set_kpte(page_address(page + i), page + i,
-> > +					 __pgprot(0));
-> >  				flush_tlb = 1;
-> > +			}
-> 
-> Shouldn't the "was_user" be "was_kernel"?
+On 09/07/2017 10:36 AM, Tycho Andersen wrote:
+> +		/*
+> +		 * Map the page back into the kernel if it was previously
+> +		 * allocated to user space.
+> +		 */
+> +		if (test_and_clear_bit(XPFO_PAGE_USER, &xpfo->flags)) {
+> +			clear_bit(XPFO_PAGE_UNMAPPED, &xpfo->flags);
+> +			set_kpte(page_address(page + i), page + i,
+> +				 PAGE_KERNEL);
+> +		}
+> +	}
 
-Oof, yes, thanks.
+It might also be a really good idea to clear the page here.  Otherwise,
+the page still might have attack code in it and now it is mapped into
+the kernel again, ready to be exploited.
 
-> Also, the way this now works, let's say we have a nice, 2MB pmd_t (page
-> table entry) mapping a nice, 2MB page in the allocator.  Then it gets
-> allocated to userspace.  We do
-> 
-> 	for (i = 0; i < (1 << order); i++)  {
-> 		...
-> 		set_kpte(page_address(page + i), page+i, __pgprot(0));
-> 	}
-> 
-> The set_kpte() will take the nice, 2MB mapping and break it down into
-> 512 4k mappings, all pointing to a non-present PTE, in a newly-allocated
-> PTE page.  So, you get the same result and waste 4k of memory in the
-> process, *AND* make it slower because we added a level to the page tables.
-> 
-> I think you actually want to make a single set_kpte() call at the end of
-> the function.  That's faster and preserves the large page in the direct
-> mapping.
+Think of it this way: pages either trusted data and are mapped all the
+time, or they have potentially bad data and are unmapped mostly.  If we
+want to take a bad page and map it always, we have to make sure the
+contents are not evil.  0's are not evil.
 
-...and makes it easier to pair tlb flushes with changing the
-protections. I guess we still need the for loop, because we need to
-set/unset the xpfo bits as necessary, but I'll switch it to a single
-set_kpte(). This also implies that the xpfo bits should all be the
-same on every page in the mapping, which I think is true.
+>  static inline void *kmap(struct page *page)
+>  {
+> +	void *kaddr;
+> +
+>  	might_sleep();
+> -	return page_address(page);
+> +	kaddr = page_address(page);
+> +	xpfo_kmap(kaddr, page);
+> +	return kaddr;
+>  }
 
-This will be a nice change, thanks!
+The time between kmap() and kunmap() is potentially a really long
+operation.  I think we, for instance, keep some pages kmap()'d while we
+do I/O to them, or wait for I/O elsewhere.
 
-Tycho
+IOW, this will map predictable data at a predictable location and it
+will do it for a long time.  While that's better than the current state
+(mapped always), it still seems rather risky.
+
+Could you, for instance, turn kmap(page) into vmap(&page, 1, ...)?  That
+way, at least the address may be different each time.  Even if an
+attacker knows the physical address, they don't know where it will be
+mapped.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
