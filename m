@@ -1,105 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E3AC6B0038
-	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 11:36:49 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id m103so11016383iod.6
-        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 08:36:49 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p144sor962030itc.105.2017.09.21.08.36.47
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 425676B0069
+	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 11:36:59 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id d8so12265737pgt.1
+        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 08:36:59 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id h5si1166895pfe.224.2017.09.21.08.36.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 21 Sep 2017 08:36:47 -0700 (PDT)
-Subject: Re: [PATCH 7/7] fs-writeback: only allow one inflight and pending
- full flush
-References: <1505921582-26709-1-git-send-email-axboe@kernel.dk>
- <1505921582-26709-8-git-send-email-axboe@kernel.dk>
- <20170921150510.GH8839@infradead.org>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <728d4141-8d73-97fb-de08-90671c2897da@kernel.dk>
-Date: Thu, 21 Sep 2017 09:36:45 -0600
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Sep 2017 08:36:58 -0700 (PDT)
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [PATCH] KSM: Replace jhash2 with xxhash
+References: <20170921074519.9333-1-nefelim4ag@gmail.com>
+Date: Thu, 21 Sep 2017 08:36:57 -0700
+In-Reply-To: <20170921074519.9333-1-nefelim4ag@gmail.com> (Timofey Titovets's
+	message of "Thu, 21 Sep 2017 10:45:19 +0300")
+Message-ID: <8760ccdpwm.fsf@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20170921150510.GH8839@infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, clm@fb.com, jack@suse.cz
+To: Timofey Titovets <nefelim4ag@gmail.com>
+Cc: linux-mm@kvack.org
 
-On 09/21/2017 09:05 AM, Christoph Hellwig wrote:
-> On Wed, Sep 20, 2017 at 09:33:02AM -0600, Jens Axboe wrote:
->> When someone calls wakeup_flusher_threads() or
->> wakeup_flusher_threads_bdi(), they schedule writeback of all dirty
->> pages in the system (or on that bdi). If we are tight on memory, we
->> can get tons of these queued from kswapd/vmscan. This causes (at
->> least) two problems:
->>
->> 1) We consume a ton of memory just allocating writeback work items.
->> 2) We spend so much time processing these work items, that we
->>    introduce a softlockup in writeback processing.
->>
->> Fix this by adding a 'start_all' bit to the writeback structure, and
->> set that when someone attempts to flush all dirty page.  The bit is
->> cleared when we start writeback on that work item. If the bit is
->> already set when we attempt to queue !nr_pages writeback, then we
->> simply ignore it.
->>
->> This provides us one full flush in flight, with one pending as well,
->> and makes for more efficient handling of this type of writeback.
->>
->> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
->> Tested-by: Chris Mason <clm@fb.com>
->> Reviewed-by: Jan Kara <jack@suse.cz>
->> Signed-off-by: Jens Axboe <axboe@kernel.dk>
->> ---
->>  fs/fs-writeback.c                | 24 ++++++++++++++++++++++++
->>  include/linux/backing-dev-defs.h |  1 +
->>  2 files changed, 25 insertions(+)
->>
->> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
->> index 3916ea2484ae..6205319d0c24 100644
->> --- a/fs/fs-writeback.c
->> +++ b/fs/fs-writeback.c
->> @@ -53,6 +53,7 @@ struct wb_writeback_work {
->>  	unsigned int for_background:1;
->>  	unsigned int for_sync:1;	/* sync(2) WB_SYNC_ALL writeback */
->>  	unsigned int auto_free:1;	/* free on completion */
->> +	unsigned int start_all:1;	/* nr_pages == 0 (all) writeback */
->>  	enum wb_reason reason;		/* why was writeback initiated? */
->>  
->>  	struct list_head list;		/* pending work list */
->> @@ -953,12 +954,26 @@ static void wb_start_writeback(struct bdi_writeback *wb, bool range_cyclic,
->>  		return;
->>  
->>  	/*
->> +	 * All callers of this function want to start writeback of all
->> +	 * dirty pages. Places like vmscan can call this at a very
->> +	 * high frequency, causing pointless allocations of tons of
->> +	 * work items and keeping the flusher threads busy retrieving
->> +	 * that work. Ensure that we only allow one of them pending and
->> +	 * inflight at the time
->> +	 */
->> +	if (test_bit(WB_start_all, &wb->state))
->> +		return;
->> +
->> +	set_bit(WB_start_all, &wb->state);
-> 
-> This should be test_and_set_bit here..
+Timofey Titovets <nefelim4ag@gmail.com> writes:
 
-That's on purpose, doesn't matter if we race here, and if we're
-being hammered with flusher thread wakeups, then we don't want to
-turn that unlocked test into a locked instruction.
+> xxhash much faster then jhash,
+> ex. for x86_64 host:
+> PAGE_SIZE: 4096, loop count: 1048576
+> jhash2:   0xacbc7a5b            time: 1907 ms,  th:  2251.9 MiB/s
+> xxhash32: 0x570da981            time: 739 ms,   th:  5809.4 MiB/s
+> xxhash64: 0xa1fa032ab85bbb62    time: 371 ms,   th: 11556.6 MiB/s
+>
+> xxhash64 on x86_32 work with ~ same speed as jhash2.
+> xxhash32 on x86_32 work with ~ same speed as for x86_64
 
-> But more importantly once we are not guaranteed that we only have
-> a single global wb_writeback_work per bdi_writeback we should just
-> embedd that into struct bdi_writeback instead of dynamically
-> allocating it.
-We could do this as a followup. But right now the logic is that we
-can have on started (inflight), and still have one new queued.
+Which CPU is that?
 
--- 
-Jens Axboe
+>
+> So replace jhash with xxhash,
+> and use fastest version for current target ARCH.
+
+Can you do some macro-benchmarking too? Something that uses
+KSM and show how the performance changes.
+
+You could manually increase the scan rate to make it easier
+to see.
+
+> @@ -51,6 +52,12 @@
+>  #define DO_NUMA(x)	do { } while (0)
+>  #endif
+>  
+> +#if BITS_PER_LONG == 64
+> +typedef	u64	xxhash;
+> +#else
+> +typedef	u32	xxhash;
+> +#endif
+
+This should be in xxhash.h ? 
+
+xxhash_t would seem to be a better name.
+
+> -	u32 checksum;
+> +	xxhash checksum;
+>  	void *addr = kmap_atomic(page);
+> -	checksum = jhash2(addr, PAGE_SIZE / 4, 17);
+> +#if BITS_PER_LONG == 64
+> +	checksum = xxh64(addr, PAGE_SIZE, 0);
+> +#else
+> +	checksum = xxh32(addr, PAGE_SIZE, 0);
+> +#endif
+
+This should also be generic in xxhash.h
+
+
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
