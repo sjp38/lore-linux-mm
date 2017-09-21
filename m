@@ -1,86 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C1486B0033
-	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 18:07:01 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id p5so13816504pgn.7
-        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 15:07:01 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id u9si1705951pge.605.2017.09.21.15.07.00
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 289736B0033
+	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 19:18:31 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id v109so7768843wrc.5
+        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 16:18:31 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j17sor1091424wrc.14.2017.09.21.16.18.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Sep 2017 15:07:00 -0700 (PDT)
-Date: Thu, 21 Sep 2017 15:06:59 -0700
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: [PATCH] KSM: Replace jhash2 with xxhash
-Message-ID: <20170921220659.GI4311@tassilo.jf.intel.com>
-References: <20170921074519.9333-1-nefelim4ag@gmail.com>
- <8760ccdpwm.fsf@linux.intel.com>
- <CAGqmi74Qi0VRKG87N4txEZRaZ3JHYW8622E0KhKynRYuD56J=g@mail.gmail.com>
- <20170921200543.GH4311@tassilo.jf.intel.com>
- <CAGqmi76=ntcE5tvYGKOQynpTfUfUotwXZQuU4iUC+H_6rua7Yw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGqmi76=ntcE5tvYGKOQynpTfUfUotwXZQuU4iUC+H_6rua7Yw@mail.gmail.com>
+        (Google Transport Security);
+        Thu, 21 Sep 2017 16:18:29 -0700 (PDT)
+From: Timofey Titovets <nefelim4ag@gmail.com>
+Subject: [PATCH v2 0/2] KSM: Replace jhash2 with xxhash
+Date: Fri, 22 Sep 2017 02:18:16 +0300
+Message-Id: <20170921231818.10271-1-nefelim4ag@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Timofey Titovets <nefelim4ag@gmail.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Timofey Titovets <nefelim4ag@gmail.com>
 
-On Fri, Sep 22, 2017 at 12:37:25AM +0300, Timofey Titovets wrote:
-> With defaults:
-> jhash2: ~4.7%
-> xxhash64: ~3.3%
-> 
-> 3.3/4.7 ~= 0.7 -> Profit: ~30%
-> 11/18   ~= 0.6 -> Profit: ~40%
-> (if i calculate correctly of course)
+ksm use jhash2 for hashing pages,
+in 4.14 xxhash has been merged to mainline kernel.
 
-Sounds good.
+xxhash much faster then jhash2 on big inputs (32 byte+)
 
-Please add all performance information to the changelog.
+xxhash has 2 versions, one with 32-bit hash and
+one with 64-bit hash.
 
-> 
-> >> >> @@ -51,6 +52,12 @@
-> >> >>  #define DO_NUMA(x)   do { } while (0)
-> >> >>  #endif
-> >> >>
-> >> >> +#if BITS_PER_LONG == 64
-> >> >> +typedef      u64     xxhash;
-> >> >> +#else
-> >> >> +typedef      u32     xxhash;
-> >> >> +#endif
-> >> >
-> >> > This should be in xxhash.h ?
-> >>
-> >> This is a "hack", for compile time chose appropriate hash function.
-> >> xxhash ported from upstream code,
-> >> upstream version don't do that (IMHO), as this useless in most cases.
-> >> That only can be useful for memory only hashes.
-> >> Because for persistent data it's obvious to always use one hash type 32/64.
-> >
-> > I don't think it's a hack. It makes sense. Just should be done centrally
-> > in Linux, not in a specific user.
-> 
-> So, i must add separate patch for xxhash.h?
+64-bit version works faster then 32-bit on 64-bit arch.
 
-Yes.
+So lets get better from two worlds,
+create arch dependent xxhash() function that will use
+fastest algo for current arch.
+This a first patch.
 
-> If yes, may be you can suggest which list must be in copy?
-> (i can't find any info about maintainers of ./lib/ in MAINTAINERS)
+Performance info and ksm update can be found in second patch.
 
-Just copy linux-kernel. It would be all merged together.
+Changelog:
+  v1 -> v2:
+    - Move xxhash() to xxhash.h/c and separate patches
 
-> If we decide to patch xxhash.h,
-> may be that will be better to wrap above if-else by something like:
-> /*
->  * Only for in memory use
->  */
-> xxhash_t xxhash(const void *input, size_t length, uint64_t seed);
+Timofey Titovets (2):
+  xxHash: create arch dependent 32/64-bit xxhash()
+  KSM: Replace jhash2 with xxhash
 
-Yes that's fine.
+ include/linux/xxhash.h | 24 ++++++++++++++++++++++++
+ lib/xxhash.c           | 10 ++++++++++
+ mm/Kconfig             |  1 +
+ mm/ksm.c               | 14 +++++++-------
+ 4 files changed, 42 insertions(+), 7 deletions(-)
 
--Andi
+--
+2.14.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
