@@ -1,97 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 61FAF6B0253
-	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 16:49:39 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 11so13525010pge.4
-        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 13:49:39 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id z190si1510103pgd.390.2017.09.21.13.49.38
+	by kanga.kvack.org (Postfix) with ESMTP id 508D86B0069
+	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 16:52:44 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id m30so13567786pgn.2
+        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 13:52:44 -0700 (PDT)
+Received: from out0-199.mail.aliyun.com (out0-199.mail.aliyun.com. [140.205.0.199])
+        by mx.google.com with ESMTPS id d196si1531802pfd.210.2017.09.21.13.52.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Sep 2017 13:49:38 -0700 (PDT)
-From: Shaohua Li <shli@kernel.org>
-Subject: [PATCH 2/2] mm: fix data corruption caused by lazyfree page
-Date: Thu, 21 Sep 2017 13:27:11 -0700
-Message-Id: <cb93061c24ba9287767d87e8da6d7249c39908f0.1506024100.git.shli@fb.com>
-In-Reply-To: <cover.1506024100.git.shli@fb.com>
-References: <cover.1506024100.git.shli@fb.com>
-In-Reply-To: <cover.1506024100.git.shli@fb.com>
-References: <cover.1506024100.git.shli@fb.com>
+        Thu, 21 Sep 2017 13:52:43 -0700 (PDT)
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Subject: [PATCH 0/2 v5] oom: capture unreclaimable slab info in oom message when kernel panic
+Date: Fri, 22 Sep 2017 04:52:23 +0800
+Message-Id: <1506027145-93950-1-git-send-email-yang.s@alibaba-inc.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Artem Savkov <asavkov@redhat.com>, Kernel-team@fb.com, Shaohua Li <shli@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org
+Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Shaohua Li <shli@fb.com>
 
-MADV_FREE clears pte dirty bit and then marks the page lazyfree (clear
-SwapBacked). There is no lock to prevent the page is added to swap cache
-between these two steps by page reclaim. If page reclaim finds such
-page, it will simply add the page to swap cache without pageout the page
-to swap because the page is marked as clean. Next time, page fault will
-read data from the swap slot which doesn't have the original data, so we
-have a data corruption. To fix issue, we mark the page dirty and pageout
-the page.
+Recently we ran into a oom issue, kernel panic due to no killable process.
+The dmesg shows huge unreclaimable slabs used almost 100% memory, but kdump doesn't capture vmcore due to some reason.
 
-However, we shouldn't dirty all pages which is clean and in swap cache.
-swapin page is swap cache and clean too. So we only dirty page which is
-added into swap cache in page reclaim, which shouldn't be swapin page.
-Normal anonymous pages should be dirty already.
+So, it may sound better to capture unreclaimable slab info in oom message when kernel panic to aid trouble shooting and cover the corner case.
+Since kernel already panic, so capturing more information sounds worthy and doesn't bother normal oom killer.
 
-Reported-and-tested-y: Artem Savkov <asavkov@redhat.com>
-Fix: 802a3a92ad7a(mm: reclaim MADV_FREE pages)
-Signed-off-by: Shaohua Li <shli@fb.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- mm/vmscan.c | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+With the patchset, tools/vm/slabinfo has a new option, "-U", to show unreclaimable slab only.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d811c81..820ee8d 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -980,6 +980,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		int may_enter_fs;
- 		enum page_references references = PAGEREF_RECLAIM_CLEAN;
- 		bool dirty, writeback;
-+		bool new_swap_page = false;
- 
- 		cond_resched();
- 
-@@ -1165,6 +1166,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 
- 				/* Adding to swap updated mapping */
- 				mapping = page_mapping(page);
-+				new_swap_page = true;
- 			}
- 		} else if (unlikely(PageTransHuge(page))) {
- 			/* Split file THP */
-@@ -1185,6 +1187,16 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 				nr_unmap_fail++;
- 				goto activate_locked;
- 			}
-+
-+			/*
-+			 * MADV_FREE clear pte dirty bit, but not yet clear
-+			 * SwapBacked for a page. We can't directly free the
-+			 * page because we already set swap entry in pte. The
-+			 * check guarantees this is such page and not a clean
-+			 * swapin page
-+			 */
-+			if (!PageDirty(page) && new_swap_page)
-+				set_page_dirty(page);
- 		}
- 
- 		if (PageDirty(page)) {
--- 
-2.9.5
+And, oom will print all non zero (num_objs * size != 0) unreclaimable slabs in oom killer message.
+
+For details, please see the commit log for each commit.
+
+Changelog v4 a??> v5:
+* Solved the comments from David
+* Build test SLABINFO = n
+
+Changelog v3 a??> v4:
+* Solved the comments from David
+* Added Davida??s Acked-by in patch 1
+
+Changelog v2 a??> v3:
+* Show used size and total size of each kmem cache per Davida??s comment
+
+Changelog v1 a??> v2:
+* Removed the original patch 1 (a??mm: slab: output reclaimable flag in /proc/slabinfoa??) since Christoph suggested it might break the compatibility and /proc/slabinfo is legacy
+* Added Christopha??s Acked-by
+* Removed acquiring slab_mutex per Tetsuoa??s comment
+
+Yang Shi (2):
+      tools: slabinfo: add "-U" option to show unreclaimable slabs only
+      mm: oom: show unreclaimable slab info when kernel panic
+
+ mm/oom_kill.c       |  3 +++
+ mm/slab.h           |  8 ++++++++
+ mm/slab_common.c    | 29 +++++++++++++++++++++++++++++
+ tools/vm/slabinfo.c | 11 ++++++++++-
+ 4 files changed, 50 insertions(+), 1 deletion(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
