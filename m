@@ -1,101 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 20F586B0038
-	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 07:41:17 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id q7so9932699ioi.3
-        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 04:41:17 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id h8si937996oib.415.2017.09.21.04.41.15
-        for <linux-mm@kvack.org>;
-        Thu, 21 Sep 2017 04:41:15 -0700 (PDT)
-Subject: Re: [PATCH 4/4] iommu/dma, numa: Use NUMA aware memory allocations in
- __iommu_dma_alloc_pages
-References: <20170921085922.11659-1-ganapatrao.kulkarni@cavium.com>
- <20170921085922.11659-5-ganapatrao.kulkarni@cavium.com>
-From: Robin Murphy <robin.murphy@arm.com>
-Message-ID: <9d65676f-e4e8-e0a6-602c-361d83ce83c1@arm.com>
-Date: Thu, 21 Sep 2017 12:41:11 +0100
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 90E956B0038
+	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 07:52:14 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r74so5597073wme.5
+        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 04:52:14 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d90si1370443edd.470.2017.09.21.04.52.13
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 21 Sep 2017 04:52:13 -0700 (PDT)
+Date: Thu, 21 Sep 2017 13:52:06 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v4] mm: introduce validity check on vm dirtiness settings
+Message-ID: <20170921115206.GB16731@quack2.suse.cz>
+References: <1506002392-11907-1-git-send-email-laoar.shao@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170921085922.11659-5-ganapatrao.kulkarni@cavium.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1506002392-11907-1-git-send-email-laoar.shao@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ganapatrao Kulkarni <ganapatrao.kulkarni@cavium.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-mm@kvack.org
-Cc: Will.Deacon@arm.com, lorenzo.pieralisi@arm.com, hanjun.guo@linaro.org, joro@8bytes.org, vbabka@suse.cz, akpm@linux-foundation.org, mhocko@suse.com, Tomasz.Nowicki@cavium.com, Robert.Richter@cavium.com, jnair@caviumnetworks.com, gklkml16@gmail.com
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: jack@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@suse.com, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, tytso@mit.edu, mawilcox@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mcgrof@kernel.org, keescook@chromium.org, wuqixuan@huawei.com
 
-On 21/09/17 09:59, Ganapatrao Kulkarni wrote:
-> Change function __iommu_dma_alloc_pages to allocate memory/pages
-> for dma from respective device numa node.
+On Thu 21-09-17 21:59:52, Yafang Shao wrote:
+> we can find the logic in domain_dirty_limits() that
+> when dirty bg_thresh is bigger than dirty thresh,
+> bg_thresh will be set as thresh * 1 / 2.
+> 	if (bg_thresh >= thresh)
+> 		bg_thresh = thresh / 2;
 > 
-> Signed-off-by: Ganapatrao Kulkarni <ganapatrao.kulkarni@cavium.com>
-> ---
->  drivers/iommu/dma-iommu.c | 17 ++++++++++-------
->  1 file changed, 10 insertions(+), 7 deletions(-)
+> But actually we can set vm background dirtiness bigger than
+> vm dirtiness successfully. This behavior may mislead us.
+> We'd better do this validity check at the beginning.
 > 
-> diff --git a/drivers/iommu/dma-iommu.c b/drivers/iommu/dma-iommu.c
-> index 9d1cebe..0626b58 100644
-> --- a/drivers/iommu/dma-iommu.c
-> +++ b/drivers/iommu/dma-iommu.c
-> @@ -428,20 +428,21 @@ static void __iommu_dma_free_pages(struct page **pages, int count)
->  	kvfree(pages);
->  }
->  
-> -static struct page **__iommu_dma_alloc_pages(unsigned int count,
-> -		unsigned long order_mask, gfp_t gfp)
-> +static struct page **__iommu_dma_alloc_pages(struct device *dev,
-> +		unsigned int count, unsigned long order_mask, gfp_t gfp)
->  {
->  	struct page **pages;
->  	unsigned int i = 0, array_size = count * sizeof(*pages);
-> +	int numa_node = dev_to_node(dev);
->  
->  	order_mask &= (2U << MAX_ORDER) - 1;
->  	if (!order_mask)
->  		return NULL;
->  
->  	if (array_size <= PAGE_SIZE)
-> -		pages = kzalloc(array_size, GFP_KERNEL);
-> +		pages = kzalloc_node(array_size, GFP_KERNEL, numa_node);
->  	else
-> -		pages = vzalloc(array_size);
-> +		pages = vzalloc_node(array_size, numa_node);
+> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
 
-kvzalloc{,_node}() didn't exist when this code was first written, but it
-does now - since you're touching it you may as well get rid of the whole
-if-else and array_size local.
+Looks good. You can add:
 
-Further nit: some of the indentation below is a bit messed up.
+Reviewed-by: Jan Kara <jack@suse.cz>
 
-Robin.
+Just one nit below:
 
->  	if (!pages)
->  		return NULL;
->  
-> @@ -462,8 +463,9 @@ static struct page **__iommu_dma_alloc_pages(unsigned int count,
->  			unsigned int order = __fls(order_mask);
->  
->  			order_size = 1U << order;
-> -			page = alloc_pages((order_mask - order_size) ?
-> -					   gfp | __GFP_NORETRY : gfp, order);
-> +			page = alloc_pages_node(numa_node,
-> +					(order_mask - order_size) ?
-> +				   gfp | __GFP_NORETRY : gfp, order);
->  			if (!page)
->  				continue;
->  			if (!order)
-> @@ -548,7 +550,8 @@ struct page **iommu_dma_alloc(struct device *dev, size_t size, gfp_t gfp,
->  		alloc_sizes = min_size;
->  
->  	count = PAGE_ALIGN(size) >> PAGE_SHIFT;
-> -	pages = __iommu_dma_alloc_pages(count, alloc_sizes >> PAGE_SHIFT, gfp);
-> +	pages = __iommu_dma_alloc_pages(dev, count, alloc_sizes >> PAGE_SHIFT,
-> +			gfp);
->  	if (!pages)
->  		return NULL;
->  
-> 
+> +
+> +    /* needn't do validity check if the value is not different. */
+> +	if (ret == 0 && write && dirty_background_ratio != old_ratio) {
+
+Whitespace before the comment is broken. Generally I don't think the
+comment brings much so I'd just delete it.
+
+								Honza
+
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
