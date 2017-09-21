@@ -1,40 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AD846B0038
-	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 13:33:46 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id s62so11802183ywg.3
-        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 10:33:46 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id v127si415935ybe.128.2017.09.21.10.33.44
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 68B4D6B0038
+	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 13:36:05 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id j26so11620010iod.5
+        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 10:36:05 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a66sor843314oib.136.2017.09.21.10.36.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Sep 2017 10:33:44 -0700 (PDT)
-Date: Thu, 21 Sep 2017 10:33:39 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 7/7] fs-writeback: only allow one inflight and pending
- full flush
-Message-ID: <20170921173339.GA13384@infradead.org>
-References: <1505921582-26709-1-git-send-email-axboe@kernel.dk>
- <1505921582-26709-8-git-send-email-axboe@kernel.dk>
- <20170921150510.GH8839@infradead.org>
- <728d4141-8d73-97fb-de08-90671c2897da@kernel.dk>
- <3682c4c2-6e8a-e883-9f62-455ea2944496@kernel.dk>
+        (Google Transport Security);
+        Thu, 21 Sep 2017 10:36:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3682c4c2-6e8a-e883-9f62-455ea2944496@kernel.dk>
+In-Reply-To: <8760ccdpwm.fsf@linux.intel.com>
+References: <20170921074519.9333-1-nefelim4ag@gmail.com> <8760ccdpwm.fsf@linux.intel.com>
+From: Timofey Titovets <nefelim4ag@gmail.com>
+Date: Thu, 21 Sep 2017 20:35:23 +0300
+Message-ID: <CAGqmi74Qi0VRKG87N4txEZRaZ3JHYW8622E0KhKynRYuD56J=g@mail.gmail.com>
+Subject: Re: [PATCH] KSM: Replace jhash2 with xxhash
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, clm@fb.com, jack@suse.cz
+To: Andi Kleen <ak@linux.intel.com>
+Cc: linux-mm@kvack.org
 
-On Thu, Sep 21, 2017 at 10:00:25AM -0600, Jens Axboe wrote:
-> Something like the below would fit on top to do that. Gets rid of the
-> allocation and embeds the work item for global start-all in the
-> bdi_writeback structure.
+2017-09-21 18:36 GMT+03:00 Andi Kleen <ak@linux.intel.com>:
+> Timofey Titovets <nefelim4ag@gmail.com> writes:
+>
+>> xxhash much faster then jhash,
+>> ex. for x86_64 host:
+>> PAGE_SIZE: 4096, loop count: 1048576
+>> jhash2:   0xacbc7a5b            time: 1907 ms,  th:  2251.9 MiB/s
+>> xxhash32: 0x570da981            time: 739 ms,   th:  5809.4 MiB/s
+>> xxhash64: 0xa1fa032ab85bbb62    time: 371 ms,   th: 11556.6 MiB/s
+>>
+>> xxhash64 on x86_32 work with ~ same speed as jhash2.
+>> xxhash32 on x86_32 work with ~ same speed as for x86_64
+>
+> Which CPU is that?
 
-Something like that.  Although if we still kalloc the global
-wb we wouldn't have to expose all the details in the header.
+Intel(R) Core(TM) i5-7200U CPU @ 2.50GHz
+---
+I've access to some VM (Not KVM) with:
+Intel(R) Xeon(R) CPU E5-2420 0 @ 1.90GHz
+PAGE_SIZE: 4096, loop count: 1048576
+jhash2:   0x15433d14            time: 3661 ms,  th: 1173.144082 MiB/s
+xxhash32: 0x3df3de36            time: 1163 ms,  th: 3691.581922 MiB/s
+xxhash64: 0x5d9e67755d3c9a6a    time: 715 ms,   th: 6006.628034 MiB/s
+
+As additional info, xxhash work with ~ same as jhash2 speed at 32 byte
+input data.
+For input smaller than 32 byte, jhash2 win, for input bigger, xxhash win.
+
+
+>> So replace jhash with xxhash,
+>> and use fastest version for current target ARCH.
+>
+> Can you do some macro-benchmarking too? Something that uses
+> KSM and show how the performance changes.
+>
+> You could manually increase the scan rate to make it easier
+> to see.
+
+Try use that patch with my patch to allow process all VMA on system [1].
+I switch sleep_millisecs 20 -> 1
+
+(I use htop to see CPU load of ksmd)
+
+CPU: Intel(R) Xeon(R) CPU E5-2420 0 @ 1.90GHz
+For jhash2: ~18%
+For xxhash64: ~11%
+
+(i didn't have x86_32 test machine, so by extrapolating values,
+so i expect for xxhash32: (18+11)/2 = ~14.5%)
+
+KSM Statistic:
+full_scans:481
+max_page_sharing:256
+merge_across_nodes:1
+mode:[always] normal
+pages_shared:39
+pages_sharing:135
+pages_to_scan:100
+pages_unshared:4514
+pages_volatile:310
+run:1
+sleep_millisecs:1
+stable_node_chains:0
+stable_node_chains_prune_millisecs:2000
+stable_node_dups:0
+use_zero_pages:0
+
+>> @@ -51,6 +52,12 @@
+>>  #define DO_NUMA(x)   do { } while (0)
+>>  #endif
+>>
+>> +#if BITS_PER_LONG == 64
+>> +typedef      u64     xxhash;
+>> +#else
+>> +typedef      u32     xxhash;
+>> +#endif
+>
+> This should be in xxhash.h ?
+
+This is a "hack", for compile time chose appropriate hash function.
+xxhash ported from upstream code,
+upstream version don't do that (IMHO), as this useless in most cases.
+That only can be useful for memory only hashes.
+Because for persistent data it's obvious to always use one hash type 32/64.
+
+> xxhash_t would seem to be a better name.
+>
+>> -     u32 checksum;
+>> +     xxhash checksum;
+>>       void *addr = kmap_atomic(page);
+>> -     checksum = jhash2(addr, PAGE_SIZE / 4, 17);
+>> +#if BITS_PER_LONG == 64
+>> +     checksum = xxh64(addr, PAGE_SIZE, 0);
+>> +#else
+>> +     checksum = xxh32(addr, PAGE_SIZE, 0);
+>> +#endif
+>
+> This should also be generic in xxhash.h
+
+This *can* be generic in xxhash.h, when that solution will be used
+somewhere in the kernel code, not in the KSM only, not?
+
+Because for now i didn't find other places with "big enough" input
+data, to replace jhash2 with xxhash.
+
+>
+>
+> -Andi
+
+Thanks.
+
+Links:
+1. https://marc.info/?l=linux-mm&m=150539825420373&w=2
+
+-- 
+Have a nice day,
+Timofey.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
