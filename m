@@ -1,80 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A11036B026D
-	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 21:37:16 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id e9so7515082iod.4
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 18:37:16 -0700 (PDT)
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A00246B026D
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2017 21:42:23 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id o200so7177023itg.2
+        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 18:42:23 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id i90sor111529ioo.331.2017.09.20.18.37.15
+        by mx.google.com with SMTPS id i7sor278390itb.134.2017.09.20.18.42.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Sep 2017 18:37:15 -0700 (PDT)
-Date: Wed, 20 Sep 2017 19:37:12 -0600
-From: Tycho Andersen <tycho@docker.com>
-Subject: Re: [PATCH v6 03/11] mm, x86: Add support for eXclusive Page Frame
- Ownership (XPFO)
-Message-ID: <20170921013712.lznwkkmdmp64vaiq@docker>
-References: <20170907173609.22696-1-tycho@docker.com>
- <20170907173609.22696-4-tycho@docker.com>
- <34454a32-72c2-c62e-546c-1837e05327e1@intel.com>
- <20170920223452.vam3egenc533rcta@smitten>
- <97475308-1f3d-ea91-5647-39231f3b40e5@intel.com>
- <20170921000901.v7zo4g5edhqqfabm@docker>
- <d1a35583-8225-2ab3-d9fa-273482615d09@intel.com>
+        Wed, 20 Sep 2017 18:42:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <d1a35583-8225-2ab3-d9fa-273482615d09@intel.com>
+In-Reply-To: <20170920153326.GH11106@quack2.suse.cz>
+References: <1505775180-12014-1-git-send-email-laoar.shao@gmail.com>
+ <20170919083554.GC3216@quack2.suse.cz> <CALOAHbAhnno94Jo1uLe3QzYhbAsc=wuHVXTvurCoVhe6YFnPyw@mail.gmail.com>
+ <20170920153326.GH11106@quack2.suse.cz>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Thu, 21 Sep 2017 09:42:21 +0800
+Message-ID: <CALOAHbBCmxOgKNMwHVrwq4sRLfEz3g1Sy3YrSJEV5-9XxUUNEQ@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: introduce validity check on vm dirtiness settings
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, x86@kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: akpm@linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>, mhocko@suse.com, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, Theodore Ts'o <tytso@mit.edu>, mawilcox@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Sep 20, 2017 at 05:27:02PM -0700, Dave Hansen wrote:
-> On 09/20/2017 05:09 PM, Tycho Andersen wrote:
-> >> I think the only thing that will really help here is if you batch the
-> >> allocations.  For instance, you could make sure that the per-cpu-pageset
-> >> lists always contain either all kernel or all user data.  Then remap the
-> >> entire list at once and do a single flush after the entire list is consumed.
-> > Just so I understand, the idea would be that we only flush when the
-> > type of allocation alternates, so:
-> > 
-> > kmalloc(..., GFP_KERNEL);
-> > kmalloc(..., GFP_KERNEL);
-> > /* remap+flush here */
-> > kmalloc(..., GFP_HIGHUSER);
-> > /* remap+flush here */
-> > kmalloc(..., GFP_KERNEL);
-> 
-> Not really.  We keep a free list per migrate type, and a per_cpu_pages
-> (pcp) list per migratetype:
-> 
-> > struct per_cpu_pages {
-> >         int count;              /* number of pages in the list */
-> >         int high;               /* high watermark, emptying needed */
-> >         int batch;              /* chunk size for buddy add/remove */
-> > 
-> >         /* Lists of pages, one per migrate type stored on the pcp-lists */
-> >         struct list_head lists[MIGRATE_PCPTYPES];
-> > };
-> 
-> The migratetype is derived from the GFP flags in
-> gfpflags_to_migratetype().  In general, GFP_HIGHUSER and GFP_KERNEL come
-> from different migratetypes, so they come from different free lists.
-> 
-> In your case above, the GFP_HIGHUSER allocation come through the
-> MIGRATE_MOVABLE pcp list while the GFP_KERNEL ones come from the
-> MIGRATE_UNMOVABLE one.  Since we add a bunch of pages to those lists at
-> once, you could do all the mapping/unmapping/flushing on a bunch of
-> pages at once
-> 
-> Or, you could hook your code into the places where the migratetype of
-> memory is changed (set_pageblock_migratetype(), plus where we fall
-> back).  Those changes are much more rare than page allocation.
+2017-09-20 23:33 GMT+08:00 Jan Kara <jack@suse.cz>:
+> On Tue 19-09-17 19:48:00, Yafang Shao wrote:
+>> 2017-09-19 16:35 GMT+08:00 Jan Kara <jack@suse.cz>:
+>> > On Tue 19-09-17 06:53:00, Yafang Shao wrote:
+>> >> +     if (vm_dirty_bytes == 0 && vm_dirty_ratio == 0 &&
+>> >> +             (dirty_background_bytes != 0 || dirty_background_ratio != 0))
+>> >> +             ret = false;
+>> >
+>> > Hum, why not just:
+>> >         if ((vm_dirty_bytes == 0 && vm_dirty_ratio == 0) ||
+>> >             (dirty_background_bytes == 0 && dirty_background_ratio == 0))
+>> >                 ret = false;
+>> >
+>> > IMHO setting either tunable to 0 is just wrong and actively dangerous...
+>> >
+>>
+>> Because these four variables all could be set to 0 before, and I'm not
+>> sure if this
+>> is needed under some certain conditions, although I think this is
+>> dangerous but I have
+>> to keep it as before.
+>>
+>> If you think that is wrong, then I will modified it as you suggested.
+>
+> OK, I see but see below.
+>
+>> >>  int dirty_background_ratio_handler(struct ctl_table *table, int write,
+>> >>               void __user *buffer, size_t *lenp,
+>> >>               loff_t *ppos)
+>> >>  {
+>> >>       int ret;
+>> >> +     int old_ratio = dirty_background_ratio;
+>> >>
+>> >>       ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+>> >> -     if (ret == 0 && write)
+>> >> -             dirty_background_bytes = 0;
+>> >> +     if (ret == 0 && write) {
+>> >> +             if (dirty_background_ratio != old_ratio &&
+>> >> +                     !vm_dirty_settings_valid()) {
+>> >
+>> > Why do you check whether new ratio is different here? If it is really
+>> > needed, it would deserve a comment.
+>> >
+>>
+>> There're two reseaons,
+>> 1.  if you set a value same with the old value, it's needn't to do this check.
+>> 2. there's another behavior that I'm not sure whether it is reaonable.  i.e.
+>>      if the old value is,
+>>             vm.dirty_background_bytes = 0;
+>>             vm.dirty_background_ratio=10;
+>>       then I execute the bellow command,
+>>             sysctl -w vm.dirty_background_bytes=0
+>>      at the end these two values will be,
+>>             vm.dirty_background_bytes = 0;
+>>             vm.dirty_background_ratio=0;
+>> I'm not sure if this is needed under some certain conditons, So I have
+>> to keep it as before.
+>
+> OK, this is somewhat the problem of the switching logic between _bytes and
+> _ratio bytes and also the fact that '0' has a special meaning in these
+> files. I think the cleanest would be to just refuse writing of '0' into any
+> of these files which would deal with the problem as well.
+Got it.
+I will submit a new patch then.
 
-I see, thanks for all this discussion. It has been very helpful!
-
-Tycho
+>
+>                                                                 Honza
+> --
+> Jan Kara <jack@suse.com>
+> SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
