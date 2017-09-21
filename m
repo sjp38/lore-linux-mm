@@ -1,209 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A20D6B0038
-	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 02:13:25 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id p87so8634215pfj.4
-        for <linux-mm@kvack.org>; Wed, 20 Sep 2017 23:13:25 -0700 (PDT)
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C66086B0253
+	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 03:45:30 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id 23so3688712lfs.0
+        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 00:45:30 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y186sor294684pgb.238.2017.09.20.23.13.23
+        by mx.google.com with SMTPS id t1sor242346lfd.77.2017.09.21.00.45.28
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 20 Sep 2017 23:13:24 -0700 (PDT)
-From: Yafang Shao <laoar.shao@gmail.com>
-Subject: [PATCH v4] mm: introduce validity check on vm dirtiness settings
-Date: Thu, 21 Sep 2017 21:59:52 +0800
-Message-Id: <1506002392-11907-1-git-send-email-laoar.shao@gmail.com>
+        Thu, 21 Sep 2017 00:45:29 -0700 (PDT)
+From: Timofey Titovets <nefelim4ag@gmail.com>
+Subject: [PATCH] KSM: Replace jhash2 with xxhash
+Date: Thu, 21 Sep 2017 10:45:19 +0300
+Message-Id: <20170921074519.9333-1-nefelim4ag@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jack@suse.cz
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@suse.com, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, tytso@mit.edu, mawilcox@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, laoar.shao@gmail.com, mcgrof@kernel.org, keescook@chromium.org, wuqixuan@huawei.com
+To: linux-mm@kvack.org
+Cc: Timofey Titovets <nefelim4ag@gmail.com>
 
-we can find the logic in domain_dirty_limits() that
-when dirty bg_thresh is bigger than dirty thresh,
-bg_thresh will be set as thresh * 1 / 2.
-	if (bg_thresh >= thresh)
-		bg_thresh = thresh / 2;
+xxhash much faster then jhash,
+ex. for x86_64 host:
+PAGE_SIZE: 4096, loop count: 1048576
+jhash2:   0xacbc7a5b            time: 1907 ms,  th:  2251.9 MiB/s
+xxhash32: 0x570da981            time: 739 ms,   th:  5809.4 MiB/s
+xxhash64: 0xa1fa032ab85bbb62    time: 371 ms,   th: 11556.6 MiB/s
 
-But actually we can set vm background dirtiness bigger than
-vm dirtiness successfully. This behavior may mislead us.
-We'd better do this validity check at the beginning.
+xxhash64 on x86_32 work with ~ same speed as jhash2.
+xxhash32 on x86_32 work with ~ same speed as for x86_64
 
-Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+So replace jhash with xxhash,
+and use fastest version for current target ARCH.
+
+Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
 ---
- Documentation/sysctl/vm.txt |  6 ++++
- kernel/sysctl.c             |  4 +--
- mm/page-writeback.c         | 80 ++++++++++++++++++++++++++++++++++++++++-----
- 3 files changed, 80 insertions(+), 10 deletions(-)
+ mm/Kconfig |  1 +
+ mm/ksm.c   | 25 ++++++++++++++++++-------
+ 2 files changed, 19 insertions(+), 7 deletions(-)
 
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index 9baf66a..0bab85d 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -156,6 +156,9 @@ read.
- Note: the minimum value allowed for dirty_bytes is two pages (in bytes); any
- value lower than this limit will be ignored and the old configuration will be
- retained.
-+Note: the value of dirty_bytes also cannot be set lower than
-+dirty_background_bytes or the amount of memory corresponding to
-+dirty_background_ratio.
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 9c4bdddd80c2..252ab266ac23 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -305,6 +305,7 @@ config MMU_NOTIFIER
+ config KSM
+ 	bool "Enable KSM for page merging"
+ 	depends on MMU
++	select XXHASH
+ 	help
+ 	  Enable Kernel Samepage Merging: KSM periodically scans those areas
+ 	  of an application's address space that an app has advised may be
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 15dd7415f7b3..e012d9778c18 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -25,7 +25,8 @@
+ #include <linux/pagemap.h>
+ #include <linux/rmap.h>
+ #include <linux/spinlock.h>
+-#include <linux/jhash.h>
++#include <linux/xxhash.h>
++#include <linux/bitops.h> /* BITS_PER_LONG */
+ #include <linux/delay.h>
+ #include <linux/kthread.h>
+ #include <linux/wait.h>
+@@ -51,6 +52,12 @@
+ #define DO_NUMA(x)	do { } while (0)
+ #endif
  
- ==============================================================
- 
-@@ -176,6 +179,9 @@ generating disk writes will itself start writing out dirty data.
- 
- The total available memory is not equal to total system memory.
- 
-+Note: dirty_ratio cannot be set lower than dirty_background_ratio or
-+ratio corresponding to dirty_background_bytes.
++#if BITS_PER_LONG == 64
++typedef	u64	xxhash;
++#else
++typedef	u32	xxhash;
++#endif
 +
- ==============================================================
+ /*
+  * A few notes about the KSM scanning process,
+  * to make it easier to understand the data structures below:
+@@ -186,7 +193,7 @@ struct rmap_item {
+ 	};
+ 	struct mm_struct *mm;
+ 	unsigned long address;		/* + low bits used for flags below */
+-	unsigned int oldchecksum;	/* when unstable */
++	xxhash oldchecksum;		/* when unstable */
+ 	union {
+ 		struct rb_node node;	/* when node of unstable tree */
+ 		struct {		/* when listed from stable tree */
+@@ -255,7 +262,7 @@ static unsigned int ksm_thread_pages_to_scan = 100;
+ static unsigned int ksm_thread_sleep_millisecs = 20;
  
- dirty_writeback_centisecs
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 6648fbb..7b525cf 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1293,7 +1293,7 @@ static int sysrq_sysctl_handler(struct ctl_table *table, int write,
- 		.maxlen		= sizeof(dirty_background_ratio),
- 		.mode		= 0644,
- 		.proc_handler	= dirty_background_ratio_handler,
--		.extra1		= &zero,
-+		.extra1		= &one,
- 		.extra2		= &one_hundred,
- 	},
- 	{
-@@ -1310,7 +1310,7 @@ static int sysrq_sysctl_handler(struct ctl_table *table, int write,
- 		.maxlen		= sizeof(vm_dirty_ratio),
- 		.mode		= 0644,
- 		.proc_handler	= dirty_ratio_handler,
--		.extra1		= &zero,
-+		.extra1		= &one,
- 		.extra2		= &one_hundred,
- 	},
- 	{
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 0b9c5cb..8dfd222 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -511,15 +511,61 @@ bool node_dirty_ok(struct pglist_data *pgdat)
- 	return nr_pages <= limit;
+ /* Checksum of an empty (zeroed) page */
+-static unsigned int zero_checksum __read_mostly;
++static xxhash zero_checksum __read_mostly;
+ 
+ /* Whether to merge empty (zeroed) pages with actual zero pages */
+ static bool ksm_use_zero_pages __read_mostly;
+@@ -982,11 +989,15 @@ static int unmerge_and_remove_all_rmap_items(void)
  }
+ #endif /* CONFIG_SYSFS */
  
-+static bool vm_dirty_settings_valid(void)
-+{
-+	bool ret = true;
-+	unsigned long bytes;
-+
-+	if (vm_dirty_ratio > 0) {
-+		if (dirty_background_ratio >= vm_dirty_ratio) {
-+			ret = false;
-+			goto out;
-+		}
-+
-+		bytes = global_dirtyable_memory() * PAGE_SIZE / 100 *
-+				vm_dirty_ratio;
-+		if (dirty_background_bytes >= bytes) {
-+			ret = false;
-+			goto out;
-+		}
-+	}
-+
-+	if (vm_dirty_bytes > 0) {
-+		if (dirty_background_bytes >= vm_dirty_bytes) {
-+			ret = false;
-+			goto out;
-+		}
-+
-+		bytes = global_dirtyable_memory() * PAGE_SIZE / 100 *
-+				dirty_background_ratio;
-+
-+		if (bytes >= vm_dirty_bytes)
-+			ret = false;
-+	}
-+
-+out:
-+	return ret;
-+}
-+
- int dirty_background_ratio_handler(struct ctl_table *table, int write,
- 		void __user *buffer, size_t *lenp,
- 		loff_t *ppos)
+-static u32 calc_checksum(struct page *page)
++static xxhash calc_checksum(struct page *page)
  {
- 	int ret;
-+	int old_ratio = dirty_background_ratio;
- 
- 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
--	if (ret == 0 && write)
--		dirty_background_bytes = 0;
-+
-+    /* needn't do validity check if the value is not different. */
-+	if (ret == 0 && write && dirty_background_ratio != old_ratio) {
-+		if (vm_dirty_settings_valid())
-+			dirty_background_bytes = 0;
-+		else {
-+			dirty_background_ratio = old_ratio;
-+			ret = -EINVAL;
-+		}
-+	}
-+
- 	return ret;
+-	u32 checksum;
++	xxhash checksum;
+ 	void *addr = kmap_atomic(page);
+-	checksum = jhash2(addr, PAGE_SIZE / 4, 17);
++#if BITS_PER_LONG == 64
++	checksum = xxh64(addr, PAGE_SIZE, 0);
++#else
++	checksum = xxh32(addr, PAGE_SIZE, 0);
++#endif
+ 	kunmap_atomic(addr);
+ 	return checksum;
  }
+@@ -1994,7 +2005,7 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
+ 	struct page *tree_page = NULL;
+ 	struct stable_node *stable_node;
+ 	struct page *kpage;
+-	unsigned int checksum;
++	xxhash checksum;
+ 	int err;
+ 	bool max_page_sharing_bypass = false;
  
-@@ -528,10 +574,18 @@ int dirty_background_bytes_handler(struct ctl_table *table, int write,
- 		loff_t *ppos)
- {
- 	int ret;
-+	unsigned long old_bytes = dirty_background_bytes;
- 
- 	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
--	if (ret == 0 && write)
--		dirty_background_ratio = 0;
-+	if (ret == 0 && write && dirty_background_bytes != old_bytes) {
-+		if (vm_dirty_settings_valid())
-+			dirty_background_ratio = 0;
-+		else {
-+			dirty_background_bytes = old_bytes;
-+			ret = -EINVAL;
-+		}
-+	}
-+
- 	return ret;
- }
- 
-@@ -544,8 +598,13 @@ int dirty_ratio_handler(struct ctl_table *table, int write,
- 
- 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
- 	if (ret == 0 && write && vm_dirty_ratio != old_ratio) {
--		writeback_set_ratelimit();
--		vm_dirty_bytes = 0;
-+		if (vm_dirty_settings_valid()) {
-+			writeback_set_ratelimit();
-+			vm_dirty_bytes = 0;
-+		} else {
-+			vm_dirty_ratio = old_ratio;
-+			ret = -EINVAL;
-+		}
- 	}
- 	return ret;
- }
-@@ -559,8 +618,13 @@ int dirty_bytes_handler(struct ctl_table *table, int write,
- 
- 	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
- 	if (ret == 0 && write && vm_dirty_bytes != old_bytes) {
--		writeback_set_ratelimit();
--		vm_dirty_ratio = 0;
-+		if (vm_dirty_settings_valid()) {
-+			writeback_set_ratelimit();
-+			vm_dirty_ratio = 0;
-+		} else {
-+			vm_dirty_bytes = old_bytes;
-+			ret = -EINVAL;
-+		}
- 	}
- 	return ret;
- }
 -- 
-1.8.3.1
+2.14.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
