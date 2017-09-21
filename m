@@ -1,81 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 425676B0069
-	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 11:36:59 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id d8so12265737pgt.1
-        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 08:36:59 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id h5si1166895pfe.224.2017.09.21.08.36.58
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E9646B0038
+	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 11:40:03 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id m103so11032429iod.6
+        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 08:40:03 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id d65sor782757itd.11.2017.09.21.08.40.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Sep 2017 08:36:58 -0700 (PDT)
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: [PATCH] KSM: Replace jhash2 with xxhash
-References: <20170921074519.9333-1-nefelim4ag@gmail.com>
-Date: Thu, 21 Sep 2017 08:36:57 -0700
-In-Reply-To: <20170921074519.9333-1-nefelim4ag@gmail.com> (Timofey Titovets's
-	message of "Thu, 21 Sep 2017 10:45:19 +0300")
-Message-ID: <8760ccdpwm.fsf@linux.intel.com>
+        (Google Transport Security);
+        Thu, 21 Sep 2017 08:40:02 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <alpine.DEB.2.20.1709211024120.14427@nuc-kabylake>
+References: <1505940337-79069-1-git-send-email-keescook@chromium.org>
+ <1505940337-79069-4-git-send-email-keescook@chromium.org> <alpine.DEB.2.20.1709211024120.14427@nuc-kabylake>
+From: Kees Cook <keescook@chromium.org>
+Date: Thu, 21 Sep 2017 08:40:00 -0700
+Message-ID: <CAGXu5j+X6dWCGocG=P7pszTY-5OZ6Jmp-RsnDKox75M5rmVe4g@mail.gmail.com>
+Subject: Re: [kernel-hardening] Re: [PATCH v3 03/31] usercopy: Mark kmalloc
+ caches as usercopy caches
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Timofey Titovets <nefelim4ag@gmail.com>
-Cc: linux-mm@kvack.org
+To: Christopher Lameter <cl@linux.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, David Windsor <dave@nullcore.net>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-xfs@vger.kernel.org, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Network Development <netdev@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-Timofey Titovets <nefelim4ag@gmail.com> writes:
-
-> xxhash much faster then jhash,
-> ex. for x86_64 host:
-> PAGE_SIZE: 4096, loop count: 1048576
-> jhash2:   0xacbc7a5b            time: 1907 ms,  th:  2251.9 MiB/s
-> xxhash32: 0x570da981            time: 739 ms,   th:  5809.4 MiB/s
-> xxhash64: 0xa1fa032ab85bbb62    time: 371 ms,   th: 11556.6 MiB/s
+On Thu, Sep 21, 2017 at 8:27 AM, Christopher Lameter <cl@linux.com> wrote:
+> On Wed, 20 Sep 2017, Kees Cook wrote:
 >
-> xxhash64 on x86_32 work with ~ same speed as jhash2.
-> xxhash32 on x86_32 work with ~ same speed as for x86_64
-
-Which CPU is that?
-
+>> --- a/mm/slab.c
+>> +++ b/mm/slab.c
+>> @@ -1291,7 +1291,8 @@ void __init kmem_cache_init(void)
+>>        */
+>>       kmalloc_caches[INDEX_NODE] = create_kmalloc_cache(
+>>                               kmalloc_info[INDEX_NODE].name,
+>> -                             kmalloc_size(INDEX_NODE), ARCH_KMALLOC_FLAGS);
+>> +                             kmalloc_size(INDEX_NODE), ARCH_KMALLOC_FLAGS,
+>> +                             0, kmalloc_size(INDEX_NODE));
+>>       slab_state = PARTIAL_NODE;
+>>       setup_kmalloc_cache_index_table();
 >
-> So replace jhash with xxhash,
-> and use fastest version for current target ARCH.
+> Ok this presumes that at some point we will be able to restrict the number
+> of bytes writeable and thus set the offset and size field to different
+> values. Is that realistic?
+>
+> We already whitelist all kmalloc caches (see first patch).
+>
+> So what is the point of this patch?
 
-Can you do some macro-benchmarking too? Something that uses
-KSM and show how the performance changes.
+The DMA kmalloc caches are not whitelisted:
 
-You could manually increase the scan rate to make it easier
-to see.
+>>                         kmalloc_dma_caches[i] = create_kmalloc_cache(n,
+>> -                               size, SLAB_CACHE_DMA | flags);
+>> +                               size, SLAB_CACHE_DMA | flags, 0, 0);
 
-> @@ -51,6 +52,12 @@
->  #define DO_NUMA(x)	do { } while (0)
->  #endif
->  
-> +#if BITS_PER_LONG == 64
-> +typedef	u64	xxhash;
-> +#else
-> +typedef	u32	xxhash;
-> +#endif
+So this is creating the distinction between the kmallocs that go to
+userspace and those that don't. The expectation is that future work
+can start to distinguish between "for userspace" and "only kernel"
+kmalloc allocations, as is already done here for DMA.
 
-This should be in xxhash.h ? 
+-Kees
 
-xxhash_t would seem to be a better name.
-
-> -	u32 checksum;
-> +	xxhash checksum;
->  	void *addr = kmap_atomic(page);
-> -	checksum = jhash2(addr, PAGE_SIZE / 4, 17);
-> +#if BITS_PER_LONG == 64
-> +	checksum = xxh64(addr, PAGE_SIZE, 0);
-> +#else
-> +	checksum = xxh32(addr, PAGE_SIZE, 0);
-> +#endif
-
-This should also be generic in xxhash.h
-
-
-
--Andi
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
