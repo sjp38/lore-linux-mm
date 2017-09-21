@@ -1,106 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B5146B0069
-	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 08:55:48 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id g50so6265944wra.4
-        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 05:55:48 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id c18sor594228wrb.1.2017.09.21.05.55.46
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 062E06B0038
+	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 09:03:43 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id b9so6279081wra.3
+        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 06:03:42 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i74sor599996wri.52.2017.09.21.06.03.41
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 21 Sep 2017 05:55:46 -0700 (PDT)
-From: =?UTF-8?q?Tom=C3=A1=C5=A1=20Golembiovsk=C3=BD?= <tgolembi@redhat.com>
-Subject: [PATCH v2 1/1] virtio_balloon: include buffers and cached memory statistics
-Date: Thu, 21 Sep 2017 14:55:41 +0200
-Message-Id: <b13f11c03ed394bd8ad367dc90996ed134ea98da.1505998455.git.tgolembi@redhat.com>
-In-Reply-To: <cover.1505998455.git.tgolembi@redhat.com>
-References: <cover.1505998455.git.tgolembi@redhat.com>
+        Thu, 21 Sep 2017 06:03:41 -0700 (PDT)
+Subject: Re: [patch] memfd_create.2: Add description of MFD_HUGETLB
+ (hugetlbfs) support
+References: <20170915214305.7148-1-mike.kravetz@oracle.com>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Message-ID: <fd171d77-7ded-722d-ed3a-4e09d44fb358@gmail.com>
+Date: Thu, 21 Sep 2017 15:03:35 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170915214305.7148-1-mike.kravetz@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, virtualization@lists.linux-foundation.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, virtio-dev@lists.oasis-open.org
-Cc: Wei Wang <wei.w.wang@intel.com>, Shaohua Li <shli@fb.com>, Huang Ying <ying.huang@intel.com>, "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, =?UTF-8?q?Tom=C3=A1=C5=A1=20Golembiovsk=C3=BD?= <tgolembi@redhat.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: mtk.manpages@gmail.com, linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Add a new fields, VIRTIO_BALLOON_S_BUFFERS and VIRTIO_BALLOON_S_CACHED,
-to virtio_balloon memory statistics protocol. The values correspond to
-'Buffers' and 'Cached' in /proc/meminfo.
+Hi Mike,
 
-To be able to compute the value of 'Cached' memory it is necessary to
-export total_swapcache_pages() to modules.
+On 09/15/2017 11:43 PM, Mike Kravetz wrote:
+> hugetlbfs support for memfd_create was recently merged by Linus and
+> should be in the Linux 4.14 release.  To request hugetlbfs support
+> a new memfd_create flag (MFD_HUGETLB) was added.
+> 
+> This patch documents the following commit:
+> 
+> commit 749df87bd7bee5a79cef073f5d032ddb2b211de8
+> Author: Mike Kravetz <mike.kravetz@oracle.com>
+> Date:   Wed Sep 6 16:24:16 2017 -0700
+> 
+>     mm/shmem: add hugetlbfs support to memfd_create()
 
-Signed-off-by: TomA!A! GolembiovskA 1/2  <tgolembi@redhat.com>
----
- drivers/virtio/virtio_balloon.c     | 11 +++++++++++
- include/uapi/linux/virtio_balloon.h |  4 +++-
- mm/swap_state.c                     |  1 +
- 3 files changed, 15 insertions(+), 1 deletion(-)
+Thanks! I've applied this patch.
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index f0b3a0b9d42f..c2558ec47a62 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -244,12 +244,19 @@ static unsigned int update_balloon_stats(struct virtio_balloon *vb)
- 	struct sysinfo i;
- 	unsigned int idx = 0;
- 	long available;
-+	long cached;
- 
- 	all_vm_events(events);
- 	si_meminfo(&i);
- 
- 	available = si_mem_available();
- 
-+	cached = global_node_page_state(NR_FILE_PAGES) -
-+			total_swapcache_pages() - i.bufferram;
-+	if (cached < 0)
-+		cached = 0;
-+
-+
- #ifdef CONFIG_VM_EVENT_COUNTERS
- 	update_stat(vb, idx++, VIRTIO_BALLOON_S_SWAP_IN,
- 				pages_to_bytes(events[PSWPIN]));
-@@ -264,6 +271,10 @@ static unsigned int update_balloon_stats(struct virtio_balloon *vb)
- 				pages_to_bytes(i.totalram));
- 	update_stat(vb, idx++, VIRTIO_BALLOON_S_AVAIL,
- 				pages_to_bytes(available));
-+	update_stat(vb, idx++, VIRTIO_BALLOON_S_BUFFERS,
-+				pages_to_bytes(i.bufferram));
-+	update_stat(vb, idx++, VIRTIO_BALLOON_S_CACHED,
-+				pages_to_bytes(cached));
- 
- 	return idx;
- }
-diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-index 343d7ddefe04..d5dc8a56a497 100644
---- a/include/uapi/linux/virtio_balloon.h
-+++ b/include/uapi/linux/virtio_balloon.h
-@@ -52,7 +52,9 @@ struct virtio_balloon_config {
- #define VIRTIO_BALLOON_S_MEMFREE  4   /* Total amount of free memory */
- #define VIRTIO_BALLOON_S_MEMTOT   5   /* Total amount of memory */
- #define VIRTIO_BALLOON_S_AVAIL    6   /* Available memory as in /proc */
--#define VIRTIO_BALLOON_S_NR       7
-+#define VIRTIO_BALLOON_S_BUFFERS  7   /* Buffers memory as in /proc */
-+#define VIRTIO_BALLOON_S_CACHED   8   /* Cached memory as in /proc */
-+#define VIRTIO_BALLOON_S_NR       9
- 
- /*
-  * Memory statistics structure.
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 71ce2d1ccbf7..f3a4ff7d6c52 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -95,6 +95,7 @@ unsigned long total_swapcache_pages(void)
- 	rcu_read_unlock();
- 	return ret;
- }
-+EXPORT_SYMBOL_GPL(total_swapcache_pages);
- 
- static atomic_t swapin_readahead_hits = ATOMIC_INIT(4);
- 
+Cheers,
+
+Michael
+
+> 
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> ---
+>  man2/memfd_create.2 | 27 +++++++++++++++++++++++++++
+>  1 file changed, 27 insertions(+)
+> 
+> diff --git a/man2/memfd_create.2 b/man2/memfd_create.2
+> index 4dfd1bb2d..b61254bb8 100644
+> --- a/man2/memfd_create.2
+> +++ b/man2/memfd_create.2
+> @@ -100,6 +100,33 @@ If this flag is not set, the initial set of seals will be
+>  meaning that no other seals can be set on the file.
+>  .\" FIXME Why is the MFD_ALLOW_SEALING behavior not simply the default?
+>  .\" Is it worth adding some text explaining this?
+> +.TP
+> +.BR MFD_HUGETLB " (since Linux 4.14)"
+> +The anonymous file will be created in the hugetlbfs filesystem using
+> +huge pages.  See the Linux kernel source file
+> +.I Documentation/vm/hugetlbpage.txt
+> +for more information about hugetlbfs.  The hugetlbfs filesystem does
+> +not support file sealing operations.  Therefore, specifying both
+> +.B MFD_HUGETLB
+> +and
+> +.B MFD_ALLOW_SEALING
+> +will result in an error
+> +.RB (EINVAL)
+> +being returned.
+> +
+> +.TP
+> +.BR MFD_HUGE_2MB ", " MFD_HUGE_1GB ", " "..."
+> +Used in conjunction with
+> +.B MFD_HUGETLB
+> +to select alternative hugetlb page sizes (respectively, 2 MB, 1 GB, ...)
+> +on systems that support multiple hugetlb page sizes.  Definitions for known
+> +huge page sizes are included in the header file
+> +.I <sys/memfd.h>.
+> +
+> +For details on encoding huge page sizes not included in the header file,
+> +see the discussion of the similarly named constants in
+> +.BR mmap (2).
+> +
+>  .PP
+>  Unused bits in
+>  .I flags
+> 
+
+
 -- 
-2.14.1
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
