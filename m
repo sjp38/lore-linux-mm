@@ -1,72 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B88A96B0038
-	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 14:26:46 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id u2so11343084itb.7
-        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 11:26:46 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l143sor892768iol.273.2017.09.21.11.26.45
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B4AE16B0033
+	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 16:05:45 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 11so13355037pge.4
+        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 13:05:45 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id i193si1517502pgc.806.2017.09.21.13.05.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 21 Sep 2017 11:26:45 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Sep 2017 13:05:44 -0700 (PDT)
+Date: Thu, 21 Sep 2017 13:05:43 -0700
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [PATCH] KSM: Replace jhash2 with xxhash
+Message-ID: <20170921200543.GH4311@tassilo.jf.intel.com>
+References: <20170921074519.9333-1-nefelim4ag@gmail.com>
+ <8760ccdpwm.fsf@linux.intel.com>
+ <CAGqmi74Qi0VRKG87N4txEZRaZ3JHYW8622E0KhKynRYuD56J=g@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1709211102320.14742@nuc-kabylake>
-References: <1505940337-79069-1-git-send-email-keescook@chromium.org>
- <1505940337-79069-4-git-send-email-keescook@chromium.org> <alpine.DEB.2.20.1709211024120.14427@nuc-kabylake>
- <CAGXu5j+X6dWCGocG=P7pszTY-5OZ6Jmp-RsnDKox75M5rmVe4g@mail.gmail.com> <alpine.DEB.2.20.1709211102320.14742@nuc-kabylake>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 21 Sep 2017 11:26:43 -0700
-Message-ID: <CAGXu5jKqWShVMqm6-moqgO7JUaJuFxw-9mMKak+WG1HgNJqc1Q@mail.gmail.com>
-Subject: Re: [kernel-hardening] Re: [PATCH v3 03/31] usercopy: Mark kmalloc
- caches as usercopy caches
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGqmi74Qi0VRKG87N4txEZRaZ3JHYW8622E0KhKynRYuD56J=g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, David Windsor <dave@nullcore.net>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-xfs@vger.kernel.org, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Network Development <netdev@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Timofey Titovets <nefelim4ag@gmail.com>
+Cc: linux-mm@kvack.org
 
-On Thu, Sep 21, 2017 at 9:04 AM, Christopher Lameter <cl@linux.com> wrote:
-> On Thu, 21 Sep 2017, Kees Cook wrote:
->
->> > So what is the point of this patch?
->>
->> The DMA kmalloc caches are not whitelisted:
->
-> The DMA kmalloc caches are pretty obsolete and mostly there for obscure
-> drivers.
->
-> ??
+> > Which CPU is that?
+> 
+> Intel(R) Core(TM) i5-7200U CPU @ 2.50GHz
+> ---
+> I've access to some VM (Not KVM) with:
+> Intel(R) Xeon(R) CPU E5-2420 0 @ 1.90GHz
+> PAGE_SIZE: 4096, loop count: 1048576
+> jhash2:   0x15433d14            time: 3661 ms,  th: 1173.144082 MiB/s
+> xxhash32: 0x3df3de36            time: 1163 ms,  th: 3691.581922 MiB/s
+> xxhash64: 0x5d9e67755d3c9a6a    time: 715 ms,   th: 6006.628034 MiB/s
+> 
+> As additional info, xxhash work with ~ same as jhash2 speed at 32 byte
+> input data.
+> For input smaller than 32 byte, jhash2 win, for input bigger, xxhash win.
 
-They may be obsolete, but they're still in the kernel, and they aren't
-copied to userspace, so we can mark them.
+Please put that information into the changelog when you repost.
 
->> >>                         kmalloc_dma_caches[i] = create_kmalloc_cache(n,
->> >> -                               size, SLAB_CACHE_DMA | flags);
->> >> +                               size, SLAB_CACHE_DMA | flags, 0, 0);
->>
->> So this is creating the distinction between the kmallocs that go to
->> userspace and those that don't. The expectation is that future work
->> can start to distinguish between "for userspace" and "only kernel"
->> kmalloc allocations, as is already done here for DMA.
->
-> The creation of the kmalloc caches in earlier patches already setup the
-> "whitelisting". Why do it twice?
+> 
+> 
+> >> So replace jhash with xxhash,
+> >> and use fastest version for current target ARCH.
+> >
+> > Can you do some macro-benchmarking too? Something that uses
+> > KSM and show how the performance changes.
+> >
+> > You could manually increase the scan rate to make it easier
+> > to see.
+> 
+> Try use that patch with my patch to allow process all VMA on system [1].
+> I switch sleep_millisecs 20 -> 1
+> 
+> (I use htop to see CPU load of ksmd)
+> 
+> CPU: Intel(R) Xeon(R) CPU E5-2420 0 @ 1.90GHz
+> For jhash2: ~18%
+> For xxhash64: ~11%
 
-Patch 1 is to allow for things to mark their whitelists. Patch 30
-disables the full whitelisting, since then we've defined them all, so
-the kmalloc caches need to mark themselves as whitelisted.
+Ok that's a great result. Is a speedup also visible with the default
+sleep_millisecs value? 
 
-Patch 1 leaves unmarked things whitelisted so we can progressively
-tighten the restriction and have a bisectable series. (i.e. if there
-is something wrong with one of the whitelists in the series, it will
-bisect to that one, not the one that removes the global whitelist from
-patch 1.)
+> >> @@ -51,6 +52,12 @@
+> >>  #define DO_NUMA(x)   do { } while (0)
+> >>  #endif
+> >>
+> >> +#if BITS_PER_LONG == 64
+> >> +typedef      u64     xxhash;
+> >> +#else
+> >> +typedef      u32     xxhash;
+> >> +#endif
+> >
+> > This should be in xxhash.h ?
+> 
+> This is a "hack", for compile time chose appropriate hash function.
+> xxhash ported from upstream code,
+> upstream version don't do that (IMHO), as this useless in most cases.
+> That only can be useful for memory only hashes.
+> Because for persistent data it's obvious to always use one hash type 32/64.
 
--Kees
+I don't think it's a hack. It makes sense. Just should be done centrally
+in Linux, not in a specific user.
+> 
+> > xxhash_t would seem to be a better name.
+> >
+> >> -     u32 checksum;
+> >> +     xxhash checksum;
+> >>       void *addr = kmap_atomic(page);
+> >> -     checksum = jhash2(addr, PAGE_SIZE / 4, 17);
+> >> +#if BITS_PER_LONG == 64
+> >> +     checksum = xxh64(addr, PAGE_SIZE, 0);
+> >> +#else
+> >> +     checksum = xxh32(addr, PAGE_SIZE, 0);
+> >> +#endif
+> >
+> > This should also be generic in xxhash.h
+> 
+> This *can* be generic in xxhash.h, when that solution will be used
+> somewhere in the kernel code, not in the KSM only, not?
 
--- 
-Kees Cook
-Pixel Security
+Yes.
+
+> 
+> Because for now i didn't find other places with "big enough" input
+> data, to replace jhash2 with xxhash.
+
+Right, but we may get them.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
