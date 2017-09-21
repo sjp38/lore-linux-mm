@@ -1,129 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C66086B0253
-	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 03:45:30 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id 23so3688712lfs.0
-        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 00:45:30 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t1sor242346lfd.77.2017.09.21.00.45.28
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 92D2C6B025F
+	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 04:23:19 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id m30so10463623pgn.2
+        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 01:23:19 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id g22sor433023pfe.30.2017.09.21.01.23.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 21 Sep 2017 00:45:29 -0700 (PDT)
-From: Timofey Titovets <nefelim4ag@gmail.com>
-Subject: [PATCH] KSM: Replace jhash2 with xxhash
-Date: Thu, 21 Sep 2017 10:45:19 +0300
-Message-Id: <20170921074519.9333-1-nefelim4ag@gmail.com>
+        Thu, 21 Sep 2017 01:23:18 -0700 (PDT)
+Date: Thu, 21 Sep 2017 01:23:15 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 2/2] mm: oom: show unreclaimable slab info when kernel
+ panic
+In-Reply-To: <1505947132-4363-3-git-send-email-yang.s@alibaba-inc.com>
+Message-ID: <alpine.DEB.2.10.1709210117320.10026@chino.kir.corp.google.com>
+References: <1505947132-4363-1-git-send-email-yang.s@alibaba-inc.com> <1505947132-4363-3-git-send-email-yang.s@alibaba-inc.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Timofey Titovets <nefelim4ag@gmail.com>
+To: Yang Shi <yang.s@alibaba-inc.com>
+Cc: cl@linux.com, penberg@kernel.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-xxhash much faster then jhash,
-ex. for x86_64 host:
-PAGE_SIZE: 4096, loop count: 1048576
-jhash2:   0xacbc7a5b            time: 1907 ms,  th:  2251.9 MiB/s
-xxhash32: 0x570da981            time: 739 ms,   th:  5809.4 MiB/s
-xxhash64: 0xa1fa032ab85bbb62    time: 371 ms,   th: 11556.6 MiB/s
+On Thu, 21 Sep 2017, Yang Shi wrote:
 
-xxhash64 on x86_32 work with ~ same speed as jhash2.
-xxhash32 on x86_32 work with ~ same speed as for x86_64
+> Kernel may panic when oom happens without killable process sometimes it
+> is caused by huge unreclaimable slabs used by kernel.
+> 
+> Although kdump could help debug such problem, however, kdump is not
+> available on all architectures and it might be malfunction sometime.
+> And, since kernel already panic it is worthy capturing such information
+> in dmesg to aid touble shooting.
+> 
+> Print out unreclaimable slab info (used size and total size) which
+> actual memory usage is not zero (num_objs * size != 0) when panic_on_oom is set
+> or no killable process. Since such information is just showed when kernel
+> panic, so it will not lead too verbose message for normal oom.
+> 
+> The output looks like:
+> 
+> Unreclaimable slab info:
+> Name                      Used          Total
+> rpc_buffers               31KB         31KB
+> rpc_tasks                  7KB          7KB
+> ebitmap_node            1964KB       1964KB
+> avtab_node              5024KB       5024KB
+> xfs_buf                 1402KB       1402KB
+> xfs_ili                  134KB        134KB
+> xfs_efi_item             115KB        115KB
+> xfs_efd_item             115KB        115KB
+> xfs_buf_item             134KB        134KB
+> xfs_log_item_desc        342KB        342KB
+> xfs_trans               1412KB       1412KB
+> xfs_ifork                212KB        212KB
+> 
+> Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
+> ---
+>  mm/oom_kill.c    |  3 +++
+>  mm/slab.h        |  8 ++++++++
+>  mm/slab_common.c | 26 ++++++++++++++++++++++++++
+>  3 files changed, 37 insertions(+)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 99736e0..bd48d34 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -43,6 +43,7 @@
+>  
+>  #include <asm/tlb.h>
+>  #include "internal.h"
+> +#include "slab.h"
+>  
+>  #define CREATE_TRACE_POINTS
+>  #include <trace/events/oom.h>
+> @@ -960,6 +961,7 @@ static void check_panic_on_oom(struct oom_control *oc,
+>  	if (is_sysrq_oom(oc))
+>  		return;
+>  	dump_header(oc, NULL);
+> +	dump_unreclaimable_slab();
+>  	panic("Out of memory: %s panic_on_oom is enabled\n",
+>  		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
+>  }
+> @@ -1044,6 +1046,7 @@ bool out_of_memory(struct oom_control *oc)
+>  	/* Found nothing?!?! Either we hang forever, or we panic. */
+>  	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
+>  		dump_header(oc, NULL);
+> +		dump_unreclaimable_slab();
+>  		panic("Out of memory and no killable processes...\n");
+>  	}
+>  	if (oc->chosen && oc->chosen != (void *)-1UL) {
+> diff --git a/mm/slab.h b/mm/slab.h
+> index 0733628..734a92d 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -505,6 +505,14 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
+>  void memcg_slab_stop(struct seq_file *m, void *p);
+>  int memcg_slab_show(struct seq_file *m, void *p);
+>  
+> +#ifdef CONFIG_SLABINFO
+> +void dump_unreclaimable_slab(void);
+> +#else
+> +void dump_unreclaimable_slab(void);
 
-So replace jhash with xxhash,
-and use fastest version for current target ARCH.
+This won't compile when CONFIG_SLABINFO is disabled.
 
-Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
----
- mm/Kconfig |  1 +
- mm/ksm.c   | 25 ++++++++++++++++++-------
- 2 files changed, 19 insertions(+), 7 deletions(-)
+static inline void dump_unreclaimable_slab(void)
+{
+}
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 9c4bdddd80c2..252ab266ac23 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -305,6 +305,7 @@ config MMU_NOTIFIER
- config KSM
- 	bool "Enable KSM for page merging"
- 	depends on MMU
-+	select XXHASH
- 	help
- 	  Enable Kernel Samepage Merging: KSM periodically scans those areas
- 	  of an application's address space that an app has advised may be
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 15dd7415f7b3..e012d9778c18 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -25,7 +25,8 @@
- #include <linux/pagemap.h>
- #include <linux/rmap.h>
- #include <linux/spinlock.h>
--#include <linux/jhash.h>
-+#include <linux/xxhash.h>
-+#include <linux/bitops.h> /* BITS_PER_LONG */
- #include <linux/delay.h>
- #include <linux/kthread.h>
- #include <linux/wait.h>
-@@ -51,6 +52,12 @@
- #define DO_NUMA(x)	do { } while (0)
- #endif
- 
-+#if BITS_PER_LONG == 64
-+typedef	u64	xxhash;
-+#else
-+typedef	u32	xxhash;
-+#endif
-+
- /*
-  * A few notes about the KSM scanning process,
-  * to make it easier to understand the data structures below:
-@@ -186,7 +193,7 @@ struct rmap_item {
- 	};
- 	struct mm_struct *mm;
- 	unsigned long address;		/* + low bits used for flags below */
--	unsigned int oldchecksum;	/* when unstable */
-+	xxhash oldchecksum;		/* when unstable */
- 	union {
- 		struct rb_node node;	/* when node of unstable tree */
- 		struct {		/* when listed from stable tree */
-@@ -255,7 +262,7 @@ static unsigned int ksm_thread_pages_to_scan = 100;
- static unsigned int ksm_thread_sleep_millisecs = 20;
- 
- /* Checksum of an empty (zeroed) page */
--static unsigned int zero_checksum __read_mostly;
-+static xxhash zero_checksum __read_mostly;
- 
- /* Whether to merge empty (zeroed) pages with actual zero pages */
- static bool ksm_use_zero_pages __read_mostly;
-@@ -982,11 +989,15 @@ static int unmerge_and_remove_all_rmap_items(void)
- }
- #endif /* CONFIG_SYSFS */
- 
--static u32 calc_checksum(struct page *page)
-+static xxhash calc_checksum(struct page *page)
- {
--	u32 checksum;
-+	xxhash checksum;
- 	void *addr = kmap_atomic(page);
--	checksum = jhash2(addr, PAGE_SIZE / 4, 17);
-+#if BITS_PER_LONG == 64
-+	checksum = xxh64(addr, PAGE_SIZE, 0);
-+#else
-+	checksum = xxh32(addr, PAGE_SIZE, 0);
-+#endif
- 	kunmap_atomic(addr);
- 	return checksum;
- }
-@@ -1994,7 +2005,7 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
- 	struct page *tree_page = NULL;
- 	struct stable_node *stable_node;
- 	struct page *kpage;
--	unsigned int checksum;
-+	xxhash checksum;
- 	int err;
- 	bool max_page_sharing_bypass = false;
- 
--- 
-2.14.1
+when CONFIG_SLABINFO=n.
+
+> +{
+> +}
+> +#endif
+> +
+>  void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr);
+>  
+>  #ifdef CONFIG_SLAB_FREELIST_RANDOM
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index 904a83b..90d9de3 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -1272,6 +1272,32 @@ static int slab_show(struct seq_file *m, void *p)
+>  	return 0;
+>  }
+>  
+> +void dump_unreclaimable_slab(void)
+> +{
+> +	struct kmem_cache *s;
+> +	struct slabinfo sinfo;
+> +
+> +	pr_info("Unreclaimable slab info:\n");
+> +	pr_info("Name                      Used          Total\n");
+> +
+> +	/*
+> +	 * Here acquiring slab_mutex is unnecessary since we don't prefer to
+> +	 * get sleep in oom path right before kernel panic, and avoid race condition.
+> +	 * Since it is already oom, so there should be not any big allocation
+> +	 * which could change the statistics significantly.
+
+The statistics themselves aren't protected by slab_mutex, it protects the 
+iteration of the list.  I would suggest still taking the mutex here unless 
+there's a reason to avoid it.
+
+> +	 */
+> +	list_for_each_entry(s, &slab_caches, list) {
+> +		if (!is_root_cache(s))
+> +			continue;
+
+if (!(s->flags & SLAB_RECLAIM_ACCOUNT))
+	continue;
+
+No need to do the memset or get_slabinfo() if it's reclaimable, so just 
+short-circuit it early in that case.
+
+> +
+> +		memset(&sinfo, 0, sizeof(sinfo));
+> +		get_slabinfo(s, &sinfo);
+> +
+> +		if (!(s->flags & SLAB_RECLAIM_ACCOUNT) && sinfo.num_objs > 0)
+> +			pr_info("%-17s %10luKB %10luKB\n", cache_name(s), (sinfo.active_objs * s->size) / 1024, (sinfo.num_objs * s->size) / 1024);
+> +	}
+> +}
+> +
+>  #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+>  void *memcg_slab_start(struct seq_file *m, loff_t *pos)
+>  {
+
+Please run scripts/checkpatch.pl on your patch since there's some 
+stylistic problems.  Otherwise, I think we need one more revision and 
+we'll be good to go!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
