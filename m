@@ -1,176 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 92D2C6B025F
-	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 04:23:19 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id m30so10463623pgn.2
-        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 01:23:19 -0700 (PDT)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 54B4D6B0266
+	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 04:27:32 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 11so10454059pge.4
+        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 01:27:32 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id g22sor433023pfe.30.2017.09.21.01.23.18
+        by mx.google.com with SMTPS id y79sor404196pfb.57.2017.09.21.01.27.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 21 Sep 2017 01:23:18 -0700 (PDT)
-Date: Thu, 21 Sep 2017 01:23:15 -0700 (PDT)
+        Thu, 21 Sep 2017 01:27:31 -0700 (PDT)
+Date: Thu, 21 Sep 2017 01:27:29 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/2] mm: oom: show unreclaimable slab info when kernel
- panic
-In-Reply-To: <1505947132-4363-3-git-send-email-yang.s@alibaba-inc.com>
-Message-ID: <alpine.DEB.2.10.1709210117320.10026@chino.kir.corp.google.com>
-References: <1505947132-4363-1-git-send-email-yang.s@alibaba-inc.com> <1505947132-4363-3-git-send-email-yang.s@alibaba-inc.com>
+Subject: Re: [v8 0/4] cgroup-aware OOM killer
+In-Reply-To: <20170920222403.GA4729@castle>
+Message-ID: <alpine.DEB.2.10.1709210125150.10026@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com> <20170913122914.5gdksbmkolum7ita@dhcp22.suse.cz> <20170913215607.GA19259@castle> <20170914134014.wqemev2kgychv7m5@dhcp22.suse.cz> <20170914160548.GA30441@castle>
+ <20170915105826.hq5afcu2ij7hevb4@dhcp22.suse.cz> <20170915152301.GA29379@castle> <alpine.DEB.2.10.1709151249290.76069@chino.kir.corp.google.com> <20170915210807.GA5238@castle> <alpine.DEB.2.10.1709191351330.7458@chino.kir.corp.google.com>
+ <20170920222403.GA4729@castle>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.s@alibaba-inc.com>
-Cc: cl@linux.com, penberg@kernel.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Roman Gushchin <guro@fb.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, 21 Sep 2017, Yang Shi wrote:
+On Wed, 20 Sep 2017, Roman Gushchin wrote:
 
-> Kernel may panic when oom happens without killable process sometimes it
-> is caused by huge unreclaimable slabs used by kernel.
+> > It's actually much more complex because in our environment we'd need an 
+> > "activity manager" with CAP_SYS_RESOURCE to control oom priorities of user 
+> > subcontainers when today it need only be concerned with top-level memory 
+> > cgroups.  Users can create their own hierarchies with their own oom 
+> > priorities at will, it doesn't alter the selection heuristic for another 
+> > other user running on the same system and gives them full control over the 
+> > selection in their own subtree.  We shouldn't need to have a system-wide 
+> > daemon with CAP_SYS_RESOURCE be required to manage subcontainers when 
+> > nothing else requires it.  I believe it's also much easier to document: 
+> > oom_priority is considered for all sibling cgroups at each level of the 
+> > hierarchy and the cgroup with the lowest priority value gets iterated.
 > 
-> Although kdump could help debug such problem, however, kdump is not
-> available on all architectures and it might be malfunction sometime.
-> And, since kernel already panic it is worthy capturing such information
-> in dmesg to aid touble shooting.
+> I do agree actually. System-wide OOM priorities make no sense.
 > 
-> Print out unreclaimable slab info (used size and total size) which
-> actual memory usage is not zero (num_objs * size != 0) when panic_on_oom is set
-> or no killable process. Since such information is just showed when kernel
-> panic, so it will not lead too verbose message for normal oom.
+> Always compare sibling cgroups, either by priority or size, seems to be
+> simple, clear and powerful enough for all reasonable use cases. Am I right,
+> that it's exactly what you've used internally? This is a perfect confirmation,
+> I believe.
 > 
-> The output looks like:
-> 
-> Unreclaimable slab info:
-> Name                      Used          Total
-> rpc_buffers               31KB         31KB
-> rpc_tasks                  7KB          7KB
-> ebitmap_node            1964KB       1964KB
-> avtab_node              5024KB       5024KB
-> xfs_buf                 1402KB       1402KB
-> xfs_ili                  134KB        134KB
-> xfs_efi_item             115KB        115KB
-> xfs_efd_item             115KB        115KB
-> xfs_buf_item             134KB        134KB
-> xfs_log_item_desc        342KB        342KB
-> xfs_trans               1412KB       1412KB
-> xfs_ifork                212KB        212KB
-> 
-> Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
-> ---
->  mm/oom_kill.c    |  3 +++
->  mm/slab.h        |  8 ++++++++
->  mm/slab_common.c | 26 ++++++++++++++++++++++++++
->  3 files changed, 37 insertions(+)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 99736e0..bd48d34 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -43,6 +43,7 @@
->  
->  #include <asm/tlb.h>
->  #include "internal.h"
-> +#include "slab.h"
->  
->  #define CREATE_TRACE_POINTS
->  #include <trace/events/oom.h>
-> @@ -960,6 +961,7 @@ static void check_panic_on_oom(struct oom_control *oc,
->  	if (is_sysrq_oom(oc))
->  		return;
->  	dump_header(oc, NULL);
-> +	dump_unreclaimable_slab();
->  	panic("Out of memory: %s panic_on_oom is enabled\n",
->  		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
->  }
-> @@ -1044,6 +1046,7 @@ bool out_of_memory(struct oom_control *oc)
->  	/* Found nothing?!?! Either we hang forever, or we panic. */
->  	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
->  		dump_header(oc, NULL);
-> +		dump_unreclaimable_slab();
->  		panic("Out of memory and no killable processes...\n");
->  	}
->  	if (oc->chosen && oc->chosen != (void *)-1UL) {
-> diff --git a/mm/slab.h b/mm/slab.h
-> index 0733628..734a92d 100644
-> --- a/mm/slab.h
-> +++ b/mm/slab.h
-> @@ -505,6 +505,14 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
->  void memcg_slab_stop(struct seq_file *m, void *p);
->  int memcg_slab_show(struct seq_file *m, void *p);
->  
-> +#ifdef CONFIG_SLABINFO
-> +void dump_unreclaimable_slab(void);
-> +#else
-> +void dump_unreclaimable_slab(void);
 
-This won't compile when CONFIG_SLABINFO is disabled.
-
-static inline void dump_unreclaimable_slab(void)
-{
-}
-
-when CONFIG_SLABINFO=n.
-
-> +{
-> +}
-> +#endif
-> +
->  void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr);
->  
->  #ifdef CONFIG_SLAB_FREELIST_RANDOM
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> index 904a83b..90d9de3 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -1272,6 +1272,32 @@ static int slab_show(struct seq_file *m, void *p)
->  	return 0;
->  }
->  
-> +void dump_unreclaimable_slab(void)
-> +{
-> +	struct kmem_cache *s;
-> +	struct slabinfo sinfo;
-> +
-> +	pr_info("Unreclaimable slab info:\n");
-> +	pr_info("Name                      Used          Total\n");
-> +
-> +	/*
-> +	 * Here acquiring slab_mutex is unnecessary since we don't prefer to
-> +	 * get sleep in oom path right before kernel panic, and avoid race condition.
-> +	 * Since it is already oom, so there should be not any big allocation
-> +	 * which could change the statistics significantly.
-
-The statistics themselves aren't protected by slab_mutex, it protects the 
-iteration of the list.  I would suggest still taking the mutex here unless 
-there's a reason to avoid it.
-
-> +	 */
-> +	list_for_each_entry(s, &slab_caches, list) {
-> +		if (!is_root_cache(s))
-> +			continue;
-
-if (!(s->flags & SLAB_RECLAIM_ACCOUNT))
-	continue;
-
-No need to do the memset or get_slabinfo() if it's reclaimable, so just 
-short-circuit it early in that case.
-
-> +
-> +		memset(&sinfo, 0, sizeof(sinfo));
-> +		get_slabinfo(s, &sinfo);
-> +
-> +		if (!(s->flags & SLAB_RECLAIM_ACCOUNT) && sinfo.num_objs > 0)
-> +			pr_info("%-17s %10luKB %10luKB\n", cache_name(s), (sinfo.active_objs * s->size) / 1024, (sinfo.num_objs * s->size) / 1024);
-> +	}
-> +}
-> +
->  #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
->  void *memcg_slab_start(struct seq_file *m, loff_t *pos)
->  {
-
-Please run scripts/checkpatch.pl on your patch since there's some 
-stylistic problems.  Otherwise, I think we need one more revision and 
-we'll be good to go!
+We've used it for at least four years, I added my Tested-by to your patch, 
+we would convert to your implementation if it is merged upstream, and I 
+would enthusiastically support your patch if you would integrate it back 
+into your series.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
