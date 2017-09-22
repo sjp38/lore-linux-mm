@@ -1,95 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 02B7F6B0038
-	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 17:05:24 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id b82so2967008qkc.2
-        for <linux-mm@kvack.org>; Fri, 22 Sep 2017 14:05:23 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id d23sor444916qta.12.2017.09.22.14.05.23
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CA486B0038
+	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 17:55:37 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id p87so3762360pfj.4
+        for <linux-mm@kvack.org>; Fri, 22 Sep 2017 14:55:37 -0700 (PDT)
+Received: from out0-242.mail.aliyun.com (out0-242.mail.aliyun.com. [140.205.0.242])
+        by mx.google.com with ESMTPS id d3si130569plo.365.2017.09.22.14.55.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Sep 2017 14:05:23 -0700 (PDT)
-Date: Fri, 22 Sep 2017 14:05:19 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-Message-ID: <20170922210519.GH828415@devbig577.frc2.facebook.com>
-References: <20170911131742.16482-1-guro@fb.com>
- <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com>
- <20170921142107.GA20109@cmpxchg.org>
- <alpine.DEB.2.10.1709211357520.60945@chino.kir.corp.google.com>
- <20170922154426.GF828415@devbig577.frc2.facebook.com>
- <alpine.DEB.2.10.1709221316290.68140@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1709221316290.68140@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Sep 2017 14:55:35 -0700 (PDT)
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Subject: [PATCH] mm: madvise: add description for MADV_WIPEONFORK and MADV_KEEPONFORK
+Date: Sat, 23 Sep 2017 05:55:28 +0800
+Message-Id: <1506117328-88228-1-git-send-email-yang.s@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: riel@redhat.com
+Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello,
+mm/madvise.c has the brief description about all MADV_ flags, added the
+description for the newly added MADV_WIPEONFORK and MADV_KEEPONFORK.
 
-On Fri, Sep 22, 2017 at 01:39:55PM -0700, David Rientjes wrote:
-> Current heuristic based on processes is coupled with per-process
-> /proc/pid/oom_score_adj.  The proposed 
-> heuristic has no ability to be influenced by userspace, and it needs one.  
-> The proposed heuristic based on memory cgroups coupled with Roman's 
-> per-memcg memory.oom_priority is appropriate and needed.  It is not 
+Although man page has the similar information, but it'd better to keep the
+consistency with other flags.
 
-So, this is where we disagree.  I don't think it's a good design.
+Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
+---
+ mm/madvise.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
 
-> "sophisticated intelligence," it merely allows userspace to protect vital 
-> memory cgroups when opting into the new features (cgroups compared based 
-> on size and memory.oom_group) that we very much want.
-
-which can't achieve that goal very well for wide variety of users.
-
-> > We even change the whole scheduling behaviors and try really hard to
-> > not get locked into specific implementation details which exclude
-> > future improvements.  Guaranteeing OOM killing selection would be
-> > crazy.  Why would we prevent ourselves from doing things better in the
-> > future?  We aren't talking about the semantics of read(2) here.  This
-> > is a kernel emergency mechanism to avoid deadlock at the last moment.
-> 
-> We merely want to prefer other memory cgroups are oom killed on system oom 
-> conditions before important ones, regardless if the important one is using 
-> more memory than the others because of the new heuristic this patchset 
-> introduces.  This is exactly the same as /proc/pid/oom_score_adj for the 
-> current heuristic.
-
-You were arguing that we should lock into a specific heuristics and
-guarantee the same behavior.  We shouldn't.
-
-When we introduce a user visible interface, we're making a lot of
-promises.  My point is that we need to be really careful when making
-those promises.
-
-> If you have this low priority maintenance job charging memory to the high 
-> priority hierarchy, you're already misconfigured unless you adjust 
-> /proc/pid/oom_score_adj because it will oom kill any larger process than 
-> itself in today's kernels anyway.
-> 
-> A better configuration would be attach this hypothetical low priority 
-> maintenance job to its own sibling cgroup with its own memory limit to 
-> avoid exactly that problem: it going berserk and charging too much memory 
-> to the high priority container that results in one of its processes 
-> getting oom killed.
-
-And how do you guarantee that across delegation boundaries?  The
-points you raise on why the priority should be applied level-by-level
-are exactly the same points why this doesn't really work.  OOM killing
-priority isn't something which can be distributed across cgroup
-hierarchy level-by-level.  The resulting decision tree doesn't make
-any sense.
-
-I'm not against adding something which works but strict level-by-level
-comparison isn't the solution.
-
-Thanks.
-
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 21261ff..c6bf572 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -749,6 +749,9 @@ static int madvise_inject_error(int behavior,
+  *  MADV_DONTFORK - omit this area from child's address space when forking:
+  *		typically, to avoid COWing pages pinned by get_user_pages().
+  *  MADV_DOFORK - cancel MADV_DONTFORK: no longer omit this area when forking.
++ *  MADV_WIPEONFORK - present the child process with zero-filled memory in this
++ *              range after a fork.
++ *  MADV_KEEPONFORK - undo the effect of MADV_WIPEONFORK
+  *  MADV_HWPOISON - trigger memory error handler as if the given memory range
+  *		were corrupted by unrecoverable hardware memory failure.
+  *  MADV_SOFT_OFFLINE - try to soft-offline the given range of memory.
+@@ -769,7 +772,9 @@ static int madvise_inject_error(int behavior,
+  *  zero    - success
+  *  -EINVAL - start + len < 0, start is not page-aligned,
+  *		"behavior" is not a valid value, or application
+- *		is attempting to release locked or shared pages.
++ *		is attempting to release locked or shared pages,
++ *		or the specified address range includes file, Huge TLB,
++ *		MAP_SHARED or VMPFNMAP range.
+  *  -ENOMEM - addresses in the specified range are not currently
+  *		mapped, or are outside the AS of the process.
+  *  -EIO    - an I/O error occurred while paging in data.
 -- 
-tejun
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
