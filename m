@@ -1,96 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E682C6B025F
-	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 15:52:32 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id m30so3859195pgn.2
-        for <linux-mm@kvack.org>; Fri, 22 Sep 2017 12:52:32 -0700 (PDT)
-Received: from out4439.biz.mail.alibaba.com (out4439.biz.mail.alibaba.com. [47.88.44.39])
-        by mx.google.com with ESMTPS id u1si294325plb.589.2017.09.22.12.52.30
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CC85B6B0038
+	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 16:32:09 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id i14so2858898qke.6
+        for <linux-mm@kvack.org>; Fri, 22 Sep 2017 13:32:09 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id d55si586826qtd.113.2017.09.22.13.32.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Sep 2017 12:52:31 -0700 (PDT)
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-Subject: [PATCH 1/2] tools: slabinfo: add "-U" option to show unreclaimable slabs only
-Date: Sat, 23 Sep 2017 03:52:06 +0800
-Message-Id: <1506109927-17012-2-git-send-email-yang.s@alibaba-inc.com>
-In-Reply-To: <1506109927-17012-1-git-send-email-yang.s@alibaba-inc.com>
-References: <1506109927-17012-1-git-send-email-yang.s@alibaba-inc.com>
+        Fri, 22 Sep 2017 13:32:08 -0700 (PDT)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v8MKVqxx081770
+	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 16:32:07 -0400
+Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com [129.33.205.209])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2d5614hjtq-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 16:32:07 -0400
+Received: from localhost
+	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Fri, 22 Sep 2017 16:32:06 -0400
+Date: Fri, 22 Sep 2017 15:31:57 -0500
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/device-public-memory: Enable move_pages() to stat
+ device memory
+References: <1506111236-28975-1-git-send-email-arbab@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <1506111236-28975-1-git-send-email-arbab@linux.vnet.ibm.com>
+Message-Id: <20170922203157.4txavkwmvyh2ufmd@arbab-laptop.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org
-Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Lorenzo Stoakes <lstoakes@gmail.com>, Dave Jiang <dave.jiang@intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Huang Ying <ying.huang@intel.com>, Ingo Molnar <mingo@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, James Morse <james.morse@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Add "-U" option to show unreclaimable slabs only.
+On Fri, Sep 22, 2017 at 08:13:56PM +0000, Reza Arbab wrote:
+>The move_pages() syscall can be used to find the numa node where a page
+>currently resides. This is not working for device public memory pages,
+>which erroneously report -EFAULT (unmapped or zero page).
 
-"-U" and "-S" together can tell us what unreclaimable slabs use the most
-memory to help debug huge unreclaimable slabs issue.
+Argh. Please disregard this patch.
 
-Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
-Acked-by: Christoph Lameter <cl@linux.com>
-Acked-by: David Rientjes <rientjes@google.com>
----
- tools/vm/slabinfo.c | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+My test setup has a chunk of system memory carved out as pretend device 
+public memory, to experiment with. Of course the real thing has no numa 
+node!
 
-diff --git a/tools/vm/slabinfo.c b/tools/vm/slabinfo.c
-index b9d34b3..de8fa11 100644
---- a/tools/vm/slabinfo.c
-+++ b/tools/vm/slabinfo.c
-@@ -83,6 +83,7 @@ struct aliasinfo {
- int sort_loss;
- int extended_totals;
- int show_bytes;
-+int unreclaim_only;
- 
- /* Debug options */
- int sanity;
-@@ -132,6 +133,7 @@ static void usage(void)
- 		"-L|--Loss              Sort by loss\n"
- 		"-X|--Xtotals           Show extended summary information\n"
- 		"-B|--Bytes             Show size in bytes\n"
-+		"-U|--Unreclaim		Show unreclaimable slabs only\n"
- 		"\nValid debug options (FZPUT may be combined)\n"
- 		"a / A          Switch on all debug options (=FZUP)\n"
- 		"-              Switch off all debug options\n"
-@@ -568,6 +570,9 @@ static void slabcache(struct slabinfo *s)
- 	if (strcmp(s->name, "*") == 0)
- 		return;
- 
-+	if (unreclaim_only && s->reclaim_account)
-+		return;
-+
- 	if (actual_slabs == 1) {
- 		report(s);
- 		return;
-@@ -1346,6 +1351,7 @@ struct option opts[] = {
- 	{ "Loss", no_argument, NULL, 'L'},
- 	{ "Xtotals", no_argument, NULL, 'X'},
- 	{ "Bytes", no_argument, NULL, 'B'},
-+	{ "Unreclaim", no_argument, NULL, 'U'},
- 	{ NULL, 0, NULL, 0 }
- };
- 
-@@ -1357,7 +1363,7 @@ int main(int argc, char *argv[])
- 
- 	page_size = getpagesize();
- 
--	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:LXB",
-+	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:LXBU",
- 						opts, NULL)) != -1)
- 		switch (c) {
- 		case '1':
-@@ -1438,6 +1444,9 @@ int main(int argc, char *argv[])
- 		case 'B':
- 			show_bytes = 1;
- 			break;
-+		case 'U':
-+			unreclaim_only = 1;
-+			break;
- 		default:
- 			fatal("%s: Invalid option '%c'\n", argv[0], optopt);
- 
+Apologies all, it's been a long day.
+
 -- 
-1.8.3.1
+Reza Arbab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
