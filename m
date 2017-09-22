@@ -1,72 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D79D6B0038
-	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 17:01:25 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id o3so2391235qte.7
-        for <linux-mm@kvack.org>; Fri, 22 Sep 2017 14:01:25 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id r34si603405qtd.515.2017.09.22.14.01.24
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 02B7F6B0038
+	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 17:05:24 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id b82so2967008qkc.2
+        for <linux-mm@kvack.org>; Fri, 22 Sep 2017 14:05:23 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id d23sor444916qta.12.2017.09.22.14.05.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Sep 2017 14:01:24 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v8ML1C8g040926
-	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 17:01:23 -0400
-Received: from e12.ny.us.ibm.com (e12.ny.us.ibm.com [129.33.205.202])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2d542yj3vb-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 17:01:23 -0400
-Received: from localhost
-	by e12.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Fri, 22 Sep 2017 17:01:22 -0400
-Date: Fri, 22 Sep 2017 16:01:13 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/device-public-memory: Enable move_pages() to stat
- device memory
-References: <1506111236-28975-1-git-send-email-arbab@linux.vnet.ibm.com>
- <20170922203157.4txavkwmvyh2ufmd@arbab-laptop.localdomain>
+        (Google Transport Security);
+        Fri, 22 Sep 2017 14:05:23 -0700 (PDT)
+Date: Fri, 22 Sep 2017 14:05:19 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [v8 0/4] cgroup-aware OOM killer
+Message-ID: <20170922210519.GH828415@devbig577.frc2.facebook.com>
+References: <20170911131742.16482-1-guro@fb.com>
+ <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com>
+ <20170921142107.GA20109@cmpxchg.org>
+ <alpine.DEB.2.10.1709211357520.60945@chino.kir.corp.google.com>
+ <20170922154426.GF828415@devbig577.frc2.facebook.com>
+ <alpine.DEB.2.10.1709221316290.68140@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170922203157.4txavkwmvyh2ufmd@arbab-laptop.localdomain>
-Message-Id: <20170922210113.c2dn5mjis6zyted7@arbab-laptop.localdomain>
+In-Reply-To: <alpine.DEB.2.10.1709221316290.68140@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Lorenzo Stoakes <lstoakes@gmail.com>, Dave Jiang <dave.jiang@intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Huang Ying <ying.huang@intel.com>, Ingo Molnar <mingo@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, James Morse <james.morse@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Sep 22, 2017 at 08:31:57PM +0000, Reza Arbab wrote:
->On Fri, Sep 22, 2017 at 08:13:56PM +0000, Reza Arbab wrote:
->>The move_pages() syscall can be used to find the numa node where a page
->>currently resides. This is not working for device public memory pages,
->>which erroneously report -EFAULT (unmapped or zero page).
->
->Argh. Please disregard this patch.
->
->My test setup has a chunk of system memory carved out as pretend 
->device public memory, to experiment with. Of course the real thing has 
->no numa node!
+Hello,
 
-On third thought, yes it does! 
+On Fri, Sep 22, 2017 at 01:39:55PM -0700, David Rientjes wrote:
+> Current heuristic based on processes is coupled with per-process
+> /proc/pid/oom_score_adj.  The proposed 
+> heuristic has no ability to be influenced by userspace, and it needs one.  
+> The proposed heuristic based on memory cgroups coupled with Roman's 
+> per-memcg memory.oom_priority is appropriate and needed.  It is not 
 
-static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
-{
-	:
-	nid = dev_to_node(device);
-	if (nid < 0)
-		nid = numa_mem_id();
-	:
-	if (devmem->pagemap.type == MEMORY_DEVICE_PUBLIC)
-		ret = arch_add_memory(nid, align_start, align_size, false);
-	:
-}
+So, this is where we disagree.  I don't think it's a good design.
 
-So now I think the patch may be right after all. Please un-disregard it.  
-Regard it? Whatever.
+> "sophisticated intelligence," it merely allows userspace to protect vital 
+> memory cgroups when opting into the new features (cgroups compared based 
+> on size and memory.oom_group) that we very much want.
+
+which can't achieve that goal very well for wide variety of users.
+
+> > We even change the whole scheduling behaviors and try really hard to
+> > not get locked into specific implementation details which exclude
+> > future improvements.  Guaranteeing OOM killing selection would be
+> > crazy.  Why would we prevent ourselves from doing things better in the
+> > future?  We aren't talking about the semantics of read(2) here.  This
+> > is a kernel emergency mechanism to avoid deadlock at the last moment.
+> 
+> We merely want to prefer other memory cgroups are oom killed on system oom 
+> conditions before important ones, regardless if the important one is using 
+> more memory than the others because of the new heuristic this patchset 
+> introduces.  This is exactly the same as /proc/pid/oom_score_adj for the 
+> current heuristic.
+
+You were arguing that we should lock into a specific heuristics and
+guarantee the same behavior.  We shouldn't.
+
+When we introduce a user visible interface, we're making a lot of
+promises.  My point is that we need to be really careful when making
+those promises.
+
+> If you have this low priority maintenance job charging memory to the high 
+> priority hierarchy, you're already misconfigured unless you adjust 
+> /proc/pid/oom_score_adj because it will oom kill any larger process than 
+> itself in today's kernels anyway.
+> 
+> A better configuration would be attach this hypothetical low priority 
+> maintenance job to its own sibling cgroup with its own memory limit to 
+> avoid exactly that problem: it going berserk and charging too much memory 
+> to the high priority container that results in one of its processes 
+> getting oom killed.
+
+And how do you guarantee that across delegation boundaries?  The
+points you raise on why the priority should be applied level-by-level
+are exactly the same points why this doesn't really work.  OOM killing
+priority isn't something which can be distributed across cgroup
+hierarchy level-by-level.  The resulting decision tree doesn't make
+any sense.
+
+I'm not against adding something which works but strict level-by-level
+comparison isn't the solution.
+
+Thanks.
 
 -- 
-Reza Arbab
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
