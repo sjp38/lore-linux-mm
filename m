@@ -1,138 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9805F6B0253
-	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 19:18:32 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id b195so7075181wmb.6
-        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 16:18:32 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g50sor1062797wrd.26.2017.09.21.16.18.31
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 60CBC6B0033
+	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 21:34:26 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id c195so13115992itb.5
+        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 18:34:26 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l191si1879739oig.433.2017.09.21.18.34.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 21 Sep 2017 16:18:31 -0700 (PDT)
-From: Timofey Titovets <nefelim4ag@gmail.com>
-Subject: [PATCH v2 2/2] KSM: Replace jhash2 with xxhash
-Date: Fri, 22 Sep 2017 02:18:18 +0300
-Message-Id: <20170921231818.10271-3-nefelim4ag@gmail.com>
-In-Reply-To: <20170921231818.10271-1-nefelim4ag@gmail.com>
-References: <20170921231818.10271-1-nefelim4ag@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Sep 2017 18:34:25 -0700 (PDT)
+Message-ID: <1506044061.21121.70.camel@redhat.com>
+Subject: Re: [PATCH 1/2] mm: avoid marking swap cached page as lazyfree
+From: Rik van Riel <riel@redhat.com>
+Date: Thu, 21 Sep 2017 21:34:21 -0400
+In-Reply-To: <c7f1760cc75db5d129f22f69e900db153b80f8f1.1506024100.git.shli@fb.com>
+References: <cover.1506024100.git.shli@fb.com>
+	 <c7f1760cc75db5d129f22f69e900db153b80f8f1.1506024100.git.shli@fb.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Timofey Titovets <nefelim4ag@gmail.com>
+To: Shaohua Li <shli@kernel.org>, linux-mm@kvack.org
+Cc: Artem Savkov <asavkov@redhat.com>, Kernel-team@fb.com, Shaohua Li <shli@fb.com>, stable@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
 
-jhash2 used for calculating checksum
-for in memory pages, for detect fact of
-changes in page.
-
-xxhash much faster then jhash2, some tests:
-  x86_64 host:
-    CPU: Intel(R) Core(TM) i5-7200U CPU @ 2.50GHz
-    PAGE_SIZE: 4096, loop count: 1048576
-    jhash2:   0xacbc7a5b            time: 1907 ms,  th:  2251.9 MiB/s
-    xxhash32: 0x570da981            time: 739 ms,   th:  5809.4 MiB/s
-    xxhash64: 0xa1fa032ab85bbb62    time: 371 ms,   th: 11556.6 MiB/s
-
-    CPU: Intel(R) Xeon(R) CPU E5-2420 0 @ 1.90GHz
-    PAGE_SIZE: 4096, loop count: 1048576
-    jhash2:   0xe680b382            time: 3722 ms,  th: 1153.896680 MiB/s
-    xxhash32: 0x56d00be4            time: 1183 ms,  th: 3629.130689 MiB/s
-    xxhash64: 0x8c194cff29cc4dee    time: 725 ms,   th: 5918.003401 MiB/s
-
-xxhash64 on x86_32 work with ~ same speed as jhash2.
-xxhash32 on x86_32 work with ~ same speed as for x86_64
-jhash2 are faster than xxhash on input data smaller than 32 byte
-
-So use xxhash() which will take appropriate hash version
-for target arch
-
-I did some benchmarks (i get cpu load of ksmd from htop):
-  CPU: Intel(R) Xeon(R) CPU E5-2420 0 @ 1.90GHz
-  ksm: sleep_millisecs = 1
-    jhash2:   ~18%
-    xxhash64: ~11%
-  ksm: sleep_millisecs = 20 - default
-    jhash2:   ~4.7%
-    xxhash64: ~3.3%
-
-  - 11 / 18 ~= 0.6 -> Profit: ~40%
-  - 3.3/4.7 ~= 0.7 -> Profit: ~30%
-
-Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
-Acked-by: Andi Kleen <ak@linux.intel.com>
----
- mm/Kconfig |  1 +
- mm/ksm.c   | 14 +++++++-------
- 2 files changed, 8 insertions(+), 7 deletions(-)
-
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 9c4bdddd80c2..252ab266ac23 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -305,6 +305,7 @@ config MMU_NOTIFIER
- config KSM
- 	bool "Enable KSM for page merging"
- 	depends on MMU
-+	select XXHASH
- 	help
- 	  Enable Kernel Samepage Merging: KSM periodically scans those areas
- 	  of an application's address space that an app has advised may be
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 15dd7415f7b3..6527fe21aaa3 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -25,7 +25,7 @@
- #include <linux/pagemap.h>
- #include <linux/rmap.h>
- #include <linux/spinlock.h>
--#include <linux/jhash.h>
-+#include <linux/xxhash.h>
- #include <linux/delay.h>
- #include <linux/kthread.h>
- #include <linux/wait.h>
-@@ -186,7 +186,7 @@ struct rmap_item {
- 	};
- 	struct mm_struct *mm;
- 	unsigned long address;		/* + low bits used for flags below */
--	unsigned int oldchecksum;	/* when unstable */
-+	xxhash_t oldchecksum;		/* when unstable */
- 	union {
- 		struct rb_node node;	/* when node of unstable tree */
- 		struct {		/* when listed from stable tree */
-@@ -255,7 +255,7 @@ static unsigned int ksm_thread_pages_to_scan = 100;
- static unsigned int ksm_thread_sleep_millisecs = 20;
-
- /* Checksum of an empty (zeroed) page */
--static unsigned int zero_checksum __read_mostly;
-+static xxhash_t zero_checksum __read_mostly;
-
- /* Whether to merge empty (zeroed) pages with actual zero pages */
- static bool ksm_use_zero_pages __read_mostly;
-@@ -982,11 +982,11 @@ static int unmerge_and_remove_all_rmap_items(void)
- }
- #endif /* CONFIG_SYSFS */
-
--static u32 calc_checksum(struct page *page)
-+static xxhash_t calc_checksum(struct page *page)
- {
--	u32 checksum;
-+	xxhash_t checksum;
- 	void *addr = kmap_atomic(page);
--	checksum = jhash2(addr, PAGE_SIZE / 4, 17);
-+	checksum = xxhash(addr, PAGE_SIZE, 0);
- 	kunmap_atomic(addr);
- 	return checksum;
- }
-@@ -1994,7 +1994,7 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
- 	struct page *tree_page = NULL;
- 	struct stable_node *stable_node;
- 	struct page *kpage;
--	unsigned int checksum;
-+	xxhash_t checksum;
- 	int err;
- 	bool max_page_sharing_bypass = false;
-
---
-2.14.1
+On Thu, 2017-09-21 at 13:27 -0700, Shaohua Li wrote:
+> From: Shaohua Li <shli@fb.com>
+> 
+> MADV_FREE clears pte dirty bit and then marks the page lazyfree
+> (clear
+> SwapBacked). There is no lock to prevent the page is added to swap
+> cache
+> between these two steps by page reclaim. If the page is added to swap
+> cache, marking the page lazyfree will confuse page fault if the page
+> is
+> reclaimed and refault.
+> 
+> Reported-and-tested-y: Artem Savkov <asavkov@redhat.com>
+> Fix: 802a3a92ad7a(mm: reclaim MADV_FREE pages)
+> Signed-off-by: Shaohua Li <shli@fb.com>
+> Cc: stable@vger.kernel.org
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> 
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
