@@ -1,56 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 49E7E6B0033
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CA6166B0253
 	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 05:52:37 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id r74so930884wme.5
+Received: by mail-wr0-f197.google.com with SMTP id b9so717355wra.3
         for <linux-mm@kvack.org>; Fri, 22 Sep 2017 02:52:37 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a195sor1145944wme.13.2017.09.22.02.52.35
+        by mx.google.com with SMTPS id i74sor1430654wri.52.2017.09.22.02.52.36
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 22 Sep 2017 02:52:35 -0700 (PDT)
+        Fri, 22 Sep 2017 02:52:36 -0700 (PDT)
 From: Timofey Titovets <nefelim4ag@gmail.com>
-Subject: [PATCH v2 0/2] KSM: Replace jhash2 with xxhash
-Date: Fri, 22 Sep 2017 12:52:23 +0300
-Message-Id: <20170922095225.343-1-nefelim4ag@gmail.com>
+Subject: [PATCH v2 1/2] xxHash: create arch dependent 32/64-bit xxhash()
+Date: Fri, 22 Sep 2017 12:52:24 +0300
+Message-Id: <20170922095225.343-2-nefelim4ag@gmail.com>
+In-Reply-To: <20170922095225.343-1-nefelim4ag@gmail.com>
+References: <20170922095225.343-1-nefelim4ag@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, borntraeger@de.ibm.com, kvm@vger.kernel.org, Timofey Titovets <nefelim4ag@gmail.com>
 
-(Resend, added cc kvm@vger.kernel.org)
+xxh32() - fast on both 32/64-bit platforms
+xxh64() - fast only on 64-bit platform
 
-ksm use jhash2 for hashing pages,
-in 4.14 xxhash has been merged to mainline kernel.
+Create xxhash() which will pickup fastest version
+on compile time.
 
-xxhash much faster then jhash2 on big inputs (32 byte+)
+Add type xxhash_t to map correct hash size.
 
-xxhash has 2 versions, one with 32-bit hash and
-one with 64-bit hash.
+As result depends on cpu word size,
+the main proporse of that - in memory hashing.
 
-64-bit version works faster then 32-bit on 64-bit arch.
-
-So lets get better from two worlds,
-create arch dependent xxhash() function that will use
-fastest algo for current arch.
-This a first patch.
-
-Performance info and ksm update can be found in second patch.
-
-Changelog:
-  v1 -> v2:
-    - Move xxhash() to xxhash.h/c and separate patches
-
-Timofey Titovets (2):
-  xxHash: create arch dependent 32/64-bit xxhash()
-  KSM: Replace jhash2 with xxhash
-
+Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
+Acked-by: Andi Kleen <ak@linux.intel.com>
+Cc: Linux-kernel <linux-kernel@vger.kernel.org>
+---
  include/linux/xxhash.h | 24 ++++++++++++++++++++++++
  lib/xxhash.c           | 10 ++++++++++
- mm/Kconfig             |  1 +
- mm/ksm.c               | 14 +++++++-------
- 4 files changed, 42 insertions(+), 7 deletions(-)
+ 2 files changed, 34 insertions(+)
 
+diff --git a/include/linux/xxhash.h b/include/linux/xxhash.h
+index 9e1f42cb57e9..195a0ae10e9b 100644
+--- a/include/linux/xxhash.h
++++ b/include/linux/xxhash.h
+@@ -76,6 +76,7 @@
+ #define XXHASH_H
+
+ #include <linux/types.h>
++#include <linux/bitops.h> /* BITS_PER_LONG */
+
+ /*-****************************
+  * Simple Hash Functions
+@@ -107,6 +108,29 @@ uint32_t xxh32(const void *input, size_t length, uint32_t seed);
+  */
+ uint64_t xxh64(const void *input, size_t length, uint64_t seed);
+
++#if BITS_PER_LONG == 64
++typedef	u64	xxhash_t;
++#else
++typedef	u32	xxhash_t;
++#endif
++
++/**
++ * xxhash() - calculate 32/64-bit hash based on cpu word size
++ *
++ * @input:  The data to hash.
++ * @length: The length of the data to hash.
++ * @seed:   The seed can be used to alter the result predictably.
++ *
++ * This function always work as xxh32() for 32-bit systems
++ * and as xxh64() for 64-bit systems.
++ * Because result depends on cpu work size,
++ * the main proporse of that function is for  in memory hashing.
++ *
++ * Return:  32/64-bit hash of the data.
++ */
++
++xxhash_t xxhash(const void *input, size_t length, uint64_t seed);
++
+ /*-****************************
+  * Streaming Hash Functions
+  *****************************/
+diff --git a/lib/xxhash.c b/lib/xxhash.c
+index aa61e2a3802f..7dd1105fcc30 100644
+--- a/lib/xxhash.c
++++ b/lib/xxhash.c
+@@ -236,6 +236,16 @@ uint64_t xxh64(const void *input, const size_t len, const uint64_t seed)
+ }
+ EXPORT_SYMBOL(xxh64);
+
++xxhash_t xxhash(const void *input, size_t length, uint64_t seed)
++{
++#if BITS_PER_LONG == 64
++	return xxh64(input, length, seed);
++#else
++	return xxh32(input, length, seed);
++#endif
++}
++EXPORT_SYMBOL(xxhash);
++
+ /*-**************************************************
+  * Advanced Hash Functions
+  ***************************************************/
 --
 2.14.1
 
