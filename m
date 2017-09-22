@@ -1,138 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D5396B025E
-	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 05:52:39 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id w12so720118wrc.2
-        for <linux-mm@kvack.org>; Fri, 22 Sep 2017 02:52:39 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q110sor1455935wrb.18.2017.09.22.02.52.37
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 898246B0033
+	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 09:12:39 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g50so1193447wra.4
+        for <linux-mm@kvack.org>; Fri, 22 Sep 2017 06:12:39 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q2si1197546edg.302.2017.09.22.06.12.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Sep 2017 02:52:37 -0700 (PDT)
-From: Timofey Titovets <nefelim4ag@gmail.com>
-Subject: [PATCH v2 2/2] KSM: Replace jhash2 with xxhash
-Date: Fri, 22 Sep 2017 12:52:25 +0300
-Message-Id: <20170922095225.343-3-nefelim4ag@gmail.com>
-In-Reply-To: <20170922095225.343-1-nefelim4ag@gmail.com>
-References: <20170922095225.343-1-nefelim4ag@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 22 Sep 2017 06:12:37 -0700 (PDT)
+Date: Fri, 22 Sep 2017 15:12:32 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/7] fs: kill 'nr_pages' argument from
+ wakeup_flusher_threads()
+Message-ID: <20170922131232.GA22455@quack2.suse.cz>
+References: <1505921582-26709-1-git-send-email-axboe@kernel.dk>
+ <1505921582-26709-3-git-send-email-axboe@kernel.dk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1505921582-26709-3-git-send-email-axboe@kernel.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, borntraeger@de.ibm.com, kvm@vger.kernel.org, Timofey Titovets <nefelim4ag@gmail.com>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, clm@fb.com, jack@suse.cz
 
-jhash2 used for calculating checksum
-for in memory pages, for detect fact of
-changes in page.
+On Wed 20-09-17 09:32:57, Jens Axboe wrote:
+> Everybody is passing in 0 now, let's get rid of the argument.
+> 
+> Signed-off-by: Jens Axboe <axboe@kernel.dk>
 
-xxhash much faster then jhash2, some tests:
-  x86_64 host:
-    CPU: Intel(R) Core(TM) i5-7200U CPU @ 2.50GHz
-    PAGE_SIZE: 4096, loop count: 1048576
-    jhash2:   0xacbc7a5b            time: 1907 ms,  th:  2251.9 MiB/s
-    xxhash32: 0x570da981            time: 739 ms,   th:  5809.4 MiB/s
-    xxhash64: 0xa1fa032ab85bbb62    time: 371 ms,   th: 11556.6 MiB/s
+Looks good. You can add:
 
-    CPU: Intel(R) Xeon(R) CPU E5-2420 0 @ 1.90GHz
-    PAGE_SIZE: 4096, loop count: 1048576
-    jhash2:   0xe680b382            time: 3722 ms,  th: 1153.896680 MiB/s
-    xxhash32: 0x56d00be4            time: 1183 ms,  th: 3629.130689 MiB/s
-    xxhash64: 0x8c194cff29cc4dee    time: 725 ms,   th: 5918.003401 MiB/s
+Reviewed-by: Jan Kara <jack@suse.cz>
 
-xxhash64 on x86_32 work with ~ same speed as jhash2.
-xxhash32 on x86_32 work with ~ same speed as for x86_64
-jhash2 are faster than xxhash on input data smaller than 32 byte
+									Honza
 
-So use xxhash() which will take appropriate hash version
-for target arch
 
-I did some benchmarks (i get cpu load of ksmd from htop):
-  CPU: Intel(R) Xeon(R) CPU E5-2420 0 @ 1.90GHz
-  ksm: sleep_millisecs = 1
-    jhash2:   ~18%
-    xxhash64: ~11%
-  ksm: sleep_millisecs = 20 - default
-    jhash2:   ~4.7%
-    xxhash64: ~3.3%
-
-  - 11 / 18 ~= 0.6 -> Profit: ~40%
-  - 3.3/4.7 ~= 0.7 -> Profit: ~30%
-
-Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
-Acked-by: Andi Kleen <ak@linux.intel.com>
----
- mm/Kconfig |  1 +
- mm/ksm.c   | 14 +++++++-------
- 2 files changed, 8 insertions(+), 7 deletions(-)
-
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 9c4bdddd80c2..252ab266ac23 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -305,6 +305,7 @@ config MMU_NOTIFIER
- config KSM
- 	bool "Enable KSM for page merging"
- 	depends on MMU
-+	select XXHASH
- 	help
- 	  Enable Kernel Samepage Merging: KSM periodically scans those areas
- 	  of an application's address space that an app has advised may be
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 15dd7415f7b3..6527fe21aaa3 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -25,7 +25,7 @@
- #include <linux/pagemap.h>
- #include <linux/rmap.h>
- #include <linux/spinlock.h>
--#include <linux/jhash.h>
-+#include <linux/xxhash.h>
- #include <linux/delay.h>
- #include <linux/kthread.h>
- #include <linux/wait.h>
-@@ -186,7 +186,7 @@ struct rmap_item {
- 	};
- 	struct mm_struct *mm;
- 	unsigned long address;		/* + low bits used for flags below */
--	unsigned int oldchecksum;	/* when unstable */
-+	xxhash_t oldchecksum;		/* when unstable */
- 	union {
- 		struct rb_node node;	/* when node of unstable tree */
- 		struct {		/* when listed from stable tree */
-@@ -255,7 +255,7 @@ static unsigned int ksm_thread_pages_to_scan = 100;
- static unsigned int ksm_thread_sleep_millisecs = 20;
-
- /* Checksum of an empty (zeroed) page */
--static unsigned int zero_checksum __read_mostly;
-+static xxhash_t zero_checksum __read_mostly;
-
- /* Whether to merge empty (zeroed) pages with actual zero pages */
- static bool ksm_use_zero_pages __read_mostly;
-@@ -982,11 +982,11 @@ static int unmerge_and_remove_all_rmap_items(void)
- }
- #endif /* CONFIG_SYSFS */
-
--static u32 calc_checksum(struct page *page)
-+static xxhash_t calc_checksum(struct page *page)
- {
--	u32 checksum;
-+	xxhash_t checksum;
- 	void *addr = kmap_atomic(page);
--	checksum = jhash2(addr, PAGE_SIZE / 4, 17);
-+	checksum = xxhash(addr, PAGE_SIZE, 0);
- 	kunmap_atomic(addr);
- 	return checksum;
- }
-@@ -1994,7 +1994,7 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
- 	struct page *tree_page = NULL;
- 	struct stable_node *stable_node;
- 	struct page *kpage;
--	unsigned int checksum;
-+	xxhash_t checksum;
- 	int err;
- 	bool max_page_sharing_bypass = false;
-
---
-2.14.1
+> ---
+>  fs/buffer.c               | 2 +-
+>  fs/fs-writeback.c         | 9 ++++-----
+>  fs/sync.c                 | 2 +-
+>  include/linux/writeback.h | 2 +-
+>  mm/vmscan.c               | 2 +-
+>  5 files changed, 8 insertions(+), 9 deletions(-)
+> 
+> diff --git a/fs/buffer.c b/fs/buffer.c
+> index 9471a445e370..cf71926797d3 100644
+> --- a/fs/buffer.c
+> +++ b/fs/buffer.c
+> @@ -260,7 +260,7 @@ static void free_more_memory(void)
+>  	struct zoneref *z;
+>  	int nid;
+>  
+> -	wakeup_flusher_threads(0, WB_REASON_FREE_MORE_MEM);
+> +	wakeup_flusher_threads(WB_REASON_FREE_MORE_MEM);
+>  	yield();
+>  
+>  	for_each_online_node(nid) {
+> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> index 245c430a2e41..bb6148dc6d24 100644
+> --- a/fs/fs-writeback.c
+> +++ b/fs/fs-writeback.c
+> @@ -1947,12 +1947,12 @@ void wb_workfn(struct work_struct *work)
+>  }
+>  
+>  /*
+> - * Start writeback of `nr_pages' pages.  If `nr_pages' is zero, write back
+> - * the whole world.
+> + * Wakeup the flusher threads to start writeback of all currently dirty pages
+>   */
+> -void wakeup_flusher_threads(long nr_pages, enum wb_reason reason)
+> +void wakeup_flusher_threads(enum wb_reason reason)
+>  {
+>  	struct backing_dev_info *bdi;
+> +	long nr_pages;
+>  
+>  	/*
+>  	 * If we are expecting writeback progress we must submit plugged IO.
+> @@ -1960,8 +1960,7 @@ void wakeup_flusher_threads(long nr_pages, enum wb_reason reason)
+>  	if (blk_needs_flush_plug(current))
+>  		blk_schedule_flush_plug(current);
+>  
+> -	if (!nr_pages)
+> -		nr_pages = get_nr_dirty_pages();
+> +	nr_pages = get_nr_dirty_pages();
+>  
+>  	rcu_read_lock();
+>  	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
+> diff --git a/fs/sync.c b/fs/sync.c
+> index a576aa2e6b09..09f96a18dd93 100644
+> --- a/fs/sync.c
+> +++ b/fs/sync.c
+> @@ -108,7 +108,7 @@ SYSCALL_DEFINE0(sync)
+>  {
+>  	int nowait = 0, wait = 1;
+>  
+> -	wakeup_flusher_threads(0, WB_REASON_SYNC);
+> +	wakeup_flusher_threads(WB_REASON_SYNC);
+>  	iterate_supers(sync_inodes_one_sb, NULL);
+>  	iterate_supers(sync_fs_one_sb, &nowait);
+>  	iterate_supers(sync_fs_one_sb, &wait);
+> diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+> index d5815794416c..1f9c6db5e29a 100644
+> --- a/include/linux/writeback.h
+> +++ b/include/linux/writeback.h
+> @@ -189,7 +189,7 @@ bool try_to_writeback_inodes_sb(struct super_block *, enum wb_reason reason);
+>  bool try_to_writeback_inodes_sb_nr(struct super_block *, unsigned long nr,
+>  				   enum wb_reason reason);
+>  void sync_inodes_sb(struct super_block *);
+> -void wakeup_flusher_threads(long nr_pages, enum wb_reason reason);
+> +void wakeup_flusher_threads(enum wb_reason reason);
+>  void inode_wait_for_writeback(struct inode *inode);
+>  
+>  /* writeback.h requires fs.h; it, too, is not included from here. */
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 13d711dd8776..42a7fdd52d87 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1867,7 +1867,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>  		 * also allow kswapd to start writing pages during reclaim.
+>  		 */
+>  		if (stat.nr_unqueued_dirty == nr_taken) {
+> -			wakeup_flusher_threads(0, WB_REASON_VMSCAN);
+> +			wakeup_flusher_threads(WB_REASON_VMSCAN);
+>  			set_bit(PGDAT_DIRTY, &pgdat->flags);
+>  		}
+>  
+> -- 
+> 2.7.4
+> 
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
