@@ -1,67 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 65D6B6B0038
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A88DA6B0038
 	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 15:52:21 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id y29so3367750pff.6
+Received: by mail-pf0-f197.google.com with SMTP id f84so3409055pfj.0
         for <linux-mm@kvack.org>; Fri, 22 Sep 2017 12:52:21 -0700 (PDT)
-Received: from out0-242.mail.aliyun.com (out0-242.mail.aliyun.com. [140.205.0.242])
-        by mx.google.com with ESMTPS id g19si303996pfd.273.2017.09.22.12.52.18
+Received: from out0-205.mail.aliyun.com (out0-205.mail.aliyun.com. [140.205.0.205])
+        by mx.google.com with ESMTPS id h4si41355pls.449.2017.09.22.12.52.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 22 Sep 2017 12:52:19 -0700 (PDT)
 From: "Yang Shi" <yang.s@alibaba-inc.com>
-Subject: [PATCH 0/2 v6] oom: capture unreclaimable slab info in oom message when kernel panic
-Date: Sat, 23 Sep 2017 03:52:05 +0800
-Message-Id: <1506109927-17012-1-git-send-email-yang.s@alibaba-inc.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: [PATCH 2/2] mm: oom: show unreclaimable slab info when kernel panic
+Date: Sat, 23 Sep 2017 03:52:07 +0800
+Message-Id: <1506109927-17012-3-git-send-email-yang.s@alibaba-inc.com>
+In-Reply-To: <1506109927-17012-1-git-send-email-yang.s@alibaba-inc.com>
+References: <1506109927-17012-1-git-send-email-yang.s@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org
 Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+Kernel may panic when oom happens without killable process sometimes it
+is caused by huge unreclaimable slabs used by kernel.
 
-Recently we ran into a oom issue, kernel panic due to no killable process.
-The dmesg shows huge unreclaimable slabs used almost 100% memory, but kdump doesn't capture vmcore due to some reason.
+Although kdump could help debug such problem, however, kdump is not
+available on all architectures and it might be malfunction sometime.
+And, since kernel already panic it is worthy capturing such information
+in dmesg to aid touble shooting.
 
-So, it may sound better to capture unreclaimable slab info in oom message when kernel panic to aid trouble shooting and cover the corner case.
-Since kernel already panic, so capturing more information sounds worthy and doesn't bother normal oom killer.
+Print out unreclaimable slab info (used size and total size) which
+actual memory usage is not zero (num_objs * size != 0) when panic_on_oom
+is set or no killable process. Since such information is just showed when
+kernel panic, so it will not lead too verbose message for normal oom.
 
-With the patchset, tools/vm/slabinfo has a new option, "-U", to show unreclaimable slab only.
+The output looks like:
 
-And, oom will print all non zero (num_objs * size != 0) unreclaimable slabs in oom killer message.
+Unreclaimable slab info:
+Name                      Used          Total
+rpc_buffers               31KB         31KB
+rpc_tasks                  7KB          7KB
+ebitmap_node            1964KB       1964KB
+avtab_node              5024KB       5024KB
+xfs_buf                 1402KB       1402KB
+xfs_ili                  134KB        134KB
+xfs_efi_item             115KB        115KB
+xfs_efd_item             115KB        115KB
+xfs_buf_item             134KB        134KB
+xfs_log_item_desc        342KB        342KB
+xfs_trans               1412KB       1412KB
+xfs_ifork                212KB        212KB
 
-For details, please see the commit log for each commit.
+Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
+---
+ mm/oom_kill.c    |  3 +++
+ mm/slab.h        |  8 ++++++++
+ mm/slab_common.c | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 40 insertions(+)
 
-Changelog v5 -> v6:
-* Fixed a checkpatch.pl warning for patch #2, zero error and warning for both patches
-
-Changelog v4 -> v5:
-* Solved the comments from David
-* Build test SLABINFO = n
-
-Changelog v3 -> v4:
-* Solved the comments from David
-* Added Davida??s Acked-by in patch 1
-
-Changelog v2 -> v3:
-* Show used size and total size of each kmem cache per Davida??s comment
-
-Changelog v1 -> v2:
-* Removed the original patch 1 (a??mm: slab: output reclaimable flag in /proc/slabinfoa??) since Christoph suggested it might break the compatibility and /proc/slabinfo is legacy
-* Added Christopha??s Acked-by
-* Removed acquiring slab_mutex per Tetsuoa??s comment
-
-Yang Shi (2):
-      tools: slabinfo: add "-U" option to show unreclaimable slabs only
-      mm: oom: show unreclaimable slab info when kernel panic
-
- mm/oom_kill.c       |  3 +++
- mm/slab.h           |  8 ++++++++
- mm/slab_common.c    | 29 +++++++++++++++++++++++++++++
- tools/vm/slabinfo.c | 11 ++++++++++-
- 4 files changed, 50 insertions(+), 1 deletion(-)
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 99736e0..bd48d34 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -43,6 +43,7 @@
+ 
+ #include <asm/tlb.h>
+ #include "internal.h"
++#include "slab.h"
+ 
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/oom.h>
+@@ -960,6 +961,7 @@ static void check_panic_on_oom(struct oom_control *oc,
+ 	if (is_sysrq_oom(oc))
+ 		return;
+ 	dump_header(oc, NULL);
++	dump_unreclaimable_slab();
+ 	panic("Out of memory: %s panic_on_oom is enabled\n",
+ 		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
+ }
+@@ -1044,6 +1046,7 @@ bool out_of_memory(struct oom_control *oc)
+ 	/* Found nothing?!?! Either we hang forever, or we panic. */
+ 	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
+ 		dump_header(oc, NULL);
++		dump_unreclaimable_slab();
+ 		panic("Out of memory and no killable processes...\n");
+ 	}
+ 	if (oc->chosen && oc->chosen != (void *)-1UL) {
+diff --git a/mm/slab.h b/mm/slab.h
+index 0733628..b0496d1 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -505,6 +505,14 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
+ void memcg_slab_stop(struct seq_file *m, void *p);
+ int memcg_slab_show(struct seq_file *m, void *p);
+ 
++#ifdef CONFIG_SLABINFO
++void dump_unreclaimable_slab(void);
++#else
++static inline void dump_unreclaimable_slab(void)
++{
++}
++#endif
++
+ void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr);
+ 
+ #ifdef CONFIG_SLAB_FREELIST_RANDOM
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 904a83b..d08213d 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1272,6 +1272,35 @@ static int slab_show(struct seq_file *m, void *p)
+ 	return 0;
+ }
+ 
++void dump_unreclaimable_slab(void)
++{
++	struct kmem_cache *s, *s2;
++	struct slabinfo sinfo;
++
++	pr_info("Unreclaimable slab info:\n");
++	pr_info("Name                      Used          Total\n");
++
++	/*
++	 * Here acquiring slab_mutex is unnecessary since we don't prefer to
++	 * get sleep in oom path right before kernel panic, and avoid race
++	 * condition.
++	 * Since it is already oom, so there should be not any big allocation
++	 * which could change the statistics significantly.
++	 */
++	list_for_each_entry_safe(s, s2, &slab_caches, list) {
++		if (!is_root_cache(s) || (s->flags & SLAB_RECLAIM_ACCOUNT))
++			continue;
++
++		memset(&sinfo, 0, sizeof(sinfo));
++		get_slabinfo(s, &sinfo);
++
++		if (sinfo.num_objs > 0)
++			pr_info("%-17s %10luKB %10luKB\n", cache_name(s),
++				(sinfo.active_objs * s->size) / 1024,
++				(sinfo.num_objs * s->size) / 1024);
++	}
++}
++
+ #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+ void *memcg_slab_start(struct seq_file *m, loff_t *pos)
+ {
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
