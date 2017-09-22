@@ -1,114 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 840356B0033
-	for <linux-mm@kvack.org>; Thu, 21 Sep 2017 22:55:09 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id q30so8786332qtj.1
-        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 19:55:09 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id 9si837209qku.264.2017.09.21.19.55.08
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F5706B0033
+	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 02:00:38 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p87so323382pfj.4
+        for <linux-mm@kvack.org>; Thu, 21 Sep 2017 23:00:38 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j19sor1621204pll.41.2017.09.21.23.00.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Sep 2017 19:55:08 -0700 (PDT)
-Subject: Re: [PATCH v3 09/31] jfs: Define usercopy region in jfs_ip slab cache
-References: <1505940337-79069-1-git-send-email-keescook@chromium.org>
- <1505940337-79069-10-git-send-email-keescook@chromium.org>
-From: Dave Kleikamp <dave.kleikamp@oracle.com>
-Message-ID: <0132ff58-f18b-6d67-8edd-fa6bd1f6927b@oracle.com>
-Date: Thu, 21 Sep 2017 21:54:55 -0500
+        (Google Transport Security);
+        Thu, 21 Sep 2017 23:00:37 -0700 (PDT)
+Date: Fri, 22 Sep 2017 16:00:19 +1000
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [PATCH 4/6] mm/mprotect, powerpc/mm/pkeys, x86/mm/pkeys: Add
+ sysfs interface
+Message-ID: <20170922160019.0d6d1eae@firefly.ozlabs.ibm.com>
+In-Reply-To: <1505524870-4783-5-git-send-email-linuxram@us.ibm.com>
+References: <1505524870-4783-1-git-send-email-linuxram@us.ibm.com>
+	<1505524870-4783-5-git-send-email-linuxram@us.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <1505940337-79069-10-git-send-email-keescook@chromium.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org
-Cc: David Windsor <dave@nullcore.net>, jfs-discussion@lists.sourceforge.net, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-doc@vger.kernel.org, arnd@arndb.de, akpm@linux-foundation.org, corbet@lwn.net, mingo@redhat.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com
 
-Acked-by: Dave Kleikamp <dave.kleikamp@oracle.com>
+On Fri, 15 Sep 2017 18:21:08 -0700
+Ram Pai <linuxram@us.ibm.com> wrote:
 
-On 09/20/2017 03:45 PM, Kees Cook wrote:
-> From: David Windsor <dave@nullcore.net>
+> From: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
 > 
-> The jfs symlink pathnames, stored in struct jfs_inode_info.i_inline and
-> therefore contained in the jfs_ip slab cache, need to be copied to/from
-> userspace.
+> Expose useful information for programs using memory protection keys.
+> Provide implementation for powerpc and x86.
 > 
-> cache object allocation:
->     fs/jfs/super.c:
->         jfs_alloc_inode(...):
->             ...
->             jfs_inode = kmem_cache_alloc(jfs_inode_cachep, GFP_NOFS);
->             ...
->             return &jfs_inode->vfs_inode;
+> On a powerpc system with pkeys support, here is what is shown:
 > 
->     fs/jfs/jfs_incore.h:
->         JFS_IP(struct inode *inode):
->             return container_of(inode, struct jfs_inode_info, vfs_inode);
+> $ head /sys/kernel/mm/protection_keys/*
+> ==> /sys/kernel/mm/protection_keys/disable_access_supported <==  
+> true
 > 
->     fs/jfs/inode.c:
->         jfs_iget(...):
->             ...
->             inode->i_link = JFS_IP(inode)->i_inline;
+> ==> /sys/kernel/mm/protection_keys/disable_execute_supported <==  
+> true
 > 
-> example usage trace:
->     readlink_copy+0x43/0x70
->     vfs_readlink+0x62/0x110
->     SyS_readlinkat+0x100/0x130
+> ==> /sys/kernel/mm/protection_keys/disable_write_supported <==  
+> true
 > 
->     fs/namei.c:
->         readlink_copy(..., link):
->             ...
->             copy_to_user(..., link, len);
+> ==> /sys/kernel/mm/protection_keys/total_keys <==  
+> 32
 > 
->         (inlined in vfs_readlink)
->         generic_readlink(dentry, ...):
->             struct inode *inode = d_inode(dentry);
->             const char *link = inode->i_link;
->             ...
->             readlink_copy(..., link);
+> ==> /sys/kernel/mm/protection_keys/usable_keys <==  
+> 29
 > 
-> In support of usercopy hardening, this patch defines a region in the
-> jfs_ip slab cache in which userspace copy operations are allowed.
+> And on an x86 without pkeys support:
 > 
-> This region is known as the slab cache's usercopy region. Slab caches can
-> now check that each copy operation involving cache-managed memory falls
-> entirely within the slab's usercopy region.
+> $ head /sys/kernel/mm/protection_keys/*
+> ==> /sys/kernel/mm/protection_keys/disable_access_supported <==  
+> false
 > 
-> This patch is modified from Brad Spengler/PaX Team's PAX_USERCOPY
-> whitelisting code in the last public patch of grsecurity/PaX based on my
-> understanding of the code. Changes or omissions from the original code are
-> mine and don't reflect the original grsecurity/PaX code.
+> ==> /sys/kernel/mm/protection_keys/disable_execute_supported <==  
+> false
 > 
-> Signed-off-by: David Windsor <dave@nullcore.net>
-> [kees: adjust commit log, provide usage trace]
-> Cc: Dave Kleikamp <shaggy@kernel.org>
-> Cc: jfs-discussion@lists.sourceforge.net
-> Signed-off-by: Kees Cook <keescook@chromium.org>
+> ==> /sys/kernel/mm/protection_keys/disable_write_supported <==  
+> false
+> 
+> ==> /sys/kernel/mm/protection_keys/total_keys <==  
+> 1
+> 
+> ==> /sys/kernel/mm/protection_keys/usable_keys <==  
+> 0
+> 
+> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
+> Signed-off-by: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
 > ---
->  fs/jfs/super.c | 8 +++++---
->  1 file changed, 5 insertions(+), 3 deletions(-)
-> 
-> diff --git a/fs/jfs/super.c b/fs/jfs/super.c
-> index 2f14677169c3..e018412608d4 100644
-> --- a/fs/jfs/super.c
-> +++ b/fs/jfs/super.c
-> @@ -966,9 +966,11 @@ static int __init init_jfs_fs(void)
->  	int rc;
->  
->  	jfs_inode_cachep =
-> -	    kmem_cache_create("jfs_ip", sizeof(struct jfs_inode_info), 0,
-> -			    SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
-> -			    init_once);
-> +	    kmem_cache_create_usercopy("jfs_ip", sizeof(struct jfs_inode_info),
-> +			0, SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
-> +			offsetof(struct jfs_inode_info, i_inline),
-> +			sizeof_field(struct jfs_inode_info, i_inline),
-> +			init_once);
->  	if (jfs_inode_cachep == NULL)
->  		return -ENOMEM;
->  
-> 
+
+Just curious, how do you see this being used? For debugging
+or will applications parse these properties and use them?
+It's hard for an application to partition its address space
+among keys at runtime, would you agree?
+
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
