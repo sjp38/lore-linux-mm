@@ -1,71 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B49726B0038
-	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 11:33:27 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id 80so1047689lfy.5
-        for <linux-mm@kvack.org>; Fri, 22 Sep 2017 08:33:27 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b75sor22785ljb.84.2017.09.22.08.33.25
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D8F346B0038
+	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 11:44:14 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id m199so1068690lfe.3
+        for <linux-mm@kvack.org>; Fri, 22 Sep 2017 08:44:14 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s195sor33241lfs.57.2017.09.22.08.44.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 22 Sep 2017 08:33:25 -0700 (PDT)
+        Fri, 22 Sep 2017 08:44:13 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <37e3ce0e-717d-156d-fef3-27559aff980e@arm.com>
-References: <20170921085922.11659-1-ganapatrao.kulkarni@cavium.com>
- <20170921085922.11659-3-ganapatrao.kulkarni@cavium.com> <37e3ce0e-717d-156d-fef3-27559aff980e@arm.com>
-From: Ganapatrao Kulkarni <gklkml16@gmail.com>
-Date: Fri, 22 Sep 2017 21:03:24 +0530
-Message-ID: <CAKTKpr65XoLCDh1RxEq-nSpZcsSuPnHiZrp6McQBx3xrAhhxYA@mail.gmail.com>
-Subject: Re: [PATCH 2/4] numa, iommu/io-pgtable-arm: Use NUMA aware memory
- allocation for smmu translation tables
+In-Reply-To: <20170920230634.31572-1-guro@fb.com>
+References: <20170914224431.GA9735@castle> <20170920230634.31572-1-guro@fb.com>
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Date: Fri, 22 Sep 2017 18:44:12 +0300
+Message-ID: <CALYGNiMOPMrY1+kN=vC4nyD3OG1T1VWSNVTROvPvH2Tchk0z_g@mail.gmail.com>
+Subject: Re: [RESEND] proc, coredump: add CoreDumping flag to /proc/pid/status
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Murphy <robin.murphy@arm.com>
-Cc: Ganapatrao Kulkarni <ganapatrao.kulkarni@cavium.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-mm@kvack.org, Will Deacon <Will.Deacon@arm.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Hanjun Guo <hanjun.guo@linaro.org>, Joerg Roedel <joro@8bytes.org>, vbabka@suse.cz, akpm@linux-foundation.org, mhocko@suse.com, Tomasz.Nowicki@cavium.com, Robert.Richter@cavium.com, jnair@caviumnetworks.com
+To: Roman Gushchin <guro@fb.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, kernel-team@fb.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>
 
-On Thu, Sep 21, 2017 at 4:41 PM, Robin Murphy <robin.murphy@arm.com> wrote:
-> On 21/09/17 09:59, Ganapatrao Kulkarni wrote:
->> function __arm_lpae_alloc_pages is used to allcoated memory for smmu
->> translation tables. updating function to allocate memory/pages
->> from the proximity domain of SMMU device.
+On Thu, Sep 21, 2017 at 2:06 AM, Roman Gushchin <guro@fb.com> wrote:
+> Right now there is no convenient way to check if a process is being
+> coredumped at the moment.
 >
-> AFAICS, data->pgd_size always works out to a power-of-two number of
-> pages, so I'm not sure why we've ever needed alloc_pages_exact() here. I
-> think we could simply use alloc_pages_node() and drop patch #1.
+> It might be necessary to recognize such state to prevent killing
+> the process and getting a broken coredump.
+> Writing a large core might take significant time, and the process
+> is unresponsive during it, so it might be killed by timeout,
+> if another process is monitoring and killing/restarting
+> hanging tasks.
+>
+> To provide an ability to detect if a process is in the state of
+> being coreduped, we can expose a boolean CoreDumping flag
+> in /proc/pid/status.
 
-thanks Robin, i think we can replace with alloc_pages_node.
-i will change as suggested in next version.
+Makes sense.
+
+Maybe print this line only when task actually makes dump?
+And probably expose pid of coredump helper.
+
+Add Oleg into CC.
 
 >
-> Robin.
+> Example:
+> $ cat core.sh
+>   #!/bin/sh
 >
->> Signed-off-by: Ganapatrao Kulkarni <ganapatrao.kulkarni@cavium.com>
->> ---
->>  drivers/iommu/io-pgtable-arm.c | 4 +++-
->>  1 file changed, 3 insertions(+), 1 deletion(-)
->>
->> diff --git a/drivers/iommu/io-pgtable-arm.c b/drivers/iommu/io-pgtable-arm.c
->> index e8018a3..f6d01f6 100644
->> --- a/drivers/iommu/io-pgtable-arm.c
->> +++ b/drivers/iommu/io-pgtable-arm.c
->> @@ -215,8 +215,10 @@ static void *__arm_lpae_alloc_pages(size_t size, gfp_t gfp,
->>  {
->>       struct device *dev = cfg->iommu_dev;
->>       dma_addr_t dma;
->> -     void *pages = alloc_pages_exact(size, gfp | __GFP_ZERO);
->> +     void *pages;
->>
->> +     pages = alloc_pages_exact_nid(dev_to_node(dev), size,
->> +                     gfp | __GFP_ZERO);
->>       if (!pages)
->>               return NULL;
->>
->>
+>   echo "|/usr/bin/sleep 10" > /proc/sys/kernel/core_pattern
+>   sleep 1000 &
+>   PID=$!
 >
-
-thanks
-Ganapat
+>   cat /proc/$PID/status | grep CoreDumping
+>   kill -ABRT $PID
+>   sleep 1
+>   cat /proc/$PID/status | grep CoreDumping
+>
+> $ ./core.sh
+>   CoreDumping:  0
+>   CoreDumping:  1
+>
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Cc: Ingo Molnar <mingo@kernel.org>
+> Cc: kernel-team@fb.com
+> Cc: linux-kernel@vger.kernel.org
+> ---
+>  fs/proc/array.c | 6 ++++++
+>  1 file changed, 6 insertions(+)
+>
+> diff --git a/fs/proc/array.c b/fs/proc/array.c
+> index 88c355574aa0..fc4a0aa7f487 100644
+> --- a/fs/proc/array.c
+> +++ b/fs/proc/array.c
+> @@ -369,6 +369,11 @@ static void task_cpus_allowed(struct seq_file *m, struct task_struct *task)
+>                    cpumask_pr_args(&task->cpus_allowed));
+>  }
+>
+> +static inline void task_core_dumping(struct seq_file *m, struct mm_struct *mm)
+> +{
+> +       seq_printf(m, "CoreDumping:\t%d\n", !!mm->core_state);
+> +}
+> +
+>  int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
+>                         struct pid *pid, struct task_struct *task)
+>  {
+> @@ -379,6 +384,7 @@ int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
+>
+>         if (mm) {
+>                 task_mem(m, mm);
+> +               task_core_dumping(m, mm);
+>                 mmput(mm);
+>         }
+>         task_sig(m, task);
+> --
+> 2.13.5
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
