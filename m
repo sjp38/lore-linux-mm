@@ -1,61 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CA486B0038
-	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 17:55:37 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id p87so3762360pfj.4
-        for <linux-mm@kvack.org>; Fri, 22 Sep 2017 14:55:37 -0700 (PDT)
-Received: from out0-242.mail.aliyun.com (out0-242.mail.aliyun.com. [140.205.0.242])
-        by mx.google.com with ESMTPS id d3si130569plo.365.2017.09.22.14.55.34
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E1E56B0038
+	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 19:07:44 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id p126so504721oih.2
+        for <linux-mm@kvack.org>; Fri, 22 Sep 2017 16:07:44 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t10si478266oib.20.2017.09.22.16.07.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Sep 2017 14:55:35 -0700 (PDT)
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-Subject: [PATCH] mm: madvise: add description for MADV_WIPEONFORK and MADV_KEEPONFORK
-Date: Sat, 23 Sep 2017 05:55:28 +0800
-Message-Id: <1506117328-88228-1-git-send-email-yang.s@alibaba-inc.com>
+        Fri, 22 Sep 2017 16:07:42 -0700 (PDT)
+Message-ID: <1506121660.21121.76.camel@redhat.com>
+Subject: Re: [PATCH] mm: madvise: add description for MADV_WIPEONFORK and
+ MADV_KEEPONFORK
+From: Rik van Riel <riel@redhat.com>
+Date: Fri, 22 Sep 2017 19:07:40 -0400
+In-Reply-To: <1506117328-88228-1-git-send-email-yang.s@alibaba-inc.com>
+References: <1506117328-88228-1-git-send-email-yang.s@alibaba-inc.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: riel@redhat.com
-Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Yang Shi <yang.s@alibaba-inc.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-mm/madvise.c has the brief description about all MADV_ flags, added the
-description for the newly added MADV_WIPEONFORK and MADV_KEEPONFORK.
+On Sat, 2017-09-23 at 05:55 +0800, Yang Shi wrote:
+> mm/madvise.c has the brief description about all MADV_ flags, added
+> the
+> description for the newly added MADV_WIPEONFORK and MADV_KEEPONFORK.
+> 
+> Although man page has the similar information, but it'd better to
+> keep the
+> consistency with other flags.
+> 
+> Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
+> 
+Thank you for spotting that I missed a location!
 
-Although man page has the similar information, but it'd better to keep the
-consistency with other flags.
-
-Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
----
- mm/madvise.c | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
-
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 21261ff..c6bf572 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -749,6 +749,9 @@ static int madvise_inject_error(int behavior,
-  *  MADV_DONTFORK - omit this area from child's address space when forking:
-  *		typically, to avoid COWing pages pinned by get_user_pages().
-  *  MADV_DOFORK - cancel MADV_DONTFORK: no longer omit this area when forking.
-+ *  MADV_WIPEONFORK - present the child process with zero-filled memory in this
-+ *              range after a fork.
-+ *  MADV_KEEPONFORK - undo the effect of MADV_WIPEONFORK
-  *  MADV_HWPOISON - trigger memory error handler as if the given memory range
-  *		were corrupted by unrecoverable hardware memory failure.
-  *  MADV_SOFT_OFFLINE - try to soft-offline the given range of memory.
-@@ -769,7 +772,9 @@ static int madvise_inject_error(int behavior,
-  *  zero    - success
-  *  -EINVAL - start + len < 0, start is not page-aligned,
-  *		"behavior" is not a valid value, or application
-- *		is attempting to release locked or shared pages.
-+ *		is attempting to release locked or shared pages,
-+ *		or the specified address range includes file, Huge TLB,
-+ *		MAP_SHARED or VMPFNMAP range.
-  *  -ENOMEM - addresses in the specified range are not currently
-  *		mapped, or are outside the AS of the process.
-  *  -EIO    - an I/O error occurred while paging in data.
--- 
-1.8.3.1
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
