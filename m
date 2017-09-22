@@ -1,159 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 64DD26B0033
-	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 09:17:03 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id m127so1405072wmm.3
-        for <linux-mm@kvack.org>; Fri, 22 Sep 2017 06:17:03 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 62si2520758edc.221.2017.09.22.06.17.02
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 52F706B0033
+	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 10:56:28 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id t184so1781763qke.0
+        for <linux-mm@kvack.org>; Fri, 22 Sep 2017 07:56:28 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id l88si10736qte.337.2017.09.22.07.56.26
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 22 Sep 2017 06:17:02 -0700 (PDT)
-Date: Fri, 22 Sep 2017 15:17:01 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 6/7] fs-writeback: move nr_pages == 0 logic to one
- location
-Message-ID: <20170922131701.GC22455@quack2.suse.cz>
-References: <1505921582-26709-1-git-send-email-axboe@kernel.dk>
- <1505921582-26709-7-git-send-email-axboe@kernel.dk>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Sep 2017 07:56:26 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v8MEtg4Q068226
+	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 10:56:25 -0400
+Received: from e15.ny.us.ibm.com (e15.ny.us.ibm.com [129.33.205.205])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2d54m9gc87-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 10:56:24 -0400
+Received: from localhost
+	by e15.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Fri, 22 Sep 2017 10:56:23 -0400
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: [PATCH] mm/device-public-memory: Fix edge case in _vm_normal_page()
+Date: Fri, 22 Sep 2017 09:56:18 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1505921582-26709-7-git-send-email-axboe@kernel.dk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Message-Id: <1506092178-20351-1-git-send-email-arbab@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, clm@fb.com, jack@suse.cz
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-On Wed 20-09-17 09:33:01, Jens Axboe wrote:
-> Now that we have no external callers of wb_start_writeback(), we
-> can shuffle the passing in of 'nr_pages'. Everybody passes in 0
-> at this point, so just kill the argument and move the dirty
-> count retrieval to that function.
-> 
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Tested-by: Chris Mason <clm@fb.com>
-> Signed-off-by: Jens Axboe <axboe@kernel.dk>
+With device public pages at the end of my memory space, I'm getting
+output from _vm_normal_page():
 
-Looks good. You can add:
+BUG: Bad page map in process migrate_pages  pte:c0800001ffff0d06 pmd:f95d3000
+addr:00007fff89330000 vm_flags:00100073 anon_vma:c0000000fa899320 mapping:          (null) index:7fff8933
+file:          (null) fault:          (null) mmap:          (null) readpage:          (null)
+CPU: 0 PID: 13963 Comm: migrate_pages Tainted: P    B      OE 4.14.0-rc1-wip #155
+Call Trace:
+[c0000000f965f910] [c00000000094d55c] dump_stack+0xb0/0xf4 (unreliable)
+[c0000000f965f950] [c0000000002b269c] print_bad_pte+0x28c/0x340
+[c0000000f965fa00] [c0000000002b59c0] _vm_normal_page+0xc0/0x140
+[c0000000f965fa20] [c0000000002b6e64] zap_pte_range+0x664/0xc10
+[c0000000f965fb00] [c0000000002b7858] unmap_page_range+0x318/0x670
+[c0000000f965fbd0] [c0000000002b8074] unmap_vmas+0x74/0xe0
+[c0000000f965fc20] [c0000000002c4a18] exit_mmap+0xe8/0x1f0
+[c0000000f965fce0] [c0000000000ecbdc] mmput+0xac/0x1f0
+[c0000000f965fd10] [c0000000000f62e8] do_exit+0x348/0xcd0
+[c0000000f965fdd0] [c0000000000f6d2c] do_group_exit+0x5c/0xf0
+[c0000000f965fe10] [c0000000000f6ddc] SyS_exit_group+0x1c/0x20
+[c0000000f965fe30] [c00000000000b184] system_call+0x58/0x6c
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+The pfn causing this is the very last one. Correct the bounds check
+accordingly.
 
-										Honza
+Fixes: df6ad69838fc ("mm/device-public-memory: device memory cache coherent with CPU")
+Cc: JA(C)rA'me Glisse <jglisse@redhat.com>
+Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+---
+ mm/memory.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-> ---
->  fs/fs-writeback.c | 42 ++++++++++++++++++------------------------
->  1 file changed, 18 insertions(+), 24 deletions(-)
-> 
-> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> index ecbd26d1121d..3916ea2484ae 100644
-> --- a/fs/fs-writeback.c
-> +++ b/fs/fs-writeback.c
-> @@ -933,8 +933,19 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
->  
->  #endif	/* CONFIG_CGROUP_WRITEBACK */
->  
-> -static void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
-> -			       bool range_cyclic, enum wb_reason reason)
-> +/*
-> + * Add in the number of potentially dirty inodes, because each inode
-> + * write can dirty pagecache in the underlying blockdev.
-> + */
-> +static unsigned long get_nr_dirty_pages(void)
-> +{
-> +	return global_node_page_state(NR_FILE_DIRTY) +
-> +		global_node_page_state(NR_UNSTABLE_NFS) +
-> +		get_nr_dirty_inodes();
-> +}
-> +
-> +static void wb_start_writeback(struct bdi_writeback *wb, bool range_cyclic,
-> +			       enum wb_reason reason)
->  {
->  	struct wb_writeback_work *work;
->  
-> @@ -954,7 +965,7 @@ static void wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
->  	}
->  
->  	work->sync_mode	= WB_SYNC_NONE;
-> -	work->nr_pages	= nr_pages;
-> +	work->nr_pages	= wb_split_bdi_pages(wb, get_nr_dirty_pages());
->  	work->range_cyclic = range_cyclic;
->  	work->reason	= reason;
->  	work->auto_free	= 1;
-> @@ -1814,17 +1825,6 @@ static struct wb_writeback_work *get_next_work_item(struct bdi_writeback *wb)
->  	return work;
->  }
->  
-> -/*
-> - * Add in the number of potentially dirty inodes, because each inode
-> - * write can dirty pagecache in the underlying blockdev.
-> - */
-> -static unsigned long get_nr_dirty_pages(void)
-> -{
-> -	return global_node_page_state(NR_FILE_DIRTY) +
-> -		global_node_page_state(NR_UNSTABLE_NFS) +
-> -		get_nr_dirty_inodes();
-> -}
-> -
->  static long wb_check_background_flush(struct bdi_writeback *wb)
->  {
->  	if (wb_over_bg_thresh(wb)) {
-> @@ -1951,7 +1951,7 @@ void wb_workfn(struct work_struct *work)
->   * write back the whole world.
->   */
->  static void __wakeup_flusher_threads_bdi(struct backing_dev_info *bdi,
-> -					 long nr_pages, enum wb_reason reason)
-> +					 enum wb_reason reason)
->  {
->  	struct bdi_writeback *wb;
->  
-> @@ -1959,17 +1959,14 @@ static void __wakeup_flusher_threads_bdi(struct backing_dev_info *bdi,
->  		return;
->  
->  	list_for_each_entry_rcu(wb, &bdi->wb_list, bdi_node)
-> -		wb_start_writeback(wb, wb_split_bdi_pages(wb, nr_pages),
-> -					   false, reason);
-> +		wb_start_writeback(wb, false, reason);
->  }
->  
->  void wakeup_flusher_threads_bdi(struct backing_dev_info *bdi,
->  				enum wb_reason reason)
->  {
-> -	long nr_pages = get_nr_dirty_pages();
-> -
->  	rcu_read_lock();
-> -	__wakeup_flusher_threads_bdi(bdi, nr_pages, reason);
-> +	__wakeup_flusher_threads_bdi(bdi, reason);
->  	rcu_read_unlock();
->  }
->  
-> @@ -1979,7 +1976,6 @@ void wakeup_flusher_threads_bdi(struct backing_dev_info *bdi,
->  void wakeup_flusher_threads(enum wb_reason reason)
->  {
->  	struct backing_dev_info *bdi;
-> -	long nr_pages;
->  
->  	/*
->  	 * If we are expecting writeback progress we must submit plugged IO.
-> @@ -1987,11 +1983,9 @@ void wakeup_flusher_threads(enum wb_reason reason)
->  	if (blk_needs_flush_plug(current))
->  		blk_schedule_flush_plug(current);
->  
-> -	nr_pages = get_nr_dirty_pages();
-> -
->  	rcu_read_lock();
->  	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list)
-> -		__wakeup_flusher_threads_bdi(bdi, nr_pages, reason);
-> +		__wakeup_flusher_threads_bdi(bdi, reason);
->  	rcu_read_unlock();
->  }
->  
-> -- 
-> 2.7.4
-> 
+diff --git a/mm/memory.c b/mm/memory.c
+index ec4e154..a728bed 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -845,7 +845,7 @@ struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+ 		 * vm_normal_page() so that we do not have to special case all
+ 		 * call site of vm_normal_page().
+ 		 */
+-		if (likely(pfn < highest_memmap_pfn)) {
++		if (likely(pfn <= highest_memmap_pfn)) {
+ 			struct page *page = pfn_to_page(pfn);
+ 
+ 			if (is_device_public_page(page)) {
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
