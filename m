@@ -1,100 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F9A16B0038
-	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 16:53:50 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id x78so3553138pff.7
-        for <linux-mm@kvack.org>; Fri, 22 Sep 2017 13:53:50 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id k136sor332592pga.339.2017.09.22.13.53.49
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D79D6B0038
+	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 17:01:25 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id o3so2391235qte.7
+        for <linux-mm@kvack.org>; Fri, 22 Sep 2017 14:01:25 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id r34si603405qtd.515.2017.09.22.14.01.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Sep 2017 13:53:49 -0700 (PDT)
-Date: Fri, 22 Sep 2017 13:53:47 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-In-Reply-To: <20170921215103.GA23772@cmpxchg.org>
-Message-ID: <alpine.DEB.2.10.1709221340280.68140@chino.kir.corp.google.com>
-References: <20170911131742.16482-1-guro@fb.com> <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com> <20170921142107.GA20109@cmpxchg.org> <alpine.DEB.2.10.1709211357520.60945@chino.kir.corp.google.com> <20170921215103.GA23772@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Sep 2017 14:01:24 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v8ML1C8g040926
+	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 17:01:23 -0400
+Received: from e12.ny.us.ibm.com (e12.ny.us.ibm.com [129.33.205.202])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2d542yj3vb-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 22 Sep 2017 17:01:23 -0400
+Received: from localhost
+	by e12.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Fri, 22 Sep 2017 17:01:22 -0400
+Date: Fri, 22 Sep 2017 16:01:13 -0500
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/device-public-memory: Enable move_pages() to stat
+ device memory
+References: <1506111236-28975-1-git-send-email-arbab@linux.vnet.ibm.com>
+ <20170922203157.4txavkwmvyh2ufmd@arbab-laptop.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <20170922203157.4txavkwmvyh2ufmd@arbab-laptop.localdomain>
+Message-Id: <20170922210113.c2dn5mjis6zyted7@arbab-laptop.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Lorenzo Stoakes <lstoakes@gmail.com>, Dave Jiang <dave.jiang@intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Huang Ying <ying.huang@intel.com>, Ingo Molnar <mingo@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, James Morse <james.morse@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 21 Sep 2017, Johannes Weiner wrote:
+On Fri, Sep 22, 2017 at 08:31:57PM +0000, Reza Arbab wrote:
+>On Fri, Sep 22, 2017 at 08:13:56PM +0000, Reza Arbab wrote:
+>>The move_pages() syscall can be used to find the numa node where a page
+>>currently resides. This is not working for device public memory pages,
+>>which erroneously report -EFAULT (unmapped or zero page).
+>
+>Argh. Please disregard this patch.
+>
+>My test setup has a chunk of system memory carved out as pretend 
+>device public memory, to experiment with. Of course the real thing has 
+>no numa node!
 
-> > The issue is that if you opt-in to the new feature, then you are forced to 
-> > change /proc/pid/oom_score_adj of all processes attached to a cgroup that 
-> > you do not want oom killed based on size to be oom disabled.
-> 
-> You're assuming that most people would want to influence the oom
-> behavior in the first place. I think the opposite is the case: most
-> people don't care as long as the OOM killer takes the intent the user
-> has expressed wrt runtime containerization/grouping into account.
-> 
+On third thought, yes it does! 
 
-If you do not want to influence the oom behavior, do not change 
-memory.oom_priority from its default.  It's that simple.
+static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
+{
+	:
+	nid = dev_to_node(device);
+	if (nid < 0)
+		nid = numa_mem_id();
+	:
+	if (devmem->pagemap.type == MEMORY_DEVICE_PUBLIC)
+		ret = arch_add_memory(nid, align_start, align_size, false);
+	:
+}
 
-> > The kernel provides no other remedy without oom priorities since the
-> > new feature would otherwise disregard oom_score_adj.
-> 
-> As of v8, it respects this setting and doesn't kill min score tasks.
-> 
+So now I think the patch may be right after all. Please un-disregard it.  
+Regard it? Whatever.
 
-That's the issue.  To protect a memory cgroup from being oom killed in a 
-system oom condition, you need to change oom_score_adj of *all* processes 
-attached to be oom disabled.  Then, you have a huge problem in memory 
-cgroup oom conditions because nothing can be killed in that hierarchy 
-itself.
-
-> > The patchset compares memory cgroup size relative to sibling cgroups only, 
-> > the same comparison for memory.oom_priority.  There is a guarantee 
-> > provided on how cgroup size is compared in select_victim_memcg(), it 
-> > hierarchically accumulates the "size" from leaf nodes up to the root memcg 
-> > and then iterates the tree comparing sizes between sibling cgroups to 
-> > choose a victim memcg.  That algorithm could be more elaborately described 
-> > in the documentation, but we simply cannot change the implementation of 
-> > select_victim_memcg() later even without oom priorities since users cannot 
-> > get inconsistent results after opting into a feature between kernel 
-> > versions.  I believe the selection criteria should be implemented to be 
-> > deterministic, as select_victim_memcg() does, and the documentation should 
-> > fully describe what the selection criteria is, and then allow the user to 
-> > decide.
-> 
-> I wholeheartedly disagree. We have changed the behavior multiple times
-> in the past. In fact, you have arguably done the most drastic changes
-> to the algorithm since the OOM killer was first introduced. E.g.
-> 
-> 	a63d83f427fb oom: badness heuristic rewrite
-> 
-> And that's completely fine. Because this thing is not a resource
-> management tool for userspace, it's the kernel saving itself. At best
-> in a manner that's not too surprising to userspace.
-> 
-
-When I did that, I had to add /proc/pid/oom_score_adj to allow userspace 
-to influence selection.  We came up with /proc/pid/oom_score_adj when 
-working with kde, openssh, chromium, and udev because they cared about the 
-ability to influence the decisionmaking.  I'm perfectly happy with the new 
-heuristic presented in this patchset, I simply want userspace to be able 
-to influence it, if it desires.  Requiring userspace to set all processes 
-to be oom disabled to protect a hierarchy is totally and completely 
-broken.  It livelocks the memory cgroup if it is oom itself.
-
-> To me, your argument behind the NAK still boils down to "this doesn't
-> support my highly specialized usecase." But since it doesn't prohibit
-> your usecase - which isn't even supported upstream, btw - this really
-> doesn't carry much weight.
-> 
-> I'd say if you want configurability on top of Roman's code, please
-> submit patches and push the case for these in a separate effort.
-> 
-
-Roman implemented memory.oom_priority himself, it has my Tested-by, and it 
-allows users who want to protect high priority memory cgroups from using 
-the size based comparison for all other cgroups that we very much desire.
+-- 
+Reza Arbab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
