@@ -1,65 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F3C246B0253
-	for <linux-mm@kvack.org>; Sat, 23 Sep 2017 04:16:33 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 11so6207948pge.4
-        for <linux-mm@kvack.org>; Sat, 23 Sep 2017 01:16:33 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id f67sor755021pgc.21.2017.09.23.01.16.32
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EA366B025E
+	for <linux-mm@kvack.org>; Sat, 23 Sep 2017 04:36:24 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b195so3309453wmb.6
+        for <linux-mm@kvack.org>; Sat, 23 Sep 2017 01:36:24 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
+        by mx.google.com with ESMTPS id d4si1213835wrf.511.2017.09.23.01.36.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 23 Sep 2017 01:16:32 -0700 (PDT)
-Date: Sat, 23 Sep 2017 01:16:30 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-In-Reply-To: <20170922210519.GH828415@devbig577.frc2.facebook.com>
-Message-ID: <alpine.DEB.2.10.1709230111250.116512@chino.kir.corp.google.com>
-References: <20170911131742.16482-1-guro@fb.com> <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com> <20170921142107.GA20109@cmpxchg.org> <alpine.DEB.2.10.1709211357520.60945@chino.kir.corp.google.com> <20170922154426.GF828415@devbig577.frc2.facebook.com>
- <alpine.DEB.2.10.1709221316290.68140@chino.kir.corp.google.com> <20170922210519.GH828415@devbig577.frc2.facebook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 23 Sep 2017 01:36:23 -0700 (PDT)
+Content-Type: text/plain; charset="utf-8"
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+From: Chris Wilson <chris@chris-wilson.co.uk>
+In-Reply-To: <20170922173252.10137-3-matthew.auld@intel.com>
+References: <20170922173252.10137-1-matthew.auld@intel.com>
+ <20170922173252.10137-3-matthew.auld@intel.com>
+Message-ID: <150615577925.24071.17558835162953494919@mail.alporthouse.com>
+Subject: Re: [PATCH 02/21] drm/i915: introduce simple gemfs
+Date: Sat, 23 Sep 2017 09:36:19 +0100
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Matthew Auld <matthew.auld@intel.com>, intel-gfx@lists.freedesktop.org
+Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-On Fri, 22 Sep 2017, Tejun Heo wrote:
+Quoting Matthew Auld (2017-09-22 18:32:33)
+> +static int i915_gem_object_create_shmem(struct drm_device *dev,
+> +                                       struct drm_gem_object *obj,
+> +                                       size_t size)
+> +{
+> +       struct drm_i915_private *i915 =3D to_i915(dev);
+> +       struct file *filp;
+> +
+> +       drm_gem_private_object_init(dev, obj, size);
+> +
+> +       if (i915->mm.gemfs)
+> +               filp =3D shmem_file_setup_with_mnt(i915->mm.gemfs, "i915"=
+, size,
+> +                                                VM_NORESERVE);
+> +       else
+> +               filp =3D shmem_file_setup("i915", size, VM_NORESERVE);
 
-> > If you have this low priority maintenance job charging memory to the high 
-> > priority hierarchy, you're already misconfigured unless you adjust 
-> > /proc/pid/oom_score_adj because it will oom kill any larger process than 
-> > itself in today's kernels anyway.
-> > 
-> > A better configuration would be attach this hypothetical low priority 
-> > maintenance job to its own sibling cgroup with its own memory limit to 
-> > avoid exactly that problem: it going berserk and charging too much memory 
-> > to the high priority container that results in one of its processes 
-> > getting oom killed.
-> 
-> And how do you guarantee that across delegation boundaries?  The
-> points you raise on why the priority should be applied level-by-level
-> are exactly the same points why this doesn't really work.  OOM killing
-> priority isn't something which can be distributed across cgroup
-> hierarchy level-by-level.  The resulting decision tree doesn't make
-> any sense.
-> 
+Smells like the shmem_file_setup() is fishy.
 
-It works very well in practice with real world usecases, and Roman has 
-developed the same design independently that we have used for the past 
-four years.  Saying it doesn't make any sense doesn't hold a lot of weight 
-when we both independently designed and implemented the same solution to 
-address our usecases.
-
-> I'm not against adding something which works but strict level-by-level
-> comparison isn't the solution.
-> 
-
-Each of the eight versions of Roman's cgroup aware oom killer has done 
-comparisons between siblings at each level.  Userspace influence on that 
-comparison would thus also need to be done at each level.  It's a very 
-powerful combination in practice.
-
-Thanks.
+This supports my argument that you should just expand shmem_file_setup()
+to always take the vfsmount, passing #define TMPFS_MNT NULL.
+-Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
