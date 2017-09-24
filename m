@@ -1,51 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EA366B025E
-	for <linux-mm@kvack.org>; Sat, 23 Sep 2017 04:36:24 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b195so3309453wmb.6
-        for <linux-mm@kvack.org>; Sat, 23 Sep 2017 01:36:24 -0700 (PDT)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
-        by mx.google.com with ESMTPS id d4si1213835wrf.511.2017.09.23.01.36.22
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C986C6B0038
+	for <linux-mm@kvack.org>; Sat, 23 Sep 2017 21:57:06 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id f3so3521167oia.4
+        for <linux-mm@kvack.org>; Sat, 23 Sep 2017 18:57:06 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id k134si1820558oib.103.2017.09.23.18.57.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 23 Sep 2017 01:36:23 -0700 (PDT)
-Content-Type: text/plain; charset="utf-8"
-MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-From: Chris Wilson <chris@chris-wilson.co.uk>
-In-Reply-To: <20170922173252.10137-3-matthew.auld@intel.com>
-References: <20170922173252.10137-1-matthew.auld@intel.com>
- <20170922173252.10137-3-matthew.auld@intel.com>
-Message-ID: <150615577925.24071.17558835162953494919@mail.alporthouse.com>
-Subject: Re: [PATCH 02/21] drm/i915: introduce simple gemfs
-Date: Sat, 23 Sep 2017 09:36:19 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 23 Sep 2017 18:57:05 -0700 (PDT)
+Subject: Re: [PATCH] mm,page_alloc: softlockup on warn_alloc on
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201709152038.BHF26323.LFOMFHOFOJSVQt@I-love.SAKURA.ne.jp>
+	<20170915120020.diakzyzsx73ygnfx@dhcp22.suse.cz>
+	<201709152109.AID48261.FtHOFMFQOJVLOS@I-love.SAKURA.ne.jp>
+	<20170915121401.eaoncsmahh2stqn2@dhcp22.suse.cz>
+	<201709152312.EGB69283.VFQOOtFMOFHJSL@I-love.SAKURA.ne.jp>
+In-Reply-To: <201709152312.EGB69283.VFQOOtFMOFHJSL@I-love.SAKURA.ne.jp>
+Message-Id: <201709241056.EHE17127.VJLFSFMFOQOOtH@I-love.SAKURA.ne.jp>
+Date: Sun, 24 Sep 2017 10:56:35 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Auld <matthew.auld@intel.com>, intel-gfx@lists.freedesktop.org
-Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: yuwang668899@gmail.com
+Cc: mhocko@suse.com, vbabka@suse.cz, mpatocka@redhat.com, hannes@cmpxchg.org, mgorman@suse.de, dave.hansen@intel.com, akpm@linux-foundation.org, linux-mm@kvack.org, chenggang.qcg@alibaba-inc.com, yuwang.yuwang@alibaba-inc.com
 
-Quoting Matthew Auld (2017-09-22 18:32:33)
-> +static int i915_gem_object_create_shmem(struct drm_device *dev,
-> +                                       struct drm_gem_object *obj,
-> +                                       size_t size)
-> +{
-> +       struct drm_i915_private *i915 =3D to_i915(dev);
-> +       struct file *filp;
-> +
-> +       drm_gem_private_object_init(dev, obj, size);
-> +
-> +       if (i915->mm.gemfs)
-> +               filp =3D shmem_file_setup_with_mnt(i915->mm.gemfs, "i915"=
-, size,
-> +                                                VM_NORESERVE);
-> +       else
-> +               filp =3D shmem_file_setup("i915", size, VM_NORESERVE);
+Tetsuo Handa wrote:
+> Assuming that Wang Yu's trace has
+> 
+>   RIP: 0010:[<...>]  [<...>] dump_stack+0x.../0x...
+> 
+> line in the omitted part (like Cong Wang's trace did), I suspect that a thread
+> which is holding dump_lock is unable to leave console_unlock() from printk() for
+> so long because many other threads are trying to call printk() from warn_alloc()
+> while consuming all CPU time.
+> 
+> Thus, not allowing other threads to consume CPU time / call printk() is a step for
+> isolating it. If this problem still exists even if we made other threads sleep,
+> the real cause will be somewhere else. But unfortunately Cong Wang has not yet
+> succeeded with reproducing the problem. If Wang Yu is able to reproduce the problem,
+> we can try setting 1 to /proc/sys/kernel/softlockup_all_cpu_backtrace so that
+> we can know what other CPUs are doing.
 
-Smells like the shmem_file_setup() is fishy.
-
-This supports my argument that you should just expand shmem_file_setup()
-to always take the vfsmount, passing #define TMPFS_MNT NULL.
--Chris
+It seems that Johannes needs more time for getting a test result from production
+environment. Meanwhile, for use as a reference, Wang, do you have a chance to retry
+your stress test with /proc/sys/kernel/softlockup_all_cpu_backtrace set to 1 ?
+I don't have access to environments with many CPUs...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
