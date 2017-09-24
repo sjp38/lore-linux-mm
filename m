@@ -1,52 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C986C6B0038
-	for <linux-mm@kvack.org>; Sat, 23 Sep 2017 21:57:06 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id f3so3521167oia.4
-        for <linux-mm@kvack.org>; Sat, 23 Sep 2017 18:57:06 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id k134si1820558oib.103.2017.09.23.18.57.04
+	by kanga.kvack.org (Postfix) with ESMTP id 9709F6B0038
+	for <linux-mm@kvack.org>; Sun, 24 Sep 2017 02:10:48 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id a74so3939298oib.7
+        for <linux-mm@kvack.org>; Sat, 23 Sep 2017 23:10:48 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d142sor1555728oig.299.2017.09.23.23.10.47
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 23 Sep 2017 18:57:05 -0700 (PDT)
-Subject: Re: [PATCH] mm,page_alloc: softlockup on warn_alloc on
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201709152038.BHF26323.LFOMFHOFOJSVQt@I-love.SAKURA.ne.jp>
-	<20170915120020.diakzyzsx73ygnfx@dhcp22.suse.cz>
-	<201709152109.AID48261.FtHOFMFQOJVLOS@I-love.SAKURA.ne.jp>
-	<20170915121401.eaoncsmahh2stqn2@dhcp22.suse.cz>
-	<201709152312.EGB69283.VFQOOtFMOFHJSL@I-love.SAKURA.ne.jp>
-In-Reply-To: <201709152312.EGB69283.VFQOOtFMOFHJSL@I-love.SAKURA.ne.jp>
-Message-Id: <201709241056.EHE17127.VJLFSFMFOQOOtH@I-love.SAKURA.ne.jp>
-Date: Sun, 24 Sep 2017 10:56:35 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (Google Transport Security);
+        Sat, 23 Sep 2017 23:10:47 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1506109927-17012-3-git-send-email-yang.s@alibaba-inc.com>
+References: <1506109927-17012-1-git-send-email-yang.s@alibaba-inc.com> <1506109927-17012-3-git-send-email-yang.s@alibaba-inc.com>
+From: Qixuan Wu <wuqixuan@gmail.com>
+Date: Sun, 24 Sep 2017 14:10:46 +0800
+Message-ID: <CAEjEV8DcOzh+TEeF4MmPTbAEq4ahCCCG3tiU975dhwauv2RgGQ@mail.gmail.com>
+Subject: [PATCH 2/2] mm: oom: show unreclaimable slab info when kernel panic
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yuwang668899@gmail.com
-Cc: mhocko@suse.com, vbabka@suse.cz, mpatocka@redhat.com, hannes@cmpxchg.org, mgorman@suse.de, dave.hansen@intel.com, akpm@linux-foundation.org, linux-mm@kvack.org, chenggang.qcg@alibaba-inc.com, yuwang.yuwang@alibaba-inc.com
+To: Yang Shi <yang.s@alibaba-inc.com>
+Cc: "cl@linux.com" <cl@linux.com>, "penberg@kernel.org" <penberg@kernel.org>, "rientjes@google.com" <rientjes@google.com>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Tetsuo Handa wrote:
-> Assuming that Wang Yu's trace has
-> 
->   RIP: 0010:[<...>]  [<...>] dump_stack+0x.../0x...
-> 
-> line in the omitted part (like Cong Wang's trace did), I suspect that a thread
-> which is holding dump_lock is unable to leave console_unlock() from printk() for
-> so long because many other threads are trying to call printk() from warn_alloc()
-> while consuming all CPU time.
-> 
-> Thus, not allowing other threads to consume CPU time / call printk() is a step for
-> isolating it. If this problem still exists even if we made other threads sleep,
-> the real cause will be somewhere else. But unfortunately Cong Wang has not yet
-> succeeded with reproducing the problem. If Wang Yu is able to reproduce the problem,
-> we can try setting 1 to /proc/sys/kernel/softlockup_all_cpu_backtrace so that
-> we can know what other CPUs are doing.
+On Sat, Sep 23, 2017, Yang Shi <yang.s@alibaba-inc.com> wrote=EF=BC=9A
+>
+> Kernel may panic when oom happens without killable process sometimes it
+> is caused by huge unreclaimable slabs used by kernel.
+>
+> Although kdump could help debug such problem, however, kdump is not
+> available on all architectures and it might be malfunction sometime.
+> And, since kernel already panic it is worthy capturing such information
+> in dmesg to aid touble shooting.
+......
 
-It seems that Johannes needs more time for getting a test result from production
-environment. Meanwhile, for use as a reference, Wang, do you have a chance to retry
-your stress test with /proc/sys/kernel/softlockup_all_cpu_backtrace set to 1 ?
-I don't have access to environments with many CPUs...
+> +void dump_unreclaimable_slab(void)
+> +{
+> +       struct kmem_cache *s, *s2;
+> +       struct slabinfo sinfo;
+> +
+> +       pr_info("Unreclaimable slab info:\n");
+> +       pr_info("Name                      Used          Total\n");
+> +
+> +       /*
+> +        * Here acquiring slab_mutex is unnecessary since we don't prefer=
+ to
+> +        * get sleep in oom path right before kernel panic, and avoid rac=
+e
+> +        * condition.
+> +        * Since it is already oom, so there should be not any big alloca=
+tion
+> +        * which could change the statistics significantly.
+> +        */
+> +       list_for_each_entry_safe(s, s2, &slab_caches, list) {
+> +               if (!is_root_cache(s) || (s->flags & SLAB_RECLAIM_ACCOUNT=
+))
+> +                       continue;
+> +
+> +               memset(&sinfo, 0, sizeof(sinfo));
+> +               get_slabinfo(s, &sinfo);
+> +
+> +               if (sinfo.num_objs > 0)
+> +                       pr_info("%-17s %10luKB %10luKB\n", cache_name(s),
+> +                               (sinfo.active_objs * s->size) / 1024,
+> +                               (sinfo.num_objs * s->size) / 1024);
+> +       }
+> +}
+> +
+
+Seems it's a good feature and patch is fine, maybe modify like below is bet=
+ter.
+
+Change
+ if (sinfo.num_objs > 0)
+to
+ if (sinfo.num_objs > 0 && sinfo.actives_objs > 0)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
