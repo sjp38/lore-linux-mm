@@ -1,68 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 80DA06B0038
-	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 05:35:36 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id r83so12656385pfj.5
-        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 02:35:36 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f69si3673324pfj.623.2017.09.25.02.35.35
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B525A6B0038
+	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 06:06:30 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id v109so8474177wrc.5
+        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 03:06:30 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m25sor1282454wmi.76.2017.09.25.03.06.29
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Sep 2017 02:35:35 -0700 (PDT)
-Date: Mon, 25 Sep 2017 11:35:32 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 7/7] fs-writeback: only allow one inflight and pending
- full flush
-Message-ID: <20170925093532.GC5741@quack2.suse.cz>
-References: <1505921582-26709-1-git-send-email-axboe@kernel.dk>
- <1505921582-26709-8-git-send-email-axboe@kernel.dk>
- <20170921150510.GH8839@infradead.org>
- <728d4141-8d73-97fb-de08-90671c2897da@kernel.dk>
- <3682c4c2-6e8a-e883-9f62-455ea2944496@kernel.dk>
+        (Google Transport Security);
+        Mon, 25 Sep 2017 03:06:29 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3682c4c2-6e8a-e883-9f62-455ea2944496@kernel.dk>
+In-Reply-To: <1506329174-19265-2-git-send-email-imbrenda@linux.vnet.ibm.com>
+References: <1506329174-19265-1-git-send-email-imbrenda@linux.vnet.ibm.com> <1506329174-19265-2-git-send-email-imbrenda@linux.vnet.ibm.com>
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Date: Mon, 25 Sep 2017 12:06:28 +0200
+Message-ID: <CAMuHMdUcd01J1fXeqVQdVeOGF_YqGp9uZh4MEucVdhc+XNOAsQ@mail.gmail.com>
+Subject: Re: [RFC v1 1/2] VS1544 KSM generic memory comparison functions
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, clm@fb.com, jack@suse.cz
+To: Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christian Borntraeger <borntraeger@de.ibm.com>, KVM list <kvm@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, nefelim4ag@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, zhongjiang@huawei.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Arvind Yadav <arvind.yadav.cs@gmail.com>, solee@os.korea.ac.kr, Andi Kleen <ak@linux.intel.com>
 
-On Thu 21-09-17 10:00:25, Jens Axboe wrote:
-> On 09/21/2017 09:36 AM, Jens Axboe wrote:
-> >> But more importantly once we are not guaranteed that we only have
-> >> a single global wb_writeback_work per bdi_writeback we should just
-> >> embedd that into struct bdi_writeback instead of dynamically
-> >> allocating it.
-> >
-> > We could do this as a followup. But right now the logic is that we
-> > can have on started (inflight), and still have one new queued.
-> 
-> Something like the below would fit on top to do that. Gets rid of the
-> allocation and embeds the work item for global start-all in the
-> bdi_writeback structure.
+Hi Claudio,
 
-Hum, so when we consider stuff like embedded work item, I would somewhat
-prefer to handle this like we do for for_background and for_kupdate style
-writeback so that we don't have another special case. For these don't queue
-any item, we just queue writeback work into the workqueue (via
-wb_wakeup()). When flusher work gets processed wb_do_writeback() checks
-(after processing all normal writeback requests) whether conditions for
-these special writeback styles are met and if yes, it creates on-stack work
-item and processes it (see wb_check_old_data_flush() and
-wb_check_background_flush()).
+On Mon, Sep 25, 2017 at 10:46 AM, Claudio Imbrenda
+<imbrenda@linux.vnet.ibm.com> wrote:
+> This is just a refactoring of the existing code:
+>
+> * Split the page checksum and page comparison functions from ksm.c into
+>   a new asm-generic header (page_memops.h)
 
-So in this case we would just set some flag in bdi_writeback when memory
-reclaim needs help and wb_do_writeback() would check for this flag and
-create and process writeback-all style writeback work. Granted this does
-not preserve ordering of requests (basically any specific request gets
-priority over writeback-whole-world request) but memory gets cleaned in
-either case so flusher should be doing what is needed.
+... and make them inline?
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> --- /dev/null
+> +++ b/include/asm-generic/page_memops.h
+> @@ -0,0 +1,31 @@
+> +#ifndef _ASM_GENERIC_PAGE_MEMOPS_H
+> +#define _ASM_GENERIC_PAGE_MEMOPS_H
+> +
+> +#include <linux/mm_types.h>
+> +#include <linux/highmem.h>
+> +#include <linux/jhash.h>
+> +
+> +static inline u32 calc_page_checksum(struct page *page)
+> +{
+> +       void *addr = kmap_atomic(page);
+> +       u32 checksum;
+> +
+> +       checksum = jhash2(addr, PAGE_SIZE / 4, 17);
+> +       kunmap_atomic(addr);
+> +       return checksum;
+> +}
+> +
+> +static inline int memcmp_pages(struct page *page1, struct page *page2)
+> +{
+> +       char *addr1, *addr2;
+> +       int ret;
+> +
+> +       addr1 = kmap_atomic(page1);
+> +       addr2 = kmap_atomic(page2);
+> +       ret = memcmp(addr1, addr2, PAGE_SIZE);
+> +       kunmap_atomic(addr2);
+> +       kunmap_atomic(addr1);
+> +       return ret;
+> +}
+
+Do they really have to be inline?
+
+Gr{oetje,eeting}s,
+
+                        Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
