@@ -1,50 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C25D86B0038
-	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 15:41:58 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id 97so7601741uai.4
-        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 12:41:58 -0700 (PDT)
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id z29si2937242uah.122.2017.09.25.12.41.57
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D3536B0038
+	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 16:25:27 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id r74so1310606wrb.7
+        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 13:25:27 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z196si205770wmd.200.2017.09.25.13.25.25
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Sep 2017 12:41:57 -0700 (PDT)
-Date: Mon, 25 Sep 2017 14:41:31 -0500
-From: Segher Boessenkool <segher@kernel.crashing.org>
-Subject: Re: [PATCH] mm: fix RODATA_TEST failure "rodata_test: test data was not read only"
-Message-ID: <20170925194130.GV8421@gate.crashing.org>
-References: <20170921093729.1080368AC1@po15668-vm-win7.idsi0.si.c-s.fr> <CAGXu5jJ54+bCcXaPK1ExsxtTDPHNn1+1gywb3TDbe-SEtt1zuQ@mail.gmail.com> <20170925073721.GM8421@gate.crashing.org> <063D6719AE5E284EB5DD2968C1650D6DD007F58B@AcuExch.aculab.com>
-Mime-Version: 1.0
+        Mon, 25 Sep 2017 13:25:25 -0700 (PDT)
+Date: Mon, 25 Sep 2017 22:25:21 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v8 0/4] cgroup-aware OOM killer
+Message-ID: <20170925202442.lmcmvqwy2jj2tr5h@dhcp22.suse.cz>
+References: <20170913215607.GA19259@castle>
+ <20170914134014.wqemev2kgychv7m5@dhcp22.suse.cz>
+ <20170914160548.GA30441@castle>
+ <20170915105826.hq5afcu2ij7hevb4@dhcp22.suse.cz>
+ <20170915152301.GA29379@castle>
+ <20170918061405.pcrf5vauvul4c2nr@dhcp22.suse.cz>
+ <20170920215341.GA5382@castle>
+ <20170925122400.4e7jh5zmuzvbggpe@dhcp22.suse.cz>
+ <20170925170004.GA22704@cmpxchg.org>
+ <20170925181533.GA15918@castle>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <063D6719AE5E284EB5DD2968C1650D6DD007F58B@AcuExch.aculab.com>
+In-Reply-To: <20170925181533.GA15918@castle>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Laight <David.Laight@ACULAB.COM>
-Cc: Kees Cook <keescook@chromium.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jinbum Park <jinb.park7@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>
+To: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Sep 25, 2017 at 04:01:55PM +0000, David Laight wrote:
-> From: Segher Boessenkool
-> > The compiler puts this item in .sdata, for 32-bit.  There is no .srodata,
-> > so if it wants to use a small data section, it must use .sdata .
-> > 
-> > Non-external, non-referenced symbols are not put in .sdata, that is the
-> > difference you see with the "static".
-> > 
-> > I don't think there is a bug here.  If you think there is, please open
-> > a GCC bug.
+On Mon 25-09-17 19:15:33, Roman Gushchin wrote:
+[...]
+> I'm not against this model, as I've said before. It feels logical,
+> and will work fine in most cases.
 > 
-> The .sxxx sections are for 'small' data that can be accessed (typically)
-> using small offsets from a global register.
-> This means that all sections must be adjacent in the image.
-> So you can't really have readonly small data.
-> 
-> My guess is that the linker script is putting .srodata in with .sdata.
+> In this case we can drop any mount/boot options, because it preserves
+> the existing behavior in the default configuration. A big advantage.
 
-.srodata does not *exist* (in the ABI).
+I am not sure about this. We still need an opt-in, ragardless, because
+selecting the largest process from the largest memcg != selecting the
+largest task (just consider memcgs with many processes example).
 
+> The only thing, I'm slightly concerned, that due to the way how we calculate
+> the memory footprint for tasks and memory cgroups, we will have a number
+> of weird edge cases. For instance, when putting a single process into
+> the group_oom memcg will alter the oom_score significantly and result
+> in significantly different chances to be killed. An obvious example will
+> be a task with oom_score_adj set to any non-extreme (other than 0 and -1000)
+> value, but it can also happen in case of constrained alloc, for instance.
 
-Segher
+I am not sure I understand. Are you talking about root memcg comparing
+to other memcgs?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
