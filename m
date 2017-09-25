@@ -1,54 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CE4D6B0038
-	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 10:54:44 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id x85so8387108oix.3
-        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 07:54:44 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o54si124490otc.305.2017.09.25.07.54.43
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C8026B0038
+	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 10:57:56 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id 4so11358888itv.4
+        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 07:57:56 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id x6sor3492373itd.86.2017.09.25.07.57.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Sep 2017 07:54:43 -0700 (PDT)
-Subject: Re: [patch] mremap.2: Add description of old_size == 0 functionality
-References: <20170915213745.6821-1-mike.kravetz@oracle.com>
- <a6e59a7f-fd15-9e49-356e-ed439f17e9df@oracle.com>
- <fb013ae6-6f47-248b-db8b-a0abae530377@redhat.com>
- <ee87215d-9704-7269-4ec1-226f2e32a751@oracle.com>
- <a5d279cb-a015-f74c-2e40-a231aa7f7a8c@redhat.com>
- <20170925123508.pzjbe7wgwagnr5li@dhcp22.suse.cz>
- <e301609c-b2ac-24d1-c349-8d25e5123258@redhat.com>
- <20170925125207.4tu24sbpnihljknu@dhcp22.suse.cz>
- <765cd0cb-aa35-187c-456d-05d8752caa04@redhat.com>
- <20170925145238.gic2n37ffc6ytyvx@dhcp22.suse.cz>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <d06a26f1-5509-bd85-74bc-b08c3db0cb0d@redhat.com>
-Date: Mon, 25 Sep 2017 16:54:39 +0200
+        (Google Transport Security);
+        Mon, 25 Sep 2017 07:57:55 -0700 (PDT)
+Subject: Re: [PATCH 4/7] page-writeback: pass in '0' for nr_pages writeback in
+ laptop mode
+References: <1505921582-26709-1-git-send-email-axboe@kernel.dk>
+ <1505921582-26709-5-git-send-email-axboe@kernel.dk>
+ <20170921145929.GD8839@infradead.org>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <d0120f9e-9b52-9e42-7f1d-57e00ee12c3a@kernel.dk>
+Date: Mon, 25 Sep 2017 08:57:52 -0600
 MIME-Version: 1.0
-In-Reply-To: <20170925145238.gic2n37ffc6ytyvx@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <20170921145929.GD8839@infradead.org>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, mtk.manpages@gmail.com, linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, clm@fb.com, jack@suse.cz
 
-On 09/25/2017 04:52 PM, Michal Hocko wrote:
-> On Mon 25-09-17 15:16:09, Florian Weimer wrote:
->> On 09/25/2017 02:52 PM, Michal Hocko wrote:
->>> So, how are you going to deal with the CoW and the implementation which
->>> basically means that the newm mmap content is not the same as the
->>> original one?
+On 09/21/2017 08:59 AM, Christoph Hellwig wrote:
+> On Wed, Sep 20, 2017 at 09:32:59AM -0600, Jens Axboe wrote:
+>> Laptop mode really wants to writeback the number of dirty
+>> pages and inodes. Instead of calculating this in the caller,
+>> just pass in 0 and let wakeup_flusher_threads() handle it.
 >>
->> I don't understand why CoW would kick in.
+>> Use the new wakeup_flusher_threads_bdi() instead of rolling
+>> our own. This changes the writeback to not be range cyclic,
+>> but that should not matter for laptop mode flush-all
+>> semantics.
 > 
-> So you can guarantee nobody is going to write to that memory?
+> Looks good,
+> 
+> Reviewed-by: Christoph Hellwig <hch@lst.de>
+> 
+> While we're at sorting out the laptop_mode_wb_timer mess:
+> can we move initializing and deleting it from the block code
+> to the backing-dev code given that it now doesn't assume anything
+> about block devices any more?
 
-It's mapped readable and executable, but not writable.  So the only 
-thing that could interfere would be a debugger.
+Good point, I'll include that in a followup for 4.15.
 
-Thanks,
-Florian
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
