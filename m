@@ -1,61 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 873876B0038
-	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 10:30:56 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r136so8805674wmf.4
-        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 07:30:56 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i2si942915edi.295.2017.09.25.07.30.54
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AE3C6B0038
+	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 10:48:49 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id k101so13276777iod.1
+        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 07:48:49 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id f192sor2732182iof.296.2017.09.25.07.48.47
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Sep 2017 07:30:54 -0700 (PDT)
-Date: Mon, 25 Sep 2017 16:30:52 +0200
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] [PATCH v3] mm, oom: task_will_free_mem(current) should
- ignore MMF_OOM_SKIP for once.
-Message-ID: <20170925143052.a57bqoiw6yuckwee@dhcp22.suse.cz>
-References: <1506070646-4549-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (Google Transport Security);
+        Mon, 25 Sep 2017 07:48:48 -0700 (PDT)
+Subject: Re: [PATCH 7/7] fs-writeback: only allow one inflight and pending
+ full flush
+References: <1505921582-26709-1-git-send-email-axboe@kernel.dk>
+ <1505921582-26709-8-git-send-email-axboe@kernel.dk>
+ <20170921150510.GH8839@infradead.org>
+ <728d4141-8d73-97fb-de08-90671c2897da@kernel.dk>
+ <3682c4c2-6e8a-e883-9f62-455ea2944496@kernel.dk>
+ <20170925093532.GC5741@quack2.suse.cz>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <d2c0d136-6d62-d4f2-ebc7-9cdd7ec69343@kernel.dk>
+Date: Mon, 25 Sep 2017 08:48:46 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1506070646-4549-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <20170925093532.GC5741@quack2.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Manish Jaggi <mjaggi@caviumnetworks.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@virtuozzo.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, hannes@cmpxchg.org, clm@fb.com
 
-On Fri 22-09-17 17:57:26, Tetsuo Handa wrote:
-[...]
-> Michal Hocko has nacked this patch [3], and he suggested an alternative
-> patch [4]. But he himself is not ready to clarify all the concerns with
-> the alternative patch [5]. In addition to that, nobody is interested in
-> either patch; we can not make progress here. Let's choose this patch for
-> now, for this patch has smaller impact than the alternative patch.
-
-My Nack stands and it is really annoying you are sending a patch for
-inclusion regardless of that fact. An alternative approach has been
-proposed and the mere fact that I do not have time to pursue this
-direction is not reason to go with a incomplete solution. This is not an
-issue many people would be facing to scream for a quick and dirty
-workarounds AFAIK (there have been 0 reports from non-artificial
-workloads).
-
-> [1] http://lkml.kernel.org/r/e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com
-> [2] http://lkml.kernel.org/r/201708090835.ICI69305.VFFOLMHOStJOQF@I-love.SAKURA.ne.jp
-> [3] http://lkml.kernel.org/r/20170821084307.GB25956@dhcp22.suse.cz
-> [4] http://lkml.kernel.org/r/1503577106-9196-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
-> [5] http://lkml.kernel.org/r/20170918064353.v35prpp6bkkbgqr6@dhcp22.suse.cz
+On 09/25/2017 03:35 AM, Jan Kara wrote:
+> On Thu 21-09-17 10:00:25, Jens Axboe wrote:
+>> On 09/21/2017 09:36 AM, Jens Axboe wrote:
+>>>> But more importantly once we are not guaranteed that we only have
+>>>> a single global wb_writeback_work per bdi_writeback we should just
+>>>> embedd that into struct bdi_writeback instead of dynamically
+>>>> allocating it.
+>>>
+>>> We could do this as a followup. But right now the logic is that we
+>>> can have on started (inflight), and still have one new queued.
+>>
+>> Something like the below would fit on top to do that. Gets rid of the
+>> allocation and embeds the work item for global start-all in the
+>> bdi_writeback structure.
 > 
-> Fixes: 696453e66630ad45 ("mm, oom: task_will_free_mem should skip oom_reaped tasks")
-> Reported-by: Manish Jaggi <mjaggi@caviumnetworks.com>
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Oleg Nesterov <oleg@redhat.com>
-> Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
-> Cc: David Rientjes <rientjes@google.com>
+> Hum, so when we consider stuff like embedded work item, I would somewhat
+> prefer to handle this like we do for for_background and for_kupdate style
+> writeback so that we don't have another special case. For these don't queue
+> any item, we just queue writeback work into the workqueue (via
+> wb_wakeup()). When flusher work gets processed wb_do_writeback() checks
+> (after processing all normal writeback requests) whether conditions for
+> these special writeback styles are met and if yes, it creates on-stack work
+> item and processes it (see wb_check_old_data_flush() and
+> wb_check_background_flush()).
+
+Thanks Jan, I think that's a really good suggestion and kills the
+special case completely. I'll rework the patch as a small series
+for 4.15.
+
+> So in this case we would just set some flag in bdi_writeback when memory
+> reclaim needs help and wb_do_writeback() would check for this flag and
+> create and process writeback-all style writeback work. Granted this does
+> not preserve ordering of requests (basically any specific request gets
+> priority over writeback-whole-world request) but memory gets cleaned in
+> either case so flusher should be doing what is needed.
+
+I don't think that matters, and we're already mostly there since we
+reject a request if one is pending. And at this point they are all
+identical "start all writeback" requests.
+
 -- 
-Michal Hocko
-SUSE Labs
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
