@@ -1,122 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BD14C6B0038
-	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 12:33:58 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id t184so11466149qke.0
-        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 09:33:58 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id u184si6113895qkd.263.2017.09.25.09.33.57
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 96F216B0038
+	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 12:38:01 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id y29so14143988pff.6
+        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 09:38:01 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id e5sor2624386pfk.117.2017.09.25.09.38.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Sep 2017 09:33:57 -0700 (PDT)
-Subject: Re: [patch v2] mremap.2: Add description of old_size == 0
- functionality
-References: <a5d279cb-a015-f74c-2e40-a231aa7f7a8c@redhat.com>
- <20170919214224.19561-1-mike.kravetz@oracle.com>
- <6fafdae8-4fea-c967-f5cd-d22c205608fa@gmail.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <83b023da-e9f5-2957-981e-5b0e71e9bf1b@oracle.com>
-Date: Mon, 25 Sep 2017 09:33:52 -0700
+        (Google Transport Security);
+        Mon, 25 Sep 2017 09:38:00 -0700 (PDT)
+Subject: Re: include/linux/kernel.h:860:32: error: dereferencing pointer to
+ incomplete type 'struct clock_event_device'
+References: <201709241605.EczNVSR7%fengguang.wu@intel.com>
+ <176e63fe-59af-84f4-b0f5-d70b3db0c1e5@mev.co.uk>
+From: Daniel Lezcano <daniel.lezcano@linaro.org>
+Message-ID: <2a392cd7-22b3-f41d-b4e4-7b97bf2f3637@linaro.org>
+Date: Mon, 25 Sep 2017 18:37:57 +0200
 MIME-Version: 1.0
-In-Reply-To: <6fafdae8-4fea-c967-f5cd-d22c205608fa@gmail.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <176e63fe-59af-84f4-b0f5-d70b3db0c1e5@mev.co.uk>
+Content-Type: text/plain; charset=UTF-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: linux-man@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Jann Horn <jannh@google.com>, Florian Weimer <fweimer@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Ian Abbott <abbotti@mev.co.uk>, kbuild test robot <fengguang.wu@intel.com>
+Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
 
-On 09/20/2017 12:25 AM, Michael Kerrisk (man-pages) wrote:
-> Hello Mike,
-> 
-> On 09/19/2017 11:42 PM, Mike Kravetz wrote:
->> v2: Fix incorrect wording noticed by Jann Horn.
->>     Remove deprecated and memfd_create discussion as suggested
->>     by Florian Weimer.
->>
->> Since at least the 2.6 time frame, mremap would create a new mapping
->> of the same pages if 'old_size == 0'.  It would also leave the original
->> mapping.  This was used to create a 'duplicate mapping'.
->>
->> A recent change was made to mremap so that an attempt to create a
->> duplicate a private mapping will fail.
->>
->> Document the 'old_size == 0' behavior and new return code from
->> below commit.
->>
->> commit dba58d3b8c5045ad89c1c95d33d01451e3964db7
->> Author: Mike Kravetz <mike.kravetz@oracle.com>
->> Date:   Wed Sep 6 16:20:55 2017 -0700
->>
->>     mm/mremap: fail map duplication attempts for private mappings
->>
->> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
->> ---
->>  man2/mremap.2 | 21 ++++++++++++++++++++-
->>  1 file changed, 20 insertions(+), 1 deletion(-)
->>
->> diff --git a/man2/mremap.2 b/man2/mremap.2
->> index 98643c640..235984a96 100644
->> --- a/man2/mremap.2
->> +++ b/man2/mremap.2
->> @@ -58,6 +58,20 @@ may be provided; see the description of
->>  .B MREMAP_FIXED
->>  below.
->>  .PP
->> +If the value of \fIold_size\fP is zero, and \fIold_address\fP refers to
->> +a shareable mapping (see
->> +.BR mmap (2)
->> +.BR MAP_SHARED )
->> +, then
->> +.BR mremap ()
->> +will create a new mapping of the same pages. \fInew_size\fP
->> +will be the size of the new mapping and the location of the new mapping
->> +may be specified with \fInew_address\fP, see the description of
->> +.B MREMAP_FIXED
->> +below.  If a new mapping is requested via this method, then the
->> +.B MREMAP_MAYMOVE
->> +flag must also be specified.
->> +.PP
->>  In Linux the memory is divided into pages.
->>  A user process has (one or)
->>  several linear virtual memory segments.
->> @@ -174,7 +188,12 @@ and
->>  or
->>  .B MREMAP_FIXED
->>  was specified without also specifying
->> -.BR MREMAP_MAYMOVE .
->> +.BR MREMAP_MAYMOVE ;
->> +or \fIold_size\fP was zero and \fIold_address\fP does not refer to a
->> +shareable mapping;
->> +or \fIold_size\fP was zero and the
->> +.BR MREMAP_MAYMOVE
->> +flag was not specified.
->>  .TP
->>  .B ENOMEM
->>  The memory area cannot be expanded at the current virtual address, and the
-> 
-> I've applied this, and added Reviewed-by tags for Florian and Jann.
-> But, I think it's also worth noting the older, now disallowed, behavior,
-> and why the behavior was changed. So I added a note in BUGS:
-> 
->     BUGS
->        Before Linux 4.14, if old_size was zero and the  mapping  referred
->        to  by  old_address  was  a private mapping (mmap(2) MAP_PRIVATE),
->        mremap() created a new private mapping unrelated to  the  original
->        mapping.   This behavior was unintended and probably unexpected in
->        user-space applications (since the intention  of  mremap()  is  to
->        create  a new mapping based on the original mapping).  Since Linux
->        4.14, mremap() fails with the error EINVAL in this scenario.
-> 
-> Does that seem okay?
+On 25/09/2017 17:15, Ian Abbott wrote:
+> [Sorry for the repost.A  I forgot to Cc the people I said I was Cc'ing!]
 
-Sorry for the late reply Michael,  I've been away for a few days.
+Hi Ian,
 
-Yes, the above seems okay.  Thanks for your help with this.
+[ ... ]
+
+
+> On 24/09/17 09:26, kbuild test robot wrote:
+>> Hi Ian,
+>>
+>> FYI, the error/warning still remains.
+>>
+>> tree:A A 
+>> https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+>> head:A A  cd4175b11685b11c40e31a03e05084cc212b0649
+>> commit: c7acec713d14c6ce8a20154f9dfda258d6bcad3b kernel.h: handle
+>> pointers to arrays better in container_of()
+>> date:A A  2 months ago
+>> config: ia64-allmodconfig (attached as .config)
+>> compiler: ia64-linux-gcc (GCC) 6.2.0
+>> reproduce:
+>> A A A A A A A A  wget
+>> https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross
+>> -O ~/bin/make.cross
+>> A A A A A A A A  chmod +x ~/bin/make.cross
+>> A A A A A A A A  git checkout c7acec713d14c6ce8a20154f9dfda258d6bcad3b
+>> A A A A A A A A  # save the attached .config to linux build tree
+>> A A A A A A A A  make.cross ARCH=ia64
+>>
+>> All errors (new ones prefixed by >>):
+>>
+>> A A A  In file included from drivers/clocksource/timer-of.c:25:0:
+>> A A A  drivers/clocksource/timer-of.h:35:28: error: field 'clkevt' has
+>> incomplete type
+>> A A A A A  struct clock_event_device clkevt;
+
+[ ... ]
+
+> 
+> Cc'ing Daniel Lezcano and Thomas Gleixner, since this seems to be a
+> problem with configurations selecting 'TIMER_OF' even though
+> 'GENERIC_CLOCKEVENTS' is not selected.
+> 
+> There was a recent-ish commit 599dc457c79b
+> ("clocksource/drivers/Kconfig: Fix CLKSRC_PISTACHIO dependencies") to
+> address this problem for one particular clocksource driver, but some
+> other clocksource drivers seem to share the same problem.A  There are
+> several clocksource config options in "drivers/clocksource/Kconfig" that
+> select 'TIMER_OF' without depending on 'GENERIC_CLOCKEVENTS'.A  Some of
+> them are only manually selectable when 'COMPILE_TEST' is selected.A  This
+> particular failure seems to be at least partly due to 'ARMV7M_SYSTICK'
+> getting selected.
+
+Thanks for Cc'ing. This issue is currently in the way to be fixed.
+
+https://patchwork.kernel.org/patch/9939191/
+
+  -- Daniel
 
 -- 
-Mike Kravetz
+ <http://www.linaro.org/> Linaro.org a?? Open source software for ARM SoCs
+
+Follow Linaro:  <http://www.facebook.com/pages/Linaro> Facebook |
+<http://twitter.com/#!/linaroorg> Twitter |
+<http://www.linaro.org/linaro-blog/> Blog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
