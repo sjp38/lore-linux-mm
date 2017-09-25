@@ -1,141 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BB3FB6B0253
-	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 15:33:33 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id d6so10069856wrd.7
-        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 12:33:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z51sor2397198wrb.5.2017.09.25.12.33.32
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C25D86B0038
+	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 15:41:58 -0400 (EDT)
+Received: by mail-ua0-f198.google.com with SMTP id 97so7601741uai.4
+        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 12:41:58 -0700 (PDT)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id z29si2937242uah.122.2017.09.25.12.41.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 25 Sep 2017 12:33:32 -0700 (PDT)
-From: Timofey Titovets <nefelim4ag@gmail.com>
-Subject: [PATCH v3 2/2] KSM: Replace jhash2 with xxhash
-Date: Mon, 25 Sep 2017 22:33:20 +0300
-Message-Id: <20170925193320.10009-3-nefelim4ag@gmail.com>
-In-Reply-To: <20170925193320.10009-1-nefelim4ag@gmail.com>
-References: <20170925193320.10009-1-nefelim4ag@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 25 Sep 2017 12:41:57 -0700 (PDT)
+Date: Mon, 25 Sep 2017 14:41:31 -0500
+From: Segher Boessenkool <segher@kernel.crashing.org>
+Subject: Re: [PATCH] mm: fix RODATA_TEST failure "rodata_test: test data was not read only"
+Message-ID: <20170925194130.GV8421@gate.crashing.org>
+References: <20170921093729.1080368AC1@po15668-vm-win7.idsi0.si.c-s.fr> <CAGXu5jJ54+bCcXaPK1ExsxtTDPHNn1+1gywb3TDbe-SEtt1zuQ@mail.gmail.com> <20170925073721.GM8421@gate.crashing.org> <063D6719AE5E284EB5DD2968C1650D6DD007F58B@AcuExch.aculab.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <063D6719AE5E284EB5DD2968C1650D6DD007F58B@AcuExch.aculab.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, borntraeger@de.ibm.com, kvm@vger.kernel.org, Timofey Titovets <nefelim4ag@gmail.com>
+To: David Laight <David.Laight@ACULAB.COM>
+Cc: Kees Cook <keescook@chromium.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jinbum Park <jinb.park7@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>
 
-jhash2 used for calculating checksum
-for in memory pages, for detect fact of
-changes in page.
+On Mon, Sep 25, 2017 at 04:01:55PM +0000, David Laight wrote:
+> From: Segher Boessenkool
+> > The compiler puts this item in .sdata, for 32-bit.  There is no .srodata,
+> > so if it wants to use a small data section, it must use .sdata .
+> > 
+> > Non-external, non-referenced symbols are not put in .sdata, that is the
+> > difference you see with the "static".
+> > 
+> > I don't think there is a bug here.  If you think there is, please open
+> > a GCC bug.
+> 
+> The .sxxx sections are for 'small' data that can be accessed (typically)
+> using small offsets from a global register.
+> This means that all sections must be adjacent in the image.
+> So you can't really have readonly small data.
+> 
+> My guess is that the linker script is putting .srodata in with .sdata.
 
-xxhash much faster then jhash2, some tests:
-  x86_64 host:
-    CPU: Intel(R) Core(TM) i5-7200U CPU @ 2.50GHz
-    PAGE_SIZE: 4096, loop count: 1048576
-    jhash2:   0xacbc7a5b            time: 1907 ms,  th:  2251.9 MiB/s
-    xxhash32: 0x570da981            time: 739 ms,   th:  5809.4 MiB/s
-    xxhash64: 0xa1fa032ab85bbb62    time: 371 ms,   th: 11556.6 MiB/s
+.srodata does not *exist* (in the ABI).
 
-    CPU: Intel(R) Xeon(R) CPU E5-2420 0 @ 1.90GHz
-    PAGE_SIZE: 4096, loop count: 1048576
-    jhash2:   0xe680b382            time: 3722 ms,  th: 1153.896680 MiB/s
-    xxhash32: 0x56d00be4            time: 1183 ms,  th: 3629.130689 MiB/s
-    xxhash64: 0x8c194cff29cc4dee    time: 725 ms,   th: 5918.003401 MiB/s
 
-xxhash64 on x86_32 work with ~ same speed as jhash2.
-xxhash32 on x86_32 work with ~ same speed as for x86_64
-jhash2 are faster than xxhash on input data smaller than 32 byte
-
-So use xxhash() which will take appropriate hash version
-for target arch
-
-I did some benchmarks (i get cpu load of ksmd from htop):
-  CPU: Intel(R) Xeon(R) CPU E5-2420 0 @ 1.90GHz
-  ksm: sleep_millisecs = 1
-    jhash2:   ~18%
-    xxhash64: ~11%
-  ksm: sleep_millisecs = 20 - default
-    jhash2:   ~4.7%
-    xxhash64: ~3.3%
-
-  - 11 / 18 ~= 0.6 -> Profit: ~40%
-  - 3.3/4.7 ~= 0.7 -> Profit: ~30%
-
-Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
-Acked-by: Andi Kleen <ak@linux.intel.com>
-Acked-by: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: Linux-kernel <linux-kernel@vger.kernel.org>
-Cc: Linux-kvm <kvm@vger.kernel.org>
----
- mm/Kconfig |  1 +
- mm/ksm.c   | 14 +++++++-------
- 2 files changed, 8 insertions(+), 7 deletions(-)
-
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 9c4bdddd80c2..252ab266ac23 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -305,6 +305,7 @@ config MMU_NOTIFIER
- config KSM
- 	bool "Enable KSM for page merging"
- 	depends on MMU
-+	select XXHASH
- 	help
- 	  Enable Kernel Samepage Merging: KSM periodically scans those areas
- 	  of an application's address space that an app has advised may be
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 15dd7415f7b3..98b86e5cf90e 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -25,7 +25,7 @@
- #include <linux/pagemap.h>
- #include <linux/rmap.h>
- #include <linux/spinlock.h>
--#include <linux/jhash.h>
-+#include <linux/xxhash.h>
- #include <linux/delay.h>
- #include <linux/kthread.h>
- #include <linux/wait.h>
-@@ -186,7 +186,7 @@ struct rmap_item {
- 	};
- 	struct mm_struct *mm;
- 	unsigned long address;		/* + low bits used for flags below */
--	unsigned int oldchecksum;	/* when unstable */
-+	unsigned long oldchecksum;		/* when unstable */
- 	union {
- 		struct rb_node node;	/* when node of unstable tree */
- 		struct {		/* when listed from stable tree */
-@@ -255,7 +255,7 @@ static unsigned int ksm_thread_pages_to_scan = 100;
- static unsigned int ksm_thread_sleep_millisecs = 20;
-
- /* Checksum of an empty (zeroed) page */
--static unsigned int zero_checksum __read_mostly;
-+static unsigned long zero_checksum __read_mostly;
-
- /* Whether to merge empty (zeroed) pages with actual zero pages */
- static bool ksm_use_zero_pages __read_mostly;
-@@ -982,11 +982,11 @@ static int unmerge_and_remove_all_rmap_items(void)
- }
- #endif /* CONFIG_SYSFS */
-
--static u32 calc_checksum(struct page *page)
-+static unsigned long calc_checksum(struct page *page)
- {
--	u32 checksum;
-+	unsigned long checksum;
- 	void *addr = kmap_atomic(page);
--	checksum = jhash2(addr, PAGE_SIZE / 4, 17);
-+	checksum = xxhash(addr, PAGE_SIZE, 0);
- 	kunmap_atomic(addr);
- 	return checksum;
- }
-@@ -1994,7 +1994,7 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
- 	struct page *tree_page = NULL;
- 	struct stable_node *stable_node;
- 	struct page *kpage;
--	unsigned int checksum;
-+	unsigned long checksum;
- 	int err;
- 	bool max_page_sharing_bypass = false;
-
---
-2.14.1
+Segher
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
