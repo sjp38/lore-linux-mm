@@ -1,99 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 87E7E6B0038
-	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 15:11:40 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id i131so798379wma.9
-        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 12:11:40 -0700 (PDT)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
-        by mx.google.com with ESMTPS id o201si91121wmg.151.2017.09.25.12.11.38
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F0856B0038
+	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 15:27:04 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id d6so10053979wrd.7
+        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 12:27:04 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w48sor2412577wrb.12.2017.09.25.12.27.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Sep 2017 12:11:39 -0700 (PDT)
-Content-Type: text/plain; charset="utf-8"
+        (Google Transport Security);
+        Mon, 25 Sep 2017 12:27:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-From: Chris Wilson <chris@chris-wilson.co.uk>
-In-Reply-To: <20170925184737.8807-5-matthew.auld@intel.com>
-References: <20170925184737.8807-1-matthew.auld@intel.com>
- <20170925184737.8807-5-matthew.auld@intel.com>
-Message-ID: <150636669485.18819.3648302910733753333@mail.alporthouse.com>
-Subject: Re: [PATCH 04/22] drm/i915/gemfs: enable THP
-Date: Mon, 25 Sep 2017 20:11:34 +0100
+Reply-To: mtk.manpages@gmail.com
+In-Reply-To: <83b023da-e9f5-2957-981e-5b0e71e9bf1b@oracle.com>
+References: <a5d279cb-a015-f74c-2e40-a231aa7f7a8c@redhat.com>
+ <20170919214224.19561-1-mike.kravetz@oracle.com> <6fafdae8-4fea-c967-f5cd-d22c205608fa@gmail.com>
+ <83b023da-e9f5-2957-981e-5b0e71e9bf1b@oracle.com>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Date: Mon, 25 Sep 2017 21:26:42 +0200
+Message-ID: <CAKgNAkhJEyK=LhFj9W-RgSv+ET64d+MaEAQ41y5eximfQmYPDw@mail.gmail.com>
+Subject: Re: [patch v2] mremap.2: Add description of old_size == 0 functionality
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Auld <matthew.auld@intel.com>, intel-gfx@lists.freedesktop.org
-Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-man <linux-man@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Jann Horn <jannh@google.com>, Florian Weimer <fweimer@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-Quoting Matthew Auld (2017-09-25 19:47:19)
-> Enable transparent-huge-pages through gemfs by mounting with
-> huge=3Dwithin_size.
-> =
+Hi Mike,
 
-> v2: prefer kern_mount_data
-> =
+On 25 September 2017 at 18:33, Mike Kravetz <mike.kravetz@oracle.com> wrote:
+> On 09/20/2017 12:25 AM, Michael Kerrisk (man-pages) wrote:
 
-> Signed-off-by: Matthew Auld <matthew.auld@intel.com>
-> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-> Cc: Chris Wilson <chris@chris-wilson.co.uk>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Kirill A. Shutemov <kirill@shutemov.name>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: linux-mm@kvack.org
-> ---
->  drivers/gpu/drm/i915/i915_gemfs.c | 8 +++++++-
->  1 file changed, 7 insertions(+), 1 deletion(-)
-> =
+[...]
 
-> diff --git a/drivers/gpu/drm/i915/i915_gemfs.c b/drivers/gpu/drm/i915/i91=
-5_gemfs.c
-> index 168d0bd98f60..dc35719814f0 100644
-> --- a/drivers/gpu/drm/i915/i915_gemfs.c
-> +++ b/drivers/gpu/drm/i915/i915_gemfs.c
-> @@ -24,6 +24,7 @@
->  =
+>> I've applied this, and added Reviewed-by tags for Florian and Jann.
+>> But, I think it's also worth noting the older, now disallowed, behavior,
+>> and why the behavior was changed. So I added a note in BUGS:
+>>
+>>     BUGS
+>>        Before Linux 4.14, if old_size was zero and the  mapping  referred
+>>        to  by  old_address  was  a private mapping (mmap(2) MAP_PRIVATE),
+>>        mremap() created a new private mapping unrelated to  the  original
+>>        mapping.   This behavior was unintended and probably unexpected in
+>>        user-space applications (since the intention  of  mremap()  is  to
+>>        create  a new mapping based on the original mapping).  Since Linux
+>>        4.14, mremap() fails with the error EINVAL in this scenario.
+>>
+>> Does that seem okay?
+>
+> Sorry for the late reply Michael,  I've been away for a few days.
+>
+> Yes, the above seems okay.  Thanks for your help with this.
 
->  #include <linux/fs.h>
->  #include <linux/mount.h>
-> +#include <linux/pagemap.h>
->  =
+You're welcome. Thanks for checking it over!
 
->  #include "i915_drv.h"
->  #include "i915_gemfs.h"
-> @@ -32,12 +33,17 @@ int i915_gemfs_init(struct drm_i915_private *i915)
->  {
->         struct file_system_type *type;
->         struct vfsmount *gemfs;
-> +       char within_size[] =3D "huge=3Dwithin_size";
-> +       char *options =3D NULL;
->  =
+Cheers,
 
->         type =3D get_fs_type("tmpfs");
->         if (!type)
->                 return -ENODEV;
->  =
+Michael
 
-
-/*
- * Enable hugepages that fit into the object's size so that
- * we do not overallocate, as the excess will not be reused and
- * our objects may be extremely long lived.
- */
-
-> -       gemfs =3D kern_mount(type);
-> +       if (has_transparent_hugepage())
-> +               options =3D within_size;
-> +
-> +       gemfs =3D kern_mount_data(type, options);
-
-The alternative to the previous two patches would be to export a
-function to set the hugepage policy on the shmem_sb_info.
-
->         if (IS_ERR(gemfs))
->                 return PTR_ERR(gemfs);
-
-Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
--Chris
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
