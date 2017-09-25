@@ -1,154 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 787D66B0253
-	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 18:16:58 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id e64so9896637wmi.0
-        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 15:16:58 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y76sor1396244lfk.80.2017.09.25.15.16.56
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F01B6B025E
+	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 18:21:06 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id m30so18341272pgn.2
+        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 15:21:06 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id o88sor3457425pfj.79.2017.09.25.15.21.05
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 25 Sep 2017 15:16:56 -0700 (PDT)
-From: Timofey Titovets <nefelim4ag@gmail.com>
-Subject: [RFC PATCH] ksm: add offset arg to memcmp_pages() to speedup comparing
-Date: Tue, 26 Sep 2017 01:16:47 +0300
-Message-Id: <20170925221647.4284-1-nefelim4ag@gmail.com>
+        Mon, 25 Sep 2017 15:21:05 -0700 (PDT)
+Date: Mon, 25 Sep 2017 15:21:03 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [v8 0/4] cgroup-aware OOM killer
+In-Reply-To: <20170925170004.GA22704@cmpxchg.org>
+Message-ID: <alpine.DEB.2.10.1709251510430.15961@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com> <20170913122914.5gdksbmkolum7ita@dhcp22.suse.cz> <20170913215607.GA19259@castle> <20170914134014.wqemev2kgychv7m5@dhcp22.suse.cz> <20170914160548.GA30441@castle>
+ <20170915105826.hq5afcu2ij7hevb4@dhcp22.suse.cz> <20170915152301.GA29379@castle> <20170918061405.pcrf5vauvul4c2nr@dhcp22.suse.cz> <20170920215341.GA5382@castle> <20170925122400.4e7jh5zmuzvbggpe@dhcp22.suse.cz> <20170925170004.GA22704@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, Timofey Titovets <nefelim4ag@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Roman Gushchin <guro@fb.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Currently while search/inserting in RB tree,
-memcmp used for comparing out of tree pages with in tree pages.
+On Mon, 25 Sep 2017, Johannes Weiner wrote:
 
-But on each step of search memcmp used to compare pages from
-zero offset, i.e. each time we just ignore forward byte progress.
+> > True but we want to have the semantic reasonably understandable. And it
+> > is quite hard to explain that the oom killer hasn't selected the largest
+> > memcg just because it happened to be in a deeper hierarchy which has
+> > been configured to cover a different resource.
+> 
+> Going back to Michal's example, say the user configured the following:
+> 
+>        root
+>       /    \
+>      A      D
+>     / \
+>    B   C
+> 
+> A global OOM event happens and we find this:
+> - A > D
+> - B, C, D are oomgroups
+> 
+> What the user is telling us is that B, C, and D are compound memory
+> consumers. They cannot be divided into their task parts from a memory
+> point of view.
+> 
+> However, the user doesn't say the same for A: the A subtree summarizes
+> and controls aggregate consumption of B and C, but without groupoom
+> set on A, the user says that A is in fact divisible into independent
+> memory consumers B and C.
+> 
+> If we don't have to kill all of A, but we'd have to kill all of D,
+> does it make sense to compare the two?
+> 
 
-That make some overhead for search in deep RB tree,
-so store last start offset where no diff in page content.
+No, I agree that we shouldn't compare sibling memory cgroups based on 
+different criteria depending on whether group_oom is set or not.
 
-offset aligned to 1024, that a some type of magic value
-For that value i get ~ same performance in bad case (where offset useless)
-for memcmp_pages() with offset and without.
+I think it would be better to compare siblings based on the same criteria 
+independent of group_oom if the user has mounted the hierarchy with the 
+new mode (I think we all agree that the mount option is needed).  It's 
+very easy to describe to the user and the selection is simple to 
+understand.  Then, once a cgroup has been chosen as the victim cgroup, 
+kill the process with the highest badness, allowing the user to influence 
+that with /proc/pid/oom_score_adj just as today, if group_oom is disabled; 
+otherwise, kill all eligible processes if enabled.
 
-Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
----
- mm/ksm.c | 32 +++++++++++++++++++++++++-------
- 1 file changed, 25 insertions(+), 7 deletions(-)
+That, to me, is a very clear semantic and I believe it addresses Roman's 
+usecase.  My desire to have oom priorities amongst siblings is so that 
+userspace can influence which cgroup is chosen, just as it can influence 
+which process is chosen.
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 15dd7415f7b3..63f8b4f0824c 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -991,14 +991,27 @@ static u32 calc_checksum(struct page *page)
- 	return checksum;
- }
+I see group_oom as a mechanism to be used when victim selection has 
+already been done instead of something that should be considered in the 
+policy of victim selection.
 
--static int memcmp_pages(struct page *page1, struct page *page2)
-+static int memcmp_pages(struct page *page1, struct page *page2, u32 *offset)
- {
-+	const u32 iter = 1024;
- 	char *addr1, *addr2;
--	int ret;
-+	u32 i = 0;
-+	int ret = 0;
-+
-+	BUILD_BUG_ON(!IS_ALIGNED(PAGE_SIZE, iter));
+> Let's consider an extreme case of this conundrum:
+> 
+> 	root
+>       /     \
+>      A       B
+>     /|\      |
+>  A1-A1000    B1
+> 
+> Again we find:
+> - A > B
+> - A1 to A1000 and B1 are oomgroups
+> But:
+> - A1 to A1000 individually are tiny, B1 is huge
+> 
+> Going level by level, we'd pick A as the bigger hierarchy in the
+> system, and then kill off one of the tiny groups A1 to A1000.
+> 
+> Conversely, going for biggest consumer regardless of hierarchy, we'd
+> compare A1 to A1000 and B1, then pick B1 as the biggest single atomic
+> memory consumer in the system and kill all its tasks.
+> 
 
- 	addr1 = kmap_atomic(page1);
- 	addr2 = kmap_atomic(page2);
--	ret = memcmp(addr1, addr2, PAGE_SIZE);
-+	if (offset == NULL) {
-+		ret = memcmp(addr1, addr2, PAGE_SIZE);
-+	} else {
-+		if (*offset < PAGE_SIZE)
-+			i = *offset;
-+		for (; i < PAGE_SIZE && ret == 0; i += iter) {
-+			ret = memcmp(&addr1[i], &addr2[i], iter);
-+		}
-+		*offset = i;
-+	}
- 	kunmap_atomic(addr2);
- 	kunmap_atomic(addr1);
- 	return ret;
-@@ -1006,7 +1019,7 @@ static int memcmp_pages(struct page *page1, struct page *page2)
-
- static inline int pages_identical(struct page *page1, struct page *page2)
- {
--	return !memcmp_pages(page1, page2);
-+	return !memcmp_pages(page1, page2, NULL);
- }
-
- static int write_protect_page(struct vm_area_struct *vma, struct page *page,
-@@ -1514,6 +1527,7 @@ static __always_inline struct page *chain(struct stable_node **s_n_d,
- static struct page *stable_tree_search(struct page *page)
- {
- 	int nid;
-+	u32 diff_offset;
- 	struct rb_root *root;
- 	struct rb_node **new;
- 	struct rb_node *parent;
-@@ -1532,6 +1546,7 @@ static struct page *stable_tree_search(struct page *page)
- again:
- 	new = &root->rb_node;
- 	parent = NULL;
-+	diff_offset = 0;
-
- 	while (*new) {
- 		struct page *tree_page;
-@@ -1590,7 +1605,7 @@ static struct page *stable_tree_search(struct page *page)
- 			goto again;
- 		}
-
--		ret = memcmp_pages(page, tree_page);
-+		ret = memcmp_pages(page, tree_page, &diff_offset);
- 		put_page(tree_page);
-
- 		parent = *new;
-@@ -1760,6 +1775,7 @@ static struct page *stable_tree_search(struct page *page)
- static struct stable_node *stable_tree_insert(struct page *kpage)
- {
- 	int nid;
-+	u32 diff_offset;
- 	unsigned long kpfn;
- 	struct rb_root *root;
- 	struct rb_node **new;
-@@ -1773,6 +1789,7 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
- again:
- 	parent = NULL;
- 	new = &root->rb_node;
-+	diff_offset = 0;
-
- 	while (*new) {
- 		struct page *tree_page;
-@@ -1819,7 +1836,7 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
- 			goto again;
- 		}
-
--		ret = memcmp_pages(kpage, tree_page);
-+		ret = memcmp_pages(kpage, tree_page, &diff_offset);
- 		put_page(tree_page);
-
- 		parent = *new;
-@@ -1884,6 +1901,7 @@ struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
- 	struct rb_root *root;
- 	struct rb_node *parent = NULL;
- 	int nid;
-+	u32 diff_offset = 0;
-
- 	nid = get_kpfn_nid(page_to_pfn(page));
- 	root = root_unstable_tree + nid;
-@@ -1908,7 +1926,7 @@ struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
- 			return NULL;
- 		}
-
--		ret = memcmp_pages(page, tree_page);
-+		ret = memcmp_pages(page, tree_page, &diff_offset);
-
- 		parent = *new;
- 		if (ret < 0) {
---
-2.14.1
+If we compare sibling memcgs independent of group_oom, we don't 
+necessarily pick A unless it really is larger than B.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
