@@ -1,48 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F6486B0038
-	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 08:36:24 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id f84so13307934pfj.0
-        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 05:36:24 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e15si4075654pgq.471.2017.09.25.05.36.22
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C8DC86B0253
+	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 08:40:47 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id r20so7870846oie.0
+        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 05:40:47 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x131si3555238oix.525.2017.09.25.05.40.46
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Sep 2017 05:36:22 -0700 (PDT)
-Date: Mon, 25 Sep 2017 14:36:21 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch v2] mremap.2: Add description of old_size == 0
- functionality
-Message-ID: <20170925123621.35godwzhvw4wbisc@dhcp22.suse.cz>
-References: <a5d279cb-a015-f74c-2e40-a231aa7f7a8c@redhat.com>
- <20170919214224.19561-1-mike.kravetz@oracle.com>
- <6fafdae8-4fea-c967-f5cd-d22c205608fa@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Sep 2017 05:40:46 -0700 (PDT)
+Subject: Re: [patch] mremap.2: Add description of old_size == 0 functionality
+References: <20170915213745.6821-1-mike.kravetz@oracle.com>
+ <a6e59a7f-fd15-9e49-356e-ed439f17e9df@oracle.com>
+ <fb013ae6-6f47-248b-db8b-a0abae530377@redhat.com>
+ <ee87215d-9704-7269-4ec1-226f2e32a751@oracle.com>
+ <a5d279cb-a015-f74c-2e40-a231aa7f7a8c@redhat.com>
+ <20170925123508.pzjbe7wgwagnr5li@dhcp22.suse.cz>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <e301609c-b2ac-24d1-c349-8d25e5123258@redhat.com>
+Date: Mon, 25 Sep 2017 14:40:42 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <6fafdae8-4fea-c967-f5cd-d22c205608fa@gmail.com>
+In-Reply-To: <20170925123508.pzjbe7wgwagnr5li@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-man@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Jann Horn <jannh@google.com>, Florian Weimer <fweimer@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, mtk.manpages@gmail.com, linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org
 
-On Wed 20-09-17 09:25:42, Michael Kerrisk wrote:
-[...]
->     BUGS
->        Before Linux 4.14, if old_size was zero and the  mapping  referred
->        to  by  old_address  was  a private mapping (mmap(2) MAP_PRIVATE),
->        mremap() created a new private mapping unrelated to  the  original
->        mapping.   This behavior was unintended and probably unexpected in
->        user-space applications (since the intention  of  mremap()  is  to
->        create  a new mapping based on the original mapping).  Since Linux
->        4.14, mremap() fails with the error EINVAL in this scenario.
-> 
-> Does that seem okay?
+On 09/25/2017 02:35 PM, Michal Hocko wrote:
+> What would be the usecase. I mean why don't you simply create a new
+> mapping by a plain mmap when you have no guarantee about the same
+> content?
 
-sorry to be late but yes this wording makes perfect sense to me.
--- 
-Michal Hocko
-SUSE Labs
+I plan to use it for creating an unbounded number of callback thunks at 
+run time, from a single set of pages in libc.so, in case we need this 
+functionality.
+
+The idea is to duplicate existing position-independent machine code in 
+libc.so, prefixed by a data mapping which controls its behavior.  Each 
+data/code combination would only give us a fixed number of thunks, so 
+we'd need to create a new mapping to increase the total number.
+
+Instead, we could re-map the code from the executable in disk, but not 
+if chroot has been called or glibc has been updated on disk.  Creating 
+an alias mapping does not have these problems.
+
+Another application (but that's for anonymous memory) would be to 
+duplicate class metadata in a Java-style VM, so that you can use bits in 
+the class pointer in each Java object (which is similar to the vtable 
+pointer in C++) for the garbage collector, without having to mask it 
+when accessing the class metadata in regular (mutator) code.
+
+Thanks,
+Florian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
