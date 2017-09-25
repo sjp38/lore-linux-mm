@@ -1,81 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A0626B0253
-	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 08:58:28 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id v109so8972430wrc.5
-        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 05:58:28 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h30si1015613edb.322.2017.09.25.05.58.27
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B2FB36B0038
+	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 09:07:19 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r74so8552294wme.5
+        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 06:07:19 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id z13sor3177705edl.16.2017.09.25.06.07.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Sep 2017 05:58:27 -0700 (PDT)
-Date: Mon, 25 Sep 2017 14:58:25 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Memory hotplug regression in 4.13
-Message-ID: <20170925125825.zpgasjhjufupbias@dhcp22.suse.cz>
-References: <20170919164114.f4ef6oi3yhhjwkqy@ubuntu-xps13>
- <20170920092931.m2ouxfoy62wr65ld@dhcp22.suse.cz>
- <20170921054034.judv6ovyg5yks4na@ubuntu-hedt>
+        (Google Transport Security);
+        Mon, 25 Sep 2017 06:07:18 -0700 (PDT)
+Date: Mon, 25 Sep 2017 16:07:15 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2] mm: Account pud page tables
+Message-ID: <20170925130715.kebf5e3xjctpcalp@node.shutemov.name>
+References: <20170925073913.22628-1-kirill.shutemov@linux.intel.com>
+ <20170925115430.zccesf75c4ysaznb@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170921054034.judv6ovyg5yks4na@ubuntu-hedt>
+In-Reply-To: <20170925115430.zccesf75c4ysaznb@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Forshee <seth.forshee@canonical.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu 21-09-17 00:40:34, Seth Forshee wrote:
-> On Wed, Sep 20, 2017 at 11:29:31AM +0200, Michal Hocko wrote:
-> > Hi,
-> > I am currently at a conference so I will most probably get to this next
-> > week but I will try to ASAP.
+On Mon, Sep 25, 2017 at 01:54:30PM +0200, Michal Hocko wrote:
+> On Mon 25-09-17 10:39:13, Kirill A. Shutemov wrote:
+> > On machine with 5-level paging support a process can allocate
+> > significant amount of memory and stay unnoticed by oom-killer and
+> > memory cgroup. The trick is to allocate a lot of PUD page tables.
+> > We don't account PUD page tables, only PMD and PTE.
 > > 
-> > On Tue 19-09-17 11:41:14, Seth Forshee wrote:
-> > > Hi Michal,
-> > > 
-> > > I'm seeing oopses in various locations when hotplugging memory in an x86
-> > > vm while running a 32-bit kernel. The config I'm using is attached. To
-> > > reproduce I'm using kvm with the memory options "-m
-> > > size=512M,slots=3,maxmem=2G". Then in the qemu monitor I run:
-> > > 
-> > >   object_add memory-backend-ram,id=mem1,size=512M
-> > >   device_add pc-dimm,id=dimm1,memdev=mem1
-> > > 
-> > > Not long after that I'll see an oops, not always in the same location
-> > > but most often in wp_page_copy, like this one:
+> > We already addressed the same issue for PMD page tables, see
+> > dc6c9a35b66b ("mm: account pmd page tables to the process").
+> > Introduction 5-level paging bring the same issue for PUD page tables.
 > > 
-> > This is rather surprising. How do you online the memory?
+> > The patch expands accounting to PUD level.
 > 
-> The kernel has CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE=y.
+> OK, we definitely need this or something like that but I really do not
+> like how much code we actually need for each pte level for accounting.
+> Do we really need to distinguish each level? Do we have any arch that
+> would use a different number of pages to back pte/pmd/pud?
 
-OK, so the memory gets online automagically at the time when it is
-hotadded. Could you send the full dmesg?
+Looks like we actually do. At least on mips. See PMD_ORDER/PUD_ORDER.
 
-> > > [   24.673623] BUG: unable to handle kernel paging request at dffff000
-> > > [   24.675569] IP: wp_page_copy+0xa8/0x660
-> > 
-> > could you resolve the IP into the source line?
-> 
-> It seems I don't have that kernel anymore, but I've got a 4.14-rc1 build
-> and the problem still occurs there. It's pointing to the call to
-> __builtin_memcpy in memcpy (include/linux/string.h line 340), which we
-> get to via wp_page_copy -> cow_user_page -> copy_user_highpage.
-
-Hmm, this is interesting. That would mean that we have successfully
-mapped the destination page but its memory is still not accessible.
-
-Right now I do not see how the patch you have bisected to could make any
-difference because it only postponed the onlining to be independent but
-your config simply onlines automatically so there shouldn't be any
-semantic change. Maybe there is some sort of off-by-one or something.
-
-I will try to investigate some more. Do you think it would be possible
-to configure kdump on your system and provide me with the vmcore in some
-way?
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
