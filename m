@@ -1,281 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 20C526B0069
-	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 14:47:47 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id q75so14632170pfl.1
-        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 11:47:47 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C3A066B0253
+	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 14:48:07 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 6so17575006pgh.0
+        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 11:48:07 -0700 (PDT)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id o185si4481540pga.636.2017.09.25.11.47.45
+        by mx.google.com with ESMTPS id f10si4527532pgr.778.2017.09.25.11.48.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Sep 2017 11:47:45 -0700 (PDT)
+        Mon, 25 Sep 2017 11:48:06 -0700 (PDT)
 From: Matthew Auld <matthew.auld@intel.com>
-Subject: [PATCH 02/22] drm/i915: introduce simple gemfs
-Date: Mon, 25 Sep 2017 19:47:17 +0100
-Message-Id: <20170925184737.8807-3-matthew.auld@intel.com>
+Subject: [PATCH 03/22] mm/shmem: parse mount options for MS_KERNMOUNT
+Date: Mon, 25 Sep 2017 19:47:18 +0100
+Message-Id: <20170925184737.8807-4-matthew.auld@intel.com>
 In-Reply-To: <20170925184737.8807-1-matthew.auld@intel.com>
 References: <20170925184737.8807-1-matthew.auld@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: intel-gfx@lists.freedesktop.org
-Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Chris Wilson <chris@chris-wilson.co.uk>, Daniel Vetter <daniel.vetter@intel.com>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, =?UTF-8?q?Arve=20Hj=C3=B8nnev=C3=A5g?= <arve@android.com>, Riley Andrews <riandrews@android.com>, dri-devel@lists.freedesktop.org, linux-mm@kvack.org, devel@driverdev.osuosl.org
+Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Chris Wilson <chris@chris-wilson.co.uk>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-Not a fully blown gemfs, just our very own tmpfs kernel mount. Doing so
-moves us away from the shmemfs shm_mnt, and gives us the much needed
-flexibility to do things like set our own mount options, namely huge=
-which should allow us to enable the use of transparent-huge-pages for
-our shmem backed objects.
-
-v2: various improvements suggested by Joonas
-
-v3: move gemfs instance to i915.mm and simplify now that we have
-file_setup_with_mnt
-
-v4: fallback to tmpfs shm_mnt upon failure to setup gemfs
-
-v5: make tmpfs fallback kinder
+In i915 we now have our own tmpfs mount, so ensure that shmem_fill_super
+also calls shmem_parse_options when dealing with a kernel mount.
+Otherwise we have to clumsily call remount_fs when we want to supply our
+mount options.
 
 Signed-off-by: Matthew Auld <matthew.auld@intel.com>
 Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
 Cc: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Daniel Vetter <daniel.vetter@intel.com>
 Cc: Dave Hansen <dave.hansen@intel.com>
 Cc: Kirill A. Shutemov <kirill@shutemov.name>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Hugh Dickins <hughd@google.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: "Arve HjA,nnevAJPYg" <arve@android.com>
-Cc: Riley Andrews <riandrews@android.com>
-Cc: dri-devel@lists.freedesktop.org
 Cc: linux-mm@kvack.org
-Cc: devel@driverdev.osuosl.org
 ---
- drivers/gpu/drm/i915/Makefile                    |  1 +
- drivers/gpu/drm/i915/i915_drv.h                  |  5 +++
- drivers/gpu/drm/i915/i915_gem.c                  | 26 +++++++++++-
- drivers/gpu/drm/i915/i915_gemfs.c                | 52 ++++++++++++++++++++++++
- drivers/gpu/drm/i915/i915_gemfs.h                | 34 ++++++++++++++++
- drivers/gpu/drm/i915/selftests/mock_gem_device.c |  4 ++
- 6 files changed, 121 insertions(+), 1 deletion(-)
- create mode 100644 drivers/gpu/drm/i915/i915_gemfs.c
- create mode 100644 drivers/gpu/drm/i915/i915_gemfs.h
+ mm/shmem.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/gpu/drm/i915/Makefile b/drivers/gpu/drm/i915/Makefile
-index 5182e3d5557d..980c41568f46 100644
---- a/drivers/gpu/drm/i915/Makefile
-+++ b/drivers/gpu/drm/i915/Makefile
-@@ -47,6 +47,7 @@ i915-y += i915_cmd_parser.o \
- 	  i915_gem_tiling.o \
- 	  i915_gem_timeline.o \
- 	  i915_gem_userptr.o \
-+	  i915_gemfs.o \
- 	  i915_trace_points.o \
- 	  i915_vma.o \
- 	  intel_breadcrumbs.o \
-diff --git a/drivers/gpu/drm/i915/i915_drv.h b/drivers/gpu/drm/i915/i915_drv.h
-index 61a4be9c2d37..d2079c863a9f 100644
---- a/drivers/gpu/drm/i915/i915_drv.h
-+++ b/drivers/gpu/drm/i915/i915_drv.h
-@@ -1501,6 +1501,11 @@ struct i915_gem_mm {
- 	/** Usable portion of the GTT for GEM */
- 	dma_addr_t stolen_base; /* limited to low memory (32-bit) */
- 
-+	/**
-+	 * tmpfs instance used for shmem backed objects
-+	 */
-+	struct vfsmount *gemfs;
+diff --git a/mm/shmem.c b/mm/shmem.c
+index ae2e46291ffa..6074e527b9b9 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -3781,13 +3781,15 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
+ 	if (!(sb->s_flags & MS_KERNMOUNT)) {
+ 		sbinfo->max_blocks = shmem_default_max_blocks();
+ 		sbinfo->max_inodes = shmem_default_max_inodes();
+-		if (shmem_parse_options(data, sbinfo, false)) {
+-			err = -EINVAL;
+-			goto failed;
+-		}
+ 	} else {
+ 		sb->s_flags |= MS_NOUSER;
+ 	}
 +
- 	/** PPGTT used for aliasing the PPGTT with the GTT */
- 	struct i915_hw_ppgtt *aliasing_ppgtt;
- 
-diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
-index 73eeb6b1f1cd..26a3ad2668d7 100644
---- a/drivers/gpu/drm/i915/i915_gem.c
-+++ b/drivers/gpu/drm/i915/i915_gem.c
-@@ -35,6 +35,7 @@
- #include "intel_drv.h"
- #include "intel_frontbuffer.h"
- #include "intel_mocs.h"
-+#include "i915_gemfs.h"
- #include <linux/dma-fence-array.h>
- #include <linux/kthread.h>
- #include <linux/reservation.h>
-@@ -4251,6 +4252,24 @@ static const struct drm_i915_gem_object_ops i915_gem_object_ops = {
- 	.pwrite = i915_gem_object_pwrite_gtt,
- };
- 
-+static int i915_gem_object_create_shmem(struct drm_device *dev,
-+					struct drm_gem_object *obj,
-+					size_t size)
-+{
-+	struct drm_i915_private *i915 = to_i915(dev);
-+	struct file *filp;
++	if (shmem_parse_options(data, sbinfo, false)) {
++		err = -EINVAL;
++		goto failed;
++	}
 +
-+	drm_gem_private_object_init(dev, obj, size);
-+
-+	filp = shmem_file_setup(i915->mm.gemfs, "i915", size, VM_NORESERVE);
-+	if (IS_ERR(filp))
-+		return PTR_ERR(filp);
-+
-+	obj->filp = filp;
-+
-+	return 0;
-+}
-+
- struct drm_i915_gem_object *
- i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
- {
-@@ -4275,7 +4294,7 @@ i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
- 	if (obj == NULL)
- 		return ERR_PTR(-ENOMEM);
- 
--	ret = drm_gem_object_init(&dev_priv->drm, &obj->base, size);
-+	ret = i915_gem_object_create_shmem(&dev_priv->drm, &obj->base, size);
- 	if (ret)
- 		goto fail;
- 
-@@ -4914,6 +4933,9 @@ i915_gem_load_init(struct drm_i915_private *dev_priv)
- 
- 	spin_lock_init(&dev_priv->fb_tracking.lock);
- 
-+	if (i915_gemfs_init(dev_priv))
-+		DRM_NOTE("Unable to create a private tmpfs mountpoint, hugepage support will be disabled.\n");
-+
- 	return 0;
- 
- err_priorities:
-@@ -4952,6 +4974,8 @@ void i915_gem_load_cleanup(struct drm_i915_private *dev_priv)
- 
- 	/* And ensure that our DESTROY_BY_RCU slabs are truly destroyed */
- 	rcu_barrier();
-+
-+	i915_gemfs_fini(dev_priv);
- }
- 
- int i915_gem_freeze(struct drm_i915_private *dev_priv)
-diff --git a/drivers/gpu/drm/i915/i915_gemfs.c b/drivers/gpu/drm/i915/i915_gemfs.c
-new file mode 100644
-index 000000000000..168d0bd98f60
---- /dev/null
-+++ b/drivers/gpu/drm/i915/i915_gemfs.c
-@@ -0,0 +1,52 @@
-+/*
-+ * Copyright A(C) 2017 Intel Corporation
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the "Software"),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom the
-+ * Software is furnished to do so, subject to the following conditions:
-+ *
-+ * The above copyright notice and this permission notice (including the next
-+ * paragraph) shall be included in all copies or substantial portions of the
-+ * Software.
-+ *
-+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
-+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-+ * IN THE SOFTWARE.
-+ *
-+ */
-+
-+#include <linux/fs.h>
-+#include <linux/mount.h>
-+
-+#include "i915_drv.h"
-+#include "i915_gemfs.h"
-+
-+int i915_gemfs_init(struct drm_i915_private *i915)
-+{
-+	struct file_system_type *type;
-+	struct vfsmount *gemfs;
-+
-+	type = get_fs_type("tmpfs");
-+	if (!type)
-+		return -ENODEV;
-+
-+	gemfs = kern_mount(type);
-+	if (IS_ERR(gemfs))
-+		return PTR_ERR(gemfs);
-+
-+	i915->mm.gemfs = gemfs;
-+
-+	return 0;
-+}
-+
-+void i915_gemfs_fini(struct drm_i915_private *i915)
-+{
-+	kern_unmount(i915->mm.gemfs);
-+}
-diff --git a/drivers/gpu/drm/i915/i915_gemfs.h b/drivers/gpu/drm/i915/i915_gemfs.h
-new file mode 100644
-index 000000000000..cca8bdc5b93e
---- /dev/null
-+++ b/drivers/gpu/drm/i915/i915_gemfs.h
-@@ -0,0 +1,34 @@
-+/*
-+ * Copyright A(C) 2017 Intel Corporation
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the "Software"),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom the
-+ * Software is furnished to do so, subject to the following conditions:
-+ *
-+ * The above copyright notice and this permission notice (including the next
-+ * paragraph) shall be included in all copies or substantial portions of the
-+ * Software.
-+ *
-+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
-+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-+ * IN THE SOFTWARE.
-+ *
-+ */
-+
-+#ifndef __I915_GEMFS_H__
-+#define __I915_GEMFS_H__
-+
-+struct drm_i915_private;
-+
-+int i915_gemfs_init(struct drm_i915_private *i915);
-+
-+void i915_gemfs_fini(struct drm_i915_private *i915);
-+
-+#endif
-diff --git a/drivers/gpu/drm/i915/selftests/mock_gem_device.c b/drivers/gpu/drm/i915/selftests/mock_gem_device.c
-index 2388424a14da..ed3407b078e7 100644
---- a/drivers/gpu/drm/i915/selftests/mock_gem_device.c
-+++ b/drivers/gpu/drm/i915/selftests/mock_gem_device.c
-@@ -83,6 +83,8 @@ static void mock_device_release(struct drm_device *dev)
- 	kmem_cache_destroy(i915->vmas);
- 	kmem_cache_destroy(i915->objects);
- 
-+	i915_gemfs_fini(i915);
-+
- 	drm_dev_fini(&i915->drm);
- 	put_device(&i915->drm.pdev->dev);
- }
-@@ -239,6 +241,8 @@ struct drm_i915_private *mock_gem_device(void)
- 	if (!i915->kernel_context)
- 		goto err_engine;
- 
-+	WARN_ON(i915_gemfs_init(i915));
-+
- 	return i915;
- 
- err_engine:
+ 	sb->s_export_op = &shmem_export_ops;
+ 	sb->s_flags |= MS_NOSEC;
+ #else
 -- 
 2.13.5
 
