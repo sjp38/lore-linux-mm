@@ -1,173 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5837C6B0038
-	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 13:00:16 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b195so9203022wmb.6
-        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 10:00:16 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id i23si2014447edj.247.2017.09.25.10.00.14
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B1896B0038
+	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 14:06:31 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id r74so9371345wme.5
+        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 11:06:31 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
+        by mx.google.com with ESMTPS id k2si17010wmi.26.2017.09.25.11.06.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 25 Sep 2017 10:00:14 -0700 (PDT)
-Date: Mon, 25 Sep 2017 13:00:04 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-Message-ID: <20170925170004.GA22704@cmpxchg.org>
-References: <alpine.DEB.2.10.1709111334210.102819@chino.kir.corp.google.com>
- <20170913122914.5gdksbmkolum7ita@dhcp22.suse.cz>
- <20170913215607.GA19259@castle>
- <20170914134014.wqemev2kgychv7m5@dhcp22.suse.cz>
- <20170914160548.GA30441@castle>
- <20170915105826.hq5afcu2ij7hevb4@dhcp22.suse.cz>
- <20170915152301.GA29379@castle>
- <20170918061405.pcrf5vauvul4c2nr@dhcp22.suse.cz>
- <20170920215341.GA5382@castle>
- <20170925122400.4e7jh5zmuzvbggpe@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Sep 2017 11:06:29 -0700 (PDT)
+Content-Type: text/plain; charset="utf-8"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170925122400.4e7jh5zmuzvbggpe@dhcp22.suse.cz>
+Content-Transfer-Encoding: quoted-printable
+From: Chris Wilson <chris@chris-wilson.co.uk>
+In-Reply-To: <20170922173252.10137-3-matthew.auld@intel.com>
+References: <20170922173252.10137-1-matthew.auld@intel.com>
+ <20170922173252.10137-3-matthew.auld@intel.com>
+Message-ID: <150636278551.18819.5948205678578148677@mail.alporthouse.com>
+Subject: Re: [PATCH 02/21] drm/i915: introduce simple gemfs
+Date: Mon, 25 Sep 2017 19:06:25 +0100
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Matthew Auld <matthew.auld@intel.com>, intel-gfx@lists.freedesktop.org
+Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-On Mon, Sep 25, 2017 at 02:24:00PM +0200, Michal Hocko wrote:
-> I would really appreciate some feedback from Tejun, Johannes here.
-> 
-> On Wed 20-09-17 14:53:41, Roman Gushchin wrote:
-> > On Mon, Sep 18, 2017 at 08:14:05AM +0200, Michal Hocko wrote:
-> > > On Fri 15-09-17 08:23:01, Roman Gushchin wrote:
-> > > > On Fri, Sep 15, 2017 at 12:58:26PM +0200, Michal Hocko wrote:
-> [...]
-> > > > > But then you just enforce a structural restriction on your configuration
-> > > > > because
-> > > > > 	root
-> > > > >         /  \
-> > > > >        A    D
-> > > > >       /\   
-> > > > >      B  C
-> > > > > 
-> > > > > is a different thing than
-> > > > > 	root
-> > > > >         / | \
-> > > > >        B  C  D
-> > > > >
-> > > > 
-> > > > I actually don't have a strong argument against an approach to select
-> > > > largest leaf or kill-all-set memcg. I think, in practice there will be
-> > > > no much difference.
-> > 
-> > I've tried to implement this approach, and it's really arguable.
-> > Although your example looks reasonable, the opposite example is also valid:
-> > you might want to compare whole hierarchies, and it's a quite typical usecase.
-> > 
-> > Assume, you have several containerized workloads on a machine (probably,
-> > each will be contained in a memcg with memory.max set), with some hierarchy
-> > of cgroups inside. Then in case of global memory shortage we want to reclaim
-> > some memory from the biggest workload, and the selection should not depend
-> > on group_oom settings. It would be really strange, if setting group_oom will
-> > higher the chances to be killed.
-> > 
-> > In other words, let's imagine processes as leaf nodes in memcg tree. We decided
-> > to select the biggest memcg and kill one or more processes inside (depending
-> > on group_oom setting), but the memcg selection doesn't depend on it.
-> > We do not compare processes from different cgroups, as well as cgroups with
-> > processes. The same should apply to cgroups: why do we want to compare cgroups
-> > from different sub-trees?
-> > 
-> > While size-based comparison can be implemented with this approach,
-> > the priority-based is really weird (as David mentioned).
-> > If priorities have no hierarchical meaning at all, we lack the very important
-> > ability to enforce hierarchy oom_priority. Otherwise we have to invent some
-> > complex rules of oom_priority propagation (e.g. is someone is raising
-> > the oom_priority in parent, should it be applied to children immediately, etc).
-> 
-> I would really forget about the priority at this stage. This needs
-> really much more thinking and I consider the David's usecase very
-> specialized to use it as a template for a general purpose oom
-> prioritization. I might be wrong here of course...
+Quoting Matthew Auld (2017-09-22 18:32:33)
+> @@ -4914,6 +4938,8 @@ i915_gem_load_init(struct drm_i915_private *dev_pri=
+v)
+>  =
 
-No, I agree.
+>         spin_lock_init(&dev_priv->fb_tracking.lock);
+>  =
 
-> > In any case, OOM is a last resort mechanism. The goal is to reclaim some memory
-> > and do not crash the system or do not leave it in totally broken state.
-> > Any really complex mm in userspace should be applied _before_ OOM happens.
-> > So, I don't think we have to support all possible configurations here,
-> > if we're able to achieve the main goal (kill some processes and do not leave
-> > broken systems/containers).
-> 
-> True but we want to have the semantic reasonably understandable. And it
-> is quite hard to explain that the oom killer hasn't selected the largest
-> memcg just because it happened to be in a deeper hierarchy which has
-> been configured to cover a different resource.
+> +       WARN_ON(i915_gemfs_init(dev_priv));
 
-Going back to Michal's example, say the user configured the following:
+Make this kinder, the driver will happily continue without a special
+gemfs mounting. (For mock, maybe WARN and bail for the tests that need gemf=
+s?)
 
-       root
-      /    \
-     A      D
-    / \
-   B   C
-
-A global OOM event happens and we find this:
-- A > D
-- B, C, D are oomgroups
-
-What the user is telling us is that B, C, and D are compound memory
-consumers. They cannot be divided into their task parts from a memory
-point of view.
-
-However, the user doesn't say the same for A: the A subtree summarizes
-and controls aggregate consumption of B and C, but without groupoom
-set on A, the user says that A is in fact divisible into independent
-memory consumers B and C.
-
-If we don't have to kill all of A, but we'd have to kill all of D,
-does it make sense to compare the two?
-
-Let's consider an extreme case of this conundrum:
-
-	root
-      /     \
-     A       B
-    /|\      |
- A1-A1000    B1
-
-Again we find:
-- A > B
-- A1 to A1000 and B1 are oomgroups
-But:
-- A1 to A1000 individually are tiny, B1 is huge
-
-Going level by level, we'd pick A as the bigger hierarchy in the
-system, and then kill off one of the tiny groups A1 to A1000.
-
-Conversely, going for biggest consumer regardless of hierarchy, we'd
-compare A1 to A1000 and B1, then pick B1 as the biggest single atomic
-memory consumer in the system and kill all its tasks.
-
-Which one of these two fits both the purpose and our historic approach
-to OOM killing better?
-
-As was noted in this thread, OOM is the last resort to avoid a memory
-deadlock. Killing the biggest consumer is most likely to resolve this
-precarious situation. It is also most likely to catch buggy software
-with memory leaks or runaway allocations, which is a nice bonus.
-
-Killing a potentially tiny consumer inside the biggest top-level
-hierarchy doesn't achieve this. I think we can all agree on this.
-
-But also, global OOM in particular means that the hierarchical
-approach to allocating the system's memory among cgroups has
-failed. The user expressed control over memory in a way that wasn't
-sufficient to isolate memory consumption between the different
-hierarchies. IMO what follows from that is that the hierarchy itself
-is a questionable guide to finding a culprit.
-
-So I'm leaning toward the second model: compare all oomgroups and
-standalone tasks in the system with each other, independent of the
-failed hierarchical control structure. Then kill the biggest of them.
+if (i915_gemfs_init(dev_priv)))
+	DRM_NOTE("Unable to create a private tmpfs mountpoint, hugepage support wi=
+ll be disabled.\n");
+-Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
