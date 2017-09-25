@@ -1,58 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 901F26B0038
-	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 15:33:30 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id w12so10118781wrc.2
-        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 12:33:30 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DC136B0069
+	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 15:33:31 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id h16so10108814wrf.0
+        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 12:33:31 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g11sor52770wmf.30.2017.09.25.12.33.29
+        by mx.google.com with SMTPS id l124sor54547wmg.23.2017.09.25.12.33.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 25 Sep 2017 12:33:29 -0700 (PDT)
+        Mon, 25 Sep 2017 12:33:30 -0700 (PDT)
 From: Timofey Titovets <nefelim4ag@gmail.com>
-Subject: [PATCH v3 0/2] KSM: Replace jhash2 with xxhash
-Date: Mon, 25 Sep 2017 22:33:18 +0300
-Message-Id: <20170925193320.10009-1-nefelim4ag@gmail.com>
+Subject: [PATCH v3 1/2] xxHash: create arch dependent 32/64-bit xxhash()
+Date: Mon, 25 Sep 2017 22:33:19 +0300
+Message-Id: <20170925193320.10009-2-nefelim4ag@gmail.com>
+In-Reply-To: <20170925193320.10009-1-nefelim4ag@gmail.com>
+References: <20170925193320.10009-1-nefelim4ag@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, borntraeger@de.ibm.com, kvm@vger.kernel.org, Timofey Titovets <nefelim4ag@gmail.com>
 
-ksm use jhash2 for hashing pages,
-in 4.14 xxhash has been merged to mainline kernel.
+xxh32() - fast on both 32/64-bit platforms
+xxh64() - fast only on 64-bit platform
 
-xxhash much faster then jhash2 on big inputs (32 byte+)
+Create xxhash() which will pickup fastest version
+on compile time.
 
-xxhash has 2 versions, one with 32-bit hash and
-one with 64-bit hash.
+As result depends on cpu word size,
+the main proporse of that - in memory hashing.
 
-64-bit version works faster then 32-bit on 64-bit arch.
-
-So lets get better from two worlds,
-create arch dependent xxhash() function that will use
-fastest algo for current arch.
-This a first patch.
-
-Performance info and ksm update can be found in second patch.
-
-Changelog:
-  v1 -> v2:
-    - Move xxhash() to xxhash.h/c and separate patches
-
-  v2 -> v3:
-    - Move xxhash() xxhash.c -> xxhash.h
-    - replace xxhash_t with 'unsigned long'
-    - update kerneldoc above xxhash()
-
-Timofey Titovets (2):
-  xxHash: create arch dependent 32/64-bit xxhash()
-  KSM: Replace jhash2 with xxhash
-
+Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
+Acked-by: Andi Kleen <ak@linux.intel.com>
+Acked-by: Christian Borntraeger <borntraeger@de.ibm.com>
+Cc: Linux-kernel <linux-kernel@vger.kernel.org>
+Cc: Linux-kvm <kvm@vger.kernel.org>
+---
  include/linux/xxhash.h | 23 +++++++++++++++++++++++
- mm/Kconfig             |  1 +
- mm/ksm.c               | 14 +++++++-------
- 3 files changed, 31 insertions(+), 7 deletions(-)
+ 1 file changed, 23 insertions(+)
 
+diff --git a/include/linux/xxhash.h b/include/linux/xxhash.h
+index 9e1f42cb57e9..2a04ee5c5219 100644
+--- a/include/linux/xxhash.h
++++ b/include/linux/xxhash.h
+@@ -107,6 +107,29 @@ uint32_t xxh32(const void *input, size_t length, uint32_t seed);
+  */
+ uint64_t xxh64(const void *input, size_t length, uint64_t seed);
+
++/**
++ * xxhash() - calculate wordsize hash of the input with a given seed
++ * @input:  The data to hash.
++ * @length: The length of the data to hash.
++ * @seed:   The seed can be used to alter the result predictably.
++ *
++ * If the hash does not need to be comparable between machines with
++ * different word sizes, this function will call whichever of xxh32()
++ * or xxh64() is faster.
++ *
++ * Return:  wordsize hash of the data.
++ */
++
++static inline unsigned long xxhash(const void *input, size_t length,
++				   uint64_t seed)
++{
++#if BITS_PER_LONG == 64
++	return xxh64(input, length, seed);
++#else
++	return xxh32(input, length, seed);
++#endif
++}
++
+ /*-****************************
+  * Streaming Hash Functions
+  *****************************/
 --
 2.14.1
 
