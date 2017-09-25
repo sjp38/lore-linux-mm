@@ -1,52 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CDBD26B0069
-	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 09:16:19 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id x85so8005827oix.3
-        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 06:16:19 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v67si3442331oig.219.2017.09.25.06.16.18
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FD816B0038
+	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 09:53:11 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 188so16340462pgb.3
+        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 06:53:11 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w2si4148628pgb.564.2017.09.25.06.53.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Sep 2017 06:16:19 -0700 (PDT)
-Subject: Re: [patch] mremap.2: Add description of old_size == 0 functionality
-References: <20170915213745.6821-1-mike.kravetz@oracle.com>
- <a6e59a7f-fd15-9e49-356e-ed439f17e9df@oracle.com>
- <fb013ae6-6f47-248b-db8b-a0abae530377@redhat.com>
- <ee87215d-9704-7269-4ec1-226f2e32a751@oracle.com>
- <a5d279cb-a015-f74c-2e40-a231aa7f7a8c@redhat.com>
- <20170925123508.pzjbe7wgwagnr5li@dhcp22.suse.cz>
- <e301609c-b2ac-24d1-c349-8d25e5123258@redhat.com>
- <20170925125207.4tu24sbpnihljknu@dhcp22.suse.cz>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <765cd0cb-aa35-187c-456d-05d8752caa04@redhat.com>
-Date: Mon, 25 Sep 2017 15:16:09 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 25 Sep 2017 06:53:09 -0700 (PDT)
+Date: Mon, 25 Sep 2017 15:53:05 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCHv2] mm: Account pud page tables
+Message-ID: <20170925135305.ydeeyapav2s36ifj@dhcp22.suse.cz>
+References: <20170925073913.22628-1-kirill.shutemov@linux.intel.com>
+ <20170925115430.zccesf75c4ysaznb@dhcp22.suse.cz>
+ <20170925130715.kebf5e3xjctpcalp@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <20170925125207.4tu24sbpnihljknu@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170925130715.kebf5e3xjctpcalp@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, mtk.manpages@gmail.com, linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-On 09/25/2017 02:52 PM, Michal Hocko wrote:
-> So, how are you going to deal with the CoW and the implementation which
-> basically means that the newm mmap content is not the same as the
-> original one?
+On Mon 25-09-17 16:07:15, Kirill A. Shutemov wrote:
+> On Mon, Sep 25, 2017 at 01:54:30PM +0200, Michal Hocko wrote:
+> > On Mon 25-09-17 10:39:13, Kirill A. Shutemov wrote:
+> > > On machine with 5-level paging support a process can allocate
+> > > significant amount of memory and stay unnoticed by oom-killer and
+> > > memory cgroup. The trick is to allocate a lot of PUD page tables.
+> > > We don't account PUD page tables, only PMD and PTE.
+> > > 
+> > > We already addressed the same issue for PMD page tables, see
+> > > dc6c9a35b66b ("mm: account pmd page tables to the process").
+> > > Introduction 5-level paging bring the same issue for PUD page tables.
+> > > 
+> > > The patch expands accounting to PUD level.
+> > 
+> > OK, we definitely need this or something like that but I really do not
+> > like how much code we actually need for each pte level for accounting.
+> > Do we really need to distinguish each level? Do we have any arch that
+> > would use a different number of pages to back pte/pmd/pud?
+> 
+> Looks like we actually do. At least on mips. See PMD_ORDER/PUD_ORDER.
 
-I don't understand why CoW would kick in.  The approach I outlined is 
-desirable because it avoids the need to modify any executable pages, so 
-this is not a concern.  The point is to create a potentially unbounded 
-number of thunks *without* run-time code generation.
-
-If the file is rewritten on disk, that's already undefined today, so 
-it's not something we need to be concerned with.  (Anything which 
-replaces ELF files needs to use the rename-into-place approach anyway.)
-
-Thanks,
-Florian
+Hmm, but then oom_badness does consider them a single page which is
+wrong. I haven't checked other users. Anyway even if we've had different
+sizes why cannot we deal with this in callers. They know which level of
+page table they allocate/free, no?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
