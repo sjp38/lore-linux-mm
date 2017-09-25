@@ -1,69 +1,99 @@
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: [PATCH] mm/device-public-memory: Enable move_pages() to stat device memory
-Date: Fri, 22 Sep 2017 15:13:56 -0500
-Message-ID: <1506111236-28975-1-git-send-email-arbab@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+From: Claudio Imbrenda <imbrenda@linux.vnet.ibm.com>
+Subject: [RFC v1 0/2] Per-arch page checksumming and comparison
+Date: Mon, 25 Sep 2017 10:46:12 +0200
+Message-ID: <1506329174-19265-1-git-send-email-imbrenda@linux.vnet.ibm.com>
 Return-path: <linux-kernel-owner@vger.kernel.org>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Lorenzo Stoakes <lstoakes@gmail.com>, Dave Jiang <dave.jiang@intel.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Huang Ying <ying.huang@intel.com>, Ingo Molnar <mingo@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, James Morse <james.morse@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: borntraeger@de.ibm.com, kvm@vger.kernel.org, linux-mm@kvack.org, nefelim4ag@gmail.com, akpm@linux-foundation.org, aarcange@redhat.com, mingo@kernel.org, zhongjiang@huawei.com, kirill.shutemov@linux.intel.com, arvind.yadav.cs@gmail.com, solee@os.korea.ac.kr, ak@linux.intel.com
 List-Id: linux-mm.kvack.org
 
-The move_pages() syscall can be used to find the numa node where a page
-currently resides. This is not working for device public memory pages,
-which erroneously report -EFAULT (unmapped or zero page).
+Since we now have two different proposals on how to speed up KSM, I
+thought I'd share what I had done too, so we can now have three :)
 
-Enable by adding a FOLL_DEVICE flag for follow_page(), which
-move_pages() will use. This could be done unconditionally, but adding a
-flag seems like a safer change.
+I have analysed the performance of KSM, and I have found out that both
+the checksum and the memcmp take up a significant amount of time.
+Depending on the content of the pages, either function can be the
+"bottleneck".
 
-Cc: Jérôme Glisse <jglisse@redhat.com>
-Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
----
- include/linux/mm.h | 1 +
- mm/gup.c           | 2 +-
- mm/migrate.c       | 2 +-
- 3 files changed, 3 insertions(+), 2 deletions(-)
+I did some synthetic benchmarks, using different checksum functions and
+with different page content scenarios. Only in the best case (e.g.
+pages differing at the very beginning) was the checksum consuming more
+CPU time than the memcmps.
+Using a simpler function (like CRC32 or even just a simple sum)
+significantly reduced the CPU load. 
+In other scenarios, like when the pages differ in the middle or at the
+end, the biggest offender is the memcmp. Still, using simpler checksums
+lowers the overall CPU load.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index f8c10d3..783cb57 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2368,6 +2368,7 @@ static inline struct page *follow_page(struct vm_area_struct *vma,
- #define FOLL_MLOCK	0x1000	/* lock present pages */
- #define FOLL_REMOTE	0x2000	/* we are working on non-current tsk/mm */
- #define FOLL_COW	0x4000	/* internal GUP flag */
-+#define FOLL_DEVICE	0x8000	/* return device pages */
- 
- static inline int vm_fault_to_errno(int vm_fault, int foll_flags)
- {
-diff --git a/mm/gup.c b/mm/gup.c
-index b2b4d42..6fbad70 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -110,7 +110,7 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
- 		return NULL;
- 	}
- 
--	page = vm_normal_page(vma, address, pte);
-+	page = _vm_normal_page(vma, address, pte, flags & FOLL_DEVICE);
- 	if (!page && pte_devmap(pte) && (flags & FOLL_GET)) {
- 		/*
- 		 * Only return device mapping pages in the FOLL_GET case since
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 6954c14..dea0ceb 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1690,7 +1690,7 @@ static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
- 			goto set_status;
- 
- 		/* FOLL_DUMP to ignore special (like zero) pages */
--		page = follow_page(vma, addr, FOLL_DUMP);
-+		page = follow_page(vma, addr, FOLL_DUMP | FOLL_DEVICE);
- 
- 		err = PTR_ERR(page);
- 		if (IS_ERR(page))
+The idea I had in this patchseries was to provide arch-overridable
+functions to checksum and compare whole pages.
+
+Depending on the arch, the best memcmp/checksum to use in the
+specialized case of comparing/checksumming one whole page might not
+necessarily be the one that is the best in the general case. So what I
+did here was to factor out the old code and make it generic, and then
+provide an s390-specific implementation for the checksum using the CKSM
+instruction, which is also used to calculate the checksum of IP
+headers, the idea being that other architectures can then follow and
+use their preferred checksum.
+
+
+I like Sioh Lee's proposal of using the crypto API to choose a fast but
+good checksum, since this can be made arch-dependant too, and CRC32 is
+also almost as fast as the simple checksum. Also, I had underestimated
+how many more collisions the simple checksum could potentially cause
+(although I did not see any performance regressions in my tests).
+
+While there is a crypto API to choose between different hash functions,
+there is nothing like that for page comparison.
+
+
+I think at this point we need to coordinate a little, to avoid
+reinventing the wheel three times and in different ways.
+
+
+
+
+Claudio Imbrenda (2):
+  VS1544 KSM generic memory comparison functions
+  VS1544 KSM s390-specific memory comparison functions
+
+ arch/alpha/include/asm/Kbuild       |  1 +
+ arch/arc/include/asm/Kbuild         |  1 +
+ arch/arm/include/asm/Kbuild         |  1 +
+ arch/arm64/include/asm/Kbuild       |  1 +
+ arch/blackfin/include/asm/Kbuild    |  1 +
+ arch/c6x/include/asm/Kbuild         |  1 +
+ arch/cris/include/asm/Kbuild        |  1 +
+ arch/frv/include/asm/Kbuild         |  1 +
+ arch/h8300/include/asm/Kbuild       |  1 +
+ arch/hexagon/include/asm/Kbuild     |  1 +
+ arch/ia64/include/asm/Kbuild        |  1 +
+ arch/m32r/include/asm/Kbuild        |  1 +
+ arch/m68k/include/asm/Kbuild        |  1 +
+ arch/metag/include/asm/Kbuild       |  1 +
+ arch/microblaze/include/asm/Kbuild  |  1 +
+ arch/mips/include/asm/Kbuild        |  1 +
+ arch/mn10300/include/asm/Kbuild     |  1 +
+ arch/nios2/include/asm/Kbuild       |  1 +
+ arch/openrisc/include/asm/Kbuild    |  1 +
+ arch/parisc/include/asm/Kbuild      |  1 +
+ arch/powerpc/include/asm/Kbuild     |  1 +
+ arch/s390/include/asm/page_memops.h | 18 ++++++++++++++++++
+ arch/score/include/asm/Kbuild       |  1 +
+ arch/sh/include/asm/Kbuild          |  1 +
+ arch/sparc/include/asm/Kbuild       |  1 +
+ arch/tile/include/asm/Kbuild        |  1 +
+ arch/um/include/asm/Kbuild          |  1 +
+ arch/unicore32/include/asm/Kbuild   |  1 +
+ arch/x86/include/asm/Kbuild         |  1 +
+ arch/xtensa/include/asm/Kbuild      |  1 +
+ include/asm-generic/page_memops.h   | 31 +++++++++++++++++++++++++++++++
+ mm/ksm.c                            | 27 +++------------------------
+ 32 files changed, 81 insertions(+), 24 deletions(-)
+ create mode 100644 arch/s390/include/asm/page_memops.h
+ create mode 100644 include/asm-generic/page_memops.h
+
 -- 
-1.8.3.1
+2.7.4
