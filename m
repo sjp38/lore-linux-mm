@@ -1,163 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DBD36B0033
-	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 11:15:42 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id i50so8198746qtf.0
-        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 08:15:42 -0700 (PDT)
-Received: from smtp116.iad3a.emailsrvr.com (smtp116.iad3a.emailsrvr.com. [173.203.187.116])
-        by mx.google.com with ESMTPS id u79si6089739qkl.475.2017.09.25.08.15.40
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F21DC6B0038
+	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 11:55:45 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 11so16858327pge.4
+        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 08:55:45 -0700 (PDT)
+Received: from out4433.biz.mail.alibaba.com (out4433.biz.mail.alibaba.com. [47.88.44.33])
+        by mx.google.com with ESMTPS id 3si4112977plp.335.2017.09.25.08.55.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Sep 2017 08:15:41 -0700 (PDT)
-From: Ian Abbott <abbotti@mev.co.uk>
-Subject: Re: include/linux/kernel.h:860:32: error: dereferencing pointer to
- incomplete type 'struct clock_event_device'
-References: <201709241605.EczNVSR7%fengguang.wu@intel.com>
-Message-ID: <176e63fe-59af-84f4-b0f5-d70b3db0c1e5@mev.co.uk>
-Date: Mon, 25 Sep 2017 16:15:38 +0100
+        Mon, 25 Sep 2017 08:55:44 -0700 (PDT)
+Subject: Re: [PATCH 0/2 v4] oom: capture unreclaimable slab info in oom
+ message when kernel panic
+References: <1505947132-4363-1-git-send-email-yang.s@alibaba-inc.com>
+ <20170925142352.havlx6ikheanqyhj@dhcp22.suse.cz>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <e773cd57-8df6-ee6e-d051-857b8f354a0a@alibaba-inc.com>
+Date: Mon, 25 Sep 2017 23:55:19 +0800
 MIME-Version: 1.0
-In-Reply-To: <201709241605.EczNVSR7%fengguang.wu@intel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Language: en-GB
+In-Reply-To: <20170925142352.havlx6ikheanqyhj@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Daniel Lezcano <daniel.lezcano@linaro.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-[Sorry for the repost.  I forgot to Cc the people I said I was Cc'ing!]
 
-On 24/09/17 09:26, kbuild test robot wrote:
-> Hi Ian,
-> 
-> FYI, the error/warning still remains.
-> 
-> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-> head:   cd4175b11685b11c40e31a03e05084cc212b0649
-> commit: c7acec713d14c6ce8a20154f9dfda258d6bcad3b kernel.h: handle pointers to arrays better in container_of()
-> date:   2 months ago
-> config: ia64-allmodconfig (attached as .config)
-> compiler: ia64-linux-gcc (GCC) 6.2.0
-> reproduce:
->          wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->          chmod +x ~/bin/make.cross
->          git checkout c7acec713d14c6ce8a20154f9dfda258d6bcad3b
->          # save the attached .config to linux build tree
->          make.cross ARCH=ia64
-> 
-> All errors (new ones prefixed by >>):
-> 
->     In file included from drivers/clocksource/timer-of.c:25:0:
->     drivers/clocksource/timer-of.h:35:28: error: field 'clkevt' has incomplete type
->       struct clock_event_device clkevt;
->                                 ^~~~~~
 
-That's the first compile error - 'struct clock_event_device' is 
-incomplete because 'CONFIG_GENERIC_CLOCKEVENTS' is not defined.
-
->     In file included from include/linux/err.h:4:0,
->                      from include/linux/clk.h:15,
->                      from drivers/clocksource/timer-of.c:18:
->     drivers/clocksource/timer-of.h: In function 'to_timer_of':
->>> include/linux/kernel.h:860:32: error: dereferencing pointer to incomplete type 'struct clock_event_device'
->       BUILD_BUG_ON_MSG(!__same_type(*(ptr), ((type *)0)->member) && \
->                                     ^~~~~~
->     include/linux/compiler.h:517:19: note: in definition of macro '__compiletime_assert'
->        bool __cond = !(condition);    \
->                        ^~~~~~~~~
->     include/linux/compiler.h:537:2: note: in expansion of macro '_compiletime_assert'
->       _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
->       ^~~~~~~~~~~~~~~~~~~
->     include/linux/build_bug.h:46:37: note: in expansion of macro 'compiletime_assert'
->      #define BUILD_BUG_ON_MSG(cond, msg) compiletime_assert(!(cond), msg)
->                                          ^~~~~~~~~~~~~~~~~~
->     include/linux/kernel.h:860:2: note: in expansion of macro 'BUILD_BUG_ON_MSG'
->       BUILD_BUG_ON_MSG(!__same_type(*(ptr), ((type *)0)->member) && \
->       ^~~~~~~~~~~~~~~~
->     include/linux/kernel.h:860:20: note: in expansion of macro '__same_type'
->       BUILD_BUG_ON_MSG(!__same_type(*(ptr), ((type *)0)->member) && \
->                         ^~~~~~~~~~~
->     drivers/clocksource/timer-of.h:44:9: note: in expansion of macro 'container_of'
->       return container_of(clkevt, struct timer_of, clkevt);
->              ^~~~~~~~~~~~
-> --
->     In file included from drivers//clocksource/timer-of.c:25:0:
->     drivers//clocksource/timer-of.h:35:28: error: field 'clkevt' has incomplete type
->       struct clock_event_device clkevt;
->                                 ^~~~~~
->     In file included from include/linux/err.h:4:0,
->                      from include/linux/clk.h:15,
->                      from drivers//clocksource/timer-of.c:18:
->     drivers//clocksource/timer-of.h: In function 'to_timer_of':
->>> include/linux/kernel.h:860:32: error: dereferencing pointer to incomplete type 'struct clock_event_device'
->       BUILD_BUG_ON_MSG(!__same_type(*(ptr), ((type *)0)->member) && \
->                                     ^~~~~~
->     include/linux/compiler.h:517:19: note: in definition of macro '__compiletime_assert'
->        bool __cond = !(condition);    \
->                        ^~~~~~~~~
->     include/linux/compiler.h:537:2: note: in expansion of macro '_compiletime_assert'
->       _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
->       ^~~~~~~~~~~~~~~~~~~
->     include/linux/build_bug.h:46:37: note: in expansion of macro 'compiletime_assert'
->      #define BUILD_BUG_ON_MSG(cond, msg) compiletime_assert(!(cond), msg)
->                                          ^~~~~~~~~~~~~~~~~~
->     include/linux/kernel.h:860:2: note: in expansion of macro 'BUILD_BUG_ON_MSG'
->       BUILD_BUG_ON_MSG(!__same_type(*(ptr), ((type *)0)->member) && \
->       ^~~~~~~~~~~~~~~~
->     include/linux/kernel.h:860:20: note: in expansion of macro '__same_type'
->       BUILD_BUG_ON_MSG(!__same_type(*(ptr), ((type *)0)->member) && \
->                         ^~~~~~~~~~~
->     drivers//clocksource/timer-of.h:44:9: note: in expansion of macro 'container_of'
->       return container_of(clkevt, struct timer_of, clkevt);
->              ^~~~~~~~~~~~
+On 9/25/17 7:23 AM, Michal Hocko wrote:
+> On Thu 21-09-17 06:38:50, Yang Shi wrote:
+>> Recently we ran into a oom issue, kernel panic due to no killable process.
+>> The dmesg shows huge unreclaimable slabs used almost 100% memory, but kdump doesn't capture vmcore due to some reason.
+>>
+>> So, it may sound better to capture unreclaimable slab info in oom message when kernel panic to aid trouble shooting and cover the corner case.
+>> Since kernel already panic, so capturing more information sounds worthy and doesn't bother normal oom killer.
+>>
+>> With the patchset, tools/vm/slabinfo has a new option, "-U", to show unreclaimable slab only.
+>>
+>> And, oom will print all non zero (num_objs * size != 0) unreclaimable slabs in oom killer message.
 > 
-> vim +860 include/linux/kernel.h
-> 
->     843	
->     844	
->     845	/*
->     846	 * swap - swap value of @a and @b
->     847	 */
->     848	#define swap(a, b) \
->     849		do { typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; } while (0)
->     850	
->     851	/**
->     852	 * container_of - cast a member of a structure out to the containing structure
->     853	 * @ptr:	the pointer to the member.
->     854	 * @type:	the type of the container struct this is embedded in.
->     855	 * @member:	the name of the member within the struct.
->     856	 *
->     857	 */
->     858	#define container_of(ptr, type, member) ({				\
->     859		void *__mptr = (void *)(ptr);					\
->   > 860		BUILD_BUG_ON_MSG(!__same_type(*(ptr), ((type *)0)->member) &&	\
->     861				 !__same_type(*(ptr), void),			\
->     862				 "pointer type mismatch in container_of()");	\
->     863		((type *)(__mptr - offsetof(type, member))); })
->     864	
-> 
-> ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-> 
+> Well, I do undestand that this _might_ be useful but it also might
+> generates a _lot_ of output. The oom report can be quite verbose already
+> so is this something we want to have enabled by default?
 
-Cc'ing Daniel Lezcano and Thomas Gleixner, since this seems to be a 
-problem with configurations selecting 'TIMER_OF' even though 
-'GENERIC_CLOCKEVENTS' is not selected.
+The uneclaimable slub message will be just printed out when kernel panic 
+(no killable process or panic_on_oom is set). So, it will not bother 
+normal oom. Since kernel is already panic, so it might be preferred to 
+have more information reported.
 
-There was a recent-ish commit 599dc457c79b 
-("clocksource/drivers/Kconfig: Fix CLKSRC_PISTACHIO dependencies") to 
-address this problem for one particular clocksource driver, but some 
-other clocksource drivers seem to share the same problem.  There are 
-several clocksource config options in "drivers/clocksource/Kconfig" that 
-select 'TIMER_OF' without depending on 'GENERIC_CLOCKEVENTS'.  Some of 
-them are only manually selectable when 'COMPILE_TEST' is selected.  This 
-particular failure seems to be at least partly due to 'ARMV7M_SYSTICK' 
-getting selected.
+We definitely can add a proc knob to control it if we want to disable 
+the message even if when kernel panic.
 
--- 
--=( Ian Abbott @ MEV Ltd.    E-mail: <abbotti@mev.co.uk> )=-
--=(                          Web: http://www.mev.co.uk/  )=-
+Thanks,
+Yang
+
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
