@@ -1,62 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C07EB6B0253
-	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 08:52:10 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id m127so8523088wmm.3
-        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 05:52:10 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A0626B0253
+	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 08:58:28 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id v109so8972430wrc.5
+        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 05:58:28 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j88si5374600edd.203.2017.09.25.05.52.09
+        by mx.google.com with ESMTPS id h30si1015613edb.322.2017.09.25.05.58.27
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Sep 2017 05:52:09 -0700 (PDT)
-Date: Mon, 25 Sep 2017 14:52:07 +0200
+        Mon, 25 Sep 2017 05:58:27 -0700 (PDT)
+Date: Mon, 25 Sep 2017 14:58:25 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch] mremap.2: Add description of old_size == 0 functionality
-Message-ID: <20170925125207.4tu24sbpnihljknu@dhcp22.suse.cz>
-References: <20170915213745.6821-1-mike.kravetz@oracle.com>
- <a6e59a7f-fd15-9e49-356e-ed439f17e9df@oracle.com>
- <fb013ae6-6f47-248b-db8b-a0abae530377@redhat.com>
- <ee87215d-9704-7269-4ec1-226f2e32a751@oracle.com>
- <a5d279cb-a015-f74c-2e40-a231aa7f7a8c@redhat.com>
- <20170925123508.pzjbe7wgwagnr5li@dhcp22.suse.cz>
- <e301609c-b2ac-24d1-c349-8d25e5123258@redhat.com>
+Subject: Re: Memory hotplug regression in 4.13
+Message-ID: <20170925125825.zpgasjhjufupbias@dhcp22.suse.cz>
+References: <20170919164114.f4ef6oi3yhhjwkqy@ubuntu-xps13>
+ <20170920092931.m2ouxfoy62wr65ld@dhcp22.suse.cz>
+ <20170921054034.judv6ovyg5yks4na@ubuntu-hedt>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <e301609c-b2ac-24d1-c349-8d25e5123258@redhat.com>
+In-Reply-To: <20170921054034.judv6ovyg5yks4na@ubuntu-hedt>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, mtk.manpages@gmail.com, linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Seth Forshee <seth.forshee@canonical.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 25-09-17 14:40:42, Florian Weimer wrote:
-> On 09/25/2017 02:35 PM, Michal Hocko wrote:
-> > What would be the usecase. I mean why don't you simply create a new
-> > mapping by a plain mmap when you have no guarantee about the same
-> > content?
+On Thu 21-09-17 00:40:34, Seth Forshee wrote:
+> On Wed, Sep 20, 2017 at 11:29:31AM +0200, Michal Hocko wrote:
+> > Hi,
+> > I am currently at a conference so I will most probably get to this next
+> > week but I will try to ASAP.
+> > 
+> > On Tue 19-09-17 11:41:14, Seth Forshee wrote:
+> > > Hi Michal,
+> > > 
+> > > I'm seeing oopses in various locations when hotplugging memory in an x86
+> > > vm while running a 32-bit kernel. The config I'm using is attached. To
+> > > reproduce I'm using kvm with the memory options "-m
+> > > size=512M,slots=3,maxmem=2G". Then in the qemu monitor I run:
+> > > 
+> > >   object_add memory-backend-ram,id=mem1,size=512M
+> > >   device_add pc-dimm,id=dimm1,memdev=mem1
+> > > 
+> > > Not long after that I'll see an oops, not always in the same location
+> > > but most often in wp_page_copy, like this one:
+> > 
+> > This is rather surprising. How do you online the memory?
 > 
-> I plan to use it for creating an unbounded number of callback thunks at run
-> time, from a single set of pages in libc.so, in case we need this
-> functionality.
-> 
-> The idea is to duplicate existing position-independent machine code in
-> libc.so, prefixed by a data mapping which controls its behavior.  Each
-> data/code combination would only give us a fixed number of thunks, so we'd
-> need to create a new mapping to increase the total number.
-> 
-> Instead, we could re-map the code from the executable in disk, but not if
-> chroot has been called or glibc has been updated on disk.  Creating an alias
-> mapping does not have these problems.
-> 
-> Another application (but that's for anonymous memory) would be to duplicate
-> class metadata in a Java-style VM, so that you can use bits in the class
-> pointer in each Java object (which is similar to the vtable pointer in C++)
-> for the garbage collector, without having to mask it when accessing the
-> class metadata in regular (mutator) code.
+> The kernel has CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE=y.
 
-So, how are you going to deal with the CoW and the implementation which
-basically means that the newm mmap content is not the same as the
-original one?
+OK, so the memory gets online automagically at the time when it is
+hotadded. Could you send the full dmesg?
+
+> > > [   24.673623] BUG: unable to handle kernel paging request at dffff000
+> > > [   24.675569] IP: wp_page_copy+0xa8/0x660
+> > 
+> > could you resolve the IP into the source line?
+> 
+> It seems I don't have that kernel anymore, but I've got a 4.14-rc1 build
+> and the problem still occurs there. It's pointing to the call to
+> __builtin_memcpy in memcpy (include/linux/string.h line 340), which we
+> get to via wp_page_copy -> cow_user_page -> copy_user_highpage.
+
+Hmm, this is interesting. That would mean that we have successfully
+mapped the destination page but its memory is still not accessible.
+
+Right now I do not see how the patch you have bisected to could make any
+difference because it only postponed the onlining to be independent but
+your config simply onlines automatically so there shouldn't be any
+semantic change. Maybe there is some sort of off-by-one or something.
+
+I will try to investigate some more. Do you think it would be possible
+to configure kdump on your system and provide me with the vmcore in some
+way?
 -- 
 Michal Hocko
 SUSE Labs
