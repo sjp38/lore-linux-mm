@@ -1,49 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AE3646B0069
-	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 15:28:05 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id h16so10095449wrf.0
-        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 12:28:05 -0700 (PDT)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
-        by mx.google.com with ESMTPS id 14si126018wmv.13.2017.09.25.12.28.04
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 901F26B0038
+	for <linux-mm@kvack.org>; Mon, 25 Sep 2017 15:33:30 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id w12so10118781wrc.2
+        for <linux-mm@kvack.org>; Mon, 25 Sep 2017 12:33:30 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g11sor52770wmf.30.2017.09.25.12.33.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Sep 2017 12:28:04 -0700 (PDT)
-Content-Type: text/plain; charset="utf-8"
-MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-From: Chris Wilson <chris@chris-wilson.co.uk>
-In-Reply-To: <20170925184737.8807-4-matthew.auld@intel.com>
-References: <20170925184737.8807-1-matthew.auld@intel.com>
- <20170925184737.8807-4-matthew.auld@intel.com>
-Message-ID: <150636768123.32171.13752171915783422673@mail.alporthouse.com>
-Subject: Re: [PATCH 03/22] mm/shmem: parse mount options for MS_KERNMOUNT
-Date: Mon, 25 Sep 2017 20:28:01 +0100
+        (Google Transport Security);
+        Mon, 25 Sep 2017 12:33:29 -0700 (PDT)
+From: Timofey Titovets <nefelim4ag@gmail.com>
+Subject: [PATCH v3 0/2] KSM: Replace jhash2 with xxhash
+Date: Mon, 25 Sep 2017 22:33:18 +0300
+Message-Id: <20170925193320.10009-1-nefelim4ag@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Auld <matthew.auld@intel.com>, intel-gfx@lists.freedesktop.org
-Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, borntraeger@de.ibm.com, kvm@vger.kernel.org, Timofey Titovets <nefelim4ag@gmail.com>
 
-Quoting Matthew Auld (2017-09-25 19:47:18)
-> In i915 we now have our own tmpfs mount, so ensure that shmem_fill_super
-> also calls shmem_parse_options when dealing with a kernel mount.
-> Otherwise we have to clumsily call remount_fs when we want to supply our
-> mount options.
-> =
+ksm use jhash2 for hashing pages,
+in 4.14 xxhash has been merged to mainline kernel.
 
-> Signed-off-by: Matthew Auld <matthew.auld@intel.com>
-> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-> Cc: Chris Wilson <chris@chris-wilson.co.uk>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Kirill A. Shutemov <kirill@shutemov.name>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: linux-mm@kvack.org
+xxhash much faster then jhash2 on big inputs (32 byte+)
 
-I could not find a counter argument why all kernel users had to skip
-shmem_parse_options(), is there a danger that data may be anything other
-than a string or NULL?
--Chris
+xxhash has 2 versions, one with 32-bit hash and
+one with 64-bit hash.
+
+64-bit version works faster then 32-bit on 64-bit arch.
+
+So lets get better from two worlds,
+create arch dependent xxhash() function that will use
+fastest algo for current arch.
+This a first patch.
+
+Performance info and ksm update can be found in second patch.
+
+Changelog:
+  v1 -> v2:
+    - Move xxhash() to xxhash.h/c and separate patches
+
+  v2 -> v3:
+    - Move xxhash() xxhash.c -> xxhash.h
+    - replace xxhash_t with 'unsigned long'
+    - update kerneldoc above xxhash()
+
+Timofey Titovets (2):
+  xxHash: create arch dependent 32/64-bit xxhash()
+  KSM: Replace jhash2 with xxhash
+
+ include/linux/xxhash.h | 23 +++++++++++++++++++++++
+ mm/Kconfig             |  1 +
+ mm/ksm.c               | 14 +++++++-------
+ 3 files changed, 31 insertions(+), 7 deletions(-)
+
+--
+2.14.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
