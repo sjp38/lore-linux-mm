@@ -1,83 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CD45E6B0069
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 17:34:33 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id r74so2074578wrb.7
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 14:34:33 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id t50si7968918wrc.507.2017.09.26.14.34.32
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0627A6B0069
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 17:41:55 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id w65so14952617oia.6
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 14:41:55 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id b53sor1062389otd.240.2017.09.26.14.41.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Sep 2017 14:34:32 -0700 (PDT)
-Date: Tue, 26 Sep 2017 23:34:40 +0200
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 02/22] drm/i915: introduce simple gemfs
-Message-ID: <20170926213440.GD3418@kroah.com>
-References: <20170925184737.8807-1-matthew.auld@intel.com>
- <20170925184737.8807-3-matthew.auld@intel.com>
- <20170926075221.GB32088@kroah.com>
- <1506432107.5228.26.camel@linux.intel.com>
+        (Google Transport Security);
+        Tue, 26 Sep 2017 14:41:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1506432107.5228.26.camel@linux.intel.com>
+In-Reply-To: <20170926210645.GA7798@linux.intel.com>
+References: <20170925231404.32723-1-ross.zwisler@linux.intel.com>
+ <20170925231404.32723-7-ross.zwisler@linux.intel.com> <CAPcyv4jtO028KeZK7SdkOUsgMLGqgttLzBCYgH0M+RP3eAXf4A@mail.gmail.com>
+ <20170926185751.GB31146@linux.intel.com> <CAPcyv4iVc9y8PE24ZvkiBYdp4Die0Q-K5S6QexW_6YQ_M0F4QA@mail.gmail.com>
+ <20170926210645.GA7798@linux.intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 26 Sep 2017 14:41:53 -0700
+Message-ID: <CAPcyv4iDTNteQAt1bBHCGijwsk45rJWHfdr+e_rOwK39jpC2Og@mail.gmail.com>
+Subject: Re: [PATCH 6/7] mm, fs: introduce file_operations->post_mmap()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Cc: Matthew Auld <matthew.auld@intel.com>, devel@driverdev.osuosl.org, Dave Hansen <dave.hansen@intel.com>, intel-gfx@lists.freedesktop.org, Hugh Dickins <hughd@google.com>, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, dri-devel@lists.freedesktop.org, Chris Wilson <chris@chris-wilson.co.uk>, linux-mm@kvack.org, Riley Andrews <riandrews@android.com>, Daniel Vetter <daniel.vetter@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, "J. Bruce Fields" <bfields@fieldses.org>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@poochiereds.net>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-xfs@vger.kernel.org
 
-On Tue, Sep 26, 2017 at 04:21:47PM +0300, Joonas Lahtinen wrote:
-> On Tue, 2017-09-26 at 09:52 +0200, Greg Kroah-Hartman wrote:
-> > On Mon, Sep 25, 2017 at 07:47:17PM +0100, Matthew Auld wrote:
-> > > Not a fully blown gemfs, just our very own tmpfs kernel mount. Doing so
-> > > moves us away from the shmemfs shm_mnt, and gives us the much needed
-> > > flexibility to do things like set our own mount options, namely huge=
-> > > which should allow us to enable the use of transparent-huge-pages for
-> > > our shmem backed objects.
-> > > 
-> > > v2: various improvements suggested by Joonas
-> > > 
-> > > v3: move gemfs instance to i915.mm and simplify now that we have
-> > > file_setup_with_mnt
-> > > 
-> > > v4: fallback to tmpfs shm_mnt upon failure to setup gemfs
-> > > 
-> > > v5: make tmpfs fallback kinder
-> > 
-> > Why do this only for one specific driver?  Shouldn't the drm core handle
-> > this for you, for all other drivers as well?  Otherwise trying to figure
-> > out how to "contain" this type of thing is going to be a pain (mount
-> > options, selinux options, etc.)
-> 
-> We actually started quite grande by making stripped down version of
-> shmemfs for drm core, but kept running into nacks about how we were
-> implementing it (after getting a recommendation to try implementing it
-> some way). After a few iterations and massive engineering time, we have
-> been progressively reducing the amount of changes outside i915 in the
-> hopes to get this merged.
-> 
-> And all the while clock is ticking, so we thought the best way to get
-> something to support our future work is to implement this first locally
-> with minimal external changes outside i915 and then once we have
-> something working, it'll be easier to generalize it for the drm core.
-> Otherwise we'll never get to work with the huge page support, for which
-> gemfs is the stepping stone here.
-> 
-> So we're not planning on sitting on top of it, we'll just incubate it
-> under i915/ so that it'll then be less pain for others to adopt when
-> the biggest hurdles with core MM interactions are sorted out.
+On Tue, Sep 26, 2017 at 2:06 PM, Ross Zwisler
+<ross.zwisler@linux.intel.com> wrote:
+> On Tue, Sep 26, 2017 at 12:19:21PM -0700, Dan Williams wrote:
+>> On Tue, Sep 26, 2017 at 11:57 AM, Ross Zwisler
+> <>
+>> > This decision can only be made (in this
+>> > proposed scheme) *after* the inode->i_mapping->i_mmap  tree has been
+>> > populated, which means we need another call into the filesystem after this
+>> > insertion has happened.
+>>
+>> I get that, but it seems over-engineered and something that can also
+>> be safely cleaned up after the fact by the code path that is disabling
+>> DAX.
+>
+> I don't think you can safely clean it up after the fact because some thread
+> might have already called ->mmap() to set up the vma->vm_flags for their new
+> mapping, but they haven't added it to inode->i_mapping->i_mmap.
 
-But by doing this, you are now creating a new user/kernel api that you
-have to support for forever, right?  Will it not change if you make it
-"generic" to the drm core eventually?
+If madvise(MADV_NOHUGEPAGE) can dynamically change vm_flags, then the
+DAX disable path can as well. VM_MIXEDMAP looks to be a nop for normal
+memory mappings.
 
-Worse case, name it a generic name that everyone will end up using in
-the future, and then you can just claim that all other drivers need to
-implement it :)
+> The inode->i_mapping->i_mmap tree is the only way (that I know of at least)
+> that the filesystem has any idea about about the mapping.  This is the method
+> by which we would try and clean up mapping flags, if we were to do so, and
+> it's the only way that the filesystem can know whether or not mappings exist.
+>
+> The only way that I could think of to make this safely work is to have the
+> insertion into the inode->i_mapping->i_mmap tree be our sync point.  After
+> that the filesystem and the mapping code can communicate on the state of DAX,
+> but before that I think it's basically indeterminate.
 
-thanks,
-
-greg k-h
+If we lose the race and leak VM_HUGEPAGE to a non-DAX mapping what
+breaks? I'd rather be in favor of not setting VM_HUGEPAGE at all in
+the ->mmap() handler and let the default THP policy take over. In
+fact, see transparent_hugepage_enabled() we already auto-enable huge
+page support for dax mappings regardless of VM_HUGEPAGE.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
