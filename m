@@ -1,70 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C7476B0069
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 10:47:22 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id u138so12035578wmu.2
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 07:47:22 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id y11si2834489edh.411.2017.09.26.07.47.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Sep 2017 07:47:21 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v8QEi8w5042077
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 10:47:19 -0400
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2d7q60gxca-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 10:47:19 -0400
-Received: from localhost
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Tue, 26 Sep 2017 08:47:18 -0600
-Date: Tue, 26 Sep 2017 09:47:10 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/device-public-memory: Enable move_pages() to stat
- device memory
-References: <1506111236-28975-1-git-send-email-arbab@linux.vnet.ibm.com>
- <20170926133707.wquyw3ic5nbmfjuo@dhcp22.suse.cz>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8891D6B0069
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 10:53:16 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id q75so18535302pfl.1
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 07:53:16 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id o33si5937174plb.77.2017.09.26.07.53.14
+        for <linux-mm@kvack.org>;
+        Tue, 26 Sep 2017 07:53:15 -0700 (PDT)
+Subject: Re: [PATCH] dma-debug: fix incorrect pfn calculation
+References: <1506432287-7214-1-git-send-email-miles.chen@mediatek.com>
+From: Robin Murphy <robin.murphy@arm.com>
+Message-ID: <03870968-0060-d6db-d109-f2c299c35bf1@arm.com>
+Date: Tue, 26 Sep 2017 15:53:10 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20170926133707.wquyw3ic5nbmfjuo@dhcp22.suse.cz>
-Message-Id: <20170926144710.zepvnyktqjomnx2n@arbab-laptop.localdomain>
+In-Reply-To: <1506432287-7214-1-git-send-email-miles.chen@mediatek.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Lorenzo Stoakes <lstoakes@gmail.com>, Dave Jiang <dave.jiang@intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Huang Ying <ying.huang@intel.com>, Ingo Molnar <mingo@kernel.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, James Morse <james.morse@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: miles.chen@mediatek.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, wsd_upstream@mediatek.com, linux-mediatek@lists.infradead.org, iommu@lists.linux-foundation.org
 
-On Tue, Sep 26, 2017 at 01:37:07PM +0000, Michal Hocko wrote:
->On Fri 22-09-17 15:13:56, Reza Arbab wrote:
->> The move_pages() syscall can be used to find the numa node where a page
->> currently resides. This is not working for device public memory pages,
->> which erroneously report -EFAULT (unmapped or zero page).
->>
->> Enable by adding a FOLL_DEVICE flag for follow_page(), which
->> move_pages() will use. This could be done unconditionally, but adding a
->> flag seems like a safer change.
->
->I do not understand purpose of this patch. What is the numa node of a
->device memory?
+On 26/09/17 14:24, miles.chen@mediatek.com wrote:
+> From: Miles Chen <miles.chen@mediatek.com>
+> 
+> dma-debug report the following warning:
+> 
+> [name:panic&]WARNING: CPU: 3 PID: 298 at kernel-4.4/lib/dma-debug.c:604
+> debug _dma_assert_idle+0x1a8/0x230()
+> DMA-API: cpu touching an active dma mapped cacheline [cln=0x00000882300]
+> CPU: 3 PID: 298 Comm: vold Tainted: G        W  O    4.4.22+ #1
+> Hardware name: MT6739 (DT)
+> Call trace:
+> [<ffffff800808acd0>] dump_backtrace+0x0/0x1d4
+> [<ffffff800808affc>] show_stack+0x14/0x1c
+> [<ffffff800838019c>] dump_stack+0xa8/0xe0
+> [<ffffff80080a0594>] warn_slowpath_common+0xf4/0x11c
+> [<ffffff80080a061c>] warn_slowpath_fmt+0x60/0x80
+> [<ffffff80083afe24>] debug_dma_assert_idle+0x1a8/0x230
+> [<ffffff80081dca9c>] wp_page_copy.isra.96+0x118/0x520
+> [<ffffff80081de114>] do_wp_page+0x4fc/0x534
+> [<ffffff80081e0a14>] handle_mm_fault+0xd4c/0x1310
+> [<ffffff8008098798>] do_page_fault+0x1c8/0x394
+> [<ffffff800808231c>] do_mem_abort+0x50/0xec
+> 
+> I found that debug_dma_alloc_coherent() and debug_dma_free_coherent()
+> always use type "dma_debug_coherent" and assume that dma_alloc_coherent()
+> always returns a linear address.
+> 
+> However if a device returns false on is_device_dma_coherent(),
+> dma_alloc_coherent() will create another non-cacheable mapping
+> (also non linear). In this case, page_to_pfn(virt_to_page(virt)) will
+> return an incorrect pfn. If the pfn is valid and mapped as a COW page,
+> we will hit the warning when doing wp_page_copy().
+> 
+> Fix this by calculating correct pfn if is_device_dma_coherent()
+> returns false.
 
-Well, using hmm_devmem_pages_create() it is added to this node:
+As the inevitable storm of kbuild robot reports will tell you soon, you
+can't do that: is_device_dma_coherent() is a private helper between
+arm{,64} arch code and xen, and should not be used anywhere else.
 
-	nid = dev_to_node(device);
-	if (nid < 0)
-		nid = numa_mem_id();
+> Signed-off-by: Miles Chen <miles.chen@mediatek.com>
+> ---
+>  lib/dma-debug.c | 20 ++++++++++++++------
+>  1 file changed, 14 insertions(+), 6 deletions(-)
+> 
+> diff --git a/lib/dma-debug.c b/lib/dma-debug.c
+> index ea4cc3d..b17e56e 100644
+> --- a/lib/dma-debug.c
+> +++ b/lib/dma-debug.c
+> @@ -47,6 +47,8 @@ enum {
+>  	dma_debug_sg,
+>  	dma_debug_coherent,
+>  	dma_debug_resource,
+> +	dma_debug_noncoherent,
+> +	nr_dma_debug_types,
+>  };
+>  
+>  enum map_err_types {
+> @@ -154,9 +156,9 @@ static inline bool dma_debug_disabled(void)
+>  	[MAP_ERR_CHECKED] = "dma map error checked",
+>  };
+>  
+> -static const char *type2name[5] = { "single", "page",
+> +static const char *type2name[nr_dma_debug_types] = { "single", "page",
+>  				    "scather-gather", "coherent",
+> -				    "resource" };
+> +				    "resource", "noncoherent" };
+>  
+>  static const char *dir2name[4] = { "DMA_BIDIRECTIONAL", "DMA_TO_DEVICE",
+>  				   "DMA_FROM_DEVICE", "DMA_NONE" };
+> @@ -1484,6 +1486,7 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
+>  			      dma_addr_t dma_addr, void *virt)
+>  {
+>  	struct dma_debug_entry *entry;
+> +	bool coherent = is_device_dma_coherent(dev);
+>  
+>  	if (unlikely(dma_debug_disabled()))
+>  		return;
+> @@ -1495,9 +1498,11 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
+>  	if (!entry)
+>  		return;
+>  
+> -	entry->type      = dma_debug_coherent;
+> +	entry->type      = coherent ? dma_debug_coherent :
+> +					dma_debug_noncoherent;
+>  	entry->dev       = dev;
+> -	entry->pfn	 = page_to_pfn(virt_to_page(virt));
 
-I understand it's minimally useful information to userspace, but the 
-memory does have a nid and move_pages() is supposed to be able to return 
-what that is. I ran into this using a testcase which tries to verify 
-that user addresses were correctly migrated to coherent device memory.
+There are more architectures where the virtual address returned by
+dma_alloc_coherent is not a linear map address - some just have a static
+offset between cacheable and non-cacheable aliases - so there may be
+other cases where this is the wrong calculation, but at least those
+probably don't trigger the problematic false-positive.
 
-That said, I'm okay with dropping this if you don't think it's 
-worthwhile.
+That said, the cases where coherent allocations *are* dynamically
+remapped should be easy enough to handle properly without having to
+resort to dodgy hacks:
 
--- 
-Reza Arbab
+	if (is_vmalloc_addr(virt))
+		pfn = vmalloc_to_pfn(virt);
+	else
+		pfn = page_to_pfn(virt_to_page(virt));
+
+Simple.
+
+> +	entry->pfn	 = coherent ? page_to_pfn(virt_to_page(virt)) :
+> +					dma_addr >> PAGE_SHIFT;
+
+And in particular, this is just as likely to just give *different* false
+positives, since there's no guarantee whatsoever that dma_addr has any
+relationship to the appropriate pfn.
+
+Robin.
+
+>  	entry->offset	 = offset_in_page(virt);
+>  	entry->size      = size;
+>  	entry->dev_addr  = dma_addr;
+> @@ -1510,10 +1515,13 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
+>  void debug_dma_free_coherent(struct device *dev, size_t size,
+>  			 void *virt, dma_addr_t addr)
+>  {
+> +	bool coherent = is_device_dma_coherent(dev);
+>  	struct dma_debug_entry ref = {
+> -		.type           = dma_debug_coherent,
+> +		.type           = coherent ? dma_debug_coherent :
+> +						dma_debug_noncoherent,
+>  		.dev            = dev,
+> -		.pfn		= page_to_pfn(virt_to_page(virt)),
+> +		.pfn		= coherent ? page_to_pfn(virt_to_page(virt)) :
+> +						addr >> PAGE_SHIFT,
+>  		.offset		= offset_in_page(virt),
+>  		.dev_addr       = addr,
+>  		.size           = size,
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
