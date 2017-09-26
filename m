@@ -1,111 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D9B3D6B0038
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 08:13:41 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id i14so14633428qke.6
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 05:13:41 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id q143si8156083qke.220.2017.09.26.05.13.39
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B4F046B0038
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 08:15:14 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p87so18001093pfj.4
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 05:15:14 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id p67si5537802pfj.614.2017.09.26.05.15.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Sep 2017 05:13:40 -0700 (PDT)
-Date: Tue, 26 Sep 2017 13:13:00 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-Message-ID: <20170926121300.GB23139@castle.dhcp.TheFacebook.com>
-References: <20170915105826.hq5afcu2ij7hevb4@dhcp22.suse.cz>
- <20170915152301.GA29379@castle>
- <20170918061405.pcrf5vauvul4c2nr@dhcp22.suse.cz>
- <20170920215341.GA5382@castle>
- <20170925122400.4e7jh5zmuzvbggpe@dhcp22.suse.cz>
- <20170925170004.GA22704@cmpxchg.org>
- <20170925181533.GA15918@castle>
- <20170925202442.lmcmvqwy2jj2tr5h@dhcp22.suse.cz>
- <20170926105925.GA23139@castle.dhcp.TheFacebook.com>
- <20170926112134.r5eunanjy7ogjg5n@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20170926112134.r5eunanjy7ogjg5n@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Sep 2017 05:15:12 -0700 (PDT)
+Subject: [PATCH] mm,oom: Warn on racing with MMF_OOM_SKIP at task_will_free_mem(current).
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1506070646-4549-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20170925143052.a57bqoiw6yuckwee@dhcp22.suse.cz>
+In-Reply-To: <20170925143052.a57bqoiw6yuckwee@dhcp22.suse.cz>
+Message-Id: <201709262027.IJC34322.tMFOJFSOFVLHQO@I-love.SAKURA.ne.jp>
+Date: Tue, 26 Sep 2017 20:27:40 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: mhocko@suse.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, mjaggi@caviumnetworks.com, oleg@redhat.com, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
 
-On Tue, Sep 26, 2017 at 01:21:34PM +0200, Michal Hocko wrote:
-> On Tue 26-09-17 11:59:25, Roman Gushchin wrote:
-> > On Mon, Sep 25, 2017 at 10:25:21PM +0200, Michal Hocko wrote:
-> > > On Mon 25-09-17 19:15:33, Roman Gushchin wrote:
-> > > [...]
-> > > > I'm not against this model, as I've said before. It feels logical,
-> > > > and will work fine in most cases.
-> > > > 
-> > > > In this case we can drop any mount/boot options, because it preserves
-> > > > the existing behavior in the default configuration. A big advantage.
-> > > 
-> > > I am not sure about this. We still need an opt-in, ragardless, because
-> > > selecting the largest process from the largest memcg != selecting the
-> > > largest task (just consider memcgs with many processes example).
-> > 
-> > As I understand Johannes, he suggested to compare individual processes with
-> > group_oom mem cgroups. In other words, always select a killable entity with
-> > the biggest memory footprint.
-> > 
-> > This is slightly different from my v8 approach, where I treat leaf memcgs
-> > as indivisible memory consumers independent on group_oom setting, so
-> > by default I'm selecting the biggest task in the biggest memcg.
+Michal Hocko wrote:
+> On Fri 22-09-17 17:57:26, Tetsuo Handa wrote:
+> [...]
+> > Michal Hocko has nacked this patch [3], and he suggested an alternative
+> > patch [4]. But he himself is not ready to clarify all the concerns with
+> > the alternative patch [5]. In addition to that, nobody is interested in
+> > either patch; we can not make progress here. Let's choose this patch for
+> > now, for this patch has smaller impact than the alternative patch.
 > 
-> My reading is that he is actually proposing the same thing I've been
-> mentioning. Simply select the biggest killable entity (leaf memcg or
-> group_oom hierarchy) and either kill the largest task in that entity
-> (for !group_oom) or the whole memcg/hierarchy otherwise.
-
-He wrote the following:
-"So I'm leaning toward the second model: compare all oomgroups and
-standalone tasks in the system with each other, independent of the
-failed hierarchical control structure. Then kill the biggest of them."
-
->  
-> > While the approach suggested by Johannes looks clear and reasonable,
-> > I'm slightly concerned about possible implementation issues,
-> > which I've described below:
-> > 
-> > > 
-> > > > The only thing, I'm slightly concerned, that due to the way how we calculate
-> > > > the memory footprint for tasks and memory cgroups, we will have a number
-> > > > of weird edge cases. For instance, when putting a single process into
-> > > > the group_oom memcg will alter the oom_score significantly and result
-> > > > in significantly different chances to be killed. An obvious example will
-> > > > be a task with oom_score_adj set to any non-extreme (other than 0 and -1000)
-> > > > value, but it can also happen in case of constrained alloc, for instance.
-> > > 
-> > > I am not sure I understand. Are you talking about root memcg comparing
-> > > to other memcgs?
-> > 
-> > Not only, but root memcg in this case will be another complication. We can
-> > also use the same trick for all memcg (define memcg oom_score as maximum oom_score
-> > of the belonging tasks), it will turn group_oom into pure container cleanup
-> > solution, without changing victim selection algorithm
+> My Nack stands and it is really annoying you are sending a patch for
+> inclusion regardless of that fact. An alternative approach has been
+> proposed and the mere fact that I do not have time to pursue this
+> direction is not reason to go with a incomplete solution. This is not an
+> issue many people would be facing to scream for a quick and dirty
+> workarounds AFAIK (there have been 0 reports from non-artificial
+> workloads).
 > 
-> I fail to see the problem to be honest. Simply evaluate the memcg_score
-> you have so far with one minor detail. You only check memcgs which have
-> tasks (rather than check for leaf node check) or it is group_oom. An
-> intermediate memcg will get a cumulative size of the whole subhierarchy
-> and then you know you can skip the subtree because any subtree can be larger.
-> 
-> > But, again, I'm not against approach suggested by Johannes. I think that overall
-> > it's the best possible semantics, if we're not taking some implementation details
-> > into account.
-> 
-> I do not see those implementation details issues and let me repeat do
-> not develop a semantic based on implementation details.
 
-There are no problems in "select the biggest leaf or group_oom memcg, then
-kill the biggest task or all tasks depending on group_oom" approach,
-which you're describing. Comparing tasks and memcgs (what Johannes is suggesting)
-may have some issues.
+You again said there is no report, without providing a mean to tell
+whether they actually hit it. Then, this patch must get merged now.
+----------------------------------------
 
-Thanks!
+>From b67f6482db0f973ae7ecaa1d9873ccfd6dd151b7 Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date: Tue, 26 Sep 2017 20:09:36 +0900
+Subject: [PATCH] mm,oom: Warn on racing with MMF_OOM_SKIP at
+ task_will_free_mem(current).
+
+There still is a race window where next OOM victim is selected needlessly,
+but we are intentionally leaving that window open because Michal Hocko has
+never heard about a report from non-artificial workloads. However, it is
+too difficult for normal users to tell whether they actually hit that race.
+Thus, add a WARN_ON() to task_will_free_mem(current) if they hit that race
+in order to encourage them to report it. This patch will tell us whether we
+need to care about that race.
+
+[   83.504172] Out of memory: Kill process 2899 (a.out) score 930 or sacrifice child
+[   83.506794] Killed process 2899 (a.out) total-vm:16781904kB, anon-rss:88kB, file-rss:0kB, shmem-rss:3519864kB
+[   83.513499] oom_reaper: reaped process 2899 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:3520204kB
+[   83.516494] Racing OOM victim selection. Please report to linux-mm@kvack.org if you saw this warning from non-artificial workloads.
+[   83.519793] ------------[ cut here ]------------
+[   83.522008] WARNING: CPU: 0 PID: 2934 at mm/oom_kill.c:798 task_will_free_mem+0x11a/0x130
+[   83.524881] Modules linked in: coretemp pcspkr sg i2c_piix4 vmw_vmci shpchp sd_mod ata_generic pata_acpi serio_raw vmwgfx drm_kms_helper mptspi syscopyarea scsi_transport_spi sysfillrect mptscsih ahci libahci mptbase sysimgblt fb_sys_fops ttm e1000 ata_piix drm i2c_core libata ipv6
+[   83.532023] CPU: 0 PID: 2934 Comm: a.out Not tainted 4.14.0-rc2-next-20170926+ #672
+
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+---
+ mm/oom_kill.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index dee0f75..ac3c63d 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -794,8 +794,10 @@ static bool task_will_free_mem(struct task_struct *task)
+ 	 * This task has already been drained by the oom reaper so there are
+ 	 * only small chances it will free some more
+ 	 */
+-	if (test_bit(MMF_OOM_SKIP, &mm->flags))
++	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
++		WARN(1, "Racing OOM victim selection. Please report to linux-mm@kvack.org if you saw this warning from non-artificial workloads.\n");
+ 		return false;
++	}
+ 
+ 	if (atomic_read(&mm->mm_users) <= 1)
+ 		return true;
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
