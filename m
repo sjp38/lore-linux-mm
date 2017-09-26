@@ -1,108 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A302D6B0038
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 07:14:01 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id a7so17839941pfj.3
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 04:14:01 -0700 (PDT)
-Received: from ipmail01.adl2.internode.on.net (ipmail01.adl2.internode.on.net. [150.101.137.133])
-        by mx.google.com with ESMTP id m3si1249366pld.62.2017.09.26.04.13.59
-        for <linux-mm@kvack.org>;
-        Tue, 26 Sep 2017 04:14:00 -0700 (PDT)
-Date: Tue, 26 Sep 2017 21:09:57 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 1/7] xfs: always use DAX if mount option is used
-Message-ID: <20170926110957.GR10955@dastard>
-References: <20170925231404.32723-1-ross.zwisler@linux.intel.com>
- <20170925231404.32723-2-ross.zwisler@linux.intel.com>
- <20170925233812.GM10955@dastard>
- <20170926093548.GB13627@quack2.suse.cz>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B7156B0038
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 07:21:37 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id m127so1075833wmm.17
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 04:21:37 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r12si7304728wre.198.2017.09.26.04.21.36
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Sep 2017 04:21:36 -0700 (PDT)
+Date: Tue, 26 Sep 2017 13:21:34 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v8 0/4] cgroup-aware OOM killer
+Message-ID: <20170926112134.r5eunanjy7ogjg5n@dhcp22.suse.cz>
+References: <20170914160548.GA30441@castle>
+ <20170915105826.hq5afcu2ij7hevb4@dhcp22.suse.cz>
+ <20170915152301.GA29379@castle>
+ <20170918061405.pcrf5vauvul4c2nr@dhcp22.suse.cz>
+ <20170920215341.GA5382@castle>
+ <20170925122400.4e7jh5zmuzvbggpe@dhcp22.suse.cz>
+ <20170925170004.GA22704@cmpxchg.org>
+ <20170925181533.GA15918@castle>
+ <20170925202442.lmcmvqwy2jj2tr5h@dhcp22.suse.cz>
+ <20170926105925.GA23139@castle.dhcp.TheFacebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170926093548.GB13627@quack2.suse.cz>
+In-Reply-To: <20170926105925.GA23139@castle.dhcp.TheFacebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, "J. Bruce Fields" <bfields@fieldses.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Jeff Layton <jlayton@poochiereds.net>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 26, 2017 at 11:35:48AM +0200, Jan Kara wrote:
-> On Tue 26-09-17 09:38:12, Dave Chinner wrote:
-> > On Mon, Sep 25, 2017 at 05:13:58PM -0600, Ross Zwisler wrote:
-> > > Before support for the per-inode DAX flag was disabled the XFS the code had
-> > > an issue where the user couldn't reliably tell whether or not DAX was being
-> > > used to service page faults and I/O when the DAX mount option was used.  In
-> > > this case each inode within the mounted filesystem started with S_DAX set
-> > > due to the mount option, but it could be cleared if someone touched the
-> > > individual inode flag.
+On Tue 26-09-17 11:59:25, Roman Gushchin wrote:
+> On Mon, Sep 25, 2017 at 10:25:21PM +0200, Michal Hocko wrote:
+> > On Mon 25-09-17 19:15:33, Roman Gushchin wrote:
+> > [...]
+> > > I'm not against this model, as I've said before. It feels logical,
+> > > and will work fine in most cases.
 > > > 
-> > > For example (v4.13 and before):
-> > > 
-> > >   # mount | grep dax
-> > >   /dev/pmem0 on /mnt type xfs
-> > >   (rw,relatime,seclabel,attr2,dax,inode64,sunit=4096,swidth=4096,noquota)
-> > > 
-> > >   # touch /mnt/a /mnt/b   # both files currently use DAX
-> > > 
-> > >   # xfs_io -c "lsattr" /mnt/*  # neither has the DAX inode option set
-> > >   ----------e----- /mnt/a
-> > >   ----------e----- /mnt/b
-> > > 
-> > >   # xfs_io -c "chattr -x" /mnt/a  # this clears S_DAX for /mnt/a
-> > > 
-> > >   # xfs_io -c "lsattr" /mnt/*
-> > >   ----------e----- /mnt/a
-> > >   ----------e----- /mnt/b
+> > > In this case we can drop any mount/boot options, because it preserves
+> > > the existing behavior in the default configuration. A big advantage.
 > > 
-> > That's really a bug in the lsattr code, yes? If we've cleared the
-> > S_DAX flag for the inode, then why is it being reported in lsattr?
-> > Or if we failed to clear the S_DAX flag in the 'chattr -x' call,
-> > then isn't that the bug that needs fixing?
-> > 
-> > Remember, the whole point of the dax inode flag was to be able to
-> > override the mount option setting so that admins could turn off/on
-> > dax for the things that didn't/did work with DAX correctly so they
-> > didn't need multiple filesystems on pmem to segregate the apps that
-> > did/didn't work with DAX...
+> > I am not sure about this. We still need an opt-in, ragardless, because
+> > selecting the largest process from the largest memcg != selecting the
+> > largest task (just consider memcgs with many processes example).
 > 
-> So I think there is some confusion that is created by the fact that whether
-> DAX is used or not is controlled by both a mount option and an inode flag.
-> We could define that "Inode flag always wins" which is what you seem to
-> suggest above but then mount option has no practical effect since on-disk
-> S_DAX flag will always overrule it.
+> As I understand Johannes, he suggested to compare individual processes with
+> group_oom mem cgroups. In other words, always select a killable entity with
+> the biggest memory footprint.
+> 
+> This is slightly different from my v8 approach, where I treat leaf memcgs
+> as indivisible memory consumers independent on group_oom setting, so
+> by default I'm selecting the biggest task in the biggest memcg.
 
-Well, quite frankly, I never wanted the mount option for XFS. It was
-supposed to be for initial testing only, then we'd /always/ use the
-the inode flags. For a filesystem to default to using DAX, we
-set the DAX flag on the root inode at mkfs time, and then everything
-inode flag based just works.
+My reading is that he is actually proposing the same thing I've been
+mentioning. Simply select the biggest killable entity (leaf memcg or
+group_oom hierarchy) and either kill the largest task in that entity
+(for !group_oom) or the whole memcg/hierarchy otherwise.
+ 
+> While the approach suggested by Johannes looks clear and reasonable,
+> I'm slightly concerned about possible implementation issues,
+> which I've described below:
+> 
+> > 
+> > > The only thing, I'm slightly concerned, that due to the way how we calculate
+> > > the memory footprint for tasks and memory cgroups, we will have a number
+> > > of weird edge cases. For instance, when putting a single process into
+> > > the group_oom memcg will alter the oom_score significantly and result
+> > > in significantly different chances to be killed. An obvious example will
+> > > be a task with oom_score_adj set to any non-extreme (other than 0 and -1000)
+> > > value, but it can also happen in case of constrained alloc, for instance.
+> > 
+> > I am not sure I understand. Are you talking about root memcg comparing
+> > to other memcgs?
+> 
+> Not only, but root memcg in this case will be another complication. We can
+> also use the same trick for all memcg (define memcg oom_score as maximum oom_score
+> of the belonging tasks), it will turn group_oom into pure container cleanup
+> solution, without changing victim selection algorithm
 
-But it seems that we're now stuck with the stupid, blunt, brute
-force mount option because that's what the first commit on ext4
-used.  Now we're just about stuck with this silly "but we can't turn
-it off" problem because of the mount option overriding everything.
+I fail to see the problem to be honest. Simply evaluate the memcg_score
+you have so far with one minor detail. You only check memcgs which have
+tasks (rather than check for leaf node check) or it is group_oom. An
+intermediate memcg will get a cumulative size of the whole subhierarchy
+and then you know you can skip the subtree because any subtree can be larger.
 
-If we have to keep the mount option, then lets fix it to mean "mount
-option sets inheritable inode flag on directory creation" and
-/maybe/ "mount option sets inode flag on file creation".
+> But, again, I'm not against approach suggested by Johannes. I think that overall
+> it's the best possible semantics, if we're not taking some implementation details
+> into account.
 
-This then allows the inode flag to control everything else. i.e the
-mount option sets the initial flag value rather than the behaviour
-of the inode. The behaviour of the inode should be entirely
-controlled by the inode flag, hence after initial creation the
-chattr +/-x commands do what they advertise regardless of the mount
-option value.
-
-Yes, it means that existing users are going to have to run chattr -R
-+x on their pmem filesystems to get the inode flags on disk, but
-this is all tagged with EXPERIMENTAL and this is the sort of change
-that is expected from experimental functionality.
-
-Cheers,
-
-Dave.
+I do not see those implementation details issues and let me repeat do
+not develop a semantic based on implementation details.
 -- 
-Dave Chinner
-david@fromorbit.com
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
