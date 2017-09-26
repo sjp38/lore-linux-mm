@@ -1,82 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F0A376B0069
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C7E476B0038
 	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 07:00:15 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id t46so10852004qtj.5
+Received: by mail-wm0-f69.google.com with SMTP id r136so11541830wmf.4
         for <linux-mm@kvack.org>; Tue, 26 Sep 2017 04:00:15 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id l128si7844311qkd.548.2017.09.26.04.00.14
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y13si7039922wrc.158.2017.09.26.04.00.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
         Tue, 26 Sep 2017 04:00:14 -0700 (PDT)
-Date: Tue, 26 Sep 2017 11:59:25 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-Message-ID: <20170926105925.GA23139@castle.dhcp.TheFacebook.com>
-References: <20170914134014.wqemev2kgychv7m5@dhcp22.suse.cz>
- <20170914160548.GA30441@castle>
- <20170915105826.hq5afcu2ij7hevb4@dhcp22.suse.cz>
- <20170915152301.GA29379@castle>
- <20170918061405.pcrf5vauvul4c2nr@dhcp22.suse.cz>
- <20170920215341.GA5382@castle>
- <20170925122400.4e7jh5zmuzvbggpe@dhcp22.suse.cz>
- <20170925170004.GA22704@cmpxchg.org>
- <20170925181533.GA15918@castle>
- <20170925202442.lmcmvqwy2jj2tr5h@dhcp22.suse.cz>
+Date: Tue, 26 Sep 2017 13:00:12 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC] a question about mlockall() and mprotect()
+Message-ID: <20170926110012.jiw6plglsyksj5mc@dhcp22.suse.cz>
+References: <59CA0847.8000508@huawei.com>
+ <20170926081716.xo375arjoyu5ytcb@dhcp22.suse.cz>
+ <59CA125C.8000801@huawei.com>
+ <20170926090255.jmocezs6s3lpd6p4@dhcp22.suse.cz>
+ <59CA1A57.5000905@huawei.com>
+ <59CA1C6E.4010501@huawei.com>
+ <6b38ed08-62cb-97b1-9f16-1fd8e272b137@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170925202442.lmcmvqwy2jj2tr5h@dhcp22.suse.cz>
+In-Reply-To: <6b38ed08-62cb-97b1-9f16-1fd8e272b137@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, zhong jiang <zhongjiang@huawei.com>, yeyunfeng <yeyunfeng@huawei.com>, wanghaitao12@huawei.com, "Zhoukang (A)" <zhoukang7@huawei.com>
 
-On Mon, Sep 25, 2017 at 10:25:21PM +0200, Michal Hocko wrote:
-> On Mon 25-09-17 19:15:33, Roman Gushchin wrote:
-> [...]
-> > I'm not against this model, as I've said before. It feels logical,
-> > and will work fine in most cases.
+On Tue 26-09-17 11:45:16, Vlastimil Babka wrote:
+> On 09/26/2017 11:22 AM, Xishi Qiu wrote:
+> > On 2017/9/26 17:13, Xishi Qiu wrote:
+> >>> This is still very fuzzy. What are you actually trying to achieve?
+> >>
+> >> I don't expect page fault any more after mlock.
+> >>
 > > 
-> > In this case we can drop any mount/boot options, because it preserves
-> > the existing behavior in the default configuration. A big advantage.
+> > Our apps is some thing like RT, and page-fault maybe cause a lot of time,
+> > e.g. lock, mem reclaim ..., so I use mlock and don't want page fault
+> > any more.
 > 
-> I am not sure about this. We still need an opt-in, ragardless, because
-> selecting the largest process from the largest memcg != selecting the
-> largest task (just consider memcgs with many processes example).
+> Why does your app then have restricted mprotect when calling mlockall()
+> and only later adjusts the mprotect?
 
-As I understand Johannes, he suggested to compare individual processes with
-group_oom mem cgroups. In other words, always select a killable entity with
-the biggest memory footprint.
+Ahh, OK I see what is goging on. So you have PROT_NONE vma at the time
+mlockall and then later mprotect it something else and want to fault all
+that memory at the mprotect time?
 
-This is slightly different from my v8 approach, where I treat leaf memcgs
-as indivisible memory consumers independent on group_oom setting, so
-by default I'm selecting the biggest task in the biggest memcg.
+So basically to do
+---
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 6d3e2f082290..b665b5d1c544 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -369,7 +369,7 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
+ 	 * Private VM_LOCKED VMA becoming writable: trigger COW to avoid major
+ 	 * fault on access.
+ 	 */
+-	if ((oldflags & (VM_WRITE | VM_SHARED | VM_LOCKED)) == VM_LOCKED &&
++	if ((oldflags & (VM_WRITE | VM_LOCKED)) == VM_LOCKED &&
+ 			(newflags & VM_WRITE)) {
+ 		populate_vma_page_range(vma, start, end, NULL);
+ 	}
 
-While the approach suggested by Johannes looks clear and reasonable,
-I'm slightly concerned about possible implementation issues,
-which I've described below:
-
-> 
-> > The only thing, I'm slightly concerned, that due to the way how we calculate
-> > the memory footprint for tasks and memory cgroups, we will have a number
-> > of weird edge cases. For instance, when putting a single process into
-> > the group_oom memcg will alter the oom_score significantly and result
-> > in significantly different chances to be killed. An obvious example will
-> > be a task with oom_score_adj set to any non-extreme (other than 0 and -1000)
-> > value, but it can also happen in case of constrained alloc, for instance.
-> 
-> I am not sure I understand. Are you talking about root memcg comparing
-> to other memcgs?
-
-Not only, but root memcg in this case will be another complication. We can
-also use the same trick for all memcg (define memcg oom_score as maximum oom_score
-of the belonging tasks), it will turn group_oom into pure container cleanup
-solution, without changing victim selection algorithm
-
-But, again, I'm not against approach suggested by Johannes. I think that overall
-it's the best possible semantics, if we're not taking some implementation details
-into account.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
