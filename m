@@ -1,66 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0627A6B0069
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 17:41:55 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id w65so14952617oia.6
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 14:41:55 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b53sor1062389otd.240.2017.09.26.14.41.54
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 26 Sep 2017 14:41:54 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20170926210645.GA7798@linux.intel.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D0B676B025F
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 18:01:03 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p87so19744202pfj.4
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 15:01:03 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id m68si6170099pfm.561.2017.09.26.15.01.01
+        for <linux-mm@kvack.org>;
+        Tue, 26 Sep 2017 15:01:02 -0700 (PDT)
+Date: Wed, 27 Sep 2017 08:00:56 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 1/7] xfs: always use DAX if mount option is used
+Message-ID: <20170926220056.GA3666@dastard>
 References: <20170925231404.32723-1-ross.zwisler@linux.intel.com>
- <20170925231404.32723-7-ross.zwisler@linux.intel.com> <CAPcyv4jtO028KeZK7SdkOUsgMLGqgttLzBCYgH0M+RP3eAXf4A@mail.gmail.com>
- <20170926185751.GB31146@linux.intel.com> <CAPcyv4iVc9y8PE24ZvkiBYdp4Die0Q-K5S6QexW_6YQ_M0F4QA@mail.gmail.com>
- <20170926210645.GA7798@linux.intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 26 Sep 2017 14:41:53 -0700
-Message-ID: <CAPcyv4iDTNteQAt1bBHCGijwsk45rJWHfdr+e_rOwK39jpC2Og@mail.gmail.com>
-Subject: Re: [PATCH 6/7] mm, fs: introduce file_operations->post_mmap()
-Content-Type: text/plain; charset="UTF-8"
+ <20170925231404.32723-2-ross.zwisler@linux.intel.com>
+ <20170925233812.GM10955@dastard>
+ <20170926093548.GB13627@quack2.suse.cz>
+ <20170926110957.GR10955@dastard>
+ <20170926143743.GB18758@lst.de>
+ <20170926173057.GB20159@linux.intel.com>
+ <20170926194830.GI5020@magnolia>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170926194830.GI5020@magnolia>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, "J. Bruce Fields" <bfields@fieldses.org>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@poochiereds.net>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-xfs@vger.kernel.org
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "J. Bruce Fields" <bfields@fieldses.org>, Dan Williams <dan.j.williams@intel.com>, Jeff Layton <jlayton@poochiereds.net>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On Tue, Sep 26, 2017 at 2:06 PM, Ross Zwisler
-<ross.zwisler@linux.intel.com> wrote:
-> On Tue, Sep 26, 2017 at 12:19:21PM -0700, Dan Williams wrote:
->> On Tue, Sep 26, 2017 at 11:57 AM, Ross Zwisler
-> <>
->> > This decision can only be made (in this
->> > proposed scheme) *after* the inode->i_mapping->i_mmap  tree has been
->> > populated, which means we need another call into the filesystem after this
->> > insertion has happened.
->>
->> I get that, but it seems over-engineered and something that can also
->> be safely cleaned up after the fact by the code path that is disabling
->> DAX.
->
-> I don't think you can safely clean it up after the fact because some thread
-> might have already called ->mmap() to set up the vma->vm_flags for their new
-> mapping, but they haven't added it to inode->i_mapping->i_mmap.
+On Tue, Sep 26, 2017 at 12:48:30PM -0700, Darrick J. Wong wrote:
+> For the most part I'm in favor of Christoph's suggestion to let the
+> kernel decide on its own, and I don't see the point in encoding details
+> of the storage medium access strategy on the disk, particularly since
+> filesystems are supposed to be fairly independent of storage.  But
+> frankly, so many people have asked me over the years if there's some way
+> to influence the decision-making that I won't quite let go of file hints
+> as a way to influence the decisions XFS makes around storage media.
 
-If madvise(MADV_NOHUGEPAGE) can dynamically change vm_flags, then the
-DAX disable path can as well. VM_MIXEDMAP looks to be a nop for normal
-memory mappings.
+And that's pretty much it. The discussion here is not about whether
+there should be a flag, but what semantics it should have when the
+flag is not set. If "flag not set" means "kernel selects
+automatically", then that's fine by me.
 
-> The inode->i_mapping->i_mmap tree is the only way (that I know of at least)
-> that the filesystem has any idea about about the mapping.  This is the method
-> by which we would try and clean up mapping flags, if we were to do so, and
-> it's the only way that the filesystem can know whether or not mappings exist.
->
-> The only way that I could think of to make this safely work is to have the
-> insertion into the inode->i_mapping->i_mmap tree be our sync point.  After
-> that the filesystem and the mapping code can communicate on the state of DAX,
-> but before that I think it's basically indeterminate.
+But history tells us that users and admins want a way to be able to
+override the kernel's automatic behaviours because they are /never
+100% correct/ for everyone. There are always exceptions, otherwise
+we wouldn't have the great plethora of mkfs, mount, proc and sysfs
+options for our filesystems or storage. Anyone who says "the kernel
+will always do the right thing for everyone automatically" is living
+in a dream world.
 
-If we lose the race and leak VM_HUGEPAGE to a non-DAX mapping what
-breaks? I'd rather be in favor of not setting VM_HUGEPAGE at all in
-the ->mmap() handler and let the default THP policy take over. In
-fact, see transparent_hugepage_enabled() we already auto-enable huge
-page support for dax mappings regardless of VM_HUGEPAGE.
+Note: I agree that the kernel should do the right thing w.r.t. DAX
+automatically. We don't need a mount option for that - we can probe
+for dax support automatically and use it automatically already.
+However, in a world where the kernel automatically uses that
+functionality when it is present, admins and users need a way to
+solve the "default behaviour is bad for me, let me control this
+manually" problem. That's where the inode flags come in....
+
+i.e. What I'm advocating is a model DAX gets enabled automatically
+if the underlying device supports is using whatever the kernel
+thinks is optimal at the time the access is made, but the user can
+override/direct behvaiour on a case by case basis via persistent
+inode flags/xattrs/whatever.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
