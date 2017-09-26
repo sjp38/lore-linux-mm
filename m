@@ -1,162 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8891D6B0069
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 10:53:16 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id q75so18535302pfl.1
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 07:53:16 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id o33si5937174plb.77.2017.09.26.07.53.14
-        for <linux-mm@kvack.org>;
-        Tue, 26 Sep 2017 07:53:15 -0700 (PDT)
-Subject: Re: [PATCH] dma-debug: fix incorrect pfn calculation
-References: <1506432287-7214-1-git-send-email-miles.chen@mediatek.com>
-From: Robin Murphy <robin.murphy@arm.com>
-Message-ID: <03870968-0060-d6db-d109-f2c299c35bf1@arm.com>
-Date: Tue, 26 Sep 2017 15:53:10 +0100
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DD046B0069
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 11:37:53 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id b43so1967025wrg.5
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 08:37:53 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r70si7502837wrb.45.2017.09.26.08.37.51
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Sep 2017 08:37:51 -0700 (PDT)
+From: Luis Henriques <lhenriques@suse.com>
+Subject: percpu allocation failures
+Date: Tue, 26 Sep 2017 16:37:49 +0100
+Message-ID: <87efqttqr6.fsf@hermes>
 MIME-Version: 1.0
-In-Reply-To: <1506432287-7214-1-git-send-email-miles.chen@mediatek.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: miles.chen@mediatek.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, wsd_upstream@mediatek.com, linux-mediatek@lists.infradead.org, iommu@lists.linux-foundation.org
+To: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Dennis Zhou <dennisszhou@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 26/09/17 14:24, miles.chen@mediatek.com wrote:
-> From: Miles Chen <miles.chen@mediatek.com>
-> 
-> dma-debug report the following warning:
-> 
-> [name:panic&]WARNING: CPU: 3 PID: 298 at kernel-4.4/lib/dma-debug.c:604
-> debug _dma_assert_idle+0x1a8/0x230()
-> DMA-API: cpu touching an active dma mapped cacheline [cln=0x00000882300]
-> CPU: 3 PID: 298 Comm: vold Tainted: G        W  O    4.4.22+ #1
-> Hardware name: MT6739 (DT)
-> Call trace:
-> [<ffffff800808acd0>] dump_backtrace+0x0/0x1d4
-> [<ffffff800808affc>] show_stack+0x14/0x1c
-> [<ffffff800838019c>] dump_stack+0xa8/0xe0
-> [<ffffff80080a0594>] warn_slowpath_common+0xf4/0x11c
-> [<ffffff80080a061c>] warn_slowpath_fmt+0x60/0x80
-> [<ffffff80083afe24>] debug_dma_assert_idle+0x1a8/0x230
-> [<ffffff80081dca9c>] wp_page_copy.isra.96+0x118/0x520
-> [<ffffff80081de114>] do_wp_page+0x4fc/0x534
-> [<ffffff80081e0a14>] handle_mm_fault+0xd4c/0x1310
-> [<ffffff8008098798>] do_page_fault+0x1c8/0x394
-> [<ffffff800808231c>] do_mem_abort+0x50/0xec
-> 
-> I found that debug_dma_alloc_coherent() and debug_dma_free_coherent()
-> always use type "dma_debug_coherent" and assume that dma_alloc_coherent()
-> always returns a linear address.
-> 
-> However if a device returns false on is_device_dma_coherent(),
-> dma_alloc_coherent() will create another non-cacheable mapping
-> (also non linear). In this case, page_to_pfn(virt_to_page(virt)) will
-> return an incorrect pfn. If the pfn is valid and mapped as a COW page,
-> we will hit the warning when doing wp_page_copy().
-> 
-> Fix this by calculating correct pfn if is_device_dma_coherent()
-> returns false.
+Hi,
 
-As the inevitable storm of kbuild robot reports will tell you soon, you
-can't do that: is_device_dma_coherent() is a private helper between
-arm{,64} arch code and xen, and should not be used anywhere else.
+Probably already reported, but I couldn't find anything so here it
+goes:
 
-> Signed-off-by: Miles Chen <miles.chen@mediatek.com>
-> ---
->  lib/dma-debug.c | 20 ++++++++++++++------
->  1 file changed, 14 insertions(+), 6 deletions(-)
-> 
-> diff --git a/lib/dma-debug.c b/lib/dma-debug.c
-> index ea4cc3d..b17e56e 100644
-> --- a/lib/dma-debug.c
-> +++ b/lib/dma-debug.c
-> @@ -47,6 +47,8 @@ enum {
->  	dma_debug_sg,
->  	dma_debug_coherent,
->  	dma_debug_resource,
-> +	dma_debug_noncoherent,
-> +	nr_dma_debug_types,
->  };
->  
->  enum map_err_types {
-> @@ -154,9 +156,9 @@ static inline bool dma_debug_disabled(void)
->  	[MAP_ERR_CHECKED] = "dma map error checked",
->  };
->  
-> -static const char *type2name[5] = { "single", "page",
-> +static const char *type2name[nr_dma_debug_types] = { "single", "page",
->  				    "scather-gather", "coherent",
-> -				    "resource" };
-> +				    "resource", "noncoherent" };
->  
->  static const char *dir2name[4] = { "DMA_BIDIRECTIONAL", "DMA_TO_DEVICE",
->  				   "DMA_FROM_DEVICE", "DMA_NONE" };
-> @@ -1484,6 +1486,7 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
->  			      dma_addr_t dma_addr, void *virt)
->  {
->  	struct dma_debug_entry *entry;
-> +	bool coherent = is_device_dma_coherent(dev);
->  
->  	if (unlikely(dma_debug_disabled()))
->  		return;
-> @@ -1495,9 +1498,11 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
->  	if (!entry)
->  		return;
->  
-> -	entry->type      = dma_debug_coherent;
-> +	entry->type      = coherent ? dma_debug_coherent :
-> +					dma_debug_noncoherent;
->  	entry->dev       = dev;
-> -	entry->pfn	 = page_to_pfn(virt_to_page(virt));
+starting with 4.14-rc1 I see the following during boot:
 
-There are more architectures where the virtual address returned by
-dma_alloc_coherent is not a linear map address - some just have a static
-offset between cacheable and non-cacheable aliases - so there may be
-other cases where this is the wrong calculation, but at least those
-probably don't trigger the problematic false-positive.
+[   25.199053] percpu: allocation failed, size=16 align=16 atomic=0, alloc from reserved chunk failed
+[   25.200195] CPU: 5 PID: 723 Comm: modprobe Tainted: G            E   4.14.0-rc2 #103
+[   25.201290] Hardware name: Dell Inc. Precision 5510/0N8J4R, BIOS 1.2.25 05/07/2017
+[   25.202430] Call Trace:
+[   25.203509]  dump_stack+0x63/0x89
+[   25.204364]  pcpu_alloc+0x5cd/0x5f0
+[   25.205302]  __alloc_reserved_percpu+0x18/0x20
+[   25.206355]  load_module+0x733/0x2c00
+[   25.207444]  ? kernel_read_file+0x1a3/0x1d0
+[   25.208596]  SYSC_finit_module+0xfc/0x120
+[   25.209634]  ? SYSC_finit_module+0xfc/0x120
+[   25.210733]  SyS_finit_module+0xe/0x10
+[   25.211747]  entry_SYSCALL_64_fastpath+0x1e/0xa9
+[   25.212763] RIP: 0033:0x7f70d9e86219
+[   25.213508] RSP: 002b:00007ffcd3ff8f38 EFLAGS: 00000246 ORIG_RAX: 0000000000000139
+[   25.214391] RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00007f70d9e86219
+[   25.215107] RDX: 0000000000000000 RSI: 00005642ddf158cc RDI: 0000000000000000
+[   25.215949] RBP: 00007ffcd3ff7f30 R08: 0000000000000000 R09: 0000000000000001
+[   25.216592] R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000005
+[   25.217194] R13: 00005642de3d65f0 R14: 00007ffcd3ff7f10 R15: 0000000000000005
+[   25.217812] nft_meta: Could not allocate 16 bytes percpu data
 
-That said, the cases where coherent allocations *are* dynamically
-remapped should be easy enough to handle properly without having to
-resort to dodgy hacks:
+A few more failures follow.
 
-	if (is_vmalloc_addr(virt))
-		pfn = vmalloc_to_pfn(virt);
-	else
-		pfn = page_to_pfn(virt_to_page(virt));
+A bisect ended up with the merge commit a7cbfd05f427 ("Merge branch
+'for-4.14' of git://git.kernel.org/pub/scm/linux/kernel/git/tj/percpu").
 
-Simple.
-
-> +	entry->pfn	 = coherent ? page_to_pfn(virt_to_page(virt)) :
-> +					dma_addr >> PAGE_SHIFT;
-
-And in particular, this is just as likely to just give *different* false
-positives, since there's no guarantee whatsoever that dma_addr has any
-relationship to the appropriate pfn.
-
-Robin.
-
->  	entry->offset	 = offset_in_page(virt);
->  	entry->size      = size;
->  	entry->dev_addr  = dma_addr;
-> @@ -1510,10 +1515,13 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
->  void debug_dma_free_coherent(struct device *dev, size_t size,
->  			 void *virt, dma_addr_t addr)
->  {
-> +	bool coherent = is_device_dma_coherent(dev);
->  	struct dma_debug_entry ref = {
-> -		.type           = dma_debug_coherent,
-> +		.type           = coherent ? dma_debug_coherent :
-> +						dma_debug_noncoherent,
->  		.dev            = dev,
-> -		.pfn		= page_to_pfn(virt_to_page(virt)),
-> +		.pfn		= coherent ? page_to_pfn(virt_to_page(virt)) :
-> +						addr >> PAGE_SHIFT,
->  		.offset		= offset_in_page(virt),
->  		.dev_addr       = addr,
->  		.size           = size,
-> 
+Cheers,
+-- 
+Luis
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
