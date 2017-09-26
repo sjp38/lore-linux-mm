@@ -1,96 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B4F046B0038
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 08:15:14 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id p87so18001093pfj.4
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 05:15:14 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id p67si5537802pfj.614.2017.09.26.05.15.12
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AEBF6B0038
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 08:39:34 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id x78so18055402pff.7
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 05:39:34 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id k7si5811514pgp.676.2017.09.26.05.39.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Sep 2017 05:15:12 -0700 (PDT)
-Subject: [PATCH] mm,oom: Warn on racing with MMF_OOM_SKIP at task_will_free_mem(current).
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1506070646-4549-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20170925143052.a57bqoiw6yuckwee@dhcp22.suse.cz>
-In-Reply-To: <20170925143052.a57bqoiw6yuckwee@dhcp22.suse.cz>
-Message-Id: <201709262027.IJC34322.tMFOJFSOFVLHQO@I-love.SAKURA.ne.jp>
-Date: Tue, 26 Sep 2017 20:27:40 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Sep 2017 05:39:32 -0700 (PDT)
+Date: Tue, 26 Sep 2017 13:39:01 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [RESEND] proc, coredump: add CoreDumping flag to /proc/pid/status
+Message-ID: <20170926123901.GA26395@castle.DHCP.thefacebook.com>
+References: <20170914224431.GA9735@castle>
+ <20170920230634.31572-1-guro@fb.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20170920230634.31572-1-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, mjaggi@caviumnetworks.com, oleg@redhat.com, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, Oleg Nesterov <oleg@redhat.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-Michal Hocko wrote:
-> On Fri 22-09-17 17:57:26, Tetsuo Handa wrote:
-> [...]
-> > Michal Hocko has nacked this patch [3], and he suggested an alternative
-> > patch [4]. But he himself is not ready to clarify all the concerns with
-> > the alternative patch [5]. In addition to that, nobody is interested in
-> > either patch; we can not make progress here. Let's choose this patch for
-> > now, for this patch has smaller impact than the alternative patch.
+Hi, Andrew!
+
+As there are no objections, can you, please, pick this patch?
+
+Thank you!
+
+On Wed, Sep 20, 2017 at 04:06:34PM -0700, Roman Gushchin wrote:
+> Right now there is no convenient way to check if a process is being
+> coredumped at the moment.
 > 
-> My Nack stands and it is really annoying you are sending a patch for
-> inclusion regardless of that fact. An alternative approach has been
-> proposed and the mere fact that I do not have time to pursue this
-> direction is not reason to go with a incomplete solution. This is not an
-> issue many people would be facing to scream for a quick and dirty
-> workarounds AFAIK (there have been 0 reports from non-artificial
-> workloads).
+> It might be necessary to recognize such state to prevent killing
+> the process and getting a broken coredump.
+> Writing a large core might take significant time, and the process
+> is unresponsive during it, so it might be killed by timeout,
+> if another process is monitoring and killing/restarting
+> hanging tasks.
 > 
-
-You again said there is no report, without providing a mean to tell
-whether they actually hit it. Then, this patch must get merged now.
-----------------------------------------
-
->From b67f6482db0f973ae7ecaa1d9873ccfd6dd151b7 Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Tue, 26 Sep 2017 20:09:36 +0900
-Subject: [PATCH] mm,oom: Warn on racing with MMF_OOM_SKIP at
- task_will_free_mem(current).
-
-There still is a race window where next OOM victim is selected needlessly,
-but we are intentionally leaving that window open because Michal Hocko has
-never heard about a report from non-artificial workloads. However, it is
-too difficult for normal users to tell whether they actually hit that race.
-Thus, add a WARN_ON() to task_will_free_mem(current) if they hit that race
-in order to encourage them to report it. This patch will tell us whether we
-need to care about that race.
-
-[   83.504172] Out of memory: Kill process 2899 (a.out) score 930 or sacrifice child
-[   83.506794] Killed process 2899 (a.out) total-vm:16781904kB, anon-rss:88kB, file-rss:0kB, shmem-rss:3519864kB
-[   83.513499] oom_reaper: reaped process 2899 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:3520204kB
-[   83.516494] Racing OOM victim selection. Please report to linux-mm@kvack.org if you saw this warning from non-artificial workloads.
-[   83.519793] ------------[ cut here ]------------
-[   83.522008] WARNING: CPU: 0 PID: 2934 at mm/oom_kill.c:798 task_will_free_mem+0x11a/0x130
-[   83.524881] Modules linked in: coretemp pcspkr sg i2c_piix4 vmw_vmci shpchp sd_mod ata_generic pata_acpi serio_raw vmwgfx drm_kms_helper mptspi syscopyarea scsi_transport_spi sysfillrect mptscsih ahci libahci mptbase sysimgblt fb_sys_fops ttm e1000 ata_piix drm i2c_core libata ipv6
-[   83.532023] CPU: 0 PID: 2934 Comm: a.out Not tainted 4.14.0-rc2-next-20170926+ #672
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- mm/oom_kill.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index dee0f75..ac3c63d 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -794,8 +794,10 @@ static bool task_will_free_mem(struct task_struct *task)
- 	 * This task has already been drained by the oom reaper so there are
- 	 * only small chances it will free some more
- 	 */
--	if (test_bit(MMF_OOM_SKIP, &mm->flags))
-+	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
-+		WARN(1, "Racing OOM victim selection. Please report to linux-mm@kvack.org if you saw this warning from non-artificial workloads.\n");
- 		return false;
-+	}
- 
- 	if (atomic_read(&mm->mm_users) <= 1)
- 		return true;
--- 
-1.8.3.1
+> To provide an ability to detect if a process is in the state of
+> being coreduped, we can expose a boolean CoreDumping flag
+> in /proc/pid/status.
+> 
+> Example:
+> $ cat core.sh
+>   #!/bin/sh
+> 
+>   echo "|/usr/bin/sleep 10" > /proc/sys/kernel/core_pattern
+>   sleep 1000 &
+>   PID=$!
+> 
+>   cat /proc/$PID/status | grep CoreDumping
+>   kill -ABRT $PID
+>   sleep 1
+>   cat /proc/$PID/status | grep CoreDumping
+> 
+> $ ./core.sh
+>   CoreDumping:	0
+>   CoreDumping:	1
+> 
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Cc: Ingo Molnar <mingo@kernel.org>
+> Cc: kernel-team@fb.com
+> Cc: linux-kernel@vger.kernel.org
+> ---
+>  fs/proc/array.c | 6 ++++++
+>  1 file changed, 6 insertions(+)
+> 
+> diff --git a/fs/proc/array.c b/fs/proc/array.c
+> index 88c355574aa0..fc4a0aa7f487 100644
+> --- a/fs/proc/array.c
+> +++ b/fs/proc/array.c
+> @@ -369,6 +369,11 @@ static void task_cpus_allowed(struct seq_file *m, struct task_struct *task)
+>  		   cpumask_pr_args(&task->cpus_allowed));
+>  }
+>  
+> +static inline void task_core_dumping(struct seq_file *m, struct mm_struct *mm)
+> +{
+> +	seq_printf(m, "CoreDumping:\t%d\n", !!mm->core_state);
+> +}
+> +
+>  int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
+>  			struct pid *pid, struct task_struct *task)
+>  {
+> @@ -379,6 +384,7 @@ int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
+>  
+>  	if (mm) {
+>  		task_mem(m, mm);
+> +		task_core_dumping(m, mm);
+>  		mmput(mm);
+>  	}
+>  	task_sig(m, task);
+> -- 
+> 2.13.5
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
