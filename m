@@ -1,77 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 183FB6B0069
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 09:30:44 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id p5so21688032pgn.7
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 06:30:44 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BAFD6B0069
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 09:33:23 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id v109so12631321wrc.5
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 06:33:23 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 94si5836146ple.374.2017.09.26.06.30.42
+        by mx.google.com with ESMTPS id m188si1708519wme.135.2017.09.26.06.33.21
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Sep 2017 06:30:42 -0700 (PDT)
-Date: Tue, 26 Sep 2017 15:30:40 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-Message-ID: <20170926133040.uupv3ibkt3jtbotf@dhcp22.suse.cz>
-References: <20170915152301.GA29379@castle>
- <20170918061405.pcrf5vauvul4c2nr@dhcp22.suse.cz>
- <20170920215341.GA5382@castle>
- <20170925122400.4e7jh5zmuzvbggpe@dhcp22.suse.cz>
- <20170925170004.GA22704@cmpxchg.org>
- <20170925181533.GA15918@castle>
- <20170925202442.lmcmvqwy2jj2tr5h@dhcp22.suse.cz>
- <20170926105925.GA23139@castle.dhcp.TheFacebook.com>
- <20170926112134.r5eunanjy7ogjg5n@dhcp22.suse.cz>
- <20170926121300.GB23139@castle.dhcp.TheFacebook.com>
+        Tue, 26 Sep 2017 06:33:21 -0700 (PDT)
+Date: Tue, 26 Sep 2017 15:33:20 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v3] mm: introduce validity check on vm dirtiness settings
+Message-ID: <20170926133320.GD13627@quack2.suse.cz>
+References: <1505861015-11919-1-git-send-email-laoar.shao@gmail.com>
+ <20170926102532.culqxb45xwzafomj@dhcp22.suse.cz>
+ <CALOAHbAbFedJ-h+QUWeeoAnpeEfpYe2T1GutFb56kBeL=2jN0A@mail.gmail.com>
+ <20170926112656.tbu7nr2lxdqt5rft@dhcp22.suse.cz>
+ <CALOAHbB-H8vtGH4PE8Tr+jmvrQZc3bRXqnG9R1QBQfJKvaHP4g@mail.gmail.com>
+ <20170926115423.wdnctuqtxbhpdidx@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170926121300.GB23139@castle.dhcp.TheFacebook.com>
+In-Reply-To: <20170926115423.wdnctuqtxbhpdidx@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Yafang Shao <laoar.shao@gmail.com>, Jan Kara <jack@suse.cz>, akpm@linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, Theodore Ts'o <tytso@mit.edu>, mawilcox@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 26-09-17 13:13:00, Roman Gushchin wrote:
-> On Tue, Sep 26, 2017 at 01:21:34PM +0200, Michal Hocko wrote:
-> > On Tue 26-09-17 11:59:25, Roman Gushchin wrote:
-> > > On Mon, Sep 25, 2017 at 10:25:21PM +0200, Michal Hocko wrote:
-> > > > On Mon 25-09-17 19:15:33, Roman Gushchin wrote:
-> > > > [...]
-> > > > > I'm not against this model, as I've said before. It feels logical,
-> > > > > and will work fine in most cases.
-> > > > > 
-> > > > > In this case we can drop any mount/boot options, because it preserves
-> > > > > the existing behavior in the default configuration. A big advantage.
-> > > > 
-> > > > I am not sure about this. We still need an opt-in, ragardless, because
-> > > > selecting the largest process from the largest memcg != selecting the
-> > > > largest task (just consider memcgs with many processes example).
-> > > 
-> > > As I understand Johannes, he suggested to compare individual processes with
-> > > group_oom mem cgroups. In other words, always select a killable entity with
-> > > the biggest memory footprint.
-> > > 
-> > > This is slightly different from my v8 approach, where I treat leaf memcgs
-> > > as indivisible memory consumers independent on group_oom setting, so
-> > > by default I'm selecting the biggest task in the biggest memcg.
+On Tue 26-09-17 13:54:23, Michal Hocko wrote:
+> On Tue 26-09-17 19:45:45, Yafang Shao wrote:
+> > >> > To be honest I am not entirely sure this is worth the code and the
+> > >> > future maintenance burden.
+> > >> I'm not sure if this code is a burden for the future maintenance, but
+> > >> I think that if we don't introduce this code it is a burden to the
+> > >> admins.
+> > >
+> > > anytime we might need to tweak background vs direct limit we would have
+> > > to change these checks as well and that sounds like a maint. burden to
+> > > me.
 > > 
-> > My reading is that he is actually proposing the same thing I've been
-> > mentioning. Simply select the biggest killable entity (leaf memcg or
-> > group_oom hierarchy) and either kill the largest task in that entity
-> > (for !group_oom) or the whole memcg/hierarchy otherwise.
+> > Would pls. show me some example ?
 > 
-> He wrote the following:
-> "So I'm leaning toward the second model: compare all oomgroups and
-> standalone tasks in the system with each other, independent of the
-> failed hierarchical control structure. Then kill the biggest of them."
+> What kind of examples would you like to see. I meant that if the current
+> logic of bacground vs. direct limit changes the code to check it which
+> is at a different place IIRC would have to be kept in sync.
+> 
+> That being said, this is my personal opinion, I will not object if there
+> is a general consensus on merging this. I just believe that this is not
+> simply worth adding a single line of code. You can then a lot of harm by
+> setting different values which would pass the added check.
 
-I will let Johannes to comment but I believe this is just a
-misunderstanding. If we compared only the biggest task from each memcg
-then we are basically losing our fairness objective, aren't we?
+So I personally think that the checks Yafang added are worth the extra
+code. The situation with ratio/bytes interface and hard/background limit is
+complex enough that it makes sense to have basic sanity checks to me. That
+being said I don't have too strong opinion on this so just documentation
+update would be also fine by me.
+
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
