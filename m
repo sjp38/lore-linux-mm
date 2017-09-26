@@ -1,42 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 86C706B025E
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 15:01:55 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id m30so22921605pgn.2
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 12:01:55 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id k8si6266577pga.495.2017.09.26.12.01.54
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DD7236B0069
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 15:19:08 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id f84so19350673pfj.0
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 12:19:08 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id l66sor2482802pfb.140.2017.09.26.12.19.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Sep 2017 12:01:54 -0700 (PDT)
-Date: Tue, 26 Sep 2017 13:01:51 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 7/7] xfs: re-enable XFS per-inode DAX
-Message-ID: <20170926190151.GC31146@linux.intel.com>
-References: <20170925231404.32723-1-ross.zwisler@linux.intel.com>
- <20170925231404.32723-8-ross.zwisler@linux.intel.com>
- <20170926063611.GD6870@lst.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170926063611.GD6870@lst.de>
+        (Google Transport Security);
+        Tue, 26 Sep 2017 12:19:07 -0700 (PDT)
+From: Kyle Huey <me@kylehuey.com>
+Subject: Re: [PATCH] mm: Fix typo in VM_MPX definition
+Date: Tue, 26 Sep 2017 12:19:05 -0700
+Message-Id: <20170926191905.24266-1-khuey@kylehuey.com>
+In-Reply-To: <20170918140253.36856-1-kirill.shutemov@linux.intel.com>
+References: <20170918140253.36856-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, "J. Bruce Fields" <bfields@fieldses.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@poochiereds.net>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Robert O'Callahan <robert@ocallahan.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>
 
-On Tue, Sep 26, 2017 at 08:36:11AM +0200, Christoph Hellwig wrote:
-> On Mon, Sep 25, 2017 at 05:14:04PM -0600, Ross Zwisler wrote:
-> > Re-enable the XFS per-inode DAX flag, preventing S_DAX from changing when
-> > any mappings are present.
-> 
-> Before we re-enable it please come up with a coherent description
-> of the per-inode DAX flag that makes sense to a user.  We'll also need
-> to find a good place to document it, e.g. a new ioctl_setflags man
-> page.
+Could we get this patch into the next 4.14 rc too?  This "typo" causes a bunch
+of sections in /proc/N/maps to be incorrectly labelled [mpx] which confuses rr.
+We could probably work around if it we had to but doing this right is trivial.
 
-I agree that documentation is a great place to start, if we can just agree on
-what we want the functionality to be. :)
+Thanks,
+
+- Kyle
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
