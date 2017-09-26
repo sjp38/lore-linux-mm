@@ -1,53 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E464F6B0038
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 03:52:15 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id r136so11043428wmf.4
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 00:52:15 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 12si6737442wrw.465.2017.09.26.00.52.13
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 092716B0038
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 03:56:42 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 97so11743390wrb.1
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 00:56:41 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 128si1118338wmn.161.2017.09.26.00.56.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Sep 2017 00:52:14 -0700 (PDT)
-Date: Tue, 26 Sep 2017 09:52:21 +0200
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 02/22] drm/i915: introduce simple gemfs
-Message-ID: <20170926075221.GB32088@kroah.com>
-References: <20170925184737.8807-1-matthew.auld@intel.com>
- <20170925184737.8807-3-matthew.auld@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Sep 2017 00:56:40 -0700 (PDT)
+Date: Tue, 26 Sep 2017 09:56:38 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/2 v4] oom: capture unreclaimable slab info in oom
+ message when kernel panic
+Message-ID: <20170926075638.l7xoaismqsnp4qsw@dhcp22.suse.cz>
+References: <1505947132-4363-1-git-send-email-yang.s@alibaba-inc.com>
+ <20170925142352.havlx6ikheanqyhj@dhcp22.suse.cz>
+ <e773cd57-8df6-ee6e-d051-857b8f354a0a@alibaba-inc.com>
+ <20170925203235.vhhiqxp72v67n76l@dhcp22.suse.cz>
+ <2a50d51e-1a36-aa44-3ee6-cb78ac9c7715@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170925184737.8807-3-matthew.auld@intel.com>
+In-Reply-To: <2a50d51e-1a36-aa44-3ee6-cb78ac9c7715@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Auld <matthew.auld@intel.com>
-Cc: intel-gfx@lists.freedesktop.org, devel@driverdev.osuosl.org, linux-mm@kvack.org, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Hugh Dickins <hughd@google.com>, Riley Andrews <riandrews@android.com>, dri-devel@lists.freedesktop.org, Chris Wilson <chris@chris-wilson.co.uk>, Dave Hansen <dave.hansen@intel.com>, Arve =?iso-8859-1?B?SGr4bm5lduVn?= <arve@android.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Daniel Vetter <daniel.vetter@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Yang Shi <yang.s@alibaba-inc.com>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Sep 25, 2017 at 07:47:17PM +0100, Matthew Auld wrote:
-> Not a fully blown gemfs, just our very own tmpfs kernel mount. Doing so
-> moves us away from the shmemfs shm_mnt, and gives us the much needed
-> flexibility to do things like set our own mount options, namely huge=
-> which should allow us to enable the use of transparent-huge-pages for
-> our shmem backed objects.
-> 
-> v2: various improvements suggested by Joonas
-> 
-> v3: move gemfs instance to i915.mm and simplify now that we have
-> file_setup_with_mnt
-> 
-> v4: fallback to tmpfs shm_mnt upon failure to setup gemfs
-> 
-> v5: make tmpfs fallback kinder
+On Tue 26-09-17 05:52:50, Yang Shi wrote:
+> Maybe we can set a unreclaimable slab/total mem ratio. For example, when
+> unreclaimable slab size >= 50% total memory size, then we print out slab
+> stats in oom? And, the ratio might be adjustable in /proc.
 
-Why do this only for one specific driver?  Shouldn't the drm core handle
-this for you, for all other drivers as well?  Otherwise trying to figure
-out how to "contain" this type of thing is going to be a pain (mount
-options, selinux options, etc.)
+This sounds quite reasonable to me. I would compare the slab amount to
+the directly user backed memory (LRU ages) though.
 
-thanks,
-
-greg k-h
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
