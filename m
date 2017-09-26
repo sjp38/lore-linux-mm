@@ -1,130 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 715AC6B0038
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 09:24:59 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id y29so18205444pff.6
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 06:24:59 -0700 (PDT)
-Received: from mailgw01.mediatek.com ([210.61.82.183])
-        by mx.google.com with ESMTPS id f4si5924998plb.202.2017.09.26.06.24.57
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 183FB6B0069
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 09:30:44 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id p5so21688032pgn.7
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 06:30:44 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 94si5836146ple.374.2017.09.26.06.30.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Sep 2017 06:24:57 -0700 (PDT)
-From: <miles.chen@mediatek.com>
-Subject: [PATCH] dma-debug: fix incorrect pfn calculation
-Date: Tue, 26 Sep 2017 21:24:47 +0800
-Message-ID: <1506432287-7214-1-git-send-email-miles.chen@mediatek.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Sep 2017 06:30:42 -0700 (PDT)
+Date: Tue, 26 Sep 2017 15:30:40 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v8 0/4] cgroup-aware OOM killer
+Message-ID: <20170926133040.uupv3ibkt3jtbotf@dhcp22.suse.cz>
+References: <20170915152301.GA29379@castle>
+ <20170918061405.pcrf5vauvul4c2nr@dhcp22.suse.cz>
+ <20170920215341.GA5382@castle>
+ <20170925122400.4e7jh5zmuzvbggpe@dhcp22.suse.cz>
+ <20170925170004.GA22704@cmpxchg.org>
+ <20170925181533.GA15918@castle>
+ <20170925202442.lmcmvqwy2jj2tr5h@dhcp22.suse.cz>
+ <20170926105925.GA23139@castle.dhcp.TheFacebook.com>
+ <20170926112134.r5eunanjy7ogjg5n@dhcp22.suse.cz>
+ <20170926121300.GB23139@castle.dhcp.TheFacebook.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170926121300.GB23139@castle.dhcp.TheFacebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Murphy <robin.murphy@arm.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, wsd_upstream@mediatek.com, linux-mediatek@lists.infradead.org, iommu@lists.linux-foundation.org, Miles Chen <miles.chen@mediatek.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-From: Miles Chen <miles.chen@mediatek.com>
+On Tue 26-09-17 13:13:00, Roman Gushchin wrote:
+> On Tue, Sep 26, 2017 at 01:21:34PM +0200, Michal Hocko wrote:
+> > On Tue 26-09-17 11:59:25, Roman Gushchin wrote:
+> > > On Mon, Sep 25, 2017 at 10:25:21PM +0200, Michal Hocko wrote:
+> > > > On Mon 25-09-17 19:15:33, Roman Gushchin wrote:
+> > > > [...]
+> > > > > I'm not against this model, as I've said before. It feels logical,
+> > > > > and will work fine in most cases.
+> > > > > 
+> > > > > In this case we can drop any mount/boot options, because it preserves
+> > > > > the existing behavior in the default configuration. A big advantage.
+> > > > 
+> > > > I am not sure about this. We still need an opt-in, ragardless, because
+> > > > selecting the largest process from the largest memcg != selecting the
+> > > > largest task (just consider memcgs with many processes example).
+> > > 
+> > > As I understand Johannes, he suggested to compare individual processes with
+> > > group_oom mem cgroups. In other words, always select a killable entity with
+> > > the biggest memory footprint.
+> > > 
+> > > This is slightly different from my v8 approach, where I treat leaf memcgs
+> > > as indivisible memory consumers independent on group_oom setting, so
+> > > by default I'm selecting the biggest task in the biggest memcg.
+> > 
+> > My reading is that he is actually proposing the same thing I've been
+> > mentioning. Simply select the biggest killable entity (leaf memcg or
+> > group_oom hierarchy) and either kill the largest task in that entity
+> > (for !group_oom) or the whole memcg/hierarchy otherwise.
+> 
+> He wrote the following:
+> "So I'm leaning toward the second model: compare all oomgroups and
+> standalone tasks in the system with each other, independent of the
+> failed hierarchical control structure. Then kill the biggest of them."
 
-dma-debug report the following warning:
-
-[name:panic&]WARNING: CPU: 3 PID: 298 at kernel-4.4/lib/dma-debug.c:604
-debug _dma_assert_idle+0x1a8/0x230()
-DMA-API: cpu touching an active dma mapped cacheline [cln=0x00000882300]
-CPU: 3 PID: 298 Comm: vold Tainted: G        W  O    4.4.22+ #1
-Hardware name: MT6739 (DT)
-Call trace:
-[<ffffff800808acd0>] dump_backtrace+0x0/0x1d4
-[<ffffff800808affc>] show_stack+0x14/0x1c
-[<ffffff800838019c>] dump_stack+0xa8/0xe0
-[<ffffff80080a0594>] warn_slowpath_common+0xf4/0x11c
-[<ffffff80080a061c>] warn_slowpath_fmt+0x60/0x80
-[<ffffff80083afe24>] debug_dma_assert_idle+0x1a8/0x230
-[<ffffff80081dca9c>] wp_page_copy.isra.96+0x118/0x520
-[<ffffff80081de114>] do_wp_page+0x4fc/0x534
-[<ffffff80081e0a14>] handle_mm_fault+0xd4c/0x1310
-[<ffffff8008098798>] do_page_fault+0x1c8/0x394
-[<ffffff800808231c>] do_mem_abort+0x50/0xec
-
-I found that debug_dma_alloc_coherent() and debug_dma_free_coherent()
-always use type "dma_debug_coherent" and assume that dma_alloc_coherent()
-always returns a linear address.
-
-However if a device returns false on is_device_dma_coherent(),
-dma_alloc_coherent() will create another non-cacheable mapping
-(also non linear). In this case, page_to_pfn(virt_to_page(virt)) will
-return an incorrect pfn. If the pfn is valid and mapped as a COW page,
-we will hit the warning when doing wp_page_copy().
-
-Fix this by calculating correct pfn if is_device_dma_coherent()
-returns false.
-
-Signed-off-by: Miles Chen <miles.chen@mediatek.com>
----
- lib/dma-debug.c | 20 ++++++++++++++------
- 1 file changed, 14 insertions(+), 6 deletions(-)
-
-diff --git a/lib/dma-debug.c b/lib/dma-debug.c
-index ea4cc3d..b17e56e 100644
---- a/lib/dma-debug.c
-+++ b/lib/dma-debug.c
-@@ -47,6 +47,8 @@ enum {
- 	dma_debug_sg,
- 	dma_debug_coherent,
- 	dma_debug_resource,
-+	dma_debug_noncoherent,
-+	nr_dma_debug_types,
- };
- 
- enum map_err_types {
-@@ -154,9 +156,9 @@ static inline bool dma_debug_disabled(void)
- 	[MAP_ERR_CHECKED] = "dma map error checked",
- };
- 
--static const char *type2name[5] = { "single", "page",
-+static const char *type2name[nr_dma_debug_types] = { "single", "page",
- 				    "scather-gather", "coherent",
--				    "resource" };
-+				    "resource", "noncoherent" };
- 
- static const char *dir2name[4] = { "DMA_BIDIRECTIONAL", "DMA_TO_DEVICE",
- 				   "DMA_FROM_DEVICE", "DMA_NONE" };
-@@ -1484,6 +1486,7 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
- 			      dma_addr_t dma_addr, void *virt)
- {
- 	struct dma_debug_entry *entry;
-+	bool coherent = is_device_dma_coherent(dev);
- 
- 	if (unlikely(dma_debug_disabled()))
- 		return;
-@@ -1495,9 +1498,11 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
- 	if (!entry)
- 		return;
- 
--	entry->type      = dma_debug_coherent;
-+	entry->type      = coherent ? dma_debug_coherent :
-+					dma_debug_noncoherent;
- 	entry->dev       = dev;
--	entry->pfn	 = page_to_pfn(virt_to_page(virt));
-+	entry->pfn	 = coherent ? page_to_pfn(virt_to_page(virt)) :
-+					dma_addr >> PAGE_SHIFT;
- 	entry->offset	 = offset_in_page(virt);
- 	entry->size      = size;
- 	entry->dev_addr  = dma_addr;
-@@ -1510,10 +1515,13 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
- void debug_dma_free_coherent(struct device *dev, size_t size,
- 			 void *virt, dma_addr_t addr)
- {
-+	bool coherent = is_device_dma_coherent(dev);
- 	struct dma_debug_entry ref = {
--		.type           = dma_debug_coherent,
-+		.type           = coherent ? dma_debug_coherent :
-+						dma_debug_noncoherent,
- 		.dev            = dev,
--		.pfn		= page_to_pfn(virt_to_page(virt)),
-+		.pfn		= coherent ? page_to_pfn(virt_to_page(virt)) :
-+						addr >> PAGE_SHIFT,
- 		.offset		= offset_in_page(virt),
- 		.dev_addr       = addr,
- 		.size           = size,
+I will let Johannes to comment but I believe this is just a
+misunderstanding. If we compared only the biggest task from each memcg
+then we are basically losing our fairness objective, aren't we?
 -- 
-1.9.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
