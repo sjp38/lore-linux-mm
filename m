@@ -1,111 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 66A2A6B0069
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 05:23:07 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id r20so12054599oie.0
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 02:23:07 -0700 (PDT)
-Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id k30si542372ote.402.2017.09.26.02.23.05
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D9E56B0069
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 05:35:55 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id p5so20898925pgn.7
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 02:35:55 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t77si5580947pgb.158.2017.09.26.02.35.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Sep 2017 02:23:06 -0700 (PDT)
-Message-ID: <59CA1C6E.4010501@huawei.com>
-Date: Tue, 26 Sep 2017 17:22:54 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        Tue, 26 Sep 2017 02:35:54 -0700 (PDT)
+Date: Tue, 26 Sep 2017 11:35:48 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 1/7] xfs: always use DAX if mount option is used
+Message-ID: <20170926093548.GB13627@quack2.suse.cz>
+References: <20170925231404.32723-1-ross.zwisler@linux.intel.com>
+ <20170925231404.32723-2-ross.zwisler@linux.intel.com>
+ <20170925233812.GM10955@dastard>
 MIME-Version: 1.0
-Subject: Re: [RFC] a question about mlockall() and mprotect()
-References: <59CA0847.8000508@huawei.com> <20170926081716.xo375arjoyu5ytcb@dhcp22.suse.cz> <59CA125C.8000801@huawei.com> <20170926090255.jmocezs6s3lpd6p4@dhcp22.suse.cz> <59CA1A57.5000905@huawei.com>
-In-Reply-To: <59CA1A57.5000905@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170925233812.GM10955@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, zhong jiang <zhongjiang@huawei.com>, yeyunfeng <yeyunfeng@huawei.com>, wanghaitao12@huawei.com, "Zhoukang (A)" <zhoukang7@huawei.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, "J. Bruce Fields" <bfields@fieldses.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@poochiereds.net>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On 2017/9/26 17:13, Xishi Qiu wrote:
-
-> On 2017/9/26 17:02, Michal Hocko wrote:
+On Tue 26-09-17 09:38:12, Dave Chinner wrote:
+> On Mon, Sep 25, 2017 at 05:13:58PM -0600, Ross Zwisler wrote:
+> > Before support for the per-inode DAX flag was disabled the XFS the code had
+> > an issue where the user couldn't reliably tell whether or not DAX was being
+> > used to service page faults and I/O when the DAX mount option was used.  In
+> > this case each inode within the mounted filesystem started with S_DAX set
+> > due to the mount option, but it could be cleared if someone touched the
+> > individual inode flag.
+> > 
+> > For example (v4.13 and before):
+> > 
+> >   # mount | grep dax
+> >   /dev/pmem0 on /mnt type xfs
+> >   (rw,relatime,seclabel,attr2,dax,inode64,sunit=4096,swidth=4096,noquota)
+> > 
+> >   # touch /mnt/a /mnt/b   # both files currently use DAX
+> > 
+> >   # xfs_io -c "lsattr" /mnt/*  # neither has the DAX inode option set
+> >   ----------e----- /mnt/a
+> >   ----------e----- /mnt/b
+> > 
+> >   # xfs_io -c "chattr -x" /mnt/a  # this clears S_DAX for /mnt/a
+> > 
+> >   # xfs_io -c "lsattr" /mnt/*
+> >   ----------e----- /mnt/a
+> >   ----------e----- /mnt/b
 > 
->> On Tue 26-09-17 16:39:56, Xishi Qiu wrote:
->>> On 2017/9/26 16:17, Michal Hocko wrote:
->>>
->>>> On Tue 26-09-17 15:56:55, Xishi Qiu wrote:
->>>>> When we call mlockall(), we will add VM_LOCKED to the vma,
->>>>> if the vma prot is ---p,
->>>>
->>>> not sure what you mean here. apply_mlockall_flags will set the flag on
->>>> all vmas except for special mappings (mlock_fixup). This phase will
->>>> cause that memory reclaim will not free already mapped pages in those
->>>> vmas (see page_check_references and the lazy mlock pages move to
->>>> unevictable LRUs).
->>>>
->>>>> then mm_populate -> get_user_pages will not alloc memory.
->>>>
->>>> mm_populate all the vmas with pages. Well there are certainly some
->>>> constrains - e.g. memory cgroup hard limit might be hit and so the
->>>> faulting might fail.
->>>>
->>>>> I find it said "ignore errors" in mm_populate()
->>>>> static inline void mm_populate(unsigned long addr, unsigned long len)
->>>>> {
->>>>> 	/* Ignore errors */
->>>>> 	(void) __mm_populate(addr, len, 1);
->>>>> }
->>>>
->>>> But we do not report the failure because any failure past
->>>> apply_mlockall_flags would be tricky to handle. We have already dropped
->>>> the mmap_sem lock so some other address space operations could have
->>>> interfered.
->>>>  
->>>>> And later we call mprotect() to change the prot, then it is
->>>>> still not alloc memory for the mlocked vma.
->>>>>
->>>>> My question is that, shall we alloc memory if the prot changed,
->>>>> and who(kernel, glibc, user) should alloc the memory?
->>>>
->>>> I do not understand your question but if you are asking how to get pages
->>>> to map your vmas then touching that area will fault the memory in.
->>>
->>> Hi Michal,
->>>
->>> syscall mlockall() will first apply the VM_LOCKED to the vma, then
->>> call mm_populate() to map the vmas.
->>>
->>> mm_populate
->>> 	populate_vma_page_range
->>> 		__get_user_pages
->>> 			check_vma_flags
->>> And the above path maybe return -EFAULT in some case, right?
->>>
->>> If we call mprotect() to change the prot of vma, just let
->>> check_vma_flags() return 0, then we will get the mlocked pages
->>> in following page-fault, right?
->>
->> Any future page fault to the existing vma will result in the mlocked
->> page. That is what VM_LOCKED guarantess.
->>
->>> My question is that, shall we map the vmas immediately when
->>> the prot changed? If we should map it immediately, who(kernel, glibc, user)
->>> do this step?
->>
->> This is still very fuzzy. What are you actually trying to achieve?
+> That's really a bug in the lsattr code, yes? If we've cleared the
+> S_DAX flag for the inode, then why is it being reported in lsattr?
+> Or if we failed to clear the S_DAX flag in the 'chattr -x' call,
+> then isn't that the bug that needs fixing?
 > 
-> I don't expect page fault any more after mlock.
-> 
+> Remember, the whole point of the dax inode flag was to be able to
+> override the mount option setting so that admins could turn off/on
+> dax for the things that didn't/did work with DAX correctly so they
+> didn't need multiple filesystems on pmem to segregate the apps that
+> did/didn't work with DAX...
 
-Our apps is some thing like RT, and page-fault maybe cause a lot of time,
-e.g. lock, mem reclaim ..., so I use mlock and don't want page fault
-any more.
+So I think there is some confusion that is created by the fact that whether
+DAX is used or not is controlled by both a mount option and an inode flag.
+We could define that "Inode flag always wins" which is what you seem to
+suggest above but then mount option has no practical effect since on-disk
+S_DAX flag will always overrule it.
 
-Thanks,
-Xishi Qiu
+Ross suggests that DAX should be used if "Inode flag or mount option is
+set". Which is similar to how e.g. noatime inode flag works but does not
+allow to selectively disable DAX.
 
-> 
-> .
-> 
+So if we wanted both mount option to work and selective disabling of DAX,
+we would need three states of inode setting - force DAX, disable DAX,
+inherit from mount option.
 
-
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
