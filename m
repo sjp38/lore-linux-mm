@@ -1,53 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 729786B0038
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 13:16:41 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id p5so22516716pgn.7
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 10:16:41 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id 82si5925001pfn.379.2017.09.26.10.16.39
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A9DD26B0069
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 13:26:22 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id h16so13204687wrf.0
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 10:26:22 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id m19si121032eda.511.2017.09.26.10.26.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Sep 2017 10:16:40 -0700 (PDT)
-Date: Tue, 26 Sep 2017 11:16:38 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 2/7] xfs: validate bdev support for DAX inode flag
-Message-ID: <20170926171638.GA20159@linux.intel.com>
-References: <20170925231404.32723-1-ross.zwisler@linux.intel.com>
- <20170925231404.32723-3-ross.zwisler@linux.intel.com>
- <20170926063650.GE6870@lst.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 26 Sep 2017 10:26:21 -0700 (PDT)
+Date: Tue, 26 Sep 2017 13:26:10 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [v8 0/4] cgroup-aware OOM killer
+Message-ID: <20170926172610.GA26694@cmpxchg.org>
+References: <20170918061405.pcrf5vauvul4c2nr@dhcp22.suse.cz>
+ <20170920215341.GA5382@castle>
+ <20170925122400.4e7jh5zmuzvbggpe@dhcp22.suse.cz>
+ <20170925170004.GA22704@cmpxchg.org>
+ <20170925181533.GA15918@castle>
+ <20170925202442.lmcmvqwy2jj2tr5h@dhcp22.suse.cz>
+ <20170926105925.GA23139@castle.dhcp.TheFacebook.com>
+ <20170926112134.r5eunanjy7ogjg5n@dhcp22.suse.cz>
+ <20170926121300.GB23139@castle.dhcp.TheFacebook.com>
+ <20170926133040.uupv3ibkt3jtbotf@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170926063650.GE6870@lst.de>
+In-Reply-To: <20170926133040.uupv3ibkt3jtbotf@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, "J. Bruce Fields" <bfields@fieldses.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@poochiereds.net>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 26, 2017 at 08:36:50AM +0200, Christoph Hellwig wrote:
-> On Mon, Sep 25, 2017 at 05:13:59PM -0600, Ross Zwisler wrote:
-> > Currently only the blocksize is checked, but we should really be calling
-> > bdev_dax_supported() which also tests to make sure we can get a
-> > struct dax_device and that the dax_direct_access() path is working.
+On Tue, Sep 26, 2017 at 03:30:40PM +0200, Michal Hocko wrote:
+> On Tue 26-09-17 13:13:00, Roman Gushchin wrote:
+> > On Tue, Sep 26, 2017 at 01:21:34PM +0200, Michal Hocko wrote:
+> > > On Tue 26-09-17 11:59:25, Roman Gushchin wrote:
+> > > > On Mon, Sep 25, 2017 at 10:25:21PM +0200, Michal Hocko wrote:
+> > > > > On Mon 25-09-17 19:15:33, Roman Gushchin wrote:
+> > > > > [...]
+> > > > > > I'm not against this model, as I've said before. It feels logical,
+> > > > > > and will work fine in most cases.
+> > > > > > 
+> > > > > > In this case we can drop any mount/boot options, because it preserves
+> > > > > > the existing behavior in the default configuration. A big advantage.
+> > > > > 
+> > > > > I am not sure about this. We still need an opt-in, ragardless, because
+> > > > > selecting the largest process from the largest memcg != selecting the
+> > > > > largest task (just consider memcgs with many processes example).
+> > > > 
+> > > > As I understand Johannes, he suggested to compare individual processes with
+> > > > group_oom mem cgroups. In other words, always select a killable entity with
+> > > > the biggest memory footprint.
+> > > > 
+> > > > This is slightly different from my v8 approach, where I treat leaf memcgs
+> > > > as indivisible memory consumers independent on group_oom setting, so
+> > > > by default I'm selecting the biggest task in the biggest memcg.
+> > > 
+> > > My reading is that he is actually proposing the same thing I've been
+> > > mentioning. Simply select the biggest killable entity (leaf memcg or
+> > > group_oom hierarchy) and either kill the largest task in that entity
+> > > (for !group_oom) or the whole memcg/hierarchy otherwise.
 > > 
-> > This is the same check that we do for the "-o dax" mount option in
-> > xfs_fs_fill_super().
-> > 
-> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > Reviewed-by: Christoph Hellwig <hch@lst.de>
+> > He wrote the following:
+> > "So I'm leaning toward the second model: compare all oomgroups and
+> > standalone tasks in the system with each other, independent of the
+> > failed hierarchical control structure. Then kill the biggest of them."
 > 
-> I think we just want to pick this up ASAP.  And between my vague
-> memoried and that reviewed-by tag it already was part of a different
-> series, wasn't it?
+> I will let Johannes to comment but I believe this is just a
+> misunderstanding. If we compared only the biggest task from each memcg
+> then we are basically losing our fairness objective, aren't we?
 
-Yep, the first 2 patches were part of this series:
+Sorry about the confusion.
 
-https://lkml.org/lkml/2017/9/7/552
+Yeah I was making the case for what Michal proposed, to kill the
+biggest terminal consumer, which is either a task or an oomgroup.
 
-which you reviewed.  I included them in this series because the later patches
-needed to build on them.  It looks like they are now in Darrick's
-xfs-4.14-fixes branch, but haven't yet made it upstream.
+You'd basically iterate through all the tasks and cgroups in the
+system and pick the biggest task that isn't in an oom group or the
+biggest oom group and then kill that.
+
+Yeah, you'd have to compare the memory footprints of tasks with the
+memory footprints of cgroups. These aren't defined identically, and
+tasks don't get attributed every type of allocation that a cgroup
+would. But it should get us in the ballpark, and I cannot picture a
+scenario where this would lead to a completely undesirable outcome.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
