@@ -1,76 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D0B676B025F
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 18:01:03 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id p87so19744202pfj.4
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 15:01:03 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id m68si6170099pfm.561.2017.09.26.15.01.01
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 83FCB6B0069
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 19:20:08 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id p87so19958783pfj.4
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 16:20:08 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id e8si6572295pgf.23.2017.09.26.16.20.06
         for <linux-mm@kvack.org>;
-        Tue, 26 Sep 2017 15:01:02 -0700 (PDT)
-Date: Wed, 27 Sep 2017 08:00:56 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 1/7] xfs: always use DAX if mount option is used
-Message-ID: <20170926220056.GA3666@dastard>
-References: <20170925231404.32723-1-ross.zwisler@linux.intel.com>
- <20170925231404.32723-2-ross.zwisler@linux.intel.com>
- <20170925233812.GM10955@dastard>
- <20170926093548.GB13627@quack2.suse.cz>
- <20170926110957.GR10955@dastard>
- <20170926143743.GB18758@lst.de>
- <20170926173057.GB20159@linux.intel.com>
- <20170926194830.GI5020@magnolia>
+        Tue, 26 Sep 2017 16:20:07 -0700 (PDT)
+Date: Wed, 27 Sep 2017 08:20:05 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH V3 1/2] mm: avoid marking swap cached page as lazyfree
+Message-ID: <20170926232005.GA32370@bbox>
+References: <cover.1506446061.git.shli@fb.com>
+ <6537ef3814398c0073630b03f176263bc81f0902.1506446061.git.shli@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170926194830.GI5020@magnolia>
+In-Reply-To: <6537ef3814398c0073630b03f176263bc81f0902.1506446061.git.shli@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "J. Bruce Fields" <bfields@fieldses.org>, Dan Williams <dan.j.williams@intel.com>, Jeff Layton <jlayton@poochiereds.net>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Shaohua Li <shli@kernel.org>
+Cc: linux-mm@kvack.org, asavkov@redhat.com, Kernel-team@fb.com, Shaohua Li <shli@fb.com>, stable@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Sep 26, 2017 at 12:48:30PM -0700, Darrick J. Wong wrote:
-> For the most part I'm in favor of Christoph's suggestion to let the
-> kernel decide on its own, and I don't see the point in encoding details
-> of the storage medium access strategy on the disk, particularly since
-> filesystems are supposed to be fairly independent of storage.  But
-> frankly, so many people have asked me over the years if there's some way
-> to influence the decision-making that I won't quite let go of file hints
-> as a way to influence the decisions XFS makes around storage media.
+On Tue, Sep 26, 2017 at 10:26:25AM -0700, Shaohua Li wrote:
+> From: Shaohua Li <shli@fb.com>
+> 
+> MADV_FREE clears pte dirty bit and then marks the page lazyfree (clear
+> SwapBacked). There is no lock to prevent the page is added to swap cache
+> between these two steps by page reclaim. Page reclaim could add the page
+> to swap cache and unmap the page. After page reclaim, the page is added
+> back to lru. At that time, we probably start draining per-cpu pagevec
+> and mark the page lazyfree. So the page could be in a state with
+> SwapBacked cleared and PG_swapcache set. Next time there is a refault in
+> the virtual address, do_swap_page can find the page from swap cache but
+> the page has PageSwapCache false because SwapBacked isn't set, so
+> do_swap_page will bail out and do nothing. The task will keep running
+> into fault handler.
 
-And that's pretty much it. The discussion here is not about whether
-there should be a flag, but what semantics it should have when the
-flag is not set. If "flag not set" means "kernel selects
-automatically", then that's fine by me.
+With new description, I got why you want to seperate this. Yub, it should
+be separated. Sorry for the noise. What I was missing is PageSwapCache's
+change which checked PG_swapbacked as well as PG_swapcache. I didn't 
+notice that the change.
 
-But history tells us that users and admins want a way to be able to
-override the kernel's automatic behaviours because they are /never
-100% correct/ for everyone. There are always exceptions, otherwise
-we wouldn't have the great plethora of mkfs, mount, proc and sysfs
-options for our filesystems or storage. Anyone who says "the kernel
-will always do the right thing for everyone automatically" is living
-in a dream world.
-
-Note: I agree that the kernel should do the right thing w.r.t. DAX
-automatically. We don't need a mount option for that - we can probe
-for dax support automatically and use it automatically already.
-However, in a world where the kernel automatically uses that
-functionality when it is present, admins and users need a way to
-solve the "default behaviour is bad for me, let me control this
-manually" problem. That's where the inode flags come in....
-
-i.e. What I'm advocating is a model DAX gets enabled automatically
-if the underlying device supports is using whatever the kernel
-thinks is optimal at the time the access is made, but the user can
-override/direct behvaiour on a case by case basis via persistent
-inode flags/xattrs/whatever.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Acked-by: Minchan Kim <minchan@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
