@@ -1,59 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D522E6B0038
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 06:04:46 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id j189so8578213vka.0
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 03:04:46 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i12sor4299457uae.209.2017.09.26.03.04.45
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EB27C6B0038
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 06:14:19 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 11so21066412pge.4
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 03:14:19 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 129si1242284pgi.686.2017.09.26.03.14.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 26 Sep 2017 03:04:45 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Sep 2017 03:14:18 -0700 (PDT)
+Date: Tue, 26 Sep 2017 12:14:16 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCHv2] mm: Account pud page tables
+Message-ID: <20170926101416.qzv6hurrrfmbefc5@dhcp22.suse.cz>
+References: <20170925073913.22628-1-kirill.shutemov@linux.intel.com>
+ <20170925115430.zccesf75c4ysaznb@dhcp22.suse.cz>
+ <20170925130715.kebf5e3xjctpcalp@node.shutemov.name>
+ <20170925135305.ydeeyapav2s36ifj@dhcp22.suse.cz>
+ <20170926094344.t4cws4v4vrie5de5@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <20170926095127.p5ocg44et2g62gku@techsingularity.net>
-References: <1506415604-4310-1-git-send-email-zhuhui@xiaomi.com> <20170926095127.p5ocg44et2g62gku@techsingularity.net>
-From: Hui Zhu <teawater@gmail.com>
-Date: Tue, 26 Sep 2017 18:04:04 +0800
-Message-ID: <CANFwon3Mf3AUfUPtSAUQus0yohMzKEirDcNqfnwPDwFWD04z-w@mail.gmail.com>
-Subject: Re: [RFC 0/2] Use HighAtomic against long-term fragmentation
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170926094344.t4cws4v4vrie5de5@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Hui Zhu <zhuhui@xiaomi.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, hillf.zj@alibaba-inc.com, Linux Memory Management List <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-2017-09-26 17:51 GMT+08:00 Mel Gorman <mgorman@techsingularity.net>:
-> On Tue, Sep 26, 2017 at 04:46:42PM +0800, Hui Zhu wrote:
->> Current HighAtomic just to handle the high atomic page alloc.
->> But I found that use it handle the normal unmovable continuous page
->> alloc will help to against long-term fragmentation.
->>
->
-> This is not wise. High-order atomic allocations do not always have a
-> smooth recovery path such as network drivers with large MTUs that have no
-> choice but to drop the traffic and hope for a retransmit. That's why they
-> have the highatomic reserve. If the reserve is used for normal unmovable
-> allocations then allocation requests that could have waited for reclaim
-> may cause high-order atomic allocations to fail. Changing it may allow
-> improve latencies in some limited cases while causing functional failures
-> in others.  If there is a special case where there are a large number of
-> other high-order allocations then I would suggest increasing min_free_kbytes
-> instead as a workaround.
+On Tue 26-09-17 12:43:44, Kirill A. Shutemov wrote:
+> On Mon, Sep 25, 2017 at 03:53:05PM +0200, Michal Hocko wrote:
+> > On Mon 25-09-17 16:07:15, Kirill A. Shutemov wrote:
+> > > On Mon, Sep 25, 2017 at 01:54:30PM +0200, Michal Hocko wrote:
+> > > > On Mon 25-09-17 10:39:13, Kirill A. Shutemov wrote:
+> > > > > On machine with 5-level paging support a process can allocate
+> > > > > significant amount of memory and stay unnoticed by oom-killer and
+> > > > > memory cgroup. The trick is to allocate a lot of PUD page tables.
+> > > > > We don't account PUD page tables, only PMD and PTE.
+> > > > > 
+> > > > > We already addressed the same issue for PMD page tables, see
+> > > > > dc6c9a35b66b ("mm: account pmd page tables to the process").
+> > > > > Introduction 5-level paging bring the same issue for PUD page tables.
+> > > > > 
+> > > > > The patch expands accounting to PUD level.
+> > > > 
+> > > > OK, we definitely need this or something like that but I really do not
+> > > > like how much code we actually need for each pte level for accounting.
+> > > > Do we really need to distinguish each level? Do we have any arch that
+> > > > would use a different number of pages to back pte/pmd/pud?
+> > > 
+> > > Looks like we actually do. At least on mips. See PMD_ORDER/PUD_ORDER.
+> > 
+> > Hmm, but then oom_badness does consider them a single page which is
+> > wrong. I haven't checked other users. Anyway even if we've had different
+> > sizes why cannot we deal with this in callers. They know which level of
+> > page table they allocate/free, no?
+> 
+> So do you want to see single counter for all page table levels?
 
-I think let 0 order unmovable page alloc and other order unmovable pages
-alloc use different migrate types will help against long-term
-fragmentation.
+I think it would make the code easier to maintain and follow. As a
+follow up for this patch which I am willing to ack.
 
-Do you think kernel can add a special migrate type for big than 0 order
-unmovable pages alloc?
+> Do we have anybody who relies on VmPTE/VmPMD now?
 
-Thanks,
-Hui
-
->
-> --
-> Mel Gorman
-> SUSE Labs
+No idea. I would just account everything to the pte level. If somebody
+complains we can revert that part. But the value has been exported since
+dc6c9a35b66b ("mm: account pmd page tables to the process") and I
+suspect you have done so just to keep it in sync the existing VmPTE
+without an explicit usecase in mind, right?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
