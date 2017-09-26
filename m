@@ -1,67 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5152C6B0038
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 04:17:22 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id 97so11802047wrb.1
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 01:17:22 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 55si6785203wrz.265.2017.09.26.01.17.20
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C67C76B0038
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 04:30:37 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id u48so10502770qtc.3
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 01:30:37 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id a22si3645724qtc.268.2017.09.26.01.30.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Sep 2017 01:17:21 -0700 (PDT)
-Date: Tue, 26 Sep 2017 10:17:16 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] a question about mlockall() and mprotect()
-Message-ID: <20170926081716.xo375arjoyu5ytcb@dhcp22.suse.cz>
-References: <59CA0847.8000508@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Sep 2017 01:30:37 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v8Q8TG79087957
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 04:30:36 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2d7jgwujvw-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 04:30:35 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Tue, 26 Sep 2017 09:30:33 +0100
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 00/20] Speculative page faults
+References: <CAADnVQLmSbLHwj9m33kpzAidJPvq3cbdnXjaew6oTLqHWrBbZQ@mail.gmail.com>
+Date: Tue, 26 Sep 2017 10:30:21 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <59CA0847.8000508@huawei.com>
+In-Reply-To: <CAADnVQLmSbLHwj9m33kpzAidJPvq3cbdnXjaew6oTLqHWrBbZQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+Message-Id: <e1352dbc-8dce-13a5-2235-c9fa1d7964de@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, zhong jiang <zhongjiang@huawei.com>, yeyunfeng <yeyunfeng@huawei.com>, wanghaitao12@huawei.com, "Zhoukang (A)" <zhoukang7@huawei.com>
+To: Alexei Starovoitov <alexei.starovoitov@gmail.com>
+Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, kirill@shutemov.name, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, dave@stgolabs.net, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, haren@linux.vnet.ibm.com, Anshuman Khandual <khandual@linux.vnet.ibm.com>, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, "x86@kernel.org" <x86@kernel.org>
 
-On Tue 26-09-17 15:56:55, Xishi Qiu wrote:
-> When we call mlockall(), we will add VM_LOCKED to the vma,
-> if the vma prot is ---p,
+Hi Alexei,
 
-not sure what you mean here. apply_mlockall_flags will set the flag on
-all vmas except for special mappings (mlock_fixup). This phase will
-cause that memory reclaim will not free already mapped pages in those
-vmas (see page_check_references and the lazy mlock pages move to
-unevictable LRUs).
-
-> then mm_populate -> get_user_pages will not alloc memory.
-
-mm_populate all the vmas with pages. Well there are certainly some
-constrains - e.g. memory cgroup hard limit might be hit and so the
-faulting might fail.
-
-> I find it said "ignore errors" in mm_populate()
-> static inline void mm_populate(unsigned long addr, unsigned long len)
-> {
-> 	/* Ignore errors */
-> 	(void) __mm_populate(addr, len, 1);
-> }
-
-But we do not report the failure because any failure past
-apply_mlockall_flags would be tricky to handle. We have already dropped
-the mmap_sem lock so some other address space operations could have
-interfered.
- 
-> And later we call mprotect() to change the prot, then it is
-> still not alloc memory for the mlocked vma.
+Le 25/09/2017 A  18:27, Alexei Starovoitov a A(C)critA :
+> On Mon, Sep 18, 2017 at 12:15 AM, Laurent Dufour
+> <ldufour@linux.vnet.ibm.com> wrote:
+>> Despite the unprovable lockdep warning raised by Sergey, I didn't get any
+>> feedback on this series.
+>>
+>> Is there a chance to get it moved upstream ?
 > 
-> My question is that, shall we alloc memory if the prot changed,
-> and who(kernel, glibc, user) should alloc the memory?
+> what is the status ?
 
-I do not understand your question but if you are asking how to get pages
-to map your vmas then touching that area will fault the memory in.
--- 
-Michal Hocko
-SUSE Labs
+As mentioned by Andrew this lacks review and test, what about your 
+Ack/Review/Tested-By ?
+
+> We're eagerly looking forward for this set to land,
+> since we have several use cases for tracing that
+> will build on top of this set as discussed at Plumbers.
+
+Unfortunately I was not able to attend Plumbers this year, but I'll be 
+pleased, as well as the MM mailing readers, to get your feedback and use 
+cases of this series.
+
+Thanks,
+Laurent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
