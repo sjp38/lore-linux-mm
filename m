@@ -1,73 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C4CF6B0038
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 06:43:20 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id r136so11499722wmf.4
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 03:43:20 -0700 (PDT)
-Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
-        by mx.google.com with ESMTPS id g7si3674459edj.126.2017.09.26.03.43.18
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E618A6B0038
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 06:47:55 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id e64so11530766wmi.0
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 03:47:55 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j30si6852530wrd.19.2017.09.26.03.47.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Sep 2017 03:43:19 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 25BFA1C2771
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 11:43:17 +0100 (IST)
-Date: Tue, 26 Sep 2017 11:43:16 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [RFC 0/2] Use HighAtomic against long-term fragmentation
-Message-ID: <20170926104316.r2mjcrakykqfehga@techsingularity.net>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Sep 2017 03:47:54 -0700 (PDT)
+Date: Tue, 26 Sep 2017 12:47:52 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC 1/2] Try to use HighAtomic if try to alloc umovable page
+ that order is not 0
+Message-ID: <20170926104752.e5jyygwyqhqqvmjl@dhcp22.suse.cz>
 References: <1506415604-4310-1-git-send-email-zhuhui@xiaomi.com>
- <20170926095127.p5ocg44et2g62gku@techsingularity.net>
- <CANFwon3Mf3AUfUPtSAUQus0yohMzKEirDcNqfnwPDwFWD04z-w@mail.gmail.com>
+ <1506415604-4310-2-git-send-email-zhuhui@xiaomi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CANFwon3Mf3AUfUPtSAUQus0yohMzKEirDcNqfnwPDwFWD04z-w@mail.gmail.com>
+In-Reply-To: <1506415604-4310-2-git-send-email-zhuhui@xiaomi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hui Zhu <teawater@gmail.com>
-Cc: Hui Zhu <zhuhui@xiaomi.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, hillf.zj@alibaba-inc.com, Linux Memory Management List <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Hui Zhu <zhuhui@xiaomi.com>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, hillf.zj@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, teawater@gmail.com
 
-On Tue, Sep 26, 2017 at 06:04:04PM +0800, Hui Zhu wrote:
-> 2017-09-26 17:51 GMT+08:00 Mel Gorman <mgorman@techsingularity.net>:
-> > On Tue, Sep 26, 2017 at 04:46:42PM +0800, Hui Zhu wrote:
-> >> Current HighAtomic just to handle the high atomic page alloc.
-> >> But I found that use it handle the normal unmovable continuous page
-> >> alloc will help to against long-term fragmentation.
-> >>
-> >
-> > This is not wise. High-order atomic allocations do not always have a
-> > smooth recovery path such as network drivers with large MTUs that have no
-> > choice but to drop the traffic and hope for a retransmit. That's why they
-> > have the highatomic reserve. If the reserve is used for normal unmovable
-> > allocations then allocation requests that could have waited for reclaim
-> > may cause high-order atomic allocations to fail. Changing it may allow
-> > improve latencies in some limited cases while causing functional failures
-> > in others.  If there is a special case where there are a large number of
-> > other high-order allocations then I would suggest increasing min_free_kbytes
-> > instead as a workaround.
+On Tue 26-09-17 16:46:43, Hui Zhu wrote:
+> The page add a new condition to let gfp_to_alloc_flags return
+> alloc_flags with ALLOC_HARDER if the order is not 0 and migratetype is
+> MIGRATE_UNMOVABLE.
+
+Apart from what Mel has already said this changelog is really lacking
+the crucial information. It says what but it doesn't explain why we need
+this and why it is safe to do. What kind of workload will benefit from
+this change and how much. What about those users who are relying on high
+atomic reserves currently and now would need to share it with other
+users.
+
+Without knowing all that background and from a quick look this looks
+like a very crude hack to me, to be completely honest.
+
+> Then alloc umovable page that order is not 0 will try to use HighAtomic.
 > 
-> I think let 0 order unmovable page alloc and other order unmovable pages
-> alloc use different migrate types will help against long-term
-> fragmentation.
+> Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
+> ---
+>  mm/page_alloc.c | 6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
 > 
-
-That can already happen through the migratetype fallback lists.
-
-> Do you think kernel can add a special migrate type for big than 0 order
-> unmovable pages alloc?
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index c841af8..b54e94a 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3642,7 +3642,7 @@ static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
+>  }
+>  
+>  static inline unsigned int
+> -gfp_to_alloc_flags(gfp_t gfp_mask)
+> +gfp_to_alloc_flags(gfp_t gfp_mask, int order, int migratetype)
+>  {
+>  	unsigned int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
+>  
+> @@ -3671,6 +3671,8 @@ static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
+>  		alloc_flags &= ~ALLOC_CPUSET;
+>  	} else if (unlikely(rt_task(current)) && !in_interrupt())
+>  		alloc_flags |= ALLOC_HARDER;
+> +	else if (order > 0 && migratetype == MIGRATE_UNMOVABLE)
+> +		alloc_flags |= ALLOC_HARDER;
+>  
+>  #ifdef CONFIG_CMA
+>  	if (gfpflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
+> @@ -3903,7 +3905,7 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+>  	 * kswapd needs to be woken up, and to avoid the cost of setting up
+>  	 * alloc_flags precisely. So we do that now.
+>  	 */
+> -	alloc_flags = gfp_to_alloc_flags(gfp_mask);
+> +	alloc_flags = gfp_to_alloc_flags(gfp_mask, order, ac->migratetype);
+>  
+>  	/*
+>  	 * We need to recalculate the starting point for the zonelist iterator
+> -- 
+> 1.9.1
 > 
-
-Technically, yes but the barrier to entry will be high as you'll have to
-explain carefully why it is necessary including information on why order-0
-pages cannot be used, back it up with data showing what is improved as a
-result and justify why potentially forcing normal workloads to reclaim due
-to being unable to use the high-order reserve is ok. If it's a limitation
-of a specific driver then it'll be asked why that driver does not have a
-dedicated pool (which is functionally similar to having a dedicated reserve).
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
