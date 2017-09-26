@@ -1,97 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B7156B0038
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 07:21:37 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id m127so1075833wmm.17
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 04:21:37 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FA166B0038
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 07:27:02 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id q75so17912971pfl.1
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 04:27:02 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r12si7304728wre.198.2017.09.26.04.21.36
+        by mx.google.com with ESMTPS id v5si5785019pgr.387.2017.09.26.04.27.00
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Sep 2017 04:21:36 -0700 (PDT)
-Date: Tue, 26 Sep 2017 13:21:34 +0200
+        Tue, 26 Sep 2017 04:27:01 -0700 (PDT)
+Date: Tue, 26 Sep 2017 13:26:56 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-Message-ID: <20170926112134.r5eunanjy7ogjg5n@dhcp22.suse.cz>
-References: <20170914160548.GA30441@castle>
- <20170915105826.hq5afcu2ij7hevb4@dhcp22.suse.cz>
- <20170915152301.GA29379@castle>
- <20170918061405.pcrf5vauvul4c2nr@dhcp22.suse.cz>
- <20170920215341.GA5382@castle>
- <20170925122400.4e7jh5zmuzvbggpe@dhcp22.suse.cz>
- <20170925170004.GA22704@cmpxchg.org>
- <20170925181533.GA15918@castle>
- <20170925202442.lmcmvqwy2jj2tr5h@dhcp22.suse.cz>
- <20170926105925.GA23139@castle.dhcp.TheFacebook.com>
+Subject: Re: [PATCH v3] mm: introduce validity check on vm dirtiness settings
+Message-ID: <20170926112656.tbu7nr2lxdqt5rft@dhcp22.suse.cz>
+References: <1505861015-11919-1-git-send-email-laoar.shao@gmail.com>
+ <20170926102532.culqxb45xwzafomj@dhcp22.suse.cz>
+ <CALOAHbAbFedJ-h+QUWeeoAnpeEfpYe2T1GutFb56kBeL=2jN0A@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170926105925.GA23139@castle.dhcp.TheFacebook.com>
+In-Reply-To: <CALOAHbAbFedJ-h+QUWeeoAnpeEfpYe2T1GutFb56kBeL=2jN0A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, akpm@linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, Theodore Ts'o <tytso@mit.edu>, mawilcox@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 26-09-17 11:59:25, Roman Gushchin wrote:
-> On Mon, Sep 25, 2017 at 10:25:21PM +0200, Michal Hocko wrote:
-> > On Mon 25-09-17 19:15:33, Roman Gushchin wrote:
-> > [...]
-> > > I'm not against this model, as I've said before. It feels logical,
-> > > and will work fine in most cases.
-> > > 
-> > > In this case we can drop any mount/boot options, because it preserves
-> > > the existing behavior in the default configuration. A big advantage.
-> > 
-> > I am not sure about this. We still need an opt-in, ragardless, because
-> > selecting the largest process from the largest memcg != selecting the
-> > largest task (just consider memcgs with many processes example).
+On Tue 26-09-17 19:06:37, Yafang Shao wrote:
+> 2017-09-26 18:25 GMT+08:00 Michal Hocko <mhocko@kernel.org>:
+> > On Wed 20-09-17 06:43:35, Yafang Shao wrote:
+> >> we can find the logic in domain_dirty_limits() that
+> >> when dirty bg_thresh is bigger than dirty thresh,
+> >> bg_thresh will be set as thresh * 1 / 2.
+> >>       if (bg_thresh >= thresh)
+> >>               bg_thresh = thresh / 2;
+> >>
+> >> But actually we can set vm background dirtiness bigger than
+> >> vm dirtiness successfully. This behavior may mislead us.
+> >> We'd better do this validity check at the beginning.
+> >
+> > This is an admin only interface. You can screw setting this up even
+> > when you keep consistency between the background and direct limits. In
+> > general we do not try to be clever for these knobs because we _expect_
+> > admins to do sane things. Why is this any different and why do we need
+> > to add quite some code to handle one particular corner case?
+> >
 > 
-> As I understand Johannes, he suggested to compare individual processes with
-> group_oom mem cgroups. In other words, always select a killable entity with
-> the biggest memory footprint.
-> 
-> This is slightly different from my v8 approach, where I treat leaf memcgs
-> as indivisible memory consumers independent on group_oom setting, so
-> by default I'm selecting the biggest task in the biggest memcg.
+> Of course we expect admins to do the sane things, but not all admins
+> are expert or faimilar with linux kernel source code.
+> If we have to read the source code to know what is the right thing to
+> do, I don't think this is a good interface, even for the admin.
 
-My reading is that he is actually proposing the same thing I've been
-mentioning. Simply select the biggest killable entity (leaf memcg or
-group_oom hierarchy) and either kill the largest task in that entity
-(for !group_oom) or the whole memcg/hierarchy otherwise.
- 
-> While the approach suggested by Johannes looks clear and reasonable,
-> I'm slightly concerned about possible implementation issues,
-> which I've described below:
-> 
-> > 
-> > > The only thing, I'm slightly concerned, that due to the way how we calculate
-> > > the memory footprint for tasks and memory cgroups, we will have a number
-> > > of weird edge cases. For instance, when putting a single process into
-> > > the group_oom memcg will alter the oom_score significantly and result
-> > > in significantly different chances to be killed. An obvious example will
-> > > be a task with oom_score_adj set to any non-extreme (other than 0 and -1000)
-> > > value, but it can also happen in case of constrained alloc, for instance.
-> > 
-> > I am not sure I understand. Are you talking about root memcg comparing
-> > to other memcgs?
-> 
-> Not only, but root memcg in this case will be another complication. We can
-> also use the same trick for all memcg (define memcg oom_score as maximum oom_score
-> of the belonging tasks), it will turn group_oom into pure container cleanup
-> solution, without changing victim selection algorithm
+Well, it is kind of natural to setup background below the direct limit
+in general so I am not sure what is so surprising here. Moreover setting
+a non default drity limits already requires some expertise. It is not
+like an arbitrary value will work just fine...
 
-I fail to see the problem to be honest. Simply evaluate the memcg_score
-you have so far with one minor detail. You only check memcgs which have
-tasks (rather than check for leaf node check) or it is group_oom. An
-intermediate memcg will get a cumulative size of the whole subhierarchy
-and then you know you can skip the subtree because any subtree can be larger.
+> Anyway, there's no document on that direct limits should not less than
+> background limits.
 
-> But, again, I'm not against approach suggested by Johannes. I think that overall
-> it's the best possible semantics, if we're not taking some implementation details
-> into account.
+Then improve the documentation.
 
-I do not see those implementation details issues and let me repeat do
-not develop a semantic based on implementation details.
+> > To be honest I am not entirely sure this is worth the code and the
+> > future maintenance burden.
+> I'm not sure if this code is a burden for the future maintenance, but
+> I think that if we don't introduce this code it is a burden to the
+> admins.
+
+anytime we might need to tweak background vs direct limit we would have
+to change these checks as well and that sounds like a maint. burden to
+me.
 -- 
 Michal Hocko
 SUSE Labs
