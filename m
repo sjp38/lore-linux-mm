@@ -1,98 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 27BEC6B0038
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 09:13:42 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r136so11825473wmf.4
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 06:13:42 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 97DB06B0038
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 09:21:34 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id v109so12604313wrc.5
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 06:21:34 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e54si7962093wre.203.2017.09.26.06.13.40
+        by mx.google.com with ESMTPS id j41si7462781wra.430.2017.09.26.06.21.31
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Sep 2017 06:13:40 -0700 (PDT)
-Date: Tue, 26 Sep 2017 15:13:38 +0200
+        Tue, 26 Sep 2017 06:21:31 -0700 (PDT)
+Date: Tue, 26 Sep 2017 15:21:29 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH V2 2/2] mm: fix data corruption caused by lazyfree page
-Message-ID: <20170926131338.nissnmlws4ycqy5f@dhcp22.suse.cz>
-References: <cover.1506105110.git.shli@fb.com>
- <254ff921294f143a65f30052070b43fec411fc2a.1506105110.git.shli@fb.com>
+Subject: Re: [PATCH] mm, swap: Make VMA based swap readahead configurable
+Message-ID: <20170926132129.dbtr2mof35x4j4og@dhcp22.suse.cz>
+References: <20170921013310.31348-1-ying.huang@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <254ff921294f143a65f30052070b43fec411fc2a.1506105110.git.shli@fb.com>
+In-Reply-To: <20170921013310.31348-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: linux-mm@kvack.org, Artem Savkov <asavkov@redhat.com>, Kernel-team@fb.com, Shaohua Li <shli@fb.com>, stable@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
 
-On Fri 22-09-17 11:46:31, Shaohua Li wrote:
-> From: Shaohua Li <shli@fb.com>
+On Thu 21-09-17 09:33:10, Huang, Ying wrote:
+> From: Huang Ying <ying.huang@intel.com>
 > 
-> MADV_FREE clears pte dirty bit and then marks the page lazyfree (clear
-> SwapBacked). There is no lock to prevent the page is added to swap cache
-> between these two steps by page reclaim. If page reclaim finds such
-> page, it will simply add the page to swap cache without pageout the page
-> to swap because the page is marked as clean. Next time, page fault will
-> read data from the swap slot which doesn't have the original data, so we
-> have a data corruption. To fix issue, we mark the page dirty and pageout
-> the page.
-> 
-> However, we shouldn't dirty all pages which is clean and in swap cache.
-> swapin page is swap cache and clean too. So we only dirty page which is
-> added into swap cache in page reclaim, which shouldn't be swapin page.
-> As Minchan suggested, simply dirty the page in add_to_swap can do the
-> job.
-> 
-> Reported-by: Artem Savkov <asavkov@redhat.com>
-> Fix: 802a3a92ad7a(mm: reclaim MADV_FREE pages)
-> Signed-off-by: Shaohua Li <shli@fb.com>
-> Cc: stable@vger.kernel.org
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Hillf Danton <hillf.zj@alibaba-inc.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
+> This patch adds a new Kconfig option VMA_SWAP_READAHEAD and wraps VMA
+> based swap readahead code inside #ifdef CONFIG_VMA_SWAP_READAHEAD/#endif.
+> This is more friendly for tiny kernels.
 
-OK the patch makes sense to me
-Acked-by: Michal Hocko <mhocko@suse.com>
+How (much)?
 
-> ---
->  mm/swap_state.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/swap_state.c b/mm/swap_state.c
-> index 71ce2d1..2d64ec4 100644
-> --- a/mm/swap_state.c
-> +++ b/mm/swap_state.c
-> @@ -231,7 +231,7 @@ int add_to_swap(struct page *page)
->  	 * deadlock in the swap out path.
->  	 */
->  	/*
-> -	 * Add it to the swap cache.
-> +	 * Add it to the swap cache and mark it dirty
->  	 */
+> And as pointed to by Minchan
+> Kim, give people who want to disable the swap readahead an opportunity
+> to notice the changes to the swap readahead algorithm and the
+> corresponding knobs.
 
-this comment is simply useless. It doesn't explain why we need it and it
-is trivial to see what we do there. So I would remove it altogether or
-make it more useful explaning the MADV_FREE race which would be IMHO
-much better.
+Why would anyone want that?
 
->  	err = add_to_swap_cache(page, entry,
->  			__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN);
-> @@ -242,6 +242,7 @@ int add_to_swap(struct page *page)
->  		 * clear SWAP_HAS_CACHE flag.
->  		 */
->  		goto fail;
-> +	set_page_dirty(page);
->  
->  	return 1;
->  
-> -- 
-> 2.9.5
-> 
-
+Please note that adding new config options make the already complicated
+config space even more problematic so there should be a good reason to
+add one. Please make sure your justification is clear on why this is
+worth the future maintenance and configurability burden.
 -- 
 Michal Hocko
 SUSE Labs
