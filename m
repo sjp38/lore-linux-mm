@@ -1,90 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E618A6B0038
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 06:47:55 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id e64so11530766wmi.0
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 03:47:55 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j30si6852530wrd.19.2017.09.26.03.47.54
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F0A376B0069
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 07:00:15 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id t46so10852004qtj.5
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 04:00:15 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id l128si7844311qkd.548.2017.09.26.04.00.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Sep 2017 03:47:54 -0700 (PDT)
-Date: Tue, 26 Sep 2017 12:47:52 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC 1/2] Try to use HighAtomic if try to alloc umovable page
- that order is not 0
-Message-ID: <20170926104752.e5jyygwyqhqqvmjl@dhcp22.suse.cz>
-References: <1506415604-4310-1-git-send-email-zhuhui@xiaomi.com>
- <1506415604-4310-2-git-send-email-zhuhui@xiaomi.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Sep 2017 04:00:14 -0700 (PDT)
+Date: Tue, 26 Sep 2017 11:59:25 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v8 0/4] cgroup-aware OOM killer
+Message-ID: <20170926105925.GA23139@castle.dhcp.TheFacebook.com>
+References: <20170914134014.wqemev2kgychv7m5@dhcp22.suse.cz>
+ <20170914160548.GA30441@castle>
+ <20170915105826.hq5afcu2ij7hevb4@dhcp22.suse.cz>
+ <20170915152301.GA29379@castle>
+ <20170918061405.pcrf5vauvul4c2nr@dhcp22.suse.cz>
+ <20170920215341.GA5382@castle>
+ <20170925122400.4e7jh5zmuzvbggpe@dhcp22.suse.cz>
+ <20170925170004.GA22704@cmpxchg.org>
+ <20170925181533.GA15918@castle>
+ <20170925202442.lmcmvqwy2jj2tr5h@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1506415604-4310-2-git-send-email-zhuhui@xiaomi.com>
+In-Reply-To: <20170925202442.lmcmvqwy2jj2tr5h@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hui Zhu <zhuhui@xiaomi.com>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, hillf.zj@alibaba-inc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, teawater@gmail.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue 26-09-17 16:46:43, Hui Zhu wrote:
-> The page add a new condition to let gfp_to_alloc_flags return
-> alloc_flags with ALLOC_HARDER if the order is not 0 and migratetype is
-> MIGRATE_UNMOVABLE.
-
-Apart from what Mel has already said this changelog is really lacking
-the crucial information. It says what but it doesn't explain why we need
-this and why it is safe to do. What kind of workload will benefit from
-this change and how much. What about those users who are relying on high
-atomic reserves currently and now would need to share it with other
-users.
-
-Without knowing all that background and from a quick look this looks
-like a very crude hack to me, to be completely honest.
-
-> Then alloc umovable page that order is not 0 will try to use HighAtomic.
+On Mon, Sep 25, 2017 at 10:25:21PM +0200, Michal Hocko wrote:
+> On Mon 25-09-17 19:15:33, Roman Gushchin wrote:
+> [...]
+> > I'm not against this model, as I've said before. It feels logical,
+> > and will work fine in most cases.
+> > 
+> > In this case we can drop any mount/boot options, because it preserves
+> > the existing behavior in the default configuration. A big advantage.
 > 
-> Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
-> ---
->  mm/page_alloc.c | 6 ++++--
->  1 file changed, 4 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index c841af8..b54e94a 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3642,7 +3642,7 @@ static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
->  }
->  
->  static inline unsigned int
-> -gfp_to_alloc_flags(gfp_t gfp_mask)
-> +gfp_to_alloc_flags(gfp_t gfp_mask, int order, int migratetype)
->  {
->  	unsigned int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
->  
-> @@ -3671,6 +3671,8 @@ static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
->  		alloc_flags &= ~ALLOC_CPUSET;
->  	} else if (unlikely(rt_task(current)) && !in_interrupt())
->  		alloc_flags |= ALLOC_HARDER;
-> +	else if (order > 0 && migratetype == MIGRATE_UNMOVABLE)
-> +		alloc_flags |= ALLOC_HARDER;
->  
->  #ifdef CONFIG_CMA
->  	if (gfpflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
-> @@ -3903,7 +3905,7 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
->  	 * kswapd needs to be woken up, and to avoid the cost of setting up
->  	 * alloc_flags precisely. So we do that now.
->  	 */
-> -	alloc_flags = gfp_to_alloc_flags(gfp_mask);
-> +	alloc_flags = gfp_to_alloc_flags(gfp_mask, order, ac->migratetype);
->  
->  	/*
->  	 * We need to recalculate the starting point for the zonelist iterator
-> -- 
-> 1.9.1
-> 
+> I am not sure about this. We still need an opt-in, ragardless, because
+> selecting the largest process from the largest memcg != selecting the
+> largest task (just consider memcgs with many processes example).
 
--- 
-Michal Hocko
-SUSE Labs
+As I understand Johannes, he suggested to compare individual processes with
+group_oom mem cgroups. In other words, always select a killable entity with
+the biggest memory footprint.
+
+This is slightly different from my v8 approach, where I treat leaf memcgs
+as indivisible memory consumers independent on group_oom setting, so
+by default I'm selecting the biggest task in the biggest memcg.
+
+While the approach suggested by Johannes looks clear and reasonable,
+I'm slightly concerned about possible implementation issues,
+which I've described below:
+
+> 
+> > The only thing, I'm slightly concerned, that due to the way how we calculate
+> > the memory footprint for tasks and memory cgroups, we will have a number
+> > of weird edge cases. For instance, when putting a single process into
+> > the group_oom memcg will alter the oom_score significantly and result
+> > in significantly different chances to be killed. An obvious example will
+> > be a task with oom_score_adj set to any non-extreme (other than 0 and -1000)
+> > value, but it can also happen in case of constrained alloc, for instance.
+> 
+> I am not sure I understand. Are you talking about root memcg comparing
+> to other memcgs?
+
+Not only, but root memcg in this case will be another complication. We can
+also use the same trick for all memcg (define memcg oom_score as maximum oom_score
+of the belonging tasks), it will turn group_oom into pure container cleanup
+solution, without changing victim selection algorithm
+
+But, again, I'm not against approach suggested by Johannes. I think that overall
+it's the best possible semantics, if we're not taking some implementation details
+into account.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
