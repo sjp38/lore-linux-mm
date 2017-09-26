@@ -1,217 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AEAD6B0038
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 06:25:36 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id p5so21070474pgn.7
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 03:25:36 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l5si5664117pli.683.2017.09.26.03.25.35
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C4CF6B0038
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 06:43:20 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id r136so11499722wmf.4
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 03:43:20 -0700 (PDT)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id g7si3674459edj.126.2017.09.26.03.43.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Sep 2017 03:25:35 -0700 (PDT)
-Date: Tue, 26 Sep 2017 12:25:32 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] mm: introduce validity check on vm dirtiness settings
-Message-ID: <20170926102532.culqxb45xwzafomj@dhcp22.suse.cz>
-References: <1505861015-11919-1-git-send-email-laoar.shao@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Sep 2017 03:43:19 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 25BFA1C2771
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 11:43:17 +0100 (IST)
+Date: Tue, 26 Sep 2017 11:43:16 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [RFC 0/2] Use HighAtomic against long-term fragmentation
+Message-ID: <20170926104316.r2mjcrakykqfehga@techsingularity.net>
+References: <1506415604-4310-1-git-send-email-zhuhui@xiaomi.com>
+ <20170926095127.p5ocg44et2g62gku@techsingularity.net>
+ <CANFwon3Mf3AUfUPtSAUQus0yohMzKEirDcNqfnwPDwFWD04z-w@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1505861015-11919-1-git-send-email-laoar.shao@gmail.com>
+In-Reply-To: <CANFwon3Mf3AUfUPtSAUQus0yohMzKEirDcNqfnwPDwFWD04z-w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: jack@suse.cz, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, tytso@mit.edu, mawilcox@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hui Zhu <teawater@gmail.com>
+Cc: Hui Zhu <zhuhui@xiaomi.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, hillf.zj@alibaba-inc.com, Linux Memory Management List <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Wed 20-09-17 06:43:35, Yafang Shao wrote:
-> we can find the logic in domain_dirty_limits() that
-> when dirty bg_thresh is bigger than dirty thresh,
-> bg_thresh will be set as thresh * 1 / 2.
-> 	if (bg_thresh >= thresh)
-> 		bg_thresh = thresh / 2;
+On Tue, Sep 26, 2017 at 06:04:04PM +0800, Hui Zhu wrote:
+> 2017-09-26 17:51 GMT+08:00 Mel Gorman <mgorman@techsingularity.net>:
+> > On Tue, Sep 26, 2017 at 04:46:42PM +0800, Hui Zhu wrote:
+> >> Current HighAtomic just to handle the high atomic page alloc.
+> >> But I found that use it handle the normal unmovable continuous page
+> >> alloc will help to against long-term fragmentation.
+> >>
+> >
+> > This is not wise. High-order atomic allocations do not always have a
+> > smooth recovery path such as network drivers with large MTUs that have no
+> > choice but to drop the traffic and hope for a retransmit. That's why they
+> > have the highatomic reserve. If the reserve is used for normal unmovable
+> > allocations then allocation requests that could have waited for reclaim
+> > may cause high-order atomic allocations to fail. Changing it may allow
+> > improve latencies in some limited cases while causing functional failures
+> > in others.  If there is a special case where there are a large number of
+> > other high-order allocations then I would suggest increasing min_free_kbytes
+> > instead as a workaround.
 > 
-> But actually we can set vm background dirtiness bigger than
-> vm dirtiness successfully. This behavior may mislead us.
-> We'd better do this validity check at the beginning.
-
-This is an admin only interface. You can screw setting this up even
-when you keep consistency between the background and direct limits. In
-general we do not try to be clever for these knobs because we _expect_
-admins to do sane things. Why is this any different and why do we need
-to add quite some code to handle one particular corner case?
-
-To be honest I am not entirely sure this is worth the code and the
-future maintenance burden.
-
-> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
-> ---
->  Documentation/sysctl/vm.txt |  6 +++
->  mm/page-writeback.c         | 92 +++++++++++++++++++++++++++++++++++++++++----
->  2 files changed, 90 insertions(+), 8 deletions(-)
+> I think let 0 order unmovable page alloc and other order unmovable pages
+> alloc use different migrate types will help against long-term
+> fragmentation.
 > 
-> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-> index 9baf66a..0bab85d 100644
-> --- a/Documentation/sysctl/vm.txt
-> +++ b/Documentation/sysctl/vm.txt
-> @@ -156,6 +156,9 @@ read.
->  Note: the minimum value allowed for dirty_bytes is two pages (in bytes); any
->  value lower than this limit will be ignored and the old configuration will be
->  retained.
-> +Note: the value of dirty_bytes also cannot be set lower than
-> +dirty_background_bytes or the amount of memory corresponding to
-> +dirty_background_ratio.
->  
->  ==============================================================
->  
-> @@ -176,6 +179,9 @@ generating disk writes will itself start writing out dirty data.
->  
->  The total available memory is not equal to total system memory.
->  
-> +Note: dirty_ratio cannot be set lower than dirty_background_ratio or
-> +ratio corresponding to dirty_background_bytes.
-> +
->  ==============================================================
->  
->  dirty_writeback_centisecs
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 0b9c5cb..fadb1d7 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -511,15 +511,71 @@ bool node_dirty_ok(struct pglist_data *pgdat)
->  	return nr_pages <= limit;
->  }
->  
-> +static bool vm_dirty_settings_valid(void)
-> +{
-> +	bool ret = true;
-> +	unsigned long bytes;
-> +
-> +	if (vm_dirty_ratio > 0) {
-> +		if (dirty_background_ratio >= vm_dirty_ratio) {
-> +			ret = false;
-> +			goto out;
-> +		}
-> +
-> +		bytes = global_dirtyable_memory() * PAGE_SIZE / 100 *
-> +				vm_dirty_ratio;
-> +		if (dirty_background_bytes >= bytes) {
-> +			ret = false;
-> +			goto out;
-> +		}
-> +	}
-> +
-> +	if (vm_dirty_bytes > 0) {
-> +		if (dirty_background_bytes >= vm_dirty_bytes) {
-> +			ret = false;
-> +			goto out;
-> +		}
-> +
-> +		bytes = global_dirtyable_memory() * PAGE_SIZE / 100 *
-> +				dirty_background_ratio;
-> +
-> +		if (bytes >= vm_dirty_bytes) {
-> +			ret = false;
-> +			goto out;
-> +		}
-> +	}
-> +
-> +	if ((vm_dirty_bytes == 0 && vm_dirty_ratio == 0) ||
-> +		(dirty_background_bytes == 0 && dirty_background_ratio == 0))
-> +		ret = false;
-> +
-> +out:
-> +	return ret;
-> +}
-> +
->  int dirty_background_ratio_handler(struct ctl_table *table, int write,
->  		void __user *buffer, size_t *lenp,
->  		loff_t *ppos)
->  {
->  	int ret;
-> +	int old_ratio = dirty_background_ratio;
->  
->  	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-> -	if (ret == 0 && write)
-> -		dirty_background_bytes = 0;
-> +
-> +	/* When dirty_background_ratio is 0 and dirty_background_bytes isn't 0,
-> +	 * it's not correct to set dirty_background_bytes to 0 if we reset
-> +	 * dirty_background_ratio to 0.
-> +	 * So do nothing if the new ratio is not different.
-> +	 */
-> +	if (ret == 0 && write && dirty_background_ratio != old_ratio) {
-> +		if (vm_dirty_settings_valid())
-> +			dirty_background_bytes = 0;
-> +		else {
-> +			dirty_background_ratio = old_ratio;
-> +			ret = -EINVAL;
-> +		}
-> +	}
-> +
->  	return ret;
->  }
->  
-> @@ -528,10 +584,20 @@ int dirty_background_bytes_handler(struct ctl_table *table, int write,
->  		loff_t *ppos)
->  {
->  	int ret;
-> +	unsigned long old_bytes = dirty_background_bytes;
->  
->  	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
-> -	if (ret == 0 && write)
-> -		dirty_background_ratio = 0;
-> +
-> +	/* the reson is same as above */
-> +	if (ret == 0 && write && dirty_background_bytes != old_bytes) {
-> +		if (vm_dirty_settings_valid())
-> +			dirty_background_ratio = 0;
-> +		else {
-> +			dirty_background_bytes = old_bytes;
-> +			ret = -EINVAL;
-> +		}
-> +	}
-> +
->  	return ret;
->  }
->  
-> @@ -544,8 +610,13 @@ int dirty_ratio_handler(struct ctl_table *table, int write,
->  
->  	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
->  	if (ret == 0 && write && vm_dirty_ratio != old_ratio) {
-> -		writeback_set_ratelimit();
-> -		vm_dirty_bytes = 0;
-> +		if (vm_dirty_settings_valid()) {
-> +			writeback_set_ratelimit();
-> +			vm_dirty_bytes = 0;
-> +		} else {
-> +			vm_dirty_ratio = old_ratio;
-> +			ret = -EINVAL;
-> +		}
->  	}
->  	return ret;
->  }
-> @@ -559,8 +630,13 @@ int dirty_bytes_handler(struct ctl_table *table, int write,
->  
->  	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
->  	if (ret == 0 && write && vm_dirty_bytes != old_bytes) {
-> -		writeback_set_ratelimit();
-> -		vm_dirty_ratio = 0;
-> +		if (vm_dirty_settings_valid()) {
-> +			writeback_set_ratelimit();
-> +			vm_dirty_ratio = 0;
-> +		} else {
-> +			vm_dirty_bytes = old_bytes;
-> +			ret = -EINVAL;
-> +		}
->  	}
->  	return ret;
->  }
-> -- 
-> 1.8.3.1
+
+That can already happen through the migratetype fallback lists.
+
+> Do you think kernel can add a special migrate type for big than 0 order
+> unmovable pages alloc?
 > 
+
+Technically, yes but the barrier to entry will be high as you'll have to
+explain carefully why it is necessary including information on why order-0
+pages cannot be used, back it up with data showing what is improved as a
+result and justify why potentially forcing normal workloads to reclaim due
+to being unable to use the high-order reserve is ok. If it's a limitation
+of a specific driver then it'll be asked why that driver does not have a
+dedicated pool (which is functionally similar to having a dedicated reserve).
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
