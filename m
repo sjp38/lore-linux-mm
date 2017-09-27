@@ -1,60 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 55B526B0069
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 21:36:43 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id i130so24259019pgc.5
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 18:36:43 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id p84si6444503pfi.246.2017.09.26.18.36.42
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D1EA6B0069
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 21:38:23 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id 93so17716142iol.2
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 18:38:23 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 64sor1127079itu.139.2017.09.26.18.38.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Sep 2017 18:36:42 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH] mm, swap: Make VMA based swap readahead configurable
-References: <20170921013310.31348-1-ying.huang@intel.com>
-	<20170926132129.dbtr2mof35x4j4og@dhcp22.suse.cz>
-Date: Wed, 27 Sep 2017 09:36:39 +0800
-In-Reply-To: <20170926132129.dbtr2mof35x4j4og@dhcp22.suse.cz> (Michal Hocko's
-	message of "Tue, 26 Sep 2017 15:21:29 +0200")
-Message-ID: <87shf8c47s.fsf@yhuang-dev.intel.com>
+        (Google Transport Security);
+        Tue, 26 Sep 2017 18:38:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <20170926165949.77e27aea0b92a226e7905060@linux-foundation.org>
+References: <1506035552-13010-1-git-send-email-laoar.shao@gmail.com> <20170926165949.77e27aea0b92a226e7905060@linux-foundation.org>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Wed, 27 Sep 2017 09:38:21 +0800
+Message-ID: <CALOAHbB2CTfjAWgazxdAQTiOjCZFHF8Cn2mXv=kFe3prp_zg-A@mail.gmail.com>
+Subject: Re: [PATCH v4] mm: introduce validity check on vm dirtiness settings
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Minchan Kim <minchan@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 
-Michal Hocko <mhocko@kernel.org> writes:
-
-> On Thu 21-09-17 09:33:10, Huang, Ying wrote:
->> From: Huang Ying <ying.huang@intel.com>
->> 
->> This patch adds a new Kconfig option VMA_SWAP_READAHEAD and wraps VMA
->> based swap readahead code inside #ifdef CONFIG_VMA_SWAP_READAHEAD/#endif.
->> This is more friendly for tiny kernels.
+2017-09-27 7:59 GMT+08:00 Andrew Morton <akpm@linux-foundation.org>:
+> On Fri, 22 Sep 2017 07:12:32 +0800 Yafang Shao <laoar.shao@gmail.com> wrote:
 >
-> How (much)?
-
-OK.  I will measure it.
-
->> And as pointed to by Minchan
->> Kim, give people who want to disable the swap readahead an opportunity
->> to notice the changes to the swap readahead algorithm and the
->> corresponding knobs.
+>> we can find the logic in domain_dirty_limits() that
+>> when dirty bg_thresh is bigger than dirty thresh,
+>> bg_thresh will be set as thresh * 1 / 2.
+>>       if (bg_thresh >= thresh)
+>>               bg_thresh = thresh / 2;
+>>
+>> But actually we can set vm background dirtiness bigger than
+>> vm dirtiness successfully. This behavior may mislead us.
+>> We'd better do this validity check at the beginning.
+>>
+>> ...
+>>
+>> --- a/Documentation/sysctl/vm.txt
+>> +++ b/Documentation/sysctl/vm.txt
+>> @@ -156,6 +156,9 @@ read.
+>>  Note: the minimum value allowed for dirty_bytes is two pages (in bytes); any
+>>  value lower than this limit will be ignored and the old configuration will be
+>>  retained.
+>> +Note: the value of dirty_bytes also cannot be set lower than
+>> +dirty_background_bytes or the amount of memory corresponding to
+>> +dirty_background_ratio.
 >
-> Why would anyone want that?
+> I think this means that a script which alters both dirty_bytes and
+> dirty_background_bytes must alter dirty_background_bytes first if they
+> are being decreased and must alter dirty_bytes first if they are being
+> increased.  Or something like that.
 >
-> Please note that adding new config options make the already complicated
-> config space even more problematic so there should be a good reason to
-> add one. Please make sure your justification is clear on why this is
-> worth the future maintenance and configurability burden.
 
-Hi, Minchan,
+Yes.
 
-Could you give more information on this?
+> And existing scripts which do not do this will cease to work correctly,
+> no?
+>
 
-Best Regards,
-Huang, Ying
+The existing scritpts won't work correctly. That's also what I have
+worried before.
+
+But under this condition, there's a error message generated by "sysctl
+-w" to tell them the first setting was failure.
+This error message may be a reminder to them that there are some
+connections between background and direct limit, and should not set
+arbitrary.
+May that's better. I'm not sure.
+
+Thanks
+Yafang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
