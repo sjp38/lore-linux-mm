@@ -1,63 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AD4286B0268
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 12:03:58 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id i130so28353499pgc.5
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 09:03:58 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BD2DB6B026A
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 12:03:59 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id y29so23943221pff.6
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 09:03:59 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k6si5598218plt.90.2017.09.27.09.03.56
+        by mx.google.com with ESMTPS id v3si7782850plb.576.2017.09.27.09.03.58
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Sep 2017 09:03:57 -0700 (PDT)
+        Wed, 27 Sep 2017 09:03:58 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 15/15] afs: Use find_get_pages_range_tag()
-Date: Wed, 27 Sep 2017 18:03:34 +0200
-Message-Id: <20170927160334.29513-16-jack@suse.cz>
+Subject: [PATCH 07/15] f2fs: Use find_get_pages_tag() for looking up single page
+Date: Wed, 27 Sep 2017 18:03:26 +0200
+Message-Id: <20170927160334.29513-8-jack@suse.cz>
 In-Reply-To: <20170927160334.29513-1-jack@suse.cz>
 References: <20170927160334.29513-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, David Howells <dhowells@redhat.com>, linux-afs@lists.infradead.org
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jaegeuk Kim <jaegeuk@kernel.org>, linux-f2fs-devel@lists.sourceforge.net
 
-Use find_get_pages_range_tag() in afs_writepages_region() as we are
-interested only in pages from given range. Remove unnecessary code after
-this conversion.
+__get_first_dirty_index() wants to lookup only the first dirty page
+after given index. There's no point in using pagevec_lookup_tag() for
+that. Just use find_get_pages_tag() directly.
 
-CC: David Howells <dhowells@redhat.com>
-CC: linux-afs@lists.infradead.org
+CC: Jaegeuk Kim <jaegeuk@kernel.org>
+CC: linux-f2fs-devel@lists.sourceforge.net
+Reviewed-by: Chao Yu <yuchao0@huawei.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/afs/write.c | 11 ++---------
- 1 file changed, 2 insertions(+), 9 deletions(-)
+ fs/f2fs/file.c | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
 
-diff --git a/fs/afs/write.c b/fs/afs/write.c
-index 106e43db1115..d62a6b54152d 100644
---- a/fs/afs/write.c
-+++ b/fs/afs/write.c
-@@ -497,20 +497,13 @@ static int afs_writepages_region(struct address_space *mapping,
- 	_enter(",,%lx,%lx,", index, end);
+diff --git a/fs/f2fs/file.c b/fs/f2fs/file.c
+index 517e112c8a9a..f78b76ec4707 100644
+--- a/fs/f2fs/file.c
++++ b/fs/f2fs/file.c
+@@ -313,18 +313,19 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
+ static pgoff_t __get_first_dirty_index(struct address_space *mapping,
+ 						pgoff_t pgofs, int whence)
+ {
+-	struct pagevec pvec;
++	struct page *page;
+ 	int nr_pages;
  
- 	do {
--		n = find_get_pages_tag(mapping, &index, PAGECACHE_TAG_DIRTY,
--				       1, &page);
-+		n = find_get_pages_range_tag(mapping, &index, end,
-+					PAGECACHE_TAG_DIRTY, 1, &page);
- 		if (!n)
- 			break;
+ 	if (whence != SEEK_DATA)
+ 		return 0;
  
- 		_debug("wback %lx", page->index);
+ 	/* find first dirty page index */
+-	pagevec_init(&pvec, 0);
+-	nr_pages = pagevec_lookup_tag(&pvec, mapping, &pgofs,
+-					PAGECACHE_TAG_DIRTY, 1);
+-	pgofs = nr_pages ? pvec.pages[0]->index : ULONG_MAX;
+-	pagevec_release(&pvec);
++	nr_pages = find_get_pages_tag(mapping, &pgofs, PAGECACHE_TAG_DIRTY,
++				      1, &page);
++	if (!nr_pages)
++		return ULONG_MAX;
++	pgofs = page->index;
++	put_page(page);
+ 	return pgofs;
+ }
  
--		if (page->index > end) {
--			*_next = index;
--			put_page(page);
--			_leave(" = 0 [%lx]", *_next);
--			return 0;
--		}
--
- 		/* at this point we hold neither mapping->tree_lock nor lock on
- 		 * the page itself: the page may be truncated or invalidated
- 		 * (changing page->mapping to NULL), or even swizzled back from
 -- 
 2.12.3
 
