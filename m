@@ -1,71 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D01506B0038
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 19:31:10 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id v109so17977953wrc.5
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 16:31:10 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 39si138819wrx.324.2017.09.27.16.31.08
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9352B6B0038
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 19:32:31 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id w63so1293360qkd.0
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 16:32:31 -0700 (PDT)
+Received: from sasl.smtp.pobox.com (pb-smtp1.pobox.com. [64.147.108.70])
+        by mx.google.com with ESMTPS id 34si176138qtn.62.2017.09.27.16.32.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Sep 2017 16:31:09 -0700 (PDT)
-Date: Wed, 27 Sep 2017 16:31:06 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RESEND] proc, coredump: add CoreDumping flag to
- /proc/pid/status
-Message-Id: <20170927163106.84b9622f183f087eff7f6da7@linux-foundation.org>
-In-Reply-To: <20170920230634.31572-1-guro@fb.com>
-References: <20170914224431.GA9735@castle>
-	<20170920230634.31572-1-guro@fb.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 27 Sep 2017 16:32:30 -0700 (PDT)
+From: Nicolas Pitre <nicolas.pitre@linaro.org>
+Subject: [PATCH v4 0/5] cramfs refresh for embedded usage
+Date: Wed, 27 Sep 2017 19:32:19 -0400
+Message-Id: <20170927233224.31676-1-nicolas.pitre@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
+To: Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org
+Cc: linux-fsdevel@vger.kernel.org, linux-embedded@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Brandt <Chris.Brandt@renesas.com>
 
-On Wed, 20 Sep 2017 16:06:34 -0700 Roman Gushchin <guro@fb.com> wrote:
+To memory management people: please review patch #4 of this series.
 
-> Right now there is no convenient way to check if a process is being
-> coredumped at the moment.
-> 
-> It might be necessary to recognize such state to prevent killing
-> the process and getting a broken coredump.
-> Writing a large core might take significant time, and the process
-> is unresponsive during it, so it might be killed by timeout,
-> if another process is monitoring and killing/restarting
-> hanging tasks.
-> 
-> To provide an ability to detect if a process is in the state of
-> being coreduped, we can expose a boolean CoreDumping flag
-> in /proc/pid/status.
-> 
-> Example:
-> $ cat core.sh
->   #!/bin/sh
-> 
->   echo "|/usr/bin/sleep 10" > /proc/sys/kernel/core_pattern
->   sleep 1000 &
->   PID=$!
-> 
->   cat /proc/$PID/status | grep CoreDumping
->   kill -ABRT $PID
->   sleep 1
->   cat /proc/$PID/status | grep CoreDumping
-> 
-> $ ./core.sh
->   CoreDumping:	0
->   CoreDumping:	1
+This series brings a nice refresh to the cramfs filesystem, adding the
+following capabilities:
 
-I assume you have some real-world use case which benefits from this.
+- Direct memory access, bypassing the block and/or MTD layers entirely.
 
->  fs/proc/array.c | 6 ++++++
->  1 file changed, 6 insertions(+)
+- Ability to store individual data blocks uncompressed.
 
-A Documentation/ would be appropriate?   Include a brief mention of
-*why* someone might want to use this...
+- Ability to locate individual data blocks anywhere in the filesystem.
 
+The end result is a very tight filesystem that can be accessed directly
+from ROM without any other subsystem underneath. This also allows for
+user space XIP which is a very important feature for tiny embedded
+systems.
+
+This series is also available based on v4.13 via git here:
+
+  http://git.linaro.org/people/nicolas.pitre/linux xipcramfs
+
+Why cramfs?
+
+  Because cramfs is very simple and small. With CONFIG_CRAMFS_BLOCK=n and
+  CONFIG_CRAMFS_PHYSMEM=y the cramfs driver may use as little as 3704 bytes
+  of code. That's many times smaller than squashfs. And the runtime memory
+  usage is also much less with cramfs than squashfs. It packs very tightly
+  already compared to romfs which has no compression support. And the cramfs
+  format was simple to extend, allowing for both compressed and uncompressed
+  blocks within the same file.
+
+Why not accessing ROM via MTD?
+
+  The MTD layer is nice and flexible. It also represents a huge overhead
+  considering its core with no other enabled options weights 19KB.
+  That's many times the size of the cramfs code for something that
+  essentially boils down to a glorified argument parser and a call to
+  memremap() in this case.  And if someone still wants to use cramfs via
+  MTD then it is already possible with mtdblock.
+
+Why not using DAX?
+
+  DAX stands for "Direct Access" and is a generic kernel layer helping
+  with the necessary tasks involved with XIP. It is tailored for large
+  writable filesystems and relies on the presence of an MMU. It also has
+  the following shortcoming: "The DAX code does not work correctly on
+  architectures which have virtually mapped caches such as ARM, MIPS and
+  SPARC." That makes it unsuitable for a large portion of the intended
+  targets for this series. And due to the read-only nature of cramfs, it is
+  possible to achieve the intended result with a much simpler approach making
+  DAX somewhat overkill in this context.
+
+The maximum size of a cramfs image can't exceed 272MB. In practice it is
+likely to be much much less. Given this series is concerned with small
+memory systems, even in the MMU case there is always plenty of vmalloc
+space left to map it all and even a 272MB memremap() wouldn't be a
+problem. If it is then maybe your system is big enough with large
+resources to manage already and you're pretty unlikely to be using cramfs
+in the first place.
+
+Of course, while this cramfs remains backward compatible with existing
+filesystem images, a newer mkcramfs version is necessary to take advantage
+of the extended data layout. I created a version of mkcramfs that
+detects ELF files and marks text+rodata segments for XIP and compresses the
+rest of those ELF files automatically.
+
+So here it is. I'm also willing to step up as cramfs maintainer given
+that no sign of any maintenance activities appeared for years.
+
+
+Changes from v3:
+
+- Rebased on v4.13.
+- Made direct access depend on cramfs not being modular due to unexported
+  vma handling functions.
+- Solicit comments from mm people explicitly.
+
+Changes from v2:
+
+- Plugged a few races in cramfs_vmasplit_fault(). Thanks to Al Viro for
+  highlighting them.
+- Fixed some checkpatch warnings
+
+Changes from v1:
+
+- Improved mmap() support by adding the ability to partially populate a
+  mapping and lazily split the non directly mapable pages to a separate
+  vma at fault time (thanks to Chris Brandt for testing).
+- Clarified the documentation some more.
+
+
+diffstat:
+
+ Documentation/filesystems/cramfs.txt |  42 ++
+ MAINTAINERS                          |   4 +-
+ fs/cramfs/Kconfig                    |  38 +-
+ fs/cramfs/README                     |  31 +-
+ fs/cramfs/inode.c                    | 646 ++++++++++++++++++++++++++---
+ include/uapi/linux/cramfs_fs.h       |  20 +-
+ init/do_mounts.c                     |   8 +
+ 7 files changed, 712 insertions(+), 77 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
