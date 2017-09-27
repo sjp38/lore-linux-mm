@@ -1,64 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A5706B026A
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AD4286B0268
 	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 12:03:58 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id x78so23935366pff.7
+Received: by mail-pg0-f72.google.com with SMTP id i130so28353499pgc.5
         for <linux-mm@kvack.org>; Wed, 27 Sep 2017 09:03:58 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e16si4324706pfj.405.2017.09.27.09.03.56
+        by mx.google.com with ESMTPS id k6si5598218plt.90.2017.09.27.09.03.56
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Wed, 27 Sep 2017 09:03:57 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 05/15] f2fs: Use pagevec_lookup_range_tag()
-Date: Wed, 27 Sep 2017 18:03:24 +0200
-Message-Id: <20170927160334.29513-6-jack@suse.cz>
+Subject: [PATCH 15/15] afs: Use find_get_pages_range_tag()
+Date: Wed, 27 Sep 2017 18:03:34 +0200
+Message-Id: <20170927160334.29513-16-jack@suse.cz>
 In-Reply-To: <20170927160334.29513-1-jack@suse.cz>
 References: <20170927160334.29513-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, Jaegeuk Kim <jaegeuk@kernel.org>, linux-f2fs-devel@lists.sourceforge.net
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>, David Howells <dhowells@redhat.com>, linux-afs@lists.infradead.org
 
-We want only pages from given range in f2fs_write_cache_pages(). Use
-pagevec_lookup_range_tag() instead of pagevec_lookup_tag() and remove
-unnecessary code.
+Use find_get_pages_range_tag() in afs_writepages_region() as we are
+interested only in pages from given range. Remove unnecessary code after
+this conversion.
 
-CC: Jaegeuk Kim <jaegeuk@kernel.org>
-CC: linux-f2fs-devel@lists.sourceforge.net
-Reviewed-by: Chao Yu <yuchao0@huawei.com>
+CC: David Howells <dhowells@redhat.com>
+CC: linux-afs@lists.infradead.org
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/f2fs/data.c | 9 ++-------
- 1 file changed, 2 insertions(+), 7 deletions(-)
+ fs/afs/write.c | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)
 
-diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
-index 36b535207c88..17d2c2997ddd 100644
---- a/fs/f2fs/data.c
-+++ b/fs/f2fs/data.c
-@@ -1669,8 +1669,8 @@ static int f2fs_write_cache_pages(struct address_space *mapping,
- 	while (!done && (index <= end)) {
- 		int i;
+diff --git a/fs/afs/write.c b/fs/afs/write.c
+index 106e43db1115..d62a6b54152d 100644
+--- a/fs/afs/write.c
++++ b/fs/afs/write.c
+@@ -497,20 +497,13 @@ static int afs_writepages_region(struct address_space *mapping,
+ 	_enter(",,%lx,%lx,", index, end);
  
--		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index, tag,
--			      min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1);
-+		nr_pages = pagevec_lookup_range_tag(&pvec, mapping, &index, end,
-+				tag, PAGEVEC_SIZE);
- 		if (nr_pages == 0)
+ 	do {
+-		n = find_get_pages_tag(mapping, &index, PAGECACHE_TAG_DIRTY,
+-				       1, &page);
++		n = find_get_pages_range_tag(mapping, &index, end,
++					PAGECACHE_TAG_DIRTY, 1, &page);
+ 		if (!n)
  			break;
  
-@@ -1678,11 +1678,6 @@ static int f2fs_write_cache_pages(struct address_space *mapping,
- 			struct page *page = pvec.pages[i];
- 			bool submitted = false;
+ 		_debug("wback %lx", page->index);
  
--			if (page->index > end) {
--				done = 1;
--				break;
--			}
+-		if (page->index > end) {
+-			*_next = index;
+-			put_page(page);
+-			_leave(" = 0 [%lx]", *_next);
+-			return 0;
+-		}
 -
- 			done_index = page->index;
- retry_write:
- 			lock_page(page);
+ 		/* at this point we hold neither mapping->tree_lock nor lock on
+ 		 * the page itself: the page may be truncated or invalidated
+ 		 * (changing page->mapping to NULL), or even swizzled back from
 -- 
 2.12.3
 
