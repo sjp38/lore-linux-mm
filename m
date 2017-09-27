@@ -1,91 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 60FCF6B0261
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 06:19:47 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id q8so13885785qtb.2
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 03:19:47 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id k51si5014514qtk.68.2017.09.27.03.19.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Sep 2017 03:19:46 -0700 (PDT)
-Date: Wed, 27 Sep 2017 11:19:13 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-Message-ID: <20170927101913.GB4159@castle>
-References: <20170925170004.GA22704@cmpxchg.org>
- <20170925181533.GA15918@castle>
- <20170925202442.lmcmvqwy2jj2tr5h@dhcp22.suse.cz>
- <20170926105925.GA23139@castle.dhcp.TheFacebook.com>
- <20170926112134.r5eunanjy7ogjg5n@dhcp22.suse.cz>
- <20170926121300.GB23139@castle.dhcp.TheFacebook.com>
- <20170926133040.uupv3ibkt3jtbotf@dhcp22.suse.cz>
- <20170926172610.GA26694@cmpxchg.org>
- <CAAAKZws88uF2dVrXwRV0V6AH5X68rWy7AfJxTxYjpuiyiNJFWA@mail.gmail.com>
- <20170927074319.o3k26kja43rfqmvb@dhcp22.suse.cz>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C9B576B0261
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 06:23:58 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id i130so26705246pgc.5
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 03:23:58 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id z131si2889759pgz.239.2017.09.27.03.23.57
+        for <linux-mm@kvack.org>;
+        Wed, 27 Sep 2017 03:23:57 -0700 (PDT)
+Subject: Re: [PATCH v3] dma-debug: fix incorrect pfn calculation
+References: <1506484087-1177-1-git-send-email-miles.chen@mediatek.com>
+From: Robin Murphy <robin.murphy@arm.com>
+Message-ID: <273077fd-c5ad-82c8-60aa-cde89355e5e8@arm.com>
+Date: Wed, 27 Sep 2017 11:23:52 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20170927074319.o3k26kja43rfqmvb@dhcp22.suse.cz>
+In-Reply-To: <1506484087-1177-1-git-send-email-miles.chen@mediatek.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tim Hockin <thockin@hockin.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: miles.chen@mediatek.com, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, wsd_upstream@mediatek.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, linux-mediatek@lists.infradead.org
 
-On Wed, Sep 27, 2017 at 09:43:19AM +0200, Michal Hocko wrote:
-> On Tue 26-09-17 20:37:37, Tim Hockin wrote:
-> [...]
-> > I feel like David has offered examples here, and many of us at Google
-> > have offered examples as long ago as 2013 (if I recall) of cases where
-> > the proposed heuristic is EXACTLY WRONG.
+[+DMA maintainers]
+
+On 27/09/17 04:48, miles.chen@mediatek.com wrote:
+> From: Miles Chen <miles.chen@mediatek.com>
 > 
-> I do not think we have discussed anything resembling the current
-> approach. And I would really appreciate some more examples where
-> decisions based on leaf nodes would be EXACTLY WRONG.
->
-
-I would agree here.
-
-The discussing two-step approach (select biggest leaf or oom_group memcg,
-then select largest process inside) does really look as a way to go.
-
-It should work well in practice and it allows further development.
-It will catch workloads which are leaking child processes by default,
-which is an advantage in comparison to the existing algorithm.
-
-Both strong hierarchical approach (as in v8) and pure flat (by Johannes)
-are more limiting. In first case, deep hierarchies are affected (as Michal
-mentioned) and we stick with tree traverse policy (Tejun's point).
-
-In second case, the further development is under a question: any new idea
-(say, oom_priorities, or, for example, if we will have a new useful memcg
-metric) should be applied to processes and memcgs simultaneously.
-Also, We drop any idea of memcg-level fairness and obtain some implementation
-issues (which I mentioned earlier). The idea of mixing tasks and memcgs
-leads to a much more hairy code, and the OOM code is already quite hairy.
-The idea of comparing killable entities is a leaking abstraction,
-as we can't predict how much memory killing a single process will release
-(say, for example, the process is the init in a pid namespace).
-
-> > We need OOM behavior to kill in a deterministic order configured by
-> > policy.
+> dma-debug reports the following warning:
 > 
-> And nobody is objecting to this usecase. I think we can build a priority
-> policy on top of leaf-based decision as well. The main point we are
-> trying to sort out here is a reasonable semantic that would work for
-> most workloads. Sibling based selection will simply not work on those
-> that have to use deeper hierarchies for organizational purposes. I
-> haven't heard a counter argument for that example yet.
+> [name:panic&]WARNING: CPU: 3 PID: 298 at kernel-4.4/lib/dma-debug.c:604
+> debug _dma_assert_idle+0x1a8/0x230()
+> DMA-API: cpu touching an active dma mapped cacheline [cln=0x00000882300]
+> CPU: 3 PID: 298 Comm: vold Tainted: G        W  O    4.4.22+ #1
+> Hardware name: MT6739 (DT)
+> Call trace:
+> [<ffffff800808acd0>] dump_backtrace+0x0/0x1d4
+> [<ffffff800808affc>] show_stack+0x14/0x1c
+> [<ffffff800838019c>] dump_stack+0xa8/0xe0
+> [<ffffff80080a0594>] warn_slowpath_common+0xf4/0x11c
+> [<ffffff80080a061c>] warn_slowpath_fmt+0x60/0x80
+> [<ffffff80083afe24>] debug_dma_assert_idle+0x1a8/0x230
+> [<ffffff80081dca9c>] wp_page_copy.isra.96+0x118/0x520
+> [<ffffff80081de114>] do_wp_page+0x4fc/0x534
+> [<ffffff80081e0a14>] handle_mm_fault+0xd4c/0x1310
+> [<ffffff8008098798>] do_page_fault+0x1c8/0x394
+> [<ffffff800808231c>] do_mem_abort+0x50/0xec
+> 
+> I found that debug_dma_alloc_coherent() and debug_dma_free_coherent()
+> assume that dma_alloc_coherent() always returns a linear address.
+> However it's possible that dma_alloc_coherent() returns a non-linear
+> address. In this case, page_to_pfn(virt_to_page(virt)) will return an
+> incorrect pfn. If the pfn is valid and mapped as a COW page,
+> we will hit the warning when doing wp_page_copy().
 
-Yes, implementing oom_priorities is a ~15 lines patch on top of
-the discussing approach. David can use this small off-stream patch
-for now, in any case it's a step forward in comparison to the existing state.
+Yeah, we definitely want that explanation recorded in the commit, since
+the warning is pretty non-obvious otherwise.
 
+Reviewed-by: Robin Murphy <robin.murphy@arm.com>
 
-Overall, do we have any open question left? Does anyone has any strong
-arguments against the discussing design?
-
-Thanks!
+> Fix this by calculating pfn for linear and non-linear addresses.
+> 
+> Signed-off-by: Miles Chen <miles.chen@mediatek.com>
+> ---
+>  lib/dma-debug.c | 6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
+> 
+> diff --git a/lib/dma-debug.c b/lib/dma-debug.c
+> index ea4cc3d..e5b4237 100644
+> --- a/lib/dma-debug.c
+> +++ b/lib/dma-debug.c
+> @@ -1497,7 +1497,8 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
+>  
+>  	entry->type      = dma_debug_coherent;
+>  	entry->dev       = dev;
+> -	entry->pfn	 = page_to_pfn(virt_to_page(virt));
+> +	entry->pfn	 = is_vmalloc_addr(virt) ? vmalloc_to_pfn(virt) :
+> +						page_to_pfn(virt_to_page(virt));
+>  	entry->offset	 = offset_in_page(virt);
+>  	entry->size      = size;
+>  	entry->dev_addr  = dma_addr;
+> @@ -1513,7 +1514,8 @@ void debug_dma_free_coherent(struct device *dev, size_t size,
+>  	struct dma_debug_entry ref = {
+>  		.type           = dma_debug_coherent,
+>  		.dev            = dev,
+> -		.pfn		= page_to_pfn(virt_to_page(virt)),
+> +		.pfn		= is_vmalloc_addr(virt) ? vmalloc_to_pfn(virt) :
+> +						page_to_pfn(virt_to_page(virt)),
+>  		.offset		= offset_in_page(virt),
+>  		.dev_addr       = addr,
+>  		.size           = size,
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
