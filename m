@@ -1,77 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E0A776B0069
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 20:53:46 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id d8so24090715pgt.1
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 17:53:46 -0700 (PDT)
-Received: from out0-243.mail.aliyun.com (out0-243.mail.aliyun.com. [140.205.0.243])
-        by mx.google.com with ESMTPS id e62si6392796pfa.483.2017.09.26.17.53.44
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A4866B025E
+	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 20:53:48 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id f84so20295558pfj.0
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 17:53:48 -0700 (PDT)
+Received: from out0-206.mail.aliyun.com (out0-206.mail.aliyun.com. [140.205.0.206])
+        by mx.google.com with ESMTPS id p4si344045pgc.28.2017.09.26.17.53.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Sep 2017 17:53:45 -0700 (PDT)
+        Tue, 26 Sep 2017 17:53:47 -0700 (PDT)
 From: "Yang Shi" <yang.s@alibaba-inc.com>
-Subject: [PATCH 0/3 v7] oom: capture unreclaimable slab info in oom message when kernel panic
-Date: Wed, 27 Sep 2017 08:53:33 +0800
-Message-Id: <1506473616-88120-1-git-send-email-yang.s@alibaba-inc.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: [PATCH 1/3] tools: slabinfo: add "-U" option to show unreclaimable slabs only
+Date: Wed, 27 Sep 2017 08:53:34 +0800
+Message-Id: <1506473616-88120-2-git-send-email-yang.s@alibaba-inc.com>
+In-Reply-To: <1506473616-88120-1-git-send-email-yang.s@alibaba-inc.com>
+References: <1506473616-88120-1-git-send-email-yang.s@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org
 Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+Add "-U" option to show unreclaimable slabs only.
 
-Recently we ran into a oom issue, kernel panic due to no killable process.
-The dmesg shows huge unreclaimable slabs used almost 100% memory, but kdump doesn't capture vmcore due to some reason.
+"-U" and "-S" together can tell us what unreclaimable slabs use the most
+memory to help debug huge unreclaimable slabs issue.
 
-So, it may sound better to capture unreclaimable slab info in oom message when kernel panic to aid trouble shooting and cover the corner case.
-Since kernel already panic, so capturing more information sounds worthy and doesn't bother normal oom killer.
+Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
+Acked-by: Christoph Lameter <cl@linux.com>
+Acked-by: David Rientjes <rientjes@google.com>
+---
+ tools/vm/slabinfo.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
 
-With the patchset, tools/vm/slabinfo has a new option, "-U", to show unreclaimable slab only.
-
-And, oom will print all non zero (num_objs * size != 0) unreclaimable slabs in oom killer message.
-
-For details, please see the commit log for each commit.
-
-Changelog v6 -> v7:
-* Added unreclaim_slabs_oom_ratio proc knob, unreclaimable slabs info will be dumped when unreclaimable slabs amount : all user memory > the ratio
-
-Changelog v5 a??> v6:
-* Fixed a checkpatch.pl warning for patch #2
-
-Changelog v4 a??> v5:
-* Solved the comments from David
-* Build test SLABINFO = n
-
-Changelog v3 a??> v4:
-* Solved the comments from David
-* Added Davida??s Acked-by in patch 1
-
-Changelog v2 a??> v3:
-* Show used size and total size of each kmem cache per Davida??s comment
-
-Changelog v1 a??> v2:
-* Removed the original patch 1 (a??mm: slab: output reclaimable flag in /proc/slabinfoa??) since Christoph suggested it might break the compatibility and /proc/slabinfo is legacy
-* Added Christopha??s Acked-by
-* Removed acquiring slab_mutex per Tetsuoa??s comment
-
-
-Yang Shi (3):
-      tools: slabinfo: add "-U" option to show unreclaimable slabs only
-      mm: oom: show unreclaimable slab info when kernel panic
-      doc: add description for unreclaim_slabs_oom_ratio
-
- Documentation/sysctl/vm.txt | 12 ++++++++++++
- include/linux/oom.h         |  1 +
- include/uapi/linux/sysctl.h |  1 +
- kernel/sysctl.c             |  9 +++++++++
- kernel/sysctl_binary.c      |  1 +
- mm/oom_kill.c               | 31 +++++++++++++++++++++++++++++++
- mm/slab.h                   |  8 ++++++++
- mm/slab_common.c            | 29 +++++++++++++++++++++++++++++
- tools/vm/slabinfo.c         | 11 ++++++++++-
- 9 files changed, 102 insertions(+), 1 deletion(-)
+diff --git a/tools/vm/slabinfo.c b/tools/vm/slabinfo.c
+index b9d34b3..de8fa11 100644
+--- a/tools/vm/slabinfo.c
++++ b/tools/vm/slabinfo.c
+@@ -83,6 +83,7 @@ struct aliasinfo {
+ int sort_loss;
+ int extended_totals;
+ int show_bytes;
++int unreclaim_only;
+ 
+ /* Debug options */
+ int sanity;
+@@ -132,6 +133,7 @@ static void usage(void)
+ 		"-L|--Loss              Sort by loss\n"
+ 		"-X|--Xtotals           Show extended summary information\n"
+ 		"-B|--Bytes             Show size in bytes\n"
++		"-U|--Unreclaim		Show unreclaimable slabs only\n"
+ 		"\nValid debug options (FZPUT may be combined)\n"
+ 		"a / A          Switch on all debug options (=FZUP)\n"
+ 		"-              Switch off all debug options\n"
+@@ -568,6 +570,9 @@ static void slabcache(struct slabinfo *s)
+ 	if (strcmp(s->name, "*") == 0)
+ 		return;
+ 
++	if (unreclaim_only && s->reclaim_account)
++		return;
++
+ 	if (actual_slabs == 1) {
+ 		report(s);
+ 		return;
+@@ -1346,6 +1351,7 @@ struct option opts[] = {
+ 	{ "Loss", no_argument, NULL, 'L'},
+ 	{ "Xtotals", no_argument, NULL, 'X'},
+ 	{ "Bytes", no_argument, NULL, 'B'},
++	{ "Unreclaim", no_argument, NULL, 'U'},
+ 	{ NULL, 0, NULL, 0 }
+ };
+ 
+@@ -1357,7 +1363,7 @@ int main(int argc, char *argv[])
+ 
+ 	page_size = getpagesize();
+ 
+-	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:LXB",
++	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:LXBU",
+ 						opts, NULL)) != -1)
+ 		switch (c) {
+ 		case '1':
+@@ -1438,6 +1444,9 @@ int main(int argc, char *argv[])
+ 		case 'B':
+ 			show_bytes = 1;
+ 			break;
++		case 'U':
++			unreclaim_only = 1;
++			break;
+ 		default:
+ 			fatal("%s: Invalid option '%c'\n", argv[0], optopt);
+ 
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
