@@ -1,96 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 95E616B025F
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C47DD6B0260
 	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 17:46:45 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id 188so29917209pgb.3
+Received: by mail-pf0-f197.google.com with SMTP id a7so25266549pfj.3
         for <linux-mm@kvack.org>; Wed, 27 Sep 2017 14:46:45 -0700 (PDT)
-Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
-        by mx.google.com with ESMTPS id m27si7816776pli.793.2017.09.27.14.46.43
+Received: from out4433.biz.mail.alibaba.com (out4433.biz.mail.alibaba.com. [47.88.44.33])
+        by mx.google.com with ESMTPS id t63si8090805pfg.128.2017.09.27.14.46.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 27 Sep 2017 14:46:44 -0700 (PDT)
 From: "Yang Shi" <yang.s@alibaba-inc.com>
-Subject: [PATCH 1/2] tools: slabinfo: add "-U" option to show unreclaimable slabs only
-Date: Thu, 28 Sep 2017 05:46:15 +0800
-Message-Id: <1506548776-67535-2-git-send-email-yang.s@alibaba-inc.com>
-In-Reply-To: <1506548776-67535-1-git-send-email-yang.s@alibaba-inc.com>
-References: <1506548776-67535-1-git-send-email-yang.s@alibaba-inc.com>
+Subject: [PATCH 0/2 v8] oom: capture unreclaimable slab info in oom message
+Date: Thu, 28 Sep 2017 05:46:14 +0800
+Message-Id: <1506548776-67535-1-git-send-email-yang.s@alibaba-inc.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org
 Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Add "-U" option to show unreclaimable slabs only.
 
-"-U" and "-S" together can tell us what unreclaimable slabs use the most
-memory to help debug huge unreclaimable slabs issue.
+Recently we ran into a oom issue, kernel panic due to no killable process.
+The dmesg shows huge unreclaimable slabs used almost 100% memory, but kdump doesn't capture vmcore due to some reason.
 
-Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
-Acked-by: Christoph Lameter <cl@linux.com>
-Acked-by: David Rientjes <rientjes@google.com>
----
+So, it may sound better to capture unreclaimable slab info in oom message when kernel panic to aid trouble shooting and cover the corner case.
+Since kernel already panic, so capturing more information sounds worthy and doesn't bother normal oom killer.
+
+With the patchset, tools/vm/slabinfo has a new option, "-U", to show unreclaimable slab only.
+
+And, oom will print all non zero (num_objs * size != 0) unreclaimable slabs in oom killer message.
+
+For details, please see the commit log for each commit.
+
+Changelog v7 a??> v8:
+* Adopted Michala??s suggestion to dump unreclaim slab info when unreclaimable slabs amount > total user memory. Not only in oom panic path.
+
+Changelog v6 -> v7:
+* Added unreclaim_slabs_oom_ratio proc knob, unreclaimable slabs info will be dumped when unreclaimable slabs amount : all user memory > the ratio
+
+Changelog v5 a??> v6:
+* Fixed a checkpatch.pl warning for patch #2
+
+Changelog v4 a??> v5:
+* Solved the comments from David
+* Build test SLABINFO = n
+
+Changelog v3 a??> v4:
+* Solved the comments from David
+* Added Davida??s Acked-by in patch 1
+
+Changelog v2 a??> v3:
+* Show used size and total size of each kmem cache per Davida??s comment
+
+Changelog v1 a??> v2:
+* Removed the original patch 1 (a??mm: slab: output reclaimable flag in /proc/slabinfoa??) since Christoph suggested it might break the compatibility and /proc/slabinfo is legacy
+* Added Christopha??s Acked-by
+* Removed acquiring slab_mutex per Tetsuoa??s comment
+
+
+Yang Shi (2):
+      tools: slabinfo: add "-U" option to show unreclaimable slabs only
+      mm: oom: show unreclaimable slab info when unreclaimable slabs > user memory
+
+ mm/oom_kill.c       | 22 ++++++++++++++++++++++
+ mm/slab.h           |  8 ++++++++
+ mm/slab_common.c    | 29 +++++++++++++++++++++++++++++
  tools/vm/slabinfo.c | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
-
-diff --git a/tools/vm/slabinfo.c b/tools/vm/slabinfo.c
-index b9d34b3..de8fa11 100644
---- a/tools/vm/slabinfo.c
-+++ b/tools/vm/slabinfo.c
-@@ -83,6 +83,7 @@ struct aliasinfo {
- int sort_loss;
- int extended_totals;
- int show_bytes;
-+int unreclaim_only;
- 
- /* Debug options */
- int sanity;
-@@ -132,6 +133,7 @@ static void usage(void)
- 		"-L|--Loss              Sort by loss\n"
- 		"-X|--Xtotals           Show extended summary information\n"
- 		"-B|--Bytes             Show size in bytes\n"
-+		"-U|--Unreclaim		Show unreclaimable slabs only\n"
- 		"\nValid debug options (FZPUT may be combined)\n"
- 		"a / A          Switch on all debug options (=FZUP)\n"
- 		"-              Switch off all debug options\n"
-@@ -568,6 +570,9 @@ static void slabcache(struct slabinfo *s)
- 	if (strcmp(s->name, "*") == 0)
- 		return;
- 
-+	if (unreclaim_only && s->reclaim_account)
-+		return;
-+
- 	if (actual_slabs == 1) {
- 		report(s);
- 		return;
-@@ -1346,6 +1351,7 @@ struct option opts[] = {
- 	{ "Loss", no_argument, NULL, 'L'},
- 	{ "Xtotals", no_argument, NULL, 'X'},
- 	{ "Bytes", no_argument, NULL, 'B'},
-+	{ "Unreclaim", no_argument, NULL, 'U'},
- 	{ NULL, 0, NULL, 0 }
- };
- 
-@@ -1357,7 +1363,7 @@ int main(int argc, char *argv[])
- 
- 	page_size = getpagesize();
- 
--	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:LXB",
-+	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:LXBU",
- 						opts, NULL)) != -1)
- 		switch (c) {
- 		case '1':
-@@ -1438,6 +1444,9 @@ int main(int argc, char *argv[])
- 		case 'B':
- 			show_bytes = 1;
- 			break;
-+		case 'U':
-+			unreclaim_only = 1;
-+			break;
- 		default:
- 			fatal("%s: Invalid option '%c'\n", argv[0], optopt);
- 
--- 
-1.8.3.1
+ 4 files changed, 69 insertions(+), 1 deletion(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
