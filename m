@@ -1,60 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 053426B0069
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 01:04:08 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id m30so25021184pgn.2
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 22:04:07 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id 1si6874619plj.222.2017.09.26.22.04.06
-        for <linux-mm@kvack.org>;
-        Tue, 26 Sep 2017 22:04:06 -0700 (PDT)
-Date: Wed, 27 Sep 2017 14:04:01 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm, swap: Make VMA based swap readahead configurable
-Message-ID: <20170927050401.GA715@bbox>
-References: <20170921013310.31348-1-ying.huang@intel.com>
- <20170926132129.dbtr2mof35x4j4og@dhcp22.suse.cz>
-MIME-Version: 1.0
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AFC0D6B0069
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 01:40:12 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p87so21145485pfj.4
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 22:40:12 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id g59si6981524plb.16.2017.09.26.22.40.11
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Sep 2017 22:40:11 -0700 (PDT)
+Subject: Re: [PATCH] mm,oom: Warn on racing with MMF_OOM_SKIP at task_will_free_mem(current).
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1506070646-4549-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20170925143052.a57bqoiw6yuckwee@dhcp22.suse.cz>
+	<201709262027.IJC34322.tMFOJFSOFVLHQO@I-love.SAKURA.ne.jp>
+	<20170926113951.g5dr4rplcbjjugno@dhcp22.suse.cz>
+In-Reply-To: <20170926113951.g5dr4rplcbjjugno@dhcp22.suse.cz>
+Message-Id: <201709271400.ICJ04687.FJVtHOSFFLQOOM@I-love.SAKURA.ne.jp>
+Date: Wed, 27 Sep 2017 14:00:14 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170926132129.dbtr2mof35x4j4og@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
+To: mhocko@suse.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, rientjes@google.com, mjaggi@caviumnetworks.com, oleg@redhat.com, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
 
-On Tue, Sep 26, 2017 at 03:21:29PM +0200, Michal Hocko wrote:
-> On Thu 21-09-17 09:33:10, Huang, Ying wrote:
-> > From: Huang Ying <ying.huang@intel.com>
-> > 
-> > This patch adds a new Kconfig option VMA_SWAP_READAHEAD and wraps VMA
-> > based swap readahead code inside #ifdef CONFIG_VMA_SWAP_READAHEAD/#endif.
-> > This is more friendly for tiny kernels.
+Michal Hocko wrote:
+> On Tue 26-09-17 20:27:40, Tetsuo Handa wrote:
+> [...]
+> > @@ -794,8 +794,10 @@ static bool task_will_free_mem(struct task_struct *task)
+> >  	 * This task has already been drained by the oom reaper so there are
+> >  	 * only small chances it will free some more
+> >  	 */
+> > -	if (test_bit(MMF_OOM_SKIP, &mm->flags))
+> > +	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
+> > +		WARN(1, "Racing OOM victim selection. Please report to linux-mm@kvack.org if you saw this warning from non-artificial workloads.\n");
+> >  		return false;
+> > +	}
 > 
-> How (much)?
-> 
-> > And as pointed to by Minchan
-> > Kim, give people who want to disable the swap readahead an opportunity
-> > to notice the changes to the swap readahead algorithm and the
-> > corresponding knobs.
-> 
-> Why would anyone want that?
-> 
-> Please note that adding new config options make the already complicated
-> config space even more problematic so there should be a good reason to
-> add one. Please make sure your justification is clear on why this is
-> worth the future maintenance and configurability burden.
+> This can easily happen even without a race. Just consider that OOM
+> memory reserves got depleted.
 
-The problem is users have disabled swap readahead by echo 0 > /proc/sys/
-vm/page-cluster are regressed by this new interface /sys/kernel/mm/swap/
-vma_ra_max_order. Because for disabling readahead completely, they should
-disable vma_ra_max_order as well as page-cluster from now on.
+What!? You said test_bit(MMF_OOM_SKIP, &mm->flags) == T can easily happen?
+I was assuming that you believe that test_bit(MMF_OOM_SKIP, &mm->flags) == T
+can't easily happen.
 
-So, goal of new config to notice new feature to admins so they can be aware
-of new konb vma_ra_max_order as well as page-cluster.
-I canont think other better idea to preventing such regression.
+ALLOC_OOM was introduced in order to prevent OOM memory reserves from getting
+completely depleted. I assume that you meant that OOM memory reserves got low
+enough to fail ALLOC_OOM allocation attempt. But at the same time it means that
+there is possibility that OOM memory reserves are not low enough to fail
+ALLOC_OOM allocation attempt (but !ALLOC_OOM allocation attempt fails) when
+this happens. Then, we are sure that we are already killing next OOM victims
+needlessly because there is possibility that ALLOC_OOM allocation attempt can
+succeed if we force it by "mm, oom:task_will_free_mem(current) should ignore
+MMF_OOM_SKIP for once." patch. You prove that there is no reason we defer that
+patch. We can revert that patch when we find better implementation in the future.
 
-http://lkml.kernel.org/r/%3C20170913014019.GB29422@bbox%3E
+>                               I think that the existing oom report will
+> tell us that the race happened by checking the mm counters.
+
+I don't think so. Normal users won't dare to post their OOM reports in
+order to ask us to judge whether the race happened. We won't be able to
+judge whether the race happened unless all OOM reports are unconditionally
+posted to ML. What a horrible idea...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
