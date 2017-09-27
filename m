@@ -1,111 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A5E86B025E
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 12:23:42 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id m127so15316503wmm.3
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 09:23:42 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id s196si3978392lfe.576.2017.09.27.09.23.40
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D1696B0069
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 13:21:57 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id m30so28782862pgn.2
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 10:21:57 -0700 (PDT)
+Received: from out4433.biz.mail.alibaba.com (out4433.biz.mail.alibaba.com. [47.88.44.33])
+        by mx.google.com with ESMTPS id p13si7989163pll.156.2017.09.27.10.21.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Sep 2017 09:23:40 -0700 (PDT)
-Date: Wed, 27 Sep 2017 17:23:00 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-Message-ID: <20170927162300.GA5623@castle.DHCP.thefacebook.com>
-References: <20170925181533.GA15918@castle>
- <20170925202442.lmcmvqwy2jj2tr5h@dhcp22.suse.cz>
- <20170926105925.GA23139@castle.dhcp.TheFacebook.com>
- <20170926112134.r5eunanjy7ogjg5n@dhcp22.suse.cz>
- <20170926121300.GB23139@castle.dhcp.TheFacebook.com>
- <20170926133040.uupv3ibkt3jtbotf@dhcp22.suse.cz>
- <20170926172610.GA26694@cmpxchg.org>
- <CAAAKZws88uF2dVrXwRV0V6AH5X68rWy7AfJxTxYjpuiyiNJFWA@mail.gmail.com>
- <20170927074319.o3k26kja43rfqmvb@dhcp22.suse.cz>
- <CAAAKZws2CFExeg6A9AzrGjiHnFHU1h2xdk6J5Jw2kqxy=V+_YQ@mail.gmail.com>
+        Wed, 27 Sep 2017 10:21:55 -0700 (PDT)
+Subject: Re: [PATCH 2/3] mm: oom: show unreclaimable slab info when kernel
+ panic
+References: <1506473616-88120-1-git-send-email-yang.s@alibaba-inc.com>
+ <1506473616-88120-3-git-send-email-yang.s@alibaba-inc.com>
+ <alpine.DEB.2.20.1709270211010.30111@nuc-kabylake>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <c7459b93-4197-6968-6735-a97a06325d04@alibaba-inc.com>
+Date: Thu, 28 Sep 2017 01:21:27 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <CAAAKZws2CFExeg6A9AzrGjiHnFHU1h2xdk6J5Jw2kqxy=V+_YQ@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.20.1709270211010.30111@nuc-kabylake>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Hockin <thockin@hockin.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Christopher Lameter <cl@linux.com>
+Cc: penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Sep 27, 2017 at 08:35:50AM -0700, Tim Hockin wrote:
-> On Wed, Sep 27, 2017 at 12:43 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Tue 26-09-17 20:37:37, Tim Hockin wrote:
-> > [...]
-> >> I feel like David has offered examples here, and many of us at Google
-> >> have offered examples as long ago as 2013 (if I recall) of cases where
-> >> the proposed heuristic is EXACTLY WRONG.
-> >
-> > I do not think we have discussed anything resembling the current
-> > approach. And I would really appreciate some more examples where
-> > decisions based on leaf nodes would be EXACTLY WRONG.
-> >
-> >> We need OOM behavior to kill in a deterministic order configured by
-> >> policy.
-> >
-> > And nobody is objecting to this usecase. I think we can build a priority
-> > policy on top of leaf-based decision as well. The main point we are
-> > trying to sort out here is a reasonable semantic that would work for
-> > most workloads. Sibling based selection will simply not work on those
-> > that have to use deeper hierarchies for organizational purposes. I
-> > haven't heard a counter argument for that example yet.
->
 
-Hi, Tim!
 
-> We have a priority-based, multi-user cluster.  That cluster runs a
-> variety of work, including critical things like search and gmail, as
-> well as non-critical things like batch work.  We try to offer our
-> users an SLA around how often they will be killed by factors outside
-> themselves, but we also want to get higher utilization.  We know for a
-> fact (data, lots of data) that most jobs have spare memory capacity,
-> set aside for spikes or simply because accurate sizing is hard.  We
-> can sell "guaranteed" resources to critical jobs, with a high SLA.  We
-> can sell "best effort" resources to non-critical jobs with a low SLA.
-> We achieve much better overall utilization this way.
+On 9/27/17 12:14 AM, Christopher Lameter wrote:
+> On Wed, 27 Sep 2017, Yang Shi wrote:
+> 
+>> Print out unreclaimable slab info (used size and total size) which
+>> actual memory usage is not zero (num_objs * size != 0) when:
+>>    - unreclaimable slabs : all user memory > unreclaim_slabs_oom_ratio
+>>    - panic_on_oom is set or no killable process
+> 
+> Ok. I like this much more than the earlier releases.
+> 
+>> diff --git a/mm/slab.h b/mm/slab.h
+>> index 0733628..b0496d1 100644
+>> --- a/mm/slab.h
+>> +++ b/mm/slab.h
+>> @@ -505,6 +505,14 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
+>>   void memcg_slab_stop(struct seq_file *m, void *p);
+>>   int memcg_slab_show(struct seq_file *m, void *p);
+>>
+>> +#ifdef CONFIG_SLABINFO
+>> +void dump_unreclaimable_slab(void);
+>> +#else
+>> +static inline void dump_unreclaimable_slab(void)
+>> +{
+>> +}
+>> +#endif
+> 
+> CONFIG_SLABINFO? How does this relate to the oom info? /proc/slabinfo
+> support is optional. Oom info could be included even if CONFIG_SLABINFO
+> goes away. Remove the #ifdef?
 
-This is well understood.
+Because we want to dump the unreclaimable slab info in oom info.
+
+Thanks,
+Yang
 
 > 
-> I need to represent the priority of these tasks in a way that gives me
-> a very strong promise that, in case of system OOM, the non-critical
-> jobs will be chosen before the critical jobs.  Regardless of size.
-> Regardless of how many non-critical jobs have to die.  I'd rather kill
-> *all* of the non-critical jobs than a single critical job.  Size of
-> the process or cgroup is simply not a factor, and honestly given 2
-> options of equal priority I'd say age matters more than size.
-> 
-> So concretely I have 2 first-level cgroups, one for "guaranteed" and
-> one for "best effort" classes.  I always want to kill from "best
-> effort", even if that means killing 100 small cgroups, before touching
-> "guaranteed".
-> 
-> I apologize if this is not as thorough as the rest of the thread - I
-> am somewhat out of touch with the guts of it all these days.  I just
-> feel compelled to indicate that, as a historical user (via Google
-> systems) and current user (via Kubernetes), some of the assertions
-> being made here do not ring true for our very real use cases.  I
-> desperately want cgroup-aware OOM handing, but it has to be
-> policy-based or it is just not useful to us.
-
-A policy-based approach was suggested by Michal at a very beginning of
-this discussion. Although nobody had any strong objections against it,
-we've agreed that this is out of scope of this patchset.
-
-The idea of this patchset is to introduce an ability to select a memcg
-as an OOM victim with the following optional killing of all belonging tasks.
-I believe, it's absolutely mandatory for _any_ further development
-of the OOM killer, which wants to deal with memory cgroups as OOM entities.
-
-If you think that it makes impossible to support some use cases in the future,
-let's discuss it. Otherwise, I'd prefer to finish this part of the work,
-and proceed to the following improvements on top of it.
-
-Thank you!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
