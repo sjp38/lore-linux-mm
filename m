@@ -1,87 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C18CE6B0069
-	for <linux-mm@kvack.org>; Tue, 26 Sep 2017 23:48:37 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id d8so24767440pgt.1
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 20:48:37 -0700 (PDT)
-Received: from mailgw02.mediatek.com ([210.61.82.184])
-        by mx.google.com with ESMTPS id w7si6621315pfd.71.2017.09.26.20.48.35
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 804906B0069
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 00:06:22 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id y29so20876408pff.6
+        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 21:06:22 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id b69si6635580pfb.297.2017.09.26.21.06.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Sep 2017 20:48:36 -0700 (PDT)
-From: <miles.chen@mediatek.com>
-Subject: [PATCH v3] dma-debug: fix incorrect pfn calculation
-Date: Wed, 27 Sep 2017 11:48:07 +0800
-Message-ID: <1506484087-1177-1-git-send-email-miles.chen@mediatek.com>
+        Tue, 26 Sep 2017 21:06:21 -0700 (PDT)
+Date: Wed, 27 Sep 2017 11:59:53 +0800
+From: "Du, Changbin" <changbin.du@intel.com>
+Subject: Re: [PATCH] mm: update comments for struct page.mapping
+Message-ID: <20170927035953.GA13117@intel.com>
+References: <1506410057-22316-1-git-send-email-changbin.du@intel.com>
+ <20170926163027.12836f5006745fcf6e59ad24@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="ReaqsoxgOBHFXBhH"
+Content-Disposition: inline
+In-Reply-To: <20170926163027.12836f5006745fcf6e59ad24@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Murphy <robin.murphy@arm.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, wsd_upstream@mediatek.com, linux-mediatek@lists.infradead.org, iommu@lists.linux-foundation.org, Miles Chen <miles.chen@mediatek.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: changbin.du@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Miles Chen <miles.chen@mediatek.com>
 
-dma-debug reports the following warning:
+--ReaqsoxgOBHFXBhH
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-[name:panic&]WARNING: CPU: 3 PID: 298 at kernel-4.4/lib/dma-debug.c:604
-debug _dma_assert_idle+0x1a8/0x230()
-DMA-API: cpu touching an active dma mapped cacheline [cln=0x00000882300]
-CPU: 3 PID: 298 Comm: vold Tainted: G        W  O    4.4.22+ #1
-Hardware name: MT6739 (DT)
-Call trace:
-[<ffffff800808acd0>] dump_backtrace+0x0/0x1d4
-[<ffffff800808affc>] show_stack+0x14/0x1c
-[<ffffff800838019c>] dump_stack+0xa8/0xe0
-[<ffffff80080a0594>] warn_slowpath_common+0xf4/0x11c
-[<ffffff80080a061c>] warn_slowpath_fmt+0x60/0x80
-[<ffffff80083afe24>] debug_dma_assert_idle+0x1a8/0x230
-[<ffffff80081dca9c>] wp_page_copy.isra.96+0x118/0x520
-[<ffffff80081de114>] do_wp_page+0x4fc/0x534
-[<ffffff80081e0a14>] handle_mm_fault+0xd4c/0x1310
-[<ffffff8008098798>] do_page_fault+0x1c8/0x394
-[<ffffff800808231c>] do_mem_abort+0x50/0xec
+On Tue, Sep 26, 2017 at 04:30:27PM -0700, Andrew Morton wrote:
+> On Tue, 26 Sep 2017 15:14:17 +0800 changbin.du@intel.com wrote:
+>=20
+> > From: Changbin Du <changbin.du@intel.com>
+> >=20
+> > The struct page.mapping can NULL or points to one object of type
+> > address_space, anon_vma or KSM private structure.
+> >=20
+> > ...
+> >
+> > --- a/include/linux/mm_types.h
+> > +++ b/include/linux/mm_types.h
+> > @@ -47,8 +47,8 @@ struct page {
+> >  						 * inode address_space, or NULL.
+> >  						 * If page mapped as anonymous
+> >  						 * memory, low bit is set, and
+> > -						 * it points to anon_vma object:
+> > -						 * see PAGE_MAPPING_ANON below.
+> > +						 * it points to anon_vma object
+> > +						 * or KSM private structure.
+> >  						 */
+> >  		void *s_mem;			/* slab first object */
+> >  		atomic_t compound_mapcount;	/* first tail page */
+>=20
+> Why did you remove the (useful) reference to PAGE_MAPPING_ANON?
 
-I found that debug_dma_alloc_coherent() and debug_dma_free_coherent()
-assume that dma_alloc_coherent() always returns a linear address.
-However it's possible that dma_alloc_coherent() returns a non-linear
-address. In this case, page_to_pfn(virt_to_page(virt)) will return an
-incorrect pfn. If the pfn is valid and mapped as a COW page,
-we will hit the warning when doing wp_page_copy().
+There are two flags now, let me add them back. thanks.
 
-Fix this by calculating pfn for linear and non-linear addresses.
+--=20
+Thanks,
+Changbin Du
 
-Signed-off-by: Miles Chen <miles.chen@mediatek.com>
----
- lib/dma-debug.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+--ReaqsoxgOBHFXBhH
+Content-Type: application/pgp-signature; name="signature.asc"
 
-diff --git a/lib/dma-debug.c b/lib/dma-debug.c
-index ea4cc3d..e5b4237 100644
---- a/lib/dma-debug.c
-+++ b/lib/dma-debug.c
-@@ -1497,7 +1497,8 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
- 
- 	entry->type      = dma_debug_coherent;
- 	entry->dev       = dev;
--	entry->pfn	 = page_to_pfn(virt_to_page(virt));
-+	entry->pfn	 = is_vmalloc_addr(virt) ? vmalloc_to_pfn(virt) :
-+						page_to_pfn(virt_to_page(virt));
- 	entry->offset	 = offset_in_page(virt);
- 	entry->size      = size;
- 	entry->dev_addr  = dma_addr;
-@@ -1513,7 +1514,8 @@ void debug_dma_free_coherent(struct device *dev, size_t size,
- 	struct dma_debug_entry ref = {
- 		.type           = dma_debug_coherent,
- 		.dev            = dev,
--		.pfn		= page_to_pfn(virt_to_page(virt)),
-+		.pfn		= is_vmalloc_addr(virt) ? vmalloc_to_pfn(virt) :
-+						page_to_pfn(virt_to_page(virt)),
- 		.offset		= offset_in_page(virt),
- 		.dev_addr       = addr,
- 		.size           = size,
--- 
-1.9.1
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQEcBAEBAgAGBQJZyyI5AAoJEAanuZwLnPNUTCoIALp0SHey1lvHWnyMM6cwz490
+Sq2XmtA3/FGoM3He2LC7TxYfoiwwlqn14qylyVc9rtFxqEHtXVXPGpuE7cK0L+oW
+Lp++ymDYjZOI5ewPuh+j93BkQxyoz4qOeo/LzIbnRUBJ1aeFv6axVHQV0uK0zFZZ
+IeEDP2JkjICLDAswgYIcyJ9a75ISSD0mE+viC9CBVL4yWnC7Rs4QCN8GTeMl15Oa
+3Qn4hWkQycErvOdB77IJZkh9UMy4ZbmJQSSBjiKQ0gWbmNYJGJTf4e5FHDGzxkWz
+fAxyHakN0fipQPswss3vTUTs29Y04M+tziF4wElnXcZz+ef1vw0SsY9RNASelqE=
+=jgbl
+-----END PGP SIGNATURE-----
+
+--ReaqsoxgOBHFXBhH--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
