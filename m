@@ -1,294 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 82BB26B027C
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 12:06:04 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 11so28389920pge.4
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 09:06:04 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n59si7908662plb.48.2017.09.27.09.03.58
+	by kanga.kvack.org (Postfix) with ESMTP id 9C01B6B0069
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 12:15:13 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id p5so28407632pgn.7
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 09:15:13 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id q5si1570463pgp.174.2017.09.27.09.15.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Sep 2017 09:03:58 -0700 (PDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 14/15] mm: Remove nr_pages argument from pagevec_lookup_{,range}_tag()
-Date: Wed, 27 Sep 2017 18:03:33 +0200
-Message-Id: <20170927160334.29513-15-jack@suse.cz>
-In-Reply-To: <20170927160334.29513-1-jack@suse.cz>
-References: <20170927160334.29513-1-jack@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Sep 2017 09:15:12 -0700 (PDT)
+Date: Wed, 27 Sep 2017 10:15:10 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH 1/7] xfs: always use DAX if mount option is used
+Message-ID: <20170927161510.GB24314@linux.intel.com>
+References: <20170925231404.32723-1-ross.zwisler@linux.intel.com>
+ <20170925231404.32723-2-ross.zwisler@linux.intel.com>
+ <20170925233812.GM10955@dastard>
+ <20170926093548.GB13627@quack2.suse.cz>
+ <20170926110957.GR10955@dastard>
+ <20170926143743.GB18758@lst.de>
+ <20170926173057.GB20159@linux.intel.com>
+ <20170927064001.GA27601@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170927064001.GA27601@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jan Kara <jack@suse.cz>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, "J. Bruce Fields" <bfields@fieldses.org>, Dan Williams <dan.j.williams@intel.com>, Jeff Layton <jlayton@poochiereds.net>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-All users of pagevec_lookup() and pagevec_lookup_range() now pass
-PAGEVEC_SIZE as a desired number of pages. Just drop the argument.
+On Tue, Sep 26, 2017 at 11:40:01PM -0700, Christoph Hellwig wrote:
+> On Tue, Sep 26, 2017 at 11:30:57AM -0600, Ross Zwisler wrote:
+> > I agree that Christoph's idea about having the system intelligently adjust to
+> > use DAX based on performance information it gathers about the underlying
+> > persistent memory (probably via the HMAT on x86_64 systems) is interesting,
+> > but I think we're still a ways away from that.
+> 
+> So what are the missing blockers for a getting started?
 
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- fs/btrfs/extent_io.c    | 6 +++---
- fs/ext4/inode.c         | 2 +-
- fs/f2fs/checkpoint.c    | 2 +-
- fs/f2fs/data.c          | 2 +-
- fs/f2fs/node.c          | 8 ++++----
- fs/gfs2/aops.c          | 2 +-
- fs/nilfs2/btree.c       | 4 ++--
- fs/nilfs2/page.c        | 7 +++----
- fs/nilfs2/segment.c     | 6 +++---
- include/linux/pagevec.h | 8 +++-----
- mm/filemap.c            | 2 +-
- mm/page-writeback.c     | 2 +-
- mm/swap.c               | 4 ++--
- 13 files changed, 26 insertions(+), 29 deletions(-)
+Well, I don't know if platforms that support HMAT + PMEM are widely available,
+but we have all the details in the ACPI spec, so we could begin to code it up
+and things will "just work" when platforms arrive.
 
-diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
-index 9b7936ea3a88..933fcfa818c4 100644
---- a/fs/btrfs/extent_io.c
-+++ b/fs/btrfs/extent_io.c
-@@ -3820,7 +3820,7 @@ int btree_write_cache_pages(struct address_space *mapping,
- 		tag_pages_for_writeback(mapping, index, end);
- 	while (!done && !nr_to_write_done && (index <= end) &&
- 	       (nr_pages = pagevec_lookup_range_tag(&pvec, mapping, &index, end,
--			tag, PAGEVEC_SIZE))) {
-+			tag))) {
- 		unsigned i;
- 
- 		scanned = 1;
-@@ -3961,8 +3961,8 @@ static int extent_write_cache_pages(struct address_space *mapping,
- 		tag_pages_for_writeback(mapping, index, end);
- 	done_index = index;
- 	while (!done && !nr_to_write_done && (index <= end) &&
--	       (nr_pages = pagevec_lookup_range_tag(&pvec, mapping, &index, end,
--			tag, PAGEVEC_SIZE))) {
-+			(nr_pages = pagevec_lookup_range_tag(&pvec, mapping,
-+						&index, end, tag))) {
- 		unsigned i;
- 
- 		scanned = 1;
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index 69f11233d0d6..1e2c6d6e09eb 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -2620,7 +2620,7 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
- 	mpd->next_page = index;
- 	while (index <= end) {
- 		nr_pages = pagevec_lookup_range_tag(&pvec, mapping, &index, end,
--				tag, PAGEVEC_SIZE);
-+				tag);
- 		if (nr_pages == 0)
- 			goto out;
- 
-diff --git a/fs/f2fs/checkpoint.c b/fs/f2fs/checkpoint.c
-index 54ccf5ba8191..3ed9dcbf70ae 100644
---- a/fs/f2fs/checkpoint.c
-+++ b/fs/f2fs/checkpoint.c
-@@ -319,7 +319,7 @@ long sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
- 	blk_start_plug(&plug);
- 
- 	while (nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
--				PAGECACHE_TAG_DIRTY, PAGEVEC_SIZE)) {
-+				PAGECACHE_TAG_DIRTY)) {
- 		int i;
- 
- 		for (i = 0; i < nr_pages; i++) {
-diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
-index 17d2c2997ddd..687703755824 100644
---- a/fs/f2fs/data.c
-+++ b/fs/f2fs/data.c
-@@ -1670,7 +1670,7 @@ static int f2fs_write_cache_pages(struct address_space *mapping,
- 		int i;
- 
- 		nr_pages = pagevec_lookup_range_tag(&pvec, mapping, &index, end,
--				tag, PAGEVEC_SIZE);
-+				tag);
- 		if (nr_pages == 0)
- 			break;
- 
-diff --git a/fs/f2fs/node.c b/fs/f2fs/node.c
-index f9ccbda73ea9..d4ceb9ebfe92 100644
---- a/fs/f2fs/node.c
-+++ b/fs/f2fs/node.c
-@@ -1286,7 +1286,7 @@ static struct page *last_fsync_dnode(struct f2fs_sb_info *sbi, nid_t ino)
- 	index = 0;
- 
- 	while (nr_pages = pagevec_lookup_tag(&pvec, NODE_MAPPING(sbi), &index,
--				PAGECACHE_TAG_DIRTY, PAGEVEC_SIZE)) {
-+				PAGECACHE_TAG_DIRTY)) {
- 		int i;
- 
- 		for (i = 0; i < nr_pages; i++) {
-@@ -1440,7 +1440,7 @@ int fsync_node_pages(struct f2fs_sb_info *sbi, struct inode *inode,
- 	index = 0;
- 
- 	while (nr_pages = pagevec_lookup_tag(&pvec, NODE_MAPPING(sbi), &index,
--				PAGECACHE_TAG_DIRTY, PAGEVEC_SIZE)) {
-+				PAGECACHE_TAG_DIRTY)) {
- 		int i;
- 
- 		for (i = 0; i < nr_pages; i++) {
-@@ -1553,7 +1553,7 @@ int sync_node_pages(struct f2fs_sb_info *sbi, struct writeback_control *wbc,
- 	index = 0;
- 
- 	while (nr_pages = pagevec_lookup_tag(&pvec, NODE_MAPPING(sbi), &index,
--				PAGECACHE_TAG_DIRTY, PAGEVEC_SIZE)) {
-+				PAGECACHE_TAG_DIRTY)) {
- 		int i;
- 
- 		for (i = 0; i < nr_pages; i++) {
-@@ -1651,7 +1651,7 @@ int wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino)
- 	pagevec_init(&pvec, 0);
- 
- 	while (nr_pages = pagevec_lookup_tag(&pvec, NODE_MAPPING(sbi), &index,
--				PAGECACHE_TAG_WRITEBACK, PAGEVEC_SIZE)) {
-+				PAGECACHE_TAG_WRITEBACK)) {
- 		int i;
- 
- 		for (i = 0; i < nr_pages; i++) {
-diff --git a/fs/gfs2/aops.c b/fs/gfs2/aops.c
-index d0848d9623fb..3fea3d7780b0 100644
---- a/fs/gfs2/aops.c
-+++ b/fs/gfs2/aops.c
-@@ -398,7 +398,7 @@ static int gfs2_write_cache_jdata(struct address_space *mapping,
- 	done_index = index;
- 	while (!done && (index <= end)) {
- 		nr_pages = pagevec_lookup_range_tag(&pvec, mapping, &index, end,
--				tag, PAGEVEC_SIZE);
-+				tag);
- 		if (nr_pages == 0)
- 			break;
- 
-diff --git a/fs/nilfs2/btree.c b/fs/nilfs2/btree.c
-index 06ffa135dfa6..35989c7bb065 100644
---- a/fs/nilfs2/btree.c
-+++ b/fs/nilfs2/btree.c
-@@ -2158,8 +2158,8 @@ static void nilfs_btree_lookup_dirty_buffers(struct nilfs_bmap *btree,
- 
- 	pagevec_init(&pvec, 0);
- 
--	while (pagevec_lookup_tag(&pvec, btcache, &index, PAGECACHE_TAG_DIRTY,
--				  PAGEVEC_SIZE)) {
-+	while (pagevec_lookup_tag(&pvec, btcache, &index,
-+					PAGECACHE_TAG_DIRTY)) {
- 		for (i = 0; i < pagevec_count(&pvec); i++) {
- 			bh = head = page_buffers(pvec.pages[i]);
- 			do {
-diff --git a/fs/nilfs2/page.c b/fs/nilfs2/page.c
-index 8616c46d33da..1c16726915c1 100644
---- a/fs/nilfs2/page.c
-+++ b/fs/nilfs2/page.c
-@@ -257,8 +257,7 @@ int nilfs_copy_dirty_pages(struct address_space *dmap,
- 
- 	pagevec_init(&pvec, 0);
- repeat:
--	if (!pagevec_lookup_tag(&pvec, smap, &index, PAGECACHE_TAG_DIRTY,
--				PAGEVEC_SIZE))
-+	if (!pagevec_lookup_tag(&pvec, smap, &index, PAGECACHE_TAG_DIRTY))
- 		return 0;
- 
- 	for (i = 0; i < pagevec_count(&pvec); i++) {
-@@ -376,8 +375,8 @@ void nilfs_clear_dirty_pages(struct address_space *mapping, bool silent)
- 
- 	pagevec_init(&pvec, 0);
- 
--	while (pagevec_lookup_tag(&pvec, mapping, &index, PAGECACHE_TAG_DIRTY,
--				  PAGEVEC_SIZE)) {
-+	while (pagevec_lookup_tag(&pvec, mapping, &index,
-+					PAGECACHE_TAG_DIRTY)) {
- 		for (i = 0; i < pagevec_count(&pvec); i++) {
- 			struct page *page = pvec.pages[i];
- 
-diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
-index 68e5769cef3b..19366ab20bea 100644
---- a/fs/nilfs2/segment.c
-+++ b/fs/nilfs2/segment.c
-@@ -712,7 +712,7 @@ static size_t nilfs_lookup_dirty_data_buffers(struct inode *inode,
-  repeat:
- 	if (unlikely(index > last) ||
- 	    !pagevec_lookup_range_tag(&pvec, mapping, &index, last,
--				PAGECACHE_TAG_DIRTY, PAGEVEC_SIZE))
-+				PAGECACHE_TAG_DIRTY))
- 		return ndirties;
- 
- 	for (i = 0; i < pagevec_count(&pvec); i++) {
-@@ -755,8 +755,8 @@ static void nilfs_lookup_dirty_node_buffers(struct inode *inode,
- 
- 	pagevec_init(&pvec, 0);
- 
--	while (pagevec_lookup_tag(&pvec, mapping, &index, PAGECACHE_TAG_DIRTY,
--				  PAGEVEC_SIZE)) {
-+	while (pagevec_lookup_tag(&pvec, mapping, &index,
-+					PAGECACHE_TAG_DIRTY)) {
- 		for (i = 0; i < pagevec_count(&pvec); i++) {
- 			bh = head = page_buffers(pvec.pages[i]);
- 			do {
-diff --git a/include/linux/pagevec.h b/include/linux/pagevec.h
-index 0281b1d3a91b..553b5e6fbbc5 100644
---- a/include/linux/pagevec.h
-+++ b/include/linux/pagevec.h
-@@ -39,16 +39,14 @@ static inline unsigned pagevec_lookup(struct pagevec *pvec,
- 
- unsigned pagevec_lookup_range_tag(struct pagevec *pvec,
- 		struct address_space *mapping, pgoff_t *index, pgoff_t end,
--		int tag, unsigned nr_pages);
-+		int tag);
- unsigned pagevec_lookup_range_nr_tag(struct pagevec *pvec,
- 		struct address_space *mapping, pgoff_t *index, pgoff_t end,
- 		int tag, unsigned max_pages);
- static inline unsigned pagevec_lookup_tag(struct pagevec *pvec,
--		struct address_space *mapping, pgoff_t *index, int tag,
--		unsigned nr_pages)
-+		struct address_space *mapping, pgoff_t *index, int tag)
- {
--	return pagevec_lookup_range_tag(pvec, mapping, index, (pgoff_t)-1, tag,
--					nr_pages);
-+	return pagevec_lookup_range_tag(pvec, mapping, index, (pgoff_t)-1, tag);
- }
- 
- static inline void pagevec_init(struct pagevec *pvec, int cold)
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 479fc54b7cd1..76ef52045550 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -422,7 +422,7 @@ static void __filemap_fdatawait_range(struct address_space *mapping,
- 	pagevec_init(&pvec, 0);
- 	while ((index <= end) &&
- 			(nr_pages = pagevec_lookup_range_tag(&pvec, mapping,
--			&index, end, PAGECACHE_TAG_WRITEBACK, PAGEVEC_SIZE))) {
-+			&index, end, PAGECACHE_TAG_WRITEBACK))) {
- 		unsigned i;
- 
- 		for (i = 0; i < nr_pages; i++) {
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 43b18e185fbd..145054a2447f 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -2195,7 +2195,7 @@ int write_cache_pages(struct address_space *mapping,
- 		int i;
- 
- 		nr_pages = pagevec_lookup_range_tag(&pvec, mapping, &index, end,
--				tag, PAGEVEC_SIZE);
-+				tag);
- 		if (nr_pages == 0)
- 			break;
- 
-diff --git a/mm/swap.c b/mm/swap.c
-index 97186da8e5bd..ef3bcbab776e 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -988,10 +988,10 @@ EXPORT_SYMBOL(pagevec_lookup_range);
- 
- unsigned pagevec_lookup_range_tag(struct pagevec *pvec,
- 		struct address_space *mapping, pgoff_t *index, pgoff_t end,
--		int tag, unsigned nr_pages)
-+		int tag)
- {
- 	pvec->nr = find_get_pages_range_tag(mapping, index, end, tag,
--					nr_pages, pvec->pages);
-+					PAGEVEC_SIZE, pvec->pages);
- 	return pagevec_count(pvec);
- }
- EXPORT_SYMBOL(pagevec_lookup_range_tag);
--- 
-2.12.3
+> > FWIW, as my patches suggest and Jan observed I think that we should allow
+> > users to turn on DAX by treating the inode flag and the mount flag as an 'or'
+> > operation.  i.e. you get DAX if either the mount option is specified or if the
+> > inode flag is set, and you can continue to manipulate the per-inode flag as
+> > you want regardless of the mount option.  I think this provides maximum
+> > flexibility of the mechanism to select DAX without enforcing policy.
+> 
+> IFF we stick to the dax flag that's the only workable way.  The only
+> major issue I still see with that is that this allows unprivilegued
+> users to enable DAX on a any file they own / have write access to.
+> So there isn't really any way to effectively disable the DAX path
+> by the sysadmin.
+
+Hum, I wonder if maybe we need/want three different mount modes?  What about:
+
+autodax (the default): the filesystem is free to use DAX or not, as it sees
+fit and thinks is optimal.  For the time being we can make this mean "don't
+use DAX", and phase in DAX usage as we add support for the HMAT, etc.
+
+Users can manually turn on DAX for a given inode by setting the DAX inode
+flag, but there is no way for the user to *prevent* DAX for an inode - the
+kernel can always choose to turn it on.
+
+MAP_DIRECT and MAP_SYNC work.
+
+nodax: Don't use DAX.  The kernel won't choose to use DAX, and any DAX inode
+flags will be ignored.  This gives the sysadmin the override that I think
+you're looking for.  The user can still manipulate the inode flags as they see
+fit.
+
+MAP_DIRECT and MAP_SYNC both fail.
+
+dax: Use DAX for all inodes in the filesystem.  Again the inode flags are
+essentially ignored, but the user can manipulate the inode flags as they see
+fit.  This is basically unchanged from how it works today, modulo the bug
+where DAX can get turned off if you unset the inode flag where it wasn't even
+set (patch 1 in my series).
+
+MAP_DIRECT and MAP_SYNC work.
+
+> > Does it make sense at this point to just start a "dax" man page that can
+> > contain info about the mount options, inode flags, kernel config options, how
+> > to get PMDs, etc?  Or does this documentation need to be sprinkled around more
+> > in existing man pages?
+> 
+> A dax manpage would be good.
+
+Okay, I'll start with a manpage, and once we agree on whats in there we can
+start working on code again. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
