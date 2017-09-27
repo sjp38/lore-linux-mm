@@ -1,83 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F1B956B0069
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 03:11:48 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id 188so25448121pgb.3
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 00:11:48 -0700 (PDT)
-Received: from mail.windriver.com (mail.windriver.com. [147.11.1.11])
-        by mx.google.com with ESMTPS id b3si6946702plb.691.2017.09.27.00.11.47
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A3EDF6B0069
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 03:16:14 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id q75so21474800pfl.1
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 00:16:14 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p84si6823936pfi.246.2017.09.27.00.16.13
         for <linux-mm@kvack.org>
-        (version=TLS1_1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 27 Sep 2017 00:11:47 -0700 (PDT)
-From: Zumeng Chen <zumeng.chen@gmail.com>
-Subject: [PATCH ] mm/backing-dev.c: remove a null kfree and fix a false kmemleak in backing-dev
-Date: Wed, 27 Sep 2017 15:15:08 +0800
-Message-ID: <1506496508-31715-1-git-send-email-zumeng.chen@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 27 Sep 2017 00:16:13 -0700 (PDT)
+Date: Wed, 27 Sep 2017 09:16:09 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH V2 1/2] mm: avoid marking swap cached page as lazyfree
+Message-ID: <20170927071609.vywaxvf4gsn2pcvn@dhcp22.suse.cz>
+References: <cover.1506105110.git.shli@fb.com>
+ <e4e1de7f06de9f6f50fd64b83d7da7b9597d2d97.1506105110.git.shli@fb.com>
+ <20170926130705.wjtw55kj7cw4k34j@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170926130705.wjtw55kj7cw4k34j@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: axboe@fb.com, jack@suse.cz, tj@kernel.org, geliangtang@gmail.com
+To: Shaohua Li <shli@kernel.org>
+Cc: linux-mm@kvack.org, Artem Savkov <asavkov@redhat.com>, Kernel-team@fb.com, Shaohua Li <shli@fb.com>, stable@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
 
-It seems kfree(new_congested) does nothing since new_congested has already
-been set null pointer before kfree, so remove it.
+[ups this got stuck in the outgoing queue]
 
-Meanwhile kmemleak reports the following memory leakage:
+On Tue 26-09-17 15:07:05, Michal Hocko wrote:
+> On Fri 22-09-17 11:46:30, Shaohua Li wrote:
+> > From: Shaohua Li <shli@fb.com>
+> > 
+> > MADV_FREE clears pte dirty bit and then marks the page lazyfree (clear
+> > SwapBacked). There is no lock to prevent the page is added to swap cache
+> > between these two steps by page reclaim. If the page is added to swap
+> > cache, marking the page lazyfree will confuse page fault if the page is
+> > reclaimed and refault.
+> 
+> Could you be more specific how exactly what kind of the confusion is the
+> result? I suspect you are talking about VM_BUG_ON_PAGE in
+> __add_to_swap_cache right?
 
-unreferenced object 0xcadbb440 (size 64):
-comm "kworker/0:4", pid 1399, jiffies 4294946504 (age 808.290s)
-hex dump (first 32 bytes):
-  00 00 00 00 01 00 00 00 00 00 00 00 01 00 00 00  ................
-  01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-backtrace:
-  [<c028fb64>] kmem_cache_alloc_trace+0x2c4/0x3cc
-  [<c025fe70>] wb_congested_get_create+0x9c/0x140
-  [<c0260100>] wb_init+0x184/0x1f4
-  [<c02601fc>] bdi_init+0x8c/0xd4
-  [<c051f75c>] blk_alloc_queue_node+0x9c/0x2d8
-  [<c05227e8>] blk_init_queue_node+0x2c/0x64
-  [<c052283c>] blk_init_queue+0x1c/0x20
-  [<c06c7b30>] __scsi_alloc_queue+0x28/0x44
-  [<c06caf4c>] scsi_alloc_queue+0x24/0x80
-  [<c06cc0b8>] scsi_alloc_sdev+0x21c/0x34c
-  [<c06ccc00>] scsi_probe_and_add_lun+0x878/0xb04
-  [<c06cd114>] __scsi_scan_target+0x288/0x59c
-  [<c06cd4b0>] scsi_scan_channel+0x88/0x9c
-  [<c06cd9b8>] scsi_scan_host_selected+0x118/0x130
-  [<c06cda70>] do_scsi_scan_host+0xa0/0xa4
-  [<c06cdbe4>] scsi_scan_host+0x170/0x1b4
+I completely mixed reclaim and the #PF path here
 
-wb_congested allocates memory for congested when wb_congested_get_create,
-and release it when exit or failure by wb_congested_put.
+> I am also not sure how that would actually happen to be honest. If we
+> raced with the reclaim then the page should have been isolated and so
+> PageLRU is no longer true. Or am I missing something?
 
-Signed-off-by: Zumeng Chen <zumeng.chen@gmail.com>
----
- mm/backing-dev.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+And here I've completely missed that the swapcache page will go back to
+the LRU. Stupid me. Your new changelog [1] explained it all. Thanks and
+sorry for these stupid questions.
 
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index e19606b..d816b2a 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -457,6 +457,7 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
- 
- 	/* allocate storage for new one and retry */
- 	new_congested = kzalloc(sizeof(*new_congested), gfp);
-+	kmemleak_ignore(new_congested);
- 	if (!new_congested)
- 		return NULL;
- 
-@@ -468,7 +469,6 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
- found:
- 	atomic_inc(&congested->refcnt);
- 	spin_unlock_irqrestore(&cgwb_lock, flags);
--	kfree(new_congested);
- 	return congested;
- }
- 
+[1] http://lkml.kernel.org/r/6537ef3814398c0073630b03f176263bc81f0902.1506446061.git.shli@fb.com
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
