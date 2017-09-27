@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BF3C6B0260
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 04:21:06 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b195so13639848wmb.6
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 01:21:06 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 645A06B0261
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 04:21:08 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id j50so1169595wra.4
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 01:21:08 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f81si3200766wmh.41.2017.09.27.01.21.05
+        by mx.google.com with ESMTPS id i26si3076456wmb.174.2017.09.27.01.21.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Sep 2017 01:21:05 -0700 (PDT)
+        Wed, 27 Sep 2017 01:21:07 -0700 (PDT)
 From: Johannes Thumshirn <jthumshirn@suse.de>
-Subject: [PATCH 3/6] IB/qib: use kmalloc_array_node
-Date: Wed, 27 Sep 2017 10:20:35 +0200
-Message-Id: <20170927082038.3782-4-jthumshirn@suse.de>
+Subject: [PATCH 4/6] IB/rdmavt: use kmalloc_array_node
+Date: Wed, 27 Sep 2017 10:20:36 +0200
+Message-Id: <20170927082038.3782-5-jthumshirn@suse.de>
 In-Reply-To: <20170927082038.3782-1-jthumshirn@suse.de>
 References: <20170927082038.3782-1-jthumshirn@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -26,25 +26,22 @@ calculation.
 
 Signed-off-by: Johannes Thumshirn <jthumshirn@suse.de>
 ---
- drivers/infiniband/hw/qib/qib_init.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ drivers/infiniband/sw/rdmavt/qp.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/infiniband/hw/qib/qib_init.c b/drivers/infiniband/hw/qib/qib_init.c
-index c5a4c65636d6..6aebf4e707b9 100644
---- a/drivers/infiniband/hw/qib/qib_init.c
-+++ b/drivers/infiniband/hw/qib/qib_init.c
-@@ -1674,8 +1674,9 @@ int qib_setup_eagerbufs(struct qib_ctxtdata *rcd)
- 	}
- 	if (!rcd->rcvegrbuf_phys) {
- 		rcd->rcvegrbuf_phys =
--			kmalloc_node(chunk * sizeof(rcd->rcvegrbuf_phys[0]),
--				GFP_KERNEL, rcd->node_id);
-+			kmalloc_array_node(chunk,
-+					   sizeof(rcd->rcvegrbuf_phys[0]),
-+					   GFP_KERNEL, rcd->node_id);
- 		if (!rcd->rcvegrbuf_phys)
- 			goto bail_rcvegrbuf;
- 	}
+diff --git a/drivers/infiniband/sw/rdmavt/qp.c b/drivers/infiniband/sw/rdmavt/qp.c
+index 22df09ae809e..b8e904905f47 100644
+--- a/drivers/infiniband/sw/rdmavt/qp.c
++++ b/drivers/infiniband/sw/rdmavt/qp.c
+@@ -238,7 +238,7 @@ int rvt_driver_qp_init(struct rvt_dev_info *rdi)
+ 	rdi->qp_dev->qp_table_size = rdi->dparms.qp_table_size;
+ 	rdi->qp_dev->qp_table_bits = ilog2(rdi->dparms.qp_table_size);
+ 	rdi->qp_dev->qp_table =
+-		kmalloc_node(rdi->qp_dev->qp_table_size *
++		kmalloc_array_node(rdi->qp_dev->qp_table_size,
+ 			     sizeof(*rdi->qp_dev->qp_table),
+ 			     GFP_KERNEL, rdi->dparms.node);
+ 	if (!rdi->qp_dev->qp_table)
 -- 
 2.13.5
 
