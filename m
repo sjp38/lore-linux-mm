@@ -1,81 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A8F36B0033
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 10:01:00 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id a74so18557076oib.7
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 07:01:00 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id i84sor4237407oih.70.2017.09.27.07.00.56
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CF8D46B0033
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 10:10:22 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id r83so23401278pfj.5
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 07:10:22 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b6sor1544942plx.66.2017.09.27.07.10.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 27 Sep 2017 07:00:57 -0700 (PDT)
+        Wed, 27 Sep 2017 07:10:21 -0700 (PDT)
+Date: Wed, 27 Sep 2017 23:10:08 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm, swap: Make VMA based swap readahead configurable
+Message-ID: <20170927141008.GA1278@bgram>
+References: <20170921013310.31348-1-ying.huang@intel.com>
+ <20170926132129.dbtr2mof35x4j4og@dhcp22.suse.cz>
+ <20170927050401.GA715@bbox>
+ <20170927074835.37m4dclmew5ecli2@dhcp22.suse.cz>
+ <20170927080432.GA1160@bbox>
+ <20170927083512.dydqlqezh5polggb@dhcp22.suse.cz>
+ <20170927131511.GA338@bgram>
+ <20170927132241.tshup6kcwe5pcxek@dhcp22.suse.cz>
+ <20170927134117.GB338@bgram>
+ <20170927135034.yatxlhvunawzmcar@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20170927113527.GD25746@quack2.suse.cz>
-References: <20170925231404.32723-1-ross.zwisler@linux.intel.com>
- <20170925231404.32723-7-ross.zwisler@linux.intel.com> <CAPcyv4jtO028KeZK7SdkOUsgMLGqgttLzBCYgH0M+RP3eAXf4A@mail.gmail.com>
- <20170926185751.GB31146@linux.intel.com> <CAPcyv4iVc9y8PE24ZvkiBYdp4Die0Q-K5S6QexW_6YQ_M0F4QA@mail.gmail.com>
- <20170926210645.GA7798@linux.intel.com> <CAPcyv4iDTNteQAt1bBHCGijwsk45rJWHfdr+e_rOwK39jpC2Og@mail.gmail.com>
- <20170927113527.GD25746@quack2.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 27 Sep 2017 07:00:53 -0700
-Message-ID: <CAPcyv4jwGCSaPt17FEbbvbfmurJp5c1S6hPj4K9i3uv_LRKoNg@mail.gmail.com>
-Subject: Re: [PATCH 6/7] mm, fs: introduce file_operations->post_mmap()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170927135034.yatxlhvunawzmcar@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, "J. Bruce Fields" <bfields@fieldses.org>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Jeff Layton <jlayton@poochiereds.net>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-xfs@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
 
-On Wed, Sep 27, 2017 at 4:35 AM, Jan Kara <jack@suse.cz> wrote:
-> On Tue 26-09-17 14:41:53, Dan Williams wrote:
->> On Tue, Sep 26, 2017 at 2:06 PM, Ross Zwisler
->> <ross.zwisler@linux.intel.com> wrote:
->> > On Tue, Sep 26, 2017 at 12:19:21PM -0700, Dan Williams wrote:
->> >> On Tue, Sep 26, 2017 at 11:57 AM, Ross Zwisler
->> > <>
->> >> > This decision can only be made (in this
->> >> > proposed scheme) *after* the inode->i_mapping->i_mmap  tree has been
->> >> > populated, which means we need another call into the filesystem after this
->> >> > insertion has happened.
->> >>
->> >> I get that, but it seems over-engineered and something that can also
->> >> be safely cleaned up after the fact by the code path that is disabling
->> >> DAX.
->> >
->> > I don't think you can safely clean it up after the fact because some thread
->> > might have already called ->mmap() to set up the vma->vm_flags for their new
->> > mapping, but they haven't added it to inode->i_mapping->i_mmap.
->>
->> If madvise(MADV_NOHUGEPAGE) can dynamically change vm_flags, then the
->> DAX disable path can as well. VM_MIXEDMAP looks to be a nop for normal
->> memory mappings.
->>
->> > The inode->i_mapping->i_mmap tree is the only way (that I know of at least)
->> > that the filesystem has any idea about about the mapping.  This is the method
->> > by which we would try and clean up mapping flags, if we were to do so, and
->> > it's the only way that the filesystem can know whether or not mappings exist.
->> >
->> > The only way that I could think of to make this safely work is to have the
->> > insertion into the inode->i_mapping->i_mmap tree be our sync point.  After
->> > that the filesystem and the mapping code can communicate on the state of DAX,
->> > but before that I think it's basically indeterminate.
->>
->> If we lose the race and leak VM_HUGEPAGE to a non-DAX mapping what
->> breaks? I'd rather be in favor of not setting VM_HUGEPAGE at all in
->> the ->mmap() handler and let the default THP policy take over. In
->> fact, see transparent_hugepage_enabled() we already auto-enable huge
->> page support for dax mappings regardless of VM_HUGEPAGE.
->
-> Hum, this is an interesting option. So do you suggest that filesystems
-> supporting DAX would always setup mappings with VM_MIXEDMAP and without
-> VM_HUGEPAGE and thus we'd get rid of dependency on S_DAX flag in ->mmap?
-> That could actually work. The only possible issue I can see is that
-> VM_MIXEDMAP is still slightly different from normal page mappings and it
-> could have some performance implications - e.g. copy_page_range() does more
-> work on VM_MIXEDMAP mappings but not on normal page mappings.
+On Wed, Sep 27, 2017 at 03:50:34PM +0200, Michal Hocko wrote:
+> On Wed 27-09-17 22:41:17, Minchan Kim wrote:
+> > On Wed, Sep 27, 2017 at 03:22:41PM +0200, Michal Hocko wrote:
+> [...]
+> > > simply cannot disable swap readahead when page-cluster is 0?
+> > 
+> > That's was what I want really but Huang want to use two readahead
+> > algorithms in parallel so he wanted to keep two separated disable
+> > knobs.
+> 
+> If it breaks existing and documented behavior then it is a clear
+> regression and it should be fixed. I do not see why this should be
+> disputable at all.
 
-We can also get rid of VM_MIXEDMAP if we disable DAX in the
-!pfn_t_has_page() case.
+Indeed but Huang doesn't think so. He has thought it's not a regression.
+Frankly speaking, I'm really bored of discussing with it.
+https://marc.info/?l=linux-mm&m=150526413319763&w=2
+
+So I passed the decision to Andrew.
+http://lkml.kernel.org/r/<20170913014019.GB29422@bbox>
+
+The config option idea is compromise approach although I don't like it
+and still believe it's simple clear *regression* so 0 page-cluster
+should keep the swap readahead disabled.
+
+> 
+> Working around an issue with a config option sounds like the wrong way
+> to go because those who cannot do that unconditionally would still see a
+> regression.
+
+I absolutely agree but as I said, the discussion was not productive
+even though I did best effort to persuade. That's all for my side as
+contributor/reviewer. Decision is up to maintainer. ;-)
+
+Thanks for the opinion, Michal.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
