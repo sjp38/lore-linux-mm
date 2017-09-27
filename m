@@ -1,85 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CFB26B0069
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 07:35:32 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id d8so26978834pgt.1
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 04:35:32 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 3si7382539pli.371.2017.09.27.04.35.30
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B774C6B0033
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 09:10:29 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id q8so14304045qtb.2
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 06:10:29 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id q63si1504222qkf.15.2017.09.27.06.10.26
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Sep 2017 04:35:30 -0700 (PDT)
-Date: Wed, 27 Sep 2017 13:35:27 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 6/7] mm, fs: introduce file_operations->post_mmap()
-Message-ID: <20170927113527.GD25746@quack2.suse.cz>
-References: <20170925231404.32723-1-ross.zwisler@linux.intel.com>
- <20170925231404.32723-7-ross.zwisler@linux.intel.com>
- <CAPcyv4jtO028KeZK7SdkOUsgMLGqgttLzBCYgH0M+RP3eAXf4A@mail.gmail.com>
- <20170926185751.GB31146@linux.intel.com>
- <CAPcyv4iVc9y8PE24ZvkiBYdp4Die0Q-K5S6QexW_6YQ_M0F4QA@mail.gmail.com>
- <20170926210645.GA7798@linux.intel.com>
- <CAPcyv4iDTNteQAt1bBHCGijwsk45rJWHfdr+e_rOwK39jpC2Og@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Sep 2017 06:10:27 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: [v9 0/5] cgroup-aware OOM killer
+Date: Wed, 27 Sep 2017 14:09:31 +0100
+Message-ID: <20170927130936.8601-1-guro@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4iDTNteQAt1bBHCGijwsk45rJWHfdr+e_rOwK39jpC2Og@mail.gmail.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, "J. Bruce Fields" <bfields@fieldses.org>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@poochiereds.net>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-xfs@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue 26-09-17 14:41:53, Dan Williams wrote:
-> On Tue, Sep 26, 2017 at 2:06 PM, Ross Zwisler
-> <ross.zwisler@linux.intel.com> wrote:
-> > On Tue, Sep 26, 2017 at 12:19:21PM -0700, Dan Williams wrote:
-> >> On Tue, Sep 26, 2017 at 11:57 AM, Ross Zwisler
-> > <>
-> >> > This decision can only be made (in this
-> >> > proposed scheme) *after* the inode->i_mapping->i_mmap  tree has been
-> >> > populated, which means we need another call into the filesystem after this
-> >> > insertion has happened.
-> >>
-> >> I get that, but it seems over-engineered and something that can also
-> >> be safely cleaned up after the fact by the code path that is disabling
-> >> DAX.
-> >
-> > I don't think you can safely clean it up after the fact because some thread
-> > might have already called ->mmap() to set up the vma->vm_flags for their new
-> > mapping, but they haven't added it to inode->i_mapping->i_mmap.
-> 
-> If madvise(MADV_NOHUGEPAGE) can dynamically change vm_flags, then the
-> DAX disable path can as well. VM_MIXEDMAP looks to be a nop for normal
-> memory mappings.
-> 
-> > The inode->i_mapping->i_mmap tree is the only way (that I know of at least)
-> > that the filesystem has any idea about about the mapping.  This is the method
-> > by which we would try and clean up mapping flags, if we were to do so, and
-> > it's the only way that the filesystem can know whether or not mappings exist.
-> >
-> > The only way that I could think of to make this safely work is to have the
-> > insertion into the inode->i_mapping->i_mmap tree be our sync point.  After
-> > that the filesystem and the mapping code can communicate on the state of DAX,
-> > but before that I think it's basically indeterminate.
-> 
-> If we lose the race and leak VM_HUGEPAGE to a non-DAX mapping what
-> breaks? I'd rather be in favor of not setting VM_HUGEPAGE at all in
-> the ->mmap() handler and let the default THP policy take over. In
-> fact, see transparent_hugepage_enabled() we already auto-enable huge
-> page support for dax mappings regardless of VM_HUGEPAGE.
+This patchset makes the OOM killer cgroup-aware.
 
-Hum, this is an interesting option. So do you suggest that filesystems
-supporting DAX would always setup mappings with VM_MIXEDMAP and without
-VM_HUGEPAGE and thus we'd get rid of dependency on S_DAX flag in ->mmap?
-That could actually work. The only possible issue I can see is that
-VM_MIXEDMAP is still slightly different from normal page mappings and it
-could have some performance implications - e.g. copy_page_range() does more
-work on VM_MIXEDMAP mappings but not on normal page mappings.
+v9:
+  - Change siblings-to-siblings comparison to the tree-wide search,
+    make related refactorings
+  - Make oom_group implicitly propagated down by the tree
+  - Fix an issue with task selection in root cgroup
 
-								Honza
+v8:
+  - Do not kill tasks with OOM_SCORE_ADJ -1000
+  - Make the whole thing opt-in with cgroup mount option control
+  - Drop oom_priority for further discussions
+  - Kill the whole cgroup if oom_group is set and it's
+    memory.max is reached
+  - Update docs and commit messages
+
+v7:
+  - __oom_kill_process() drops reference to the victim task
+  - oom_score_adj -1000 is always respected
+  - Renamed oom_kill_all to oom_group
+  - Dropped oom_prio range, converted from short to int
+  - Added a cgroup v2 mount option to disable cgroup-aware OOM killer
+  - Docs updated
+  - Rebased on top of mmotm
+
+v6:
+  - Renamed oom_control.chosen to oom_control.chosen_task
+  - Renamed oom_kill_all_tasks to oom_kill_all
+  - Per-node NR_SLAB_UNRECLAIMABLE accounting
+  - Several minor fixes and cleanups
+  - Docs updated
+
+v5:
+  - Rebased on top of Michal Hocko's patches, which have changed the
+    way how OOM victims becoming an access to the memory
+    reserves. Dropped corresponding part of this patchset
+  - Separated the oom_kill_process() splitting into a standalone commit
+  - Added debug output (suggested by David Rientjes)
+  - Some minor fixes
+
+v4:
+  - Reworked per-cgroup oom_score_adj into oom_priority
+    (based on ideas by David Rientjes)
+  - Tasks with oom_score_adj -1000 are never selected if
+    oom_kill_all_tasks is not set
+  - Memcg victim selection code is reworked, and
+    synchronization is based on finding tasks with OOM victim marker,
+    rather then on global counter
+  - Debug output is dropped
+  - Refactored TIF_MEMDIE usage
+
+v3:
+  - Merged commits 1-4 into 6
+  - Separated oom_score_adj logic and debug output into separate commits
+  - Fixed swap accounting
+
+v2:
+  - Reworked victim selection based on feedback
+    from Michal Hocko, Vladimir Davydov and Johannes Weiner
+  - "Kill all tasks" is now an opt-in option, by default
+    only one process will be killed
+  - Added per-cgroup oom_score_adj
+  - Refined oom score calculations, suggested by Vladimir Davydov
+  - Converted to a patchset
+
+v1:
+  https://lkml.org/lkml/2017/5/18/969
+
+
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: kernel-team@fb.com
+Cc: cgroups@vger.kernel.org
+Cc: linux-doc@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+
+Roman Gushchin (5):
+  mm, oom: refactor the oom_kill_process() function
+  mm: implement mem_cgroup_scan_tasks() for the root memory cgroup
+  mm, oom: cgroup-aware OOM killer
+  mm, oom: add cgroup v2 mount option for cgroup-aware OOM killer
+  mm, oom, docs: describe the cgroup-aware OOM killer
+
+ Documentation/cgroup-v2.txt |  44 +++++++++
+ include/linux/cgroup-defs.h |   5 +
+ include/linux/memcontrol.h  |  38 +++++++
+ include/linux/oom.h         |  12 ++-
+ kernel/cgroup/cgroup.c      |  10 ++
+ mm/memcontrol.c             | 235 +++++++++++++++++++++++++++++++++++++++++++-
+ mm/oom_kill.c               | 194 +++++++++++++++++++++++-------------
+ 7 files changed, 465 insertions(+), 73 deletions(-)
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+2.13.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
