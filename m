@@ -1,74 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C47DD6B0260
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 17:46:45 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id a7so25266549pfj.3
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 14:46:45 -0700 (PDT)
-Received: from out4433.biz.mail.alibaba.com (out4433.biz.mail.alibaba.com. [47.88.44.33])
-        by mx.google.com with ESMTPS id t63si8090805pfg.128.2017.09.27.14.46.43
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A6186B0038
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 17:51:29 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id g128so20737909qke.5
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 14:51:29 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d55sor6484737qtk.115.2017.09.27.14.51.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Sep 2017 14:46:44 -0700 (PDT)
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-Subject: [PATCH 0/2 v8] oom: capture unreclaimable slab info in oom message
-Date: Thu, 28 Sep 2017 05:46:14 +0800
-Message-Id: <1506548776-67535-1-git-send-email-yang.s@alibaba-inc.com>
+        (Google Transport Security);
+        Wed, 27 Sep 2017 14:51:28 -0700 (PDT)
+Date: Wed, 27 Sep 2017 14:51:25 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 2/2] percpu: fix iteration to prevent skipping over block
+Message-ID: <20170927215125.GB15129@devbig577.frc2.facebook.com>
+References: <1506548100-31247-1-git-send-email-dennisszhou@gmail.com>
+ <1506548100-31247-3-git-send-email-dennisszhou@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1506548100-31247-3-git-send-email-dennisszhou@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org
-Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dennis Zhou <dennisszhou@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Luis Henriques <lhenriques@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Wed, Sep 27, 2017 at 04:35:00PM -0500, Dennis Zhou wrote:
+> The iterator functions pcpu_next_md_free_region and
+> pcpu_next_fit_region use the block offset to determine if they have
+> checked the area in the prior iteration. However, this causes an issue
+> when the block offset is greater than subsequent block contig hints. If
+> within the iterator it moves to check subsequent blocks, it may fail in
+> the second predicate due to the block offset not being cleared. Thus,
+> this causes the allocator to skip over blocks leading to false failures
+> when allocating from the reserved chunk. While this happens in the
+> general case as well, it will only fail if it cannot allocate a new
+> chunk.
+> 
+> This patch resets the block offset to 0 to pass the second predicate
+> when checking subseqent blocks within the iterator function.
+> 
+> Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
+> Reported-by: Luis Henriques <lhenriques@suse.com>
 
-Recently we ran into a oom issue, kernel panic due to no killable process.
-The dmesg shows huge unreclaimable slabs used almost 100% memory, but kdump doesn't capture vmcore due to some reason.
+Luis, can you please verify that this fixes the allocaiton failure you
+were seeing?
 
-So, it may sound better to capture unreclaimable slab info in oom message when kernel panic to aid trouble shooting and cover the corner case.
-Since kernel already panic, so capturing more information sounds worthy and doesn't bother normal oom killer.
+Thanks.
 
-With the patchset, tools/vm/slabinfo has a new option, "-U", to show unreclaimable slab only.
-
-And, oom will print all non zero (num_objs * size != 0) unreclaimable slabs in oom killer message.
-
-For details, please see the commit log for each commit.
-
-Changelog v7 a??> v8:
-* Adopted Michala??s suggestion to dump unreclaim slab info when unreclaimable slabs amount > total user memory. Not only in oom panic path.
-
-Changelog v6 -> v7:
-* Added unreclaim_slabs_oom_ratio proc knob, unreclaimable slabs info will be dumped when unreclaimable slabs amount : all user memory > the ratio
-
-Changelog v5 a??> v6:
-* Fixed a checkpatch.pl warning for patch #2
-
-Changelog v4 a??> v5:
-* Solved the comments from David
-* Build test SLABINFO = n
-
-Changelog v3 a??> v4:
-* Solved the comments from David
-* Added Davida??s Acked-by in patch 1
-
-Changelog v2 a??> v3:
-* Show used size and total size of each kmem cache per Davida??s comment
-
-Changelog v1 a??> v2:
-* Removed the original patch 1 (a??mm: slab: output reclaimable flag in /proc/slabinfoa??) since Christoph suggested it might break the compatibility and /proc/slabinfo is legacy
-* Added Christopha??s Acked-by
-* Removed acquiring slab_mutex per Tetsuoa??s comment
-
-
-Yang Shi (2):
-      tools: slabinfo: add "-U" option to show unreclaimable slabs only
-      mm: oom: show unreclaimable slab info when unreclaimable slabs > user memory
-
- mm/oom_kill.c       | 22 ++++++++++++++++++++++
- mm/slab.h           |  8 ++++++++
- mm/slab_common.c    | 29 +++++++++++++++++++++++++++++
- tools/vm/slabinfo.c | 11 ++++++++++-
- 4 files changed, 69 insertions(+), 1 deletion(-)
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
