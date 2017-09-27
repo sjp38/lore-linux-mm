@@ -1,18 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 090E56B0038
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 19:56:05 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id p5so30401562pgn.7
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 16:56:05 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id e64si113133pfm.545.2017.09.27.16.56.03
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C2C086B025E
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 19:56:11 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id q75so25750237pfl.1
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 16:56:11 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id w12si119800pfa.434.2017.09.27.16.56.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Sep 2017 16:56:03 -0700 (PDT)
-Subject: [PATCH 0/3] dax: require 'struct page' and other fixups
+        Wed, 27 Sep 2017 16:56:09 -0700 (PDT)
+Subject: [PATCH 1/3] dax: disable filesystem dax on devices that do not map
+ pages
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 27 Sep 2017 16:49:38 -0700
-Message-ID: <150655617774.700.5326522538400299973.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Wed, 27 Sep 2017 16:49:43 -0700
+Message-ID: <150655618343.700.16350109614227108839.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <150655617774.700.5326522538400299973.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <150655617774.700.5326522538400299973.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -21,46 +24,49 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
 
-Prompted by a recent change to add more protection around setting up
-'vm_flags' for a dax vma [1], rework the implementation to remove the
-requirement to set VM_MIXEDMAP and VM_HUGEPAGE.
+If a dax buffer from a device that does not map pages is passed to
+read(2) or write(2) as a target for direct-I/O it triggers SIGBUS. If
+gdb attempts to examine the contents of a dax buffer from a device that
+does not map pages it triggers SIGBUS. If fork(2) is called on a process
+with a dax mapping from a device that does not map pages it triggers
+SIGBUS. 'struct page' is required otherwise several kernel code paths
+break in surprising ways. Disable filesystem-dax on devices that do not
+map pages.
 
-VM_MIXEDMAP is used by dax to direct mm paths like vm_normal_page() that
-the memory page it is dealing with is not typical memory from the linear
-map. The get_user_pages_fast() path, since it does not resolve the vma,
-is already using {pte,pmd}_devmap() as a stand-in for VM_MIXEDMAP, so we
-use that as a VM_MIXEDMAP replacement in some locations. In the cases
-where there is no pte to consult we fallback to using vma_is_dax() to
-detect the VM_MIXEDMAP special case.
-
-This patch series passes a run of the ndctl unit test suite and the
-'mmap.sh' [2] test in particular. 'mmap.sh' tries to catch dependencies
-on VM_MIXEDMAP and {pte,pmd}_devmap().
-
-[1]: https://lkml.org/lkml/2017/9/25/638
-[2]: https://github.com/pmem/ndctl/blob/master/test/mmap.sh
-
+Cc: Jan Kara <jack@suse.cz>
+Cc: Jeff Moyer <jmoyer@redhat.com>
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
+ drivers/dax/super.c |    7 +++++++
+ 1 file changed, 7 insertions(+)
 
-Dan Williams (3):
-      dax: disable filesystem dax on devices that do not map pages
-      dax: stop using VM_MIXEDMAP for dax
-      dax: stop using VM_HUGEPAGE for dax
-
-
- drivers/dax/device.c |    1 -
- drivers/dax/super.c  |    7 +++++++
- fs/ext2/file.c       |    1 -
- fs/ext4/file.c       |    1 -
- fs/xfs/xfs_file.c    |    2 --
- mm/huge_memory.c     |    8 ++++----
- mm/ksm.c             |    3 +++
- mm/madvise.c         |    2 +-
- mm/memory.c          |   20 ++++++++++++++++++--
- mm/migrate.c         |    3 ++-
- mm/mlock.c           |    3 ++-
- mm/mmap.c            |    5 +++--
- 12 files changed, 40 insertions(+), 16 deletions(-)
+diff --git a/drivers/dax/super.c b/drivers/dax/super.c
+index 30d8a5aedd23..d9ac57b3e49a 100644
+--- a/drivers/dax/super.c
++++ b/drivers/dax/super.c
+@@ -15,6 +15,7 @@
+ #include <linux/mount.h>
+ #include <linux/magic.h>
+ #include <linux/genhd.h>
++#include <linux/pfn_t.h>
+ #include <linux/cdev.h>
+ #include <linux/hash.h>
+ #include <linux/slab.h>
+@@ -123,6 +124,12 @@ int __bdev_dax_supported(struct super_block *sb, int blocksize)
+ 		return len < 0 ? len : -EIO;
+ 	}
+ 
++	if (!pfn_t_has_page(pfn)) {
++		pr_err("VFS (%s): error: dax support not enabled\n",
++				sb->s_id);
++		return -EOPNOTSUPP;
++	}
++
+ 	return 0;
+ }
+ EXPORT_SYMBOL_GPL(__bdev_dax_supported);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
