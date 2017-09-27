@@ -1,60 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 90CF26B0069
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 02:40:24 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id j16so25325350pga.6
-        for <linux-mm@kvack.org>; Tue, 26 Sep 2017 23:40:24 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id b14si6767204pfe.412.2017.09.26.23.40.23
+	by kanga.kvack.org (Postfix) with ESMTP id F1B956B0069
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 03:11:48 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 188so25448121pgb.3
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 00:11:48 -0700 (PDT)
+Received: from mail.windriver.com (mail.windriver.com. [147.11.1.11])
+        by mx.google.com with ESMTPS id b3si6946702plb.691.2017.09.27.00.11.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Sep 2017 23:40:23 -0700 (PDT)
-Date: Tue, 26 Sep 2017 23:40:01 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 1/7] xfs: always use DAX if mount option is used
-Message-ID: <20170927064001.GA27601@infradead.org>
-References: <20170925231404.32723-1-ross.zwisler@linux.intel.com>
- <20170925231404.32723-2-ross.zwisler@linux.intel.com>
- <20170925233812.GM10955@dastard>
- <20170926093548.GB13627@quack2.suse.cz>
- <20170926110957.GR10955@dastard>
- <20170926143743.GB18758@lst.de>
- <20170926173057.GB20159@linux.intel.com>
+        (version=TLS1_1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 27 Sep 2017 00:11:47 -0700 (PDT)
+From: Zumeng Chen <zumeng.chen@gmail.com>
+Subject: [PATCH ] mm/backing-dev.c: remove a null kfree and fix a false kmemleak in backing-dev
+Date: Wed, 27 Sep 2017 15:15:08 +0800
+Message-ID: <1506496508-31715-1-git-send-email-zumeng.chen@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170926173057.GB20159@linux.intel.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, "J. Bruce Fields" <bfields@fieldses.org>, Dan Williams <dan.j.williams@intel.com>, Jeff Layton <jlayton@poochiereds.net>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: axboe@fb.com, jack@suse.cz, tj@kernel.org, geliangtang@gmail.com
 
-On Tue, Sep 26, 2017 at 11:30:57AM -0600, Ross Zwisler wrote:
-> I agree that Christoph's idea about having the system intelligently adjust to
-> use DAX based on performance information it gathers about the underlying
-> persistent memory (probably via the HMAT on x86_64 systems) is interesting,
-> but I think we're still a ways away from that.
+It seems kfree(new_congested) does nothing since new_congested has already
+been set null pointer before kfree, so remove it.
 
-So what are the missing blockers for a getting started?
+Meanwhile kmemleak reports the following memory leakage:
 
-> FWIW, as my patches suggest and Jan observed I think that we should allow
-> users to turn on DAX by treating the inode flag and the mount flag as an 'or'
-> operation.  i.e. you get DAX if either the mount option is specified or if the
-> inode flag is set, and you can continue to manipulate the per-inode flag as
-> you want regardless of the mount option.  I think this provides maximum
-> flexibility of the mechanism to select DAX without enforcing policy.
+unreferenced object 0xcadbb440 (size 64):
+comm "kworker/0:4", pid 1399, jiffies 4294946504 (age 808.290s)
+hex dump (first 32 bytes):
+  00 00 00 00 01 00 00 00 00 00 00 00 01 00 00 00  ................
+  01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+backtrace:
+  [<c028fb64>] kmem_cache_alloc_trace+0x2c4/0x3cc
+  [<c025fe70>] wb_congested_get_create+0x9c/0x140
+  [<c0260100>] wb_init+0x184/0x1f4
+  [<c02601fc>] bdi_init+0x8c/0xd4
+  [<c051f75c>] blk_alloc_queue_node+0x9c/0x2d8
+  [<c05227e8>] blk_init_queue_node+0x2c/0x64
+  [<c052283c>] blk_init_queue+0x1c/0x20
+  [<c06c7b30>] __scsi_alloc_queue+0x28/0x44
+  [<c06caf4c>] scsi_alloc_queue+0x24/0x80
+  [<c06cc0b8>] scsi_alloc_sdev+0x21c/0x34c
+  [<c06ccc00>] scsi_probe_and_add_lun+0x878/0xb04
+  [<c06cd114>] __scsi_scan_target+0x288/0x59c
+  [<c06cd4b0>] scsi_scan_channel+0x88/0x9c
+  [<c06cd9b8>] scsi_scan_host_selected+0x118/0x130
+  [<c06cda70>] do_scsi_scan_host+0xa0/0xa4
+  [<c06cdbe4>] scsi_scan_host+0x170/0x1b4
 
-IFF we stick to the dax flag that's the only workable way.  The only
-major issue I still see with that is that this allows unprivilegued
-users to enable DAX on a any file they own / have write access to.
-So there isn't really any way to effectively disable the DAX path
-by the sysadmin.
+wb_congested allocates memory for congested when wb_congested_get_create,
+and release it when exit or failure by wb_congested_put.
 
-> Does it make sense at this point to just start a "dax" man page that can
-> contain info about the mount options, inode flags, kernel config options, how
-> to get PMDs, etc?  Or does this documentation need to be sprinkled around more
-> in existing man pages?
+Signed-off-by: Zumeng Chen <zumeng.chen@gmail.com>
+---
+ mm/backing-dev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-A dax manpage would be good.
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index e19606b..d816b2a 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -457,6 +457,7 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
+ 
+ 	/* allocate storage for new one and retry */
+ 	new_congested = kzalloc(sizeof(*new_congested), gfp);
++	kmemleak_ignore(new_congested);
+ 	if (!new_congested)
+ 		return NULL;
+ 
+@@ -468,7 +469,6 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
+ found:
+ 	atomic_inc(&congested->refcnt);
+ 	spin_unlock_irqrestore(&cgwb_lock, flags);
+-	kfree(new_congested);
+ 	return congested;
+ }
+ 
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
