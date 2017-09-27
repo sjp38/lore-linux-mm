@@ -1,117 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C29B6B026A
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 09:11:06 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id i14so18780821qke.6
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 06:11:06 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id i4si10951442qta.167.2017.09.27.06.11.04
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B90E76B0266
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 09:15:25 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id p87so23188266pfj.4
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 06:15:25 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n12sor4944389pfb.145.2017.09.27.06.15.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Sep 2017 06:11:05 -0700 (PDT)
-From: Roman Gushchin <guro@fb.com>
-Subject: [v9 5/5] mm, oom, docs: describe the cgroup-aware OOM killer
-Date: Wed, 27 Sep 2017 14:09:36 +0100
-Message-ID: <20170927130936.8601-6-guro@fb.com>
-In-Reply-To: <20170927130936.8601-1-guro@fb.com>
-References: <20170927130936.8601-1-guro@fb.com>
+        (Google Transport Security);
+        Wed, 27 Sep 2017 06:15:24 -0700 (PDT)
+Date: Wed, 27 Sep 2017 22:15:11 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm, swap: Make VMA based swap readahead configurable
+Message-ID: <20170927131511.GA338@bgram>
+References: <20170921013310.31348-1-ying.huang@intel.com>
+ <20170926132129.dbtr2mof35x4j4og@dhcp22.suse.cz>
+ <20170927050401.GA715@bbox>
+ <20170927074835.37m4dclmew5ecli2@dhcp22.suse.cz>
+ <20170927080432.GA1160@bbox>
+ <20170927083512.dydqlqezh5polggb@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170927083512.dydqlqezh5polggb@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
 
-Document the cgroup-aware OOM killer.
+On Wed, Sep 27, 2017 at 10:35:12AM +0200, Michal Hocko wrote:
+> On Wed 27-09-17 17:04:32, Minchan Kim wrote:
+> > On Wed, Sep 27, 2017 at 09:48:35AM +0200, Michal Hocko wrote:
+> > > On Wed 27-09-17 14:04:01, Minchan Kim wrote:
+> [...]
+> > > > The problem is users have disabled swap readahead by echo 0 > /proc/sys/
+> > > > vm/page-cluster are regressed by this new interface /sys/kernel/mm/swap/
+> > > > vma_ra_max_order. Because for disabling readahead completely, they should
+> > > > disable vma_ra_max_order as well as page-cluster from now on.
+> > > > 
+> > > > So, goal of new config to notice new feature to admins so they can be aware
+> > > > of new konb vma_ra_max_order as well as page-cluster.
+> > > > I canont think other better idea to preventing such regression.
+> > > > 
+> > > > http://lkml.kernel.org/r/%3C20170913014019.GB29422@bbox%3E
+> > > 
+> > > So, how are you going to configure this when you do not know whether
+> > > zram will be used? In other words what should e.g. distribution set this
+> > > to?
+> > 
+> > I have no idea. Unfortunately, it depends on them. If they want to use
+> > zram as swap, they should fix the script. Surely, I don't like it.
+> > Instead, I wanted that page-cluster zeroing disables both virtual/pysical
+> > swap readahead not to break current userspace. However, Huang doesn't
+> > liek it.
+> > If you have better idea, please suggest.
+> 
+> I understand your frustration but config options are not there to bypass
+> proper design decisions. Why cannot we unconditionally disable all the
+> read ahead when zram is enabled?
 
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: kernel-team@fb.com
-Cc: cgroups@vger.kernel.org
-Cc: linux-doc@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
----
- Documentation/cgroup-v2.txt | 44 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 44 insertions(+)
-
-diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
-index 3f8216912df0..936dd60b8d6a 100644
---- a/Documentation/cgroup-v2.txt
-+++ b/Documentation/cgroup-v2.txt
-@@ -48,6 +48,7 @@ v1 is available under Documentation/cgroup-v1/.
-        5-2-1. Memory Interface Files
-        5-2-2. Usage Guidelines
-        5-2-3. Memory Ownership
-+       5-2-4. OOM Killer
-      5-3. IO
-        5-3-1. IO Interface Files
-        5-3-2. Writeback
-@@ -1043,6 +1044,21 @@ PAGE_SIZE multiple when read back.
- 	high limit is used and monitored properly, this limit's
- 	utility is limited to providing the final safety net.
- 
-+  memory.oom_group
-+
-+	A read-write single value file which exists on non-root
-+	cgroups.  The default is "0".
-+
-+	If set, OOM killer will consider the memory cgroup and all
-+	descendant cgroups as indivisible memory consumers and compare
-+	them with other memory consumers by their memory footprint.
-+	If such memory cgroup is selected as an OOM victim, all
-+	processes belonging to it or it's descendants will be killed.
-+
-+	OOM killer respects the /proc/pid/oom_score_adj value -1000,
-+	and will never kill the unkillable task, even if memory.oom_group
-+	is set.
-+
-   memory.events
- 	A read-only flat-keyed file which exists on non-root cgroups.
- 	The following entries are defined.  Unless specified
-@@ -1246,6 +1262,34 @@ to be accessed repeatedly by other cgroups, it may make sense to use
- POSIX_FADV_DONTNEED to relinquish the ownership of memory areas
- belonging to the affected files to ensure correct memory ownership.
- 
-+OOM Killer
-+~~~~~~~~~~
-+
-+Cgroup v2 memory controller implements a cgroup-aware OOM killer.
-+It means that it treats cgroups as first class OOM entities.
-+
-+Under OOM conditions the memory controller tries to make the best
-+choice of a victim, looking for a memory cgroup with the largest
-+memory footprint, considering leaf cgroups and cgroups with the
-+memory.oom_group option set, which are considered to be an indivisible
-+memory consumers.
-+
-+By default, OOM killer will kill the biggest task in the selected
-+memory cgroup. A user can change this behavior by enabling
-+the per-cgroup memory.oom_group option. If set, it causes
-+the OOM killer to kill all processes attached to the cgroup,
-+except processes with oom_score_adj set to -1000.
-+
-+This affects both system- and cgroup-wide OOMs. For a cgroup-wide OOM
-+the memory controller considers only cgroups belonging to the sub-tree
-+of the OOM'ing cgroup.
-+
-+The root cgroup is treated as a leaf memory cgroup, so it's compared
-+with other leaf memory cgroups and cgroups with oom_group option set.
-+
-+If there are no cgroups with the enabled memory controller,
-+the OOM killer is using the "traditional" process-based approach.
-+
- 
- IO
- --
--- 
-2.13.5
+It's not a zram specific issue. Every users who have disabled swap readahead
+via page-cluster will be broken, too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
