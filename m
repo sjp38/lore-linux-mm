@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EBB646B025F
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 04:21:00 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id b9so14760140wra.3
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 01:21:00 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BF3C6B0260
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 04:21:06 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b195so13639848wmb.6
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 01:21:06 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r1si8859615wre.56.2017.09.27.01.20.59
+        by mx.google.com with ESMTPS id f81si3200766wmh.41.2017.09.27.01.21.05
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Sep 2017 01:20:59 -0700 (PDT)
+        Wed, 27 Sep 2017 01:21:05 -0700 (PDT)
 From: Johannes Thumshirn <jthumshirn@suse.de>
-Subject: [PATCH 2/6] block: use kmalloc_array_node
-Date: Wed, 27 Sep 2017 10:20:34 +0200
-Message-Id: <20170927082038.3782-3-jthumshirn@suse.de>
+Subject: [PATCH 3/6] IB/qib: use kmalloc_array_node
+Date: Wed, 27 Sep 2017 10:20:35 +0200
+Message-Id: <20170927082038.3782-4-jthumshirn@suse.de>
 In-Reply-To: <20170927082038.3782-1-jthumshirn@suse.de>
 References: <20170927082038.3782-1-jthumshirn@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -26,22 +26,25 @@ calculation.
 
 Signed-off-by: Johannes Thumshirn <jthumshirn@suse.de>
 ---
- block/blk-mq.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drivers/infiniband/hw/qib/qib_init.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/block/blk-mq.c b/block/blk-mq.c
-index 98a18609755e..49f9dc0eb47c 100644
---- a/block/blk-mq.c
-+++ b/block/blk-mq.c
-@@ -1979,7 +1979,7 @@ static int blk_mq_init_hctx(struct request_queue *q,
- 	 * Allocate space for all possible cpus to avoid allocation at
- 	 * runtime
- 	 */
--	hctx->ctxs = kmalloc_node(nr_cpu_ids * sizeof(void *),
-+	hctx->ctxs = kmalloc_array_node(nr_cpu_ids, sizeof(void *),
- 					GFP_KERNEL, node);
- 	if (!hctx->ctxs)
- 		goto unregister_cpu_notifier;
+diff --git a/drivers/infiniband/hw/qib/qib_init.c b/drivers/infiniband/hw/qib/qib_init.c
+index c5a4c65636d6..6aebf4e707b9 100644
+--- a/drivers/infiniband/hw/qib/qib_init.c
++++ b/drivers/infiniband/hw/qib/qib_init.c
+@@ -1674,8 +1674,9 @@ int qib_setup_eagerbufs(struct qib_ctxtdata *rcd)
+ 	}
+ 	if (!rcd->rcvegrbuf_phys) {
+ 		rcd->rcvegrbuf_phys =
+-			kmalloc_node(chunk * sizeof(rcd->rcvegrbuf_phys[0]),
+-				GFP_KERNEL, rcd->node_id);
++			kmalloc_array_node(chunk,
++					   sizeof(rcd->rcvegrbuf_phys[0]),
++					   GFP_KERNEL, rcd->node_id);
+ 		if (!rcd->rcvegrbuf_phys)
+ 			goto bail_rcvegrbuf;
+ 	}
 -- 
 2.13.5
 
