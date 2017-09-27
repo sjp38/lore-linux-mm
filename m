@@ -1,70 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F28A6B0038
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 18:28:30 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id a7so25407050pfj.3
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 15:28:30 -0700 (PDT)
-Received: from ipmail01.adl2.internode.on.net (ipmail01.adl2.internode.on.net. [150.101.137.133])
-        by mx.google.com with ESMTP id b5si23407ple.343.2017.09.27.15.28.28
-        for <linux-mm@kvack.org>;
-        Wed, 27 Sep 2017 15:28:29 -0700 (PDT)
-Date: Thu, 28 Sep 2017 08:19:02 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 10/15] mm: Use pagevec_lookup_range_tag() in
- __filemap_fdatawait_range()
-Message-ID: <20170927221902.GG10621@dastard>
-References: <20170927160334.29513-1-jack@suse.cz>
- <20170927160334.29513-11-jack@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170927160334.29513-11-jack@suse.cz>
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D01506B0038
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 19:31:10 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id v109so17977953wrc.5
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 16:31:10 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 39si138819wrx.324.2017.09.27.16.31.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Sep 2017 16:31:09 -0700 (PDT)
+Date: Wed, 27 Sep 2017 16:31:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RESEND] proc, coredump: add CoreDumping flag to
+ /proc/pid/status
+Message-Id: <20170927163106.84b9622f183f087eff7f6da7@linux-foundation.org>
+In-Reply-To: <20170920230634.31572-1-guro@fb.com>
+References: <20170914224431.GA9735@castle>
+	<20170920230634.31572-1-guro@fb.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Roman Gushchin <guro@fb.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-On Wed, Sep 27, 2017 at 06:03:29PM +0200, Jan Kara wrote:
-> Use pagevec_lookup_range_tag() in __filemap_fdatawait_range() as it is
-> interested only in pages from given range. Remove unnecessary code
-> resulting from this.
+On Wed, 20 Sep 2017 16:06:34 -0700 Roman Gushchin <guro@fb.com> wrote:
+
+> Right now there is no convenient way to check if a process is being
+> coredumped at the moment.
 > 
-> Signed-off-by: Jan Kara <jack@suse.cz>
-> ---
->  mm/filemap.c | 9 ++-------
->  1 file changed, 2 insertions(+), 7 deletions(-)
+> It might be necessary to recognize such state to prevent killing
+> the process and getting a broken coredump.
+> Writing a large core might take significant time, and the process
+> is unresponsive during it, so it might be killed by timeout,
+> if another process is monitoring and killing/restarting
+> hanging tasks.
 > 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index fe20329c83cd..479fc54b7cd1 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -421,18 +421,13 @@ static void __filemap_fdatawait_range(struct address_space *mapping,
->  
->  	pagevec_init(&pvec, 0);
->  	while ((index <= end) &&
-> -			(nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
-> -			PAGECACHE_TAG_WRITEBACK,
-> -			min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1)) != 0) {
-> +			(nr_pages = pagevec_lookup_range_tag(&pvec, mapping,
-> +			&index, end, PAGECACHE_TAG_WRITEBACK, PAGEVEC_SIZE))) {
+> To provide an ability to detect if a process is in the state of
+> being coreduped, we can expose a boolean CoreDumping flag
+> in /proc/pid/status.
+> 
+> Example:
+> $ cat core.sh
+>   #!/bin/sh
+> 
+>   echo "|/usr/bin/sleep 10" > /proc/sys/kernel/core_pattern
+>   sleep 1000 &
+>   PID=$!
+> 
+>   cat /proc/$PID/status | grep CoreDumping
+>   kill -ABRT $PID
+>   sleep 1
+>   cat /proc/$PID/status | grep CoreDumping
+> 
+> $ ./core.sh
+>   CoreDumping:	0
+>   CoreDumping:	1
 
-While touching this, can we clean this up by moving the lookup
-outside the while condition? i.e:
+I assume you have some real-world use case which benefits from this.
 
-	while (index <= end) {
-		unsigned i;
+>  fs/proc/array.c | 6 ++++++
+>  1 file changed, 6 insertions(+)
 
-		nr_pages = pagevec_lookup_range_tag(&pvec, mapping, &index,
-				end, PAGECACHE_TAG_WRITEBACK, PAGEVEC_SIZE);
-		if (!nr_pages)
-			break;
+A Documentation/ would be appropriate?   Include a brief mention of
+*why* someone might want to use this...
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
