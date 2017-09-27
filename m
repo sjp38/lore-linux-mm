@@ -1,132 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AB00C6B0261
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 19:32:32 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id b1so16399380qtc.4
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 16:32:32 -0700 (PDT)
-Received: from sasl.smtp.pobox.com (pb-smtp1.pobox.com. [64.147.108.70])
-        by mx.google.com with ESMTPS id v62si143275qka.267.2017.09.27.16.32.31
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 090E56B0038
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 19:56:05 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id p5so30401562pgn.7
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 16:56:05 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id e64si113133pfm.545.2017.09.27.16.56.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Sep 2017 16:32:31 -0700 (PDT)
-From: Nicolas Pitre <nicolas.pitre@linaro.org>
-Subject: [PATCH v4 5/5] cramfs: rehabilitate it
-Date: Wed, 27 Sep 2017 19:32:24 -0400
-Message-Id: <20170927233224.31676-6-nicolas.pitre@linaro.org>
-In-Reply-To: <20170927233224.31676-1-nicolas.pitre@linaro.org>
-References: <20170927233224.31676-1-nicolas.pitre@linaro.org>
+        Wed, 27 Sep 2017 16:56:03 -0700 (PDT)
+Subject: [PATCH 0/3] dax: require 'struct page' and other fixups
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 27 Sep 2017 16:49:38 -0700
+Message-ID: <150655617774.700.5326522538400299973.stgit@dwillia2-desk3.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org
-Cc: linux-fsdevel@vger.kernel.org, linux-embedded@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Brandt <Chris.Brandt@renesas.com>
+To: akpm@linux-foundation.org
+Cc: Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
 
-Update documentation, pointer to latest tools, appoint myself as
-maintainer. Given it's been unloved for so long, I don't expect anyone
-will protest.
+Prompted by a recent change to add more protection around setting up
+'vm_flags' for a dax vma [1], rework the implementation to remove the
+requirement to set VM_MIXEDMAP and VM_HUGEPAGE.
 
-Signed-off-by: Nicolas Pitre <nico@linaro.org>
-Tested-by: Chris Brandt <chris.brandt@renesas.com>
+VM_MIXEDMAP is used by dax to direct mm paths like vm_normal_page() that
+the memory page it is dealing with is not typical memory from the linear
+map. The get_user_pages_fast() path, since it does not resolve the vma,
+is already using {pte,pmd}_devmap() as a stand-in for VM_MIXEDMAP, so we
+use that as a VM_MIXEDMAP replacement in some locations. In the cases
+where there is no pte to consult we fallback to using vma_is_dax() to
+detect the VM_MIXEDMAP special case.
+
+This patch series passes a run of the ndctl unit test suite and the
+'mmap.sh' [2] test in particular. 'mmap.sh' tries to catch dependencies
+on VM_MIXEDMAP and {pte,pmd}_devmap().
+
+[1]: https://lkml.org/lkml/2017/9/25/638
+[2]: https://github.com/pmem/ndctl/blob/master/test/mmap.sh
+
 ---
- Documentation/filesystems/cramfs.txt | 42 ++++++++++++++++++++++++++++++++++++
- MAINTAINERS                          |  4 ++--
- fs/cramfs/Kconfig                    |  9 +++++---
- 3 files changed, 50 insertions(+), 5 deletions(-)
 
-diff --git a/Documentation/filesystems/cramfs.txt b/Documentation/filesystems/cramfs.txt
-index 4006298f67..8875d306bc 100644
---- a/Documentation/filesystems/cramfs.txt
-+++ b/Documentation/filesystems/cramfs.txt
-@@ -45,6 +45,48 @@ you can just change the #define in mkcramfs.c, so long as you don't
- mind the filesystem becoming unreadable to future kernels.
- 
- 
-+Memory Mapped cramfs image
-+--------------------------
-+
-+The CRAMFS_PHYSMEM Kconfig option adds support for loading data directly
-+from a physical linear memory range (usually non volatile memory like Flash)
-+to cramfs instead of going through the block device layer. This saves some
-+memory since no intermediate buffering is necessary to hold the data before
-+decompressing.
-+
-+And when data blocks are kept uncompressed and properly aligned, they will
-+automatically be mapped directly into user space whenever possible providing
-+eXecute-In-Place (XIP) from ROM of read-only segments. Data segments mapped
-+read-write (hence they have to be copied to RAM) may still be compressed in
-+the cramfs image in the same file along with non compressed read-only
-+segments. Both MMU and no-MMU systems are supported. This is particularly
-+handy for tiny embedded systems with very tight memory constraints.
-+
-+The filesystem type for this feature is "cramfs_physmem" to distinguish it
-+from the block device (or MTD) based access. The location of the cramfs
-+image in memory is system dependent. You must know the proper physical
-+address where the cramfs image is located and specify it using the
-+physaddr=0x******** mount option (for example, if the physical address
-+of the cramfs image is 0x80100000, the following command would mount it
-+on /mnt:
-+
-+$ mount -t cramfs_physmem -o physaddr=0x80100000 none /mnt
-+
-+To boot such an image as the root filesystem, the following kernel
-+commandline parameters must be provided:
-+
-+	"rootfstype=cramfs_physmem rootflags=physaddr=0x80100000"
-+
-+
-+Tools
-+-----
-+
-+A version of mkcramfs that can take advantage of the latest capabilities
-+described above can be found here:
-+
-+https://github.com/npitre/cramfs-tools
-+
-+
- For /usr/share/magic
- --------------------
- 
-diff --git a/MAINTAINERS b/MAINTAINERS
-index 1c3feffb1c..f00aec6a66 100644
---- a/MAINTAINERS
-+++ b/MAINTAINERS
-@@ -3612,8 +3612,8 @@ F:	drivers/cpuidle/*
- F:	include/linux/cpuidle.h
- 
- CRAMFS FILESYSTEM
--W:	http://sourceforge.net/projects/cramfs/
--S:	Orphan / Obsolete
-+M:	Nicolas Pitre <nico@linaro.org>
-+S:	Maintained
- F:	Documentation/filesystems/cramfs.txt
- F:	fs/cramfs/
- 
-diff --git a/fs/cramfs/Kconfig b/fs/cramfs/Kconfig
-index 306549be25..374d52e029 100644
---- a/fs/cramfs/Kconfig
-+++ b/fs/cramfs/Kconfig
-@@ -1,5 +1,5 @@
- config CRAMFS
--	tristate "Compressed ROM file system support (cramfs) (OBSOLETE)"
-+	tristate "Compressed ROM file system support (cramfs)"
- 	select ZLIB_INFLATE
- 	help
- 	  Saying Y here includes support for CramFs (Compressed ROM File
-@@ -15,8 +15,11 @@ config CRAMFS
- 	  cramfs.  Note that the root file system (the one containing the
- 	  directory /) cannot be compiled as a module.
- 
--	  This filesystem is obsoleted by SquashFS, which is much better
--	  in terms of performance and features.
-+	  This filesystem is limited in capabilities and performance on
-+	  purpose to remain small and low on RAM usage. It is most suitable
-+	  for small embedded systems. For a more capable compressed filesystem
-+	  you should look at SquashFS which is much better in terms of
-+	  performance and features.
- 
- 	  If unsure, say N.
- 
--- 
-2.9.5
+Dan Williams (3):
+      dax: disable filesystem dax on devices that do not map pages
+      dax: stop using VM_MIXEDMAP for dax
+      dax: stop using VM_HUGEPAGE for dax
+
+
+ drivers/dax/device.c |    1 -
+ drivers/dax/super.c  |    7 +++++++
+ fs/ext2/file.c       |    1 -
+ fs/ext4/file.c       |    1 -
+ fs/xfs/xfs_file.c    |    2 --
+ mm/huge_memory.c     |    8 ++++----
+ mm/ksm.c             |    3 +++
+ mm/madvise.c         |    2 +-
+ mm/memory.c          |   20 ++++++++++++++++++--
+ mm/migrate.c         |    3 ++-
+ mm/mlock.c           |    3 ++-
+ mm/mmap.c            |    5 +++--
+ 12 files changed, 40 insertions(+), 16 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
