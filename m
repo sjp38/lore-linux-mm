@@ -1,97 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C01B6B0069
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 12:15:13 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id p5so28407632pgn.7
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 09:15:13 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id q5si1570463pgp.174.2017.09.27.09.15.12
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A5E86B025E
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 12:23:42 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id m127so15316503wmm.3
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 09:23:42 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id s196si3978392lfe.576.2017.09.27.09.23.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Sep 2017 09:15:12 -0700 (PDT)
-Date: Wed, 27 Sep 2017 10:15:10 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 1/7] xfs: always use DAX if mount option is used
-Message-ID: <20170927161510.GB24314@linux.intel.com>
-References: <20170925231404.32723-1-ross.zwisler@linux.intel.com>
- <20170925231404.32723-2-ross.zwisler@linux.intel.com>
- <20170925233812.GM10955@dastard>
- <20170926093548.GB13627@quack2.suse.cz>
- <20170926110957.GR10955@dastard>
- <20170926143743.GB18758@lst.de>
- <20170926173057.GB20159@linux.intel.com>
- <20170927064001.GA27601@infradead.org>
+        Wed, 27 Sep 2017 09:23:40 -0700 (PDT)
+Date: Wed, 27 Sep 2017 17:23:00 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v8 0/4] cgroup-aware OOM killer
+Message-ID: <20170927162300.GA5623@castle.DHCP.thefacebook.com>
+References: <20170925181533.GA15918@castle>
+ <20170925202442.lmcmvqwy2jj2tr5h@dhcp22.suse.cz>
+ <20170926105925.GA23139@castle.dhcp.TheFacebook.com>
+ <20170926112134.r5eunanjy7ogjg5n@dhcp22.suse.cz>
+ <20170926121300.GB23139@castle.dhcp.TheFacebook.com>
+ <20170926133040.uupv3ibkt3jtbotf@dhcp22.suse.cz>
+ <20170926172610.GA26694@cmpxchg.org>
+ <CAAAKZws88uF2dVrXwRV0V6AH5X68rWy7AfJxTxYjpuiyiNJFWA@mail.gmail.com>
+ <20170927074319.o3k26kja43rfqmvb@dhcp22.suse.cz>
+ <CAAAKZws2CFExeg6A9AzrGjiHnFHU1h2xdk6J5Jw2kqxy=V+_YQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170927064001.GA27601@infradead.org>
+In-Reply-To: <CAAAKZws2CFExeg6A9AzrGjiHnFHU1h2xdk6J5Jw2kqxy=V+_YQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, "J. Bruce Fields" <bfields@fieldses.org>, Dan Williams <dan.j.williams@intel.com>, Jeff Layton <jlayton@poochiereds.net>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Tim Hockin <thockin@hockin.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue, Sep 26, 2017 at 11:40:01PM -0700, Christoph Hellwig wrote:
-> On Tue, Sep 26, 2017 at 11:30:57AM -0600, Ross Zwisler wrote:
-> > I agree that Christoph's idea about having the system intelligently adjust to
-> > use DAX based on performance information it gathers about the underlying
-> > persistent memory (probably via the HMAT on x86_64 systems) is interesting,
-> > but I think we're still a ways away from that.
+On Wed, Sep 27, 2017 at 08:35:50AM -0700, Tim Hockin wrote:
+> On Wed, Sep 27, 2017 at 12:43 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Tue 26-09-17 20:37:37, Tim Hockin wrote:
+> > [...]
+> >> I feel like David has offered examples here, and many of us at Google
+> >> have offered examples as long ago as 2013 (if I recall) of cases where
+> >> the proposed heuristic is EXACTLY WRONG.
+> >
+> > I do not think we have discussed anything resembling the current
+> > approach. And I would really appreciate some more examples where
+> > decisions based on leaf nodes would be EXACTLY WRONG.
+> >
+> >> We need OOM behavior to kill in a deterministic order configured by
+> >> policy.
+> >
+> > And nobody is objecting to this usecase. I think we can build a priority
+> > policy on top of leaf-based decision as well. The main point we are
+> > trying to sort out here is a reasonable semantic that would work for
+> > most workloads. Sibling based selection will simply not work on those
+> > that have to use deeper hierarchies for organizational purposes. I
+> > haven't heard a counter argument for that example yet.
+>
+
+Hi, Tim!
+
+> We have a priority-based, multi-user cluster.  That cluster runs a
+> variety of work, including critical things like search and gmail, as
+> well as non-critical things like batch work.  We try to offer our
+> users an SLA around how often they will be killed by factors outside
+> themselves, but we also want to get higher utilization.  We know for a
+> fact (data, lots of data) that most jobs have spare memory capacity,
+> set aside for spikes or simply because accurate sizing is hard.  We
+> can sell "guaranteed" resources to critical jobs, with a high SLA.  We
+> can sell "best effort" resources to non-critical jobs with a low SLA.
+> We achieve much better overall utilization this way.
+
+This is well understood.
+
 > 
-> So what are the missing blockers for a getting started?
-
-Well, I don't know if platforms that support HMAT + PMEM are widely available,
-but we have all the details in the ACPI spec, so we could begin to code it up
-and things will "just work" when platforms arrive.
-
-> > FWIW, as my patches suggest and Jan observed I think that we should allow
-> > users to turn on DAX by treating the inode flag and the mount flag as an 'or'
-> > operation.  i.e. you get DAX if either the mount option is specified or if the
-> > inode flag is set, and you can continue to manipulate the per-inode flag as
-> > you want regardless of the mount option.  I think this provides maximum
-> > flexibility of the mechanism to select DAX without enforcing policy.
+> I need to represent the priority of these tasks in a way that gives me
+> a very strong promise that, in case of system OOM, the non-critical
+> jobs will be chosen before the critical jobs.  Regardless of size.
+> Regardless of how many non-critical jobs have to die.  I'd rather kill
+> *all* of the non-critical jobs than a single critical job.  Size of
+> the process or cgroup is simply not a factor, and honestly given 2
+> options of equal priority I'd say age matters more than size.
 > 
-> IFF we stick to the dax flag that's the only workable way.  The only
-> major issue I still see with that is that this allows unprivilegued
-> users to enable DAX on a any file they own / have write access to.
-> So there isn't really any way to effectively disable the DAX path
-> by the sysadmin.
-
-Hum, I wonder if maybe we need/want three different mount modes?  What about:
-
-autodax (the default): the filesystem is free to use DAX or not, as it sees
-fit and thinks is optimal.  For the time being we can make this mean "don't
-use DAX", and phase in DAX usage as we add support for the HMAT, etc.
-
-Users can manually turn on DAX for a given inode by setting the DAX inode
-flag, but there is no way for the user to *prevent* DAX for an inode - the
-kernel can always choose to turn it on.
-
-MAP_DIRECT and MAP_SYNC work.
-
-nodax: Don't use DAX.  The kernel won't choose to use DAX, and any DAX inode
-flags will be ignored.  This gives the sysadmin the override that I think
-you're looking for.  The user can still manipulate the inode flags as they see
-fit.
-
-MAP_DIRECT and MAP_SYNC both fail.
-
-dax: Use DAX for all inodes in the filesystem.  Again the inode flags are
-essentially ignored, but the user can manipulate the inode flags as they see
-fit.  This is basically unchanged from how it works today, modulo the bug
-where DAX can get turned off if you unset the inode flag where it wasn't even
-set (patch 1 in my series).
-
-MAP_DIRECT and MAP_SYNC work.
-
-> > Does it make sense at this point to just start a "dax" man page that can
-> > contain info about the mount options, inode flags, kernel config options, how
-> > to get PMDs, etc?  Or does this documentation need to be sprinkled around more
-> > in existing man pages?
+> So concretely I have 2 first-level cgroups, one for "guaranteed" and
+> one for "best effort" classes.  I always want to kill from "best
+> effort", even if that means killing 100 small cgroups, before touching
+> "guaranteed".
 > 
-> A dax manpage would be good.
+> I apologize if this is not as thorough as the rest of the thread - I
+> am somewhat out of touch with the guts of it all these days.  I just
+> feel compelled to indicate that, as a historical user (via Google
+> systems) and current user (via Kubernetes), some of the assertions
+> being made here do not ring true for our very real use cases.  I
+> desperately want cgroup-aware OOM handing, but it has to be
+> policy-based or it is just not useful to us.
 
-Okay, I'll start with a manpage, and once we agree on whats in there we can
-start working on code again. :)
+A policy-based approach was suggested by Michal at a very beginning of
+this discussion. Although nobody had any strong objections against it,
+we've agreed that this is out of scope of this patchset.
+
+The idea of this patchset is to introduce an ability to select a memcg
+as an OOM victim with the following optional killing of all belonging tasks.
+I believe, it's absolutely mandatory for _any_ further development
+of the OOM killer, which wants to deal with memory cgroups as OOM entities.
+
+If you think that it makes impossible to support some use cases in the future,
+let's discuss it. Otherwise, I'd prefer to finish this part of the work,
+and proceed to the following improvements on top of it.
+
+Thank you!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
