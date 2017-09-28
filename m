@@ -1,74 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C3CC6B0069
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 16:45:39 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 188so6352478pgb.3
-        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 13:45:39 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id 33si2004334plk.70.2017.09.28.13.45.38
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5285C6B0038
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 17:02:32 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id j16so6382953pga.6
+        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 14:02:32 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id z131si2027528pgz.239.2017.09.28.14.02.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 28 Sep 2017 13:45:38 -0700 (PDT)
-Subject: Re: [PATCH 0/2 v8] oom: capture unreclaimable slab info in oom message
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1506548776-67535-1-git-send-email-yang.s@alibaba-inc.com>
-	<fccbce9c-a40e-621f-e9a4-17c327ed84e8@I-love.SAKURA.ne.jp>
-	<7e8684c2-c9e8-f76a-d7fb-7d5bf7682321@alibaba-inc.com>
-	<201709290457.CAC30283.VFtMFOFOJLQHOS@I-love.SAKURA.ne.jp>
-	<69a33b7a-afdf-d798-2e03-0c92dd94bfa6@alibaba-inc.com>
-In-Reply-To: <69a33b7a-afdf-d798-2e03-0c92dd94bfa6@alibaba-inc.com>
-Message-Id: <201709290545.HGH30269.LOVtSHFQOFJFOM@I-love.SAKURA.ne.jp>
-Date: Fri, 29 Sep 2017 05:45:31 +0900
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Sep 2017 14:02:31 -0700 (PDT)
+Date: Thu, 28 Sep 2017 14:02:30 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Make count list_lru_one::nr_items lockless
+Message-Id: <20170928140230.a9a0cd44a09eae9441a83bdc@linux-foundation.org>
+In-Reply-To: <fbb67bef-c13f-7fcb-fa6a-e3a7f6e5c82b@virtuozzo.com>
+References: <150583358557.26700.8490036563698102569.stgit@localhost.localdomain>
+	<20170927141530.25286286fb92a2573c4b548f@linux-foundation.org>
+	<fbb67bef-c13f-7fcb-fa6a-e3a7f6e5c82b@virtuozzo.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-2022-jp
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yang.s@alibaba-inc.com, mhocko@kernel.org
-Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: vdavydov.dev@gmail.com, apolyakov@beget.ru, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aryabinin@virtuozzo.com
 
-Yang Shi wrote:
-> On 9/28/17 12:57 PM, Tetsuo Handa wrote:
-> > Yang Shi wrote:
-> >> On 9/27/17 9:36 PM, Tetsuo Handa wrote:
-> >>> On 2017/09/28 6:46, Yang Shi wrote:
-> >>>> Changelog v7 -> v8:
-> >>>> * Adopted Michal’s suggestion to dump unreclaim slab info when unreclaimable slabs amount > total user memory. Not only in oom panic path.
-> >>>
-> >>> Holding slab_mutex inside dump_unreclaimable_slab() was refrained since V2
-> >>> because there are
-> >>>
-> >>> 	mutex_lock(&slab_mutex);
-> >>> 	kmalloc(GFP_KERNEL);
-> >>> 	mutex_unlock(&slab_mutex);
-> >>>
-> >>> users. If we call dump_unreclaimable_slab() for non OOM panic path, aren't we
-> >>> introducing a risk of crash (i.e. kernel panic) for regular OOM path?
-> >>
-> >> I don't see the difference between regular oom path and oom path other
-> >> than calling panic() at last.
-> >>
-> >> And, the slab dump may be called by panic path too, it is for both
-> >> regular and panic path.
+On Thu, 28 Sep 2017 10:48:55 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+
+> >> This patch aims to make super_cache_count() (and other functions,
+> >> which count LRU nr_items) more effective.
+> >> It allows list_lru_node::memcg_lrus to be RCU-accessed, and makes
+> >> __list_lru_count_one() count nr_items lockless to minimize
+> >> overhead introduced by locking operation, and to make parallel
+> >> reclaims more scalable.
 > > 
-> > Calling a function that might cause kerneloops immediately before calling panic()
-> > would be tolerable, for the kernel will panic after all. But calling a function
-> > that might cause kerneloops when there is no plan to call panic() is a bug.
+> > And...  what were the effects of the patch?  Did you not run the same
+> > performance tests after applying it?
 > 
-> I got your point. slab_mutex is used to protect the list of all the  
-> slabs, since we are already in oom, there should be not kmem cache  
-> destroy happen during the list traverse. And, list_for_each_entry() has  
-> been replaced to list_for_each_entry_safe() to make the traverse more  
-> robust.
+> I've just detected the such high usage of shrink slab on production node. It's rather
+> difficult to make it use another kernel, than it uses, only kpatches are possible.
+> So, I haven't estimated how it acts on node's performance.
+> On test node I see, that the patch obviously removes raw_spin_lock from perf profile.
+> So, it's a little bit untested in this way.
 
-I consider that OOM event and kmem chache destroy event can run concurrently
-because slab_mutex is not held by OOM event (and unfortunately cannot be held
-due to possibility of deadlock) in order to protect the list of all the slabs.
-
-I don't think replacing list_for_each_entry() with list_for_each_entry_safe()
-makes the traverse more robust, for list_for_each_entry_safe() does not defer
-freeing of memory used by list element. Rather, replacing list_for_each_entry()
-with list_for_each_entry_rcu() (and making relevant changes such as
-rcu_read_lock()/rcu_read_unlock()/synchronize_rcu()) will make the traverse safe.
+Well that's a problem.  The patch increases list_lru.o text size by a
+lot (4800->5696) which will have a cost.  And we don't have proof that
+any benefit is worth that cost.  It shouldn't be too hard to cook up a
+synthetic test to trigger memcg slab reclaim and then run a
+before-n-after benchmark?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
