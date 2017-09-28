@@ -1,54 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F013A6B0038
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 16:38:53 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id y77so5495494pfd.2
-        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 13:38:53 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id u10si1994341pgp.240.2017.09.28.13.38.52
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C3CC6B0069
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 16:45:39 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 188so6352478pgb.3
+        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 13:45:39 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 33si2004334plk.70.2017.09.28.13.45.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Sep 2017 13:38:52 -0700 (PDT)
-Date: Thu, 28 Sep 2017 13:38:50 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 00/20] Speculative page faults
-Message-Id: <20170928133850.90c5bf2aac0f1a63e29c01a3@linux-foundation.org>
-In-Reply-To: <924a79af-6d7a-316a-1eee-3aebbfd4addf@linux.vnet.ibm.com>
-References: <CAADnVQLmSbLHwj9m33kpzAidJPvq3cbdnXjaew6oTLqHWrBbZQ@mail.gmail.com>
-	<20170925163443.260d6092160ec704e2b04653@linux-foundation.org>
-	<924a79af-6d7a-316a-1eee-3aebbfd4addf@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 28 Sep 2017 13:45:38 -0700 (PDT)
+Subject: Re: [PATCH 0/2 v8] oom: capture unreclaimable slab info in oom message
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1506548776-67535-1-git-send-email-yang.s@alibaba-inc.com>
+	<fccbce9c-a40e-621f-e9a4-17c327ed84e8@I-love.SAKURA.ne.jp>
+	<7e8684c2-c9e8-f76a-d7fb-7d5bf7682321@alibaba-inc.com>
+	<201709290457.CAC30283.VFtMFOFOJLQHOS@I-love.SAKURA.ne.jp>
+	<69a33b7a-afdf-d798-2e03-0c92dd94bfa6@alibaba-inc.com>
+In-Reply-To: <69a33b7a-afdf-d798-2e03-0c92dd94bfa6@alibaba-inc.com>
+Message-Id: <201709290545.HGH30269.LOVtSHFQOFJFOM@I-love.SAKURA.ne.jp>
+Date: Fri, 29 Sep 2017 05:45:31 +0900
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-2022-jp
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Alexei Starovoitov <alexei.starovoitov@gmail.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, kirill@shutemov.name, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, dave@stgolabs.net, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, haren@linux.vnet.ibm.com, Anshuman Khandual <khandual@linux.vnet.ibm.com>, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, "x86@kernel.org" <x86@kernel.org>
+To: yang.s@alibaba-inc.com, mhocko@kernel.org
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 28 Sep 2017 14:29:02 +0200 Laurent Dufour <ldufour@linux.vnet.ibm.com> wrote:
+Yang Shi wrote:
+> On 9/28/17 12:57 PM, Tetsuo Handa wrote:
+> > Yang Shi wrote:
+> >> On 9/27/17 9:36 PM, Tetsuo Handa wrote:
+> >>> On 2017/09/28 6:46, Yang Shi wrote:
+> >>>> Changelog v7 -> v8:
+> >>>> * Adopted Michal’s suggestion to dump unreclaim slab info when unreclaimable slabs amount > total user memory. Not only in oom panic path.
+> >>>
+> >>> Holding slab_mutex inside dump_unreclaimable_slab() was refrained since V2
+> >>> because there are
+> >>>
+> >>> 	mutex_lock(&slab_mutex);
+> >>> 	kmalloc(GFP_KERNEL);
+> >>> 	mutex_unlock(&slab_mutex);
+> >>>
+> >>> users. If we call dump_unreclaimable_slab() for non OOM panic path, aren't we
+> >>> introducing a risk of crash (i.e. kernel panic) for regular OOM path?
+> >>
+> >> I don't see the difference between regular oom path and oom path other
+> >> than calling panic() at last.
+> >>
+> >> And, the slab dump may be called by panic path too, it is for both
+> >> regular and panic path.
+> > 
+> > Calling a function that might cause kerneloops immediately before calling panic()
+> > would be tolerable, for the kernel will panic after all. But calling a function
+> > that might cause kerneloops when there is no plan to call panic() is a bug.
+> 
+> I got your point. slab_mutex is used to protect the list of all the  
+> slabs, since we are already in oom, there should be not kmem cache  
+> destroy happen during the list traverse. And, list_for_each_entry() has  
+> been replaced to list_for_each_entry_safe() to make the traverse more  
+> robust.
 
-> > Laurent's [0/n] provides some nice-looking performance benefits for
-> > workloads which are chosen to show performance benefits(!) but, alas,
-> > no quantitative testing results for workloads which we may suspect will
-> > be harmed by the changes(?).  Even things as simple as impact upon
-> > single-threaded pagefault-intensive workloads and its effect upon
-> > CONFIG_SMP=n .text size?
-> 
-> I forgot to mention in my previous email the impact on the .text section.
-> 
-> Here are the metrics I got :
-> 
-> .text size	UP		SMP		Delta
-> 4.13-mmotm	8444201		8964137		6.16%
-> '' +spf		8452041		8971929		6.15%
-> 	Delta	0.09%		0.09%	
-> 
-> No major impact as you could see.
+I consider that OOM event and kmem chache destroy event can run concurrently
+because slab_mutex is not held by OOM event (and unfortunately cannot be held
+due to possibility of deadlock) in order to protect the list of all the slabs.
 
-8k text increase seems rather a lot actually.  That's a lot more
-userspace cacheclines that get evicted during a fault...
-
-Is the feature actually beneficial on uniprocessor?
+I don't think replacing list_for_each_entry() with list_for_each_entry_safe()
+makes the traverse more robust, for list_for_each_entry_safe() does not defer
+freeing of memory used by list element. Rather, replacing list_for_each_entry()
+with list_for_each_entry_rcu() (and making relevant changes such as
+rcu_read_lock()/rcu_read_unlock()/synchronize_rcu()) will make the traverse safe.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
