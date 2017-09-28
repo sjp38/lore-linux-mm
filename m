@@ -1,53 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CA57C6B0261
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 10:41:01 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id b23so667454qkg.4
-        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 07:41:01 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c7sor1093952qkj.19.2017.09.28.07.41.00
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Sep 2017 07:41:00 -0700 (PDT)
-Date: Thu, 28 Sep 2017 07:40:51 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/2] percpu: fix iteration to prevent skipping over block
-Message-ID: <20170928144051.GC15129@devbig577.frc2.facebook.com>
-References: <1506548100-31247-1-git-send-email-dennisszhou@gmail.com>
- <1506548100-31247-3-git-send-email-dennisszhou@gmail.com>
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9079E6B0261
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 10:47:18 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id p126so2124388oih.2
+        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 07:47:18 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id u31si1263508oti.358.2017.09.28.07.47.17
+        for <linux-mm@kvack.org>;
+        Thu, 28 Sep 2017 07:47:17 -0700 (PDT)
+Date: Thu, 28 Sep 2017 15:45:38 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: EBPF-triggered WARNING at mm/percpu.c:1361 in v4-14-rc2
+Message-ID: <20170928144538.GA32487@leverpostej>
+References: <20170928112727.GA11310@leverpostej>
+ <59CD093A.6030201@iogearbox.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1506548100-31247-3-git-send-email-dennisszhou@gmail.com>
+In-Reply-To: <59CD093A.6030201@iogearbox.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dennis Zhou <dennisszhou@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, Luis Henriques <lhenriques@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Daniel Borkmann <daniel@iogearbox.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, syzkaller@googlegroups.com, "David S. Miller" <davem@davemloft.net>, Alexei Starovoitov <ast@kernel.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>
 
-On Wed, Sep 27, 2017 at 04:35:00PM -0500, Dennis Zhou wrote:
-> The iterator functions pcpu_next_md_free_region and
-> pcpu_next_fit_region use the block offset to determine if they have
-> checked the area in the prior iteration. However, this causes an issue
-> when the block offset is greater than subsequent block contig hints. If
-> within the iterator it moves to check subsequent blocks, it may fail in
-> the second predicate due to the block offset not being cleared. Thus,
-> this causes the allocator to skip over blocks leading to false failures
-> when allocating from the reserved chunk. While this happens in the
-> general case as well, it will only fail if it cannot allocate a new
-> chunk.
+On Thu, Sep 28, 2017 at 04:37:46PM +0200, Daniel Borkmann wrote:
+> On 09/28/2017 01:27 PM, Mark Rutland wrote:
+> >Hi,
+> >
+> >While fuzzing v4.14-rc2 with Syzkaller, I found it was possible to trigger the
+> >warning at mm/percpu.c:1361, on both arm64 and x86_64. This appears to require
+> >increasing RLIMIT_MEMLOCK, so to the best of my knowledge this cannot be
+> >triggered by an unprivileged user.
+> >
+> >I've included example splats for both x86_64 and arm64, along with a C
+> >reproducer, inline below.
+> >
+> >It looks like dev_map_alloc() requests a percpu alloction of 32776 bytes, which
+> >is larger than the maximum supported allocation size of 32768 bytes.
+> >
+> >I wonder if it would make more sense to pr_warn() for sizes that are too
+> >large, so that callers don't have to roll their own checks against
+> >PCPU_MIN_UNIT_SIZE?
 > 
-> This patch resets the block offset to 0 to pass the second predicate
-> when checking subseqent blocks within the iterator function.
-> 
-> Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
-> Reported-by: Luis Henriques <lhenriques@suse.com>
+> Perhaps the pr_warn() should be ratelimited; or could there be an
+> option where we only return NULL, not triggering a warn at all (which
+> would likely be what callers might do anyway when checking against
+> PCPU_MIN_UNIT_SIZE and then bailing out)?
 
-Applied to percpu/for-4.14-fixes.
+Those both make sense to me; checking __GFP_NOWARN should be easy
+enough.
 
-Thanks!
+Just to check, do you think that dev_map_alloc() should explicitly test
+the size against PCPU_MIN_UNIT_SIZE, prior to calling pcpu_alloc()?
 
--- 
-tejun
+I can spin both patches if so.
+
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
