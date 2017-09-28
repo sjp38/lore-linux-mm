@@ -1,61 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0748F6B0260
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 04:31:05 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id r83so2286714pfj.5
-        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 01:31:05 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f2si932660pfh.448.2017.09.28.01.31.03
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 419816B0261
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 04:32:00 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id r74so349669wme.20
+        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 01:32:00 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id l101sor380315wrc.16.2017.09.28.01.31.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 28 Sep 2017 01:31:03 -0700 (PDT)
-From: Luis Henriques <lhenriques@suse.com>
-Subject: Re: [PATCH 2/2] percpu: fix iteration to prevent skipping over block
-References: <1506548100-31247-1-git-send-email-dennisszhou@gmail.com>
-	<1506548100-31247-3-git-send-email-dennisszhou@gmail.com>
-	<20170927215125.GB15129@devbig577.frc2.facebook.com>
-Date: Thu, 28 Sep 2017 09:31:00 +0100
-In-Reply-To: <20170927215125.GB15129@devbig577.frc2.facebook.com> (Tejun Heo's
-	message of "Wed, 27 Sep 2017 14:51:25 -0700")
-Message-ID: <87lgkzkywr.fsf@hermes>
+        (Google Transport Security);
+        Thu, 28 Sep 2017 01:31:58 -0700 (PDT)
+Date: Thu, 28 Sep 2017 10:31:55 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCHv7 12/19] x86/mm: Adjust virtual address space layout in
+ early boot.
+Message-ID: <20170928083155.7qahecaeifz5em5f@gmail.com>
+References: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
+ <20170918105553.27914-13-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170918105553.27914-13-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Dennis Zhou <dennisszhou@gmail.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Tejun Heo <tj@kernel.org> writes:
 
-> On Wed, Sep 27, 2017 at 04:35:00PM -0500, Dennis Zhou wrote:
->> The iterator functions pcpu_next_md_free_region and
->> pcpu_next_fit_region use the block offset to determine if they have
->> checked the area in the prior iteration. However, this causes an issue
->> when the block offset is greater than subsequent block contig hints. If
->> within the iterator it moves to check subsequent blocks, it may fail in
->> the second predicate due to the block offset not being cleared. Thus,
->> this causes the allocator to skip over blocks leading to false failures
->> when allocating from the reserved chunk. While this happens in the
->> general case as well, it will only fail if it cannot allocate a new
->> chunk.
->> 
->> This patch resets the block offset to 0 to pass the second predicate
->> when checking subseqent blocks within the iterator function.
->> 
->> Signed-off-by: Dennis Zhou <dennisszhou@gmail.com>
->> Reported-by: Luis Henriques <lhenriques@suse.com>
->
-> Luis, can you please verify that this fixes the allocaiton failure you
-> were seeing?
+* Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
 
-I can confirm that I'm no longer seeing the allocation failure after
-applying these patches.  Feel free to add my:
+> We need to adjust virtual address space to support switching between
+> paging modes.
+> 
+> The adjustment happens in __startup_64().
 
-Tested-by: Luis Henriques <lhenriques@suse.com>
+> +#ifdef CONFIG_X86_5LEVEL
+> +	if (__read_cr4() & X86_CR4_LA57) {
+> +		pgtable_l5_enabled = 1;
+> +		pgdir_shift = 48;
+> +		ptrs_per_p4d = 512;
+> +	}
+> +#endif
 
-Cheers,
--- 
-Luis
+So CR4 really sucks as a parameter passing interface - was it us who enabled LA57 
+in the early boot code, right? Couldn't we add a flag which gets set there, or 
+something?
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
