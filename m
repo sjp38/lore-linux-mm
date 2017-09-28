@@ -1,77 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CDBD26B025F
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 09:38:42 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id e64so2301971wmi.0
-        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 06:38:42 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g131sor263850wma.54.2017.09.28.06.38.41
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D4B0E6B025F
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 09:54:29 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id y44so568781wrd.16
+        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 06:54:29 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id 95si662140lfv.290.2017.09.28.06.54.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Sep 2017 06:38:41 -0700 (PDT)
-Date: Thu, 28 Sep 2017 15:38:38 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCHv7 12/19] x86/mm: Adjust virtual address space layout in
- early boot.
-Message-ID: <20170928133838.oa72tybvmyy3sfgw@gmail.com>
-References: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
- <20170918105553.27914-13-kirill.shutemov@linux.intel.com>
- <20170928083155.7qahecaeifz5em5f@gmail.com>
- <20170928132608.priml7nc7dmo5r6d@node.shutemov.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Sep 2017 06:54:28 -0700 (PDT)
+Date: Thu, 28 Sep 2017 14:53:57 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [RESEND] proc, coredump: add CoreDumping flag to /proc/pid/status
+Message-ID: <20170928135357.GA8470@castle.DHCP.thefacebook.com>
+References: <20170914224431.GA9735@castle>
+ <20170920230634.31572-1-guro@fb.com>
+ <20170927163106.84b9622f183f087eff7f6da7@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20170928132608.priml7nc7dmo5r6d@node.shutemov.name>
+In-Reply-To: <20170927163106.84b9622f183f087eff7f6da7@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-
-* Kirill A. Shutemov <kirill@shutemov.name> wrote:
-
-> On Thu, Sep 28, 2017 at 10:31:55AM +0200, Ingo Molnar wrote:
-> > 
-> > * Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
-> > 
-> > > We need to adjust virtual address space to support switching between
-> > > paging modes.
-> > > 
-> > > The adjustment happens in __startup_64().
-> > 
-> > > +#ifdef CONFIG_X86_5LEVEL
-> > > +	if (__read_cr4() & X86_CR4_LA57) {
-> > > +		pgtable_l5_enabled = 1;
-> > > +		pgdir_shift = 48;
-> > > +		ptrs_per_p4d = 512;
-> > > +	}
-> > > +#endif
-> > 
-> > So CR4 really sucks as a parameter passing interface - was it us who enabled LA57 
-> > in the early boot code, right? Couldn't we add a flag which gets set there, or 
-> > something?
+On Wed, Sep 27, 2017 at 04:31:06PM -0700, Andrew Morton wrote:
+> On Wed, 20 Sep 2017 16:06:34 -0700 Roman Gushchin <guro@fb.com> wrote:
 > 
-> It's not necessary that we enabled LA57. At least I tried to write code
-> that doesn't assume this. We enable it if bootloader haven't done this
-> already for us.
+> > Right now there is no convenient way to check if a process is being
+> > coredumped at the moment.
+> > 
+> > It might be necessary to recognize such state to prevent killing
+> > the process and getting a broken coredump.
+> > Writing a large core might take significant time, and the process
+> > is unresponsive during it, so it might be killed by timeout,
+> > if another process is monitoring and killing/restarting
+> > hanging tasks.
+> > 
+> > To provide an ability to detect if a process is in the state of
+> > being coreduped, we can expose a boolean CoreDumping flag
+> > in /proc/pid/status.
+> > 
+> > Example:
+> > $ cat core.sh
+> >   #!/bin/sh
+> > 
+> >   echo "|/usr/bin/sleep 10" > /proc/sys/kernel/core_pattern
+> >   sleep 1000 &
+> >   PID=$!
+> > 
+> >   cat /proc/$PID/status | grep CoreDumping
+> >   kill -ABRT $PID
+> >   sleep 1
+> >   cat /proc/$PID/status | grep CoreDumping
+> > 
+> > $ ./core.sh
+> >   CoreDumping:	0
+> >   CoreDumping:	1
 > 
-> What is so awful about using CR4 as passing interface? It's one-time
-> check, so performance shouldn't be an issue.
+> I assume you have some real-world use case which benefits from this.
 
-As a starter, this code is in generic x86 code [choose_random_location()], is this 
-CR4 bit known to AMD as well and is it guaranteed to be sane across all x86 CPUs? 
-I don't think so.
+Sure, we're getting a sensible number of corrupted coredump files
+on machines in our fleet, just because processes are being killed
+by timeout in the middle of the core writing process.
 
-CR4 is a poor interface to pass CPU features through. Generaly we try to enumerate 
-CPU features via CPUID, and/or enable synthetic CPU features in certain cases, and 
-work from there.
+We do have a process health check, and some agent is responsible
+for restarting processes which are not responding for health check requests.
+Writing a large coredump to the disk can easily exceed the reasonable timeout
+(especially on an overloaded machine).
 
-Thanks,
+This flag will allow the agent to distinguish processes which are being
+coredumped, extend the timeout for them, and let them produce a full
+coredump file.
 
-	Ingo
+> 
+> >  fs/proc/array.c | 6 ++++++
+> >  1 file changed, 6 insertions(+)
+> 
+> A Documentation/ would be appropriate?   Include a brief mention of
+> *why* someone might want to use this...
+> 
+>
+
+Here it is. Thank you!
 
 --
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
