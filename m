@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C30AA6B025F
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 04:25:18 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b82so338552wmh.8
-        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 01:25:18 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FE5D6B025F
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 04:28:17 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id i133so247224wme.11
+        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 01:28:17 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q18sor374938wre.9.2017.09.28.01.25.17
+        by mx.google.com with SMTPS id r9sor355066wrg.50.2017.09.28.01.28.16
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 28 Sep 2017 01:25:17 -0700 (PDT)
-Date: Thu, 28 Sep 2017 10:25:14 +0200
+        Thu, 28 Sep 2017 01:28:16 -0700 (PDT)
+Date: Thu, 28 Sep 2017 10:28:13 +0200
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCHv7 09/19] x86/mm: Make MAX_PHYSADDR_BITS and
- MAX_PHYSMEM_BITS dynamic
-Message-ID: <20170928082514.tl6tuigmx6oleus6@gmail.com>
+Subject: Re: [PATCHv7 10/19] x86/mm: Make __PHYSICAL_MASK_SHIFT and
+ __VIRTUAL_MASK_SHIFT dynamic
+Message-ID: <20170928082813.lvr45p53niznhycx@gmail.com>
 References: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
- <20170918105553.27914-10-kirill.shutemov@linux.intel.com>
+ <20170918105553.27914-11-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170918105553.27914-10-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170918105553.27914-11-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
@@ -28,46 +28,18 @@ Cc: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.or
 
 * Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
 
-> For boot-time switching between paging modes, we need to be able to
-> adjust size of physical address space at runtime.
-> 
-> As part of making physical address space size variable, we have to make
-> X86_5LEVEL dependent on SPARSEMEM_VMEMMAP. !SPARSEMEM_VMEMMAP
-> configuration doesn't work well with variable MAX_PHYSMEM_BITS.
-> 
-> Affect on kernel image size:
-> 
->    text    data     bss     dec     hex filename
-> 10710340        4880000  860160 16450500         fb03c4 vmlinux.before
-> 10710666        4880000  860160 16450826         fb050a vmlinux.after
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  arch/x86/Kconfig                        | 1 +
->  arch/x86/include/asm/pgtable_64_types.h | 2 +-
->  arch/x86/include/asm/sparsemem.h        | 9 ++-------
->  arch/x86/kernel/setup.c                 | 5 ++---
->  4 files changed, 6 insertions(+), 11 deletions(-)
-> 
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> index 6a15297140ff..f75723d62c25 100644
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -1403,6 +1403,7 @@ config X86_PAE
->  config X86_5LEVEL
->  	bool "Enable 5-level page tables support"
->  	depends on X86_64
-> +	depends on SPARSEMEM_VMEMMAP
+> --- a/arch/x86/mm/dump_pagetables.c
+> +++ b/arch/x86/mm/dump_pagetables.c
+> @@ -82,8 +82,8 @@ static struct addr_marker address_markers[] = {
+>  	{ 0/* VMALLOC_START */, "vmalloc() Area" },
+>  	{ 0/* VMEMMAP_START */, "Vmemmap" },
+>  #ifdef CONFIG_KASAN
+> -	{ KASAN_SHADOW_START,	"KASAN shadow" },
+> -	{ KASAN_SHADOW_END,	"KASAN shadow end" },
+> +	{ 0/* KASAN_SHADOW_START */,	"KASAN shadow" },
+> +	{ 0/* KASAN_SHADOW_END */,	"KASAN shadow end" },
 
-Adding a 'depends on' to random kernel internal implementational details, to 
-support new hardware, sucks as an UI, as it will just randomly hide/show the new 
-hardware option if certain magic Kconfig combinations are set.
-
-Please check how other architectures are doing it. (Hint: they are using select.)
-
-Also, what is the real dependency here? Why don't the other memory models work, 
-what's the failure mode - won't build, won't boot, or misbehaves in some other 
-way?
+What's this? Looks hacky.
 
 Thanks,
 
