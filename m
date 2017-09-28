@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CBB6B6B025F
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 04:21:41 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id z203so331580wmc.18
-        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 01:21:41 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id c10sor350265wrc.60.2017.09.28.01.21.40
+	by kanga.kvack.org (Postfix) with ESMTP id C30AA6B025F
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 04:25:18 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b82so338552wmh.8
+        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 01:25:18 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q18sor374938wre.9.2017.09.28.01.25.17
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 28 Sep 2017 01:21:40 -0700 (PDT)
-Date: Thu, 28 Sep 2017 10:21:38 +0200
+        Thu, 28 Sep 2017 01:25:17 -0700 (PDT)
+Date: Thu, 28 Sep 2017 10:25:14 +0200
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCHv7 08/19] x86/mm: Make PGDIR_SHIFT and PTRS_PER_P4D
- variable
-Message-ID: <20170928082138.ayuwbf6jhy6yyqu4@gmail.com>
+Subject: Re: [PATCHv7 09/19] x86/mm: Make MAX_PHYSADDR_BITS and
+ MAX_PHYSMEM_BITS dynamic
+Message-ID: <20170928082514.tl6tuigmx6oleus6@gmail.com>
 References: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
- <20170918105553.27914-9-kirill.shutemov@linux.intel.com>
+ <20170918105553.27914-10-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170918105553.27914-9-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20170918105553.27914-10-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
@@ -28,14 +28,46 @@ Cc: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.or
 
 * Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
 
->  #define P4D_SHIFT	39
-> -#define PTRS_PER_P4D	512
-> +#define __PTRS_PER_P4D	512
-> +#define PTRS_PER_P4D	ptrs_per_p4d
->  #define P4D_SIZE	(_AC(1, UL) << P4D_SHIFT)
->  #define P4D_MASK	(~(P4D_SIZE - 1))
+> For boot-time switching between paging modes, we need to be able to
+> adjust size of physical address space at runtime.
+> 
+> As part of making physical address space size variable, we have to make
+> X86_5LEVEL dependent on SPARSEMEM_VMEMMAP. !SPARSEMEM_VMEMMAP
+> configuration doesn't work well with variable MAX_PHYSMEM_BITS.
+> 
+> Affect on kernel image size:
+> 
+>    text    data     bss     dec     hex filename
+> 10710340        4880000  860160 16450500         fb03c4 vmlinux.before
+> 10710666        4880000  860160 16450826         fb050a vmlinux.after
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  arch/x86/Kconfig                        | 1 +
+>  arch/x86/include/asm/pgtable_64_types.h | 2 +-
+>  arch/x86/include/asm/sparsemem.h        | 9 ++-------
+>  arch/x86/kernel/setup.c                 | 5 ++---
+>  4 files changed, 6 insertions(+), 11 deletions(-)
+> 
+> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+> index 6a15297140ff..f75723d62c25 100644
+> --- a/arch/x86/Kconfig
+> +++ b/arch/x86/Kconfig
+> @@ -1403,6 +1403,7 @@ config X86_PAE
+>  config X86_5LEVEL
+>  	bool "Enable 5-level page tables support"
+>  	depends on X86_64
+> +	depends on SPARSEMEM_VMEMMAP
 
-PTRS_PER_P4D_MAX would be a better name than random underscores ...
+Adding a 'depends on' to random kernel internal implementational details, to 
+support new hardware, sucks as an UI, as it will just randomly hide/show the new 
+hardware option if certain magic Kconfig combinations are set.
+
+Please check how other architectures are doing it. (Hint: they are using select.)
+
+Also, what is the real dependency here? Why don't the other memory models work, 
+what's the failure mode - won't build, won't boot, or misbehaves in some other 
+way?
 
 Thanks,
 
