@@ -1,81 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A9C0B6B0038
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 21:02:25 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id x78so19850pff.7
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 18:02:25 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id x3si206632pgp.597.2017.09.27.18.02.24
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A9BF36B0038
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 21:27:13 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id g32so357383ioj.0
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 18:27:13 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id j143sor305473itb.118.2017.09.27.18.27.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Sep 2017 18:02:24 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH] mm, swap: Make VMA based swap readahead configurable
-References: <20170926132129.dbtr2mof35x4j4og@dhcp22.suse.cz>
-	<20170927050401.GA715@bbox>
-	<20170927074835.37m4dclmew5ecli2@dhcp22.suse.cz>
-	<20170927080432.GA1160@bbox>
-	<20170927083512.dydqlqezh5polggb@dhcp22.suse.cz>
-	<20170927131511.GA338@bgram>
-	<20170927132241.tshup6kcwe5pcxek@dhcp22.suse.cz>
-	<20170927134117.GB338@bgram>
-	<20170927135034.yatxlhvunawzmcar@dhcp22.suse.cz>
-	<20170927141008.GA1278@bgram>
-	<20170927141723.bixcum3fler7q4w5@dhcp22.suse.cz>
-Date: Thu, 28 Sep 2017 09:02:20 +0800
-In-Reply-To: <20170927141723.bixcum3fler7q4w5@dhcp22.suse.cz> (Michal Hocko's
-	message of "Wed, 27 Sep 2017 16:17:23 +0200")
-Message-ID: <87mv5f8wkj.fsf@yhuang-dev.intel.com>
+        (Google Transport Security);
+        Wed, 27 Sep 2017 18:27:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <20170927123330.90dadc97988326b3c594db00@linux-foundation.org>
+References: <1506035552-13010-1-git-send-email-laoar.shao@gmail.com>
+ <20170926165949.77e27aea0b92a226e7905060@linux-foundation.org>
+ <CALOAHbB2CTfjAWgazxdAQTiOjCZFHF8Cn2mXv=kFe3prp_zg-A@mail.gmail.com>
+ <20170926195409.0867d13620e1219ca6676821@linux-foundation.org>
+ <CALOAHbDP3X8zgnUeRTHZs22ntcBn-JVFwubRFUwyva9mdG80TQ@mail.gmail.com> <20170927123330.90dadc97988326b3c594db00@linux-foundation.org>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Thu, 28 Sep 2017 09:27:11 +0800
+Message-ID: <CALOAHbDMTps0E20+TLH-1uwcHxbh0EVcdz0O9NaqZ++5e+5T6Q@mail.gmail.com>
+Subject: Re: [PATCH v4] mm: introduce validity check on vm dirtiness settings
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>, "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 
-Hi, Michal,
+Got it.
+I will submit a new patch then.
 
-Michal Hocko <mhocko@kernel.org> writes:
+Thanks
+Yafang
 
-> On Wed 27-09-17 23:10:08, Minchan Kim wrote:
->> On Wed, Sep 27, 2017 at 03:50:34PM +0200, Michal Hocko wrote:
->> > On Wed 27-09-17 22:41:17, Minchan Kim wrote:
->> > > On Wed, Sep 27, 2017 at 03:22:41PM +0200, Michal Hocko wrote:
->> > [...]
->> > > > simply cannot disable swap readahead when page-cluster is 0?
->> > > 
->> > > That's was what I want really but Huang want to use two readahead
->> > > algorithms in parallel so he wanted to keep two separated disable
->> > > knobs.
->> > 
->> > If it breaks existing and documented behavior then it is a clear
->> > regression and it should be fixed. I do not see why this should be
->> > disputable at all.
->> 
->> Indeed but Huang doesn't think so. He has thought it's not a regression.
->> Frankly speaking, I'm really bored of discussing with it.
->> https://marc.info/?l=linux-mm&m=150526413319763&w=2
+2017-09-28 3:33 GMT+08:00 Andrew Morton <akpm@linux-foundation.org>:
+> On Wed, 27 Sep 2017 12:14:10 +0800 Yafang Shao <laoar.shao@gmail.com> wrote:
 >
-> Then send a patch explaining why you consider this a regression with
-> some numbers backing it and I will happily ack it.
-
-I still think there may be a performance regression for some users
-because of the change of the algorithm and the knobs, and the
-performance regression can be resolved via setting the new knob.  But I
-don't think there will be a functionality regression.  Do you agree?
-
-Best Regards,
-Huang, Ying
-
->> So I passed the decision to Andrew.
->> http://lkml.kernel.org/r/<20170913014019.GB29422@bbox>
->> 
->> The config option idea is compromise approach although I don't like it
->> and still believe it's simple clear *regression* so 0 page-cluster
->> should keep the swap readahead disabled.
+>> 2017-09-27 10:54 GMT+08:00 Andrew Morton <akpm@linux-foundation.org>:
+>> > On Wed, 27 Sep 2017 09:38:21 +0800 Yafang Shao <laoar.shao@gmail.com> wrote:
+>> >
+>> >> > And existing scripts which do not do this will cease to work correctly,
+>> >> > no?
+>> >> >
+>> >>
+>> >> The existing scritpts won't work correctly. That's also what I have
+>> >> worried before.
+>> >>
+>> >> But under this condition, there's a error message generated by "sysctl
+>> >> -w" to tell them the first setting was failure.
+>> >> This error message may be a reminder to them that there are some
+>> >> connections between background and direct limit, and should not set
+>> >> arbitrary.
+>> >> May that's better. I'm not sure.
+>> >
+>> > Maybe we can leave the logic as-is and simply print a warning when an
+>> > illogical state exists.
+>> >
+>>
+>> You mean, just modified the  code as bellow ?
+>> in function  domain_dirty_limits()
+>> -        if (bg_thresh >= thresh)
+>> +     if (bg_thresh >= thresh) {
+>> +        pr_warn("vm direct limit should greater than background limit.\n");
+>>           bg_thresh = thresh / 2;
+>> +     }
 >
-> It is not a compromise. The regression is still there for many users
-> potentially (just consider zram distribution kernel users...).
+> Something like that.
+>
+>> will this generate lots of log ?
+>
+> Well, it's one message per write to a procfs file, when that write
+> causes an errant state.  Sounds manageable?  It would be nice if we
+> could somehow help the operator to figure out that writing in a
+> different order will prevent the incorrect state (and hence the
+> warning).
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
