@@ -1,73 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D4D376B0038
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 21:41:31 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id h185so239180ite.5
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 18:41:31 -0700 (PDT)
-Received: from tama50.ecl.ntt.co.jp (tama50.ecl.ntt.co.jp. [129.60.39.147])
-        by mx.google.com with ESMTP id a198si332363ioe.403.2017.09.27.18.41.30
-        for <linux-mm@kvack.org>;
-        Wed, 27 Sep 2017 18:41:30 -0700 (PDT)
-Subject: Re: [PATCH 09/15] nilfs2: Use pagevec_lookup_range_tag()
-References: <20170927160334.29513-1-jack@suse.cz>
- <20170927160334.29513-10-jack@suse.cz>
-From: Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>
-Message-ID: <8960b327-5541-40ec-9966-ca4e43e8e9a0@lab.ntt.co.jp>
-Date: Thu, 28 Sep 2017 10:40:50 +0900
-MIME-Version: 1.0
-In-Reply-To: <20170927160334.29513-10-jack@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A5EEE6B0038
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 22:08:00 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id p87so358843pfj.4
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 19:08:00 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a70sor63689pge.134.2017.09.27.19.07.59
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 27 Sep 2017 19:07:59 -0700 (PDT)
+From: Yafang Shao <laoar.shao@gmail.com>
+Subject: [PATCH] mm: print a warning once the vm dirtiness settings is illogical
+Date: Thu, 28 Sep 2017 17:54:24 +0800
+Message-Id: <1506592464-30962-1-git-send-email-laoar.shao@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nilfs@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: jack@suse.cz, mhocko@suse.com, linux-mm@kvack.org, Yafang Shao <laoar.shao@gmail.com>
 
+The vm direct limit setting must be set greater than vm background
+limit setting.
+Otherwise we will print a warning to help the operator to figure
+out that the vm dirtiness settings is in illogical state.
 
-On 2017/09/28 1:03, Jan Kara wrote:
-> We want only pages from given range in
-> nilfs_lookup_dirty_data_buffers(). Use pagevec_lookup_range_tag()
-> instead of pagevec_lookup_tag() and remove unnecessary code.
-> 
-> CC: Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>
-> CC: linux-nilfs@vger.kernel.org
-> Signed-off-by: Jan Kara <jack@suse.cz>
-> ---
->   fs/nilfs2/segment.c | 8 ++------
->   1 file changed, 2 insertions(+), 6 deletions(-)
+Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+---
+ Documentation/sysctl/vm.txt | 7 +++++++
+ mm/page-writeback.c         | 5 ++++-
+ 2 files changed, 11 insertions(+), 1 deletion(-)
 
-Nice patch. Thanks.
-
-Acked-by: Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>
-
-> 
-> diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
-> index 70ded52dc1dd..68e5769cef3b 100644
-> --- a/fs/nilfs2/segment.c
-> +++ b/fs/nilfs2/segment.c
-> @@ -711,18 +711,14 @@ static size_t nilfs_lookup_dirty_data_buffers(struct inode *inode,
->   	pagevec_init(&pvec, 0);
->    repeat:
->   	if (unlikely(index > last) ||
-> -	    !pagevec_lookup_tag(&pvec, mapping, &index, PAGECACHE_TAG_DIRTY,
-> -				min_t(pgoff_t, last - index,
-> -				      PAGEVEC_SIZE - 1) + 1))
-> +	    !pagevec_lookup_range_tag(&pvec, mapping, &index, last,
-> +				PAGECACHE_TAG_DIRTY, PAGEVEC_SIZE))
->   		return ndirties;
->   
->   	for (i = 0; i < pagevec_count(&pvec); i++) {
->   		struct buffer_head *bh, *head;
->   		struct page *page = pvec.pages[i];
->   
-> -		if (unlikely(page->index > last))
-> -			break;
-> -
->   		lock_page(page);
->   		if (!page_has_buffers(page))
->   			create_empty_buffers(page, i_blocksize(inode), 0);
-> 
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+index 9baf66a..30fd16b 100644
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -157,6 +157,10 @@ Note: the minimum value allowed for dirty_bytes is two pages (in bytes); any
+ value lower than this limit will be ignored and the old configuration will be
+ retained.
+ 
++Note: the value of dirty_bytes also must be set greater than
++dirty_background_bytes or the amount of memory corresponding to
++dirty_background_ratio.
++
+ ==============================================================
+ 
+ dirty_expire_centisecs
+@@ -176,6 +180,9 @@ generating disk writes will itself start writing out dirty data.
+ 
+ The total available memory is not equal to total system memory.
+ 
++Note: dirty_ratio must be set greater than dirty_background_ratio or
++ratio corresponding to dirty_background_bytes.
++
+ ==============================================================
+ 
+ dirty_writeback_centisecs
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 0b9c5cb..8b747dd 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -433,8 +433,11 @@ static void domain_dirty_limits(struct dirty_throttle_control *dtc)
+ 	else
+ 		bg_thresh = (bg_ratio * available_memory) / PAGE_SIZE;
+ 
+-	if (bg_thresh >= thresh)
++	if (unlikely(bg_thresh >= thresh)) {
++		pr_warn("vm direct limit must be set greater than background limit.\n");
+ 		bg_thresh = thresh / 2;
++	}
++
+ 	tsk = current;
+ 	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
+ 		bg_thresh += bg_thresh / 4 + global_wb_domain.dirty_limit / 32;
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
