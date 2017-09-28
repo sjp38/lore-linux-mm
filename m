@@ -1,91 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 13A476B0038
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 05:44:28 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k10so240672wrk.4
-        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 02:44:28 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k72sor418467wrc.27.2017.09.28.02.44.26
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BBBD6B0038
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 06:09:11 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id v72so1612428ywa.1
+        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 03:09:11 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v6si327720ybj.234.2017.09.28.03.09.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Sep 2017 02:44:26 -0700 (PDT)
-Date: Thu, 28 Sep 2017 11:44:23 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCHv7 02/19] mm/zsmalloc: Prepare to variable MAX_PHYSMEM_BITS
-Message-ID: <20170928094423.c75fatvl6rnqzt5n@gmail.com>
-References: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
- <20170918105553.27914-3-kirill.shutemov@linux.intel.com>
- <20170928081034.g3k3sz7pue7jnzvi@gmail.com>
- <20170928091954.t74i542dlnejbzty@node.shutemov.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Sep 2017 03:09:10 -0700 (PDT)
+Date: Thu, 28 Sep 2017 12:09:06 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC] A multithread lockless deduplication engine
+Message-ID: <20170928100906.GF30973@redhat.com>
+References: <0d61c58a-8d73-4037-b15d-1f0f25a3ad62.ljy@baibantech.com.cn>
+ <20170926114747.tjiyopglxeeudy65@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20170928091954.t74i542dlnejbzty@node.shutemov.name>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20170926114747.tjiyopglxeeudy65@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: XaviLi <ljy@baibantech.com.cn>, linux-kernel <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
+Hello XaviLi,
 
-* Kirill A. Shutemov <kirill@shutemov.name> wrote:
-
-> On Thu, Sep 28, 2017 at 10:10:34AM +0200, Ingo Molnar wrote:
-> > 
-> > * Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
-> > 
-> > > With boot-time switching between paging mode we will have variable
-> > > MAX_PHYSMEM_BITS.
-> > > 
-> > > Let's use the maximum variable possible for CONFIG_X86_5LEVEL=y
-> > > configuration to define zsmalloc data structures.
-> > > 
-> > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > > Cc: Minchan Kim <minchan@kernel.org>
-> > > Cc: Nitin Gupta <ngupta@vflare.org>
-> > > Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-> > > ---
-> > >  mm/zsmalloc.c | 6 ++++++
-> > >  1 file changed, 6 insertions(+)
-> > > 
-> > > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> > > index 7c38e850a8fc..fe22661f2fe5 100644
-> > > --- a/mm/zsmalloc.c
-> > > +++ b/mm/zsmalloc.c
-> > > @@ -93,7 +93,13 @@
-> > >  #define MAX_PHYSMEM_BITS BITS_PER_LONG
-> > >  #endif
-> > >  #endif
-> > > +
-> > > +#ifdef CONFIG_X86_5LEVEL
-> > > +/* MAX_PHYSMEM_BITS is variable, use maximum value here */
-> > > +#define _PFN_BITS		(52 - PAGE_SHIFT)
-> > > +#else
-> > >  #define _PFN_BITS		(MAX_PHYSMEM_BITS - PAGE_SHIFT)
-> > > +#endif
-> > 
-> > This is a totally ugly hack, polluting generic MM code with an x86-ism and an 
-> > arbitrary hard-coded constant that would silently lose validity when x86 paging 
-> > gets extended again ...
+On Tue, Sep 26, 2017 at 01:47:47PM +0200, Michal Hocko wrote:
+> [Let's add some more people and linux-mm to the CC list]
 > 
-> Well, yes it's ugly. And I would be glad to find better solution. But I
-> don't see one.
-> 
-> And it won't break silently on x86 paging expanding as it won't use
-> CONFIG_X86_5LEVEL, so we would fallback to MAX_PHYSMEM_BITS - PAGE_SHIFT.
->
-> I worth noting that the code already has x86 hack. See PAE special case
-> for MAX_PHYSMEM_BITS.
+> On Wed 20-09-17 11:23:50, XaviLi wrote:
+> > PageONE (Page Object Non-duplicate Engine) is a multithread kernel page deduplication engine. It is based on a lock-less tree algorithm we currently named as SD (Static and Dynamic) Tree. Normal operations such as insert/query/delete to this tree are block-less. Adding more CPU cores can linearly boost speed as far as we tested. Multithreading gives not only opportunity to work faster. It also allows any CPU to donate spare time for the job. Therefore, it reveals a way to use CPU more efficiently. PPR is from an open source solution named Dynamic VM:
+> > https://github.com/baibantech/dynamic_vm.git 
+> > 
+> > patch can be found here:  https://github.com/baibantech/dynamic_vm/tree/master/dynamic_vm_0.5
+> > 
+> > One work thread of PageONE can match the speed of KSM daemon. Adding more CPUs can increase speed linearly. Here we can see a brief test:
+> > 
+> > Test environment
+> > DELL R730
+> > Intel(R) Xeon(R) E5-2650 v4 (2.20 GHz, of Cores 12, threads 24); 
+> > 256GB RAM
+> > Host OS: Ubuntu server 14.04 Host kernel: 4.4.1
+> > Qemu: 2.9.0
+> > Guest OS: Ubuntu server 16.04 Guest kernel: 4.4.76
+> > 
+> > We ran 12 VMs together. Each create 16GB data in memory. After all data is ready we start dedup-engine and see how host-side used memory amount changes.
+> > 
+> > KSM:
+> > Configuration: sleep_millisecs = 0, pages_to_scan = 1000000
+> > Starting used memory: 216.8G
+> > Result: KSM start merging pages immediately after turned on. KSM daemon took 100% of one CPU for 13:16 until used memory was reduced to 79.0GB.
+> > 
+> > PageONE:
+> > Configuration: merge_period(secs) = 20, work threads = 12
+> > Starting used memory: 207.3G
+> > (Which means PageONE scans full physical memory in 20 secs period. Pages was merged if not changed in 2 merge_periods.)
+> > Result: In the first two periods PageONE only observe and identify unchanged pages. Little CPU was used in this time. As the third period begin all 12 threads start using 100% CPU to do real merge job. 00:58 later used memory was reduced to 70.5GB.
+> > 
+> > We ran the above test using the data quite easy for red-black tree of KSM. Every difference can be detected by comparing the first 8 bytes. Then we ran another test in which each data was begin with random zero bytes for comparison. The average size of zero data was 128 bytes. Result is shown below:
+> > 
+> > KSM:
+> > Configuration: sleep_millisecs = 0, pages_to_scan = 1000000
+> > Starting used memory: 216.8G
+> > Result: 19:49 minutes until used memory was reduced to 78.7GB.
+> > 
+> > PageONE:
+> > Configuration: merge period(secs) = 20, work threads = 12
+> > Starting used memory: 210.3G
+> > Result: First 2 periods same as above. 1:09 after merge job start memory was reduced to 72GB.
+> > 
+> > PageONE shows little difference in the two tests because SD tree search compare each key bit just once in most cases.
 
-Old mistakes don't justify new ones.
+Could you repeat the whole benchmark while giving only 1 CPU to PageONE
+and after applying the following crc32c-intel patch to KSM?
 
-It's possible to do better: for example if we provide a MAX_POSSIBLE_PHYSMEM_BITS 
-define that is the higher value then code which needs this for sizing can use it?
+https://www.spinics.net/lists/linux-mm/msg132394.html
 
-That could eliminate the PAE dependency as well perhaps.
+You may consider also echo 1 > /sys/kernel/mm/ksm/use_zero_pages if
+you single out zero pages in pone (but it doesn't look like you have
+such feature in pone).
+
+The second test is exercising the worst case possible of KSM so I
+don't see how it's worth worrying about. Likely pone would also have a
+worst case to exercise (it uses hash_64 so it very likely also has a
+worst case to exercise). For KSM there are already plans to alter the
+memcmp so it's more scattered randomly.
+
+Making KSM multithreaded with one ksmd thread per CPU is entirely
+possible, the rbtree rebalance will require some locking of course but
+the high CPU usage parts of KSM are fully scalable (mm walk, checksum,
+memcompare, writeprotection, pagetable replacement). We didn't
+multithread ksmd to keep it simpler primarily but also because nobody
+asked for this feature yet. Why didn't you simply multithread KSM
+which provides a solid base also supporting KSMscale?
+
+Are you using an hash to find equality? That can't be done currently
+to avoid infringing. I see various memcmp in your patch but all around
+#if 0... so what are you using for finding page equality?
+
+How does PageONE deal with 1million of equal virtual pages? Does it
+lockup in rmap? KSM in v4.13 can handle infinite amount of equal
+virtual page content to dedup while generating O(1) complexity in rmap
+walks. Without this, KSM was unusable for enterprise use and had to be
+disabled, because the kernel would lockup for several seconds after
+deduplicating million of virtual pages with same content (i.e. during
+NUMA balancing induced page migrations or during compaction induced
+page migrations, let alone swapping the million-times deduplicated KSM
+page).
+
+KSM is usually an activity run in the background so nobody asked to
+dedicate more than one core to it, and what's relevant is to do the
+dedup in the most efficient way possible (i.e. less CPU used and no
+interference to the rest of the system whatsoever), not how long it
+takes if you run it on all available CPUs loading 100% of the system
+with it.
+
+So comparing a dedup algorithm running concurrently on 12 threads vs
+another dedup algorithm running in 1 thread only, is an apple to
+oranges comparison.
+
+Comparing KSM (with crc32 as cksum, to apply on top of upstream) vs
+PageOne restricted to a single thread (also more realistic production
+environment), will be a more interesting and meaningful comparison.
+
+It looks like rmap is supported by pone but the patch has a multitude
+of #if 0 and around all rmap code so it's not so clear. Rmap walks
+have to work flawlessy on all deduplicated pages, or pone would then
+break not just swapping but also NUMA Balancing compaction and in turn
+THP utilization and THP utilization is critical for virtual machines
+(MADV_HUGEPAGE is always set by QEMU, to run direct compactin also with
+defrag=madvise or defer+madvise).
 
 Thanks,
-
-	Ingo
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
