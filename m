@@ -1,52 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D9ABD6B0038
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 13:40:59 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id s18so910305qta.18
-        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 10:40:59 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id u23sor1373999qki.2.2017.09.28.10.40.58
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B4B7F6B025F
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 13:49:39 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id y77so4852498pfd.2
+        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 10:49:39 -0700 (PDT)
+Received: from out0-223.mail.aliyun.com (out0-223.mail.aliyun.com. [140.205.0.223])
+        by mx.google.com with ESMTPS id x22si1806137pge.118.2017.09.28.10.49.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Sep 2017 10:40:58 -0700 (PDT)
-Date: Thu, 28 Sep 2017 13:40:56 -0400
-From: Josef Bacik <josef@toxicpanda.com>
-Subject: Re: [PATCH][v2] mm: use sc->priority for slab shrink targets
-Message-ID: <20170928174055.4y5csaaika3yzm76@destiny>
-References: <1503589176-1823-1-git-send-email-jbacik@fb.com>
- <20170829204026.GA7605@cmpxchg.org>
- <20170829135806.6599f585211058e0842fab85@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Sep 2017 10:49:38 -0700 (PDT)
+Subject: Re: [PATCH 0/2 v8] oom: capture unreclaimable slab info in oom
+ message
+References: <1506548776-67535-1-git-send-email-yang.s@alibaba-inc.com>
+ <fccbce9c-a40e-621f-e9a4-17c327ed84e8@I-love.SAKURA.ne.jp>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <7e8684c2-c9e8-f76a-d7fb-7d5bf7682321@alibaba-inc.com>
+Date: Fri, 29 Sep 2017 01:49:26 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170829135806.6599f585211058e0842fab85@linux-foundation.org>
+In-Reply-To: <fccbce9c-a40e-621f-e9a4-17c327ed84e8@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, josef@toxicpanda.com, minchan@kernel.org, linux-mm@kvack.org, riel@redhat.com, david@fromorbit.com, kernel-team@fb.com, aryabinin@virtuozzo.com, Josef Bacik <jbacik@fb.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@kernel.org
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Aug 29, 2017 at 01:58:06PM -0700, Andrew Morton wrote:
-> On Tue, 29 Aug 2017 16:40:26 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+
+
+On 9/27/17 9:36 PM, Tetsuo Handa wrote:
+> On 2017/09/28 6:46, Yang Shi wrote:
+>> Changelog v7 a??> v8:
+>> * Adopted Michala??s suggestion to dump unreclaim slab info when unreclaimable slabs amount > total user memory. Not only in oom panic path.
 > 
-> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> > 
-> > This looks good to me, thanks for persisting Josef.
-> > 
-> > There is a small cleanup possible on top of this, as the slab shrinker
-> > was the only thing that used that lru_pages accumulation when the scan
-> > targets are calculated.
+> Holding slab_mutex inside dump_unreclaimable_slab() was refrained since V2
+> because there are
 > 
-> I'm inclined to park this until 4.14-rc1, unless we see a pressing need
-> to get it into 4.13?
+> 	mutex_lock(&slab_mutex);
+> 	kmalloc(GFP_KERNEL);
+> 	mutex_unlock(&slab_mutex);
 > 
+> users. If we call dump_unreclaimable_slab() for non OOM panic path, aren't we
+> introducing a risk of crash (i.e. kernel panic) for regular OOM path?
 
-Hey Andrew,
+I don't see the difference between regular oom path and oom path other 
+than calling panic() at last.
 
-I just noticed that these aren't in your mmotm tree, did you mean you were going
-to wait until after -rc1 to pull them into your tree?  Or did they get
-forgotten?  Thanks,
+And, the slab dump may be called by panic path too, it is for both 
+regular and panic path.
 
-Josef
+Thanks,
+Yang
+
+> 
+> We can try mutex_trylock() from dump_unreclaimable_slab() at best.
+> But it is still remaining unsafe, isn't it?
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
