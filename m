@@ -1,80 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 21A046B0260
-	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 19:56:24 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id 6so30462492pgh.0
-        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 16:56:24 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id n9si146219pll.307.2017.09.27.16.56.22
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A244C6B0038
+	for <linux-mm@kvack.org>; Wed, 27 Sep 2017 20:09:37 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id b184so20603597oii.1
+        for <linux-mm@kvack.org>; Wed, 27 Sep 2017 17:09:37 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id f50sor44832otj.183.2017.09.27.17.09.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Sep 2017 16:56:23 -0700 (PDT)
-Subject: [PATCH 3/3] dax: stop using VM_HUGEPAGE for dax
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 27 Sep 2017 16:49:56 -0700
-Message-ID: <150655619619.700.10374837827016131402.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <150655617774.700.5326522538400299973.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <150655617774.700.5326522538400299973.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (Google Transport Security);
+        Wed, 27 Sep 2017 17:09:36 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <150655619012.700.15161500295945223238.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <150655617774.700.5326522538400299973.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <150655619012.700.15161500295945223238.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 27 Sep 2017 17:09:36 -0700
+Message-ID: <CAPcyv4gy=_QA9Ko-wz=GwvmXa2Q8t_5QZv6WM3siCoROM92hXQ@mail.gmail.com>
+Subject: Re: [PATCH 2/3] dax: stop using VM_MIXEDMAP for dax
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>
 
-This flag is deprecated in favor of the vma_is_dax() check in
-transparent_hugepage_enabled() added in commit baabda261424 "mm: always
-enable thp for dax mappings"
+On Wed, Sep 27, 2017 at 4:49 PM, Dan Williams <dan.j.williams@intel.com> wrote:
+> Now that we always have pages for DAX we can stop setting VM_MIXEDMAP.
+> This does require some small fixups for the pte insert routines that dax
+> utilizes.
+>
 
-Cc: Jan Kara <jack@suse.cz>
-Cc: Jeff Moyer <jmoyer@redhat.com>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- drivers/dax/device.c |    1 -
- fs/ext4/file.c       |    1 -
- fs/xfs/xfs_file.c    |    2 --
- 3 files changed, 4 deletions(-)
+This changelog can be improved with this from the cover letter:
 
-diff --git a/drivers/dax/device.c b/drivers/dax/device.c
-index ed79d006026e..74a35eb5e6d3 100644
---- a/drivers/dax/device.c
-+++ b/drivers/dax/device.c
-@@ -450,7 +450,6 @@ static int dax_mmap(struct file *filp, struct vm_area_struct *vma)
- 		return rc;
- 
- 	vma->vm_ops = &dax_vm_ops;
--	vma->vm_flags |= VM_HUGEPAGE;
- 	return 0;
- }
- 
-diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-index 0cc9d205bd96..a54e1b4c49f9 100644
---- a/fs/ext4/file.c
-+++ b/fs/ext4/file.c
-@@ -352,7 +352,6 @@ static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
- 	file_accessed(file);
- 	if (IS_DAX(file_inode(file))) {
- 		vma->vm_ops = &ext4_dax_vm_ops;
--		vma->vm_flags |= VM_HUGEPAGE;
- 	} else {
- 		vma->vm_ops = &ext4_file_vm_ops;
- 	}
-diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-index dece8fe937f5..c0e0fcbe1bd3 100644
---- a/fs/xfs/xfs_file.c
-+++ b/fs/xfs/xfs_file.c
-@@ -1130,8 +1130,6 @@ xfs_file_mmap(
- {
- 	file_accessed(filp);
- 	vma->vm_ops = &xfs_file_vm_ops;
--	if (IS_DAX(file_inode(filp)))
--		vma->vm_flags |= VM_HUGEPAGE;
- 	return 0;
- }
- 
+VM_MIXEDMAP is used by dax to direct mm paths like vm_normal_page() that
+the memory page it is dealing with is not typical memory from the linear
+map. The get_user_pages_fast() path, since it does not resolve the vma,
+is already using {pte,pmd}_devmap() as a stand-in for VM_MIXEDMAP, so we
+use that as a VM_MIXEDMAP replacement in some locations. In the cases
+where there is no pte to consult we fallback to using vma_is_dax() to
+detect the VM_MIXEDMAP special case.
+
+...I'll fold this in for v2.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
