@@ -1,75 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E1486B025F
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 11:00:25 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k10so1225767wrk.4
-        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 08:00:25 -0700 (PDT)
-Received: from www62.your-server.de (www62.your-server.de. [213.133.104.62])
-        by mx.google.com with ESMTPS id y20si1672791wrc.113.2017.09.28.08.00.24
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 23F1D6B0038
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 11:49:15 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id o77so1977248qke.1
+        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 08:49:15 -0700 (PDT)
+Received: from rcdn-iport-4.cisco.com (rcdn-iport-4.cisco.com. [173.37.86.75])
+        by mx.google.com with ESMTPS id u129si1726137qkc.368.2017.09.28.08.49.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Sep 2017 08:00:24 -0700 (PDT)
-Message-ID: <59CD0E85.8060707@iogearbox.net>
-Date: Thu, 28 Sep 2017 17:00:21 +0200
-From: Daniel Borkmann <daniel@iogearbox.net>
+        Thu, 28 Sep 2017 08:49:13 -0700 (PDT)
+Subject: Re: Detecting page cache trashing state
+References: <150543458765.3781.10192373650821598320@takondra-t460s>
+ <20170915143619.2ifgex2jxck2xt5u@dhcp22.suse.cz>
+ <150549651001.4512.15084374619358055097@takondra-t460s>
+ <20170918163434.GA11236@cmpxchg.org>
+From: "Ruslan Ruslichenko -X (rruslich - GLOBALLOGIC INC at Cisco)"
+ <rruslich@cisco.com>
+Message-ID: <acbf4417-4ded-fa03-7b8d-34dc0803027c@cisco.com>
+Date: Thu, 28 Sep 2017 18:49:07 +0300
 MIME-Version: 1.0
-Subject: Re: EBPF-triggered WARNING at mm/percpu.c:1361 in v4-14-rc2
-References: <20170928112727.GA11310@leverpostej> <59CD093A.6030201@iogearbox.net> <20170928144538.GA32487@leverpostej>
-In-Reply-To: <20170928144538.GA32487@leverpostej>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20170918163434.GA11236@cmpxchg.org>
+Content-Type: multipart/mixed;
+ boundary="------------9B27BB3AED4106EF45BCD875"
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org, syzkaller@googlegroups.com, "David S. Miller" <davem@davemloft.net>, Alexei Starovoitov <ast@kernel.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Taras Kondratiuk <takondra@cisco.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, xe-linux-external@cisco.com, linux-kernel@vger.kernel.org
 
-On 09/28/2017 04:45 PM, Mark Rutland wrote:
-> On Thu, Sep 28, 2017 at 04:37:46PM +0200, Daniel Borkmann wrote:
->> On 09/28/2017 01:27 PM, Mark Rutland wrote:
->>> Hi,
->>>
->>> While fuzzing v4.14-rc2 with Syzkaller, I found it was possible to trigger the
->>> warning at mm/percpu.c:1361, on both arm64 and x86_64. This appears to require
->>> increasing RLIMIT_MEMLOCK, so to the best of my knowledge this cannot be
->>> triggered by an unprivileged user.
->>>
->>> I've included example splats for both x86_64 and arm64, along with a C
->>> reproducer, inline below.
->>>
->>> It looks like dev_map_alloc() requests a percpu alloction of 32776 bytes, which
->>> is larger than the maximum supported allocation size of 32768 bytes.
->>>
->>> I wonder if it would make more sense to pr_warn() for sizes that are too
->>> large, so that callers don't have to roll their own checks against
->>> PCPU_MIN_UNIT_SIZE?
->>
->> Perhaps the pr_warn() should be ratelimited; or could there be an
->> option where we only return NULL, not triggering a warn at all (which
->> would likely be what callers might do anyway when checking against
->> PCPU_MIN_UNIT_SIZE and then bailing out)?
->
-> Those both make sense to me; checking __GFP_NOWARN should be easy
-> enough.
->
-> Just to check, do you think that dev_map_alloc() should explicitly test
-> the size against PCPU_MIN_UNIT_SIZE, prior to calling pcpu_alloc()?
+This is a multi-part message in MIME format.
+--------------9B27BB3AED4106EF45BCD875
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Looks like there are users of __alloc_percpu_gfp() with __GFP_NOWARN
-in couple of places already, but __GFP_NOWARN is ignored. Would make
-sense to support that indeed to avoid throwing the warn and just let
-the caller bail out when it sees the NULL as usual. In some cases (like
-the current ones) this makes sense, others probably not too much and
-a WARN would be preferred way, but __alloc_percpu_gfp() could provide
-such option to simplify some of the code that pre checks against the
-limit on PCPU_MIN_UNIT_SIZE before calling the allocator and doesn't
-throw a WARN either; and most likely such check is just to prevent
-the user from seeing exactly this splat.
+Hi Johannes,
+
+Hopefully I was able to rebase the patch on top v4.9.26 (latest 
+supported version by us right now)
+and test a bit.
+The overall idea definitely looks promising, although I have one 
+question on usage.
+Will it be able to account the time which processes spend on handling 
+major page faults
+(including fs and iowait time) of refaulting page?
+
+As we have one big application which code space occupies big amount of 
+place in page cache,
+when the system under heavy memory usage will reclaim some of it, the 
+application will
+start constantly thrashing. Since it code is placed on squashfs it 
+spends whole CPU time
+decompressing the pages and seem memdelay counters are not detecting 
+this situation.
+Here are some counters to indicate this:
+
+19:02:44        CPU     %user     %nice   %system   %iowait %steal     %idle
+19:02:45        all      0.00      0.00    100.00      0.00 0.00      0.00
+
+19:02:44     pgpgin/s pgpgout/s   fault/s  majflt/s  pgfree/s pgscank/s 
+pgscand/s pgsteal/s    %vmeff
+19:02:45     15284.00      0.00    428.00    352.00  19990.00 0.00      
+0.00  15802.00      0.00
+
+And as nobody actively allocating memory anymore looks like memdelay 
+counters are not
+actively incremented:
+
+[:~]$ cat /proc/memdelay
+268035776
+6.13 5.43 3.58
+1.90 1.89 1.26
+
+Just in case, I have attached the v4.9.26 rebased patched.
+
+Also attached the patch with our current solution. In current 
+implementation it will mostly
+fit to squashfs only thrashing situation as in general case iowait time 
+would be major part of
+page fault handling thus it need to be accounted too.
 
 Thanks,
-Daniel
+Ruslan
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+On 09/18/2017 07:34 PM, Johannes Weiner wrote:
+> Hi Taras,
+>
+> On Fri, Sep 15, 2017 at 10:28:30AM -0700, Taras Kondratiuk wrote:
+>> Quoting Michal Hocko (2017-09-15 07:36:19)
+>>> On Thu 14-09-17 17:16:27, Taras Kondratiuk wrote:
+>>>> Has somebody faced similar issue? How are you solving it?
+>>> Yes this is a pain point for a _long_ time. And we still do not have a
+>>> good answer upstream. Johannes has been playing in this area [1].
+>>> The main problem is that our OOM detection logic is based on the ability
+>>> to reclaim memory to allocate new memory. And that is pretty much true
+>>> for the pagecache when you are trashing. So we do not know that
+>>> basically whole time is spent refaulting the memory back and forth.
+>>> We do have some refault stats for the page cache but that is not
+>>> integrated to the oom detection logic because this is really a
+>>> non-trivial problem to solve without triggering early oom killer
+>>> invocations.
+>>>
+>>> [1] http://lkml.kernel.org/r/20170727153010.23347-1-hannes@cmpxchg.org
+>> Thanks Michal. memdelay looks promising. We will check it.
+> Great, I'm obviously interested in more users of it :) Please find
+> attached the latest version of the patch series based on v4.13.
+>
+> It needs a bit more refactoring in the scheduler bits before
+> resubmission, but it already contains a couple of fixes and
+> improvements since the first version I sent out.
+>
+> Let me know if you need help rebasing to a different kernel version.
+
+
+--------------9B27BB3AED4106EF45BCD875
+Content-Type: text/x-patch;
+ name="0002-mm-sched-memdelay-memory-health-interface-for-system.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename*0="0002-mm-sched-memdelay-memory-health-interface-for-system.pa";
+ filename*1="tch"
+
+
+--------------9B27BB3AED4106EF45BCD875--
