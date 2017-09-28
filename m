@@ -1,91 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E0FB26B0038
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 08:29:17 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id r141so1538998qke.7
-        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 05:29:17 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id d200si1396578qke.195.2017.09.28.05.29.16
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 69C906B0038
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 09:19:14 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id v109so2222648wrc.5
+        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 06:19:14 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d21sor963248edb.24.2017.09.28.06.19.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Sep 2017 05:29:17 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v8SCRfPk104011
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 08:29:16 -0400
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2d8vf0f9jw-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 08:29:15 -0400
-Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Thu, 28 Sep 2017 13:29:13 +0100
-Subject: Re: [PATCH v3 00/20] Speculative page faults
-References: <CAADnVQLmSbLHwj9m33kpzAidJPvq3cbdnXjaew6oTLqHWrBbZQ@mail.gmail.com>
- <20170925163443.260d6092160ec704e2b04653@linux-foundation.org>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Thu, 28 Sep 2017 14:29:02 +0200
+        (Google Transport Security);
+        Thu, 28 Sep 2017 06:19:12 -0700 (PDT)
+Date: Thu, 28 Sep 2017 16:19:10 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv7 11/19] x86/mm: Make STACK_TOP_MAX dynamic
+Message-ID: <20170928131910.7t7ops6b7h7fcrmm@node.shutemov.name>
+References: <20170918105553.27914-1-kirill.shutemov@linux.intel.com>
+ <20170918105553.27914-12-kirill.shutemov@linux.intel.com>
+ <20170928082955.n7t4wlz7olsgwkfn@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170925163443.260d6092160ec704e2b04653@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <924a79af-6d7a-316a-1eee-3aebbfd4addf@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170928082955.n7t4wlz7olsgwkfn@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Alexei Starovoitov <alexei.starovoitov@gmail.com>
-Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, kirill@shutemov.name, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, dave@stgolabs.net, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, haren@linux.vnet.ibm.com, Anshuman Khandual <khandual@linux.vnet.ibm.com>, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, "x86@kernel.org" <x86@kernel.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Andrew,
-
-On 26/09/2017 01:34, Andrew Morton wrote:
-> On Mon, 25 Sep 2017 09:27:43 -0700 Alexei Starovoitov <alexei.starovoitov@gmail.com> wrote:
+On Thu, Sep 28, 2017 at 10:29:55AM +0200, Ingo Molnar wrote:
 > 
->> On Mon, Sep 18, 2017 at 12:15 AM, Laurent Dufour
->> <ldufour@linux.vnet.ibm.com> wrote:
->>> Despite the unprovable lockdep warning raised by Sergey, I didn't get any
->>> feedback on this series.
->>>
->>> Is there a chance to get it moved upstream ?
->>
->> what is the status ?
->> We're eagerly looking forward for this set to land,
->> since we have several use cases for tracing that
->> will build on top of this set as discussed at Plumbers.
+> * Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
 > 
-> There has been sadly little review and testing so far :(
+> > For boot-time switching between paging modes, we need to be able to
+> > change STACK_TOP_MAX at runtime.
+> > 
+> > The change is trivial and it doesn't affect kernel image size.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > ---
+> >  arch/x86/include/asm/processor.h | 2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > 
+> > diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
+> > index 3fa26a61eabc..fa9300ccce1b 100644
+> > --- a/arch/x86/include/asm/processor.h
+> > +++ b/arch/x86/include/asm/processor.h
+> > @@ -871,7 +871,7 @@ static inline void spin_lock_prefetch(const void *x)
+> >  					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
+> >  
+> >  #define STACK_TOP		TASK_SIZE_LOW
+> > -#define STACK_TOP_MAX		TASK_SIZE_MAX
+> > +#define STACK_TOP_MAX		(pgtable_l5_enabled ? TASK_SIZE_MAX : DEFAULT_MAP_WINDOW)
 > 
-> I'll be taking a close look at it all over the next couple of weeks.
-> 
-> One terribly important thing (especially for a patchset this large and
-> intrusive) is the rationale for merging it: the justification, usually
-> in the form of end-user benefit.
-> 
-> Laurent's [0/n] provides some nice-looking performance benefits for
-> workloads which are chosen to show performance benefits(!) but, alas,
-> no quantitative testing results for workloads which we may suspect will
-> be harmed by the changes(?).  Even things as simple as impact upon
-> single-threaded pagefault-intensive workloads and its effect upon
-> CONFIG_SMP=n .text size?
+> While it's only used once in fs/exec.c, why doesn't it affect kernel image size?
 
-I forgot to mention in my previous email the impact on the .text section.
+Oh. After closer look the patch is redundant. The STACK_TOP_MAX is already
+dynamic due to dynamic TASK_SIZE_MAX, so gcc generates exactly the same
+code before and after the patch.
 
-Here are the metrics I got :
+I'll drop it.
 
-.text size	UP		SMP		Delta
-4.13-mmotm	8444201		8964137		6.16%
-'' +spf		8452041		8971929		6.15%
-	Delta	0.09%		0.09%	
-
-No major impact as you could see.
-
-Thanks,
-Laurent
-
-> If you have additional usecases then please, spell them out for us in
-> full detail so we can better understand the benefits which this
-> patchset provides.
-> 
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
