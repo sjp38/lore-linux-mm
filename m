@@ -1,63 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D0946B0038
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 12:41:19 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id b184so2387166oii.1
-        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 09:41:19 -0700 (PDT)
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D9ABD6B0038
+	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 13:40:59 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id s18so910305qta.18
+        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 10:40:59 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id v126sor445029oie.152.2017.09.28.09.41.18
+        by mx.google.com with SMTPS id u23sor1373999qki.2.2017.09.28.10.40.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 28 Sep 2017 09:41:18 -0700 (PDT)
+        Thu, 28 Sep 2017 10:40:58 -0700 (PDT)
+Date: Thu, 28 Sep 2017 13:40:56 -0400
+From: Josef Bacik <josef@toxicpanda.com>
+Subject: Re: [PATCH][v2] mm: use sc->priority for slab shrink targets
+Message-ID: <20170928174055.4y5csaaika3yzm76@destiny>
+References: <1503589176-1823-1-git-send-email-jbacik@fb.com>
+ <20170829204026.GA7605@cmpxchg.org>
+ <20170829135806.6599f585211058e0842fab85@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <x49poaaaimr.fsf@segfault.boston.devel.redhat.com>
-References: <150655617774.700.5326522538400299973.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150655619012.700.15161500295945223238.stgit@dwillia2-desk3.amr.corp.intel.com>
- <x49poaaaimr.fsf@segfault.boston.devel.redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 28 Sep 2017 09:41:17 -0700
-Message-ID: <CAPcyv4hn=N=j57JNiidWhgwMh_zBWjfrZCKqf2xg2oDNjk-rTw@mail.gmail.com>
-Subject: Re: [PATCH 2/3] dax: stop using VM_MIXEDMAP for dax
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170829135806.6599f585211058e0842fab85@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, josef@toxicpanda.com, minchan@kernel.org, linux-mm@kvack.org, riel@redhat.com, david@fromorbit.com, kernel-team@fb.com, aryabinin@virtuozzo.com, Josef Bacik <jbacik@fb.com>
 
-On Thu, Sep 28, 2017 at 9:32 AM, Jeff Moyer <jmoyer@redhat.com> wrote:
-> Dan Williams <dan.j.williams@intel.com> writes:
->
->> Now that we always have pages for DAX we can stop setting VM_MIXEDMAP.
->> This does require some small fixups for the pte insert routines that dax
->> utilizes.
->
-> It used to be that userspace would look to see if it had a 'mm' entry in
-> /proc/pid/smaps to determine whether or not it got a direct mapping.
-> Later, that same userspace (nvml) just uniformly declared dax not
-> available from any Linux file system, since msync was required.  And, I
-> guess DAX has always been marked experimental, so the interface can be
-> changed.
->
-> All this is to say I guess it's fine to change this.
+On Tue, Aug 29, 2017 at 01:58:06PM -0700, Andrew Morton wrote:
+> On Tue, 29 Aug 2017 16:40:26 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+> 
+> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> > 
+> > This looks good to me, thanks for persisting Josef.
+> > 
+> > There is a small cleanup possible on top of this, as the slab shrinker
+> > was the only thing that used that lru_pages accumulation when the scan
+> > targets are calculated.
+> 
+> I'm inclined to park this until 4.14-rc1, unless we see a pressing need
+> to get it into 4.13?
+> 
 
-Yes, it was always broken / dangerous to look for 'mm' as a pseudo-dax flag.
+Hey Andrew,
 
->> diff --git a/mm/mmap.c b/mm/mmap.c
->> index 680506faceae..d682f60670ff 100644
->> --- a/mm/mmap.c
->> +++ b/mm/mmap.c
->> @@ -1111,7 +1111,7 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
->>        * We later require that vma->vm_flags == vm_flags,
->>        * so this tests vma->vm_flags & VM_SPECIAL, too.
->>        */
->> -     if (vm_flags & VM_SPECIAL)
->> +     if ((vm_flags & VM_SPECIAL))
->>               return NULL;
->
-> That looks superfluous.
+I just noticed that these aren't in your mmotm tree, did you mean you were going
+to wait until after -rc1 to pull them into your tree?  Or did they get
+forgotten?  Thanks,
 
-Whoops, yeah. That was a case where I converted it to add a
-vma_is_dax() check and then decided we don't need that.
+Josef
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
