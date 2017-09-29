@@ -1,63 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CC4866B0069
-	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 13:42:39 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id u48so202847qtc.3
-        for <linux-mm@kvack.org>; Fri, 29 Sep 2017 10:42:39 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id s87si4070699qks.40.2017.09.29.10.42.37
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B878D6B0069
+	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 16:43:29 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 10so117610wmv.16
+        for <linux-mm@kvack.org>; Fri, 29 Sep 2017 13:43:29 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u83sor1248353wmg.33.2017.09.29.13.43.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Sep 2017 10:42:38 -0700 (PDT)
-Subject: Re: [PATCH] mm/hugetlbfs: Remove the redundant -ENIVAL return from
- hugetlbfs_setattr()
-References: <20170929145444.17611-1-khandual@linux.vnet.ibm.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <63e6e530-5e75-c498-3323-c91b3cd76e00@oracle.com>
-Date: Fri, 29 Sep 2017 10:42:31 -0700
+        (Google Transport Security);
+        Fri, 29 Sep 2017 13:43:28 -0700 (PDT)
+Date: Fri, 29 Sep 2017 22:43:21 +0200
+From: Alexandru Moise <00moses.alexander00@gmail.com>
+Subject: Re: [PATCH] mm, hugetlb: fix "treat_as_movable" condition in
+ htlb_alloc_mask
+Message-ID: <20170929204321.GA593@gmail.com>
+References: <20170929151339.GA4398@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20170929145444.17611-1-khandual@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170929151339.GA4398@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: nyc@holomorphy.com, Andrew Morton <akpm@linux-foundation.org>
+To: akpm@linux-foundation.org
+Cc: mike.kravetz@oracle.com, mhocko@suse.com, n-horiguchi@ah.jp.nec.com, aneesh.kumar@linux.vnet.ibm.com, punit.agrawal@arm.com, gerald.schaefer@de.ibm.com, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kirill@shutemov.name
 
-Adding akpm on Cc:
-
-On 09/29/2017 07:54 AM, Anshuman Khandual wrote:
-> There is no need to have a local return code set with -EINVAL when both the
-> conditions following it return error codes appropriately. Just remove the
-> redundant one.
+On Fri, Sep 29, 2017 at 05:13:39PM +0200, Alexandru Moise wrote:
+> If hugepage_migration_supported() returns true, this renders the
+> hugepages_treat_as_movable sysctl completely pointless.
 > 
-> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> Let's keep this behavior optional by switching the if() condition
+> from || to &&.
+> 
+> Signed-off-by: Alexandru Moise <00moses.alexander00@gmail.com>
 > ---
->  fs/hugetlbfs/inode.c | 1 -
->  1 file changed, 1 deletion(-)
+>  mm/hugetlb.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index 59073e9..cff3939 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -668,7 +668,6 @@ static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
->  		return error;
->  
->  	if (ia_valid & ATTR_SIZE) {
-> -		error = -EINVAL;
->  		if (attr->ia_size & ~huge_page_mask(h))
->  			return -EINVAL;
->  		error = hugetlb_vmtruncate(inode, attr->ia_size);
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 424b0ef08a60..ab28de0122af 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -926,7 +926,7 @@ static struct page *dequeue_huge_page_nodemask(struct hstate *h, gfp_t gfp_mask,
+>  /* Movability of hugepages depends on migration support. */
+>  static inline gfp_t htlb_alloc_mask(struct hstate *h)
+>  {
+> -	if (hugepages_treat_as_movable || hugepage_migration_supported(h))
+> +	if (hugepages_treat_as_movable && hugepage_migration_supported(h))
+>  		return GFP_HIGHUSER_MOVABLE;
+>  	else
+>  		return GFP_HIGHUSER;
+> -- 
+> 2.14.2
 > 
 
-Thanks for noticing.
-I would hope the compiler is smarter than the code and optimize this away.
+I seem to have terribly misunderstood the semantics of this flag wrt hugepages,
+please ignore this for now.
 
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
-
--- 
-Mike Kravetz
+../Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
