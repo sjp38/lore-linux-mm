@@ -1,38 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B7F636B026D
-	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 05:57:43 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id l74so755839oih.5
-        for <linux-mm@kvack.org>; Fri, 29 Sep 2017 02:57:43 -0700 (PDT)
-Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id s10si2053388ota.70.2017.09.29.02.57.40
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C02CD6B025E
+	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 08:00:41 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id n64so1265274wma.0
+        for <linux-mm@kvack.org>; Fri, 29 Sep 2017 05:00:41 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z134si2838313wmd.154.2017.09.29.05.00.39
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 29 Sep 2017 02:57:43 -0700 (PDT)
-From: Zhen Lei <thunder.leizhen@huawei.com>
-Subject: [PATCH v2 0/1] mm: only dispaly online cpus of the numa node
-Date: Fri, 29 Sep 2017 17:53:24 +0800
-Message-ID: <1506678805-15392-1-git-send-email-thunder.leizhen@huawei.com>
+        Fri, 29 Sep 2017 05:00:39 -0700 (PDT)
+Subject: Re: [PATCH 1/6] mm: add kmalloc_array_node and kcalloc_node
+References: <20170927082038.3782-1-jthumshirn@suse.de>
+ <20170927082038.3782-2-jthumshirn@suse.de>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a8a93630-8b7a-9e4e-0277-8db13d4563e8@suse.cz>
+Date: Fri, 29 Sep 2017 14:00:37 +0200
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20170927082038.3782-2-jthumshirn@suse.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-api <linux-api@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm <linux-mm@kvack.org>
-Cc: Tianhong Ding <dingtianhong@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Libin <huawei.libin@huawei.com>, Kefeng Wang <wangkefeng.wang@huawei.com>, Zhen Lei <thunder.leizhen@huawei.com>
+To: Johannes Thumshirn <jthumshirn@suse.de>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Damien Le Moal <damien.lemoal@wdc.com>, Christoph Hellwig <hch@lst.de>
 
-v1 -> v2:
-Replace local variable "cpumask_var_t mask" with dynamic memory alloc: alloc_cpumask_var,
-to avoid possible stack overflow.
+On 09/27/2017 10:20 AM, Johannes Thumshirn wrote:
+> We have kmalloc_array() and kcalloc() wrappers on top of kmalloc() which
+> ensure us overflow free multiplication for the size of a memory
+> allocation but these implementations are not NUMA-aware.
+> 
+> Likewise we have kmalloc_node() which is a NUMA-aware version of
+> kmalloc() but the implementation is not aware of any possible overflows in
+> eventual size calculations.
+> 
+> Introduce a combination of the two above cases to have a NUMA-node aware
+> version of kmalloc_array() and kcalloc().
+> 
+> Signed-off-by: Johannes Thumshirn <jthumshirn@suse.de>
 
-Zhen Lei (1):
-  mm: only dispaly online cpus of the numa node
+Sounds better than custom open-coded stuff indeed.
 
- drivers/base/node.c | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
--- 
-2.5.0
-
+> ---
+>  include/linux/slab.h | 16 ++++++++++++++++
+>  1 file changed, 16 insertions(+)
+> 
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 41473df6dfb0..aaf4723e41b3 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -635,6 +635,22 @@ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
+>  #define kmalloc_track_caller(size, flags) \
+>  	__kmalloc_track_caller(size, flags, _RET_IP_)
+>  
+> +static inline void *kmalloc_array_node(size_t n, size_t size, gfp_t flags,
+> +				       int node)
+> +{
+> +	if (size != 0 && n > SIZE_MAX / size)
+> +		return NULL;
+> +	if (__builtin_constant_p(n) && __builtin_constant_p(size))
+> +		return kmalloc_node(n * size, flags, node);
+> +	return __kmalloc_node(n * size, flags, node);
+> +}
+> +
+> +static inline void *kcalloc_node(size_t n, size_t size, gfp_t flags, int node)
+> +{
+> +	return kmalloc_array_node(n, size, flags | __GFP_ZERO, node);
+> +}
+> +
+> +
+>  #ifdef CONFIG_NUMA
+>  extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, unsigned long);
+>  #define kmalloc_node_track_caller(size, flags, node) \
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
