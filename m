@@ -1,214 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EF326B0271
-	for <linux-mm@kvack.org>; Thu, 28 Sep 2017 21:46:20 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id p5so7636292pgn.7
-        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 18:46:20 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id b186si2441661pgc.289.2017.09.28.18.46.18
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 161E46B0038
+	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 00:00:14 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id w63so133496qkd.0
+        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 21:00:14 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h8si2963315qtf.321.2017.09.28.21.00.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Sep 2017 18:46:19 -0700 (PDT)
-Subject: Re: [PATCH v3] mm, sysctl: make NUMA stats configurable
-References: <1506579101-5457-1-git-send-email-kemi.wang@intel.com>
- <20170928142950.1a09090fe4baf4acdc1bbc35@linux-foundation.org>
-From: kemi <kemi.wang@intel.com>
-Message-ID: <a37897a0-dfda-e934-1993-dd55b5917172@intel.com>
-Date: Fri, 29 Sep 2017 09:44:43 +0800
+        Thu, 28 Sep 2017 21:00:13 -0700 (PDT)
+Date: Fri, 29 Sep 2017 07:00:05 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: mm, virtio: possible OOM lockup at virtballoon_oom_notify()
+Message-ID: <20170929065654-mutt-send-email-mst@kernel.org>
+References: <201709111927.IDD00574.tFVJHLOSOOMQFF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20170928142950.1a09090fe4baf4acdc1bbc35@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201709111927.IDD00574.tFVJHLOSOOMQFF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Jonathan Corbet <corbet@lwn.net>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, Dave <dave.hansen@linux.intel.com>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Proc sysctl <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: jasowang@redhat.com, virtualization@lists.linux-foundation.org, linux-mm@kvack.org
+
+On Mon, Sep 11, 2017 at 07:27:19PM +0900, Tetsuo Handa wrote:
+> Hello.
+> 
+> I noticed that virtio_balloon is using register_oom_notifier() and
+> leak_balloon() from virtballoon_oom_notify() might depend on
+> __GFP_DIRECT_RECLAIM memory allocation.
+> 
+> In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
+> serialize against fill_balloon(). But in fill_balloon(),
+> alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
+> called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE] implies
+> __GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, this allocation attempt might
+> depend on somebody else's __GFP_DIRECT_RECLAIM | !__GFP_NORETRY memory
+> allocation. Such __GFP_DIRECT_RECLAIM | !__GFP_NORETRY allocation can reach
+> __alloc_pages_may_oom() and hold oom_lock mutex and call out_of_memory().
+> And leak_balloon() is called by virtballoon_oom_notify() via
+> blocking_notifier_call_chain() callback when vb->balloon_lock mutex is already
+> held by fill_balloon(). As a result, despite __GFP_NORETRY is specified,
+> fill_balloon() can indirectly get stuck waiting for vb->balloon_lock mutex
+> at leak_balloon().
+
+That would be tricky to fix. I guess we'll need to drop the lock
+while allocating memory - not an easy fix.
+
+> Also, in leak_balloon(), virtqueue_add_outbuf(GFP_KERNEL) is called via
+> tell_host(). Reaching __alloc_pages_may_oom() from this virtqueue_add_outbuf()
+> request from leak_balloon() from virtballoon_oom_notify() from
+> blocking_notifier_call_chain() from out_of_memory() leads to OOM lockup
+> because oom_lock mutex is already held before calling out_of_memory().
+
+I guess we should just do
+
+GFP_KERNEL & ~__GFP_DIRECT_RECLAIM there then?
 
 
-
-On 2017a1'09ae??29ae?JPY 05:29, Andrew Morton wrote:
-> On Thu, 28 Sep 2017 14:11:41 +0800 Kemi Wang <kemi.wang@intel.com> wrote:
 > 
->> This is the second step which introduces a tunable interface that allow
->> numa stats configurable for optimizing zone_statistics(), as suggested by
->> Dave Hansen and Ying Huang.
-> 
-> Looks OK I guess.
-> 
-> I fiddled with it a lot.  Please consider:
-> 
-
-Thanks for your help to make it more graceful! I will be more careful next time.
-There may be a typo error in Documentation/sysctl/vm.txt, see comment below.
-
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: mm-sysctl-make-numa-stats-configurable-fix
-> 
-> - tweak documentation
-> 
-> - move advisory message from start_kernel() into mm_init() (I'm not sure
->   we really need this message)
-> 
-> - use strcasecmp() in __parse_vm_numa_stats_mode()
-> 
-> - clean up coding style amd nessages in sysctl_vm_numa_stats_mode_handler()
-> 
-> Cc: Aaron Lu <aaron.lu@intel.com>
-> Cc: Andi Kleen <andi.kleen@intel.com>
-> Cc: Christopher Lameter <cl@linux.com>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Jesper Dangaard Brouer <brouer@redhat.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Jonathan Corbet <corbet@lwn.net>
-> Cc: Kees Cook <keescook@chromium.org>
-> Cc: Kemi Wang <kemi.wang@intel.com>
-> Cc: "Luis R . Rodriguez" <mcgrof@kernel.org>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-> Cc: Tim Chen <tim.c.chen@intel.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Ying Huang <ying.huang@intel.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  Documentation/sysctl/vm.txt |   15 ++++++-------
->  init/main.c                 |    6 ++---
->  mm/vmstat.c                 |   39 +++++++++++++++-------------------
->  3 files changed, 29 insertions(+), 31 deletions(-)
-> 
-> diff -puN Documentation/sysctl/vm.txt~mm-sysctl-make-numa-stats-configurable-fix Documentation/sysctl/vm.txt
-> --- a/Documentation/sysctl/vm.txt~mm-sysctl-make-numa-stats-configurable-fix
-> +++ a/Documentation/sysctl/vm.txt
-> @@ -853,7 +853,7 @@ ten times more freeable objects than the
->  
->  numa_stats_mode
->  
-> -This interface allows numa statistics configurable.
-> +This interface allows runtime configuration *or* numa statistics.
->  
-
-typo? or->of/for?
-
->  When page allocation performance becomes a bottleneck and you can tolerate
->  some possible tool breakage and decreased numa counter precision, you can
-> @@ -864,13 +864,14 @@ When page allocation performance is not
->  tooling to work, you can do:
->  	echo [S|s]trict > /proc/sys/vm/numa_stat_mode
->  
-> -We recommend automatic detection of numa statistics by system, because numa
-> -statistics does not affect system's decision and it is very rarely
-> -consumed. you can do:
-> +We recommend automatic detection of numa statistics by system, because
-> +numa statistics do not affect system decisions and it is very rarely
-> +consumed.  In this case you can do:
->  	echo [A|a]uto > /proc/sys/vm/numa_stats_mode
-> -This is also system default configuration, with this default setting, numa
-> -counters update is skipped unless the counter is *read* by users at least
-> -once.
-> +
-> +This is the system default configuration.  With this default setting, numa
-> +counter updates are skipped until the counter is *read* by userspace at
-> +least once.
->  
->  ==============================================================
->  
-> diff -puN drivers/base/node.c~mm-sysctl-make-numa-stats-configurable-fix drivers/base/node.c
-> diff -puN include/linux/vmstat.h~mm-sysctl-make-numa-stats-configurable-fix include/linux/vmstat.h
-> diff -puN init/main.c~mm-sysctl-make-numa-stats-configurable-fix init/main.c
-> --- a/init/main.c~mm-sysctl-make-numa-stats-configurable-fix
-> +++ a/init/main.c
-> @@ -504,6 +504,9 @@ static void __init mm_init(void)
->  	pgtable_init();
->  	vmalloc_init();
->  	ioremap_huge_init();
-> +#ifdef CONFIG_NUMA
-> +	pr_info("vmstat: NUMA stat updates are skipped unless they have been used\n");
-> +#endif
->  }
->  
->  asmlinkage __visible void __init start_kernel(void)
-> @@ -567,9 +570,6 @@ asmlinkage __visible void __init start_k
->  	sort_main_extable();
->  	trap_init();
->  	mm_init();
-> -#ifdef CONFIG_NUMA
-> -	pr_info("vmstat: NUMA stats is skipped unless it has been consumed\n");
-> -#endif
->  
->  	ftrace_init();
->  
-> diff -puN kernel/sysctl.c~mm-sysctl-make-numa-stats-configurable-fix kernel/sysctl.c
-> diff -puN mm/page_alloc.c~mm-sysctl-make-numa-stats-configurable-fix mm/page_alloc.c
-> diff -puN mm/vmstat.c~mm-sysctl-make-numa-stats-configurable-fix mm/vmstat.c
-> --- a/mm/vmstat.c~mm-sysctl-make-numa-stats-configurable-fix
-> +++ a/mm/vmstat.c
-> @@ -40,13 +40,11 @@ static DEFINE_MUTEX(vm_numa_stats_mode_l
->  
->  static int __parse_vm_numa_stats_mode(char *s)
->  {
-> -	const char *str = s;
-> -
-> -	if (strcmp(str, "auto") == 0 || strcmp(str, "Auto") == 0)
-> +	if (strcasecmp(s, "auto"))
->  		vm_numa_stats_mode = VM_NUMA_STAT_AUTO_MODE;
-> -	else if (strcmp(str, "strict") == 0 || strcmp(str, "Strict") == 0)
-> +	else if (strcasecmp(s, "strict") == 0)
->  		vm_numa_stats_mode = VM_NUMA_STAT_STRICT_MODE;
-> -	else if (strcmp(str, "coarse") == 0 || strcmp(str, "Coarse") == 0)
-> +	else if (strcasecmp(s, "coarse"))
->  		vm_numa_stats_mode = VM_NUMA_STAT_COARSE_MODE;
->  	else {
->  		pr_warn("Ignoring invalid vm_numa_stats_mode value: %s\n", s);
-> @@ -86,30 +84,29 @@ int sysctl_vm_numa_stats_mode_handler(st
->  			/* no change */
->  			mutex_unlock(&vm_numa_stats_mode_lock);
->  			return 0;
-> -		} else if (vm_numa_stats_mode == VM_NUMA_STAT_AUTO_MODE)
-> +		} else if (vm_numa_stats_mode == VM_NUMA_STAT_AUTO_MODE) {
->  			/*
-> -			 * Keep the branch selection in last time when numa stats
-> -			 * is changed to auto mode.
-> +			 * Keep the branch selection in last time when numa
-> +			 * stats is changed to auto mode.
->  			 */
-> -			pr_info("numa stats changes from %s mode to auto mode\n",
-> -					vm_numa_stats_mode_name[oldval]);
-> -		else if (vm_numa_stats_mode == VM_NUMA_STAT_STRICT_MODE) {
-> +			pr_info("numa stats changed from %s to auto mode\n",
-> +				 vm_numa_stats_mode_name[oldval]);
-> +		} else if (vm_numa_stats_mode == VM_NUMA_STAT_STRICT_MODE) {
->  			static_branch_enable(&vm_numa_stats_mode_key);
-> -			pr_info("numa stats changes from %s mode to strict mode\n",
-> -					vm_numa_stats_mode_name[oldval]);
-> +			pr_info("numa stats changes from %s to strict mode\n",
-> +				 vm_numa_stats_mode_name[oldval]);
->  		} else if (vm_numa_stats_mode == VM_NUMA_STAT_COARSE_MODE) {
->  			static_branch_disable(&vm_numa_stats_mode_key);
->  			/*
-> -			 * Invalidate numa counters when vmstat mode is set to coarse
-> -			 * mode, because users can't tell the difference between the
-> -			 * dead state and when allocator activity is quiet once
-> -			 * zone_statistics() is turned off.
-> +			 * Invalidate numa counters when vmstat mode is set to
-> +			 * coarse mode, because users can't tell the difference
-> +			 * between the dead state and when allocator activity is
-> +			 * quiet once zone_statistics() is turned off.
->  			 */
->  			invalid_numa_statistics();
-> -			pr_info("numa stats changes from %s mode to coarse mode\n",
-> -					vm_numa_stats_mode_name[oldval]);
-> -		} else
-> -			pr_warn("invalid vm_numa_stats_mode:%d\n", vm_numa_stats_mode);
-> +			pr_info("numa stats changes from %s to coarse mode\n",
-> +				 vm_numa_stats_mode_name[oldval]);
-> +		}
->  	}
->  
->  	mutex_unlock(&vm_numa_stats_mode_lock);
-> _
-> 
+> OOM notifier callback should not (directly or indirectly) depend on
+> __GFP_DIRECT_RECLAIM memory allocation attempt. Can you fix this dependency?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
