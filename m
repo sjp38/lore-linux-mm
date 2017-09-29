@@ -1,233 +1,279 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2585C6B0261
-	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 02:52:09 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id u136so1554205pgc.5
-        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 23:52:09 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id f69si2884486pfe.243.2017.09.28.23.52.07
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BB6116B0268
+	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 03:03:15 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id u138so1016091wmu.2
+        for <linux-mm@kvack.org>; Fri, 29 Sep 2017 00:03:15 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g4si3008649wra.173.2017.09.29.00.03.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Sep 2017 23:52:07 -0700 (PDT)
-Message-ID: <59CDEE56.6070807@intel.com>
-Date: Fri, 29 Sep 2017 14:55:18 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 29 Sep 2017 00:03:13 -0700 (PDT)
+Subject: Re: [PATCH v3] mm, sysctl: make NUMA stats configurable
+References: <1506579101-5457-1-git-send-email-kemi.wang@intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <2be4a268-2b31-8aa5-9d09-ef2d34323ad8@suse.cz>
+Date: Fri, 29 Sep 2017 09:03:12 +0200
 MIME-Version: 1.0
-Subject: Re: [virtio-dev] Re: [PATCH v15 3/5] virtio-balloon: VIRTIO_BALLOON_F_SG
-References: <1503914913-28893-1-git-send-email-wei.w.wang@intel.com> <1503914913-28893-4-git-send-email-wei.w.wang@intel.com> <20170828204659-mutt-send-email-mst@kernel.org> <59A4DADE.5050303@intel.com> <20170908062748-mutt-send-email-mst@kernel.org> <59B27A64.4040604@intel.com> <20170929070049-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20170929070049-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <1506579101-5457-1-git-send-email-kemi.wang@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Kemi Wang <kemi.wang@intel.com>, "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Cc: Dave <dave.hansen@linux.intel.com>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Proc sysctl <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On 09/29/2017 12:01 PM, Michael S. Tsirkin wrote:
-> On Fri, Sep 08, 2017 at 07:09:24PM +0800, Wei Wang wrote:
->> On 09/08/2017 11:36 AM, Michael S. Tsirkin wrote:
->>> On Tue, Aug 29, 2017 at 11:09:18AM +0800, Wei Wang wrote:
->>>> On 08/29/2017 02:03 AM, Michael S. Tsirkin wrote:
->>>>> On Mon, Aug 28, 2017 at 06:08:31PM +0800, Wei Wang wrote:
->>>>>> Add a new feature, VIRTIO_BALLOON_F_SG, which enables the transfer
->>>>>> of balloon (i.e. inflated/deflated) pages using scatter-gather lists
->>>>>> to the host.
->>>>>>
->>>>>> The implementation of the previous virtio-balloon is not very
->>>>>> efficient, because the balloon pages are transferred to the
->>>>>> host one by one. Here is the breakdown of the time in percentage
->>>>>> spent on each step of the balloon inflating process (inflating
->>>>>> 7GB of an 8GB idle guest).
->>>>>>
->>>>>> 1) allocating pages (6.5%)
->>>>>> 2) sending PFNs to host (68.3%)
->>>>>> 3) address translation (6.1%)
->>>>>> 4) madvise (19%)
->>>>>>
->>>>>> It takes about 4126ms for the inflating process to complete.
->>>>>> The above profiling shows that the bottlenecks are stage 2)
->>>>>> and stage 4).
->>>>>>
->>>>>> This patch optimizes step 2) by transferring pages to the host in
->>>>>> sgs. An sg describes a chunk of guest physically continuous pages.
->>>>>> With this mechanism, step 4) can also be optimized by doing address
->>>>>> translation and madvise() in chunks rather than page by page.
->>>>>>
->>>>>> With this new feature, the above ballooning process takes ~597ms
->>>>>> resulting in an improvement of ~86%.
->>>>>>
->>>>>> TODO: optimize stage 1) by allocating/freeing a chunk of pages
->>>>>> instead of a single page each time.
->>>>>>
->>>>>> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
->>>>>> Signed-off-by: Liang Li <liang.z.li@intel.com>
->>>>>> Suggested-by: Michael S. Tsirkin <mst@redhat.com>
->>>>>> ---
->>>>>>     drivers/virtio/virtio_balloon.c     | 171 ++++++++++++++++++++++++++++++++----
->>>>>>     include/uapi/linux/virtio_balloon.h |   1 +
->>>>>>     2 files changed, 155 insertions(+), 17 deletions(-)
->>>>>>
->>>>>> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
->>>>>> index f0b3a0b..8ecc1d4 100644
->>>>>> --- a/drivers/virtio/virtio_balloon.c
->>>>>> +++ b/drivers/virtio/virtio_balloon.c
->>>>>> @@ -32,6 +32,8 @@
->>>>>>     #include <linux/mm.h>
->>>>>>     #include <linux/mount.h>
->>>>>>     #include <linux/magic.h>
->>>>>> +#include <linux/xbitmap.h>
->>>>>> +#include <asm/page.h>
->>>>>>     /*
->>>>>>      * Balloon device works in 4K page units.  So each page is pointed to by
->>>>>> @@ -79,6 +81,9 @@ struct virtio_balloon {
->>>>>>     	/* Synchronize access/update to this struct virtio_balloon elements */
->>>>>>     	struct mutex balloon_lock;
->>>>>> +	/* The xbitmap used to record balloon pages */
->>>>>> +	struct xb page_xb;
->>>>>> +
->>>>>>     	/* The array of pfns we tell the Host about. */
->>>>>>     	unsigned int num_pfns;
->>>>>>     	__virtio32 pfns[VIRTIO_BALLOON_ARRAY_PFNS_MAX];
->>>>>> @@ -141,13 +146,111 @@ static void set_page_pfns(struct virtio_balloon *vb,
->>>>>>     					  page_to_balloon_pfn(page) + i);
->>>>>>     }
->>>>>> +static int add_one_sg(struct virtqueue *vq, void *addr, uint32_t size)
->>>>>> +{
->>>>>> +	struct scatterlist sg;
->>>>>> +
->>>>>> +	sg_init_one(&sg, addr, size);
->>>>>> +	return virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
->>>>>> +}
->>>>>> +
->>>>>> +static void send_balloon_page_sg(struct virtio_balloon *vb,
->>>>>> +				 struct virtqueue *vq,
->>>>>> +				 void *addr,
->>>>>> +				 uint32_t size,
->>>>>> +				 bool batch)
->>>>>> +{
->>>>>> +	unsigned int len;
->>>>>> +	int err;
->>>>>> +
->>>>>> +	err = add_one_sg(vq, addr, size);
->>>>>> +	/* Sanity check: this can't really happen */
->>>>>> +	WARN_ON(err);
->>>>> It might be cleaner to detect that add failed due to
->>>>> ring full and kick then. Just an idea, up to you
->>>>> whether to do it.
->>>>>
->>>>>> +
->>>>>> +	/* If batching is in use, we batch the sgs till the vq is full. */
->>>>>> +	if (!batch || !vq->num_free) {
->>>>>> +		virtqueue_kick(vq);
->>>>>> +		wait_event(vb->acked, virtqueue_get_buf(vq, &len));
->>>>>> +		/* Release all the entries if there are */
->>>>> Meaning
->>>>> 	Account for all used entries if any
->>>>> ?
->>>>>
->>>>>> +		while (virtqueue_get_buf(vq, &len))
->>>>>> +			;
->>>>> Above code is reused below. Add a function?
->>>>>
->>>>>> +	}
->>>>>> +}
->>>>>> +
->>>>>> +/*
->>>>>> + * Send balloon pages in sgs to host. The balloon pages are recorded in the
->>>>>> + * page xbitmap. Each bit in the bitmap corresponds to a page of PAGE_SIZE.
->>>>>> + * The page xbitmap is searched for continuous "1" bits, which correspond
->>>>>> + * to continuous pages, to chunk into sgs.
->>>>>> + *
->>>>>> + * @page_xb_start and @page_xb_end form the range of bits in the xbitmap that
->>>>>> + * need to be searched.
->>>>>> + */
->>>>>> +static void tell_host_sgs(struct virtio_balloon *vb,
->>>>>> +			  struct virtqueue *vq,
->>>>>> +			  unsigned long page_xb_start,
->>>>>> +			  unsigned long page_xb_end)
->>>>>> +{
->>>>>> +	unsigned long sg_pfn_start, sg_pfn_end;
->>>>>> +	void *sg_addr;
->>>>>> +	uint32_t sg_len, sg_max_len = round_down(UINT_MAX, PAGE_SIZE);
->>>>>> +
->>>>>> +	sg_pfn_start = page_xb_start;
->>>>>> +	while (sg_pfn_start < page_xb_end) {
->>>>>> +		sg_pfn_start = xb_find_next_bit(&vb->page_xb, sg_pfn_start,
->>>>>> +						page_xb_end, 1);
->>>>>> +		if (sg_pfn_start == page_xb_end + 1)
->>>>>> +			break;
->>>>>> +		sg_pfn_end = xb_find_next_bit(&vb->page_xb, sg_pfn_start + 1,
->>>>>> +					      page_xb_end, 0);
->>>>>> +		sg_addr = (void *)pfn_to_kaddr(sg_pfn_start);
->>>>>> +		sg_len = (sg_pfn_end - sg_pfn_start) << PAGE_SHIFT;
->>>>>> +		while (sg_len > sg_max_len) {
->>>>>> +			send_balloon_page_sg(vb, vq, sg_addr, sg_max_len, 1);
->>>>> Last argument should be true, not 1.
->>>>>
->>>>>> +			sg_addr += sg_max_len;
->>>>>> +			sg_len -= sg_max_len;
->>>>>> +		}
->>>>>> +		send_balloon_page_sg(vb, vq, sg_addr, sg_len, 1);
->>>>>> +		xb_zero(&vb->page_xb, sg_pfn_start, sg_pfn_end);
->>>>>> +		sg_pfn_start = sg_pfn_end + 1;
->>>>>> +	}
->>>>>> +
->>>>>> +	/*
->>>>>> +	 * The last few sgs may not reach the batch size, but need a kick to
->>>>>> +	 * notify the device to handle them.
->>>>>> +	 */
->>>>>> +	if (vq->num_free != virtqueue_get_vring_size(vq)) {
->>>>>> +		virtqueue_kick(vq);
->>>>>> +		wait_event(vb->acked, virtqueue_get_buf(vq, &sg_len));
->>>>>> +		while (virtqueue_get_buf(vq, &sg_len))
->>>>>> +			;
->>>>> Some entries can get used after a pause. Looks like they will leak then?
->>>>> One fix would be to convert above if to a while loop.
->>>>> I don't know whether to do it like this in send_balloon_page_sg too.
->>>>>
->>>> Thanks for the above comments. I've re-written this part of code.
->>>> Please have a check below if there is anything more we could improve:
->>>>
->>>> static void kick_and_wait(struct virtqueue *vq, wait_queue_head_t wq_head)
->>>> {
->>>>           unsigned int len;
->>>>
->>>>           virtqueue_kick(vq);
->>>>           wait_event(wq_head, virtqueue_get_buf(vq, &len));
->>>>           /* Detach all the used buffers from the vq */
->>>>           while (virtqueue_get_buf(vq, &len))
->>>>                   ;
->>> I would move this last part to before add_buf. Increases chances
->>> it succeeds even in case of a bug.
->>>> }
->>>>
->>>> static int add_one_sg(struct virtqueue *vq, void *addr, uint32_t size)
->>>> {
->>>>           struct scatterlist sg;
->>>>           int ret;
->>>>
->>>>           sg_init_one(&sg, addr, size);
->>>>           ret = virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
->>>>           if (unlikely(ret == -ENOSPC))
->>>>                   dev_warn(&vq->vdev->dev, "%s: failed due to ring full\n",
->>>>                                    __func__);
->>> So if this ever triggers then kick and wait might fail, right?
->>> I think you should not special-case this one then.
->> OK, I will remove the check above, and take other suggestions as well.
->> Thanks.
->>
->> Best,
->> Wei
-> Any updates here? It's been a while.
->
+On 09/28/2017 08:11 AM, Kemi Wang wrote:
+> This is the second step which introduces a tunable interface that allow
+> numa stats configurable for optimizing zone_statistics(), as suggested by
+> Dave Hansen and Ying Huang.
+> 
+> =========================================================================
+> When page allocation performance becomes a bottleneck and you can tolerate
+> some possible tool breakage and decreased numa counter precision, you can
+> do:
+> 	echo [C|c]oarse > /proc/sys/vm/numa_stats_mode
+> In this case, numa counter update is ignored. We can see about
+> *4.8%*(185->176) drop of cpu cycles per single page allocation and reclaim
+> on Jesper's page_bench01 (single thread) and *8.1%*(343->315) drop of cpu
+> cycles per single page allocation and reclaim on Jesper's page_bench03 (88
+> threads) running on a 2-Socket Broadwell-based server (88 threads, 126G
+> memory).
+> 
+> Benchmark link provided by Jesper D Brouer(increase loop times to
+> 10000000):
+> https://github.com/netoptimizer/prototype-kernel/tree/master/kernel/mm/
+> bench
+> 
+> =========================================================================
+> When page allocation performance is not a bottleneck and you want all
+> tooling to work, you can do:
+> 	echo [S|s]trict > /proc/sys/vm/numa_stats_mode
+> 
+> =========================================================================
+> We recommend automatic detection of numa statistics by system, this is also
+> system default configuration, you can do:
+> 	echo [A|a]uto > /proc/sys/vm/numa_stats_mode
+> In this case, numa counter update is skipped unless it has been read by
+> users at least once, e.g. cat /proc/zoneinfo.
+> 
+> Branch target selection with jump label:
+> a) When numa_stats_mode is changed to *strict*, jump to the branch for numa
+> counters update.
+> b) When numa_stats_mode is changed to *coarse*, return back directly.
+> c) When numa_stats_mode is changed to *auto*, the branch target used in
+> last time is kept, and the branch target is changed to the branch for numa
+> counters update once numa counters are *read* by users.
+> 
+> Therefore, with the help of jump label, the page allocation performance is
+> hardly affected when numa counters are updated with a call in
+> zone_statistics(). Meanwhile, the auto mode can give people benefit without
+> manual tuning.
+> 
+> Many thanks to Michal Hocko, Dave Hansen and Ying Huang for comments to
+> help improve the original patch.
+> 
+> ChangeLog:
+>   V2->V3:
+>   a) Propose a better way to use jump label to eliminate the overhead of
+>   branch selection in zone_statistics(), as inspired by Ying Huang;
+>   b) Add a paragraph in commit log to describe the way for branch target
+>   selection;
+>   c) Use a more descriptive name numa_stats_mode instead of vmstat_mode,
+>   and change the description accordingly, as suggested by Michal Hocko;
+>   d) Make this functionality NUMA-specific via ifdef
+> 
+>   V1->V2:
+>   a) Merge to one patch;
+>   b) Use jump label to eliminate the overhead of branch selection;
+>   c) Add a single-time log message at boot time to help tell users what
+>   happened.
+> 
+> Reported-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> Suggested-by: Dave Hansen <dave.hansen@intel.com>
+> Suggested-by: Ying Huang <ying.huang@intel.com>
+> Signed-off-by: Kemi Wang <kemi.wang@intel.com>
+> ---
+>  Documentation/sysctl/vm.txt |  24 +++++++++
+>  drivers/base/node.c         |   4 ++
+>  include/linux/vmstat.h      |  23 ++++++++
+>  init/main.c                 |   3 ++
+>  kernel/sysctl.c             |   7 +++
+>  mm/page_alloc.c             |  10 ++++
+>  mm/vmstat.c                 | 129 ++++++++++++++++++++++++++++++++++++++++++++
+>  7 files changed, 200 insertions(+)
+> 
+> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+> index 9baf66a..e310e69 100644
+> --- a/Documentation/sysctl/vm.txt
+> +++ b/Documentation/sysctl/vm.txt
+> @@ -61,6 +61,7 @@ Currently, these files are in /proc/sys/vm:
+>  - swappiness
+>  - user_reserve_kbytes
+>  - vfs_cache_pressure
+> +- numa_stats_mode
+>  - watermark_scale_factor
+>  - zone_reclaim_mode
+>  
+> @@ -843,6 +844,29 @@ ten times more freeable objects than there are.
+>  
+>  =============================================================
+>  
+> +numa_stats_mode
+> +
+> +This interface allows numa statistics configurable.
+> +
+> +When page allocation performance becomes a bottleneck and you can tolerate
+> +some possible tool breakage and decreased numa counter precision, you can
+> +do:
+> +	echo [C|c]oarse > /proc/sys/vm/numa_stats_mode
+> +
+> +When page allocation performance is not a bottleneck and you want all
+> +tooling to work, you can do:
+> +	echo [S|s]trict > /proc/sys/vm/numa_stat_mode
+> +
+> +We recommend automatic detection of numa statistics by system, because numa
+> +statistics does not affect system's decision and it is very rarely
+> +consumed. you can do:
+> +	echo [A|a]uto > /proc/sys/vm/numa_stats_mode
+> +This is also system default configuration, with this default setting, numa
+> +counters update is skipped unless the counter is *read* by users at least
+> +once.
 
-Yes. with some major optimization on xbitmap, we can improve the 
-ballooning time to ~492ms.
-I will send out the patches soon.
+It says "the counter", but it seems multiple files in /proc and /sys are
+triggering this, so perhaps list them?
+Also, is it possible that with contemporary userspace/distros (systemd
+etc.) there will always be something that will read one of those upon boot?
 
-Best,
-Wei
+> +
+> +==============================================================
+> +
+>  watermark_scale_factor:
+>  
+>  This factor controls the aggressiveness of kswapd. It defines the
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index 3855902..b57b5622 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -153,6 +153,8 @@ static DEVICE_ATTR(meminfo, S_IRUGO, node_read_meminfo, NULL);
+>  static ssize_t node_read_numastat(struct device *dev,
+>  				struct device_attribute *attr, char *buf)
+>  {
+> +	if (vm_numa_stats_mode == VM_NUMA_STAT_AUTO_MODE)
+> +		static_branch_enable(&vm_numa_stats_mode_key);
+>  	return sprintf(buf,
+>  		       "numa_hit %lu\n"
+>  		       "numa_miss %lu\n"
+> @@ -186,6 +188,8 @@ static ssize_t node_read_vmstat(struct device *dev,
+>  		n += sprintf(buf+n, "%s %lu\n",
+>  			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
+>  			     sum_zone_numa_state(nid, i));
+> +	if (vm_numa_stats_mode == VM_NUMA_STAT_AUTO_MODE)
+> +		static_branch_enable(&vm_numa_stats_mode_key);
+>  #endif
+>  
+>  	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
+> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+> index ade7cb5..d52e882 100644
+> --- a/include/linux/vmstat.h
+> +++ b/include/linux/vmstat.h
+> @@ -6,9 +6,28 @@
+>  #include <linux/mmzone.h>
+>  #include <linux/vm_event_item.h>
+>  #include <linux/atomic.h>
+> +#include <linux/static_key.h>
+>  
+>  extern int sysctl_stat_interval;
+>  
+> +#ifdef CONFIG_NUMA
+> +DECLARE_STATIC_KEY_FALSE(vm_numa_stats_mode_key);
+> +/*
+> + * vm_numa_stats_mode:
+> + * 0 = auto mode of NUMA stats, automatic detection of NUMA statistics.
+> + * 1 = strict mode of NUMA stats, keep NUMA statistics.
+> + * 2 = coarse mode of NUMA stats, ignore NUMA statistics.
+> + */
+> +#define VM_NUMA_STAT_AUTO_MODE 0
+> +#define VM_NUMA_STAT_STRICT_MODE  1
+> +#define VM_NUMA_STAT_COARSE_MODE  2
+> +#define VM_NUMA_STAT_MODE_LEN 16
+> +extern int vm_numa_stats_mode;
+> +extern char sysctl_vm_numa_stats_mode[];
+> +extern int sysctl_vm_numa_stats_mode_handler(struct ctl_table *table, int write,
+> +		void __user *buffer, size_t *length, loff_t *ppos);
+> +#endif
+> +
+>  #ifdef CONFIG_VM_EVENT_COUNTERS
+>  /*
+>   * Light weight per cpu counter implementation.
+> @@ -229,6 +248,10 @@ extern unsigned long sum_zone_node_page_state(int node,
+>  extern unsigned long sum_zone_numa_state(int node, enum numa_stat_item item);
+>  extern unsigned long node_page_state(struct pglist_data *pgdat,
+>  						enum node_stat_item item);
+> +extern void zero_zone_numa_counters(struct zone *zone);
+> +extern void zero_zones_numa_counters(void);
+> +extern void zero_global_numa_counters(void);
+> +extern void invalid_numa_statistics(void);
 
+These seem to be called only from within mm/vmstat.c where they live, so
+I'd suggest removing these extern declarations, and making them static
+in vmstat.c.
+
+...
+
+>  #define NUMA_STATS_THRESHOLD (U16_MAX - 2)
+>  
+> +#ifdef CONFIG_NUMA
+> +int vm_numa_stats_mode = VM_NUMA_STAT_AUTO_MODE;
+> +char sysctl_vm_numa_stats_mode[VM_NUMA_STAT_MODE_LEN] = "auto";
+> +static const char *vm_numa_stats_mode_name[3] = {"auto", "strict", "coarse"};
+> +static DEFINE_MUTEX(vm_numa_stats_mode_lock);
+> +
+> +static int __parse_vm_numa_stats_mode(char *s)
+> +{
+> +	const char *str = s;
+> +
+> +	if (strcmp(str, "auto") == 0 || strcmp(str, "Auto") == 0)
+> +		vm_numa_stats_mode = VM_NUMA_STAT_AUTO_MODE;
+> +	else if (strcmp(str, "strict") == 0 || strcmp(str, "Strict") == 0)
+> +		vm_numa_stats_mode = VM_NUMA_STAT_STRICT_MODE;
+> +	else if (strcmp(str, "coarse") == 0 || strcmp(str, "Coarse") == 0)
+> +		vm_numa_stats_mode = VM_NUMA_STAT_COARSE_MODE;
+> +	else {
+> +		pr_warn("Ignoring invalid vm_numa_stats_mode value: %s\n", s);
+> +		return -EINVAL;
+> +	}
+> +
+> +	return 0;
+> +}
+> +
+> +int sysctl_vm_numa_stats_mode_handler(struct ctl_table *table, int write,
+> +		void __user *buffer, size_t *length, loff_t *ppos)
+> +{
+> +	char old_string[VM_NUMA_STAT_MODE_LEN];
+> +	int ret, oldval;
+> +
+> +	mutex_lock(&vm_numa_stats_mode_lock);
+> +	if (write)
+> +		strncpy(old_string, (char *)table->data, VM_NUMA_STAT_MODE_LEN);
+> +	ret = proc_dostring(table, write, buffer, length, ppos);
+> +	if (ret || !write) {
+> +		mutex_unlock(&vm_numa_stats_mode_lock);
+> +		return ret;
+> +	}
+> +
+> +	oldval = vm_numa_stats_mode;
+> +	if (__parse_vm_numa_stats_mode((char *)table->data)) {
+> +		/*
+> +		 * invalid sysctl_vm_numa_stats_mode value, restore saved string
+> +		 */
+> +		strncpy((char *)table->data, old_string, VM_NUMA_STAT_MODE_LEN);
+> +		vm_numa_stats_mode = oldval;
+
+Do we need to restore vm_numa_stats_mode? AFAICS it didn't change. Also,
+should the EINVAL be returned also to userspace? (not sure what's the
+API here, hmm man 2 sysctl doesn't list EINVAL...)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
