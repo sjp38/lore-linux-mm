@@ -1,278 +1,362 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F2556B026C
-	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 04:51:19 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id i50so439701qtf.0
-        for <linux-mm@kvack.org>; Fri, 29 Sep 2017 01:51:19 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x69sor2642662qkg.28.2017.09.29.01.51.17
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B37F16B025E
+	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 05:50:24 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id y77so2307953pfd.2
+        for <linux-mm@kvack.org>; Fri, 29 Sep 2017 02:50:24 -0700 (PDT)
+Received: from mail139-153.mail.alibaba.com (mail139-153.mail.alibaba.com. [198.11.139.153])
+        by mx.google.com with ESMTPS id n186si3067412pgn.618.2017.09.29.02.50.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 29 Sep 2017 01:51:18 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Sep 2017 02:50:22 -0700 (PDT)
+Date: Fri, 29 Sep 2017 17:50:05 +0800
+From: "XaviLi" <ljy@baibantech.com.cn>
+Reply-To: "XaviLi" <ljy@baibantech.com.cn>
+Message-ID: <e6921dd8-7f8f-438b-827b-596e8c36ce97.ljy@baibantech.com.cn>
+Subject: =?UTF-8?B?UmU6IFtSRkNdIEEgbXVsdGl0aHJlYWQgbG9ja2xlc3MgZGVkdXBsaWNhdGlvbiBlbmdpbmU=?=
 MIME-Version: 1.0
-In-Reply-To: <1505886205-9671-5-git-send-email-minchan@kernel.org>
-References: <1505886205-9671-1-git-send-email-minchan@kernel.org> <1505886205-9671-5-git-send-email-minchan@kernel.org>
-From: huang ying <huang.ying.caritas@gmail.com>
-Date: Fri, 29 Sep 2017 16:51:17 +0800
-Message-ID: <CAC=cRTMm41DpnSdv0BvBDLcdfgyssD2u5xqUmGUgZ5RdGroWhQ@mail.gmail.com>
-Subject: Re: [PATCH v2 4/4] mm:swap: skip swapcache for swapin of synchronous device
-Content-Type: text/plain; charset="UTF-8"
+References: <0d61c58a-8d73-4037-b15d-1f0f25a3ad62.ljy@baibantech.com.cn> <20170926114747.tjiyopglxeeudy65@dhcp22.suse.cz>,20170928100906.GF30973@redhat.com
+In-Reply-To: 20170928100906.GF30973@redhat.com
+Content-Type: multipart/alternative;
+  boundary="----=ALIBOUNDARY_34376_4ff68940_59ce174d_35147"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, kernel-team <kernel-team@lge.com>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hugh Dickins <hughd@google.com>, Huang Ying <ying.huang@intel.com>
+To: Michal Hocko <mhocko@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, =?UTF-8?B?5p2o5rO95piV?= <yzx@baibantech.com.cn>, =?UTF-8?B?5p2O54+F?= <lishen@baibantech.com.cn>, =?UTF-8?B?546L5paM?= <wb@baibantech.com.cn>
 
-On Wed, Sep 20, 2017 at 1:43 PM, Minchan Kim <minchan@kernel.org> wrote:
-> With fast swap storage, platform want to use swap more aggressively
-> and swap-in is crucial to application latency.
->
-> The rw_page based synchronous devices like zram, pmem and btt are such
-> fast storage. When I profile swapin performance with zram lz4 decompress
-> test, S/W overhead is more than 70%. Maybe, it would be bigger in nvdimm.
->
-> This patch aims for reducing swap-in latency via skipping swapcache
-> if swap device is synchronous device like rw_page based device.
-> It enhances 45% my swapin test(5G sequential swapin, no readahead,
-> from 2.41sec to 1.64sec).
->
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  include/linux/swap.h | 11 +++++++++++
->  mm/memory.c          | 52 ++++++++++++++++++++++++++++++++++++----------------
->  mm/page_io.c         |  6 +++---
->  mm/swapfile.c        | 11 +++++++----
->  4 files changed, 57 insertions(+), 23 deletions(-)
->
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index fbb33919d1c6..cd2f66fdfc2d 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -461,6 +461,7 @@ extern int page_swapcount(struct page *);
->  extern int __swp_swapcount(swp_entry_t entry);
->  extern int swp_swapcount(swp_entry_t entry);
->  extern struct swap_info_struct *page_swap_info(struct page *);
-> +extern struct swap_info_struct *swp_swap_info(swp_entry_t entry);
->  extern bool reuse_swap_page(struct page *, int *);
->  extern int try_to_free_swap(struct page *);
->  struct backing_dev_info;
-> @@ -469,6 +470,16 @@ extern void exit_swap_address_space(unsigned int type);
->
->  #else /* CONFIG_SWAP */
->
-> +static inline int swap_readpage(struct page *page, bool do_poll)
-> +{
-> +       return 0;
-> +}
-> +
-> +static inline struct swap_info_struct *swp_swap_info(swp_entry_t entry)
-> +{
-> +       return NULL;
-> +}
-> +
->  #define swap_address_space(entry)              (NULL)
->  #define get_nr_swap_pages()                    0L
->  #define total_swap_pages                       0L
-> diff --git a/mm/memory.c b/mm/memory.c
-> index ec4e15494901..163ab2062385 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2842,7 +2842,7 @@ EXPORT_SYMBOL(unmap_mapping_range);
->  int do_swap_page(struct vm_fault *vmf)
->  {
->         struct vm_area_struct *vma = vmf->vma;
-> -       struct page *page = NULL, *swapcache;
-> +       struct page *page = NULL, *swapcache = NULL;
->         struct mem_cgroup *memcg;
->         struct vma_swap_readahead swap_ra;
->         swp_entry_t entry;
-> @@ -2881,17 +2881,35 @@ int do_swap_page(struct vm_fault *vmf)
->                 }
->                 goto out;
->         }
-> +
-> +
->         delayacct_set_flag(DELAYACCT_PF_SWAPIN);
->         if (!page)
->                 page = lookup_swap_cache(entry, vma_readahead ? vma : NULL,
->                                          vmf->address);
->         if (!page) {
-> -               if (vma_readahead)
-> -                       page = do_swap_page_readahead(entry,
-> -                               GFP_HIGHUSER_MOVABLE, vmf, &swap_ra);
-> -               else
-> -                       page = swapin_readahead(entry,
-> -                               GFP_HIGHUSER_MOVABLE, vma, vmf->address);
-> +               struct swap_info_struct *si = swp_swap_info(entry);
-> +
-> +               if (!(si->flags & SWP_SYNCHRONOUS_IO)) {
-> +                       if (vma_readahead)
-> +                               page = do_swap_page_readahead(entry,
-> +                                       GFP_HIGHUSER_MOVABLE, vmf, &swap_ra);
-> +                       else
-> +                               page = swapin_readahead(entry,
-> +                                       GFP_HIGHUSER_MOVABLE, vma, vmf->address);
-> +                       swapcache = page;
-> +               } else {
-> +                       /* skip swapcache */
-> +                       page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vmf->address);
-> +                       if (page) {
-> +                               __SetPageLocked(page);
-> +                               __SetPageSwapBacked(page);
-> +                               set_page_private(page, entry.val);
-> +                               lru_cache_add_anon(page);
-> +                               swap_readpage(page, true);
-> +                       }
-> +               }
+------=ALIBOUNDARY_34376_4ff68940_59ce174d_35147
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: base64
 
-I have a question for this.  If a page is mapped in multiple processes
-(for example, because of fork).  With swap cache, after swapping out
-and swapping in, the page will be still shared by these processes.
-But with your changes, it appears that there will be multiple pages
-with same contents mapped in multiple processes, even if the page
-isn't written in these processes.  So this may waste some memory in
-some situation?  And copying from device is even faster than looking
-up swap cache in your system?
+Ci0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLUZyb206QW5kcmVhIEFyY2FuZ2VsaSA8YWFyY2FuZ2VAcmVkaGF0LmNvbT5UaW1l
+OjIwMTcgU2VwIDI4IChUaHUpIDE4OjA5VGhhbmtzIGZvciByZXBseWluZwo+IENvdWxkwqB5b3XC
+oHJlcGVhdMKgdGhlwqB3aG9sZcKgYmVuY2htYXJrwqB3aGlsZcKgZ2l2aW5nwqBvbmx5wqAxwqBD
+UFXCoHRvwqBQYWdlT05FCj4gYW5kwqBhZnRlcsKgYXBwbHlpbmfCoHRoZcKgZm9sbG93aW5nwqBj
+cmMzMmMtaW50ZWzCoHBhdGNowqB0b8KgS1NNPwo+wqAKPiBodHRwczovL3d3dy5zcGluaWNzLm5l
+dC9saXN0cy9saW51eC1tbS9tc2cxMzIzOTQuaHRtbAo+wqAKPiBZb3XCoG1hecKgY29uc2lkZXLC
+oGFsc2/CoGVjaG/CoDHCoD7CoC9zeXMva2VybmVsL21tL2tzbS91c2VfemVyb19wYWdlc8KgaWYK
+PiB5b3XCoHNpbmdsZcKgb3V0wqB6ZXJvwqBwYWdlc8KgaW7CoHBvbmXCoChidXTCoGl0wqBkb2Vz
+bid0wqBsb29rwqBsaWtlwqB5b3XCoGhhdmUKPiBzdWNowqBmZWF0dXJlwqBpbsKgcG9uZSkuCgo+
+IFRoZcKgc2Vjb25kwqB0ZXN0wqBpc8KgZXhlcmNpc2luZ8KgdGhlwqB3b3JzdMKgY2FzZcKgcG9z
+c2libGXCoG9mwqBLU03CoHNvwqBJCj4gZG9uJ3TCoHNlZcKgaG93wqBpdCdzwqB3b3J0aMKgd29y
+cnlpbmfCoGFib3V0LsKgTGlrZWx5wqBwb25lwqB3b3VsZMKgYWxzb8KgaGF2ZcKgYQo+IHdvcnN0
+wqBjYXNlwqB0b8KgZXhlcmNpc2XCoChpdMKgdXNlc8KgaGFzaF82NMKgc2/CoGl0wqB2ZXJ5wqBs
+aWtlbHnCoGFsc2/CoGhhc8KgYQo+IHdvcnN0wqBjYXNlwqB0b8KgZXhlcmNpc2UpLsKgRm9ywqBL
+U03CoHRoZXJlwqBhcmXCoGFscmVhZHnCoHBsYW5zwqB0b8KgYWx0ZXLCoHRoZQo+IG1lbWNtcMKg
+c2/CoGl0J3PCoG1vcmXCoHNjYXR0ZXJlZMKgcmFuZG9tbHkuCgo+IE1ha2luZ8KgS1NNwqBtdWx0
+aXRocmVhZGVkwqB3aXRowqBvbmXCoGtzbWTCoHRocmVhZMKgcGVywqBDUFXCoGlzwqBlbnRpcmVs
+eQo+IHBvc3NpYmxlLMKgdGhlwqByYnRyZWXCoHJlYmFsYW5jZcKgd2lsbMKgcmVxdWlyZcKgc29t
+ZcKgbG9ja2luZ8Kgb2bCoGNvdXJzZcKgYnV0Cj4gdGhlwqBoaWdowqBDUFXCoHVzYWdlwqBwYXJ0
+c8Kgb2bCoEtTTcKgYXJlwqBmdWxsecKgc2NhbGFibGXCoChtbcKgd2FsayzCoGNoZWNrc3VtLAo+
+IG1lbWNvbXBhcmUswqB3cml0ZXByb3RlY3Rpb24swqBwYWdldGFibGXCoHJlcGxhY2VtZW50KS7C
+oFdlwqBkaWRuJ3QKPiBtdWx0aXRocmVhZMKga3NtZMKgdG/CoGtlZXDCoGl0wqBzaW1wbGVywqBw
+cmltYXJpbHnCoGJ1dMKgYWxzb8KgYmVjYXVzZcKgbm9ib2R5Cj4gYXNrZWTCoGZvcsKgdGhpc8Kg
+ZmVhdHVyZcKgeWV0LsKgV2h5wqBkaWRuJ3TCoHlvdcKgc2ltcGx5wqBtdWx0aXRocmVhZMKgS1NN
+Cj4gd2hpY2jCoHByb3ZpZGVzwqBhwqBzb2xpZMKgYmFzZcKgYWxzb8Kgc3VwcG9ydGluZ8KgS1NN
+c2NhbGU/Cj7CoAo+IEFyZcKgeW91wqB1c2luZ8KgYW7CoGhhc2jCoHRvwqBmaW5kwqBlcXVhbGl0
+eT/CoFRoYXTCoGNhbid0wqBiZcKgZG9uZcKgY3VycmVudGx5Cj4gdG8gYXZvaWTCoGluZnJpbmdp
+bmcuwqBJwqBzZWXCoHZhcmlvdXPCoG1lbWNtcMKgaW7CoHlvdXLCoHBhdGNowqBidXTCoGFsbMKg
+YXJvdW5kCj4gI2lmwqAwLi4uwqBzb8Kgd2hhdMKgYXJlwqB5b3XCoHVzaW5nwqBmb3LCoGZpbmRp
+bmfCoHBhZ2XCoGVxdWFsaXR5Pwo+wqAKPiBIb3fCoGRvZXPCoFBhZ2VPTkXCoGRlYWzCoHdpdGjC
+oDFtaWxsaW9uwqBvZsKgZXF1YWzCoHZpcnR1YWzCoHBhZ2VzP8KgRG9lc8KgaXQKPiBsb2NrdXDC
+oGluwqBybWFwP8KgS1NNwqBpbsKgdjQuMTPCoGNhbsKgaGFuZGxlwqBpbmZpbml0ZcKgYW1vdW50
+wqBvZsKgZXF1YWwKPiB2aXJ0dWFswqBwYWdlwqBjb250ZW50wqB0b8KgZGVkdXDCoHdoaWxlwqBn
+ZW5lcmF0aW5nwqBPKDEpwqBjb21wbGV4aXR5wqBpbsKgcm1hcAo+IHdhbGtzLsKgV2l0aG91dMKg
+dGhpcyzCoEtTTcKgd2FzwqB1bnVzYWJsZcKgZm9ywqBlbnRlcnByaXNlwqB1c2XCoGFuZMKgaGFk
+wqB0b8KgYmUKPiBkaXNhYmxlZCzCoGJlY2F1c2XCoHRoZcKga2VybmVswqB3b3VsZMKgbG9ja3Vw
+wqBmb3LCoHNldmVyYWzCoHNlY29uZHPCoGFmdGVyCj4gZGVkdXBsaWNhdGluZ8KgbWlsbGlvbsKg
+b2bCoHZpcnR1YWzCoHBhZ2VzwqB3aXRowqBzYW1lwqBjb250ZW50wqAoaS5lLsKgZHVyaW5nCj4g
+TlVNQcKgYmFsYW5jaW5nwqBpbmR1Y2VkwqBwYWdlwqBtaWdyYXRpb25zwqBvcsKgZHVyaW5nwqBj
+b21wYWN0aW9uwqBpbmR1Y2VkCj4gcGFnZcKgbWlncmF0aW9ucyzCoGxldMKgYWxvbmXCoHN3YXBw
+aW5nwqB0aGXCoG1pbGxpb24tdGltZXPCoGRlZHVwbGljYXRlZMKgS1NNCj5wYWdlKS4KCj4gS1NN
+wqBpc8KgdXN1YWxsecKgYW7CoGFjdGl2aXR5wqBydW7CoGluwqB0aGXCoGJhY2tncm91bmTCoHNv
+wqBub2JvZHnCoGFza2VkwqB0bwo+IGRlZGljYXRlwqBtb3JlwqB0aGFuwqBvbmXCoGNvcmXCoHRv
+wqBpdCzCoGFuZMKgd2hhdCdzwqByZWxldmFudMKgaXPCoHRvwqBkb8KgdGhlCj4gZGVkdXDCoGlu
+wqB0aGXCoG1vc3TCoGVmZmljaWVudMKgd2F5wqBwb3NzaWJsZcKgKGkuZS7CoGxlc3PCoENQVcKg
+dXNlZMKgYW5kwqBubwo+IGludGVyZmVyZW5jZcKgdG/CoHRoZcKgcmVzdMKgb2bCoHRoZcKgc3lz
+dGVtwqB3aGF0c29ldmVyKSzCoG5vdMKgaG93wqBsb25nwqBpdAo+IHRha2VzwqBpZsKgeW91wqBy
+dW7CoGl0wqBvbsKgYWxswqBhdmFpbGFibGXCoENQVXPCoGxvYWRpbmfCoDEwMCXCoG9mwqB0aGXC
+oHN5c3RlbQo+IHdpdGjCoGl0Lgo+Cj4gU2/CoGNvbXBhcmluZ8KgYcKgZGVkdXDCoGFsZ29yaXRo
+bcKgcnVubmluZ8KgY29uY3VycmVudGx5wqBvbsKgMTLCoHRocmVhZHPCoHZzCj4gYW5vdGhlcsKg
+ZGVkdXDCoGFsZ29yaXRobcKgcnVubmluZ8KgaW7CoDHCoHRocmVhZMKgb25seSzCoGlzwqBhbsKg
+YXBwbGXCoHRvCj4gb3Jhbmdlc8KgY29tcGFyaXNvbi4KPsKgCj4gQ29tcGFyaW5nwqBLU03CoCh3
+aXRowqBjcmMzMsKgYXPCoGNrc3VtLMKgdG/CoGFwcGx5wqBvbsKgdG9wwqBvZsKgdXBzdHJlYW0p
+wqB2cwo+IFBhZ2VPbmXCoHJlc3RyaWN0ZWTCoHRvwqBhwqBzaW5nbGXCoHRocmVhZMKgKGFsc2/C
+oG1vcmXCoHJlYWxpc3RpY8KgcHJvZHVjdGlvbgo+IGVudmlyb25tZW50KSzCoHdpbGzCoGJlwqBh
+wqBtb3JlwqBpbnRlcmVzdGluZ8KgYW5kwqBtZWFuaW5nZnVswqBjb21wYXJpc29uLgo+wqAKPiBJ
+dMKgbG9va3PCoGxpa2XCoHJtYXDCoGlzwqBzdXBwb3J0ZWTCoGJ5wqBwb25lwqBidXTCoHRoZcKg
+cGF0Y2jCoGhhc8KgYcKgbXVsdGl0dWRlCj4gb2bCoCNpZsKgMMKgYW5kwqBhcm91bmTCoGFsbMKg
+cm1hcMKgY29kZcKgc2/CoGl0J3PCoG5vdMKgc2/CoGNsZWFyLsKgUm1hcMKgd2Fsa3MKPiBoYXZl
+wqB0b8Kgd29ya8KgZmxhd2xlc3N5wqBvbsKgYWxswqBkZWR1cGxpY2F0ZWTCoHBhZ2VzLMKgb3LC
+oHBvbmXCoHdvdWxkwqB0aGVuCj4gYnJlYWvCoG5vdMKganVzdMKgc3dhcHBpbmfCoGJ1dMKgYWxz
+b8KgTlVNQcKgQmFsYW5jaW5nwqBjb21wYWN0aW9uwqBhbmTCoGluwqB0dXJuCj4gVEhQwqB1dGls
+aXphdGlvbsKgYW5kwqBUSFDCoHV0aWxpemF0aW9uwqBpc8KgY3JpdGljYWzCoGZvcsKgdmlydHVh
+bMKgbWFjaGluZXMKPiAoTUFEVl9IVUdFUEFHRcKgaXPCoGFsd2F5c8Kgc2V0wqBiecKgUUVNVSzC
+oHRvwqBydW7CoGRpcmVjdMKgY29tcGFjdGluwqBhbHNvwqB3aXRoCj4gZGVmcmFnPW1hZHZpc2XC
+oG9ywqBkZWZlcittYWR2aXNlKS4KCgpQYWdlT05FwqBpc8KgYmFzZWTCoG9uwqBhwqBuZXfCoHRy
+ZWXCoGFsZ29yaXRobcKgb3RoZXLCoHRoYW7CoEtTTeKAmXPCoHJlZC1ibGFja8KgdHJlZS7CoFRo
+ZcKgb3JpZ2luYWzCoGlkZWHCoGlzwqB0aGF0wqB3ZcKgY2FuwqB1c2XCoGHCoGxvY2tsZXNzwqB0
+cmVlwqB0b8KgZW5oYW5jZcKgbXVsdGl0aHJlYWTCoHBlcmZvcm1hbmNlLsKgTm90wqBhbGzCoHRy
+ZWXCoGFsZ29yaXRobXPCoGFyZcKgc3VpdGFibGXCoGZvcsKgdGhpc8KgcHVycG9zZS7CoFdlwqBo
+YXZlwqBub3TCoGZpbmTCoGHCoHdhecKgdG/CoGRvwqBpdMKgZm9ywqByZWQtYmxhY2vCoHRyZWUu
+wqBQYWdlT05FwqBpc8KgYmFzZWTCoG9uwqBhwqBuZXfCoHRyZWUuwqBUaGXCoGNsb3Nlc3TCoHRv
+cG9sb2d5wqB3ZcKgZm91bmTCoGlzwqBQYXRyaWNpYcKgdHJlZSzCoGJ1dMKgYWxzb8KgZGlmZmVy
+ZW50LsKgV2XCoG5hbWXCoGl0wqDCoFNEwqB0cmVlwqBjdXJyZW50bHkuCgpUaGXCoG9yaWdpbmFs
+wqBlbmdpbmXCoG5hbWXCoGlzwqBPTkXCoChPYmplY3TCoE5vbi1kdXBsaWNhdGXCoEVuZ2luZSks
+wqBpdMKgaXPCoGRlc2lnbmVkwqBmb3LCoGdlbmVyYWzCoHB1cnBvc2XCoG9iamVjdMKgZGVkdXBs
+aWNhdGlvbi7CoFdlwqDCoGFwcGxpZWTCoGl0wqB0b8Kga2VybmVswqBwYWdlwqBmaWVsZMKgKFBh
+Z2VPTkUpwqBmaXJzdMKgYmVjYXVzZcKgaGVyZcKgd2XCoGNhbsKgZmluZMKgb3V0wqBob3fCoGl0
+wqBiZWhhdmVzwqBpbsKgaGlnaMKgc3BlZWTCoGVudmlyb25tZW50LiBQYWdlT25lwqBpc8Kgbm90
+wqB0b8KgaW1wcm92ZcKgdGhlwqBrc20swqB3aGljaMKgaXPCoHR3b8KgY29tcGxldGVsecKgZGlm
+ZmVyZW50wqB0aGluZ3MuCgpXZSBkbyBub3QgdXNlIGFuwqBoYXNowqB0b8KgZmluZMKgZXF1YWxp
+dHkuwqBCZWNhdXNlIFNEIMKgdHJlZcKgbmVlZMKgdG/CoGNvbXBhcmXCoGJpdHMswqBzb8Kgd2XC
+oGRvwqB0aGXCoGltcGxlbWVudGF0aW9uwqBvZsKgdGhlwqBjb21wYXJpc29uwqBmdW5jdGlvbizC
+oG5vciDCoHVzaW5nIG1lbWNtcC4KUGFnZU9uZSBoYXMgwqBub8KgYWRkaXRpb25hbMKgbWFuYWdl
+bWVudMKgc3RydWN0dXJlLCBleGNlcHQgU0QgdHJlZSBzdHJ1Y3R1cmUgLCBwYWdlwqBzdGF0dXPC
+oGJpdG1hcCwgbG9ja2xlc3MgcXVlLCDCoHNvIHdlIHVzZSBybWFwwqB3YWxrc8Kgd2hlbsKgbmVj
+ZXNzYXJ5wqB0b8Kgb2J0YWluwqByZXZlcnNlwqBtYXBwaW5nKHdyaXJlLXByb3RlY3QgLHJlcGFs
+Y2UgcGFnZSB0YWJsZSkgLCDCoGFuZMKgbm93IGN1cnJlbnQgdmVyc2lvbiAsIHRoZSBzd2FwIGFu
+ZMKgbWlncmF0aW9uwqBwcm9jZXNzwqBpc8Kgbm90wqB5ZXTCoGNvbXBsZXRlbHkuClBhZ2VPbmUg
+U2luZ2xlLXRocmVhZGVkwqBwZXJmb3JtYW5jZcKgYW5kwqB4eGhhc2jCoHRlc3TCoHJlc3VsdHMs
+wqB3ZcKgd2lsbMKgYmXCoHByb3ZpZGVkIMKgYWZ0ZXLCoHRoZcKgZW5kwqBvZsKgdGhlwqBob2xp
+ZGF5cyAoMTAuMS0xMC44KS4KCgoKCgoK
+------=ALIBOUNDARY_34376_4ff68940_59ce174d_35147
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: base64
 
-Best Regards,
-Huang, Ying
-
-> +
->                 if (!page) {
->                         /*
->                          * Back out if somebody else faulted in this pte
-> @@ -2920,7 +2938,6 @@ int do_swap_page(struct vm_fault *vmf)
->                 goto out_release;
->         }
->
-> -       swapcache = page;
->         locked = lock_page_or_retry(page, vma->vm_mm, vmf->flags);
->
->         delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
-> @@ -2935,7 +2952,8 @@ int do_swap_page(struct vm_fault *vmf)
->          * test below, are not enough to exclude that.  Even if it is still
->          * swapcache, we need to check that the page's swap has not changed.
->          */
-> -       if (unlikely(!PageSwapCache(page) || page_private(page) != entry.val))
-> +       if (unlikely((!PageSwapCache(page) ||
-> +                       page_private(page) != entry.val)) && swapcache)
->                 goto out_page;
->
->         page = ksm_might_need_to_copy(page, vma, vmf->address);
-> @@ -2988,14 +3006,16 @@ int do_swap_page(struct vm_fault *vmf)
->                 pte = pte_mksoft_dirty(pte);
->         set_pte_at(vma->vm_mm, vmf->address, vmf->pte, pte);
->         vmf->orig_pte = pte;
-> -       if (page == swapcache) {
-> -               do_page_add_anon_rmap(page, vma, vmf->address, exclusive);
-> -               mem_cgroup_commit_charge(page, memcg, true, false);
-> -               activate_page(page);
-> -       } else { /* ksm created a completely new copy */
-> +
-> +       /* ksm created a completely new copy */
-> +       if (unlikely(page != swapcache && swapcache)) {
->                 page_add_new_anon_rmap(page, vma, vmf->address, false);
->                 mem_cgroup_commit_charge(page, memcg, false, false);
->                 lru_cache_add_active_or_unevictable(page, vma);
-> +       } else {
-> +               do_page_add_anon_rmap(page, vma, vmf->address, exclusive);
-> +               mem_cgroup_commit_charge(page, memcg, true, false);
-> +               activate_page(page);
->         }
->
->         swap_free(entry);
-> @@ -3003,7 +3023,7 @@ int do_swap_page(struct vm_fault *vmf)
->             (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
->                 try_to_free_swap(page);
->         unlock_page(page);
-> -       if (page != swapcache) {
-> +       if (page != swapcache && swapcache) {
->                 /*
->                  * Hold the lock to avoid the swap entry to be reused
->                  * until we take the PT lock for the pte_same() check
-> @@ -3036,7 +3056,7 @@ int do_swap_page(struct vm_fault *vmf)
->         unlock_page(page);
->  out_release:
->         put_page(page);
-> -       if (page != swapcache) {
-> +       if (page != swapcache && swapcache) {
->                 unlock_page(swapcache);
->                 put_page(swapcache);
->         }
-> diff --git a/mm/page_io.c b/mm/page_io.c
-> index 21502d341a67..d4a98e1f6608 100644
-> --- a/mm/page_io.c
-> +++ b/mm/page_io.c
-> @@ -346,7 +346,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
->         return ret;
->  }
->
-> -int swap_readpage(struct page *page, bool do_poll)
-> +int swap_readpage(struct page *page, bool synchronous)
->  {
->         struct bio *bio;
->         int ret = 0;
-> @@ -354,7 +354,7 @@ int swap_readpage(struct page *page, bool do_poll)
->         blk_qc_t qc;
->         struct gendisk *disk;
->
-> -       VM_BUG_ON_PAGE(!PageSwapCache(page), page);
-> +       VM_BUG_ON_PAGE(!PageSwapCache(page) && !synchronous, page);
->         VM_BUG_ON_PAGE(!PageLocked(page), page);
->         VM_BUG_ON_PAGE(PageUptodate(page), page);
->         if (frontswap_load(page) == 0) {
-> @@ -402,7 +402,7 @@ int swap_readpage(struct page *page, bool do_poll)
->         count_vm_event(PSWPIN);
->         bio_get(bio);
->         qc = submit_bio(bio);
-> -       while (do_poll) {
-> +       while (synchronous) {
->                 set_current_state(TASK_UNINTERRUPTIBLE);
->                 if (!READ_ONCE(bio->bi_private))
->                         break;
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 1305591cde4d..64a3d85226ba 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -3454,10 +3454,15 @@ int swapcache_prepare(swp_entry_t entry)
->         return __swap_duplicate(entry, SWAP_HAS_CACHE);
->  }
->
-> +struct swap_info_struct *swp_swap_info(swp_entry_t entry)
-> +{
-> +       return swap_info[swp_type(entry)];
-> +}
-> +
->  struct swap_info_struct *page_swap_info(struct page *page)
->  {
-> -       swp_entry_t swap = { .val = page_private(page) };
-> -       return swap_info[swp_type(swap)];
-> +       swp_entry_t entry = { .val = page_private(page) };
-> +       return swp_swap_info(entry);
->  }
->
->  /*
-> @@ -3465,7 +3470,6 @@ struct swap_info_struct *page_swap_info(struct page *page)
->   */
->  struct address_space *__page_file_mapping(struct page *page)
->  {
-> -       VM_BUG_ON_PAGE(!PageSwapCache(page), page);
->         return page_swap_info(page)->swap_file->f_mapping;
->  }
->  EXPORT_SYMBOL_GPL(__page_file_mapping);
-> @@ -3473,7 +3477,6 @@ EXPORT_SYMBOL_GPL(__page_file_mapping);
->  pgoff_t __page_file_index(struct page *page)
->  {
->         swp_entry_t swap = { .val = page_private(page) };
-> -       VM_BUG_ON_PAGE(!PageSwapCache(page), page);
->         return swp_offset(swap);
->  }
->  EXPORT_SYMBOL_GPL(__page_file_index);
-> --
-> 2.7.4
->
+PGRpdiBjbGFzcz0iX19hbGl5dW5fZW1haWxfYm9keV9ibG9jayI+PGRpdiAgc3R5bGU9ImNsZWFy
+OmJvdGg7Ij48c3BhbiAgc3R5bGU9ImZvbnQtZmFtaWx5OlRhaG9tYSxBcmlhbCxTVEhlaXRpLFNp
+bVN1bjtmb250LXNpemU6MTQuMHB4O2NvbG9yOiMwMDAwMDA7Ij48YnIgPjwvc3Bhbj48L2Rpdj48
+ZGl2ICBzdHlsZT0iY2xlYXI6Ym90aDsiPjxzcGFuICBzdHlsZT0iZm9udC1mYW1pbHk6VGFob21h
+LEFyaWFsLFNUSGVpdGksU2ltU3VuO2ZvbnQtc2l6ZToxNC4wcHg7Y29sb3I6IzAwMDAwMDsiPi0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS0tLTwvc3Bhbj48L2Rpdj48ZGl2ICBzdHlsZT0iY2xlYXI6Ym90aDsiPjxzcGFuICBzdHls
+ZT0iZm9udC1mYW1pbHk6VGFob21hLEFyaWFsLFNUSGVpdGksU2ltU3VuO2ZvbnQtc2l6ZToxNC4w
+cHg7Y29sb3I6IzAwMDAwMDsiPkZyb206QW5kcmVhIEFyY2FuZ2VsaSAmbHQ7YWFyY2FuZ2VAcmVk
+aGF0LmNvbSZndDs8L3NwYW4+PC9kaXY+PGRpdiAgc3R5bGU9ImNsZWFyOmJvdGg7Ij48c3BhbiAg
+c3R5bGU9ImZvbnQtZmFtaWx5OlRhaG9tYSxBcmlhbCxTVEhlaXRpLFNpbVN1bjtmb250LXNpemU6
+MTQuMHB4O2NvbG9yOiMwMDAwMDA7Ij5UaW1lOjIwMTcgU2VwIDI4IChUaHUpIDE4OjA5PC9zcGFu
+PjwvZGl2PjxkaXYgIHN0eWxlPSJjbGVhcjpib3RoOyI+VGhhbmtzIGZvciByZXBseWluZzwvZGl2
+PjxkaXYgIHN0eWxlPSJjbGVhcjpib3RoOyI+PGJyID4mZ3Q7IENvdWxkJm5ic3A7eW91Jm5ic3A7
+cmVwZWF0Jm5ic3A7dGhlJm5ic3A7d2hvbGUmbmJzcDtiZW5jaG1hcmsmbmJzcDt3aGlsZSZuYnNw
+O2dpdmluZyZuYnNwO29ubHkmbmJzcDsxJm5ic3A7Q1BVJm5ic3A7dG8mbmJzcDtQYWdlT05FPGJy
+ID4mZ3Q7IGFuZCZuYnNwO2FmdGVyJm5ic3A7YXBwbHlpbmcmbmJzcDt0aGUmbmJzcDtmb2xsb3dp
+bmcmbmJzcDtjcmMzMmMtaW50ZWwmbmJzcDtwYXRjaCZuYnNwO3RvJm5ic3A7S1NNPzxiciA+Jmd0
+OyZuYnNwOzxiciA+Jmd0OyBodHRwczovL3d3dy5zcGluaWNzLm5ldC9saXN0cy9saW51eC1tbS9t
+c2cxMzIzOTQuaHRtbDxiciA+Jmd0OyZuYnNwOzxiciA+Jmd0OyBZb3UmbmJzcDttYXkmbmJzcDtj
+b25zaWRlciZuYnNwO2Fsc28mbmJzcDtlY2hvJm5ic3A7MSZuYnNwOyZndDsmbmJzcDsvc3lzL2tl
+cm5lbC9tbS9rc20vdXNlX3plcm9fcGFnZXMmbmJzcDtpZjxiciA+Jmd0OyB5b3UmbmJzcDtzaW5n
+bGUmbmJzcDtvdXQmbmJzcDt6ZXJvJm5ic3A7cGFnZXMmbmJzcDtpbiZuYnNwO3BvbmUmbmJzcDso
+YnV0Jm5ic3A7aXQmbmJzcDtkb2Vzbid0Jm5ic3A7bG9vayZuYnNwO2xpa2UmbmJzcDt5b3UmbmJz
+cDtoYXZlPGJyID4mZ3Q7IHN1Y2gmbmJzcDtmZWF0dXJlJm5ic3A7aW4mbmJzcDtwb25lKS48YnIg
+PjxiciA+Jmd0OyBUaGUmbmJzcDtzZWNvbmQmbmJzcDt0ZXN0Jm5ic3A7aXMmbmJzcDtleGVyY2lz
+aW5nJm5ic3A7dGhlJm5ic3A7d29yc3QmbmJzcDtjYXNlJm5ic3A7cG9zc2libGUmbmJzcDtvZiZu
+YnNwO0tTTSZuYnNwO3NvJm5ic3A7STxiciA+Jmd0OyBkb24ndCZuYnNwO3NlZSZuYnNwO2hvdyZu
+YnNwO2l0J3MmbmJzcDt3b3J0aCZuYnNwO3dvcnJ5aW5nJm5ic3A7YWJvdXQuJm5ic3A7TGlrZWx5
+Jm5ic3A7cG9uZSZuYnNwO3dvdWxkJm5ic3A7YWxzbyZuYnNwO2hhdmUmbmJzcDthPGJyID4mZ3Q7
+IHdvcnN0Jm5ic3A7Y2FzZSZuYnNwO3RvJm5ic3A7ZXhlcmNpc2UmbmJzcDsoaXQmbmJzcDt1c2Vz
+Jm5ic3A7aGFzaF82NCZuYnNwO3NvJm5ic3A7aXQmbmJzcDt2ZXJ5Jm5ic3A7bGlrZWx5Jm5ic3A7
+YWxzbyZuYnNwO2hhcyZuYnNwO2E8YnIgPiZndDsgd29yc3QmbmJzcDtjYXNlJm5ic3A7dG8mbmJz
+cDtleGVyY2lzZSkuJm5ic3A7Rm9yJm5ic3A7S1NNJm5ic3A7dGhlcmUmbmJzcDthcmUmbmJzcDth
+bHJlYWR5Jm5ic3A7cGxhbnMmbmJzcDt0byZuYnNwO2FsdGVyJm5ic3A7dGhlPGJyID4mZ3Q7IG1l
+bWNtcCZuYnNwO3NvJm5ic3A7aXQncyZuYnNwO21vcmUmbmJzcDtzY2F0dGVyZWQmbmJzcDtyYW5k
+b21seS48YnIgPjxiciA+Jmd0OyBNYWtpbmcmbmJzcDtLU00mbmJzcDttdWx0aXRocmVhZGVkJm5i
+c3A7d2l0aCZuYnNwO29uZSZuYnNwO2tzbWQmbmJzcDt0aHJlYWQmbmJzcDtwZXImbmJzcDtDUFUm
+bmJzcDtpcyZuYnNwO2VudGlyZWx5PGJyID4mZ3Q7IHBvc3NpYmxlLCZuYnNwO3RoZSZuYnNwO3Ji
+dHJlZSZuYnNwO3JlYmFsYW5jZSZuYnNwO3dpbGwmbmJzcDtyZXF1aXJlJm5ic3A7c29tZSZuYnNw
+O2xvY2tpbmcmbmJzcDtvZiZuYnNwO2NvdXJzZSZuYnNwO2J1dDxiciA+Jmd0OyB0aGUmbmJzcDto
+aWdoJm5ic3A7Q1BVJm5ic3A7dXNhZ2UmbmJzcDtwYXJ0cyZuYnNwO29mJm5ic3A7S1NNJm5ic3A7
+YXJlJm5ic3A7ZnVsbHkmbmJzcDtzY2FsYWJsZSZuYnNwOyhtbSZuYnNwO3dhbGssJm5ic3A7Y2hl
+Y2tzdW0sPGJyID4mZ3Q7IG1lbWNvbXBhcmUsJm5ic3A7d3JpdGVwcm90ZWN0aW9uLCZuYnNwO3Bh
+Z2V0YWJsZSZuYnNwO3JlcGxhY2VtZW50KS4mbmJzcDtXZSZuYnNwO2RpZG4ndDxiciA+Jmd0OyBt
+dWx0aXRocmVhZCZuYnNwO2tzbWQmbmJzcDt0byZuYnNwO2tlZXAmbmJzcDtpdCZuYnNwO3NpbXBs
+ZXImbmJzcDtwcmltYXJpbHkmbmJzcDtidXQmbmJzcDthbHNvJm5ic3A7YmVjYXVzZSZuYnNwO25v
+Ym9keTxiciA+Jmd0OyBhc2tlZCZuYnNwO2ZvciZuYnNwO3RoaXMmbmJzcDtmZWF0dXJlJm5ic3A7
+eWV0LiZuYnNwO1doeSZuYnNwO2RpZG4ndCZuYnNwO3lvdSZuYnNwO3NpbXBseSZuYnNwO211bHRp
+dGhyZWFkJm5ic3A7S1NNPGJyID4mZ3Q7IHdoaWNoJm5ic3A7cHJvdmlkZXMmbmJzcDthJm5ic3A7
+c29saWQmbmJzcDtiYXNlJm5ic3A7YWxzbyZuYnNwO3N1cHBvcnRpbmcmbmJzcDtLU01zY2FsZT88
+YnIgPiZndDsmbmJzcDs8YnIgPiZndDsgQXJlJm5ic3A7eW91Jm5ic3A7dXNpbmcmbmJzcDthbiZu
+YnNwO2hhc2gmbmJzcDt0byZuYnNwO2ZpbmQmbmJzcDtlcXVhbGl0eT8mbmJzcDtUaGF0Jm5ic3A7
+Y2FuJ3QmbmJzcDtiZSZuYnNwO2RvbmUmbmJzcDtjdXJyZW50bHk8YnIgPiZndDsgdG8gYXZvaWQm
+bmJzcDtpbmZyaW5naW5nLiZuYnNwO0kmbmJzcDtzZWUmbmJzcDt2YXJpb3VzJm5ic3A7bWVtY21w
+Jm5ic3A7aW4mbmJzcDt5b3VyJm5ic3A7cGF0Y2gmbmJzcDtidXQmbmJzcDthbGwmbmJzcDthcm91
+bmQ8YnIgPiZndDsgI2lmJm5ic3A7MC4uLiZuYnNwO3NvJm5ic3A7d2hhdCZuYnNwO2FyZSZuYnNw
+O3lvdSZuYnNwO3VzaW5nJm5ic3A7Zm9yJm5ic3A7ZmluZGluZyZuYnNwO3BhZ2UmbmJzcDtlcXVh
+bGl0eT88YnIgPiZndDsmbmJzcDs8YnIgPiZndDsgSG93Jm5ic3A7ZG9lcyZuYnNwO1BhZ2VPTkUm
+bmJzcDtkZWFsJm5ic3A7d2l0aCZuYnNwOzFtaWxsaW9uJm5ic3A7b2YmbmJzcDtlcXVhbCZuYnNw
+O3ZpcnR1YWwmbmJzcDtwYWdlcz8mbmJzcDtEb2VzJm5ic3A7aXQ8YnIgPiZndDsgbG9ja3VwJm5i
+c3A7aW4mbmJzcDtybWFwPyZuYnNwO0tTTSZuYnNwO2luJm5ic3A7djQuMTMmbmJzcDtjYW4mbmJz
+cDtoYW5kbGUmbmJzcDtpbmZpbml0ZSZuYnNwO2Ftb3VudCZuYnNwO29mJm5ic3A7ZXF1YWw8YnIg
+PiZndDsgdmlydHVhbCZuYnNwO3BhZ2UmbmJzcDtjb250ZW50Jm5ic3A7dG8mbmJzcDtkZWR1cCZu
+YnNwO3doaWxlJm5ic3A7Z2VuZXJhdGluZyZuYnNwO08oMSkmbmJzcDtjb21wbGV4aXR5Jm5ic3A7
+aW4mbmJzcDtybWFwPGJyID4mZ3Q7IHdhbGtzLiZuYnNwO1dpdGhvdXQmbmJzcDt0aGlzLCZuYnNw
+O0tTTSZuYnNwO3dhcyZuYnNwO3VudXNhYmxlJm5ic3A7Zm9yJm5ic3A7ZW50ZXJwcmlzZSZuYnNw
+O3VzZSZuYnNwO2FuZCZuYnNwO2hhZCZuYnNwO3RvJm5ic3A7YmU8YnIgPiZndDsgZGlzYWJsZWQs
+Jm5ic3A7YmVjYXVzZSZuYnNwO3RoZSZuYnNwO2tlcm5lbCZuYnNwO3dvdWxkJm5ic3A7bG9ja3Vw
+Jm5ic3A7Zm9yJm5ic3A7c2V2ZXJhbCZuYnNwO3NlY29uZHMmbmJzcDthZnRlcjxiciA+Jmd0OyBk
+ZWR1cGxpY2F0aW5nJm5ic3A7bWlsbGlvbiZuYnNwO29mJm5ic3A7dmlydHVhbCZuYnNwO3BhZ2Vz
+Jm5ic3A7d2l0aCZuYnNwO3NhbWUmbmJzcDtjb250ZW50Jm5ic3A7KGkuZS4mbmJzcDtkdXJpbmc8
+YnIgPiZndDsgTlVNQSZuYnNwO2JhbGFuY2luZyZuYnNwO2luZHVjZWQmbmJzcDtwYWdlJm5ic3A7
+bWlncmF0aW9ucyZuYnNwO29yJm5ic3A7ZHVyaW5nJm5ic3A7Y29tcGFjdGlvbiZuYnNwO2luZHVj
+ZWQ8YnIgPiZndDsgcGFnZSZuYnNwO21pZ3JhdGlvbnMsJm5ic3A7bGV0Jm5ic3A7YWxvbmUmbmJz
+cDtzd2FwcGluZyZuYnNwO3RoZSZuYnNwO21pbGxpb24tdGltZXMmbmJzcDtkZWR1cGxpY2F0ZWQm
+bmJzcDtLU008YnIgPiZndDtwYWdlKS48YnIgPjxiciA+Jmd0OyBLU00mbmJzcDtpcyZuYnNwO3Vz
+dWFsbHkmbmJzcDthbiZuYnNwO2FjdGl2aXR5Jm5ic3A7cnVuJm5ic3A7aW4mbmJzcDt0aGUmbmJz
+cDtiYWNrZ3JvdW5kJm5ic3A7c28mbmJzcDtub2JvZHkmbmJzcDthc2tlZCZuYnNwO3RvPGJyID4m
+Z3Q7IGRlZGljYXRlJm5ic3A7bW9yZSZuYnNwO3RoYW4mbmJzcDtvbmUmbmJzcDtjb3JlJm5ic3A7
+dG8mbmJzcDtpdCwmbmJzcDthbmQmbmJzcDt3aGF0J3MmbmJzcDtyZWxldmFudCZuYnNwO2lzJm5i
+c3A7dG8mbmJzcDtkbyZuYnNwO3RoZTxiciA+Jmd0OyBkZWR1cCZuYnNwO2luJm5ic3A7dGhlJm5i
+c3A7bW9zdCZuYnNwO2VmZmljaWVudCZuYnNwO3dheSZuYnNwO3Bvc3NpYmxlJm5ic3A7KGkuZS4m
+bmJzcDtsZXNzJm5ic3A7Q1BVJm5ic3A7dXNlZCZuYnNwO2FuZCZuYnNwO25vPGJyID4mZ3Q7IGlu
+dGVyZmVyZW5jZSZuYnNwO3RvJm5ic3A7dGhlJm5ic3A7cmVzdCZuYnNwO29mJm5ic3A7dGhlJm5i
+c3A7c3lzdGVtJm5ic3A7d2hhdHNvZXZlciksJm5ic3A7bm90Jm5ic3A7aG93Jm5ic3A7bG9uZyZu
+YnNwO2l0PGJyID4mZ3Q7IHRha2VzJm5ic3A7aWYmbmJzcDt5b3UmbmJzcDtydW4mbmJzcDtpdCZu
+YnNwO29uJm5ic3A7YWxsJm5ic3A7YXZhaWxhYmxlJm5ic3A7Q1BVcyZuYnNwO2xvYWRpbmcmbmJz
+cDsxMDAlJm5ic3A7b2YmbmJzcDt0aGUmbmJzcDtzeXN0ZW08YnIgPiZndDsgd2l0aCZuYnNwO2l0
+LjxiciA+Jmd0OzxiciA+Jmd0OyBTbyZuYnNwO2NvbXBhcmluZyZuYnNwO2EmbmJzcDtkZWR1cCZu
+YnNwO2FsZ29yaXRobSZuYnNwO3J1bm5pbmcmbmJzcDtjb25jdXJyZW50bHkmbmJzcDtvbiZuYnNw
+OzEyJm5ic3A7dGhyZWFkcyZuYnNwO3ZzPGJyID4mZ3Q7IGFub3RoZXImbmJzcDtkZWR1cCZuYnNw
+O2FsZ29yaXRobSZuYnNwO3J1bm5pbmcmbmJzcDtpbiZuYnNwOzEmbmJzcDt0aHJlYWQmbmJzcDtv
+bmx5LCZuYnNwO2lzJm5ic3A7YW4mbmJzcDthcHBsZSZuYnNwO3RvPGJyID4mZ3Q7IG9yYW5nZXMm
+bmJzcDtjb21wYXJpc29uLjxiciA+Jmd0OyZuYnNwOzxiciA+Jmd0OyBDb21wYXJpbmcmbmJzcDtL
+U00mbmJzcDsod2l0aCZuYnNwO2NyYzMyJm5ic3A7YXMmbmJzcDtja3N1bSwmbmJzcDt0byZuYnNw
+O2FwcGx5Jm5ic3A7b24mbmJzcDt0b3AmbmJzcDtvZiZuYnNwO3Vwc3RyZWFtKSZuYnNwO3ZzPGJy
+ID4mZ3Q7IFBhZ2VPbmUmbmJzcDtyZXN0cmljdGVkJm5ic3A7dG8mbmJzcDthJm5ic3A7c2luZ2xl
+Jm5ic3A7dGhyZWFkJm5ic3A7KGFsc28mbmJzcDttb3JlJm5ic3A7cmVhbGlzdGljJm5ic3A7cHJv
+ZHVjdGlvbjxiciA+Jmd0OyBlbnZpcm9ubWVudCksJm5ic3A7d2lsbCZuYnNwO2JlJm5ic3A7YSZu
+YnNwO21vcmUmbmJzcDtpbnRlcmVzdGluZyZuYnNwO2FuZCZuYnNwO21lYW5pbmdmdWwmbmJzcDtj
+b21wYXJpc29uLjxiciA+Jmd0OyZuYnNwOzxiciA+Jmd0OyBJdCZuYnNwO2xvb2tzJm5ic3A7bGlr
+ZSZuYnNwO3JtYXAmbmJzcDtpcyZuYnNwO3N1cHBvcnRlZCZuYnNwO2J5Jm5ic3A7cG9uZSZuYnNw
+O2J1dCZuYnNwO3RoZSZuYnNwO3BhdGNoJm5ic3A7aGFzJm5ic3A7YSZuYnNwO211bHRpdHVkZTxi
+ciA+Jmd0OyBvZiZuYnNwOyNpZiZuYnNwOzAmbmJzcDthbmQmbmJzcDthcm91bmQmbmJzcDthbGwm
+bmJzcDtybWFwJm5ic3A7Y29kZSZuYnNwO3NvJm5ic3A7aXQncyZuYnNwO25vdCZuYnNwO3NvJm5i
+c3A7Y2xlYXIuJm5ic3A7Um1hcCZuYnNwO3dhbGtzPGJyID4mZ3Q7IGhhdmUmbmJzcDt0byZuYnNw
+O3dvcmsmbmJzcDtmbGF3bGVzc3kmbmJzcDtvbiZuYnNwO2FsbCZuYnNwO2RlZHVwbGljYXRlZCZu
+YnNwO3BhZ2VzLCZuYnNwO29yJm5ic3A7cG9uZSZuYnNwO3dvdWxkJm5ic3A7dGhlbjxiciA+Jmd0
+OyBicmVhayZuYnNwO25vdCZuYnNwO2p1c3QmbmJzcDtzd2FwcGluZyZuYnNwO2J1dCZuYnNwO2Fs
+c28mbmJzcDtOVU1BJm5ic3A7QmFsYW5jaW5nJm5ic3A7Y29tcGFjdGlvbiZuYnNwO2FuZCZuYnNw
+O2luJm5ic3A7dHVybjxiciA+Jmd0OyBUSFAmbmJzcDt1dGlsaXphdGlvbiZuYnNwO2FuZCZuYnNw
+O1RIUCZuYnNwO3V0aWxpemF0aW9uJm5ic3A7aXMmbmJzcDtjcml0aWNhbCZuYnNwO2ZvciZuYnNw
+O3ZpcnR1YWwmbmJzcDttYWNoaW5lczxiciA+Jmd0OyAoTUFEVl9IVUdFUEFHRSZuYnNwO2lzJm5i
+c3A7YWx3YXlzJm5ic3A7c2V0Jm5ic3A7YnkmbmJzcDtRRU1VLCZuYnNwO3RvJm5ic3A7cnVuJm5i
+c3A7ZGlyZWN0Jm5ic3A7Y29tcGFjdGluJm5ic3A7YWxzbyZuYnNwO3dpdGg8YnIgPiZndDsgZGVm
+cmFnPW1hZHZpc2UmbmJzcDtvciZuYnNwO2RlZmVyK21hZHZpc2UpLjxiciA+PC9kaXY+PGRpdiAg
+c3R5bGU9ImNsZWFyOmJvdGg7Ij48YnIgPjwvZGl2PjxkaXYgIHN0eWxlPSJjbGVhcjpib3RoOyI+
+PGJyID48L2Rpdj48ZGl2ICBzdHlsZT0iY2xlYXI6Ym90aDsiPjxzcGFuICBzdHlsZT0iY29sb3I6
+IzAwMDAwMDtmb250LWZhbWlseTpUYWhvbWEsQXJpYWw7Zm9udC1zaXplOjE0LjBweDtmb250LXN0
+eWxlOm5vcm1hbDtmb250LXZhcmlhbnQtbGlnYXR1cmVzOm5vcm1hbDtmb250LXZhcmlhbnQtY2Fw
+czpub3JtYWw7Zm9udC13ZWlnaHQ6bm9ybWFsO3RleHQtYWxpZ246c3RhcnQ7dGV4dC1pbmRlbnQ6
+LjBweDt0ZXh0LXRyYW5zZm9ybTpub25lO3dpZG93czoyO2JhY2tncm91bmQtY29sb3I6I2ZmZmZm
+ZjtmbG9hdDpub25lO2Rpc3BsYXk6aW5saW5lOyI+UGFnZU9ORSZuYnNwO2lzJm5ic3A7YmFzZWQm
+bmJzcDtvbiZuYnNwO2EmbmJzcDtuZXcmbmJzcDt0cmVlJm5ic3A7YWxnb3JpdGhtJm5ic3A7b3Ro
+ZXImbmJzcDt0aGFuJm5ic3A7S1NN4oCZcyZuYnNwO3JlZC1ibGFjayZuYnNwO3RyZWUuJm5ic3A7
+VGhlJm5ic3A7b3JpZ2luYWwmbmJzcDtpZGVhJm5ic3A7aXMmbmJzcDt0aGF0Jm5ic3A7d2UmbmJz
+cDtjYW4mbmJzcDt1c2UmbmJzcDthJm5ic3A7bG9ja2xlc3MmbmJzcDt0cmVlJm5ic3A7dG8mbmJz
+cDtlbmhhbmNlJm5ic3A7bXVsdGl0aHJlYWQmbmJzcDtwZXJmb3JtYW5jZS4mbmJzcDtOb3QmbmJz
+cDthbGwmbmJzcDt0cmVlJm5ic3A7YWxnb3JpdGhtcyZuYnNwO2FyZSZuYnNwO3N1aXRhYmxlJm5i
+c3A7Zm9yJm5ic3A7dGhpcyZuYnNwO3B1cnBvc2UuJm5ic3A7V2UmbmJzcDtoYXZlJm5ic3A7bm90
+Jm5ic3A7ZmluZCZuYnNwO2EmbmJzcDt3YXkmbmJzcDt0byZuYnNwO2RvJm5ic3A7aXQmbmJzcDtm
+b3ImbmJzcDtyZWQtYmxhY2smbmJzcDt0cmVlLiZuYnNwO1BhZ2VPTkUmbmJzcDtpcyZuYnNwO2Jh
+c2VkJm5ic3A7b24mbmJzcDthJm5ic3A7bmV3Jm5ic3A7dHJlZS4mbmJzcDtUaGUmbmJzcDtjbG9z
+ZXN0Jm5ic3A7dG9wb2xvZ3kmbmJzcDt3ZSZuYnNwO2ZvdW5kJm5ic3A7aXMmbmJzcDtQYXRyaWNp
+YSZuYnNwO3RyZWUsJm5ic3A7YnV0Jm5ic3A7YWxzbyZuYnNwO2RpZmZlcmVudC4mbmJzcDtXZSZu
+YnNwO25hbWUmbmJzcDtpdCZuYnNwOyZuYnNwO1NEJm5ic3A7dHJlZSZuYnNwO2N1cnJlbnRseS48
+L3NwYW4+PGJyICBzdHlsZT0ib3V0bGluZTpub25lIG1lZGl1bTtjb2xvcjojMDAwMDAwO2ZvbnQt
+ZmFtaWx5OlRhaG9tYSxBcmlhbDtmb250LXNpemU6MTQuMHB4O2ZvbnQtc3R5bGU6bm9ybWFsO2Zv
+bnQtdmFyaWFudC1saWdhdHVyZXM6bm9ybWFsO2ZvbnQtdmFyaWFudC1jYXBzOm5vcm1hbDtmb250
+LXdlaWdodDpub3JtYWw7bGV0dGVyLXNwYWNpbmc6bm9ybWFsO29ycGhhbnM6Mjt0ZXh0LWFsaWdu
+OnN0YXJ0O3RleHQtaW5kZW50Oi4wcHg7dGV4dC10cmFuc2Zvcm06bm9uZTt3aGl0ZS1zcGFjZTpu
+b3JtYWw7d2lkb3dzOjI7d29yZC1zcGFjaW5nOi4wcHg7d2Via2l0LXRleHQtc3Ryb2tlLXdpZHRo
+Oi4wcHg7YmFja2dyb3VuZC1jb2xvcjojZmZmZmZmOyI+PGJyICBzdHlsZT0ib3V0bGluZTpub25l
+IG1lZGl1bTtjb2xvcjojMDAwMDAwO2ZvbnQtZmFtaWx5OlRhaG9tYSxBcmlhbDtmb250LXNpemU6
+MTQuMHB4O2ZvbnQtc3R5bGU6bm9ybWFsO2ZvbnQtdmFyaWFudC1saWdhdHVyZXM6bm9ybWFsO2Zv
+bnQtdmFyaWFudC1jYXBzOm5vcm1hbDtmb250LXdlaWdodDpub3JtYWw7bGV0dGVyLXNwYWNpbmc6
+bm9ybWFsO29ycGhhbnM6Mjt0ZXh0LWFsaWduOnN0YXJ0O3RleHQtaW5kZW50Oi4wcHg7dGV4dC10
+cmFuc2Zvcm06bm9uZTt3aGl0ZS1zcGFjZTpub3JtYWw7d2lkb3dzOjI7d29yZC1zcGFjaW5nOi4w
+cHg7d2Via2l0LXRleHQtc3Ryb2tlLXdpZHRoOi4wcHg7YmFja2dyb3VuZC1jb2xvcjojZmZmZmZm
+OyI+PHNwYW4gIHN0eWxlPSJjb2xvcjojMDAwMDAwO2ZvbnQtZmFtaWx5OlRhaG9tYSxBcmlhbDtm
+b250LXNpemU6MTQuMHB4O2ZvbnQtc3R5bGU6bm9ybWFsO2ZvbnQtdmFyaWFudC1saWdhdHVyZXM6
+bm9ybWFsO2ZvbnQtdmFyaWFudC1jYXBzOm5vcm1hbDtmb250LXdlaWdodDpub3JtYWw7dGV4dC1h
+bGlnbjpzdGFydDt0ZXh0LWluZGVudDouMHB4O3RleHQtdHJhbnNmb3JtOm5vbmU7d2lkb3dzOjI7
+YmFja2dyb3VuZC1jb2xvcjojZmZmZmZmO2Zsb2F0Om5vbmU7ZGlzcGxheTppbmxpbmU7Ij5UaGUm
+bmJzcDtvcmlnaW5hbCZuYnNwO2VuZ2luZSZuYnNwO25hbWUmbmJzcDtpcyZuYnNwO09ORSZuYnNw
+OyhPYmplY3QmbmJzcDtOb24tZHVwbGljYXRlJm5ic3A7RW5naW5lKSwmbmJzcDtpdCZuYnNwO2lz
+Jm5ic3A7ZGVzaWduZWQmbmJzcDtmb3ImbmJzcDtnZW5lcmFsJm5ic3A7cHVycG9zZSZuYnNwO29i
+amVjdCZuYnNwO2RlZHVwbGljYXRpb24uJm5ic3A7V2UmbmJzcDsmbmJzcDthcHBsaWVkJm5ic3A7
+aXQmbmJzcDt0byZuYnNwO2tlcm5lbCZuYnNwO3BhZ2UmbmJzcDtmaWVsZCZuYnNwOyhQYWdlT05F
+KSZuYnNwO2ZpcnN0Jm5ic3A7YmVjYXVzZSZuYnNwO2hlcmUmbmJzcDt3ZSZuYnNwO2NhbiZuYnNw
+O2ZpbmQmbmJzcDtvdXQmbmJzcDtob3cmbmJzcDtpdCZuYnNwO2JlaGF2ZXMmbmJzcDtpbiZuYnNw
+O2hpZ2gmbmJzcDtzcGVlZCZuYnNwO2Vudmlyb25tZW50LiBQYWdlT25lJm5ic3A7aXMmbmJzcDtu
+b3QmbmJzcDt0byZuYnNwO2ltcHJvdmUmbmJzcDt0aGUmbmJzcDtrc20sJm5ic3A7d2hpY2gmbmJz
+cDtpcyZuYnNwO3R3byZuYnNwO2NvbXBsZXRlbHkmbmJzcDtkaWZmZXJlbnQmbmJzcDt0aGluZ3Mu
+PC9zcGFuPjxiciA+PC9kaXY+PGRpdiAgc3R5bGU9ImNsZWFyOmJvdGg7Ij48c3BhbiAgc3R5bGU9
+ImNvbG9yOiMwMDAwMDA7Zm9udC1mYW1pbHk6VGFob21hLEFyaWFsLFNUSGVpdGksU2ltU3VuO2Zv
+bnQtc2l6ZToxNC4wcHg7Zm9udC1zdHlsZTpub3JtYWw7Zm9udC12YXJpYW50LWxpZ2F0dXJlczpu
+b3JtYWw7Zm9udC12YXJpYW50LWNhcHM6bm9ybWFsO2ZvbnQtd2VpZ2h0Om5vcm1hbDt0ZXh0LWFs
+aWduOnN0YXJ0O3RleHQtaW5kZW50Oi4wcHg7dGV4dC10cmFuc2Zvcm06bm9uZTt3aWRvd3M6Mjti
+YWNrZ3JvdW5kLWNvbG9yOiNmZmZmZmY7ZmxvYXQ6bm9uZTtkaXNwbGF5OmlubGluZTsiPjxiciA+
+PC9zcGFuPjwvZGl2PjxkaXYgIHN0eWxlPSJjbGVhcjpib3RoOyI+PHNwYW4gIHN0eWxlPSJjb2xv
+cjojMDAwMDAwO2ZvbnQtZmFtaWx5OlRhaG9tYSxBcmlhbCxTVEhlaXRpLFNpbVN1bjtmb250LXNp
+emU6MTQuMHB4O2ZvbnQtc3R5bGU6bm9ybWFsO2ZvbnQtdmFyaWFudC1saWdhdHVyZXM6bm9ybWFs
+O2ZvbnQtdmFyaWFudC1jYXBzOm5vcm1hbDtmb250LXdlaWdodDpub3JtYWw7dGV4dC1hbGlnbjpz
+dGFydDt0ZXh0LWluZGVudDouMHB4O3RleHQtdHJhbnNmb3JtOm5vbmU7d2lkb3dzOjI7YmFja2dy
+b3VuZC1jb2xvcjojZmZmZmZmO2Zsb2F0Om5vbmU7ZGlzcGxheTppbmxpbmU7Ij5XZSBkbyBub3Qg
+dXNlIGFuJm5ic3A7aGFzaCZuYnNwO3RvJm5ic3A7ZmluZCZuYnNwO2VxdWFsaXR5LiZuYnNwO0Jl
+Y2F1c2UgU0QgJm5ic3A7dHJlZSZuYnNwO25lZWQmbmJzcDt0byZuYnNwO2NvbXBhcmUmbmJzcDti
+aXRzLCZuYnNwO3NvJm5ic3A7d2UmbmJzcDtkbyZuYnNwO3RoZSZuYnNwO2ltcGxlbWVudGF0aW9u
+Jm5ic3A7b2YmbmJzcDt0aGUmbmJzcDtjb21wYXJpc29uJm5ic3A7ZnVuY3Rpb24sJm5ic3A7bm9y
+ICZuYnNwO3VzaW5nIG1lbWNtcC48L3NwYW4+PC9kaXY+PGRpdiAgc3R5bGU9ImNsZWFyOmJvdGg7
+Ij48c3BhbiAgc3R5bGU9ImNvbG9yOiMwMDAwMDA7Zm9udC1mYW1pbHk6VGFob21hLEFyaWFsLFNU
+SGVpdGksU2ltU3VuO2ZvbnQtc2l6ZToxNC4wcHg7Zm9udC1zdHlsZTpub3JtYWw7Zm9udC12YXJp
+YW50LWxpZ2F0dXJlczpub3JtYWw7Zm9udC12YXJpYW50LWNhcHM6bm9ybWFsO2ZvbnQtd2VpZ2h0
+Om5vcm1hbDt0ZXh0LWFsaWduOnN0YXJ0O3RleHQtaW5kZW50Oi4wcHg7dGV4dC10cmFuc2Zvcm06
+bm9uZTt3aWRvd3M6MjtiYWNrZ3JvdW5kLWNvbG9yOiNmZmZmZmY7ZmxvYXQ6bm9uZTtkaXNwbGF5
+OmlubGluZTsiPjxiciA+PC9zcGFuPjwvZGl2PjxkaXYgIHN0eWxlPSJjbGVhcjpib3RoOyI+PHNw
+YW4gIHN0eWxlPSJjb2xvcjojMDAwMDAwO2ZvbnQtZmFtaWx5OlRhaG9tYSxBcmlhbCxTVEhlaXRp
+LFNpbVN1bjtmb250LXNpemU6MTQuMHB4O2ZvbnQtc3R5bGU6bm9ybWFsO2ZvbnQtdmFyaWFudC1s
+aWdhdHVyZXM6bm9ybWFsO2ZvbnQtdmFyaWFudC1jYXBzOm5vcm1hbDtmb250LXdlaWdodDpub3Jt
+YWw7dGV4dC1hbGlnbjpzdGFydDt0ZXh0LWluZGVudDouMHB4O3RleHQtdHJhbnNmb3JtOm5vbmU7
+d2lkb3dzOjI7YmFja2dyb3VuZC1jb2xvcjojZmZmZmZmO2Zsb2F0Om5vbmU7ZGlzcGxheTppbmxp
+bmU7Ij5QYWdlT25lIGhhcyAmbmJzcDtubyZuYnNwO2FkZGl0aW9uYWwmbmJzcDttYW5hZ2VtZW50
+Jm5ic3A7c3RydWN0dXJlLCBleGNlcHQgU0QgdHJlZSBzdHJ1Y3R1cmUgLCBwYWdlJm5ic3A7c3Rh
+dHVzJm5ic3A7Yml0bWFwLCBsb2NrbGVzcyBxdWUsICZuYnNwO3NvIHdlIHVzZSBybWFwJm5ic3A7
+d2Fsa3MmbmJzcDt3aGVuJm5ic3A7bmVjZXNzYXJ5Jm5ic3A7dG8mbmJzcDtvYnRhaW4mbmJzcDty
+ZXZlcnNlJm5ic3A7bWFwcGluZyh3cmlyZS1wcm90ZWN0ICxyZXBhbGNlIHBhZ2UgdGFibGUpICwg
+Jm5ic3A7PC9zcGFuPjwvZGl2PjxkaXYgIHN0eWxlPSJjbGVhcjpib3RoOyI+PHNwYW4gIHN0eWxl
+PSJjb2xvcjojMDAwMDAwO2ZvbnQtZmFtaWx5OlRhaG9tYSxBcmlhbCxTVEhlaXRpLFNpbVN1bjtm
+b250LXNpemU6MTQuMHB4O2ZvbnQtc3R5bGU6bm9ybWFsO2ZvbnQtdmFyaWFudC1saWdhdHVyZXM6
+bm9ybWFsO2ZvbnQtdmFyaWFudC1jYXBzOm5vcm1hbDtmb250LXdlaWdodDpub3JtYWw7dGV4dC1h
+bGlnbjpzdGFydDt0ZXh0LWluZGVudDouMHB4O3RleHQtdHJhbnNmb3JtOm5vbmU7d2lkb3dzOjI7
+YmFja2dyb3VuZC1jb2xvcjojZmZmZmZmO2Zsb2F0Om5vbmU7ZGlzcGxheTppbmxpbmU7Ij5hbmQm
+bmJzcDtub3cgY3VycmVudCB2ZXJzaW9uICwgdGhlIHN3YXAgYW5kJm5ic3A7bWlncmF0aW9uJm5i
+c3A7cHJvY2VzcyZuYnNwO2lzJm5ic3A7bm90Jm5ic3A7eWV0Jm5ic3A7Y29tcGxldGVseS48L3Nw
+YW4+PC9kaXY+PGRpdiAgc3R5bGU9ImNsZWFyOmJvdGg7Ij48c3BhbiAgc3R5bGU9ImNvbG9yOiMw
+MDAwMDA7Zm9udC1mYW1pbHk6VGFob21hLEFyaWFsLFNUSGVpdGksU2ltU3VuO2ZvbnQtc2l6ZTox
+NC4wcHg7Zm9udC1zdHlsZTpub3JtYWw7Zm9udC12YXJpYW50LWxpZ2F0dXJlczpub3JtYWw7Zm9u
+dC12YXJpYW50LWNhcHM6bm9ybWFsO2ZvbnQtd2VpZ2h0Om5vcm1hbDt0ZXh0LWFsaWduOnN0YXJ0
+O3RleHQtaW5kZW50Oi4wcHg7dGV4dC10cmFuc2Zvcm06bm9uZTt3aWRvd3M6MjtiYWNrZ3JvdW5k
+LWNvbG9yOiNmZmZmZmY7ZmxvYXQ6bm9uZTtkaXNwbGF5OmlubGluZTsiPjxiciA+PC9zcGFuPjwv
+ZGl2PjxkaXYgIHN0eWxlPSJjbGVhcjpib3RoOyI+PHNwYW4gIHN0eWxlPSJjb2xvcjojMDAwMDAw
+O2ZvbnQtZmFtaWx5OlRhaG9tYSxBcmlhbCxTVEhlaXRpLFNpbVN1bjtmb250LXNpemU6MTQuMHB4
+O2ZvbnQtc3R5bGU6bm9ybWFsO2ZvbnQtdmFyaWFudC1saWdhdHVyZXM6bm9ybWFsO2ZvbnQtdmFy
+aWFudC1jYXBzOm5vcm1hbDtmb250LXdlaWdodDpub3JtYWw7dGV4dC1hbGlnbjpzdGFydDt0ZXh0
+LWluZGVudDouMHB4O3RleHQtdHJhbnNmb3JtOm5vbmU7d2lkb3dzOjI7YmFja2dyb3VuZC1jb2xv
+cjojZmZmZmZmO2Zsb2F0Om5vbmU7ZGlzcGxheTppbmxpbmU7Ij5QYWdlT25lIFNpbmdsZS10aHJl
+YWRlZCZuYnNwO3BlcmZvcm1hbmNlJm5ic3A7YW5kJm5ic3A7eHhoYXNoJm5ic3A7dGVzdCZuYnNw
+O3Jlc3VsdHMsJm5ic3A7d2UmbmJzcDt3aWxsJm5ic3A7YmUmbmJzcDtwcm92aWRlZCAmbmJzcDth
+ZnRlciZuYnNwO3RoZSZuYnNwO2VuZCZuYnNwO29mJm5ic3A7dGhlJm5ic3A7aG9saWRheXMgKDEw
+LjEtMTAuOCkuPC9zcGFuPjwvZGl2PjxkaXYgIHN0eWxlPSJjbGVhcjpib3RoOyI+PGJyICBzdHls
+ZT0iY29sb3I6IzAwMDAwMDtmb250LWZhbWlseTpUYWhvbWEsQXJpYWwsU1RIZWl0aSxTaW1TdW47
+Zm9udC1zaXplOjE0LjBweDtmb250LXN0eWxlOm5vcm1hbDtmb250LXZhcmlhbnQtbGlnYXR1cmVz
+Om5vcm1hbDtmb250LXZhcmlhbnQtY2Fwczpub3JtYWw7Zm9udC13ZWlnaHQ6bm9ybWFsO2xldHRl
+ci1zcGFjaW5nOm5vcm1hbDtvcnBoYW5zOjI7dGV4dC1hbGlnbjpzdGFydDt0ZXh0LWluZGVudDou
+MHB4O3RleHQtdHJhbnNmb3JtOm5vbmU7d2hpdGUtc3BhY2U6bm9ybWFsO3dpZG93czoyO3dvcmQt
+c3BhY2luZzouMHB4O3dlYmtpdC10ZXh0LXN0cm9rZS13aWR0aDouMHB4O2JhY2tncm91bmQtY29s
+b3I6I2ZmZmZmZjsiPjxiciA+PC9kaXY+PGRpdiAgc3R5bGU9ImNsZWFyOmJvdGg7Ij48YnIgPjwv
+ZGl2PjxkaXYgIHN0eWxlPSJjbGVhcjpib3RoOyI+PGJyID48L2Rpdj48ZGl2ICBzdHlsZT0iY2xl
+YXI6Ym90aDsiPjxiciA+PGJyID48L2Rpdj48ZGl2ID48YnIgPjwvZGl2PjwvZGl2Pg==
+------=ALIBOUNDARY_34376_4ff68940_59ce174d_35147--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
