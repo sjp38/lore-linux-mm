@@ -1,79 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CE876B0038
-	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 00:44:59 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id u136so794324pgc.5
-        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 21:44:59 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id l7si2635011pgs.418.2017.09.28.21.44.57
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DC796B025F
+	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 02:48:58 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id h9so263197oia.11
+        for <linux-mm@kvack.org>; Thu, 28 Sep 2017 23:48:58 -0700 (PDT)
+Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id r189si1730912oif.85.2017.09.28.23.48.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 28 Sep 2017 21:44:58 -0700 (PDT)
-Subject: Re: mm, virtio: possible OOM lockup at virtballoon_oom_notify()
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201709111927.IDD00574.tFVJHLOSOOMQFF@I-love.SAKURA.ne.jp>
-	<20170929065654-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20170929065654-mutt-send-email-mst@kernel.org>
-Message-Id: <201709291344.FID60965.VHtMQFFJFSLOOO@I-love.SAKURA.ne.jp>
-Date: Fri, 29 Sep 2017 13:44:52 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Thu, 28 Sep 2017 23:48:57 -0700 (PDT)
+Subject: Re: [PATCH 1/1] mm: only dispaly online cpus of the numa node
+References: <1497962608-12756-1-git-send-email-thunder.leizhen@huawei.com>
+ <20170824083225.GA5943@dhcp22.suse.cz> <20170825173433.GB26878@arm.com>
+ <20170828131328.GM17097@dhcp22.suse.cz>
+From: "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>
+Message-ID: <59CDEC59.8040102@huawei.com>
+Date: Fri, 29 Sep 2017 14:46:49 +0800
+MIME-Version: 1.0
+In-Reply-To: <20170828131328.GM17097@dhcp22.suse.cz>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mst@redhat.com
-Cc: jasowang@redhat.com, virtualization@lists.linux-foundation.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>, Will Deacon <will.deacon@arm.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-api <linux-api@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm <linux-mm@kvack.org>, Zefan Li <lizefan@huawei.com>, Xinwei Hu <huxinwei@huawei.com>, Tianhong Ding <dingtianhong@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Catalin Marinas <catalin.marinas@arm.com>
 
-Michael S. Tsirkin wrote:
-> On Mon, Sep 11, 2017 at 07:27:19PM +0900, Tetsuo Handa wrote:
-> > Hello.
-> > 
-> > I noticed that virtio_balloon is using register_oom_notifier() and
-> > leak_balloon() from virtballoon_oom_notify() might depend on
-> > __GFP_DIRECT_RECLAIM memory allocation.
-> > 
-> > In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
-> > serialize against fill_balloon(). But in fill_balloon(),
-> > alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
-> > called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE] implies
-> > __GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, this allocation attempt might
-> > depend on somebody else's __GFP_DIRECT_RECLAIM | !__GFP_NORETRY memory
-> > allocation. Such __GFP_DIRECT_RECLAIM | !__GFP_NORETRY allocation can reach
-> > __alloc_pages_may_oom() and hold oom_lock mutex and call out_of_memory().
-> > And leak_balloon() is called by virtballoon_oom_notify() via
-> > blocking_notifier_call_chain() callback when vb->balloon_lock mutex is already
-> > held by fill_balloon(). As a result, despite __GFP_NORETRY is specified,
-> > fill_balloon() can indirectly get stuck waiting for vb->balloon_lock mutex
-> > at leak_balloon().
-> 
-> That would be tricky to fix. I guess we'll need to drop the lock
-> while allocating memory - not an easy fix.
-> 
-> > Also, in leak_balloon(), virtqueue_add_outbuf(GFP_KERNEL) is called via
-> > tell_host(). Reaching __alloc_pages_may_oom() from this virtqueue_add_outbuf()
-> > request from leak_balloon() from virtballoon_oom_notify() from
-> > blocking_notifier_call_chain() from out_of_memory() leads to OOM lockup
-> > because oom_lock mutex is already held before calling out_of_memory().
-> 
-> I guess we should just do
-> 
-> GFP_KERNEL & ~__GFP_DIRECT_RECLAIM there then?
 
-Yes, but GFP_KERNEL & ~__GFP_DIRECT_RECLAIM will effectively be GFP_NOWAIT, for
-__GFP_IO and __GFP_FS won't make sense without __GFP_DIRECT_RECLAIM. It might
-significantly increases possibility of memory allocation failure.
 
+On 2017/8/28 21:13, Michal Hocko wrote:
+> On Fri 25-08-17 18:34:33, Will Deacon wrote:
+>> On Thu, Aug 24, 2017 at 10:32:26AM +0200, Michal Hocko wrote:
+>>> It seems this has slipped through cracks. Let's CC arm64 guys
+>>>
+>>> On Tue 20-06-17 20:43:28, Zhen Lei wrote:
+>>>> When I executed numactl -H(which read /sys/devices/system/node/nodeX/cpumap
+>>>> and display cpumask_of_node for each node), but I got different result on
+>>>> X86 and arm64. For each numa node, the former only displayed online CPUs,
+>>>> and the latter displayed all possible CPUs. Unfortunately, both Linux
+>>>> documentation and numactl manual have not described it clear.
+>>>>
+>>>> I sent a mail to ask for help, and Michal Hocko <mhocko@kernel.org> replied
+>>>> that he preferred to print online cpus because it doesn't really make much
+>>>> sense to bind anything on offline nodes.
+>>>
+>>> Yes printing offline CPUs is just confusing and more so when the
+>>> behavior is not consistent over architectures. I believe that x86
+>>> behavior is the more appropriate one because it is more logical to dump
+>>> the NUMA topology and use it for affinity setting than adding one
+>>> additional step to check the cpu state to achieve the same.
+>>>
+>>> It is true that the online/offline state might change at any time so the
+>>> above might be tricky on its own but if we should at least make the
+>>> behavior consistent.
+>>>
+>>>> Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
+>>>
+>>> Acked-by: Michal Hocko <mhocko@suse.com>
+>>
+>> The concept looks find to me, but shouldn't we use cpumask_var_t and
+>> alloc/free_cpumask_var?
 > 
+> This will be safer but both callers of node_read_cpumap are shallow
+> stack so I am not sure a stack is a limiting factor here.
 > 
-> > 
-> > OOM notifier callback should not (directly or indirectly) depend on
-> > __GFP_DIRECT_RECLAIM memory allocation attempt. Can you fix this dependency?
+> Zhen Lei, would you care to update that part please?
 > 
+Sure, I will send v2 immediately.
 
-Another idea would be to use a kernel thread (or workqueue) so that
-virtballoon_oom_notify() can wait with timeout.
+I'm so sorry that missed this email until someone told me.
 
-We could offload entire blocking_notifier_call_chain(&oom_notify_list, 0, &freed)
-call to a kernel thread (or workqueue) with timeout if MM folks agree.
+-- 
+Thanks!
+BestRegards
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
