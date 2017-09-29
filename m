@@ -1,100 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C7126B026D
-	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 10:09:31 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id a7so3190199pfj.3
-        for <linux-mm@kvack.org>; Fri, 29 Sep 2017 07:09:31 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id o63si3479320pfj.46.2017.09.29.07.09.28
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 161DB6B0069
+	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 10:54:56 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id k10so736697wrk.23
+        for <linux-mm@kvack.org>; Fri, 29 Sep 2017 07:54:56 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 74si3805413wrm.334.2017.09.29.07.54.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Sep 2017 07:09:29 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 2/6] mm/zsmalloc: Prepare to variable MAX_PHYSMEM_BITS
-Date: Fri, 29 Sep 2017 17:08:17 +0300
-Message-Id: <20170929140821.37654-3-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20170929140821.37654-1-kirill.shutemov@linux.intel.com>
-References: <20170929140821.37654-1-kirill.shutemov@linux.intel.com>
+        Fri, 29 Sep 2017 07:54:54 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v8TEncdG141046
+	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 10:54:52 -0400
+Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2d9hknre7t-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 10:54:52 -0400
+Received: from localhost
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Sat, 30 Sep 2017 00:54:49 +1000
+Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
+	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v8TEsmch42598582
+	for <linux-mm@kvack.org>; Sat, 30 Sep 2017 00:54:48 +1000
+Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
+	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v8TEslNI015480
+	for <linux-mm@kvack.org>; Sat, 30 Sep 2017 00:54:47 +1000
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [PATCH] mm/hugetlbfs: Remove the redundant -ENIVAL return from hugetlbfs_setattr()
+Date: Fri, 29 Sep 2017 20:24:44 +0530
+Message-Id: <20170929145444.17611-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: nyc@holomorphy.com
 
-With boot-time switching between paging mode we will have variable
-MAX_PHYSMEM_BITS.
+There is no need to have a local return code set with -EINVAL when both the
+conditions following it return error codes appropriately. Just remove the
+redundant one.
 
-Let's use the maximum variable possible for CONFIG_X86_5LEVEL=y
-configuration to define zsmalloc data structures.
-
-The patch introduces MAX_POSSIBLE_PHYSMEM_BITS to cover such case.
-It also suits well to handle PAE special case.
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Nitin Gupta <ngupta@vflare.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 ---
- arch/x86/include/asm/pgtable-3level_types.h |  1 +
- arch/x86/include/asm/pgtable_64_types.h     |  2 ++
- mm/zsmalloc.c                               | 13 +++++++------
- 3 files changed, 10 insertions(+), 6 deletions(-)
+ fs/hugetlbfs/inode.c | 1 -
+ 1 file changed, 1 deletion(-)
 
-diff --git a/arch/x86/include/asm/pgtable-3level_types.h b/arch/x86/include/asm/pgtable-3level_types.h
-index b8a4341faafa..3fe1d107a875 100644
---- a/arch/x86/include/asm/pgtable-3level_types.h
-+++ b/arch/x86/include/asm/pgtable-3level_types.h
-@@ -43,5 +43,6 @@ typedef union {
-  */
- #define PTRS_PER_PTE	512
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 59073e9..cff3939 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -668,7 +668,6 @@ static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
+ 		return error;
  
-+#define MAX_POSSIBLE_PHYSMEM_BITS	36
- 
- #endif /* _ASM_X86_PGTABLE_3LEVEL_DEFS_H */
-diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-index 06470da156ba..39075df30b8a 100644
---- a/arch/x86/include/asm/pgtable_64_types.h
-+++ b/arch/x86/include/asm/pgtable_64_types.h
-@@ -39,6 +39,8 @@ typedef struct { pteval_t pte; } pte_t;
- #define P4D_SIZE	(_AC(1, UL) << P4D_SHIFT)
- #define P4D_MASK	(~(P4D_SIZE - 1))
- 
-+#define MAX_POSSIBLE_PHYSMEM_BITS	52
-+
- #else /* CONFIG_X86_5LEVEL */
- 
- /*
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 7c38e850a8fc..7bde01c55c90 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -82,18 +82,19 @@
-  * This is made more complicated by various memory models and PAE.
-  */
- 
--#ifndef MAX_PHYSMEM_BITS
--#ifdef CONFIG_HIGHMEM64G
--#define MAX_PHYSMEM_BITS 36
--#else /* !CONFIG_HIGHMEM64G */
-+#ifndef MAX_POSSIBLE_PHYSMEM_BITS
-+#ifdef MAX_PHYSMEM_BITS
-+#define MAX_POSSIBLE_PHYSMEM_BITS MAX_PHYSMEM_BITS
-+#else
- /*
-  * If this definition of MAX_PHYSMEM_BITS is used, OBJ_INDEX_BITS will just
-  * be PAGE_SHIFT
-  */
--#define MAX_PHYSMEM_BITS BITS_PER_LONG
-+#define MAX_POSSIBLE_PHYSMEM_BITS BITS_PER_LONG
- #endif
- #endif
--#define _PFN_BITS		(MAX_PHYSMEM_BITS - PAGE_SHIFT)
-+
-+#define _PFN_BITS		(MAX_POSSIBLE_PHYSMEM_BITS - PAGE_SHIFT)
- 
- /*
-  * Memory for allocating for handle keeps object position by
+ 	if (ia_valid & ATTR_SIZE) {
+-		error = -EINVAL;
+ 		if (attr->ia_size & ~huge_page_mask(h))
+ 			return -EINVAL;
+ 		error = hugetlb_vmtruncate(inode, attr->ia_size);
 -- 
-2.14.2
+1.8.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
