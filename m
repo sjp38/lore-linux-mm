@@ -1,123 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C55A6B0260
-	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 17:46:54 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id u78so586001wmd.4
-        for <linux-mm@kvack.org>; Fri, 29 Sep 2017 14:46:54 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 64si4754600edo.541.2017.09.29.14.46.52
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C3506B025E
+	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 18:15:20 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id q75so1221468pfl.1
+        for <linux-mm@kvack.org>; Fri, 29 Sep 2017 15:15:20 -0700 (PDT)
+Received: from out0-201.mail.aliyun.com (out0-201.mail.aliyun.com. [140.205.0.201])
+        by mx.google.com with ESMTPS id b6si4021630pfm.392.2017.09.29.15.15.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Sep 2017 14:46:52 -0700 (PDT)
-Subject: Re: [PATCH 15/15] afs: Use find_get_pages_range_tag()
-References: <20170927160334.29513-1-jack@suse.cz>
- <20170927160334.29513-16-jack@suse.cz>
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Message-ID: <ea1aa003-aaff-a17c-5a2c-28ed3c97a588@oracle.com>
-Date: Fri, 29 Sep 2017 17:46:45 -0400
+        Fri, 29 Sep 2017 15:15:18 -0700 (PDT)
+Subject: Re: [PATCH 0/2 v8] oom: capture unreclaimable slab info in oom
+ message
+References: <1506548776-67535-1-git-send-email-yang.s@alibaba-inc.com>
+ <fccbce9c-a40e-621f-e9a4-17c327ed84e8@I-love.SAKURA.ne.jp>
+ <7e8684c2-c9e8-f76a-d7fb-7d5bf7682321@alibaba-inc.com>
+ <201709290457.CAC30283.VFtMFOFOJLQHOS@I-love.SAKURA.ne.jp>
+ <69a33b7a-afdf-d798-2e03-0c92dd94bfa6@alibaba-inc.com>
+ <201709290545.HGH30269.LOVtSHFQOFJFOM@I-love.SAKURA.ne.jp>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <1a0dd923-7b5c-e1ed-708a-5fdfe8c662dc@alibaba-inc.com>
+Date: Sat, 30 Sep 2017 06:15:10 +0800
 MIME-Version: 1.0
-In-Reply-To: <20170927160334.29513-16-jack@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <201709290545.HGH30269.LOVtSHFQOFJFOM@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=iso-2022-jp; format=flowed; delsp=yes
 Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, David Howells <dhowells@redhat.com>, linux-afs@lists.infradead.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@kernel.org
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 09/27/2017 12:03 PM, Jan Kara wrote:
-> Use find_get_pages_range_tag() in afs_writepages_region() as we are
-> interested only in pages from given range. Remove unnecessary code after
-> this conversion.
->
-> CC: David Howells <dhowells@redhat.com>
-> CC: linux-afs@lists.infradead.org
-> Signed-off-by: Jan Kara <jack@suse.cz>
-> ---
->   fs/afs/write.c | 11 ++---------
->   1 file changed, 2 insertions(+), 9 deletions(-)
->
-> diff --git a/fs/afs/write.c b/fs/afs/write.c
-> index 106e43db1115..d62a6b54152d 100644
-> --- a/fs/afs/write.c
-> +++ b/fs/afs/write.c
-> @@ -497,20 +497,13 @@ static int afs_writepages_region(struct address_space *mapping,
->   	_enter(",,%lx,%lx,", index, end);
->   
->   	do {
-> -		n = find_get_pages_tag(mapping, &index, PAGECACHE_TAG_DIRTY,
-> -				       1, &page);
-> +		n = find_get_pages_range_tag(mapping, &index, end,
-> +					PAGECACHE_TAG_DIRTY, 1, &page);
->   		if (!n)
->   			break;
->   
->   		_debug("wback %lx", page->index);
->   
-> -		if (page->index > end) {
-> -			*_next = index;
-> -			put_page(page);
-> -			_leave(" = 0 [%lx]", *_next);
-> -			return 0;
-> -		}
-> -
->   		/* at this point we hold neither mapping->tree_lock nor lock on
->   		 * the page itself: the page may be truncated or invalidated
->   		 * (changing page->mapping to NULL), or even swizzled back from
 
-There's also one other caller of find_get_pages_tag that could be 
-converted, wdata_alloc_and_fillpages.  Since the 256 max mentioned in 
-the comment below no longer seems to apply, maybe something like this?:
 
-diff --git a/fs/cifs/file.c b/fs/cifs/file.c
-index 92fdf9c35de2..4dbd24231e8a 100644
---- a/fs/cifs/file.c
-+++ b/fs/cifs/file.c
-@@ -1963,31 +1963,14 @@ wdata_alloc_and_fillpages(pgoff_t tofind, struct 
-address_space *mapping,
-                           pgoff_t end, pgoff_t *index,
-                           unsigned int *found_pages)
-  {
--       unsigned int nr_pages;
--       struct page **pages;
--       struct cifs_writedata *wdata;
--
--       wdata = cifs_writedata_alloc((unsigned int)tofind,
--                                    cifs_writev_complete);
-+       struct cifs_writedata *wdata = 
-cifs_writedata_alloc((unsigned)tofind,
-+ cifs_writev_complete);
-         if (!wdata)
-                 return NULL;
+On 9/28/17 1:45 PM, Tetsuo Handa wrote:
+> Yang Shi wrote:
+>> On 9/28/17 12:57 PM, Tetsuo Handa wrote:
+>>> Yang Shi wrote:
+>>>> On 9/27/17 9:36 PM, Tetsuo Handa wrote:
+>>>>> On 2017/09/28 6:46, Yang Shi wrote:
+>>>>>> Changelog v7 -> v8:
+>>>>>> * Adopted Michal’s suggestion to dump unreclaim slab info when unreclaimable slabs amount > total user memory. Not only in oom panic path.
+>>>>>
+>>>>> Holding slab_mutex inside dump_unreclaimable_slab() was refrained since V2
+>>>>> because there are
+>>>>>
+>>>>> 	mutex_lock(&slab_mutex);
+>>>>> 	kmalloc(GFP_KERNEL);
+>>>>> 	mutex_unlock(&slab_mutex);
+>>>>>
+>>>>> users. If we call dump_unreclaimable_slab() for non OOM panic path, aren't we
+>>>>> introducing a risk of crash (i.e. kernel panic) for regular OOM path?
+>>>>
+>>>> I don't see the difference between regular oom path and oom path other
+>>>> than calling panic() at last.
+>>>>
+>>>> And, the slab dump may be called by panic path too, it is for both
+>>>> regular and panic path.
+>>>
+>>> Calling a function that might cause kerneloops immediately before calling panic()
+>>> would be tolerable, for the kernel will panic after all. But calling a function
+>>> that might cause kerneloops when there is no plan to call panic() is a bug.
+>>
+>> I got your point. slab_mutex is used to protect the list of all the
+>> slabs, since we are already in oom, there should be not kmem cache
+>> destroy happen during the list traverse. And, list_for_each_entry() has
+>> been replaced to list_for_each_entry_safe() to make the traverse more
+>> robust.
+> 
+> I consider that OOM event and kmem chache destroy event can run concurrently
+> because slab_mutex is not held by OOM event (and unfortunately cannot be held
+> due to possibility of deadlock) in order to protect the list of all the slabs.
+> 
+> I don't think replacing list_for_each_entry() with list_for_each_entry_safe()
+> makes the traverse more robust, for list_for_each_entry_safe() does not defer
+> freeing of memory used by list element. Rather, replacing list_for_each_entry()
+> with list_for_each_entry_rcu() (and making relevant changes such as
+> rcu_read_lock()/rcu_read_unlock()/synchronize_rcu()) will make the traverse safe.
 
--       /*
--        * find_get_pages_tag seems to return a max of 256 on each
--        * iteration, so we must call it several times in order to
--        * fill the array or the wsize is effectively limited to
--        * 256 * PAGE_SIZE.
--        */
--       *found_pages = 0;
--       pages = wdata->pages;
--       do {
--               nr_pages = find_get_pages_tag(mapping, index,
--                                             PAGECACHE_TAG_DIRTY, tofind,
--                                             pages);
--               *found_pages += nr_pages;
--               tofind -= nr_pages;
--               pages += nr_pages;
--       } while (nr_pages && tofind && *index <= end);
-+       *found_pages = find_get_pages_range_tag(mapping, index, end,
-+                                               PAGECACHE_TAG_DIRTY, tofind,
-+                                               wdata->pages);
+I'm not sure if rcu could satisfy this case. rcu just can protect  
+slab_caches_to_rcu_destroy list, which is used by SLAB_TYPESAFE_BY_RCU  
+slabs.
 
-         return wdata;
-  }
+Yang
 
-Otherwise the set looks good, so for the whole thing,
-
-Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-
-Daniel
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
