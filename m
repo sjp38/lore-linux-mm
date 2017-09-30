@@ -1,97 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9885B6B0069
-	for <linux-mm@kvack.org>; Fri, 29 Sep 2017 22:58:53 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id q7so869834ioi.12
-        for <linux-mm@kvack.org>; Fri, 29 Sep 2017 19:58:53 -0700 (PDT)
-Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id u10si493142ith.87.2017.09.29.19.58.50
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B89446B0069
+	for <linux-mm@kvack.org>; Sat, 30 Sep 2017 00:19:21 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id y192so2596601pgd.0
+        for <linux-mm@kvack.org>; Fri, 29 Sep 2017 21:19:21 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id o7si4216505pgs.795.2017.09.29.21.19.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 29 Sep 2017 19:58:52 -0700 (PDT)
-Subject: Re: [PATCH 0/6] Cache coherent device memory (CDM) with HMM v5
-References: <20170719022537.GA6911@redhat.com>
- <f571a0a5-69ff-10b7-d612-353e53ba16fd@huawei.com>
- <20170720150305.GA2767@redhat.com>
- <ab3e67d5-5ed5-816f-6f8e-3228866be1fe@huawei.com>
- <20170721014106.GB25991@redhat.com>
- <CAPcyv4jJraGPW214xJ+wU3G=88UUP45YiA6hV5_NvNZSNB4qGA@mail.gmail.com>
- <20170905193644.GD19397@redhat.com>
- <CAA_GA1ckfyokvqy3aKi-NoSXxSzwiVsrykC6xNxpa3WUz0bqNQ@mail.gmail.com>
- <20170911233649.GA4892@redhat.com>
- <CAA_GA1ff4mGKfxxRpjYCRjXOvbUuksM0K2gmH1VrhL4qtGWFbw@mail.gmail.com>
- <20170926161635.GA3216@redhat.com>
-From: Bob Liu <liubo95@huawei.com>
-Message-ID: <0d7273c3-181c-6d68-3c5f-fa518e782374@huawei.com>
-Date: Sat, 30 Sep 2017 10:57:38 +0800
-MIME-Version: 1.0
-In-Reply-To: <20170926161635.GA3216@redhat.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Sep 2017 21:19:19 -0700 (PDT)
+From: Wei Wang <wei.w.wang@intel.com>
+Subject: [PATCH v16 0/5] Virtio-balloon Enhancement
+Date: Sat, 30 Sep 2017 12:05:49 +0800
+Message-Id: <1506744354-20979-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>, Bob Liu <lliubbo@gmail.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
+Cc: david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On 2017/9/27 0:16, Jerome Glisse wrote:
-> On Tue, Sep 26, 2017 at 05:56:26PM +0800, Bob Liu wrote:
->> On Tue, Sep 12, 2017 at 7:36 AM, Jerome Glisse <jglisse@redhat.com> wrote:
->>> On Sun, Sep 10, 2017 at 07:22:58AM +0800, Bob Liu wrote:
->>>> On Wed, Sep 6, 2017 at 3:36 AM, Jerome Glisse <jglisse@redhat.com> wrote:
->>>>> On Thu, Jul 20, 2017 at 08:48:20PM -0700, Dan Williams wrote:
->>>>>> On Thu, Jul 20, 2017 at 6:41 PM, Jerome Glisse <jglisse@redhat.com> wrote:
-[...]
->>>>> So i pushed a branch with WIP for nouveau to use HMM:
->>>>>
->>>>> https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-nouveau
->>>>>
->>>>
->>>> Nice to see that.
->>>> Btw, do you have any plan for a CDM-HMM driver? CPU can write to
->>>> Device memory directly without extra copy.
->>>
->>> Yes nouveau CDM support on PPC (which is the only CDM platform commercialy
->>> available today) is on the TODO list. Note that the driver changes for CDM
->>> are minimal (probably less than 100 lines of code). From the driver point
->>> of view this is memory and it doesn't matter if it is CDM or not.
->>>
->>
->> It seems have to migrate/copy memory between system-memory and
->> device-memory even in HMM-CDM solution.
->> Because device-memory is not added into buddy system, the page fault
->> for normal malloc() always allocate memory from system-memory!!
->> If the device then access the same virtual address, the data is copied
->> to device-memory.
->>
->> Correct me if I misunderstand something.
->> @Balbir, how do you plan to make zero-copy work if using HMM-CDM?
-> 
-> Device can access system memory so copy to device is _not_ mandatory. Copying
-> data to device is for performance only ie the device driver take hint from
-> userspace and monitor device activity to decide which memory should be migrated
-> to device memory to maximize performance.
-> 
-> Moreover in some previous version of the HMM patchset we had an helper that
+This patch series enhances the existing virtio-balloon with the following
+new features:
+1) fast ballooning: transfer ballooned pages between the guest and host in
+chunks using sgs, instead of one array each time; and
+2) free page block reporting: a new virtqueue to report guest free pages
+to the host.
 
-Could you point in which version? I'd like to have a look.
+The second feature can be used to accelerate live migration of VMs. Here
+are some details:
 
-> allowed to directly allocate device memory on device page fault. I intend to
-> post this helper again. With that helper you can have zero copy when device
-> is the first to access the memory.
-> 
-> Plan is to get what we have today work properly with the open source driver
-> and make it perform well. Once we get some experience with real workload we
-> might look into allowing CPU page fault to be directed to device memory but
-> at this time i don't think we need this.
-> 
+Live migration needs to transfer the VM's memory from the source machine
+to the destination round by round. For the 1st round, all the VM's memory
+is transferred. From the 2nd round, only the pieces of memory that were
+written by the guest (after the 1st round) are transferred. One method
+that is popularly used by the hypervisor to track which part of memory is
+written is to write-protect all the guest memory.
 
-For us, we need this feature that CPU page fault can be direct to device memory.
-So that don't need to copy data from system memory to device memory.
-Do you have any suggestion on the implementation? I'll try to make a prototype patch.
+The second feature enables the optimization of the 1st round memory
+transfer - the hypervisor can skip the transfer of guest free pages in the
+1st round. It is not concerned that the memory pages are used after they
+are given to the hypervisor as a hint of the free pages, because they will
+be tracked by the hypervisor and transferred in the next round if they are
+used and written.
 
---
-Thanks,
-Bob
+Change Log:
+v15->v16:
+1) mm: stop reporting the free pfn range if the callback returns false;
+2) mm: move some implementaion of walk_free_mem_block into a function to
+make the code layout looks better;
+3) xbitmap: added some optimizations suggested by Matthew, please refer to
+the ChangLog in the xbitmap patch for details.
+4) xbitmap: added a test suite
+5) virtio-balloon: bail out with a warning when virtqueue_add_inbuf returns
+an error
+6) virtio-balloon: some small code re-arrangement, e.g. detachinf used buf
+from the vq before adding a new buf
+
+v14->v15:
+1) mm: make the report callback return a bool value - returning 1 to stop
+walking through the free page list.
+2) virtio-balloon: batching sgs of balloon pages till the vq is full
+3) virtio-balloon: create a new workqueue, rather than using the default
+system_wq, to queue the free page reporting work item.
+4) virtio-balloon: add a ctrl_vq to be a central control plane which will
+handle all the future control related commands between the host and guest.
+Add free page report as the first feature controlled under ctrl_vq, and
+the free_page_vq is a data plane vq dedicated to the transmission of free
+page blocks.
+
+v13->v14:
+1) xbitmap: move the code from lib/radix-tree.c to lib/xbitmap.c.
+2) xbitmap: consolidate the implementation of xb_bit_set/clear/test into
+one xb_bit_ops.
+3) xbitmap: add documents for the exported APIs.
+4) mm: rewrite the function to walk through free page blocks.
+5) virtio-balloon: when reporting a free page blcok to the device, if the
+vq is full (less likey to happen in practice), just skip reporting this
+block, instead of busywaiting till an entry gets released.
+6) virtio-balloon: fail the probe function if adding the signal buf in
+init_vqs fails.
+
+v12->v13:
+1) mm: use a callback function to handle the the free page blocks from the
+report function. This avoids exposing the zone internal to a kernel
+module.
+2) virtio-balloon: send balloon pages or a free page block using a single
+sg each time. This has the benefits of simpler implementation with no new
+APIs.
+3) virtio-balloon: the free_page_vq is used to report free pages only (no
+multiple usages interleaving)
+4) virtio-balloon: Balloon pages and free page blocks are sent via input
+sgs, and the completion signal to the host is sent via an output sg.
+
+v11->v12:
+1) xbitmap: use the xbitmap from Matthew Wilcox to record ballooned pages.
+2) virtio-ring: enable the driver to build up a desc chain using vring
+desc.
+3) virtio-ring: Add locking to the existing START_USE() and END_USE()
+macro to lock/unlock the vq when a vq operation starts/ends.
+4) virtio-ring: add virtqueue_kick_sync() and virtqueue_kick_async()
+5) virtio-balloon: describe chunks of ballooned pages and free pages
+blocks directly using one or more chains of desc from the vq.
+
+v10->v11:
+1) virtio_balloon: use vring_desc to describe a chunk;
+2) virtio_ring: support to add an indirect desc table to virtqueue;
+3)  virtio_balloon: use cmdq to report guest memory statistics.
+
+v9->v10:
+1) mm: put report_unused_page_block() under CONFIG_VIRTIO_BALLOON;
+2) virtio-balloon: add virtballoon_validate();
+3) virtio-balloon: msg format change;
+4) virtio-balloon: move miscq handling to a task on system_freezable_wq;
+5) virtio-balloon: code cleanup.
+
+v8->v9:
+1) Split the two new features, VIRTIO_BALLOON_F_BALLOON_CHUNKS and
+VIRTIO_BALLOON_F_MISC_VQ, which were mixed together in the previous
+implementation;
+2) Simpler function to get the free page block.
+
+v7->v8:
+1) Use only one chunk format, instead of two.
+2) re-write the virtio-balloon implementation patch.
+3) commit changes
+4) patch re-org
+
+Matthew Wilcox (2):
+  lib/xbitmap: Introduce xbitmap
+  radix tree test suite: add tests for xbitmap
+
+Wei Wang (3):
+  virtio-balloon: VIRTIO_BALLOON_F_SG
+  mm: support reporting free page blocks
+  virtio-balloon: VIRTIO_BALLOON_F_CTRL_VQ
+
+ drivers/virtio/virtio_balloon.c         | 437 +++++++++++++++++++++++++++++---
+ include/linux/mm.h                      |   6 +
+ include/linux/radix-tree.h              |   2 +
+ include/linux/xbitmap.h                 |  66 +++++
+ include/uapi/linux/virtio_balloon.h     |  16 ++
+ lib/Makefile                            |   2 +-
+ lib/radix-tree.c                        |  42 ++-
+ lib/xbitmap.c                           | 264 +++++++++++++++++++
+ mm/page_alloc.c                         |  91 +++++++
+ tools/include/linux/bitmap.h            |  34 +++
+ tools/include/linux/kernel.h            |   2 +
+ tools/testing/radix-tree/Makefile       |   7 +-
+ tools/testing/radix-tree/linux/kernel.h |   2 -
+ tools/testing/radix-tree/main.c         |   5 +
+ tools/testing/radix-tree/test.h         |   1 +
+ tools/testing/radix-tree/xbitmap.c      | 269 ++++++++++++++++++++
+ 16 files changed, 1203 insertions(+), 43 deletions(-)
+ create mode 100644 include/linux/xbitmap.h
+ create mode 100644 lib/xbitmap.c
+ create mode 100644 tools/testing/radix-tree/xbitmap.c
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
