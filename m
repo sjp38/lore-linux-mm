@@ -1,54 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2690F6B025F
-	for <linux-mm@kvack.org>; Sun,  1 Oct 2017 04:04:51 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id u78so2449135wmd.4
-        for <linux-mm@kvack.org>; Sun, 01 Oct 2017 01:04:51 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 67CAF6B025F
+	for <linux-mm@kvack.org>; Sun,  1 Oct 2017 04:17:04 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id k7so545018wre.22
+        for <linux-mm@kvack.org>; Sun, 01 Oct 2017 01:17:04 -0700 (PDT)
 Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id 78si6250247wrb.355.2017.10.01.01.04.49
+        by mx.google.com with ESMTPS id c12si6567534wrd.406.2017.10.01.01.17.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 01 Oct 2017 01:04:50 -0700 (PDT)
-Date: Sun, 1 Oct 2017 10:04:49 +0200
+        Sun, 01 Oct 2017 01:17:03 -0700 (PDT)
+Date: Sun, 1 Oct 2017 10:17:02 +0200
 From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH v3] dma-debug: fix incorrect pfn calculation
-Message-ID: <20171001080449.GB11843@lst.de>
-References: <1506484087-1177-1-git-send-email-miles.chen@mediatek.com> <273077fd-c5ad-82c8-60aa-cde89355e5e8@arm.com>
+Subject: Re: [PATCH 1/7] xfs: always use DAX if mount option is used
+Message-ID: <20171001081702.GC11895@lst.de>
+References: <20170925231404.32723-1-ross.zwisler@linux.intel.com> <20170925231404.32723-2-ross.zwisler@linux.intel.com> <20170925233812.GM10955@dastard> <20170926093548.GB13627@quack2.suse.cz> <20170926110957.GR10955@dastard> <20170926143743.GB18758@lst.de> <20170926173057.GB20159@linux.intel.com> <20170927064001.GA27601@infradead.org> <20170927161510.GB24314@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <273077fd-c5ad-82c8-60aa-cde89355e5e8@arm.com>
+In-Reply-To: <20170927161510.GB24314@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Murphy <robin.murphy@arm.com>
-Cc: miles.chen@mediatek.com, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, wsd_upstream@mediatek.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, linux-mediatek@lists.infradead.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, Christoph Hellwig <hch@lst.de>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Darrick J. Wong" <darrick.wong@oracle.com>, "J. Bruce Fields" <bfields@fieldses.org>, Dan Williams <dan.j.williams@intel.com>, Jeff Layton <jlayton@poochiereds.net>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On Wed, Sep 27, 2017 at 11:23:52AM +0100, Robin Murphy wrote:
-> > I found that debug_dma_alloc_coherent() and debug_dma_free_coherent()
-> > assume that dma_alloc_coherent() always returns a linear address.
-> > However it's possible that dma_alloc_coherent() returns a non-linear
-> > address. In this case, page_to_pfn(virt_to_page(virt)) will return an
-> > incorrect pfn. If the pfn is valid and mapped as a COW page,
-> > we will hit the warning when doing wp_page_copy().
+On Wed, Sep 27, 2017 at 10:15:10AM -0600, Ross Zwisler wrote:
+> Well, I don't know if platforms that support HMAT + PMEM are widely available,
+> but we have all the details in the ACPI spec, so we could begin to code it up
+> and things will "just work" when platforms arrive.
 
-Hmm, can the debug code assume anything?  Right now you're just patching
-it from supporting linear and vmalloc.  But what about other
-potential mapping types?
+Then again currently all actually shipping NVDIMMs are battery backed
+dram and DAX mode should work just fine for them.  Things will get
+interesting once companies start shipping actually persistent technologies
+that will be significantly slower than DRAM.  And we sould make sure
+we have the infrastruture for that in place.
 
-> > +	entry->pfn	 = is_vmalloc_addr(virt) ? vmalloc_to_pfn(virt) :
-> > +						page_to_pfn(virt_to_page(virt));
+> Hum, I wonder if maybe we need/want three different mount modes?  What about:
+> 
+> autodax (the default): the filesystem is free to use DAX or not, as it sees
+> fit and thinks is optimal.  For the time being we can make this mean "don't
+> use DAX", and phase in DAX usage as we add support for the HMAT, etc.
 
-Please use normal if/else conditionsals:
+What does "use DAX" really mean anyway?
 
-	if (is_vmalloc_addr(virt))
-		entry->pfn = vmalloc_to_pfn(virt);
-	else
-		entry->pfn = page_to_pfn(virt_to_page(virt));
+I think we are conflating a few things:
 
-> > +		.pfn		= is_vmalloc_addr(virt) ? vmalloc_to_pfn(virt) :
-> > +						page_to_pfn(virt_to_page(virt)),
+ a) use a block device or use a dax_device for accessing the device
+ b) use the pagecache for caching data in DRAM or not.
 
-Same here.
+Now we actually have a really nice way to control a) already, it's
+called O_DIRECT.  Currently O_DIRECT only works with read/write I/O,
+but with a byte addressable scheme we now can implement it for mmap
+as well, which is what the DAX mmap path does.
+
+b) right now is implied by a), but it's really an implementation
+detail.
+
+So the modes would be more like two options to:
+
+ a) disallow any byte-level access.  The right way to do that would
+    be to mount the /dev/dax* device instead of the block device
+    to allow byte access, and disallow any DAXish operation if you
+    mount the block device in the long run.
+ b) have a mode to always force an O_DIRECT-like mode for devices
+    that are fast enough.  We should always do that with the right
+    HMAT entries if mounting the /dev/dax devices, and maybe have
+    a mount option to force it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
