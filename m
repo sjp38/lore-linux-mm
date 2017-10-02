@@ -1,65 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 420B36B0033
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 08:54:38 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id r202so885708wmd.1
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 05:54:38 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o67si7940500wmg.104.2017.10.02.05.54.36
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3815C6B0033
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 08:59:07 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id i124so1653746wmf.7
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 05:59:07 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v195sor2540829wmf.7.2017.10.02.05.59.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 02 Oct 2017 05:54:37 -0700 (PDT)
-Date: Mon, 2 Oct 2017 14:54:32 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,hugetlb,migration: don't migrate kernelcore hugepages
-Message-ID: <20171002125432.xiszy6xlvfb2jv67@dhcp22.suse.cz>
-References: <20171001225111.GA16432@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171001225111.GA16432@gmail.com>
+        (Google Transport Security);
+        Mon, 02 Oct 2017 05:59:05 -0700 (PDT)
+From: Timofey Titovets <nefelim4ag@gmail.com>
+Subject: [RFC v2 PATCH] ksm: add offset arg to memcmp_pages() to speedup comparing
+Date: Mon,  2 Oct 2017 15:58:58 +0300
+Message-Id: <20171002125858.12751-1-nefelim4ag@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexandru Moise <00moses.alexander00@gmail.com>
-Cc: corbet@lwn.net, paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, tglx@linutronix.de, mingo@kernel.org, cdall@linaro.org, mchehab@kernel.org, zohar@linux.vnet.ibm.com, marc.zyngier@arm.com, rientjes@google.com, hannes@cmpxchg.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, aneesh.kumar@linux.vnet.ibm.com, punit.agrawal@arm.com, aarcange@redhat.com, gerald.schaefer@de.ibm.com, jglisse@redhat.com, kirill.shutemov@linux.intel.com, will.deacon@arm.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, Timofey Titovets <nefelim4ag@gmail.com>
 
-On Mon 02-10-17 00:51:11, Alexandru Moise wrote:
-> This attempts to bring more flexibility to how hugepages are allocated
-> by making it possible to decide whether we want the hugepages to be
-> allocated from ZONE_MOVABLE or to the zone allocated by the "kernelcore="
-> boot parameter for non-movable allocations.
-> 
-> A new boot parameter is introduced, "hugepages_movable=", this sets the
-> default value for the "hugepages_treat_as_movable" sysctl. This allows
-> us to determine the zone for hugepages allocated at boot time. It only
-> affects 2M hugepages allocated at boot time for now because 1G
-> hugepages are allocated much earlier in the boot process and ignore
-> this sysctl completely.
-> 
-> The "hugepages_treat_as_movable" sysctl is also turned into a mandatory
-> setting that all hugepage allocations at runtime must respect (both
-> 2M and 1G sized hugepages). The default value is changed to "1" to
-> preserve the existing behavior that if hugepage migration is supported,
-> then the pages will be allocated from ZONE_MOVABLE.
-> 
-> Note however if not enough contiguous memory is present in ZONE_MOVABLE
-> then the allocation will fallback to the non-movable zone and those
-> pages will not be migratable.
+Currently while search/inserting in RB tree,
+memcmp used for comparing out of tree pages with in tree pages.
 
-This changelog doesn't explain _why_ we would need something like that.
+But on each compare step memcmp for pages start at
+zero offset, i.e. that just ignore forward progress.
 
-> The implementation is a bit dirty so obviously I'm open to suggestions
-> for a better way to implement this behavior, or comments whether the whole
-> idea is fundamentally __wrong__.
+That make some overhead for search in deep RB tree and/or with
+bit pages (4KiB+), so store last start offset where no diff in page content.
 
-To be honest I think this is just a wrong approach. hugepages_treat_as_movable
-is quite questionable to be honest because it breaks the basic semantic
-of the movable zone if the hugetlb pages are not really migratable which
-should be the only criterion. Hugetlb pages are no different from other
-migratable pages in that regards.
+Added: memcmpe()
+iter 1024 -  that a some type of magic value
+max_offset_error - 8 - acceptable error level for offset.
+
+With that patch i get ~ same performance in bad case (where offset useless)
+on tiny tree and default 4KiB pages.
+
+So that just RFC, i.e. does that type of optimization make a sense?
+
+Thanks.
+
+Changes:
+	v1 -> v2:
+		Add: configurable max_offset_error
+		Move logic to memcmpe()
+
+Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
+---
+ mm/ksm.c | 61 +++++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 55 insertions(+), 6 deletions(-)
+
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 15dd7415f7b3..780630498de8 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -991,14 +991,58 @@ static u32 calc_checksum(struct page *page)
+ 	return checksum;
+ }
+ 
+-static int memcmp_pages(struct page *page1, struct page *page2)
++
++/*
++ * memcmp used to compare pages in RB-tree
++ * but on every step down the tree forward progress
++ * just has been ignored, that make performance pitfall
++ * on deep tree and/or big pages (ex. 4KiB+)
++ *
++ * Fix that by add memcmp wrapper that will try to guess
++ * where difference happens, to only scan from that offset against
++ * next pages
++ */
++
++static int memcmpe(const void *p, const void *q, const u32 len,
++		   u32 *offset)
++{
++	const u32 max_offset_error = 8;
++	u32 iter = 1024, i = 0;
++	int ret;
++
++	if (offset == NULL)
++		return memcmp(p, q, len);
++
++	if (*offset < len)
++		i = *offset;
++
++	while (i < len) {
++		iter = min_t(u32, iter, len - i);
++		ret = memcmp(p, q, iter);
++
++		if (ret) {
++			iter = iter >> 1;
++			if (iter < max_offset_error)
++				break;
++			continue;
++		}
++
++		i += iter;
++	}
++
++	*offset = i;
++
++	return ret;
++}
++
++static int memcmp_pages(struct page *page1, struct page *page2, u32 *offset)
+ {
+ 	char *addr1, *addr2;
+ 	int ret;
+ 
+ 	addr1 = kmap_atomic(page1);
+ 	addr2 = kmap_atomic(page2);
+-	ret = memcmp(addr1, addr2, PAGE_SIZE);
++	ret = memcmpe(addr1, addr2, PAGE_SIZE, offset);
+ 	kunmap_atomic(addr2);
+ 	kunmap_atomic(addr1);
+ 	return ret;
+@@ -1006,7 +1050,7 @@ static int memcmp_pages(struct page *page1, struct page *page2)
+ 
+ static inline int pages_identical(struct page *page1, struct page *page2)
+ {
+-	return !memcmp_pages(page1, page2);
++	return !memcmp_pages(page1, page2, NULL);
+ }
+ 
+ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
+@@ -1514,6 +1558,7 @@ static __always_inline struct page *chain(struct stable_node **s_n_d,
+ static struct page *stable_tree_search(struct page *page)
+ {
+ 	int nid;
++	u32 diff_offset;
+ 	struct rb_root *root;
+ 	struct rb_node **new;
+ 	struct rb_node *parent;
+@@ -1532,6 +1577,7 @@ static struct page *stable_tree_search(struct page *page)
+ again:
+ 	new = &root->rb_node;
+ 	parent = NULL;
++	diff_offset = 0;
+ 
+ 	while (*new) {
+ 		struct page *tree_page;
+@@ -1590,7 +1636,7 @@ static struct page *stable_tree_search(struct page *page)
+ 			goto again;
+ 		}
+ 
+-		ret = memcmp_pages(page, tree_page);
++		ret = memcmp_pages(page, tree_page, &diff_offset);
+ 		put_page(tree_page);
+ 
+ 		parent = *new;
+@@ -1760,6 +1806,7 @@ static struct page *stable_tree_search(struct page *page)
+ static struct stable_node *stable_tree_insert(struct page *kpage)
+ {
+ 	int nid;
++	u32 diff_offset;
+ 	unsigned long kpfn;
+ 	struct rb_root *root;
+ 	struct rb_node **new;
+@@ -1773,6 +1820,7 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
+ again:
+ 	parent = NULL;
+ 	new = &root->rb_node;
++	diff_offset = 0;
+ 
+ 	while (*new) {
+ 		struct page *tree_page;
+@@ -1819,7 +1867,7 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
+ 			goto again;
+ 		}
+ 
+-		ret = memcmp_pages(kpage, tree_page);
++		ret = memcmp_pages(kpage, tree_page, &diff_offset);
+ 		put_page(tree_page);
+ 
+ 		parent = *new;
+@@ -1884,6 +1932,7 @@ struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
+ 	struct rb_root *root;
+ 	struct rb_node *parent = NULL;
+ 	int nid;
++	u32 diff_offset = 0;
+ 
+ 	nid = get_kpfn_nid(page_to_pfn(page));
+ 	root = root_unstable_tree + nid;
+@@ -1908,7 +1957,7 @@ struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
+ 			return NULL;
+ 		}
+ 
+-		ret = memcmp_pages(page, tree_page);
++		ret = memcmp_pages(page, tree_page, &diff_offset);
+ 
+ 		parent = *new;
+ 		if (ret < 0) {
 -- 
-Michal Hocko
-SUSE Labs
+2.14.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
