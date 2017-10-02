@@ -1,102 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1298F6B0038
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 16:27:28 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id x15so6036897itb.6
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 13:27:28 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id t186sor5036853iof.167.2017.10.02.13.27.26
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DDD26B0038
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 16:34:36 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 136so5066164wmu.3
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 13:34:36 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id g62si451258edd.241.2017.10.02.13.34.35
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 02 Oct 2017 13:27:26 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 02 Oct 2017 13:34:35 -0700 (PDT)
+Date: Mon, 2 Oct 2017 16:34:23 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [v8 0/4] cgroup-aware OOM killer
+Message-ID: <20171002203423.GA19849@cmpxchg.org>
+References: <CAAAKZws2CFExeg6A9AzrGjiHnFHU1h2xdk6J5Jw2kqxy=V+_YQ@mail.gmail.com>
+ <20170927162300.GA5623@castle.DHCP.thefacebook.com>
+ <CAAAKZwtApj-FgRc2V77nEb3BUd97Rwhgf-b-k0zhf1u+Y4fqxA@mail.gmail.com>
+ <CALvZod7iaOEeGmDJA0cZvJWpuzc-hMRn3PG2cfzcMniJtAjKqA@mail.gmail.com>
+ <20171002122434.llbaarb6yw3o3mx3@dhcp22.suse.cz>
+ <CALvZod65LYZZYy6uE=DQaQRPXYAhAci=NMG_w=ZANPGATgRwfg@mail.gmail.com>
+ <20171002192814.sad75tqklp3nmr4m@dhcp22.suse.cz>
+ <CALvZod4=+GVg+hrT4ubp9P4b+LUZ+q9mz4ztC=Fc_cmTZmvpcw@mail.gmail.com>
+ <20171002195601.3jeocmmzyf2jl3dw@dhcp22.suse.cz>
+ <CALvZod5qiF_7k=D7uiF=GwQEgc7Vztn-DNYMxsnmKGrk3DaYBQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20171002200805.GF8421@gate.crashing.org>
-References: <20170921093729.1080368AC1@po15668-vm-win7.idsi0.si.c-s.fr>
- <CAGXu5jJ54+bCcXaPK1ExsxtTDPHNn1+1gywb3TDbe-SEtt1zuQ@mail.gmail.com>
- <20170925073721.GM8421@gate.crashing.org> <063D6719AE5E284EB5DD2968C1650D6DD007F58B@AcuExch.aculab.com>
- <20170925194130.GV8421@gate.crashing.org> <CAGXu5j+bj1NHmrrEmcwPavKubavLh1b01AyyJEFRvycg9FkLpg@mail.gmail.com>
- <20171002200805.GF8421@gate.crashing.org>
-From: Kees Cook <keescook@chromium.org>
-Date: Mon, 2 Oct 2017 13:27:25 -0700
-Message-ID: <CAGXu5jLQMKDxgjeRNC5uhYxy8s0Fqd=vmch75d-VarjZMYDO7g@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix RODATA_TEST failure "rodata_test: test data was
- not read only"
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALvZod5qiF_7k=D7uiF=GwQEgc7Vztn-DNYMxsnmKGrk3DaYBQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Segher Boessenkool <segher@kernel.crashing.org>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, David Laight <David.Laight@aculab.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jinbum Park <jinb.park7@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Tim Hockin <thockin@hockin.org>, Roman Gushchin <guro@fb.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Mon, Oct 2, 2017 at 1:08 PM, Segher Boessenkool
-<segher@kernel.crashing.org> wrote:
-> On Mon, Oct 02, 2017 at 12:29:45PM -0700, Kees Cook wrote:
->> On Mon, Sep 25, 2017 at 12:41 PM, Segher Boessenkool
->> <segher@kernel.crashing.org> wrote:
->> > On Mon, Sep 25, 2017 at 04:01:55PM +0000, David Laight wrote:
->> >> From: Segher Boessenkool
->> >> > The compiler puts this item in .sdata, for 32-bit.  There is no .srodata,
->> >> > so if it wants to use a small data section, it must use .sdata .
->> >> >
->> >> > Non-external, non-referenced symbols are not put in .sdata, that is the
->> >> > difference you see with the "static".
->> >> >
->> >> > I don't think there is a bug here.  If you think there is, please open
->> >> > a GCC bug.
->> >>
->> >> The .sxxx sections are for 'small' data that can be accessed (typically)
->> >> using small offsets from a global register.
->> >> This means that all sections must be adjacent in the image.
->> >> So you can't really have readonly small data.
->> >>
->> >> My guess is that the linker script is putting .srodata in with .sdata.
->> >
->> > .srodata does not *exist* (in the ABI).
->>
->> So, I still think this is a bug. The variable is marked const: this is
->> not a _suggestion_. :) If the compiler produces output where the
->> variable is writable, that's a bug.
->
-> C11 6.7.3/6: "If an attempt is made to modify an object defined with a
-> const-qualified type through use of an lvalue with non-const-qualified
-> type, the behavior is undefined."
->
-> And that is all that "const" means.
->
-> The compiler is free to put this var in *no* data section, or to copy
-> it to the stack before using it, or anything else it thinks is a good
-> idea.
+On Mon, Oct 02, 2017 at 01:24:25PM -0700, Shakeel Butt wrote:
+> On Mon, Oct 2, 2017 at 12:56 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Mon 02-10-17 12:45:18, Shakeel Butt wrote:
+> >> > I am sorry to cut the rest of your proposal because it simply goes over
+> >> > the scope of the proposed solution while the usecase you are mentioning
+> >> > is still possible. If we want to compare intermediate nodes (which seems
+> >> > to be the case) then we can always provide a knob to opt-in - be it your
+> >> > oom_gang or others.
+> >>
+> >> In the Roman's proposed solution we can already force the comparison
+> >> of intermediate nodes using 'oom_group', I am just requesting to
+> >> separate the killall semantics from it.
+> >
+> > oom_group _is_ about killall semantic.  And comparing killable entities
+> > is just a natural thing to do. So I am not sure what you mean
+> >
+> 
+> I am saying decouple the notion of comparable entities and killable entities.
 
-The kernel depends on const things being read-only. I realize C11 says
-this is "undefined", but from a kernel security perspective, const
-means read-only, and this is true on other architectures. Now,
-strictly speaking, the compiler is just responsible for doing section
-assignment for a variable, and the linker then lays things out, but
-the result carries the requested memory protections (i.e. read-only,
-executable, etc). If "const" is just a hint, then what is the
-canonical way to have gcc put a variable into a section that the
-linker will always request be kept read-only?
+Feel free to send patches in a new thread.
 
-> If you think it would be a good idea for the compiler to change its
-> behaviour here, please file a PR (or send a patch).  Please bring
-> arguments why we would want to change this.
-
-Sure:
-https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82411
-
->> I can't tell if this bug is related:
->> https://gcc.gnu.org/bugzilla/show_bug.cgi?id=9571
->
-> I don't think so: the only remaining bug there is that a copy of the
-> constant is put in .rodata.cst8 (although there is a copy in .sdata2
-> already).
-
-Okay, thanks for checking.
-
--Kees
-
--- 
-Kees Cook
-Pixel Security
+We don't need this level of control for this series to be useful - to
+us, and other users. It can easily be added on top of Roman's work.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
