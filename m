@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DDD26B0038
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 16:34:36 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 136so5066164wmu.3
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 13:34:36 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id g62si451258edd.241.2017.10.02.13.34.35
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D65C6B0038
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 16:55:57 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k10so6760261wrk.4
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 13:55:57 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e22si6161131wre.203.2017.10.02.13.55.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 02 Oct 2017 13:34:35 -0700 (PDT)
-Date: Mon, 2 Oct 2017 16:34:23 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 02 Oct 2017 13:55:55 -0700 (PDT)
+Date: Mon, 2 Oct 2017 22:55:52 +0200
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [v8 0/4] cgroup-aware OOM killer
-Message-ID: <20171002203423.GA19849@cmpxchg.org>
+Message-ID: <20171002205552.3ygveyd7yrcvkz7u@dhcp22.suse.cz>
 References: <CAAAKZws2CFExeg6A9AzrGjiHnFHU1h2xdk6J5Jw2kqxy=V+_YQ@mail.gmail.com>
  <20170927162300.GA5623@castle.DHCP.thefacebook.com>
  <CAAAKZwtApj-FgRc2V77nEb3BUd97Rwhgf-b-k0zhf1u+Y4fqxA@mail.gmail.com>
@@ -30,9 +30,9 @@ In-Reply-To: <CALvZod5qiF_7k=D7uiF=GwQEgc7Vztn-DNYMxsnmKGrk3DaYBQ@mail.gmail.com
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shakeel Butt <shakeelb@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Tim Hockin <thockin@hockin.org>, Roman Gushchin <guro@fb.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: Tim Hockin <thockin@hockin.org>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Mon, Oct 02, 2017 at 01:24:25PM -0700, Shakeel Butt wrote:
+On Mon 02-10-17 13:24:25, Shakeel Butt wrote:
 > On Mon, Oct 2, 2017 at 12:56 PM, Michal Hocko <mhocko@kernel.org> wrote:
 > > On Mon 02-10-17 12:45:18, Shakeel Butt wrote:
 > >> > I am sorry to cut the rest of your proposal because it simply goes over
@@ -51,10 +51,14 @@ On Mon, Oct 02, 2017 at 01:24:25PM -0700, Shakeel Butt wrote:
 > 
 > I am saying decouple the notion of comparable entities and killable entities.
 
-Feel free to send patches in a new thread.
+There is no strong (bijection) relation there. Right now killable
+entities are comparable (which I hope we agree is the right thing to do)
+but nothing really prevents even non-killable entities to be compared in
+the future.
 
-We don't need this level of control for this series to be useful - to
-us, and other users. It can easily be added on top of Roman's work.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
