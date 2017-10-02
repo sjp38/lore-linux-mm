@@ -1,63 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D9016B0069
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 16:01:17 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id q133so4310352oic.3
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 13:01:17 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e78sor2580460oih.179.2017.10.02.13.01.15
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 822DE6B0033
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 16:08:47 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id u14so2442094vke.5
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 13:08:47 -0700 (PDT)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id d9si802041qti.519.2017.10.02.13.08.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 02 Oct 2017 13:01:16 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20171002195601.3jeocmmzyf2jl3dw@dhcp22.suse.cz>
-References: <CAAAKZws88uF2dVrXwRV0V6AH5X68rWy7AfJxTxYjpuiyiNJFWA@mail.gmail.com>
- <20170927074319.o3k26kja43rfqmvb@dhcp22.suse.cz> <CAAAKZws2CFExeg6A9AzrGjiHnFHU1h2xdk6J5Jw2kqxy=V+_YQ@mail.gmail.com>
- <20170927162300.GA5623@castle.DHCP.thefacebook.com> <CAAAKZwtApj-FgRc2V77nEb3BUd97Rwhgf-b-k0zhf1u+Y4fqxA@mail.gmail.com>
- <CALvZod7iaOEeGmDJA0cZvJWpuzc-hMRn3PG2cfzcMniJtAjKqA@mail.gmail.com>
- <20171002122434.llbaarb6yw3o3mx3@dhcp22.suse.cz> <CALvZod65LYZZYy6uE=DQaQRPXYAhAci=NMG_w=ZANPGATgRwfg@mail.gmail.com>
- <20171002192814.sad75tqklp3nmr4m@dhcp22.suse.cz> <CALvZod4=+GVg+hrT4ubp9P4b+LUZ+q9mz4ztC=Fc_cmTZmvpcw@mail.gmail.com>
- <20171002195601.3jeocmmzyf2jl3dw@dhcp22.suse.cz>
-From: Tim Hockin <thockin@hockin.org>
-Date: Mon, 2 Oct 2017 13:00:54 -0700
-Message-ID: <CAAAKZwtfXBEe=K93J0U35aMeFaBS8eJ9yN3kRE9=+yKzNnV_Nw@mail.gmail.com>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 02 Oct 2017 13:08:46 -0700 (PDT)
+Date: Mon, 2 Oct 2017 15:08:05 -0500
+From: Segher Boessenkool <segher@kernel.crashing.org>
+Subject: Re: [PATCH] mm: fix RODATA_TEST failure "rodata_test: test data was not read only"
+Message-ID: <20171002200805.GF8421@gate.crashing.org>
+References: <20170921093729.1080368AC1@po15668-vm-win7.idsi0.si.c-s.fr> <CAGXu5jJ54+bCcXaPK1ExsxtTDPHNn1+1gywb3TDbe-SEtt1zuQ@mail.gmail.com> <20170925073721.GM8421@gate.crashing.org> <063D6719AE5E284EB5DD2968C1650D6DD007F58B@AcuExch.aculab.com> <20170925194130.GV8421@gate.crashing.org> <CAGXu5j+bj1NHmrrEmcwPavKubavLh1b01AyyJEFRvycg9FkLpg@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGXu5j+bj1NHmrrEmcwPavKubavLh1b01AyyJEFRvycg9FkLpg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Shakeel Butt <shakeelb@google.com>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Kees Cook <keescook@chromium.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, David Laight <David.Laight@aculab.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jinbum Park <jinb.park7@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>
 
-In the example above:
+On Mon, Oct 02, 2017 at 12:29:45PM -0700, Kees Cook wrote:
+> On Mon, Sep 25, 2017 at 12:41 PM, Segher Boessenkool
+> <segher@kernel.crashing.org> wrote:
+> > On Mon, Sep 25, 2017 at 04:01:55PM +0000, David Laight wrote:
+> >> From: Segher Boessenkool
+> >> > The compiler puts this item in .sdata, for 32-bit.  There is no .srodata,
+> >> > so if it wants to use a small data section, it must use .sdata .
+> >> >
+> >> > Non-external, non-referenced symbols are not put in .sdata, that is the
+> >> > difference you see with the "static".
+> >> >
+> >> > I don't think there is a bug here.  If you think there is, please open
+> >> > a GCC bug.
+> >>
+> >> The .sxxx sections are for 'small' data that can be accessed (typically)
+> >> using small offsets from a global register.
+> >> This means that all sections must be adjacent in the image.
+> >> So you can't really have readonly small data.
+> >>
+> >> My guess is that the linker script is putting .srodata in with .sdata.
+> >
+> > .srodata does not *exist* (in the ABI).
+> 
+> So, I still think this is a bug. The variable is marked const: this is
+> not a _suggestion_. :) If the compiler produces output where the
+> variable is writable, that's a bug.
 
-       root
-       /    \
-     A      D
-     / \
-   B   C
+C11 6.7.3/6: "If an attempt is made to modify an object defined with a
+const-qualified type through use of an lvalue with non-const-qualified
+type, the behavior is undefined."
 
-Does oom_group allow me to express "compare A and D; if A is chosen
-compare B and C; kill the loser" ?  As I understand the proposal (from
-reading thread, not patch) it does not.
+And that is all that "const" means.
 
-On Mon, Oct 2, 2017 at 12:56 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Mon 02-10-17 12:45:18, Shakeel Butt wrote:
->> > I am sorry to cut the rest of your proposal because it simply goes over
->> > the scope of the proposed solution while the usecase you are mentioning
->> > is still possible. If we want to compare intermediate nodes (which seems
->> > to be the case) then we can always provide a knob to opt-in - be it your
->> > oom_gang or others.
->>
->> In the Roman's proposed solution we can already force the comparison
->> of intermediate nodes using 'oom_group', I am just requesting to
->> separate the killall semantics from it.
->
-> oom_group _is_ about killall semantic.  And comparing killable entities
-> is just a natural thing to do. So I am not sure what you mean
->
-> --
-> Michal Hocko
-> SUSE Labs
+The compiler is free to put this var in *no* data section, or to copy
+it to the stack before using it, or anything else it thinks is a good
+idea.
+
+If you think it would be a good idea for the compiler to change its
+behaviour here, please file a PR (or send a patch).  Please bring
+arguments why we would want to change this.
+
+> I can't tell if this bug is related:
+> https://gcc.gnu.org/bugzilla/show_bug.cgi?id=9571
+
+I don't think so: the only remaining bug there is that a copy of the
+constant is put in .rodata.cst8 (although there is a copy in .sdata2
+already).
+
+Thanks,
+
+
+Segher
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
