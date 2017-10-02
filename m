@@ -1,133 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 53F886B0033
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 09:53:02 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id p87so12273962pfj.4
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 06:53:02 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id b17si7848579pfj.279.2017.10.02.06.53.00
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D89D16B0033
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 10:06:42 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id r202so1080857wmd.1
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 07:06:42 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i6sor3580969wrc.86.2017.10.02.07.06.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 02 Oct 2017 06:53:00 -0700 (PDT)
-Subject: Re: [RFC] [PATCH] mm,oom: Offload OOM notify callback to a kernel thread.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20171002090627.547gkmzvutrsamex@dhcp22.suse.cz>
-	<201710022033.GFE82801.HLOVOFFJtSFQMO@I-love.SAKURA.ne.jp>
-	<20171002115035.7sph6ul6hsszdwa4@dhcp22.suse.cz>
-	<201710022205.IGD04659.HSOMJFFQtFOLOV@I-love.SAKURA.ne.jp>
-	<20171002131330.5c5mpephrosfuxsa@dhcp22.suse.cz>
-In-Reply-To: <20171002131330.5c5mpephrosfuxsa@dhcp22.suse.cz>
-Message-Id: <201710022252.DDJ51535.JFQSLFHFVOtOOM@I-love.SAKURA.ne.jp>
-Date: Mon, 2 Oct 2017 22:52:55 +0900
-Mime-Version: 1.0
+        (Google Transport Security);
+        Mon, 02 Oct 2017 07:06:41 -0700 (PDT)
+Date: Mon, 2 Oct 2017 16:06:33 +0200
+From: Alexandru Moise <00moses.alexander00@gmail.com>
+Subject: Re: [PATCH] mm,hugetlb,migration: don't migrate kernelcore hugepages
+Message-ID: <20171002140632.GA12673@gmail.com>
+References: <20171001225111.GA16432@gmail.com>
+ <20171002125432.xiszy6xlvfb2jv67@dhcp22.suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171002125432.xiszy6xlvfb2jv67@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: mst@redhat.com, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: corbet@lwn.net, paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, tglx@linutronix.de, mingo@kernel.org, cdall@linaro.org, mchehab@kernel.org, zohar@linux.vnet.ibm.com, marc.zyngier@arm.com, rientjes@google.com, hannes@cmpxchg.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, aneesh.kumar@linux.vnet.ibm.com, punit.agrawal@arm.com, aarcange@redhat.com, gerald.schaefer@de.ibm.com, jglisse@redhat.com, kirill.shutemov@linux.intel.com, will.deacon@arm.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Michal Hocko wrote:
-> On Mon 02-10-17 22:05:17, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Mon 02-10-17 20:33:52, Tetsuo Handa wrote:
-> > > > > I do not think that making oom notifier API more complex is the way to
-> > > > > go. Can we simply change the lock to try_lock?
-> > > > 
-> > > > Using mutex_trylock(&vb->balloon_lock) alone is not sufficient. Inside the
-> > > > mutex, __GFP_DIRECT_RECLAIM && !__GFP_NORETRY allocation attempt is used
-> > > > which will fail to make progress due to oom_lock already held. Therefore,
-> > > > virtballoon_oom_notify() needs to guarantee that all allocation attempts use
-> > > > GFP_NOWAIT when called from virtballoon_oom_notify().
-> > > 
-> > > Ohh, I missed your point and thought the dependency is indirect and some
-> > > other call path is allocating while holding the lock. But you seem to be
-> > > right and
-> > > leak_balloon
-> > >   tell_host
-> > >     virtqueue_add_outbuf
-> > >       virtqueue_add
-> > > 
-> > > can do GFP_KERNEL allocation and this is clearly wrong. Nobody should
-> > > try to allocate while we are in the OOM path. Michael, is there any way
-> > > to drop this?
+On Mon, Oct 02, 2017 at 02:54:32PM +0200, Michal Hocko wrote:
+> On Mon 02-10-17 00:51:11, Alexandru Moise wrote:
+> > This attempts to bring more flexibility to how hugepages are allocated
+> > by making it possible to decide whether we want the hugepages to be
+> > allocated from ZONE_MOVABLE or to the zone allocated by the "kernelcore="
+> > boot parameter for non-movable allocations.
 > > 
-> > Michael already said
+> > A new boot parameter is introduced, "hugepages_movable=", this sets the
+> > default value for the "hugepages_treat_as_movable" sysctl. This allows
+> > us to determine the zone for hugepages allocated at boot time. It only
+> > affects 2M hugepages allocated at boot time for now because 1G
+> > hugepages are allocated much earlier in the boot process and ignore
+> > this sysctl completely.
 > > 
-> >   That would be tricky to fix. I guess we'll need to drop the lock
-> >   while allocating memory - not an easy fix.
+> > The "hugepages_treat_as_movable" sysctl is also turned into a mandatory
+> > setting that all hugepage allocations at runtime must respect (both
+> > 2M and 1G sized hugepages). The default value is changed to "1" to
+> > preserve the existing behavior that if hugepage migration is supported,
+> > then the pages will be allocated from ZONE_MOVABLE.
+> > 
+> > Note however if not enough contiguous memory is present in ZONE_MOVABLE
+> > then the allocation will fallback to the non-movable zone and those
+> > pages will not be migratable.
 > 
-> We are OOM, we cannot allocate _any_ memory! This is just broken.
+> This changelog doesn't explain _why_ we would need something like that.
 > 
-> > and I think that it would be possible for virtio to locally offload
-> > virtballoon_oom_notify() using this patch's approach, if you don't like
-> > globally offloading at the OOM notifier API level.
+
+So people shouldn't be able to choose whether their hugepages should be
+migratable or not? Maybe they consider some of their applications more
+important than others.
+
+Say:
+You have a large number of correctable errors on a subpage of a compound
+page. So you copy the contents of the page to another hugepage, break the
+original page and offline the subpage. But maybe you'd rather that some of
+your hugepages not be broken and moved because you're not that worried about
+memory corruption, but more about availability.
+
+Without this patch even if hugepages are in the non-movable zone, they move.
+
+> > The implementation is a bit dirty so obviously I'm open to suggestions
+> > for a better way to implement this behavior, or comments whether the whole
+> > idea is fundamentally __wrong__.
 > 
-> Even if the allocation is offloaded to a different context we are sill
-> OOM and we would have to block waiting for it which is just error prone.
+> To be honest I think this is just a wrong approach. hugepages_treat_as_movable
+> is quite questionable to be honest because it breaks the basic semantic
+> of the movable zone if the hugetlb pages are not really migratable which
+> should be the only criterion. Hugetlb pages are no different from other
+> migratable pages in that regards.
 
-Like I comment below, I'm assuming that this deadlock should rarely
-happen from the beginning. Since GFP_KERNEL allocation is conditional,
-we might be able to avoid the allocation from virtballoon_oom_notify().
+Shouldn't hugepages allocated to unmovable zone, by definition, not be able
+to be migrated? With this patch, hugepages in the movable zone do move, but
+hugepages in the non-movable zone don't. Or am I misunderstanding the semantics
+completely?
 
-Michael S. Tsirkin wrote:
-> > @@ -1005,17 +1033,21 @@ int unregister_oom_notifier(struct notifier_block *nb)
-> >   */
-> >  bool out_of_memory(struct oom_control *oc)
-> >  {
-> > -	unsigned long freed = 0;
-> >  	enum oom_constraint constraint = CONSTRAINT_NONE;
-> >  
-> >  	if (oom_killer_disabled)
-> >  		return false;
-> >  
-> > -	if (!is_memcg_oom(oc)) {
-> > -		blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
-> > -		if (freed > 0)
-> > +	if (!is_memcg_oom(oc) && oom_notifier_th) {
-> > +		oom_notifier_requested = true;
-> > +		wake_up(&oom_notifier_request_wait);
-> > +		wait_event_timeout(oom_notifier_response_wait,
-> > +				   !oom_notifier_requested, 5 * HZ);
-> 
-> I guess this means what was earlier a deadlock will free up after 5
-> seconds,
-
-Yes.
-
->          by a 5 sec downtime is still a lot, isn't it?
-
-This timeout should unlikely expire. Please note that this offloading is
-intended for handling the worst scenario, that is, "out_of_memory() is called
-when somebody is already holding vb->balloon_lock lock" and
-"GFP_KERNEL allocation is attempted from virtballoon_oom_notify()".
-
-As far as I know, this lock is held when fill_balloon() or leak_balloon() is
-called. Majority of OOM events call out_of_memory() without holding this lock.
-Thus, "out_of_memory() is called when somebody is already holding vb->balloon_lock
-lock" should rarely happen from the beginning.
-
-If you can artificially trigger this deadlock (i.e. user triggerable OOM DoS),
-a patch for fixing this problem needs to be backported to older/distributor
-kernels...
-
-Yes, conditional GFP_KERNEL allocation attempt from virtqueue_add() might
-still cause this deadlock. But that depends on whether you can trigger this
-deadlock. As far as I know, there is no report. Thus, I think that avoiding
-theoretical deadlock using timeout will be sufficient.
-
-> 
-> 
-> > +		if (oom_notifier_freed) {
-> > +			oom_notifier_freed = 0;
-> >  			/* Got some memory back in the last second. */
-> >  			return true;
-> > +		}
-> >  	}
-> >  
-> >  	/*
-> > -- 
-> > 1.8.3.1
-> 
+../Alex
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
