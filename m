@@ -1,54 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F283C6B0033
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 14:38:37 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id f3so5930588oia.4
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 11:38:37 -0700 (PDT)
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A3556B0033
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 14:51:07 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id n129so5948549oia.6
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 11:51:07 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b41si4483759oth.412.2017.10.02.11.38.36
+        by mx.google.com with ESMTPS id y4si4701119oig.7.2017.10.02.11.51.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Oct 2017 11:38:37 -0700 (PDT)
+        Mon, 02 Oct 2017 11:51:06 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [PATCH] mm/hmm: constify hmm_devmem_page_get_drvdata() parameter
-Date: Mon,  2 Oct 2017 15:32:54 -0400
-Message-Id: <1506972774-10191-1-git-send-email-jglisse@redhat.com>
+Subject: [PATCH] mm/migrate: fix indexing bug (off by one) and avoid out of bound access
+Date: Mon,  2 Oct 2017 15:45:25 -0400
+Message-Id: <1506973525-16491-1-git-send-email-jglisse@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Ralph Campbell <rcampbell@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mark Hairgrove <mhairgrove@nvidia.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-From: Ralph Campbell <rcampbell@nvidia.com>
+From: Mark Hairgrove <mhairgrove@nvidia.com>
 
-Constify pointer parameter to avoid issue when use from code that
-only has const struct page pointer to use in the first place.
+Index was incremented before last use and thus the second array
+could dereference to an invalid address (not mentioning the fact
+that it did not properly clear the entry we intended to clear).
 
-Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
+Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/hmm.h | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/migrate.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 96e6997..325017a 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -471,9 +471,9 @@ static inline void hmm_devmem_page_set_drvdata(struct page *page,
-  * @page: pointer to struct page
-  * Return: driver data value
-  */
--static inline unsigned long hmm_devmem_page_get_drvdata(struct page *page)
-+static inline unsigned long hmm_devmem_page_get_drvdata(const struct page *page)
- {
--	unsigned long *drvdata = (unsigned long *)&page->pgmap;
-+	const unsigned long *drvdata = (const unsigned long *)&page->pgmap;
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 6954c14..e00814c 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -2146,8 +2146,9 @@ static int migrate_vma_collect_hole(unsigned long start,
+ 	unsigned long addr;
  
- 	return drvdata[1];
- }
+ 	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
+-		migrate->src[migrate->npages++] = MIGRATE_PFN_MIGRATE;
++		migrate->src[migrate->npages] = MIGRATE_PFN_MIGRATE;
+ 		migrate->dst[migrate->npages] = 0;
++		migrate->npages++;
+ 		migrate->cpages++;
+ 	}
+ 
 -- 
 2.4.11
 
