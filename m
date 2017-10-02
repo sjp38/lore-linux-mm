@@ -1,90 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BBF5E6B0253
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 10:09:59 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id g32so5653866ioj.0
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 07:09:59 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id d190sor4018714iof.162.2017.10.02.07.09.58
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 750846B025F
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 10:12:00 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id t134so1593276oih.6
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 07:12:00 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c8si4533837oih.496.2017.10.02.07.11.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 02 Oct 2017 07:09:58 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Oct 2017 07:11:59 -0700 (PDT)
+Date: Mon, 2 Oct 2017 17:11:55 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [RFC] [PATCH] mm,oom: Offload OOM notify callback to a kernel
+ thread.
+Message-ID: <20171002170642-mutt-send-email-mst@kernel.org>
+References: <20170929065654-mutt-send-email-mst@kernel.org>
+ <201709291344.FID60965.VHtMQFFJFSLOOO@I-love.SAKURA.ne.jp>
+ <201710011444.IBD05725.VJSFHOOMOFtLQF@I-love.SAKURA.ne.jp>
+ <20171002065801-mutt-send-email-mst@kernel.org>
+ <20171002090627.547gkmzvutrsamex@dhcp22.suse.cz>
+ <201710022033.GFE82801.HLOVOFFJtSFQMO@I-love.SAKURA.ne.jp>
+ <20171002115035.7sph6ul6hsszdwa4@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <201710011957.ICF15708.OOLOHFSQMFFVJt@I-love.SAKURA.ne.jp>
-References: <20170905194739.GA31241@amd> <20171001093704.GA12626@amd>
- <20171001102647.GA23908@amd> <201710011957.ICF15708.OOLOHFSQMFFVJt@I-love.SAKURA.ne.jp>
-From: Linus Walleij <linus.walleij@linaro.org>
-Date: Mon, 2 Oct 2017 16:09:57 +0200
-Message-ID: <CACRpkdYirC+rh_KALgVqKZMjq2DgbW4oi9MJkmrzwn+1O+94-g@mail.gmail.com>
-Subject: Re: 4.14-rc2 on thinkpad x220: out of memory when inserting mmc card
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171002115035.7sph6ul6hsszdwa4@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Pavel Machek <pavel@ucw.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Adrian Hunter <adrian.hunter@intel.com>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, jasowang@redhat.com, jani.nikula@linux.intel.com, joonas.lahtinen@linux.intel.com, rodrigo.vivi@intel.com, airlied@linux.ie, paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, virtualization@lists.linux-foundation.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org
 
-On Sun, Oct 1, 2017 at 12:57 PM, Tetsuo Handa
-<penguin-kernel@i-love.sakura.ne.jp> wrote:
+On Mon, Oct 02, 2017 at 01:50:35PM +0200, Michal Hocko wrote:
+> On Mon 02-10-17 20:33:52, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > [Hmm, I do not see the original patch which this has been a reply to]
+> > 
+> > urbl.hostedemail.com and b.barracudacentral.org blocked my IP address,
+> > and the rest are "Recipient address rejected: Greylisted" or
+> > "Deferred: 451-4.3.0 Multiple destination domains per transaction is unsupported.",
+> > and after all dropped at the servers. Sad...
+> > 
+> > > 
+> > > On Mon 02-10-17 06:59:12, Michael S. Tsirkin wrote:
+> > > > On Sun, Oct 01, 2017 at 02:44:34PM +0900, Tetsuo Handa wrote:
+> > > > > Tetsuo Handa wrote:
+> > > > > > Michael S. Tsirkin wrote:
+> > > > > > > On Mon, Sep 11, 2017 at 07:27:19PM +0900, Tetsuo Handa wrote:
+> > > > > > > > Hello.
+> > > > > > > > 
+> > > > > > > > I noticed that virtio_balloon is using register_oom_notifier() and
+> > > > > > > > leak_balloon() from virtballoon_oom_notify() might depend on
+> > > > > > > > __GFP_DIRECT_RECLAIM memory allocation.
+> > > > > > > > 
+> > > > > > > > In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
+> > > > > > > > serialize against fill_balloon(). But in fill_balloon(),
+> > > > > > > > alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
+> > > > > > > > called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE] implies
+> > > > > > > > __GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, this allocation attempt might
+> > > > > > > > depend on somebody else's __GFP_DIRECT_RECLAIM | !__GFP_NORETRY memory
+> > > > > > > > allocation. Such __GFP_DIRECT_RECLAIM | !__GFP_NORETRY allocation can reach
+> > > > > > > > __alloc_pages_may_oom() and hold oom_lock mutex and call out_of_memory().
+> > > > > > > > And leak_balloon() is called by virtballoon_oom_notify() via
+> > > > > > > > blocking_notifier_call_chain() callback when vb->balloon_lock mutex is already
+> > > > > > > > held by fill_balloon(). As a result, despite __GFP_NORETRY is specified,
+> > > > > > > > fill_balloon() can indirectly get stuck waiting for vb->balloon_lock mutex
+> > > > > > > > at leak_balloon().
+> > > 
+> > > This is really nasty! And I would argue that this is an abuse of the oom
+> > > notifier interface from the virtio code. OOM notifiers are an ugly hack
+> > > on its own but all its users have to be really careful to not depend on
+> > > any allocation request because that is a straight deadlock situation.
+> > 
+> > Please describe such warning at
+> > "int register_oom_notifier(struct notifier_block *nb)" definition.
+> 
+> Yes, we can and should do that. Although I would prefer to simply
+> document this API as deprecated. Care to send a patch? I am quite busy
+> with other stuff.
+> 
+> > > I do not think that making oom notifier API more complex is the way to
+> > > go. Can we simply change the lock to try_lock?
+> > 
+> > Using mutex_trylock(&vb->balloon_lock) alone is not sufficient. Inside the
+> > mutex, __GFP_DIRECT_RECLAIM && !__GFP_NORETRY allocation attempt is used
+> > which will fail to make progress due to oom_lock already held. Therefore,
+> > virtballoon_oom_notify() needs to guarantee that all allocation attempts use
+> > GFP_NOWAIT when called from virtballoon_oom_notify().
+> 
+> Ohh, I missed your point and thought the dependency is indirect
 
->> > I inserted u-SD card, only to realize that it is not detected as it
->> > should be. And dmesg indeed reveals:
->>
->> Tetsuo asked me to report this to linux-mm.
->>
->> But 2^4 is 16 pages, IIRC that can't be expected to work reliably, and
->> thus this sounds like MMC bug, not mm bug.
+I do think this is the case. See below.
 
 
-I'm not sure I fully understand this error message:
-"worker/2:1: page allocation failure: order:4"
+> and some
+> other call path is allocating while holding the lock. But you seem to be
+> right and
+> leak_balloon
+>   tell_host
+>     virtqueue_add_outbuf
+>       virtqueue_add
+> 
+> can do GFP_KERNEL allocation and this is clearly wrong. Nobody should
+> try to allocate while we are in the OOM path. Michael, is there any way
+> to drop this?
 
-What I guess from context is that the mmc_init_request()
-call is failing to allocate 16 pages, meaning for 4K pages
-64KB which is the typical bounce buffer.
+Yes - in practice it won't ever allocate - that path is never taken
+with add_outbuf - it is for add_sgs only.
 
-This is what the code has always allocated as bounce buffer,
-but it used to happen upfront, when probing the MMC block layer,
-rather than when allocating the requests.
+IMHO the issue is balloon inflation which needs to allocate
+memory. It does it under a mutex, and oom handler tries to take the
+same mutex.
 
-Now it happens later, and that fails sometimes apparently.
 
-> Yes, 16 pages is costly allocations which will fail without invoking the
-> OOM killer. But I thought this is an interesting case, for mempool
-> allocation should be able to handle memory allocation failure except
-> initial allocations, and initial allocation is failing.
->
-> I think that using kvmalloc() (and converting corresponding kfree() to
-> kvfree()) will make initial allocations succeed, but that might cause
-> needlessly succeeding subsequent mempool allocations under memory pressure?
-
-Using kvmalloc() is against the design of the bounce buffer if that
-means we allocate virtual (non-contigous) memory. These bounce
-buffers exist exactly to be contigous.
-
-I think it is better to delete the bounce buffer handling altogether since
-it anyways turns out that noone is using them or getting any
-benefit from them. AFAICT.
-i.e. just cherry-pick commit a16a2cc4f37d4a35df7cdc5c976465f9867985c2
-("mmc: Delete bounce buffer handling").
-
-This should be fine to cherry-pick for fixes.
-
-What we figured out is that bounce buffers are almost always enabled
-but very seldom actually used by the drivers. It is only used by
-drivers with max_segs == 1.
-
-This MMC host driver (which one?) appears to be having max_segs == 1.
-This doesn't mean that the bounce buffers actually provide a speedup.
-Most probably not. It just happens that code enables them if
-you have max_segs == 1.
-
-Can you try cherry-picking the above patch, also here:
-https://git.kernel.org/pub/scm/linux/kernel/git/ulfh/mmc.git/commit/?h=next&id=a16a2cc4f37d4a35df7cdc5c976465f9867985c2
-
-And see if this solves your problem?
-
-Yours,
-Linus Walleij
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
