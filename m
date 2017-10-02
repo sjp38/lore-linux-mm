@@ -1,54 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 40BDE6B0253
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 17:54:50 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z1so6873976wre.6
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 14:54:50 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 98si4278301wrk.281.2017.10.02.14.54.48
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 031016B0253
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 17:57:16 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id r83so14463405pfj.5
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 14:57:15 -0700 (PDT)
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id f6si8456037pgp.631.2017.10.02.14.57.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Oct 2017 14:54:49 -0700 (PDT)
-Date: Mon, 2 Oct 2017 14:54:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 1/1] mm: only dispaly online cpus of the numa node
-Message-Id: <20171002145446.eade11c1f28d55e5f67aa4d0@linux-foundation.org>
-In-Reply-To: <20171002103806.GB3823@arm.com>
-References: <1506678805-15392-1-git-send-email-thunder.leizhen@huawei.com>
-	<1506678805-15392-2-git-send-email-thunder.leizhen@huawei.com>
-	<20171002103806.GB3823@arm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 02 Oct 2017 14:57:15 -0700 (PDT)
+From: Ralph Campbell <rcampbell@nvidia.com>
+Subject: RE: [PATCH] mm/hmm: constify hmm_devmem_page_get_drvdata() parameter
+Date: Mon, 2 Oct 2017 21:54:43 +0000
+Message-ID: <5de6865d177849a389f02e064b2ff65b@HQMAIL105.nvidia.com>
+References: <1506972774-10191-1-git-send-email-jglisse@redhat.com>
+ <20171002144042.e33ff3cf7dc95845e255d2c0@linux-foundation.org>
+In-Reply-To: <20171002144042.e33ff3cf7dc95845e255d2c0@linux-foundation.org>
+MIME-Version: 1.0
+Content-Language: en-US
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Zhen Lei <thunder.leizhen@huawei.com>, Catalin Marinas <catalin.marinas@arm.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-api <linux-api@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm <linux-mm@kvack.org>, Tianhong Ding <dingtianhong@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Libin <huawei.libin@huawei.com>, Kefeng Wang <wangkefeng.wang@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>, =?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, 2 Oct 2017 11:38:07 +0100 Will Deacon <will.deacon@arm.com> wrote:
+The use case is when called by struct hmm_devmem_ops.fault() which passes a=
+ const struct page * pointer and hmm_devmem_page_get_drvdata() is called to=
+ get the private data.
+Since HMM was only recently added, it only affects kernels after September =
+8, 2017.
 
-> > When I executed numactl -H(which read /sys/devices/system/node/nodeX/cpumap
-> > and display cpumask_of_node for each node), but I got different result on
-> > X86 and arm64. For each numa node, the former only displayed online CPUs,
-> > and the latter displayed all possible CPUs. Unfortunately, both Linux
-> > documentation and numactl manual have not described it clear.
-> > 
-> > I sent a mail to ask for help, and Michal Hocko <mhocko@kernel.org> replied
-> > that he preferred to print online cpus because it doesn't really make much
-> > sense to bind anything on offline nodes.
-> > 
-> > Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
-> > Acked-by: Michal Hocko <mhocko@suse.com>
-> > ---
-> >  drivers/base/node.c | 12 ++++++++++--
-> >  1 file changed, 10 insertions(+), 2 deletions(-)
-> 
-> Which tree is this intended to go through? I'm happy to take it via arm64,
-> but I don't want to tread on anybody's toes in linux-next and it looks like
-> there are already queued changes to this file via Andrew's tree.
-
-I grabbed it.  I suppose there's some small risk of userspace breakage
-so I suggest it be a 4.15-rc1 thing?
+> -----Original Message-----
+> From: Andrew Morton [mailto:akpm@linux-foundation.org]
+> Sent: Monday, October 2, 2017 2:41 PM
+> To: J=E9r=F4me Glisse <jglisse@redhat.com>
+> Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org; Ralph Campbell
+> <rcampbell@nvidia.com>
+> Subject: Re: [PATCH] mm/hmm: constify hmm_devmem_page_get_drvdata()
+> parameter
+>=20
+> On Mon,  2 Oct 2017 15:32:54 -0400 J=E9r=F4me Glisse <jglisse@redhat.com>
+> wrote:
+>=20
+> > From: Ralph Campbell <rcampbell@nvidia.com>
+> >
+> > Constify pointer parameter to avoid issue when use from code that only
+> > has const struct page pointer to use in the first place.
+>=20
+> That's rather vague.  Does such calling code exist in the kernel?  This a=
+ffects the
+> which-kernel-gets-patched decision.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
