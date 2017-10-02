@@ -1,138 +1,211 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CD46F6B0033
-	for <linux-mm@kvack.org>; Sun,  1 Oct 2017 19:29:51 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id x64so6043214ywe.0
-        for <linux-mm@kvack.org>; Sun, 01 Oct 2017 16:29:51 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id g12sor375689ybd.68.2017.10.01.16.29.50
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D2E0C6B0033
+	for <linux-mm@kvack.org>; Sun,  1 Oct 2017 23:59:21 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id i12so3748621qka.15
+        for <linux-mm@kvack.org>; Sun, 01 Oct 2017 20:59:21 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a27si2878550qtd.410.2017.10.01.20.59.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 01 Oct 2017 16:29:50 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 01 Oct 2017 20:59:20 -0700 (PDT)
+Date: Mon, 2 Oct 2017 06:59:12 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [RFC] [PATCH] mm,oom: Offload OOM notify callback to a kernel
+ thread.
+Message-ID: <20171002065801-mutt-send-email-mst@kernel.org>
+References: <201709111927.IDD00574.tFVJHLOSOOMQFF@I-love.SAKURA.ne.jp>
+ <20170929065654-mutt-send-email-mst@kernel.org>
+ <201709291344.FID60965.VHtMQFFJFSLOOO@I-love.SAKURA.ne.jp>
+ <201710011444.IBD05725.VJSFHOOMOFtLQF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <CAAAKZwtApj-FgRc2V77nEb3BUd97Rwhgf-b-k0zhf1u+Y4fqxA@mail.gmail.com>
-References: <20170925181533.GA15918@castle> <20170925202442.lmcmvqwy2jj2tr5h@dhcp22.suse.cz>
- <20170926105925.GA23139@castle.dhcp.TheFacebook.com> <20170926112134.r5eunanjy7ogjg5n@dhcp22.suse.cz>
- <20170926121300.GB23139@castle.dhcp.TheFacebook.com> <20170926133040.uupv3ibkt3jtbotf@dhcp22.suse.cz>
- <20170926172610.GA26694@cmpxchg.org> <CAAAKZws88uF2dVrXwRV0V6AH5X68rWy7AfJxTxYjpuiyiNJFWA@mail.gmail.com>
- <20170927074319.o3k26kja43rfqmvb@dhcp22.suse.cz> <CAAAKZws2CFExeg6A9AzrGjiHnFHU1h2xdk6J5Jw2kqxy=V+_YQ@mail.gmail.com>
- <20170927162300.GA5623@castle.DHCP.thefacebook.com> <CAAAKZwtApj-FgRc2V77nEb3BUd97Rwhgf-b-k0zhf1u+Y4fqxA@mail.gmail.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Sun, 1 Oct 2017 16:29:48 -0700
-Message-ID: <CALvZod7iaOEeGmDJA0cZvJWpuzc-hMRn3PG2cfzcMniJtAjKqA@mail.gmail.com>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201710011444.IBD05725.VJSFHOOMOFtLQF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Hockin <thockin@hockin.org>
-Cc: Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: jasowang@redhat.com, jani.nikula@linux.intel.com, joonas.lahtinen@linux.intel.com, rodrigo.vivi@intel.com, airlied@linux.ie, paulmck@linux.vnet.ibm.com, josh@joshtriplett.org, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, jiangshanlai@gmail.com, virtualization@lists.linux-foundation.org, intel-gfx@lists.freedesktop.org, linux-mm@kvack.org
 
->
-> Going back to Michal's example, say the user configured the following:
->
->        root
->       /    \
->      A      D
->     / \
->    B   C
->
-> A global OOM event happens and we find this:
-> - A > D
-> - B, C, D are oomgroups
->
-> What the user is telling us is that B, C, and D are compound memory
-> consumers. They cannot be divided into their task parts from a memory
-> point of view.
->
-> However, the user doesn't say the same for A: the A subtree summarizes
-> and controls aggregate consumption of B and C, but without groupoom
-> set on A, the user says that A is in fact divisible into independent
-> memory consumers B and C.
->
-> If we don't have to kill all of A, but we'd have to kill all of D,
-> does it make sense to compare the two?
->
+On Sun, Oct 01, 2017 at 02:44:34PM +0900, Tetsuo Handa wrote:
+> Tetsuo Handa wrote:
+> > Michael S. Tsirkin wrote:
+> > > On Mon, Sep 11, 2017 at 07:27:19PM +0900, Tetsuo Handa wrote:
+> > > > Hello.
+> > > > 
+> > > > I noticed that virtio_balloon is using register_oom_notifier() and
+> > > > leak_balloon() from virtballoon_oom_notify() might depend on
+> > > > __GFP_DIRECT_RECLAIM memory allocation.
+> > > > 
+> > > > In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
+> > > > serialize against fill_balloon(). But in fill_balloon(),
+> > > > alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
+> > > > called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE] implies
+> > > > __GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, this allocation attempt might
+> > > > depend on somebody else's __GFP_DIRECT_RECLAIM | !__GFP_NORETRY memory
+> > > > allocation. Such __GFP_DIRECT_RECLAIM | !__GFP_NORETRY allocation can reach
+> > > > __alloc_pages_may_oom() and hold oom_lock mutex and call out_of_memory().
+> > > > And leak_balloon() is called by virtballoon_oom_notify() via
+> > > > blocking_notifier_call_chain() callback when vb->balloon_lock mutex is already
+> > > > held by fill_balloon(). As a result, despite __GFP_NORETRY is specified,
+> > > > fill_balloon() can indirectly get stuck waiting for vb->balloon_lock mutex
+> > > > at leak_balloon().
+> > > 
+> > > That would be tricky to fix. I guess we'll need to drop the lock
+> > > while allocating memory - not an easy fix.
+> > > 
+> > > > Also, in leak_balloon(), virtqueue_add_outbuf(GFP_KERNEL) is called via
+> > > > tell_host(). Reaching __alloc_pages_may_oom() from this virtqueue_add_outbuf()
+> > > > request from leak_balloon() from virtballoon_oom_notify() from
+> > > > blocking_notifier_call_chain() from out_of_memory() leads to OOM lockup
+> > > > because oom_lock mutex is already held before calling out_of_memory().
+> > > 
+> > > I guess we should just do
+> > > 
+> > > GFP_KERNEL & ~__GFP_DIRECT_RECLAIM there then?
+> > 
+> > Yes, but GFP_KERNEL & ~__GFP_DIRECT_RECLAIM will effectively be GFP_NOWAIT, for
+> > __GFP_IO and __GFP_FS won't make sense without __GFP_DIRECT_RECLAIM. It might
+> > significantly increases possibility of memory allocation failure.
+> > 
+> > > 
+> > > 
+> > > > 
+> > > > OOM notifier callback should not (directly or indirectly) depend on
+> > > > __GFP_DIRECT_RECLAIM memory allocation attempt. Can you fix this dependency?
+> > > 
+> > 
+> > Another idea would be to use a kernel thread (or workqueue) so that
+> > virtballoon_oom_notify() can wait with timeout.
+> > 
+> > We could offload entire blocking_notifier_call_chain(&oom_notify_list, 0, &freed)
+> > call to a kernel thread (or workqueue) with timeout if MM folks agree.
+> > 
+> 
+> Below is a patch which offloads blocking_notifier_call_chain() call. What do you think?
+> ----------------------------------------
+> [RFC] [PATCH] mm,oom: Offload OOM notify callback to a kernel thread.
+> 
+> Since oom_notify_list is traversed via blocking_notifier_call_chain(),
+> it is legal to sleep inside OOM notifier callback function.
+> 
+> However, since oom_notify_list is traversed with oom_lock held,
+> __GFP_DIRECT_RECLAIM && !__GFP_NORETRY memory allocation attempt cannot
+> fail when traversing oom_notify_list entries. Therefore, OOM notifier
+> callback function should not (directly or indirectly) depend on
+> __GFP_DIRECT_RECLAIM && !__GFP_NORETRY memory allocation attempt.
+> 
+> Currently there are 5 register_oom_notifier() users in the mainline kernel.
+> 
+>   arch/powerpc/platforms/pseries/cmm.c
+>   arch/s390/mm/cmm.c
+>   drivers/gpu/drm/i915/i915_gem_shrinker.c
+>   drivers/virtio/virtio_balloon.c
+>   kernel/rcu/tree_plugin.h
+> 
+> Among these users, at least virtio_balloon.c has possibility of OOM lockup
+> because it is using mutex which can depend on GFP_KERNEL memory allocations.
+> (Both cmm.c seem to be safe as they use spinlocks. I'm not sure about
+> tree_plugin.h and i915_gem_shrinker.c . Please check.)
+> 
+> But converting such allocations to use GFP_NOWAIT is not only prone to
+> allocation failures under memory pressure but also difficult to audit
+> whether all locations are converted to use GFP_NOWAIT.
+> 
+> Therefore, this patch offloads blocking_notifier_call_chain() call to a
+> dedicated kernel thread and wait for completion with timeout of 5 seconds
+> so that we can completely forget about possibility of OOM lockup due to
+> OOM notifier callback function.
+> 
+> (5 seconds is chosen from my guess that blocking_notifier_call_chain()
+> should not take long, for we are using mutex_trylock(&oom_lock) at
+> __alloc_pages_may_oom() based on an assumption that out_of_memory() should
+> reclaim memory shortly.)
+> 
+> The kernel thread is created upon first register_oom_notifier() call.
+> Thus, those environments which do not use register_oom_notifier() will
+> not waste resource for the dedicated kernel thread.
+> 
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> ---
+>  mm/oom_kill.c | 40 ++++++++++++++++++++++++++++++++++++----
+>  1 file changed, 36 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index dee0f75..d9744f7 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -981,9 +981,37 @@ static void check_panic_on_oom(struct oom_control *oc,
+>  }
+>  
+>  static BLOCKING_NOTIFIER_HEAD(oom_notify_list);
+> +static bool oom_notifier_requested;
+> +static unsigned long oom_notifier_freed;
+> +static struct task_struct *oom_notifier_th;
+> +static DECLARE_WAIT_QUEUE_HEAD(oom_notifier_request_wait);
+> +static DECLARE_WAIT_QUEUE_HEAD(oom_notifier_response_wait);
+> +
+> +static int oom_notifier(void *unused)
+> +{
+> +	while (true) {
+> +		wait_event_freezable(oom_notifier_request_wait,
+> +				     oom_notifier_requested);
+> +		blocking_notifier_call_chain(&oom_notify_list, 0,
+> +					     &oom_notifier_freed);
+> +		oom_notifier_requested = false;
+> +		wake_up(&oom_notifier_response_wait);
+> +	}
+> +	return 0;
+> +}
+>  
+>  int register_oom_notifier(struct notifier_block *nb)
+>  {
+> +	if (!oom_notifier_th) {
+> +		struct task_struct *th = kthread_run(oom_notifier, NULL,
+> +						     "oom_notifier");
+> +
+> +		if (IS_ERR(th)) {
+> +			pr_err("Unable to start OOM notifier thread.\n");
+> +			return (int) PTR_ERR(th);
+> +		}
+> +		oom_notifier_th = th;
+> +	}
+>  	return blocking_notifier_chain_register(&oom_notify_list, nb);
+>  }
+>  EXPORT_SYMBOL_GPL(register_oom_notifier);
+> @@ -1005,17 +1033,21 @@ int unregister_oom_notifier(struct notifier_block *nb)
+>   */
+>  bool out_of_memory(struct oom_control *oc)
+>  {
+> -	unsigned long freed = 0;
+>  	enum oom_constraint constraint = CONSTRAINT_NONE;
+>  
+>  	if (oom_killer_disabled)
+>  		return false;
+>  
+> -	if (!is_memcg_oom(oc)) {
+> -		blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
+> -		if (freed > 0)
+> +	if (!is_memcg_oom(oc) && oom_notifier_th) {
+> +		oom_notifier_requested = true;
+> +		wake_up(&oom_notifier_request_wait);
+> +		wait_event_timeout(oom_notifier_response_wait,
+> +				   !oom_notifier_requested, 5 * HZ);
 
-I think Tim has given very clear explanation why comparing A & D makes
-perfect sense. However I think the above example, a single user system
-where a user has designed and created the whole hierarchy and then
-attaches different jobs/applications to different nodes in this
-hierarchy, is also a valid scenario. One solution I can think of, to
-cater both scenarios, is to introduce a notion of 'bypass oom' or not
-include a memcg for oom comparision and instead include its children
-in the comparison.
-
-So, in the same above example:
-        root
-       /       \
-      A(b)    D
-     /  \
-    B   C
-
-A is marked as bypass and thus B and C are to be compared to D. So,
-for the single user scenario, all the internal nodes are marked
-'bypass oom comparison' and oom_priority of the leaves has to be set
-to the same value.
-
-Below is the pseudo code of select_victim_memcg() based on this idea
-and David's previous pseudo code. The calculation of size of a memcg
-is still not very well baked here yet. I am working on it and I plan
-to have a patch based on Roman's v9 "mm, oom: cgroup-aware OOM killer"
-patch.
+I guess this means what was earlier a deadlock will free up after 5
+seconds, by a 5 sec downtime is still a lot, isn't it?
 
 
-        struct mem_cgroup *memcg = root_mem_cgroup;
-        struct mem_cgroup *selected_memcg = root_mem_cgroup;
-        struct mem_cgroup *low_memcg;
-        unsigned long low_priority;
-        unsigned long prev_badness = memcg_oom_badness(memcg); // Roman's code
-        LIST_HEAD(queue);
-
-next_level:
-        low_memcg = NULL;
-        low_priority = ULONG_MAX;
-
-next:
-        for_each_child_of_memcg(it, memcg) {
-                unsigned long prio = it->oom_priority;
-                unsigned long badness = 0;
-
-                if (it->bypass_oom && !it->oom_group &&
-memcg_has_children(it)) {
-                        list_add(&it->oom_queue, &queue);
-                        continue;
-                }
-
-                if (prio > low_priority)
-                        continue;
-
-                if (prio == low_priority) {
-                        badness = mem_cgroup_usage(it); // for
-simplicity, need more thinking
-                        if (badness < prev_badness)
-                                continue;
-                }
-
-                low_memcg = it;
-                low_priority = prio;
-                prev_badness = badness ?: mem_cgroup_usage(it);  //
-for simplicity
-        }
-        if (!list_empty(&queue)) {
-                memcg = list_last_entry(&queue, struct mem_cgroup, oom_queue);
-                list_del(&memcg->oom_queue);
-                goto next;
-        }
-        if (low_memcg) {
-                selected_memcg = memcg = low_memcg;
-                prev_badness = 0;
-                if (!low_memcg->oom_group)
-                        goto next_level;
-        }
-        if (selected_memcg->oom_group)
-                oom_kill_memcg(selected_memcg);
-        else
-                oom_kill_process_from_memcg(selected_memcg);
+> +		if (oom_notifier_freed) {
+> +			oom_notifier_freed = 0;
+>  			/* Got some memory back in the last second. */
+>  			return true;
+> +		}
+>  	}
+>  
+>  	/*
+> -- 
+> 1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
