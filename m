@@ -1,93 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E32BB6B0038
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 16:58:48 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id h80so3291854lfe.7
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 13:58:48 -0700 (PDT)
-Received: from forwardcorp1o.cmail.yandex.net (forwardcorp1o.cmail.yandex.net. [2a02:6b8:0:1a72::290])
-        by mx.google.com with ESMTPS id 92si1377691lfq.90.2017.10.02.13.58.47
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6309F6B0038
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 17:40:46 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id q124so1111633wmb.23
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 14:40:46 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id q190si7196685wmb.193.2017.10.02.14.40.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Oct 2017 13:58:47 -0700 (PDT)
-Subject: Re: [PATCH RFC] mm: implement write-behind policy for sequential file
- writes
-References: <150693809463.587641.5712378065494786263.stgit@buzz>
- <CA+55aFyXrxN8Dqw9QK9NPWk+ZD52fT=q2y7ByPt9pooOrio3Nw@mail.gmail.com>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <dcb23e5d-81b9-9a6c-b7ac-bbad2ef77fd8@yandex-team.ru>
-Date: Mon, 2 Oct 2017 23:58:45 +0300
-MIME-Version: 1.0
-In-Reply-To: <CA+55aFyXrxN8Dqw9QK9NPWk+ZD52fT=q2y7ByPt9pooOrio3Nw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Mon, 02 Oct 2017 14:40:45 -0700 (PDT)
+Date: Mon, 2 Oct 2017 14:40:42 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/hmm: constify hmm_devmem_page_get_drvdata()
+ parameter
+Message-Id: <20171002144042.e33ff3cf7dc95845e255d2c0@linux-foundation.org>
+In-Reply-To: <1506972774-10191-1-git-send-email-jglisse@redhat.com>
+References: <1506972774-10191-1-git-send-email-jglisse@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ralph Campbell <rcampbell@nvidia.com>
 
-On 02.10.2017 22:54, Linus Torvalds wrote:
-> On Mon, Oct 2, 2017 at 2:54 AM, Konstantin Khlebnikov
-> <khlebnikov@yandex-team.ru> wrote:
->>
->> This patch implements write-behind policy which tracks sequential writes
->> and starts background writeback when have enough dirty pages in a row.
-> 
-> This looks lovely to me.
-> 
-> I do wonder if you also looked at finishing the background
-> write-behind at close() time, because it strikes me that once you
-> start doing that async writeout, it would probably be good to make
-> sure you try to do the whole file.
+On Mon,  2 Oct 2017 15:32:54 -0400 J=E9r=F4me Glisse <jglisse@redhat.com> w=
+rote:
 
-Smaller files or tails is lesser problem and forced writeback here
-might add bigger overhead due to small requests or too random IO.
-Also open+append+close pattern could generate too much IO.
+> From: Ralph Campbell <rcampbell@nvidia.com>
+>=20
+> Constify pointer parameter to avoid issue when use from code that
+> only has const struct page pointer to use in the first place.
 
-> 
-> I'm thinking of filesystems that do delayed allocation etc - I'd
-> expect that you'd want the whole file to get allocated on disk
-> together, rather than have the "first 256kB aligned chunks" allocated
-> thanks to write-behind, and then the final part allocated much later
-> (after other files may have triggered their own write-behind). Think
-> loads like copying lots of pictures around, for example.
-
-As far as I know ext4 preallocates space beyond file end for writing
-patterns like append + fsync. Thus allocated extents should be bigger
-than 256k. I haven't looked into this yet.
-
-> 
-> I don't have any particularly strong feelings about this, but I do
-> suspect that once you have started that IO, you do want to finish it
-> all up as the file write is done. No?
-
-I'm aiming into continuous file operations like downloading huge file
-or writing verbose log. Original motivation came from low-latency server
-workloads which suffers from parallel bulk operations which generates
-tons of dirty pages. Probably for general-purpose usage thresholds
-should be increased significantly to cover only really bulky patterns.
-
-> 
-> It would also be really nice to see some numbers. Perhaps a comparison
-> of "vmstat 1" or similar when writing a big file to some slow medium
-> like a USB stick (which is something we've done very very badly at,
-> and this should help smooth out)?
-
-I'll try to find out some real cases with numbers.
-
-For now I see that massive write + fdatasync (dd conf=fdatasync, fio)
-always ends earlier because writeback now starts earlier too.
-Without fdatasync it's obviously slower.
-
-Cp to usb stick + umount should show same result, plus cp could be
-interrupted at any point without contaminating cache with dirty pages.
-
-Kernel compilation tooks almost the same time because most files are
-smaller than 256k.
-
-> 
->                  Linus
-> 
+That's rather vague.  Does such calling code exist in the kernel?  This
+affects the which-kernel-gets-patched decision.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
