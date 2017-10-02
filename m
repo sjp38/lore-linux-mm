@@ -1,83 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DBF26B0033
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 09:03:56 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id r74so3100329wrb.7
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 06:03:56 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id 36si8766994wrw.317.2017.10.02.06.03.54
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AA9F6B0069
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 09:05:25 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id f84so12072936pfj.0
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 06:05:25 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id u8si4327370plr.725.2017.10.02.06.05.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Oct 2017 06:03:54 -0700 (PDT)
-Date: Mon, 2 Oct 2017 15:03:53 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: 4.14-rc2 on thinkpad x220: out of memory when inserting mmc card
-Message-ID: <20171002130353.GA25433@amd>
-References: <20170905194739.GA31241@amd>
- <20171001093704.GA12626@amd>
- <20171001102647.GA23908@amd>
- <201710011957.ICF15708.OOLOHFSQMFFVJt@I-love.SAKURA.ne.jp>
- <72c93a69-610f-027e-c028-379b97b6f388@intel.com>
- <20171002084131.GA24414@amd>
- <CACRpkdbatrt0Uxf8653iiV-OKkgcc0Ziog_L4oDVTJVNqtNN0Q@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="UugvWAfsgieZRqgk"
-Content-Disposition: inline
-In-Reply-To: <CACRpkdbatrt0Uxf8653iiV-OKkgcc0Ziog_L4oDVTJVNqtNN0Q@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 02 Oct 2017 06:05:23 -0700 (PDT)
+Subject: Re: [RFC] [PATCH] mm,oom: Offload OOM notify callback to a kernel thread.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201710011444.IBD05725.VJSFHOOMOFtLQF@I-love.SAKURA.ne.jp>
+	<20171002065801-mutt-send-email-mst@kernel.org>
+	<20171002090627.547gkmzvutrsamex@dhcp22.suse.cz>
+	<201710022033.GFE82801.HLOVOFFJtSFQMO@I-love.SAKURA.ne.jp>
+	<20171002115035.7sph6ul6hsszdwa4@dhcp22.suse.cz>
+In-Reply-To: <20171002115035.7sph6ul6hsszdwa4@dhcp22.suse.cz>
+Message-Id: <201710022205.IGD04659.HSOMJFFQtFOLOV@I-love.SAKURA.ne.jp>
+Date: Mon, 2 Oct 2017 22:05:17 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Walleij <linus.walleij@linaro.org>
-Cc: Adrian Hunter <adrian.hunter@intel.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, linux-mm@kvack.org
+To: mhocko@kernel.org
+Cc: mst@redhat.com, linux-mm@kvack.org
 
+(Reducing recipients in a hope not to be filtered at the servers.)
 
---UugvWAfsgieZRqgk
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Michal Hocko wrote:
+> On Mon 02-10-17 20:33:52, Tetsuo Handa wrote:
+> > > On Mon 02-10-17 06:59:12, Michael S. Tsirkin wrote:
+> > > > On Sun, Oct 01, 2017 at 02:44:34PM +0900, Tetsuo Handa wrote:
+> > > > > Tetsuo Handa wrote:
+> > > > > > Michael S. Tsirkin wrote:
+> > > > > > > On Mon, Sep 11, 2017 at 07:27:19PM +0900, Tetsuo Handa wrote:
+> > > > > > > > Hello.
+> > > > > > > > 
+> > > > > > > > I noticed that virtio_balloon is using register_oom_notifier() and
+> > > > > > > > leak_balloon() from virtballoon_oom_notify() might depend on
+> > > > > > > > __GFP_DIRECT_RECLAIM memory allocation.
+> > > > > > > > 
+> > > > > > > > In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
+> > > > > > > > serialize against fill_balloon(). But in fill_balloon(),
+> > > > > > > > alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
+> > > > > > > > called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE] implies
+> > > > > > > > __GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, this allocation attempt might
+> > > > > > > > depend on somebody else's __GFP_DIRECT_RECLAIM | !__GFP_NORETRY memory
+> > > > > > > > allocation. Such __GFP_DIRECT_RECLAIM | !__GFP_NORETRY allocation can reach
+> > > > > > > > __alloc_pages_may_oom() and hold oom_lock mutex and call out_of_memory().
+> > > > > > > > And leak_balloon() is called by virtballoon_oom_notify() via
+> > > > > > > > blocking_notifier_call_chain() callback when vb->balloon_lock mutex is already
+> > > > > > > > held by fill_balloon(). As a result, despite __GFP_NORETRY is specified,
+> > > > > > > > fill_balloon() can indirectly get stuck waiting for vb->balloon_lock mutex
+> > > > > > > > at leak_balloon().
+> > > 
+> > > This is really nasty! And I would argue that this is an abuse of the oom
+> > > notifier interface from the virtio code. OOM notifiers are an ugly hack
+> > > on its own but all its users have to be really careful to not depend on
+> > > any allocation request because that is a straight deadlock situation.
+> > 
+> > > I do not think that making oom notifier API more complex is the way to
+> > > go. Can we simply change the lock to try_lock?
+> > 
+> > Using mutex_trylock(&vb->balloon_lock) alone is not sufficient. Inside the
+> > mutex, __GFP_DIRECT_RECLAIM && !__GFP_NORETRY allocation attempt is used
+> > which will fail to make progress due to oom_lock already held. Therefore,
+> > virtballoon_oom_notify() needs to guarantee that all allocation attempts use
+> > GFP_NOWAIT when called from virtballoon_oom_notify().
+> 
+> Ohh, I missed your point and thought the dependency is indirect and some
+> other call path is allocating while holding the lock. But you seem to be
+> right and
+> leak_balloon
+>   tell_host
+>     virtqueue_add_outbuf
+>       virtqueue_add
+> 
+> can do GFP_KERNEL allocation and this is clearly wrong. Nobody should
+> try to allocate while we are in the OOM path. Michael, is there any way
+> to drop this?
 
-On Mon 2017-10-02 14:06:03, Linus Walleij wrote:
-> On Mon, Oct 2, 2017 at 10:41 AM, Pavel Machek <pavel@ucw.cz> wrote:
->=20
-> >> Bounce buffers are being removed from v4.15
->=20
-> As Adrian states, this would make any last bugs go away. I would
-> even consider putting this patch this into fixes if it solves the problem.
->=20
-> > although you may experience
-> >> performance regression with that:
-> >>
-> >>       https://marc.info/?l=3Dlinux-mmc&m=3D150589778700551
-> >
-> > Hmm. The performance of this is already pretty bad, I really hope it
-> > does not get any worse.
->=20
-> Did you use bounce buffers? Those were improving performance on
-> some laptops with TI or Ricoh host controllers and nothing else was
-> ever really using it (as can be seen from the commit).
+Michael already said
 
-Thinkpad X220... how do I tell if I was using them? I believe so,
-because I uncovered bug in them before.
+  That would be tricky to fix. I guess we'll need to drop the lock
+  while allocating memory - not an easy fix.
 
-									Pavel
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
-
---UugvWAfsgieZRqgk
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAlnSOTkACgkQMOfwapXb+vLC7QCZAfSSy+2u+u9pvrLC579qxsqd
-kM4An1/hp9y9gOLAHZ4nUdVxRMlPs0+k
-=iLSc
------END PGP SIGNATURE-----
-
---UugvWAfsgieZRqgk--
+and I think that it would be possible for virtio to locally offload
+virtballoon_oom_notify() using this patch's approach, if you don't like
+globally offloading at the OOM notifier API level.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
