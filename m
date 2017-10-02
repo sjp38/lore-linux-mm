@@ -1,57 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C7DA6B0069
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 15:54:56 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id c76so2008485vkd.14
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 12:54:56 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id k88sor4410952ioo.76.2017.10.02.12.54.55
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D37A6B0033
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 15:56:06 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id r83so13972542pfj.5
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 12:56:06 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r9si4358286pgp.132.2017.10.02.12.56.05
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 02 Oct 2017 12:54:55 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 02 Oct 2017 12:56:05 -0700 (PDT)
+Date: Mon, 2 Oct 2017 21:56:01 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v8 0/4] cgroup-aware OOM killer
+Message-ID: <20171002195601.3jeocmmzyf2jl3dw@dhcp22.suse.cz>
+References: <CAAAKZws88uF2dVrXwRV0V6AH5X68rWy7AfJxTxYjpuiyiNJFWA@mail.gmail.com>
+ <20170927074319.o3k26kja43rfqmvb@dhcp22.suse.cz>
+ <CAAAKZws2CFExeg6A9AzrGjiHnFHU1h2xdk6J5Jw2kqxy=V+_YQ@mail.gmail.com>
+ <20170927162300.GA5623@castle.DHCP.thefacebook.com>
+ <CAAAKZwtApj-FgRc2V77nEb3BUd97Rwhgf-b-k0zhf1u+Y4fqxA@mail.gmail.com>
+ <CALvZod7iaOEeGmDJA0cZvJWpuzc-hMRn3PG2cfzcMniJtAjKqA@mail.gmail.com>
+ <20171002122434.llbaarb6yw3o3mx3@dhcp22.suse.cz>
+ <CALvZod65LYZZYy6uE=DQaQRPXYAhAci=NMG_w=ZANPGATgRwfg@mail.gmail.com>
+ <20171002192814.sad75tqklp3nmr4m@dhcp22.suse.cz>
+ <CALvZod4=+GVg+hrT4ubp9P4b+LUZ+q9mz4ztC=Fc_cmTZmvpcw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <150693809463.587641.5712378065494786263.stgit@buzz>
-References: <150693809463.587641.5712378065494786263.stgit@buzz>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 2 Oct 2017 12:54:53 -0700
-Message-ID: <CA+55aFyXrxN8Dqw9QK9NPWk+ZD52fT=q2y7ByPt9pooOrio3Nw@mail.gmail.com>
-Subject: Re: [PATCH RFC] mm: implement write-behind policy for sequential file writes
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALvZod4=+GVg+hrT4ubp9P4b+LUZ+q9mz4ztC=Fc_cmTZmvpcw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Tim Hockin <thockin@hockin.org>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Mon, Oct 2, 2017 at 2:54 AM, Konstantin Khlebnikov
-<khlebnikov@yandex-team.ru> wrote:
->
-> This patch implements write-behind policy which tracks sequential writes
-> and starts background writeback when have enough dirty pages in a row.
+On Mon 02-10-17 12:45:18, Shakeel Butt wrote:
+> > I am sorry to cut the rest of your proposal because it simply goes over
+> > the scope of the proposed solution while the usecase you are mentioning
+> > is still possible. If we want to compare intermediate nodes (which seems
+> > to be the case) then we can always provide a knob to opt-in - be it your
+> > oom_gang or others.
+> 
+> In the Roman's proposed solution we can already force the comparison
+> of intermediate nodes using 'oom_group', I am just requesting to
+> separate the killall semantics from it.
 
-This looks lovely to me.
+oom_group _is_ about killall semantic.  And comparing killable entities
+is just a natural thing to do. So I am not sure what you mean
 
-I do wonder if you also looked at finishing the background
-write-behind at close() time, because it strikes me that once you
-start doing that async writeout, it would probably be good to make
-sure you try to do the whole file.
-
-I'm thinking of filesystems that do delayed allocation etc - I'd
-expect that you'd want the whole file to get allocated on disk
-together, rather than have the "first 256kB aligned chunks" allocated
-thanks to write-behind, and then the final part allocated much later
-(after other files may have triggered their own write-behind). Think
-loads like copying lots of pictures around, for example.
-
-I don't have any particularly strong feelings about this, but I do
-suspect that once you have started that IO, you do want to finish it
-all up as the file write is done. No?
-
-It would also be really nice to see some numbers. Perhaps a comparison
-of "vmstat 1" or similar when writing a big file to some slow medium
-like a USB stick (which is something we've done very very badly at,
-and this should help smooth out)?
-
-                Linus
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
