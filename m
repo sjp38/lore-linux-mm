@@ -1,46 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B1286B0253
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 11:45:43 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id a7so12847560pfj.3
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 08:45:43 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id e1si7654769pgo.535.2017.10.02.08.45.42
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 57C846B0033
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 11:46:32 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id c137so9401911pga.6
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 08:46:32 -0700 (PDT)
+Received: from out0-195.mail.aliyun.com (out0-195.mail.aliyun.com. [140.205.0.195])
+        by mx.google.com with ESMTPS id i9si4924957pgq.152.2017.10.02.08.46.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Oct 2017 08:45:42 -0700 (PDT)
-Subject: Re: [PATCH] mm, swap: Make VMA based swap readahead configurable
-References: <20170926132129.dbtr2mof35x4j4og@dhcp22.suse.cz>
- <20170927050401.GA715@bbox> <20170927074835.37m4dclmew5ecli2@dhcp22.suse.cz>
- <20170927080432.GA1160@bbox> <20170927083512.dydqlqezh5polggb@dhcp22.suse.cz>
- <20170927131511.GA338@bgram> <20170927132241.tshup6kcwe5pcxek@dhcp22.suse.cz>
- <20170927134117.GB338@bgram> <20170927135034.yatxlhvunawzmcar@dhcp22.suse.cz>
- <20170927141008.GA1278@bgram>
- <20170927141723.bixcum3fler7q4w5@dhcp22.suse.cz>
- <87mv5f8wkj.fsf@yhuang-dev.intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <e7531802-c4bc-9a5b-1a9c-d7909f2d1107@intel.com>
-Date: Mon, 2 Oct 2017 08:45:40 -0700
+        Mon, 02 Oct 2017 08:46:31 -0700 (PDT)
+Subject: Re: [PATCH 0/2 v8] oom: capture unreclaimable slab info in oom
+ message
+References: <1506548776-67535-1-git-send-email-yang.s@alibaba-inc.com>
+ <fccbce9c-a40e-621f-e9a4-17c327ed84e8@I-love.SAKURA.ne.jp>
+ <20171002112051.uk4gyrtygfgtvp5g@dhcp22.suse.cz>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <030a906a-c845-9639-8df3-2a48d11a1207@alibaba-inc.com>
+Date: Mon, 02 Oct 2017 23:46:14 +0800
 MIME-Version: 1.0
-In-Reply-To: <87mv5f8wkj.fsf@yhuang-dev.intel.com>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <20171002112051.uk4gyrtygfgtvp5g@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>
+To: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 09/27/2017 06:02 PM, Huang, Ying wrote:
-> I still think there may be a performance regression for some users
-> because of the change of the algorithm and the knobs, and the
-> performance regression can be resolved via setting the new knob.  But I
-> don't think there will be a functionality regression.  Do you agree?
 
-A performance regression is a regression.  I don't understand why we are
-splitting hairs as to what kind of regression it is.
 
-Are you only willing to fix it if it's a functional regression?
+On 10/2/17 4:20 AM, Michal Hocko wrote:
+> On Thu 28-09-17 13:36:57, Tetsuo Handa wrote:
+>> On 2017/09/28 6:46, Yang Shi wrote:
+>>> Changelog v7 a??> v8:
+>>> * Adopted Michala??s suggestion to dump unreclaim slab info when unreclaimable slabs amount > total user memory. Not only in oom panic path.
+>>
+>> Holding slab_mutex inside dump_unreclaimable_slab() was refrained since V2
+>> because there are
+>>
+>> 	mutex_lock(&slab_mutex);
+>> 	kmalloc(GFP_KERNEL);
+>> 	mutex_unlock(&slab_mutex);
+>>
+>> users. If we call dump_unreclaimable_slab() for non OOM panic path, aren't we
+>> introducing a risk of crash (i.e. kernel panic) for regular OOM path?
+> 
+> yes we are
+>   
+>> We can try mutex_trylock() from dump_unreclaimable_slab() at best.
+>> But it is still remaining unsafe, isn't it?
+> 
+> using the trylock sounds like a reasonable compromise.
+
+OK, it sounds we reach agreement on trylock. Will solve those comments 
+in v9.
+
+Thanks,
+Yang
+
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
