@@ -1,196 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3815C6B0033
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 08:59:07 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id i124so1653746wmf.7
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 05:59:07 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v195sor2540829wmf.7.2017.10.02.05.59.05
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DBF26B0033
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 09:03:56 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id r74so3100329wrb.7
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 06:03:56 -0700 (PDT)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id 36si8766994wrw.317.2017.10.02.06.03.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 02 Oct 2017 05:59:05 -0700 (PDT)
-From: Timofey Titovets <nefelim4ag@gmail.com>
-Subject: [RFC v2 PATCH] ksm: add offset arg to memcmp_pages() to speedup comparing
-Date: Mon,  2 Oct 2017 15:58:58 +0300
-Message-Id: <20171002125858.12751-1-nefelim4ag@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Oct 2017 06:03:54 -0700 (PDT)
+Date: Mon, 2 Oct 2017 15:03:53 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: 4.14-rc2 on thinkpad x220: out of memory when inserting mmc card
+Message-ID: <20171002130353.GA25433@amd>
+References: <20170905194739.GA31241@amd>
+ <20171001093704.GA12626@amd>
+ <20171001102647.GA23908@amd>
+ <201710011957.ICF15708.OOLOHFSQMFFVJt@I-love.SAKURA.ne.jp>
+ <72c93a69-610f-027e-c028-379b97b6f388@intel.com>
+ <20171002084131.GA24414@amd>
+ <CACRpkdbatrt0Uxf8653iiV-OKkgcc0Ziog_L4oDVTJVNqtNN0Q@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="UugvWAfsgieZRqgk"
+Content-Disposition: inline
+In-Reply-To: <CACRpkdbatrt0Uxf8653iiV-OKkgcc0Ziog_L4oDVTJVNqtNN0Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, Timofey Titovets <nefelim4ag@gmail.com>
+To: Linus Walleij <linus.walleij@linaro.org>
+Cc: Adrian Hunter <adrian.hunter@intel.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, linux-mm@kvack.org
 
-Currently while search/inserting in RB tree,
-memcmp used for comparing out of tree pages with in tree pages.
 
-But on each compare step memcmp for pages start at
-zero offset, i.e. that just ignore forward progress.
+--UugvWAfsgieZRqgk
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-That make some overhead for search in deep RB tree and/or with
-bit pages (4KiB+), so store last start offset where no diff in page content.
+On Mon 2017-10-02 14:06:03, Linus Walleij wrote:
+> On Mon, Oct 2, 2017 at 10:41 AM, Pavel Machek <pavel@ucw.cz> wrote:
+>=20
+> >> Bounce buffers are being removed from v4.15
+>=20
+> As Adrian states, this would make any last bugs go away. I would
+> even consider putting this patch this into fixes if it solves the problem.
+>=20
+> > although you may experience
+> >> performance regression with that:
+> >>
+> >>       https://marc.info/?l=3Dlinux-mmc&m=3D150589778700551
+> >
+> > Hmm. The performance of this is already pretty bad, I really hope it
+> > does not get any worse.
+>=20
+> Did you use bounce buffers? Those were improving performance on
+> some laptops with TI or Ricoh host controllers and nothing else was
+> ever really using it (as can be seen from the commit).
 
-Added: memcmpe()
-iter 1024 -  that a some type of magic value
-max_offset_error - 8 - acceptable error level for offset.
+Thinkpad X220... how do I tell if I was using them? I believe so,
+because I uncovered bug in them before.
 
-With that patch i get ~ same performance in bad case (where offset useless)
-on tiny tree and default 4KiB pages.
+									Pavel
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
 
-So that just RFC, i.e. does that type of optimization make a sense?
+--UugvWAfsgieZRqgk
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
 
-Thanks.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
 
-Changes:
-	v1 -> v2:
-		Add: configurable max_offset_error
-		Move logic to memcmpe()
+iEYEARECAAYFAlnSOTkACgkQMOfwapXb+vLC7QCZAfSSy+2u+u9pvrLC579qxsqd
+kM4An1/hp9y9gOLAHZ4nUdVxRMlPs0+k
+=iLSc
+-----END PGP SIGNATURE-----
 
-Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
----
- mm/ksm.c | 61 +++++++++++++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 55 insertions(+), 6 deletions(-)
-
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 15dd7415f7b3..780630498de8 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -991,14 +991,58 @@ static u32 calc_checksum(struct page *page)
- 	return checksum;
- }
- 
--static int memcmp_pages(struct page *page1, struct page *page2)
-+
-+/*
-+ * memcmp used to compare pages in RB-tree
-+ * but on every step down the tree forward progress
-+ * just has been ignored, that make performance pitfall
-+ * on deep tree and/or big pages (ex. 4KiB+)
-+ *
-+ * Fix that by add memcmp wrapper that will try to guess
-+ * where difference happens, to only scan from that offset against
-+ * next pages
-+ */
-+
-+static int memcmpe(const void *p, const void *q, const u32 len,
-+		   u32 *offset)
-+{
-+	const u32 max_offset_error = 8;
-+	u32 iter = 1024, i = 0;
-+	int ret;
-+
-+	if (offset == NULL)
-+		return memcmp(p, q, len);
-+
-+	if (*offset < len)
-+		i = *offset;
-+
-+	while (i < len) {
-+		iter = min_t(u32, iter, len - i);
-+		ret = memcmp(p, q, iter);
-+
-+		if (ret) {
-+			iter = iter >> 1;
-+			if (iter < max_offset_error)
-+				break;
-+			continue;
-+		}
-+
-+		i += iter;
-+	}
-+
-+	*offset = i;
-+
-+	return ret;
-+}
-+
-+static int memcmp_pages(struct page *page1, struct page *page2, u32 *offset)
- {
- 	char *addr1, *addr2;
- 	int ret;
- 
- 	addr1 = kmap_atomic(page1);
- 	addr2 = kmap_atomic(page2);
--	ret = memcmp(addr1, addr2, PAGE_SIZE);
-+	ret = memcmpe(addr1, addr2, PAGE_SIZE, offset);
- 	kunmap_atomic(addr2);
- 	kunmap_atomic(addr1);
- 	return ret;
-@@ -1006,7 +1050,7 @@ static int memcmp_pages(struct page *page1, struct page *page2)
- 
- static inline int pages_identical(struct page *page1, struct page *page2)
- {
--	return !memcmp_pages(page1, page2);
-+	return !memcmp_pages(page1, page2, NULL);
- }
- 
- static int write_protect_page(struct vm_area_struct *vma, struct page *page,
-@@ -1514,6 +1558,7 @@ static __always_inline struct page *chain(struct stable_node **s_n_d,
- static struct page *stable_tree_search(struct page *page)
- {
- 	int nid;
-+	u32 diff_offset;
- 	struct rb_root *root;
- 	struct rb_node **new;
- 	struct rb_node *parent;
-@@ -1532,6 +1577,7 @@ static struct page *stable_tree_search(struct page *page)
- again:
- 	new = &root->rb_node;
- 	parent = NULL;
-+	diff_offset = 0;
- 
- 	while (*new) {
- 		struct page *tree_page;
-@@ -1590,7 +1636,7 @@ static struct page *stable_tree_search(struct page *page)
- 			goto again;
- 		}
- 
--		ret = memcmp_pages(page, tree_page);
-+		ret = memcmp_pages(page, tree_page, &diff_offset);
- 		put_page(tree_page);
- 
- 		parent = *new;
-@@ -1760,6 +1806,7 @@ static struct page *stable_tree_search(struct page *page)
- static struct stable_node *stable_tree_insert(struct page *kpage)
- {
- 	int nid;
-+	u32 diff_offset;
- 	unsigned long kpfn;
- 	struct rb_root *root;
- 	struct rb_node **new;
-@@ -1773,6 +1820,7 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
- again:
- 	parent = NULL;
- 	new = &root->rb_node;
-+	diff_offset = 0;
- 
- 	while (*new) {
- 		struct page *tree_page;
-@@ -1819,7 +1867,7 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
- 			goto again;
- 		}
- 
--		ret = memcmp_pages(kpage, tree_page);
-+		ret = memcmp_pages(kpage, tree_page, &diff_offset);
- 		put_page(tree_page);
- 
- 		parent = *new;
-@@ -1884,6 +1932,7 @@ struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
- 	struct rb_root *root;
- 	struct rb_node *parent = NULL;
- 	int nid;
-+	u32 diff_offset = 0;
- 
- 	nid = get_kpfn_nid(page_to_pfn(page));
- 	root = root_unstable_tree + nid;
-@@ -1908,7 +1957,7 @@ struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
- 			return NULL;
- 		}
- 
--		ret = memcmp_pages(page, tree_page);
-+		ret = memcmp_pages(page, tree_page, &diff_offset);
- 
- 		parent = *new;
- 		if (ret < 0) {
--- 
-2.14.2
+--UugvWAfsgieZRqgk--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
