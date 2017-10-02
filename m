@@ -1,28 +1,94 @@
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/3] mm: oom: show unreclaimable slab info when kernel
- panic
-Date: Sun, 1 Oct 2017 01:43:45 -0500 (CDT)
-Message-ID: <alpine.DEB.2.20.1710010142420.25658@nuc-kabylake>
-References: <1506473616-88120-1-git-send-email-yang.s@alibaba-inc.com> <1506473616-88120-3-git-send-email-yang.s@alibaba-inc.com> <alpine.DEB.2.20.1709270211010.30111@nuc-kabylake> <c7459b93-4197-6968-6735-a97a06325d04@alibaba-inc.com>
- <alpine.DEB.2.20.1709271655330.3643@nuc-kabylake> <b023b5f4-84b5-1686-7b15-c9a3a439b8be@alibaba-inc.com>
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC] [PATCH] mm,
+ oom: Offload OOM notify callback to a kernel thread.
+Date: Mon, 2 Oct 2017 13:50:35 +0200
+Message-ID: <20171002115035.7sph6ul6hsszdwa4@dhcp22.suse.cz>
+References: <20170929065654-mutt-send-email-mst@kernel.org>
+ <201709291344.FID60965.VHtMQFFJFSLOOO@I-love.SAKURA.ne.jp>
+ <201710011444.IBD05725.VJSFHOOMOFtLQF@I-love.SAKURA.ne.jp>
+ <20171002065801-mutt-send-email-mst@kernel.org>
+ <20171002090627.547gkmzvutrsamex@dhcp22.suse.cz>
+ <201710022033.GFE82801.HLOVOFFJtSFQMO@I-love.SAKURA.ne.jp>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <b023b5f4-84b5-1686-7b15-c9a3a439b8be@alibaba-inc.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Yang Shi <yang.s@alibaba-inc.com>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, akpm@linux-foundation.org, mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+Return-path: <intel-gfx-bounces@lists.freedesktop.org>
+Content-Disposition: inline
+In-Reply-To: <201710022033.GFE82801.HLOVOFFJtSFQMO@I-love.SAKURA.ne.jp>
+List-Unsubscribe: <https://lists.freedesktop.org/mailman/options/intel-gfx>,
+ <mailto:intel-gfx-request@lists.freedesktop.org?subject=unsubscribe>
+List-Archive: <https://lists.freedesktop.org/archives/intel-gfx>
+List-Post: <mailto:intel-gfx@lists.freedesktop.org>
+List-Help: <mailto:intel-gfx-request@lists.freedesktop.org?subject=help>
+List-Subscribe: <https://lists.freedesktop.org/mailman/listinfo/intel-gfx>,
+ <mailto:intel-gfx-request@lists.freedesktop.org?subject=subscribe>
+Errors-To: intel-gfx-bounces@lists.freedesktop.org
+Sender: "Intel-gfx" <intel-gfx-bounces@lists.freedesktop.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mst@redhat.com, airlied@linux.ie, jasowang@redhat.com, jiangshanlai@gmail.com, josh@joshtriplett.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, mathieu.desnoyers@efficios.com, rostedt@goodmis.org, rodrigo.vivi@intel.com, paulmck@linux.vnet.ibm.com, intel-gfx@lists.freedesktop.org
 List-Id: linux-mm.kvack.org
 
-On Thu, 28 Sep 2017, Yang Shi wrote:
-
-> > CONFIG_SLABINFO and /proc/slabinfo have nothing to do with the
-> > unreclaimable slab info.
->
-> The current design uses "struct slabinfo" and get_slabinfo() to retrieve some
-> info, i.e. active objs, etc. They are protected by CONFIG_SLABINFO.
-
-Ok I guess then those need to be moved out of CONFIG_SLABINFO. Otherwise
-dumping of slabs will not be supported when disabling that option.
-
-Or dump CONFIG_SLABINFO ..
+T24gTW9uIDAyLTEwLTE3IDIwOjMzOjUyLCBUZXRzdW8gSGFuZGEgd3JvdGU6Cj4gTWljaGFsIEhv
+Y2tvIHdyb3RlOgo+ID4gW0htbSwgSSBkbyBub3Qgc2VlIHRoZSBvcmlnaW5hbCBwYXRjaCB3aGlj
+aCB0aGlzIGhhcyBiZWVuIGEgcmVwbHkgdG9dCj4gCj4gdXJibC5ob3N0ZWRlbWFpbC5jb20gYW5k
+IGIuYmFycmFjdWRhY2VudHJhbC5vcmcgYmxvY2tlZCBteSBJUCBhZGRyZXNzLAo+IGFuZCB0aGUg
+cmVzdCBhcmUgIlJlY2lwaWVudCBhZGRyZXNzIHJlamVjdGVkOiBHcmV5bGlzdGVkIiBvcgo+ICJE
+ZWZlcnJlZDogNDUxLTQuMy4wIE11bHRpcGxlIGRlc3RpbmF0aW9uIGRvbWFpbnMgcGVyIHRyYW5z
+YWN0aW9uIGlzIHVuc3VwcG9ydGVkLiIsCj4gYW5kIGFmdGVyIGFsbCBkcm9wcGVkIGF0IHRoZSBz
+ZXJ2ZXJzLiBTYWQuLi4KPiAKPiA+IAo+ID4gT24gTW9uIDAyLTEwLTE3IDA2OjU5OjEyLCBNaWNo
+YWVsIFMuIFRzaXJraW4gd3JvdGU6Cj4gPiA+IE9uIFN1biwgT2N0IDAxLCAyMDE3IGF0IDAyOjQ0
+OjM0UE0gKzA5MDAsIFRldHN1byBIYW5kYSB3cm90ZToKPiA+ID4gPiBUZXRzdW8gSGFuZGEgd3Jv
+dGU6Cj4gPiA+ID4gPiBNaWNoYWVsIFMuIFRzaXJraW4gd3JvdGU6Cj4gPiA+ID4gPiA+IE9uIE1v
+biwgU2VwIDExLCAyMDE3IGF0IDA3OjI3OjE5UE0gKzA5MDAsIFRldHN1byBIYW5kYSB3cm90ZToK
+PiA+ID4gPiA+ID4gPiBIZWxsby4KPiA+ID4gPiA+ID4gPiAKPiA+ID4gPiA+ID4gPiBJIG5vdGlj
+ZWQgdGhhdCB2aXJ0aW9fYmFsbG9vbiBpcyB1c2luZyByZWdpc3Rlcl9vb21fbm90aWZpZXIoKSBh
+bmQKPiA+ID4gPiA+ID4gPiBsZWFrX2JhbGxvb24oKSBmcm9tIHZpcnRiYWxsb29uX29vbV9ub3Rp
+ZnkoKSBtaWdodCBkZXBlbmQgb24KPiA+ID4gPiA+ID4gPiBfX0dGUF9ESVJFQ1RfUkVDTEFJTSBt
+ZW1vcnkgYWxsb2NhdGlvbi4KPiA+ID4gPiA+ID4gPiAKPiA+ID4gPiA+ID4gPiBJbiBsZWFrX2Jh
+bGxvb24oKSwgbXV0ZXhfbG9jaygmdmItPmJhbGxvb25fbG9jaykgaXMgY2FsbGVkIGluIG9yZGVy
+IHRvCj4gPiA+ID4gPiA+ID4gc2VyaWFsaXplIGFnYWluc3QgZmlsbF9iYWxsb29uKCkuIEJ1dCBp
+biBmaWxsX2JhbGxvb24oKSwKPiA+ID4gPiA+ID4gPiBhbGxvY19wYWdlKEdGUF9ISUdIVVNFUltf
+TU9WQUJMRV0gfCBfX0dGUF9OT01FTUFMTE9DIHwgX19HRlBfTk9SRVRSWSkgaXMKPiA+ID4gPiA+
+ID4gPiBjYWxsZWQgd2l0aCB2Yi0+YmFsbG9vbl9sb2NrIG11dGV4IGhlbGQuIFNpbmNlIEdGUF9I
+SUdIVVNFUltfTU9WQUJMRV0gaW1wbGllcwo+ID4gPiA+ID4gPiA+IF9fR0ZQX0RJUkVDVF9SRUNM
+QUlNIHwgX19HRlBfSU8gfCBfX0dGUF9GUywgdGhpcyBhbGxvY2F0aW9uIGF0dGVtcHQgbWlnaHQK
+PiA+ID4gPiA+ID4gPiBkZXBlbmQgb24gc29tZWJvZHkgZWxzZSdzIF9fR0ZQX0RJUkVDVF9SRUNM
+QUlNIHwgIV9fR0ZQX05PUkVUUlkgbWVtb3J5Cj4gPiA+ID4gPiA+ID4gYWxsb2NhdGlvbi4gU3Vj
+aCBfX0dGUF9ESVJFQ1RfUkVDTEFJTSB8ICFfX0dGUF9OT1JFVFJZIGFsbG9jYXRpb24gY2FuIHJl
+YWNoCj4gPiA+ID4gPiA+ID4gX19hbGxvY19wYWdlc19tYXlfb29tKCkgYW5kIGhvbGQgb29tX2xv
+Y2sgbXV0ZXggYW5kIGNhbGwgb3V0X29mX21lbW9yeSgpLgo+ID4gPiA+ID4gPiA+IEFuZCBsZWFr
+X2JhbGxvb24oKSBpcyBjYWxsZWQgYnkgdmlydGJhbGxvb25fb29tX25vdGlmeSgpIHZpYQo+ID4g
+PiA+ID4gPiA+IGJsb2NraW5nX25vdGlmaWVyX2NhbGxfY2hhaW4oKSBjYWxsYmFjayB3aGVuIHZi
+LT5iYWxsb29uX2xvY2sgbXV0ZXggaXMgYWxyZWFkeQo+ID4gPiA+ID4gPiA+IGhlbGQgYnkgZmls
+bF9iYWxsb29uKCkuIEFzIGEgcmVzdWx0LCBkZXNwaXRlIF9fR0ZQX05PUkVUUlkgaXMgc3BlY2lm
+aWVkLAo+ID4gPiA+ID4gPiA+IGZpbGxfYmFsbG9vbigpIGNhbiBpbmRpcmVjdGx5IGdldCBzdHVj
+ayB3YWl0aW5nIGZvciB2Yi0+YmFsbG9vbl9sb2NrIG11dGV4Cj4gPiA+ID4gPiA+ID4gYXQgbGVh
+a19iYWxsb29uKCkuCj4gPiAKPiA+IFRoaXMgaXMgcmVhbGx5IG5hc3R5ISBBbmQgSSB3b3VsZCBh
+cmd1ZSB0aGF0IHRoaXMgaXMgYW4gYWJ1c2Ugb2YgdGhlIG9vbQo+ID4gbm90aWZpZXIgaW50ZXJm
+YWNlIGZyb20gdGhlIHZpcnRpbyBjb2RlLiBPT00gbm90aWZpZXJzIGFyZSBhbiB1Z2x5IGhhY2sK
+PiA+IG9uIGl0cyBvd24gYnV0IGFsbCBpdHMgdXNlcnMgaGF2ZSB0byBiZSByZWFsbHkgY2FyZWZ1
+bCB0byBub3QgZGVwZW5kIG9uCj4gPiBhbnkgYWxsb2NhdGlvbiByZXF1ZXN0IGJlY2F1c2UgdGhh
+dCBpcyBhIHN0cmFpZ2h0IGRlYWRsb2NrIHNpdHVhdGlvbi4KPiAKPiBQbGVhc2UgZGVzY3JpYmUg
+c3VjaCB3YXJuaW5nIGF0Cj4gImludCByZWdpc3Rlcl9vb21fbm90aWZpZXIoc3RydWN0IG5vdGlm
+aWVyX2Jsb2NrICpuYikiIGRlZmluaXRpb24uCgpZZXMsIHdlIGNhbiBhbmQgc2hvdWxkIGRvIHRo
+YXQuIEFsdGhvdWdoIEkgd291bGQgcHJlZmVyIHRvIHNpbXBseQpkb2N1bWVudCB0aGlzIEFQSSBh
+cyBkZXByZWNhdGVkLiBDYXJlIHRvIHNlbmQgYSBwYXRjaD8gSSBhbSBxdWl0ZSBidXN5CndpdGgg
+b3RoZXIgc3R1ZmYuCgo+ID4gSSBkbyBub3QgdGhpbmsgdGhhdCBtYWtpbmcgb29tIG5vdGlmaWVy
+IEFQSSBtb3JlIGNvbXBsZXggaXMgdGhlIHdheSB0bwo+ID4gZ28uIENhbiB3ZSBzaW1wbHkgY2hh
+bmdlIHRoZSBsb2NrIHRvIHRyeV9sb2NrPwo+IAo+IFVzaW5nIG11dGV4X3RyeWxvY2soJnZiLT5i
+YWxsb29uX2xvY2spIGFsb25lIGlzIG5vdCBzdWZmaWNpZW50LiBJbnNpZGUgdGhlCj4gbXV0ZXgs
+IF9fR0ZQX0RJUkVDVF9SRUNMQUlNICYmICFfX0dGUF9OT1JFVFJZIGFsbG9jYXRpb24gYXR0ZW1w
+dCBpcyB1c2VkCj4gd2hpY2ggd2lsbCBmYWlsIHRvIG1ha2UgcHJvZ3Jlc3MgZHVlIHRvIG9vbV9s
+b2NrIGFscmVhZHkgaGVsZC4gVGhlcmVmb3JlLAo+IHZpcnRiYWxsb29uX29vbV9ub3RpZnkoKSBu
+ZWVkcyB0byBndWFyYW50ZWUgdGhhdCBhbGwgYWxsb2NhdGlvbiBhdHRlbXB0cyB1c2UKPiBHRlBf
+Tk9XQUlUIHdoZW4gY2FsbGVkIGZyb20gdmlydGJhbGxvb25fb29tX25vdGlmeSgpLgoKT2hoLCBJ
+IG1pc3NlZCB5b3VyIHBvaW50IGFuZCB0aG91Z2h0IHRoZSBkZXBlbmRlbmN5IGlzIGluZGlyZWN0
+IGFuZCBzb21lCm90aGVyIGNhbGwgcGF0aCBpcyBhbGxvY2F0aW5nIHdoaWxlIGhvbGRpbmcgdGhl
+IGxvY2suIEJ1dCB5b3Ugc2VlbSB0byBiZQpyaWdodCBhbmQKbGVha19iYWxsb29uCiAgdGVsbF9o
+b3N0CiAgICB2aXJ0cXVldWVfYWRkX291dGJ1ZgogICAgICB2aXJ0cXVldWVfYWRkCgpjYW4gZG8g
+R0ZQX0tFUk5FTCBhbGxvY2F0aW9uIGFuZCB0aGlzIGlzIGNsZWFybHkgd3JvbmcuIE5vYm9keSBz
+aG91bGQKdHJ5IHRvIGFsbG9jYXRlIHdoaWxlIHdlIGFyZSBpbiB0aGUgT09NIHBhdGguIE1pY2hh
+ZWwsIGlzIHRoZXJlIGFueSB3YXkKdG8gZHJvcCB0aGlzPwotLSAKTWljaGFsIEhvY2tvClNVU0Ug
+TGFicwpfX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fXwpJbnRl
+bC1nZnggbWFpbGluZyBsaXN0CkludGVsLWdmeEBsaXN0cy5mcmVlZGVza3RvcC5vcmcKaHR0cHM6
+Ly9saXN0cy5mcmVlZGVza3RvcC5vcmcvbWFpbG1hbi9saXN0aW5mby9pbnRlbC1nZngK
