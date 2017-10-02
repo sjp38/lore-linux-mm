@@ -1,42 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 501D76B0033
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 15:45:21 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id z50so1342225qtj.0
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 12:45:21 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e143sor555036ywe.203.2017.10.02.12.45.20
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FA1D6B0033
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 15:54:46 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id p46so4642376wrb.1
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 12:54:46 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id r5si1812983edh.46.2017.10.02.12.54.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 02 Oct 2017 12:45:20 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 02 Oct 2017 12:54:44 -0700 (PDT)
+Date: Mon, 2 Oct 2017 15:54:25 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] writeback: remove unused parameter from
+ balance_dirty_pages()
+Message-ID: <20171002195425.GA18075@cmpxchg.org>
+References: <20170927221311.23263-1-tahsin@google.com>
+ <20171002075616.mro36ci7gk5k6vbc@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20171002192814.sad75tqklp3nmr4m@dhcp22.suse.cz>
-References: <20170926133040.uupv3ibkt3jtbotf@dhcp22.suse.cz>
- <20170926172610.GA26694@cmpxchg.org> <CAAAKZws88uF2dVrXwRV0V6AH5X68rWy7AfJxTxYjpuiyiNJFWA@mail.gmail.com>
- <20170927074319.o3k26kja43rfqmvb@dhcp22.suse.cz> <CAAAKZws2CFExeg6A9AzrGjiHnFHU1h2xdk6J5Jw2kqxy=V+_YQ@mail.gmail.com>
- <20170927162300.GA5623@castle.DHCP.thefacebook.com> <CAAAKZwtApj-FgRc2V77nEb3BUd97Rwhgf-b-k0zhf1u+Y4fqxA@mail.gmail.com>
- <CALvZod7iaOEeGmDJA0cZvJWpuzc-hMRn3PG2cfzcMniJtAjKqA@mail.gmail.com>
- <20171002122434.llbaarb6yw3o3mx3@dhcp22.suse.cz> <CALvZod65LYZZYy6uE=DQaQRPXYAhAci=NMG_w=ZANPGATgRwfg@mail.gmail.com>
- <20171002192814.sad75tqklp3nmr4m@dhcp22.suse.cz>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Mon, 2 Oct 2017 12:45:18 -0700
-Message-ID: <CALvZod4=+GVg+hrT4ubp9P4b+LUZ+q9mz4ztC=Fc_cmTZmvpcw@mail.gmail.com>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171002075616.mro36ci7gk5k6vbc@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Tim Hockin <thockin@hockin.org>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: Tahsin Erdogan <tahsin@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jeff Layton <jlayton@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, Theodore Ts'o <tytso@mit.edu>, Nikolay Borisov <nborisov@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> I am sorry to cut the rest of your proposal because it simply goes over
-> the scope of the proposed solution while the usecase you are mentioning
-> is still possible. If we want to compare intermediate nodes (which seems
-> to be the case) then we can always provide a knob to opt-in - be it your
-> oom_gang or others.
+On Mon, Oct 02, 2017 at 09:56:16AM +0200, Michal Hocko wrote:
+> On Wed 27-09-17 15:13:11, Tahsin Erdogan wrote:
+> > "mapping" parameter to balance_dirty_pages() is not used anymore.
+> > 
+> > Fixes: dfb8ae567835 ("writeback: let balance_dirty_pages() work on the matching cgroup bdi_writeback")
+> 
+> balance_dirty_pages_ratelimited doesn't really need mapping as well. All
+> it needs is the inode and we already have it in callers. So would it
+> make sense to refactor a bit further and make its argument an inode?
 
-In the Roman's proposed solution we can already force the comparison
-of intermediate nodes using 'oom_group', I am just requesting to
-separate the killall semantics from it.
+It's nicer to keep this a "page cache" interface, as its primary
+callsites are in mm/memory.c and mm/filemap.c:
+
+	$ git grep -c 'inode' mm/filemap.c mm/memory.c 
+	mm/filemap.c:38
+	$ git grep -c 'mapping' mm/filemap.c mm/memory.c 
+	mm/filemap.c:260
+	mm/memory.c:93
+
+> > Signed-off-by: Tahsin Erdogan <tahsin@google.com>
+> 
+> Acked-by: Michal Hocko <mhocko@suse.com>
+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
