@@ -1,92 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C8246B0033
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 08:39:36 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id p5so14646493pgn.7
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 05:39:36 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id l6si2765465plt.250.2017.10.02.05.39.34
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C8FC6B0033
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 08:47:47 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id e69so8219106pfg.1
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 05:47:47 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id q3si7640719pgf.448.2017.10.02.05.47.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Oct 2017 05:39:35 -0700 (PDT)
-From: "Wang, Wei W" <wei.w.wang@intel.com>
-Subject: RE: [PATCH v16 3/5] virtio-balloon: VIRTIO_BALLOON_F_SG
-Date: Mon, 2 Oct 2017 12:39:30 +0000
-Message-ID: <286AC319A985734F985F78AFA26841F73931FDB5@shsmsx102.ccr.corp.intel.com>
-References: <1506744354-20979-1-git-send-email-wei.w.wang@intel.com>
- <1506744354-20979-4-git-send-email-wei.w.wang@intel.com>
- <20171002072106-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20171002072106-mutt-send-email-mst@kernel.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Mon, 02 Oct 2017 05:47:45 -0700 (PDT)
+Date: Mon, 2 Oct 2017 13:47:12 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v8 0/4] cgroup-aware OOM killer
+Message-ID: <20171002124712.GA17638@castle.DHCP.thefacebook.com>
+References: <20170926121300.GB23139@castle.dhcp.TheFacebook.com>
+ <20170926133040.uupv3ibkt3jtbotf@dhcp22.suse.cz>
+ <20170926172610.GA26694@cmpxchg.org>
+ <CAAAKZws88uF2dVrXwRV0V6AH5X68rWy7AfJxTxYjpuiyiNJFWA@mail.gmail.com>
+ <20170927074319.o3k26kja43rfqmvb@dhcp22.suse.cz>
+ <CAAAKZws2CFExeg6A9AzrGjiHnFHU1h2xdk6J5Jw2kqxy=V+_YQ@mail.gmail.com>
+ <20170927162300.GA5623@castle.DHCP.thefacebook.com>
+ <CAAAKZwtApj-FgRc2V77nEb3BUd97Rwhgf-b-k0zhf1u+Y4fqxA@mail.gmail.com>
+ <CALvZod7iaOEeGmDJA0cZvJWpuzc-hMRn3PG2cfzcMniJtAjKqA@mail.gmail.com>
+ <20171002122434.llbaarb6yw3o3mx3@dhcp22.suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20171002122434.llbaarb6yw3o3mx3@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "'Michael S. Tsirkin'" <mst@redhat.com>
-Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "willy@infradead.org" <willy@infradead.org>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Shakeel Butt <shakeelb@google.com>, Tim Hockin <thockin@hockin.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Monday, October 2, 2017 12:30 PM, Michael S. Tsirkin wrote:
-> On Sat, Sep 30, 2017 at 12:05:52PM +0800, Wei Wang wrote:
-> > +static int send_balloon_page_sg(struct virtio_balloon *vb,
-> > +				 struct virtqueue *vq,
-> > +				 void *addr,
-> > +				 uint32_t size,
-> > +				 bool batch)
-> > +{
-> > +	int err;
-> > +
-> > +	err =3D add_one_sg(vq, addr, size);
-> > +
-> > +	/* If batchng is requested, we batch till the vq is full */
->=20
-> typo
->=20
-> > +	if (!batch || !vq->num_free)
-> > +		kick_and_wait(vq, vb->acked);
-> > +
-> > +	return err;
-> > +}
->=20
-> If add_one_sg fails, kick_and_wait will hang forever.
->=20
-> The reason this might work in because
-> 1. with 1 sg there are no memory allocations 2. if adding fails on vq ful=
-l, then
-> something
->    is in queue and will wake up kick_and_wait.
->=20
-> So in short this is expected to never fail.
-> How about a BUG_ON here then?
-> And make it void, and add a comment with above explanation.
->=20
+On Mon, Oct 02, 2017 at 02:24:34PM +0200, Michal Hocko wrote:
+> On Sun 01-10-17 16:29:48, Shakeel Butt wrote:
+> > >
+> > > Going back to Michal's example, say the user configured the following:
+> > >
+> > >        root
+> > >       /    \
+> > >      A      D
+> > >     / \
+> > >    B   C
+> > >
+> > > A global OOM event happens and we find this:
+> > > - A > D
+> > > - B, C, D are oomgroups
+> > >
+> > > What the user is telling us is that B, C, and D are compound memory
+> > > consumers. They cannot be divided into their task parts from a memory
+> > > point of view.
+> > >
+> > > However, the user doesn't say the same for A: the A subtree summarizes
+> > > and controls aggregate consumption of B and C, but without groupoom
+> > > set on A, the user says that A is in fact divisible into independent
+> > > memory consumers B and C.
+> > >
+> > > If we don't have to kill all of A, but we'd have to kill all of D,
+> > > does it make sense to compare the two?
+> > >
+> > 
+> > I think Tim has given very clear explanation why comparing A & D makes
+> > perfect sense. However I think the above example, a single user system
+> > where a user has designed and created the whole hierarchy and then
+> > attaches different jobs/applications to different nodes in this
+> > hierarchy, is also a valid scenario.
+> 
+> Yes and nobody is disputing that, really. I guess the main disconnect
+> here is that different people want to have more detailed control over
+> the victim selection while the patchset tries to handle the most
+> simplistic scenario when a no userspace control over the selection is
+> required. And I would claim that this will be a last majority of setups
+> and we should address it first.
+> 
+> A more fine grained control needs some more thinking to come up with a
+> sensible and long term sustainable API. Just look back and see at the
+> oom_score_adj story and how it ended up unusable in the end (well apart
+> from never/always kill corner cases). Let's not repeat that again now.
+> 
+> I strongly believe that we can come up with something - be it priority
+> based, BFP based or module based selection. But let's start simple with
+> the most basic scenario first with a most sensible semantic implemented.
 
+Totally agree.
 
-Yes, agree that this wouldn't fail - the worker thread performing the ballo=
-oning operations has been put into sleep when the vq is full, so I think th=
-ere shouldn't be anyone else to put more sgs onto the vq then.
-Btw, not sure if we need to mention memory allocation in the comment, I fou=
-nd virtqueue_add() doesn't return any error when allocation (for indirect d=
-esc-s) fails - it simply avoids the use of indirect desc.
+> I believe the latest version (v9) looks sensible from the semantic point
+> of view and we should focus on making it into a mergeable shape.
 
-What do you think of the following?=20
+The only thing is that after some additional thinking I don't think anymore
+that implicit propagation of oom_group is a good idea.
 
-err =3D add_one_sg(vq, addr, size);
-/*=20
-  * This is expected to never fail: there is always at least 1 entry availa=
-ble on the vq,
-  * because when the vq is full the worker thread that adds the sg will be =
-put into
-  * sleep until at least 1 entry is available to use.
-  */
-BUG_ON(err);
+Let me explain: assume we have memcg A with memory.max and memory.oom_group
+set, and nested memcg A/B with memory.max set. Let's imagine we have an OOM
+event if A/B. What is an expected system behavior?
+We have OOM scoped to A/B, and any action should be also scoped to A/B.
+We really shouldn't touch processes which are not belonging to A/B.
+That means we should either kill the biggest process in A/B, either all
+processes in A/B. It's natural to make A/B/memory.oom_group responsible
+for this decision. It's strange to make the depend on A/memory.oom_group, IMO.
+It really makes no sense, and makes oom_group knob really hard to describe.
 
-Best,
-Wei
+Also, after some off-list discussion, we've realized that memory.oom_knob
+should be delegatable. The workload should have control over it to express
+dependency between processes.
 
-
-
-=20
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
