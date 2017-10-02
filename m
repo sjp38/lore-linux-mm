@@ -1,62 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C4F96B025E
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 17:48:28 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id g18so4835229itg.7
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 14:48:28 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v125si4545251oie.294.2017.10.02.14.48.27
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B84F6B0253
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 17:49:09 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id g10so3264854wrg.2
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 14:49:09 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id b11si8338096wmh.265.2017.10.02.14.49.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Oct 2017 14:48:27 -0700 (PDT)
-Date: Mon, 2 Oct 2017 17:48:23 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH] mm/migrate: Fix early increment of migrate->npages
-Message-ID: <20171002214823.GB5184@redhat.com>
-References: <1506980642-16541-1-git-send-email-arbab@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1506980642-16541-1-git-send-email-arbab@linux.vnet.ibm.com>
+        Mon, 02 Oct 2017 14:49:08 -0700 (PDT)
+Date: Mon, 2 Oct 2017 14:49:03 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm, swap: Make VMA based swap readahead configurable
+Message-Id: <20171002144903.d58ed6887adfd9dc4cdfd697@linux-foundation.org>
+In-Reply-To: <e7531802-c4bc-9a5b-1a9c-d7909f2d1107@intel.com>
+References: <20170926132129.dbtr2mof35x4j4og@dhcp22.suse.cz>
+	<20170927050401.GA715@bbox>
+	<20170927074835.37m4dclmew5ecli2@dhcp22.suse.cz>
+	<20170927080432.GA1160@bbox>
+	<20170927083512.dydqlqezh5polggb@dhcp22.suse.cz>
+	<20170927131511.GA338@bgram>
+	<20170927132241.tshup6kcwe5pcxek@dhcp22.suse.cz>
+	<20170927134117.GB338@bgram>
+	<20170927135034.yatxlhvunawzmcar@dhcp22.suse.cz>
+	<20170927141008.GA1278@bgram>
+	<20170927141723.bixcum3fler7q4w5@dhcp22.suse.cz>
+	<87mv5f8wkj.fsf@yhuang-dev.intel.com>
+	<e7531802-c4bc-9a5b-1a9c-d7909f2d1107@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Michal Hocko <mhocko@kernel.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>
 
-On Mon, Oct 02, 2017 at 04:44:02PM -0500, Reza Arbab wrote:
-> The intention here is to set the same array element in src and dst.
-> Switch the order of these lines so that migrate->npages is only
-> incremented after we've used it.
+On Mon, 2 Oct 2017 08:45:40 -0700 Dave Hansen <dave.hansen@intel.com> wrote:
 
-I already posted a fix for this today from Mark. Either version is
-fine i think Andrew already pulled version i posted earlier.
+> On 09/27/2017 06:02 PM, Huang, Ying wrote:
+> > I still think there may be a performance regression for some users
+> > because of the change of the algorithm and the knobs, and the
+> > performance regression can be resolved via setting the new knob.  But I
+> > don't think there will be a functionality regression.  Do you agree?
+> 
+> A performance regression is a regression.  I don't understand why we are
+> splitting hairs as to what kind of regression it is.
+> 
 
-> 
-> Fixes: 8315ada7f095 ("mm/migrate: allow migrate_vma() to alloc new page on empty entry")
-> Cc: Jerome Glisse <jglisse@redhat.com>
-> Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
-> ---
->  mm/migrate.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index dea0ceb..c4546cc 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -2146,8 +2146,8 @@ static int migrate_vma_collect_hole(unsigned long start,
->  	unsigned long addr;
->  
->  	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
-> -		migrate->src[migrate->npages++] = MIGRATE_PFN_MIGRATE;
->  		migrate->dst[migrate->npages] = 0;
-> +		migrate->src[migrate->npages++] = MIGRATE_PFN_MIGRATE;
->  		migrate->cpages++;
->  	}
->  
-> -- 
-> 1.8.3.1
-> 
+Yes.
+
+Ying, please find us a way of avoiding any disruption to existing
+system setups.  One which doesn't require that the operator perform a
+configuration change to restore prior behaviour/performance.  And
+please let's get this done well in advance of the 4.14 release.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
