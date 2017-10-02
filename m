@@ -1,49 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9536A6B0033
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 10:44:22 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id p5so15334995pgn.7
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 07:44:22 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y11si3055221pln.146.2017.10.02.07.44.21
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 538636B0069
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 10:44:52 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e69so8810822pfg.1
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 07:44:52 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 7si8592067ple.699.2017.10.02.07.44.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 02 Oct 2017 07:44:21 -0700 (PDT)
-Date: Mon, 2 Oct 2017 16:44:18 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: 4.14-rc2 on thinkpad x220: out of memory when inserting mmc card
-Message-ID: <20171002144418.35mag5uormoqoay5@dhcp22.suse.cz>
-References: <20170905194739.GA31241@amd>
- <20171001093704.GA12626@amd>
- <20171001102647.GA23908@amd>
-MIME-Version: 1.0
+        Mon, 02 Oct 2017 07:44:51 -0700 (PDT)
+Subject: Re: [RFC] [PATCH] mm,oom: Offload OOM notify callback to a kernel thread.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20171002115035.7sph6ul6hsszdwa4@dhcp22.suse.cz>
+	<201710022205.IGD04659.HSOMJFFQtFOLOV@I-love.SAKURA.ne.jp>
+	<20171002131330.5c5mpephrosfuxsa@dhcp22.suse.cz>
+	<201710022252.DDJ51535.JFQSLFHFVOtOOM@I-love.SAKURA.ne.jp>
+	<20171002171641-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20171002171641-mutt-send-email-mst@kernel.org>
+Message-Id: <201710022344.JII17368.HQtLOMJOOSFFVF@I-love.SAKURA.ne.jp>
+Date: Mon, 2 Oct 2017 23:44:45 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171001102647.GA23908@amd>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: kernel list <linux-kernel@vger.kernel.org>, adrian.hunter@intel.com, linux-mmc@vger.kernel.org, linux-mm@kvack.org, penguin-kernel@I-love.SAKURA.ne.jp
+To: mst@redhat.com
+Cc: mhocko@kernel.org, linux-mm@kvack.org
 
-On Sun 01-10-17 12:26:47, Pavel Machek wrote:
-> Hi!
+Michael S. Tsirkin wrote:
+> > Yes, conditional GFP_KERNEL allocation attempt from virtqueue_add() might
+> > still cause this deadlock. But that depends on whether you can trigger this
+> > deadlock. As far as I know, there is no report. Thus, I think that avoiding
+> > theoretical deadlock using timeout will be sufficient.
 > 
-> > I inserted u-SD card, only to realize that it is not detected as it
-> > should be. And dmesg indeed reveals:
 > 
-> Tetsuo asked me to report this to linux-mm.
-> 
-> But 2^4 is 16 pages, IIRC that can't be expected to work reliably, and
-> thus this sounds like MMC bug, not mm bug.
+> So first of all IMHO GFP_KERNEL allocations do not happen in
+> virtqueue_add_outbuf at all. They only trigger through add_sgs.
 
-Well, I cannot comment on why MMC needs such a large allocation and
-whether it can safely fall back to vmalloc but __GFP_RETRY_MAYFAIL
-might help to try harder and require compaction to do more work.
-Relying on that for correctness is, of course, a different story and
-a very unreliable under memory pressure or long term fragmented memory.
--- 
-Michal Hocko
-SUSE Labs
+I did not notice that total_sg == 1 is true for virtqueue_add_outbuf().
+
+> 
+> IMHO this is an API bug, we should just drop the gfp parameter
+> from this API.
+
+OK.
+
+> 
+> 
+> so the issue is balloon_page_enqueue only.
+> 
+
+Since you explained that there is "the deflate on OOM flag", we don't
+want to skip deflating upon lock contention.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
