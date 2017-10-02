@@ -1,54 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FA1D6B0033
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 15:54:46 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id p46so4642376wrb.1
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 12:54:46 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id r5si1812983edh.46.2017.10.02.12.54.44
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C7DA6B0069
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 15:54:56 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id c76so2008485vkd.14
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 12:54:56 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id k88sor4410952ioo.76.2017.10.02.12.54.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 02 Oct 2017 12:54:44 -0700 (PDT)
-Date: Mon, 2 Oct 2017 15:54:25 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] writeback: remove unused parameter from
- balance_dirty_pages()
-Message-ID: <20171002195425.GA18075@cmpxchg.org>
-References: <20170927221311.23263-1-tahsin@google.com>
- <20171002075616.mro36ci7gk5k6vbc@dhcp22.suse.cz>
+        (Google Transport Security);
+        Mon, 02 Oct 2017 12:54:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171002075616.mro36ci7gk5k6vbc@dhcp22.suse.cz>
+In-Reply-To: <150693809463.587641.5712378065494786263.stgit@buzz>
+References: <150693809463.587641.5712378065494786263.stgit@buzz>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Mon, 2 Oct 2017 12:54:53 -0700
+Message-ID: <CA+55aFyXrxN8Dqw9QK9NPWk+ZD52fT=q2y7ByPt9pooOrio3Nw@mail.gmail.com>
+Subject: Re: [PATCH RFC] mm: implement write-behind policy for sequential file writes
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tahsin Erdogan <tahsin@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jeff Layton <jlayton@redhat.com>, Matthew Wilcox <mawilcox@microsoft.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, Theodore Ts'o <tytso@mit.edu>, Nikolay Borisov <nborisov@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Oct 02, 2017 at 09:56:16AM +0200, Michal Hocko wrote:
-> On Wed 27-09-17 15:13:11, Tahsin Erdogan wrote:
-> > "mapping" parameter to balance_dirty_pages() is not used anymore.
-> > 
-> > Fixes: dfb8ae567835 ("writeback: let balance_dirty_pages() work on the matching cgroup bdi_writeback")
-> 
-> balance_dirty_pages_ratelimited doesn't really need mapping as well. All
-> it needs is the inode and we already have it in callers. So would it
-> make sense to refactor a bit further and make its argument an inode?
+On Mon, Oct 2, 2017 at 2:54 AM, Konstantin Khlebnikov
+<khlebnikov@yandex-team.ru> wrote:
+>
+> This patch implements write-behind policy which tracks sequential writes
+> and starts background writeback when have enough dirty pages in a row.
 
-It's nicer to keep this a "page cache" interface, as its primary
-callsites are in mm/memory.c and mm/filemap.c:
+This looks lovely to me.
 
-	$ git grep -c 'inode' mm/filemap.c mm/memory.c 
-	mm/filemap.c:38
-	$ git grep -c 'mapping' mm/filemap.c mm/memory.c 
-	mm/filemap.c:260
-	mm/memory.c:93
+I do wonder if you also looked at finishing the background
+write-behind at close() time, because it strikes me that once you
+start doing that async writeout, it would probably be good to make
+sure you try to do the whole file.
 
-> > Signed-off-by: Tahsin Erdogan <tahsin@google.com>
-> 
-> Acked-by: Michal Hocko <mhocko@suse.com>
+I'm thinking of filesystems that do delayed allocation etc - I'd
+expect that you'd want the whole file to get allocated on disk
+together, rather than have the "first 256kB aligned chunks" allocated
+thanks to write-behind, and then the final part allocated much later
+(after other files may have triggered their own write-behind). Think
+loads like copying lots of pictures around, for example.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+I don't have any particularly strong feelings about this, but I do
+suspect that once you have started that IO, you do want to finish it
+all up as the file write is done. No?
+
+It would also be really nice to see some numbers. Perhaps a comparison
+of "vmstat 1" or similar when writing a big file to some slow medium
+like a USB stick (which is something we've done very very badly at,
+and this should help smooth out)?
+
+                Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
