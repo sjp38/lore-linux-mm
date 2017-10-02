@@ -1,54 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D37A6B0033
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 15:56:06 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id r83so13972542pfj.5
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 12:56:06 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r9si4358286pgp.132.2017.10.02.12.56.05
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E7A356B0069
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 16:00:05 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id j64so1525479pfj.22
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 13:00:05 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id b3sor20948itg.101.2017.10.02.13.00.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 02 Oct 2017 12:56:05 -0700 (PDT)
-Date: Mon, 2 Oct 2017 21:56:01 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v8 0/4] cgroup-aware OOM killer
-Message-ID: <20171002195601.3jeocmmzyf2jl3dw@dhcp22.suse.cz>
-References: <CAAAKZws88uF2dVrXwRV0V6AH5X68rWy7AfJxTxYjpuiyiNJFWA@mail.gmail.com>
- <20170927074319.o3k26kja43rfqmvb@dhcp22.suse.cz>
- <CAAAKZws2CFExeg6A9AzrGjiHnFHU1h2xdk6J5Jw2kqxy=V+_YQ@mail.gmail.com>
- <20170927162300.GA5623@castle.DHCP.thefacebook.com>
- <CAAAKZwtApj-FgRc2V77nEb3BUd97Rwhgf-b-k0zhf1u+Y4fqxA@mail.gmail.com>
- <CALvZod7iaOEeGmDJA0cZvJWpuzc-hMRn3PG2cfzcMniJtAjKqA@mail.gmail.com>
- <20171002122434.llbaarb6yw3o3mx3@dhcp22.suse.cz>
- <CALvZod65LYZZYy6uE=DQaQRPXYAhAci=NMG_w=ZANPGATgRwfg@mail.gmail.com>
- <20171002192814.sad75tqklp3nmr4m@dhcp22.suse.cz>
- <CALvZod4=+GVg+hrT4ubp9P4b+LUZ+q9mz4ztC=Fc_cmTZmvpcw@mail.gmail.com>
+        (Google Transport Security);
+        Mon, 02 Oct 2017 13:00:04 -0700 (PDT)
+Subject: Re: [PATCH RFC] mm: implement write-behind policy for sequential file
+ writes
+References: <150693809463.587641.5712378065494786263.stgit@buzz>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <eb9447b7-9fca-5883-8f04-1fdc7db31c20@kernel.dk>
+Date: Mon, 2 Oct 2017 14:00:01 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALvZod4=+GVg+hrT4ubp9P4b+LUZ+q9mz4ztC=Fc_cmTZmvpcw@mail.gmail.com>
+In-Reply-To: <150693809463.587641.5712378065494786263.stgit@buzz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Tim Hockin <thockin@hockin.org>, Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Mon 02-10-17 12:45:18, Shakeel Butt wrote:
-> > I am sorry to cut the rest of your proposal because it simply goes over
-> > the scope of the proposed solution while the usecase you are mentioning
-> > is still possible. If we want to compare intermediate nodes (which seems
-> > to be the case) then we can always provide a knob to opt-in - be it your
-> > oom_gang or others.
+On 10/02/2017 03:54 AM, Konstantin Khlebnikov wrote:
+> Traditional writeback tries to accumulate as much dirty data as possible.
+> This is worth strategy for extremely short-living files and for batching
+> writes for saving battery power. But for workloads where disk latency is
+> important this policy generates periodic disk load spikes which increases
+> latency for concurrent operations.
 > 
-> In the Roman's proposed solution we can already force the comparison
-> of intermediate nodes using 'oom_group', I am just requesting to
-> separate the killall semantics from it.
+> Present writeback engine allows to tune only dirty data size or expiration
+> time. Such tuning cannot eliminate pikes - this just lowers and multiplies
+> them. Other option is switching into sync mode which flushes written data
+> right after each write, obviously this have significant performance impact.
+> Such tuning is system-wide and affects memory-mapped and randomly written
+> files, flusher threads handle them much better.
+> 
+> This patch implements write-behind policy which tracks sequential writes
+> and starts background writeback when have enough dirty pages in a row.
 
-oom_group _is_ about killall semantic.  And comparing killable entities
-is just a natural thing to do. So I am not sure what you mean
+This is a great idea in general. My only concerns would be around cases
+where we don't expect the writes to ever make it to media. It's not an
+uncommon use case - app dirties some memory in a file, and expects
+to truncate/unlink it before it makes it to disk. We don't want to trigger
+writeback for those. Arguably that should be app hinted.
+
+> Write-behind tracks current writing position and looks into two windows
+> behind it: first represents unwitten pages, Second - async writeback.
+> 
+> Next write starts background writeback when first window exceed threshold
+> and waits for pages falling behind async writeback window. This allows to
+> combine small writes into bigger requests and maintain optimal io-depth.
+> 
+> This affects only writes via syscalls, memory mapped writes are unchanged.
+> Also write-behind doesn't affect files with fadvise POSIX_FADV_RANDOM.
+> 
+> If async window set to 0 then write-behind skips dirty pages for congested
+> disk and never wait for writeback. This is used for files with O_NONBLOCK.
+> 
+> Also for files with fadvise POSIX_FADV_NOREUSE write-behind automatically
+> evicts completely written pages from cache. This is perfect for writing
+> verbose logs without pushing more important data out of cache.
+> 
+> As a bonus write-behind makes blkio throttling much more smooth for most
+> bulk file operations like copying or downloading which writes sequentially.
+> 
+> Size of minimal write-behind request is set in:
+> /sys/block/$DISK/bdi/min_write_behind_kb
+> Default is 256Kb, 0 - disable write-behind for this disk.
+> 
+> Size of async window set in:
+> /sys/block/$DISK/bdi/async_write_behind_kb
+> Default is 1024Kb, 0 - disables sync write-behind.
+
+Should we expose these, or just make them a function of the IO limitations
+exposed by the device? Something like 2x max request size, or similar.
+
+Finally, do you have any test results?
 
 -- 
-Michal Hocko
-SUSE Labs
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
