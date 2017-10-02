@@ -1,55 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D1F06B0033
-	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 07:20:57 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id c137so7972552pga.6
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 04:20:57 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j21si6037062pga.373.2017.10.02.04.20.56
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DC5676B0033
+	for <linux-mm@kvack.org>; Mon,  2 Oct 2017 07:23:24 -0400 (EDT)
+Received: by mail-ua0-f199.google.com with SMTP id w32so1159947uaw.23
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 04:23:24 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e6si3996361qkc.541.2017.10.02.04.23.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 02 Oct 2017 04:20:56 -0700 (PDT)
-Date: Mon, 2 Oct 2017 13:20:51 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/2 v8] oom: capture unreclaimable slab info in oom
- message
-Message-ID: <20171002112051.uk4gyrtygfgtvp5g@dhcp22.suse.cz>
-References: <1506548776-67535-1-git-send-email-yang.s@alibaba-inc.com>
- <fccbce9c-a40e-621f-e9a4-17c327ed84e8@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Oct 2017 04:23:24 -0700 (PDT)
+Subject: Re: [PATCH RFC] mm: implement write-behind policy for sequential file
+ writes
+References: <150693809463.587641.5712378065494786263.stgit@buzz>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <c684ee77-27a6-1522-b443-0c6d33d569a0@redhat.com>
+Date: Mon, 2 Oct 2017 13:23:18 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <fccbce9c-a40e-621f-e9a4-17c327ed84e8@I-love.SAKURA.ne.jp>
+In-Reply-To: <150693809463.587641.5712378065494786263.stgit@buzz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Yang Shi <yang.s@alibaba-inc.com>, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Jens Axboe <axboe@kernel.dk>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Thu 28-09-17 13:36:57, Tetsuo Handa wrote:
-> On 2017/09/28 6:46, Yang Shi wrote:
-> > Changelog v7 a??> v8:
-> > * Adopted Michala??s suggestion to dump unreclaim slab info when unreclaimable slabs amount > total user memory. Not only in oom panic path.
-> 
-> Holding slab_mutex inside dump_unreclaimable_slab() was refrained since V2
-> because there are
-> 
-> 	mutex_lock(&slab_mutex);
-> 	kmalloc(GFP_KERNEL);
-> 	mutex_unlock(&slab_mutex);
-> 
-> users. If we call dump_unreclaimable_slab() for non OOM panic path, aren't we
-> introducing a risk of crash (i.e. kernel panic) for regular OOM path?
+On 10/02/2017 11:54 AM, Konstantin Khlebnikov wrote:
+> This patch implements write-behind policy which tracks sequential writes
+> and starts background writeback when have enough dirty pages in a row.
 
-yes we are
- 
-> We can try mutex_trylock() from dump_unreclaimable_slab() at best.
-> But it is still remaining unsafe, isn't it?
+Does this apply to data for files which have never been written to disk 
+before?
 
-using the trylock sounds like a reasonable compromise.
--- 
-Michal Hocko
-SUSE Labs
+I think one of the largest benefits of the extensive write-back caching 
+in Linux is that the cache is discarded if the file is deleted before it 
+is ever written to disk.  (But maybe I'm wrong about this.)
+
+Thanks,
+Florian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
