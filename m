@@ -1,49 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CC4646B0038
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 04:51:04 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id n1so12932598pgt.4
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 01:51:04 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0866B6B0038
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 05:08:02 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id k7so2908226wre.22
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 02:08:01 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v1si9884824plb.807.2017.10.03.01.51.03
+        by mx.google.com with ESMTPS id u9si2463880wrd.437.2017.10.03.02.08.00
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Oct 2017 01:51:03 -0700 (PDT)
-Date: Tue, 3 Oct 2017 10:51:01 +0200
+        Tue, 03 Oct 2017 02:08:00 -0700 (PDT)
+Date: Tue, 3 Oct 2017 11:07:59 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 12/15] mm: Add variant of pagevec_lookup_range_tag()
- taking number of pages
-Message-ID: <20171003085101.GG11879@quack2.suse.cz>
+Subject: Re: [PATCH 14/15] mm: Remove nr_pages argument from
+ pagevec_lookup_{,range}_tag()
+Message-ID: <20171003090759.GH11879@quack2.suse.cz>
 References: <20170927160334.29513-1-jack@suse.cz>
- <20170927160334.29513-13-jack@suse.cz>
- <91bd5e36-3f73-c770-9555-bff47f74f49a@oracle.com>
+ <20170927160334.29513-15-jack@suse.cz>
+ <d86aeb9d-fc2b-c041-ae24-d8ccf06325e7@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <91bd5e36-3f73-c770-9555-bff47f74f49a@oracle.com>
+In-Reply-To: <d86aeb9d-fc2b-c041-ae24-d8ccf06325e7@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Daniel Jordan <daniel.m.jordan@oracle.com>
 Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Fri 29-09-17 17:45:33, Daniel Jordan wrote:
+On Fri 29-09-17 17:46:24, Daniel Jordan wrote:
 > On 09/27/2017 12:03 PM, Jan Kara wrote:
-> >+unsigned pagevec_lookup_range_nr_tag(struct pagevec *pvec,
-> >+		struct address_space *mapping, pgoff_t *index, pgoff_t end,
-> >+		int tag, unsigned max_pages)
-> >+{
-> >+	pvec->nr = find_get_pages_range_tag(mapping, index, end, tag,
-> >+		min_t(unsigned int, max_pages, PAGEVEC_SIZE), pvec->pages);
-> >+	return pagevec_count(pvec);
-> >+}
-> >+EXPORT_SYMBOL(pagevec_lookup_range_tag);
+> >All users of pagevec_lookup() and pagevec_lookup_range() now pass
+> >PAGEVEC_SIZE as a desired number of pages. Just drop the argument.
+> >
+> >Signed-off-by: Jan Kara <jack@suse.cz>
+> >---
+> >  fs/btrfs/extent_io.c    | 6 +++---
 > 
-> The EXPORT_SYMBOL should be pagevec_lookup_range_nr_tag instead of
-> pagevec_lookup_range_tag.
+> There's one place that got missed in fs/ceph/addr.c:
 
-Ah, good catch. Fixed. Thanks!
+Ah, that's probably from a rebase I did. Thanks for catching this!
 
 								Honza
+
+> 
+> diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+> index 87789c477381..ee68b3db6729 100644
+> --- a/fs/ceph/addr.c
+> +++ b/fs/ceph/addr.c
+> @@ -1161,8 +1161,7 @@ static int ceph_writepages_start(struct address_space
+> *mapping,
+>                         index = 0;
+>                         while ((index <= end) &&
+>                                (nr = pagevec_lookup_tag(&pvec, mapping,
+> &index,
+> - PAGECACHE_TAG_WRITEBACK,
+> - PAGEVEC_SIZE))) {
+> + PAGECACHE_TAG_WRITEBACK))) {
+>                                 for (i = 0; i < nr; i++) {
+>                                         page = pvec.pages[i];
+>                                         if (page_snap_context(page) !=
+> snapc)
+> 
+> 
+> Daniel
 -- 
 Jan Kara <jack@suse.com>
 SUSE Labs, CR
