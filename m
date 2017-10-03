@@ -1,133 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 87C186B0038
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 07:50:42 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id p5so22329066pgn.7
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 04:50:42 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 2DC346B0038
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 08:03:22 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id y192so22473144pgd.0
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 05:03:22 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l124si9646849pgl.128.2017.10.03.04.50.41
+        by mx.google.com with ESMTPS id c79si9590413pfe.388.2017.10.03.05.03.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Oct 2017 04:50:41 -0700 (PDT)
-Date: Tue, 3 Oct 2017 13:50:36 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v9 4/5] mm, oom: add cgroup v2 mount option for cgroup-aware
- OOM killer
-Message-ID: <20171003115036.3zzydsiiz7hbx4jg@dhcp22.suse.cz>
-References: <20170927130936.8601-1-guro@fb.com>
- <20170927130936.8601-5-guro@fb.com>
+        Tue, 03 Oct 2017 05:03:20 -0700 (PDT)
+Date: Tue, 3 Oct 2017 14:03:18 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 15/15] afs: Use find_get_pages_range_tag()
+Message-ID: <20171003120318.GI11879@quack2.suse.cz>
+References: <20170927160334.29513-1-jack@suse.cz>
+ <20170927160334.29513-16-jack@suse.cz>
+ <ea1aa003-aaff-a17c-5a2c-28ed3c97a588@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170927130936.8601-5-guro@fb.com>
+In-Reply-To: <ea1aa003-aaff-a17c-5a2c-28ed3c97a588@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, David Howells <dhowells@redhat.com>, linux-afs@lists.infradead.org
 
-On Wed 27-09-17 14:09:35, Roman Gushchin wrote:
-> Add a "groupoom" cgroup v2 mount option to enable the cgroup-aware
-> OOM killer. If not set, the OOM selection is performed in
-> a "traditional" per-process way.
+On Fri 29-09-17 17:46:45, Daniel Jordan wrote:
+> On 09/27/2017 12:03 PM, Jan Kara wrote:
+> >Use find_get_pages_range_tag() in afs_writepages_region() as we are
+> >interested only in pages from given range. Remove unnecessary code after
+> >this conversion.
+> >
+> >CC: David Howells <dhowells@redhat.com>
+> >CC: linux-afs@lists.infradead.org
+> >Signed-off-by: Jan Kara <jack@suse.cz>
+> >---
+> >  fs/afs/write.c | 11 ++---------
+> >  1 file changed, 2 insertions(+), 9 deletions(-)
+> >
+> >diff --git a/fs/afs/write.c b/fs/afs/write.c
+> >index 106e43db1115..d62a6b54152d 100644
+> >--- a/fs/afs/write.c
+> >+++ b/fs/afs/write.c
+> >@@ -497,20 +497,13 @@ static int afs_writepages_region(struct address_space *mapping,
+> >  	_enter(",,%lx,%lx,", index, end);
+> >  	do {
+> >-		n = find_get_pages_tag(mapping, &index, PAGECACHE_TAG_DIRTY,
+> >-				       1, &page);
+> >+		n = find_get_pages_range_tag(mapping, &index, end,
+> >+					PAGECACHE_TAG_DIRTY, 1, &page);
+> >  		if (!n)
+> >  			break;
+> >  		_debug("wback %lx", page->index);
+> >-		if (page->index > end) {
+> >-			*_next = index;
+> >-			put_page(page);
+> >-			_leave(" = 0 [%lx]", *_next);
+> >-			return 0;
+> >-		}
+> >-
+> >  		/* at this point we hold neither mapping->tree_lock nor lock on
+> >  		 * the page itself: the page may be truncated or invalidated
+> >  		 * (changing page->mapping to NULL), or even swizzled back from
 > 
-> The behavior can be changed dynamically by remounting the cgroupfs.
+> There's also one other caller of find_get_pages_tag that could be converted,
+> wdata_alloc_and_fillpages.  Since the 256 max mentioned in the comment below
+> no longer seems to apply, maybe something like this?:
 
-I do not have a strong preference about this. I would just be worried
-that it is usually systemd which tries to own the whole hierarchy and it
-has no idea what is the proper oom behavior because that highly depends
-on the specific workload so a global sysctl/kernel command line argument
-would fit better IMHO.
+Yeah, added a patch doing something like this.
 
-> Signed-off-by: Roman Gushchin <guro@fb.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Tejun Heo <tj@kernel.org>
-> Cc: kernel-team@fb.com
-> Cc: cgroups@vger.kernel.org
-> Cc: linux-doc@vger.kernel.org
-> Cc: linux-kernel@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> ---
->  include/linux/cgroup-defs.h |  5 +++++
->  kernel/cgroup/cgroup.c      | 10 ++++++++++
->  mm/memcontrol.c             |  3 +++
->  3 files changed, 18 insertions(+)
-> 
-> diff --git a/include/linux/cgroup-defs.h b/include/linux/cgroup-defs.h
-> index 3e55bbd31ad1..cae5343a8b21 100644
-> --- a/include/linux/cgroup-defs.h
-> +++ b/include/linux/cgroup-defs.h
-> @@ -80,6 +80,11 @@ enum {
->  	 * Enable cpuset controller in v1 cgroup to use v2 behavior.
->  	 */
->  	CGRP_ROOT_CPUSET_V2_MODE = (1 << 4),
-> +
-> +	/*
-> +	 * Enable cgroup-aware OOM killer.
-> +	 */
-> +	CGRP_GROUP_OOM = (1 << 5),
->  };
->  
->  /* cftype->flags */
-> diff --git a/kernel/cgroup/cgroup.c b/kernel/cgroup/cgroup.c
-> index c3421ee0d230..8d8aa46ff930 100644
-> --- a/kernel/cgroup/cgroup.c
-> +++ b/kernel/cgroup/cgroup.c
-> @@ -1709,6 +1709,9 @@ static int parse_cgroup_root_flags(char *data, unsigned int *root_flags)
->  		if (!strcmp(token, "nsdelegate")) {
->  			*root_flags |= CGRP_ROOT_NS_DELEGATE;
->  			continue;
-> +		} else if (!strcmp(token, "groupoom")) {
-> +			*root_flags |= CGRP_GROUP_OOM;
-> +			continue;
->  		}
->  
->  		pr_err("cgroup2: unknown option \"%s\"\n", token);
-> @@ -1725,6 +1728,11 @@ static void apply_cgroup_root_flags(unsigned int root_flags)
->  			cgrp_dfl_root.flags |= CGRP_ROOT_NS_DELEGATE;
->  		else
->  			cgrp_dfl_root.flags &= ~CGRP_ROOT_NS_DELEGATE;
-> +
-> +		if (root_flags & CGRP_GROUP_OOM)
-> +			cgrp_dfl_root.flags |= CGRP_GROUP_OOM;
-> +		else
-> +			cgrp_dfl_root.flags &= ~CGRP_GROUP_OOM;
->  	}
->  }
->  
-> @@ -1732,6 +1740,8 @@ static int cgroup_show_options(struct seq_file *seq, struct kernfs_root *kf_root
+> diff --git a/fs/cifs/file.c b/fs/cifs/file.c
+> index 92fdf9c35de2..4dbd24231e8a 100644
+> --- a/fs/cifs/file.c
+> +++ b/fs/cifs/file.c
+> @@ -1963,31 +1963,14 @@ wdata_alloc_and_fillpages(pgoff_t tofind, struct
+> address_space *mapping,
+>                           pgoff_t end, pgoff_t *index,
+>                           unsigned int *found_pages)
 >  {
->  	if (cgrp_dfl_root.flags & CGRP_ROOT_NS_DELEGATE)
->  		seq_puts(seq, ",nsdelegate");
-> +	if (cgrp_dfl_root.flags & CGRP_GROUP_OOM)
-> +		seq_puts(seq, ",groupoom");
->  	return 0;
+> -       unsigned int nr_pages;
+> -       struct page **pages;
+> -       struct cifs_writedata *wdata;
+> -
+> -       wdata = cifs_writedata_alloc((unsigned int)tofind,
+> -                                    cifs_writev_complete);
+> +       struct cifs_writedata *wdata =
+> cifs_writedata_alloc((unsigned)tofind,
+> + cifs_writev_complete);
+>         if (!wdata)
+>                 return NULL;
+> 
+> -       /*
+> -        * find_get_pages_tag seems to return a max of 256 on each
+> -        * iteration, so we must call it several times in order to
+> -        * fill the array or the wsize is effectively limited to
+> -        * 256 * PAGE_SIZE.
+> -        */
+> -       *found_pages = 0;
+> -       pages = wdata->pages;
+> -       do {
+> -               nr_pages = find_get_pages_tag(mapping, index,
+> -                                             PAGECACHE_TAG_DIRTY, tofind,
+> -                                             pages);
+> -               *found_pages += nr_pages;
+> -               tofind -= nr_pages;
+> -               pages += nr_pages;
+> -       } while (nr_pages && tofind && *index <= end);
+> +       *found_pages = find_get_pages_range_tag(mapping, index, end,
+> +                                               PAGECACHE_TAG_DIRTY, tofind,
+> +                                               wdata->pages);
+> 
+>         return wdata;
 >  }
->  
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 353bb590713e..3f82b6f22d63 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2852,6 +2852,9 @@ bool mem_cgroup_select_oom_victim(struct oom_control *oc)
->  	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys))
->  		return false;
->  
-> +	if (!(cgrp_dfl_root.flags & CGRP_GROUP_OOM))
-> +		return false;
-> +
->  	if (oc->memcg)
->  		root = oc->memcg;
->  	else
-> -- 
-> 2.13.5
+> 
+> Otherwise the set looks good, so for the whole thing,
+> 
+> Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 
+Thanks for review!
+
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
