@@ -1,49 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EA776B0038
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 11:35:05 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id 37so5262013qto.2
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 08:35:05 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id q196si4079471qke.194.2017.10.03.08.35.03
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F1C606B0038
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 11:37:01 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id y192so23714521pgd.0
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 08:37:01 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id 7si200102pgd.489.2017.10.03.08.37.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Oct 2017 08:35:04 -0700 (PDT)
-Subject: Re: [PATCH v9 12/12] mm: stop zeroing memory during allocation in
- vmemmap
-References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
- <20170920201714.19817-13-pasha.tatashin@oracle.com>
- <20171003131952.aqq377pjug5me6go@dhcp22.suse.cz>
-From: Pasha Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <c028f65a-b4a6-e56d-3a50-5d7ad9af50cb@oracle.com>
-Date: Tue, 3 Oct 2017 11:34:25 -0400
+        Tue, 03 Oct 2017 08:37:01 -0700 (PDT)
+Date: Tue, 3 Oct 2017 08:37:00 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v4 4/5] cramfs: add mmap support
+Message-ID: <20171003153659.GA31600@infradead.org>
+References: <20170927233224.31676-1-nicolas.pitre@linaro.org>
+ <20170927233224.31676-5-nicolas.pitre@linaro.org>
+ <20171001083052.GB17116@infradead.org>
+ <nycvar.YSQ.7.76.1710011805070.5407@knanqh.ubzr>
+ <CAFLxGvzfQrvU-8w7F26mez6fCQD+iS_qRJpLSU+2DniEGouEfA@mail.gmail.com>
+ <nycvar.YSQ.7.76.1710021931270.5407@knanqh.ubzr>
+ <20171003145732.GA8890@infradead.org>
+ <nycvar.YSQ.7.76.1710031107290.5407@knanqh.ubzr>
 MIME-Version: 1.0
-In-Reply-To: <20171003131952.aqq377pjug5me6go@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <nycvar.YSQ.7.76.1710031107290.5407@knanqh.ubzr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: Nicolas Pitre <nicolas.pitre@linaro.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Richard Weinberger <richard.weinberger@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-embedded@vger.kernel.org" <linux-embedded@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Chris Brandt <Chris.Brandt@renesas.com>
 
-On 10/03/2017 09:19 AM, Michal Hocko wrote:
-> On Wed 20-09-17 16:17:14, Pavel Tatashin wrote:
->> vmemmap_alloc_block() will no longer zero the block, so zero memory
->> at its call sites for everything except struct pages.  Struct page memory
->> is zero'd by struct page initialization.
->>
->> Replace allocators in sprase-vmemmap to use the non-zeroing version. So,
->> we will get the performance improvement by zeroing the memory in parallel
->> when struct pages are zeroed.
-> 
-> Is it possible to merge this patch with http://lkml.kernel.org/r/20170920201714.19817-7-pasha.tatashin@oracle.com
+On Tue, Oct 03, 2017 at 11:30:50AM -0400, Nicolas Pitre wrote:
+> Unless you have a better scheme altogether  to suggest of course, given 
+> the existing constraints.
 
-Yes, I will do that. It would also require re-arranging
-[PATCH v9 07/12] sparc64: optimized struct page zeroing
-optimization to come after this patch.
+I still can't understand why this convoluted fault path that finds
+vma, attempts with all kinds of races and then tries to update things
+like vm_ops is even nessecary.
 
-Pasha
+We have direct mappings of physical address perfectly working in the
+DAX code (even with write support!) or in drivers using remap_pfn_range
+so a really good explanation why neither scheme can be used is needed
+first.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
