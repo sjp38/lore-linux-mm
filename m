@@ -1,63 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 17E2F6B0038
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 03:07:55 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 54so7688071wrz.3
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 00:07:55 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id c6si2136695wmd.12.2017.10.03.00.07.53
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CC8786B0253
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 03:10:27 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id y77so17360784pfd.2
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 00:10:27 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x18si4927998pge.118.2017.10.03.00.10.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Oct 2017 00:07:53 -0700 (PDT)
-Date: Tue, 3 Oct 2017 09:07:52 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH v3] dma-debug: fix incorrect pfn calculation
-Message-ID: <20171003070752.GA18928@lst.de>
-References: <1506484087-1177-1-git-send-email-miles.chen@mediatek.com> <273077fd-c5ad-82c8-60aa-cde89355e5e8@arm.com> <20171001080449.GB11843@lst.de> <1506940241.28397.36.camel@mtkswgap22>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 03 Oct 2017 00:10:26 -0700 (PDT)
+Date: Tue, 3 Oct 2017 09:10:19 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,hugetlb,migration: don't migrate kernelcore hugepages
+Message-ID: <20171003071019.hdcdjwjabld4el4p@dhcp22.suse.cz>
+References: <20171001225111.GA16432@gmail.com>
+ <20171002125432.xiszy6xlvfb2jv67@dhcp22.suse.cz>
+ <20171002140632.GA12673@gmail.com>
+ <20171002142717.xwe2xymsr3oocxmg@dhcp22.suse.cz>
+ <20171002150637.GA14321@gmail.com>
+ <20171002161431.kmsrwtta7bwxn63q@dhcp22.suse.cz>
+ <20171003054224.GA5025@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1506940241.28397.36.camel@mtkswgap22>
+In-Reply-To: <20171003054224.GA5025@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miles Chen <miles.chen@mediatek.com>
-Cc: Christoph Hellwig <hch@lst.de>, Robin Murphy <robin.murphy@arm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, wsd_upstream@mediatek.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, linux-mediatek@lists.infradead.org
+To: Alexandru Moise <00moses.alexander00@gmail.com>
+Cc: corbet@lwn.net, paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, tglx@linutronix.de, mingo@kernel.org, cdall@linaro.org, mchehab@kernel.org, zohar@linux.vnet.ibm.com, marc.zyngier@arm.com, rientjes@google.com, hannes@cmpxchg.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, aneesh.kumar@linux.vnet.ibm.com, punit.agrawal@arm.com, aarcange@redhat.com, gerald.schaefer@de.ibm.com, jglisse@redhat.com, kirill.shutemov@linux.intel.com, will.deacon@arm.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Oct 02, 2017 at 06:30:41PM +0800, Miles Chen wrote:
-> ARCHs like metag and xtensa define their mappings (non-vmalloc and
-> non-linear) for dma allocation.
-
-metag basically is a reimplementation of the vmalloc map mechanism
-that should be easy to consolidate into the common one :(  xtensa
-has a weird remapping into a different segment, something that I
-vaguely remember mips used to support as well.
-
-> These mapping types are architecture-dependent and should not be used
-> outside arch folders. So it is hard to check the mappings and convert
-> a virtual address to a correct pfn in lib/dam-debug.c
+On Tue 03-10-17 07:42:25, Alexandru Moise wrote:
+> On Mon, Oct 02, 2017 at 06:15:00PM +0200, Michal Hocko wrote:
+[...]
+> > I really fail to see why kernel vs. movable zones play any role here.
+> > Zones should be mostly an implementation detail which userspace
+> > shouldn't really care about.
 > 
-> How about recording only vmalloc (by is_vmalloc_addr()) and linear
-> address (by virt_addr_valid()) in lib/dma-debug? Since current 
-> implementation is not correct for those ARCHs.
-> 
-> if (!is_vmalloc_addr(addr) && !virt_addr_valid(addr))
->     return;
-> 
-> or
+> Ok, the whole zone approach is a bad idea. Do you think that there's
+> any value at all to trying to make hugepages un-movable at all?
 
-This looks like a good start, although I'm not sure I'd trust
-virt_addr_valid on every little arch.  In the worse case we'll
-have to exclude offenders from supporting dma debug, so let's go
-with that version.
+I am not aware of any usecase, to be honest.
 
-> > > > +	entry->pfn	 = is_vmalloc_addr(virt) ? vmalloc_to_pfn(virt) :
-> > > > +						page_to_pfn(virt_to_page(virt));
-> > 
-> > Please use normal if/else conditionsals:
-> 
-> Is this for better readability? I'll send another patch for this.
+> Should
+> the hugepages_treat_as_movable sysctl die and just make hugepages movable
+> by default?
 
-Yes.
+I think that hugepages_treat_as_movable is just a historical relict from
+the time when hugetlb pages were not movable but the main purpose of
+the movable zone was different back at the time. Just to clarifiy, the
+original intention of the zone was to prevent memory fragmentation and
+as hugetlb pages are not fragmenting memory because they are long lived
+and contiguous, it was acceptable to use the zone. The purpose of the
+zone has changed towards a migratability guarantee since then but the
+knob has stayed behind. I think we should just remove it.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
