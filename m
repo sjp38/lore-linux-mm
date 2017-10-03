@@ -1,65 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CC836B025F
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 11:24:38 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id w63so9130937qkd.0
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 08:24:38 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o25si1256229qta.404.2017.10.03.08.24.37
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EAA26B0038
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 11:30:10 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id p15so4567016qtp.4
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 08:30:10 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id o40si1807149qtj.529.2017.10.03.08.30.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Oct 2017 08:24:37 -0700 (PDT)
-Message-ID: <1507044274.10046.20.camel@redhat.com>
-Subject: Re: [PATCH] mm: remove unused pgdat->inactive_ratio
-From: Rik van Riel <riel@redhat.com>
-Date: Tue, 03 Oct 2017 11:24:34 -0400
-In-Reply-To: <20171003152611.27483-1-aryabinin@virtuozzo.com>
-References: <20171003152611.27483-1-aryabinin@virtuozzo.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-eQR8LS96VfuSBVNBG/RJ"
-Mime-Version: 1.0
+        Tue, 03 Oct 2017 08:30:09 -0700 (PDT)
+Subject: Re: [PATCH v9 08/12] mm: zero reserved and unavailable struct pages
+References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
+ <20170920201714.19817-9-pasha.tatashin@oracle.com>
+ <20171003131817.omzbam3js67edp3s@dhcp22.suse.cz>
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <691dba28-718c-e9a9-d006-88505eb5cd7e@oracle.com>
+Date: Tue, 3 Oct 2017 11:29:16 -0400
+MIME-Version: 1.0
+In-Reply-To: <20171003131817.omzbam3js67edp3s@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
+On 10/03/2017 09:18 AM, Michal Hocko wrote:
+> On Wed 20-09-17 16:17:10, Pavel Tatashin wrote:
+>> Some memory is reserved but unavailable: not present in memblock.memory
+>> (because not backed by physical pages), but present in memblock.reserved.
+>> Such memory has backing struct pages, but they are not initialized by going
+>> through __init_single_page().
+> 
+> Could you be more specific where is such a memory reserved?
+> 
 
---=-eQR8LS96VfuSBVNBG/RJ
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+I know of one example: trim_low_memory_range() unconditionally reserves 
+from pfn 0, but e820__memblock_setup() might provide the exiting memory 
+from pfn 1 (i.e. KVM).
 
-On Tue, 2017-10-03 at 18:26 +0300, Andrey Ryabinin wrote:
-> Since commit 59dc76b0d4df ("mm: vmscan: reduce size of inactive file
-> list")
-> 'pgdat->inactive_ratio' is not used, except for printing
-> "node_inactive_ratio: 0" in /proc/zoneinfo output.
->=20
-> Remove it.
->=20
-> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+But, there could be more based on this comment from linux/page-flags.h:
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+  19  * PG_reserved is set for special pages, which can never be swapped 
+out. Some
+  20  * of them might not even exist (eg empty_bad_page)...
 
---=20
-All rights reversed
---=-eQR8LS96VfuSBVNBG/RJ
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJZ06uyAAoJEM553pKExN6DrkEH/iTTErr91ta3XDQPhi8cjslM
-FMxLNDhHvsC3K6l67+VPNdO3YPW0Ch46ZvXYFrFz+VwOgkrY9F6QcUSYosBYs2qv
-ZwBULXoZdt9tPAdmoPQPgvcslrcHDkOolaRLXY4HzYVXLlvNyLHpsLbC7VZGnlkp
-D2D63t+MyhF+VWuZb7XFdqJbwPj1nkJkwscV46GNTmOqeKDgCwWlxI486XKx30wH
-8rtyIXfgGpbILwqF0fSDYBONs0MiVfieu2VPc28URg6G0XrFtG31ghyxeYjNGlkY
-ThgN56EQhiU7zmufwVqUEd3U5aqRUelJCajJdDSbjpLKexUVSV/gZwwrK/uw//o=
-=yUFm
------END PGP SIGNATURE-----
-
---=-eQR8LS96VfuSBVNBG/RJ--
+Pasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
