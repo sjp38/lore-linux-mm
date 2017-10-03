@@ -1,72 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 98D336B0033
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 15:59:31 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id k56so113281qtc.1
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 12:59:31 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p64si4360199qkc.349.2017.10.03.12.59.30
+	by kanga.kvack.org (Postfix) with ESMTP id 2179E6B0033
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 16:27:42 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id 6so4943043qtw.5
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 13:27:42 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id p205si1999800qke.520.2017.10.03.13.27.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Oct 2017 12:59:30 -0700 (PDT)
-Message-ID: <1507060767.10046.23.camel@redhat.com>
-Subject: Re: [PATCHv3] mm: Account pud page tables
-From: Rik van Riel <riel@redhat.com>
-Date: Tue, 03 Oct 2017 15:59:27 -0400
-In-Reply-To: <20171002080427.3320-1-kirill.shutemov@linux.intel.com>
-References: <20171002080427.3320-1-kirill.shutemov@linux.intel.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-aZHpOY31/K4vWS9OysXf"
-Mime-Version: 1.0
+        Tue, 03 Oct 2017 13:27:41 -0700 (PDT)
+Subject: Re: [PATCH v9 12/12] mm: stop zeroing memory during allocation in
+ vmemmap
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
+ <20170920201714.19817-13-pasha.tatashin@oracle.com>
+ <20171003131952.aqq377pjug5me6go@dhcp22.suse.cz>
+ <c028f65a-b4a6-e56d-3a50-5d7ad9af50cb@oracle.com>
+Message-ID: <e5872937-b166-fd48-d46d-1921c738d4b1@oracle.com>
+Date: Tue, 3 Oct 2017 16:26:51 -0400
+MIME-Version: 1.0
+In-Reply-To: <c028f65a-b4a6-e56d-3a50-5d7ad9af50cb@oracle.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+
+Hi Michal,
+
+I decided not to merge these two patches, because in addition to sparc 
+optimization move, we have this dependancies:
+
+mm: zero reserved and unavailable struct pages
+
+must be before
+
+mm: stop zeroing memory during allocation in vmemmap.
+
+Otherwise, we can end-up with struct pages that are not zeroed properly.
+
+However, the first patch depends on
+mm: zero struct pages during initialization
+
+As it uses mm_zero_struct_page().
+
+Pasha
 
 
---=-aZHpOY31/K4vWS9OysXf
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-On Mon, 2017-10-02 at 11:04 +0300, Kirill A. Shutemov wrote:
-> On machine with 5-level paging support a process can allocate
-> significant amount of memory and stay unnoticed by oom-killer and
-> memory cgroup. The trick is to allocate a lot of PUD page tables.
-> We don't account PUD page tables, only PMD and PTE.
->=20
-> We already addressed the same issue for PMD page tables, see
-> dc6c9a35b66b ("mm: account pmd page tables to the process").
-> Introduction 5-level paging bring the same issue for PUD page tables.
->=20
-> The patch expands accounting to PUD level.
->=20
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
->=20
-
-Acked-by: Rik van Riel <riel@redhat.com>
-
---=20
-All rights reversed
---=-aZHpOY31/K4vWS9OysXf
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJZ0+wfAAoJEM553pKExN6DTmsIALbhgql537uDpwzR0VdB9wv2
-+gYVGvKiTRqrmD24qw6XV+lZLj2svM48/1+fSMrdz/GYz3xQnj9qVUegexTKU6Jq
-pmZR4l7/gQPjybR/sVqpXLfzzr1HH51vbKppB2diPMs2c/BjURPmIXep34hnIgU5
-GQ2flsqcMSAM7NugItC0HFXxgr++u6fosHYeIN7c7u+1+7LMi4THnPMOd15wcFcr
-Z9Hqz0JzkuznJ1s3wyJaA2+Vu1o93g3D/hbIz9xhCU/n5sI4uhV2sIBt24Q9YEMy
-8sYSrpT+Mq4ZOg8DIpiFdMo4fbqdnKfflp/048utIDCGsTjzlmzPUPfhWbrfO+0=
-=geub
------END PGP SIGNATURE-----
-
---=-aZHpOY31/K4vWS9OysXf--
+On 10/03/2017 11:34 AM, Pasha Tatashin wrote:
+> On 10/03/2017 09:19 AM, Michal Hocko wrote:
+>> On Wed 20-09-17 16:17:14, Pavel Tatashin wrote:
+>>> vmemmap_alloc_block() will no longer zero the block, so zero memory
+>>> at its call sites for everything except struct pages.A  Struct page 
+>>> memory
+>>> is zero'd by struct page initialization.
+>>>
+>>> Replace allocators in sprase-vmemmap to use the non-zeroing version. So,
+>>> we will get the performance improvement by zeroing the memory in 
+>>> parallel
+>>> when struct pages are zeroed.
+>>
+>> Is it possible to merge this patch with 
+>> http://lkml.kernel.org/r/20170920201714.19817-7-pasha.tatashin@oracle.com
+> 
+> Yes, I will do that. It would also require re-arranging
+> [PATCH v9 07/12] sparc64: optimized struct page zeroing
+> optimization to come after this patch.
+> 
+> Pasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
