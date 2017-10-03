@@ -1,47 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D7A756B0253
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 18:36:46 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id m123so1440384ita.4
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 15:36:46 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h73sor5978308ith.72.2017.10.03.15.36.45
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 33F846B0253
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 18:55:14 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id u138so9174410wmu.2
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 15:55:14 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id b12si798332edm.95.2017.10.03.15.55.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 03 Oct 2017 15:36:45 -0700 (PDT)
-Date: Tue, 3 Oct 2017 15:36:42 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] mm/percpu.c: use smarter memory allocation for struct
- pcpu_alloc_info
-Message-ID: <20171003223642.GN3301751@devbig577.frc2.facebook.com>
-References: <nycvar.YSQ.7.76.1710031638450.5407@knanqh.ubzr>
- <20171003210540.GM3301751@devbig577.frc2.facebook.com>
- <nycvar.YSQ.7.76.1710031731130.5407@knanqh.ubzr>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 03 Oct 2017 15:55:12 -0700 (PDT)
+Date: Tue, 3 Oct 2017 18:55:04 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: tty crash due to auto-failing vmalloc
+Message-ID: <20171003225504.GA966@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <nycvar.YSQ.7.76.1710031731130.5407@knanqh.ubzr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicolas Pitre <nicolas.pitre@linaro.org>
-Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.com>
+Cc: Alan Cox <alan@llwyncelyn.cymru>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Hello,
+On some of our machines, we see this warning:
 
-On Tue, Oct 03, 2017 at 06:29:49PM -0400, Nicolas Pitre wrote:
-> I'm not sure i understand that code fully, but maybe the following patch 
-> could be a better fit:
-> 
-> ----- >8
-> Subject: [PATCH] percpu: don't forget to free the temporary struct pcpu_alloc_info
+	/* switch the line discipline */
+	tty->ldisc = ld;
+	tty_set_termios_ldisc(tty, disc);
+	retval = tty_ldisc_open(tty, tty->ldisc);
+	if (retval) {
+->		if (!WARN_ON(disc == N_TTY)) {
+			tty_ldisc_put(tty->ldisc);
+			tty->ldisc = NULL;
+		}
+	}
 
-So, IIRC, the error path is either boot fail or some serious bug in
-arch code.  It really doesn't matter whether we free a page or not.
+where the stack is
 
-Thanks.
+tty_ldisc_reinit
+tty_ldisc_hangup
+__tty_hangup
+do_exit
+do_signal
+syscall
 
--- 
-tejun
+This is followed by a NULL pointer deref crash in n_tty_set_termios,
+presumably when it tries to deref that unallocated tty->disc_data.
+
+The only way n_tty_open() can fail is if the vmalloc in there fails.
+struct n_tty_data isn't terribly big, but ever since the following
+patch it doesn't even *try* the allocation:
+
+commit 5d17a73a2ebeb8d1c6924b91e53ab2650fe86ffb
+Author: Michal Hocko <mhocko@suse.com>
+Date:   Fri Feb 24 14:58:53 2017 -0800
+
+    vmalloc: back off when the current task is killed
+    
+    __vmalloc_area_node() allocates pages to cover the requested vmalloc
+    size.  This can be a lot of memory.  If the current task is killed by
+    the OOM killer, and thus has an unlimited access to memory reserves, it
+    can consume all the memory theoretically.  Fix this by checking for
+    fatal_signal_pending and back off early.
+    
+    Link: http://lkml.kernel.org/r/20170201092706.9966-4-mhocko@kernel.org
+    Signed-off-by: Michal Hocko <mhocko@suse.com>
+    Reviewed-by: Christoph Hellwig <hch@lst.de>
+    Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+    Cc: Al Viro <viro@zeniv.linux.org.uk>
+    Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+    Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+
+This talks about the oom killer and memory exhaustion, but most fatal
+signals don't happen due to the OOM killer.
+
+I think this patch should be reverted. If somebody is vmallocing crazy
+amounts of memory in the exit path we should probably track them down
+individually; the patch doesn't reference any real instances of that.
+But we cannot start failing allocations that have never failed before.
+
+That said, maybe we want Alan's N_NULL failover in the hangup path too?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
