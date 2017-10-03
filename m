@@ -1,74 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E71E6B0038
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 14:06:04 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 22so5155858wrb.7
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 11:06:04 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id t26si760940edc.328.2017.10.03.11.06.02
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A326A6B0253
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 14:06:41 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id c137so18263613pga.6
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 11:06:41 -0700 (PDT)
+Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
+        by mx.google.com with ESMTPS id u11si9955465pgp.256.2017.10.03.11.06.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Oct 2017 11:06:02 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 3C23199170
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 18:06:02 +0000 (UTC)
-Date: Tue, 3 Oct 2017 19:04:27 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm/mempolicy: fix NUMA_INTERLEAVE_HIT counter
-Message-ID: <20171003180427.lhdeb6yyhfjfve3d@techsingularity.net>
-References: <20171003164720.22130-1-aryabinin@virtuozzo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20171003164720.22130-1-aryabinin@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Oct 2017 11:06:40 -0700 (PDT)
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Subject: [PATCH 2/3] mm: slabinfo: dump CONFIG_SLABINFO
+Date: Wed, 04 Oct 2017 02:06:16 +0800
+Message-Id: <1507053977-116952-3-git-send-email-yang.s@alibaba-inc.com>
+In-Reply-To: <1507053977-116952-1-git-send-email-yang.s@alibaba-inc.com>
+References: <1507053977-116952-1-git-send-email-yang.s@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Kemi Wang <kemi.wang@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org
+Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Oct 03, 2017 at 07:47:20PM +0300, Andrey Ryabinin wrote:
-> Commit 3a321d2a3dde separated NUMA counters from zone counters, but
-> the NUMA_INTERLEAVE_HIT call site wasn't updated to use the new interface.
-> So alloc_page_interleave() actually increments NR_ZONE_INACTIVE_FILE
-> instead of NUMA_INTERLEAVE_HIT.
-> 
-> Fix this by using __inc_numa_state() interface to increment
-> NUMA_INTERLEAVE_HIT.
-> 
-> Fixes: 3a321d2a3dde ("mm: change the call sites of numa statistics items")
-> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> ---
->  mm/mempolicy.c | 9 +++++++--
->  1 file changed, 7 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 006ba625c0b8..3a18f0a091c4 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1920,8 +1920,13 @@ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
->  	struct page *page;
->  
->  	page = __alloc_pages(gfp, order, nid);
-> -	if (page && page_to_nid(page) == nid)
-> -		inc_zone_page_state(page, NUMA_INTERLEAVE_HIT);
-> +	if (page && page_to_nid(page) == nid) {
-> +		unsigned long flags;
-> +
-> +		local_irq_save(flags);
-> +		__inc_numa_state(page_zone(page), NUMA_INTERLEAVE_HIT);
-> +		local_irq_restore(flags);
-> +	}
->  	return page;
->  }
+According to the discussion with Christoph [1], it sounds it is pointless
+to keep CONFIG_SLABINFO around.
 
-alloc_page_interleave is only called from !irq contexts and the requirements
-for __inc_numa_state should only require interrupt disabling if that
-particular counter can be updated from interrupt context. Disabling
-preemption should be sufficient for NUMA_INTERLEAVE_HIT and would be cheaper.
+This patch just remove CONFIG_SLABINFO config option, but /proc/slabinfo
+is still available.
 
+[1] https://marc.info/?l=linux-kernel&m=150695909709711&w=2
+
+Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
+---
+ init/Kconfig     | 6 ------
+ mm/memcontrol.c  | 2 --
+ mm/slab.c        | 2 --
+ mm/slab_common.c | 3 ---
+ mm/slub.c        | 2 --
+ 5 files changed, 15 deletions(-)
+
+diff --git a/init/Kconfig b/init/Kconfig
+index 78cb246..5d3c80a 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1657,12 +1657,6 @@ config HAVE_GENERIC_DMA_COHERENT
+ 	bool
+ 	default n
+ 
+-config SLABINFO
+-	bool
+-	depends on PROC_FS
+-	depends on SLAB || SLUB_DEBUG
+-	default y
+-
+ config RT_MUTEXES
+ 	bool
+ 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 15af3da..0a8ed72 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4039,7 +4039,6 @@ static ssize_t memcg_write_event_control(struct kernfs_open_file *of,
+ 		.write = mem_cgroup_reset,
+ 		.read_u64 = mem_cgroup_read_u64,
+ 	},
+-#ifdef CONFIG_SLABINFO
+ 	{
+ 		.name = "kmem.slabinfo",
+ 		.seq_start = memcg_slab_start,
+@@ -4047,7 +4046,6 @@ static ssize_t memcg_write_event_control(struct kernfs_open_file *of,
+ 		.seq_stop = memcg_slab_stop,
+ 		.seq_show = memcg_slab_show,
+ 	},
+-#endif
+ 	{
+ 		.name = "kmem.tcp.limit_in_bytes",
+ 		.private = MEMFILE_PRIVATE(_TCP, RES_LIMIT),
+diff --git a/mm/slab.c b/mm/slab.c
+index 04dec48..5743a51 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -4096,7 +4096,6 @@ static void cache_reap(struct work_struct *w)
+ 	schedule_delayed_work(work, round_jiffies_relative(REAPTIMEOUT_AC));
+ }
+ 
+-#ifdef CONFIG_SLABINFO
+ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
+ {
+ 	unsigned long active_objs, num_objs, active_slabs;
+@@ -4404,7 +4403,6 @@ static int __init slab_proc_init(void)
+ 	return 0;
+ }
+ module_init(slab_proc_init);
+-#endif
+ 
+ #ifdef CONFIG_HARDENED_USERCOPY
+ /*
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 904a83b..5520a22 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1175,8 +1175,6 @@ void cache_random_seq_destroy(struct kmem_cache *cachep)
+ }
+ #endif /* CONFIG_SLAB_FREELIST_RANDOM */
+ 
+-#ifdef CONFIG_SLABINFO
+-
+ #ifdef CONFIG_SLAB
+ #define SLABINFO_RIGHTS (S_IWUSR | S_IRUSR)
+ #else
+@@ -1346,7 +1344,6 @@ static int __init slab_proc_init(void)
+ 	return 0;
+ }
+ module_init(slab_proc_init);
+-#endif /* CONFIG_SLABINFO */
+ 
+ static __always_inline void *__do_krealloc(const void *p, size_t new_size,
+ 					   gfp_t flags)
+diff --git a/mm/slub.c b/mm/slub.c
+index 163352c..74a8776 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -5851,7 +5851,6 @@ static int __init slab_sysfs_init(void)
+ /*
+  * The /proc/slabinfo ABI
+  */
+-#ifdef CONFIG_SLABINFO
+ void get_slabinfo(struct kmem_cache *s, struct slabinfo *sinfo)
+ {
+ 	unsigned long nr_slabs = 0;
+@@ -5883,4 +5882,3 @@ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
+ {
+ 	return -EIO;
+ }
+-#endif /* CONFIG_SLABINFO */
 -- 
-Mel Gorman
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
