@@ -1,50 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A8AB6B0038
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 19:48:33 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id v140so8755277ita.3
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 16:48:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w132sor6113888itf.60.2017.10.03.16.48.32
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A2A06B0038
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 19:51:41 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id n1so17837410pgt.4
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 16:51:41 -0700 (PDT)
+Received: from fuzix.org (www.llwyncelyn.cymru. [82.70.14.225])
+        by mx.google.com with ESMTPS id 1si646883pln.617.2017.10.03.16.51.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 03 Oct 2017 16:48:32 -0700 (PDT)
-Date: Tue, 3 Oct 2017 18:48:28 -0500
-From: Dennis Zhou <dennisszhou@gmail.com>
-Subject: Re: [PATCH] mm/percpu.c: use smarter memory allocation for struct
- pcpu_alloc_info
-Message-ID: <20171003234801.GA1571@Big-Sky.local>
-References: <nycvar.YSQ.7.76.1710031638450.5407@knanqh.ubzr>
- <20171003210540.GM3301751@devbig577.frc2.facebook.com>
- <nycvar.YSQ.7.76.1710031731130.5407@knanqh.ubzr>
- <20171003223642.GN3301751@devbig577.frc2.facebook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Oct 2017 16:51:40 -0700 (PDT)
+Date: Wed, 4 Oct 2017 00:51:27 +0100
+From: Alan Cox <alan@llwyncelyn.cymru>
+Subject: Re: tty crash due to auto-failing vmalloc
+Message-ID: <20171004005127.398be9ab@alans-desktop>
+In-Reply-To: <20171003225504.GA966@cmpxchg.org>
+References: <20171003225504.GA966@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171003223642.GN3301751@devbig577.frc2.facebook.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Nicolas Pitre <nicolas.pitre@linaro.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.com>, Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Hi Tejun,
-
-On Tue, Oct 03, 2017 at 03:36:42PM -0700, Tejun Heo wrote:
-> > Subject: [PATCH] percpu: don't forget to free the temporary struct pcpu_alloc_info
+> I think this patch should be reverted. If somebody is vmallocing crazy
+> amounts of memory in the exit path we should probably track them down
+> individually; the patch doesn't reference any real instances of that.
+> But we cannot start failing allocations that have never failed before.
 > 
-> So, IIRC, the error path is either boot fail or some serious bug in
-> arch code.  It really doesn't matter whether we free a page or not.
->
+> That said, maybe we want Alan's N_NULL failover in the hangup path too?
 
-In setup_per_cpu_area, a call to either pcpu_embed_first_chunk,
-pcpu_page_first_chunk, or pcpu_setup_first_chunk is made. The first two
-eventually call pcpu_setup_first_chunk with a pairing call to
-pcpu_free_alloc_info right after. This occurs in all implementations. It
-happens we don't have a pairing call to pcpu_free_alloc_info in the UP
-setup_per_cpu_area.
+I think that would be best. There's always going to be a failure case
+even if the vmalloc change makes it rarer. Dropping back to N_NULL fixes
+all of the cases.
 
-Thanks,
-Dennis
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
