@@ -1,68 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C0A26B0038
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 04:38:37 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id v13so9462475pgq.1
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 01:38:37 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id CC4646B0038
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 04:51:04 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id n1so12932598pgt.4
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 01:51:04 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e17si1203678pfb.181.2017.10.03.01.38.36
+        by mx.google.com with ESMTPS id v1si9884824plb.807.2017.10.03.01.51.03
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Oct 2017 01:38:36 -0700 (PDT)
-Date: Tue, 3 Oct 2017 10:38:34 +0200
+        Tue, 03 Oct 2017 01:51:03 -0700 (PDT)
+Date: Tue, 3 Oct 2017 10:51:01 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 10/15] mm: Use pagevec_lookup_range_tag() in
- __filemap_fdatawait_range()
-Message-ID: <20171003083834.GF11879@quack2.suse.cz>
+Subject: Re: [PATCH 12/15] mm: Add variant of pagevec_lookup_range_tag()
+ taking number of pages
+Message-ID: <20171003085101.GG11879@quack2.suse.cz>
 References: <20170927160334.29513-1-jack@suse.cz>
- <20170927160334.29513-11-jack@suse.cz>
- <20170927221902.GG10621@dastard>
+ <20170927160334.29513-13-jack@suse.cz>
+ <91bd5e36-3f73-c770-9555-bff47f74f49a@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170927221902.GG10621@dastard>
+In-Reply-To: <91bd5e36-3f73-c770-9555-bff47f74f49a@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
 Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Thu 28-09-17 08:19:02, Dave Chinner wrote:
-> On Wed, Sep 27, 2017 at 06:03:29PM +0200, Jan Kara wrote:
-> > Use pagevec_lookup_range_tag() in __filemap_fdatawait_range() as it is
-> > interested only in pages from given range. Remove unnecessary code
-> > resulting from this.
-> > 
-> > Signed-off-by: Jan Kara <jack@suse.cz>
-> > ---
-> >  mm/filemap.c | 9 ++-------
-> >  1 file changed, 2 insertions(+), 7 deletions(-)
-> > 
-> > diff --git a/mm/filemap.c b/mm/filemap.c
-> > index fe20329c83cd..479fc54b7cd1 100644
-> > --- a/mm/filemap.c
-> > +++ b/mm/filemap.c
-> > @@ -421,18 +421,13 @@ static void __filemap_fdatawait_range(struct address_space *mapping,
-> >  
-> >  	pagevec_init(&pvec, 0);
-> >  	while ((index <= end) &&
-> > -			(nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
-> > -			PAGECACHE_TAG_WRITEBACK,
-> > -			min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1)) != 0) {
-> > +			(nr_pages = pagevec_lookup_range_tag(&pvec, mapping,
-> > +			&index, end, PAGECACHE_TAG_WRITEBACK, PAGEVEC_SIZE))) {
+On Fri 29-09-17 17:45:33, Daniel Jordan wrote:
+> On 09/27/2017 12:03 PM, Jan Kara wrote:
+> >+unsigned pagevec_lookup_range_nr_tag(struct pagevec *pvec,
+> >+		struct address_space *mapping, pgoff_t *index, pgoff_t end,
+> >+		int tag, unsigned max_pages)
+> >+{
+> >+	pvec->nr = find_get_pages_range_tag(mapping, index, end, tag,
+> >+		min_t(unsigned int, max_pages, PAGEVEC_SIZE), pvec->pages);
+> >+	return pagevec_count(pvec);
+> >+}
+> >+EXPORT_SYMBOL(pagevec_lookup_range_tag);
 > 
-> While touching this, can we clean this up by moving the lookup
-> outside the while condition? i.e:
-> 
-> 	while (index <= end) {
-> 		unsigned i;
-> 
-> 		nr_pages = pagevec_lookup_range_tag(&pvec, mapping, &index,
-> 				end, PAGECACHE_TAG_WRITEBACK, PAGEVEC_SIZE);
-> 		if (!nr_pages)
-> 			break;
+> The EXPORT_SYMBOL should be pagevec_lookup_range_nr_tag instead of
+> pagevec_lookup_range_tag.
 
-Yeah, that makes sense. I'll update it.
+Ah, good catch. Fixed. Thanks!
 
 								Honza
 -- 
