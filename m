@@ -1,84 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 868236B025E
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 11:30:53 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id w63so9155090qkd.0
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 08:30:53 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id o95sor10361685qte.60.2017.10.03.08.30.52
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EA776B0038
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 11:35:05 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id 37so5262013qto.2
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 08:35:05 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id q196si4079471qke.194.2017.10.03.08.35.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 03 Oct 2017 08:30:52 -0700 (PDT)
-Date: Tue, 3 Oct 2017 11:30:50 -0400 (EDT)
-From: Nicolas Pitre <nicolas.pitre@linaro.org>
-Subject: Re: [PATCH v4 4/5] cramfs: add mmap support
-In-Reply-To: <20171003145732.GA8890@infradead.org>
-Message-ID: <nycvar.YSQ.7.76.1710031107290.5407@knanqh.ubzr>
-References: <20170927233224.31676-1-nicolas.pitre@linaro.org> <20170927233224.31676-5-nicolas.pitre@linaro.org> <20171001083052.GB17116@infradead.org> <nycvar.YSQ.7.76.1710011805070.5407@knanqh.ubzr> <CAFLxGvzfQrvU-8w7F26mez6fCQD+iS_qRJpLSU+2DniEGouEfA@mail.gmail.com>
- <nycvar.YSQ.7.76.1710021931270.5407@knanqh.ubzr> <20171003145732.GA8890@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Oct 2017 08:35:04 -0700 (PDT)
+Subject: Re: [PATCH v9 12/12] mm: stop zeroing memory during allocation in
+ vmemmap
+References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
+ <20170920201714.19817-13-pasha.tatashin@oracle.com>
+ <20171003131952.aqq377pjug5me6go@dhcp22.suse.cz>
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <c028f65a-b4a6-e56d-3a50-5d7ad9af50cb@oracle.com>
+Date: Tue, 3 Oct 2017 11:34:25 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20171003131952.aqq377pjug5me6go@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Richard Weinberger <richard.weinberger@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-embedded@vger.kernel.org" <linux-embedded@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Chris Brandt <Chris.Brandt@renesas.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On Tue, 3 Oct 2017, Christoph Hellwig wrote:
-
-> On Mon, Oct 02, 2017 at 07:33:29PM -0400, Nicolas Pitre wrote:
-> > On Tue, 3 Oct 2017, Richard Weinberger wrote:
-> > 
-> > > On Mon, Oct 2, 2017 at 12:29 AM, Nicolas Pitre <nicolas.pitre@linaro.org> wrote:
-> > > > On Sun, 1 Oct 2017, Christoph Hellwig wrote:
-> > > >
-> > > >> up_read(&mm->mmap_sem) in the fault path is a still a complete
-> > > >> no-go,
-> > > >>
-> > > >> NAK
-> > > >
-> > > > Care to elaborate?
-> > > >
-> > > > What about mm/filemap.c:__lock_page_or_retry() then?
-> > > 
-> > > As soon you up_read() in the page fault path other tasks will race
-> > > with you before
-> > > you're able to grab the write lock.
-> > 
-> > But I _know_ that.
-> > 
-> > Could you highlight an area in my code where this is not accounted for?
+On 10/03/2017 09:19 AM, Michal Hocko wrote:
+> On Wed 20-09-17 16:17:14, Pavel Tatashin wrote:
+>> vmemmap_alloc_block() will no longer zero the block, so zero memory
+>> at its call sites for everything except struct pages.  Struct page memory
+>> is zero'd by struct page initialization.
+>>
+>> Replace allocators in sprase-vmemmap to use the non-zeroing version. So,
+>> we will get the performance improvement by zeroing the memory in parallel
+>> when struct pages are zeroed.
 > 
-> Existing users of lock_page_or_retry return VM_FAULT_RETRY right after
-> up()ing mmap_sem, and they must already have a reference to the page
-> which is the only thing touched until then.
-> 
-> Your patch instead goes for an exclusive mmap_sem if it can, and
-> even if there is nothing that breaks with that scheme right now
-> there s nothing documenting that this actually safe, and we are
-> way down in the complex page fault path.
+> Is it possible to merge this patch with http://lkml.kernel.org/r/20170920201714.19817-7-pasha.tatashin@oracle.com
 
-It is pretty obvious looking at the existing code that if you want to 
-safely manipulate a vma you need the write lock. There are many things 
-in the kernel tree that are not explicitly documented. Did that stop 
-people from adding new code?
+Yes, I will do that. It would also require re-arranging
+[PATCH v9 07/12] sparc64: optimized struct page zeroing
+optimization to come after this patch.
 
-I agree that the fault path is quite complex. I've studied it carefully 
-before coming up with this scheme. This is not something that came about 
-just because the sunshine felt good when I woke up one day.
-
-So if you agree that I've done a reasonable job creating a scheme that 
-currently doesn't break then IMHO this should be good enough, 
-*especially* for such an isolated and specialized use case with zero 
-impact on anyone else. And if things break in the future than I will be 
-the one working out the pieces not you, and _that_ can be written down 
-somewhere if necessary so nobody has an obligation to bend backward for 
-not breaking it.
-
-Unless you have a better scheme altogether  to suggest of course, given 
-the existing constraints.
-
-
-Nicolas
+Pasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
