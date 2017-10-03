@@ -1,72 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E10C76B0253
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 04:00:16 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id k7so2849641wre.22
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 01:00:16 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c12si10548492wrd.406.2017.10.03.01.00.15
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BF466B025F
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 04:03:35 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b189so5568735wmd.5
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 01:03:35 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id b42si1994403edb.12.2017.10.03.01.03.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Oct 2017 01:00:15 -0700 (PDT)
-Date: Tue, 3 Oct 2017 10:00:14 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: +
- mm-madvise-enable-soft-offline-of-hugetlb-pages-at-pud-level.patch added to
- -mm tree
-Message-ID: <20171003080014.ka2ciydnw472oyeg@dhcp22.suse.cz>
-References: <59cd6cfc.gjq2hAb82xF6wYrU%akpm@linux-foundation.org>
- <20171003073301.hydw7jf2wztsx2om@dhcp22.suse.cz>
- <20171003074901.GA10409@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Oct 2017 01:03:34 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v937x5nl100248
+	for <linux-mm@kvack.org>; Tue, 3 Oct 2017 04:03:32 -0400
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2dbwsyfs13-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 03 Oct 2017 04:03:31 -0400
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Tue, 3 Oct 2017 09:03:26 +0100
+Subject: Re: [PATCH v3 00/20] Speculative page faults
+References: <CAADnVQLmSbLHwj9m33kpzAidJPvq3cbdnXjaew6oTLqHWrBbZQ@mail.gmail.com>
+ <20170925163443.260d6092160ec704e2b04653@linux-foundation.org>
+ <924a79af-6d7a-316a-1eee-3aebbfd4addf@linux.vnet.ibm.com>
+ <20170928133850.90c5bf2aac0f1a63e29c01a3@linux-foundation.org>
+ <64e9759b-a4fb-63d3-a811-3e35ae5a1028@linux.vnet.ibm.com>
+ <873771dnrl.fsf@concordia.ellerman.id.au>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Tue, 3 Oct 2017 10:03:18 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171003074901.GA10409@gmail.com>
+In-Reply-To: <873771dnrl.fsf@concordia.ellerman.id.au>
+Content-Type: text/plain; charset=utf-8
+Content-Language: fr
+Content-Transfer-Encoding: 7bit
+Message-Id: <177195b3-2d99-94e6-f334-843bd19042a1@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexandru Moise <00moses.alexander00@gmail.com>
-Cc: akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, khandual@linux.vnet.ibm.com, kirill@shutemov.name, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, punit.agrawal@arm.com, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Alexei Starovoitov <alexei.starovoitov@gmail.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, kirill@shutemov.name, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, dave@stgolabs.net, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, haren@linux.vnet.ibm.com, Anshuman Khandual <khandual@linux.vnet.ibm.com>, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, "x86@kernel.org" <x86@kernel.org>
 
-On Tue 03-10-17 09:49:01, Alexandru Moise wrote:
-> On Tue, Oct 03, 2017 at 09:33:01AM +0200, Michal Hocko wrote:
-> > I am sorry to jump here late
-> > 
-> > On Thu 28-09-17 14:43:24, Andrew Morton wrote:
-> > > From: Alexandru Moise <00moses.alexander00@gmail.com>
-> > > Subject: mm/madvise: enable soft offline of HugeTLB pages at PUD level
-> > > 
-> > > Since 94310cbcaa3c2 ("mm/madvise: enable (soft|hard) offline of HugeTLB
-> > > pages at PGD level") we've been able to soft offline 1G hugepages at the
-> > > PGD level, however x86_64 gigantic hugepages are at the PUD level so we
-> > > should add an extra check to account for hstate order at PUD level.
-> > > 
-> > > I'm not sure if this also applies to 5 level page tables on x86_64
-> > > however. Tested with 4 level pagetable.
-> > 
-> > This patch is wrong I believe! And I suspect 94310cbcaa3c2 is wrong as
-> > well but I am not familiar with ppc enough to be sure. It will allow
-> > PUD, PGD pages to be allocated from the zone movable while at least PUD
-> > pages are not migrateable for x86_64 AFAIR. Are PGD pages migrateable
-> > on ppc? If yes, are there any other architectures to allow PGD hugetlb
-> > pages which are not migrateable?
-> > 
-> > Andrew, could you drop it please?
-> >  
+On 03/10/2017 03:27, Michael Ellerman wrote:
+> Laurent Dufour <ldufour@linux.vnet.ibm.com> writes:
 > 
-> What exactly makes it wrong? When I tested this I saw no failure,
-> copy_huge_page() seems to take into account gigantic hugepages,
-> and when you move the mapping you don't really care about the
-> page size?
+>> Hi Andrew,
+>>
+>> On 28/09/2017 22:38, Andrew Morton wrote:
+>>> On Thu, 28 Sep 2017 14:29:02 +0200 Laurent Dufour <ldufour@linux.vnet.ibm.com> wrote:
+>>>
+>>>>> Laurent's [0/n] provides some nice-looking performance benefits for
+>>>>> workloads which are chosen to show performance benefits(!) but, alas,
+>>>>> no quantitative testing results for workloads which we may suspect will
+>>>>> be harmed by the changes(?).  Even things as simple as impact upon
+>>>>> single-threaded pagefault-intensive workloads and its effect upon
+>>>>> CONFIG_SMP=n .text size?
+>>>>
+>>>> I forgot to mention in my previous email the impact on the .text section.
+>>>>
+>>>> Here are the metrics I got :
+>>>>
+>>>> .text size	UP		SMP		Delta
+>>>> 4.13-mmotm	8444201		8964137		6.16%
+>>>> '' +spf		8452041		8971929		6.15%
+>>>> 	Delta	0.09%		0.09%	
+>>>>
+>>>> No major impact as you could see.
+>>>
+>>> 8k text increase seems rather a lot actually.  That's a lot more
+>>> userspace cacheclines that get evicted during a fault...
+>>>
+>>> Is the feature actually beneficial on uniprocessor?
+>>
+>> This is useless on uniprocessor, and I will disable it on x86 when !SMP 
+>> by not defining __HAVE_ARCH_CALL_SPF.
+>> So the speculative page fault handler will not be built but the vm 
+>> sequence counter and the SCRU stuff will still be there. I may also make 
+>> it disabled through macro when __HAVE_ARCH_CALL_SPF is not defined, but 
+>> this may obfuscated the code a bit...
+>>
+>> On ppc64, as this feature requires book3s, it can't be built without SMP 
+>> support.
+> 
+> Book3S doesn't force SMP, eg. PMAC is Book3S but can be built with SMP=n.
+> 
+> It's true that POWERNV and PSERIES both force SMP, and those are the
+> platforms used on modern Book3S CPUs.
 
-Migrating 1GB (PUD) pages on x86_64 is just too easy to fail (if it
-works at all) and so such an allocation can easily prefent memory
-offline to succeed. Have you tested that scenario?
+Thanks Michael,
 
-Btw. (ab)using hugepage_migration_supported for HWpoinsoning sounds
-wrong to me. You do not need movable zone for the functionality.
--- 
-Michal Hocko
-SUSE Labs
+I'll add a check on CONFIG_SMP on ppc too.
+
+Laurent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
