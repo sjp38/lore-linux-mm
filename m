@@ -1,116 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 188ED6B0038
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 08:28:26 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id q203so5473104wmb.0
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 05:28:26 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p3si5695154wrc.519.2017.10.03.05.28.24
+	by kanga.kvack.org (Postfix) with ESMTP id 468D26B0038
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 08:34:29 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id s78so1467472wmd.14
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 05:34:29 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id m186si4117022wmd.134.2017.10.03.05.34.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Oct 2017 05:28:24 -0700 (PDT)
-Date: Tue, 3 Oct 2017 14:28:23 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v9 02/12] sparc64/mm: setting fields in deferred pages
-Message-ID: <20171003122823.mdzkhxs4xza7sb2w@dhcp22.suse.cz>
-References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
- <20170920201714.19817-3-pasha.tatashin@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Oct 2017 05:34:27 -0700 (PDT)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.13 105/110] x86/mm: Fix fault error path using unsafe vma pointer
+Date: Tue,  3 Oct 2017 14:30:07 +0200
+Message-Id: <20171003114245.472213295@linuxfoundation.org>
+In-Reply-To: <20171003114241.408583531@linuxfoundation.org>
+References: <20171003114241.408583531@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20170920201714.19817-3-pasha.tatashin@oracle.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Laurent Dufour <ldufour@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Wed 20-09-17 16:17:04, Pavel Tatashin wrote:
-> Without deferred struct page feature (CONFIG_DEFERRED_STRUCT_PAGE_INIT),
-> flags and other fields in "struct page"es are never changed prior to first
-> initializing struct pages by going through __init_single_page().
-> 
-> With deferred struct page feature enabled there is a case where we set some
-> fields prior to initializing:
-> 
-> mem_init() {
->      register_page_bootmem_info();
->      free_all_bootmem();
->      ...
-> }
-> 
-> When register_page_bootmem_info() is called only non-deferred struct pages
-> are initialized. But, this function goes through some reserved pages which
-> might be part of the deferred, and thus are not yet initialized.
-> 
-> mem_init
-> register_page_bootmem_info
-> register_page_bootmem_info_node
->  get_page_bootmem
->   .. setting fields here ..
->   such as: page->freelist = (void *)type;
-> 
-> free_all_bootmem()
-> free_low_memory_core_early()
->  for_each_reserved_mem_region()
->   reserve_bootmem_region()
->    init_reserved_page() <- Only if this is deferred reserved page
->     __init_single_pfn()
->      __init_single_page()
->       memset(0) <-- Loose the set fields here
-> 
-> We end-up with similar issue as in the previous patch, where currently we
-> do not observe problem as memory is zeroed. But, if flag asserts are
-> changed we can start hitting issues.
-> 
-> Also, because in this patch series we will stop zeroing struct page memory
-> during allocation, we must make sure that struct pages are properly
-> initialized prior to using them.
-> 
-> The deferred-reserved pages are initialized in free_all_bootmem().
-> Therefore, the fix is to switch the above calls.
-> 
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
-> Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-> Reviewed-by: Bob Picco <bob.picco@oracle.com>
-> Acked-by: David S. Miller <davem@davemloft.net>
+4.13-stable review patch.  If anyone has any objections, please let me know.
 
-As you separated x86 and sparc patches doing essentially the same I
-assume David is going to take this patch?
+------------------
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
 
-> ---
->  arch/sparc/mm/init_64.c | 8 +++++++-
->  1 file changed, 7 insertions(+), 1 deletion(-)
-> 
-> diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-> index 6034569e2c0d..310c6754bcaa 100644
-> --- a/arch/sparc/mm/init_64.c
-> +++ b/arch/sparc/mm/init_64.c
-> @@ -2548,9 +2548,15 @@ void __init mem_init(void)
->  {
->  	high_memory = __va(last_valid_pfn << PAGE_SHIFT);
->  
-> -	register_page_bootmem_info();
->  	free_all_bootmem();
->  
-> +	/* Must be done after boot memory is put on freelist, because here we
-> +	 * might set fields in deferred struct pages that have not yet been
-> +	 * initialized, and free_all_bootmem() initializes all the reserved
-> +	 * deferred pages for us.
-> +	 */
-> +	register_page_bootmem_info();
-> +
->  	/*
->  	 * Set up the zero page, mark it reserved, so that page count
->  	 * is not manipulated when freeing the page from user ptes.
-> -- 
-> 2.14.1
+commit a3c4fb7c9c2ebfd50b8c60f6c069932bb319bc37 upstream.
 
--- 
-Michal Hocko
-SUSE Labs
+commit 7b2d0dbac489 ("x86/mm/pkeys: Pass VMA down in to fault signal
+generation code") passes down a vma pointer to the error path, but that is
+done once the mmap_sem is released when calling mm_fault_error() from
+__do_page_fault().
+
+This is dangerous as the vma structure is no more safe to be used once the
+mmap_sem has been released. As only the protection key value is required in
+the error processing, we could just pass down this value.
+
+Fix it by passing a pointer to a protection key value down to the fault
+signal generation code. The use of a pointer allows to keep the check
+generating a warning message in fill_sig_info_pkey() when the vma was not
+known. If the pointer is valid, the protection value can be accessed by
+deferencing the pointer.
+
+[ tglx: Made *pkey u32 as that's the type which is passed in siginfo ]
+
+Fixes: 7b2d0dbac489 ("x86/mm/pkeys: Pass VMA down in to fault signal generation code")
+Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Link: http://lkml.kernel.org/r/1504513935-12742-1-git-send-email-ldufour@linux.vnet.ibm.com
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+---
+ arch/x86/mm/fault.c |   47 ++++++++++++++++++++++++-----------------------
+ 1 file changed, 24 insertions(+), 23 deletions(-)
+
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -192,8 +192,7 @@ is_prefetch(struct pt_regs *regs, unsign
+  * 6. T1   : reaches here, sees vma_pkey(vma)=5, when we really
+  *	     faulted on a pte with its pkey=4.
+  */
+-static void fill_sig_info_pkey(int si_code, siginfo_t *info,
+-		struct vm_area_struct *vma)
++static void fill_sig_info_pkey(int si_code, siginfo_t *info, u32 *pkey)
+ {
+ 	/* This is effectively an #ifdef */
+ 	if (!boot_cpu_has(X86_FEATURE_OSPKE))
+@@ -209,7 +208,7 @@ static void fill_sig_info_pkey(int si_co
+ 	 * valid VMA, so we should never reach this without a
+ 	 * valid VMA.
+ 	 */
+-	if (!vma) {
++	if (!pkey) {
+ 		WARN_ONCE(1, "PKU fault with no VMA passed in");
+ 		info->si_pkey = 0;
+ 		return;
+@@ -219,13 +218,12 @@ static void fill_sig_info_pkey(int si_co
+ 	 * absolutely guranteed to be 100% accurate because of
+ 	 * the race explained above.
+ 	 */
+-	info->si_pkey = vma_pkey(vma);
++	info->si_pkey = *pkey;
+ }
+ 
+ static void
+ force_sig_info_fault(int si_signo, int si_code, unsigned long address,
+-		     struct task_struct *tsk, struct vm_area_struct *vma,
+-		     int fault)
++		     struct task_struct *tsk, u32 *pkey, int fault)
+ {
+ 	unsigned lsb = 0;
+ 	siginfo_t info;
+@@ -240,7 +238,7 @@ force_sig_info_fault(int si_signo, int s
+ 		lsb = PAGE_SHIFT;
+ 	info.si_addr_lsb = lsb;
+ 
+-	fill_sig_info_pkey(si_code, &info, vma);
++	fill_sig_info_pkey(si_code, &info, pkey);
+ 
+ 	force_sig_info(si_signo, &info, tsk);
+ }
+@@ -758,8 +756,6 @@ no_context(struct pt_regs *regs, unsigne
+ 	struct task_struct *tsk = current;
+ 	unsigned long flags;
+ 	int sig;
+-	/* No context means no VMA to pass down */
+-	struct vm_area_struct *vma = NULL;
+ 
+ 	/* Are we prepared to handle this kernel fault? */
+ 	if (fixup_exception(regs, X86_TRAP_PF)) {
+@@ -784,7 +780,7 @@ no_context(struct pt_regs *regs, unsigne
+ 
+ 			/* XXX: hwpoison faults will set the wrong code. */
+ 			force_sig_info_fault(signal, si_code, address,
+-					     tsk, vma, 0);
++					     tsk, NULL, 0);
+ 		}
+ 
+ 		/*
+@@ -893,8 +889,7 @@ show_signal_msg(struct pt_regs *regs, un
+ 
+ static void
+ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
+-		       unsigned long address, struct vm_area_struct *vma,
+-		       int si_code)
++		       unsigned long address, u32 *pkey, int si_code)
+ {
+ 	struct task_struct *tsk = current;
+ 
+@@ -942,7 +937,7 @@ __bad_area_nosemaphore(struct pt_regs *r
+ 		tsk->thread.error_code	= error_code;
+ 		tsk->thread.trap_nr	= X86_TRAP_PF;
+ 
+-		force_sig_info_fault(SIGSEGV, si_code, address, tsk, vma, 0);
++		force_sig_info_fault(SIGSEGV, si_code, address, tsk, pkey, 0);
+ 
+ 		return;
+ 	}
+@@ -955,9 +950,9 @@ __bad_area_nosemaphore(struct pt_regs *r
+ 
+ static noinline void
+ bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
+-		     unsigned long address, struct vm_area_struct *vma)
++		     unsigned long address, u32 *pkey)
+ {
+-	__bad_area_nosemaphore(regs, error_code, address, vma, SEGV_MAPERR);
++	__bad_area_nosemaphore(regs, error_code, address, pkey, SEGV_MAPERR);
+ }
+ 
+ static void
+@@ -965,6 +960,10 @@ __bad_area(struct pt_regs *regs, unsigne
+ 	   unsigned long address,  struct vm_area_struct *vma, int si_code)
+ {
+ 	struct mm_struct *mm = current->mm;
++	u32 pkey;
++
++	if (vma)
++		pkey = vma_pkey(vma);
+ 
+ 	/*
+ 	 * Something tried to access memory that isn't in our memory map..
+@@ -972,7 +971,8 @@ __bad_area(struct pt_regs *regs, unsigne
+ 	 */
+ 	up_read(&mm->mmap_sem);
+ 
+-	__bad_area_nosemaphore(regs, error_code, address, vma, si_code);
++	__bad_area_nosemaphore(regs, error_code, address,
++			       (vma) ? &pkey : NULL, si_code);
+ }
+ 
+ static noinline void
+@@ -1015,7 +1015,7 @@ bad_area_access_error(struct pt_regs *re
+ 
+ static void
+ do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
+-	  struct vm_area_struct *vma, unsigned int fault)
++	  u32 *pkey, unsigned int fault)
+ {
+ 	struct task_struct *tsk = current;
+ 	int code = BUS_ADRERR;
+@@ -1042,13 +1042,12 @@ do_sigbus(struct pt_regs *regs, unsigned
+ 		code = BUS_MCEERR_AR;
+ 	}
+ #endif
+-	force_sig_info_fault(SIGBUS, code, address, tsk, vma, fault);
++	force_sig_info_fault(SIGBUS, code, address, tsk, pkey, fault);
+ }
+ 
+ static noinline void
+ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
+-	       unsigned long address, struct vm_area_struct *vma,
+-	       unsigned int fault)
++	       unsigned long address, u32 *pkey, unsigned int fault)
+ {
+ 	if (fatal_signal_pending(current) && !(error_code & PF_USER)) {
+ 		no_context(regs, error_code, address, 0, 0);
+@@ -1072,9 +1071,9 @@ mm_fault_error(struct pt_regs *regs, uns
+ 	} else {
+ 		if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|
+ 			     VM_FAULT_HWPOISON_LARGE))
+-			do_sigbus(regs, error_code, address, vma, fault);
++			do_sigbus(regs, error_code, address, pkey, fault);
+ 		else if (fault & VM_FAULT_SIGSEGV)
+-			bad_area_nosemaphore(regs, error_code, address, vma);
++			bad_area_nosemaphore(regs, error_code, address, pkey);
+ 		else
+ 			BUG();
+ 	}
+@@ -1268,6 +1267,7 @@ __do_page_fault(struct pt_regs *regs, un
+ 	struct mm_struct *mm;
+ 	int fault, major = 0;
+ 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
++	u32 pkey;
+ 
+ 	tsk = current;
+ 	mm = tsk->mm;
+@@ -1468,9 +1468,10 @@ good_area:
+ 		return;
+ 	}
+ 
++	pkey = vma_pkey(vma);
+ 	up_read(&mm->mmap_sem);
+ 	if (unlikely(fault & VM_FAULT_ERROR)) {
+-		mm_fault_error(regs, error_code, address, vma, fault);
++		mm_fault_error(regs, error_code, address, &pkey, fault);
+ 		return;
+ 	}
+ 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
