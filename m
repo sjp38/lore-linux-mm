@@ -1,61 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 56BF56B0038
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 12:44:33 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id y192so24131366pgd.0
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 09:44:33 -0700 (PDT)
-Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20101.outbound.protection.outlook.com. [40.107.2.101])
-        by mx.google.com with ESMTPS id a19si4804159pgn.217.2017.10.03.09.44.31
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EB2B6B0069
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 12:44:51 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 136so7599299wmu.3
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 09:44:51 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d30sor7666710edd.36.2017.10.03.09.44.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 03 Oct 2017 09:44:31 -0700 (PDT)
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH] mm/mempolicy: fix NUMA_INTERLEAVE_HIT counter
-Date: Tue,  3 Oct 2017 19:47:20 +0300
-Message-Id: <20171003164720.22130-1-aryabinin@virtuozzo.com>
+        (Google Transport Security);
+        Tue, 03 Oct 2017 09:44:50 -0700 (PDT)
+Date: Tue, 3 Oct 2017 19:44:48 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: remove unnecessary WARN_ONCE in
+ page_vma_mapped_walk().
+Message-ID: <20171003164448.gasvu5iu3xaoscgo@node.shutemov.name>
+References: <20171003142606.12324-1-zi.yan@sent.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171003142606.12324-1-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Kemi Wang <kemi.wang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <aryabinin@virtuozzo.com>
+To: Zi Yan <zi.yan@sent.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org
 
-Commit 3a321d2a3dde separated NUMA counters from zone counters, but
-the NUMA_INTERLEAVE_HIT call site wasn't updated to use the new interface.
-So alloc_page_interleave() actually increments NR_ZONE_INACTIVE_FILE
-instead of NUMA_INTERLEAVE_HIT.
+On Tue, Oct 03, 2017 at 10:26:06AM -0400, Zi Yan wrote:
+> From: Zi Yan <zi.yan@cs.rutgers.edu>
+> 
+> A non present pmd entry can appear after pmd_lock is taken in
+> page_vma_mapped_walk(), even if THP migration is not enabled.
+> The WARN_ONCE is unnecessary.
+> 
+> Fixes: 616b8371539a ("mm: thp: enable thp migration in generic path")
+> Reported-and-tested-by: Abdul Haleem <abdhalee@linux.vnet.ibm.com>
+> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
 
-Fix this by using __inc_numa_state() interface to increment
-NUMA_INTERLEAVE_HIT.
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-Fixes: 3a321d2a3dde ("mm: change the call sites of numa statistics items")
-Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
----
- mm/mempolicy.c | 9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
-
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 006ba625c0b8..3a18f0a091c4 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1920,8 +1920,13 @@ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
- 	struct page *page;
- 
- 	page = __alloc_pages(gfp, order, nid);
--	if (page && page_to_nid(page) == nid)
--		inc_zone_page_state(page, NUMA_INTERLEAVE_HIT);
-+	if (page && page_to_nid(page) == nid) {
-+		unsigned long flags;
-+
-+		local_irq_save(flags);
-+		__inc_numa_state(page_zone(page), NUMA_INTERLEAVE_HIT);
-+		local_irq_restore(flags);
-+	}
- 	return page;
- }
- 
 -- 
-2.13.6
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
