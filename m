@@ -1,93 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EA8D6B025F
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 04:13:04 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e26so4422913pfd.4
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 01:13:04 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f34si9840855ple.484.2017.10.03.01.13.03
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CA506B025F
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 04:15:34 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 136so6378937wmu.3
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 01:15:34 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l17sor2830806wrg.27.2017.10.03.01.15.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Oct 2017 01:13:03 -0700 (PDT)
-Date: Tue, 3 Oct 2017 10:12:59 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v2 4/4] dax: stop using VM_HUGEPAGE for dax
-Message-ID: <20171003081259.GE11879@quack2.suse.cz>
-References: <150664806143.36094.11882924009668860273.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150664808322.36094.377701515526275078.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (Google Transport Security);
+        Tue, 03 Oct 2017 01:15:33 -0700 (PDT)
+Date: Tue, 3 Oct 2017 10:15:24 +0200
+From: Alexandru Moise <00moses.alexander00@gmail.com>
+Subject: Re: +
+ mm-madvise-enable-soft-offline-of-hugetlb-pages-at-pud-level.patch added to
+ -mm tree
+Message-ID: <20171003081524.GA11512@gmail.com>
+References: <59cd6cfc.gjq2hAb82xF6wYrU%akpm@linux-foundation.org>
+ <20171003073301.hydw7jf2wztsx2om@dhcp22.suse.cz>
+ <20171003074901.GA10409@gmail.com>
+ <20171003080014.ka2ciydnw472oyeg@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <150664808322.36094.377701515526275078.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <20171003080014.ka2ciydnw472oyeg@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, gerald.schaefer@de.ibm.com, khandual@linux.vnet.ibm.com, kirill@shutemov.name, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, punit.agrawal@arm.com, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 28-09-17 18:21:23, Dan Williams wrote:
-> This flag is deprecated in favor of the vma_is_dax() check in
-> transparent_hugepage_enabled() added in commit baabda261424 "mm: always
-> enable thp for dax mappings"
+On Tue, Oct 03, 2017 at 10:00:14AM +0200, Michal Hocko wrote:
+> On Tue 03-10-17 09:49:01, Alexandru Moise wrote:
+> > On Tue, Oct 03, 2017 at 09:33:01AM +0200, Michal Hocko wrote:
+> > > I am sorry to jump here late
+> > > 
+> > > On Thu 28-09-17 14:43:24, Andrew Morton wrote:
+> > > > From: Alexandru Moise <00moses.alexander00@gmail.com>
+> > > > Subject: mm/madvise: enable soft offline of HugeTLB pages at PUD level
+> > > > 
+> > > > Since 94310cbcaa3c2 ("mm/madvise: enable (soft|hard) offline of HugeTLB
+> > > > pages at PGD level") we've been able to soft offline 1G hugepages at the
+> > > > PGD level, however x86_64 gigantic hugepages are at the PUD level so we
+> > > > should add an extra check to account for hstate order at PUD level.
+> > > > 
+> > > > I'm not sure if this also applies to 5 level page tables on x86_64
+> > > > however. Tested with 4 level pagetable.
+> > > 
+> > > This patch is wrong I believe! And I suspect 94310cbcaa3c2 is wrong as
+> > > well but I am not familiar with ppc enough to be sure. It will allow
+> > > PUD, PGD pages to be allocated from the zone movable while at least PUD
+> > > pages are not migrateable for x86_64 AFAIR. Are PGD pages migrateable
+> > > on ppc? If yes, are there any other architectures to allow PGD hugetlb
+> > > pages which are not migrateable?
+> > > 
+> > > Andrew, could you drop it please?
+> > >  
+> > 
+> > What exactly makes it wrong? When I tested this I saw no failure,
+> > copy_huge_page() seems to take into account gigantic hugepages,
+> > and when you move the mapping you don't really care about the
+> > page size?
 > 
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Jeff Moyer <jmoyer@redhat.com>
-> Cc: Christoph Hellwig <hch@lst.de>
-> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> Migrating 1GB (PUD) pages on x86_64 is just too easy to fail (if it
+> works at all) and so such an allocation can easily prefent memory
+> offline to succeed. Have you tested that scenario?
 
-I like this! You can add:
+Soft offline works if you have an availlable page in the free list or
+overcommit pages. If you fail to allocate one then soft offline fails
+and the page stays mapped where it is.
+There was also a refcount fix for the event in which soft offline fails
+for hugepages. (commit 30809f559a) I started looking around this area
+when I had to backport that fix to an older kernel.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+../Alex
 
-								Honza
-
-> ---
->  drivers/dax/device.c |    1 -
->  fs/ext4/file.c       |    1 -
->  fs/xfs/xfs_file.c    |    2 --
->  3 files changed, 4 deletions(-)
 > 
-> diff --git a/drivers/dax/device.c b/drivers/dax/device.c
-> index ed79d006026e..74a35eb5e6d3 100644
-> --- a/drivers/dax/device.c
-> +++ b/drivers/dax/device.c
-> @@ -450,7 +450,6 @@ static int dax_mmap(struct file *filp, struct vm_area_struct *vma)
->  		return rc;
->  
->  	vma->vm_ops = &dax_vm_ops;
-> -	vma->vm_flags |= VM_HUGEPAGE;
->  	return 0;
->  }
->  
-> diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-> index 0cc9d205bd96..a54e1b4c49f9 100644
-> --- a/fs/ext4/file.c
-> +++ b/fs/ext4/file.c
-> @@ -352,7 +352,6 @@ static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
->  	file_accessed(file);
->  	if (IS_DAX(file_inode(file))) {
->  		vma->vm_ops = &ext4_dax_vm_ops;
-> -		vma->vm_flags |= VM_HUGEPAGE;
->  	} else {
->  		vma->vm_ops = &ext4_file_vm_ops;
->  	}
-> diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-> index dece8fe937f5..c0e0fcbe1bd3 100644
-> --- a/fs/xfs/xfs_file.c
-> +++ b/fs/xfs/xfs_file.c
-> @@ -1130,8 +1130,6 @@ xfs_file_mmap(
->  {
->  	file_accessed(filp);
->  	vma->vm_ops = &xfs_file_vm_ops;
-> -	if (IS_DAX(file_inode(filp)))
-> -		vma->vm_flags |= VM_HUGEPAGE;
->  	return 0;
->  }
->  
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> Btw. (ab)using hugepage_migration_supported for HWpoinsoning sounds
+> wrong to me. You do not need movable zone for the functionality.
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
