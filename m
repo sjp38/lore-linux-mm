@@ -1,49 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2655C6B0033
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 15:22:36 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k10so9851030wrk.4
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 12:22:36 -0700 (PDT)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id c18si6495178edc.309.2017.10.03.12.22.34
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 98D336B0033
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 15:59:31 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id k56so113281qtc.1
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 12:59:31 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p64si4360199qkc.349.2017.10.03.12.59.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Oct 2017 12:22:35 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 8F33E1C3118
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 20:22:34 +0100 (IST)
-Date: Tue, 3 Oct 2017 20:22:33 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH v2] mm/mempolicy: fix NUMA_INTERLEAVE_HIT counter
-Message-ID: <20171003192233.6drmrp5huoxpctah@techsingularity.net>
-References: <20171003164720.22130-1-aryabinin@virtuozzo.com>
- <20171003191003.8573-1-aryabinin@virtuozzo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20171003191003.8573-1-aryabinin@virtuozzo.com>
+        Tue, 03 Oct 2017 12:59:30 -0700 (PDT)
+Message-ID: <1507060767.10046.23.camel@redhat.com>
+Subject: Re: [PATCHv3] mm: Account pud page tables
+From: Rik van Riel <riel@redhat.com>
+Date: Tue, 03 Oct 2017 15:59:27 -0400
+In-Reply-To: <20171002080427.3320-1-kirill.shutemov@linux.intel.com>
+References: <20171002080427.3320-1-kirill.shutemov@linux.intel.com>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-aZHpOY31/K4vWS9OysXf"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Kemi Wang <kemi.wang@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue, Oct 03, 2017 at 10:10:03PM +0300, Andrey Ryabinin wrote:
-> Commit 3a321d2a3dde separated NUMA counters from zone counters, but
-> the NUMA_INTERLEAVE_HIT call site wasn't updated to use the new interface.
-> So alloc_page_interleave() actually increments NR_ZONE_INACTIVE_FILE
-> instead of NUMA_INTERLEAVE_HIT.
-> 
-> Fix this by using __inc_numa_state() interface to increment
-> NUMA_INTERLEAVE_HIT.
-> 
-> Fixes: 3a321d2a3dde ("mm: change the call sites of numa statistics items")
-> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
+--=-aZHpOY31/K4vWS9OysXf
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
--- 
-Mel Gorman
-SUSE Labs
+On Mon, 2017-10-02 at 11:04 +0300, Kirill A. Shutemov wrote:
+> On machine with 5-level paging support a process can allocate
+> significant amount of memory and stay unnoticed by oom-killer and
+> memory cgroup. The trick is to allocate a lot of PUD page tables.
+> We don't account PUD page tables, only PMD and PTE.
+>=20
+> We already addressed the same issue for PMD page tables, see
+> dc6c9a35b66b ("mm: account pmd page tables to the process").
+> Introduction 5-level paging bring the same issue for PUD page tables.
+>=20
+> The patch expands accounting to PUD level.
+>=20
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+>=20
+
+Acked-by: Rik van Riel <riel@redhat.com>
+
+--=20
+All rights reversed
+--=-aZHpOY31/K4vWS9OysXf
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAABCAAGBQJZ0+wfAAoJEM553pKExN6DTmsIALbhgql537uDpwzR0VdB9wv2
++gYVGvKiTRqrmD24qw6XV+lZLj2svM48/1+fSMrdz/GYz3xQnj9qVUegexTKU6Jq
+pmZR4l7/gQPjybR/sVqpXLfzzr1HH51vbKppB2diPMs2c/BjURPmIXep34hnIgU5
+GQ2flsqcMSAM7NugItC0HFXxgr++u6fosHYeIN7c7u+1+7LMi4THnPMOd15wcFcr
+Z9Hqz0JzkuznJ1s3wyJaA2+Vu1o93g3D/hbIz9xhCU/n5sI4uhV2sIBt24Q9YEMy
+8sYSrpT+Mq4ZOg8DIpiFdMo4fbqdnKfflp/048utIDCGsTjzlmzPUPfhWbrfO+0=
+=geub
+-----END PGP SIGNATURE-----
+
+--=-aZHpOY31/K4vWS9OysXf--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
