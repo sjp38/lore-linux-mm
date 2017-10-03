@@ -1,51 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 643876B0033
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 18:27:41 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id y8so2744408wrd.0
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 15:27:41 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id s63si9439326wmb.56.2017.10.03.15.27.39
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 799766B0253
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 18:29:52 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id n82so2883904oig.22
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 15:29:52 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id q10sor11018113qtk.10.2017.10.03.15.29.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Oct 2017 15:27:40 -0700 (PDT)
-Date: Tue, 3 Oct 2017 15:27:37 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] mm/swap: Fix race conditions in swap_slots cache
- init
-Message-Id: <20171003152737.c955053c04ee6ad9f70dc5eb@linux-foundation.org>
-In-Reply-To: <65a9d0f133f63e66bba37b53b2fd0464b7cae771.1500677066.git.tim.c.chen@linux.intel.com>
-References: <65a9d0f133f63e66bba37b53b2fd0464b7cae771.1500677066.git.tim.c.chen@linux.intel.com>
-Mime-Version: 1.0
+        (Google Transport Security);
+        Tue, 03 Oct 2017 15:29:51 -0700 (PDT)
+Date: Tue, 3 Oct 2017 18:29:49 -0400 (EDT)
+From: Nicolas Pitre <nicolas.pitre@linaro.org>
+Subject: Re: [PATCH] mm/percpu.c: use smarter memory allocation for struct
+ pcpu_alloc_info
+In-Reply-To: <20171003210540.GM3301751@devbig577.frc2.facebook.com>
+Message-ID: <nycvar.YSQ.7.76.1710031731130.5407@knanqh.ubzr>
+References: <nycvar.YSQ.7.76.1710031638450.5407@knanqh.ubzr> <20171003210540.GM3301751@devbig577.frc2.facebook.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Ying Huang <ying.huang@intel.com>, Wenwei Tao <wenwei.tww@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 21 Jul 2017 15:45:00 -0700 Tim Chen <tim.c.chen@linux.intel.com> wrote:
+On Tue, 3 Oct 2017, Tejun Heo wrote:
 
-> Memory allocations can happen before the swap_slots cache initialization
-> is completed during cpu bring up.  If we are low on memory, we could call
-> get_swap_page and access swap_slots_cache before it is fully initialized.
+> On Tue, Oct 03, 2017 at 04:57:44PM -0400, Nicolas Pitre wrote:
+> > This can be much smaller than a page on very small memory systems. 
+> > Always rounding up the size to a page is wasteful in that case, and 
+> > required alignment is smaller than the memblock default. Let's round 
+> > things up to a page size only when the actual size is >= page size, and 
+> > then it makes sense to page-align for a nicer allocation pattern.
 > 
-> Add a check in get_swap_page for initialized swap_slots_cache
-> to prevent this condition.  Similar check already exists in
-> free_swap_slot.  Also annotate the checks to indicate the likely
-> condition.
-> 
-> We also added a memory barrier to make sure that the locks
-> initialization are done before the assignment of cache->slots
-> and cache->slots_ret pointers. This ensures the assumption
-> that it is safe to acquire the slots cache locks and use the slots
-> cache when the corresponding cache->slots or cache->slots_ret
-> pointers are non null.
+> Isn't that a temporary area which gets freed later during boot?
 
-I guess that the user-visible effect is "crash on boot on large
-machine".  Or something.  Please don't make me guess!
+Hmmm...
 
-Which kernel version(s) do you believe need this patch, and why?
+It may get freed through 3 different paths where 2 of them are error 
+paths. What looks like a non-error path is in pcpu_embed_first_chunk() 
+called from setup_per_cpu_areas(). But there are two versions of 
+setup_per_cpu_areas(): one for SMP and one for !SMP. And the !SMP case 
+never calls pcpu_free_alloc_info() currently.
+
+I'm not sure i understand that code fully, but maybe the following patch 
+could be a better fit:
+
+----- >8
+Subject: [PATCH] percpu: don't forget to free the temporary struct pcpu_alloc_info
+
+Unlike the SMP case, the !SMP case does not free the memory for struct 
+pcpu_alloc_info allocated in setup_per_cpu_areas(). And to give it a 
+chance of being reused by the page allocator later, align it to a page 
+boundary just like its size.
+
+Signed-off-by: Nicolas Pitre <nico@linaro.org>
+
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 434844415d..caab63375b 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -1416,7 +1416,7 @@ struct pcpu_alloc_info * __init pcpu_alloc_alloc_info(int nr_groups,
+ 			  __alignof__(ai->groups[0].cpu_map[0]));
+ 	ai_size = base_size + nr_units * sizeof(ai->groups[0].cpu_map[0]);
+ 
+-	ptr = memblock_virt_alloc_nopanic(PFN_ALIGN(ai_size), 0);
++	ptr = memblock_virt_alloc_nopanic(PFN_ALIGN(ai_size), PAGE_SIZE);
+ 	if (!ptr)
+ 		return NULL;
+ 	ai = ptr;
+@@ -2295,6 +2295,7 @@ void __init setup_per_cpu_areas(void)
+ 
+ 	if (pcpu_setup_first_chunk(ai, fc) < 0)
+ 		panic("Failed to initialize percpu areas.");
++	pcpu_free_alloc_info(ai);
+ }
+ 
+ #endif	/* CONFIG_SMP */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
