@@ -1,48 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 733916B0260
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 11:40:31 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id r18so6477332qkh.9
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 08:40:31 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id w17sor3663582qtw.102.2017.10.03.08.40.30
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D1BA76B0038
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 12:01:56 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id w63so9274484qkd.0
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 09:01:56 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id j184si6876897qkc.92.2017.10.03.09.01.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 03 Oct 2017 08:40:30 -0700 (PDT)
-Date: Tue, 3 Oct 2017 11:40:28 -0400 (EDT)
-From: Nicolas Pitre <nicolas.pitre@linaro.org>
-Subject: Re: [PATCH v4 4/5] cramfs: add mmap support
-In-Reply-To: <20171003153659.GA31600@infradead.org>
-Message-ID: <nycvar.YSQ.7.76.1710031137580.5407@knanqh.ubzr>
-References: <20170927233224.31676-1-nicolas.pitre@linaro.org> <20170927233224.31676-5-nicolas.pitre@linaro.org> <20171001083052.GB17116@infradead.org> <nycvar.YSQ.7.76.1710011805070.5407@knanqh.ubzr> <CAFLxGvzfQrvU-8w7F26mez6fCQD+iS_qRJpLSU+2DniEGouEfA@mail.gmail.com>
- <nycvar.YSQ.7.76.1710021931270.5407@knanqh.ubzr> <20171003145732.GA8890@infradead.org> <nycvar.YSQ.7.76.1710031107290.5407@knanqh.ubzr> <20171003153659.GA31600@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Oct 2017 09:01:55 -0700 (PDT)
+Subject: Re: [PATCH v9 03/12] mm: deferred_init_memmap improvements
+From: Pasha Tatashin <pasha.tatashin@oracle.com>
+References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
+ <20170920201714.19817-4-pasha.tatashin@oracle.com>
+ <20171003125754.2kuqzkstywg7axhd@dhcp22.suse.cz>
+ <fc4ef789-d9a8-5dab-6508-f0fe8751b462@oracle.com>
+Message-ID: <d81baa49-b796-7130-4ace-0f14ed59be46@oracle.com>
+Date: Tue, 3 Oct 2017 12:01:08 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <fc4ef789-d9a8-5dab-6508-f0fe8751b462@oracle.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Richard Weinberger <richard.weinberger@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-embedded@vger.kernel.org" <linux-embedded@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Chris Brandt <Chris.Brandt@renesas.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On Tue, 3 Oct 2017, Christoph Hellwig wrote:
+Hi Michal,
 
-> On Tue, Oct 03, 2017 at 11:30:50AM -0400, Nicolas Pitre wrote:
-> > Unless you have a better scheme altogether  to suggest of course, given 
-> > the existing constraints.
+Are you OK, if I replace DEFERRED_FREE() macro with a function like this:
+
+/*
+  * Helper for deferred_init_range, free the given range, and reset the
+  * counters
+  */
+static inline unsigned long __def_free(unsigned long *nr_free,
+                                        unsigned long *free_base_pfn,
+                                        struct page **page)
+{
+         unsigned long nr = *nr_free;
+
+         deferred_free_range(*free_base_pfn, nr);
+         *free_base_pfn = 0;
+         *nr_free = 0;
+         *page = NULL;
+
+         return nr;
+}
+
+Since it is inline, and we operate with non-volatile counters, compiler 
+will be smart enough to remove all the unnecessary de-references. As a 
+plus, we won't be adding any new branches, and the code is still going 
+to stay compact.
+
+Pasha
+
+On 10/03/2017 11:15 AM, Pasha Tatashin wrote:
+> Hi Michal,
 > 
-> I still can't understand why this convoluted fault path that finds
-> vma, attempts with all kinds of races and then tries to update things
-> like vm_ops is even nessecary.
+>>
+>> Please be explicit that this is possible only because we discard
+>> memblock data later after 3010f876500f ("mm: discard memblock data
+>> later"). Also be more explicit how the new code works.
 > 
-> We have direct mappings of physical address perfectly working in the
-> DAX code (even with write support!) or in drivers using remap_pfn_range
-> so a really good explanation why neither scheme can be used is needed
-> first.
-
-I provided that explanation several times by now in my cover letter. And 
-separately even to you directly at least once.  What else should I do?
-
-
-Nicolas
+> OK
+> 
+>>
+>> I like how the resulting code is more compact and smaller.
+> 
+> That was the goal :)
+> 
+>> for_each_free_mem_range also looks more appropriate but I really detest
+>> the DEFERRED_FREE thingy. Maybe we can handle all that in a single goto
+>> section. I know this is not an art but manipulating variables from
+>> macros is more error prone and much more ugly IMHO.
+> 
+> Sure, I can re-arrange to have a goto place. Function won't be as small, 
+> and if compiler is not smart enough we might end up with having more 
+> branches than what my current code has.
+> 
+>>
+>> please do not use macros. Btw. this deserves its own fix. I suspect that
+>> no CONFIG_HOLES_IN_ZONE arch enables DEFERRED_STRUCT_PAGE_INIT but
+>> purely from the review point of view it should be its own patch.
+> 
+> Sure, I will submit this patch separately from the rest of the project. 
+> In my opinion DEFERRED_STRUCT_PAGE_INIT is the way of the future, so we 
+> should make sure it is working with as many configs as possible.
+> 
+> Thank you,
+> Pasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
