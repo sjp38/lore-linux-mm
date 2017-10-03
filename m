@@ -1,70 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0866B6B0038
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 05:08:02 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k7so2908226wre.22
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 02:08:01 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B47AE6B0038
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 05:23:56 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id u138so7346295wmu.2
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 02:23:56 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u9si2463880wrd.437.2017.10.03.02.08.00
+        by mx.google.com with ESMTPS id 89si10671393wrl.304.2017.10.03.02.23.55
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Oct 2017 02:08:00 -0700 (PDT)
-Date: Tue, 3 Oct 2017 11:07:59 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 14/15] mm: Remove nr_pages argument from
- pagevec_lookup_{,range}_tag()
-Message-ID: <20171003090759.GH11879@quack2.suse.cz>
-References: <20170927160334.29513-1-jack@suse.cz>
- <20170927160334.29513-15-jack@suse.cz>
- <d86aeb9d-fc2b-c041-ae24-d8ccf06325e7@oracle.com>
+        Tue, 03 Oct 2017 02:23:55 -0700 (PDT)
+Date: Tue, 3 Oct 2017 11:23:52 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3] mm, sysctl: make NUMA stats configurable
+Message-ID: <20171003092352.2wh2jbtt2dudfi5a@dhcp22.suse.cz>
+References: <1506579101-5457-1-git-send-email-kemi.wang@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d86aeb9d-fc2b-c041-ae24-d8ccf06325e7@oracle.com>
+In-Reply-To: <1506579101-5457-1-git-send-email-kemi.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Kemi Wang <kemi.wang@intel.com>
+Cc: "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, Dave <dave.hansen@linux.intel.com>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Proc sysctl <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Fri 29-09-17 17:46:24, Daniel Jordan wrote:
-> On 09/27/2017 12:03 PM, Jan Kara wrote:
-> >All users of pagevec_lookup() and pagevec_lookup_range() now pass
-> >PAGEVEC_SIZE as a desired number of pages. Just drop the argument.
-> >
-> >Signed-off-by: Jan Kara <jack@suse.cz>
-> >---
-> >  fs/btrfs/extent_io.c    | 6 +++---
+On Thu 28-09-17 14:11:41, Kemi Wang wrote:
+> This is the second step which introduces a tunable interface that allow
+> numa stats configurable for optimizing zone_statistics(), as suggested by
+> Dave Hansen and Ying Huang.
 > 
-> There's one place that got missed in fs/ceph/addr.c:
+> =========================================================================
+> When page allocation performance becomes a bottleneck and you can tolerate
+> some possible tool breakage and decreased numa counter precision, you can
+> do:
+> 	echo [C|c]oarse > /proc/sys/vm/numa_stats_mode
+> In this case, numa counter update is ignored. We can see about
+> *4.8%*(185->176) drop of cpu cycles per single page allocation and reclaim
+> on Jesper's page_bench01 (single thread) and *8.1%*(343->315) drop of cpu
+> cycles per single page allocation and reclaim on Jesper's page_bench03 (88
+> threads) running on a 2-Socket Broadwell-based server (88 threads, 126G
+> memory).
+> 
+> Benchmark link provided by Jesper D Brouer(increase loop times to
+> 10000000):
+> https://github.com/netoptimizer/prototype-kernel/tree/master/kernel/mm/
+> bench
+> 
+> =========================================================================
+> When page allocation performance is not a bottleneck and you want all
+> tooling to work, you can do:
+> 	echo [S|s]trict > /proc/sys/vm/numa_stats_mode
+> 
+> =========================================================================
+> We recommend automatic detection of numa statistics by system, this is also
+> system default configuration, you can do:
+> 	echo [A|a]uto > /proc/sys/vm/numa_stats_mode
+> In this case, numa counter update is skipped unless it has been read by
+> users at least once, e.g. cat /proc/zoneinfo.
 
-Ah, that's probably from a rebase I did. Thanks for catching this!
+I am still not convinced the auto mode is worth all the additional code
+and a safe default to use. The whole thing could have been 0/1 with a
+simpler parsing and less code to catch readers.
 
-								Honza
+E.g. why do we have to do static_branch_enable on any read or even
+vmstat_stop? Wouldn't open be sufficient?
 
+> @@ -153,6 +153,8 @@ static DEVICE_ATTR(meminfo, S_IRUGO, node_read_meminfo, NULL);
+>  static ssize_t node_read_numastat(struct device *dev,
+>  				struct device_attribute *attr, char *buf)
+>  {
+> +	if (vm_numa_stats_mode == VM_NUMA_STAT_AUTO_MODE)
+> +		static_branch_enable(&vm_numa_stats_mode_key);
+>  	return sprintf(buf,
+>  		       "numa_hit %lu\n"
+>  		       "numa_miss %lu\n"
+> @@ -186,6 +188,8 @@ static ssize_t node_read_vmstat(struct device *dev,
+>  		n += sprintf(buf+n, "%s %lu\n",
+>  			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
+>  			     sum_zone_numa_state(nid, i));
+> +	if (vm_numa_stats_mode == VM_NUMA_STAT_AUTO_MODE)
+> +		static_branch_enable(&vm_numa_stats_mode_key);
+>  #endif
+>  
+>  	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
+[...]
+> @@ -1582,6 +1703,10 @@ static int zoneinfo_show(struct seq_file *m, void *arg)
+>  {
+>  	pg_data_t *pgdat = (pg_data_t *)arg;
+>  	walk_zones_in_node(m, pgdat, false, false, zoneinfo_show_print);
+> +#ifdef CONFIG_NUMA
+> +	if (vm_numa_stats_mode == VM_NUMA_STAT_AUTO_MODE)
+> +		static_branch_enable(&vm_numa_stats_mode_key);
+> +#endif
+>  	return 0;
+>  }
+>  
+> @@ -1678,6 +1803,10 @@ static int vmstat_show(struct seq_file *m, void *arg)
+>  
+>  static void vmstat_stop(struct seq_file *m, void *arg)
+>  {
+> +#ifdef CONFIG_NUMA
+> +	if (vm_numa_stats_mode == VM_NUMA_STAT_AUTO_MODE)
+> +		static_branch_enable(&vm_numa_stats_mode_key);
+> +#endif
+>  	kfree(m->private);
+>  	m->private = NULL;
+>  }
+> -- 
+> 2.7.4
 > 
-> diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
-> index 87789c477381..ee68b3db6729 100644
-> --- a/fs/ceph/addr.c
-> +++ b/fs/ceph/addr.c
-> @@ -1161,8 +1161,7 @@ static int ceph_writepages_start(struct address_space
-> *mapping,
->                         index = 0;
->                         while ((index <= end) &&
->                                (nr = pagevec_lookup_tag(&pvec, mapping,
-> &index,
-> - PAGECACHE_TAG_WRITEBACK,
-> - PAGEVEC_SIZE))) {
-> + PAGECACHE_TAG_WRITEBACK))) {
->                                 for (i = 0; i < nr; i++) {
->                                         page = pvec.pages[i];
->                                         if (page_snap_context(page) !=
-> snapc)
-> 
-> 
-> Daniel
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
