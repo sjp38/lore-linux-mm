@@ -1,61 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CC8786B0253
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 03:10:27 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id y77so17360784pfd.2
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 00:10:27 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x18si4927998pge.118.2017.10.03.00.10.26
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 18D1D6B0038
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 03:26:30 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id y11so575429wme.6
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 00:26:30 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j28sor4597106wrd.78.2017.10.03.00.26.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Oct 2017 00:10:26 -0700 (PDT)
-Date: Tue, 3 Oct 2017 09:10:19 +0200
+        (Google Transport Security);
+        Tue, 03 Oct 2017 00:26:28 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,hugetlb,migration: don't migrate kernelcore hugepages
-Message-ID: <20171003071019.hdcdjwjabld4el4p@dhcp22.suse.cz>
-References: <20171001225111.GA16432@gmail.com>
- <20171002125432.xiszy6xlvfb2jv67@dhcp22.suse.cz>
- <20171002140632.GA12673@gmail.com>
- <20171002142717.xwe2xymsr3oocxmg@dhcp22.suse.cz>
- <20171002150637.GA14321@gmail.com>
- <20171002161431.kmsrwtta7bwxn63q@dhcp22.suse.cz>
- <20171003054224.GA5025@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171003054224.GA5025@gmail.com>
+Subject: [RFC PATCH] mm, hugetlb: drop hugepages_treat_as_movable sysctl
+Date: Tue,  3 Oct 2017 09:26:19 +0200
+Message-Id: <20171003072619.8654-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexandru Moise <00moses.alexander00@gmail.com>
-Cc: corbet@lwn.net, paulmck@linux.vnet.ibm.com, akpm@linux-foundation.org, tglx@linutronix.de, mingo@kernel.org, cdall@linaro.org, mchehab@kernel.org, zohar@linux.vnet.ibm.com, marc.zyngier@arm.com, rientjes@google.com, hannes@cmpxchg.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, aneesh.kumar@linux.vnet.ibm.com, punit.agrawal@arm.com, aarcange@redhat.com, gerald.schaefer@de.ibm.com, jglisse@redhat.com, kirill.shutemov@linux.intel.com, will.deacon@arm.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Alexandru Moise <00moses.alexander00@gmail.com>, Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>
 
-On Tue 03-10-17 07:42:25, Alexandru Moise wrote:
-> On Mon, Oct 02, 2017 at 06:15:00PM +0200, Michal Hocko wrote:
-[...]
-> > I really fail to see why kernel vs. movable zones play any role here.
-> > Zones should be mostly an implementation detail which userspace
-> > shouldn't really care about.
-> 
-> Ok, the whole zone approach is a bad idea. Do you think that there's
-> any value at all to trying to make hugepages un-movable at all?
+From: Michal Hocko <mhocko@suse.com>
 
-I am not aware of any usecase, to be honest.
+hugepages_treat_as_movable has been introduced by 396faf0303d2 ("Allow
+huge page allocations to use GFP_HIGH_MOVABLE") to allow hugetlb
+allocations from ZONE_MOVABLE even when hugetlb pages were not
+migrateable. The purpose of the movable zone was different at the time.
+It aimed at reducing memory fragmentation and hugetlb pages being long
+lived and large werre not contributing to the fragmentation so it was
+acceptable to use the zone back then.
 
-> Should
-> the hugepages_treat_as_movable sysctl die and just make hugepages movable
-> by default?
+Things have changed though and the primary purpose of the zone became
+migratability guarantee. If we allow non migrateable hugetlb pages to
+be in ZONE_MOVABLE memory hotplug might fail to offline the memory.
 
-I think that hugepages_treat_as_movable is just a historical relict from
-the time when hugetlb pages were not movable but the main purpose of
-the movable zone was different back at the time. Just to clarifiy, the
-original intention of the zone was to prevent memory fragmentation and
-as hugetlb pages are not fragmenting memory because they are long lived
-and contiguous, it was acceptable to use the zone. The purpose of the
-zone has changed towards a migratability guarantee since then but the
-knob has stayed behind. I think we should just remove it.
+Remove the knob and only rely on hugepage_migration_supported to allow
+movable zones.
+
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+
+Hi,
+Alexandru Moise has noticed that hugepages_treat_as_movable has a weird
+semantic [1] and tried to fix it. I think that the sysctl is a relict
+which should go away finaly because assumptions which it was based on
+no longer hold.
+
+What do you think?
+
+[1] http://lkml.kernel.org/r/20171001225111.GA16432@gmail.com
+
+ Documentation/sysctl/vm.txt | 25 -------------------------
+ include/linux/hugetlb.h     |  1 -
+ kernel/sysctl.c             |  7 -------
+ mm/hugetlb.c                |  4 +---
+ 4 files changed, 1 insertion(+), 36 deletions(-)
+
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+index 0752430d4562..44a6c7f226f5 100644
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -30,7 +30,6 @@ files can be found in mm/swap.c.
+ - dirty_writeback_centisecs
+ - drop_caches
+ - extfrag_threshold
+-- hugepages_treat_as_movable
+ - hugetlb_shm_group
+ - laptop_mode
+ - legacy_va_layout
+@@ -268,30 +267,6 @@ any throttling.
+ 
+ ==============================================================
+ 
+-hugepages_treat_as_movable
+-
+-This parameter controls whether we can allocate hugepages from ZONE_MOVABLE
+-or not. If set to non-zero, hugepages can be allocated from ZONE_MOVABLE.
+-ZONE_MOVABLE is created when kernel boot parameter kernelcore= is specified,
+-so this parameter has no effect if used without kernelcore=.
+-
+-Hugepage migration is now available in some situations which depend on the
+-architecture and/or the hugepage size. If a hugepage supports migration,
+-allocation from ZONE_MOVABLE is always enabled for the hugepage regardless
+-of the value of this parameter.
+-IOW, this parameter affects only non-migratable hugepages.
+-
+-Assuming that hugepages are not migratable in your system, one usecase of
+-this parameter is that users can make hugepage pool more extensible by
+-enabling the allocation from ZONE_MOVABLE. This is because on ZONE_MOVABLE
+-page reclaim/migration/compaction work more and you can get contiguous
+-memory more likely. Note that using ZONE_MOVABLE for non-migratable
+-hugepages can do harm to other features like memory hotremove (because
+-memory hotremove expects that memory blocks on ZONE_MOVABLE are always
+-removable,) so it's a trade-off responsible for the users.
+-
+-==============================================================
+-
+ hugetlb_shm_group
+ 
+ hugetlb_shm_group contains group id that is allowed to create SysV
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 19a3ed54a1b7..c78654421e7d 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -128,7 +128,6 @@ u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
+ 
+ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud);
+ 
+-extern int hugepages_treat_as_movable;
+ extern int sysctl_hugetlb_shm_group;
+ extern struct list_head huge_boot_pages;
+ 
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index c848c3652472..50c813ef1747 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -1389,13 +1389,6 @@ static struct ctl_table vm_table[] = {
+ 		.mode		= 0644,
+ 		.proc_handler	= proc_dointvec,
+ 	 },
+-	 {
+-		.procname	= "hugepages_treat_as_movable",
+-		.data		= &hugepages_treat_as_movable,
+-		.maxlen		= sizeof(int),
+-		.mode		= 0644,
+-		.proc_handler	= proc_dointvec,
+-	},
+ 	{
+ 		.procname	= "nr_overcommit_hugepages",
+ 		.data		= NULL,
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 34625b257128..ab7f665b83e6 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -36,8 +36,6 @@
+ #include <linux/userfaultfd_k.h>
+ #include "internal.h"
+ 
+-int hugepages_treat_as_movable;
+-
+ int hugetlb_max_hstate __read_mostly;
+ unsigned int default_hstate_idx;
+ struct hstate hstates[HUGE_MAX_HSTATE];
+@@ -926,7 +924,7 @@ static struct page *dequeue_huge_page_nodemask(struct hstate *h, gfp_t gfp_mask,
+ /* Movability of hugepages depends on migration support. */
+ static inline gfp_t htlb_alloc_mask(struct hstate *h)
+ {
+-	if (hugepages_treat_as_movable || hugepage_migration_supported(h))
++	if (hugepage_migration_supported(h))
+ 		return GFP_HIGHUSER_MOVABLE;
+ 	else
+ 		return GFP_HIGHUSER;
 -- 
-Michal Hocko
-SUSE Labs
+2.14.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
