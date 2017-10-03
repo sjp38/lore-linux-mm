@@ -1,113 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B47AE6B0038
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 05:23:56 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id u138so7346295wmu.2
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 02:23:56 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 14C676B0038
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 06:49:46 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id j70so433109pgc.5
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 03:49:46 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 89si10671393wrl.304.2017.10.03.02.23.55
+        by mx.google.com with ESMTPS id v17si5180357pgb.548.2017.10.03.03.49.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Oct 2017 02:23:55 -0700 (PDT)
-Date: Tue, 3 Oct 2017 11:23:52 +0200
+        Tue, 03 Oct 2017 03:49:44 -0700 (PDT)
+Date: Tue, 3 Oct 2017 12:49:39 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3] mm, sysctl: make NUMA stats configurable
-Message-ID: <20171003092352.2wh2jbtt2dudfi5a@dhcp22.suse.cz>
-References: <1506579101-5457-1-git-send-email-kemi.wang@intel.com>
+Subject: Re: [v9 2/5] mm: implement mem_cgroup_scan_tasks() for the root
+ memory cgroup
+Message-ID: <20171003104939.vm7pezgef7bqxe2v@dhcp22.suse.cz>
+References: <20170927130936.8601-1-guro@fb.com>
+ <20170927130936.8601-3-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1506579101-5457-1-git-send-email-kemi.wang@intel.com>
+In-Reply-To: <20170927130936.8601-3-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kemi Wang <kemi.wang@intel.com>
-Cc: "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, Dave <dave.hansen@linux.intel.com>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Proc sysctl <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu 28-09-17 14:11:41, Kemi Wang wrote:
-> This is the second step which introduces a tunable interface that allow
-> numa stats configurable for optimizing zone_statistics(), as suggested by
-> Dave Hansen and Ying Huang.
+On Wed 27-09-17 14:09:33, Roman Gushchin wrote:
+> Implement mem_cgroup_scan_tasks() functionality for the root
+> memory cgroup to use this function for looking for a OOM victim
+> task in the root memory cgroup by the cgroup-ware OOM killer.
 > 
-> =========================================================================
-> When page allocation performance becomes a bottleneck and you can tolerate
-> some possible tool breakage and decreased numa counter precision, you can
-> do:
-> 	echo [C|c]oarse > /proc/sys/vm/numa_stats_mode
-> In this case, numa counter update is ignored. We can see about
-> *4.8%*(185->176) drop of cpu cycles per single page allocation and reclaim
-> on Jesper's page_bench01 (single thread) and *8.1%*(343->315) drop of cpu
-> cycles per single page allocation and reclaim on Jesper's page_bench03 (88
-> threads) running on a 2-Socket Broadwell-based server (88 threads, 126G
-> memory).
-> 
-> Benchmark link provided by Jesper D Brouer(increase loop times to
-> 10000000):
-> https://github.com/netoptimizer/prototype-kernel/tree/master/kernel/mm/
-> bench
-> 
-> =========================================================================
-> When page allocation performance is not a bottleneck and you want all
-> tooling to work, you can do:
-> 	echo [S|s]trict > /proc/sys/vm/numa_stats_mode
-> 
-> =========================================================================
-> We recommend automatic detection of numa statistics by system, this is also
-> system default configuration, you can do:
-> 	echo [A|a]uto > /proc/sys/vm/numa_stats_mode
-> In this case, numa counter update is skipped unless it has been read by
-> users at least once, e.g. cat /proc/zoneinfo.
+> The root memory cgroup should be treated as a leaf cgroup,
+> so only tasks which are directly belonging to the root cgroup
+> should be iterated over.
 
-I am still not convinced the auto mode is worth all the additional code
-and a safe default to use. The whole thing could have been 0/1 with a
-simpler parsing and less code to catch readers.
+I would only add that this patch doesn't introduce any functionally
+visible change because we never trigger oom killer with the root memcg
+as the root of the hierarchy. So this is just a preparatory work for
+later changes.
 
-E.g. why do we have to do static_branch_enable on any read or even
-vmstat_stop? Wouldn't open be sufficient?
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: kernel-team@fb.com
+> Cc: cgroups@vger.kernel.org
+> Cc: linux-doc@vger.kernel.org
+> Cc: linux-kernel@vger.kernel.org
+> Cc: linux-mm@kvack.org
 
-> @@ -153,6 +153,8 @@ static DEVICE_ATTR(meminfo, S_IRUGO, node_read_meminfo, NULL);
->  static ssize_t node_read_numastat(struct device *dev,
->  				struct device_attribute *attr, char *buf)
->  {
-> +	if (vm_numa_stats_mode == VM_NUMA_STAT_AUTO_MODE)
-> +		static_branch_enable(&vm_numa_stats_mode_key);
->  	return sprintf(buf,
->  		       "numa_hit %lu\n"
->  		       "numa_miss %lu\n"
-> @@ -186,6 +188,8 @@ static ssize_t node_read_vmstat(struct device *dev,
->  		n += sprintf(buf+n, "%s %lu\n",
->  			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
->  			     sum_zone_numa_state(nid, i));
-> +	if (vm_numa_stats_mode == VM_NUMA_STAT_AUTO_MODE)
-> +		static_branch_enable(&vm_numa_stats_mode_key);
->  #endif
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+>  mm/memcontrol.c | 7 +++----
+>  1 file changed, 3 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index ae37b5624eb2..fa1a5120ce3f 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -917,7 +917,8 @@ static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
+>   * value, the function breaks the iteration loop and returns the value.
+>   * Otherwise, it will iterate over all tasks and return 0.
+>   *
+> - * This function must not be called for the root memory cgroup.
+> + * If memcg is the root memory cgroup, this function will iterate only
+> + * over tasks belonging directly to the root memory cgroup.
+>   */
+>  int mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
+>  			  int (*fn)(struct task_struct *, void *), void *arg)
+> @@ -925,8 +926,6 @@ int mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
+>  	struct mem_cgroup *iter;
+>  	int ret = 0;
 >  
->  	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
-[...]
-> @@ -1582,6 +1703,10 @@ static int zoneinfo_show(struct seq_file *m, void *arg)
->  {
->  	pg_data_t *pgdat = (pg_data_t *)arg;
->  	walk_zones_in_node(m, pgdat, false, false, zoneinfo_show_print);
-> +#ifdef CONFIG_NUMA
-> +	if (vm_numa_stats_mode == VM_NUMA_STAT_AUTO_MODE)
-> +		static_branch_enable(&vm_numa_stats_mode_key);
-> +#endif
->  	return 0;
->  }
->  
-> @@ -1678,6 +1803,10 @@ static int vmstat_show(struct seq_file *m, void *arg)
->  
->  static void vmstat_stop(struct seq_file *m, void *arg)
->  {
-> +#ifdef CONFIG_NUMA
-> +	if (vm_numa_stats_mode == VM_NUMA_STAT_AUTO_MODE)
-> +		static_branch_enable(&vm_numa_stats_mode_key);
-> +#endif
->  	kfree(m->private);
->  	m->private = NULL;
->  }
+> -	BUG_ON(memcg == root_mem_cgroup);
+> -
+>  	for_each_mem_cgroup_tree(iter, memcg) {
+>  		struct css_task_iter it;
+>  		struct task_struct *task;
+> @@ -935,7 +934,7 @@ int mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
+>  		while (!ret && (task = css_task_iter_next(&it)))
+>  			ret = fn(task, arg);
+>  		css_task_iter_end(&it);
+> -		if (ret) {
+> +		if (ret || memcg == root_mem_cgroup) {
+>  			mem_cgroup_iter_break(memcg, iter);
+>  			break;
+>  		}
 > -- 
-> 2.7.4
-> 
+> 2.13.5
 
 -- 
 Michal Hocko
