@@ -1,52 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EAA26B0038
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 11:30:10 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id p15so4567016qtp.4
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 08:30:10 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id o40si1807149qtj.529.2017.10.03.08.30.09
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 868236B025E
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 11:30:53 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id w63so9155090qkd.0
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 08:30:53 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id o95sor10361685qte.60.2017.10.03.08.30.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Oct 2017 08:30:09 -0700 (PDT)
-Subject: Re: [PATCH v9 08/12] mm: zero reserved and unavailable struct pages
-References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
- <20170920201714.19817-9-pasha.tatashin@oracle.com>
- <20171003131817.omzbam3js67edp3s@dhcp22.suse.cz>
-From: Pasha Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <691dba28-718c-e9a9-d006-88505eb5cd7e@oracle.com>
-Date: Tue, 3 Oct 2017 11:29:16 -0400
+        (Google Transport Security);
+        Tue, 03 Oct 2017 08:30:52 -0700 (PDT)
+Date: Tue, 3 Oct 2017 11:30:50 -0400 (EDT)
+From: Nicolas Pitre <nicolas.pitre@linaro.org>
+Subject: Re: [PATCH v4 4/5] cramfs: add mmap support
+In-Reply-To: <20171003145732.GA8890@infradead.org>
+Message-ID: <nycvar.YSQ.7.76.1710031107290.5407@knanqh.ubzr>
+References: <20170927233224.31676-1-nicolas.pitre@linaro.org> <20170927233224.31676-5-nicolas.pitre@linaro.org> <20171001083052.GB17116@infradead.org> <nycvar.YSQ.7.76.1710011805070.5407@knanqh.ubzr> <CAFLxGvzfQrvU-8w7F26mez6fCQD+iS_qRJpLSU+2DniEGouEfA@mail.gmail.com>
+ <nycvar.YSQ.7.76.1710021931270.5407@knanqh.ubzr> <20171003145732.GA8890@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20171003131817.omzbam3js67edp3s@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Richard Weinberger <richard.weinberger@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-embedded@vger.kernel.org" <linux-embedded@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Chris Brandt <Chris.Brandt@renesas.com>
 
-On 10/03/2017 09:18 AM, Michal Hocko wrote:
-> On Wed 20-09-17 16:17:10, Pavel Tatashin wrote:
->> Some memory is reserved but unavailable: not present in memblock.memory
->> (because not backed by physical pages), but present in memblock.reserved.
->> Such memory has backing struct pages, but they are not initialized by going
->> through __init_single_page().
+On Tue, 3 Oct 2017, Christoph Hellwig wrote:
+
+> On Mon, Oct 02, 2017 at 07:33:29PM -0400, Nicolas Pitre wrote:
+> > On Tue, 3 Oct 2017, Richard Weinberger wrote:
+> > 
+> > > On Mon, Oct 2, 2017 at 12:29 AM, Nicolas Pitre <nicolas.pitre@linaro.org> wrote:
+> > > > On Sun, 1 Oct 2017, Christoph Hellwig wrote:
+> > > >
+> > > >> up_read(&mm->mmap_sem) in the fault path is a still a complete
+> > > >> no-go,
+> > > >>
+> > > >> NAK
+> > > >
+> > > > Care to elaborate?
+> > > >
+> > > > What about mm/filemap.c:__lock_page_or_retry() then?
+> > > 
+> > > As soon you up_read() in the page fault path other tasks will race
+> > > with you before
+> > > you're able to grab the write lock.
+> > 
+> > But I _know_ that.
+> > 
+> > Could you highlight an area in my code where this is not accounted for?
 > 
-> Could you be more specific where is such a memory reserved?
+> Existing users of lock_page_or_retry return VM_FAULT_RETRY right after
+> up()ing mmap_sem, and they must already have a reference to the page
+> which is the only thing touched until then.
 > 
+> Your patch instead goes for an exclusive mmap_sem if it can, and
+> even if there is nothing that breaks with that scheme right now
+> there s nothing documenting that this actually safe, and we are
+> way down in the complex page fault path.
 
-I know of one example: trim_low_memory_range() unconditionally reserves 
-from pfn 0, but e820__memblock_setup() might provide the exiting memory 
-from pfn 1 (i.e. KVM).
+It is pretty obvious looking at the existing code that if you want to 
+safely manipulate a vma you need the write lock. There are many things 
+in the kernel tree that are not explicitly documented. Did that stop 
+people from adding new code?
 
-But, there could be more based on this comment from linux/page-flags.h:
+I agree that the fault path is quite complex. I've studied it carefully 
+before coming up with this scheme. This is not something that came about 
+just because the sunshine felt good when I woke up one day.
 
-  19  * PG_reserved is set for special pages, which can never be swapped 
-out. Some
-  20  * of them might not even exist (eg empty_bad_page)...
+So if you agree that I've done a reasonable job creating a scheme that 
+currently doesn't break then IMHO this should be good enough, 
+*especially* for such an isolated and specialized use case with zero 
+impact on anyone else. And if things break in the future than I will be 
+the one working out the pieces not you, and _that_ can be written down 
+somewhere if necessary so nobody has an obligation to bend backward for 
+not breaking it.
 
-Pasha
+Unless you have a better scheme altogether  to suggest of course, given 
+the existing constraints.
+
+
+Nicolas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
