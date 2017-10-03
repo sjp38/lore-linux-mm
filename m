@@ -1,64 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 097DC6B0253
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 01:53:18 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id y8so241008wrd.0
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 22:53:17 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id c60si2462554edd.420.2017.10.02.22.53.16
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BEA36B0038
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 02:34:18 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id n1so12000367pgt.4
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 23:34:18 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id q12si8919760pgp.149.2017.10.02.23.34.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Oct 2017 22:53:16 -0700 (PDT)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v935nFZO084945
-	for <linux-mm@kvack.org>; Tue, 3 Oct 2017 01:53:15 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2dbyjfpgs8-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 03 Oct 2017 01:53:15 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Tue, 3 Oct 2017 06:53:13 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH] include/linux/fs.h: fix comment about struct address_space
-Date: Tue,  3 Oct 2017 08:53:07 +0300
-Message-Id: <1507009987-8746-1-git-send-email-rppt@linux.vnet.ibm.com>
+        Mon, 02 Oct 2017 23:34:16 -0700 (PDT)
+Subject: Re: 4.14-rc2 on thinkpad x220: out of memory when inserting mmc card
+References: <20170905194739.GA31241@amd> <20171001093704.GA12626@amd>
+ <20171001102647.GA23908@amd>
+ <201710011957.ICF15708.OOLOHFSQMFFVJt@I-love.SAKURA.ne.jp>
+ <72c93a69-610f-027e-c028-379b97b6f388@intel.com> <20171002084131.GA24414@amd>
+ <CACRpkdbatrt0Uxf8653iiV-OKkgcc0Ziog_L4oDVTJVNqtNN0Q@mail.gmail.com>
+ <20171002130353.GA25433@amd>
+From: Adrian Hunter <adrian.hunter@intel.com>
+Message-ID: <184b3552-851c-7015-dd80-76f6eebc33cc@intel.com>
+Date: Tue, 3 Oct 2017 09:27:30 +0300
+MIME-Version: 1.0
+In-Reply-To: <20171002130353.GA25433@amd>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Pavel Machek <pavel@ucw.cz>, Linus Walleij <linus.walleij@linaro.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, linux-mm@kvack.org
 
-Before commit 9c5d760b8d22 ("mm: split gfp_mask and mapping flags into
-separate fields") the private_* fields of struct adrress_space were grouped
-together and using "ditto" in comments describing the last fields was
-correct.
+On 02/10/17 16:03, Pavel Machek wrote:
+> On Mon 2017-10-02 14:06:03, Linus Walleij wrote:
+>> On Mon, Oct 2, 2017 at 10:41 AM, Pavel Machek <pavel@ucw.cz> wrote:
+>>
+>>>> Bounce buffers are being removed from v4.15
+>>
+>> As Adrian states, this would make any last bugs go away. I would
+>> even consider putting this patch this into fixes if it solves the problem.
+>>
+>>> although you may experience
+>>>> performance regression with that:
+>>>>
+>>>>       https://marc.info/?l=linux-mmc&m=150589778700551
+>>>
+>>> Hmm. The performance of this is already pretty bad, I really hope it
+>>> does not get any worse.
+>>
+>> Did you use bounce buffers? Those were improving performance on
+>> some laptops with TI or Ricoh host controllers and nothing else was
+>> ever really using it (as can be seen from the commit).
+> 
+> Thinkpad X220... how do I tell if I was using them? I believe so,
+> because I uncovered bug in them before.
 
-With introduction of gpf_mask between private_lock and private_list "ditto"
-references the wrong description.
-
-Fix it by using the elaborate description.
-
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
- include/linux/fs.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 339e73742e73..13dab191a23e 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -403,7 +403,7 @@ struct address_space {
- 	unsigned long		flags;		/* error bits */
- 	spinlock_t		private_lock;	/* for use by the address_space */
- 	gfp_t			gfp_mask;	/* implicit gfp mask for allocations */
--	struct list_head	private_list;	/* ditto */
-+	struct list_head	private_list;	/* for use by the address_space */
- 	void			*private_data;	/* ditto */
- 	errseq_t		wb_err;
- } __attribute__((aligned(sizeof(long)))) __randomize_layout;
--- 
-2.7.4
+You are certainly using bounce buffers.  What does lspci -knn show?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
