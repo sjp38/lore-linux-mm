@@ -1,59 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BEA36B0038
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 02:34:18 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id n1so12000367pgt.4
-        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 23:34:18 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id q12si8919760pgp.149.2017.10.02.23.34.16
+	by kanga.kvack.org (Postfix) with ESMTP id 600516B0038
+	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 02:37:06 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id p5so20357583pgn.7
+        for <linux-mm@kvack.org>; Mon, 02 Oct 2017 23:37:06 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id h12si9616355plt.673.2017.10.02.23.37.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Oct 2017 23:34:16 -0700 (PDT)
+        Mon, 02 Oct 2017 23:37:05 -0700 (PDT)
 Subject: Re: 4.14-rc2 on thinkpad x220: out of memory when inserting mmc card
 References: <20170905194739.GA31241@amd> <20171001093704.GA12626@amd>
  <20171001102647.GA23908@amd>
  <201710011957.ICF15708.OOLOHFSQMFFVJt@I-love.SAKURA.ne.jp>
- <72c93a69-610f-027e-c028-379b97b6f388@intel.com> <20171002084131.GA24414@amd>
- <CACRpkdbatrt0Uxf8653iiV-OKkgcc0Ziog_L4oDVTJVNqtNN0Q@mail.gmail.com>
- <20171002130353.GA25433@amd>
+ <CACRpkdYirC+rh_KALgVqKZMjq2DgbW4oi9MJkmrzwn+1O+94-g@mail.gmail.com>
 From: Adrian Hunter <adrian.hunter@intel.com>
-Message-ID: <184b3552-851c-7015-dd80-76f6eebc33cc@intel.com>
-Date: Tue, 3 Oct 2017 09:27:30 +0300
+Message-ID: <7b423dc8-00aa-9cde-3557-8c72863001fd@intel.com>
+Date: Tue, 3 Oct 2017 09:30:18 +0300
 MIME-Version: 1.0
-In-Reply-To: <20171002130353.GA25433@amd>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <CACRpkdYirC+rh_KALgVqKZMjq2DgbW4oi9MJkmrzwn+1O+94-g@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>, Linus Walleij <linus.walleij@linaro.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, linux-mm@kvack.org
+To: Linus Walleij <linus.walleij@linaro.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Pavel Machek <pavel@ucw.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, linux-mm@kvack.org
 
-On 02/10/17 16:03, Pavel Machek wrote:
-> On Mon 2017-10-02 14:06:03, Linus Walleij wrote:
->> On Mon, Oct 2, 2017 at 10:41 AM, Pavel Machek <pavel@ucw.cz> wrote:
->>
->>>> Bounce buffers are being removed from v4.15
->>
->> As Adrian states, this would make any last bugs go away. I would
->> even consider putting this patch this into fixes if it solves the problem.
->>
->>> although you may experience
->>>> performance regression with that:
->>>>
->>>>       https://marc.info/?l=linux-mmc&m=150589778700551
->>>
->>> Hmm. The performance of this is already pretty bad, I really hope it
->>> does not get any worse.
->>
->> Did you use bounce buffers? Those were improving performance on
->> some laptops with TI or Ricoh host controllers and nothing else was
->> ever really using it (as can be seen from the commit).
+On 02/10/17 17:09, Linus Walleij wrote:
+> On Sun, Oct 1, 2017 at 12:57 PM, Tetsuo Handa
+> <penguin-kernel@i-love.sakura.ne.jp> wrote:
 > 
-> Thinkpad X220... how do I tell if I was using them? I believe so,
-> because I uncovered bug in them before.
+>>>> I inserted u-SD card, only to realize that it is not detected as it
+>>>> should be. And dmesg indeed reveals:
+>>>
+>>> Tetsuo asked me to report this to linux-mm.
+>>>
+>>> But 2^4 is 16 pages, IIRC that can't be expected to work reliably, and
+>>> thus this sounds like MMC bug, not mm bug.
+> 
+> 
+> I'm not sure I fully understand this error message:
+> "worker/2:1: page allocation failure: order:4"
+> 
+> What I guess from context is that the mmc_init_request()
+> call is failing to allocate 16 pages, meaning for 4K pages
+> 64KB which is the typical bounce buffer.
+> 
+> This is what the code has always allocated as bounce buffer,
+> but it used to happen upfront, when probing the MMC block layer,
+> rather than when allocating the requests.
 
-You are certainly using bounce buffers.  What does lspci -knn show?
+That is not exactly right.  As I already wrote, the memory allocation used
+to be optional but became mandatory with:
+
+  commit 304419d8a7e9204c5d19b704467b814df8c8f5b1
+  Author: Linus Walleij <linus.walleij@linaro.org>
+  Date:   Thu May 18 11:29:32 2017 +0200
+
+      mmc: core: Allocate per-request data using the block layer core
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
