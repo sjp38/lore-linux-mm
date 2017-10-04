@@ -1,73 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 952A26B0038
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 15:37:06 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id l10so289123wre.4
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 12:37:06 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id q3si575999edj.165.2017.10.04.12.37.05
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B093E6B0038
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 15:48:05 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id w63so14459039qkd.0
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 12:48:05 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id o4sor775788ybm.180.2017.10.04.12.48.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 04 Oct 2017 12:37:05 -0700 (PDT)
-Date: Wed, 4 Oct 2017 15:37:00 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [v10 4/6] mm, oom: introduce memory.oom_group
-Message-ID: <20171004193700.GD1501@cmpxchg.org>
-References: <20171004154638.710-1-guro@fb.com>
- <20171004154638.710-5-guro@fb.com>
+        (Google Transport Security);
+        Wed, 04 Oct 2017 12:48:05 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171004154638.710-5-guro@fb.com>
+In-Reply-To: <20171004154638.710-4-guro@fb.com>
+References: <20171004154638.710-1-guro@fb.com> <20171004154638.710-4-guro@fb.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Wed, 4 Oct 2017 12:48:03 -0700
+Message-ID: <CALvZod6bwyoSWTv139y0wMidpZm5HcDu8RzVjF8U7GHxAzxSQw@mail.gmail.com>
+Subject: Re: [v10 3/6] mm, oom: cgroup-aware OOM killer
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Linux MM <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Oct 04, 2017 at 04:46:36PM +0100, Roman Gushchin wrote:
-> The cgroup-aware OOM killer treats leaf memory cgroups as memory
-> consumption entities and performs the victim selection by comparing
-> them based on their memory footprint. Then it kills the biggest task
-> inside the selected memory cgroup.
-> 
-> But there are workloads, which are not tolerant to a such behavior.
-> Killing a random task may leave the workload in a broken state.
-> 
-> To solve this problem, memory.oom_group knob is introduced.
-> It will define, whether a memory group should be treated as an
-> indivisible memory consumer, compared by total memory consumption
-> with other memory consumers (leaf memory cgroups and other memory
-> cgroups with memory.oom_group set), and whether all belonging tasks
-> should be killed if the cgroup is selected.
-> 
-> If set on memcg A, it means that in case of system-wide OOM or
-> memcg-wide OOM scoped to A or any ancestor cgroup, all tasks,
-> belonging to the sub-tree of A will be killed. If OOM event is
-> scoped to a descendant cgroup (A/B, for example), only tasks in
-> that cgroup can be affected. OOM killer will never touch any tasks
-> outside of the scope of the OOM event.
-> 
-> Also, tasks with oom_score_adj set to -1000 will not be killed.
-> 
-> The default value is 0.
-> 
-> Signed-off-by: Roman Gushchin <guro@fb.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Tejun Heo <tj@kernel.org>
-> Cc: kernel-team@fb.com
-> Cc: cgroups@vger.kernel.org
-> Cc: linux-doc@vger.kernel.org
-> Cc: linux-kernel@vger.kernel.org
-> Cc: linux-mm@kvack.org
+> +
+> +static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+> +{
+> +       struct mem_cgroup *iter;
+> +
+> +       oc->chosen_memcg = NULL;
+> +       oc->chosen_points = 0;
+> +
+> +       /*
+> +        * The oom_score is calculated for leaf memory cgroups (including
+> +        * the root memcg).
+> +        */
+> +       rcu_read_lock();
+> +       for_each_mem_cgroup_tree(iter, root) {
+> +               long score;
+> +
+> +               if (memcg_has_children(iter))
+> +                       continue;
 
-Those semantics make sense to me and the code looks good.
+&& iter != root_mem_cgroup ?
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> +
+> +               score = oom_evaluate_memcg(iter, oc->nodemask, oc->totalpages);
+> +
+> +               /*
+> +                * Ignore empty and non-eligible memory cgroups.
+> +                */
+> +               if (score == 0)
+> +                       continue;
+> +
+> +               /*
+> +                * If there are inflight OOM victims, we don't need
+> +                * to look further for new victims.
+> +                */
+> +               if (score == -1) {
+> +                       oc->chosen_memcg = INFLIGHT_VICTIM;
+> +                       mem_cgroup_iter_break(root, iter);
+> +                       break;
+> +               }
+> +
+
+Shouldn't there be a CSS_ONLINE check? Also instead of css_get at the
+end why not css_tryget_online() here and css_put for the previous
+selected one.
+
+> +               if (score > oc->chosen_points) {
+> +                       oc->chosen_points = score;
+> +                       oc->chosen_memcg = iter;
+> +               }
+> +       }
+> +
+> +       if (oc->chosen_memcg && oc->chosen_memcg != INFLIGHT_VICTIM)
+> +               css_get(&oc->chosen_memcg->css);
+> +
+> +       rcu_read_unlock();
+> +}
+> +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
