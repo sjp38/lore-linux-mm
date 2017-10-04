@@ -1,49 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B0976B0033
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 10:15:33 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id r18so5263313pgu.9
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 07:15:33 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z11sor3390046ite.135.2017.10.04.07.15.32
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C3DF6B0069
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 10:16:23 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id g10so8608354wrg.2
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 07:16:23 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y16sor6666100edc.22.2017.10.04.07.16.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 04 Oct 2017 07:15:32 -0700 (PDT)
-Date: Wed, 4 Oct 2017 07:15:28 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] mm/percpu.c: use smarter memory allocation for struct
- pcpu_alloc_info
-Message-ID: <20171004141528.GO3301751@devbig577.frc2.facebook.com>
-References: <nycvar.YSQ.7.76.1710031638450.5407@knanqh.ubzr>
- <20171003210540.GM3301751@devbig577.frc2.facebook.com>
- <nycvar.YSQ.7.76.1710031731130.5407@knanqh.ubzr>
+        Wed, 04 Oct 2017 07:16:22 -0700 (PDT)
+Date: Wed, 4 Oct 2017 17:16:20 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv3] mm: Account pud page tables
+Message-ID: <20171004141620.37qojkpftpmpgmxj@node.shutemov.name>
+References: <20171002080427.3320-1-kirill.shutemov@linux.intel.com>
+ <20171004134853.k2f4bah7csh6qebm@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <nycvar.YSQ.7.76.1710031731130.5407@knanqh.ubzr>
+In-Reply-To: <20171004134853.k2f4bah7csh6qebm@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicolas Pitre <nicolas.pitre@linaro.org>
-Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-Hello,
-
-On Tue, Oct 03, 2017 at 06:29:49PM -0400, Nicolas Pitre wrote:
-> Subject: [PATCH] percpu: don't forget to free the temporary struct pcpu_alloc_info
+On Wed, Oct 04, 2017 at 03:48:53PM +0200, Michal Hocko wrote:
+> On Mon 02-10-17 11:04:27, Kirill A. Shutemov wrote:
+> > On machine with 5-level paging support a process can allocate
+> > significant amount of memory and stay unnoticed by oom-killer and
+> > memory cgroup. The trick is to allocate a lot of PUD page tables.
+> > We don't account PUD page tables, only PMD and PTE.
+> > 
+> > We already addressed the same issue for PMD page tables, see
+> > dc6c9a35b66b ("mm: account pmd page tables to the process").
+> > Introduction 5-level paging bring the same issue for PUD page tables.
+> > 
+> > The patch expands accounting to PUD level.
 > 
-> Unlike the SMP case, the !SMP case does not free the memory for struct 
-> pcpu_alloc_info allocated in setup_per_cpu_areas(). And to give it a 
-> chance of being reused by the page allocator later, align it to a page 
-> boundary just like its size.
-> 
-> Signed-off-by: Nicolas Pitre <nico@linaro.org>
+> Can we skip the VmPUD part and reporting puds in the oom report please?
+> I would like to consolidate all levels into a single counter and carying
+> about one less user visible change will make it slightly easier. Or does
+> anybody need this exported to the userspace?
 
-Applied to percpu/for-4.15 w/ Dennis's ack.
-
-Thanks.
+Let me do this as a separate patch. I will also fold VmPMD into VmPTE.
 
 -- 
-tejun
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
