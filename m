@@ -1,67 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BFD116B0038
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 02:51:03 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id y138so7468181itc.13
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 23:51:03 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 32si5803254qtu.211.2017.10.03.23.51.02
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 819896B0038
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 03:25:57 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id y192so28825626pgd.0
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 00:25:57 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id bf3si11955647plb.498.2017.10.04.00.25.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Oct 2017 23:51:03 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v946ncmB119868
-	for <linux-mm@kvack.org>; Wed, 4 Oct 2017 02:51:02 -0400
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2dctpw03pd-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 04 Oct 2017 02:51:01 -0400
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Wed, 4 Oct 2017 07:50:59 +0100
-Subject: Re: [PATCH v3 00/20] Speculative page faults
-References: <CAADnVQLmSbLHwj9m33kpzAidJPvq3cbdnXjaew6oTLqHWrBbZQ@mail.gmail.com>
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Date: Wed, 4 Oct 2017 08:50:49 +0200
+        Wed, 04 Oct 2017 00:25:56 -0700 (PDT)
+Date: Wed, 4 Oct 2017 00:25:53 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v4 4/5] cramfs: add mmap support
+Message-ID: <20171004072553.GA24620@infradead.org>
+References: <20170927233224.31676-1-nicolas.pitre@linaro.org>
+ <20170927233224.31676-5-nicolas.pitre@linaro.org>
+ <20171001083052.GB17116@infradead.org>
+ <nycvar.YSQ.7.76.1710011805070.5407@knanqh.ubzr>
+ <CAFLxGvzfQrvU-8w7F26mez6fCQD+iS_qRJpLSU+2DniEGouEfA@mail.gmail.com>
+ <nycvar.YSQ.7.76.1710021931270.5407@knanqh.ubzr>
+ <20171003145732.GA8890@infradead.org>
+ <nycvar.YSQ.7.76.1710031107290.5407@knanqh.ubzr>
+ <20171003153659.GA31600@infradead.org>
+ <nycvar.YSQ.7.76.1710031137580.5407@knanqh.ubzr>
 MIME-Version: 1.0
-In-Reply-To: <CAADnVQLmSbLHwj9m33kpzAidJPvq3cbdnXjaew6oTLqHWrBbZQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Message-Id: <670c9a22-cf5b-3fab-b2f2-a72fbd4451c8@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <nycvar.YSQ.7.76.1710031137580.5407@knanqh.ubzr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexei Starovoitov <alexei.starovoitov@gmail.com>
-Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, kirill@shutemov.name, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, dave@stgolabs.net, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, haren@linux.vnet.ibm.com, Anshuman Khandual <khandual@linux.vnet.ibm.com>, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, "x86@kernel.org" <x86@kernel.org>
+To: Nicolas Pitre <nicolas.pitre@linaro.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Richard Weinberger <richard.weinberger@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-embedded@vger.kernel.org" <linux-embedded@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Chris Brandt <Chris.Brandt@renesas.com>
 
-On 25/09/2017 18:27, Alexei Starovoitov wrote:
-> On Mon, Sep 18, 2017 at 12:15 AM, Laurent Dufour
-> <ldufour@linux.vnet.ibm.com> wrote:
->> Despite the unprovable lockdep warning raised by Sergey, I didn't get any
->> feedback on this series.
->>
->> Is there a chance to get it moved upstream ?
-> 
-> what is the status ?
-> We're eagerly looking forward for this set to land,
-> since we have several use cases for tracing that
-> will build on top of this set as discussed at Plumbers.
+On Tue, Oct 03, 2017 at 11:40:28AM -0400, Nicolas Pitre wrote:
+> I provided that explanation several times by now in my cover letter. And 
+> separately even to you directly at least once.  What else should I do?
 
-Hi Alexei,
+You should do the right things instead of stating irrelevant things
+in your cover letter.  As said in my last mail: look at the VM_MIXEDMAP
+flag and how it is used by DAX, and you'll get out of the vma splitting
+business in the fault path.
 
-Based on Plumber's note [1], it sounds that the use case is tied to the BPF
-tracing where a call tp find_vma() call will be made on a process's context
-to fetch user space's symbols.
-
-Am I right ?
-Is the find_vma() call made in the context of the process owning the mm
-struct ?
-
-Thanks,
-Laurent.
-
-[1] https://etherpad.openstack.org/p/LPC2017_Tracing)
+If the fs/dax.c code scares you take a look at drivers/dax/device.c
+instead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
