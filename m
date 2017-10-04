@@ -1,53 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 332846B0253
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 17:00:37 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id g10so9404436wrg.2
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 14:00:37 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id o92si5463979eda.547.2017.10.04.14.00.34
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E37DC6B0069
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 17:24:28 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id k56so3830490qtc.1
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 14:24:28 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y142sor769296yby.2.2017.10.04.14.24.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 04 Oct 2017 14:00:34 -0700 (PDT)
-Date: Wed, 4 Oct 2017 17:00:27 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/2] Revert "vmalloc: back off when the current task is
- killed"
-Message-ID: <20171004210027.GA2973@cmpxchg.org>
-References: <20171003225504.GA966@cmpxchg.org>
- <20171004185813.GA2136@cmpxchg.org>
- <20171004185906.GB2136@cmpxchg.org>
- <ab688e7c-75c1-e942-ef44-44615d9fb394@I-love.SAKURA.ne.jp>
+        (Google Transport Security);
+        Wed, 04 Oct 2017 14:24:28 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ab688e7c-75c1-e942-ef44-44615d9fb394@I-love.SAKURA.ne.jp>
+In-Reply-To: <20171004201524.GA4174@castle>
+References: <20171004154638.710-1-guro@fb.com> <20171004154638.710-4-guro@fb.com>
+ <CALvZod6bwyoSWTv139y0wMidpZm5HcDu8RzVjF8U7GHxAzxSQw@mail.gmail.com> <20171004201524.GA4174@castle>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Wed, 4 Oct 2017 14:24:26 -0700
+Message-ID: <CALvZod45ObeQwq-pKeqyLe2bNwfKAr0majCbNfqPOEJL+AeiNw@mail.gmail.com>
+Subject: Re: [v10 3/6] mm, oom: cgroup-aware OOM killer
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alan Cox <alan@llwyncelyn.cymru>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Roman Gushchin <guro@fb.com>
+Cc: Linux MM <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Oct 05, 2017 at 05:49:43AM +0900, Tetsuo Handa wrote:
-> On 2017/10/05 3:59, Johannes Weiner wrote:
-> > But the justification to make that vmalloc() call fail like this isn't
-> > convincing, either. The patch mentions an OOM victim exhausting the
-> > memory reserves and thus deadlocking the machine. But the OOM killer
-> > is only one, improbable source of fatal signals. It doesn't make sense
-> > to fail allocations preemptively with plenty of memory in most cases.
-> 
-> By the time the current thread reaches do_exit(), fatal_signal_pending(current)
-> should become false. As far as I can guess, the source of fatal signal will be
-> tty_signal_session_leader(tty, exit_session) which is called just before
-> tty_ldisc_hangup(tty, cons_filp != NULL) rather than the OOM killer. I don't
-> know whether it is possible to make fatal_signal_pending(current) true inside
-> do_exit() though...
+>> > +               if (memcg_has_children(iter))
+>> > +                       continue;
+>>
+>> && iter != root_mem_cgroup ?
+>
+> Oh, sure. I had a stupid bug in my test script, which prevented me from
+> catching this. Thanks!
+>
+> This should fix the problem.
+> --
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 2e82625bd354..b3848bce4c86 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2807,7 +2807,8 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+>                  * We don't consider non-leaf non-oom_group memory cgroups
+>                  * as OOM victims.
+>                  */
+> -               if (memcg_has_children(iter) && !mem_cgroup_oom_group(iter))
+> +               if (memcg_has_children(iter) && iter != root_mem_cgroup &&
+> +                   !mem_cgroup_oom_group(iter))
+>                         continue;
 
-It's definitely not the OOM killer, the memory situation looks fine
-when this happens. I didn't look closer where the signal comes from.
+I think you are mixing the 3rd and 4th patch. The root_mem_cgroup
+check should be in 3rd while oom_group stuff should be in 4th.
 
-That said, we trigger this issue fairly easily. We tested the revert
-over night on a couple thousand machines, and it fixed the issue
-(whereas the control group still saw the crashes).
+
+>>
+>> Shouldn't there be a CSS_ONLINE check? Also instead of css_get at the
+>> end why not css_tryget_online() here and css_put for the previous
+>> selected one.
+>
+> Hm, why do we need to check this? I do not see, how we can choose
+> an OFFLINE memcg as a victim, tbh. Please, explain the problem.
+>
+
+Sorry about the confusion. There are two things. First, should we do a
+css_get on the newly selected memcg within the for loop when we still
+have a reference to it?
+
+Second, for the OFFLINE memcg, you are right oom_evaluate_memcg() will
+return 0 for offlined memcgs. Maybe no need to call
+oom_evaluate_memcg() for offlined memcgs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
