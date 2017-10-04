@@ -1,53 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B8766B0033
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 13:08:59 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id k123so10665201qke.5
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 10:08:59 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id g206si5613041qkb.542.2017.10.04.10.08.57
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 58CF46B0253
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 13:15:46 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id q75so6185488vkf.4
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 10:15:46 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n1si4140347qte.108.2017.10.04.10.15.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Oct 2017 10:08:57 -0700 (PDT)
-Subject: Re: [RFC] mmap(MAP_CONTIG)
-References: <21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com>
- <xa1tk20bxh5u.fsf@mina86.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <c00b355a-cfb7-a4e0-56a3-01430dc9e9f5@oracle.com>
-Date: Wed, 4 Oct 2017 10:08:50 -0700
-MIME-Version: 1.0
-In-Reply-To: <xa1tk20bxh5u.fsf@mina86.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+        Wed, 04 Oct 2017 10:15:45 -0700 (PDT)
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH 1/1] userfaultfd: selftest: exercise -EEXIST only in background transfer
+Date: Wed,  4 Oct 2017 19:15:41 +0200
+Message-Id: <20171004171541.1495-2-aarcange@redhat.com>
+In-Reply-To: <20171004171541.1495-1-aarcange@redhat.com>
+References: <20171004171541.1495-1-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Guy Shattah <sguy@mellanox.com>, Christoph Lameter <cl@linux.com>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: Pavel Emelyanov <xemul@virtuozzo.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On 10/04/2017 04:54 AM, Michal Nazarewicz wrote:
-> On Tue, Oct 03 2017, Mike Kravetz wrote:
->> At Plumbers this year, Guy Shattah and Christoph Lameter gave a presentation
->> titled 'User space contiguous memory allocation for DMA' [1].  The slides
->> point out the performance benefits of devices that can take advantage of
->> larger physically contiguous areas.
-> 
-> Issue I have is that kind of memory needed may depend on a device.  Some
-> may require contiguous blocks.  Some may support scatter-gather.  Some
-> may be behind IO-MMU and not care either way.
-> 
-> Furthermore, I feel dA(C)jA  vu.  Wasna??t dmabuf supposed to address this
-> issue?
+The fork child will quit after the last UFFDIO_COPY is run, so a
+repeated UFFDIO_COPY may not return -EEXIST. This change restricts the
+-EEXIST stress to the background transfer where the memory can't go
+away from under it.
 
-Thanks Michal,
+Also updated uffdio_zeropage, so the interface is consistent.
 
-I was unaware of dmabuf and am just now looking at capabilities.  The
-question is whether or not the IB driver writers requesting mmap(MAP_CONTIG)
-functionality could make use of dmabuf.  That is out of my are of expertise,
-so I will let them reply.
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ tools/testing/selftests/vm/userfaultfd.c | 25 ++++++++++++++++++++-----
+ 1 file changed, 20 insertions(+), 5 deletions(-)
 
--- 
-Mike Kravetz
+diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
+index a2c53a3d223d..de2f9ec8a87f 100644
+--- a/tools/testing/selftests/vm/userfaultfd.c
++++ b/tools/testing/selftests/vm/userfaultfd.c
+@@ -397,7 +397,7 @@ static void retry_copy_page(int ufd, struct uffdio_copy *uffdio_copy,
+ 	}
+ }
+ 
+-static int copy_page(int ufd, unsigned long offset)
++static int __copy_page(int ufd, unsigned long offset, bool retry)
+ {
+ 	struct uffdio_copy uffdio_copy;
+ 
+@@ -418,7 +418,7 @@ static int copy_page(int ufd, unsigned long offset)
+ 		fprintf(stderr, "UFFDIO_COPY unexpected copy %Ld\n",
+ 			uffdio_copy.copy), exit(1);
+ 	} else {
+-		if (test_uffdio_copy_eexist) {
++		if (test_uffdio_copy_eexist && retry) {
+ 			test_uffdio_copy_eexist = false;
+ 			retry_copy_page(ufd, &uffdio_copy, offset);
+ 		}
+@@ -427,6 +427,16 @@ static int copy_page(int ufd, unsigned long offset)
+ 	return 0;
+ }
+ 
++static int copy_page_retry(int ufd, unsigned long offset)
++{
++	return __copy_page(ufd, offset, true);
++}
++
++static int copy_page(int ufd, unsigned long offset)
++{
++	return __copy_page(ufd, offset, false);
++}
++
+ static void *uffd_poll_thread(void *arg)
+ {
+ 	unsigned long cpu = (unsigned long) arg;
+@@ -544,7 +554,7 @@ static void *background_thread(void *arg)
+ 	for (page_nr = cpu * nr_pages_per_cpu;
+ 	     page_nr < (cpu+1) * nr_pages_per_cpu;
+ 	     page_nr++)
+-		copy_page(uffd, page_nr * page_size);
++		copy_page_retry(uffd, page_nr * page_size);
+ 
+ 	return NULL;
+ }
+@@ -779,7 +789,7 @@ static void retry_uffdio_zeropage(int ufd,
+ 	}
+ }
+ 
+-static int uffdio_zeropage(int ufd, unsigned long offset)
++static int __uffdio_zeropage(int ufd, unsigned long offset, bool retry)
+ {
+ 	struct uffdio_zeropage uffdio_zeropage;
+ 	int ret;
+@@ -814,7 +824,7 @@ static int uffdio_zeropage(int ufd, unsigned long offset)
+ 			fprintf(stderr, "UFFDIO_ZEROPAGE unexpected %Ld\n",
+ 				uffdio_zeropage.zeropage), exit(1);
+ 		} else {
+-			if (test_uffdio_zeropage_eexist) {
++			if (test_uffdio_zeropage_eexist && retry) {
+ 				test_uffdio_zeropage_eexist = false;
+ 				retry_uffdio_zeropage(ufd, &uffdio_zeropage,
+ 						      offset);
+@@ -830,6 +840,11 @@ static int uffdio_zeropage(int ufd, unsigned long offset)
+ 	return 0;
+ }
+ 
++static int uffdio_zeropage(int ufd, unsigned long offset)
++{
++	return __uffdio_zeropage(ufd, offset, false);
++}
++
+ /* exercise UFFDIO_ZEROPAGE */
+ static int userfaultfd_zeropage_test(void)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
