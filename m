@@ -1,137 +1,187 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 06C296B0069
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 09:49:26 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id a12so11172379qka.7
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 06:49:26 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id j19si7212416qkh.286.2017.10.04.06.49.23
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 551386B0033
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 09:53:06 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id 22so3223058wrb.9
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 06:53:06 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l133sor2381367lfg.106.2017.10.04.06.53.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Oct 2017 06:49:24 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v94Dn3KU005413
-	for <linux-mm@kvack.org>; Wed, 4 Oct 2017 09:49:23 -0400
-Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com [202.81.31.145])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2dcwe4vsqq-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 04 Oct 2017 09:49:21 -0400
-Received: from localhost
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 4 Oct 2017 23:49:19 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v94DnGhJ46530790
-	for <linux-mm@kvack.org>; Thu, 5 Oct 2017 00:49:16 +1100
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v94DnKRg001730
-	for <linux-mm@kvack.org>; Thu, 5 Oct 2017 00:49:20 +1100
-Subject: Re: [RFC] mmap(MAP_CONTIG)
-References: <21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Wed, 4 Oct 2017 19:19:12 +0530
+        (Google Transport Security);
+        Wed, 04 Oct 2017 06:53:04 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Message-Id: <97c81533-5206-b130-1aeb-c5b9bfd93287@linux.vnet.ibm.com>
+In-Reply-To: <db28d6ff-77e5-ed59-c1b8-57c917564a68@arm.com>
+References: <20170921085922.11659-1-ganapatrao.kulkarni@cavium.com>
+ <20170921085922.11659-4-ganapatrao.kulkarni@cavium.com> <db28d6ff-77e5-ed59-c1b8-57c917564a68@arm.com>
+From: Ganapatrao Kulkarni <gklkml16@gmail.com>
+Date: Wed, 4 Oct 2017 19:23:03 +0530
+Message-ID: <CAKTKpr508ArR1RUSY8HnaOkp==zPZ2=P_6gcXOAfi9hJq6XcqA@mail.gmail.com>
+Subject: Re: [PATCH 3/4] iommu/arm-smmu-v3: Use NUMA memory allocations for
+ stream tables and comamnd queues
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Guy Shattah <sguy@mellanox.com>, Christoph Lameter <cl@linux.com>
+To: Robin Murphy <robin.murphy@arm.com>
+Cc: Ganapatrao Kulkarni <ganapatrao.kulkarni@cavium.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Will Deacon <Will.Deacon@arm.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Hanjun Guo <hanjun.guo@linaro.org>, Joerg Roedel <joro@8bytes.org>, vbabka@suse.cz, akpm@linux-foundation.org, mhocko@suse.com, Tomasz.Nowicki@cavium.com, Robert.Richter@cavium.com, jnair@caviumnetworks.com
 
-On 10/04/2017 05:26 AM, Mike Kravetz wrote:
-> At Plumbers this year, Guy Shattah and Christoph Lameter gave a presentation
-> titled 'User space contiguous memory allocation for DMA' [1].  The slides
-> point out the performance benefits of devices that can take advantage of
-> larger physically contiguous areas.
-> 
-> When such physically contiguous allocations are done today, they are done
-> within drivers themselves in an ad-hoc manner.  In addition to allocations
-> for DMA, allocations of this type are also performed for buffers used by
-> coprocessors and other acceleration engines.
-
-Right.
-
-> 
-> As mentioned in the presentation, posix specifies an interface to obtain
-> physically contiguous memory.  This is via typed memory objects as described
-> in the posix_typed_mem_open() man page.  Since Linux today does not follow
-> the posix typed memory object model, adding infrastructure for contiguous
-> memory allocations seems to be overkill.  Instead, a proposal was suggested
-> to add support via a mmap flag: MAP_CONTIG.
-
-Right.
-
-> 
-> mmap(MAP_CONTIG) would have the following semantics:
-> - The entire mapping (length size) would be backed by physically contiguous
->   pages.
-> - If 'length' physically contiguous pages can not be allocated, then mmap
->   will fail.
-> - MAP_CONTIG only works with MAP_ANONYMOUS mappings.
-> - MAP_CONTIG will lock the associated pages in memory.  As such, the same
->   privileges and limits that apply to mlock will also apply to MAP_CONTIG.
-> - A MAP_CONTIG mapping can not be expanded.
-
-Why ? May be we have memory around the edge of the existing mapping. Why
-give up before trying ?
-
-> - At fork time, private MAP_CONTIG mappings will be converted to regular
->   (non-MAP_CONTIG) mapping in the child.  As such a COW fault in the child
->   will not require a contiguous allocation.
-
-Makes sense but need to be documented as the child still knows that the buffer
-came from a mmap(MAP_CONTIG) call in the parent.
-
-> 
-> Some implementation considerations:
-> - alloc_contig_range() or similar will be used for allocations larger
->   than MAX_ORDER.
-
-As I had also mentioned during the presentation at Plumbers, there should be
-a fallback approach while attempting to allocate the contiguous memory.
-
-- If order < MAX_ORDER -> alloc_pages()
-- If order > MAX_ORDER -> alloc_contig_range()
-- If alloc_contig_range() fails attempt a CMA based allocation scheme
-  The CMA area should have been initialized at the boot exclusively for
-  this purpose (may be with a CONFIG option if some one wants to go for
-  this fallback at all) and use cma_alloc() on that area when we need
-  to service MAP_CONTIG requests.
-
-> - MAP_CONTIG should imply MAP_POPULATE.  At mmap time, all pages for the
->   mapping must be 'pre-allocated', and they can only be used for the mapping,
->   so it makes sense to 'fault in' all pages.
+Hi Robin,
 
 
-> - Using 'pre-allocated' pages in the fault paths may be intrusive.
+On Thu, Sep 21, 2017 at 5:28 PM, Robin Murphy <robin.murphy@arm.com> wrote:
+> [+Christoph and Marek]
+>
+> On 21/09/17 09:59, Ganapatrao Kulkarni wrote:
+>> Introduce smmu_alloc_coherent and smmu_free_coherent functions to
+>> allocate/free dma coherent memory from NUMA node associated with SMMU.
+>> Replace all calls of dmam_alloc_coherent with smmu_alloc_coherent
+>> for SMMU stream tables and command queues.
+>
+> This doesn't work - not only do you lose the 'managed' aspect and risk
+> leaking various tables on probe failure or device removal, but more
+> importantly, unless you add DMA syncs around all the CPU accesses to the
+> tables, you lose the critical 'coherent' aspect, and that's a horribly
+> invasive change that I really don't want to make.
 
-But we have already faulted in all of them for the mapping and they
-are also locked. Hence there should not be any page faults any more
-for the VMA. Am I missing something here ?
+this implementation is similar to function used to allocate memory for
+translation tables.
+why do you see it affects to stream tables and not to page tables.
+at runtime, both tables are accessed by SMMU only.
 
-> - We need to keep keep track of those pre-allocated pages until the vma is
->   tore down, especially if free_contig_range() must be called
+As said in cover letter, having stream table from respective NUMA node
+is yielding
+around 30% performance!
+please suggest, if there is any better way to address this issue?
 
-Right, probably tracking them as part of the vm_area_struct itself. 
+>
+> Christoph, Marek; how reasonable do you think it is to expect
+> dma_alloc_coherent() to be inherently NUMA-aware on NUMA-capable
+> systems? SWIOTLB looks fairly straightforward to fix up (for the simple
+> allocation case; I'm not sure it's even worth it for bounce-buffering),
+> but the likes of CMA might be a little trickier...
+>
+> Robin.
+>
+>> Signed-off-by: Ganapatrao Kulkarni <ganapatrao.kulkarni@cavium.com>
+>> ---
+>>  drivers/iommu/arm-smmu-v3.c | 57 ++++++++++++++++++++++++++++++++++++++++-----
+>>  1 file changed, 51 insertions(+), 6 deletions(-)
+>>
+>> diff --git a/drivers/iommu/arm-smmu-v3.c b/drivers/iommu/arm-smmu-v3.c
+>> index e67ba6c..bc4ba1f 100644
+>> --- a/drivers/iommu/arm-smmu-v3.c
+>> +++ b/drivers/iommu/arm-smmu-v3.c
+>> @@ -1158,6 +1158,50 @@ static void arm_smmu_init_bypass_stes(u64 *strtab, unsigned int nent)
+>>       }
+>>  }
+>>
+>> +static void *smmu_alloc_coherent(struct arm_smmu_device *smmu, size_t size,
+>> +             dma_addr_t *dma_handle, gfp_t gfp)
+>> +{
+>> +     struct device *dev = smmu->dev;
+>> +     void *pages;
+>> +     dma_addr_t dma;
+>> +     int numa_node = dev_to_node(dev);
+>> +
+>> +     pages = alloc_pages_exact_nid(numa_node, size, gfp | __GFP_ZERO);
+>> +     if (!pages)
+>> +             return NULL;
+>> +
+>> +     if (!(smmu->features & ARM_SMMU_FEAT_COHERENCY)) {
+>> +             dma = dma_map_single(dev, pages, size, DMA_TO_DEVICE);
+>> +             if (dma_mapping_error(dev, dma))
+>> +                     goto out_free;
+>> +             /*
+>> +              * We depend on the SMMU being able to work with any physical
+>> +              * address directly, so if the DMA layer suggests otherwise by
+>> +              * translating or truncating them, that bodes very badly...
+>> +              */
+>> +             if (dma != virt_to_phys(pages))
+>> +                     goto out_unmap;
+>> +     }
+>> +
+>> +     *dma_handle = (dma_addr_t)virt_to_phys(pages);
+>> +     return pages;
+>> +
+>> +out_unmap:
+>> +     dev_err(dev, "Cannot accommodate DMA translation for IOMMU page tables\n");
+>> +     dma_unmap_single(dev, dma, size, DMA_TO_DEVICE);
+>> +out_free:
+>> +     free_pages_exact(pages, size);
+>> +     return NULL;
+>> +}
+>> +
+>> +static void smmu_free_coherent(struct arm_smmu_device *smmu, size_t size,
+>> +             void *pages, dma_addr_t dma_handle)
+>> +{
+>> +     if (!(smmu->features & ARM_SMMU_FEAT_COHERENCY))
+>> +             dma_unmap_single(smmu->dev, dma_handle, size, DMA_TO_DEVICE);
+>> +     free_pages_exact(pages, size);
+>> +}
+>> +
+>>  static int arm_smmu_init_l2_strtab(struct arm_smmu_device *smmu, u32 sid)
+>>  {
+>>       size_t size;
+>> @@ -1172,7 +1216,7 @@ static int arm_smmu_init_l2_strtab(struct arm_smmu_device *smmu, u32 sid)
+>>       strtab = &cfg->strtab[(sid >> STRTAB_SPLIT) * STRTAB_L1_DESC_DWORDS];
+>>
+>>       desc->span = STRTAB_SPLIT + 1;
+>> -     desc->l2ptr = dmam_alloc_coherent(smmu->dev, size, &desc->l2ptr_dma,
+>> +     desc->l2ptr = smmu_alloc_coherent(smmu, size, &desc->l2ptr_dma,
+>>                                         GFP_KERNEL | __GFP_ZERO);
+>>       if (!desc->l2ptr) {
+>>               dev_err(smmu->dev,
+>> @@ -1487,7 +1531,7 @@ static void arm_smmu_domain_free(struct iommu_domain *domain)
+>>               struct arm_smmu_s1_cfg *cfg = &smmu_domain->s1_cfg;
+>>
+>>               if (cfg->cdptr) {
+>> -                     dmam_free_coherent(smmu_domain->smmu->dev,
+>> +                     smmu_free_coherent(smmu,
+>>                                          CTXDESC_CD_DWORDS << 3,
+>>                                          cfg->cdptr,
+>>                                          cfg->cdptr_dma);
+>> @@ -1515,7 +1559,7 @@ static int arm_smmu_domain_finalise_s1(struct arm_smmu_domain *smmu_domain,
+>>       if (asid < 0)
+>>               return asid;
+>>
+>> -     cfg->cdptr = dmam_alloc_coherent(smmu->dev, CTXDESC_CD_DWORDS << 3,
+>> +     cfg->cdptr = smmu_alloc_coherent(smmu, CTXDESC_CD_DWORDS << 3,
+>>                                        &cfg->cdptr_dma,
+>>                                        GFP_KERNEL | __GFP_ZERO);
+>>       if (!cfg->cdptr) {
+>> @@ -1984,7 +2028,7 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
+>>  {
+>>       size_t qsz = ((1 << q->max_n_shift) * dwords) << 3;
+>>
+>> -     q->base = dmam_alloc_coherent(smmu->dev, qsz, &q->base_dma, GFP_KERNEL);
+>> +     q->base = smmu_alloc_coherent(smmu, qsz, &q->base_dma, GFP_KERNEL);
+>>       if (!q->base) {
+>>               dev_err(smmu->dev, "failed to allocate queue (0x%zx bytes)\n",
+>>                       qsz);
+>> @@ -2069,7 +2113,7 @@ static int arm_smmu_init_strtab_2lvl(struct arm_smmu_device *smmu)
+>>                        size, smmu->sid_bits);
+>>
+>>       l1size = cfg->num_l1_ents * (STRTAB_L1_DESC_DWORDS << 3);
+>> -     strtab = dmam_alloc_coherent(smmu->dev, l1size, &cfg->strtab_dma,
+>> +     strtab = smmu_alloc_coherent(smmu, l1size, &cfg->strtab_dma,
+>>                                    GFP_KERNEL | __GFP_ZERO);
+>>       if (!strtab) {
+>>               dev_err(smmu->dev,
+>> @@ -2097,8 +2141,9 @@ static int arm_smmu_init_strtab_linear(struct arm_smmu_device *smmu)
+>>       u32 size;
+>>       struct arm_smmu_strtab_cfg *cfg = &smmu->strtab_cfg;
+>>
+>> +
+>>       size = (1 << smmu->sid_bits) * (STRTAB_STE_DWORDS << 3);
+>> -     strtab = dmam_alloc_coherent(smmu->dev, size, &cfg->strtab_dma,
+>> +     strtab = smmu_alloc_coherent(smmu, size, &cfg->strtab_dma,
+>>                                    GFP_KERNEL | __GFP_ZERO);
+>>       if (!strtab) {
+>>               dev_err(smmu->dev,
+>>
+>
 
-> 
-> Thoughts?
-> - Is such an interface useful?
-> - Any other ideas on how to achieve the same functionality?
-> - Any thoughts on implementation?
-> 
-> I have started down the path of pre-allocating contiguous pages at mmap
-> time and hanging those off the vma(vm_private_data) with some kludges to
-> use the pages at fault time.  It is really ugly, which is why I am not
-> sharing the code.  Hoping for some comments/suggestions.
-
-I am still wondering why wait till fault time not pre fault all of them
-and populate the page tables.
-> 
-> [1] https://www.linuxplumbersconf.org/2017/ocw/proposals/4669
-> 
+thanks
+Ganapat
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
