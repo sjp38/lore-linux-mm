@@ -1,88 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ABCC66B0268
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 17:29:34 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id y77so28529815pfd.2
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 14:29:34 -0700 (PDT)
-Received: from out4434.biz.mail.alibaba.com (out4434.biz.mail.alibaba.com. [47.88.44.34])
-        by mx.google.com with ESMTPS id y7si8253564pgq.723.2017.10.04.14.29.32
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C75566B0266
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 17:30:49 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id b124so12907022qke.1
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 14:30:49 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id q16sor1016460qtb.99.2017.10.04.14.30.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Oct 2017 14:29:33 -0700 (PDT)
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-Subject: [PATCH 0/3 v10] oom: capture unreclaimable slab info in oom message
-Date: Thu, 05 Oct 2017 05:29:07 +0800
-Message-Id: <1507152550-46205-1-git-send-email-yang.s@alibaba-inc.com>
+        (Google Transport Security);
+        Wed, 04 Oct 2017 14:30:49 -0700 (PDT)
+Subject: Re: [PATCH] cma: Take __GFP_NOWARN into account in cma_alloc()
+References: <20171004125447.15195-1-boris.brezillon@free-electrons.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <9b826ce7-9e4e-4e47-3fc0-e9c511ed93fc@redhat.com>
+Date: Wed, 4 Oct 2017 14:30:45 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20171004125447.15195-1-boris.brezillon@free-electrons.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org
-Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Boris Brezillon <boris.brezillon@free-electrons.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Jaewon Kim <jaewon31.kim@samsung.com>, David Airlie <airlied@linux.ie>, Daniel Vetter <daniel@ffwll.ch>, dri-devel@lists.freedesktop.org, Eric Anholt <eric@anholt.net>
 
+On 10/04/2017 05:54 AM, Boris Brezillon wrote:
+> cma_alloc() unconditionally prints an INFO message when the CMA
+> allocation fails. Make this message conditional on the non-presence of
+> __GFP_NOWARN in gfp_mask.
+> 
+> Signed-off-by: Boris Brezillon <boris.brezillon@free-electrons.com>
 
-Recently we ran into a oom issue, kernel panic due to no killable process.
-The dmesg shows huge unreclaimable slabs used almost 100% memory, but kdump doesn't capture vmcore due to some reason.
+Acked-by: Laura Abbott <labbott@redhat.com>
 
-So, it may sound better to capture unreclaimable slab info in oom message when kernel panic to aid trouble shooting and cover the corner case.
-Since kernel already panic, so capturing more information sounds worthy and doesn't bother normal oom killer.
-
-With the patchset, tools/vm/slabinfo has a new option, "-U", to show unreclaimable slab only.
-
-And, oom will print all non zero (num_objs * size != 0) unreclaimable slabs in oom killer message.
-
-For details, please see the commit log for each commit.
-
-Changelog v9 a??> v10:
-* Adopted the suggestion from Michal to just dump unreclaimable slab stats when !is_memcg_oom
-* Adopted the suggestion from Michal to print warning when unreclaimable slabs dump cana??t acquire the mutex
-
-Changelog v8 a??> v9:
-* Adopted Tetsuoa??s suggestion to protect global slab list traverse with mutex_trylock() to prevent from sleeping. Without the mutex acquired unreclaimable slbas will not be dumped.
-* Adopted the suggestion from Christoph to dump CONFIG_SLABINFO since it is pointless to keep it.
-* Rebased to 4.13-rc3
-
-Changelog v7 a??> v8:
-* Adopted Michala??s suggestion to dump unreclaim slab info when unreclaimable slabs amount > total user memory. Not only in oom panic path.
-
-Changelog v6 -> v7:
-* Added unreclaim_slabs_oom_ratio proc knob, unreclaimable slabs info will be dumped when unreclaimable slabs amount : all user memory > the ratio
-
-Changelog v5 a??> v6:
-* Fixed a checkpatch.pl warning for patch #2
-
-Changelog v4 a??> v5:
-* Solved the comments from David
-* Build test SLABINFO = n
-
-Changelog v3 a??> v4:
-* Solved the comments from David
-* Added Davida??s Acked-by in patch 1
-
-Changelog v2 a??> v3:
-* Show used size and total size of each kmem cache per Davida??s comment
-
-Changelog v1 a??> v2:
-* Removed the original patch 1 (a??mm: slab: output reclaimable flag in /proc/slabinfoa??) since Christoph suggested it might break the compatibility and /proc/slabinfo is legacy
-* Added Christopha??s Acked-by
-* Removed acquiring slab_mutex per Tetsuoa??s comment
-
-
-Yang Shi (3):
-      tools: slabinfo: add "-U" option to show unreclaimable slabs only
-      mm: slabinfo: dump CONFIG_SLABINFO
-      mm: oom: show unreclaimable slab info when unreclaimable slabs > user memory
-
- init/Kconfig        |  6 ------
- mm/memcontrol.c     |  2 --
- mm/oom_kill.c       | 27 +++++++++++++++++++++++++--
- mm/slab.c           |  2 --
- mm/slab.h           |  2 ++
- mm/slab_common.c    | 38 +++++++++++++++++++++++++++++++++++---
- mm/slub.c           |  2 --
- tools/vm/slabinfo.c | 11 ++++++++++-
- 8 files changed, 72 insertions(+), 18 deletions(-)
+> ---
+> Hello,
+> 
+> This patch aims at removing INFO messages that are displayed when the
+> VC4 driver tries to allocate buffer objects. From the driver perspective
+> an allocation failure is acceptable, and the driver can possibly do
+> something to make following allocation succeed (like flushing the VC4
+> internal cache).
+> 
+> Also, I don't understand why this message is only an INFO message, and
+> not a WARN (pr_warn()). Please let me know if you have good reasons to
+> keep it as an unconditional pr_info().
+> 
+> Thanks,
+> 
+> Boris
+> ---
+>  mm/cma.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/cma.c b/mm/cma.c
+> index c0da318c020e..022e52bd8370 100644
+> --- a/mm/cma.c
+> +++ b/mm/cma.c
+> @@ -460,7 +460,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
+>  
+>  	trace_cma_alloc(pfn, page, count, align);
+>  
+> -	if (ret) {
+> +	if (ret && !(gfp_mask & __GFP_NOWARN)) {
+>  		pr_info("%s: alloc failed, req-size: %zu pages, ret: %d\n",
+>  			__func__, count, ret);
+>  		cma_debug_show_areas(cma);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
