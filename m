@@ -1,71 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C75566B0266
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 17:30:49 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id b124so12907022qke.1
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 14:30:49 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id q16sor1016460qtb.99.2017.10.04.14.30.48
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1884B6B025F
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 17:42:51 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id s185so2225963oif.3
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 14:42:51 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id i11si6729170oih.357.2017.10.04.14.42.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 04 Oct 2017 14:30:49 -0700 (PDT)
-Subject: Re: [PATCH] cma: Take __GFP_NOWARN into account in cma_alloc()
-References: <20171004125447.15195-1-boris.brezillon@free-electrons.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <9b826ce7-9e4e-4e47-3fc0-e9c511ed93fc@redhat.com>
-Date: Wed, 4 Oct 2017 14:30:45 -0700
-MIME-Version: 1.0
-In-Reply-To: <20171004125447.15195-1-boris.brezillon@free-electrons.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 04 Oct 2017 14:42:49 -0700 (PDT)
+Subject: Re: [PATCH 1/2] Revert "vmalloc: back off when the current task is killed"
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20171003225504.GA966@cmpxchg.org>
+	<20171004185813.GA2136@cmpxchg.org>
+	<20171004185906.GB2136@cmpxchg.org>
+	<ab688e7c-75c1-e942-ef44-44615d9fb394@I-love.SAKURA.ne.jp>
+	<20171004210027.GA2973@cmpxchg.org>
+In-Reply-To: <20171004210027.GA2973@cmpxchg.org>
+Message-Id: <201710050642.JJI34818.QFSHJOMOtFOLFV@I-love.SAKURA.ne.jp>
+Date: Thu, 5 Oct 2017 06:42:38 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boris Brezillon <boris.brezillon@free-electrons.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Jaewon Kim <jaewon31.kim@samsung.com>, David Airlie <airlied@linux.ie>, Daniel Vetter <daniel@ffwll.ch>, dri-devel@lists.freedesktop.org, Eric Anholt <eric@anholt.net>
+To: hannes@cmpxchg.org
+Cc: akpm@linux-foundation.org, alan@llwyncelyn.cymru, hch@lst.de, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 10/04/2017 05:54 AM, Boris Brezillon wrote:
-> cma_alloc() unconditionally prints an INFO message when the CMA
-> allocation fails. Make this message conditional on the non-presence of
-> __GFP_NOWARN in gfp_mask.
+Johannes Weiner wrote:
+> On Thu, Oct 05, 2017 at 05:49:43AM +0900, Tetsuo Handa wrote:
+> > On 2017/10/05 3:59, Johannes Weiner wrote:
+> > > But the justification to make that vmalloc() call fail like this isn't
+> > > convincing, either. The patch mentions an OOM victim exhausting the
+> > > memory reserves and thus deadlocking the machine. But the OOM killer
+> > > is only one, improbable source of fatal signals. It doesn't make sense
+> > > to fail allocations preemptively with plenty of memory in most cases.
+> > 
+> > By the time the current thread reaches do_exit(), fatal_signal_pending(current)
+> > should become false. As far as I can guess, the source of fatal signal will be
+> > tty_signal_session_leader(tty, exit_session) which is called just before
+> > tty_ldisc_hangup(tty, cons_filp != NULL) rather than the OOM killer. I don't
+> > know whether it is possible to make fatal_signal_pending(current) true inside
+> > do_exit() though...
 > 
-> Signed-off-by: Boris Brezillon <boris.brezillon@free-electrons.com>
+> It's definitely not the OOM killer, the memory situation looks fine
+> when this happens. I didn't look closer where the signal comes from.
+> 
 
-Acked-by: Laura Abbott <labbott@redhat.com>
+Then, we could check tsk_is_oom_victim() instead of fatal_signal_pending().
 
-> ---
-> Hello,
-> 
-> This patch aims at removing INFO messages that are displayed when the
-> VC4 driver tries to allocate buffer objects. From the driver perspective
-> an allocation failure is acceptable, and the driver can possibly do
-> something to make following allocation succeed (like flushing the VC4
-> internal cache).
-> 
-> Also, I don't understand why this message is only an INFO message, and
-> not a WARN (pr_warn()). Please let me know if you have good reasons to
-> keep it as an unconditional pr_info().
-> 
-> Thanks,
-> 
-> Boris
-> ---
->  mm/cma.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/cma.c b/mm/cma.c
-> index c0da318c020e..022e52bd8370 100644
-> --- a/mm/cma.c
-> +++ b/mm/cma.c
-> @@ -460,7 +460,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
->  
->  	trace_cma_alloc(pfn, page, count, align);
->  
-> -	if (ret) {
-> +	if (ret && !(gfp_mask & __GFP_NOWARN)) {
->  		pr_info("%s: alloc failed, req-size: %zu pages, ret: %d\n",
->  			__func__, count, ret);
->  		cma_debug_show_areas(cma);
+> That said, we trigger this issue fairly easily. We tested the revert
+> over night on a couple thousand machines, and it fixed the issue
+> (whereas the control group still saw the crashes).
 > 
 
 --
