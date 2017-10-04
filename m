@@ -1,119 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A9606B0261
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 11:48:24 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id k10so5852099wrk.23
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 08:48:24 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id 82si7772176ljc.195.2017.10.04.08.48.22
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FFF56B0033
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 12:16:16 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id g62so4998227pfk.6
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 09:16:16 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b46sor3440443otd.125.2017.10.04.09.16.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Oct 2017 08:48:23 -0700 (PDT)
-From: Roman Gushchin <guro@fb.com>
-Subject: [v10 5/6] mm, oom: add cgroup v2 mount option for cgroup-aware OOM killer
-Date: Wed, 4 Oct 2017 16:46:37 +0100
-Message-ID: <20171004154638.710-6-guro@fb.com>
-In-Reply-To: <20171004154638.710-1-guro@fb.com>
-References: <20171004154638.710-1-guro@fb.com>
+        (Google Transport Security);
+        Wed, 04 Oct 2017 09:16:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20171004125447.15195-1-boris.brezillon@free-electrons.com>
+References: <20171004125447.15195-1-boris.brezillon@free-electrons.com>
+From: Jaewon Kim <jaewon31.kim@gmail.com>
+Date: Thu, 5 Oct 2017 01:16:14 +0900
+Message-ID: <CAJrd-Ut0jjDrf-+04CKEVx9+8St6fGA4BEtm5=Wdt43ygXyx4A@mail.gmail.com>
+Subject: Re: [PATCH] cma: Take __GFP_NOWARN into account in cma_alloc()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Boris Brezillon <boris.brezillon@free-electrons.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Laura Abbott <labbott@redhat.com>, Jaewon Kim <jaewon31.kim@samsung.com>, David Airlie <airlied@linux.ie>, Daniel Vetter <daniel@ffwll.ch>, dri-devel@lists.freedesktop.org, Eric Anholt <eric@anholt.net>
 
-Add a "groupoom" cgroup v2 mount option to enable the cgroup-aware
-OOM killer. If not set, the OOM selection is performed in
-a "traditional" per-process way.
+Hello
 
-The behavior can be changed dynamically by remounting the cgroupfs.
+2017-10-04 21:54 GMT+09:00 Boris Brezillon <boris.brezillon@free-electrons.com>:
+> cma_alloc() unconditionally prints an INFO message when the CMA
+> allocation fails. Make this message conditional on the non-presence of
+> __GFP_NOWARN in gfp_mask.
+>
+> Signed-off-by: Boris Brezillon <boris.brezillon@free-electrons.com>
+> ---
+> Hello,
+>
+> This patch aims at removing INFO messages that are displayed when the
+> VC4 driver tries to allocate buffer objects. From the driver perspective
+> an allocation failure is acceptable, and the driver can possibly do
+> something to make following allocation succeed (like flushing the VC4
+> internal cache).
+When I made the patch, there was no GFP.
+In my opinion, it is a good idea removing log in case of __GFP_NOWARN.
+>
+> Also, I don't understand why this message is only an INFO message, and
+> not a WARN (pr_warn()). Please let me know if you have good reasons to
+> keep it as an unconditional pr_info().
+Thank to Michal Hocko, I changed to pr_info rather than just printk in
+my first patch code.
+https://marc.info/?l=linux-mm&m=148300462103801&w=2
+I thought it is just info. It can be pr_warn if need.
 
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: kernel-team@fb.com
-Cc: cgroups@vger.kernel.org
-Cc: linux-doc@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
----
- include/linux/cgroup-defs.h |  5 +++++
- kernel/cgroup/cgroup.c      | 10 ++++++++++
- mm/memcontrol.c             |  3 +++
- 3 files changed, 18 insertions(+)
-
-diff --git a/include/linux/cgroup-defs.h b/include/linux/cgroup-defs.h
-index 3e55bbd31ad1..cae5343a8b21 100644
---- a/include/linux/cgroup-defs.h
-+++ b/include/linux/cgroup-defs.h
-@@ -80,6 +80,11 @@ enum {
- 	 * Enable cpuset controller in v1 cgroup to use v2 behavior.
- 	 */
- 	CGRP_ROOT_CPUSET_V2_MODE = (1 << 4),
-+
-+	/*
-+	 * Enable cgroup-aware OOM killer.
-+	 */
-+	CGRP_GROUP_OOM = (1 << 5),
- };
- 
- /* cftype->flags */
-diff --git a/kernel/cgroup/cgroup.c b/kernel/cgroup/cgroup.c
-index c3421ee0d230..8d8aa46ff930 100644
---- a/kernel/cgroup/cgroup.c
-+++ b/kernel/cgroup/cgroup.c
-@@ -1709,6 +1709,9 @@ static int parse_cgroup_root_flags(char *data, unsigned int *root_flags)
- 		if (!strcmp(token, "nsdelegate")) {
- 			*root_flags |= CGRP_ROOT_NS_DELEGATE;
- 			continue;
-+		} else if (!strcmp(token, "groupoom")) {
-+			*root_flags |= CGRP_GROUP_OOM;
-+			continue;
- 		}
- 
- 		pr_err("cgroup2: unknown option \"%s\"\n", token);
-@@ -1725,6 +1728,11 @@ static void apply_cgroup_root_flags(unsigned int root_flags)
- 			cgrp_dfl_root.flags |= CGRP_ROOT_NS_DELEGATE;
- 		else
- 			cgrp_dfl_root.flags &= ~CGRP_ROOT_NS_DELEGATE;
-+
-+		if (root_flags & CGRP_GROUP_OOM)
-+			cgrp_dfl_root.flags |= CGRP_GROUP_OOM;
-+		else
-+			cgrp_dfl_root.flags &= ~CGRP_GROUP_OOM;
- 	}
- }
- 
-@@ -1732,6 +1740,8 @@ static int cgroup_show_options(struct seq_file *seq, struct kernfs_root *kf_root
- {
- 	if (cgrp_dfl_root.flags & CGRP_ROOT_NS_DELEGATE)
- 		seq_puts(seq, ",nsdelegate");
-+	if (cgrp_dfl_root.flags & CGRP_GROUP_OOM)
-+		seq_puts(seq, ",groupoom");
- 	return 0;
- }
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 1fcd6cc353d5..2e82625bd354 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2865,6 +2865,9 @@ bool mem_cgroup_select_oom_victim(struct oom_control *oc)
- 	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys))
- 		return false;
- 
-+	if (!(cgrp_dfl_root.flags & CGRP_GROUP_OOM))
-+		return false;
-+
- 	if (oc->memcg)
- 		root = oc->memcg;
- 	else
--- 
-2.13.6
+Thank you
+Jaewon Kim
+>
+> Thanks,
+>
+> Boris
+> ---
+>  mm/cma.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/mm/cma.c b/mm/cma.c
+> index c0da318c020e..022e52bd8370 100644
+> --- a/mm/cma.c
+> +++ b/mm/cma.c
+> @@ -460,7 +460,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
+>
+>         trace_cma_alloc(pfn, page, count, align);
+>
+> -       if (ret) {
+> +       if (ret && !(gfp_mask & __GFP_NOWARN)) {
+>                 pr_info("%s: alloc failed, req-size: %zu pages, ret: %d\n",
+>                         __func__, count, ret);
+>                 cma_debug_show_areas(cma);
+> --
+> 2.11.0
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
