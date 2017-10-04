@@ -1,75 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A84A66B0033
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 10:04:15 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id v78so1717576pgb.4
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 07:04:15 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l124si817921pgl.128.2017.10.04.07.04.14
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B0976B0033
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 10:15:33 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id r18so5263313pgu.9
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 07:15:33 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z11sor3390046ite.135.2017.10.04.07.15.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 04 Oct 2017 07:04:14 -0700 (PDT)
-Date: Wed, 4 Oct 2017 16:04:10 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v9 08/12] mm: zero reserved and unavailable struct pages
-Message-ID: <20171004140410.2w2zf2gbutdxunir@dhcp22.suse.cz>
-References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
- <20170920201714.19817-9-pasha.tatashin@oracle.com>
- <20171003131817.omzbam3js67edp3s@dhcp22.suse.cz>
- <691dba28-718c-e9a9-d006-88505eb5cd7e@oracle.com>
- <20171004085636.w2rnwf5xxhahzuy7@dhcp22.suse.cz>
- <9198a33d-cd40-dd70-4823-7f70c57ef9a2@oracle.com>
- <20171004125743.fm6mf2artbga76et@dhcp22.suse.cz>
- <d743668c-6b7e-1775-a5b8-d6e997537990@oracle.com>
+        (Google Transport Security);
+        Wed, 04 Oct 2017 07:15:32 -0700 (PDT)
+Date: Wed, 4 Oct 2017 07:15:28 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] mm/percpu.c: use smarter memory allocation for struct
+ pcpu_alloc_info
+Message-ID: <20171004141528.GO3301751@devbig577.frc2.facebook.com>
+References: <nycvar.YSQ.7.76.1710031638450.5407@knanqh.ubzr>
+ <20171003210540.GM3301751@devbig577.frc2.facebook.com>
+ <nycvar.YSQ.7.76.1710031731130.5407@knanqh.ubzr>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d743668c-6b7e-1775-a5b8-d6e997537990@oracle.com>
+In-Reply-To: <nycvar.YSQ.7.76.1710031731130.5407@knanqh.ubzr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pasha Tatashin <pasha.tatashin@oracle.com>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: Nicolas Pitre <nicolas.pitre@linaro.org>
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 04-10-17 09:28:55, Pasha Tatashin wrote:
+Hello,
+
+On Tue, Oct 03, 2017 at 06:29:49PM -0400, Nicolas Pitre wrote:
+> Subject: [PATCH] percpu: don't forget to free the temporary struct pcpu_alloc_info
 > 
-> > I am not really familiar with the trim_low_memory_range code path. I am
-> > not even sure we have to care about it because nobody should be walking
-> > pfns outside of any zone.
+> Unlike the SMP case, the !SMP case does not free the memory for struct 
+> pcpu_alloc_info allocated in setup_per_cpu_areas(). And to give it a 
+> chance of being reused by the page allocator later, align it to a page 
+> boundary just like its size.
 > 
-> According to commit comments first 4K belongs to BIOS, so I think the memory
-> exists but BIOS may or may not report it to Linux. So, reserve it to make
-> sure we never touch it.
+> Signed-off-by: Nicolas Pitre <nico@linaro.org>
 
-Yes and that memory should be outside of any zones, no?
+Applied to percpu/for-4.15 w/ Dennis's ack.
 
-> > I am worried that this patch adds a code which
-> > is not really used and it will just stay that way for ever because
-> > nobody will dare to change it as it is too obscure and not explained
-> > very well.
-> 
-> I could explain mine code better. Perhaps add more comments, and explain
-> when it can be removed?
-
-More explanation would be definitely helpful
-
-> > trim_low_memory_range is a good example of this. Why do we
-> > even reserve this range from the memory block allocator? The memory
-> > shouldn't be backed by any real memory and thus not in the allocator in
-> > the first place, no?
-> > 
-> 
-> Since it is not enforced in memblock that everything in reserved list must
-> be part of memory list, we can have it, and we need to make sure kernel does
-> not panic. Otherwise, it is very hard to detect such bugs.
-
-So, should we report such a memblock reservation API (ab)use to the log?
-Are you actually sure that trim_low_memory_range is doing a sane and
-really needed thing? In other words do we have a zone which contains
-this no-memory backed pfns?
+Thanks.
 
 -- 
-Michal Hocko
-SUSE Labs
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
