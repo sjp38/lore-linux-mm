@@ -1,67 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B6DB6B0038
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 02:03:50 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id k15so5438706wrc.1
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 23:03:50 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u27si12201604wrf.285.2017.10.03.23.03.48
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BFD116B0038
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 02:51:03 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id y138so7468181itc.13
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 23:51:03 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 32si5803254qtu.211.2017.10.03.23.51.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 03 Oct 2017 23:03:49 -0700 (PDT)
-Subject: Re: [PATCHv3] mm: Account pud page tables
-References: <20171002080427.3320-1-kirill.shutemov@linux.intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <cb28b818-1927-1a36-578b-7ebaa8d1f381@suse.cz>
-Date: Wed, 4 Oct 2017 08:03:47 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Oct 2017 23:51:03 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v946ncmB119868
+	for <linux-mm@kvack.org>; Wed, 4 Oct 2017 02:51:02 -0400
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2dctpw03pd-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 04 Oct 2017 02:51:01 -0400
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Wed, 4 Oct 2017 07:50:59 +0100
+Subject: Re: [PATCH v3 00/20] Speculative page faults
+References: <CAADnVQLmSbLHwj9m33kpzAidJPvq3cbdnXjaew6oTLqHWrBbZQ@mail.gmail.com>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Wed, 4 Oct 2017 08:50:49 +0200
 MIME-Version: 1.0
-In-Reply-To: <20171002080427.3320-1-kirill.shutemov@linux.intel.com>
+In-Reply-To: <CAADnVQLmSbLHwj9m33kpzAidJPvq3cbdnXjaew6oTLqHWrBbZQ@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+Message-Id: <670c9a22-cf5b-3fab-b2f2-a72fbd4451c8@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>
+To: Alexei Starovoitov <alexei.starovoitov@gmail.com>
+Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, kirill@shutemov.name, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, dave@stgolabs.net, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, haren@linux.vnet.ibm.com, Anshuman Khandual <khandual@linux.vnet.ibm.com>, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, "x86@kernel.org" <x86@kernel.org>
 
-On 10/02/2017 10:04 AM, Kirill A. Shutemov wrote:
-> On machine with 5-level paging support a process can allocate
-> significant amount of memory and stay unnoticed by oom-killer and
-> memory cgroup. The trick is to allocate a lot of PUD page tables.
-> We don't account PUD page tables, only PMD and PTE.
+On 25/09/2017 18:27, Alexei Starovoitov wrote:
+> On Mon, Sep 18, 2017 at 12:15 AM, Laurent Dufour
+> <ldufour@linux.vnet.ibm.com> wrote:
+>> Despite the unprovable lockdep warning raised by Sergey, I didn't get any
+>> feedback on this series.
+>>
+>> Is there a chance to get it moved upstream ?
 > 
-> We already addressed the same issue for PMD page tables, see
-> dc6c9a35b66b ("mm: account pmd page tables to the process").
-> Introduction 5-level paging bring the same issue for PUD page tables.
-> 
-> The patch expands accounting to PUD level.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
+> what is the status ?
+> We're eagerly looking forward for this set to land,
+> since we have several use cases for tracing that
+> will build on top of this set as discussed at Plumbers.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Hi Alexei,
 
-Small fix below:
+Based on Plumber's note [1], it sounds that the use case is tied to the BPF
+tracing where a call tp find_vma() call will be made on a process's context
+to fetch user space's symbols.
 
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -25,7 +25,7 @@
->  
->  void task_mem(struct seq_file *m, struct mm_struct *mm)
->  {
-> -	unsigned long text, lib, swap, ptes, pmds, anon, file, shmem;
-> +	unsigned long text, lib, swap, ptes, pmds, puds, anon, file, shmem;
->  	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss;
->  
->  	anon = get_mm_counter(mm, MM_ANONPAGES);
-> @@ -51,6 +51,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
->  	swap = get_mm_counter(mm, MM_SWAPENTS);
->  	ptes = PTRS_PER_PTE * sizeof(pte_t) * atomic_long_read(&mm->nr_ptes);
->  	pmds = PTRS_PER_PMD * sizeof(pmd_t) * mm_nr_pmds(mm);
-> +	puds = PTRS_PER_PUD * sizeof(pmd_t) * mm_nr_puds(mm);
+Am I right ?
+Is the find_vma() call made in the context of the process owning the mm
+struct ?
 
-				     ^ pud_t ?
+Thanks,
+Laurent.
+
+[1] https://etherpad.openstack.org/p/LPC2017_Tracing)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
