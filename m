@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E42C56B0260
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 17:29:22 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id l188so15051756pfc.7
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 14:29:22 -0700 (PDT)
-Received: from out0-241.mail.aliyun.com (out0-241.mail.aliyun.com. [140.205.0.241])
-        by mx.google.com with ESMTPS id t9si6746170pfl.418.2017.10.04.14.29.21
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D0AB6B0261
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 17:29:23 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id j64so15278448pfj.6
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 14:29:23 -0700 (PDT)
+Received: from out0-211.mail.aliyun.com (out0-211.mail.aliyun.com. [140.205.0.211])
+        by mx.google.com with ESMTPS id g207si3155004pfb.460.2017.10.04.14.29.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Oct 2017 14:29:21 -0700 (PDT)
+        Wed, 04 Oct 2017 14:29:22 -0700 (PDT)
 From: "Yang Shi" <yang.s@alibaba-inc.com>
-Subject: [PATCH 3/3] mm: oom: show unreclaimable slab info when unreclaimable slabs > user memory
-Date: Thu, 05 Oct 2017 05:29:10 +0800
-Message-Id: <1507152550-46205-4-git-send-email-yang.s@alibaba-inc.com>
+Subject: [PATCH 2/3] mm: slabinfo: dump CONFIG_SLABINFO
+Date: Thu, 05 Oct 2017 05:29:09 +0800
+Message-Id: <1507152550-46205-3-git-send-email-yang.s@alibaba-inc.com>
 In-Reply-To: <1507152550-46205-1-git-send-email-yang.s@alibaba-inc.com>
 References: <1507152550-46205-1-git-send-email-yang.s@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,156 +20,118 @@ List-ID: <linux-mm.kvack.org>
 To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org
 Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Kernel may panic when oom happens without killable process sometimes it
-is caused by huge unreclaimable slabs used by kernel.
+According to the discussion with Christoph [1], it sounds it is pointless
+to keep CONFIG_SLABINFO around.
 
-Although kdump could help debug such problem, however, kdump is not
-available on all architectures and it might be malfunction sometime.
-And, since kernel already panic it is worthy capturing such information
-in dmesg to aid touble shooting.
+This patch just remove CONFIG_SLABINFO config option, but /proc/slabinfo
+is still available.
 
-Print out unreclaimable slab info (used size and total size) which
-actual memory usage is not zero (num_objs * size != 0) when
-unreclaimable slabs amount is greater than total user memory (LRU
-pages).
-
-The output looks like:
-
-Unreclaimable slab info:
-Name                      Used          Total
-rpc_buffers               31KB         31KB
-rpc_tasks                  7KB          7KB
-ebitmap_node            1964KB       1964KB
-avtab_node              5024KB       5024KB
-xfs_buf                 1402KB       1402KB
-xfs_ili                  134KB        134KB
-xfs_efi_item             115KB        115KB
-xfs_efd_item             115KB        115KB
-xfs_buf_item             134KB        134KB
-xfs_log_item_desc        342KB        342KB
-xfs_trans               1412KB       1412KB
-xfs_ifork                212KB        212KB
+[1] https://marc.info/?l=linux-kernel&m=150695909709711&w=2
 
 Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
 ---
- mm/oom_kill.c    | 27 +++++++++++++++++++++++++--
- mm/slab.h        |  2 ++
- mm/slab_common.c | 35 +++++++++++++++++++++++++++++++++++
- 3 files changed, 62 insertions(+), 2 deletions(-)
+ init/Kconfig     | 6 ------
+ mm/memcontrol.c  | 2 --
+ mm/slab.c        | 2 --
+ mm/slab_common.c | 3 ---
+ mm/slub.c        | 2 --
+ 5 files changed, 15 deletions(-)
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index dee0f75..3023919 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -44,6 +44,7 @@
+diff --git a/init/Kconfig b/init/Kconfig
+index 78cb246..5d3c80a 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1657,12 +1657,6 @@ config HAVE_GENERIC_DMA_COHERENT
+ 	bool
+ 	default n
  
- #include <asm/tlb.h>
- #include "internal.h"
-+#include "slab.h"
+-config SLABINFO
+-	bool
+-	depends on PROC_FS
+-	depends on SLAB || SLUB_DEBUG
+-	default y
+-
+ config RT_MUTEXES
+ 	bool
  
- #define CREATE_TRACE_POINTS
- #include <trace/events/oom.h>
-@@ -161,6 +162,25 @@ static bool oom_unkillable_task(struct task_struct *p,
- 	return false;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index d5f3a62..c741063 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4049,7 +4049,6 @@ static ssize_t memcg_write_event_control(struct kernfs_open_file *of,
+ 		.write = mem_cgroup_reset,
+ 		.read_u64 = mem_cgroup_read_u64,
+ 	},
+-#ifdef CONFIG_SLABINFO
+ 	{
+ 		.name = "kmem.slabinfo",
+ 		.seq_start = memcg_slab_start,
+@@ -4057,7 +4056,6 @@ static ssize_t memcg_write_event_control(struct kernfs_open_file *of,
+ 		.seq_stop = memcg_slab_stop,
+ 		.seq_show = memcg_slab_show,
+ 	},
+-#endif
+ 	{
+ 		.name = "kmem.tcp.limit_in_bytes",
+ 		.private = MEMFILE_PRIVATE(_TCP, RES_LIMIT),
+diff --git a/mm/slab.c b/mm/slab.c
+index 04dec48..5743a51 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -4096,7 +4096,6 @@ static void cache_reap(struct work_struct *w)
+ 	schedule_delayed_work(work, round_jiffies_relative(REAPTIMEOUT_AC));
  }
  
-+/*
-+ * Print out unreclaimble slabs info when unreclaimable slabs amount is greater
-+ * than all user memory (LRU pages)
-+ */
-+static bool is_dump_unreclaim_slabs(void)
-+{
-+	unsigned long nr_lru;
-+
-+	nr_lru = global_node_page_state(NR_ACTIVE_ANON) +
-+		 global_node_page_state(NR_INACTIVE_ANON) +
-+		 global_node_page_state(NR_ACTIVE_FILE) +
-+		 global_node_page_state(NR_INACTIVE_FILE) +
-+		 global_node_page_state(NR_ISOLATED_ANON) +
-+		 global_node_page_state(NR_ISOLATED_FILE) +
-+		 global_node_page_state(NR_UNEVICTABLE);
-+
-+	return (global_node_page_state(NR_SLAB_UNRECLAIMABLE) > nr_lru);
-+}
-+
- /**
-  * oom_badness - heuristic function to determine which candidate task to kill
-  * @p: task struct of which task we should calculate
-@@ -420,10 +440,13 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
- 
- 	cpuset_print_current_mems_allowed();
- 	dump_stack();
--	if (oc->memcg)
-+	if (is_memcg_oom(oc))
- 		mem_cgroup_print_oom_info(oc->memcg, p);
--	else
-+	else {
- 		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
-+		if (is_dump_unreclaim_slabs())
-+			dump_unreclaimable_slab();
-+	}
- 	if (sysctl_oom_dump_tasks)
- 		dump_tasks(oc->memcg, oc->nodemask);
- }
-diff --git a/mm/slab.h b/mm/slab.h
-index 0733628..6fc4d5d 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -505,6 +505,8 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
- void memcg_slab_stop(struct seq_file *m, void *p);
- int memcg_slab_show(struct seq_file *m, void *p);
- 
-+void dump_unreclaimable_slab(void);
-+
- void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr);
- 
- #ifdef CONFIG_SLAB_FREELIST_RANDOM
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index c1629cb..5c8fac5 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -1278,6 +1278,41 @@ static int slab_show(struct seq_file *m, void *p)
+-#ifdef CONFIG_SLABINFO
+ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
+ {
+ 	unsigned long active_objs, num_objs, active_slabs;
+@@ -4404,7 +4403,6 @@ static int __init slab_proc_init(void)
  	return 0;
  }
+ module_init(slab_proc_init);
+-#endif
  
-+void dump_unreclaimable_slab(void)
-+{
-+	struct kmem_cache *s, *s2;
-+	struct slabinfo sinfo;
-+
-+	/*
-+	 * Here acquiring slab_mutex is risky since we don't prefer to get
-+	 * sleep in oom path. But, without mutex hold, it may introduce a
-+	 * risk of crash.
-+	 * Use mutex_trylock to protect the list traverse, dump nothing
-+	 * without acquiring the mutex.
-+	 */
-+	if (!mutex_trylock(&slab_mutex)) {
-+		pr_warn("excessive unreclaimable slab but cannot dump stats\n");
-+		return;
-+	}
-+
-+	pr_info("Unreclaimable slab info:\n");
-+	pr_info("Name                      Used          Total\n");
-+
-+	list_for_each_entry_safe(s, s2, &slab_caches, list) {
-+		if (!is_root_cache(s) || (s->flags & SLAB_RECLAIM_ACCOUNT))
-+			continue;
-+
-+		memset(&sinfo, 0, sizeof(sinfo));
-+		get_slabinfo(s, &sinfo);
-+
-+		if (sinfo.num_objs > 0)
-+			pr_info("%-17s %10luKB %10luKB\n", cache_name(s),
-+				(sinfo.active_objs * s->size) / 1024,
-+				(sinfo.num_objs * s->size) / 1024);
-+	}
-+	mutex_unlock(&slab_mutex);
-+}
-+
- #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
- void *memcg_slab_start(struct seq_file *m, loff_t *pos)
+ #ifdef CONFIG_HARDENED_USERCOPY
+ /*
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 8016459..c1629cb 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1183,8 +1183,6 @@ void cache_random_seq_destroy(struct kmem_cache *cachep)
+ }
+ #endif /* CONFIG_SLAB_FREELIST_RANDOM */
+ 
+-#ifdef CONFIG_SLABINFO
+-
+ #ifdef CONFIG_SLAB
+ #define SLABINFO_RIGHTS (S_IWUSR | S_IRUSR)
+ #else
+@@ -1354,7 +1352,6 @@ static int __init slab_proc_init(void)
+ 	return 0;
+ }
+ module_init(slab_proc_init);
+-#endif /* CONFIG_SLABINFO */
+ 
+ static __always_inline void *__do_krealloc(const void *p, size_t new_size,
+ 					   gfp_t flags)
+diff --git a/mm/slub.c b/mm/slub.c
+index 163352c..74a8776 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -5851,7 +5851,6 @@ static int __init slab_sysfs_init(void)
+ /*
+  * The /proc/slabinfo ABI
+  */
+-#ifdef CONFIG_SLABINFO
+ void get_slabinfo(struct kmem_cache *s, struct slabinfo *sinfo)
  {
+ 	unsigned long nr_slabs = 0;
+@@ -5883,4 +5882,3 @@ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
+ {
+ 	return -EIO;
+ }
+-#endif /* CONFIG_SLABINFO */
 -- 
 1.8.3.1
 
