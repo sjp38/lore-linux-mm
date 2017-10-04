@@ -1,111 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 751866B0033
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 13:38:10 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id j70so10041216pgc.5
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 10:38:10 -0700 (PDT)
-Received: from out0-236.mail.aliyun.com (out0-236.mail.aliyun.com. [140.205.0.236])
-        by mx.google.com with ESMTPS id h61si12420898pld.201.2017.10.04.10.38.08
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F1886B0253
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 13:39:04 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id c137so25321938pga.6
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 10:39:04 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id y72si778159plh.114.2017.10.04.10.39.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Oct 2017 10:38:09 -0700 (PDT)
-Subject: Re: [PATCH 3/3] mm: oom: show unreclaimable slab info when
- unreclaimable slabs > user memory
-References: <1507053977-116952-1-git-send-email-yang.s@alibaba-inc.com>
- <1507053977-116952-4-git-send-email-yang.s@alibaba-inc.com>
- <20171004142736.u4z7zdar6g7bqgrj@dhcp22.suse.cz>
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-Message-ID: <57193292-3334-f918-011d-7acf55178933@alibaba-inc.com>
-Date: Thu, 05 Oct 2017 01:37:57 +0800
+        Wed, 04 Oct 2017 10:39:03 -0700 (PDT)
+Subject: Re: [RFC] mmap(MAP_CONTIG)
+References: <21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com>
+ <97c81533-5206-b130-1aeb-c5b9bfd93287@linux.vnet.ibm.com>
+ <alpine.DEB.2.20.1710041104310.21484@nuc-kabylake>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <434a5870-0115-b8ab-bd6c-b7f4db847dc4@oracle.com>
+Date: Wed, 4 Oct 2017 10:38:57 -0700
 MIME-Version: 1.0
-In-Reply-To: <20171004142736.u4z7zdar6g7bqgrj@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <alpine.DEB.2.20.1710041104310.21484@nuc-kabylake>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christopher Lameter <cl@linux.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Guy Shattah <sguy@mellanox.com>
 
-
-
-On 10/4/17 7:27 AM, Michal Hocko wrote:
-> On Wed 04-10-17 02:06:17, Yang Shi wrote:
->> +static bool is_dump_unreclaim_slabs(void)
->> +{
->> +	unsigned long nr_lru;
->> +
->> +	nr_lru = global_node_page_state(NR_ACTIVE_ANON) +
->> +		 global_node_page_state(NR_INACTIVE_ANON) +
->> +		 global_node_page_state(NR_ACTIVE_FILE) +
->> +		 global_node_page_state(NR_INACTIVE_FILE) +
->> +		 global_node_page_state(NR_ISOLATED_ANON) +
->> +		 global_node_page_state(NR_ISOLATED_FILE) +
->> +		 global_node_page_state(NR_UNEVICTABLE);
->> +
->> +	return (global_node_page_state(NR_SLAB_UNRECLAIMABLE) > nr_lru);
->> +}
+On 10/04/2017 09:05 AM, Christopher Lameter wrote:
+> On Wed, 4 Oct 2017, Anshuman Khandual wrote:
 > 
-> I am sorry I haven't pointed this earlier (I was following only half
-> way) but this should really be memcg aware. You are checking only global
-> counters. I do not think it is an absolute must to provide per-memcg
-> data but you should at least check !is_memcg_oom(oc).
-
-OK, sure.
-
+>>> - Using 'pre-allocated' pages in the fault paths may be intrusive.
+>>
+>> But we have already faulted in all of them for the mapping and they
+>> are also locked. Hence there should not be any page faults any more
+>> for the VMA. Am I missing something here ?
 > 
-> [...]
->> +void dump_unreclaimable_slab(void)
->> +{
->> +	struct kmem_cache *s, *s2;
->> +	struct slabinfo sinfo;
->> +
->> +	pr_info("Unreclaimable slab info:\n");
->> +	pr_info("Name                      Used          Total\n");
->> +
->> +	/*
->> +	 * Here acquiring slab_mutex is risky since we don't prefer to get
->> +	 * sleep in oom path. But, without mutex hold, it may introduce a
->> +	 * risk of crash.
->> +	 * Use mutex_trylock to protect the list traverse, dump nothing
->> +	 * without acquiring the mutex.
->> +	 */
->> +	if (!mutex_trylock(&slab_mutex))
->> +		return;
+> The PTEs may be torn down and have to reestablished through a page faults.
+> Page faults would not allocate memory.
 > 
-> I would move the trylock up so that we do not get empty and confusing
-> Unreclaimable slab info: and add a note that we are not dumping anything
-> due to lock contention
-> 	pr_warn("excessive unreclaimable slab memory but cannot dump stats to give you more details\n");
+>> I am still wondering why wait till fault time not pre fault all of them
+>> and populate the page tables.
+> 
+> They are populated but some processes (swap and migration) may tear them
+> down.
 
-Thanks for pointing this. Will fix in new version.
+As mentioned in my reply to Anshuman, the mention of fault paths here
+may be a source of confusion.  I would expect the entire mapping to be
+populated at mmap time, and the pages locked.  Therefore, there should
+be no swap or migration.
 
-Yang
-
-> 
-> Other than that this looks sensible to me.
-> 
->> +	list_for_each_entry_safe(s, s2, &slab_caches, list) {
->> +		if (!is_root_cache(s) || (s->flags & SLAB_RECLAIM_ACCOUNT))
->> +			continue;
->> +
->> +		memset(&sinfo, 0, sizeof(sinfo));
->> +		get_slabinfo(s, &sinfo);
->> +
->> +		if (sinfo.num_objs > 0)
->> +			pr_info("%-17s %10luKB %10luKB\n", cache_name(s),
->> +				(sinfo.active_objs * s->size) / 1024,
->> +				(sinfo.num_objs * s->size) / 1024);
->> +	}
->> +	mutex_unlock(&slab_mutex);
->> +}
->> +
->>   #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
->>   void *memcg_slab_start(struct seq_file *m, loff_t *pos)
->>   {
->> -- 
->> 1.8.3.1
-> 
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
