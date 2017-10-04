@@ -1,98 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D2B66B0038
-	for <linux-mm@kvack.org>; Tue,  3 Oct 2017 23:55:33 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id b1so12169150pge.3
-        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 20:55:33 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id z96si11557669plh.681.2017.10.03.20.55.31
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B6DB6B0038
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 02:03:50 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k15so5438706wrc.1
+        for <linux-mm@kvack.org>; Tue, 03 Oct 2017 23:03:50 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u27si12201604wrf.285.2017.10.03.23.03.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 03 Oct 2017 20:55:32 -0700 (PDT)
-From: Ricardo Neri <ricardo.neri-calderon@linux.intel.com>
-Subject: [PATCH v9 02/29] x86/boot: Relocate definition of the initial state of CR0
-Date: Tue,  3 Oct 2017 20:54:05 -0700
-Message-Id: <1507089272-32733-3-git-send-email-ricardo.neri-calderon@linux.intel.com>
-In-Reply-To: <1507089272-32733-1-git-send-email-ricardo.neri-calderon@linux.intel.com>
-References: <1507089272-32733-1-git-send-email-ricardo.neri-calderon@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 03 Oct 2017 23:03:49 -0700 (PDT)
+Subject: Re: [PATCHv3] mm: Account pud page tables
+References: <20171002080427.3320-1-kirill.shutemov@linux.intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <cb28b818-1927-1a36-578b-7ebaa8d1f381@suse.cz>
+Date: Wed, 4 Oct 2017 08:03:47 +0200
+MIME-Version: 1.0
+In-Reply-To: <20171002080427.3320-1-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Brian Gerst <brgerst@gmail.com>, Chris Metcalf <cmetcalf@mellanox.com>, Dave Hansen <dave.hansen@linux.intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Liang Z Li <liang.z.li@intel.com>, Masami Hiramatsu <mhiramat@kernel.org>, Huang Rui <ray.huang@amd.com>, Jiri Slaby <jslaby@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Michael S. Tsirkin" <mst@redhat.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Vlastimil Babka <vbabka@suse.cz>, Chen Yucong <slaoub@gmail.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Shuah Khan <shuah@kernel.org>, linux-kernel@vger.kernel.org, x86@kernel.org, ricardo.neri@intel.com, Ricardo Neri <ricardo.neri-calderon@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>
 
-Both head_32.S and head_64.S utilize the same value to initialize the
-control register CR0. Also, other parts of the kernel might want to access
-this initial definition (e.g., emulation code for User-Mode Instruction
-Prevention uses this state to provide a sane dummy value for CR0 when
-emulating the smsw instruction). Thus, relocate this definition to a
-header file from which it can be conveniently accessed.
+On 10/02/2017 10:04 AM, Kirill A. Shutemov wrote:
+> On machine with 5-level paging support a process can allocate
+> significant amount of memory and stay unnoticed by oom-killer and
+> memory cgroup. The trick is to allocate a lot of PUD page tables.
+> We don't account PUD page tables, only PMD and PTE.
+> 
+> We already addressed the same issue for PMD page tables, see
+> dc6c9a35b66b ("mm: account pmd page tables to the process").
+> Introduction 5-level paging bring the same issue for PUD page tables.
+> 
+> The patch expands accounting to PUD level.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-arch@vger.kernel.org
-Cc: linux-mm@kvack.org
-Suggested-by: Borislav Petkov <bp@alien8.de>
-Reviewed-by: Borislav Petkov <bp@suse.de>
-Signed-off-by: Ricardo Neri <ricardo.neri-calderon@linux.intel.com>
----
- arch/x86/include/uapi/asm/processor-flags.h | 3 +++
- arch/x86/kernel/head_32.S                   | 3 ---
- arch/x86/kernel/head_64.S                   | 3 ---
- 3 files changed, 3 insertions(+), 6 deletions(-)
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-diff --git a/arch/x86/include/uapi/asm/processor-flags.h b/arch/x86/include/uapi/asm/processor-flags.h
-index 185f3d1..39946d0 100644
---- a/arch/x86/include/uapi/asm/processor-flags.h
-+++ b/arch/x86/include/uapi/asm/processor-flags.h
-@@ -151,5 +151,8 @@
- #define CX86_ARR_BASE	0xc4
- #define CX86_RCR_BASE	0xdc
- 
-+#define CR0_STATE	(X86_CR0_PE | X86_CR0_MP | X86_CR0_ET | \
-+			 X86_CR0_NE | X86_CR0_WP | X86_CR0_AM | \
-+			 X86_CR0_PG)
- 
- #endif /* _UAPI_ASM_X86_PROCESSOR_FLAGS_H */
-diff --git a/arch/x86/kernel/head_32.S b/arch/x86/kernel/head_32.S
-index 9ed3074..c3cfc65 100644
---- a/arch/x86/kernel/head_32.S
-+++ b/arch/x86/kernel/head_32.S
-@@ -211,9 +211,6 @@ ENTRY(startup_32_smp)
- #endif
- 
- .Ldefault_entry:
--#define CR0_STATE	(X86_CR0_PE | X86_CR0_MP | X86_CR0_ET | \
--			 X86_CR0_NE | X86_CR0_WP | X86_CR0_AM | \
--			 X86_CR0_PG)
- 	movl $(CR0_STATE & ~X86_CR0_PG),%eax
- 	movl %eax,%cr0
- 
-diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
-index 42e32c2..205dabc 100644
---- a/arch/x86/kernel/head_64.S
-+++ b/arch/x86/kernel/head_64.S
-@@ -152,9 +152,6 @@ ENTRY(secondary_startup_64)
- 1:	wrmsr				/* Make changes effective */
- 
- 	/* Setup cr0 */
--#define CR0_STATE	(X86_CR0_PE | X86_CR0_MP | X86_CR0_ET | \
--			 X86_CR0_NE | X86_CR0_WP | X86_CR0_AM | \
--			 X86_CR0_PG)
- 	movl	$CR0_STATE, %eax
- 	/* Make changes effective */
- 	movq	%rax, %cr0
--- 
-2.7.4
+Small fix below:
+
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -25,7 +25,7 @@
+>  
+>  void task_mem(struct seq_file *m, struct mm_struct *mm)
+>  {
+> -	unsigned long text, lib, swap, ptes, pmds, anon, file, shmem;
+> +	unsigned long text, lib, swap, ptes, pmds, puds, anon, file, shmem;
+>  	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss;
+>  
+>  	anon = get_mm_counter(mm, MM_ANONPAGES);
+> @@ -51,6 +51,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+>  	swap = get_mm_counter(mm, MM_SWAPENTS);
+>  	ptes = PTRS_PER_PTE * sizeof(pte_t) * atomic_long_read(&mm->nr_ptes);
+>  	pmds = PTRS_PER_PMD * sizeof(pmd_t) * mm_nr_pmds(mm);
+> +	puds = PTRS_PER_PUD * sizeof(pmd_t) * mm_nr_puds(mm);
+
+				     ^ pud_t ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
