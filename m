@@ -1,48 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 819896B0038
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 03:25:57 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id y192so28825626pgd.0
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 00:25:57 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id bf3si11955647plb.498.2017.10.04.00.25.55
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 47CAE6B0038
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 03:43:09 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id c137so22583838pga.6
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 00:43:09 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id 78si10927388pgb.691.2017.10.04.00.43.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Oct 2017 00:25:56 -0700 (PDT)
-Date: Wed, 4 Oct 2017 00:25:53 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH v4 4/5] cramfs: add mmap support
-Message-ID: <20171004072553.GA24620@infradead.org>
-References: <20170927233224.31676-1-nicolas.pitre@linaro.org>
- <20170927233224.31676-5-nicolas.pitre@linaro.org>
- <20171001083052.GB17116@infradead.org>
- <nycvar.YSQ.7.76.1710011805070.5407@knanqh.ubzr>
- <CAFLxGvzfQrvU-8w7F26mez6fCQD+iS_qRJpLSU+2DniEGouEfA@mail.gmail.com>
- <nycvar.YSQ.7.76.1710021931270.5407@knanqh.ubzr>
- <20171003145732.GA8890@infradead.org>
- <nycvar.YSQ.7.76.1710031107290.5407@knanqh.ubzr>
- <20171003153659.GA31600@infradead.org>
- <nycvar.YSQ.7.76.1710031137580.5407@knanqh.ubzr>
+        Wed, 04 Oct 2017 00:43:08 -0700 (PDT)
+Date: Wed, 4 Oct 2017 10:43:05 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCHv3] mm: Account pud page tables
+Message-ID: <20171004074305.x35eh5u7ybbt5kar@black.fi.intel.com>
+References: <20171002080427.3320-1-kirill.shutemov@linux.intel.com>
+ <cb28b818-1927-1a36-578b-7ebaa8d1f381@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <nycvar.YSQ.7.76.1710031137580.5407@knanqh.ubzr>
+In-Reply-To: <cb28b818-1927-1a36-578b-7ebaa8d1f381@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicolas Pitre <nicolas.pitre@linaro.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Richard Weinberger <richard.weinberger@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-embedded@vger.kernel.org" <linux-embedded@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Chris Brandt <Chris.Brandt@renesas.com>
+To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>
 
-On Tue, Oct 03, 2017 at 11:40:28AM -0400, Nicolas Pitre wrote:
-> I provided that explanation several times by now in my cover letter. And 
-> separately even to you directly at least once.  What else should I do?
+On Wed, Oct 04, 2017 at 06:03:47AM +0000, Vlastimil Babka wrote:
+> On 10/02/2017 10:04 AM, Kirill A. Shutemov wrote:
+> > On machine with 5-level paging support a process can allocate
+> > significant amount of memory and stay unnoticed by oom-killer and
+> > memory cgroup. The trick is to allocate a lot of PUD page tables.
+> > We don't account PUD page tables, only PMD and PTE.
+> > 
+> > We already addressed the same issue for PMD page tables, see
+> > dc6c9a35b66b ("mm: account pmd page tables to the process").
+> > Introduction 5-level paging bring the same issue for PUD page tables.
+> > 
+> > The patch expands accounting to PUD level.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Cc: Michal Hocko <mhocko@suse.com>
+> > Cc: Vlastimil Babka <vbabka@suse.cz>
+> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> 
+> Small fix below:
+> 
+> > --- a/fs/proc/task_mmu.c
+> > +++ b/fs/proc/task_mmu.c
+> > @@ -25,7 +25,7 @@
+> >  
+> >  void task_mem(struct seq_file *m, struct mm_struct *mm)
+> >  {
+> > -	unsigned long text, lib, swap, ptes, pmds, anon, file, shmem;
+> > +	unsigned long text, lib, swap, ptes, pmds, puds, anon, file, shmem;
+> >  	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss;
+> >  
+> >  	anon = get_mm_counter(mm, MM_ANONPAGES);
+> > @@ -51,6 +51,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+> >  	swap = get_mm_counter(mm, MM_SWAPENTS);
+> >  	ptes = PTRS_PER_PTE * sizeof(pte_t) * atomic_long_read(&mm->nr_ptes);
+> >  	pmds = PTRS_PER_PMD * sizeof(pmd_t) * mm_nr_pmds(mm);
+> > +	puds = PTRS_PER_PUD * sizeof(pmd_t) * mm_nr_puds(mm);
+> 
+> 				     ^ pud_t ?
 
-You should do the right things instead of stating irrelevant things
-in your cover letter.  As said in my last mail: look at the VM_MIXEDMAP
-flag and how it is used by DAX, and you'll get out of the vma splitting
-business in the fault path.
+Ouch. Thanks for spotting this.
 
-If the fs/dax.c code scares you take a look at drivers/dax/device.c
-instead.
+Andrew, could you take this fixup:
+
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 0bf9e423aa99..627de66204bd 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -51,7 +51,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 	swap = get_mm_counter(mm, MM_SWAPENTS);
+ 	ptes = PTRS_PER_PTE * sizeof(pte_t) * atomic_long_read(&mm->nr_ptes);
+ 	pmds = PTRS_PER_PMD * sizeof(pmd_t) * mm_nr_pmds(mm);
+-	puds = PTRS_PER_PUD * sizeof(pmd_t) * mm_nr_puds(mm);
++	puds = PTRS_PER_PUD * sizeof(pud_t) * mm_nr_puds(mm);
+ 	seq_printf(m,
+ 		"VmPeak:\t%8lu kB\n"
+ 		"VmSize:\t%8lu kB\n"
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
