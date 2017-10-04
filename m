@@ -1,88 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 47CAE6B0038
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 03:43:09 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id c137so22583838pga.6
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 00:43:09 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id 78si10927388pgb.691.2017.10.04.00.43.07
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D7A2C6B0038
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 03:53:10 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id i23so4289881pfi.5
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 00:53:10 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id b4sor1910595ite.90.2017.10.04.00.53.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Oct 2017 00:43:08 -0700 (PDT)
-Date: Wed, 4 Oct 2017 10:43:05 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCHv3] mm: Account pud page tables
-Message-ID: <20171004074305.x35eh5u7ybbt5kar@black.fi.intel.com>
-References: <20171002080427.3320-1-kirill.shutemov@linux.intel.com>
- <cb28b818-1927-1a36-578b-7ebaa8d1f381@suse.cz>
+        (Google Transport Security);
+        Wed, 04 Oct 2017 00:53:09 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cb28b818-1927-1a36-578b-7ebaa8d1f381@suse.cz>
+In-Reply-To: <7b423dc8-00aa-9cde-3557-8c72863001fd@intel.com>
+References: <20170905194739.GA31241@amd> <20171001093704.GA12626@amd>
+ <20171001102647.GA23908@amd> <201710011957.ICF15708.OOLOHFSQMFFVJt@I-love.SAKURA.ne.jp>
+ <CACRpkdYirC+rh_KALgVqKZMjq2DgbW4oi9MJkmrzwn+1O+94-g@mail.gmail.com> <7b423dc8-00aa-9cde-3557-8c72863001fd@intel.com>
+From: Linus Walleij <linus.walleij@linaro.org>
+Date: Wed, 4 Oct 2017 09:53:08 +0200
+Message-ID: <CACRpkdYPn3xxZQP+xXggPpoHercBL3L7dmMBnbXww5SEsFx5tg@mail.gmail.com>
+Subject: Re: 4.14-rc2 on thinkpad x220: out of memory when inserting mmc card
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>
+To: Adrian Hunter <adrian.hunter@intel.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Pavel Machek <pavel@ucw.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed, Oct 04, 2017 at 06:03:47AM +0000, Vlastimil Babka wrote:
-> On 10/02/2017 10:04 AM, Kirill A. Shutemov wrote:
-> > On machine with 5-level paging support a process can allocate
-> > significant amount of memory and stay unnoticed by oom-killer and
-> > memory cgroup. The trick is to allocate a lot of PUD page tables.
-> > We don't account PUD page tables, only PMD and PTE.
-> > 
-> > We already addressed the same issue for PMD page tables, see
-> > dc6c9a35b66b ("mm: account pmd page tables to the process").
-> > Introduction 5-level paging bring the same issue for PUD page tables.
-> > 
-> > The patch expands accounting to PUD level.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Cc: Michal Hocko <mhocko@suse.com>
-> > Cc: Vlastimil Babka <vbabka@suse.cz>
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> 
-> Small fix below:
-> 
-> > --- a/fs/proc/task_mmu.c
-> > +++ b/fs/proc/task_mmu.c
-> > @@ -25,7 +25,7 @@
-> >  
-> >  void task_mem(struct seq_file *m, struct mm_struct *mm)
-> >  {
-> > -	unsigned long text, lib, swap, ptes, pmds, anon, file, shmem;
-> > +	unsigned long text, lib, swap, ptes, pmds, puds, anon, file, shmem;
-> >  	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss;
-> >  
-> >  	anon = get_mm_counter(mm, MM_ANONPAGES);
-> > @@ -51,6 +51,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
-> >  	swap = get_mm_counter(mm, MM_SWAPENTS);
-> >  	ptes = PTRS_PER_PTE * sizeof(pte_t) * atomic_long_read(&mm->nr_ptes);
-> >  	pmds = PTRS_PER_PMD * sizeof(pmd_t) * mm_nr_pmds(mm);
-> > +	puds = PTRS_PER_PUD * sizeof(pmd_t) * mm_nr_puds(mm);
-> 
-> 				     ^ pud_t ?
+On Tue, Oct 3, 2017 at 8:30 AM, Adrian Hunter <adrian.hunter@intel.com> wrote:
+> On 02/10/17 17:09, Linus Walleij wrote:
+>> On Sun, Oct 1, 2017 at 12:57 PM, Tetsuo Handa
+>> <penguin-kernel@i-love.sakura.ne.jp> wrote:
+>>
+>>>>> I inserted u-SD card, only to realize that it is not detected as it
+>>>>> should be. And dmesg indeed reveals:
+>>>>
+>>>> Tetsuo asked me to report this to linux-mm.
+>>>>
+>>>> But 2^4 is 16 pages, IIRC that can't be expected to work reliably, and
+>>>> thus this sounds like MMC bug, not mm bug.
+>>
+>>
+>> I'm not sure I fully understand this error message:
+>> "worker/2:1: page allocation failure: order:4"
+>>
+>> What I guess from context is that the mmc_init_request()
+>> call is failing to allocate 16 pages, meaning for 4K pages
+>> 64KB which is the typical bounce buffer.
+>>
+>> This is what the code has always allocated as bounce buffer,
+>> but it used to happen upfront, when probing the MMC block layer,
+>> rather than when allocating the requests.
+>
+> That is not exactly right.  As I already wrote, the memory allocation used
+> to be optional but became mandatory with:
+>
+>   commit 304419d8a7e9204c5d19b704467b814df8c8f5b1
+>   Author: Linus Walleij <linus.walleij@linaro.org>
+>   Date:   Thu May 18 11:29:32 2017 +0200
+>
+>       mmc: core: Allocate per-request data using the block layer core
 
-Ouch. Thanks for spotting this.
+Yes you are right, it used to look like this, with the bounce buffer
+hiding behind a Kconfig symbol:
 
-Andrew, could you take this fixup:
+#ifdef CONFIG_MMC_BLOCK_BOUNCE
+    if (host->max_segs == 1) {
+        unsigned int bouncesz;
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 0bf9e423aa99..627de66204bd 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -51,7 +51,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
- 	swap = get_mm_counter(mm, MM_SWAPENTS);
- 	ptes = PTRS_PER_PTE * sizeof(pte_t) * atomic_long_read(&mm->nr_ptes);
- 	pmds = PTRS_PER_PMD * sizeof(pmd_t) * mm_nr_pmds(mm);
--	puds = PTRS_PER_PUD * sizeof(pmd_t) * mm_nr_puds(mm);
-+	puds = PTRS_PER_PUD * sizeof(pud_t) * mm_nr_puds(mm);
- 	seq_printf(m,
- 		"VmPeak:\t%8lu kB\n"
- 		"VmSize:\t%8lu kB\n"
--- 
- Kirill A. Shutemov
+        bouncesz = MMC_QUEUE_BOUNCESZ;
+
+        if (bouncesz > host->max_req_size)
+            bouncesz = host->max_req_size;
+        if (bouncesz > host->max_seg_size)
+            bouncesz = host->max_seg_size;
+        if (bouncesz > (host->max_blk_count * 512))
+            bouncesz = host->max_blk_count * 512;
+
+        if (bouncesz > 512 &&
+            mmc_queue_alloc_bounce_bufs(mq, bouncesz)) {
+            blk_queue_bounce_limit(mq->queue, BLK_BOUNCE_ANY);
+            blk_queue_max_hw_sectors(mq->queue, bouncesz / 512);
+            blk_queue_max_segments(mq->queue, bouncesz / 512);
+            blk_queue_max_segment_size(mq->queue, bouncesz);
+
+            ret = mmc_queue_alloc_bounce_sgs(mq, bouncesz);
+            if (ret)
+                goto cleanup_queue;
+            bounce = true;
+        }
+    }
+#endif
+
+I recently concluded that I find no evidence whatsoever that anyone
+turned this symbol on. Actually. (Checked defconfigs and distro configs.)
+The option was just sitting there unused.
+This code was never exercised except by some people who turned it
+on on their custom kernels in the past. It's in practice dead code.
+
+My patch started to allocate and use bounce buffers for all hosts
+with max_segs == 1, unless specifically flagged NOT to use bounce
+buffers.
+
+That wasn't smart, I should have just deleted them. Mea culpa.
+
+So that is why I asked Ulf to simply put the patch deleting the bounce
+buffers that noone is using to fixes, and it should fix this problem.
+
+Yours,
+Linus Walleij
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
