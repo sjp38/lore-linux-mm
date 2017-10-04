@@ -1,93 +1,30 @@
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: Re: [RFC] [PATCH] mm,
-	oom: Offload OOM notify callback to a kernel thread.
-Date: Mon, 2 Oct 2017 20:33:52 +0900
-Message-ID: <201710022033.GFE82801.HLOVOFFJtSFQMO@I-love.SAKURA.ne.jp>
-References: <20170929065654-mutt-send-email-mst@kernel.org>
- <201709291344.FID60965.VHtMQFFJFSLOOO@I-love.SAKURA.ne.jp>
- <201710011444.IBD05725.VJSFHOOMOFtLQF@I-love.SAKURA.ne.jp>
- <20171002065801-mutt-send-email-mst@kernel.org>
- <20171002090627.547gkmzvutrsamex@dhcp22.suse.cz>
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [RFC] mmap(MAP_CONTIG)
+Date: Wed, 4 Oct 2017 11:05:33 -0500 (CDT)
+Message-ID: <alpine.DEB.2.20.1710041104310.21484@nuc-kabylake>
+References: <21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com> <97c81533-5206-b130-1aeb-c5b9bfd93287@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-Return-path: <intel-gfx-bounces@lists.freedesktop.org>
-In-Reply-To: <20171002090627.547gkmzvutrsamex@dhcp22.suse.cz>
-List-Unsubscribe: <https://lists.freedesktop.org/mailman/options/intel-gfx>,
- <mailto:intel-gfx-request@lists.freedesktop.org?subject=unsubscribe>
-List-Archive: <https://lists.freedesktop.org/archives/intel-gfx>
-List-Post: <mailto:intel-gfx@lists.freedesktop.org>
-List-Help: <mailto:intel-gfx-request@lists.freedesktop.org?subject=help>
-List-Subscribe: <https://lists.freedesktop.org/mailman/listinfo/intel-gfx>,
- <mailto:intel-gfx-request@lists.freedesktop.org?subject=subscribe>
-Errors-To: intel-gfx-bounces@lists.freedesktop.org
-Sender: "Intel-gfx" <intel-gfx-bounces@lists.freedesktop.org>
-To: mhocko@kernel.org, mst@redhat.com
-Cc: airlied@linux.ie, jasowang@redhat.com, jiangshanlai@gmail.com, josh@joshtriplett.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, mathieu.desnoyers@efficios.com, rostedt@goodmis.org, rodrigo.vivi@intel.com, paulmck@linux.vnet.ibm.com, intel-gfx@lists.freedesktop.org
+Content-Type: text/plain; charset=US-ASCII
+Return-path: <linux-kernel-owner@vger.kernel.org>
+In-Reply-To: <97c81533-5206-b130-1aeb-c5b9bfd93287@linux.vnet.ibm.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Guy Shattah <sguy@mellanox.com>
 List-Id: linux-mm.kvack.org
 
-TWljaGFsIEhvY2tvIHdyb3RlOgo+IFtIbW0sIEkgZG8gbm90IHNlZSB0aGUgb3JpZ2luYWwgcGF0
-Y2ggd2hpY2ggdGhpcyBoYXMgYmVlbiBhIHJlcGx5IHRvXQoKdXJibC5ob3N0ZWRlbWFpbC5jb20g
-YW5kIGIuYmFycmFjdWRhY2VudHJhbC5vcmcgYmxvY2tlZCBteSBJUCBhZGRyZXNzLAphbmQgdGhl
-IHJlc3QgYXJlICJSZWNpcGllbnQgYWRkcmVzcyByZWplY3RlZDogR3JleWxpc3RlZCIgb3IKIkRl
-ZmVycmVkOiA0NTEtNC4zLjAgTXVsdGlwbGUgZGVzdGluYXRpb24gZG9tYWlucyBwZXIgdHJhbnNh
-Y3Rpb24gaXMgdW5zdXBwb3J0ZWQuIiwKYW5kIGFmdGVyIGFsbCBkcm9wcGVkIGF0IHRoZSBzZXJ2
-ZXJzLiBTYWQuLi4KCj4gCj4gT24gTW9uIDAyLTEwLTE3IDA2OjU5OjEyLCBNaWNoYWVsIFMuIFRz
-aXJraW4gd3JvdGU6Cj4gPiBPbiBTdW4sIE9jdCAwMSwgMjAxNyBhdCAwMjo0NDozNFBNICswOTAw
-LCBUZXRzdW8gSGFuZGEgd3JvdGU6Cj4gPiA+IFRldHN1byBIYW5kYSB3cm90ZToKPiA+ID4gPiBN
-aWNoYWVsIFMuIFRzaXJraW4gd3JvdGU6Cj4gPiA+ID4gPiBPbiBNb24sIFNlcCAxMSwgMjAxNyBh
-dCAwNzoyNzoxOVBNICswOTAwLCBUZXRzdW8gSGFuZGEgd3JvdGU6Cj4gPiA+ID4gPiA+IEhlbGxv
-Lgo+ID4gPiA+ID4gPiAKPiA+ID4gPiA+ID4gSSBub3RpY2VkIHRoYXQgdmlydGlvX2JhbGxvb24g
-aXMgdXNpbmcgcmVnaXN0ZXJfb29tX25vdGlmaWVyKCkgYW5kCj4gPiA+ID4gPiA+IGxlYWtfYmFs
-bG9vbigpIGZyb20gdmlydGJhbGxvb25fb29tX25vdGlmeSgpIG1pZ2h0IGRlcGVuZCBvbgo+ID4g
-PiA+ID4gPiBfX0dGUF9ESVJFQ1RfUkVDTEFJTSBtZW1vcnkgYWxsb2NhdGlvbi4KPiA+ID4gPiA+
-ID4gCj4gPiA+ID4gPiA+IEluIGxlYWtfYmFsbG9vbigpLCBtdXRleF9sb2NrKCZ2Yi0+YmFsbG9v
-bl9sb2NrKSBpcyBjYWxsZWQgaW4gb3JkZXIgdG8KPiA+ID4gPiA+ID4gc2VyaWFsaXplIGFnYWlu
-c3QgZmlsbF9iYWxsb29uKCkuIEJ1dCBpbiBmaWxsX2JhbGxvb24oKSwKPiA+ID4gPiA+ID4gYWxs
-b2NfcGFnZShHRlBfSElHSFVTRVJbX01PVkFCTEVdIHwgX19HRlBfTk9NRU1BTExPQyB8IF9fR0ZQ
-X05PUkVUUlkpIGlzCj4gPiA+ID4gPiA+IGNhbGxlZCB3aXRoIHZiLT5iYWxsb29uX2xvY2sgbXV0
-ZXggaGVsZC4gU2luY2UgR0ZQX0hJR0hVU0VSW19NT1ZBQkxFXSBpbXBsaWVzCj4gPiA+ID4gPiA+
-IF9fR0ZQX0RJUkVDVF9SRUNMQUlNIHwgX19HRlBfSU8gfCBfX0dGUF9GUywgdGhpcyBhbGxvY2F0
-aW9uIGF0dGVtcHQgbWlnaHQKPiA+ID4gPiA+ID4gZGVwZW5kIG9uIHNvbWVib2R5IGVsc2UncyBf
-X0dGUF9ESVJFQ1RfUkVDTEFJTSB8ICFfX0dGUF9OT1JFVFJZIG1lbW9yeQo+ID4gPiA+ID4gPiBh
-bGxvY2F0aW9uLiBTdWNoIF9fR0ZQX0RJUkVDVF9SRUNMQUlNIHwgIV9fR0ZQX05PUkVUUlkgYWxs
-b2NhdGlvbiBjYW4gcmVhY2gKPiA+ID4gPiA+ID4gX19hbGxvY19wYWdlc19tYXlfb29tKCkgYW5k
-IGhvbGQgb29tX2xvY2sgbXV0ZXggYW5kIGNhbGwgb3V0X29mX21lbW9yeSgpLgo+ID4gPiA+ID4g
-PiBBbmQgbGVha19iYWxsb29uKCkgaXMgY2FsbGVkIGJ5IHZpcnRiYWxsb29uX29vbV9ub3RpZnko
-KSB2aWEKPiA+ID4gPiA+ID4gYmxvY2tpbmdfbm90aWZpZXJfY2FsbF9jaGFpbigpIGNhbGxiYWNr
-IHdoZW4gdmItPmJhbGxvb25fbG9jayBtdXRleCBpcyBhbHJlYWR5Cj4gPiA+ID4gPiA+IGhlbGQg
-YnkgZmlsbF9iYWxsb29uKCkuIEFzIGEgcmVzdWx0LCBkZXNwaXRlIF9fR0ZQX05PUkVUUlkgaXMg
-c3BlY2lmaWVkLAo+ID4gPiA+ID4gPiBmaWxsX2JhbGxvb24oKSBjYW4gaW5kaXJlY3RseSBnZXQg
-c3R1Y2sgd2FpdGluZyBmb3IgdmItPmJhbGxvb25fbG9jayBtdXRleAo+ID4gPiA+ID4gPiBhdCBs
-ZWFrX2JhbGxvb24oKS4KPiAKPiBUaGlzIGlzIHJlYWxseSBuYXN0eSEgQW5kIEkgd291bGQgYXJn
-dWUgdGhhdCB0aGlzIGlzIGFuIGFidXNlIG9mIHRoZSBvb20KPiBub3RpZmllciBpbnRlcmZhY2Ug
-ZnJvbSB0aGUgdmlydGlvIGNvZGUuIE9PTSBub3RpZmllcnMgYXJlIGFuIHVnbHkgaGFjawo+IG9u
-IGl0cyBvd24gYnV0IGFsbCBpdHMgdXNlcnMgaGF2ZSB0byBiZSByZWFsbHkgY2FyZWZ1bCB0byBu
-b3QgZGVwZW5kIG9uCj4gYW55IGFsbG9jYXRpb24gcmVxdWVzdCBiZWNhdXNlIHRoYXQgaXMgYSBz
-dHJhaWdodCBkZWFkbG9jayBzaXR1YXRpb24uCgpQbGVhc2UgZGVzY3JpYmUgc3VjaCB3YXJuaW5n
-IGF0CiJpbnQgcmVnaXN0ZXJfb29tX25vdGlmaWVyKHN0cnVjdCBub3RpZmllcl9ibG9jayAqbmIp
-IiBkZWZpbml0aW9uLgoKPiAKPiBJIGRvIG5vdCB0aGluayB0aGF0IG1ha2luZyBvb20gbm90aWZp
-ZXIgQVBJIG1vcmUgY29tcGxleCBpcyB0aGUgd2F5IHRvCj4gZ28uIENhbiB3ZSBzaW1wbHkgY2hh
-bmdlIHRoZSBsb2NrIHRvIHRyeV9sb2NrPwoKVXNpbmcgbXV0ZXhfdHJ5bG9jaygmdmItPmJhbGxv
-b25fbG9jaykgYWxvbmUgaXMgbm90IHN1ZmZpY2llbnQuIEluc2lkZSB0aGUKbXV0ZXgsIF9fR0ZQ
-X0RJUkVDVF9SRUNMQUlNICYmICFfX0dGUF9OT1JFVFJZIGFsbG9jYXRpb24gYXR0ZW1wdCBpcyB1
-c2VkCndoaWNoIHdpbGwgZmFpbCB0byBtYWtlIHByb2dyZXNzIGR1ZSB0byBvb21fbG9jayBhbHJl
-YWR5IGhlbGQuIFRoZXJlZm9yZSwKdmlydGJhbGxvb25fb29tX25vdGlmeSgpIG5lZWRzIHRvIGd1
-YXJhbnRlZSB0aGF0IGFsbCBhbGxvY2F0aW9uIGF0dGVtcHRzIHVzZQpHRlBfTk9XQUlUIHdoZW4g
-Y2FsbGVkIGZyb20gdmlydGJhbGxvb25fb29tX25vdGlmeSgpLgoKdmlydGJhbGxvb25fb29tX25v
-dGlmeSgpIGNhbiBndWFyYW50ZWUgR0ZQX05PSU8gdXNpbmcgbWVtYWxsb2Nfbm9pb197c2F2ZSxy
-ZXN0b3JlfSgpCih3aGljaCBpcyBjdXJyZW50bHkgbWlzc2luZyBiZWNhdXNlIGJsb2NraW5nX25v
-dGlmaWVyX2NhbGxfY2hhaW4oKSBtaWdodCBiZSBjYWxsZWQgYnkKR0ZQX05PSU8gYWxsb2NhdGlv
-biByZXF1ZXN0IChlLmcuIGRpc2tfZXZlbnRzX3dvcmtmbikpLiBCdXQgdGhlcmUgaXMgbm8KbWVt
-YWxsb2Nfbm9kaXJlY3RyZWNsYWltX3tzYXZlLHJlc3RvcmV9KCkgZm9yIGd1YXJhbnRlZWluZyBH
-RlBfTk9XQUlUIGlzIHVzZWQuCnZpcnRiYWxsb29uX29vbV9ub3RpZnkoKSB3aWxsIG5lZWQgdG8g
-dXNlIHNvbWUgZmxhZyBhbmQgc3dpdGNoIEdGUF9OT1dBSVQgYW5kCkdGUF9LRVJORUwgYmFzZWQg
-b24gdGhhdCBmbGFnLiBJIHdvcnJ5IHRoYXQgc3VjaCBhcHByb2FjaCBpcyBwcm9uZSB0byBvdmVy
-c2lnaHQuCgo+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-SWYgdGhlIGxvY2sgaXMgaGVsZCB3ZQo+IHdvdWxkIHNpbXBseSBmYWxsIGJhY2sgdG8gdGhlIG5v
-cm1hbCBPT00gaGFuZGxpbmcuIEFzIGEgZm9sbG93IHVwIGl0Cj4gd291bGQgYmUgZ3JlYXQgaWYg
-dmlydGlvIGNvdWxkIHVzZSBzb21lIG90aGVyIGZvcm0gb2YgYWdpbmcgZS5nLgo+IHNocmlua2Vy
-Lgo+IC0tIAo+IE1pY2hhbCBIb2Nrbwo+IFNVU0UgTGFicwo+IApfX19fX19fX19fX19fX19fX19f
-X19fX19fX19fX19fX19fX19fX19fX19fX19fXwpJbnRlbC1nZnggbWFpbGluZyBsaXN0CkludGVs
-LWdmeEBsaXN0cy5mcmVlZGVza3RvcC5vcmcKaHR0cHM6Ly9saXN0cy5mcmVlZGVza3RvcC5vcmcv
-bWFpbG1hbi9saXN0aW5mby9pbnRlbC1nZngK
+On Wed, 4 Oct 2017, Anshuman Khandual wrote:
+
+> > - Using 'pre-allocated' pages in the fault paths may be intrusive.
+>
+> But we have already faulted in all of them for the mapping and they
+> are also locked. Hence there should not be any page faults any more
+> for the VMA. Am I missing something here ?
+
+The PTEs may be torn down and have to reestablished through a page faults.
+Page faults would not allocate memory.
+
+> I am still wondering why wait till fault time not pre fault all of them
+> and populate the page tables.
+
+They are populated but some processes (swap and migration) may tear them
+down.
