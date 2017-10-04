@@ -1,93 +1,287 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E26E36B0033
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 11:09:58 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id p15so7959108qtp.4
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 08:09:58 -0700 (PDT)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A8D816B0033
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 11:29:56 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id d13so7185263qta.0
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 08:29:56 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id e88si2765037qtb.465.2017.10.04.08.09.57
+        by mx.google.com with ESMTPS id i127si12856758qkf.379.2017.10.04.08.29.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Oct 2017 08:09:57 -0700 (PDT)
-Subject: Re: [PATCH v9 08/12] mm: zero reserved and unavailable struct pages
-References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
- <20170920201714.19817-9-pasha.tatashin@oracle.com>
- <20171003131817.omzbam3js67edp3s@dhcp22.suse.cz>
- <691dba28-718c-e9a9-d006-88505eb5cd7e@oracle.com>
- <20171004085636.w2rnwf5xxhahzuy7@dhcp22.suse.cz>
- <9198a33d-cd40-dd70-4823-7f70c57ef9a2@oracle.com>
- <20171004125743.fm6mf2artbga76et@dhcp22.suse.cz>
- <d743668c-6b7e-1775-a5b8-d6e997537990@oracle.com>
- <20171004140410.2w2zf2gbutdxunir@dhcp22.suse.cz>
-From: Pasha Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <ee817a40-1160-c24a-5106-f900ad3ebf26@oracle.com>
-Date: Wed, 4 Oct 2017 11:08:59 -0400
-MIME-Version: 1.0
-In-Reply-To: <20171004140410.2w2zf2gbutdxunir@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Wed, 04 Oct 2017 08:29:54 -0700 (PDT)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [PATCH] mm: deferred_init_memmap improvements
+Date: Wed,  4 Oct 2017 11:29:02 -0400
+Message-Id: <20171004152902.17300-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
+deferred_init_memmap() is called when struct pages are initialized later
+in boot by slave CPUs. This patch simplifies and optimizes this function,
+and also fixes a couple issues (described below).
 
+The main change is that now we are iterating through free memblock areas
+instead of all configured memory. Thus, we do not have to check if the
+struct page has already been initialized.
 
-On 10/04/2017 10:04 AM, Michal Hocko wrote:
-> On Wed 04-10-17 09:28:55, Pasha Tatashin wrote:
->>
->>> I am not really familiar with the trim_low_memory_range code path. I am
->>> not even sure we have to care about it because nobody should be walking
->>> pfns outside of any zone.
->>
->> According to commit comments first 4K belongs to BIOS, so I think the memory
->> exists but BIOS may or may not report it to Linux. So, reserve it to make
->> sure we never touch it.
-> 
-> Yes and that memory should be outside of any zones, no?
+=====
+In deferred_init_memmap() where all deferred struct pages are initialized
+we have a check like this:
 
-I am not totally sure, I think some x86 expert could help us here. But, 
-in either case this issue can be fixed separately from the rest of the 
-series.
+if (page->flags) {
+	VM_BUG_ON(page_zone(page) != zone);
+	goto free_range;
+}
 
-> 
->>> I am worried that this patch adds a code which
->>> is not really used and it will just stay that way for ever because
->>> nobody will dare to change it as it is too obscure and not explained
->>> very well.
->>
->> I could explain mine code better. Perhaps add more comments, and explain
->> when it can be removed?
-> 
-> More explanation would be definitely helpful
-> 
->>> trim_low_memory_range is a good example of this. Why do we
->>> even reserve this range from the memory block allocator? The memory
->>> shouldn't be backed by any real memory and thus not in the allocator in
->>> the first place, no?
->>>
->>
->> Since it is not enforced in memblock that everything in reserved list must
->> be part of memory list, we can have it, and we need to make sure kernel does
->> not panic. Otherwise, it is very hard to detect such bugs.
-> 
-> So, should we report such a memblock reservation API (ab)use to the log?
-> Are you actually sure that trim_low_memory_range is doing a sane and
-> really needed thing? In other words do we have a zone which contains
-> this no-memory backed pfns?
-> 
+This way we are checking if the current deferred page has already been
+initialized. It works, because memory for struct pages has been zeroed, and
+the only way flags are not zero if it went through __init_single_page()
+before.  But, once we change the current behavior and won't zero the memory
+in memblock allocator, we cannot trust anything inside "struct page"es
+until they are initialized. This patch fixes this.
 
-And, this patch reports it already:
+The deferred_init_memmap() is re-written to loop through only free memory
+ranges provided by memblock.
 
-+	pr_info("Reserved but unavailable: %lld pages", pgcnt);
+Note, this first issue is relevant only when the following change is merged:
 
-I could add a comment above this print call, explain that such memory is 
-probably bogus and must be studied/fixed. Also, add that this code can 
-be removed once memblock is changed to allow reserve only memory that is 
-backed by physical memory i.e. in "memory" list.
+	mm: stop zeroing memory during allocation in vmemmap
 
-Pasha
+=====
+
+This patch fixes another existing issue on systems that have holes in
+zones i.e CONFIG_HOLES_IN_ZONE is defined.
+
+In for_each_mem_pfn_range() we have code like this:
+
+if (!pfn_valid_within(pfn)
+	goto free_range;
+
+Note: 'page' is not set to NULL and is not incremented but 'pfn' advances.
+Thus means if deferred struct pages are enabled on systems with these kind
+of holes, linux would get memory corruptions. I have fixed this issue by
+defining a new macro that performs all the necessary operations when we
+free the current set of pages.
+
+Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
+Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+Reviewed-by: Bob Picco <bob.picco@oracle.com>
+---
+ mm/page_alloc.c | 168 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 85 insertions(+), 83 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index c841af88836a..dcfd657cfd4e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1410,14 +1410,17 @@ void clear_zone_contiguous(struct zone *zone)
+ }
+ 
+ #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+-static void __init deferred_free_range(struct page *page,
+-					unsigned long pfn, int nr_pages)
++static void __init deferred_free_range(unsigned long pfn,
++				       unsigned long nr_pages)
+ {
+-	int i;
++	struct page *page;
++	unsigned long i;
+ 
+-	if (!page)
++	if (!nr_pages)
+ 		return;
+ 
++	page = pfn_to_page(pfn);
++
+ 	/* Free a large naturally-aligned chunk if possible */
+ 	if (nr_pages == pageblock_nr_pages &&
+ 	    (pfn & (pageblock_nr_pages - 1)) == 0) {
+@@ -1443,19 +1446,89 @@ static inline void __init pgdat_init_report_one_done(void)
+ 		complete(&pgdat_init_all_done_comp);
+ }
+ 
++/*
++ * Helper for deferred_init_range, free the given range, reset the counters, and
++ * return number of pages freed.
++ */
++static inline unsigned long __def_free(unsigned long *nr_free,
++				       unsigned long *free_base_pfn,
++				       struct page **page)
++{
++	unsigned long nr = *nr_free;
++
++	deferred_free_range(*free_base_pfn, nr);
++	*free_base_pfn = 0;
++	*nr_free = 0;
++	*page = NULL;
++
++	return nr;
++}
++
++static unsigned long deferred_init_range(int nid, int zid, unsigned long pfn,
++					 unsigned long end_pfn)
++{
++	struct mminit_pfnnid_cache nid_init_state = { };
++	unsigned long nr_pgmask = pageblock_nr_pages - 1;
++	unsigned long free_base_pfn = 0;
++	unsigned long nr_pages = 0;
++	unsigned long nr_free = 0;
++	struct page *page = NULL;
++
++	for (; pfn < end_pfn; pfn++) {
++		/*
++		 * First we check if pfn is valid on architectures where it is
++		 * possible to have holes within pageblock_nr_pages. On systems
++		 * where it is not possible, this function is optimized out.
++		 *
++		 * Then, we check if a current large page is valid by only
++		 * checking the validity of the head pfn.
++		 *
++		 * meminit_pfn_in_nid is checked on systems where pfns can
++		 * interleave within a node: a pfn is between start and end
++		 * of a node, but does not belong to this memory node.
++		 *
++		 * Finally, we minimize pfn page lookups and scheduler checks by
++		 * performing it only once every pageblock_nr_pages.
++		 */
++		if (!pfn_valid_within(pfn)) {
++			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
++		} else if (!(pfn & nr_pgmask) && !pfn_valid(pfn)) {
++			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
++		} else if (!meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
++			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
++		} else if (page && (pfn & nr_pgmask)) {
++			page++;
++			__init_single_page(page, pfn, zid, nid);
++			nr_free++;
++		} else {
++			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
++			page = pfn_to_page(pfn);
++			__init_single_page(page, pfn, zid, nid);
++			free_base_pfn = pfn;
++			nr_free = 1;
++			cond_resched();
++		}
++	}
++	/* Free the last block of pages to allocator */
++	nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
++
++	return nr_pages;
++}
++
+ /* Initialise remaining memory on a node */
+ static int __init deferred_init_memmap(void *data)
+ {
+ 	pg_data_t *pgdat = data;
+ 	int nid = pgdat->node_id;
+-	struct mminit_pfnnid_cache nid_init_state = { };
+ 	unsigned long start = jiffies;
+ 	unsigned long nr_pages = 0;
+-	unsigned long walk_start, walk_end;
+-	int i, zid;
++	unsigned long spfn, epfn;
++	phys_addr_t spa, epa;
++	int zid;
+ 	struct zone *zone;
+ 	unsigned long first_init_pfn = pgdat->first_deferred_pfn;
+ 	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
++	u64 i;
+ 
+ 	if (first_init_pfn == ULONG_MAX) {
+ 		pgdat_init_report_one_done();
+@@ -1477,83 +1550,12 @@ static int __init deferred_init_memmap(void *data)
+ 		if (first_init_pfn < zone_end_pfn(zone))
+ 			break;
+ 	}
++	first_init_pfn = max(zone->zone_start_pfn, first_init_pfn);
+ 
+-	for_each_mem_pfn_range(i, nid, &walk_start, &walk_end, NULL) {
+-		unsigned long pfn, end_pfn;
+-		struct page *page = NULL;
+-		struct page *free_base_page = NULL;
+-		unsigned long free_base_pfn = 0;
+-		int nr_to_free = 0;
+-
+-		end_pfn = min(walk_end, zone_end_pfn(zone));
+-		pfn = first_init_pfn;
+-		if (pfn < walk_start)
+-			pfn = walk_start;
+-		if (pfn < zone->zone_start_pfn)
+-			pfn = zone->zone_start_pfn;
+-
+-		for (; pfn < end_pfn; pfn++) {
+-			if (!pfn_valid_within(pfn))
+-				goto free_range;
+-
+-			/*
+-			 * Ensure pfn_valid is checked every
+-			 * pageblock_nr_pages for memory holes
+-			 */
+-			if ((pfn & (pageblock_nr_pages - 1)) == 0) {
+-				if (!pfn_valid(pfn)) {
+-					page = NULL;
+-					goto free_range;
+-				}
+-			}
+-
+-			if (!meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
+-				page = NULL;
+-				goto free_range;
+-			}
+-
+-			/* Minimise pfn page lookups and scheduler checks */
+-			if (page && (pfn & (pageblock_nr_pages - 1)) != 0) {
+-				page++;
+-			} else {
+-				nr_pages += nr_to_free;
+-				deferred_free_range(free_base_page,
+-						free_base_pfn, nr_to_free);
+-				free_base_page = NULL;
+-				free_base_pfn = nr_to_free = 0;
+-
+-				page = pfn_to_page(pfn);
+-				cond_resched();
+-			}
+-
+-			if (page->flags) {
+-				VM_BUG_ON(page_zone(page) != zone);
+-				goto free_range;
+-			}
+-
+-			__init_single_page(page, pfn, zid, nid);
+-			if (!free_base_page) {
+-				free_base_page = page;
+-				free_base_pfn = pfn;
+-				nr_to_free = 0;
+-			}
+-			nr_to_free++;
+-
+-			/* Where possible, batch up pages for a single free */
+-			continue;
+-free_range:
+-			/* Free the current block of pages to allocator */
+-			nr_pages += nr_to_free;
+-			deferred_free_range(free_base_page, free_base_pfn,
+-								nr_to_free);
+-			free_base_page = NULL;
+-			free_base_pfn = nr_to_free = 0;
+-		}
+-		/* Free the last block of pages to allocator */
+-		nr_pages += nr_to_free;
+-		deferred_free_range(free_base_page, free_base_pfn, nr_to_free);
+-
+-		first_init_pfn = max(end_pfn, first_init_pfn);
++	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
++		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
++		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
++		nr_pages += deferred_init_range(nid, zid, spfn, epfn);
+ 	}
+ 
+ 	/* Sanity check that the next zone really is unpopulated */
+-- 
+2.14.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
