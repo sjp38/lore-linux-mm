@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CC6BA6B0033
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 08:27:51 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id 22so7462205wrb.7
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 05:27:51 -0700 (PDT)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 124226B0033
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 08:40:52 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id k123so9672355qke.5
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 05:40:52 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id f51si2495892edf.124.2017.10.04.05.27.49
+        by mx.google.com with ESMTPS id y32si4437611qtd.554.2017.10.04.05.40.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Oct 2017 05:27:50 -0700 (PDT)
-Subject: Re: [PATCH v9 06/12] mm: zero struct pages during initialization
+        Wed, 04 Oct 2017 05:40:51 -0700 (PDT)
+Subject: Re: [PATCH v9 08/12] mm: zero reserved and unavailable struct pages
 References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
- <20170920201714.19817-7-pasha.tatashin@oracle.com>
- <20171003130857.vohli6lnqj4tdmhl@dhcp22.suse.cz>
- <73ea1215-7aa2-39e1-b820-30f58119183e@oracle.com>
- <20171004084554.fhxpmywtovs5umnm@dhcp22.suse.cz>
+ <20170920201714.19817-9-pasha.tatashin@oracle.com>
+ <20171003131817.omzbam3js67edp3s@dhcp22.suse.cz>
+ <691dba28-718c-e9a9-d006-88505eb5cd7e@oracle.com>
+ <20171004085636.w2rnwf5xxhahzuy7@dhcp22.suse.cz>
 From: Pasha Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <2fd7b718-c254-612b-e100-a457094e7c38@oracle.com>
-Date: Wed, 4 Oct 2017 08:26:57 -0400
+Message-ID: <9198a33d-cd40-dd70-4823-7f70c57ef9a2@oracle.com>
+Date: Wed, 4 Oct 2017 08:40:11 -0400
 MIME-Version: 1.0
-In-Reply-To: <20171004084554.fhxpmywtovs5umnm@dhcp22.suse.cz>
+In-Reply-To: <20171004085636.w2rnwf5xxhahzuy7@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -28,33 +28,50 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
 Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On 10/04/2017 04:45 AM, Michal Hocko wrote:
-> On Tue 03-10-17 11:22:35, Pasha Tatashin wrote:
->>
->>
->> On 10/03/2017 09:08 AM, Michal Hocko wrote:
->>> On Wed 20-09-17 16:17:08, Pavel Tatashin wrote:
->>>> Add struct page zeroing as a part of initialization of other fields in
->>>> __init_single_page().
->>>>
->>>> This single thread performance collected on: Intel(R) Xeon(R) CPU E7-8895
->>>> v3 @ 2.60GHz with 1T of memory (268400646 pages in 8 nodes):
->>>>
->>>>                           BASE            FIX
->>>> sparse_init     11.244671836s   0.007199623s
->>>> zone_sizes_init  4.879775891s   8.355182299s
->>>>                     --------------------------
->>>> Total           16.124447727s   8.362381922s
+>>> Could you be more specific where is such a memory reserved?
 >>>
->>> Hmm, this is confusing. This assumes that sparse_init doesn't zero pages
->>> anymore, right? So these number depend on the last patch in the series?
 >>
->> Correct, without the last patch sparse_init time won't change.
+>> I know of one example: trim_low_memory_range() unconditionally reserves from
+>> pfn 0, but e820__memblock_setup() might provide the exiting memory from pfn
+>> 1 (i.e. KVM).
 > 
-> THen this is just misleading.
+> Then just initialize struct pages for that mapping rigth there where a
+> special API is used.
+> 
+>> But, there could be more based on this comment from linux/page-flags.h:
+>>
+>>   19  * PG_reserved is set for special pages, which can never be swapped out.
+>> Some
+>>   20  * of them might not even exist (eg empty_bad_page)...
+> 
+> I have no idea wht empty_bad_page is but a quick grep shows that this is
+> never used. I might be wrong here but if somebody is reserving a memory
+> in a special way then we should handle the initialization right there.
+> E.g. create an API for special memblock reservations.
 > 
 
-OK, I will re-arrange patches the way you suggested earlier.
+Hi Michal,
+
+The reservations happen before struct pages are allocated and mapped. 
+So, it is not always possible to do it at call sites.
+
+Previously, I have solved this problem like this:
+
+https://patchwork.kernel.org/patch/9886163
+
+But, I was not too happy with that approach, so I replaced it with the 
+current approach as it is more generic, and solves similar issues if 
+they happen in other places. Also, the comment in page-flags got me 
+scared that there are probably other places perhaps on other 
+architectures that can have the similar issue.
+
+In addition, I did not like my solution, I was simply shrinking the low 
+reservation from:
+[0 - reserve_low) to [min_pfn - reserve_low), but if min_pfn > 
+reserve_low can we skip low reservation entirely? I was not sure.
+
+The current approach notifies us if there are such pages, and we can 
+fix/remove them in the future without crashing kernel in the meantime.
 
 Pasha
 
