@@ -1,139 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EC0956B0261
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 13:36:01 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id 43so11306128qtr.6
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 10:36:01 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id y40si76155qtj.293.2017.10.04.10.36.00
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 751866B0033
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 13:38:10 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id j70so10041216pgc.5
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 10:38:10 -0700 (PDT)
+Received: from out0-236.mail.aliyun.com (out0-236.mail.aliyun.com. [140.205.0.236])
+        by mx.google.com with ESMTPS id h61si12420898pld.201.2017.10.04.10.38.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Oct 2017 10:36:00 -0700 (PDT)
-Subject: Re: [RFC] mmap(MAP_CONTIG)
-References: <21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com>
- <97c81533-5206-b130-1aeb-c5b9bfd93287@linux.vnet.ibm.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <c0f5808f-3ba7-4737-b0e1-b2bfddf9384c@oracle.com>
-Date: Wed, 4 Oct 2017 10:35:52 -0700
+        Wed, 04 Oct 2017 10:38:09 -0700 (PDT)
+Subject: Re: [PATCH 3/3] mm: oom: show unreclaimable slab info when
+ unreclaimable slabs > user memory
+References: <1507053977-116952-1-git-send-email-yang.s@alibaba-inc.com>
+ <1507053977-116952-4-git-send-email-yang.s@alibaba-inc.com>
+ <20171004142736.u4z7zdar6g7bqgrj@dhcp22.suse.cz>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <57193292-3334-f918-011d-7acf55178933@alibaba-inc.com>
+Date: Thu, 05 Oct 2017 01:37:57 +0800
 MIME-Version: 1.0
-In-Reply-To: <97c81533-5206-b130-1aeb-c5b9bfd93287@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20171004142736.u4z7zdar6g7bqgrj@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Guy Shattah <sguy@mellanox.com>, Christoph Lameter <cl@linux.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 10/04/2017 06:49 AM, Anshuman Khandual wrote:
-> On 10/04/2017 05:26 AM, Mike Kravetz wrote:
->> At Plumbers this year, Guy Shattah and Christoph Lameter gave a presentation
->> titled 'User space contiguous memory allocation for DMA' [1].  The slides
->> point out the performance benefits of devices that can take advantage of
->> larger physically contiguous areas.
->>
->> When such physically contiguous allocations are done today, they are done
->> within drivers themselves in an ad-hoc manner.  In addition to allocations
->> for DMA, allocations of this type are also performed for buffers used by
->> coprocessors and other acceleration engines.
-> 
-> Right.
-> 
->>
->> As mentioned in the presentation, posix specifies an interface to obtain
->> physically contiguous memory.  This is via typed memory objects as described
->> in the posix_typed_mem_open() man page.  Since Linux today does not follow
->> the posix typed memory object model, adding infrastructure for contiguous
->> memory allocations seems to be overkill.  Instead, a proposal was suggested
->> to add support via a mmap flag: MAP_CONTIG.
-> 
-> Right.
-> 
->>
->> mmap(MAP_CONTIG) would have the following semantics:
->> - The entire mapping (length size) would be backed by physically contiguous
->>   pages.
->> - If 'length' physically contiguous pages can not be allocated, then mmap
->>   will fail.
->> - MAP_CONTIG only works with MAP_ANONYMOUS mappings.
->> - MAP_CONTIG will lock the associated pages in memory.  As such, the same
->>   privileges and limits that apply to mlock will also apply to MAP_CONTIG.
->> - A MAP_CONTIG mapping can not be expanded.
-> 
-> Why ? May be we have memory around the edge of the existing mapping. Why
-> give up before trying ?
 
-Just a simplification.  If not to complicated, we could add support for
-expansion.  But, it may not be worth the cost and I do not know if there
-would be any real use cases.
 
->> - At fork time, private MAP_CONTIG mappings will be converted to regular
->>   (non-MAP_CONTIG) mapping in the child.  As such a COW fault in the child
->>   will not require a contiguous allocation.
+On 10/4/17 7:27 AM, Michal Hocko wrote:
+> On Wed 04-10-17 02:06:17, Yang Shi wrote:
+>> +static bool is_dump_unreclaim_slabs(void)
+>> +{
+>> +	unsigned long nr_lru;
+>> +
+>> +	nr_lru = global_node_page_state(NR_ACTIVE_ANON) +
+>> +		 global_node_page_state(NR_INACTIVE_ANON) +
+>> +		 global_node_page_state(NR_ACTIVE_FILE) +
+>> +		 global_node_page_state(NR_INACTIVE_FILE) +
+>> +		 global_node_page_state(NR_ISOLATED_ANON) +
+>> +		 global_node_page_state(NR_ISOLATED_FILE) +
+>> +		 global_node_page_state(NR_UNEVICTABLE);
+>> +
+>> +	return (global_node_page_state(NR_SLAB_UNRECLAIMABLE) > nr_lru);
+>> +}
 > 
-> Makes sense but need to be documented as the child still knows that the buffer
-> came from a mmap(MAP_CONTIG) call in the parent.
-> 
->>
->> Some implementation considerations:
->> - alloc_contig_range() or similar will be used for allocations larger
->>   than MAX_ORDER.
-> 
-> As I had also mentioned during the presentation at Plumbers, there should be
-> a fallback approach while attempting to allocate the contiguous memory.
-> 
-> - If order < MAX_ORDER -> alloc_pages()
-> - If order > MAX_ORDER -> alloc_contig_range()
-> - If alloc_contig_range() fails attempt a CMA based allocation scheme
->   The CMA area should have been initialized at the boot exclusively for
->   this purpose (may be with a CONFIG option if some one wants to go for
->   this fallback at all) and use cma_alloc() on that area when we need
->   to service MAP_CONTIG requests.
+> I am sorry I haven't pointed this earlier (I was following only half
+> way) but this should really be memcg aware. You are checking only global
+> counters. I do not think it is an absolute must to provide per-memcg
+> data but you should at least check !is_memcg_oom(oc).
 
-I am not sure about the use of CMA and requiring admin setup.  It is
-something that can be considered.  However, I suspect people would want
-to avoid admin interaction/requirements if possible.
+OK, sure.
 
->> - MAP_CONTIG should imply MAP_POPULATE.  At mmap time, all pages for the
->>   mapping must be 'pre-allocated', and they can only be used for the mapping,
->>   so it makes sense to 'fault in' all pages.
 > 
+> [...]
+>> +void dump_unreclaimable_slab(void)
+>> +{
+>> +	struct kmem_cache *s, *s2;
+>> +	struct slabinfo sinfo;
+>> +
+>> +	pr_info("Unreclaimable slab info:\n");
+>> +	pr_info("Name                      Used          Total\n");
+>> +
+>> +	/*
+>> +	 * Here acquiring slab_mutex is risky since we don't prefer to get
+>> +	 * sleep in oom path. But, without mutex hold, it may introduce a
+>> +	 * risk of crash.
+>> +	 * Use mutex_trylock to protect the list traverse, dump nothing
+>> +	 * without acquiring the mutex.
+>> +	 */
+>> +	if (!mutex_trylock(&slab_mutex))
+>> +		return;
 > 
->> - Using 'pre-allocated' pages in the fault paths may be intrusive.
-> 
-> But we have already faulted in all of them for the mapping and they
-> are also locked. Hence there should not be any page faults any more
-> for the VMA. Am I missing something here ?
+> I would move the trylock up so that we do not get empty and confusing
+> Unreclaimable slab info: and add a note that we are not dumping anything
+> due to lock contention
+> 	pr_warn("excessive unreclaimable slab memory but cannot dump stats to give you more details\n");
 
-I was referring to the action of pre-populating the mapping.  Today that
-is done via the normal fault paths.  So, if we use this same scheme for
-MAP_CONTIG, the fault paths would need to know about pre-allocated pages.
+Thanks for pointing this. Will fix in new version.
 
-Sorry for not being more clear as that may have been a source of confusion.
+Yang
 
->> - We need to keep keep track of those pre-allocated pages until the vma is
->>   tore down, especially if free_contig_range() must be called
 > 
-> Right, probably tracking them as part of the vm_area_struct itself. 
+> Other than that this looks sensible to me.
 > 
->>
->> Thoughts?
->> - Is such an interface useful?
->> - Any other ideas on how to achieve the same functionality?
->> - Any thoughts on implementation?
->>
->> I have started down the path of pre-allocating contiguous pages at mmap
->> time and hanging those off the vma(vm_private_data) with some kludges to
->> use the pages at fault time.  It is really ugly, which is why I am not
->> sharing the code.  Hoping for some comments/suggestions.
+>> +	list_for_each_entry_safe(s, s2, &slab_caches, list) {
+>> +		if (!is_root_cache(s) || (s->flags & SLAB_RECLAIM_ACCOUNT))
+>> +			continue;
+>> +
+>> +		memset(&sinfo, 0, sizeof(sinfo));
+>> +		get_slabinfo(s, &sinfo);
+>> +
+>> +		if (sinfo.num_objs > 0)
+>> +			pr_info("%-17s %10luKB %10luKB\n", cache_name(s),
+>> +				(sinfo.active_objs * s->size) / 1024,
+>> +				(sinfo.num_objs * s->size) / 1024);
+>> +	}
+>> +	mutex_unlock(&slab_mutex);
+>> +}
+>> +
+>>   #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+>>   void *memcg_slab_start(struct seq_file *m, loff_t *pos)
+>>   {
+>> -- 
+>> 1.8.3.1
 > 
-> I am still wondering why wait till fault time not pre fault all of them
-> and populate the page tables.
-
-Yes, that is the idea.  I just did not state clearly above.
-
--- 
-Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
