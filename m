@@ -1,61 +1,358 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C97256B0033
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 09:29:40 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id d67so9277796qkg.2
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 06:29:40 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id 34si5285648qkt.409.2017.10.04.06.29.39
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 444E16B0033
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 09:48:56 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id u78so10835237wmd.4
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 06:48:56 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b7si13254412wrd.163.2017.10.04.06.48.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Oct 2017 06:29:39 -0700 (PDT)
-Subject: Re: [PATCH v9 08/12] mm: zero reserved and unavailable struct pages
-References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
- <20170920201714.19817-9-pasha.tatashin@oracle.com>
- <20171003131817.omzbam3js67edp3s@dhcp22.suse.cz>
- <691dba28-718c-e9a9-d006-88505eb5cd7e@oracle.com>
- <20171004085636.w2rnwf5xxhahzuy7@dhcp22.suse.cz>
- <9198a33d-cd40-dd70-4823-7f70c57ef9a2@oracle.com>
- <20171004125743.fm6mf2artbga76et@dhcp22.suse.cz>
-From: Pasha Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <d743668c-6b7e-1775-a5b8-d6e997537990@oracle.com>
-Date: Wed, 4 Oct 2017 09:28:55 -0400
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 04 Oct 2017 06:48:54 -0700 (PDT)
+Date: Wed, 4 Oct 2017 15:48:53 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCHv3] mm: Account pud page tables
+Message-ID: <20171004134853.k2f4bah7csh6qebm@dhcp22.suse.cz>
+References: <20171002080427.3320-1-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20171004125743.fm6mf2artbga76et@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171002080427.3320-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
+On Mon 02-10-17 11:04:27, Kirill A. Shutemov wrote:
+> On machine with 5-level paging support a process can allocate
+> significant amount of memory and stay unnoticed by oom-killer and
+> memory cgroup. The trick is to allocate a lot of PUD page tables.
+> We don't account PUD page tables, only PMD and PTE.
+> 
+> We already addressed the same issue for PMD page tables, see
+> dc6c9a35b66b ("mm: account pmd page tables to the process").
+> Introduction 5-level paging bring the same issue for PUD page tables.
+> 
+> The patch expands accounting to PUD level.
 
-> I am not really familiar with the trim_low_memory_range code path. I am
-> not even sure we have to care about it because nobody should be walking
-> pfns outside of any zone.
+Can we skip the VmPUD part and reporting puds in the oom report please?
+I would like to consolidate all levels into a single counter and carying
+about one less user visible change will make it slightly easier. Or does
+anybody need this exported to the userspace?
 
-According to commit comments first 4K belongs to BIOS, so I think the 
-memory exists but BIOS may or may not report it to Linux. So, reserve it 
-to make sure we never touch it.
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
 
-  I am worried that this patch adds a code which
-> is not really used and it will just stay that way for ever because
-> nobody will dare to change it as it is too obscure and not explained
-> very well.
+Other than that and including the follow up fix pointed by Vlastimil
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-I could explain mine code better. Perhaps add more comments, and explain 
-when it can be removed?
-
-  trim_low_memory_range is a good example of this. Why do we
-> even reserve this range from the memory block allocator? The memory
-> shouldn't be backed by any real memory and thus not in the allocator in
-> the first place, no?
+> ---
+> 
+>  v3:
+>    - Fix build errors;
+> 
+> ---
+>  Documentation/sysctl/vm.txt   |  8 ++++----
+>  arch/powerpc/mm/hugetlbpage.c |  1 +
+>  arch/sparc/mm/hugetlbpage.c   |  1 +
+>  fs/proc/task_mmu.c            |  5 ++++-
+>  include/linux/mm.h            | 36 +++++++++++++++++++++++++++++++++---
+>  include/linux/mm_types.h      |  3 +++
+>  kernel/fork.c                 |  4 ++++
+>  mm/debug.c                    |  6 ++++--
+>  mm/memory.c                   | 15 +++++++++------
+>  mm/oom_kill.c                 |  8 +++++---
+>  10 files changed, 68 insertions(+), 19 deletions(-)
+> 
+> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+> index 9baf66a9ef4e..2717b6f2d706 100644
+> --- a/Documentation/sysctl/vm.txt
+> +++ b/Documentation/sysctl/vm.txt
+> @@ -622,10 +622,10 @@ oom_dump_tasks
+>  
+>  Enables a system-wide task dump (excluding kernel threads) to be produced
+>  when the kernel performs an OOM-killing and includes such information as
+> -pid, uid, tgid, vm size, rss, nr_ptes, nr_pmds, swapents, oom_score_adj
+> -score, and name.  This is helpful to determine why the OOM killer was
+> -invoked, to identify the rogue task that caused it, and to determine why
+> -the OOM killer chose the task it did to kill.
+> +pid, uid, tgid, vm size, rss, nr_ptes, nr_pmds, nr_puds, swapents,
+> +oom_score_adj score, and name.  This is helpful to determine why the OOM
+> +killer was invoked, to identify the rogue task that caused it, and to
+> +determine why the OOM killer chose the task it did to kill.
+>  
+>  If this is set to zero, this information is suppressed.  On very
+>  large systems with thousands of tasks it may not be feasible to dump
+> diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
+> index 1571a498a33f..a9b9083c5e49 100644
+> --- a/arch/powerpc/mm/hugetlbpage.c
+> +++ b/arch/powerpc/mm/hugetlbpage.c
+> @@ -433,6 +433,7 @@ static void hugetlb_free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
+>  	pud = pud_offset(pgd, start);
+>  	pgd_clear(pgd);
+>  	pud_free_tlb(tlb, pud, start);
+> +	mm_dec_nr_puds(tlb->mm);
+>  }
+>  
+>  /*
+> diff --git a/arch/sparc/mm/hugetlbpage.c b/arch/sparc/mm/hugetlbpage.c
+> index bcd8cdbc377f..fd0d85808828 100644
+> --- a/arch/sparc/mm/hugetlbpage.c
+> +++ b/arch/sparc/mm/hugetlbpage.c
+> @@ -471,6 +471,7 @@ static void hugetlb_free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
+>  	pud = pud_offset(pgd, start);
+>  	pgd_clear(pgd);
+>  	pud_free_tlb(tlb, pud, start);
+> +	mm_dec_nr_puds(tlb->mm);
+>  }
+>  
+>  void hugetlb_free_pgd_range(struct mmu_gather *tlb,
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 5589b4bd4b85..0bf9e423aa99 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -25,7 +25,7 @@
+>  
+>  void task_mem(struct seq_file *m, struct mm_struct *mm)
+>  {
+> -	unsigned long text, lib, swap, ptes, pmds, anon, file, shmem;
+> +	unsigned long text, lib, swap, ptes, pmds, puds, anon, file, shmem;
+>  	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss;
+>  
+>  	anon = get_mm_counter(mm, MM_ANONPAGES);
+> @@ -51,6 +51,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+>  	swap = get_mm_counter(mm, MM_SWAPENTS);
+>  	ptes = PTRS_PER_PTE * sizeof(pte_t) * atomic_long_read(&mm->nr_ptes);
+>  	pmds = PTRS_PER_PMD * sizeof(pmd_t) * mm_nr_pmds(mm);
+> +	puds = PTRS_PER_PUD * sizeof(pmd_t) * mm_nr_puds(mm);
+>  	seq_printf(m,
+>  		"VmPeak:\t%8lu kB\n"
+>  		"VmSize:\t%8lu kB\n"
+> @@ -67,6 +68,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+>  		"VmLib:\t%8lu kB\n"
+>  		"VmPTE:\t%8lu kB\n"
+>  		"VmPMD:\t%8lu kB\n"
+> +		"VmPUD:\t%8lu kB\n"
+>  		"VmSwap:\t%8lu kB\n",
+>  		hiwater_vm << (PAGE_SHIFT-10),
+>  		total_vm << (PAGE_SHIFT-10),
+> @@ -81,6 +83,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+>  		mm->stack_vm << (PAGE_SHIFT-10), text, lib,
+>  		ptes >> 10,
+>  		pmds >> 10,
+> +		puds >> 10,
+>  		swap << (PAGE_SHIFT-10));
+>  	hugetlb_report_usage(m, mm);
+>  }
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index f8c10d336e42..5125c51c9c35 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1598,14 +1598,44 @@ static inline int __p4d_alloc(struct mm_struct *mm, pgd_t *pgd,
+>  int __p4d_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address);
+>  #endif
+>  
+> -#ifdef __PAGETABLE_PUD_FOLDED
+> +#if defined(__PAGETABLE_PUD_FOLDED) || !defined(CONFIG_MMU)
+>  static inline int __pud_alloc(struct mm_struct *mm, p4d_t *p4d,
+>  						unsigned long address)
+>  {
+>  	return 0;
+>  }
+> +
+> +static inline unsigned long mm_nr_puds(const struct mm_struct *mm)
+> +{
+> +	return 0;
+> +}
+> +
+> +static inline void mm_nr_puds_init(struct mm_struct *mm) {}
+> +static inline void mm_inc_nr_puds(struct mm_struct *mm) {}
+> +static inline void mm_dec_nr_puds(struct mm_struct *mm) {}
+> +
+>  #else
+>  int __pud_alloc(struct mm_struct *mm, p4d_t *p4d, unsigned long address);
+> +
+> +static inline void mm_nr_puds_init(struct mm_struct *mm)
+> +{
+> +	atomic_long_set(&mm->nr_puds, 0);
+> +}
+> +
+> +static inline unsigned long mm_nr_puds(const struct mm_struct *mm)
+> +{
+> +	return atomic_long_read(&mm->nr_puds);
+> +}
+> +
+> +static inline void mm_inc_nr_puds(struct mm_struct *mm)
+> +{
+> +	atomic_long_inc(&mm->nr_puds);
+> +}
+> +
+> +static inline void mm_dec_nr_puds(struct mm_struct *mm)
+> +{
+> +	atomic_long_dec(&mm->nr_puds);
+> +}
+>  #endif
+>  
+>  #if defined(__PAGETABLE_PMD_FOLDED) || !defined(CONFIG_MMU)
+> @@ -1617,7 +1647,7 @@ static inline int __pmd_alloc(struct mm_struct *mm, pud_t *pud,
+>  
+>  static inline void mm_nr_pmds_init(struct mm_struct *mm) {}
+>  
+> -static inline unsigned long mm_nr_pmds(struct mm_struct *mm)
+> +static inline unsigned long mm_nr_pmds(const struct mm_struct *mm)
+>  {
+>  	return 0;
+>  }
+> @@ -1633,7 +1663,7 @@ static inline void mm_nr_pmds_init(struct mm_struct *mm)
+>  	atomic_long_set(&mm->nr_pmds, 0);
+>  }
+>  
+> -static inline unsigned long mm_nr_pmds(struct mm_struct *mm)
+> +static inline unsigned long mm_nr_pmds(const struct mm_struct *mm)
+>  {
+>  	return atomic_long_read(&mm->nr_pmds);
+>  }
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index 46f4ecf5479a..6c8c2bb9e5a1 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -401,6 +401,9 @@ struct mm_struct {
+>  	atomic_long_t nr_ptes;			/* PTE page table pages */
+>  #if CONFIG_PGTABLE_LEVELS > 2
+>  	atomic_long_t nr_pmds;			/* PMD page table pages */
+> +#endif
+> +#if CONFIG_PGTABLE_LEVELS > 3
+> +	atomic_long_t nr_puds;			/* PUD page table pages */
+>  #endif
+>  	int map_count;				/* number of VMAs */
+>  
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index 10646182440f..5624918154db 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -815,6 +815,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
+>  	mm->core_state = NULL;
+>  	atomic_long_set(&mm->nr_ptes, 0);
+>  	mm_nr_pmds_init(mm);
+> +	mm_nr_puds_init(mm);
+>  	mm->map_count = 0;
+>  	mm->locked_vm = 0;
+>  	mm->pinned_vm = 0;
+> @@ -874,6 +875,9 @@ static void check_mm(struct mm_struct *mm)
+>  	if (mm_nr_pmds(mm))
+>  		pr_alert("BUG: non-zero nr_pmds on freeing mm: %ld\n",
+>  				mm_nr_pmds(mm));
+> +	if (mm_nr_puds(mm))
+> +		pr_alert("BUG: non-zero nr_puds on freeing mm: %ld\n",
+> +				mm_nr_puds(mm));
+>  
+>  #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
+>  	VM_BUG_ON_MM(mm->pmd_huge_pte, mm);
+> diff --git a/mm/debug.c b/mm/debug.c
+> index 5715448ab0b5..afccb2565269 100644
+> --- a/mm/debug.c
+> +++ b/mm/debug.c
+> @@ -104,7 +104,8 @@ void dump_mm(const struct mm_struct *mm)
+>  		"get_unmapped_area %p\n"
+>  #endif
+>  		"mmap_base %lu mmap_legacy_base %lu highest_vm_end %lu\n"
+> -		"pgd %p mm_users %d mm_count %d nr_ptes %lu nr_pmds %lu map_count %d\n"
+> +		"pgd %p mm_users %d mm_count %d\n"
+> +		"nr_ptes %lu nr_pmds %lu nr_puds %lu map_count %d\n"
+>  		"hiwater_rss %lx hiwater_vm %lx total_vm %lx locked_vm %lx\n"
+>  		"pinned_vm %lx data_vm %lx exec_vm %lx stack_vm %lx\n"
+>  		"start_code %lx end_code %lx start_data %lx end_data %lx\n"
+> @@ -135,7 +136,8 @@ void dump_mm(const struct mm_struct *mm)
+>  		mm->pgd, atomic_read(&mm->mm_users),
+>  		atomic_read(&mm->mm_count),
+>  		atomic_long_read((atomic_long_t *)&mm->nr_ptes),
+> -		mm_nr_pmds((struct mm_struct *)mm),
+> +		mm_nr_pmds(mm),
+> +		mm_nr_puds(mm),
+>  		mm->map_count,
+>  		mm->hiwater_rss, mm->hiwater_vm, mm->total_vm, mm->locked_vm,
+>  		mm->pinned_vm, mm->data_vm, mm->exec_vm, mm->stack_vm,
+> diff --git a/mm/memory.c b/mm/memory.c
+> index ec4e15494901..291d4984b417 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -506,6 +506,7 @@ static inline void free_pud_range(struct mmu_gather *tlb, p4d_t *p4d,
+>  	pud = pud_offset(p4d, start);
+>  	p4d_clear(p4d);
+>  	pud_free_tlb(tlb, pud, start);
+> +	mm_dec_nr_puds(tlb->mm);
+>  }
+>  
+>  static inline void free_p4d_range(struct mmu_gather *tlb, pgd_t *pgd,
+> @@ -4124,15 +4125,17 @@ int __pud_alloc(struct mm_struct *mm, p4d_t *p4d, unsigned long address)
+>  
+>  	spin_lock(&mm->page_table_lock);
+>  #ifndef __ARCH_HAS_5LEVEL_HACK
+> -	if (p4d_present(*p4d))		/* Another has populated it */
+> -		pud_free(mm, new);
+> -	else
+> +	if (!p4d_present(*p4d)) {
+> +		mm_inc_nr_puds(mm);
+>  		p4d_populate(mm, p4d, new);
+> -#else
+> -	if (pgd_present(*p4d))		/* Another has populated it */
+> +	} else	/* Another has populated it */
+>  		pud_free(mm, new);
+> -	else
+> +#else
+> +	if (!pgd_present(*p4d)) {
+> +		mm_inc_nr_puds(mm);
+>  		pgd_populate(mm, p4d, new);
+> +	} else	/* Another has populated it */
+> +		pud_free(mm, new);
+>  #endif /* __ARCH_HAS_5LEVEL_HACK */
+>  	spin_unlock(&mm->page_table_lock);
+>  	return 0;
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 99736e026712..4bee6968885d 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -200,7 +200,8 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
+>  	 * task's rss, pagetable and swap space use.
+>  	 */
+>  	points = get_mm_rss(p->mm) + get_mm_counter(p->mm, MM_SWAPENTS) +
+> -		atomic_long_read(&p->mm->nr_ptes) + mm_nr_pmds(p->mm);
+> +		atomic_long_read(&p->mm->nr_ptes) + mm_nr_pmds(p->mm) +
+> +		mm_nr_puds(p->mm);
+>  	task_unlock(p);
+>  
+>  	/*
+> @@ -376,7 +377,7 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
+>  	struct task_struct *p;
+>  	struct task_struct *task;
+>  
+> -	pr_info("[ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds swapents oom_score_adj name\n");
+> +	pr_info("[ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds nr_puds swapents oom_score_adj name\n");
+>  	rcu_read_lock();
+>  	for_each_process(p) {
+>  		if (oom_unkillable_task(p, memcg, nodemask))
+> @@ -392,11 +393,12 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
+>  			continue;
+>  		}
+>  
+> -		pr_info("[%5d] %5d %5d %8lu %8lu %7ld %7ld %8lu         %5hd %s\n",
+> +		pr_info("[%5d] %5d %5d %8lu %8lu %7ld %7ld %7ld %8lu         %5hd %s\n",
+>  			task->pid, from_kuid(&init_user_ns, task_uid(task)),
+>  			task->tgid, task->mm->total_vm, get_mm_rss(task->mm),
+>  			atomic_long_read(&task->mm->nr_ptes),
+>  			mm_nr_pmds(task->mm),
+> +			mm_nr_puds(task->mm),
+>  			get_mm_counter(task->mm, MM_SWAPENTS),
+>  			task->signal->oom_score_adj, task->comm);
+>  		task_unlock(task);
+> -- 
+> 2.14.2
 > 
 
-Since it is not enforced in memblock that everything in reserved list 
-must be part of memory list, we can have it, and we need to make sure 
-kernel does not panic. Otherwise, it is very hard to detect such bugs.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
