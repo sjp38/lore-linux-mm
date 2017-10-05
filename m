@@ -1,146 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E28426B0253
-	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 16:00:14 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id u12so6303188pfl.0
-        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 13:00:14 -0700 (PDT)
-Received: from relmlie4.idc.renesas.com (relmlor1.renesas.com. [210.160.252.171])
-        by mx.google.com with ESMTP id j188si13616778pfg.332.2017.10.05.13.00.12
-        for <linux-mm@kvack.org>;
-        Thu, 05 Oct 2017 13:00:13 -0700 (PDT)
-From: Chris Brandt <Chris.Brandt@renesas.com>
-Subject: RE: [PATCH v4 4/5] cramfs: add mmap support
-Date: Thu, 5 Oct 2017 20:00:07 +0000
-Message-ID: <SG2PR06MB11655D2F14AC44BA565848788A700@SG2PR06MB1165.apcprd06.prod.outlook.com>
-References: <20170927233224.31676-1-nicolas.pitre@linaro.org>
- <20170927233224.31676-5-nicolas.pitre@linaro.org>
- <20171001083052.GB17116@infradead.org>
- <nycvar.YSQ.7.76.1710011805070.5407@knanqh.ubzr>
- <CAFLxGvzfQrvU-8w7F26mez6fCQD+iS_qRJpLSU+2DniEGouEfA@mail.gmail.com>
- <nycvar.YSQ.7.76.1710021931270.5407@knanqh.ubzr>
- <20171003145732.GA8890@infradead.org>
- <nycvar.YSQ.7.76.1710031107290.5407@knanqh.ubzr>
- <20171003153659.GA31600@infradead.org>
- <nycvar.YSQ.7.76.1710031137580.5407@knanqh.ubzr>
- <20171004072553.GA24620@infradead.org>
- <nycvar.YSQ.7.76.1710041608460.1693@knanqh.ubzr>
-In-Reply-To: <nycvar.YSQ.7.76.1710041608460.1693@knanqh.ubzr>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AD0036B0033
+	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 17:12:17 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id r18so15903128qkh.4
+        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 14:12:17 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id f12si2418486qke.401.2017.10.05.14.12.16
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Oct 2017 14:12:16 -0700 (PDT)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [PATCH v10 01/10] x86/mm: setting fields in deferred pages
+Date: Thu,  5 Oct 2017 17:11:15 -0400
+Message-Id: <20171005211124.26524-2-pasha.tatashin@oracle.com>
+In-Reply-To: <20171005211124.26524-1-pasha.tatashin@oracle.com>
+References: <20171005211124.26524-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicolas Pitre <nicolas.pitre@linaro.org>, Christoph Hellwig <hch@infradead.org>
-Cc: Richard Weinberger <richard.weinberger@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-embedded@vger.kernel.org" <linux-embedded@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On Wednesday, October 04, 2017, Nicolas Pitre wrote:
-> On Wed, 4 Oct 2017, Christoph Hellwig wrote:
->=20
-> > As said in my last mail: look at the VM_MIXEDMAP flag and how it is
-> > used by DAX, and you'll get out of the vma splitting business in the
-> > fault path.
->=20
-> Alright, it appears to work.
->=20
-> The only downside so far is the lack of visibility from user space to
-> confirm it actually works as intended. With the vma splitting approach
-> you clearly see what gets directly mapped in /proc/*/maps thanks to
-> remap_pfn_range() storing the actual physical address in vma->vm_pgoff.
-> With VM_MIXEDMAP things are no longer visible. Any opinion for the best
-> way to overcome this?
->=20
-> Anyway, here's a replacement for patch 4/5 below:
->=20
-> ----- >8
-> Subject: cramfs: add mmap support
->=20
-> When cramfs_physmem is used then we have the opportunity to map files
-> directly from ROM, directly into user space, saving on RAM usage.
-> This gives us Execute-In-Place (XIP) support.
+Without deferred struct page feature (CONFIG_DEFERRED_STRUCT_PAGE_INIT),
+flags and other fields in "struct page"es are never changed prior to first
+initializing struct pages by going through __init_single_page().
 
+With deferred struct page feature enabled, however, we set fields in
+register_page_bootmem_info that are subsequently clobbered right after in
+free_all_bootmem:
 
-Tested on my setup:
- * Cortex A9 (with MMU)
- * CONFIG_XIP_KERNEL=3Dy
- * booted with XIP CRAMFS as my rootfs=20
- * all apps and libraries marked as XIP in my cramfs image
+        mem_init() {
+                register_page_bootmem_info();
+                free_all_bootmem();
+                ...
+        }
 
+When register_page_bootmem_info() is called only non-deferred struct pages
+are initialized. But, this function goes through some reserved pages which
+might be part of the deferred, and thus are not yet initialized.
 
+  mem_init
+   register_page_bootmem_info
+    register_page_bootmem_info_node
+     get_page_bootmem
+      .. setting fields here ..
+      such as: page->freelist = (void *)type;
 
-So far, functionally it seems to work the same as [PATCH v4 4/5].
+  free_all_bootmem()
+   free_low_memory_core_early()
+    for_each_reserved_mem_region()
+     reserve_bootmem_region()
+      init_reserved_page() <- Only if this is deferred reserved page
+       __init_single_pfn()
+        __init_single_page()
+            memset(0) <-- Loose the set fields here
 
-As Nicolas said, before you could easily see that all my apps and=20
-libraries were XIP from Flash:
+We end-up with issue where, currently we do not observe problem as memory
+is explicitly zeroed. But, if flag asserts are changed we can start hitting
+issues.
 
-$ cat /proc/self/maps
-00008000-000a1000 r-xp 1b005000 00:0c 18192      /bin/busybox
-000a9000-000aa000 rw-p 00099000 00:0c 18192      /bin/busybox
-000aa000-000ac000 rw-p 00000000 00:00 0          [heap]
-b6e69000-b6f42000 r-xp 1b0bc000 00:0c 766540     /lib/libc-2.18-2013.10.so
-b6f42000-b6f4a000 ---p 1b195000 00:0c 766540     /lib/libc-2.18-2013.10.so
-b6f4a000-b6f4c000 r--p 000d9000 00:0c 766540     /lib/libc-2.18-2013.10.so
-b6f4c000-b6f4d000 rw-p 000db000 00:0c 766540     /lib/libc-2.18-2013.10.so
-b6f4d000-b6f50000 rw-p 00000000 00:00 0
-b6f50000-b6f67000 r-xp 1b0a4000 00:0c 670372     /lib/ld-2.18-2013.10.so
-b6f6a000-b6f6b000 rw-p 00000000 00:00 0
-b6f6c000-b6f6e000 rw-p 00000000 00:00 0
-b6f6e000-b6f6f000 r--p 00016000 00:0c 670372     /lib/ld-2.18-2013.10.so
-b6f6f000-b6f70000 rw-p 00017000 00:0c 670372     /lib/ld-2.18-2013.10.so
-beac0000-beae1000 rw-p 00000000 00:00 0          [stack]
-bebc9000-bebca000 r-xp 00000000 00:00 0          [sigpage]
-ffff0000-ffff1000 r-xp 00000000 00:00 0          [vectors]
+Also, because in this patch series we will stop zeroing struct page memory
+during allocation, we must make sure that struct pages are properly
+initialized prior to using them.
 
+The deferred-reserved pages are initialized in free_all_bootmem().
+Therefore, the fix is to switch the above calls.
 
+Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
+Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+Reviewed-by: Bob Picco <bob.picco@oracle.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+---
+ arch/x86/mm/init_64.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
 
-But now just busybox looks like it's XIP:
-
-$ cat /proc/self/maps
-00008000-000a1000 r-xp 1b005000 00:0c 18192      /bin/busybox
-000a9000-000aa000 rw-p 00099000 00:0c 18192      /bin/busybox
-000aa000-000ac000 rw-p 00000000 00:00 0          [heap]
-b6e4d000-b6f26000 r-xp 00000000 00:0c 766540     /lib/libc-2.18-2013.10.so
-b6f26000-b6f2e000 ---p 000d9000 00:0c 766540     /lib/libc-2.18-2013.10.so
-b6f2e000-b6f30000 r--p 000d9000 00:0c 766540     /lib/libc-2.18-2013.10.so
-b6f30000-b6f31000 rw-p 000db000 00:0c 766540     /lib/libc-2.18-2013.10.so
-b6f31000-b6f34000 rw-p 00000000 00:00 0
-b6f34000-b6f4b000 r-xp 00000000 00:0c 670372     /lib/ld-2.18-2013.10.so
-b6f4e000-b6f4f000 rw-p 00000000 00:00 0
-b6f50000-b6f52000 rw-p 00000000 00:00 0
-b6f52000-b6f53000 r--p 00016000 00:0c 670372     /lib/ld-2.18-2013.10.so
-b6f53000-b6f54000 rw-p 00017000 00:0c 670372     /lib/ld-2.18-2013.10.so
-bec93000-becb4000 rw-p 00000000 00:00 0          [stack]
-befad000-befae000 r-xp 00000000 00:00 0          [sigpage]
-ffff0000-ffff1000 r-xp 00000000 00:00 0          [vectors]
-
-
-Regardless, from a functional standpoint:
-
-Tested-by: Chris Brandt <chris.brandt@renesas.com>
-
-
-
-
-Just FYI, the previous [PATCH v4 4/5] also included this (which was the=20
-only real difference between v3 and v4):
-
-
-diff --git a/fs/cramfs/Kconfig b/fs/cramfs/Kconfig
-index 5b4e0b7e13..306549be25 100644
---- a/fs/cramfs/Kconfig
-+++ b/fs/cramfs/Kconfig
-@@ -30,7 +30,7 @@ config CRAMFS_BLOCKDEV
-=20
- config CRAMFS_PHYSMEM
- 	bool "Support CramFs image directly mapped in physical memory"
--	depends on CRAMFS
-+	depends on CRAMFS =3D y
- 	default y if !CRAMFS_BLOCKDEV
- 	help
- 	  This option allows the CramFs driver to load data directly from
-
-
-Chris
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 5ea1c3c2636e..8822523fdcd7 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1182,12 +1182,18 @@ void __init mem_init(void)
+ 
+ 	/* clear_bss() already clear the empty_zero_page */
+ 
+-	register_page_bootmem_info();
+-
+ 	/* this will put all memory onto the freelists */
+ 	free_all_bootmem();
+ 	after_bootmem = 1;
+ 
++	/*
++	 * Must be done after boot memory is put on freelist, because here we
++	 * might set fields in deferred struct pages that have not yet been
++	 * initialized, and free_all_bootmem() initializes all the reserved
++	 * deferred pages for us.
++	 */
++	register_page_bootmem_info();
++
+ 	/* Register memory areas for /proc/kcore */
+ 	kclist_add(&kcore_vsyscall, (void *)VSYSCALL_ADDR,
+ 			 PAGE_SIZE, KCORE_OTHER);
+-- 
+2.14.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
