@@ -1,97 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E86846B0033
-	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 09:41:45 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id p46so12751956wrb.1
-        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 06:41:45 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id j1si1375027edc.100.2017.10.05.06.41.44
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7982B6B0033
+	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 09:51:22 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id m142so3588599lfg.11
+        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 06:51:22 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id o52sor1456677wrc.53.2017.10.05.06.51.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Oct 2017 06:41:44 -0700 (PDT)
-Date: Thu, 5 Oct 2017 14:41:13 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v10 5/6] mm, oom: add cgroup v2 mount option for cgroup-aware
- OOM killer
-Message-ID: <20171005134113.GA912@castle.dhcp.TheFacebook.com>
-References: <20171004154638.710-1-guro@fb.com>
- <20171004154638.710-6-guro@fb.com>
- <20171004200453.GE1501@cmpxchg.org>
- <20171005131419.4o6qynsl2qxomekb@dhcp22.suse.cz>
+        (Google Transport Security);
+        Thu, 05 Oct 2017 06:51:21 -0700 (PDT)
+Date: Thu, 5 Oct 2017 15:51:18 +0200
+From: =?UTF-8?B?VG9tw6HFoSBHb2xlbWJpb3Zza8O9?= <tgolembi@redhat.com>
+Subject: Re: [PATCH v2 0/1] linux: Buffers/caches in VirtIO Balloon driver
+ stats
+Message-ID: <20171005155118.51a5bea3@fiorina>
+In-Reply-To: <cover.1505998455.git.tgolembi@redhat.com>
+References: <cover.1505998455.git.tgolembi@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20171005131419.4o6qynsl2qxomekb@dhcp22.suse.cz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, virtualization@lists.linux-foundation.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, virtio-dev@lists.oasis-open.org
+Cc: Wei Wang <wei.w.wang@intel.com>, Shaohua Li <shli@fb.com>, Huang Ying <ying.huang@intel.com>, "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>
 
-On Thu, Oct 05, 2017 at 03:14:19PM +0200, Michal Hocko wrote:
-> On Wed 04-10-17 16:04:53, Johannes Weiner wrote:
-> [...]
-> > That will silently ignore what the user writes to the memory.oom_group
-> > control files across the system's cgroup tree.
-> > 
-> > We'll have a knob that lets the workload declare itself an indivisible
-> > memory consumer, that it would like to get killed in one piece, and
-> > it's silently ignored because of a mount option they forgot to pass.
-> > 
-> > That's not good from an interface perspective.
-> 
-> Yes and that is why I think a boot time knob would be the most simple
-> way. It will also open doors for more oom policies in future which I
-> believe come sooner or later.
+On Thu, 21 Sep 2017 14:55:40 +0200
+Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com> wrote:
 
-So, we would rely on grub config to set up OOM policy? Sounds weird.
+> Linux driver part
+>=20
+> v2:
+> - fixed typos
+>=20
+> Tom=C3=A1=C5=A1 Golembiovsk=C3=BD (1):
+>   virtio_balloon: include buffers and cached memory statistics
+>=20
+>  drivers/virtio/virtio_balloon.c     | 11 +++++++++++
+>  include/uapi/linux/virtio_balloon.h |  4 +++-
+>  mm/swap_state.c                     |  1 +
+>  3 files changed, 15 insertions(+), 1 deletion(-)
+>=20
+> --=20
+> 2.14.1
+>=20
 
-We use boot options, when it's hard to implement on the fly switching
-(like turning on/off socket memory accounting), but here is not this case.
+ping
 
-> 
-> > On the other hand, the only benefit of this patch is to shield users
-> > from changes to the OOM killing heuristics. Yet, it's really hard to
-> > imagine that modifying the victim selection process slightly could be
-> > called a regression in any way. We have done that many times over,
-> > without a second thought on backwards compatibility:
-> > 
-> > 5e9d834a0e0c oom: sacrifice child with highest badness score for parent
-> > a63d83f427fb oom: badness heuristic rewrite
-> > 778c14affaf9 mm, oom: base root bonus on current usage
-> 
-> yes we have changed that without a deeper considerations. Some of those
-> changes are arguable (e.g. child scarification). The oom badness
-> heuristic rewrite has triggered quite some complains AFAIR (I remember
-> Kosaki has made several attempts to revert it). I think that we are
-> trying to be more careful about user visible changes than we used to be.
-> 
-> More importantly I do not think that the current (non-memcg aware) OOM
-> policy is somehow obsolete and many people expect it to behave
-> consistently. As I've said already, I have seen many complains that the
-> OOM killer doesn't kill the right task. Most of them were just NUMA
-> related issues where the oom report was not clear enough. I do not want
-> to repeat that again now. Memcg awareness is certainly a useful
-> heuristic but I do not see it universally applicable to all workloads.
-> 
-> > Let's not make the userspace interface crap because of some misguided
-> > idea that the OOM heuristic is a hard promise to userspace. It's never
-> > been, and nobody has complained about changes in the past.
-> > 
-> > This case is doubly silly, as the behavior change only applies to
-> > cgroup2, which doesn't exactly have a large base of legacy users yet.
-> 
-> I agree on the interface part but I disagree with making it default just
-> because v2 is not largerly adopted yet.
-
-I believe that the only real regression can be caused by active using of
-oom_score_adj. I really don't know how many cgroup v2 users are relying
-on it (hopefully, 0).
-
-So, personally I would prefer to have an opt-out cgroup v2 mount option
-(sane new behavior for most users, 100% backward compatibility for rare
-strange setups), but I don't have a very strong opinion here.
-
-Thanks!
+--=20
+Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
