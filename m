@@ -1,89 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 806A06B0253
-	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 17:54:00 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id j98so2068101lfi.0
-        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 14:54:00 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [146.0.238.70])
-        by mx.google.com with ESMTPS id s17si32791wrb.241.2017.10.05.14.53.58
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C17606B0033
+	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 18:02:21 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id e69so30652811pfg.1
+        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 15:02:21 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id x7sor9086plw.79.2017.10.05.15.02.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 05 Oct 2017 14:53:59 -0700 (PDT)
-Date: Thu, 5 Oct 2017 23:53:52 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH] block/laptop_mode: Convert timers to use timer_setup()
-In-Reply-To: <a74e292d-a0c5-6e75-576b-bb29580028e2@kernel.dk>
-Message-ID: <alpine.DEB.2.20.1710052335030.2398@nanos>
-References: <20171005004924.GA23053@beast> <4d4ccf50-d0b6-a525-dc73-0d64d26da68a@kernel.dk> <CAGXu5jJA4jfZCnhjLrO6fePVJqoJw7Hj7VF1sGLimU2fFu4AgQ@mail.gmail.com> <57ad0ef1-e147-8507-9922-aa72ad47350e@kernel.dk> <alpine.DEB.2.20.1710052102480.2398@nanos>
- <a74e292d-a0c5-6e75-576b-bb29580028e2@kernel.dk>
+        (Google Transport Security);
+        Thu, 05 Oct 2017 15:02:20 -0700 (PDT)
+Date: Thu, 5 Oct 2017 15:02:18 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [v10 3/6] mm, oom: cgroup-aware OOM killer
+In-Reply-To: <20171005104429.GB12982@castle.dhcp.TheFacebook.com>
+Message-ID: <alpine.DEB.2.10.1710051453590.87457@chino.kir.corp.google.com>
+References: <20171004154638.710-1-guro@fb.com> <20171004154638.710-4-guro@fb.com> <alpine.DEB.2.10.1710041322160.67374@chino.kir.corp.google.com> <20171004204153.GA2696@cmpxchg.org> <alpine.DEB.2.10.1710050123180.20389@chino.kir.corp.google.com>
+ <20171005104429.GB12982@castle.dhcp.TheFacebook.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: Kees Cook <keescook@chromium.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Nicholas Piggin <npiggin@gmail.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Matthew Wilcox <mawilcox@microsoft.com>, Jeff Layton <jlayton@redhat.com>, linux-block@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
+To: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Jens,
+On Thu, 5 Oct 2017, Roman Gushchin wrote:
 
-On Thu, 5 Oct 2017, Jens Axboe wrote:
-> On 10/05/2017 01:23 PM, Thomas Gleixner wrote:
-> > Come on. You know very well that a prerequisite for global changes which is
-> > not yet used in Linus tree can get merged post merge windew in order to
-> > avoid massive inter maintainer tree dependencies. We've done that before.
+> > This patchset exists because overcommit is real, exactly the same as 
+> > overcommit within memcg hierarchies is real.  99% of the time we don't run 
+> > into global oom because people aren't using their limits so it just works 
+> > out.  1% of the time we run into global oom and we need a decision to made 
+> > based for forward progress.  Using Michal's earlier example of admins and 
+> > students, a student can easily use all of his limit and also, with v10 of 
+> > this patchset, 99% of the time avoid being oom killed just by forking N 
+> > processes over N cgroups.  It's going to oom kill an admin every single 
+> > time.
 > 
-> My point is that doing it this late makes things harder than they should
-> have been. If this was in for -rc1, it would have made things a lot
-> easier. Or even -rc2. I try and wait to fork off the block tree for as
-> long as I can, -rc2 is generally where that happens.
+> Overcommit is real, but configuring the system in a way that system-wide OOM
+> happens often is a strange idea.
 
-Well, yes. I know it's about habits. There is no real technical reason not
-to merge -rc3 or later into your devel/next branch. I actually do that for
-various reasons, one being that I prefer to have halfways testable
-branches, which is often not the case when they are based of rc1, which is
-especially true in this 4.14 cycle. The other is to pick up stuff which
-went into Linus tree via a urgent branch or even got applied from mail
-directly.
+I wouldn't consider 1% of the time to be often, but the incident rate 
+depends on many variables and who is sharing the same machine.  We can be 
+smart about it and limit the potential for it in many ways, but the end 
+result is that we still do overcommit and the system oom killer can be 
+used to free memory from a low priority process.
 
-> I'm not judging this based on whether I find it interesting or not, but
-> rather if it's something that's generally important to get in. Maybe it
-> is, but I don't see any justification for that at all. So just looking
-> at the isolated change, it does not strike me as something that's
-> important enough to warrant special treatment (and the pain associated
-> with that). I don't care about the core change, it's obviously trivial.
-> Expecting maintainers to pick up this dependency asap mid cycle is what
-> sucks.
+> As we all know, the system can barely work
+> adequate under global memory shortage: network packets are dropped, latency
+> is bad, weird kernel issues are revealed periodically, etc.
+> I do not see, why you can't overcommit on deeper layers of cgroup hierarchy,
+> avoiding system-wide OOM to happen.
+> 
 
-I'm really not getting the 'pain' point.
+Whether it's a system oom or whether its part of the cgroup hierarchy 
+doesn't really matter, what matters is that overcommit occurs and we'd 
+like to kill based on cgroup usage for each cgroup and its subtree, much 
+like your earlier iterations, and also have the ability for userspace to 
+influence that.
 
-'git merge linus' is not really a pain and it does not break workflows
-assumed that you do that on a branch which has immutable state. If you want
-to keep your branches open for rebasing due to some wreckage in the middle
-of it, that's a different story.
+Without a cgroup-aware oom killer, I can prefer against killing an 
+important job that uses 80% of memory and I want it to continue using 80% 
+of memory.  We don't have that control over the cgroup-aware oom killer 
+although we want to consider cgroup and subtree usage when choosing 
+amongst cgroups with the same priority.  If you are not interested in 
+defining the oom priority, all can remain at the default and there is no 
+compatibility issue.
 
-> Please stop accusing me of being hypocritical. I'm questionning the
-> timing of the change, that should be possible without someone resorting
-> to ad hominem attacks.
+> > I know exactly why earlier versions of this patchset iterated that usage 
+> > up the tree so you would pick from students, pick from this troublemaking 
+> > student, and then oom kill from his hierarchy.  Roman has made that point 
+> > himself.  My suggestion was to add userspace influence to it so that 
+> > enterprise users and users with business goals can actually define that we 
+> > really do want 80% of memory to be used by this process or this hierarchy, 
+> > it's in our best interest.
+> 
+> I'll repeat myself: I believe that there is a range of possible policies:
+> from a complete flat (what Johannes did suggested few weeks ago), to a very
+> hierarchical (as in v8). Each with their pros and cons.
+> (Michal did provide a clear example of bad behavior of the hierarchical approach).
+> 
+> I assume, that v10 is a good middle point, and it's good because it doesn't
+> prevent further development. Just for example, you can introduce a third state
+> of oom_group knob, which will mean "evaluate as a whole, but do not kill all".
+> And this is what will solve your particular case, right?
+> 
 
-Well, it seemed hypocritical to me for a hopefully understandable reason. I
-didn't want to attack or offend you in any way.
-
-I just know from repeated experience how painful it is to do full tree
-overhauls and sit on large patch queues for a long time. There is some
-point where you need to get things going and I really appreciate the work
-of people doing that. Refactoring the kernel to get rid of legacy burdens
-and in this case to address a popular attack vector is definitely useful
-for everybody and should be supported. We tried to make it easy by pushing
-this to Linus and I really did not expect that merging Linus -rc3 into a
-devel/next branch is a painful work to do.
-
-As Kees said already, we can set that particular patch aside and push it
-along with the rest of ignored ones around 15-rc1 time so we can remove the
-old interfaces. Though we hopefully wont end up with a gazillion of ignored
-or considered too painful ones.
-
-Thanks,
-
-	tglx
+I would need to add patches to add the "evaluate as a whole but do not 
+kill all" knob and a knob for "oom priority" so that userspace has the 
+same influence over a cgroup based comparison that it does with a process 
+based comparison to meet business goals.  I'm not sure I'd be happy to 
+pollute the mem cgroup v2 filesystem with such knobs when you can easily 
+just not set the priority if you don't want to, and increase the priority 
+if you have a leaf cgroup that should be preferred to be killed because of 
+excess usage.  It has worked quite well in practice.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
