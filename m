@@ -1,65 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3573D6B0033
-	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 18:22:03 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id p5so38719036pgn.7
-        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 15:22:03 -0700 (PDT)
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AB086B0033
+	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 18:58:46 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id 137so7801112vkk.11
+        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 15:58:46 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id n89sor19079pfh.19.2017.10.05.15.22.01
+        by mx.google.com with SMTPS id n184sor187947itg.118.2017.10.05.15.58.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 05 Oct 2017 15:22:01 -0700 (PDT)
-From: Shakeel Butt <shakeelb@google.com>
-Subject: [PATCH] fs, mm: account filp and names caches to kmemcg
-Date: Thu,  5 Oct 2017 15:21:44 -0700
-Message-Id: <20171005222144.123797-1-shakeelb@google.com>
+        Thu, 05 Oct 2017 15:58:45 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <763df3b2-dc7e-d68f-a4ea-b7d0d45dc111@kernel.dk>
+References: <20171005004924.GA23053@beast> <4d4ccf50-d0b6-a525-dc73-0d64d26da68a@kernel.dk>
+ <CAGXu5jJA4jfZCnhjLrO6fePVJqoJw7Hj7VF1sGLimU2fFu4AgQ@mail.gmail.com>
+ <57ad0ef1-e147-8507-9922-aa72ad47350e@kernel.dk> <alpine.DEB.2.20.1710052102480.2398@nanos>
+ <a74e292d-a0c5-6e75-576b-bb29580028e2@kernel.dk> <alpine.DEB.2.20.1710052335030.2398@nanos>
+ <763df3b2-dc7e-d68f-a4ea-b7d0d45dc111@kernel.dk>
+From: Kees Cook <keescook@chromium.org>
+Date: Thu, 5 Oct 2017 15:58:44 -0700
+Message-ID: <CAGXu5j+TajC1bAWhdyFr3eXCKeMEDQx6UViShkUZr3dBQ7xWow@mail.gmail.com>
+Subject: Re: [PATCH] block/laptop_mode: Convert timers to use timer_setup()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Nicholas Piggin <npiggin@gmail.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Matthew Wilcox <mawilcox@microsoft.com>, Jeff Layton <jlayton@redhat.com>, linux-block@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
 
-The allocations from filp and names kmem caches can be directly
-triggered by user space applications. A buggy application can
-consume a significant amount of unaccounted system memory. Though
-we have not noticed such buggy applications in our production
-but upon close inspection, we found that a lot of machines spend
-very significant amount of memory on these caches. So, these
-caches should be accounted to kmemcg.
+On Thu, Oct 5, 2017 at 3:07 PM, Jens Axboe <axboe@kernel.dk> wrote:
+> Yes, it's not impossible, I just usually prefer not to. For this case, I
+> just setup a for-4.15/timer, that is the current block branch with -rc3
+> pulled in. I applied the two patches for floppy and amiflop, I'm
+> assuming Kees will respin the writeback/laptop version and I can shove
+> that in there too.
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
----
- fs/dcache.c     | 2 +-
- fs/file_table.c | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+Thanks for setting this up! I'll respin and send it out again.
 
-diff --git a/fs/dcache.c b/fs/dcache.c
-index f90141387f01..fb3449161063 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -3642,7 +3642,7 @@ void __init vfs_caches_init_early(void)
- void __init vfs_caches_init(void)
- {
- 	names_cachep = kmem_cache_create("names_cache", PATH_MAX, 0,
--			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
-+			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT, NULL);
- 
- 	dcache_init();
- 	inode_init();
-diff --git a/fs/file_table.c b/fs/file_table.c
-index 61517f57f8ef..567888cdf7d3 100644
---- a/fs/file_table.c
-+++ b/fs/file_table.c
-@@ -312,7 +312,7 @@ void put_filp(struct file *file)
- void __init files_init(void)
- {
- 	filp_cachep = kmem_cache_create("filp", sizeof(struct file), 0,
--			SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
-+			SLAB_HWCACHE_ALIGN | SLAB_PANIC | SLAB_ACCOUNT, NULL);
- 	percpu_counter_init(&nr_files, 0, GFP_KERNEL);
- }
- 
+-Kees
+
 -- 
-2.14.2.920.gcf0c67979c-goog
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
