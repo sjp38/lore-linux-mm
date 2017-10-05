@@ -1,133 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 194266B0033
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 20:49:28 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id i195so26071933pgd.2
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 17:49:28 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e16sor3103099pfi.150.2017.10.04.17.49.26
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 886CC6B0033
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 22:55:38 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id u78so12145920wmd.4
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 19:55:38 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id a12si26886edm.386.2017.10.04.19.55.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 04 Oct 2017 17:49:26 -0700 (PDT)
-Date: Wed, 4 Oct 2017 17:49:24 -0700
-From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH] block/laptop_mode: Convert timers to use timer_setup()
-Message-ID: <20171005004924.GA23053@beast>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 04 Oct 2017 19:55:37 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v952rx3P020097
+	for <linux-mm@kvack.org>; Wed, 4 Oct 2017 22:55:35 -0400
+Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com [202.81.31.145])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2dda6snn5g-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 04 Oct 2017 22:55:34 -0400
+Received: from localhost
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 5 Oct 2017 12:55:32 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v952tUu844892298
+	for <linux-mm@kvack.org>; Thu, 5 Oct 2017 13:55:30 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v952tXFF011945
+	for <linux-mm@kvack.org>; Thu, 5 Oct 2017 13:55:34 +1100
+Subject: Re: [PATCH] cma: Take __GFP_NOWARN into account in cma_alloc()
+References: <20171004125447.15195-1-boris.brezillon@free-electrons.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 5 Oct 2017 08:25:25 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20171004125447.15195-1-boris.brezillon@free-electrons.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <7bf6c3b7-48a8-940a-1614-c2b0fdcddcb7@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Jens Axboe <axboe@kernel.dk>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Nicholas Piggin <npiggin@gmail.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Matthew Wilcox <mawilcox@microsoft.com>, Jeff Layton <jlayton@redhat.com>, linux-block@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
+To: Boris Brezillon <boris.brezillon@free-electrons.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Laura Abbott <labbott@redhat.com>
+Cc: Jaewon Kim <jaewon31.kim@samsung.com>, David Airlie <airlied@linux.ie>, Daniel Vetter <daniel@ffwll.ch>, dri-devel@lists.freedesktop.org, Eric Anholt <eric@anholt.net>
 
-In preparation for unconditionally passing the struct timer_list pointer to
-all timer callbacks, switch to using the new timer_setup() and from_timer()
-to pass the timer pointer explicitly.
+On 10/04/2017 06:24 PM, Boris Brezillon wrote:
+> cma_alloc() unconditionally prints an INFO message when the CMA
+> allocation fails. Make this message conditional on the non-presence of
+> __GFP_NOWARN in gfp_mask.
+> 
+> Signed-off-by: Boris Brezillon <boris.brezillon@free-electrons.com>
+> ---
+> Hello,
+> 
+> This patch aims at removing INFO messages that are displayed when the
+> VC4 driver tries to allocate buffer objects. From the driver perspective
+> an allocation failure is acceptable, and the driver can possibly do
+> something to make following allocation succeed (like flushing the VC4
+> internal cache).
+> 
+> Also, I don't understand why this message is only an INFO message, and
+> not a WARN (pr_warn()). Please let me know if you have good reasons to
+> keep it as an unconditional pr_info()
 
-Cc: Jens Axboe <axboe@kernel.dk>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Nicholas Piggin <npiggin@gmail.com>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>
-Cc: Jeff Layton <jlayton@redhat.com>
-Cc: linux-block@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Signed-off-by: Kees Cook <keescook@chromium.org>
----
-This requires commit 686fef928bba ("timer: Prepare to change timer
-callback argument type") in v4.14-rc3, but should be otherwise
-stand-alone.
----
- block/blk-core.c          | 10 +++++-----
- include/linux/writeback.h |  2 +-
- mm/page-writeback.c       |  9 +++++----
- 3 files changed, 11 insertions(+), 10 deletions(-)
-
-diff --git a/block/blk-core.c b/block/blk-core.c
-index 048be4aa6024..070913294cbb 100644
---- a/block/blk-core.c
-+++ b/block/blk-core.c
-@@ -803,9 +803,9 @@ static void blk_queue_usage_counter_release(struct percpu_ref *ref)
- 	wake_up_all(&q->mq_freeze_wq);
- }
- 
--static void blk_rq_timed_out_timer(unsigned long data)
-+static void blk_rq_timed_out_timer(struct timer_list *t)
- {
--	struct request_queue *q = (struct request_queue *)data;
-+	struct request_queue *q = from_timer(q, t, timeout);
- 
- 	kblockd_schedule_work(&q->timeout_work);
- }
-@@ -841,9 +841,9 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
- 	q->backing_dev_info->name = "block";
- 	q->node = node_id;
- 
--	setup_timer(&q->backing_dev_info->laptop_mode_wb_timer,
--		    laptop_mode_timer_fn, (unsigned long) q);
--	setup_timer(&q->timeout, blk_rq_timed_out_timer, (unsigned long) q);
-+	timer_setup(&q->backing_dev_info->laptop_mode_wb_timer,
-+		    laptop_mode_timer_fn, 0);
-+	timer_setup(&q->timeout, blk_rq_timed_out_timer, 0);
- 	INIT_LIST_HEAD(&q->queue_head);
- 	INIT_LIST_HEAD(&q->timeout_list);
- 	INIT_LIST_HEAD(&q->icq_list);
-diff --git a/include/linux/writeback.h b/include/linux/writeback.h
-index d5815794416c..3bfb50e69a81 100644
---- a/include/linux/writeback.h
-+++ b/include/linux/writeback.h
-@@ -329,7 +329,7 @@ static inline void cgroup_writeback_umount(void)
- void laptop_io_completion(struct backing_dev_info *info);
- void laptop_sync_completion(void);
- void laptop_mode_sync(struct work_struct *work);
--void laptop_mode_timer_fn(unsigned long data);
-+void laptop_mode_timer_fn(struct timer_list *t);
- #else
- static inline void laptop_sync_completion(void) { }
- #endif
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 0b9c5cbe8eba..1be0e3067f04 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1977,9 +1977,10 @@ int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
- }
- 
- #ifdef CONFIG_BLOCK
--void laptop_mode_timer_fn(unsigned long data)
-+void laptop_mode_timer_fn(struct timer_list *t)
- {
--	struct request_queue *q = (struct request_queue *)data;
-+	struct backing_dev_info *backing_dev_info =
-+		from_timer(backing_dev_info, t, laptop_mode_wb_timer);
- 	int nr_pages = global_node_page_state(NR_FILE_DIRTY) +
- 		global_node_page_state(NR_UNSTABLE_NFS);
- 	struct bdi_writeback *wb;
-@@ -1988,11 +1989,11 @@ void laptop_mode_timer_fn(unsigned long data)
- 	 * We want to write everything out, not just down to the dirty
- 	 * threshold
- 	 */
--	if (!bdi_has_dirty_io(q->backing_dev_info))
-+	if (!bdi_has_dirty_io(backing_dev_info))
- 		return;
- 
- 	rcu_read_lock();
--	list_for_each_entry_rcu(wb, &q->backing_dev_info->wb_list, bdi_node)
-+	list_for_each_entry_rcu(wb, &backing_dev_info->wb_list, bdi_node)
- 		if (wb_has_dirty_io(wb))
- 			wb_start_writeback(wb, nr_pages, true,
- 					   WB_REASON_LAPTOP_TIMER);
--- 
-2.7.4
-
-
--- 
-Kees Cook
-Pixel Security
+Making it conditional (__GFP_NOWARN based what you already have) with
+pr_warn() message makes more sense.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
