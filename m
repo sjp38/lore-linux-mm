@@ -1,63 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D5E9F6B0033
-	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 19:32:13 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e26so21329854pfd.4
-        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 16:32:13 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b15sor35654pfm.129.2017.10.05.16.32.12
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 05 Oct 2017 16:32:12 -0700 (PDT)
-Date: Thu, 5 Oct 2017 16:32:07 -0700
-From: Alexei Starovoitov <alexei.starovoitov@gmail.com>
-Subject: Re: [PATCH v3 00/20] Speculative page faults
-Message-ID: <20171005233206.vpg446q5k2r4g27r@ast-mbp>
-References: <CAADnVQLmSbLHwj9m33kpzAidJPvq3cbdnXjaew6oTLqHWrBbZQ@mail.gmail.com>
- <670c9a22-cf5b-3fab-b2f2-a72fbd4451c8@linux.vnet.ibm.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 701546B0033
+	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 19:49:26 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id i195so31750667pgd.2
+        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 16:49:26 -0700 (PDT)
+Received: from relmlie2.idc.renesas.com (relmlor3.renesas.com. [210.160.252.173])
+        by mx.google.com with ESMTP id 3si151139plp.335.2017.10.05.16.49.24
+        for <linux-mm@kvack.org>;
+        Thu, 05 Oct 2017 16:49:25 -0700 (PDT)
+From: Chris Brandt <Chris.Brandt@renesas.com>
+Subject: RE: [PATCH v4 4/5] cramfs: add mmap support
+Date: Thu, 5 Oct 2017 23:49:20 +0000
+Message-ID: <SG2PR06MB1165A0C7FA2194F1E6013F6B8A700@SG2PR06MB1165.apcprd06.prod.outlook.com>
+References: <20170927233224.31676-1-nicolas.pitre@linaro.org>
+ <20170927233224.31676-5-nicolas.pitre@linaro.org>
+ <20171001083052.GB17116@infradead.org>
+ <nycvar.YSQ.7.76.1710011805070.5407@knanqh.ubzr>
+ <CAFLxGvzfQrvU-8w7F26mez6fCQD+iS_qRJpLSU+2DniEGouEfA@mail.gmail.com>
+ <nycvar.YSQ.7.76.1710021931270.5407@knanqh.ubzr>
+ <20171003145732.GA8890@infradead.org>
+ <nycvar.YSQ.7.76.1710031107290.5407@knanqh.ubzr>
+ <20171003153659.GA31600@infradead.org>
+ <nycvar.YSQ.7.76.1710031137580.5407@knanqh.ubzr>
+ <20171004072553.GA24620@infradead.org>
+ <nycvar.YSQ.7.76.1710041608460.1693@knanqh.ubzr>
+ <SG2PR06MB11655D2F14AC44BA565848788A700@SG2PR06MB1165.apcprd06.prod.outlook.com>
+ <nycvar.YSQ.7.76.1710051707540.1693@knanqh.ubzr>
+In-Reply-To: <nycvar.YSQ.7.76.1710051707540.1693@knanqh.ubzr>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <670c9a22-cf5b-3fab-b2f2-a72fbd4451c8@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, kirill@shutemov.name, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, dave@stgolabs.net, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, haren@linux.vnet.ibm.com, Anshuman Khandual <khandual@linux.vnet.ibm.com>, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, "x86@kernel.org" <x86@kernel.org>
+To: Nicolas Pitre <nicolas.pitre@linaro.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Richard Weinberger <richard.weinberger@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-embedded@vger.kernel.org" <linux-embedded@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Oct 04, 2017 at 08:50:49AM +0200, Laurent Dufour wrote:
-> On 25/09/2017 18:27, Alexei Starovoitov wrote:
-> > On Mon, Sep 18, 2017 at 12:15 AM, Laurent Dufour
-> > <ldufour@linux.vnet.ibm.com> wrote:
-> >> Despite the unprovable lockdep warning raised by Sergey, I didn't get any
-> >> feedback on this series.
-> >>
-> >> Is there a chance to get it moved upstream ?
-> > 
-> > what is the status ?
-> > We're eagerly looking forward for this set to land,
-> > since we have several use cases for tracing that
-> > will build on top of this set as discussed at Plumbers.
-> 
-> Hi Alexei,
-> 
-> Based on Plumber's note [1], it sounds that the use case is tied to the BPF
-> tracing where a call tp find_vma() call will be made on a process's context
-> to fetch user space's symbols.
-> 
-> Am I right ?
-> Is the find_vma() call made in the context of the process owning the mm
-> struct ?
+On Thursday, October 05, 2017, Nicolas Pitre wrote:
+> Do you have the same amount of free memory once booted in both cases?
 
-Hi Laurent,
+Yes, almost exactly the same, so obvious it must be working the same for
+both cases. That's enough evidence for me.
 
-we're thinking about several use cases on top of your work.
-First one is translation of user address to file_handle where
-we need to do find_vma() from preempt_disabled context of bpf program.
-My understanding that srcu should solve that nicely.
-Second is making probe_read() to try harder when address is causing
-minor fault. We're thinking that find_vma() followed by some new
-light weight filemap_access() that doesn't sleep will do the trick.
-In both cases the program will be accessing current->mm
+Thanks.
+
+Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
