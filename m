@@ -1,167 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E3BE86B0033
-	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 12:40:13 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id l188so19807055pfc.7
-        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 09:40:13 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k63si7018049pge.222.2017.10.05.09.40.11
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 05 Oct 2017 09:40:12 -0700 (PDT)
-Date: Thu, 5 Oct 2017 18:40:08 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v10 5/6] mm, oom: add cgroup v2 mount option for cgroup-aware
- OOM killer
-Message-ID: <20171005163857.qiifnaq46aoiq2ga@dhcp22.suse.cz>
-References: <20171004154638.710-1-guro@fb.com>
- <20171004154638.710-6-guro@fb.com>
- <20171004200453.GE1501@cmpxchg.org>
- <20171005131419.4o6qynsl2qxomekb@dhcp22.suse.cz>
- <20171005144803.GA5733@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171005144803.GA5733@cmpxchg.org>
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 871486B0253
+	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 12:57:12 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id p187so13149207oif.1
+        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 09:57:12 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id z65si5131715oig.73.2017.10.05.09.57.10
+        for <linux-mm@kvack.org>;
+        Thu, 05 Oct 2017 09:57:11 -0700 (PDT)
+From: Will Deacon <will.deacon@arm.com>
+Subject: [PATCH] mm: page_vma_mapped: Ensure pmd is loaded with READ_ONCE outside of lock
+Date: Thu,  5 Oct 2017 17:57:10 +0100
+Message-Id: <1507222630-5839-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Will Deacon <will.deacon@arm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, stable@vger.kernel.org
 
-On Thu 05-10-17 10:54:01, Johannes Weiner wrote:
-> On Thu, Oct 05, 2017 at 03:14:19PM +0200, Michal Hocko wrote:
-> > On Wed 04-10-17 16:04:53, Johannes Weiner wrote:
-> > [...]
-> > > That will silently ignore what the user writes to the memory.oom_group
-> > > control files across the system's cgroup tree.
-> > > 
-> > > We'll have a knob that lets the workload declare itself an indivisible
-> > > memory consumer, that it would like to get killed in one piece, and
-> > > it's silently ignored because of a mount option they forgot to pass.
-> > > 
-> > > That's not good from an interface perspective.
-> > 
-> > Yes and that is why I think a boot time knob would be the most simple
-> > way. It will also open doors for more oom policies in future which I
-> > believe come sooner or later.
-> 
-> A boot time knob makes less sense to me than the mount option. It
-> doesn't require a reboot to change this behavior, we shouldn't force
-> the user to reboot when a runtime configuration is possible.
+Loading the pmd without holding the pmd_lock exposes us to races with
+concurrent updaters of the page tables but, worse still, it also allows
+the compiler to cache the pmd value in a register and reuse it later on,
+even if we've performed a READ_ONCE in between and seen a more recent
+value.
 
-Do we need such a runtime configurability, though? If yes, what is the
-usecase?
+In the case of page_vma_mapped_walk, this leads to the following crash
+when the pmd loaded for the initial pmd_trans_huge check is all zeroes
+and a subsequent valid table entry is loaded by check_pmd. We then
+proceed into map_pte, but the compiler re-uses the zero entry inside
+pte_offset_map, resulting in a junk pointer being installed in pvmw->pte:
 
-> But I don't see how dropping this patch as part of this series would
-> prevent adding modular oom policies in the future?
+[  254.032812] PC is at check_pte+0x20/0x170
+[  254.032948] LR is at page_vma_mapped_walk+0x2e0/0x540
+[...]
+[  254.036114] Process doio (pid: 2463, stack limit = 0xffff00000f2e8000)
+[  254.036361] Call trace:
+[  254.038977] [<ffff000008233328>] check_pte+0x20/0x170
+[  254.039137] [<ffff000008233758>] page_vma_mapped_walk+0x2e0/0x540
+[  254.039332] [<ffff000008234adc>] page_mkclean_one+0xac/0x278
+[  254.039489] [<ffff000008234d98>] rmap_walk_file+0xf0/0x238
+[  254.039642] [<ffff000008236e74>] rmap_walk+0x64/0xa0
+[  254.039784] [<ffff0000082370c8>] page_mkclean+0x90/0xa8
+[  254.040029] [<ffff0000081f3c64>] clear_page_dirty_for_io+0x84/0x2a8
+[  254.040311] [<ffff00000832f984>] mpage_submit_page+0x34/0x98
+[  254.040518] [<ffff00000832fb4c>] mpage_process_page_bufs+0x164/0x170
+[  254.040743] [<ffff00000832fc8c>] mpage_prepare_extent_to_map+0x134/0x2b8
+[  254.040969] [<ffff00000833530c>] ext4_writepages+0x484/0xe30
+[  254.041175] [<ffff0000081f6ab4>] do_writepages+0x44/0xe8
+[  254.041372] [<ffff0000081e5bd4>] __filemap_fdatawrite_range+0xbc/0x110
+[  254.041568] [<ffff0000081e5e68>] file_write_and_wait_range+0x48/0xd8
+[  254.041739] [<ffff000008324310>] ext4_sync_file+0x80/0x4b8
+[  254.041907] [<ffff0000082bd434>] vfs_fsync_range+0x64/0xc0
+[  254.042106] [<ffff0000082332b4>] SyS_msync+0x194/0x1e8
 
-I didn't say that dropping this patch would prevent further oom policies.
-My point was that a command line option could be more generic to allow
-more policies in future.
+This patch fixes the problem by ensuring that READ_ONCE is used before
+the initial checks on the pmd, and this value is subsequently used when
+checking whether or not the pmd is present. pmd_check is removed and the
+pmd_present check is inlined directly.
 
-> That said, selectable OOM policies sound like a total deadend to
-> me. The kernel OOM happens way too late to be useful for any kind of
-> resource policy already. Even now it won't prevent you from thrashing
-> indefinitely, with only 5% of your workload's time spent productively.
-> 
-> What kind of service quality do you have at this point?
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: <stable@vger.kernel.org>
+Fixes: f27176cfc363 ("mm: convert page_mkclean_one() to use page_vma_mapped_walk()")
+Tested-by: Yury Norov <ynorov@caviumnetworks.com>
+Tested-by: Richard Ruigrok <rruigrok@codeaurora.org>
+Signed-off-by: Will Deacon <will.deacon@arm.com>
+---
+ mm/page_vma_mapped.c | 25 ++++++++++---------------
+ 1 file changed, 10 insertions(+), 15 deletions(-)
 
-The OOM killer is a disruptive operation which can be really costly
-from the workload perspective (you are losing work) and as such the
-victim selection really depends on the workload. Most of them are just
-fine with the most rudimentary kill-the-largest approach but think of
-workloads where the amount or type of work really matters much more
-(think of a long running computational jobs taking weeks). We cannot
-really handle all of those so I really expect that we will eventually
-have to provide a way to allow different policies _somehow_.
-
-> The *minority* of our OOM situations (in terms of "this isn't making
-> real progress anymore due to a lack of memory") is even *seeing* OOM
-> kills at this point. And it'll get worse as storage gets faster and
-> memory bigger.
-
-This is imho a separate problem which is independent on the oom victim
-selection.
-
-> How is that useful as a resource arbitration point?
-> 
-> Then there is the question of reliability. I mean, we still don't have
-> a global OOM killer that is actually free from deadlocks.
-
-Well, I believe that we should be deadlock free now.
-
-> We don't
-> have reserves measured to the exact requirements of reclaim that would
-> guarantee recovery, the OOM reaper requires a lock that we hope isn't
-> taken, etc. I wouldn't want any of my fleet to rely on this for
-> regular operation - I'm just glad that, when we do mess up and hit
-> this event, we don't have to reboot.
-> 
-> It makes much more sense to monitor memory pressure from userspace and
-> smartly intervene when things turn unproductive, which is a long way
-> from the point where the kernel is about to *deadlock* due to memory.
-
-again this is independent on the oom selection policy.
+diff --git a/mm/page_vma_mapped.c b/mm/page_vma_mapped.c
+index 6a03946469a9..6b85f5464246 100644
+--- a/mm/page_vma_mapped.c
++++ b/mm/page_vma_mapped.c
+@@ -6,17 +6,6 @@
  
-> Global OOM kills can still happen, but their goal should really be 1)
-> to save the kernel, 2) respect the integrity of a memory consumer and
-> 3) be comprehensible to userspace. (These patches are about 2 and 3.)
-
-I agree on these but I would add 4) make sure that the impact on the
-system is acceptable/least disruptive possible.
-
-> But abstracting such a rudimentary and fragile deadlock avoidance
-> mechanism into higher-level resource management, or co-opting it as a
-> policy enforcement tool, is crazy to me.
-> 
-> And it seems reckless to present it as those things to our users by
-> encoding any such elaborate policy interfaces.
-> 
-> > > On the other hand, the only benefit of this patch is to shield users
-> > > from changes to the OOM killing heuristics. Yet, it's really hard to
-> > > imagine that modifying the victim selection process slightly could be
-> > > called a regression in any way. We have done that many times over,
-> > > without a second thought on backwards compatibility:
-> > > 
-> > > 5e9d834a0e0c oom: sacrifice child with highest badness score for parent
-> > > a63d83f427fb oom: badness heuristic rewrite
-> > > 778c14affaf9 mm, oom: base root bonus on current usage
-> > 
-> > yes we have changed that without a deeper considerations. Some of those
-> > changes are arguable (e.g. child scarification). The oom badness
-> > heuristic rewrite has triggered quite some complains AFAIR (I remember
-> > Kosaki has made several attempts to revert it). I think that we are
-> > trying to be more careful about user visible changes than we used to be.
-> 
-> Whatever grumbling might have come up, it has not resulted in a revert
-> or a way to switch back to the old behavior. So I don't think this can
-> be considered an actual regression.
-> 
-> We change heuristics in the MM all the time. If you track for example
-> allocator behavior over different kernel versions, you can see how
-> much our caching policy, our huge page policy etc. fluctuates. The
-> impact of that is way bigger to regular workloads than how we go about
-> choosing an OOM victim.
-
-And some of those examples have taught me to be much more careful when
-imposing features users are not really asking for (remember the THP by
-default story?). I have handled many OOM reports last years and I _know_
-for fact that people are very sensitive to the oom victim selection.
+ #include "internal.h"
  
-> We don't want to regress anybody, but let's also keep perspective here
-> and especially consider the userspace interfaces we are willing to put
-> in for at least the next few years, the promises we want to make, the
-> further fragmentation of the config space, for such a negligible risk.
-
-Well, I thought the opt-in aspect has been already agreed on and my
-ack is based on that assumption. I do not really care what will be
-the mechanism to do so but I _strongly_ believe that enabling this feature
-automatically just because cgroupv2 is enabled is a wrong approach. I
-will not nack the patchset if there is a broader agreement that this is
-acceptable but you have to live without my acks.
+-static inline bool check_pmd(struct page_vma_mapped_walk *pvmw)
+-{
+-	pmd_t pmde;
+-	/*
+-	 * Make sure we don't re-load pmd between present and !trans_huge check.
+-	 * We need a consistent view.
+-	 */
+-	pmde = READ_ONCE(*pvmw->pmd);
+-	return pmd_present(pmde) && !pmd_trans_huge(pmde);
+-}
+-
+ static inline bool not_found(struct page_vma_mapped_walk *pvmw)
+ {
+ 	page_vma_mapped_walk_done(pvmw);
+@@ -116,6 +105,7 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
+ 	pgd_t *pgd;
+ 	p4d_t *p4d;
+ 	pud_t *pud;
++	pmd_t pmde;
+ 
+ 	/* The only possible pmd mapping has been handled on last iteration */
+ 	if (pvmw->pmd && !pvmw->pte)
+@@ -148,7 +138,13 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
+ 	if (!pud_present(*pud))
+ 		return false;
+ 	pvmw->pmd = pmd_offset(pud, pvmw->address);
+-	if (pmd_trans_huge(*pvmw->pmd) || is_pmd_migration_entry(*pvmw->pmd)) {
++	/*
++	 * Make sure the pmd value isn't cached in a register by the
++	 * compiler and used as a stale value after we've observed a
++	 * subsequent update.
++	 */
++	pmde = READ_ONCE(*pvmw->pmd);
++	if (pmd_trans_huge(pmde) || is_pmd_migration_entry(pmde)) {
+ 		pvmw->ptl = pmd_lock(mm, pvmw->pmd);
+ 		if (likely(pmd_trans_huge(*pvmw->pmd))) {
+ 			if (pvmw->flags & PVMW_MIGRATION)
+@@ -175,9 +171,8 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
+ 			spin_unlock(pvmw->ptl);
+ 			pvmw->ptl = NULL;
+ 		}
+-	} else {
+-		if (!check_pmd(pvmw))
+-			return false;
++	} else if (!pmd_present(pmde)) {
++		return false;
+ 	}
+ 	if (!map_pte(pvmw))
+ 		goto next_pte;
 -- 
-Michal Hocko
-SUSE Labs
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
