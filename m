@@ -1,47 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 066086B0033
-	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 05:13:49 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id u138so12726168wmu.2
-        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 02:13:48 -0700 (PDT)
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 341C06B0069
+	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 05:13:50 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id b16so441222lfb.21
+        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 02:13:50 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w5si11948718wma.142.2017.10.05.02.13.47
+        by mx.google.com with ESMTPS id v5si12948820wme.189.2017.10.05.02.13.48
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 05 Oct 2017 02:13:47 -0700 (PDT)
-Date: Thu, 5 Oct 2017 09:57:04 +0200
+        Thu, 05 Oct 2017 02:13:48 -0700 (PDT)
+Date: Thu, 5 Oct 2017 09:57:57 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] Revert "vmalloc: back off when the current task is
- killed"
-Message-ID: <20171005075704.enxdgjteoe4vgbag@dhcp22.suse.cz>
-References: <20171003225504.GA966@cmpxchg.org>
- <20171004185813.GA2136@cmpxchg.org>
- <20171004185906.GB2136@cmpxchg.org>
- <20171004153245.2b08d831688bb8c66ef64708@linux-foundation.org>
- <20171004231821.GA3610@cmpxchg.org>
+Subject: Re: [PATCH 3/3] mm: oom: show unreclaimable slab info when
+ unreclaimable slabs > user memory
+Message-ID: <20171005075757.ziyj7kyzyrx7ghd6@dhcp22.suse.cz>
+References: <1507053977-116952-1-git-send-email-yang.s@alibaba-inc.com>
+ <1507053977-116952-4-git-send-email-yang.s@alibaba-inc.com>
+ <20171004142736.u4z7zdar6g7bqgrj@dhcp22.suse.cz>
+ <4b668145-a81d-6f46-0569-b0adb76788d8@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171004231821.GA3610@cmpxchg.org>
+In-Reply-To: <4b668145-a81d-6f46-0569-b0adb76788d8@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alan Cox <alan@llwyncelyn.cymru>, Christoph Hellwig <hch@lst.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Yang Shi <yang.s@alibaba-inc.com>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 04-10-17 19:18:21, Johannes Weiner wrote:
-> On Wed, Oct 04, 2017 at 03:32:45PM -0700, Andrew Morton wrote:
-[...]
-> > You don't think they should be backported into -stables?
+On Thu 05-10-17 02:08:48, Yang Shi wrote:
 > 
-> Good point. For this one, it makes sense to CC stable, for 4.11 and
-> up. The second patch is more of a fortification against potential
-> future issues, and probably shouldn't go into stable.
+> 
+> On 10/4/17 7:27 AM, Michal Hocko wrote:
+> > On Wed 04-10-17 02:06:17, Yang Shi wrote:
+> > > +static bool is_dump_unreclaim_slabs(void)
+> > > +{
+> > > +	unsigned long nr_lru;
+> > > +
+> > > +	nr_lru = global_node_page_state(NR_ACTIVE_ANON) +
+> > > +		 global_node_page_state(NR_INACTIVE_ANON) +
+> > > +		 global_node_page_state(NR_ACTIVE_FILE) +
+> > > +		 global_node_page_state(NR_INACTIVE_FILE) +
+> > > +		 global_node_page_state(NR_ISOLATED_ANON) +
+> > > +		 global_node_page_state(NR_ISOLATED_FILE) +
+> > > +		 global_node_page_state(NR_UNEVICTABLE);
+> > > +
+> > > +	return (global_node_page_state(NR_SLAB_UNRECLAIMABLE) > nr_lru);
+> > > +}
+> > 
+> > I am sorry I haven't pointed this earlier (I was following only half
+> > way) but this should really be memcg aware. You are checking only global
+> > counters. I do not think it is an absolute must to provide per-memcg
+> > data but you should at least check !is_memcg_oom(oc).
+> 
+> BTW, I saw there is already such check in dump_header that looks like the
+> below code:
+> 
+>         if (oc->memcg)
+>                 mem_cgroup_print_oom_info(oc->memcg, p);
+>         else
+>                 show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
+> 
+> I'm supposed it'd better to replace "oc->memcg" to "is_memcg_oom(oc)" since
+> they do the same check and "is_memcg_oom" interface sounds preferable.
 
-I am not against. It is true that the memory reserves depletion fix was
-theoretical because I haven't seen any real life bug. I would argue that
-the more robust allocation failure behavior is a stable candidate as
-well, though, because the allocation can fail regardless of the vmalloc
-revert. It is less likely but still possible.
+Yes, is_memcg_oom is better
+
+> Then I'm going to move unreclaimable slabs dump to the "else" block.
+
+makes sense.
 -- 
 Michal Hocko
 SUSE Labs
