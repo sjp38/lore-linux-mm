@@ -1,65 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CF9D26B0033
-	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 10:56:54 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id g18so12301642itg.1
-        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 07:56:54 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id o195sor7327112ioe.241.2017.10.05.07.56.53
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C03D66B0033
+	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 11:19:22 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id r83so32940331pfj.5
+        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 08:19:22 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id l22si13352181pfk.589.2017.10.05.08.19.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 05 Oct 2017 07:56:53 -0700 (PDT)
-Subject: Re: [PATCH] block/laptop_mode: Convert timers to use timer_setup()
-References: <20171005004924.GA23053@beast>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <4d4ccf50-d0b6-a525-dc73-0d64d26da68a@kernel.dk>
-Date: Thu, 5 Oct 2017 08:56:51 -0600
-MIME-Version: 1.0
-In-Reply-To: <20171005004924.GA23053@beast>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Oct 2017 08:19:21 -0700 (PDT)
+From: Matthew Auld <matthew.auld@intel.com>
+Subject: [PATCH 01/21] mm/shmem: introduce shmem_file_setup_with_mnt
+Date: Thu,  5 Oct 2017 16:18:55 +0100
+Message-Id: <20171005151915.11151-2-matthew.auld@intel.com>
+In-Reply-To: <20171005151915.11151-1-matthew.auld@intel.com>
+References: <20171005151915.11151-1-matthew.auld@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org
-Cc: Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Nicholas Piggin <npiggin@gmail.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Matthew Wilcox <mawilcox@microsoft.com>, Jeff Layton <jlayton@redhat.com>, linux-block@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
+To: intel-gfx@lists.freedesktop.org
+Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Chris Wilson <chris@chris-wilson.co.uk>, Dave Hansen <dave.hansen@intel.com>, "Kirill A . Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-On 10/04/2017 06:49 PM, Kees Cook wrote:
-> In preparation for unconditionally passing the struct timer_list pointer to
-> all timer callbacks, switch to using the new timer_setup() and from_timer()
-> to pass the timer pointer explicitly.
-> 
-> Cc: Jens Axboe <axboe@kernel.dk>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Nicholas Piggin <npiggin@gmail.com>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: Matthew Wilcox <mawilcox@microsoft.com>
-> Cc: Jeff Layton <jlayton@redhat.com>
-> Cc: linux-block@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Signed-off-by: Kees Cook <keescook@chromium.org>
-> ---
-> This requires commit 686fef928bba ("timer: Prepare to change timer
-> callback argument type") in v4.14-rc3, but should be otherwise
-> stand-alone.
+We are planning to use our own tmpfs mnt in i915 in place of the
+shm_mnt, such that we can control the mount options, in particular
+huge=, which we require to support huge-gtt-pages. So rather than roll
+our own version of __shmem_file_setup, it would be preferred if we could
+just give shmem our mnt, and let it do the rest.
 
-My only complaint about this is the use of a from_timer() macro instead
-of just using container_of() at the call sites to actually show that is
-happening. I'm generally opposed to obfuscation like that. It just means
-you have to look up what is going on, instead of it being readily
-apparent to the reader/reviewer.
+Signed-off-by: Matthew Auld <matthew.auld@intel.com>
+Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+Cc: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Kirill A. Shutemov <kirill@shutemov.name>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org
+Acked-by: Andrew Morton <akpm@linux-foundation.org>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reviewed-by: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+---
+ include/linux/shmem_fs.h |  2 ++
+ mm/shmem.c               | 30 ++++++++++++++++++++++--------
+ 2 files changed, 24 insertions(+), 8 deletions(-)
 
-I guess I do have a a second complaint as well - that it landed in -rc3,
-which is rather late considering subsystem trees are usually forked
-earlier than that. Had this been in -rc1, I would have had an easier
-time applying the block bits for 4.15.
-
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index b6c3540e07bc..0937d9a7d8fb 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -53,6 +53,8 @@ extern struct file *shmem_file_setup(const char *name,
+ 					loff_t size, unsigned long flags);
+ extern struct file *shmem_kernel_file_setup(const char *name, loff_t size,
+ 					    unsigned long flags);
++extern struct file *shmem_file_setup_with_mnt(struct vfsmount *mnt,
++		const char *name, loff_t size, unsigned long flags);
+ extern int shmem_zero_setup(struct vm_area_struct *);
+ extern unsigned long shmem_get_unmapped_area(struct file *, unsigned long addr,
+ 		unsigned long len, unsigned long pgoff, unsigned long flags);
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 07a1d22807be..3229d27503ec 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -4183,7 +4183,7 @@ static const struct dentry_operations anon_ops = {
+ 	.d_dname = simple_dname
+ };
+ 
+-static struct file *__shmem_file_setup(const char *name, loff_t size,
++static struct file *__shmem_file_setup(struct vfsmount *mnt, const char *name, loff_t size,
+ 				       unsigned long flags, unsigned int i_flags)
+ {
+ 	struct file *res;
+@@ -4192,8 +4192,8 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
+ 	struct super_block *sb;
+ 	struct qstr this;
+ 
+-	if (IS_ERR(shm_mnt))
+-		return ERR_CAST(shm_mnt);
++	if (IS_ERR(mnt))
++		return ERR_CAST(mnt);
+ 
+ 	if (size < 0 || size > MAX_LFS_FILESIZE)
+ 		return ERR_PTR(-EINVAL);
+@@ -4205,8 +4205,8 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
+ 	this.name = name;
+ 	this.len = strlen(name);
+ 	this.hash = 0; /* will go */
+-	sb = shm_mnt->mnt_sb;
+-	path.mnt = mntget(shm_mnt);
++	sb = mnt->mnt_sb;
++	path.mnt = mntget(mnt);
+ 	path.dentry = d_alloc_pseudo(sb, &this);
+ 	if (!path.dentry)
+ 		goto put_memory;
+@@ -4251,7 +4251,7 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
+  */
+ struct file *shmem_kernel_file_setup(const char *name, loff_t size, unsigned long flags)
+ {
+-	return __shmem_file_setup(name, size, flags, S_PRIVATE);
++	return __shmem_file_setup(shm_mnt, name, size, flags, S_PRIVATE);
+ }
+ 
+ /**
+@@ -4262,11 +4262,25 @@ struct file *shmem_kernel_file_setup(const char *name, loff_t size, unsigned lon
+  */
+ struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags)
+ {
+-	return __shmem_file_setup(name, size, flags, 0);
++	return __shmem_file_setup(shm_mnt, name, size, flags, 0);
+ }
+ EXPORT_SYMBOL_GPL(shmem_file_setup);
+ 
+ /**
++ * shmem_file_setup_with_mnt - get an unlinked file living in tmpfs
++ * @mnt: the tmpfs mount where the file will be created
++ * @name: name for dentry (to be seen in /proc/<pid>/maps
++ * @size: size to be set for the file
++ * @flags: VM_NORESERVE suppresses pre-accounting of the entire object size
++ */
++struct file *shmem_file_setup_with_mnt(struct vfsmount *mnt, const char *name,
++				       loff_t size, unsigned long flags)
++{
++	return __shmem_file_setup(mnt, name, size, flags, 0);
++}
++EXPORT_SYMBOL_GPL(shmem_file_setup_with_mnt);
++
++/**
+  * shmem_zero_setup - setup a shared anonymous mapping
+  * @vma: the vma to be mmapped is prepared by do_mmap_pgoff
+  */
+@@ -4281,7 +4295,7 @@ int shmem_zero_setup(struct vm_area_struct *vma)
+ 	 * accessible to the user through its mapping, use S_PRIVATE flag to
+ 	 * bypass file security, in the same way as shmem_kernel_file_setup().
+ 	 */
+-	file = __shmem_file_setup("dev/zero", size, vma->vm_flags, S_PRIVATE);
++	file = shmem_kernel_file_setup("dev/zero", size, vma->vm_flags);
+ 	if (IS_ERR(file))
+ 		return PTR_ERR(file);
+ 
 -- 
-Jens Axboe
+2.13.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
