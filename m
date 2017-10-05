@@ -1,89 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 25BA26B025E
-	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 06:27:54 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id o80so6615504lfg.6
-        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 03:27:54 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id t9si8359662lja.339.2017.10.05.03.27.51
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EC736B0033
+	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 06:36:39 -0400 (EDT)
+Received: by mail-ua0-f198.google.com with SMTP id l40so8752224uah.1
+        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 03:36:39 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id w79si1864460oia.106.2017.10.05.03.36.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Oct 2017 03:27:52 -0700 (PDT)
-Date: Thu, 5 Oct 2017 11:27:07 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v10 3/6] mm, oom: cgroup-aware OOM killer
-Message-ID: <20171005102707.GA12982@castle.dhcp.TheFacebook.com>
-References: <20171004154638.710-1-guro@fb.com>
- <20171004154638.710-4-guro@fb.com>
- <CALvZod6bwyoSWTv139y0wMidpZm5HcDu8RzVjF8U7GHxAzxSQw@mail.gmail.com>
- <20171004201524.GA4174@castle>
- <CALvZod45ObeQwq-pKeqyLe2bNwfKAr0majCbNfqPOEJL+AeiNw@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 05 Oct 2017 03:36:37 -0700 (PDT)
+Subject: Re: [PATCH 1/2] Revert "vmalloc: back off when the current task is
+ killed"
+References: <20171003225504.GA966@cmpxchg.org>
+ <20171004185813.GA2136@cmpxchg.org> <20171004185906.GB2136@cmpxchg.org>
+ <20171004153245.2b08d831688bb8c66ef64708@linux-foundation.org>
+ <20171004231821.GA3610@cmpxchg.org>
+ <20171005075704.enxdgjteoe4vgbag@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <55d8bf19-3f29-6264-f954-8749ea234efd@I-love.SAKURA.ne.jp>
+Date: Thu, 5 Oct 2017 19:36:17 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <CALvZod45ObeQwq-pKeqyLe2bNwfKAr0majCbNfqPOEJL+AeiNw@mail.gmail.com>
+In-Reply-To: <20171005075704.enxdgjteoe4vgbag@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Linux MM <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alan Cox <alan@llwyncelyn.cymru>, Christoph Hellwig <hch@lst.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Wed, Oct 04, 2017 at 02:24:26PM -0700, Shakeel Butt wrote:
-> >> > +               if (memcg_has_children(iter))
-> >> > +                       continue;
-> >>
-> >> && iter != root_mem_cgroup ?
-> >
-> > Oh, sure. I had a stupid bug in my test script, which prevented me from
-> > catching this. Thanks!
-> >
-> > This should fix the problem.
-> > --
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 2e82625bd354..b3848bce4c86 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -2807,7 +2807,8 @@ static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
-> >                  * We don't consider non-leaf non-oom_group memory cgroups
-> >                  * as OOM victims.
-> >                  */
-> > -               if (memcg_has_children(iter) && !mem_cgroup_oom_group(iter))
-> > +               if (memcg_has_children(iter) && iter != root_mem_cgroup &&
-> > +                   !mem_cgroup_oom_group(iter))
-> >                         continue;
+On 2017/10/05 16:57, Michal Hocko wrote:
+> On Wed 04-10-17 19:18:21, Johannes Weiner wrote:
+>> On Wed, Oct 04, 2017 at 03:32:45PM -0700, Andrew Morton wrote:
+> [...]
+>>> You don't think they should be backported into -stables?
+>>
+>> Good point. For this one, it makes sense to CC stable, for 4.11 and
+>> up. The second patch is more of a fortification against potential
+>> future issues, and probably shouldn't go into stable.
 > 
-> I think you are mixing the 3rd and 4th patch. The root_mem_cgroup
-> check should be in 3rd while oom_group stuff should be in 4th.
->
-
-Right. This "patch" should fix them both, it was just confusing to
-send two patches. I'll split it before final landing.
-
+> I am not against. It is true that the memory reserves depletion fix was
+> theoretical because I haven't seen any real life bug. I would argue that
+> the more robust allocation failure behavior is a stable candidate as
+> well, though, because the allocation can fail regardless of the vmalloc
+> revert. It is less likely but still possible.
 > 
-> >>
-> >> Shouldn't there be a CSS_ONLINE check? Also instead of css_get at the
-> >> end why not css_tryget_online() here and css_put for the previous
-> >> selected one.
-> >
-> > Hm, why do we need to check this? I do not see, how we can choose
-> > an OFFLINE memcg as a victim, tbh. Please, explain the problem.
-> >
-> 
-> Sorry about the confusion. There are two things. First, should we do a
-> css_get on the newly selected memcg within the for loop when we still
-> have a reference to it?
 
-We're holding rcu_read_lock, it should be enough. We're bumping css counter
-just before releasing rcu lock.
+I don't want this patch backported. If you want to backport,
+"s/fatal_signal_pending/tsk_is_oom_victim/" is the safer way.
 
-> 
-> Second, for the OFFLINE memcg, you are right oom_evaluate_memcg() will
-> return 0 for offlined memcgs. Maybe no need to call
-> oom_evaluate_memcg() for offlined memcgs.
+On 2017/10/04 17:33, Michal Hocko wrote:
+> Now that we have cd04ae1e2dc8 ("mm, oom: do not rely on TIF_MEMDIE for
+> memory reserves access") the risk of the memory depletion is much
+> smaller so reverting the above commit should be acceptable. 
 
-Sounds like a good optimization, which can be done on top of the current
-patchset.
+Are you aware that stable kernels do not have cd04ae1e2dc8 ?
 
-Thank you!
+We added fatal_signal_pending() check inside read()/write() loop
+because one read()/write() request could consume 2GB of kernel memory.
+
+What if there is a kernel module which uses vmalloc(1GB) from some
+ioctl() for legitimate reason? You are going to allow such vmalloc()
+calls to deplete memory reserves completely.
+
+On 2017/10/05 8:21, Johannes Weiner wrote:
+> Generally, we should leave it to the page allocator to handle memory
+> reserves, not annotate random alloc_page() callsites.
+
+I disagree. Interrupting the loop as soon as possible is preferable.
+
+Since we don't have __GFP_KILLABLE, we had to do fatal_signal_pending()
+check inside read()/write() loop. Since vmalloc() resembles read()/write()
+in a sense that it can consume GB of memory, it is pointless to expect
+the caller of vmalloc() to check tsk_is_oom_victim().
+
+Again, checking tsk_is_oom_victim() inside vmalloc() loop is the better.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
