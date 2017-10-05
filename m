@@ -1,68 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 43B4D6B0033
-	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 14:56:28 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id i195so30739530pgd.2
-        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 11:56:28 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 2sor2149238pgi.253.2017.10.05.11.56.27
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EA6E76B0033
+	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 15:23:31 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id j204so2724305lfe.8
+        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 12:23:31 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id 138si28428wmt.83.2017.10.05.12.23.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 05 Oct 2017 11:56:27 -0700 (PDT)
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 05 Oct 2017 12:23:30 -0700 (PDT)
+Date: Thu, 5 Oct 2017 21:23:10 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
 Subject: Re: [PATCH] block/laptop_mode: Convert timers to use timer_setup()
-References: <20171005004924.GA23053@beast>
- <4d4ccf50-d0b6-a525-dc73-0d64d26da68a@kernel.dk>
- <CAGXu5jJA4jfZCnhjLrO6fePVJqoJw7Hj7VF1sGLimU2fFu4AgQ@mail.gmail.com>
- <57ad0ef1-e147-8507-9922-aa72ad47350e@kernel.dk>
- <CAGXu5j+g6PoJ_e_CVNt-QWrtfA+TZt1=0MExbZygSffMt7yK6A@mail.gmail.com>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <57556968-319c-b259-d8a7-164e6e6600a8@kernel.dk>
-Date: Thu, 5 Oct 2017 12:56:23 -0600
+In-Reply-To: <57ad0ef1-e147-8507-9922-aa72ad47350e@kernel.dk>
+Message-ID: <alpine.DEB.2.20.1710052102480.2398@nanos>
+References: <20171005004924.GA23053@beast> <4d4ccf50-d0b6-a525-dc73-0d64d26da68a@kernel.dk> <CAGXu5jJA4jfZCnhjLrO6fePVJqoJw7Hj7VF1sGLimU2fFu4AgQ@mail.gmail.com> <57ad0ef1-e147-8507-9922-aa72ad47350e@kernel.dk>
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5j+g6PoJ_e_CVNt-QWrtfA+TZt1=0MExbZygSffMt7yK6A@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Nicholas Piggin <npiggin@gmail.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Matthew Wilcox <mawilcox@microsoft.com>, Jeff Layton <jlayton@redhat.com>, linux-block@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: Kees Cook <keescook@chromium.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Nicholas Piggin <npiggin@gmail.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Matthew Wilcox <mawilcox@microsoft.com>, Jeff Layton <jlayton@redhat.com>, linux-block@vger.kernel.org, Linux-MM <linux-mm@kvack.org>
 
-On 10/05/2017 12:49 PM, Kees Cook wrote:
-> On Thu, Oct 5, 2017 at 11:26 AM, Jens Axboe <axboe@kernel.dk> wrote:
->> Honestly, I think the change should have waited for 4.15 in that case.
->> Why the rush? It wasn't ready for the merge window.
+On Thu, 5 Oct 2017, Jens Axboe wrote:
+> On 10/05/2017 11:49 AM, Kees Cook wrote:
+> > Yes, totally true. tglx and I ended up meeting face-to-face at the
+> > Kernel Recipes conference and we solved some outstanding design issues
+> > with the conversion. The timing meant the new API went into -rc3,
+> > which seemed better than missing an entire release cycle, or carrying
+> > deltas against maintainer trees that would drift. (This is actually my
+> > second massive refactoring of these changes...)
 > 
-> My understanding from my discussion with tglx was that if the API
-> change waiting for 4.15, then the conversions would have to wait until
-> 4.16. With most conversions only depending on the new API, it seemed
-> silly to wait another whole release when the work is just waiting to
-> be merged.
+> Honestly, I think the change should have waited for 4.15 in that case.
+> Why the rush? It wasn't ready for the merge window.
 
-Right, it would have shifted everything a release. But that's how we do
-things! If something isn't ready _before_ the merge window, let alone
-talking -rc3 time, then it gets to wait unless it's fixing a regression
-introduced in the merge window. Or if you can argue that it's a really
-critical fix, sure, it can be squeezed in.
+Come on. You know very well that a prerequisite for global changes which is
+not yet used in Linus tree can get merged post merge windew in order to
+avoid massive inter maintainer tree dependencies. We've done that before.
 
-I'm puzzled why anyone would think that this is any different. What I'm
-hearing here is that "I didn't want to wait, and my change is more
-important than others", as an argument for why this should be treated
-any differently.
+There are only a few options we have for such global changes:
 
-I'm not saying the change is bad, it looks trivial, from_timer()
-discussion aside. But it's not a critical fix, by any stretch of the
-imagination, and neither are the driver conversions. With this
-additionally causing extra problems because of the timing, that's just
-further proof that it should have waited.
+   - Delay everything for a full release and keep hunting the ever changing
+     code and the new users of old interfaces, which is a pain in the
+     butt. I know what I'm talking about.
 
-> But yes, timing was not ideal. I did try to get it in earlier, but I
-> think tglx was busy with other concerns.
+   - Apply everything in a central tree, which is prone to merge conflicts
+     in next when maintainer trees contain changes in the same area. So
+     getting it through the maintainers is the best option for this kind of
+     stuff.
 
-So it should have waited...
+   - Create a separate branch for other maintainers to pull, which I did
+     often enough in the past to avoid merge dependencies.  I decided not
+     to offer that branch this time, because it would be been necessary to
+     pull it into a gazillion of trees. So we decided that Linus tree as a
+     dependency is good enough.
 
--- 
-Jens Axboe
+     Just for the record:
+
+     Last time I did this for block you did not complain, that you got
+     something based on -rc3 from me because you wanted to have these
+     changes in your tree so you could apply the depending multi-queue
+     patches. tip irq/for-block exists for a reason.
+
+     So what's the difference to pull -rc3 this time? Nothing, just the
+     fact that you are not interested in the change.
+
+     So please stop this hypocritical ranting right here.
+
+Thanks,
+
+	tglx
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
