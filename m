@@ -1,63 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C58606B0033
-	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 19:21:35 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id l10so663744wre.4
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 16:21:35 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id o6si3901488eda.375.2017.10.04.16.21.34
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 194266B0033
+	for <linux-mm@kvack.org>; Wed,  4 Oct 2017 20:49:28 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id i195so26071933pgd.2
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 17:49:28 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id e16sor3103099pfi.150.2017.10.04.17.49.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 04 Oct 2017 16:21:34 -0700 (PDT)
-Date: Wed, 4 Oct 2017 19:21:22 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/2] Revert "vmalloc: back off when the current task is
- killed"
-Message-ID: <20171004232122.GB3610@cmpxchg.org>
-References: <20171003225504.GA966@cmpxchg.org>
- <20171004185813.GA2136@cmpxchg.org>
- <20171004185906.GB2136@cmpxchg.org>
- <ab688e7c-75c1-e942-ef44-44615d9fb394@I-love.SAKURA.ne.jp>
- <20171004210027.GA2973@cmpxchg.org>
- <201710050642.JJI34818.QFSHJOMOtFOLFV@I-love.SAKURA.ne.jp>
+        (Google Transport Security);
+        Wed, 04 Oct 2017 17:49:26 -0700 (PDT)
+Date: Wed, 4 Oct 2017 17:49:24 -0700
+From: Kees Cook <keescook@chromium.org>
+Subject: [PATCH] block/laptop_mode: Convert timers to use timer_setup()
+Message-ID: <20171005004924.GA23053@beast>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201710050642.JJI34818.QFSHJOMOtFOLFV@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, alan@llwyncelyn.cymru, hch@lst.de, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: linux-kernel@vger.kernel.org
+Cc: Jens Axboe <axboe@kernel.dk>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Nicholas Piggin <npiggin@gmail.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Matthew Wilcox <mawilcox@microsoft.com>, Jeff Layton <jlayton@redhat.com>, linux-block@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
 
-On Thu, Oct 05, 2017 at 06:42:38AM +0900, Tetsuo Handa wrote:
-> Johannes Weiner wrote:
-> > On Thu, Oct 05, 2017 at 05:49:43AM +0900, Tetsuo Handa wrote:
-> > > On 2017/10/05 3:59, Johannes Weiner wrote:
-> > > > But the justification to make that vmalloc() call fail like this isn't
-> > > > convincing, either. The patch mentions an OOM victim exhausting the
-> > > > memory reserves and thus deadlocking the machine. But the OOM killer
-> > > > is only one, improbable source of fatal signals. It doesn't make sense
-> > > > to fail allocations preemptively with plenty of memory in most cases.
-> > > 
-> > > By the time the current thread reaches do_exit(), fatal_signal_pending(current)
-> > > should become false. As far as I can guess, the source of fatal signal will be
-> > > tty_signal_session_leader(tty, exit_session) which is called just before
-> > > tty_ldisc_hangup(tty, cons_filp != NULL) rather than the OOM killer. I don't
-> > > know whether it is possible to make fatal_signal_pending(current) true inside
-> > > do_exit() though...
-> > 
-> > It's definitely not the OOM killer, the memory situation looks fine
-> > when this happens. I didn't look closer where the signal comes from.
-> > 
-> 
-> Then, we could check tsk_is_oom_victim() instead of fatal_signal_pending().
+In preparation for unconditionally passing the struct timer_list pointer to
+all timer callbacks, switch to using the new timer_setup() and from_timer()
+to pass the timer pointer explicitly.
 
-The case for this patch didn't seem very strong to beging with, and
-since it's causing problems a simple revert makes more sense than an
-attempt to fine-tune it.
+Cc: Jens Axboe <axboe@kernel.dk>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Nicholas Piggin <npiggin@gmail.com>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>
+Cc: Jeff Layton <jlayton@redhat.com>
+Cc: linux-block@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Signed-off-by: Kees Cook <keescook@chromium.org>
+---
+This requires commit 686fef928bba ("timer: Prepare to change timer
+callback argument type") in v4.14-rc3, but should be otherwise
+stand-alone.
+---
+ block/blk-core.c          | 10 +++++-----
+ include/linux/writeback.h |  2 +-
+ mm/page-writeback.c       |  9 +++++----
+ 3 files changed, 11 insertions(+), 10 deletions(-)
 
-Generally, we should leave it to the page allocator to handle memory
-reserves, not annotate random alloc_page() callsites.
+diff --git a/block/blk-core.c b/block/blk-core.c
+index 048be4aa6024..070913294cbb 100644
+--- a/block/blk-core.c
++++ b/block/blk-core.c
+@@ -803,9 +803,9 @@ static void blk_queue_usage_counter_release(struct percpu_ref *ref)
+ 	wake_up_all(&q->mq_freeze_wq);
+ }
+ 
+-static void blk_rq_timed_out_timer(unsigned long data)
++static void blk_rq_timed_out_timer(struct timer_list *t)
+ {
+-	struct request_queue *q = (struct request_queue *)data;
++	struct request_queue *q = from_timer(q, t, timeout);
+ 
+ 	kblockd_schedule_work(&q->timeout_work);
+ }
+@@ -841,9 +841,9 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
+ 	q->backing_dev_info->name = "block";
+ 	q->node = node_id;
+ 
+-	setup_timer(&q->backing_dev_info->laptop_mode_wb_timer,
+-		    laptop_mode_timer_fn, (unsigned long) q);
+-	setup_timer(&q->timeout, blk_rq_timed_out_timer, (unsigned long) q);
++	timer_setup(&q->backing_dev_info->laptop_mode_wb_timer,
++		    laptop_mode_timer_fn, 0);
++	timer_setup(&q->timeout, blk_rq_timed_out_timer, 0);
+ 	INIT_LIST_HEAD(&q->queue_head);
+ 	INIT_LIST_HEAD(&q->timeout_list);
+ 	INIT_LIST_HEAD(&q->icq_list);
+diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+index d5815794416c..3bfb50e69a81 100644
+--- a/include/linux/writeback.h
++++ b/include/linux/writeback.h
+@@ -329,7 +329,7 @@ static inline void cgroup_writeback_umount(void)
+ void laptop_io_completion(struct backing_dev_info *info);
+ void laptop_sync_completion(void);
+ void laptop_mode_sync(struct work_struct *work);
+-void laptop_mode_timer_fn(unsigned long data);
++void laptop_mode_timer_fn(struct timer_list *t);
+ #else
+ static inline void laptop_sync_completion(void) { }
+ #endif
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 0b9c5cbe8eba..1be0e3067f04 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -1977,9 +1977,10 @@ int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
+ }
+ 
+ #ifdef CONFIG_BLOCK
+-void laptop_mode_timer_fn(unsigned long data)
++void laptop_mode_timer_fn(struct timer_list *t)
+ {
+-	struct request_queue *q = (struct request_queue *)data;
++	struct backing_dev_info *backing_dev_info =
++		from_timer(backing_dev_info, t, laptop_mode_wb_timer);
+ 	int nr_pages = global_node_page_state(NR_FILE_DIRTY) +
+ 		global_node_page_state(NR_UNSTABLE_NFS);
+ 	struct bdi_writeback *wb;
+@@ -1988,11 +1989,11 @@ void laptop_mode_timer_fn(unsigned long data)
+ 	 * We want to write everything out, not just down to the dirty
+ 	 * threshold
+ 	 */
+-	if (!bdi_has_dirty_io(q->backing_dev_info))
++	if (!bdi_has_dirty_io(backing_dev_info))
+ 		return;
+ 
+ 	rcu_read_lock();
+-	list_for_each_entry_rcu(wb, &q->backing_dev_info->wb_list, bdi_node)
++	list_for_each_entry_rcu(wb, &backing_dev_info->wb_list, bdi_node)
+ 		if (wb_has_dirty_io(wb))
+ 			wb_start_writeback(wb, nr_pages, true,
+ 					   WB_REASON_LAPTOP_TIMER);
+-- 
+2.7.4
+
+
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
