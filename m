@@ -1,309 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 711D36B0033
-	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 08:36:40 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id p5so36501836pgn.7
-        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 05:36:40 -0700 (PDT)
-Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10078.outbound.protection.outlook.com. [40.107.1.78])
-        by mx.google.com with ESMTPS id j15si9804220pgf.93.2017.10.05.05.36.38
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7652E6B0033
+	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 08:58:11 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z96so2708686wrb.21
+        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 05:58:11 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m186si7842744wmd.134.2017.10.05.05.58.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 05 Oct 2017 05:36:39 -0700 (PDT)
-From: Guy Shattah <sguy@mellanox.com>
-Subject: Re: [RFC] mmap(MAP_CONTIG)
-Date: Thu, 5 Oct 2017 12:36:35 +0000
-Message-ID: <AM6PR0502MB37835D6EE944E671CEF8828FBD700@AM6PR0502MB3783.eurprd05.prod.outlook.com>
-References: <21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com>,<3c28baa4-f8f5-a86e-4830-bf3c7c74ed4f@suse.cz>,<AM6PR0502MB3783E60F560E6FDE4CD13239BD700@AM6PR0502MB3783.eurprd05.prod.outlook.com>
-In-Reply-To: <AM6PR0502MB3783E60F560E6FDE4CD13239BD700@AM6PR0502MB3783.eurprd05.prod.outlook.com>
-Content-Language: en-US
-Content-Type: multipart/alternative;
-	boundary="_000_AM6PR0502MB37835D6EE944E671CEF8828FBD700AM6PR0502MB3783_"
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 05 Oct 2017 05:58:09 -0700 (PDT)
+Date: Thu, 5 Oct 2017 14:58:08 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v10 4/6] mm, oom: introduce memory.oom_group
+Message-ID: <20171005125808.vsbpxmkabpzq4wsg@dhcp22.suse.cz>
+References: <20171004154638.710-1-guro@fb.com>
+ <20171004154638.710-5-guro@fb.com>
+ <20171005120649.st2qt6brlf2xyncq@dhcp22.suse.cz>
+ <20171005123214.GA15459@castle.dhcp.TheFacebook.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171005123214.GA15459@castle.dhcp.TheFacebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-api@vger.kernel.org" <linux-api@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
---_000_AM6PR0502MB37835D6EE944E671CEF8828FBD700AM6PR0502MB3783_
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+On Thu 05-10-17 13:32:14, Roman Gushchin wrote:
+> On Thu, Oct 05, 2017 at 02:06:49PM +0200, Michal Hocko wrote:
+> > On Wed 04-10-17 16:46:36, Roman Gushchin wrote:
+> > > The cgroup-aware OOM killer treats leaf memory cgroups as memory
+> > > consumption entities and performs the victim selection by comparing
+> > > them based on their memory footprint. Then it kills the biggest task
+> > > inside the selected memory cgroup.
+> > > 
+> > > But there are workloads, which are not tolerant to a such behavior.
+> > > Killing a random task may leave the workload in a broken state.
+> > > 
+> > > To solve this problem, memory.oom_group knob is introduced.
+> > > It will define, whether a memory group should be treated as an
+> > > indivisible memory consumer, compared by total memory consumption
+> > > with other memory consumers (leaf memory cgroups and other memory
+> > > cgroups with memory.oom_group set), and whether all belonging tasks
+> > > should be killed if the cgroup is selected.
+> > > 
+> > > If set on memcg A, it means that in case of system-wide OOM or
+> > > memcg-wide OOM scoped to A or any ancestor cgroup, all tasks,
+> > > belonging to the sub-tree of A will be killed. If OOM event is
+> > > scoped to a descendant cgroup (A/B, for example), only tasks in
+> > > that cgroup can be affected. OOM killer will never touch any tasks
+> > > outside of the scope of the OOM event.
+> > > 
+> > > Also, tasks with oom_score_adj set to -1000 will not be killed.
+> > 
+> > I would extend the last sentence with an explanation. What about the
+> > following:
+> > "
+> > Also, tasks with oom_score_adj set to -1000 will not be killed because
+> > this has been a long established way to protect a particular process
+> > from seeing an unexpected SIGKILL from the oom killer. Ignoring this
+> > user defined configuration might lead to data corruptions or other
+> > misbehavior.
+> > "
+> 
+> Added, thanks!
+> 
+> > 
+> > few mostly nit picks below but this looks good other than that. Once the
+> > fix mentioned in patch 3 is folded I will ack this.
+> > 
+> > [...]
+> > 
+> > >  static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+> > >  {
+> > > -	struct mem_cgroup *iter;
+> > > +	struct mem_cgroup *iter, *group = NULL;
+> > > +	long group_score = 0;
+> > >  
+> > >  	oc->chosen_memcg = NULL;
+> > >  	oc->chosen_points = 0;
+> > >  
+> > >  	/*
+> > > +	 * If OOM is memcg-wide, and the memcg has the oom_group flag set,
+> > > +	 * all tasks belonging to the memcg should be killed.
+> > > +	 * So, we mark the memcg as a victim.
+> > > +	 */
+> > > +	if (oc->memcg && mem_cgroup_oom_group(oc->memcg)) {
+> > 
+> > we have is_memcg_oom() helper which is esier to read and understand than
+> > the explicit oc->memcg check
+> 
+> It's defined in oom_kill.c and not exported, so I'm not sure.
 
-I'm on vacation and experiencing technical difficulties uploading the slide=
-s. I'll upload them next week.
-Sorry
+putting it to oom.h shouldn't be a big deal.
+ 
+> > > +		oc->chosen_memcg = oc->memcg;
+> > > +		css_get(&oc->chosen_memcg->css);
+> > > +		return;
+> > > +	}
+> > > +
+> > > +	/*
+> > >  	 * The oom_score is calculated for leaf memory cgroups (including
+> > >  	 * the root memcg).
+> > > +	 * Non-leaf oom_group cgroups accumulating score of descendant
+> > > +	 * leaf memory cgroups.
+> > >  	 */
+> > >  	rcu_read_lock();
+> > >  	for_each_mem_cgroup_tree(iter, root) {
+> > >  		long score;
+> > >  
+> > > +		/*
+> > > +		 * We don't consider non-leaf non-oom_group memory cgroups
+> > > +		 * as OOM victims.
+> > > +		 */
+> > > +		if (memcg_has_children(iter) && !mem_cgroup_oom_group(iter))
+> > > +			continue;
+> > > +
+> > > +		/*
+> > > +		 * If group is not set or we've ran out of the group's sub-tree,
+> > > +		 * we should set group and reset group_score.
+> > > +		 */
+> > > +		if (!group || group == root_mem_cgroup ||
+> > > +		    !mem_cgroup_is_descendant(iter, group)) {
+> > > +			group = iter;
+> > > +			group_score = 0;
+> > > +		}
+> > > +
+> > 
+> > hmm, I thought you would go with a recursive oom_evaluate_memcg
+> > implementation that would result in a more readable code IMHO. It is
+> > true that we would traverse oom_group more times. But I do not expect
+> > we would have very deep memcg hierarchies in the majority of workloads
+> > and even if we did then this is a cold path which should focus on
+> > readability more than a performance. Also implementing
+> > mem_cgroup_iter_skip_subtree shouldn't be all that hard if this ever
+> > turns out a real problem.
+> 
+> I've tried to go this way, but I didn't like the result. These both
+> loops will share a lot of code (e.g. breaking on finding a previous victim,
+> skipping non-leaf non-oom-group memcgs, etc), so the result is more messy.
+> And actually it's strange to start a new loop to iterate exactly over
+> the same sub-tree, which you want to skip in the first loop.
 
-Guy
+As I've said, I will not insist. It just makes more sense to me to do
+the hierarchical behavior in a single place rather than open code it in
+the main loop.
+ 
+> > Anyway this is nothing really fundamental so I will leave the decision
+> > on you.
+> > 
+> > > +static bool oom_kill_memcg_victim(struct oom_control *oc)
+> > > +{
+> > >  	if (oc->chosen_memcg == NULL || oc->chosen_memcg == INFLIGHT_VICTIM)
+> > >  		return oc->chosen_memcg;
+> > >  
+> > > -	/* Kill a task in the chosen memcg with the biggest memory footprint */
+> > > -	oc->chosen_points = 0;
+> > > -	oc->chosen_task = NULL;
+> > > -	mem_cgroup_scan_tasks(oc->chosen_memcg, oom_evaluate_task, oc);
+> > > -
+> > > -	if (oc->chosen_task == NULL || oc->chosen_task == INFLIGHT_VICTIM)
+> > > -		goto out;
+> > > -
+> > > -	__oom_kill_process(oc->chosen_task);
+> > > +	/*
+> > > +	 * If memory.oom_group is set, kill all tasks belonging to the sub-tree
+> > > +	 * of the chosen memory cgroup, otherwise kill the task with the biggest
+> > > +	 * memory footprint.
+> > > +	 */
+> > > +	if (mem_cgroup_oom_group(oc->chosen_memcg)) {
+> > > +		mem_cgroup_scan_tasks(oc->chosen_memcg, oom_kill_memcg_member,
+> > > +				      NULL);
+> > > +		/* We have one or more terminating processes at this point. */
+> > > +		oc->chosen_task = INFLIGHT_VICTIM;
+> > 
+> > it took me a while to realize we need this because of return
+> > !!oc->chosen_task in out_of_memory. Subtle... Also a reason to hate
+> > oc->chosen_* thingy. As I've said in other reply, don't worry about this
+> > I will probably turn my hate into a patch ;)
+> > 
+> > > +	} else {
+> > > +		oc->chosen_points = 0;
+> > > +		oc->chosen_task = NULL;
+> > > +		mem_cgroup_scan_tasks(oc->chosen_memcg, oom_evaluate_task, oc);
+> > > +
+> > > +		if (oc->chosen_task == NULL ||
+> > > +		    oc->chosen_task == INFLIGHT_VICTIM)
+> > > +			goto out;
+> > 
+> > How can this happen? There shouldn't be any INFLIGHT_VICTIM in our memcg
+> > because we have checked for that already. I can see how we do not find
+> > any task because those can terminate by the time we get here but no new
+> > oom victim should appear we are under the oom_lock.
+> 
+> You're probably right, but I would prefer to have this check in place,
+> rather then get a panic on attempt to kill an INFLIGHT_VICTIM task one day.
 
-
->On 10/04/2017 01:56 AM, Mike Kravetz wrote:
->
->Hi,
->
->> At Plumbers this year, Guy Shattah and Christoph Lameter gave a presenta=
-tion
->> titled 'User space contiguous memory allocation for DMA' [1].  The slide=
-s
->
->Hm I didn't find slides on that link, are they available?
->
->> point out the performance benefits of devices that can take advantage of
->> larger physically contiguous areas.
->>
->> When such physically contiguous allocations are done today, they are don=
-e
->> within drivers themselves in an ad-hoc manner.
->
->As Michal N. noted, the drivers might have different requirements. Is
->contiguity (without extra requirements) so common that it would benefit
->from a userspace API change?
->Also how are the driver-specific allocations done today? mmap() on the
->driver's device? Maybe we could provide some in-kernel API/library to
->make them less "ad-hoc". Conversion to MAP_ANONYMOUS would at first seem
->like an improvement in that userspace would be able to use a generic
->allocation API and all the generic treatment of anonymous pages (LRU
->aging, reclaim, migration etc), but the restrictions you listed below
->eliminate most of that?
->(It's likely that I just don't have enough info about how it works today
->so it's difficult to judge)
->
->> In addition to allocations
->> for DMA, allocations of this type are also performed for buffers used by
->> coprocessors and other acceleration engines.
->>
->> As mentioned in the presentation, posix specifies an interface to obtain
->> physically contiguous memory.  This is via typed memory objects as descr=
-ibed
->> in the posix_typed_mem_open() man page.  Since Linux today does not foll=
-ow
->> the posix typed memory object model, adding infrastructure for contiguou=
-s
->> memory allocations seems to be overkill.  Instead, a proposal was sugges=
-ted
->> to add support via a mmap flag: MAP_CONTIG.
->>
->> mmap(MAP_CONTIG) would have the following semantics:
->> - The entire mapping (length size) would be backed by physically contigu=
-ous
->>   pages.
->> - If 'length' physically contiguous pages can not be allocated, then mma=
-p
->>   will fail.
->> - MAP_CONTIG only works with MAP_ANONYMOUS mappings.
->> - MAP_CONTIG will lock the associated pages in memory.  As such, the sam=
-e
->>   privileges and limits that apply to mlock will also apply to MAP_CONTI=
-G.
->> - A MAP_CONTIG mapping can not be expanded.
->> - At fork time, private MAP_CONTIG mappings will be converted to regular
->>   (non-MAP_CONTIG) mapping in the child.  As such a COW fault in the chi=
-ld
->>   will not require a contiguous allocation.
->>
->> Some implementation considerations:
->> - alloc_contig_range() or similar will be used for allocations larger
->>   than MAX_ORDER.
->> - MAP_CONTIG should imply MAP_POPULATE.  At mmap time, all pages for the
->>   mapping must be 'pre-allocated', and they can only be used for the map=
-ping,
->>   so it makes sense to 'fault in' all pages.
->> - Using 'pre-allocated' pages in the fault paths may be intrusive.
->> - We need to keep keep track of those pre-allocated pages until the vma =
-is
->>   tore down, especially if free_contig_range() must be called.
->>
->> Thoughts?
->> - Is such an interface useful?
->> - Any other ideas on how to achieve the same functionality?
->> - Any thoughts on implementation?
->>
->> I have started down the path of pre-allocating contiguous pages at mmap
->> time and hanging those off the vma(vm_private_data) with some kludges to
->> use the pages at fault time.  It is really ugly, which is why I am not
->> sharing the code.  Hoping for some comments/suggestions.
->>
->> [1] https://emea01.safelinks.protection.outlook.com/?url=3Dhttps%3A%2F%2=
-Fwww.linuxplumbersconf.org%2F2017%2Focw%2Fproposals%2F4669&data=3D02%7C01%7=
-Csguy%40mellanox.com%7Ca0ee0fe4f0f74074b69b08d50bbfa7d5%7Ca652971c7d2e4d9ba=
-6a4d149256f461b%7C0%7C0%7C636427840155156528&sdata=3DGYlJ926fwQKSUIKbP7AVI0=
-1dasvK%2F0JEWLS%2FoNwJbyU%3D&reserved=3D0
->>
-
-
-
---_000_AM6PR0502MB37835D6EE944E671CEF8828FBD700AM6PR0502MB3783_
-Content-Type: text/html; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<html>
-<head>
-<meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso-8859-=
-1">
-<style type=3D"text/css" style=3D"display:none;"><!-- P {margin-top:0;margi=
-n-bottom:0;} --></style>
-</head>
-<body dir=3D"ltr">
-<div id=3D"divtagdefaultwrapper" style=3D"font-size: 12pt; color: rgb(0, 0,=
- 0); font-family: Calibri, Helvetica, sans-serif, EmojiFont, &quot;Apple Co=
-lor Emoji&quot;, &quot;Segoe UI Emoji&quot;, NotoColorEmoji, &quot;Segoe UI=
- Symbol&quot;, &quot;Android Emoji&quot;, EmojiSymbols;" dir=3D"ltr">
-<p></p>
-<div dir=3D"ltr" style=3D"color: rgb(33, 33, 33); font-family: wf_segoe-ui_=
-normal, &quot;Segoe UI&quot;, &quot;Segoe WP&quot;, Tahoma, Arial, sans-ser=
-if, serif, EmojiFont; font-size: 15px; margin: 0px; padding: 0px;">
-<font size=3D"2" color=3D"black" style=3D"font-family: sans-serif, serif, E=
-mojiFont;"><span dir=3D"ltr" style=3D"font-size: 11pt;">I'm on vacation and=
- experiencing&nbsp;technical difficulties uploading the slides. I'll upload=
- them next week.<br>
-</span></font><span style=3D"font-size: 11pt; font-family: sans-serif, seri=
-f, EmojiFont; color: black;">Sorry</span><font size=3D"2" color=3D"black" s=
-tyle=3D"font-family: sans-serif, serif, EmojiFont;"><span dir=3D"ltr" style=
-=3D"font-size: 11pt;"><br>
-</span></font></div>
-<div dir=3D"ltr" style=3D"color: rgb(33, 33, 33); font-family: wf_segoe-ui_=
-normal, &quot;Segoe UI&quot;, &quot;Segoe WP&quot;, Tahoma, Arial, sans-ser=
-if, serif, EmojiFont; font-size: 15px; margin: 0px; padding: 0px;">
-<font size=3D"2" color=3D"black" style=3D"font-family: sans-serif, serif, E=
-mojiFont;"><span dir=3D"ltr" style=3D"font-size: 11pt;"><br>
-</span></font></div>
-<div dir=3D"ltr" style=3D"color: rgb(33, 33, 33); font-family: wf_segoe-ui_=
-normal, &quot;Segoe UI&quot;, &quot;Segoe WP&quot;, Tahoma, Arial, sans-ser=
-if, serif, EmojiFont; font-size: 15px; margin: 0px; padding: 0px;">
-<font size=3D"2" color=3D"black" style=3D"font-family: sans-serif, serif, E=
-mojiFont;"><span dir=3D"ltr" style=3D"font-size: 11pt;">Guy</span></font></=
-div>
-<br>
-<p></p>
-<br>
-<div style=3D"color: rgb(0, 0, 0);">
-<div>
-<div>
-<div id=3D"x_divRplyFwdMsg" dir=3D"ltr">
-<div>&gt;On 10/04/2017 01:56 AM, Mike Kravetz wrote:</div>
-<div>&gt;</div>
-<div>&gt;Hi,</div>
-<div>&gt;</div>
-<div>&gt;&gt; At Plumbers this year, Guy Shattah and Christoph Lameter gave=
- a presentation</div>
-<div>&gt;&gt; titled 'User space contiguous memory allocation for DMA' [1].=
-&nbsp; The slides</div>
-<div>&gt;</div>
-<div>&gt;Hm I didn't find slides on that link, are they available?</div>
-<div>&gt;</div>
-<div>&gt;&gt; point out the performance benefits of devices that can take a=
-dvantage of</div>
-<div>&gt;&gt; larger physically contiguous areas.</div>
-<div>&gt;&gt;&nbsp;</div>
-<div>&gt;&gt; When such physically contiguous allocations are done today, t=
-hey are done</div>
-<div>&gt;&gt; within drivers themselves in an ad-hoc manner.</div>
-<div>&gt;</div>
-<div>&gt;As Michal N. noted, the drivers might have different requirements.=
- Is</div>
-<div>&gt;contiguity (without extra requirements) so common that it would be=
-nefit</div>
-<div>&gt;from a userspace API change?</div>
-<div>&gt;Also how are the driver-specific allocations done today? mmap() on=
- the</div>
-<div>&gt;driver's device? Maybe we could provide some in-kernel API/library=
- to</div>
-<div>&gt;make them less &quot;ad-hoc&quot;. Conversion to MAP_ANONYMOUS wou=
-ld at first seem</div>
-<div>&gt;like an improvement in that userspace would be able to use a gener=
-ic</div>
-<div>&gt;allocation API and all the generic treatment of anonymous pages (L=
-RU</div>
-<div>&gt;aging, reclaim, migration etc), but the restrictions you listed be=
-low</div>
-<div>&gt;eliminate most of that?</div>
-<div>&gt;(It's likely that I just don't have enough info about how it works=
- today</div>
-<div>&gt;so it's difficult to judge)</div>
-<div>&gt;</div>
-<div>&gt;&gt; In addition to allocations</div>
-<div>&gt;&gt; for DMA, allocations of this type are also performed for buff=
-ers used by</div>
-<div>&gt;&gt; coprocessors and other acceleration engines.</div>
-<div>&gt;&gt;&nbsp;</div>
-<div>&gt;&gt; As mentioned in the presentation, posix specifies an interfac=
-e to obtain</div>
-<div>&gt;&gt; physically contiguous memory.&nbsp; This is via typed memory =
-objects as described</div>
-<div>&gt;&gt; in the posix_typed_mem_open() man page.&nbsp; Since Linux tod=
-ay does not follow</div>
-<div>&gt;&gt; the posix typed memory object model, adding infrastructure fo=
-r contiguous</div>
-<div>&gt;&gt; memory allocations seems to be overkill.&nbsp; Instead, a pro=
-posal was suggested</div>
-<div>&gt;&gt; to add support via a mmap flag: MAP_CONTIG.</div>
-<div>&gt;&gt;&nbsp;</div>
-<div>&gt;&gt; mmap(MAP_CONTIG) would have the following semantics:</div>
-<div>&gt;&gt; - The entire mapping (length size) would be backed by physica=
-lly contiguous</div>
-<div>&gt;&gt;&nbsp; &nbsp;pages.</div>
-<div>&gt;&gt; - If 'length' physically contiguous pages can not be allocate=
-d, then mmap</div>
-<div>&gt;&gt;&nbsp; &nbsp;will fail.</div>
-<div>&gt;&gt; - MAP_CONTIG only works with MAP_ANONYMOUS mappings.</div>
-<div>&gt;&gt; - MAP_CONTIG will lock the associated pages in memory.&nbsp; =
-As such, the same</div>
-<div>&gt;&gt;&nbsp; &nbsp;privileges and limits that apply to mlock will al=
-so apply to MAP_CONTIG.</div>
-<div>&gt;&gt; - A MAP_CONTIG mapping can not be expanded.</div>
-<div>&gt;&gt; - At fork time, private MAP_CONTIG mappings will be converted=
- to regular</div>
-<div>&gt;&gt;&nbsp; &nbsp;(non-MAP_CONTIG) mapping in the child.&nbsp; As s=
-uch a COW fault in the child</div>
-<div>&gt;&gt;&nbsp; &nbsp;will not require a contiguous allocation.</div>
-<div>&gt;&gt;&nbsp;</div>
-<div>&gt;&gt; Some implementation considerations:</div>
-<div>&gt;&gt; - alloc_contig_range() or similar will be used for allocation=
-s larger</div>
-<div>&gt;&gt;&nbsp; &nbsp;than MAX_ORDER.</div>
-<div>&gt;&gt; - MAP_CONTIG should imply MAP_POPULATE.&nbsp; At mmap time, a=
-ll pages for the</div>
-<div>&gt;&gt;&nbsp; &nbsp;mapping must be 'pre-allocated', and they can onl=
-y be used for the mapping,</div>
-<div>&gt;&gt;&nbsp; &nbsp;so it makes sense to 'fault in' all pages.</div>
-<div>&gt;&gt; - Using 'pre-allocated' pages in the fault paths may be intru=
-sive.</div>
-<div>&gt;&gt; - We need to keep keep track of those pre-allocated pages unt=
-il the vma is</div>
-<div>&gt;&gt;&nbsp; &nbsp;tore down, especially if free_contig_range() must=
- be called.</div>
-<div>&gt;&gt;&nbsp;</div>
-<div>&gt;&gt; Thoughts?</div>
-<div>&gt;&gt; - Is such an interface useful?</div>
-<div>&gt;&gt; - Any other ideas on how to achieve the same functionality?</=
-div>
-<div>&gt;&gt; - Any thoughts on implementation?</div>
-<div>&gt;&gt;&nbsp;</div>
-<div>&gt;&gt; I have started down the path of pre-allocating contiguous pag=
-es at mmap</div>
-<div>&gt;&gt; time and hanging those off the vma(vm_private_data) with some=
- kludges to</div>
-<div>&gt;&gt; use the pages at fault time.&nbsp; It is really ugly, which i=
-s why I am not</div>
-<div>&gt;&gt; sharing the code.&nbsp; Hoping for some comments/suggestions.=
-</div>
-<div>&gt;&gt;&nbsp;</div>
-<div>&gt;&gt; [1] https://emea01.safelinks.protection.outlook.com/?url=3Dht=
-tps%3A%2F%2Fwww.linuxplumbersconf.org%2F2017%2Focw%2Fproposals%2F4669&amp;d=
-ata=3D02%7C01%7Csguy%40mellanox.com%7Ca0ee0fe4f0f74074b69b08d50bbfa7d5%7Ca6=
-52971c7d2e4d9ba6a4d149256f461b%7C0%7C0%7C636427840155156528&amp;sdata=3DGYl=
-J926fwQKSUIKbP7AVI01dasvK%2F0JEWLS%2FoNwJbyU%3D&amp;reserved=3D0</div>
-<div>&gt;&gt;&nbsp;</div>
-<div><br>
-</div>
-<br>
-</div>
-</div>
-</div>
-</div>
-</div>
-</body>
-</html>
-
---_000_AM6PR0502MB37835D6EE944E671CEF8828FBD700AM6PR0502MB3783_--
+This would be a bug which you just paper over.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
