@@ -1,48 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A2986B0033
-	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 09:39:30 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id 101so3410735ioj.6
-        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 06:39:30 -0700 (PDT)
-Received: from us-smtp-delivery-194.mimecast.com (us-smtp-delivery-194.mimecast.com. [63.128.21.194])
-        by mx.google.com with ESMTPS id 20si1019854itk.76.2017.10.05.06.39.28
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E86846B0033
+	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 09:41:45 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id p46so12751956wrb.1
+        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 06:41:45 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id j1si1375027edc.100.2017.10.05.06.41.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 05 Oct 2017 06:39:29 -0700 (PDT)
-From: Trond Myklebust <trondmy@primarydata.com>
-Subject: Re: Why is NFS using a_ops->freepage?
-Date: Thu, 5 Oct 2017 13:39:23 +0000
-Message-ID: <1507210761.20822.2.camel@primarydata.com>
-References: <20171005083657.GA28132@quack2.suse.cz>
-In-Reply-To: <20171005083657.GA28132@quack2.suse.cz>
-Content-Language: en-US
-Content-ID: <AEB8CBF803D3924C9654E071B6AFB516@namprd11.prod.outlook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 05 Oct 2017 06:41:44 -0700 (PDT)
+Date: Thu, 5 Oct 2017 14:41:13 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v10 5/6] mm, oom: add cgroup v2 mount option for cgroup-aware
+ OOM killer
+Message-ID: <20171005134113.GA912@castle.dhcp.TheFacebook.com>
+References: <20171004154638.710-1-guro@fb.com>
+ <20171004154638.710-6-guro@fb.com>
+ <20171004200453.GE1501@cmpxchg.org>
+ <20171005131419.4o6qynsl2qxomekb@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20171005131419.4o6qynsl2qxomekb@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "jack@suse.cz" <jack@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>
-Cc: "anna.schumaker@netapp.com" <anna.schumaker@netapp.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-SGkgSmFuLA0KDQpPbiBUaHUsIDIwMTctMTAtMDUgYXQgMTA6MzYgKzAyMDAsIEphbiBLYXJhIHdy
-b3RlOg0KPiBIZWxsbywNCj4gDQo+IEknbSBkb2luZyBzb21lIHdvcmsgaW4gcGFnZSBjYWNoZSBo
-YW5kbGluZyBhbmQgSSBoYXZlIG5vdGljZWQgdGhhdA0KPiBORlMgaXMNCj4gdGhlIG9ubHkgdXNl
-ciBvZiBtYXBwaW5nLT5hX29wcy0+ZnJlZXBhZ2UgY2FsbGJhY2suIEZyb20gYSBxdWljayBsb29r
-DQo+IEkNCj4gZG9uJ3Qgc2VlIHdoeSBpc24ndCBORlMgdXNpbmcgLT5yZWxlYXNlcGFnZSAvIC0+
-aW52YWxpZGF0ZXBhZ2UNCj4gY2FsbGJhY2sgYXMNCj4gYWxsIG90aGVyIGZpbGVzeXN0ZW1zIGRv
-PyBJIGFncmVlIHlvdSB3b3VsZCBoYXZlIHRvIHNldCBQYWdlUHJpdmF0ZQ0KPiBiaXQgZm9yDQo+
-IHRob3NlIHRvIGdldCBjYWxsZWQgZm9yIHRoZSBkaXJlY3RvcnkgbWFwcGluZyBob3dldmVyIHRo
-YXQgd291bGQgc2VlbQ0KPiBsaWtlDQo+IGEgY2xlYW5lciB0aGluZyB0byBkbyBhbnl3YXkgLSBp
-biBmYWN0IHlvdSBkbyBoYXZlIHByaXZhdGUgZGF0YSBpbg0KPiB0aGUNCj4gcGFnZS4gIEp1c3Qg
-dGhleSBhcmUgbm90IHBvaW50ZWQgdG8gYnkgcGFnZS0+cHJpdmF0ZSBidXQgaW5zdGVhZCBhcmUN
-Cj4gc3RvcmVkDQo+IGFzIHBhZ2UgZGF0YS4uLiBBbSBJIG1pc3Npbmcgc29tZXRoaW5nPw0KPiAN
-Cj4gCQkJCQkJCQlIb256YQ0KDQpJJ20gbm90IHVuZGVyc3RhbmRpbmcgeW91ciBwb2ludC4gZGVs
-ZXRlX2Zyb21fcGFnZV9jYWNoZSgpIGRvZXNuJ3QgY2FsbA0KcmVsZWFzZXBhZ2UgQUZBSUNTLg0K
-DQpUaGUgcG9pbnQgb2YgZnJlZXBhZ2UgaXMgdGhhdCBpdCBpcyBjYWxsZWQgYWZ0ZXIgdGhlIHBh
-Z2UgaGFzIGJlZW4NCnJlbW92ZWQgZnJvbSB0aGUgcGFnZSBjYWNoZS4NCg0KLS0gDQpUcm9uZCBN
-eWtsZWJ1c3QNCkxpbnV4IE5GUyBjbGllbnQgbWFpbnRhaW5lciwgUHJpbWFyeURhdGENCnRyb25k
-Lm15a2xlYnVzdEBwcmltYXJ5ZGF0YS5jb20NCg==
+On Thu, Oct 05, 2017 at 03:14:19PM +0200, Michal Hocko wrote:
+> On Wed 04-10-17 16:04:53, Johannes Weiner wrote:
+> [...]
+> > That will silently ignore what the user writes to the memory.oom_group
+> > control files across the system's cgroup tree.
+> > 
+> > We'll have a knob that lets the workload declare itself an indivisible
+> > memory consumer, that it would like to get killed in one piece, and
+> > it's silently ignored because of a mount option they forgot to pass.
+> > 
+> > That's not good from an interface perspective.
+> 
+> Yes and that is why I think a boot time knob would be the most simple
+> way. It will also open doors for more oom policies in future which I
+> believe come sooner or later.
+
+So, we would rely on grub config to set up OOM policy? Sounds weird.
+
+We use boot options, when it's hard to implement on the fly switching
+(like turning on/off socket memory accounting), but here is not this case.
+
+> 
+> > On the other hand, the only benefit of this patch is to shield users
+> > from changes to the OOM killing heuristics. Yet, it's really hard to
+> > imagine that modifying the victim selection process slightly could be
+> > called a regression in any way. We have done that many times over,
+> > without a second thought on backwards compatibility:
+> > 
+> > 5e9d834a0e0c oom: sacrifice child with highest badness score for parent
+> > a63d83f427fb oom: badness heuristic rewrite
+> > 778c14affaf9 mm, oom: base root bonus on current usage
+> 
+> yes we have changed that without a deeper considerations. Some of those
+> changes are arguable (e.g. child scarification). The oom badness
+> heuristic rewrite has triggered quite some complains AFAIR (I remember
+> Kosaki has made several attempts to revert it). I think that we are
+> trying to be more careful about user visible changes than we used to be.
+> 
+> More importantly I do not think that the current (non-memcg aware) OOM
+> policy is somehow obsolete and many people expect it to behave
+> consistently. As I've said already, I have seen many complains that the
+> OOM killer doesn't kill the right task. Most of them were just NUMA
+> related issues where the oom report was not clear enough. I do not want
+> to repeat that again now. Memcg awareness is certainly a useful
+> heuristic but I do not see it universally applicable to all workloads.
+> 
+> > Let's not make the userspace interface crap because of some misguided
+> > idea that the OOM heuristic is a hard promise to userspace. It's never
+> > been, and nobody has complained about changes in the past.
+> > 
+> > This case is doubly silly, as the behavior change only applies to
+> > cgroup2, which doesn't exactly have a large base of legacy users yet.
+> 
+> I agree on the interface part but I disagree with making it default just
+> because v2 is not largerly adopted yet.
+
+I believe that the only real regression can be caused by active using of
+oom_score_adj. I really don't know how many cgroup v2 users are relying
+on it (hopefully, 0).
+
+So, personally I would prefer to have an opt-out cgroup v2 mount option
+(sane new behavior for most users, 100% backward compatibility for rare
+strange setups), but I don't have a very strong opinion here.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
