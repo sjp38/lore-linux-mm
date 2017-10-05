@@ -1,60 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CDDD6B025F
-	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 04:39:36 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id a192so2467206pge.5
-        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 01:39:36 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j5si4460616pgt.437.2017.10.05.01.39.35
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CD0146B0260
+	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 04:40:12 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id r83so31364037pfj.5
+        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 01:40:12 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id m9sor1928192plt.56.2017.10.05.01.40.11
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 05 Oct 2017 01:39:35 -0700 (PDT)
-Date: Thu, 5 Oct 2017 10:39:33 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm: readahead: Increase maximum readahead window
-Message-ID: <20171005083933.GB28132@quack2.suse.cz>
-References: <20171004091205.468-1-jack@suse.cz>
- <20171004174151.GA6497@magnolia>
+        (Google Transport Security);
+        Thu, 05 Oct 2017 01:40:11 -0700 (PDT)
+Date: Thu, 5 Oct 2017 01:40:09 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [v10 3/6] mm, oom: cgroup-aware OOM killer
+In-Reply-To: <20171004204153.GA2696@cmpxchg.org>
+Message-ID: <alpine.DEB.2.10.1710050123180.20389@chino.kir.corp.google.com>
+References: <20171004154638.710-1-guro@fb.com> <20171004154638.710-4-guro@fb.com> <alpine.DEB.2.10.1710041322160.67374@chino.kir.corp.google.com> <20171004204153.GA2696@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171004174151.GA6497@magnolia>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 04-10-17 10:41:51, Darrick J. Wong wrote:
-> On Wed, Oct 04, 2017 at 11:12:05AM +0200, Jan Kara wrote:
-> > Increase default maximum allowed readahead window from 128 KB to 512 KB.
-> > This improves performance for some workloads (see below for details) where
-> > ability to scale readahead window to larger sizes allows for better total
-> > throughput while chances for regression are rather low given readahead
-> > window size is dynamically computed based on observation (and thus it never
-> > grows large for workloads with a random read pattern).
+On Wed, 4 Oct 2017, Johannes Weiner wrote:
+
+> > By only considering leaf memcgs, does this penalize users if their memcg 
+> > becomes oc->chosen_memcg purely because it has aggregated all of its 
+> > processes to be members of that memcg, which would otherwise be the 
+> > standard behavior?
 > > 
-> > Note that the same tuning can be done using udev rules or by manually setting
-> > the sysctl parameter however we believe the new value is a better default most
-> > users will want to use. As a data point we carry this patch in SUSE kernels
-> > for over 8 years.
-> > 
-> > Some data from the last evaluation of this patch (on 4.4-based kernel, I can
-> > rerun those tests on a newer kernel but nothing has changed in the readahead
-> > area since 4.4). The patch was evaluated on two machines
+> > What prevents me from spreading my memcg with N processes attached over N 
+> > child memcgs instead so that memcg_oom_badness() becomes very small for 
+> > each child memcg specifically to avoid being oom killed?
 > 
-> This is purely speculating, but I think this is worth at least a quick
-> retry on 4.14 to see what's changed in the past 10 kernel release.  For
-> one thing, ext3 no longer exists, and XFS' file IO path has changed
-> quite a lot since then.
+> It's no different from forking out multiple mm to avoid being the
+> biggest process.
+> 
 
-ext3 in this test is actually using ext4 driver already, so that has not
-changed. I agree XFS has changed quite a bit so results might differ there.
-I can rerun it with current kernel to see whether XFS behavior changed.
+It is, because it can quite clearly be a DoS, and was prevented with 
+Roman's earlier design of iterating usage up the hierarchy and comparing 
+siblings based on that criteria.  I know exactly why he chose that 
+implementation detail early on, and it was to prevent cases such as this 
+and to not let userspace hide from the oom killer.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> It's up to the parent to enforce limits on that group and prevent you
+> from being able to cause global OOM in the first place, in particular
+> if you delegate to untrusted and potentially malicious users.
+> 
+
+Let's resolve that global oom is a real condition and getting into that 
+situation is not a userspace problem.  It's the result of overcommiting 
+the system, and is used in the enterprise to address business goals.  If 
+the above is true, and its up to memcg to prevent global oom in the first 
+place, then this entire patchset is absolutely pointless.  Limit userspace 
+to 95% of memory and when usage is approaching that limit, let userspace 
+attached to the root memcg iterate the hierarchy itself and kill from the 
+largest consumer.
+
+This patchset exists because overcommit is real, exactly the same as 
+overcommit within memcg hierarchies is real.  99% of the time we don't run 
+into global oom because people aren't using their limits so it just works 
+out.  1% of the time we run into global oom and we need a decision to made 
+based for forward progress.  Using Michal's earlier example of admins and 
+students, a student can easily use all of his limit and also, with v10 of 
+this patchset, 99% of the time avoid being oom killed just by forking N 
+processes over N cgroups.  It's going to oom kill an admin every single 
+time.
+
+I know exactly why earlier versions of this patchset iterated that usage 
+up the tree so you would pick from students, pick from this troublemaking 
+student, and then oom kill from his hierarchy.  Roman has made that point 
+himself.  My suggestion was to add userspace influence to it so that 
+enterprise users and users with business goals can actually define that we 
+really do want 80% of memory to be used by this process or this hierarchy, 
+it's in our best interest.
+
+Earlier iterations of this patchset did this, and did it correctly.  
+Userspace influence over the decisionmaking makes it a very powerful 
+combination because you _can_ specify what your goals are or choose to 
+leave the priorities as default so you can compare based solely on usage.  
+It was a beautiful solution to the problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
