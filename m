@@ -1,120 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 69F1C6B0033
-	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 19:16:27 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id v78so9969112pgb.4
-        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 16:16:27 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id j17sor20027pga.318.2017.10.05.16.16.26
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D5E9F6B0033
+	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 19:32:13 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e26so21329854pfd.4
+        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 16:32:13 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b15sor35654pfm.129.2017.10.05.16.32.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 05 Oct 2017 16:16:26 -0700 (PDT)
-Date: Thu, 5 Oct 2017 16:16:23 -0700
-From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v2] block/laptop_mode: Convert timers to use timer_setup()
-Message-ID: <20171005231623.GA109154@beast>
+        Thu, 05 Oct 2017 16:32:12 -0700 (PDT)
+Date: Thu, 5 Oct 2017 16:32:07 -0700
+From: Alexei Starovoitov <alexei.starovoitov@gmail.com>
+Subject: Re: [PATCH v3 00/20] Speculative page faults
+Message-ID: <20171005233206.vpg446q5k2r4g27r@ast-mbp>
+References: <CAADnVQLmSbLHwj9m33kpzAidJPvq3cbdnXjaew6oTLqHWrBbZQ@mail.gmail.com>
+ <670c9a22-cf5b-3fab-b2f2-a72fbd4451c8@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <670c9a22-cf5b-3fab-b2f2-a72fbd4451c8@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Nicholas Piggin <npiggin@gmail.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Matthew Wilcox <mawilcox@microsoft.com>, Jeff Layton <jlayton@redhat.com>, linux-block@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, kirill@shutemov.name, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, dave@stgolabs.net, Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, haren@linux.vnet.ibm.com, Anshuman Khandual <khandual@linux.vnet.ibm.com>, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, "x86@kernel.org" <x86@kernel.org>
 
-In preparation for unconditionally passing the struct timer_list pointer to
-all timer callbacks, switch to using the new timer_setup() and from_timer()
-to pass the timer pointer explicitly.
+On Wed, Oct 04, 2017 at 08:50:49AM +0200, Laurent Dufour wrote:
+> On 25/09/2017 18:27, Alexei Starovoitov wrote:
+> > On Mon, Sep 18, 2017 at 12:15 AM, Laurent Dufour
+> > <ldufour@linux.vnet.ibm.com> wrote:
+> >> Despite the unprovable lockdep warning raised by Sergey, I didn't get any
+> >> feedback on this series.
+> >>
+> >> Is there a chance to get it moved upstream ?
+> > 
+> > what is the status ?
+> > We're eagerly looking forward for this set to land,
+> > since we have several use cases for tracing that
+> > will build on top of this set as discussed at Plumbers.
+> 
+> Hi Alexei,
+> 
+> Based on Plumber's note [1], it sounds that the use case is tied to the BPF
+> tracing where a call tp find_vma() call will be made on a process's context
+> to fetch user space's symbols.
+> 
+> Am I right ?
+> Is the find_vma() call made in the context of the process owning the mm
+> struct ?
 
-Cc: Jens Axboe <axboe@kernel.dk>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Nicholas Piggin <npiggin@gmail.com>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>
-Cc: Jeff Layton <jlayton@redhat.com>
-Cc: linux-block@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Signed-off-by: Kees Cook <keescook@chromium.org>
----
-v2: Rebased to linux-block.git/for-4.15/timer
----
- block/blk-core.c          | 10 +++++-----
- include/linux/writeback.h |  2 +-
- mm/page-writeback.c       |  7 ++++---
- 3 files changed, 10 insertions(+), 9 deletions(-)
+Hi Laurent,
 
-diff --git a/block/blk-core.c b/block/blk-core.c
-index 14f7674fa0b1..596255822d7d 100644
---- a/block/blk-core.c
-+++ b/block/blk-core.c
-@@ -803,9 +803,9 @@ static void blk_queue_usage_counter_release(struct percpu_ref *ref)
- 	wake_up_all(&q->mq_freeze_wq);
- }
- 
--static void blk_rq_timed_out_timer(unsigned long data)
-+static void blk_rq_timed_out_timer(struct timer_list *t)
- {
--	struct request_queue *q = (struct request_queue *)data;
-+	struct request_queue *q = from_timer(q, t, timeout);
- 
- 	kblockd_schedule_work(&q->timeout_work);
- }
-@@ -841,9 +841,9 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
- 	q->backing_dev_info->name = "block";
- 	q->node = node_id;
- 
--	setup_timer(&q->backing_dev_info->laptop_mode_wb_timer,
--		    laptop_mode_timer_fn, (unsigned long) q);
--	setup_timer(&q->timeout, blk_rq_timed_out_timer, (unsigned long) q);
-+	timer_setup(&q->backing_dev_info->laptop_mode_wb_timer,
-+		    laptop_mode_timer_fn, 0);
-+	timer_setup(&q->timeout, blk_rq_timed_out_timer, 0);
- 	INIT_LIST_HEAD(&q->queue_head);
- 	INIT_LIST_HEAD(&q->timeout_list);
- 	INIT_LIST_HEAD(&q->icq_list);
-diff --git a/include/linux/writeback.h b/include/linux/writeback.h
-index dd1d2c23f743..80944e6bf484 100644
---- a/include/linux/writeback.h
-+++ b/include/linux/writeback.h
-@@ -309,7 +309,7 @@ static inline void cgroup_writeback_umount(void)
- void laptop_io_completion(struct backing_dev_info *info);
- void laptop_sync_completion(void);
- void laptop_mode_sync(struct work_struct *work);
--void laptop_mode_timer_fn(unsigned long data);
-+void laptop_mode_timer_fn(struct timer_list *t);
- #else
- static inline void laptop_sync_completion(void) { }
- #endif
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 8d1fc593bce8..138b8016f759 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1977,11 +1977,12 @@ int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
- }
- 
- #ifdef CONFIG_BLOCK
--void laptop_mode_timer_fn(unsigned long data)
-+void laptop_mode_timer_fn(struct timer_list *t)
- {
--	struct request_queue *q = (struct request_queue *)data;
-+	struct backing_dev_info *backing_dev_info =
-+		from_timer(backing_dev_info, t, laptop_mode_wb_timer);
- 
--	wakeup_flusher_threads_bdi(q->backing_dev_info, WB_REASON_LAPTOP_TIMER);
-+	wakeup_flusher_threads_bdi(backing_dev_info, WB_REASON_LAPTOP_TIMER);
- }
- 
- /*
--- 
-2.7.4
-
-
--- 
-Kees Cook
-Pixel Security
+we're thinking about several use cases on top of your work.
+First one is translation of user address to file_handle where
+we need to do find_vma() from preempt_disabled context of bpf program.
+My understanding that srcu should solve that nicely.
+Second is making probe_read() to try harder when address is causing
+minor fault. We're thinking that find_vma() followed by some new
+light weight filemap_access() that doesn't sleep will do the trick.
+In both cases the program will be accessing current->mm
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
