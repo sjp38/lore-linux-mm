@@ -1,64 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EFF046B0033
-	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 01:08:42 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r202so8423994wmd.1
-        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 22:08:42 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id b12si1026235edm.95.2017.10.04.22.08.40
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A55796B0033
+	for <linux-mm@kvack.org>; Thu,  5 Oct 2017 02:49:09 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id r83so30871484pfj.5
+        for <linux-mm@kvack.org>; Wed, 04 Oct 2017 23:49:09 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r3si1943465pgf.478.2017.10.04.23.49.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 04 Oct 2017 22:08:41 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9554TIJ070553
-	for <linux-mm@kvack.org>; Thu, 5 Oct 2017 01:08:39 -0400
-Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com [202.81.31.145])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2dd94jduyu-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 05 Oct 2017 01:08:39 -0400
-Received: from localhost
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 5 Oct 2017 15:08:36 +1000
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v9558XNG30933202
-	for <linux-mm@kvack.org>; Thu, 5 Oct 2017 16:08:33 +1100
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v9558OJg017820
-	for <linux-mm@kvack.org>; Thu, 5 Oct 2017 16:08:24 +1100
-Subject: Re: [PATCH 2/2] mm: Consolidate page table accounting
-References: <20171004163648.11234-1-kirill.shutemov@linux.intel.com>
- <20171004163648.11234-2-kirill.shutemov@linux.intel.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Thu, 5 Oct 2017 10:38:29 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 04 Oct 2017 23:49:08 -0700 (PDT)
+Subject: Re: [PATCH 1/2] Revert "vmalloc: back off when the current task is
+ killed"
+References: <20171003225504.GA966@cmpxchg.org>
+ <20171004185813.GA2136@cmpxchg.org> <20171004185906.GB2136@cmpxchg.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <3bfb08a8-982d-c4f8-da4c-09f23817376a@suse.cz>
+Date: Thu, 5 Oct 2017 08:49:01 +0200
 MIME-Version: 1.0
-In-Reply-To: <20171004163648.11234-2-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <20171004185906.GB2136@cmpxchg.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Message-Id: <3aabab03-7f0a-e82e-a1c2-79120aed5ace@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Michal Hocko <mhocko@kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Alan Cox <alan@llwyncelyn.cymru>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 10/04/2017 10:06 PM, Kirill A. Shutemov wrote:
-> This patch switches page table accounting to single counter from
-> three -- nr_ptes, nr_pmds and nr_puds.
+On 10/04/2017 08:59 PM, Johannes Weiner wrote:
+> This reverts commit 5d17a73a2ebeb8d1c6924b91e53ab2650fe86ffb and
+> commit 171012f561274784160f666f8398af8b42216e1f.
 > 
-> mm->pgtables_bytes is now used to account page table levels. We use
-> bytes, because page table size for different levels of page table tree
-> may be different.
+> 5d17a73a2ebe ("vmalloc: back off when the current task is killed")
+> made all vmalloc allocations from a signal-killed task fail. We have
+> seen crashes in the tty driver from this, where a killed task exiting
+> tries to switch back to N_TTY, fails n_tty_open because of the vmalloc
+> failing, and later crashes when dereferencing tty->disc_data.
 > 
-> The change has user-visible effect: we don't have VmPMD and VmPUD
-> reported in /proc/[pid]/status. Not sure if anybody uses them.
-> (As alternative, we can always report 0 kB for them.)
+> Arguably, relying on a vmalloc() call to succeed in order to properly
+> exit a task is not the most robust way of doing things. There will be
+> a follow-up patch to the tty code to fall back to the N_NULL ldisc.
 > 
-> OOM-killer report is also slightly changed: we now report pgtables_bytes
-> instead of nr_ptes, nr_pmd, nr_puds.
+> But the justification to make that vmalloc() call fail like this isn't
+> convincing, either. The patch mentions an OOM victim exhausting the
+> memory reserves and thus deadlocking the machine. But the OOM killer
+> is only one, improbable source of fatal signals. It doesn't make sense
+> to fail allocations preemptively with plenty of memory in most cases.
+> 
+> The patch doesn't mention real-life instances where vmalloc sites
+> would exhaust memory, which makes it sound more like a theoretical
+> issue to begin with. But just in case, the OOM access to memory
+> reserves has been restricted on the allocator side in cd04ae1e2dc8
+> ("mm, oom: do not rely on TIF_MEMDIE for memory reserves access"),
+> which should take care of any theoretical concerns on that front.
+> 
+> Revert this patch, and the follow-up that suppresses the allocation
+> warnings when we fail the allocations due to a signal.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Could you please mention the motivation of doing this ? Why we are
-consolidating the counters which also changes /proc/ interface as
-well as OOM report ? What is the benefit ?
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> ---
+>  mm/vmalloc.c | 6 ------
+>  1 file changed, 6 deletions(-)
+> 
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 8a43db6284eb..673942094328 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -1695,11 +1695,6 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+>  	for (i = 0; i < area->nr_pages; i++) {
+>  		struct page *page;
+>  
+> -		if (fatal_signal_pending(current)) {
+> -			area->nr_pages = i;
+> -			goto fail_no_warn;
+> -		}
+> -
+>  		if (node == NUMA_NO_NODE)
+>  			page = alloc_page(alloc_mask|highmem_mask);
+>  		else
+> @@ -1723,7 +1718,6 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+>  	warn_alloc(gfp_mask, NULL,
+>  			  "vmalloc: allocation failure, allocated %ld of %ld bytes",
+>  			  (area->nr_pages*PAGE_SIZE), area->size);
+> -fail_no_warn:
+>  	vfree(area->addr);
+>  	return NULL;
+>  }
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
