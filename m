@@ -1,68 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DF966B0253
-	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 02:49:20 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id p15so13602564qtp.4
-        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 23:49:20 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id s52si750661qta.417.2017.10.05.23.49.19
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F0F046B0033
+	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 03:00:40 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e26so23170266pfd.4
+        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 00:00:40 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id b75si554042pfk.343.2017.10.06.00.00.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Oct 2017 23:49:19 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v966mxHL049867
-	for <linux-mm@kvack.org>; Fri, 6 Oct 2017 02:49:18 -0400
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2de3rh3g3n-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 06 Oct 2017 02:49:18 -0400
-Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Fri, 6 Oct 2017 07:49:16 +0100
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v966nBUC29360206
-	for <linux-mm@kvack.org>; Fri, 6 Oct 2017 06:49:12 GMT
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v966nBJb016894
-	for <linux-mm@kvack.org>; Fri, 6 Oct 2017 17:49:12 +1100
-Subject: Re: [PATCH] mm: deferred_init_memmap improvements
-References: <20171004152902.17300-1-pasha.tatashin@oracle.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Fri, 6 Oct 2017 12:18:31 +0530
+        Fri, 06 Oct 2017 00:00:39 -0700 (PDT)
+Date: Fri, 6 Oct 2017 00:00:38 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v5 4/5] cramfs: add mmap support
+Message-ID: <20171006070038.GA29142@infradead.org>
+References: <20171006024531.8885-1-nicolas.pitre@linaro.org>
+ <20171006024531.8885-5-nicolas.pitre@linaro.org>
 MIME-Version: 1.0
-In-Reply-To: <20171004152902.17300-1-pasha.tatashin@oracle.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <071d574f-1d8c-5be9-ec92-6227db01bbd3@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171006024531.8885-5-nicolas.pitre@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: Nicolas Pitre <nicolas.pitre@linaro.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-embedded@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Brandt <Chris.Brandt@renesas.com>
 
-On 10/04/2017 08:59 PM, Pavel Tatashin wrote:
-> This patch fixes another existing issue on systems that have holes in
-> zones i.e CONFIG_HOLES_IN_ZONE is defined.
-> 
-> In for_each_mem_pfn_range() we have code like this:
-> 
-> if (!pfn_valid_within(pfn)
-> 	goto free_range;
-> 
-> Note: 'page' is not set to NULL and is not incremented but 'pfn' advances.
+> +	/* Don't map the last page if it contains some other data */
+> +	if (unlikely(pgoff + pages == max_pages)) {
+> +		unsigned int partial = offset_in_page(inode->i_size);
+> +		if (partial) {
+> +			char *data = sbi->linear_virt_addr + offset;
+> +			data += (max_pages - 1) * PAGE_SIZE + partial;
+> +			if (memchr_inv(data, 0, PAGE_SIZE - partial) != NULL) {
+> +				pr_debug("mmap: %s: last page is shared\n",
+> +					 file_dentry(file)->d_name.name);
+> +				pages--;
+> +			}
+> +		}
+> +	}
 
-page is initialized to NULL at the beginning of the function.
-PFN advances but we dont proceed unless pfn_valid_within(pfn)
-holds true which basically should have checked with arch call
-back if the PFN is valid in presence of memory holes as well.
-Is not this correct ?
+Why is pgoff + pages == max_pages marked unlikely?  Mapping the whole
+file seems like a perfectly normal and likely case to me..
 
-> Thus means if deferred struct pages are enabled on systems with these kind
-> of holes, linux would get memory corruptions. I have fixed this issue by
-> defining a new macro that performs all the necessary operations when we
-> free the current set of pages.
+Also if this was my code I'd really prefer to move this into a helper:
 
-If we bail out in case PFN is not valid, then how corruption
-can happen ?
+static bool cramfs_mmap_last_page_is_shared(struct inode *inode, int offset)
+{
+	unsigned int partial = offset_in_page(inode->i_size);
+	char *data = CRAMFS_SB(inode->i_sb)->linear_virt_addr + offset +
+			(inode->i_size & PAGE_MASK);
+
+	return memchr_inv(data + partial, 0, PAGE_SIZE - partial);
+}
+
+	if (pgoff + pages == max_pages && offset_in_page(inode->i_size)	&&
+	    cramfs_mmap_last_page_is_shared(inode, offset))
+		pages--;
+
+as that's much more readable and the function name provides a good
+documentation of what is going on.
+
+> +	if (pages != vma_pages(vma)) {
+
+here is how I would turn this around:
+
+	if (!pages)
+		goto done;
+
+	if (pages == vma_pages(vma)) {
+		remap_pfn_range();
+		goto done;
+	}
+
+	...
+	for (i = 0; i < pages; i++) {
+		...
+		vm_insert_mixed();
+		nr_mapped++;
+	}
+
+
+done:
+	pr_debug("mapped %d out ouf %d\n", ..);
+	if (pages != vma_pages(vma))
+		vma->vm_ops = &generic_file_vm_ops;
+	return 0;
+}
+
+In fact we probably could just set the vm_ops unconditionally, they
+just wouldn't be called, but that might be more confusing then helpful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
