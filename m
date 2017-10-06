@@ -1,78 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B591B6B0033
-	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 08:17:42 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id y44so6136269wry.3
-        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 05:17:42 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BE916B0033
+	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 08:25:21 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id q203so13281845wmb.0
+        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 05:25:21 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a6si1425395ede.278.2017.10.06.05.17.41
+        by mx.google.com with ESMTPS id y2si1194232wmy.277.2017.10.06.05.25.19
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 06 Oct 2017 05:17:41 -0700 (PDT)
-Date: Fri, 6 Oct 2017 14:17:39 +0200
+        Fri, 06 Oct 2017 05:25:20 -0700 (PDT)
+Date: Fri, 6 Oct 2017 14:25:18 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [v11 4/6] mm, oom: introduce memory.oom_group
-Message-ID: <20171006121739.2rsr6aiqeodcczoe@dhcp22.suse.cz>
-References: <20171005130454.5590-1-guro@fb.com>
- <20171005130454.5590-5-guro@fb.com>
- <20171005143104.wo5xstpe7mhkdlbr@dhcp22.suse.cz>
- <20171006120435.GA22702@castle.dhcp.TheFacebook.com>
+Subject: Re: [PATCH v10 09/10] mm: stop zeroing memory during allocation in
+ vmemmap
+Message-ID: <20171006122518.y22rzeq7riyjbrbg@dhcp22.suse.cz>
+References: <20171005211124.26524-1-pasha.tatashin@oracle.com>
+ <20171005211124.26524-10-pasha.tatashin@oracle.com>
+ <063D6719AE5E284EB5DD2968C1650D6DD008BA85@AcuExch.aculab.com>
+ <20171006114729.fexwklupkhyxdpt3@dhcp22.suse.cz>
+ <063D6719AE5E284EB5DD2968C1650D6DD008BB4D@AcuExch.aculab.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171006120435.GA22702@castle.dhcp.TheFacebook.com>
+In-Reply-To: <063D6719AE5E284EB5DD2968C1650D6DD008BB4D@AcuExch.aculab.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: David Laight <David.Laight@ACULAB.COM>
+Cc: 'Pavel Tatashin' <pasha.tatashin@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "x86@kernel.org" <x86@kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "borntraeger@de.ibm.com" <borntraeger@de.ibm.com>, "heiko.carstens@de.ibm.com" <heiko.carstens@de.ibm.com>, "davem@davemloft.net" <davem@davemloft.net>, "willy@infradead.org" <willy@infradead.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "mark.rutland@arm.com" <mark.rutland@arm.com>, "will.deacon@arm.com" <will.deacon@arm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "sam@ravnborg.org" <sam@ravnborg.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "daniel.m.jordan@oracle.com" <daniel.m.jordan@oracle.com>, "bob.picco@oracle.com" <bob.picco@oracle.com>
 
-On Fri 06-10-17 13:04:35, Roman Gushchin wrote:
-> On Thu, Oct 05, 2017 at 04:31:04PM +0200, Michal Hocko wrote:
-> > Btw. here is how I would do the recursive oom badness. The diff is not
-> > the nicest one because there is some code moving but the resulting code
-> > is smaller and imho easier to grasp. Only compile tested though
+On Fri 06-10-17 12:11:42, David Laight wrote:
+> From: Michal Hocko
+> > Sent: 06 October 2017 12:47
+> > On Fri 06-10-17 11:10:14, David Laight wrote:
+> > > From: Pavel Tatashin
+> > > > Sent: 05 October 2017 22:11
+> > > > vmemmap_alloc_block() will no longer zero the block, so zero memory
+> > > > at its call sites for everything except struct pages.  Struct page memory
+> > > > is zero'd by struct page initialization.
+> > >
+> > > It seems dangerous to change an allocator to stop zeroing memory.
+> > > It is probably saver to add a new function that doesn't zero
+> > > the memory and use that is the places where you don't want it
+> > > to be zeroed.
+> > 
+> > Not sure what you mean. memblock_virt_alloc_try_nid_raw is a new
+> > function which doesn't zero out...
 > 
-> Thanks!
-> 
-> I'm not against this approach, and maybe it can lead to a better code,
-> but the version you sent is just not there yet.
-> 
-> There are some problems with it:
-> 
-> 1) If there are nested cgroups with oom_group set, you will calculate
-> a badness multiple times, and rely on the fact, that top memcg will
-> become the largest score. It can be optimized, of course, but it's
-> additional code.
+> You should probably leave vmemap_alloc_block() zeroing the memory
+> so that existing alls don't have to be changed - apart from the
+> ones you are explicitly optimising.
 
-right. As I've said we can introduce iterator helper to skip the subtree
-but I suspect it will not make much of a difference.
-
-> 
-> 2) cgroup_has_tasks() probably requires additional locking.
-> Maybe it's ok to read nr_populated_csets without explicit locking,
-> but it's not obvious for me.
-
-I do not see why. Tasks are free to come and go and you only know at the
-time you are killing.
-
-> 3) Returning -1 from memcg_oom_badness() if eligible is equal to 0
-> is suspicious.
-
-I didn't spend too much time on it. I merely wanted to point out my
-thinking more specifically than the pseudo code posted earlier. But this
-should be ok, because that would mean that either all tasks are
-OOM_SCORE_ADJ_MIN (eligible = 0) or there is a inflight victim (eligible
-= -1). Anyway the initialization should go inside the tree walk
-
-> Right now your version has exactly the same amount of code
-> (skipping comments). I assume, this approach just requires some additional
-> thinking/rework.
-
-Well, this is not about the amount of code but more about the clear
-logic implemented at the correct level. It is simply much easier when
-you evaluate the killable entity at one place rather open code it.
-
-But as I've said nothing I would want to enforce.
+But the whole point of vmemmap_alloc_block is to allocate memmaps and
+the point of this change is to cover those. This is not a generic API
+that other users would depend on. 
 -- 
 Michal Hocko
 SUSE Labs
