@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CB4246B0069
-	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 18:41:48 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id t10so2906349pgo.2
-        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 15:41:48 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id s4si1860056plp.584.2017.10.06.15.41.47
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CAF126B0253
+	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 18:41:53 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id l188so27204859pfc.7
+        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 15:41:53 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id n10si1831162pgc.242.2017.10.06.15.41.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Oct 2017 15:41:47 -0700 (PDT)
-Subject: [PATCH v7 01/12] mm: introduce MAP_SHARED_VALIDATE,
- a mechanism to safely define new mmap flags
+        Fri, 06 Oct 2017 15:41:52 -0700 (PDT)
+Subject: [PATCH v7 02/12] fs, mm: pass fd to ->mmap_validate()
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 06 Oct 2017 15:35:19 -0700
-Message-ID: <150732931940.22363.13759477941430012152.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Fri, 06 Oct 2017 15:35:27 -0700
+Message-ID: <150732932763.22363.2605808989118835376.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <150732931273.22363.8436792888326501071.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <150732931273.22363.8436792888326501071.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -22,301 +21,272 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, linux-rdma@vger.kernel.org, linux-api@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+Cc: Jan Kara <jack@suse.cz>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@lst.de>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-The mmap(2) syscall suffers from the ABI anti-pattern of not validating
-unknown flags. However, proposals like MAP_SYNC and MAP_DIRECT need a
-mechanism to define new behavior that is known to fail on older kernels
-without the support. Define a new MAP_SHARED_VALIDATE flag pattern that
-is guaranteed to fail on all legacy mmap implementations.
-
-It is worth noting that the original proposal was for a standalone
-MAP_VALIDATE flag. However, when that  could not be supported by all
-archs Linus observed:
-
-    I see why you *think* you want a bitmap. You think you want
-    a bitmap because you want to make MAP_VALIDATE be part of MAP_SYNC
-    etc, so that people can do
-
-    ret = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED
-		    | MAP_SYNC, fd, 0);
-
-    and "know" that MAP_SYNC actually takes.
-
-    And I'm saying that whole wish is bogus. You're fundamentally
-    depending on special semantics, just make it explicit. It's already
-    not portable, so don't try to make it so.
-
-    Rename that MAP_VALIDATE as MAP_SHARED_VALIDATE, make it have a value
-    of 0x3, and make people do
-
-    ret = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED_VALIDATE
-		    | MAP_SYNC, fd, 0);
-
-    and then the kernel side is easier too (none of that random garbage
-    playing games with looking at the "MAP_VALIDATE bit", but just another
-    case statement in that map type thing.
-
-    Boom. Done.
-
-Similar to ->fallocate() we also want the ability to validate the
-support for new flags on a per ->mmap() 'struct file_operations'
-instance basis.  Towards that end arrange for flags to be generically
-validated against a mmap_supported_mask exported by 'struct
-file_operations'. By default all existing flags are implicitly
-supported, but new flags require MAP_SHARED_VALIDATE and
-per-instance-opt-in.
+The MAP_DIRECT mechanism for mmap intends to use a file lease to prevent
+block map changes while the file is mapped. It requires the fd to setup
+an fasync_struct for signalling lease break events to the lease holder.
 
 Cc: Jan Kara <jack@suse.cz>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Jeff Moyer <jmoyer@redhat.com>
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: Dave Chinner <david@fromorbit.com>
+Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Suggested-by: Christoph Hellwig <hch@lst.de>
-Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- arch/alpha/include/uapi/asm/mman.h           |    1 +
- arch/mips/include/uapi/asm/mman.h            |    1 +
- arch/mips/kernel/vdso.c                      |    2 +
- arch/parisc/include/uapi/asm/mman.h          |    1 +
- arch/tile/mm/elf.c                           |    3 +-
- arch/xtensa/include/uapi/asm/mman.h          |    1 +
- include/linux/fs.h                           |    2 +
- include/linux/mm.h                           |    2 +
- include/linux/mman.h                         |   39 ++++++++++++++++++++++++++
- include/uapi/asm-generic/mman-common.h       |    1 +
- mm/mmap.c                                    |   21 ++++++++++++--
- tools/include/uapi/asm-generic/mman-common.h |    1 +
- 12 files changed, 69 insertions(+), 6 deletions(-)
+ arch/mips/kernel/vdso.c |    2 +-
+ arch/tile/mm/elf.c      |    2 +-
+ arch/x86/mm/mpx.c       |    3 ++-
+ fs/aio.c                |    2 +-
+ include/linux/fs.h      |    2 +-
+ include/linux/mm.h      |    9 +++++----
+ ipc/shm.c               |    3 ++-
+ mm/internal.h           |    2 +-
+ mm/mmap.c               |   13 +++++++------
+ mm/nommu.c              |    5 +++--
+ mm/util.c               |    7 ++++---
+ 11 files changed, 28 insertions(+), 22 deletions(-)
 
-diff --git a/arch/alpha/include/uapi/asm/mman.h b/arch/alpha/include/uapi/asm/mman.h
-index 3b26cc62dadb..92823f24890b 100644
---- a/arch/alpha/include/uapi/asm/mman.h
-+++ b/arch/alpha/include/uapi/asm/mman.h
-@@ -14,6 +14,7 @@
- #define MAP_TYPE	0x0f		/* Mask for type of mapping (OSF/1 is _wrong_) */
- #define MAP_FIXED	0x100		/* Interpret addr exactly */
- #define MAP_ANONYMOUS	0x10		/* don't use a file */
-+#define MAP_SHARED_VALIDATE 0x3		/* share + validate extension flags */
- 
- /* not used by linux, but here to make sure we don't clash with OSF/1 defines */
- #define _MAP_HASSEMAPHORE 0x0200
-diff --git a/arch/mips/include/uapi/asm/mman.h b/arch/mips/include/uapi/asm/mman.h
-index da3216007fe0..c77689076577 100644
---- a/arch/mips/include/uapi/asm/mman.h
-+++ b/arch/mips/include/uapi/asm/mman.h
-@@ -30,6 +30,7 @@
- #define MAP_PRIVATE	0x002		/* Changes are private */
- #define MAP_TYPE	0x00f		/* Mask for type of mapping */
- #define MAP_FIXED	0x010		/* Interpret addr exactly */
-+#define MAP_SHARED_VALIDATE 0x3		/* share + validate extension flags */
- 
- /* not used by linux, but here to make sure we don't clash with ABI defines */
- #define MAP_RENAME	0x020		/* Assign page to file */
 diff --git a/arch/mips/kernel/vdso.c b/arch/mips/kernel/vdso.c
-index 019035d7225c..cf10654477a9 100644
+index cf10654477a9..ab26c7ac0316 100644
 --- a/arch/mips/kernel/vdso.c
 +++ b/arch/mips/kernel/vdso.c
 @@ -110,7 +110,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
  	base = mmap_region(NULL, STACK_TOP, PAGE_SIZE,
  			   VM_READ|VM_WRITE|VM_EXEC|
  			   VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
--			   0, NULL);
-+			   0, NULL, 0);
+-			   0, NULL, 0);
++			   0, NULL, 0, -1);
  	if (IS_ERR_VALUE(base)) {
  		ret = base;
  		goto out;
-diff --git a/arch/parisc/include/uapi/asm/mman.h b/arch/parisc/include/uapi/asm/mman.h
-index 775b5d5e41a1..36b688d52de3 100644
---- a/arch/parisc/include/uapi/asm/mman.h
-+++ b/arch/parisc/include/uapi/asm/mman.h
-@@ -14,6 +14,7 @@
- #define MAP_TYPE	0x03		/* Mask for type of mapping */
- #define MAP_FIXED	0x04		/* Interpret addr exactly */
- #define MAP_ANONYMOUS	0x10		/* don't use a file */
-+#define MAP_SHARED_VALIDATE 0x3		/* share + validate extension flags */
- 
- #define MAP_DENYWRITE	0x0800		/* ETXTBSY */
- #define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
 diff --git a/arch/tile/mm/elf.c b/arch/tile/mm/elf.c
-index 889901824400..5ffcbe76aef9 100644
+index 5ffcbe76aef9..61a9588e141a 100644
 --- a/arch/tile/mm/elf.c
 +++ b/arch/tile/mm/elf.c
-@@ -143,7 +143,8 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
- 		unsigned long addr = MEM_USER_INTRPT;
+@@ -144,7 +144,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
  		addr = mmap_region(NULL, addr, INTRPT_SIZE,
  				   VM_READ|VM_EXEC|
--				   VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC, 0, NULL);
-+				   VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC, 0,
-+				   NULL, 0);
+ 				   VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC, 0,
+-				   NULL, 0);
++				   NULL, 0, -1);
  		if (addr > (unsigned long) -PAGE_SIZE)
  			retval = (int) addr;
  	}
-diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
-index b15b278aa314..ec597900eec7 100644
---- a/arch/xtensa/include/uapi/asm/mman.h
-+++ b/arch/xtensa/include/uapi/asm/mman.h
-@@ -37,6 +37,7 @@
- #define MAP_PRIVATE	0x002		/* Changes are private */
- #define MAP_TYPE	0x00f		/* Mask for type of mapping */
- #define MAP_FIXED	0x010		/* Interpret addr exactly */
-+#define MAP_SHARED_VALIDATE 0x3		/* share + validate extension flags */
+diff --git a/arch/x86/mm/mpx.c b/arch/x86/mm/mpx.c
+index 9ceaa955d2ba..a8baa94a496b 100644
+--- a/arch/x86/mm/mpx.c
++++ b/arch/x86/mm/mpx.c
+@@ -52,7 +52,8 @@ static unsigned long mpx_mmap(unsigned long len)
  
- /* not used by linux, but here to make sure we don't clash with ABI defines */
- #define MAP_RENAME	0x020		/* Assign page to file */
+ 	down_write(&mm->mmap_sem);
+ 	addr = do_mmap(NULL, 0, len, PROT_READ | PROT_WRITE,
+-		       MAP_ANONYMOUS | MAP_PRIVATE, VM_MPX, 0, &populate, NULL);
++			MAP_ANONYMOUS | MAP_PRIVATE, VM_MPX, 0, &populate,
++			NULL, -1);
+ 	up_write(&mm->mmap_sem);
+ 	if (populate)
+ 		mm_populate(addr, populate);
+diff --git a/fs/aio.c b/fs/aio.c
+index 5a2487217072..d10ca6db2ee6 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -519,7 +519,7 @@ static int aio_setup_ring(struct kioctx *ctx, unsigned int nr_events)
+ 
+ 	ctx->mmap_base = do_mmap_pgoff(ctx->aio_ring_file, 0, ctx->mmap_size,
+ 				       PROT_READ | PROT_WRITE,
+-				       MAP_SHARED, 0, &unused, NULL);
++				       MAP_SHARED, 0, &unused, NULL, -1);
+ 	up_write(&mm->mmap_sem);
+ 	if (IS_ERR((void *)ctx->mmap_base)) {
+ 		ctx->mmap_size = 0;
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 339e73742e73..51538958f7f5 100644
+index 51538958f7f5..c2b9bf3dc4e9 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
-@@ -1701,6 +1701,8 @@ struct file_operations {
- 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
+@@ -1702,7 +1702,7 @@ struct file_operations {
  	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
  	int (*mmap) (struct file *, struct vm_area_struct *);
-+	int (*mmap_validate) (struct file *, struct vm_area_struct *,
-+			unsigned long);
+ 	int (*mmap_validate) (struct file *, struct vm_area_struct *,
+-			unsigned long);
++			unsigned long, int);
  	int (*open) (struct inode *, struct file *);
  	int (*flush) (struct file *, fl_owner_t id);
  	int (*release) (struct inode *, struct file *);
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index f8c10d336e42..5c4c98e4adc9 100644
+index 5c4c98e4adc9..0afa19feb755 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -2133,7 +2133,7 @@ extern unsigned long get_unmapped_area(struct file *, unsigned long, unsigned lo
+@@ -2133,11 +2133,11 @@ extern unsigned long get_unmapped_area(struct file *, unsigned long, unsigned lo
  
  extern unsigned long mmap_region(struct file *file, unsigned long addr,
  	unsigned long len, vm_flags_t vm_flags, unsigned long pgoff,
--	struct list_head *uf);
-+	struct list_head *uf, unsigned long map_flags);
+-	struct list_head *uf, unsigned long map_flags);
++	struct list_head *uf, unsigned long map_flags, int fd);
  extern unsigned long do_mmap(struct file *file, unsigned long addr,
  	unsigned long len, unsigned long prot, unsigned long flags,
  	vm_flags_t vm_flags, unsigned long pgoff, unsigned long *populate,
-diff --git a/include/linux/mman.h b/include/linux/mman.h
-index c8367041fafd..94b63b4d71ff 100644
---- a/include/linux/mman.h
-+++ b/include/linux/mman.h
-@@ -7,6 +7,45 @@
- #include <linux/atomic.h>
- #include <uapi/linux/mman.h>
+-	struct list_head *uf);
++	struct list_head *uf, int fd);
+ extern int do_munmap(struct mm_struct *, unsigned long, size_t,
+ 		     struct list_head *uf);
  
-+/*
-+ * Arrange for legacy / undefined architecture specific flags to be
-+ * ignored by default in LEGACY_MAP_MASK.
-+ */
-+#ifndef MAP_32BIT
-+#define MAP_32BIT 0
-+#endif
-+#ifndef MAP_HUGE_2MB
-+#define MAP_HUGE_2MB 0
-+#endif
-+#ifndef MAP_HUGE_1GB
-+#define MAP_HUGE_1GB 0
-+#endif
-+#ifndef MAP_UNINITIALIZED
-+#define MAP_UNINITIALIZED 0
-+#endif
-+
-+/*
-+ * The historical set of flags that all mmap implementations implicitly
-+ * support when a ->mmap_validate() op is not provided in file_operations.
-+ */
-+#define LEGACY_MAP_MASK (MAP_SHARED \
-+		| MAP_PRIVATE \
-+		| MAP_FIXED \
-+		| MAP_ANONYMOUS \
-+		| MAP_DENYWRITE \
-+		| MAP_EXECUTABLE \
-+		| MAP_UNINITIALIZED \
-+		| MAP_GROWSDOWN \
-+		| MAP_LOCKED \
-+		| MAP_NORESERVE \
-+		| MAP_POPULATE \
-+		| MAP_NONBLOCK \
-+		| MAP_STACK \
-+		| MAP_HUGETLB \
-+		| MAP_32BIT \
-+		| MAP_HUGE_2MB \
-+		| MAP_HUGE_1GB)
-+
- extern int sysctl_overcommit_memory;
- extern int sysctl_overcommit_ratio;
- extern unsigned long sysctl_overcommit_kbytes;
-diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
-index 203268f9231e..ac55d1c0ec0f 100644
---- a/include/uapi/asm-generic/mman-common.h
-+++ b/include/uapi/asm-generic/mman-common.h
-@@ -24,6 +24,7 @@
- #else
- # define MAP_UNINITIALIZED 0x0		/* Don't support this flag */
- #endif
-+#define MAP_SHARED_VALIDATE 0x3		/* share + validate extension flags */
+@@ -2145,9 +2145,10 @@ static inline unsigned long
+ do_mmap_pgoff(struct file *file, unsigned long addr,
+ 	unsigned long len, unsigned long prot, unsigned long flags,
+ 	unsigned long pgoff, unsigned long *populate,
+-	struct list_head *uf)
++	struct list_head *uf, int fd)
+ {
+-	return do_mmap(file, addr, len, prot, flags, 0, pgoff, populate, uf);
++	return do_mmap(file, addr, len, prot, flags, 0, pgoff, populate,
++			uf, fd);
+ }
  
- /*
-  * Flags for mlock
+ #ifdef CONFIG_MMU
+diff --git a/ipc/shm.c b/ipc/shm.c
+index 1e2b1692ba2c..585e05eef40a 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -1399,7 +1399,8 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
+ 			goto invalid;
+ 	}
+ 
+-	addr = do_mmap_pgoff(file, addr, size, prot, flags, 0, &populate, NULL);
++	addr = do_mmap_pgoff(file, addr, size, prot, flags, 0, &populate,
++			NULL, -1);
+ 	*raddr = addr;
+ 	err = 0;
+ 	if (IS_ERR_VALUE(addr))
+diff --git a/mm/internal.h b/mm/internal.h
+index 1df011f62480..70ed7b06dd85 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -466,7 +466,7 @@ extern u32 hwpoison_filter_enable;
+ 
+ extern unsigned long  __must_check vm_mmap_pgoff(struct file *, unsigned long,
+         unsigned long, unsigned long,
+-        unsigned long, unsigned long);
++        unsigned long, unsigned long, int);
+ 
+ extern void set_pageblock_order(void);
+ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 diff --git a/mm/mmap.c b/mm/mmap.c
-index 680506faceae..a1bcaa9eff42 100644
+index a1bcaa9eff42..c2cb6334a7a9 100644
 --- a/mm/mmap.c
 +++ b/mm/mmap.c
-@@ -1389,6 +1389,18 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 		struct inode *inode = file_inode(file);
- 
- 		switch (flags & MAP_TYPE) {
-+		case (MAP_SHARED_VALIDATE):
-+			if ((flags & ~LEGACY_MAP_MASK) == 0) {
-+				/*
-+				 * If all legacy mmap flags, downgrade
-+				 * to MAP_SHARED, i.e. invoke ->mmap()
-+				 * instead of ->mmap_validate()
-+				 */
-+				flags &= ~MAP_TYPE;
-+				flags |= MAP_SHARED;
-+			} else if (!file->f_op->mmap_validate)
-+				return -EOPNOTSUPP;
-+			/* fall through */
- 		case MAP_SHARED:
- 			if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE))
- 				return -EACCES;
-@@ -1465,7 +1477,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+@@ -1322,7 +1322,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+ 			unsigned long len, unsigned long prot,
+ 			unsigned long flags, vm_flags_t vm_flags,
+ 			unsigned long pgoff, unsigned long *populate,
+-			struct list_head *uf)
++			struct list_head *uf, int fd)
+ {
+ 	struct mm_struct *mm = current->mm;
+ 	int pkey = 0;
+@@ -1477,7 +1477,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
  			vm_flags |= VM_NORESERVE;
  	}
  
--	addr = mmap_region(file, addr, len, vm_flags, pgoff, uf);
-+	addr = mmap_region(file, addr, len, vm_flags, pgoff, uf, flags);
+-	addr = mmap_region(file, addr, len, vm_flags, pgoff, uf, flags);
++	addr = mmap_region(file, addr, len, vm_flags, pgoff, uf, flags, fd);
  	if (!IS_ERR_VALUE(addr) &&
  	    ((vm_flags & VM_LOCKED) ||
  	     (flags & (MAP_POPULATE | MAP_NONBLOCK)) == MAP_POPULATE))
-@@ -1602,7 +1614,7 @@ static inline int accountable_mapping(struct file *file, vm_flags_t vm_flags)
+@@ -1527,7 +1527,7 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
+ 
+ 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
+ 
+-	retval = vm_mmap_pgoff(file, addr, len, prot, flags, pgoff);
++	retval = vm_mmap_pgoff(file, addr, len, prot, flags, pgoff, fd);
+ out_fput:
+ 	if (file)
+ 		fput(file);
+@@ -1614,7 +1614,7 @@ static inline int accountable_mapping(struct file *file, vm_flags_t vm_flags)
  
  unsigned long mmap_region(struct file *file, unsigned long addr,
  		unsigned long len, vm_flags_t vm_flags, unsigned long pgoff,
--		struct list_head *uf)
-+		struct list_head *uf, unsigned long map_flags)
+-		struct list_head *uf, unsigned long map_flags)
++		struct list_head *uf, unsigned long map_flags, int fd)
  {
  	struct mm_struct *mm = current->mm;
  	struct vm_area_struct *vma, *prev;
-@@ -1687,7 +1699,10 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
- 		 * new file must not have been exposed to user-space, yet.
+@@ -1700,7 +1700,8 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
  		 */
  		vma->vm_file = get_file(file);
--		error = call_mmap(file, vma);
-+		if ((map_flags & MAP_TYPE) == MAP_SHARED_VALIDATE)
-+			error = file->f_op->mmap_validate(file, vma, map_flags);
-+		else
-+			error = call_mmap(file, vma);
+ 		if ((map_flags & MAP_TYPE) == MAP_SHARED_VALIDATE)
+-			error = file->f_op->mmap_validate(file, vma, map_flags);
++			error = file->f_op->mmap_validate(file, vma,
++					map_flags, fd);
+ 		else
+ 			error = call_mmap(file, vma);
  		if (error)
- 			goto unmap_and_free_vma;
+@@ -2842,7 +2843,7 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
  
-diff --git a/tools/include/uapi/asm-generic/mman-common.h b/tools/include/uapi/asm-generic/mman-common.h
-index 8c27db0c5c08..202bc4277fb5 100644
---- a/tools/include/uapi/asm-generic/mman-common.h
-+++ b/tools/include/uapi/asm-generic/mman-common.h
-@@ -24,6 +24,7 @@
- #else
- # define MAP_UNINITIALIZED 0x0		/* Don't support this flag */
- #endif
-+#define MAP_SHARED_VALIDATE 0x3		/* share + validate extension flags */
+ 	file = get_file(vma->vm_file);
+ 	ret = do_mmap_pgoff(vma->vm_file, start, size,
+-			prot, flags, pgoff, &populate, NULL);
++			prot, flags, pgoff, &populate, NULL, -1);
+ 	fput(file);
+ out:
+ 	up_write(&mm->mmap_sem);
+diff --git a/mm/nommu.c b/mm/nommu.c
+index 17c00d93de2e..952d205d3b66 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -1206,7 +1206,8 @@ unsigned long do_mmap(struct file *file,
+ 			vm_flags_t vm_flags,
+ 			unsigned long pgoff,
+ 			unsigned long *populate,
+-			struct list_head *uf)
++			struct list_head *uf,
++			int fd)
+ {
+ 	struct vm_area_struct *vma;
+ 	struct vm_region *region;
+@@ -1439,7 +1440,7 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
  
- /*
-  * Flags for mlock
+ 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
+ 
+-	retval = vm_mmap_pgoff(file, addr, len, prot, flags, pgoff);
++	retval = vm_mmap_pgoff(file, addr, len, prot, flags, pgoff, fd);
+ 
+ 	if (file)
+ 		fput(file);
+diff --git a/mm/util.c b/mm/util.c
+index 34e57fae959d..dcf48d929185 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -319,7 +319,7 @@ EXPORT_SYMBOL_GPL(get_user_pages_fast);
+ 
+ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
+ 	unsigned long len, unsigned long prot,
+-	unsigned long flag, unsigned long pgoff)
++	unsigned long flag, unsigned long pgoff, int fd)
+ {
+ 	unsigned long ret;
+ 	struct mm_struct *mm = current->mm;
+@@ -331,7 +331,7 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
+ 		if (down_write_killable(&mm->mmap_sem))
+ 			return -EINTR;
+ 		ret = do_mmap_pgoff(file, addr, len, prot, flag, pgoff,
+-				    &populate, &uf);
++				    &populate, &uf, fd);
+ 		up_write(&mm->mmap_sem);
+ 		userfaultfd_unmap_complete(mm, &uf);
+ 		if (populate)
+@@ -349,7 +349,8 @@ unsigned long vm_mmap(struct file *file, unsigned long addr,
+ 	if (unlikely(offset_in_page(offset)))
+ 		return -EINVAL;
+ 
+-	return vm_mmap_pgoff(file, addr, len, prot, flag, offset >> PAGE_SHIFT);
++	return vm_mmap_pgoff(file, addr, len, prot, flag,
++			offset >> PAGE_SHIFT, -1);
+ }
+ EXPORT_SYMBOL(vm_mmap);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
