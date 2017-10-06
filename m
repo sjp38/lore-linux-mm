@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 837D26B026A
-	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 18:42:32 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id t63so3638756pfi.5
-        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 15:42:32 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id i14si1964486pgc.59.2017.10.06.15.42.31
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DA3C66B026B
+	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 18:42:37 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id c137so38850019pga.6
+        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 15:42:37 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id z11si483351plo.149.2017.10.06.15.42.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Oct 2017 15:42:31 -0700 (PDT)
-Subject: [PATCH v7 09/12] xfs: wire up ->lease_direct()
+        Fri, 06 Oct 2017 15:42:36 -0700 (PDT)
+Subject: [PATCH v7 10/12] device-dax: wire up ->lease_direct()
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 06 Oct 2017 15:36:06 -0700
-Message-ID: <150732936625.22363.7638037715540836828.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Fri, 06 Oct 2017 15:36:11 -0700
+Message-ID: <150732937143.22363.13161962109863846755.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <150732931273.22363.8436792888326501071.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <150732931273.22363.8436792888326501071.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -21,76 +21,97 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: linux-xfs@vger.kernel.org, Jan Kara <jack@suse.cz>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@lst.de>, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, Jeff Layton <jlayton@poochiereds.net>, Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, linux-rdma@vger.kernel.org, linux-api@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
 
-A 'lease_direct' lease requires that the vma have a valid MAP_DIRECT
-mapping established. For xfs we establish a new lease and then check if
-the MAP_DIRECT mapping has been broken. We want to be sure that the
-process will receive notification that the MAP_DIRECT mapping is being
-torn down so it knows why other code paths are throwing failures.
-
-For example in the RDMA/ibverbs case we want ibv_reg_mr() to fail if the
-MAP_DIRECT mapping is invalid or in the process of being invalidated.
+The only event that will break a lease_direct lease in the device-dax
+case is the device shutdown path where the physical pages might get
+assigned to another device.
 
 Cc: Jan Kara <jack@suse.cz>
 Cc: Jeff Moyer <jmoyer@redhat.com>
 Cc: Christoph Hellwig <hch@lst.de>
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Jeff Layton <jlayton@poochiereds.net>
-Cc: "J. Bruce Fields" <bfields@fieldses.org>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- fs/xfs/xfs_file.c |   28 ++++++++++++++++++++++++++++
- 1 file changed, 28 insertions(+)
+ drivers/dax/device.c      |    4 ++++
+ fs/Kconfig                |    4 ++++
+ fs/Makefile               |    3 ++-
+ include/linux/mapdirect.h |    2 +-
+ 4 files changed, 11 insertions(+), 2 deletions(-)
 
-diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-index e35518600e28..823b65f17429 100644
---- a/fs/xfs/xfs_file.c
-+++ b/fs/xfs/xfs_file.c
-@@ -1166,6 +1166,33 @@ xfs_filemap_direct_close(
- 	put_map_direct_vma(vma->vm_private_data);
- }
- 
-+static struct lease_direct *
-+xfs_filemap_direct_lease(
-+	struct vm_area_struct	*vma,
-+	void			(*break_fn)(void *),
-+	void			*owner)
-+{
-+	struct lease_direct	*ld;
-+
-+	ld = map_direct_lease(vma, break_fn, owner);
-+
-+	if (IS_ERR(ld))
-+		return ld;
-+
-+	/*
-+	 * We now have an established lease while the base MAP_DIRECT
-+	 * lease was not broken. So, we know that the "lease holder" will
-+	 * receive a SIGIO notification when the lease is broken and
-+	 * take any necessary cleanup actions.
-+	 */
-+	if (!is_map_direct_broken(vma->vm_private_data))
-+		return ld;
-+
-+	map_direct_lease_destroy(ld);
-+
-+	return ERR_PTR(-ENXIO);
-+}
-+
- static const struct vm_operations_struct xfs_file_vm_direct_ops = {
- 	.fault		= xfs_filemap_fault,
- 	.huge_fault	= xfs_filemap_huge_fault,
-@@ -1175,6 +1202,7 @@ static const struct vm_operations_struct xfs_file_vm_direct_ops = {
- 
- 	.open		= xfs_filemap_direct_open,
- 	.close		= xfs_filemap_direct_close,
-+	.lease_direct	= xfs_filemap_direct_lease,
+diff --git a/drivers/dax/device.c b/drivers/dax/device.c
+index e9f3b3e4bbf4..fa75004185c4 100644
+--- a/drivers/dax/device.c
++++ b/drivers/dax/device.c
+@@ -10,6 +10,7 @@
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  * General Public License for more details.
+  */
++#include <linux/mapdirect.h>
+ #include <linux/pagemap.h>
+ #include <linux/module.h>
+ #include <linux/device.h>
+@@ -430,6 +431,7 @@ static int dev_dax_fault(struct vm_fault *vmf)
+ static const struct vm_operations_struct dax_vm_ops = {
+ 	.fault = dev_dax_fault,
+ 	.huge_fault = dev_dax_huge_fault,
++	.lease_direct = map_direct_lease,
  };
  
- static const struct vm_operations_struct xfs_file_vm_ops = {
+ static int dax_mmap(struct file *filp, struct vm_area_struct *vma)
+@@ -540,8 +542,10 @@ static void kill_dev_dax(struct dev_dax *dev_dax)
+ {
+ 	struct dax_device *dax_dev = dev_dax->dax_dev;
+ 	struct inode *inode = dax_inode(dax_dev);
++	const bool wait = true;
+ 
+ 	kill_dax(dax_dev);
++	break_layout(inode, wait);
+ 	unmap_mapping_range(inode->i_mapping, 0, 0, 1);
+ }
+ 
+diff --git a/fs/Kconfig b/fs/Kconfig
+index 7aee6d699fd6..2e3784ae1bc4 100644
+--- a/fs/Kconfig
++++ b/fs/Kconfig
+@@ -58,6 +58,10 @@ config FS_DAX_PMD
+ 	depends on ZONE_DEVICE
+ 	depends on TRANSPARENT_HUGEPAGE
+ 
++config DAX_MAP_DIRECT
++	bool
++	default FS_DAX || DEV_DAX
++
+ endif # BLOCK
+ 
+ # Posix ACL utility routines
+diff --git a/fs/Makefile b/fs/Makefile
+index c0e791d235d8..21b8fb104656 100644
+--- a/fs/Makefile
++++ b/fs/Makefile
+@@ -29,7 +29,8 @@ obj-$(CONFIG_TIMERFD)		+= timerfd.o
+ obj-$(CONFIG_EVENTFD)		+= eventfd.o
+ obj-$(CONFIG_USERFAULTFD)	+= userfaultfd.o
+ obj-$(CONFIG_AIO)               += aio.o
+-obj-$(CONFIG_FS_DAX)		+= dax.o mapdirect.o
++obj-$(CONFIG_FS_DAX)		+= dax.o
++obj-$(CONFIG_DAX_MAP_DIRECT)	+= mapdirect.o
+ obj-$(CONFIG_FS_ENCRYPTION)	+= crypto/
+ obj-$(CONFIG_FILE_LOCKING)      += locks.o
+ obj-$(CONFIG_COMPAT)		+= compat.o compat_ioctl.o
+diff --git a/include/linux/mapdirect.h b/include/linux/mapdirect.h
+index dc4d4ba677d0..bafa78a6085f 100644
+--- a/include/linux/mapdirect.h
++++ b/include/linux/mapdirect.h
+@@ -26,7 +26,7 @@ struct lease_direct {
+ 	struct lease_direct_state *lds;
+ };
+ 
+-#if IS_ENABLED(CONFIG_FS_DAX)
++#if IS_ENABLED(CONFIG_DAX_MAP_DIRECT)
+ struct map_direct_state *map_direct_register(int fd, struct vm_area_struct *vma);
+ int put_map_direct_vma(struct map_direct_state *mds);
+ void get_map_direct_vma(struct map_direct_state *mds);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
