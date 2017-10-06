@@ -1,58 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 31B276B0253
-	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 17:38:34 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id v13so33180117pgq.1
-        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 14:38:34 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id k197si1791151pgc.187.2017.10.06.14.38.33
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 59DA76B0038
+	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 18:12:43 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id l188so27117535pfc.7
+        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 15:12:43 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id e71si1782142pgc.143.2017.10.06.15.12.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Oct 2017 14:38:33 -0700 (PDT)
-From: Luis Felipe Sandoval Castro <luis.felipe.sandoval.castro@intel.com>
-Subject: [PATCH v1] mm/mempolicy.c: Fix get_nodes() off-by-one error.
-Date: Fri,  6 Oct 2017 08:36:34 -0500
-Message-Id: <1507296994-175620-2-git-send-email-luis.felipe.sandoval.castro@intel.com>
-In-Reply-To: <1507296994-175620-1-git-send-email-luis.felipe.sandoval.castro@intel.com>
+        Fri, 06 Oct 2017 15:12:42 -0700 (PDT)
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [PATCH v1][cover-letter] mm/mempolicy.c: Fix get_nodes() off-by-one error.
 References: <1507296994-175620-1-git-send-email-luis.felipe.sandoval.castro@intel.com>
+Date: Fri, 06 Oct 2017 15:12:40 -0700
+In-Reply-To: <1507296994-175620-1-git-send-email-luis.felipe.sandoval.castro@intel.com>
+	(Luis Felipe Sandoval Castro's message of "Fri, 6 Oct 2017 08:36:33
+	-0500")
+Message-ID: <87a814ncx3.fsf@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu, Luis Felipe Sandoval Castro <luis.felipe.sandoval.castro@intel.com>
+To: Luis Felipe Sandoval Castro <luis.felipe.sandoval.castro@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu
 
-set_mempolicy() and mbind() take as argument a pointer to a bit mask
-(nodemask) and the number of bits in the mask the kernel will use
-(maxnode), among others.  For instace on a system with 2 NUMA nodes valid
-masks are: 0b00, 0b01, 0b10 and 0b11 it's clear maxnode=2, however an
-off-by-one error in get_nodes() the function that copies the node mask from
-user space requires users to pass maxnode = 3 in this example and maxnode =
-actual_maxnode + 1 in the general case. This patch fixes such error.
+Luis Felipe Sandoval Castro <luis.felipe.sandoval.castro@intel.com>
+writes:
 
-Signed-off-by: Luis Felipe Sandoval Castro <luis.felipe.sandoval.castro@intel.com>
----
- mm/mempolicy.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+> According to mbind() and set_mempolicy()'s man pages the argument "maxnode"
+> specifies the max number of bits in the "nodemask" (which is also to be passed
+> to these functions) that should be considered for the memory policy. If maxnode
+> = 2, only two bits are to be considered thus valid node masks are: 0b00, 0b01,
+> 0b10 and 0b11.
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 006ba62..0c2e3cd 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1265,11 +1265,10 @@ static int get_nodes(nodemask_t *nodes, const unsigned long __user *nmask,
- 	unsigned long nlongs;
- 	unsigned long endmask;
- 
--	--maxnode;
- 	nodes_clear(*nodes);
--	if (maxnode == 0 || !nmask)
-+	if (maxnode == 1 || !nmask)
- 		return 0;
--	if (maxnode > PAGE_SIZE*BITS_PER_BYTE)
-+	if (maxnode - 1 > PAGE_SIZE * BITS_PER_BYTE)
- 		return -EINVAL;
- 
- 	nlongs = BITS_TO_LONGS(maxnode);
--- 
-1.8.3.1
+We can't change this unfortunately, it would break old binaries (like
+libnuma) which assume the old interface.
+
+The only way to fix it would be to add a new system call and keep
+the old one for compatibility, but that would seem like overkill just
+for this.
+
+You always have to add +1, sorry.
+
+Perhaps it could be better documented.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
