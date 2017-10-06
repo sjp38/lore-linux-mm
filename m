@@ -1,61 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BE916B0033
-	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 08:25:21 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id q203so13281845wmb.0
-        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 05:25:21 -0700 (PDT)
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y2si1194232wmy.277.2017.10.06.05.25.19
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E6C556B0253
+	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 08:29:01 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id k56so9004746qtc.1
+        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 05:29:01 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y9sor928278qkl.49.2017.10.06.05.29.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 06 Oct 2017 05:25:20 -0700 (PDT)
-Date: Fri, 6 Oct 2017 14:25:18 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v10 09/10] mm: stop zeroing memory during allocation in
- vmemmap
-Message-ID: <20171006122518.y22rzeq7riyjbrbg@dhcp22.suse.cz>
-References: <20171005211124.26524-1-pasha.tatashin@oracle.com>
- <20171005211124.26524-10-pasha.tatashin@oracle.com>
- <063D6719AE5E284EB5DD2968C1650D6DD008BA85@AcuExch.aculab.com>
- <20171006114729.fexwklupkhyxdpt3@dhcp22.suse.cz>
- <063D6719AE5E284EB5DD2968C1650D6DD008BB4D@AcuExch.aculab.com>
+        (Google Transport Security);
+        Fri, 06 Oct 2017 05:29:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <063D6719AE5E284EB5DD2968C1650D6DD008BB4D@AcuExch.aculab.com>
+In-Reply-To: <20171002144903.d58ed6887adfd9dc4cdfd697@linux-foundation.org>
+References: <20170926132129.dbtr2mof35x4j4og@dhcp22.suse.cz>
+ <20170927050401.GA715@bbox> <20170927074835.37m4dclmew5ecli2@dhcp22.suse.cz>
+ <20170927080432.GA1160@bbox> <20170927083512.dydqlqezh5polggb@dhcp22.suse.cz>
+ <20170927131511.GA338@bgram> <20170927132241.tshup6kcwe5pcxek@dhcp22.suse.cz>
+ <20170927134117.GB338@bgram> <20170927135034.yatxlhvunawzmcar@dhcp22.suse.cz>
+ <20170927141008.GA1278@bgram> <20170927141723.bixcum3fler7q4w5@dhcp22.suse.cz>
+ <87mv5f8wkj.fsf@yhuang-dev.intel.com> <e7531802-c4bc-9a5b-1a9c-d7909f2d1107@intel.com>
+ <20171002144903.d58ed6887adfd9dc4cdfd697@linux-foundation.org>
+From: huang ying <huang.ying.caritas@gmail.com>
+Date: Fri, 6 Oct 2017 20:28:59 +0800
+Message-ID: <CAC=cRTMMHX1SqPygkh+4scmhQhv3=kZMJAFf=EhZZU9S2006JA@mail.gmail.com>
+Subject: Re: [PATCH] mm, swap: Make VMA based swap readahead configurable
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Laight <David.Laight@ACULAB.COM>
-Cc: 'Pavel Tatashin' <pasha.tatashin@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "x86@kernel.org" <x86@kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "borntraeger@de.ibm.com" <borntraeger@de.ibm.com>, "heiko.carstens@de.ibm.com" <heiko.carstens@de.ibm.com>, "davem@davemloft.net" <davem@davemloft.net>, "willy@infradead.org" <willy@infradead.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "mark.rutland@arm.com" <mark.rutland@arm.com>, "will.deacon@arm.com" <will.deacon@arm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "sam@ravnborg.org" <sam@ravnborg.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "daniel.m.jordan@oracle.com" <daniel.m.jordan@oracle.com>, "bob.picco@oracle.com" <bob.picco@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, "Huang, Ying" <ying.huang@intel.com>, Michal Hocko <mhocko@kernel.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>
 
-On Fri 06-10-17 12:11:42, David Laight wrote:
-> From: Michal Hocko
-> > Sent: 06 October 2017 12:47
-> > On Fri 06-10-17 11:10:14, David Laight wrote:
-> > > From: Pavel Tatashin
-> > > > Sent: 05 October 2017 22:11
-> > > > vmemmap_alloc_block() will no longer zero the block, so zero memory
-> > > > at its call sites for everything except struct pages.  Struct page memory
-> > > > is zero'd by struct page initialization.
-> > >
-> > > It seems dangerous to change an allocator to stop zeroing memory.
-> > > It is probably saver to add a new function that doesn't zero
-> > > the memory and use that is the places where you don't want it
-> > > to be zeroed.
-> > 
-> > Not sure what you mean. memblock_virt_alloc_try_nid_raw is a new
-> > function which doesn't zero out...
-> 
-> You should probably leave vmemap_alloc_block() zeroing the memory
-> so that existing alls don't have to be changed - apart from the
-> ones you are explicitly optimising.
+On Tue, Oct 3, 2017 at 5:49 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Mon, 2 Oct 2017 08:45:40 -0700 Dave Hansen <dave.hansen@intel.com> wrote:
+>
+>> On 09/27/2017 06:02 PM, Huang, Ying wrote:
+>> > I still think there may be a performance regression for some users
+>> > because of the change of the algorithm and the knobs, and the
+>> > performance regression can be resolved via setting the new knob.  But I
+>> > don't think there will be a functionality regression.  Do you agree?
+>>
+>> A performance regression is a regression.  I don't understand why we are
+>> splitting hairs as to what kind of regression it is.
+>>
+>
+> Yes.
+>
+> Ying, please find us a way of avoiding any disruption to existing
+> system setups.  One which doesn't require that the operator perform a
+> configuration change to restore prior behaviour/performance.
 
-But the whole point of vmemmap_alloc_block is to allocate memmaps and
-the point of this change is to cover those. This is not a generic API
-that other users would depend on. 
--- 
-Michal Hocko
-SUSE Labs
+Sorry for late.  I am in holiday recently.
+
+OK.  For me, I think the most clean way is to use page_cluster to
+control both the virtual and physical swap readahead.  If you are OK
+with that, I will prepare the patch.
+
+> And please let's get this done well in advance of the 4.14 release.
+
+Sure.
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
