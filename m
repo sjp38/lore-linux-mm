@@ -1,87 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A4616B0253
-	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 12:30:15 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id d12so11232087uaj.18
-        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 09:30:15 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id a40sor1433155qtc.31.2017.10.06.09.30.11
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 18FDC6B0253
+	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 12:38:20 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id v13so31924927pgq.1
+        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 09:38:20 -0700 (PDT)
+Received: from out4433.biz.mail.alibaba.com (out4433.biz.mail.alibaba.com. [47.88.44.33])
+        by mx.google.com with ESMTPS id f19si1547259plr.246.2017.10.06.09.38.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 06 Oct 2017 09:30:11 -0700 (PDT)
-Date: Fri, 6 Oct 2017 12:30:08 -0400 (EDT)
-From: Nicolas Pitre <nicolas.pitre@linaro.org>
-Subject: RE: [PATCH v5 0/5] cramfs refresh for embedded usage
-In-Reply-To: <SG2PR06MB11655E68C2F2BE55261F51238A710@SG2PR06MB1165.apcprd06.prod.outlook.com>
-Message-ID: <nycvar.YSQ.7.76.1710061215550.6291@knanqh.ubzr>
-References: <20171006024531.8885-1-nicolas.pitre@linaro.org> <20171006063919.GA16556@infradead.org> <SG2PR06MB11655E68C2F2BE55261F51238A710@SG2PR06MB1165.apcprd06.prod.outlook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Oct 2017 09:38:18 -0700 (PDT)
+Subject: Re: [PATCH 3/3] mm: oom: show unreclaimable slab info when
+ unreclaimable slabs > user memory
+References: <1507152550-46205-1-git-send-email-yang.s@alibaba-inc.com>
+ <1507152550-46205-4-git-send-email-yang.s@alibaba-inc.com>
+ <20171006093702.3ca2p6ymyycwfgbk@dhcp22.suse.cz>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <ff7e0d92-0f12-46fa-dbc7-79c556ffb7c2@alibaba-inc.com>
+Date: Sat, 07 Oct 2017 00:37:55 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20171006093702.3ca2p6ymyycwfgbk@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Brandt <Chris.Brandt@renesas.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-embedded@vger.kernel.org" <linux-embedded@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-
-On Fri, 6 Oct 2017, Chris Brandt wrote:
-
-> On Friday, October 06, 2017, Christoph Hellwig wrote:
-> > This is still missing a proper API for accessing the file system,
-> > as said before specifying a physical address in the mount command
-> > line is a an absolute non-no.
-> > 
-> > Either work with the mtd folks to get the mtd core down to an absolute
-> > minimum suitable for you, or figure out a way to specify fs nodes
-> > through DT or similar.
-> 
-> On my system, the QSPI Flash is memory mapped and set up by the boot 
-> loader. In order to test the upstream kernel, I use a squashfs image and 
-> mtd-rom.
-> 
-> So, 0x18000000 is the physical address of flash as it is seen by the 
-> CPU.
-> 
-> Is there any benefit to doing something similar to this?
-> 
-> 	/* File System */
-> 	/* Requires CONFIG_MTD_ROM=y */
-> 	qspi@18000000 {
-> 		compatible = "mtd-rom";
-> 		probe-type = "map_rom";
-> 		reg = <0x18000000 0x4000000>;	/* 64 MB*/
-> 		bank-width = <4>;
-> 		device-width = <1>;
-> 
-> 		#address-cells = <1>;
-> 		#size-cells = <1>;
-> 
-> 		partition@800000 {
-> 			label ="user";
-> 			reg = <0x0800000 0x800000>; /* 8MB @ 0x18800000 */
-> 			read-only;
-> 		};
-> 	};
-> 
-> 
-> Of course this basically ioremaps the entire space on probe, but I think
-> what you really want to do is just ioremap pages at a time (maybe..I 
-> might not be following your code correctly)
-
-No need for ioremaping pages individually. This creates unneeded 
-overhead, both in terms of code execution and TLB trashing. With a 
-single map, the ARM code at least is smart enough to fit large MMU 
-descriptors when possible with a single TLB for a large region. And if 
-you're interested in XIP cramfs then you do have huge vmalloc space to 
-spare anyway.
-
-As to the requirement for a different interface than a raw physical 
-address: I'm investigating factoring out the MTD partition parsing code 
-so it could be used with or without the rest of MTD. Incidentally, the 
-person who wrote the very first incarnation of MTD partitioning 17 years 
-ago was actually me, so with luck I might be able to figure out 
-something sensible.
+To: Michal Hocko <mhocko@kernel.org>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
-Nicolas
+
+On 10/6/17 2:37 AM, Michal Hocko wrote:
+> On Thu 05-10-17 05:29:10, Yang Shi wrote:
+>> Kernel may panic when oom happens without killable process sometimes it
+>> is caused by huge unreclaimable slabs used by kernel.
+>>
+>> Although kdump could help debug such problem, however, kdump is not
+>> available on all architectures and it might be malfunction sometime.
+>> And, since kernel already panic it is worthy capturing such information
+>> in dmesg to aid touble shooting.
+>>
+>> Print out unreclaimable slab info (used size and total size) which
+>> actual memory usage is not zero (num_objs * size != 0) when
+>> unreclaimable slabs amount is greater than total user memory (LRU
+>> pages).
+>>
+>> The output looks like:
+>>
+>> Unreclaimable slab info:
+>> Name                      Used          Total
+>> rpc_buffers               31KB         31KB
+>> rpc_tasks                  7KB          7KB
+>> ebitmap_node            1964KB       1964KB
+>> avtab_node              5024KB       5024KB
+>> xfs_buf                 1402KB       1402KB
+>> xfs_ili                  134KB        134KB
+>> xfs_efi_item             115KB        115KB
+>> xfs_efd_item             115KB        115KB
+>> xfs_buf_item             134KB        134KB
+>> xfs_log_item_desc        342KB        342KB
+>> xfs_trans               1412KB       1412KB
+>> xfs_ifork                212KB        212KB
+> 
+> OK this looks better. The naming is not the greatest but I will not
+> nitpick on this. I have one question though
+> 
+>>
+>> Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
+> [...]
+>> +void dump_unreclaimable_slab(void)
+>> +{
+>> +	struct kmem_cache *s, *s2;
+>> +	struct slabinfo sinfo;
+>> +
+>> +	/*
+>> +	 * Here acquiring slab_mutex is risky since we don't prefer to get
+>> +	 * sleep in oom path. But, without mutex hold, it may introduce a
+>> +	 * risk of crash.
+>> +	 * Use mutex_trylock to protect the list traverse, dump nothing
+>> +	 * without acquiring the mutex.
+>> +	 */
+>> +	if (!mutex_trylock(&slab_mutex)) {
+>> +		pr_warn("excessive unreclaimable slab but cannot dump stats\n");
+>> +		return;
+>> +	}
+>> +
+>> +	pr_info("Unreclaimable slab info:\n");
+>> +	pr_info("Name                      Used          Total\n");
+>> +
+>> +	list_for_each_entry_safe(s, s2, &slab_caches, list) {
+>> +		if (!is_root_cache(s) || (s->flags & SLAB_RECLAIM_ACCOUNT))
+>> +			continue;
+>> +
+>> +		memset(&sinfo, 0, sizeof(sinfo));
+> 
+> why do you zero out the structure. All the fields you are printing are
+> filled out in get_slabinfo.
+
+No special reason, just wipe out the potential stale data on the stack.
+
+Yang
+
+> 
+>> +		get_slabinfo(s, &sinfo);
+>> +
+>> +		if (sinfo.num_objs > 0)
+>> +			pr_info("%-17s %10luKB %10luKB\n", cache_name(s),
+>> +				(sinfo.active_objs * s->size) / 1024,
+>> +				(sinfo.num_objs * s->size) / 1024);
+>> +	}
+>> +	mutex_unlock(&slab_mutex);
+>> +}
+>> +
+>>   #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+>>   void *memcg_slab_start(struct seq_file *m, loff_t *pos)
+>>   {
+>> -- 
+>> 1.8.3.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
