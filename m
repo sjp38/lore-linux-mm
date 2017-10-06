@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 784ED6B0266
-	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 18:42:21 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id j64so27429762pfj.6
-        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 15:42:21 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id r7si199383pgf.713.2017.10.06.15.42.20
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DD4C6B0268
+	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 18:42:27 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id a7so40648327pfj.3
+        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 15:42:27 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id p2si2044237pfd.273.2017.10.06.15.42.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Oct 2017 15:42:20 -0700 (PDT)
-Subject: [PATCH v7 07/12] dma-mapping: introduce dma_has_iommu()
+        Fri, 06 Oct 2017 15:42:26 -0700 (PDT)
+Subject: [PATCH v7 08/12] fs, mapdirect: introduce ->lease_direct()
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 06 Oct 2017 15:35:54 -0700
-Message-ID: <150732935473.22363.1853399637339625023.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Fri, 06 Oct 2017 15:36:00 -0700
+Message-ID: <150732936063.22363.4533598271967882402.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <150732931273.22363.8436792888326501071.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <150732931273.22363.8436792888326501071.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -21,126 +21,247 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Jan Kara <jack@suse.cz>, Ashok Raj <ashok.raj@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Joerg Roedel <joro@8bytes.org>, Dave Chinner <david@fromorbit.com>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-api@vger.kernel.org, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, David Woodhouse <dwmw2@infradead.org>, Robin Murphy <robin.murphy@arm.com>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-xfs@vger.kernel.org, Jan Kara <jack@suse.cz>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@lst.de>, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, Jeff Layton <jlayton@poochiereds.net>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-Add a helper to determine if the dma mappings set up for a given device
-are backed by an iommu. In particular, this lets code paths know that a
-dma_unmap operation will revoke access to memory if the device can not
-otherwise be quiesced. The need for this knowledge is driven by a need
-to make RDMA transfers to DAX mappings safe. If the DAX file's block map
-changes we need to be to reliably stop accesses to blocks that have been
-freed or re-assigned to a new file.
+Provide a vma operation that registers a lease that is broken by
+break_layout(). This is motivated by a need to stop in-progress RDMA
+when the block-map of a DAX-file changes. I.e. since DAX gives
+direct-access to filesystem blocks we can not allow those blocks to move
+or change state while they are under active RDMA. So, if the filesystem
+determines it needs to move blocks it can revoke device access before
+proceeding.
 
-Since PMEM+DAX is currently only enabled for x86, we only update the x86
-iommu drivers.
-
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: Robin Murphy <robin.murphy@arm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Joerg Roedel <joro@8bytes.org>
-Cc: David Woodhouse <dwmw2@infradead.org>
-Cc: Ashok Raj <ashok.raj@intel.com>
 Cc: Jan Kara <jack@suse.cz>
 Cc: Jeff Moyer <jmoyer@redhat.com>
 Cc: Christoph Hellwig <hch@lst.de>
 Cc: Dave Chinner <david@fromorbit.com>
 Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jeff Layton <jlayton@poochiereds.net>
+Cc: "J. Bruce Fields" <bfields@fieldses.org>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/base/dma-mapping.c  |   10 ++++++++++
- drivers/iommu/amd_iommu.c   |    6 ++++++
- drivers/iommu/intel-iommu.c |    6 ++++++
- include/linux/dma-mapping.h |    3 +++
- 4 files changed, 25 insertions(+)
+ fs/mapdirect.c            |  117 +++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/mapdirect.h |   23 +++++++++
+ include/linux/mm.h        |    6 ++
+ 3 files changed, 146 insertions(+)
 
-diff --git a/drivers/base/dma-mapping.c b/drivers/base/dma-mapping.c
-index e584eddef0a7..e1b5f103d90e 100644
---- a/drivers/base/dma-mapping.c
-+++ b/drivers/base/dma-mapping.c
-@@ -369,3 +369,13 @@ void dma_deconfigure(struct device *dev)
- 	of_dma_deconfigure(dev);
- 	acpi_dma_deconfigure(dev);
- }
-+
-+bool dma_has_iommu(struct device *dev)
-+{
-+	const struct dma_map_ops *ops = get_dma_ops(dev);
-+
-+	if (ops && ops->has_iommu)
-+		return ops->has_iommu(dev);
-+	return false;
-+}
-+EXPORT_SYMBOL(dma_has_iommu);
-diff --git a/drivers/iommu/amd_iommu.c b/drivers/iommu/amd_iommu.c
-index 51f8215877f5..873f899fcf57 100644
---- a/drivers/iommu/amd_iommu.c
-+++ b/drivers/iommu/amd_iommu.c
-@@ -2271,6 +2271,11 @@ static struct protection_domain *get_domain(struct device *dev)
- 	return domain;
- }
+diff --git a/fs/mapdirect.c b/fs/mapdirect.c
+index 9ac7c1d946a2..338cbe055fc7 100644
+--- a/fs/mapdirect.c
++++ b/fs/mapdirect.c
+@@ -16,6 +16,7 @@
+ #include <linux/mutex.h>
+ #include <linux/sched.h>
+ #include <linux/slab.h>
++#include <linux/file.h>
+ #include <linux/fs.h>
+ #include <linux/mm.h>
  
-+static bool amd_dma_has_iommu(struct device *dev)
-+{
-+	return !IS_ERR(get_domain(dev));
-+}
-+
- static void update_device_table(struct protection_domain *domain)
- {
- 	struct iommu_dev_data *dev_data;
-@@ -2689,6 +2694,7 @@ static const struct dma_map_ops amd_iommu_dma_ops = {
- 	.unmap_sg	= unmap_sg,
- 	.dma_supported	= amd_iommu_dma_supported,
- 	.mapping_error	= amd_iommu_mapping_error,
-+	.has_iommu	= amd_dma_has_iommu,
+@@ -32,12 +33,26 @@ struct map_direct_state {
+ 	struct vm_area_struct *mds_vma;
  };
  
- static int init_reserved_iova_ranges(void)
-diff --git a/drivers/iommu/intel-iommu.c b/drivers/iommu/intel-iommu.c
-index 6784a05dd6b2..243ef42fdad4 100644
---- a/drivers/iommu/intel-iommu.c
-+++ b/drivers/iommu/intel-iommu.c
-@@ -3578,6 +3578,11 @@ static int iommu_no_mapping(struct device *dev)
- 	return 0;
++struct lease_direct_state {
++	void *lds_owner;
++	struct file *lds_file;
++	unsigned long lds_state;
++	void (*lds_break_fn)(void *lds_owner);
++	struct work_struct lds_work;
++};
++
+ bool is_map_direct_valid(struct map_direct_state *mds)
+ {
+ 	return test_bit(MAPDIRECT_VALID, &mds->mds_state);
  }
+ EXPORT_SYMBOL_GPL(is_map_direct_valid);
  
-+static bool intel_dma_has_iommu(struct device *dev)
++bool is_map_direct_broken(struct map_direct_state *mds)
 +{
-+	return !iommu_no_mapping(dev);
++	return test_bit(MAPDIRECT_BREAK, &mds->mds_state);
++}
++EXPORT_SYMBOL_GPL(is_map_direct_broken);
++
+ static void put_map_direct(struct map_direct_state *mds)
+ {
+ 	if (!atomic_dec_and_test(&mds->mds_ref))
+@@ -162,6 +177,108 @@ static const struct lock_manager_operations map_direct_lm_ops = {
+ 	.lm_setup = map_direct_lm_setup,
+ };
+ 
++static void lease_direct_invalidate(struct work_struct *work)
++{
++	struct lease_direct_state *lds;
++	void *owner;
++
++	lds = container_of(work, typeof(*lds), lds_work);
++	owner = lds;
++	lds->lds_break_fn(lds->lds_owner);
++	vfs_setlease(lds->lds_file, F_UNLCK, NULL, &owner);
 +}
 +
- static dma_addr_t __intel_map_single(struct device *dev, phys_addr_t paddr,
- 				     size_t size, int dir, u64 dma_mask)
- {
-@@ -3872,6 +3877,7 @@ const struct dma_map_ops intel_dma_ops = {
- 	.map_page = intel_map_page,
- 	.unmap_page = intel_unmap_page,
- 	.mapping_error = intel_mapping_error,
-+	.has_iommu = intel_dma_has_iommu,
- #ifdef CONFIG_X86
- 	.dma_supported = x86_dma_supported,
- #endif
-diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
-index 29ce9815da87..659f122c18f5 100644
---- a/include/linux/dma-mapping.h
-+++ b/include/linux/dma-mapping.h
-@@ -128,6 +128,7 @@ struct dma_map_ops {
- 				   enum dma_data_direction dir);
- 	int (*mapping_error)(struct device *dev, dma_addr_t dma_addr);
- 	int (*dma_supported)(struct device *dev, u64 mask);
-+	bool (*has_iommu)(struct device *dev);
- #ifdef ARCH_HAS_DMA_GET_REQUIRED_MASK
- 	u64 (*get_required_mask)(struct device *dev);
- #endif
-@@ -221,6 +222,8 @@ static inline const struct dma_map_ops *get_dma_ops(struct device *dev)
- }
- #endif
- 
-+extern bool dma_has_iommu(struct device *dev);
++static bool lease_direct_lm_break(struct file_lock *fl)
++{
++	struct lease_direct_state *lds = fl->fl_owner;
 +
- static inline dma_addr_t dma_map_single_attrs(struct device *dev, void *ptr,
- 					      size_t size,
- 					      enum dma_data_direction dir,
++	if (!test_and_set_bit(MAPDIRECT_BREAK, &lds->lds_state))
++		schedule_work(&lds->lds_work);
++	return false;
++}
++
++static int lease_direct_lm_change(struct file_lock *fl, int arg,
++		struct list_head *dispose)
++{
++	WARN_ON(!(arg & F_UNLCK));
++	return lease_modify(fl, arg, dispose);
++}
++
++static const struct lock_manager_operations lease_direct_lm_ops = {
++	.lm_break = lease_direct_lm_break,
++	.lm_change = lease_direct_lm_change,
++};
++
++struct lease_direct *map_direct_lease(struct vm_area_struct *vma,
++		void (*lds_break_fn)(void *), void *lds_owner)
++{
++	struct file *file = vma->vm_file;
++	struct lease_direct_state *lds;
++	struct lease_direct *ld;
++	struct file_lock *fl;
++	int rc = -ENOMEM;
++	void *owner;
++
++	ld = kzalloc(sizeof(*ld) + sizeof(*lds), GFP_KERNEL);
++	if (!ld)
++		return ERR_PTR(-ENOMEM);
++	INIT_LIST_HEAD(&ld->list);
++	lds = (struct lease_direct_state *)(ld + 1);
++	owner = lds;
++	ld->lds = lds;
++	lds->lds_break_fn = lds_break_fn;
++	lds->lds_owner = lds_owner;
++	INIT_WORK(&lds->lds_work, lease_direct_invalidate);
++	lds->lds_file = get_file(file);
++
++	fl = locks_alloc_lock();
++	if (!fl)
++		goto err_lock_alloc;
++
++	locks_init_lock(fl);
++	fl->fl_lmops = &lease_direct_lm_ops;
++	fl->fl_flags = FL_LAYOUT;
++	fl->fl_type = F_RDLCK;
++	fl->fl_end = OFFSET_MAX;
++	fl->fl_owner = lds;
++	fl->fl_pid = current->tgid;
++	fl->fl_file = file;
++
++	rc = vfs_setlease(file, fl->fl_type, &fl, &owner);
++	if (rc)
++		goto err_setlease;
++	if (fl) {
++		WARN_ON(1);
++		owner = lds;
++		vfs_setlease(file, F_UNLCK, NULL, &owner);
++		owner = NULL;
++		rc = -ENXIO;
++		goto err_setlease;
++	}
++
++	return ld;
++err_setlease:
++	locks_free_lock(fl);
++err_lock_alloc:
++	kfree(lds);
++	return ERR_PTR(rc);
++}
++EXPORT_SYMBOL_GPL(map_direct_lease);
++
++void map_direct_lease_destroy(struct lease_direct *ld)
++{
++	struct lease_direct_state *lds = ld->lds;
++	struct file *file = lds->lds_file;
++	void *owner = lds;
++
++	vfs_setlease(file, F_UNLCK, NULL, &owner);
++	flush_work(&lds->lds_work);
++	fput(file);
++	WARN_ON(!list_empty(&ld->list));
++	kfree(ld);
++}
++EXPORT_SYMBOL_GPL(map_direct_lease_destroy);
++
+ struct map_direct_state *map_direct_register(int fd, struct vm_area_struct *vma)
+ {
+ 	struct map_direct_state *mds = kzalloc(sizeof(*mds), GFP_KERNEL);
+diff --git a/include/linux/mapdirect.h b/include/linux/mapdirect.h
+index 724e27d8615e..dc4d4ba677d0 100644
+--- a/include/linux/mapdirect.h
++++ b/include/linux/mapdirect.h
+@@ -13,17 +13,28 @@
+ #ifndef __MAPDIRECT_H__
+ #define __MAPDIRECT_H__
+ #include <linux/err.h>
++#include <linux/list.h>
+ 
+ struct inode;
+ struct work_struct;
+ struct vm_area_struct;
+ struct map_direct_state;
++struct list_direct_state;
++
++struct lease_direct {
++	struct list_head list;
++	struct lease_direct_state *lds;
++};
+ 
+ #if IS_ENABLED(CONFIG_FS_DAX)
+ struct map_direct_state *map_direct_register(int fd, struct vm_area_struct *vma);
+ int put_map_direct_vma(struct map_direct_state *mds);
+ void get_map_direct_vma(struct map_direct_state *mds);
+ bool is_map_direct_valid(struct map_direct_state *mds);
++bool is_map_direct_broken(struct map_direct_state *mds);
++struct lease_direct *map_direct_lease(struct vm_area_struct *vma,
++		void (*ld_break_fn)(void *), void *ld_owner);
++void map_direct_lease_destroy(struct lease_direct *ld);
+ #else
+ static inline struct map_direct_state *map_direct_register(int fd,
+ 		struct vm_area_struct *vma)
+@@ -41,5 +52,17 @@ bool is_map_direct_valid(struct map_direct_state *mds)
+ {
+ 	return false;
+ }
++bool is_map_direct_broken(struct map_direct_state *mds)
++{
++	return false;
++}
++struct lease_direct *map_direct_lease(struct vm_area_struct *vma,
++		void (*ld_break_fn)(void *), void *ld_owner)
++{
++	return ERR_PTR(-EOPNOTSUPP);
++}
++void map_direct_lease_destroy(struct lease_direct *ld)
++{
++}
+ #endif
+ #endif /* __MAPDIRECT_H__ */
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 0afa19feb755..d03953f91ce8 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -420,6 +420,12 @@ struct vm_operations_struct {
+ 	 */
+ 	struct page *(*find_special_page)(struct vm_area_struct *vma,
+ 					  unsigned long addr);
++	/*
++	 * Called by rdma memory registration to subscribe for "break"
++	 * events that require any ongoing rdma accesses to quiesce.
++	 */
++	struct lease_direct *(*lease_direct)(struct vm_area_struct *vma,
++			void (*break_fn)(void *), void *owner);
+ };
+ 
+ struct mmu_gather;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
