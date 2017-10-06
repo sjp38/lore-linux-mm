@@ -1,93 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F0F046B0033
-	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 03:00:40 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e26so23170266pfd.4
-        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 00:00:40 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id b75si554042pfk.343.2017.10.06.00.00.39
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BA5226B0033
+	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 03:48:17 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id u78so14925662wmd.4
+        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 00:48:17 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m4si883532wmg.76.2017.10.06.00.48.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Oct 2017 00:00:39 -0700 (PDT)
-Date: Fri, 6 Oct 2017 00:00:38 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH v5 4/5] cramfs: add mmap support
-Message-ID: <20171006070038.GA29142@infradead.org>
-References: <20171006024531.8885-1-nicolas.pitre@linaro.org>
- <20171006024531.8885-5-nicolas.pitre@linaro.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 06 Oct 2017 00:48:16 -0700 (PDT)
+Date: Fri, 6 Oct 2017 09:48:14 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] epoll: account epitem and eppoll_entry to kmemcg
+Message-ID: <20171006074814.76t2bo4bfspq7elg@dhcp22.suse.cz>
+References: <20171003021519.23907-1-shakeelb@google.com>
+ <20171004131750.lwxhwtfsyget6bsx@dhcp22.suse.cz>
+ <CALvZod6w99KoNNp_DNQegDCYqWvY1ihnnGXnRL7ufiMOkaTyxw@mail.gmail.com>
+ <20171005082118.a4ynfvnq4loyufge@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171006024531.8885-5-nicolas.pitre@linaro.org>
+In-Reply-To: <20171005082118.a4ynfvnq4loyufge@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicolas Pitre <nicolas.pitre@linaro.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-embedded@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Brandt <Chris.Brandt@renesas.com>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-> +	/* Don't map the last page if it contains some other data */
-> +	if (unlikely(pgoff + pages == max_pages)) {
-> +		unsigned int partial = offset_in_page(inode->i_size);
-> +		if (partial) {
-> +			char *data = sbi->linear_virt_addr + offset;
-> +			data += (max_pages - 1) * PAGE_SIZE + partial;
-> +			if (memchr_inv(data, 0, PAGE_SIZE - partial) != NULL) {
-> +				pr_debug("mmap: %s: last page is shared\n",
-> +					 file_dentry(file)->d_name.name);
-> +				pages--;
-> +			}
-> +		}
-> +	}
+On Thu 05-10-17 10:21:18, Michal Hocko wrote:
+> On Wed 04-10-17 12:33:14, Shakeel Butt wrote:
+> > >
+> > > I am not objecting to the patch I would just like to understand the
+> > > runaway case. ep_insert seems to limit the maximum number of watches to
+> > > max_user_watches which should be ~4% of lowmem if I am following the
+> > > code properly. pwq_cache should be bound by the number of watches as
+> > > well, or am I misunderstanding the code?
+> > >
+> > 
+> > You are absolutely right that there is a per-user limit (~4% of total
+> > memory if no highmem) on these caches. I think it is too generous
+> > particularly in the scenario where jobs of multiple users are running
+> > on the system and the administrator is reducing cost by overcomitting
+> > the memory. This is unaccounted kernel memory and will not be
+> > considered by the oom-killer. I think by accounting it to kmemcg, for
+> > systems with kmem accounting enabled, we can provide better isolation
+> > between jobs of different users.
+> 
+> Thanks for the clarification. For some reason I didn't figure that the
+> limit is per user, even though the name suggests so.
 
-Why is pgoff + pages == max_pages marked unlikely?  Mapping the whole
-file seems like a perfectly normal and likely case to me..
-
-Also if this was my code I'd really prefer to move this into a helper:
-
-static bool cramfs_mmap_last_page_is_shared(struct inode *inode, int offset)
-{
-	unsigned int partial = offset_in_page(inode->i_size);
-	char *data = CRAMFS_SB(inode->i_sb)->linear_virt_addr + offset +
-			(inode->i_size & PAGE_MASK);
-
-	return memchr_inv(data + partial, 0, PAGE_SIZE - partial);
-}
-
-	if (pgoff + pages == max_pages && offset_in_page(inode->i_size)	&&
-	    cramfs_mmap_last_page_is_shared(inode, offset))
-		pages--;
-
-as that's much more readable and the function name provides a good
-documentation of what is going on.
-
-> +	if (pages != vma_pages(vma)) {
-
-here is how I would turn this around:
-
-	if (!pages)
-		goto done;
-
-	if (pages == vma_pages(vma)) {
-		remap_pfn_range();
-		goto done;
-	}
-
-	...
-	for (i = 0; i < pages; i++) {
-		...
-		vm_insert_mixed();
-		nr_mapped++;
-	}
-
-
-done:
-	pr_debug("mapped %d out ouf %d\n", ..);
-	if (pages != vma_pages(vma))
-		vma->vm_ops = &generic_file_vm_ops;
-	return 0;
-}
-
-In fact we probably could just set the vm_ops unconditionally, they
-just wouldn't be called, but that might be more confusing then helpful.
+Completely forgot to add
+Acked-by: Michal Hocko <mhocko@suse.com>
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
