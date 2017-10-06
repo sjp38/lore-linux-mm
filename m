@@ -1,35 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E3276B0253
-	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 02:39:27 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id l188so22969590pfc.7
-        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 23:39:27 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id o9si634672plk.112.2017.10.05.23.39.23
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CB056B025E
+	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 02:40:07 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id p46so14307134wrb.1
+        for <linux-mm@kvack.org>; Thu, 05 Oct 2017 23:40:07 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id a14sor304367wrf.13.2017.10.05.23.40.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Oct 2017 23:39:23 -0700 (PDT)
-Date: Thu, 5 Oct 2017 23:39:19 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH v5 0/5] cramfs refresh for embedded usage
-Message-ID: <20171006063919.GA16556@infradead.org>
-References: <20171006024531.8885-1-nicolas.pitre@linaro.org>
+        (Google Transport Security);
+        Thu, 05 Oct 2017 23:40:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171006024531.8885-1-nicolas.pitre@linaro.org>
+In-Reply-To: <a6707959-fe38-0bf6-5281-1c60ba63bc8c@linux.vnet.ibm.com>
+References: <20171006010724.186563-1-shakeelb@google.com> <a6707959-fe38-0bf6-5281-1c60ba63bc8c@linux.vnet.ibm.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Thu, 5 Oct 2017 23:40:04 -0700
+Message-ID: <CALvZod6VUhGk+=vcm4EmH0Op=472BEt0kjTfvu7HNni_uiJo8A@mail.gmail.com>
+Subject: Re: [PATCH] kvm, mm: account kvm related kmem slabs to kmemcg
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicolas Pitre <nicolas.pitre@linaro.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-embedded@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Brandt <Chris.Brandt@renesas.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, x86@kernel.org, kvm@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-This is still missing a proper API for accessing the file system,
-as said before specifying a physical address in the mount command
-line is a an absolute non-no.
-
-Either work with the mtd folks to get the mtd core down to an absolute
-minimum suitable for you, or figure out a way to specify fs nodes
-through DT or similar.
+On Thu, Oct 5, 2017 at 9:28 PM, Anshuman Khandual
+<khandual@linux.vnet.ibm.com> wrote:
+> On 10/06/2017 06:37 AM, Shakeel Butt wrote:
+>> The kvm slabs can consume a significant amount of system memory
+>> and indeed in our production environment we have observed that
+>> a lot of machines are spending significant amount of memory that
+>> can not be left as system memory overhead. Also the allocations
+>> from these slabs can be triggered directly by user space applications
+>> which has access to kvm and thus a buggy application can leak
+>> such memory. So, these caches should be accounted to kmemcg.
+>
+> But there may be other situations like this where user space can
+> trigger allocation from various SLAB objects inside the kernel
+> which are accounted as system memory. So how we draw the line
+> which ones should be accounted for memcg. Just being curious.
+>
+Yes, there are indeed other slabs where user space can trigger
+allocations. IMO selecting which kmem caches to account is kind of
+workload and user specific decision. The ones I am converting are
+selected based on the data gathered from our production environment.
+However I think it would be useful in general.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
