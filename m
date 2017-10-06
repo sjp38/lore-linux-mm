@@ -1,65 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E6C556B0253
-	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 08:29:01 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id k56so9004746qtc.1
-        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 05:29:01 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y9sor928278qkl.49.2017.10.06.05.29.00
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 85F946B0253
+	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 08:31:00 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id y44so6158263wry.3
+        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 05:31:00 -0700 (PDT)
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c16si1208062edj.440.2017.10.06.05.30.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 06 Oct 2017 05:29:00 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 06 Oct 2017 05:30:59 -0700 (PDT)
+Date: Fri, 6 Oct 2017 14:30:57 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v10 05/10] mm: zero reserved and unavailable struct pages
+Message-ID: <20171006123057.6gu5xnk3usw2hvzb@dhcp22.suse.cz>
+References: <20171005211124.26524-1-pasha.tatashin@oracle.com>
+ <20171005211124.26524-6-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20171002144903.d58ed6887adfd9dc4cdfd697@linux-foundation.org>
-References: <20170926132129.dbtr2mof35x4j4og@dhcp22.suse.cz>
- <20170927050401.GA715@bbox> <20170927074835.37m4dclmew5ecli2@dhcp22.suse.cz>
- <20170927080432.GA1160@bbox> <20170927083512.dydqlqezh5polggb@dhcp22.suse.cz>
- <20170927131511.GA338@bgram> <20170927132241.tshup6kcwe5pcxek@dhcp22.suse.cz>
- <20170927134117.GB338@bgram> <20170927135034.yatxlhvunawzmcar@dhcp22.suse.cz>
- <20170927141008.GA1278@bgram> <20170927141723.bixcum3fler7q4w5@dhcp22.suse.cz>
- <87mv5f8wkj.fsf@yhuang-dev.intel.com> <e7531802-c4bc-9a5b-1a9c-d7909f2d1107@intel.com>
- <20171002144903.d58ed6887adfd9dc4cdfd697@linux-foundation.org>
-From: huang ying <huang.ying.caritas@gmail.com>
-Date: Fri, 6 Oct 2017 20:28:59 +0800
-Message-ID: <CAC=cRTMMHX1SqPygkh+4scmhQhv3=kZMJAFf=EhZZU9S2006JA@mail.gmail.com>
-Subject: Re: [PATCH] mm, swap: Make VMA based swap readahead configurable
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171005211124.26524-6-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, "Huang, Ying" <ying.huang@intel.com>, Michal Hocko <mhocko@kernel.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On Tue, Oct 3, 2017 at 5:49 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Mon, 2 Oct 2017 08:45:40 -0700 Dave Hansen <dave.hansen@intel.com> wrote:
->
->> On 09/27/2017 06:02 PM, Huang, Ying wrote:
->> > I still think there may be a performance regression for some users
->> > because of the change of the algorithm and the knobs, and the
->> > performance regression can be resolved via setting the new knob.  But I
->> > don't think there will be a functionality regression.  Do you agree?
->>
->> A performance regression is a regression.  I don't understand why we are
->> splitting hairs as to what kind of regression it is.
->>
->
-> Yes.
->
-> Ying, please find us a way of avoiding any disruption to existing
-> system setups.  One which doesn't require that the operator perform a
-> configuration change to restore prior behaviour/performance.
+On Thu 05-10-17 17:11:19, Pavel Tatashin wrote:
+> Some memory is reserved but unavailable: not present in memblock.memory
+> (because not backed by physical pages), but present in memblock.reserved.
+> Such memory has backing struct pages, but they are not initialized by going
+> through __init_single_page().
+> 
+> In some cases these struct pages are accessed even if they do not contain
+> any data. One example is page_to_pfn() might access page->flags if this is
+> where section information is stored (CONFIG_SPARSEMEM,
+> SECTION_IN_PAGE_FLAGS).
+> 
+> One example of such memory: trim_low_memory_range() unconditionally
+> reserves from pfn 0, but e820__memblock_setup() might provide the exiting
+> memory from pfn 1 (i.e. KVM).
+> 
+> Since, struct pages are zeroed in __init_single_page(), and not during
+> allocation time, we must zero such struct pages explicitly.
+> 
+> The patch involves adding a new memblock iterator:
+> 	for_each_resv_unavail_range(i, p_start, p_end)
+> 
+> Which iterates through reserved && !memory lists, and we zero struct pages
+> explicitly by calling mm_zero_struct_page().
 
-Sorry for late.  I am in holiday recently.
+As I've said in other reply this should go in only if the scenario you
+describe is real. I am somehow suspicious to be honest. I simply do not
+see how those weird struct pages would be in a valid pfn range of any
+zone.
 
-OK.  For me, I think the most clean way is to use page_cluster to
-control both the virtual and physical swap readahead.  If you are OK
-with that, I will prepare the patch.
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
+> Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+> Reviewed-by: Bob Picco <bob.picco@oracle.com>
+> ---
+>  include/linux/memblock.h | 16 ++++++++++++++++
+>  include/linux/mm.h       | 15 +++++++++++++++
+>  mm/page_alloc.c          | 38 ++++++++++++++++++++++++++++++++++++++
+>  3 files changed, 69 insertions(+)
+> 
+> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> index bae11c7e7bf3..ce8bfa5f3e9b 100644
+> --- a/include/linux/memblock.h
+> +++ b/include/linux/memblock.h
+> @@ -237,6 +237,22 @@ unsigned long memblock_next_valid_pfn(unsigned long pfn, unsigned long max_pfn);
+>  	for_each_mem_range_rev(i, &memblock.memory, &memblock.reserved,	\
+>  			       nid, flags, p_start, p_end, p_nid)
+>  
+> +/**
+> + * for_each_resv_unavail_range - iterate through reserved and unavailable memory
+> + * @i: u64 used as loop variable
+> + * @flags: pick from blocks based on memory attributes
+> + * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
+> + * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
+> + *
+> + * Walks over unavailable but reserved (reserved && !memory) areas of memblock.
+> + * Available as soon as memblock is initialized.
+> + * Note: because this memory does not belong to any physical node, flags and
+> + * nid arguments do not make sense and thus not exported as arguments.
+> + */
+> +#define for_each_resv_unavail_range(i, p_start, p_end)			\
+> +	for_each_mem_range(i, &memblock.reserved, &memblock.memory,	\
+> +			   NUMA_NO_NODE, MEMBLOCK_NONE, p_start, p_end, NULL)
+> +
+>  static inline void memblock_set_region_flags(struct memblock_region *r,
+>  					     unsigned long flags)
+>  {
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 065d99deb847..04c8b2e5aff4 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -94,6 +94,15 @@ extern int mmap_rnd_compat_bits __read_mostly;
+>  #define mm_forbids_zeropage(X)	(0)
+>  #endif
+>  
+> +/*
+> + * On some architectures it is expensive to call memset() for small sizes.
+> + * Those architectures should provide their own implementation of "struct page"
+> + * zeroing by defining this macro in <asm/pgtable.h>.
+> + */
+> +#ifndef mm_zero_struct_page
+> +#define mm_zero_struct_page(pp)  ((void)memset((pp), 0, sizeof(struct page)))
+> +#endif
+> +
+>  /*
+>   * Default maximum number of active map areas, this limits the number of vmas
+>   * per mm struct. Users can overwrite this number by sysctl but there is a
+> @@ -2001,6 +2010,12 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
+>  					struct mminit_pfnnid_cache *state);
+>  #endif
+>  
+> +#ifdef CONFIG_HAVE_MEMBLOCK
+> +void zero_resv_unavail(void);
+> +#else
+> +static inline void zero_resv_unavail(void) {}
+> +#endif
+> +
+>  extern void set_dma_reserve(unsigned long new_dma_reserve);
+>  extern void memmap_init_zone(unsigned long, int, unsigned long,
+>  				unsigned long, enum memmap_context);
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 20b0bace2235..5f0013bbbe9d 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6209,6 +6209,42 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+>  	free_area_init_core(pgdat);
+>  }
+>  
+> +#ifdef CONFIG_HAVE_MEMBLOCK
+> +/*
+> + * Only struct pages that are backed by physical memory are zeroed and
+> + * initialized by going through __init_single_page(). But, there are some
+> + * struct pages which are reserved in memblock allocator and their fields
+> + * may be accessed (for example page_to_pfn() on some configuration accesses
+> + * flags). We must explicitly zero those struct pages.
+> + */
+> +void __paginginit zero_resv_unavail(void)
+> +{
+> +	phys_addr_t start, end;
+> +	unsigned long pfn;
+> +	u64 i, pgcnt;
+> +
+> +	/* Loop through ranges that are reserved, but do not have reported
+> +	 * physical memory backing.
+> +	 */
+> +	pgcnt = 0;
+> +	for_each_resv_unavail_range(i, &start, &end) {
+> +		for (pfn = PFN_DOWN(start); pfn < PFN_UP(end); pfn++) {
+> +			mm_zero_struct_page(pfn_to_page(pfn));
+> +			pgcnt++;
+> +		}
+> +	}
+> +
+> +	/*
+> +	 * Struct pages that do not have backing memory. This could be because
+> +	 * firmware is using some of this memory, or for some other reasons.
+> +	 * Once memblock is changed so such behaviour is not allowed: i.e.
+> +	 * list of "reserved" memory must be a subset of list of "memory", then
+> +	 * this code can be removed.
+> +	 */
+> +	pr_info("Reserved but unavailable: %lld pages", pgcnt);
+> +}
+> +#endif /* CONFIG_HAVE_MEMBLOCK */
+> +
+>  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+>  
+>  #if MAX_NUMNODES > 1
+> @@ -6632,6 +6668,7 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+>  			node_set_state(nid, N_MEMORY);
+>  		check_for_memory(pgdat, nid);
+>  	}
+> +	zero_resv_unavail();
+>  }
+>  
+>  static int __init cmdline_parse_core(char *p, unsigned long *core)
+> @@ -6795,6 +6832,7 @@ void __init free_area_init(unsigned long *zones_size)
+>  {
+>  	free_area_init_node(0, zones_size,
+>  			__pa(PAGE_OFFSET) >> PAGE_SHIFT, NULL);
+> +	zero_resv_unavail();
+>  }
+>  
+>  static int page_alloc_cpu_dead(unsigned int cpu)
+> -- 
+> 2.14.2
 
-> And please let's get this done well in advance of the 4.14 release.
-
-Sure.
-
-Best Regards,
-Huang, Ying
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
