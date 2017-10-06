@@ -1,53 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CBD8D6B0033
-	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 15:33:06 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 136so15825269wmu.3
-        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 12:33:06 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y14sor735013wmh.20.2017.10.06.12.33.04
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E760E6B0033
+	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 16:22:32 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id t10so2462972pgo.2
+        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 13:22:32 -0700 (PDT)
+Received: from out4433.biz.mail.alibaba.com (out4433.biz.mail.alibaba.com. [47.88.44.33])
+        by mx.google.com with ESMTPS id 79si1574148pgg.602.2017.10.06.13.22.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 06 Oct 2017 12:33:04 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20171006075900.icqjx5rr7hctn3zd@dhcp22.suse.cz>
-References: <20171005222144.123797-1-shakeelb@google.com> <20171006075900.icqjx5rr7hctn3zd@dhcp22.suse.cz>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Fri, 6 Oct 2017 12:33:03 -0700
-Message-ID: <CALvZod7YN4JCG7Anm2FViyZ0-APYy+nxEd3nyxe5LT_P0FC9wg@mail.gmail.com>
-Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Oct 2017 13:22:31 -0700 (PDT)
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Subject: [RFC PATCH] mm: shm: round up tmpfs size to huge page size when huge=always
+Date: Sat, 07 Oct 2017 04:22:10 +0800
+Message-Id: <1507321330-22525-1-git-send-email-yang.s@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: kirill.shutemov@linux.intel.com, hughd@google.com, mhocko@kernel.org, akpm@linux-foundation.org
+Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
->>       names_cachep = kmem_cache_create("names_cache", PATH_MAX, 0,
->> -                     SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
->> +                     SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT, NULL);
->
-> I might be wrong but isn't name cache only holding temporary objects
-> used for path resolution which are not stored anywhere?
->
+When passing "huge=always" option for mounting tmpfs, THP is supposed to
+be allocated all the time when it can fit, but when the available space is
+smaller than the size of THP (2MB on x86), shmem fault handler still tries
+to allocate huge page every time, then fallback to regular 4K page
+allocation, i.e.:
 
-Even though they're temporary, many containers can together use a
-significant amount of transient uncharged memory. We've seen machines
-with 100s of MiBs in names_cache.
+	# mount -t tmpfs -o huge,size=3000k tmpfs /tmp
+	# dd if=/dev/zero of=/tmp/test bs=1k count=2048
+	# dd if=/dev/zero of=/tmp/test1 bs=1k count=2048
 
->>       filp_cachep = kmem_cache_create("filp", sizeof(struct file), 0,
->> -                     SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
->> +                     SLAB_HWCACHE_ALIGN | SLAB_PANIC | SLAB_ACCOUNT, NULL);
->>       percpu_counter_init(&nr_files, 0, GFP_KERNEL);
->>  }
->
-> Don't we have a limit for the maximum number of open files?
->
+The last dd command will handle 952 times page fault handler, then exit
+with -ENOSPC.
 
-Yes, there is a system limit of maximum number of open files. However
-this limit is shared between different users on the system and one
-user can hog this resource. To cater that, we set the maximum limit
-very high and let the memory limit of each user limit the number of
-files they can open.
+Rounding up tmpfs size to THP size in order to use THP with "always"
+more efficiently. And, it will not wast too much memory (just allocate
+511 extra pages in worst case).
+
+Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
+---
+ mm/shmem.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 07a1d22..b2b595d 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -3567,6 +3567,11 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
+ 		}
+ 	}
+ 	sbinfo->mpol = mpol;
++#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
++	/* Round up tmpfs size to huge page size */
++	if (sbinfo->max_blocks && sbinfo->huge == SHMEM_HUGE_ALWAYS)
++		sbinfo->max_blocks = round_up(sbinf->max_blocks, HPAGE_PMD_NR);
++#endif
+ 	return 0;
+ 
+ bad_val:
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
