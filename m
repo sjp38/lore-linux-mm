@@ -1,42 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 90A8C6B0033
-	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 07:11:27 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id q203so13132739wmb.0
-        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 04:11:27 -0700 (PDT)
-Received: from smtp-out4.electric.net (smtp-out4.electric.net. [192.162.216.181])
-        by mx.google.com with ESMTPS id f21si873520ede.332.2017.10.06.04.11.25
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C5086B0253
+	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 07:32:40 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id d10so2097851lfg.4
+        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 04:32:40 -0700 (PDT)
+Received: from forwardcorp1o.cmail.yandex.net (forwardcorp1o.cmail.yandex.net. [2a02:6b8:0:1a72::290])
+        by mx.google.com with ESMTPS id z17si632374lje.90.2017.10.06.04.32.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Oct 2017 04:11:26 -0700 (PDT)
-From: David Laight <David.Laight@ACULAB.COM>
-Subject: RE: [PATCH v10 09/10] mm: stop zeroing memory during allocation in
- vmemmap
-Date: Fri, 6 Oct 2017 11:10:14 +0000
-Message-ID: <063D6719AE5E284EB5DD2968C1650D6DD008BA85@AcuExch.aculab.com>
-References: <20171005211124.26524-1-pasha.tatashin@oracle.com>
- <20171005211124.26524-10-pasha.tatashin@oracle.com>
-In-Reply-To: <20171005211124.26524-10-pasha.tatashin@oracle.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="Windows-1252"
-Content-Transfer-Encoding: quoted-printable
+        Fri, 06 Oct 2017 04:32:38 -0700 (PDT)
+Subject: [PATCH] proc: do not show VmExe bigger than total executable
+ virtual memory
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Date: Fri, 06 Oct 2017 14:32:34 +0300
+Message-ID: <150728955451.743749.11276392315459539583.stgit@buzz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Pavel Tatashin' <pasha.tatashin@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "x86@kernel.org" <x86@kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "borntraeger@de.ibm.com" <borntraeger@de.ibm.com>, "heiko.carstens@de.ibm.com" <heiko.carstens@de.ibm.com>, "davem@davemloft.net" <davem@davemloft.net>, "willy@infradead.org" <willy@infradead.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "mark.rutland@arm.com" <mark.rutland@arm.com>, "will.deacon@arm.com" <will.deacon@arm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "sam@ravnborg.org" <sam@ravnborg.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "steven.sistare@oracle.com" <steven.sistare@oracle.com>, "daniel.m.jordan@oracle.com" <daniel.m.jordan@oracle.com>, "bob.picco@oracle.com" <bob.picco@oracle.com>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-From: Pavel Tatashin
-> Sent: 05 October 2017 22:11
-> vmemmap_alloc_block() will no longer zero the block, so zero memory
-> at its call sites for everything except struct pages.  Struct page memory
-> is zero'd by struct page initialization.
+If start_code / end_code pointers are screwed then "VmExe" could be bigger
+than total executable virtual memory and "VmLib" becomes negative:
 
-It seems dangerous to change an allocator to stop zeroing memory.
-It is probably saver to add a new function that doesn't zero
-the memory and use that is the places where you don't want it
-to be zeroed.
+VmExe:	  294320 kB
+VmLib:	18446744073709327564 kB
 
-	David
+VmExe and VmLib documented as text segment and shared library code size.
+
+Now their sum will be always equal to mm->exec_vm which sums size of
+executable and not writable and not stack areas.
+
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+---
+ fs/proc/task_mmu.c |   11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 5589b4bd4b85..d3819beb2d30 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -46,8 +46,11 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 	if (hiwater_rss < mm->hiwater_rss)
+ 		hiwater_rss = mm->hiwater_rss;
+ 
+-	text = (PAGE_ALIGN(mm->end_code) - (mm->start_code & PAGE_MASK)) >> 10;
+-	lib = (mm->exec_vm << (PAGE_SHIFT-10)) - text;
++	/* split executable areas between text and lib */
++	text = PAGE_ALIGN(mm->end_code) - (mm->start_code & PAGE_MASK);
++	text = min(text, mm->exec_vm << PAGE_SHIFT);
++	lib = (mm->exec_vm << PAGE_SHIFT) - text;
++
+ 	swap = get_mm_counter(mm, MM_SWAPENTS);
+ 	ptes = PTRS_PER_PTE * sizeof(pte_t) * atomic_long_read(&mm->nr_ptes);
+ 	pmds = PTRS_PER_PMD * sizeof(pmd_t) * mm_nr_pmds(mm);
+@@ -78,7 +81,9 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 		file << (PAGE_SHIFT-10),
+ 		shmem << (PAGE_SHIFT-10),
+ 		mm->data_vm << (PAGE_SHIFT-10),
+-		mm->stack_vm << (PAGE_SHIFT-10), text, lib,
++		mm->stack_vm << (PAGE_SHIFT-10),
++		text >> 10,
++		lib >> 10,
+ 		ptes >> 10,
+ 		pmds >> 10,
+ 		swap << (PAGE_SHIFT-10));
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
