@@ -1,85 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 166B66B0033
-	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 04:55:05 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k7so12109144wre.5
-        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 01:55:05 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s2sor770009edk.31.2017.10.06.01.55.03
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FD596B0033
+	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 05:27:43 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id p46so14655209wrb.1
+        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 02:27:43 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id a12sor754100edm.23.2017.10.06.02.27.41
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 06 Oct 2017 01:55:03 -0700 (PDT)
-Subject: Re: [PATCH] kvm, mm: account kvm related kmem slabs to kmemcg
-References: <20171006010724.186563-1-shakeelb@google.com>
-From: Paolo Bonzini <pbonzini@redhat.com>
-Message-ID: <9f9dce19-3ee2-ace7-e54a-9c8f9b89080c@redhat.com>
-Date: Fri, 6 Oct 2017 10:55:00 +0200
+        Fri, 06 Oct 2017 02:27:41 -0700 (PDT)
+Date: Fri, 6 Oct 2017 12:27:39 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: page_vma_mapped: Ensure pmd is loaded with READ_ONCE
+ outside of lock
+Message-ID: <20171006092739.zczk5ljzi4cguv6p@node.shutemov.name>
+References: <1507222630-5839-1-git-send-email-will.deacon@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20171006010724.186563-1-shakeelb@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1507222630-5839-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, x86@kernel.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, Christian Borntraeger <borntraeger@de.ibm.com>, James Hogan <james.hogan@imgtec.com>, Christoffer Dall <christoffer.dall@linaro.org>, Paul Mackerras <paulus@ozlabs.org>, David Gibson <dgibson@redhat.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>, stable@vger.kernel.org
 
-On 06/10/2017 03:07, Shakeel Butt wrote:
-> The kvm slabs can consume a significant amount of system memory
-> and indeed in our production environment we have observed that
-> a lot of machines are spending significant amount of memory that
-> can not be left as system memory overhead. Also the allocations
-> from these slabs can be triggered directly by user space applications
-> which has access to kvm and thus a buggy application can leak
-> such memory. So, these caches should be accounted to kmemcg.
+On Thu, Oct 05, 2017 at 05:57:10PM +0100, Will Deacon wrote:
+> Loading the pmd without holding the pmd_lock exposes us to races with
+> concurrent updaters of the page tables but, worse still, it also allows
+> the compiler to cache the pmd value in a register and reuse it later on,
+> even if we've performed a READ_ONCE in between and seen a more recent
+> value.
 > 
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
-> ---
->  arch/x86/kvm/mmu.c  | 4 ++--
->  virt/kvm/kvm_main.c | 2 +-
->  2 files changed, 3 insertions(+), 3 deletions(-)
+> In the case of page_vma_mapped_walk, this leads to the following crash
+> when the pmd loaded for the initial pmd_trans_huge check is all zeroes
+> and a subsequent valid table entry is loaded by check_pmd. We then
+> proceed into map_pte, but the compiler re-uses the zero entry inside
+> pte_offset_map, resulting in a junk pointer being installed in pvmw->pte:
 > 
-> diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-> index eca30c1eb1d9..87c5db9e644d 100644
-> --- a/arch/x86/kvm/mmu.c
-> +++ b/arch/x86/kvm/mmu.c
-> @@ -5475,13 +5475,13 @@ int kvm_mmu_module_init(void)
->  
->  	pte_list_desc_cache = kmem_cache_create("pte_list_desc",
->  					    sizeof(struct pte_list_desc),
-> -					    0, 0, NULL);
-> +					    0, SLAB_ACCOUNT, NULL);
->  	if (!pte_list_desc_cache)
->  		goto nomem;
->  
->  	mmu_page_header_cache = kmem_cache_create("kvm_mmu_page_header",
->  						  sizeof(struct kvm_mmu_page),
-> -						  0, 0, NULL);
-> +						  0, SLAB_ACCOUNT, NULL);
->  	if (!mmu_page_header_cache)
->  		goto nomem;
->  
-> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-> index 9deb5a245b83..3d73299e05f2 100644
-> --- a/virt/kvm/kvm_main.c
-> +++ b/virt/kvm/kvm_main.c
-> @@ -4010,7 +4010,7 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
->  	if (!vcpu_align)
->  		vcpu_align = __alignof__(struct kvm_vcpu);
->  	kvm_vcpu_cache = kmem_cache_create("kvm_vcpu", vcpu_size, vcpu_align,
-> -					   0, NULL);
-> +					   SLAB_ACCOUNT, NULL);
->  	if (!kvm_vcpu_cache) {
->  		r = -ENOMEM;
->  		goto out_free_3;
+> [  254.032812] PC is at check_pte+0x20/0x170
+> [  254.032948] LR is at page_vma_mapped_walk+0x2e0/0x540
+> [...]
+> [  254.036114] Process doio (pid: 2463, stack limit = 0xffff00000f2e8000)
+> [  254.036361] Call trace:
+> [  254.038977] [<ffff000008233328>] check_pte+0x20/0x170
+> [  254.039137] [<ffff000008233758>] page_vma_mapped_walk+0x2e0/0x540
+> [  254.039332] [<ffff000008234adc>] page_mkclean_one+0xac/0x278
+> [  254.039489] [<ffff000008234d98>] rmap_walk_file+0xf0/0x238
+> [  254.039642] [<ffff000008236e74>] rmap_walk+0x64/0xa0
+> [  254.039784] [<ffff0000082370c8>] page_mkclean+0x90/0xa8
+> [  254.040029] [<ffff0000081f3c64>] clear_page_dirty_for_io+0x84/0x2a8
+> [  254.040311] [<ffff00000832f984>] mpage_submit_page+0x34/0x98
+> [  254.040518] [<ffff00000832fb4c>] mpage_process_page_bufs+0x164/0x170
+> [  254.040743] [<ffff00000832fc8c>] mpage_prepare_extent_to_map+0x134/0x2b8
+> [  254.040969] [<ffff00000833530c>] ext4_writepages+0x484/0xe30
+> [  254.041175] [<ffff0000081f6ab4>] do_writepages+0x44/0xe8
+> [  254.041372] [<ffff0000081e5bd4>] __filemap_fdatawrite_range+0xbc/0x110
+> [  254.041568] [<ffff0000081e5e68>] file_write_and_wait_range+0x48/0xd8
+> [  254.041739] [<ffff000008324310>] ext4_sync_file+0x80/0x4b8
+> [  254.041907] [<ffff0000082bd434>] vfs_fsync_range+0x64/0xc0
+> [  254.042106] [<ffff0000082332b4>] SyS_msync+0x194/0x1e8
 > 
+> This patch fixes the problem by ensuring that READ_ONCE is used before
+> the initial checks on the pmd, and this value is subsequently used when
+> checking whether or not the pmd is present. pmd_check is removed and the
+> pmd_present check is inlined directly.
+> 
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: <stable@vger.kernel.org>
+> Fixes: f27176cfc363 ("mm: convert page_mkclean_one() to use page_vma_mapped_walk()")
+> Tested-by: Yury Norov <ynorov@caviumnetworks.com>
+> Tested-by: Richard Ruigrok <rruigrok@codeaurora.org>
+> Signed-off-by: Will Deacon <will.deacon@arm.com>
 
-Reviewed-by: Paolo Bonzini <pbonzini@redhat.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-Adding maintainers for other architectures, because they probably want
-to do something similar.
-
-Paolo
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
