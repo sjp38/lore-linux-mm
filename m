@@ -1,55 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BA5226B0033
-	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 03:48:17 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id u78so14925662wmd.4
-        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 00:48:17 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A4D46B0253
+	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 03:52:18 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id j14so8290946wre.4
+        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 00:52:18 -0700 (PDT)
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m4si883532wmg.76.2017.10.06.00.48.16
+        by mx.google.com with ESMTPS id b105si786486wrd.480.2017.10.06.00.52.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 06 Oct 2017 00:48:16 -0700 (PDT)
-Date: Fri, 6 Oct 2017 09:48:14 +0200
+        Fri, 06 Oct 2017 00:52:17 -0700 (PDT)
+Date: Fri, 6 Oct 2017 09:52:16 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] epoll: account epitem and eppoll_entry to kmemcg
-Message-ID: <20171006074814.76t2bo4bfspq7elg@dhcp22.suse.cz>
-References: <20171003021519.23907-1-shakeelb@google.com>
- <20171004131750.lwxhwtfsyget6bsx@dhcp22.suse.cz>
- <CALvZod6w99KoNNp_DNQegDCYqWvY1ihnnGXnRL7ufiMOkaTyxw@mail.gmail.com>
- <20171005082118.a4ynfvnq4loyufge@dhcp22.suse.cz>
+Subject: Re: [PATCH] kvm, mm: account kvm related kmem slabs to kmemcg
+Message-ID: <20171006075216.vuulcnckksp7culq@dhcp22.suse.cz>
+References: <20171006010724.186563-1-shakeelb@google.com>
+ <a6707959-fe38-0bf6-5281-1c60ba63bc8c@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171005082118.a4ynfvnq4loyufge@dhcp22.suse.cz>
+In-Reply-To: <a6707959-fe38-0bf6-5281-1c60ba63bc8c@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Shakeel Butt <shakeelb@google.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, x86@kernel.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu 05-10-17 10:21:18, Michal Hocko wrote:
-> On Wed 04-10-17 12:33:14, Shakeel Butt wrote:
-> > >
-> > > I am not objecting to the patch I would just like to understand the
-> > > runaway case. ep_insert seems to limit the maximum number of watches to
-> > > max_user_watches which should be ~4% of lowmem if I am following the
-> > > code properly. pwq_cache should be bound by the number of watches as
-> > > well, or am I misunderstanding the code?
-> > >
-> > 
-> > You are absolutely right that there is a per-user limit (~4% of total
-> > memory if no highmem) on these caches. I think it is too generous
-> > particularly in the scenario where jobs of multiple users are running
-> > on the system and the administrator is reducing cost by overcomitting
-> > the memory. This is unaccounted kernel memory and will not be
-> > considered by the oom-killer. I think by accounting it to kmemcg, for
-> > systems with kmem accounting enabled, we can provide better isolation
-> > between jobs of different users.
+On Fri 06-10-17 09:58:30, Anshuman Khandual wrote:
+> On 10/06/2017 06:37 AM, Shakeel Butt wrote:
+> > The kvm slabs can consume a significant amount of system memory
+> > and indeed in our production environment we have observed that
+> > a lot of machines are spending significant amount of memory that
+> > can not be left as system memory overhead. Also the allocations
+> > from these slabs can be triggered directly by user space applications
+> > which has access to kvm and thus a buggy application can leak
+> > such memory. So, these caches should be accounted to kmemcg.
 > 
-> Thanks for the clarification. For some reason I didn't figure that the
-> limit is per user, even though the name suggests so.
+> But there may be other situations like this where user space can
+> trigger allocation from various SLAB objects inside the kernel
+> which are accounted as system memory. So how we draw the line
+> which ones should be accounted for memcg. Just being curious.
 
-Completely forgot to add
-Acked-by: Michal Hocko <mhocko@suse.com>
+The thing is that we used to have an opt-out approach for kmem
+accounting but we decided to go opt-in in a9bb7e620efd ("memcg: only
+account kmem allocations marked as __GFP_ACCOUNT").
+
+Since then we are adding the flag to caches/allocations which can go
+wild and consume a lot of or even unbounded amount of memory.
 -- 
 Michal Hocko
 SUSE Labs
