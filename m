@@ -1,92 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 85B6B6B025E
-	for <linux-mm@kvack.org>; Sat,  7 Oct 2017 03:59:43 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id v78so17768673pgb.4
-        for <linux-mm@kvack.org>; Sat, 07 Oct 2017 00:59:43 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 3si2763071plp.335.2017.10.07.00.59.41
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DDA16B0260
+	for <linux-mm@kvack.org>; Sat,  7 Oct 2017 04:11:16 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id s80so5624131lfg.0
+        for <linux-mm@kvack.org>; Sat, 07 Oct 2017 01:11:16 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d128sor529440lfe.12.2017.10.07.01.11.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 07 Oct 2017 00:59:42 -0700 (PDT)
-Date: Sat, 7 Oct 2017 09:59:36 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] Revert "vmalloc: back off when the current task is
- killed"
-Message-ID: <20171007075936.nldmvdt6nhujufec@dhcp22.suse.cz>
-References: <20171004231821.GA3610@cmpxchg.org>
- <20171005075704.enxdgjteoe4vgbag@dhcp22.suse.cz>
- <55d8bf19-3f29-6264-f954-8749ea234efd@I-love.SAKURA.ne.jp>
- <ceb25fb9-de4d-e401-6d6d-ce240705483c@I-love.SAKURA.ne.jp>
- <20171007025131.GA12944@cmpxchg.org>
- <201710071305.GJF12474.HSOtLFFJVQFOOM@I-love.SAKURA.ne.jp>
+        (Google Transport Security);
+        Sat, 07 Oct 2017 01:11:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201710071305.GJF12474.HSOtLFFJVQFOOM@I-love.SAKURA.ne.jp>
+In-Reply-To: <20170904123039.GA5664@quack2.suse.cz>
+References: <CABXGCsOL+_OgC0dpO1+Zeg=iu7ryZRZT4S7k-io8EGB0ZRgZGw@mail.gmail.com>
+ <20170903074306.GA8351@infradead.org> <CABXGCsMmEvEh__R2L47jqVnxv9XDaT_KP67jzsUeDLhF2OuOyA@mail.gmail.com>
+ <20170904123039.GA5664@quack2.suse.cz>
+From: =?UTF-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>
+Date: Sat, 7 Oct 2017 13:10:58 +0500
+Message-ID: <CABXGCsOeex62Y4qQJwvMJ+fJ+MnKyKGDj9eRbKemeMVWo5huKw@mail.gmail.com>
+Subject: Re: kernel BUG at fs/xfs/xfs_aops.c:853! in kernel 4.13 rc6
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, alan@llwyncelyn.cymru, hch@lst.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Jan Kara <jack@suse.cz>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-xfs@vger.kernel.org, linux-mm@kvack.org
 
-On Sat 07-10-17 13:05:24, Tetsuo Handa wrote:
-> Johannes Weiner wrote:
-> > On Sat, Oct 07, 2017 at 11:21:26AM +0900, Tetsuo Handa wrote:
-> > > On 2017/10/05 19:36, Tetsuo Handa wrote:
-> > > > I don't want this patch backported. If you want to backport,
-> > > > "s/fatal_signal_pending/tsk_is_oom_victim/" is the safer way.
-> > > 
-> > > If you backport this patch, you will see "complete depletion of memory reserves"
-> > > and "extra OOM kills due to depletion of memory reserves" using below reproducer.
-> > > 
-> > > ----------
-> > > #include <linux/module.h>
-> > > #include <linux/slab.h>
-> > > #include <linux/oom.h>
-> > > 
-> > > static char *buffer;
-> > > 
-> > > static int __init test_init(void)
-> > > {
-> > > 	set_current_oom_origin();
-> > > 	buffer = vmalloc((1UL << 32) - 480 * 1048576);
-> > 
-> > That's not a reproducer, that's a kernel module. It's not hard to
-> > crash the kernel from within the kernel.
-> > 
-> 
-> When did we agree that "reproducer" is "userspace program" ?
-> A "reproducer" is a program that triggers something intended.
+> Can you reproduce this? I've seen one occurence of this on our distro
+> 4.4-based kernel but we were never able to reproduce and find the culprit.
+> If you can reproduce, could you run with the attached debug patch to see
+> whether the WARN_ON triggers? Because my suspicion is that there is some
+> subtle race in page table teardown vs writeback vs page reclaim which can
+> result in page being dirtied without filesystem being notified about it (I
+> have seen very similar oops for ext4 as well which leads me to suspicion
+> this is a generic issue). Thanks!
 
-This way of argumentation is just ridiculous. I can construct whatever
-code to put kernel on knees and there is no way around it.
+I trying reproduce issue with with your patch.
+But seems now got another issue:
 
-The patch in question was supposed to mitigate a theoretical problem
-while it caused a real issue seen out there. That is a reason to
-revert the patch. Especially when a better mitigation has been put
-in place. You are right that replacing fatal_signal_pending by
-tsk_is_oom_victim would keep the original mitigation in pre-cd04ae1e2dc8
-kernels but I would only agree to do that if the mitigated problem was
-real. And this doesn't seem to be the case. If any of the stable kernels
-regresses due to the revert I am willing to put a mitigation in place.
- 
-> Year by year, people are spending efforts for kernel hardening.
-> It is silly to say that "It's not hard to crash the kernel from
-> within the kernel." when we can easily mitigate.
+[ 1966.953781] INFO: task tracker-store:8578 blocked for more than 120 seconds.
+[ 1966.953797]       Not tainted 4.13.4-301.fc27.x86_64+debug #1
+[ 1966.953800] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+disables this message.
+[ 1966.953804] tracker-store   D12840  8578   1655 0x00000000
+[ 1966.953811] Call Trace:
+[ 1966.953823]  __schedule+0x2dc/0xbb0
+[ 1966.953830]  ? wait_on_page_bit_common+0xfb/0x1a0
+[ 1966.953838]  schedule+0x3d/0x90
+[ 1966.953843]  io_schedule+0x16/0x40
+[ 1966.953847]  wait_on_page_bit_common+0x10a/0x1a0
+[ 1966.953857]  ? page_cache_tree_insert+0x170/0x170
+[ 1966.953865]  __filemap_fdatawait_range+0x101/0x1a0
+[ 1966.953883]  file_write_and_wait_range+0x63/0xc0
+[ 1966.953928]  xfs_file_fsync+0x7c/0x2b0 [xfs]
+[ 1966.953938]  vfs_fsync_range+0x4b/0xb0
+[ 1966.953945]  do_fsync+0x3d/0x70
+[ 1966.953950]  SyS_fsync+0x10/0x20
+[ 1966.953954]  entry_SYSCALL_64_fastpath+0x1f/0xbe
+[ 1966.953957] RIP: 0033:0x7f9364393d5c
+[ 1966.953959] RSP: 002b:00007ffe130b7d50 EFLAGS: 00000293 ORIG_RAX:
+000000000000004a
+[ 1966.953964] RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00007f9364393d5c
+[ 1966.953966] RDX: 0000000000000000 RSI: 00007ffe130b7d80 RDI: 000000000000000f
+[ 1966.953968] RBP: 0000000000058a8e R08: 0000000000000000 R09: 000000000000002c
+[ 1966.953970] R10: 0000000000058a8e R11: 0000000000000293 R12: 00007f9368ef57f0
+[ 1966.953972] R13: 00005585d1ab47b0 R14: 00005585d19701d0 R15: 0000000000058a8e
+[ 1966.954131]
+               Showing all locks held in the system:
+[ 1966.954141] 1 lock held by khungtaskd/65:
+[ 1966.954147]  #0:  (tasklist_lock){.+.+..}, at: [<ffffffff9a114c6d>]
+debug_show_all_locks+0x3d/0x1a0
+[ 1966.954163] 3 locks held by kworker/u16:4/145:
+[ 1966.954165]  #0:  ("writeback"){.+.+.+}, at: [<ffffffff9a0d2ac0>]
+process_one_work+0x1d0/0x6a0
+[ 1966.954176]  #1:  ((&(&wb->dwork)->work)){+.+.+.}, at:
+[<ffffffff9a0d2ac0>] process_one_work+0x1d0/0x6a0
+[ 1966.954187]  #2:  (&type->s_umount_key#63){++++.+}, at:
+[<ffffffff9a2d3dbb>] trylock_super+0x1b/0x50
+[ 1966.954289] 3 locks held by Cache2 I/O/2602:
+[ 1966.954291]  #0:  (sb_writers#17){.+.+.+}, at: [<ffffffff9a2ccaef>]
+do_sys_ftruncate.constprop.17+0xdf/0x110
+[ 1966.954305]  #1:  (&inode->i_rwsem){++++++}, at:
+[<ffffffff9a2cc795>] do_truncate+0x65/0xc0
+[ 1966.954317]  #2:  (&(&ip->i_mmaplock)->mr_lock){+++++.}, at:
+[<ffffffffc0a9aef9>] xfs_ilock+0x159/0x220 [xfs]
+[ 1966.954501] 2 locks held by kworker/0:0/6788:
+[ 1966.954503]  #0:  ("xfs-cil/%s"mp->m_fsname){++++..}, at:
+[<ffffffff9a0d2ac0>] process_one_work+0x1d0/0x6a0
+[ 1966.954513]  #1:  ((&cil->xc_push_work)){+.+...}, at:
+[<ffffffff9a0d2ac0>] process_one_work+0x1d0/0x6a0
+[ 1966.954530] 3 locks held by TaskSchedulerFo/8616:
+[ 1966.954531]  #0:  (sb_writers#17){.+.+.+}, at: [<ffffffff9a2ccaef>]
+do_sys_ftruncate.constprop.17+0xdf/0x110
+[ 1966.954543]  #1:  (&sb->s_type->i_mutex_key#19){++++++}, at:
+[<ffffffff9a2cc795>] do_truncate+0x65/0xc0
+[ 1966.954556]  #2:  (&(&ip->i_mmaplock)->mr_lock){+++++.}, at:
+[<ffffffffc0a9aef9>] xfs_ilock+0x159/0x220 [xfs]
+[ 1966.954592] 3 locks held by TaskSchedulerFo/8686:
+[ 1966.954594]  #0:  (sb_writers#17){.+.+.+}, at: [<ffffffff9a2fa7d4>]
+mnt_want_write+0x24/0x50
+[ 1966.954608]  #1:  (sb_internal#2){.+.+.+}, at: [<ffffffffc0aad7ac>]
+xfs_trans_alloc+0xec/0x130 [xfs]
+[ 1966.954646]  #2:  (&xfs_nondir_ilock_class){++++..}, at:
+[<ffffffffc0a9af14>] xfs_ilock+0x174/0x220 [xfs]
+[ 1966.954679] 5 locks held by TaskSchedulerFo/8687:
+[ 1966.954681]  #0:  (sb_writers#17){.+.+.+}, at: [<ffffffff9a2ccaef>]
+do_sys_ftruncate.constprop.17+0xdf/0x110
+[ 1966.954693]  #1:  (&sb->s_type->i_mutex_key#19){++++++}, at:
+[<ffffffff9a2cc795>] do_truncate+0x65/0xc0
+[ 1966.954705]  #2:  (&(&ip->i_mmaplock)->mr_lock){+++++.}, at:
+[<ffffffffc0a9aef9>] xfs_ilock+0x159/0x220 [xfs]
+[ 1966.954740]  #3:  (sb_internal#2){.+.+.+}, at: [<ffffffffc0aad7ac>]
+xfs_trans_alloc+0xec/0x130 [xfs]
+[ 1966.954777]  #4:  (&xfs_nondir_ilock_class){++++..}, at:
+[<ffffffffc0a9af14>] xfs_ilock+0x174/0x220 [xfs]
+[ 1966.954811] 5 locks held by TaskSchedulerFo/8689:
+[ 1966.954813]  #0:  (sb_writers#17){.+.+.+}, at: [<ffffffff9a2ccaef>]
+do_sys_ftruncate.constprop.17+0xdf/0x110
+[ 1966.954825]  #1:  (&sb->s_type->i_mutex_key#19){++++++}, at:
+[<ffffffff9a2cc795>] do_truncate+0x65/0xc0
+[ 1966.954837]  #2:  (&(&ip->i_mmaplock)->mr_lock){+++++.}, at:
+[<ffffffffc0a9aef9>] xfs_ilock+0x159/0x220 [xfs]
+[ 1966.954871]  #3:  (sb_internal#2){.+.+.+}, at: [<ffffffffc0aad7ac>]
+xfs_trans_alloc+0xec/0x130 [xfs]
+[ 1966.954906]  #4:  (&xfs_nondir_ilock_class){++++..}, at:
+[<ffffffffc0a9af14>] xfs_ilock+0x174/0x220 [xfs]
+[ 1966.954941] 3 locks held by TaskSchedulerFo/8690:
+[ 1966.954943]  #0:  (sb_writers#17){.+.+.+}, at: [<ffffffff9a2ccaef>]
+do_sys_ftruncate.constprop.17+0xdf/0x110
+[ 1966.954955]  #1:  (&sb->s_type->i_mutex_key#19){++++++}, at:
+[<ffffffff9a2cc795>] do_truncate+0x65/0xc0
+[ 1966.954967]  #2:  (&(&ip->i_mmaplock)->mr_lock){+++++.}, at:
+[<ffffffffc0a9aef9>] xfs_ilock+0x159/0x220 [xfs]
+[ 1966.955001] 2 locks held by TaskSchedulerFo/9512:
+[ 1966.955003]  #0:  (&f->f_pos_lock){+.+.+.}, at:
+[<ffffffff9a2f71ac>] __fdget_pos+0x4c/0x60
+[ 1966.955013]  #1:  (&sb->s_type->i_mutex_key#19){++++++}, at:
+[<ffffffffc0a9af4c>] xfs_ilock+0x1ac/0x220 [xfs]
+[ 1966.955048] 1 lock held by TaskSchedulerFo/9513:
+[ 1966.955049]  #0:  (&xfs_nondir_ilock_class){++++..}, at:
+[<ffffffffc0a9ae89>] xfs_ilock+0xe9/0x220 [xfs]
 
-This is true but we do not spread random hacks around for problems that
-are not real and there are better ways to address them. In this
-particular case cd04ae1e2dc8 was a better way to address the problem in
-general without spreading tsk_is_oom_victim all over the place.
- 
-> Even with cd04ae1e2dc8, there is no point with triggering extra
-> OOM kills by needlessly consuming memory reserves.
-
-Yet again you are making unfounded claims and I am really fed up
-arguing discussing that any further.
--- 
-Michal Hocko
-SUSE Labs
+[ 1966.955214] =============================================
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
