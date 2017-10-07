@@ -1,106 +1,187 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 925386B025E
-	for <linux-mm@kvack.org>; Sat,  7 Oct 2017 05:57:30 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id d45so10343237uag.21
-        for <linux-mm@kvack.org>; Sat, 07 Oct 2017 02:57:30 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id p9si1483588oib.205.2017.10.07.02.57.28
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 84AAB6B025E
+	for <linux-mm@kvack.org>; Sat,  7 Oct 2017 06:10:35 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id a192so14244274pge.5
+        for <linux-mm@kvack.org>; Sat, 07 Oct 2017 03:10:35 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id b4si2976189pfa.345.2017.10.07.03.10.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 07 Oct 2017 02:57:28 -0700 (PDT)
-Subject: Re: [PATCH 1/2] Revert "vmalloc: back off when the current task is killed"
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <55d8bf19-3f29-6264-f954-8749ea234efd@I-love.SAKURA.ne.jp>
-	<ceb25fb9-de4d-e401-6d6d-ce240705483c@I-love.SAKURA.ne.jp>
-	<20171007025131.GA12944@cmpxchg.org>
-	<201710071305.GJF12474.HSOtLFFJVQFOOM@I-love.SAKURA.ne.jp>
-	<20171007075936.nldmvdt6nhujufec@dhcp22.suse.cz>
-In-Reply-To: <20171007075936.nldmvdt6nhujufec@dhcp22.suse.cz>
-Message-Id: <201710071857.GDA20604.tJQOFFVMSFOHOL@I-love.SAKURA.ne.jp>
-Date: Sat, 7 Oct 2017 18:57:17 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 07 Oct 2017 03:10:34 -0700 (PDT)
+Date: Sat, 7 Oct 2017 18:10:15 +0800
+From: kbuild test robot <lkp@intel.com>
+Subject: Re: [PATCH 3/3] mm: oom: show unreclaimable slab info when
+ unreclaimable slabs > user memory
+Message-ID: <201710071858.EL6nGcdn%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="rwEMma7ioTxnRzrJ"
+Content-Disposition: inline
+In-Reply-To: <1507152550-46205-4-git-send-email-yang.s@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, alan@llwyncelyn.cymru, hch@lst.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Yang Shi <yang.s@alibaba-inc.com>
+Cc: kbuild-all@01.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Michal Hocko wrote:
-> On Sat 07-10-17 13:05:24, Tetsuo Handa wrote:
-> > Johannes Weiner wrote:
-> > > On Sat, Oct 07, 2017 at 11:21:26AM +0900, Tetsuo Handa wrote:
-> > > > On 2017/10/05 19:36, Tetsuo Handa wrote:
-> > > > > I don't want this patch backported. If you want to backport,
-> > > > > "s/fatal_signal_pending/tsk_is_oom_victim/" is the safer way.
-> > > > 
-> > > > If you backport this patch, you will see "complete depletion of memory reserves"
-> > > > and "extra OOM kills due to depletion of memory reserves" using below reproducer.
-> > > > 
-> > > > ----------
-> > > > #include <linux/module.h>
-> > > > #include <linux/slab.h>
-> > > > #include <linux/oom.h>
-> > > > 
-> > > > static char *buffer;
-> > > > 
-> > > > static int __init test_init(void)
-> > > > {
-> > > > 	set_current_oom_origin();
-> > > > 	buffer = vmalloc((1UL << 32) - 480 * 1048576);
-> > > 
-> > > That's not a reproducer, that's a kernel module. It's not hard to
-> > > crash the kernel from within the kernel.
-> > > 
-> > 
-> > When did we agree that "reproducer" is "userspace program" ?
-> > A "reproducer" is a program that triggers something intended.
-> 
-> This way of argumentation is just ridiculous. I can construct whatever
-> code to put kernel on knees and there is no way around it.
 
-But you don't distinguish between kernel module and userspace program.
-What you distinguish is "real" and "theoretical". And, more you reject
-with "ridiculous"/"theoretical", more I resist stronger.
+--rwEMma7ioTxnRzrJ
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-> 
-> The patch in question was supposed to mitigate a theoretical problem
-> while it caused a real issue seen out there. That is a reason to
-> revert the patch. Especially when a better mitigation has been put
-> in place. You are right that replacing fatal_signal_pending by
-> tsk_is_oom_victim would keep the original mitigation in pre-cd04ae1e2dc8
-> kernels but I would only agree to do that if the mitigated problem was
-> real. And this doesn't seem to be the case. If any of the stable kernels
-> regresses due to the revert I am willing to put a mitigation in place.
+Hi Yang,
 
-The real issue here is that caller of vmalloc() was not ready to handle
-allocation failure. We addressed kmem_zalloc_greedy() case
-( https://marc.info/?l=linux-mm&m=148844910724880 ) by 08b005f1333154ae
-rather than reverting fatal_signal_pending(). Removing
-fatal_signal_pending() in order to hide real issues is a random hack.
+[auto build test ERROR on mmotm/master]
+[also build test ERROR on v4.14-rc3 next-20170929]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 
->  
-> > Year by year, people are spending efforts for kernel hardening.
-> > It is silly to say that "It's not hard to crash the kernel from
-> > within the kernel." when we can easily mitigate.
-> 
-> This is true but we do not spread random hacks around for problems that
-> are not real and there are better ways to address them. In this
-> particular case cd04ae1e2dc8 was a better way to address the problem in
-> general without spreading tsk_is_oom_victim all over the place.
+url:    https://github.com/0day-ci/linux/commits/Yang-Shi/oom-capture-unreclaimable-slab-info-in-oom-message/20171007-173639
+base:   git://git.cmpxchg.org/linux-mmotm.git master
+config: i386-tinyconfig (attached as .config)
+compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+reproduce:
+        # save the attached .config to linux build tree
+        make ARCH=i386 
 
-Using tsk_is_oom_victim() is reasonable for vmalloc() because it is a
-memory allocation function which belongs to memory management subsystem.
+All errors (new ones prefixed by >>):
 
->  
-> > Even with cd04ae1e2dc8, there is no point with triggering extra
-> > OOM kills by needlessly consuming memory reserves.
-> 
-> Yet again you are making unfounded claims and I am really fed up
-> arguing discussing that any further.
+   mm/slab_common.o: In function `dump_unreclaimable_slab':
+>> slab_common.c:(.text+0x464): undefined reference to `get_slabinfo'
 
-Kernel hardening changes are mostly addressing "theoretical" issues
-but we don't call them "ridiculous".
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+
+--rwEMma7ioTxnRzrJ
+Content-Type: application/gzip
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
+
+H4sICKSk2FkAAy5jb25maWcAjHxbc+O40fZ9fgVr817sXuyMT+M49ZUvIBAUEZMElwAl2Tcs
+rayZUY0t+dUh2fn3XzdAiqeG8qYqyRjdOPfh6UZTf//b3wN2Ou7el8fNavn29jP4tt6u98vj
++jX4unlb/78gVEGmTCBCaT4Bc7LZnv76vLl9uA/uPl3ffrr6/f39Onha77frt4Dvtl83307Q
+fbPb/u3vwM5VFslpdX83kSbYHILt7hgc1se/1e2Lh/vq9ubxZ+fv9g+ZaVOU3EiVVaHgKhRF
+S1SlyUtTRapImXn8Zf329fbmd1zWLw0HK3gM/SL35+Mvy/3q++e/Hu4/r+wqD3YT1ev6q/v7
+3C9R/CkUeaXLPFeFaafUhvEnUzAuxrQ0Lds/7MxpyvKqyMIKdq6rVGaPD5fobPF4fU8zcJXm
+zPzXcXpsveEyIcJKT6swZVUisqmJ27VORSYKySupGdLHhHgu5DQ2w92x5ypmM1HlvIpC3lKL
+uRZpteDxlIVhxZKpKqSJ0/G4nCVyUjAj4I4S9jwYP2a64nlZFUBbUDTGY1ElMoO7kC+i5bCL
+0sKUeZWLwo7BCtHZlz2MhiTSCfwVyUKbisdl9uThy9lU0GxuRXIiioxZSc2V1nKSiAGLLnUu
+4JY85DnLTBWXMEuewl3FsGaKwx4eSyynSSajOaxU6krlRqZwLCHoEJyRzKY+zlBMyqndHktA
+8HuaCJpZJezluZpqX/cyL9REdMiRXFSCFckz/F2lonPv+dQw2DcI4Ewk+vGmaT9rKNymBk3+
+/Lb58/P77vX0tj58/p8yY6lAKRBMi8+fBqoqiz+quSo61zEpZRLC5kUlFm4+3dNTE4Mw4LFE
+Cv6nMkxjZ2uqptbwvaF5On1ASzNioZ5EVsF2dJp3jZM0lchmcCC48lSax9vznngBt2wVUsJN
+//JLawjrtsoITdlDuAKWzEShQZJ6/bqEipVGEZ2t6D+BIIqkmr7IfKAUNWUClBualLx0DUCX
+snjx9VA+wh0QzsvvrKq78CHdru0SA66Q2Hl3leMu6vKId8SAIJSsTEAjlTYogY+//Lrdbde/
+dW5EP+uZzDk5trt/EH9VPFfMgN+ISb4oZlmYCJJWagEG0nfNVg1ZCU4Z1gGikTRSDCoRHE5/
+Hn4ejuv3VorPZh40xuos4QGApGM178g4tICD5WBHnN70DInOWaEFMrVtHJ2nViX0AYNleByq
+oenpsoTMMLrzDLxDiM4hYWhzn3lCrNjq+aw9gKGHwfHA2mRGXySiU61Y+K9SG4IvVWjmcC3N
+EZvN+3p/oE45fkGPIVUoeVcSM4UU6btpSyYpMXheMH7a7rTQXR6HrvLys1kefgRHWFKw3L4G
+h+PyeAiWq9XutD1utt/atRnJn5w75FyVmXF3eZ4K79qeZ0seTVfwMtDjXQPvcwW07nDwJ1hg
+OAzKymnH3O2uB/3RMGschTwXHB3QWJKgPU1V5mVyyEdM+QSdC8lmPQagpuyG1mX55P7h08QS
+UKpzNIBIQidXlOueoDoAQ5khYAPnXUVJqePupvm0UGWuaZMSC/6UKwkjgUAYVdCy5BaBDsKO
+RR8M4i36LJInMH0z69yKkF4HP6MLtA0o7xaDZ1wQJzTk7mM1loEzkxkAez3wIqUMrzuRAKq4
+SUCguMgtyLIofNAn5zp/ggUlzOCKWqqTw+5Bp2DbJRjYgj5DwFYpyF9VWxaa6VlH+iIHID0A
+Q2PNbT0Q9NTPKU3MC7jqJ4/ETuku/QOg+wKMqqLSs+SoNGJBUkSufAchpxlLIlpa7O49NGt8
+PbRJHl0+/RicK0lhknb3LJxJ2Ho9KH3mKBHW73tWBXNOWFHIvtw028FQIhThUCphyOrshDp3
+dX3VAx7WwNZhdL7ef93t35fb1ToQ/15vwaIzsO0cbTp4ntbyegavQT0SYUvVLLXYntzSLHX9
+K2v0fZLahJYFLZA6YRMPoaQQjE7UpLte7A+HW0xFA7x8KmcgtkTQUAEUlpHkNuTy6I+KZDLw
+Yt2LUY6jY0WalipLpZPc7iL/VaY5oJGJoCWyjoRoN47z2RQIBMSgLmihORda+9YmItibxGuB
++KfXY+BZ8HrRgYEPrSZ6zoaYX4KfQHcDizMD0tMwdHOthTAkAcw43cG1YnwUUVYZznLQYhdu
+WWOlngZETFHA30ZOS1USsA1iMAukakBKZAbA9BkZAaKwQJJg0MLU0Jxw0xARPwPgR3BpPYBN
+QA3WWIipBt8VuoRQfTEVy4cbxb1Aq1PHAS2egzYJ5jz6gJbKBdx3S9Z2xqGHBFsF7aYsMgCQ
+sGPZzY4NTQ9xDTErQsQqZQ4LNIKb2plTgxDzN9alqE8hLNOh8NlDbdVmeIoAzxxwigoxvicn
+OpVmkQAMnmNCaTBA3epCYw8tVKUn1wKhW+UCmCbcJhavBUfTV4FVMKPjnQK4yZNyKrOe8e00
++9QbOOyhoVbag++BwCGRhlV9HhCBTFwcBe+wTBiNeMbcIPiKtJ0mxmAJDkfORrbAna60LE4q
+ogKC5yEbEWp4TESGMaaoM2OYpBpqigrri8oFR3/QSciqsEzALqGFFAmKcELYAksBVVbpOIk4
+ztIOGMQCDDpph/q9HvqXr/LnJg1lkp7otNPC2uiMAaZpJ6W1NpRcJCAGgPH40xy0u7NeBSEO
+ALU6CXk7IjCbZe8JEESKEJi2niiKLjg3u+gZ7treO43AkEdZ/M6SJv1SzGm86WOmAMLIwBvw
+FKbTqZvC95KG3Z0A1Tyd2CmyMjvC0C6FyNXs9z+Xh/Vr8MNBuY/97uvmrReInydC7qrBHL0M
+hrMvtctzLjEWqAidRCcCeY3I7vG6g1Cd1BOn0+iDAWMLJlOB3e/ua4KugOhm88cwUQ4qXWbI
+1E/41HQrzY5+iUb2nRfSCF/nLrHfu5+IZkah0y7S+YAD9f+PUpSYB4BN2BSTn6WYNwxtTAQH
+9tJH/Pau8/1utT4cdvvg+PPDJV++rpfH03596L58vaBGhv2sZYtoUzpCx+R7JBg4d/CCaEH9
+XJgea1gxqUyzTkHPI+mzKQD8QRlCGnXjLGJhwGzge8il2LJ+MpCFpBfhchNwT8b5hcqiG08Q
+Hj8DwoCQDXzRtKST5WCeJkoZ98rQqsDdwz0dvX25QDCajo+QlqYLSqHu7VtlywmW1cgylZIe
+6Ey+TKePtqHe0dQnz8ae/uFpf6DbeVFqRSeWUusJhCfaSucyA0iQc89CavKtL65OmGfcqVCh
+mC6uL1CrhHYhKX8u5MJ73jPJ+G1FvzZYoufsOIRUnl5ohLyaUZtzzyO4VQTMhNUvmzqWkXn8
+0mVJrge03vA5OBIwBHQaDhnQylkmm0nUZSdBhmRQgH5DDaHv74bNatZvSWUm0zK1iCGC0Cl5
+7q/bhj/cJKnu4VxYCsZNiDVFAqCTgjMwIlh4Z6A67wR1s73fXvlAQ2FpSLCDCrGyGBMs0EyF
+YeRYZcpde2uacoggbX6AvOwwpaBZZh+SNTjr8/6FSHMzQu5N+0wlgDNYQWdqay6vtOEh5JK2
+afbS+nLiPFon7fS+226Ou70DLu2snYgSzhgM+NxzCFZgBeDKZ4CFHrvrJRgFIj6hXaZ8oNEl
+TlgI9AeRXPiS6AARQOpAy/znov37gfuTIXW1Ct9pBm6obrqjU7U19f6OCrFmqc4TcJK3vQea
+thVxsedAHcsNPWlL/q8jXFPrskUQCuIAYR6v/uJX7j8DM8Qo+3OGvLDnCmxU8ZwPC0oiQBaO
+yojiCRup+8nWgDTvrYB0u9ZCJiiHSQM28GWxFI9X54jgUt9mUSnLSptjaLHMeUWORmy67twf
+rbI23vXr5Eva4SB+Mt041sW5Ip304XGvuR50lP1rIohpmQ9OLJSaQ4TYHbgf0NXAyhVKZAON
+OS8aRSU3dgnWuN0NUsbcn56Nn8GEhGFRGW9x2EwWYGcVxru9d32dEszNi70Nvd2Dblg83l39
+875jV4iMgj/6dOlAE0NMO2c5pffdCqGnnvbzRLDMems63+KJB15ypej08sukpLHTix5n9xvQ
+X1+/rcdpUsG+AArOTxQFRkk25emUHd8Be75JFNYtgoz6QxKLL6qJVFgBUxRlPhSCnsXWgPIx
+IJ0/3nekJzUFbYftol3GxrsAOBE6rKrTebRFfqmur66ojN1LdfPlqqcgL9Vtn3UwCj3MIwwz
+DIbiAp/l6ddBsRDUraLmSA4GDW6hQEN8PbTDhcCUqM2tXupvHxag/82ge/3YMws1/ZLG09CG
+5hOfrIIRxQR8EhrqDc9Bjd1/1vsAoMby2/p9vT3a8JnxXAa7D6wd7YXQddaKtiO0GOhIjuYE
+yQ2i/fp/T+vt6mdwWC3fBujGAthC/EH2lK9v6yGzt6LDSimaB33mwwe2PBHhaPDJ6dBsOvg1
+5zJYH1effuuhLk4BSmi1paqJsKVm2NYUqITrw+bbdr7crwPsy3fwD336+NjtYY31BUC72L5+
+7Dbb42Au8LGhdZaXEpBUqshVkNYPId0OnmwASh5JUomnrgpElo71MmG+fLmio8Sco6vzW4tn
+HU1GtyL+Wq9Ox+Wfb2tbBh1YYHw8BJ8D8X56W45kdAKOMjWYTyYnqsmaFzKnXJ1LoqqyZ23r
+Tth8adBUenIXGKniswwVWTkdvx0WAtZpNKmcp+ie7+iIwvW/NxAphPvNv92jdFtFuVnVzYEa
+q3PpHpxjkeS+CErMTJp78s1g9rKQYaLbFxjZ4SNZpHNw9a6+h2SN5qBALPQsAr3q3FbDUOfY
+WSu+tYeFnHk3YxnErPCk8RwD5u7qYcCAQ5Dtqe8B2NSmxuhcX1O5BpYHppWczAd3ubBcqCkK
+7ISxzNUhh3CEUURkQNFyvVoh6N1vaujjVhGxDPdcggXm53JyAGh1bX17qa5ptIJ0c1hRS4Db
+Sp8xXUwuBAKQRGlMmCL4GJ5Pe9QFo50LvyEXIwScYRoczoa2ndBSqn/e8sX9qJtZ/7U8BHJ7
+OO5P77bW4/AdLPdrcNwvtwccKgBHtQ5eYa+bD/xno2rs7bjeL4MonzIwUvv3/6DBf939Z/u2
+W74GroS64ZXb4/otAN22t+aUs6FpLiOieaZyorUdKN4djl4iX+5fqWm8/LuPcz5dH5fHdZC2
+4OBXrnT629DS4PrOw7VnzWMPbFkk9tHES2RR2Sig8hXhAduFolwZnmtENdeylsyORJxdn5aI
+knoBJbb53glSxsEfKx3XCxxXgsrtx+k4nrD1wllejkU2hluyUiM/qwC79HEXlrL+33TWsvZe
+wVkqSC3hINzLFQgupbfG0NkuMGO+ei8gPflouCoAumjDB5ClPZc8lZWrwva8Q8wvhRvZzGck
+cv7wj9v7v6pp7ilIyzT3E2FFUxdH+fOMhsN/PfjXiIQPX/ScnNxwUjw8xa86p7PnOk9pQqzp
+9jwfy2xu8mD1tlv96KzIWdKtBV4QqaCyYWgA+AO/88DgxZ4IgIA0x+Ku4w7GWwfH7+tg+fq6
+QbCxfHOjHj51d4hHPVDdM23uAY6Y3azYzFOgaakYwNLozNExvk5ooY7nvsplE4siZXRw1VTV
+U/kYPel+XuTs0G67WR0CvXnbrHbbYLJc/fh4W257oQz0I0abcAAAneFa2DnIXjhPfHo7br6e
+tiu8gcYOvZ4NdmvJotDiKdrMIbFQuhK0NMYG0QFEr7fe7k8izT1wD8mpub/9p+dhB8g69QUR
+bLL4cnV1eekY7Prex4BsZMXS29svC3xrYaHnvREZU49VcCU8xoP7UhFK1iR0Rhc03S8/vqMo
+ENof9h90HbjgefArO71uduCbz2/dv/k/8YRB0DcS1tJyRfvl+zr48/T1K5j+cGz6I1o1sZYl
+sa4m4SG1uTZ1PWWYl/LAZlVmVOq+BJVRMUbS0hgI0iH0laxTCob00bee2HjOaMe858ZLPY4l
+sc3iuNc+gMH2/PvPA354GyTLn+gTxxqDs4HZo32Iyi19wYWckRxInbJwSsRvdnqbhwnXbzjt
+T2tqzc+P9e+cWomBuINXJfeYeJyqTHLp9bXlnL7jNPXogki1Nz2WCYjeREjP5Eoy5UTCtT4T
+1y5CxptYF2LysvMhpSWNrrwAywPC3W9I+fXd/cP1Q01p1dTg50VMe8K9lBFRmYuoUwahFpkC
+e844ViF60k3lIpQ6933VUXrMic2v+wDlbLOHVVBigN2kglvrD1sHZKv97rD7egxiEKP977Pg
+22kNYQJhdFwUi7bQm4YHfZ4OKrh7qZumGoUKc1vMHkPsJc68niK2eVMcNAasFqHo3Wnf82jN
+6MmTLnglH26+dKrqoFXMDNE6ScJza3t9JhVJlUtP1XvsMGDF0//CkJqSLkw4c5iU/p5KpDUD
+6JsnAJHJRNG5N6nStPT6nWL9vjuuMbijZAkzHQajYz7u+PF++DY0mRoYf9X2+7NAbSGY2Hz8
+Fhw+1qvN13PO6czM3t9236BZ7/hwnMkeQuTV7p2ibT6lC6r9j9PyDboM+7SnXGYL6c8awNIr
+z+nmVoKHqef2dhbGiyvssyV9LR6tz+fU8xkDLZqCNUzZosqKbkmhzLGQ12fTLf61FfuFSnwx
+VJSOrxddWvdbwlH6yufzAH5WTypj6G9uvFwYKOQLVt08ZCkGJbSH6XHheH4kzz1vSikfO3yi
+kIKygAUbm122fd3vNq9dNsBThZI0pg2ZJx/ujZe1odtdEaDxfKeMKaYRogMcQOwq0uOnl6jJ
+ToVjtRGhJzvbJHBhJ74HvVAkSVVMaKMW8nDCfOWQapqI8xRETu7bftnJqfWSVhG+Bzi57TiC
+0NVmQZTa+VSncyj154CM02GdWKD1BDb3oO9LQNlSYeTwuUUYoa6v8L28R9p+LuJJtFygSUer
+vN9NRuxC7z9KZejklqVwQ58LpqYjfVd5HgMirGrz0BTgGoBEA7ITveXq+yD80KPXeqfKh/Xp
+dWffgNorby0DOC7f9JbGY5mEhaBvAqvQfY8c+HUpjVTcL39cplZeSOX+D6TEMwA+Jlkpcx/b
+0UxZMj7S+tPF78vVj/5n5/b3cmTxR5Swqe4ga9vrY7/ZHn/YuOP1fQ3+vsW+7YK1skI/tb8c
+0hR6PP7jXIgLuobFCiOOu66hwDcWRNGABkc/vuGudPf+Abf8u/2UHsRj9eNg17Vy7XsKlrth
+sUaGVmpbrFSBicEfMMoLwSE+9XwM61jT0v7CjCBr8V3RNI72eH1109kdfrGQV0ynlfdzYizC
+tzMwTdv/MgNVwhxGOlGez2Nd/dc8u/jQFVGPTbHAZzbtdjb+UlUL9yNPIHwpprdolRgwuWNV
+mSe7Vq9G2V+iEOypKdTxwFvEPiDy/Rej3lDum5FGcFOAtRAwh+s/T9++Dask8Zxsybz2GeHB
+z+74jztXUqvMZ+3dMIWyn8QOpXrApSb/ghP0fpNWbxKcbQKnNb6jhnJhBvfJV6l9tsdxzWj4
+WadTah4IMQcFdz3CheHrQj6sXLq8Vbta9BFRYn/zhNpMQ/aNZJeNJ+MT7HjwBlk/nIPQBAmE
+lacPZ2Pi5fZbP5ZQkRl8nEnb+//fyLU0tQ0D4b/CsYdOB0qn06vtKCASZGM7hHDxtJ0ccuhj
+AsyUf999KJYl7wpuLd/GD2m1Wmv3++YkTmVsEITtwbG0hmi0vRNPlycO6WCVwBKsk/REwtM+
+SwbxKxO7HGaNUGoMZZhdC/WzZsExGXK8w8qYRtIvwSEPS/bsw9Pfw2+qFHw8+/XyvP+3h39g
+982nuP/Gz6VwQJD6HsonZKv82y0bIQV+2xRKus22lAhmwkNb3+dzQboAnolmbnI6BFvDkL3x
+LHAbojN3Zr3UmUZ0U3DDkZAku9o4Dv5i2vmPF9yTL4IbAIrAbFxnDNKTMpU6H8U4CubeVNOJ
+8SHbvmXR5UL1iamd85GqhXdxvS2ELAsFceQ9h7xB08t5cz6QjE3N/VmLd11Gny/SBLrzMT63
+SLzq1NDqO/ZpIAfTtnUL4ePG6M3G3Bks2pyyn5HIrug7UrhfblwV5GdSPviIXrVFcy3bnMQF
+RKmEGCQitcS89/At81AhqYRPzsTEt13yM7CGQEqQ9z/kqwQQf4ELPQxAGMXZzLJLotAUpMz9
+/uk5cUrqacLlQiJ8smeaHFqGCUGmtu53JdFaVZw6/2FDGvJmHAy/fslHJXrka/OgtoTxO0FO
+7q58l5u83MluBYa9crJKBiQEJHcVEl7aXjseIXyzUc6OCG2RaT5rFU7eVSOjRwIXmSdYqIJT
+kDqp40xJq2O5F7mRPGwUxW0j054nadrVIqrS4P9zmeim7AoHV4ZEEtWrmJ8dXCUwBNjQ1YPT
+ZJXIIp/13hPZouOuQxOVFLHSAXloWXdMy1BUvbjLPyMbRRWTHr1WL2MHm1x8lr2VtTZ0+R6f
+n61L0j2T1ymXEmCV6to4WHdSgrStWUuWKpXD+cO385B/phiM8YWMsbsGgdIYJbre5Qyjm027
+ngOgfPGPFpnlMdq4pN11HFK/tU0fcZpcV00xX50eG4XZJhqxyWRBGqJUF0Zi57BUduiI4g0p
+2ta6hSichfTubjQYG1f2P1+Oh+dX6dhlZXbKsZmpNq3tdxCZTEfFCdJyyNpqJ4uRjJCWnvaw
+XWPugLyxeUNzMkvh6YoJwStFY7lYPMnVtV7vI9KR/zi2j7oqVmld0e6EPYW/jw4/jt+Pr2fH
+Py+wle8np3Cj/FLfuqrZweTWt/Ti4T2mJmvjFHQJk+yFlEsryG0i/+DUfZ5A6p8FDQ+SRSCV
+v2ZtYx2vqq2GqrK97BWAXsikVPxdf3G+sPJejLDtIf3V0Eu5uASITOoHQG5UWtuSLqdJz1Yy
+uZ/EYr0EK3f/C4z0kFHRl9Tl53wq9PCIwuwZaCirG9F7O5zOKTmS/4TxPCUydl6XPEo7XF03
+apUEDai5Qe3jhcxXefHFQj5BIeFcVQPRkyE1MKX1pe7aYZtCYSMBHp9ASuP/H+R0CcC1XwAA
+
+--rwEMma7ioTxnRzrJ--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
