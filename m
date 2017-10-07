@@ -1,58 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 25C916B025E
-	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 22:51:44 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r202so13923253wmd.1
-        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 19:51:44 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id t18si1148271edd.339.2017.10.06.19.51.42
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D67156B025F
+	for <linux-mm@kvack.org>; Fri,  6 Oct 2017 22:52:46 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id q83so13672121qke.16
+        for <linux-mm@kvack.org>; Fri, 06 Oct 2017 19:52:46 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id p91si887184qtd.330.2017.10.06.19.52.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 06 Oct 2017 19:51:42 -0700 (PDT)
-Date: Fri, 6 Oct 2017 22:51:31 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/2] Revert "vmalloc: back off when the current task is
- killed"
-Message-ID: <20171007025131.GA12944@cmpxchg.org>
-References: <20171003225504.GA966@cmpxchg.org>
- <20171004185813.GA2136@cmpxchg.org>
- <20171004185906.GB2136@cmpxchg.org>
- <20171004153245.2b08d831688bb8c66ef64708@linux-foundation.org>
- <20171004231821.GA3610@cmpxchg.org>
- <20171005075704.enxdgjteoe4vgbag@dhcp22.suse.cz>
- <55d8bf19-3f29-6264-f954-8749ea234efd@I-love.SAKURA.ne.jp>
- <ceb25fb9-de4d-e401-6d6d-ce240705483c@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ceb25fb9-de4d-e401-6d6d-ce240705483c@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 06 Oct 2017 19:52:46 -0700 (PDT)
+From: Prakash Sangappa <prakash.sangappa@oracle.com>
+Subject: [PATCH] Userfaultfd: Add description for UFFD_FEATURE_SIGBUS
+Date: Fri,  6 Oct 2017 19:52:20 -0700
+Message-Id: <1507344740-21993-1-git-send-email-prakash.sangappa@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Alan Cox <alan@llwyncelyn.cymru>, Christoph Hellwig <hch@lst.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: mtk.manpages@gmail.com
+Cc: linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org, arcange@redhat.com, rppt@linux.vnet.ibm.com, mhocko@suse.com, prakash.sangappa@oracle.com
 
-On Sat, Oct 07, 2017 at 11:21:26AM +0900, Tetsuo Handa wrote:
-> On 2017/10/05 19:36, Tetsuo Handa wrote:
-> > I don't want this patch backported. If you want to backport,
-> > "s/fatal_signal_pending/tsk_is_oom_victim/" is the safer way.
-> 
-> If you backport this patch, you will see "complete depletion of memory reserves"
-> and "extra OOM kills due to depletion of memory reserves" using below reproducer.
-> 
-> ----------
-> #include <linux/module.h>
-> #include <linux/slab.h>
-> #include <linux/oom.h>
-> 
-> static char *buffer;
-> 
-> static int __init test_init(void)
-> {
-> 	set_current_oom_origin();
-> 	buffer = vmalloc((1UL << 32) - 480 * 1048576);
+Userfaultfd feature UFFD_FEATURE_SIGBUS was merged recently and should
+be available in Linux 4.14 release. This patch is for the manpage
+changes documenting this API.
 
-That's not a reproducer, that's a kernel module. It's not hard to
-crash the kernel from within the kernel.
+Documents the following commit:
+
+commit 2d6d6f5a09a96cc1fec7ed992b825e05f64cb50e
+Author: Prakash Sangappa <prakash.sangappa@oracle.com>
+Date: Wed Sep 6 16:23:39 2017 -0700
+
+    mm: userfaultfd: add feature to request for a signal delivery
+
+Signed-off-by: Prakash Sangappa <prakash.sangappa@oracle.com>
+---
+ man2/ioctl_userfaultfd.2 |  9 +++++++++
+ man2/userfaultfd.2       | 17 +++++++++++++++++
+ 2 files changed, 26 insertions(+)
+
+diff --git a/man2/ioctl_userfaultfd.2 b/man2/ioctl_userfaultfd.2
+index 60fd29b..cfc65ae 100644
+--- a/man2/ioctl_userfaultfd.2
++++ b/man2/ioctl_userfaultfd.2
+@@ -196,6 +196,15 @@ with the
+ flag set,
+ .BR memfd_create (2),
+ and so on.
++.TP
++.B UFFD_FEATURE_SIGBUS
++Since Linux 4.14, If this feature bit is set, no page-fault events(
++.B UFFD_EVENT_PAGEFAULT
++) will be delivered, instead a
++.B SIGBUS
++signal will be sent to the faulting process. Applications using this
++feature will not require the use of a userfaultfd monitor for handling
++page-fault events.
+ .IP
+ The returned
+ .I ioctls
+diff --git a/man2/userfaultfd.2 b/man2/userfaultfd.2
+index 1741ee3..a033742 100644
+--- a/man2/userfaultfd.2
++++ b/man2/userfaultfd.2
+@@ -172,6 +172,23 @@ or
+ .BR ioctl (2)
+ operations to resolve the page fault.
+ .PP
++Starting from Linux 4.14, if application sets
++.B UFFD_FEATURE_SIGBUS
++feature bit using
++.B UFFDIO_API
++.BR ioctl (2)
++, no page fault notification will be forwarded to
++the user-space, instead a
++.B SIGBUS
++signal is delivered to the faulting process. With this feature,
++userfaultfd can be used for robustness purpose to simply catch
++any access to areas within the registered address range that do not
++have pages allocated, without having to deal with page-fault events.
++No userfaultd monitor will be required for handling page faults. For
++example, this feature can be useful for applications that want to
++prevent the kernel from automatically allocating pages and filling
++holes in sparse files when the hole is accessed thru mapped address.
++.PP
+ Details of the various
+ .BR ioctl (2)
+ operations can be found in
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
