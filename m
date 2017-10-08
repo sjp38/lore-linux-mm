@@ -1,53 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AFA056B0260
-	for <linux-mm@kvack.org>; Sun,  8 Oct 2017 08:56:54 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id q203so21129527wmb.0
-        for <linux-mm@kvack.org>; Sun, 08 Oct 2017 05:56:54 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 11sor3323480edv.46.2017.10.08.05.56.53
+	by kanga.kvack.org (Postfix) with ESMTP id ED6366B025E
+	for <linux-mm@kvack.org>; Sun,  8 Oct 2017 11:39:36 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b189so22242630wmd.5
+        for <linux-mm@kvack.org>; Sun, 08 Oct 2017 08:39:36 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u25sor1019139edi.20.2017.10.08.08.39.35
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 08 Oct 2017 05:56:53 -0700 (PDT)
-Date: Sun, 8 Oct 2017 15:56:51 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC PATCH] mm: shm: round up tmpfs size to huge page size when
- huge=always
-Message-ID: <20171008125651.3mxiayuvuqi2hiku@node.shutemov.name>
-References: <1507321330-22525-1-git-send-email-yang.s@alibaba-inc.com>
+        Sun, 08 Oct 2017 08:39:35 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1507321330-22525-1-git-send-email-yang.s@alibaba-inc.com>
+In-Reply-To: <CAJYFCiPhNVCMRVD-QpwsZk0wAKRXzFWcwVZDqLXxsxYfhFcVpg@mail.gmail.com>
+References: <CAJYFCiPhNVCMRVD-QpwsZk0wAKRXzFWcwVZDqLXxsxYfhFcVpg@mail.gmail.com>
+From: Yubin Ruan <ablacktshirt@gmail.com>
+Date: Sun, 8 Oct 2017 23:39:34 +0800
+Message-ID: <CAJYFCiPYHZse_52-k68i8thYGBCRXn5F=w=-Ra4_oqRN_CruZw@mail.gmail.com>
+Subject: Re: shmat(2) returns page size aligned memory address
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.s@alibaba-inc.com>
-Cc: kirill.shutemov@linux.intel.com, hughd@google.com, mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-man <linux-man@vger.kernel.org>, "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, linux-mm@kvack.org
 
-On Sat, Oct 07, 2017 at 04:22:10AM +0800, Yang Shi wrote:
-> When passing "huge=always" option for mounting tmpfs, THP is supposed to
-> be allocated all the time when it can fit, but when the available space is
-> smaller than the size of THP (2MB on x86), shmem fault handler still tries
-> to allocate huge page every time, then fallback to regular 4K page
-> allocation, i.e.:
-> 
-> 	# mount -t tmpfs -o huge,size=3000k tmpfs /tmp
-> 	# dd if=/dev/zero of=/tmp/test bs=1k count=2048
-> 	# dd if=/dev/zero of=/tmp/test1 bs=1k count=2048
-> 
-> The last dd command will handle 952 times page fault handler, then exit
-> with -ENOSPC.
-> 
-> Rounding up tmpfs size to THP size in order to use THP with "always"
-> more efficiently. And, it will not wast too much memory (just allocate
-> 511 extra pages in worst case).
+Cc linux-mm
 
-Hm. I don't think it's good idea to silently increase size of fs.
-
-Maybe better just refuse to mount with huge=always for too small fs?
-
--- 
- Kirill A. Shutemov
+2017-10-08 23:37 GMT+08:00 Yubin Ruan <ablacktshirt@gmail.com>:
+> Hi Michael,
+> At the current man page for shmat(2)[1], there is no mentioning
+> whether the returned memory address of shmat(2) will be page size
+> aligned or not. As that is quite important to many applications(e.g.,
+> those that use locks heavily and would like to avoid some locks by
+> some atomic guarantees provided by the CPU), it would be great to
+> specify that for Linux.
+>
+> I walked down the current implementation of shmat(2) in the latest
+> kernel src and found that shmat(2) does return a page size aligned
+> memory address:
+>
+> SYSCALL_DEFINE3(shmat, int, shmid, char __user *, shmaddr, int, shmflg)
+>  -> do_shmat(...)
+>  -> do_mmap_pgoff(...)
+>  -> do_mmap(...)
+>  -> get_unmapped_area(...)
+>  -> get_area(...) -> offset_in_page(addr)
+>
+> there is a `offset_in_page(addr)' assertion at the end and if that is
+> true a -EINVAL would be returned, by which we can be sure that
+> shmat(2) will return a page size aligned memory address on success[2].
+>
+> I will create a patch later if that is acceptable.
+>
+> Thanks,
+> Yubin
+>
+> [1]: http://man7.org/linux/man-pages/man2/shmat.2.html
+> [2]: there is also a `offset_in_page(2)' in get_unmapped_area(...),
+> but that doesn't lead to -EINVAL...I am not sure whether the logic of
+> that code is right.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
