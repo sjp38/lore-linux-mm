@@ -1,73 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A0A666B025E
-	for <linux-mm@kvack.org>; Sun,  8 Oct 2017 11:49:35 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id s185so10544351oif.3
-        for <linux-mm@kvack.org>; Sun, 08 Oct 2017 08:49:35 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e19sor1690128otj.185.2017.10.08.08.49.34
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ED6A56B025E
+	for <linux-mm@kvack.org>; Sun,  8 Oct 2017 15:48:26 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id a7so50563635pfj.3
+        for <linux-mm@kvack.org>; Sun, 08 Oct 2017 12:48:26 -0700 (PDT)
+Received: from out4441.biz.mail.alibaba.com (out4441.biz.mail.alibaba.com. [47.88.44.41])
+        by mx.google.com with ESMTPS id f30si5366256plf.657.2017.10.08.12.48.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 08 Oct 2017 08:49:34 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <201710081447.sQSonloO%fengguang.wu@intel.com>
-References: <150743537023.13602.3520782942682280917.stgit@dwillia2-desk3.amr.corp.intel.com>
- <201710081447.sQSonloO%fengguang.wu@intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Sun, 8 Oct 2017 08:49:33 -0700
-Message-ID: <CAPcyv4iJTkDDNHsAyZCyh5E2X_68RsYkOKP3bXtEzgUrvLh2ew@mail.gmail.com>
-Subject: Re: [PATCH v8 2/2] IB/core: use MAP_DIRECT to fix / enable RDMA to
- DAX mappings
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 08 Oct 2017 12:48:25 -0700 (PDT)
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Subject: [PATCH -mmotm] mm: slab: exclude slabinfo dump for slob
+Date: Mon, 09 Oct 2017 03:48:05 +0800
+Message-Id: <1507492085-42264-1-git-send-email-yang.s@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Sean Hefty <sean.hefty@intel.com>, linux-xfs@vger.kernel.org, Jan Kara <jack@suse.cz>, Ashok Raj <ashok.raj@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, Linux API <linux-api@vger.kernel.org>, Joerg Roedel <joro@8bytes.org>, Dave Chinner <david@fromorbit.com>, Jeff Moyer <jmoyer@redhat.com>, iommu@lists.linux-foundation.org, Christoph Hellwig <hch@lst.de>, "J. Bruce Fields" <bfields@fieldses.org>, Linux MM <linux-mm@kvack.org>, Doug Ledford <dledford@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jeff Layton <jlayton@poochiereds.net>, David Woodhouse <dwmw2@infradead.org>, Hal Rosenstock <hal.rosenstock@gmail.com>
+To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org
+Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, Oct 7, 2017 at 11:45 PM, kbuild test robot <lkp@intel.com> wrote:
-> Hi Dan,
->
-> [auto build test ERROR on rdma/master]
-> [also build test ERROR on v4.14-rc3 next-20170929]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+CONFIG_SLABINFO is removed, but slabinfo dump is not applicable to slob,
+protect slbinfo stats from !CONFIG_SLOB to avoid the below compile
+error reported by 0-DAY kernel test:
 
-This was a fixed up resend of patch [v7 11/12]. It's not clear how to
-teach the kbuild robot to be aware of patch-replies to individual
-patches in the series. I.e. reworked patches without resending the
-complete series?
+   mm/slab_common.o: In function `dump_unreclaimable_slab':
+>> mm/slab_common.c:1298: undefined reference to `get_slabinfo'
 
-> url:    https://github.com/0day-ci/linux/commits/Dan-Williams/iommu-up-level-sg_num_pages-from-amd-iommu/20171008-133505
-> base:   https://git.kernel.org/pub/scm/linux/kernel/git/dledford/rdma.git master
-> config: i386-randconfig-n0-201741 (attached as .config)
-> compiler: gcc-4.8 (Debian 4.8.4-1) 4.8.4
-> reproduce:
->         # save the attached .config to linux build tree
->         make ARCH=i386
->
-> All errors (new ones prefixed by >>):
->
->>> drivers/infiniband/core/umem.c:39:29: fatal error: linux/mapdirect.h: No such file or directory
->     #include <linux/mapdirect.h>
+Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
+---
+Andrew,
+This should be able to be fold into mm-oom-show-unreclaimable-slab-info-when-unreclaimable-slabs-user-memory.patch in -mm tree.
 
-mapdirect.h indeed does not exist when missing the earlier patches in
-the series. It would be slick if the 0day-robot read the the
-"in-reply-to" header and auto replaced a patch in a series, but that
-would be a feature approaching magic.
+ mm/slab.h        | 6 ++++++
+ mm/slab_common.c | 4 +++-
+ 2 files changed, 9 insertions(+), 1 deletion(-)
 
->    compilation terminated.
->
-> vim +39 drivers/infiniband/core/umem.c
->
->   > 39  #include <linux/mapdirect.h>
->     40  #include <linux/export.h>
->     41  #include <linux/hugetlb.h>
->     42  #include <linux/slab.h>
->     43  #include <rdma/ib_umem_odp.h>
->     44
->
-> ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+diff --git a/mm/slab.h b/mm/slab.h
+index 6fc4d5d..8dc504a 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -505,7 +505,13 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
+ void memcg_slab_stop(struct seq_file *m, void *p);
+ int memcg_slab_show(struct seq_file *m, void *p);
+ 
++#ifdef CONFIG_SLOB
++static void inline dump_unreclaimable_slab(void)
++{
++}
++#else
+ void dump_unreclaimable_slab(void);
++#endif
+ 
+ void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr);
+ 
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 5c8fac5..edc5f5f 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1183,6 +1183,7 @@ void cache_random_seq_destroy(struct kmem_cache *cachep)
+ }
+ #endif /* CONFIG_SLAB_FREELIST_RANDOM */
+ 
++#ifndef CONFIG_SLOB
+ #ifdef CONFIG_SLAB
+ #define SLABINFO_RIGHTS (S_IWUSR | S_IRUSR)
+ #else
+@@ -1313,7 +1314,7 @@ void dump_unreclaimable_slab(void)
+ 	mutex_unlock(&slab_mutex);
+ }
+ 
+-#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
++#if defined(CONFIG_MEMCG)
+ void *memcg_slab_start(struct seq_file *m, loff_t *pos)
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+@@ -1387,6 +1388,7 @@ static int __init slab_proc_init(void)
+ 	return 0;
+ }
+ module_init(slab_proc_init);
++#endif /* !CONFIG_SLOB */
+ 
+ static __always_inline void *__do_krealloc(const void *p, size_t new_size,
+ 					   gfp_t flags)
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
