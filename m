@@ -1,71 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8582A6B025E
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 18:42:18 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id p77so3448713lfg.2
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 15:42:18 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id y18si9230671wry.12.2017.10.09.15.42.16
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B343E6B025E
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 18:46:13 -0400 (EDT)
+Received: by mail-ua0-f199.google.com with SMTP id 103so17006910uas.3
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 15:46:13 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id a10si1613168qtg.183.2017.10.09.15.46.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Oct 2017 15:42:17 -0700 (PDT)
-Date: Mon, 9 Oct 2017 15:42:12 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/page-writeback.c: fix bug caused by disable periodic
- writeback
-Message-Id: <20171009154212.bdf3645a2dce5d540657914b@linux-foundation.org>
-In-Reply-To: <1507330684-2205-1-git-send-email-laoar.shao@gmail.com>
-References: <1507330684-2205-1-git-send-email-laoar.shao@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 09 Oct 2017 15:46:12 -0700 (PDT)
+From: Prakash Sangappa <prakash.sangappa@oracle.com>
+Subject: [PATCH v2] Userfaultfd: Add description for UFFD_FEATURE_SIGBUS
+Date: Mon,  9 Oct 2017 15:45:51 -0700
+Message-Id: <1507589151-27430-1-git-send-email-prakash.sangappa@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: jack@suse.cz, mhocko@suse.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, tytso@mit.edu, mawilcox@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>
+To: mtk.manpages@gmail.com
+Cc: linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com, rppt@linux.vnet.ibm.com, mhocko@suse.com, prakash.sangappa@oracle.com
 
-On Sat,  7 Oct 2017 06:58:04 +0800 Yafang Shao <laoar.shao@gmail.com> wrote:
+Userfaultfd feature UFFD_FEATURE_SIGBUS was merged recently and should
+be available in Linux 4.14 release. This patch is for the manpage
+changes documenting this API.
 
-> After disable periodic writeback by writing 0 to
-> dirty_writeback_centisecs, the handler wb_workfn() will not be
-> entered again until the dirty background limit reaches or
-> sync syscall is executed or no enough free memory available or
-> vmscan is triggered.
-> So the periodic writeback can't be enabled by writing a non-zero
-> value to dirty_writeback_centisecs
-> As it can be disabled by sysctl, it should be able to enable by 
-> sysctl as well.
-> 
-> ...
->
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -1972,7 +1972,13 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
->  int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
->  	void __user *buffer, size_t *length, loff_t *ppos)
->  {
-> -	proc_dointvec(table, write, buffer, length, ppos);
-> +	unsigned int old_interval = dirty_writeback_interval;
-> +	int ret;
-> +
-> +	ret = proc_dointvec(table, write, buffer, length, ppos);
-> +	if (!ret && !old_interval && dirty_writeback_interval)
-> +		wakeup_flusher_threads(0, WB_REASON_PERIODIC);
-> +
->  	return 0;
+Documents the following commit:
 
-We could do with a code comment here, explaining why this code exists.
+commit 2d6d6f5a09a96cc1fec7ed992b825e05f64cb50e
+Author: Prakash Sangappa <prakash.sangappa@oracle.com>
+Date: Wed Sep 6 16:23:39 2017 -0700
 
-And...  I'm not sure it works correctly?  For example, if a device
-doesn't presently have bdi_has_dirty_io() then wakeup_flusher_threads()
-will skip it and the periodic writeback still won't be started?
+     mm: userfaultfd: add feature to request for a signal delivery
 
-(why does the dirty_writeback_interval==0 special case exist, btw? 
-Seems to be a strange thing to do).
+Signed-off-by: Prakash Sangappa <prakash.sangappa@oracle.com>
+---
+v2: Incorporated review feedback changes.
+---
+ man2/ioctl_userfaultfd.2 |  9 +++++++++
+ man2/userfaultfd.2       | 23 +++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)
 
-(and what happens if the interval was set to 1 hour and the user
-rewrites that to 1 second?  Does that change take 1 hour to take
-effect?)
+diff --git a/man2/ioctl_userfaultfd.2 b/man2/ioctl_userfaultfd.2
+index 60fd29b..32f0744 100644
+--- a/man2/ioctl_userfaultfd.2
++++ b/man2/ioctl_userfaultfd.2
+@@ -196,6 +196,15 @@ with the
+ flag set,
+ .BR memfd_create (2),
+ and so on.
++.TP
++.B UFFD_FEATURE_SIGBUS
++Since Linux 4.14, If this feature bit is set, no page-fault events
++.B (UFFD_EVENT_PAGEFAULT)
++will be delivered, instead a
++.B SIGBUS
++signal will be sent to the faulting process. Applications using this
++feature will not require the use of a userfaultfd monitor for processing
++memory accesses to the regions registered with userfaultfd.
+ .IP
+ The returned
+ .I ioctls
+diff --git a/man2/userfaultfd.2 b/man2/userfaultfd.2
+index 1741ee3..3c5b9c0 100644
+--- a/man2/userfaultfd.2
++++ b/man2/userfaultfd.2
+@@ -172,6 +172,29 @@ or
+ .BR ioctl (2)
+ operations to resolve the page fault.
+ .PP
++Starting from Linux 4.14, if application sets
++.B UFFD_FEATURE_SIGBUS
++feature bit using
++.B UFFDIO_API
++.BR ioctl (2),
++no page fault notification will be forwarded to
++the user-space, instead a
++.B SIGBUS
++signal is delivered to the faulting process. With this feature,
++userfaultfd can be used for robustness purpose to simply catch
++any access to areas within the registered address range that do not
++have pages allocated, without having to listen to userfaultfd events.
++No userfaultfd monitor will be required for dealing with such memory
++accesses. For example, this feature can be useful for applications that
++want to prevent the kernel from automatically allocating pages and filling
++holes in sparse files when the hole is accessed thru mapped address.
++.PP
++The
++.B UFFD_FEATURE_SIGBUS
++feature is implicitly inherited through fork() if used in combination with
++.BR UFFD_FEATURE_FORK .
++
++.PP
+ Details of the various
+ .BR ioctl (2)
+ operations can be found in
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
