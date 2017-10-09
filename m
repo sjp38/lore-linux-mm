@@ -1,242 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 016486B0260
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 13:08:43 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id s185so12927206oif.3
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 10:08:42 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id s203sor824253oig.134.2017.10.09.10.08.41
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9989D6B0266
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 13:09:04 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id u138so29316410wmu.2
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 10:09:04 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w51sor4404870edd.54.2017.10.09.10.09.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 09 Oct 2017 10:08:41 -0700 (PDT)
+        Mon, 09 Oct 2017 10:09:03 -0700 (PDT)
+Date: Mon, 9 Oct 2017 20:09:00 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH, RFC] x86/boot/compressed/64: Handle 5-level paging boot
+ if kernel is above 4G
+Message-ID: <20171009170900.gyl5sizwnd54ridc@node.shutemov.name>
+References: <20171009160924.68032-1-kirill.shutemov@linux.intel.com>
+ <af75f8aa-471d-34c5-8009-4009a8273989@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20171009034030.GH3666@dastard>
-References: <150732931273.22363.8436792888326501071.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150732934955.22363.14950885120988262779.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171009034030.GH3666@dastard>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 9 Oct 2017 10:08:40 -0700
-Message-ID: <CAPcyv4i6WBxfVJ0yqWbuW2kiJ-wpi+iYRPk=Kykqt3U5Rrw7MA@mail.gmail.com>
-Subject: Re: [PATCH v7 06/12] xfs: wire up MAP_DIRECT
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <af75f8aa-471d-34c5-8009-4009a8273989@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-xfs@vger.kernel.org, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, Linux API <linux-api@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, "J. Bruce Fields" <bfields@fieldses.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jeff Layton <jlayton@poochiereds.net>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Oct 8, 2017 at 8:40 PM, Dave Chinner <david@fromorbit.com> wrote:
+On Mon, Oct 09, 2017 at 09:54:53AM -0700, Dave Hansen wrote:
+> On 10/09/2017 09:09 AM, Kirill A. Shutemov wrote:
+> > Apart from trampoline itself we also need place to store top level page
+> > table in lower memory as we don't have a way to load 64-bit value into
+> > CR3 from 32-bit mode. We only really need 8-bytes there as we only use
+> > the very first entry of the page table.
+> 
+> Oh, and this is why you have to move "lvl5_pgtable" out of the kernel image?
 
-Thanks for the review Dave.
+Right. I initialize the new location of top level page table directly.
 
-> On Fri, Oct 06, 2017 at 03:35:49PM -0700, Dan Williams wrote:
->> MAP_DIRECT is an mmap(2) flag with the following semantics:
->>
->>   MAP_DIRECT
->>   When specified with MAP_SHARED_VALIDATE, sets up a file lease with the
->>   same lifetime as the mapping. Unlike a typical F_RDLCK lease this lease
->>   is broken when a "lease breaker" attempts to write(2), change the block
->>   map (fallocate), or change the size of the file. Otherwise the mechanism
->>   of a lease break is identical to the typical lease break case where the
->>   lease needs to be removed (munmap) within the number of seconds
->>   specified by /proc/sys/fs/lease-break-time. If the lease holder fails to
->>   remove the lease in time the kernel will invalidate the mapping and
->>   force all future accesses to the mapping to trigger SIGBUS.
->>
->>   In addition to lease break timeouts causing faults in the mapping to
->>   result in SIGBUS, other states of the file will trigger SIGBUS at fault
->>   time:
->>
->>       * The file is not DAX capable
->>       * The file has reflinked (copy-on-write) blocks
->>       * The fault would trigger the filesystem to allocate blocks
->>       * The fault would trigger the filesystem to perform extent conversion
->>
->>   In other words, MAP_DIRECT expects and enforces a fully allocated file
->>   where faults can be satisfied without modifying block map metadata.
->>
->>   An unprivileged process may establish a MAP_DIRECT mapping on a file
->>   whose UID (owner) matches the filesystem UID of the  process. A process
->>   with the CAP_LEASE capability may establish a MAP_DIRECT mapping on
->>   arbitrary files
->>
->>   ERRORS
->>   EACCES Beyond the typical mmap(2) conditions that trigger EACCES
->>   MAP_DIRECT also requires the permission to set a file lease.
->>
->>   EOPNOTSUPP The filesystem explicitly does not support the flag
->>
->>   SIGBUS Attempted to write a MAP_DIRECT mapping at a file offset that
->>          might require block-map updates, or the lease timed out and the
->>          kernel invalidated the mapping.
->>
->> Cc: Jan Kara <jack@suse.cz>
->> Cc: Arnd Bergmann <arnd@arndb.de>
->> Cc: Jeff Moyer <jmoyer@redhat.com>
->> Cc: Christoph Hellwig <hch@lst.de>
->> Cc: Dave Chinner <david@fromorbit.com>
->> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
->> Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
->> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
->> Cc: Jeff Layton <jlayton@poochiereds.net>
->> Cc: "J. Bruce Fields" <bfields@fieldses.org>
->> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
->> ---
->>  fs/xfs/Kconfig                  |    2 -
->>  fs/xfs/xfs_file.c               |  102 +++++++++++++++++++++++++++++++++++++++
->>  include/linux/mman.h            |    3 +
->>  include/uapi/asm-generic/mman.h |    1
->>  4 files changed, 106 insertions(+), 2 deletions(-)
->>
->> diff --git a/fs/xfs/Kconfig b/fs/xfs/Kconfig
->> index f62fc6629abb..f8765653a438 100644
->> --- a/fs/xfs/Kconfig
->> +++ b/fs/xfs/Kconfig
->> @@ -112,4 +112,4 @@ config XFS_ASSERT_FATAL
->>
->>  config XFS_LAYOUT
->>       def_bool y
->> -     depends on EXPORTFS_BLOCK_OPS
->> +     depends on EXPORTFS_BLOCK_OPS || FS_DAX
->> diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
->> index ebdd0bd2b261..e35518600e28 100644
->> --- a/fs/xfs/xfs_file.c
->> +++ b/fs/xfs/xfs_file.c
->> @@ -40,12 +40,22 @@
->>  #include "xfs_iomap.h"
->>  #include "xfs_reflink.h"
->>
->> +#include <linux/mman.h>
->>  #include <linux/dcache.h>
->>  #include <linux/falloc.h>
->>  #include <linux/pagevec.h>
->> +#include <linux/mapdirect.h>
->>  #include <linux/backing-dev.h>
->>
->>  static const struct vm_operations_struct xfs_file_vm_ops;
->> +static const struct vm_operations_struct xfs_file_vm_direct_ops;
->> +
->> +static inline bool
->> +is_xfs_map_direct(
->> +             struct vm_area_struct *vma)
->> +{
->> +     return vma->vm_ops == &xfs_file_vm_direct_ops;
->> +}
->
-> Namespacing (xfs_vma_is_direct) and whitespace damage.
+> > diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
+> > index cefe4958fda9..049a289342bd 100644
+> > --- a/arch/x86/boot/compressed/head_64.S
+> > +++ b/arch/x86/boot/compressed/head_64.S
+> > @@ -288,6 +288,22 @@ ENTRY(startup_64)
+> >  	leaq	boot_stack_end(%rbx), %rsp
+> >  
+> >  #ifdef CONFIG_X86_5LEVEL
+> > +/*
+> > + * We need trampoline in lower memory switch from 4- to 5-level paging for
+> > + * cases when bootloader put kernel above 4G, but didn't enable 5-level paging
+> > + * for us.
+> > + *
+> > + * Here we use MBR memory to store trampoline code.
+> > + *
+> > + * We also have to have top page table in lower memory as we don't have a way
+> > + * to load 64-bit value into CR3 from 32-bit mode. We only need 8-bytes there
+> > + * as we only use the very first entry of the page table.
+> > + *
+> > + * Here we use 0x7000 as top-level page table.
+> > + */
+> > +#define LVL5_TRAMPOLINE	0x7c00
+> > +#define LVL5_PGTABLE	0x7000
+> > +
+> >  	/* Preserve RBX across CPUID */
+> >  	movq	%rbx, %r8
+> >  
+> > @@ -323,29 +339,37 @@ ENTRY(startup_64)
+> >  	 * long mode would trigger #GP. So we need to switch off long mode
+> >  	 * first.
+> >  	 *
+> > -	 * NOTE: This is not going to work if bootloader put us above 4G
+> > -	 * limit.
+> > +	 * We use trampoline in lower memory to handle situation when
+> > +	 * bootloader put the kernel image above 4G.
+> >  	 *
+> >  	 * The first step is go into compatibility mode.
+> >  	 */
+> >  
+> > -	/* Clear additional page table */
+> > -	leaq	lvl5_pgtable(%rbx), %rdi
+> > -	xorq	%rax, %rax
+> > -	movq	$(PAGE_SIZE/8), %rcx
+> > -	rep	stosq
+> > +	/* Copy trampoline code in place */
+> > +	movq	%rsi, %r9
+> > +	leaq	lvl5_trampoline(%rip), %rsi
+> > +	movq	$LVL5_TRAMPOLINE, %rdi
+> > +	movq	$(lvl5_trampoline_end - lvl5_trampoline), %rcx
+> > +	rep	movsb
+> > +	movq	%r9, %rsi
+> 
+> This needs to get more heavily commented, like the use of r9 to stash
+> %rsi.  Why do you do that, btw?  I don't see it getting reused at first
+> glance.
 
-Will fix.
+%rsi holds pointer to real_mode_data. It need to be preserved.
 
->
->>
->>  /*
->>   * Clear the specified ranges to zero through either the pagecache or DAX.
->> @@ -1008,6 +1018,26 @@ xfs_file_llseek(
->>       return vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
->>  }
->>
->> +static int
->> +xfs_vma_checks(
->> +     struct vm_area_struct   *vma,
->> +     struct inode            *inode)
->
-> Exactly what are we checking for - function name doesn't tell me,
-> and there's no comments, either?
+I'll add more comments.
 
-Ok, I'll improve this.
+> I think it will also be really nice to differentate "lvl5_trampoline"
+> from "LVL5_TRAMPOLINE".  Maybe add "src" and "dst" to them or something.
 
->
->> +{
->> +     if (!is_xfs_map_direct(vma))
->> +             return 0;
->> +
->> +     if (!is_map_direct_valid(vma->vm_private_data))
->> +             return VM_FAULT_SIGBUS;
->> +
->> +     if (xfs_is_reflink_inode(XFS_I(inode)))
->> +             return VM_FAULT_SIGBUS;
->> +
->> +     if (!IS_DAX(inode))
->> +             return VM_FAULT_SIGBUS;
->
-> And how do we get is_xfs_map_direct() set to true if we don't have a
-> DAX inode or the inode has shared extents?
+Makes sense. Thanks.
 
-So, this was my way of trying to satisfy the request you made here:
+> >  	/*
+> > -	 * Setup current CR3 as the first and only entry in a new top level
+> > +	 * Setup current CR3 as the first and the only entry in a new top level
+> >  	 * page table.
+> >  	 */
+> >  	movq	%cr3, %rdi
+> >  	leaq	0x7 (%rdi), %rax
+> > -	movq	%rax, lvl5_pgtable(%rbx)
+> > +	movq	%rax, LVL5_PGTABLE
+> > +
+> > +	/*
+> > +	 * Load address of lvl5 into RDI.
+> > +	 * It will be used to return address from trampoline.
+> > +	 */
+> > +	leaq	lvl5(%rip), %rdi
+> 
+> Is there a reason to do a 'lea' here instead of just shoving the address
+> in directly?  Is this a shorter instruction or something?
 
-    https://lkml.org/lkml/2017/8/11/876
+This code can be loaded anywhere in memory and we need to calculate
+absolute address of the label here.
+AFAIK, "lea <label>(%rip), <register>" is idiomatic way to do this.
 
-i.e. allow MAP_DIRECT on non-dax files to enable a use case of
-freezing the block-map to examine which file extents are linked. If
-you don't want to use MAP_DIRECT for this, we can move these checks to
-mmap time.
+> >  	/* Switch to compatibility mode (CS.L = 0 CS.D = 1) via far return */
+> >  	pushq	$__KERNEL32_CS
+> > -	leaq	compatible_mode(%rip), %rax
+> > +	movq	$LVL5_TRAMPOLINE, %rax
+> >  	pushq	%rax
+> >  	lretq
+> >  lvl5:
+> > @@ -488,9 +512,9 @@ relocated:
+> >   */
+> >  	jmp	*%rax
+> >  
+> > -	.code32
+> >  #ifdef CONFIG_X86_5LEVEL
+> > -compatible_mode:
+> > +	.code32
+> > +lvl5_trampoline:
+> >  	/* Setup data and stack segments */
+> >  	movl	$__KERNEL_DS, %eax
+> >  	movl	%eax, %ds
+> > @@ -502,7 +526,7 @@ compatible_mode:
+> >  	movl	%eax, %cr0
+> >  
+> >  	/* Point CR3 to 5-level paging */
+> > -	leal	lvl5_pgtable(%ebx), %eax
+> > +	movl	$LVL5_PGTABLE, %eax
+> >  	movl	%eax, %cr3
+> >  
+> >  	/* Enable PAE and LA57 mode */
+> > @@ -510,14 +534,9 @@ compatible_mode:
+> >  	orl	$(X86_CR4_PAE | X86_CR4_LA57), %eax
+> >  	movl	%eax, %cr4
+> >  
+> > -	/* Calculate address we are running at */
+> > -	call	1f
+> > -1:	popl	%edi
+> > -	subl	$1b, %edi
+> > -
+> >  	/* Prepare stack for far return to Long Mode */
+> >  	pushl	$__KERNEL_CS
+> > -	leal	lvl5(%edi), %eax
+> > +	movl	$(lvl5_enabled - lvl5_trampoline + LVL5_TRAMPOLINE), %eax
+> 
+> This loads the trampoline address of "lvl5_enabled", right?  That'd be
+> handy to spell out explicitly.
 
->
->> +
->> +     return 0;
->> +}
->> +
->>  /*
->>   * Locking for serialisation of IO during page faults. This results in a lock
->>   * ordering of:
->> @@ -1024,6 +1054,7 @@ __xfs_filemap_fault(
->>       enum page_entry_size    pe_size,
->>       bool                    write_fault)
->>  {
->> +     struct vm_area_struct   *vma = vmf->vma;
->>       struct inode            *inode = file_inode(vmf->vma->vm_file);
->
-> You missed this vmf->vma....
->
-> .....
->>
->> +#define XFS_MAP_SUPPORTED (LEGACY_MAP_MASK | MAP_DIRECT)
->> +
->> +STATIC int
->> +xfs_file_mmap_validate(
->> +     struct file             *filp,
->> +     struct vm_area_struct   *vma,
->> +     unsigned long           map_flags,
->> +     int                     fd)
->> +{
->> +     struct inode            *inode = file_inode(filp);
->> +     struct xfs_inode        *ip = XFS_I(inode);
->> +     struct map_direct_state *mds;
->> +
->> +     if (map_flags & ~(XFS_MAP_SUPPORTED))
->> +             return -EOPNOTSUPP;
->> +
->> +     if ((map_flags & MAP_DIRECT) == 0)
->> +             return xfs_file_mmap(filp, vma);
->> +
->> +     file_accessed(filp);
->> +     vma->vm_ops = &xfs_file_vm_direct_ops;
->> +     if (IS_DAX(inode))
->> +             vma->vm_flags |= VM_MIXEDMAP | VM_HUGEPAGE;
->
-> And if it isn't a DAX inode? what is MAP_DIRECT supposed to do then?
+Yep, will do.
 
-In the non-DAX case it just takes the FL_LAYOUT file lease... although
-we could also just have an fcntl for that purpose. The use case of
-just freezing the block map does not need a mapping.
-
->> +     mds = map_direct_register(fd, vma);
->> +     if (IS_ERR(mds))
->> +             return PTR_ERR(mds);
->> +
->> +     /* flush in-flight faults */
->> +     xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
->> +     xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
->
-> Urk. That's nasty. And why is it even necessary? Please explain why
-> this is necessary in the comment, because it's not at all obvious to
-> me...
-
-This is related to your other observation about i_mapdcount and adding
-an iomap_can_allocate() helper. I think I can clean both of these up
-by using a call to break_layout(inode, false) and bailing in
-->iomap_begin() if it returns EWOULDBLOCK. This would also fix the
-current problem that allocating write-faults don't start the lease
-break process.
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
