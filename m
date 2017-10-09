@@ -1,95 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 78D3D6B0268
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 13:10:44 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id h200so4575215oib.18
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 10:10:44 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e65sor2085118oif.122.2017.10.09.10.10.43
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 09 Oct 2017 10:10:43 -0700 (PDT)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F9366B0260
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 13:13:37 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id d65so14188060oig.17
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 10:13:37 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id n18si519168otb.65.2017.10.09.10.13.35
+        for <linux-mm@kvack.org>;
+        Mon, 09 Oct 2017 10:13:35 -0700 (PDT)
+Date: Mon, 9 Oct 2017 18:13:37 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v9 09/12] mm/kasan: kasan specific map populate function
+Message-ID: <20171009171337.GE30085@arm.com>
+References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
+ <20170920201714.19817-10-pasha.tatashin@oracle.com>
+ <20171003144845.GD4931@leverpostej>
 MIME-Version: 1.0
-In-Reply-To: <20171009034506.GI3666@dastard>
-References: <150732931273.22363.8436792888326501071.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150732936625.22363.7638037715540836828.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171009034506.GI3666@dastard>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 9 Oct 2017 10:10:42 -0700
-Message-ID: <CAPcyv4jGgrrwrvd7ExyG6BNKemWg7yvtAG7wyUm64SwtNn70cw@mail.gmail.com>
-Subject: Re: [PATCH v7 09/12] xfs: wire up ->lease_direct()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171003144845.GD4931@leverpostej>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-xfs@vger.kernel.org, Jan Kara <jack@suse.cz>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, Linux API <linux-api@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, "J. Bruce Fields" <bfields@fieldses.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jeff Layton <jlayton@poochiereds.net>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Pavel Tatashin <pasha.tatashin@oracle.com>, catalin.marinas@arm.com, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On Sun, Oct 8, 2017 at 8:45 PM, Dave Chinner <david@fromorbit.com> wrote:
-> On Fri, Oct 06, 2017 at 03:36:06PM -0700, Dan Williams wrote:
->> A 'lease_direct' lease requires that the vma have a valid MAP_DIRECT
->> mapping established. For xfs we establish a new lease and then check if
->> the MAP_DIRECT mapping has been broken. We want to be sure that the
->> process will receive notification that the MAP_DIRECT mapping is being
->> torn down so it knows why other code paths are throwing failures.
->>
->> For example in the RDMA/ibverbs case we want ibv_reg_mr() to fail if the
->> MAP_DIRECT mapping is invalid or in the process of being invalidated.
->>
->> Cc: Jan Kara <jack@suse.cz>
->> Cc: Jeff Moyer <jmoyer@redhat.com>
->> Cc: Christoph Hellwig <hch@lst.de>
->> Cc: Dave Chinner <david@fromorbit.com>
->> Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
->> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
->> Cc: Jeff Layton <jlayton@poochiereds.net>
->> Cc: "J. Bruce Fields" <bfields@fieldses.org>
->> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
->> ---
->>  fs/xfs/xfs_file.c |   28 ++++++++++++++++++++++++++++
->>  1 file changed, 28 insertions(+)
->>
->> diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
->> index e35518600e28..823b65f17429 100644
->> --- a/fs/xfs/xfs_file.c
->> +++ b/fs/xfs/xfs_file.c
->> @@ -1166,6 +1166,33 @@ xfs_filemap_direct_close(
->>       put_map_direct_vma(vma->vm_private_data);
->>  }
->>
->> +static struct lease_direct *
->> +xfs_filemap_direct_lease(
->> +     struct vm_area_struct   *vma,
->> +     void                    (*break_fn)(void *),
->> +     void                    *owner)
->> +{
->> +     struct lease_direct     *ld;
->> +
->> +     ld = map_direct_lease(vma, break_fn, owner);
->> +
->> +     if (IS_ERR(ld))
->> +             return ld;
->> +
->> +     /*
->> +      * We now have an established lease while the base MAP_DIRECT
->> +      * lease was not broken. So, we know that the "lease holder" will
->> +      * receive a SIGIO notification when the lease is broken and
->> +      * take any necessary cleanup actions.
->> +      */
->> +     if (!is_map_direct_broken(vma->vm_private_data))
->> +             return ld;
->> +
->> +     map_direct_lease_destroy(ld);
->> +
->> +     return ERR_PTR(-ENXIO);
->
-> What's any of this got to do with XFS? Shouldn't it be in generic
-> code, and called generic_filemap_direct_lease()?
+On Tue, Oct 03, 2017 at 03:48:46PM +0100, Mark Rutland wrote:
+> On Wed, Sep 20, 2017 at 04:17:11PM -0400, Pavel Tatashin wrote:
+> > During early boot, kasan uses vmemmap_populate() to establish its shadow
+> > memory. But, that interface is intended for struct pages use.
+> > 
+> > Because of the current project, vmemmap won't be zeroed during allocation,
+> > but kasan expects that memory to be zeroed. We are adding a new
+> > kasan_map_populate() function to resolve this difference.
+> 
+> Thanks for putting this together.
+> 
+> I've given this a spin on arm64, and can confirm that it works.
+> 
+> Given that this involes redundant walking of page tables, I still think
+> it'd be preferable to have some common *_populate() helper that took a
+> gfp argument, but I guess it's not the end of the world.
+> 
+> I'll leave it to Will and Catalin to say whether they're happy with the
+> page table walking and the new p{u,m}d_large() helpers added to arm64.
 
-True, I can move this to generic code. The filesystem is in charge of
-where it wants to store the 'struct map_direct_state' context, but for
-generic_filemap_direct_lease() it can just assume that it is stored in
-->vm_private_data. I'll add comments to this effect on the new
-routine.
+To be honest, it just looks completely backwards to me; we're walking the
+page tables we created earlier on so that we can figure out what needs to
+be zeroed for KASAN. We already had that information before, hence my
+preference to allow propagation of GFP_FLAGs to vmemmap_alloc_block when
+it's needed. I know that's not popular for some reason, but is walking the
+page tables really better?
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
