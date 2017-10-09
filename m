@@ -1,87 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 57D676B0069
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 07:36:49 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id m189so16585089itg.0
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 04:36:49 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 29sor1804364iog.139.2017.10.09.04.36.48
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E9186B025E
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 08:28:24 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id z80so16472359pff.1
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 05:28:24 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j185si6217437pgc.543.2017.10.09.05.28.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 09 Oct 2017 04:36:48 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 09 Oct 2017 05:28:22 -0700 (PDT)
+Date: Mon, 9 Oct 2017 14:28:17 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC] [PATCH] mm,oom: Offload OOM notify callback to a kernel
+ thread.
+Message-ID: <20171009122817.t2kd7pcqmh3xaay5@dhcp22.suse.cz>
+References: <201710022252.DDJ51535.JFQSLFHFVOtOOM@I-love.SAKURA.ne.jp>
+ <20171002171641-mutt-send-email-mst@kernel.org>
+ <201710022344.JII17368.HQtLOMJOOSFFVF@I-love.SAKURA.ne.jp>
+ <201710072030.HGE12424.HFFMVLJOOStFQO@I-love.SAKURA.ne.jp>
+ <20171009074625.b7qztlyoa4u7lyy7@dhcp22.suse.cz>
+ <201710091706.FAG81243.MOFLSJVtQFOFOH@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20171009110332.GG17917@quack2.suse.cz>
-References: <CALOAHbAS_DyhOarH0ZEBWfmB_3wvEV2WA_k_UzUe7b+QRAQ=6A@mail.gmail.com>
- <20171009110332.GG17917@quack2.suse.cz>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Mon, 9 Oct 2017 19:36:48 +0800
-Message-ID: <CALOAHbBchSdqQ0ab6NMSPT+19-yR0YjUZS3Kh_9A2F=gVzNtew@mail.gmail.com>
-Subject: Re: [PATCH] mm/page-writeback.c: fix bug caused by disable periodic writeback
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201710091706.FAG81243.MOFLSJVtQFOFOH@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, Johannes Weiner <hannes@cmpxchg.org>, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, Theodore Ts'o <tytso@mit.edu>, mawilcox@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, axboe@kernel.dk
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mst@redhat.com, linux-mm@kvack.org
 
-2017-10-09 19:03 GMT+08:00 Jan Kara <jack@suse.cz>:
-> On Mon 09-10-17 18:44:23, Yafang Shao wrote:
->> 2017-10-09 17:56 GMT+08:00 Jan Kara <jack@suse.cz>:
->> > On Sat 07-10-17 06:58:04, Yafang Shao wrote:
->> >> After disable periodic writeback by writing 0 to
->> >> dirty_writeback_centisecs, the handler wb_workfn() will not be
->> >> entered again until the dirty background limit reaches or
->> >> sync syscall is executed or no enough free memory available or
->> >> vmscan is triggered.
->> >> So the periodic writeback can't be enabled by writing a non-zero
->> >> value to dirty_writeback_centisecs
->> >> As it can be disabled by sysctl, it should be able to enable by
->> >> sysctl as well.
->> >>
->> >> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
->> >> ---
->> >>  mm/page-writeback.c | 8 +++++++-
->> >>  1 file changed, 7 insertions(+), 1 deletion(-)
->> >>
->> >> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
->> >> index 0b9c5cb..e202f37 100644
->> >> --- a/mm/page-writeback.c
->> >> +++ b/mm/page-writeback.c
->> >> @@ -1972,7 +1972,13 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
->> >>  int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
->> >>       void __user *buffer, size_t *length, loff_t *ppos)
->> >>  {
->> >> -     proc_dointvec(table, write, buffer, length, ppos);
->> >> +     unsigned int old_interval = dirty_writeback_interval;
->> >> +     int ret;
->> >> +
->> >> +     ret = proc_dointvec(table, write, buffer, length, ppos);
->> >> +     if (!ret && !old_interval && dirty_writeback_interval)
->> >> +             wakeup_flusher_threads(0, WB_REASON_PERIODIC);
->> >> +
->> >
->> > I agree it is good to schedule some writeback. However Jens has some
->> > changes queued in linux-block tree in this area so your change won't apply.
->> > So please base your changes on his tree.
->> >
->>
->> Do you mean this tree
->> git://git.kernel.org/pub/scm/linux/kernel/git/axboe/linux-block.git ?
->>
->> I have checked his tree and find nothing need to change on my patch.
->
-> Yes, I mean that tree. Check the wb_start_all branch.
->
+On Mon 09-10-17 17:06:51, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Sat 07-10-17 20:30:19, Tetsuo Handa wrote:
+> > [...]
+> > > >From 6a0fd8a5e013ac63a6bcd06bd2ae6fdb25a4f3de Mon Sep 17 00:00:00 2001
+> > > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > > Date: Sat, 7 Oct 2017 19:29:21 +0900
+> > > Subject: [PATCH] virtio: avoid possible OOM lockup at virtballoon_oom_notify()
+> > > 
+> > > In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
+> > > serialize against fill_balloon(). But in fill_balloon(),
+> > > alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
+> > > called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE]
+> > > implies __GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, despite __GFP_NORETRY
+> > > is specified, this allocation attempt might depend on somebody else's
+> > > __GFP_DIRECT_RECLAIM memory allocation.
+> > 
+> > How would that dependency look like? Is the holder of the lock doing
+> > only __GFP_NORETRY?
+> 
+> __GFP_NORETRY makes difference only after reclaim attempt failed.
+> 
+> Reclaim attempt of __GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS request can
+> indirectly wait for somebody else's GFP_NOFS and/or GFP_NOIO request (e.g.
+> blocked on filesystem's fs lock). And such indirect GFP_NOFS and/or
+> GFP_NOIO request can reach __alloc_pages_may_oom() unless they also have
+> __GFP_NORETRY. And such indirect GFP_NOFS and/or GFP_NOIO request can call
+> OOM notifier callback and try to hold balloon_lock at leak_balloon() which
+> fill_balloon() has already held before doing
+> GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY request.
 
-Got it!
-I will implement it base on this branch.
+OK, so let me decipher.
+ Thread1				Thread2						Thread3
+ alloc_pages(GFP_KERNEL)		  fill_balloon					fs_lock #1	
+   out_of_memory			    balloon_lock #2				alloc_page(GFP_NOFS)
+     blocking_notifier_call_chain	    balloon_page_enqueue			  # keep retrying
+       leak_balloon			      alloc_page(GFP_HIGHUSER_MOVABLE)
+         balloon_lock #2		        direct_reclaim (__GFP_FS context)
+	 				          fs_lock #1
 
->                                                                 Honza
-> --
-> Jan Kara <jack@suse.com>
-> SUSE Labs, CR
+in other words, let's make the description understandable even for
+somebody not really familiar with the allocation&reclaim internals.
+The whole point is that the dependency is indirect and it requires
+more actors and an example call grapg should be easier to follow.
 
-Thanks
-Yafang
+One more nit. If there is a way to estimate how much memory could be
+freed by the notifier when the trylock would succeed I would print that
+value for debugging purposes.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
