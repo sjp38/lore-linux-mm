@@ -1,68 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DE2DB6B025E
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 16:23:37 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id p2so23741167pfk.0
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 13:23:37 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id u19si7546994pfg.51.2017.10.09.13.23.36
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 58FFD6B025E
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 16:26:22 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 136so29378022wmu.3
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 13:26:22 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id g31si1024151edc.336.2017.10.09.13.26.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Oct 2017 13:23:36 -0700 (PDT)
-Subject: Re: [PATCH] page_alloc.c: inline __rmqueue()
-References: <20171009054434.GA1798@intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <3a46edcf-88f8-e4f4-8b15-3c02620308e4@intel.com>
-Date: Mon, 9 Oct 2017 13:23:34 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 09 Oct 2017 13:26:21 -0700 (PDT)
+Date: Mon, 9 Oct 2017 16:26:13 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
+Message-ID: <20171009202613.GA15027@cmpxchg.org>
+References: <20171005222144.123797-1-shakeelb@google.com>
+ <20171006075900.icqjx5rr7hctn3zd@dhcp22.suse.cz>
+ <CALvZod7YN4JCG7Anm2FViyZ0-APYy+nxEd3nyxe5LT_P0FC9wg@mail.gmail.com>
+ <20171009062426.hmqedtqz5hkmhnff@dhcp22.suse.cz>
+ <xr93a810xl77.fsf@gthelen.svl.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20171009054434.GA1798@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <xr93a810xl77.fsf@gthelen.svl.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On 10/08/2017 10:44 PM, Aaron Lu wrote:
-> __rmqueue() is called by rmqueue_bulk() and rmqueue() under zone->lock
-> and that lock can be heavily contended with memory intensive applications.
+On Mon, Oct 09, 2017 at 10:52:44AM -0700, Greg Thelen wrote:
+> Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> > On Fri 06-10-17 12:33:03, Shakeel Butt wrote:
+> >> >>       names_cachep = kmem_cache_create("names_cache", PATH_MAX, 0,
+> >> >> -                     SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
+> >> >> +                     SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT, NULL);
+> >> >
+> >> > I might be wrong but isn't name cache only holding temporary objects
+> >> > used for path resolution which are not stored anywhere?
+> >> >
+> >> 
+> >> Even though they're temporary, many containers can together use a
+> >> significant amount of transient uncharged memory. We've seen machines
+> >> with 100s of MiBs in names_cache.
+> >
+> > Yes that might be possible but are we prepared for random ENOMEM from
+> > vfs calls which need to allocate a temporary name?
+> >
+> >> 
+> >> >>       filp_cachep = kmem_cache_create("filp", sizeof(struct file), 0,
+> >> >> -                     SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
+> >> >> +                     SLAB_HWCACHE_ALIGN | SLAB_PANIC | SLAB_ACCOUNT, NULL);
+> >> >>       percpu_counter_init(&nr_files, 0, GFP_KERNEL);
+> >> >>  }
+> >> >
+> >> > Don't we have a limit for the maximum number of open files?
+> >> >
+> >> 
+> >> Yes, there is a system limit of maximum number of open files. However
+> >> this limit is shared between different users on the system and one
+> >> user can hog this resource. To cater that, we set the maximum limit
+> >> very high and let the memory limit of each user limit the number of
+> >> files they can open.
+> >
+> > Similarly here. Are all syscalls allocating a fd prepared to return
+> > ENOMEM?
+> >
+> > -- 
+> > Michal Hocko
+> > SUSE Labs
+> 
+> Even before this patch I find memcg oom handling inconsistent.  Page
+> cache pages trigger oom killer and may allow caller to succeed once the
+> kernel retries.  But kmem allocations don't call oom killer.
 
-What does "memory intensive" mean?  I'd probably just say: "The two
-__rmqueue() call sites are in very hot page allocator paths."
+It's consistent in the sense that only page faults enable the memcg
+OOM killer. It's not the type of memory that decides, it's whether the
+allocation context has a channel to communicate an error to userspace.
 
-> Since __rmqueue() is a small function, inline it can save us some time.
-> With the will-it-scale/page_fault1/process benchmark, when using nr_cpu
-> processes to stress buddy:
+Whether userspace is able to handle -ENOMEM from syscalls was a voiced
+concern at the time this patch was merged, although there haven't been
+any reports so far, and it seemed like the lesser evil between that
+and deadlocking the kernel.
 
-Please include a description of the test and a link to the source.
+If we could find a way to invoke the OOM killer safely, I would
+welcome such patches.
 
-> On a 2 sockets Intel-Skylake machine:
->       base          %change       head
->      77342            +6.3%      82203        will-it-scale.per_process_ops
+> They surface errors to user space.  This makes memcg hard to use for
+> memory overcommit because it's desirable for a high priority task to
+> transparently kill a lower priority task using the memcg oom killer.
+> 
+> A few ideas on how to make it more flexible:
+> 
+> a) Go back to memcg oom killing within memcg charging.  This runs risk
+>    of oom killing while caller holds locks which oom victim selection or
+>    oom victim termination may need.  Google's been running this way for
+>    a while.
 
-What's the unit here?  That seems ridiculously low for page_fault1.
-It's usually in the millions.
+We've had real-life reports of this breaking, so even if it works for
+some people, I'd rather not revert to that way of doing things.
 
-> On a 4 sockets Intel-Skylake machine:
->       base          %change       head
->      75746            +4.6%      79248        will-it-scale.per_process_ops
+> b) Have every syscall return do something similar to page fault handler:
+>    kmem allocations in oom memcg mark the current task as needing an oom
+>    check return NULL.  If marked oom, syscall exit would use
+>    mem_cgroup_oom_synchronize() before retrying the syscall.  Seems
+>    risky.  I doubt every syscall is compatible with such a restart.
 
-It's probably worth noting the reason that this is _less_ beneficial on
-a larger system.
+That sounds like a lateral move.
 
-I'd also just put this in text rather than wasting space in tables like
-that.  It took me a few minutes to figure out what the table was trying
-top say.  This is one of those places where LKP output is harmful.
+> c) Overcharge kmem to oom memcg and queue an async memcg limit checker,
+>    which will oom kill if needed.
 
-Why not just say:
-
-	This patch improved the benchmark by 6.3% on a 2-socket system
-	and 4.6% on a 4-socket system.
-
-> This patch adds inline to __rmqueue().
-
-How much text bloat does this cost?
+This makes the most sense to me. Architecturally, I imagine this would
+look like b), with an OOM handler at the point of return to userspace,
+except that we'd overcharge instead of retrying the syscall.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
