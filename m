@@ -1,81 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B0C226B0260
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 14:39:16 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id n82so8226144oig.1
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 11:39:16 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 74si4096478oib.478.2017.10.09.11.39.15
-        for <linux-mm@kvack.org>;
-        Mon, 09 Oct 2017 11:39:15 -0700 (PDT)
-Date: Mon, 9 Oct 2017 19:37:34 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH v2 1/3] kcov: support comparison operands collection
-Message-ID: <20171009183734.GA7784@leverpostej>
-References: <20171009150521.82775-1-glider@google.com>
- <20171009154610.GA22534@leverpostej>
- <CACT4Y+Y_79MQVHg--92AJFk3_9XoLgaM2zF3zK5ErfnH-zNcPw@mail.gmail.com>
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 662496B0260
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 14:42:37 -0400 (EDT)
+Received: by mail-ua0-f200.google.com with SMTP id a47so16848749uai.10
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 11:42:37 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id d22si6503304itb.204.2017.10.09.11.42.36
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Oct 2017 11:42:36 -0700 (PDT)
+Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
+	by userp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with ESMTP id v99IgZHV026772
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Mon, 9 Oct 2017 18:42:35 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id v99IgYSf030388
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Mon, 9 Oct 2017 18:42:34 GMT
+Received: from abhmp0006.oracle.com (abhmp0006.oracle.com [141.146.116.12])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id v99IgYMR004842
+	for <linux-mm@kvack.org>; Mon, 9 Oct 2017 18:42:34 GMT
+Received: by mail-oi0-f45.google.com with SMTP id m198so28924683oig.5
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 11:42:34 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACT4Y+Y_79MQVHg--92AJFk3_9XoLgaM2zF3zK5ErfnH-zNcPw@mail.gmail.com>
+In-Reply-To: <20171009182217.GC30828@arm.com>
+References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
+ <20170920201714.19817-10-pasha.tatashin@oracle.com> <20171003144845.GD4931@leverpostej>
+ <20171009171337.GE30085@arm.com> <CAOAebxtHHFvYn4WysMASe1GqvgKYPVyjJ572UM3Sef5sP0hi9A@mail.gmail.com>
+ <20171009182217.GC30828@arm.com>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Mon, 9 Oct 2017 14:42:32 -0400
+Message-ID: <CAOAebxu1310eCrk88EC=Oaw3n90-9RuHZ1KBhPvLu_DyXBNZFQ@mail.gmail.com>
+Subject: Re: [PATCH v9 09/12] mm/kasan: kasan specific map populate function
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Popov <alex.popov@linux.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, andreyknvl <andreyknvl@google.com>, Kees Cook <keescook@chromium.org>, Vegard Nossum <vegard.nossum@oracle.com>, syzkaller <syzkaller@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Mark Rutland <mark.rutland@arm.com>, catalin.marinas@arm.com, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, sam@ravnborg.org, mgorman@techsingularity.net, Steve Sistare <steven.sistare@oracle.com>, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On Mon, Oct 09, 2017 at 08:15:10PM +0200, 'Dmitry Vyukov' via syzkaller wrote:
-> On Mon, Oct 9, 2017 at 5:46 PM, Mark Rutland <mark.rutland@arm.com> wrote:
-> > On Mon, Oct 09, 2017 at 05:05:19PM +0200, Alexander Potapenko wrote:
+Hi Will,
 
-> > ... I note that a few places in the kernel use a 128-bit type. Are
-> > 128-bit comparisons not instrumented?
-> 
-> Yes, they are not instrumented.
-> How many are there? Can you give some examples?
+In addition to what Michal wrote:
 
->From a quick scan, it doesn't looks like there are currently any
-comparisons.
+> As an interim step, why not introduce something like
+> vmemmap_alloc_block_flags and make the page-table walking opt-out for
+> architectures that don't want it? Then we can just pass __GFP_ZERO from
+> our vmemmap_populate where necessary and other architectures can do the
+> page-table walking dance if they prefer.
 
-It's used as a data type in a few places under arm64:
+I do not see the benefit, implementing this approach means that we
+would need to implement two table walks instead of one: one for x86,
+another for ARM, as these two architectures support kasan. Also, this
+would become a requirement for any future architecture that want to
+add kasan support to add this page table walk implementation.
 
-arch/arm64/include/asm/checksum.h:      __uint128_t tmp;
-arch/arm64/include/asm/checksum.h:      tmp = *(const __uint128_t *)iph;
-arch/arm64/include/asm/fpsimd.h:                        __uint128_t vregs[32];
-arch/arm64/include/uapi/asm/ptrace.h:   __uint128_t     vregs[32];
-arch/arm64/include/uapi/asm/sigcontext.h:       __uint128_t vregs[32];
-arch/arm64/kernel/signal32.c:   __uint128_t     raw;
-arch/arm64/kvm/guest.c: __uint128_t tmp;
+>> IMO, while I understand that it looks strange that we must walk page
+>> table after creating it, it is a better approach: more enclosed as it
+>> effects kasan only, and more universal as it is in common code.
+>
+> I don't buy the more universal aspect, but I appreciate it's subjective.
+> Frankly, I'd just sooner not have core code walking early page tables if
+> it can be avoided, and it doesn't look hard to avoid it in this case.
+> The fact that you're having to add pmd_large and pud_large, which are
+> otherwise unused in mm/, is an indication that this isn't quite right imo.
 
-[...]
+ 28 +#define pmd_large(pmd)         pmd_sect(pmd)
+ 29 +#define pud_large(pud)         pud_sect(pud)
 
-> >> +     area = t->kcov_area;
-> >> +     /* The first 64-bit word is the number of subsequent PCs. */
-> >> +     pos = READ_ONCE(area[0]) + 1;
-> >> +     if (likely(pos < t->kcov_size)) {
-> >> +             area[pos] = ip;
-> >> +             WRITE_ONCE(area[0], pos);
-> >
-> > Not a new problem, but if the area for one thread is mmap'd, and read by
-> > another thread, these two writes could be seen out-of-order, since we
-> > don't have an smp_wmb() between them.
-> >
-> > I guess Syzkaller doesn't read the mmap'd kcov file from another thread?
-> 
-> 
-> Yes, that's the intention. If you read coverage from another thread,
-> you can't know coverage from what exactly you read. So the usage
-> pattern is:
-> 
-> reset coverage;
-> do something;
-> read coverage;
+it is just naming difference, ARM64 calls them pmd_sect, common mm and
+other arches call them
+pmd_large/pud_large. Even the ARM has these defines in
 
-Ok. I guess without a use-case for reading this from another thread it doesn't
-really matter.
+arm/include/asm/pgtable-3level.h
+arm/include/asm/pgtable-2level.h
 
-Thanks,
-Mark.
+Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
