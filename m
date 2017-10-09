@@ -1,63 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 11F666B025E
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 01:44:38 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id t63so17920783pfi.5
-        for <linux-mm@kvack.org>; Sun, 08 Oct 2017 22:44:38 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id n5si6143199pfn.150.2017.10.08.22.44.36
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C43C06B025E
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 02:08:46 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id 97so7264445iok.19
+        for <linux-mm@kvack.org>; Sun, 08 Oct 2017 23:08:46 -0700 (PDT)
+Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id v6si4144654qkd.105.2017.10.08.23.08.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 08 Oct 2017 22:44:37 -0700 (PDT)
-Date: Mon, 9 Oct 2017 13:44:35 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: [PATCH] page_alloc.c: inline __rmqueue()
-Message-ID: <20171009054434.GA1798@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 08 Oct 2017 23:08:45 -0700 (PDT)
+Subject: Re: [PATCH v2 1/1] mm: only dispaly online cpus of the numa node
+References: <1506678805-15392-1-git-send-email-thunder.leizhen@huawei.com>
+ <1506678805-15392-2-git-send-email-thunder.leizhen@huawei.com>
+ <20171002103806.GB3823@arm.com>
+ <20171002145446.eade11c1f28d55e5f67aa4d0@linux-foundation.org>
+ <20171003134726.GC26552@arm.com>
+ <20171003135628.xqhvr3rg7s5aymeq@dhcp22.suse.cz>
+From: "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>
+Message-ID: <59DB1200.40106@huawei.com>
+Date: Mon, 9 Oct 2017 14:06:56 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20171003135628.xqhvr3rg7s5aymeq@dhcp22.suse.cz>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>
+To: Michal Hocko <mhocko@kernel.org>, Will Deacon <will.deacon@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-api <linux-api@vger.kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm <linux-mm@kvack.org>, Tianhong Ding <dingtianhong@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Libin <huawei.libin@huawei.com>, Kefeng Wang <wangkefeng.wang@huawei.com>
 
-__rmqueue() is called by rmqueue_bulk() and rmqueue() under zone->lock
-and that lock can be heavily contended with memory intensive applications.
 
-Since __rmqueue() is a small function, inline it can save us some time.
-With the will-it-scale/page_fault1/process benchmark, when using nr_cpu
-processes to stress buddy:
 
-On a 2 sockets Intel-Skylake machine:
-      base          %change       head
-     77342            +6.3%      82203        will-it-scale.per_process_ops
+On 2017/10/3 21:56, Michal Hocko wrote:
+> On Tue 03-10-17 14:47:26, Will Deacon wrote:
+>> On Mon, Oct 02, 2017 at 02:54:46PM -0700, Andrew Morton wrote:
+>>> On Mon, 2 Oct 2017 11:38:07 +0100 Will Deacon <will.deacon@arm.com> wrote:
+>>>
+>>>>> When I executed numactl -H(which read /sys/devices/system/node/nodeX/cpumap
+>>>>> and display cpumask_of_node for each node), but I got different result on
+>>>>> X86 and arm64. For each numa node, the former only displayed online CPUs,
+>>>>> and the latter displayed all possible CPUs. Unfortunately, both Linux
+>>>>> documentation and numactl manual have not described it clear.
+>>>>>
+>>>>> I sent a mail to ask for help, and Michal Hocko <mhocko@kernel.org> replied
+>>>>> that he preferred to print online cpus because it doesn't really make much
+>>>>> sense to bind anything on offline nodes.
+>>>>>
+>>>>> Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
+>>>>> Acked-by: Michal Hocko <mhocko@suse.com>
+>>>>> ---
+>>>>>  drivers/base/node.c | 12 ++++++++++--
+>>>>>  1 file changed, 10 insertions(+), 2 deletions(-)
+>>>>
+>>>> Which tree is this intended to go through? I'm happy to take it via arm64,
+>>>> but I don't want to tread on anybody's toes in linux-next and it looks like
+>>>> there are already queued changes to this file via Andrew's tree.
+>>>
+>>> I grabbed it.  I suppose there's some small risk of userspace breakage
+>>> so I suggest it be a 4.15-rc1 thing?
+>>
+>> To be honest, I suspect the vast majority (if not all) code that reads this
+>> file was developed for x86, so having the same behaviour for arm64 sounds
+>> like something we should do ASAP before people try to special case with
+>> things like #ifdef __aarch64__.
+>>
+>> I'd rather have this in 4.14 if possible.
+> 
+> Agreed!
+> 
 
-On a 4 sockets Intel-Skylake machine:
-      base          %change       head
-     75746            +4.6%      79248        will-it-scale.per_process_ops
++1
 
-This patch adds inline to __rmqueue().
-
-Signed-off-by: Aaron Lu <aaron.lu@intel.com>
----
- mm/page_alloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 0e309ce4a44a..c9605c7ebaf6 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2291,7 +2291,7 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
-  * Do the hard work of removing an element from the buddy allocator.
-  * Call me with the zone->lock already held.
-  */
--static struct page *__rmqueue(struct zone *zone, unsigned int order,
-+static inline struct page *__rmqueue(struct zone *zone, unsigned int order,
- 				int migratetype)
- {
- 	struct page *page;
 -- 
-2.13.6
+Thanks!
+BestRegards
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
