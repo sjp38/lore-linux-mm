@@ -1,65 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 347726B026E
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 14:22:17 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id 37so14299018qto.2
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 11:22:17 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id i7si3929880oif.14.2017.10.09.11.22.16
-        for <linux-mm@kvack.org>;
-        Mon, 09 Oct 2017 11:22:16 -0700 (PDT)
-Date: Mon, 9 Oct 2017 19:22:17 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v9 09/12] mm/kasan: kasan specific map populate function
-Message-ID: <20171009182217.GC30828@arm.com>
-References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
- <20170920201714.19817-10-pasha.tatashin@oracle.com>
- <20171003144845.GD4931@leverpostej>
- <20171009171337.GE30085@arm.com>
- <CAOAebxtHHFvYn4WysMASe1GqvgKYPVyjJ572UM3Sef5sP0hi9A@mail.gmail.com>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E3EB66B0033
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 14:26:59 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id r68so15968489wmr.6
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 11:26:59 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m18si6876739wmc.37.2017.10.09.11.26.58
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 09 Oct 2017 11:26:58 -0700 (PDT)
+Date: Mon, 9 Oct 2017 20:26:56 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC] a question about mlockall() and mprotect()
+Message-ID: <20171009182656.ynu7tdzb5uwp5xnr@dhcp22.suse.cz>
+References: <59CA0847.8000508@huawei.com>
+ <20170926081716.xo375arjoyu5ytcb@dhcp22.suse.cz>
+ <59CA125C.8000801@huawei.com>
+ <20170926090255.jmocezs6s3lpd6p4@dhcp22.suse.cz>
+ <59CA1A57.5000905@huawei.com>
+ <59CA1C6E.4010501@huawei.com>
+ <6b38ed08-62cb-97b1-9f16-1fd8e272b137@suse.cz>
+ <20170926110012.jiw6plglsyksj5mc@dhcp22.suse.cz>
+ <59CB3C4D.9090609@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAOAebxtHHFvYn4WysMASe1GqvgKYPVyjJ572UM3Sef5sP0hi9A@mail.gmail.com>
+In-Reply-To: <59CB3C4D.9090609@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, catalin.marinas@arm.com, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, sam@ravnborg.org, mgorman@techsingularity.net, Steve Sistare <steven.sistare@oracle.com>, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, zhong jiang <zhongjiang@huawei.com>, yeyunfeng <yeyunfeng@huawei.com>, wanghaitao12@huawei.com, "Zhoukang (A)" <zhoukang7@huawei.com>
 
-Hi Pavel,
-
-On Mon, Oct 09, 2017 at 01:51:47PM -0400, Pavel Tatashin wrote:
-> I can go back to that approach, if Michal OK with it. But, that would
-> mean that I would need to touch every single architecture that
-> implements vmemmap_populate(), and also pass flags at least through
-> these functions on every architectures (some have more than one
-> decided by configs).:
+On Wed 27-09-17 13:51:09, Xishi Qiu wrote:
+> On 2017/9/26 19:00, Michal Hocko wrote:
 > 
-> vmemmap_populate()
-> vmemmap_populate_basepages()
-> vmemmap_populate_hugepages()
-> vmemmap_pte_populate()
-> __vmemmap_alloc_block_buf()
-> alloc_block_buf()
-> vmemmap_alloc_block()
+> > On Tue 26-09-17 11:45:16, Vlastimil Babka wrote:
+> >> On 09/26/2017 11:22 AM, Xishi Qiu wrote:
+> >>> On 2017/9/26 17:13, Xishi Qiu wrote:
+> >>>>> This is still very fuzzy. What are you actually trying to achieve?
+> >>>>
+> >>>> I don't expect page fault any more after mlock.
+> >>>>
+> >>>
+> >>> Our apps is some thing like RT, and page-fault maybe cause a lot of time,
+> >>> e.g. lock, mem reclaim ..., so I use mlock and don't want page fault
+> >>> any more.
+> >>
+> >> Why does your app then have restricted mprotect when calling mlockall()
+> >> and only later adjusts the mprotect?
+> > 
+> > Ahh, OK I see what is goging on. So you have PROT_NONE vma at the time
+> > mlockall and then later mprotect it something else and want to fault all
+> > that memory at the mprotect time?
+> > 
+> > So basically to do
+> > ---
+> > diff --git a/mm/mprotect.c b/mm/mprotect.c
+> > index 6d3e2f082290..b665b5d1c544 100644
+> > --- a/mm/mprotect.c
+> > +++ b/mm/mprotect.c
+> > @@ -369,7 +369,7 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
+> >  	 * Private VM_LOCKED VMA becoming writable: trigger COW to avoid major
+> >  	 * fault on access.
+> >  	 */
+> > -	if ((oldflags & (VM_WRITE | VM_SHARED | VM_LOCKED)) == VM_LOCKED &&
+> > +	if ((oldflags & (VM_WRITE | VM_LOCKED)) == VM_LOCKED &&
+> >  			(newflags & VM_WRITE)) {
+> >  		populate_vma_page_range(vma, start, end, NULL);
+> >  	}
+> > 
+> 
+> Hi Michal,
+> 
+> My kernel is v3.10, and I missed this code, thank you reminding me.
 
-As an interim step, why not introduce something like
-vmemmap_alloc_block_flags and make the page-table walking opt-out for
-architectures that don't want it? Then we can just pass __GFP_ZERO from
-our vmemmap_populate where necessary and other architectures can do the
-page-table walking dance if they prefer.
-
-> IMO, while I understand that it looks strange that we must walk page
-> table after creating it, it is a better approach: more enclosed as it
-> effects kasan only, and more universal as it is in common code.
-
-I don't buy the more universal aspect, but I appreciate it's subjective.
-Frankly, I'd just sooner not have core code walking early page tables if
-it can be avoided, and it doesn't look hard to avoid it in this case.
-The fact that you're having to add pmd_large and pud_large, which are
-otherwise unused in mm/, is an indication that this isn't quite right imo.
-
-Will
+I guess I didn't get your answer. Does the above diff resolves your
+problem?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
