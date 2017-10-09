@@ -1,172 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D0D426B026B
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D557A6B026C
 	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 18:20:30 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id 10so2882586qty.5
+Received: by mail-qt0-f198.google.com with SMTP id 32so24461418qtp.3
         for <linux-mm@kvack.org>; Mon, 09 Oct 2017 15:20:30 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id w5si5734684qtj.142.2017.10.09.15.20.29
+        by mx.google.com with ESMTPS id u67si72689qku.126.2017.10.09.15.20.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Oct 2017 15:20:29 -0700 (PDT)
+        Mon, 09 Oct 2017 15:20:26 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v11 8/9] mm: stop zeroing memory during allocation in vmemmap
-Date: Mon,  9 Oct 2017 18:19:30 -0400
-Message-Id: <20171009221931.1481-9-pasha.tatashin@oracle.com>
+Subject: [PATCH v11 7/9] arm64/kasan: add and use kasan_map_populate()
+Date: Mon,  9 Oct 2017 18:19:29 -0400
+Message-Id: <20171009221931.1481-8-pasha.tatashin@oracle.com>
 In-Reply-To: <20171009221931.1481-1-pasha.tatashin@oracle.com>
 References: <20171009221931.1481-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-vmemmap_alloc_block() will no longer zero the block, so zero memory
-at its call sites for everything except struct pages.  Struct page memory
-is zero'd by struct page initialization.
+During early boot, kasan uses vmemmap_populate() to establish its shadow
+memory. But, that interface is intended for struct pages use.
 
-Replace allocators in sprase-vmemmap to use the non-zeroing version. So,
-we will get the performance improvement by zeroing the memory in parallel
-when struct pages are zeroed.
+Because of the current project, vmemmap won't be zeroed during allocation,
+but kasan expects that memory to be zeroed. We are adding a new
+kasan_map_populate() function to resolve this difference.
 
-Add struct page zeroing as a part of initialization of other fields in
-__init_single_page().
-
-This single thread performance collected on: Intel(R) Xeon(R) CPU E7-8895
-v3 @ 2.60GHz with 1T of memory (268400646 pages in 8 nodes):
-
-                         BASE            FIX
-sparse_init     11.244671836s   0.007199623s
-zone_sizes_init  4.879775891s   8.355182299s
-                  --------------------------
-Total           16.124447727s   8.362381922s
-
-sparse_init is where memory for struct pages is zeroed, and the zeroing
-part is moved later in this patch into __init_single_page(), which is
-called from zone_sizes_init().
+Therefore, we must use a new interface to allocate and map kasan shadow
+memory, that also zeroes memory for us.
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
-Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-Reviewed-by: Bob Picco <bob.picco@oracle.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/mm.h  | 11 +++++++++++
- mm/page_alloc.c     |  1 +
- mm/sparse-vmemmap.c | 15 +++++++--------
- mm/sparse.c         |  6 +++---
- 4 files changed, 22 insertions(+), 11 deletions(-)
+ arch/arm64/mm/kasan_init.c | 72 ++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 66 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 04c8b2e5aff4..fd045a3b243a 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2501,6 +2501,17 @@ static inline void *vmemmap_alloc_block_buf(unsigned long size, int node)
- 	return __vmemmap_alloc_block_buf(size, node, NULL);
- }
+diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
+index 81f03959a4ab..cb4af2951c90 100644
+--- a/arch/arm64/mm/kasan_init.c
++++ b/arch/arm64/mm/kasan_init.c
+@@ -28,6 +28,66 @@
  
-+static inline void *vmemmap_alloc_block_zero(unsigned long size, int node)
+ static pgd_t tmp_pg_dir[PTRS_PER_PGD] __initdata __aligned(PGD_SIZE);
+ 
++/* Creates mappings for kasan during early boot. The mapped memory is zeroed */
++static int __meminit kasan_map_populate(unsigned long start, unsigned long end,
++					int node)
 +{
-+	void *p = vmemmap_alloc_block(size, node);
++	unsigned long addr, pfn, next;
++	unsigned long long size;
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++	pte_t *pte;
++	int ret;
 +
-+	if (!p)
-+		return NULL;
-+	memset(p, 0, size);
++	ret = vmemmap_populate(start, end, node);
++	/*
++	 * We might have partially populated memory, so check for no entries,
++	 * and zero only those that actually exist.
++	 */
++	for (addr = start; addr < end; addr = next) {
++		pgd = pgd_offset_k(addr);
++		if (pgd_none(*pgd)) {
++			next = pgd_addr_end(addr, end);
++			continue;
++		}
 +
-+	return p;
++		pud = pud_offset(pgd, addr);
++		if (pud_none(*pud)) {
++			next = pud_addr_end(addr, end);
++			continue;
++		}
++		if (pud_sect(*pud)) {
++			/* This is PUD size page */
++			next = pud_addr_end(addr, end);
++			size = PUD_SIZE;
++			pfn = pud_pfn(*pud);
++		} else {
++			pmd = pmd_offset(pud, addr);
++			if (pmd_none(*pmd)) {
++				next = pmd_addr_end(addr, end);
++				continue;
++			}
++			if (pmd_sect(*pmd)) {
++				/* This is PMD size page */
++				next = pmd_addr_end(addr, end);
++				size = PMD_SIZE;
++				pfn = pmd_pfn(*pmd);
++			} else {
++				pte = pte_offset_kernel(pmd, addr);
++				next = addr + PAGE_SIZE;
++				if (pte_none(*pte))
++					continue;
++				/* This is base size page */
++				size = PAGE_SIZE;
++				pfn = pte_pfn(*pte);
++			}
++		}
++		memset(phys_to_virt(PFN_PHYS(pfn)), 0, size);
++	}
++	return ret;
 +}
 +
- void vmemmap_verify(pte_t *, int, unsigned long, unsigned long);
- int vmemmap_populate_basepages(unsigned long start, unsigned long end,
- 			       int node);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5f0013bbbe9d..85e038e1e941 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1170,6 +1170,7 @@ static void free_one_page(struct zone *zone,
- static void __meminit __init_single_page(struct page *page, unsigned long pfn,
- 				unsigned long zone, int nid)
- {
-+	mm_zero_struct_page(page);
- 	set_page_links(page, zone, nid, pfn);
- 	init_page_count(page);
- 	page_mapcount_reset(page);
-diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-index d1a39b8051e0..c2f5654e7c9d 100644
---- a/mm/sparse-vmemmap.c
-+++ b/mm/sparse-vmemmap.c
-@@ -41,7 +41,7 @@ static void * __ref __earlyonly_bootmem_alloc(int node,
- 				unsigned long align,
- 				unsigned long goal)
- {
--	return memblock_virt_alloc_try_nid(size, align, goal,
-+	return memblock_virt_alloc_try_nid_raw(size, align, goal,
- 					    BOOTMEM_ALLOC_ACCESSIBLE, node);
- }
+ /*
+  * The p*d_populate functions call virt_to_phys implicitly so they can't be used
+  * directly on kernel symbols (bm_p*d). All the early functions are called too
+@@ -161,11 +221,11 @@ void __init kasan_init(void)
  
-@@ -54,9 +54,8 @@ void * __meminit vmemmap_alloc_block(unsigned long size, int node)
- 	if (slab_is_available()) {
- 		struct page *page;
+ 	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
  
--		page = alloc_pages_node(node,
--			GFP_KERNEL | __GFP_ZERO | __GFP_RETRY_MAYFAIL,
--			get_order(size));
-+		page = alloc_pages_node(node, GFP_KERNEL | __GFP_RETRY_MAYFAIL,
-+					get_order(size));
- 		if (page)
- 			return page_address(page);
- 		return NULL;
-@@ -183,7 +182,7 @@ pmd_t * __meminit vmemmap_pmd_populate(pud_t *pud, unsigned long addr, int node)
- {
- 	pmd_t *pmd = pmd_offset(pud, addr);
- 	if (pmd_none(*pmd)) {
--		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
-+		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
- 		if (!p)
- 			return NULL;
- 		pmd_populate_kernel(&init_mm, pmd, p);
-@@ -195,7 +194,7 @@ pud_t * __meminit vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node)
- {
- 	pud_t *pud = pud_offset(p4d, addr);
- 	if (pud_none(*pud)) {
--		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
-+		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
- 		if (!p)
- 			return NULL;
- 		pud_populate(&init_mm, pud, p);
-@@ -207,7 +206,7 @@ p4d_t * __meminit vmemmap_p4d_populate(pgd_t *pgd, unsigned long addr, int node)
- {
- 	p4d_t *p4d = p4d_offset(pgd, addr);
- 	if (p4d_none(*p4d)) {
--		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
-+		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
- 		if (!p)
- 			return NULL;
- 		p4d_populate(&init_mm, p4d, p);
-@@ -219,7 +218,7 @@ pgd_t * __meminit vmemmap_pgd_populate(unsigned long addr, int node)
- {
- 	pgd_t *pgd = pgd_offset_k(addr);
- 	if (pgd_none(*pgd)) {
--		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
-+		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
- 		if (!p)
- 			return NULL;
- 		pgd_populate(&init_mm, pgd, p);
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 83b3bf6461af..d22f51bb7c79 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -437,9 +437,9 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+-	vmemmap_populate(kimg_shadow_start, kimg_shadow_end,
+-			 pfn_to_nid(virt_to_pfn(lm_alias(_text))));
++	kasan_map_populate(kimg_shadow_start, kimg_shadow_end,
++			   pfn_to_nid(virt_to_pfn(lm_alias(_text))));
+ 
+ 	/*
+-	 * vmemmap_populate() has populated the shadow region that covers the
++	 * kasan_map_populate() has populated the shadow region that covers the
+ 	 * kernel image with SWAPPER_BLOCK_SIZE mappings, so we have to round
+ 	 * the start and end addresses to SWAPPER_BLOCK_SIZE as well, to prevent
+ 	 * kasan_populate_zero_shadow() from replacing the page table entries
+@@ -191,9 +251,9 @@ void __init kasan_init(void)
+ 		if (start >= end)
+ 			break;
+ 
+-		vmemmap_populate((unsigned long)kasan_mem_to_shadow(start),
+-				(unsigned long)kasan_mem_to_shadow(end),
+-				pfn_to_nid(virt_to_pfn(start)));
++		kasan_map_populate((unsigned long)kasan_mem_to_shadow(start),
++				   (unsigned long)kasan_mem_to_shadow(end),
++				   pfn_to_nid(virt_to_pfn(start)));
  	}
  
- 	size = PAGE_ALIGN(size);
--	map = memblock_virt_alloc_try_nid(size * map_count,
--					  PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
--					  BOOTMEM_ALLOC_ACCESSIBLE, nodeid);
-+	map = memblock_virt_alloc_try_nid_raw(size * map_count,
-+					      PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
-+					      BOOTMEM_ALLOC_ACCESSIBLE, nodeid);
- 	if (map) {
- 		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
- 			if (!present_section_nr(pnum))
+ 	/*
 -- 
 2.14.2
 
