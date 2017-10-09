@@ -1,76 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E3B56B0278
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 11:15:31 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id m7so4857005lfe.7
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 08:15:31 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 28F306B0268
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 11:15:49 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id i124so4564285wmf.1
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 08:15:49 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r15si7426024wrc.417.2017.10.09.08.14.07
+        by mx.google.com with ESMTPS id t27si7711777wrb.320.2017.10.09.08.14.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Mon, 09 Oct 2017 08:14:07 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 16/16] cifs: Use find_get_pages_range_tag()
-Date: Mon,  9 Oct 2017 17:13:59 +0200
-Message-Id: <20171009151359.31984-17-jack@suse.cz>
+Subject: [PATCH 09/16] nilfs2: Use pagevec_lookup_range_tag()
+Date: Mon,  9 Oct 2017 17:13:52 +0200
+Message-Id: <20171009151359.31984-10-jack@suse.cz>
 In-Reply-To: <20171009151359.31984-1-jack@suse.cz>
 References: <20171009151359.31984-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Daniel Jordan <daniel.m.jordan@oracle.com>, Jan Kara <jack@suse.cz>, linux-cifs@vger.kernel.org, Steve French <sfrench@samba.org>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Daniel Jordan <daniel.m.jordan@oracle.com>, Jan Kara <jack@suse.cz>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org
 
-wdata_alloc_and_fillpages() needlessly iterates calls to
-find_get_pages_tag(). Also it wants only pages from given range. Make it
-use find_get_pages_range_tag().
+We want only pages from given range in
+nilfs_lookup_dirty_data_buffers(). Use pagevec_lookup_range_tag()
+instead of pagevec_lookup_tag() and remove unnecessary code.
 
-Suggested-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-CC: linux-cifs@vger.kernel.org
-CC: Steve French <sfrench@samba.org>
+CC: Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>
+CC: linux-nilfs@vger.kernel.org
+Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+Acked-by: Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/cifs/file.c | 21 ++-------------------
- 1 file changed, 2 insertions(+), 19 deletions(-)
+ fs/nilfs2/segment.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
 
-diff --git a/fs/cifs/file.c b/fs/cifs/file.c
-index 92fdf9c35de2..df9f682708c6 100644
---- a/fs/cifs/file.c
-+++ b/fs/cifs/file.c
-@@ -1963,8 +1963,6 @@ wdata_alloc_and_fillpages(pgoff_t tofind, struct address_space *mapping,
- 			  pgoff_t end, pgoff_t *index,
- 			  unsigned int *found_pages)
- {
--	unsigned int nr_pages;
--	struct page **pages;
- 	struct cifs_writedata *wdata;
+diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
+index 70ded52dc1dd..68e5769cef3b 100644
+--- a/fs/nilfs2/segment.c
++++ b/fs/nilfs2/segment.c
+@@ -711,18 +711,14 @@ static size_t nilfs_lookup_dirty_data_buffers(struct inode *inode,
+ 	pagevec_init(&pvec, 0);
+  repeat:
+ 	if (unlikely(index > last) ||
+-	    !pagevec_lookup_tag(&pvec, mapping, &index, PAGECACHE_TAG_DIRTY,
+-				min_t(pgoff_t, last - index,
+-				      PAGEVEC_SIZE - 1) + 1))
++	    !pagevec_lookup_range_tag(&pvec, mapping, &index, last,
++				PAGECACHE_TAG_DIRTY, PAGEVEC_SIZE))
+ 		return ndirties;
  
- 	wdata = cifs_writedata_alloc((unsigned int)tofind,
-@@ -1972,23 +1970,8 @@ wdata_alloc_and_fillpages(pgoff_t tofind, struct address_space *mapping,
- 	if (!wdata)
- 		return NULL;
+ 	for (i = 0; i < pagevec_count(&pvec); i++) {
+ 		struct buffer_head *bh, *head;
+ 		struct page *page = pvec.pages[i];
  
--	/*
--	 * find_get_pages_tag seems to return a max of 256 on each
--	 * iteration, so we must call it several times in order to
--	 * fill the array or the wsize is effectively limited to
--	 * 256 * PAGE_SIZE.
--	 */
--	*found_pages = 0;
--	pages = wdata->pages;
--	do {
--		nr_pages = find_get_pages_tag(mapping, index,
--					      PAGECACHE_TAG_DIRTY, tofind,
--					      pages);
--		*found_pages += nr_pages;
--		tofind -= nr_pages;
--		pages += nr_pages;
--	} while (nr_pages && tofind && *index <= end);
+-		if (unlikely(page->index > last))
+-			break;
 -
-+	*found_pages = find_get_pages_range_tag(mapping, index, end,
-+				PAGECACHE_TAG_DIRTY, tofind, wdata->pages);
- 	return wdata;
- }
- 
+ 		lock_page(page);
+ 		if (!page_has_buffers(page))
+ 			create_empty_buffers(page, i_blocksize(inode), 0);
 -- 
 2.12.3
 
