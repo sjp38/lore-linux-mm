@@ -1,67 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C9F1C6B026C
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 14:17:57 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id d28so7508379pfe.2
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 11:17:57 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b26si6759177pgf.731.2017.10.09.11.17.56
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 09 Oct 2017 11:17:56 -0700 (PDT)
-Date: Mon, 9 Oct 2017 20:17:54 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
-Message-ID: <20171009181754.37svpqljub2goojr@dhcp22.suse.cz>
-References: <20171005222144.123797-1-shakeelb@google.com>
- <20171006075900.icqjx5rr7hctn3zd@dhcp22.suse.cz>
- <CALvZod7YN4JCG7Anm2FViyZ0-APYy+nxEd3nyxe5LT_P0FC9wg@mail.gmail.com>
- <20171009062426.hmqedtqz5hkmhnff@dhcp22.suse.cz>
- <xr93a810xl77.fsf@gthelen.svl.corp.google.com>
- <20171009180409.z3mpk3m7m75hjyfv@dhcp22.suse.cz>
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 347726B026E
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 14:22:17 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id 37so14299018qto.2
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 11:22:17 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id i7si3929880oif.14.2017.10.09.11.22.16
+        for <linux-mm@kvack.org>;
+        Mon, 09 Oct 2017 11:22:16 -0700 (PDT)
+Date: Mon, 9 Oct 2017 19:22:17 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v9 09/12] mm/kasan: kasan specific map populate function
+Message-ID: <20171009182217.GC30828@arm.com>
+References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
+ <20170920201714.19817-10-pasha.tatashin@oracle.com>
+ <20171003144845.GD4931@leverpostej>
+ <20171009171337.GE30085@arm.com>
+ <CAOAebxtHHFvYn4WysMASe1GqvgKYPVyjJ572UM3Sef5sP0hi9A@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171009180409.z3mpk3m7m75hjyfv@dhcp22.suse.cz>
+In-Reply-To: <CAOAebxtHHFvYn4WysMASe1GqvgKYPVyjJ572UM3Sef5sP0hi9A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: Mark Rutland <mark.rutland@arm.com>, catalin.marinas@arm.com, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, sam@ravnborg.org, mgorman@techsingularity.net, Steve Sistare <steven.sistare@oracle.com>, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On Mon 09-10-17 20:04:09, Michal Hocko wrote:
-> [CC Johannes - the thread starts
-> http://lkml.kernel.org/r/20171005222144.123797-1-shakeelb@google.com]
+Hi Pavel,
+
+On Mon, Oct 09, 2017 at 01:51:47PM -0400, Pavel Tatashin wrote:
+> I can go back to that approach, if Michal OK with it. But, that would
+> mean that I would need to touch every single architecture that
+> implements vmemmap_populate(), and also pass flags at least through
+> these functions on every architectures (some have more than one
+> decided by configs).:
 > 
-> On Mon 09-10-17 10:52:44, Greg Thelen wrote:
-[...]
-> > A few ideas on how to make it more flexible:
-> > 
-> > a) Go back to memcg oom killing within memcg charging.  This runs risk
-> >    of oom killing while caller holds locks which oom victim selection or
-> >    oom victim termination may need.  Google's been running this way for
-> >    a while.
+> vmemmap_populate()
+> vmemmap_populate_basepages()
+> vmemmap_populate_hugepages()
+> vmemmap_pte_populate()
+> __vmemmap_alloc_block_buf()
+> alloc_block_buf()
+> vmemmap_alloc_block()
 
-We can actually reopen this discussion now that the oom handling is
-async due to the oom_reaper. At least for the v2 interface. I would have
-to think about it much more but the primary concern for this patch was
-whether we really need/want to charge short therm objects which do not
-outlive a single syscall.
- 
-> > b) Have every syscall return do something similar to page fault handler:
-> >    kmem allocations in oom memcg mark the current task as needing an oom
-> >    check return NULL.  If marked oom, syscall exit would use
-> >    mem_cgroup_oom_synchronize() before retrying the syscall.  Seems
-> >    risky.  I doubt every syscall is compatible with such a restart.
+As an interim step, why not introduce something like
+vmemmap_alloc_block_flags and make the page-table walking opt-out for
+architectures that don't want it? Then we can just pass __GFP_ZERO from
+our vmemmap_populate where necessary and other architectures can do the
+page-table walking dance if they prefer.
 
-yes, this is simply a no go
+> IMO, while I understand that it looks strange that we must walk page
+> table after creating it, it is a better approach: more enclosed as it
+> effects kasan only, and more universal as it is in common code.
 
-> > c) Overcharge kmem to oom memcg and queue an async memcg limit checker,
-> >    which will oom kill if needed.
+I don't buy the more universal aspect, but I appreciate it's subjective.
+Frankly, I'd just sooner not have core code walking early page tables if
+it can be avoided, and it doesn't look hard to avoid it in this case.
+The fact that you're having to add pmd_large and pud_large, which are
+otherwise unused in mm/, is an indication that this isn't quite right imo.
 
-This is what we have max limit for.
--- 
-Michal Hocko
-SUSE Labs
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
