@@ -1,65 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E4A1B6B0260
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 02:24:31 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id l188so41870537pfc.7
-        for <linux-mm@kvack.org>; Sun, 08 Oct 2017 23:24:31 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CF1C16B025E
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 02:33:19 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id u78so26341715wmd.4
+        for <linux-mm@kvack.org>; Sun, 08 Oct 2017 23:33:19 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r7si6302949pfi.372.2017.10.08.23.24.30
+        by mx.google.com with ESMTPS id e22si6334230wmi.50.2017.10.08.23.33.18
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 08 Oct 2017 23:24:30 -0700 (PDT)
-Date: Mon, 9 Oct 2017 08:24:26 +0200
+        Sun, 08 Oct 2017 23:33:18 -0700 (PDT)
+Date: Mon, 9 Oct 2017 08:33:16 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
-Message-ID: <20171009062426.hmqedtqz5hkmhnff@dhcp22.suse.cz>
-References: <20171005222144.123797-1-shakeelb@google.com>
- <20171006075900.icqjx5rr7hctn3zd@dhcp22.suse.cz>
- <CALvZod7YN4JCG7Anm2FViyZ0-APYy+nxEd3nyxe5LT_P0FC9wg@mail.gmail.com>
+Subject: Re: [PATCH 3/3] mm: oom: show unreclaimable slab info when
+ unreclaimable slabs > user memory
+Message-ID: <20171009063316.qjmunbabyr2nzh52@dhcp22.suse.cz>
+References: <1507152550-46205-1-git-send-email-yang.s@alibaba-inc.com>
+ <1507152550-46205-4-git-send-email-yang.s@alibaba-inc.com>
+ <20171006093702.3ca2p6ymyycwfgbk@dhcp22.suse.cz>
+ <ff7e0d92-0f12-46fa-dbc7-79c556ffb7c2@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALvZod7YN4JCG7Anm2FViyZ0-APYy+nxEd3nyxe5LT_P0FC9wg@mail.gmail.com>
+In-Reply-To: <ff7e0d92-0f12-46fa-dbc7-79c556ffb7c2@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Yang Shi <yang.s@alibaba-inc.com>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 06-10-17 12:33:03, Shakeel Butt wrote:
-> >>       names_cachep = kmem_cache_create("names_cache", PATH_MAX, 0,
-> >> -                     SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
-> >> +                     SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT, NULL);
-> >
-> > I might be wrong but isn't name cache only holding temporary objects
-> > used for path resolution which are not stored anywhere?
-> >
+On Sat 07-10-17 00:37:55, Yang Shi wrote:
 > 
-> Even though they're temporary, many containers can together use a
-> significant amount of transient uncharged memory. We've seen machines
-> with 100s of MiBs in names_cache.
-
-Yes that might be possible but are we prepared for random ENOMEM from
-vfs calls which need to allocate a temporary name?
-
 > 
-> >>       filp_cachep = kmem_cache_create("filp", sizeof(struct file), 0,
-> >> -                     SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
-> >> +                     SLAB_HWCACHE_ALIGN | SLAB_PANIC | SLAB_ACCOUNT, NULL);
-> >>       percpu_counter_init(&nr_files, 0, GFP_KERNEL);
-> >>  }
-> >
-> > Don't we have a limit for the maximum number of open files?
-> >
+> On 10/6/17 2:37 AM, Michal Hocko wrote:
+> > On Thu 05-10-17 05:29:10, Yang Shi wrote:
+[...]
+> > > +	list_for_each_entry_safe(s, s2, &slab_caches, list) {
+> > > +		if (!is_root_cache(s) || (s->flags & SLAB_RECLAIM_ACCOUNT))
+> > > +			continue;
+> > > +
+> > > +		memset(&sinfo, 0, sizeof(sinfo));
+> > 
+> > why do you zero out the structure. All the fields you are printing are
+> > filled out in get_slabinfo.
 > 
-> Yes, there is a system limit of maximum number of open files. However
-> this limit is shared between different users on the system and one
-> user can hog this resource. To cater that, we set the maximum limit
-> very high and let the memory limit of each user limit the number of
-> files they can open.
+> No special reason, just wipe out the potential stale data on the stack.
 
-Similarly here. Are all syscalls allocating a fd prepared to return
-ENOMEM?
-
+Do not add code that has no meaning. The OOM killer is a slow path but
+that doesn't mean we should throw spare cycles out of the window.
 -- 
 Michal Hocko
 SUSE Labs
