@@ -1,58 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 846626B025E
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 00:48:37 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id t63so17377414pfi.5
-        for <linux-mm@kvack.org>; Sun, 08 Oct 2017 21:48:37 -0700 (PDT)
-Received: from m50-138.163.com (m50-138.163.com. [123.125.50.138])
-        by mx.google.com with ESMTP id k86si6115089pfg.536.2017.10.08.21.48.35
-        for <linux-mm@kvack.org>;
-        Sun, 08 Oct 2017 21:48:36 -0700 (PDT)
-Subject: Re: [BUG] mm/vmalloc: ___might_sleep is called under a spinlock in
- __purge_vmap_area_lazy
-References: <70f9850a-b24c-8595-8a22-9b47e96d6338@163.com>
- <20171009041001.p47yc6r7f3borhba@node.shutemov.name>
-From: Jia-Ju Bai <baijiaju1990@163.com>
-Message-ID: <56ef9c88-ba54-ce01-15dc-7b661b64ab8b@163.com>
-Date: Mon, 9 Oct 2017 12:48:22 +0800
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 11F666B025E
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 01:44:38 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id t63so17920783pfi.5
+        for <linux-mm@kvack.org>; Sun, 08 Oct 2017 22:44:38 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id n5si6143199pfn.150.2017.10.08.22.44.36
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 08 Oct 2017 22:44:37 -0700 (PDT)
+Date: Mon, 9 Oct 2017 13:44:35 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: [PATCH] page_alloc.c: inline __rmqueue()
+Message-ID: <20171009054434.GA1798@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20171009041001.p47yc6r7f3borhba@node.shutemov.name>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, catalin.marinas@arm.com, labbott@redhat.com, thgarnie@google.com, kirill.shutemov@linux.intel.com, aryabinin@virtuozzo.com, ard.biesheuvel@linaro.org, zijun_hu@htc.com, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>
 
-Thanks for your reply and explanation :)
-I will improve my analysis.
+__rmqueue() is called by rmqueue_bulk() and rmqueue() under zone->lock
+and that lock can be heavily contended with memory intensive applications.
 
-Thanks,
-Jia-Ju Bai
+Since __rmqueue() is a small function, inline it can save us some time.
+With the will-it-scale/page_fault1/process benchmark, when using nr_cpu
+processes to stress buddy:
 
-On 2017/10/9 12:10, Kirill A. Shutemov wrote:
-> On Mon, Oct 09, 2017 at 12:00:33PM +0800, Jia-Ju Bai wrote:
->> The ___might_sleep is called under a spinlock, and the function call graph
->> is:
->> __purge_vmap_area_lazy (acquire the spinlock)
->>    cond_resched_lock
->>      ___might_sleep
->>
->> In this situation, ___might_sleep may prints error log message because a
->> spinlock is held.
->> A possible fix is to remove ___might_sleep in cond_resched_lock.
->>
->> This bug is found by my static analysis tool and my code review.
-> This analysis doesn't makes sense.
->
-> The point of cond_resched_lock() is that it drops the lock, if resched is
-> required.
->
-> ___might_sleep() is called with preempt_offset equal to
-> PREEMPT_LOCK_OFFSET, so it won't report error if it's the only lock we
-> hold.
->
+On a 2 sockets Intel-Skylake machine:
+      base          %change       head
+     77342            +6.3%      82203        will-it-scale.per_process_ops
 
+On a 4 sockets Intel-Skylake machine:
+      base          %change       head
+     75746            +4.6%      79248        will-it-scale.per_process_ops
+
+This patch adds inline to __rmqueue().
+
+Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+---
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 0e309ce4a44a..c9605c7ebaf6 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2291,7 +2291,7 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+  * Do the hard work of removing an element from the buddy allocator.
+  * Call me with the zone->lock already held.
+  */
+-static struct page *__rmqueue(struct zone *zone, unsigned int order,
++static inline struct page *__rmqueue(struct zone *zone, unsigned int order,
+ 				int migratetype)
+ {
+ 	struct page *page;
+-- 
+2.13.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
