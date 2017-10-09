@@ -1,80 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B4A26B0033
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 15:28:31 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id p1so6642966qtg.18
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 12:28:31 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id n26sor2052347otd.198.2017.10.09.12.28.30
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AAB936B025E
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 15:57:42 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id a125so5463582ita.3
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 12:57:42 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id d9si3293791ite.117.2017.10.09.12.57.41
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 09 Oct 2017 12:28:30 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Oct 2017 12:57:41 -0700 (PDT)
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by userp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with ESMTP id v99JvepC018614
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Mon, 9 Oct 2017 19:57:40 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id v99Jvesc021002
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Mon, 9 Oct 2017 19:57:40 GMT
+Received: from abhmp0014.oracle.com (abhmp0014.oracle.com [141.146.116.20])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id v99Jvdu0010456
+	for <linux-mm@kvack.org>; Mon, 9 Oct 2017 19:57:39 GMT
+Received: by mail-oi0-f46.google.com with SMTP id v132so22269267oie.1
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 12:57:39 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20171009191820.GD15336@obsidianresearch.com>
-References: <150732931273.22363.8436792888326501071.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150732935473.22363.1853399637339625023.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171009185840.GB15336@obsidianresearch.com> <CAPcyv4gXzC8OUgO_PciQ2phyq0YtmXjMGWvoPSVVuuZR7ohVCg@mail.gmail.com>
- <20171009191820.GD15336@obsidianresearch.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 9 Oct 2017 12:28:29 -0700
-Message-ID: <CAPcyv4h_uQGBAX6-bMkkZLO_YyQ6t4n_b8tH8wU_P0Jh23N5MQ@mail.gmail.com>
-Subject: Re: [PATCH v7 07/12] dma-mapping: introduce dma_has_iommu()
+In-Reply-To: <CAOAebxvcg9r00bCWDJS4V_mmKk_dELVs_SfxqrxemDg7=uZx_g@mail.gmail.com>
+References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
+ <20170920201714.19817-10-pasha.tatashin@oracle.com> <20171003144845.GD4931@leverpostej>
+ <20171009171337.GE30085@arm.com> <CAOAebxtHHFvYn4WysMASe1GqvgKYPVyjJ572UM3Sef5sP0hi9A@mail.gmail.com>
+ <20171009182217.GC30828@arm.com> <CAOAebxu1310eCrk88EC=Oaw3n90-9RuHZ1KBhPvLu_DyXBNZFQ@mail.gmail.com>
+ <20171009184834.GE30828@arm.com> <CAOAebxs5s3DKV8f+Zw+LFVB98PE6cs=RwcOH8qEiU_MPLM9RvQ@mail.gmail.com>
+ <20171009190213.GF30828@arm.com> <CAOAebxvcg9r00bCWDJS4V_mmKk_dELVs_SfxqrxemDg7=uZx_g@mail.gmail.com>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Mon, 9 Oct 2017 15:57:38 -0400
+Message-ID: <CAOAebxvJDG0MasKMD-UovUgQyb+FP_4uXk5jV8Tsm9gopM_bUA@mail.gmail.com>
+Subject: Re: [PATCH v9 09/12] mm/kasan: kasan specific map populate function
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Jan Kara <jack@suse.cz>, Ashok Raj <ashok.raj@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Joerg Roedel <joro@8bytes.org>, Dave Chinner <david@fromorbit.com>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Linux API <linux-api@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, David Woodhouse <dwmw2@infradead.org>, Robin Murphy <robin.murphy@arm.com>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Mark Rutland <mark.rutland@arm.com>, catalin.marinas@arm.com, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, Ard Biesheuvel <ard.biesheuvel@linaro.org>, sam@ravnborg.org, mgorman@techsingularity.net, Steve Sistare <steven.sistare@oracle.com>, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On Mon, Oct 9, 2017 at 12:18 PM, Jason Gunthorpe
-<jgunthorpe@obsidianresearch.com> wrote:
-> On Mon, Oct 09, 2017 at 12:05:30PM -0700, Dan Williams wrote:
->> On Mon, Oct 9, 2017 at 11:58 AM, Jason Gunthorpe
->> <jgunthorpe@obsidianresearch.com> wrote:
->> > On Fri, Oct 06, 2017 at 03:35:54PM -0700, Dan Williams wrote:
->> >> otherwise be quiesced. The need for this knowledge is driven by a need
->> >> to make RDMA transfers to DAX mappings safe. If the DAX file's block map
->> >> changes we need to be to reliably stop accesses to blocks that have been
->> >> freed or re-assigned to a new file.
->> >
->> > If RDMA is driving this need, why not invalidate backing RDMA MRs
->> > instead of requiring a IOMMU to do it? RDMA MR are finer grained and
->> > do not suffer from the re-use problem David W. brought up with IOVAs..
->>
->> Sounds promising. All I want in the end is to be sure that the kernel
->> is enabled to stop any in-flight RDMA at will without asking
->> userspace. Does this require per-RDMA driver opt-in or is there a
->> common call that can be made?
->
-> I don't think this has ever come up in the context of an all-device MR
-> invalidate requirement. Drivers already have code to invalidate
-> specifc MRs, but to find all MRs that touch certain pages and then
-> invalidate them would be new code.
->
-> We also have ODP aware drivers that can retarget a MR to new
-> physical pages. If the block map changes DAX should synchronously
-> retarget the ODP MR, not halt DMA.
+>> I guess we could implement that on arm64 using our current vmemmap_populate
+>> logic and an explicit memset.
 
-Have a look at the patch [1], I don't touch the ODP path.
+Hi Will,
 
-> Most likely ODP & DAX would need to be used together to get robust
-> user applications, as having the user QP's go to an error state at
-> random times (due to DMA failures) during operation is never going to
-> be acceptable...
+I will send out a new patch series with x86/arm64  versions of
+kasan_map_populate(), so you could take a look if this is something
+that is acceptable.
 
-It's not random. The process that set up the mapping and registered
-the memory gets SIGIO when someone else tries to modify the file map.
-That process then gets /proc/sys/fs/lease-break-time seconds to fix
-the problem before the kernel force revokes the DMA access.
-
-It's otherwise not acceptable to allow DMA into random locations when
-the file map changes.
-
-> Perhaps you might want to initially only support ODP MR mappings with
-> DAX and then the DMA fencing issue goes away?
-
-I'd rather try to fix the non-ODP DAX case instead of just turning it off.
-
-[1]: https://patchwork.kernel.org/patch/9991681/
+Thank you,
+Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
