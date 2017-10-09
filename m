@@ -1,43 +1,50 @@
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [RFC] mmap(MAP_CONTIG)
-Date: Thu, 5 Oct 2017 09:30:22 -0500 (CDT)
-Message-ID: <alpine.DEB.2.20.1710050928040.2543@nuc-kabylake>
-References: <21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com> <3c28baa4-f8f5-a86e-4830-bf3c7c74ed4f@suse.cz>
+From: Mark Brown <broonie@kernel.org>
+Subject: Re: mmotm 2017-10-03-17-08 uploaded
+Date: Mon, 9 Oct 2017 21:37:10 +0100
+Message-ID: <20171009203710.6ick6l3kpmqhiq23@sirena.co.uk>
+References: <59d4268c.FlFtK0Mqe7TSSBd5%akpm@linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: multipart/signed; micalg=pgp-sha256;
+        protocol="application/pgp-signature"; boundary="w4452otkpsr4eyvu"
 Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <3c28baa4-f8f5-a86e-4830-bf3c7c74ed4f@suse.cz>
+Content-Disposition: inline
+In-Reply-To: <59d4268c.FlFtK0Mqe7TSSBd5%akpm@linux-foundation.org>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Guy Shattah <sguy@mellanox.com>
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz
 List-Id: linux-mm.kvack.org
 
-On Thu, 5 Oct 2017, Vlastimil Babka wrote:
 
-> On 10/04/2017 01:56 AM, Mike Kravetz wrote:
-> > At Plumbers this year, Guy Shattah and Christoph Lameter gave a presentation
-> > titled 'User space contiguous memory allocation for DMA' [1].  The slides
-> Hm I didn't find slides on that link, are they available?
+--w4452otkpsr4eyvu
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-I just added Guy's slides to the entry.
+On Tue, Oct 03, 2017 at 05:08:44PM -0700, akpm@linux-foundation.org wrote:
 
-> As Michal N. noted, the drivers might have different requirements. Is
-> contiguity (without extra requirements) so common that it would benefit
-> from a userspace API change?
+> You will need quilt to apply these patches to the latest Linus release (4.x
+> or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+> http://ozlabs.org/~akpm/mmotm/series
 
-Yes.
+I'm getting several merge errors importing the current tree but I have
+to confess I don't really understand what the conflicts were as I don't
+100% follow what the script is doing with the imports, it's getting late
+and there's some use of old -next trees which is confusing me.  All the
+merge resolutions appear to come out as null diffs so I think everything
+is fine but please check when I push today's -next release shortly.
 
-> Also how are the driver-specific allocations done today? mmap() on the
-> driver's device? Maybe we could provide some in-kernel API/library to
-> make them less "ad-hoc". Conversion to MAP_ANONYMOUS would at first seem
-> like an improvement in that userspace would be able to use a generic
-> allocation API and all the generic treatment of anonymous pages (LRU
-> aging, reclaim, migration etc), but the restrictions you listed below
-> eliminate most of that?
-> (It's likely that I just don't have enough info about how it works today
-> so it's difficult to judge)
+--w4452otkpsr4eyvu
+Content-Type: application/pgp-signature; name="signature.asc"
 
-Contemporary devices typically can address all of memory. Moreover the
-device used actually can trigger faults to page in 4k pages if they are
-not present (ODP in RDMA layer). There is no need for driver specific
-allocation in those drivers.
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEEreZoqmdXGLWf4p/qJNaLcl1Uh9AFAlnb3fYACgkQJNaLcl1U
+h9A4AAf+PZYxqIql06lrhRaUhqUH7kv1FYkx+gi0OMLOuZA52TSP2qltkn++f4BL
+oclkT/YRZG4PIQAxp+mS68QuqrHIghABP/TFzVCogCYlo7x9MjAuYFWDlG/nPuTg
+E6WrmlDF+c806HimAYmzXX0Ie7AVcpStpjHOU5PNxAPtHBiBgQmlbwrqndMNOpVk
+HdlFNATQSd8vMNbAoqViezIk/H/dqjHHjE14cSi3VJcGhEyjsWsONX9k3G7qeqPQ
+TkNi7wolp+1dheCIw00lMWY+fs2QKrGavlP3DmsSno0mpKGEKoIdvjRb3OgCn/io
+6n6NEusAALcr+gFTy6GbMQdDgAcYXA==
+=OBVA
+-----END PGP SIGNATURE-----
+
+--w4452otkpsr4eyvu--
