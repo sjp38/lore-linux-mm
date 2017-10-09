@@ -1,65 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 28F306B0268
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 11:15:49 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id i124so4564285wmf.1
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 08:15:49 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t27si7711777wrb.320.2017.10.09.08.14.07
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B7A0F6B026B
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 11:20:46 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id m6so1845529qtc.1
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 08:20:46 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b137si6464274qkc.29.2017.10.09.08.20.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 09 Oct 2017 08:14:07 -0700 (PDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 09/16] nilfs2: Use pagevec_lookup_range_tag()
-Date: Mon,  9 Oct 2017 17:13:52 +0200
-Message-Id: <20171009151359.31984-10-jack@suse.cz>
-In-Reply-To: <20171009151359.31984-1-jack@suse.cz>
-References: <20171009151359.31984-1-jack@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Oct 2017 08:20:45 -0700 (PDT)
+Date: Mon, 9 Oct 2017 18:20:30 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v16 3/5] virtio-balloon: VIRTIO_BALLOON_F_SG
+Message-ID: <20171009181612-mutt-send-email-mst@kernel.org>
+References: <1506744354-20979-1-git-send-email-wei.w.wang@intel.com>
+ <1506744354-20979-4-git-send-email-wei.w.wang@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1506744354-20979-4-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Daniel Jordan <daniel.m.jordan@oracle.com>, Jan Kara <jack@suse.cz>, Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>, linux-nilfs@vger.kernel.org
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-We want only pages from given range in
-nilfs_lookup_dirty_data_buffers(). Use pagevec_lookup_range_tag()
-instead of pagevec_lookup_tag() and remove unnecessary code.
+On Sat, Sep 30, 2017 at 12:05:52PM +0800, Wei Wang wrote:
+> +static inline void xb_set_page(struct virtio_balloon *vb,
+> +			       struct page *page,
+> +			       unsigned long *pfn_min,
+> +			       unsigned long *pfn_max)
+> +{
+> +	unsigned long pfn = page_to_pfn(page);
+> +
+> +	*pfn_min = min(pfn, *pfn_min);
+> +	*pfn_max = max(pfn, *pfn_max);
+> +	xb_preload(GFP_KERNEL);
+> +	xb_set_bit(&vb->page_xb, pfn);
+> +	xb_preload_end();
+> +}
+> +
 
-CC: Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>
-CC: linux-nilfs@vger.kernel.org
-Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-Acked-by: Ryusuke Konishi <konishi.ryusuke@lab.ntt.co.jp>
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- fs/nilfs2/segment.c | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+So, this will allocate memory
 
-diff --git a/fs/nilfs2/segment.c b/fs/nilfs2/segment.c
-index 70ded52dc1dd..68e5769cef3b 100644
---- a/fs/nilfs2/segment.c
-+++ b/fs/nilfs2/segment.c
-@@ -711,18 +711,14 @@ static size_t nilfs_lookup_dirty_data_buffers(struct inode *inode,
- 	pagevec_init(&pvec, 0);
-  repeat:
- 	if (unlikely(index > last) ||
--	    !pagevec_lookup_tag(&pvec, mapping, &index, PAGECACHE_TAG_DIRTY,
--				min_t(pgoff_t, last - index,
--				      PAGEVEC_SIZE - 1) + 1))
-+	    !pagevec_lookup_range_tag(&pvec, mapping, &index, last,
-+				PAGECACHE_TAG_DIRTY, PAGEVEC_SIZE))
- 		return ndirties;
- 
- 	for (i = 0; i < pagevec_count(&pvec); i++) {
- 		struct buffer_head *bh, *head;
- 		struct page *page = pvec.pages[i];
- 
--		if (unlikely(page->index > last))
--			break;
--
- 		lock_page(page);
- 		if (!page_has_buffers(page))
- 			create_empty_buffers(page, i_blocksize(inode), 0);
+...
+
+> @@ -198,9 +327,12 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
+>  	struct page *page;
+>  	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
+>  	LIST_HEAD(pages);
+> +	bool use_sg = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_SG);
+> +	unsigned long pfn_max = 0, pfn_min = ULONG_MAX;
+>  
+> -	/* We can only do one array worth at a time. */
+> -	num = min(num, ARRAY_SIZE(vb->pfns));
+> +	/* Traditionally, we can only do one array worth at a time. */
+> +	if (!use_sg)
+> +		num = min(num, ARRAY_SIZE(vb->pfns));
+>  
+>  	mutex_lock(&vb->balloon_lock);
+>  	/* We can't release more pages than taken */
+
+And is sometimes called on OOM.
+
+
+I suspect we need to
+
+1. keep around some memory for leak on oom
+
+2. for non oom allocate outside locks
+
+
 -- 
-2.12.3
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
