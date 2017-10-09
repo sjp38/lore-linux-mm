@@ -1,80 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EE21A6B0069
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 07:03:35 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id a7so58052559pfj.3
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 04:03:35 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p18si6103877pge.673.2017.10.09.04.03.34
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 31E296B0069
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 07:31:11 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id g128so7981449itb.0
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 04:31:11 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id b125si6359960ioa.188.2017.10.09.04.31.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 09 Oct 2017 04:03:35 -0700 (PDT)
-Date: Mon, 9 Oct 2017 13:03:32 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm/page-writeback.c: fix bug caused by disable periodic
- writeback
-Message-ID: <20171009110332.GG17917@quack2.suse.cz>
-References: <CALOAHbAS_DyhOarH0ZEBWfmB_3wvEV2WA_k_UzUe7b+QRAQ=6A@mail.gmail.com>
+        Mon, 09 Oct 2017 04:31:10 -0700 (PDT)
+Subject: Re: [PATCH v16 1/5] lib/xbitmap: Introduce xbitmap
+References: <1506744354-20979-1-git-send-email-wei.w.wang@intel.com>
+ <1506744354-20979-2-git-send-email-wei.w.wang@intel.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <3b575060-e30b-1afe-96a8-6a9f732d5528@I-love.SAKURA.ne.jp>
+Date: Mon, 9 Oct 2017 20:30:00 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALOAHbAS_DyhOarH0ZEBWfmB_3wvEV2WA_k_UzUe7b+QRAQ=6A@mail.gmail.com>
+In-Reply-To: <1506744354-20979-2-git-send-email-wei.w.wang@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, Johannes Weiner <hannes@cmpxchg.org>, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, Theodore Ts'o <tytso@mit.edu>, mawilcox@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, axboe@kernel.dk
+To: Wei Wang <wei.w.wang@intel.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On Mon 09-10-17 18:44:23, Yafang Shao wrote:
-> 2017-10-09 17:56 GMT+08:00 Jan Kara <jack@suse.cz>:
-> > On Sat 07-10-17 06:58:04, Yafang Shao wrote:
-> >> After disable periodic writeback by writing 0 to
-> >> dirty_writeback_centisecs, the handler wb_workfn() will not be
-> >> entered again until the dirty background limit reaches or
-> >> sync syscall is executed or no enough free memory available or
-> >> vmscan is triggered.
-> >> So the periodic writeback can't be enabled by writing a non-zero
-> >> value to dirty_writeback_centisecs
-> >> As it can be disabled by sysctl, it should be able to enable by
-> >> sysctl as well.
-> >>
-> >> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
-> >> ---
-> >>  mm/page-writeback.c | 8 +++++++-
-> >>  1 file changed, 7 insertions(+), 1 deletion(-)
-> >>
-> >> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> >> index 0b9c5cb..e202f37 100644
-> >> --- a/mm/page-writeback.c
-> >> +++ b/mm/page-writeback.c
-> >> @@ -1972,7 +1972,13 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
-> >>  int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
-> >>       void __user *buffer, size_t *length, loff_t *ppos)
-> >>  {
-> >> -     proc_dointvec(table, write, buffer, length, ppos);
-> >> +     unsigned int old_interval = dirty_writeback_interval;
-> >> +     int ret;
-> >> +
-> >> +     ret = proc_dointvec(table, write, buffer, length, ppos);
-> >> +     if (!ret && !old_interval && dirty_writeback_interval)
-> >> +             wakeup_flusher_threads(0, WB_REASON_PERIODIC);
-> >> +
-> >
-> > I agree it is good to schedule some writeback. However Jens has some
-> > changes queued in linux-block tree in this area so your change won't apply.
-> > So please base your changes on his tree.
-> >
-> 
-> Do you mean this tree
-> git://git.kernel.org/pub/scm/linux/kernel/git/axboe/linux-block.git ?
-> 
-> I have checked his tree and find nothing need to change on my patch.
+On 2017/09/30 13:05, Wei Wang wrote:
+>  /**
+> + *  xb_preload - preload for xb_set_bit()
+> + *  @gfp_mask: allocation mask to use for preloading
+> + *
+> + * Preallocate memory to use for the next call to xb_set_bit(). This function
+> + * returns with preemption disabled. It will be enabled by xb_preload_end().
+> + */
+> +void xb_preload(gfp_t gfp)
+> +{
+> +	if (__radix_tree_preload(gfp, XB_PRELOAD_SIZE) < 0)
+> +		preempt_disable();
+> +
+> +	if (!this_cpu_read(ida_bitmap)) {
+> +		struct ida_bitmap *bitmap = kmalloc(sizeof(*bitmap), gfp);
+> +
+> +		if (!bitmap)
+> +			return;
+> +		bitmap = this_cpu_cmpxchg(ida_bitmap, NULL, bitmap);
+> +		kfree(bitmap);
+> +	}
+> +}
 
-Yes, I mean that tree. Check the wb_start_all branch.
+I'm not sure whether this function is safe.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+__radix_tree_preload() returns 0 with preemption disabled upon success.
+xb_preload() disables preemption if __radix_tree_preload() fails.
+Then, kmalloc() is called with preemption disabled, isn't it?
+But xb_set_page() calls xb_preload(GFP_KERNEL) which might sleep...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
