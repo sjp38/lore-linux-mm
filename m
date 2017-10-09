@@ -1,175 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B2E0E6B0260
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 11:47:52 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id t134so3262365oih.0
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 08:47:52 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 11si4204586otn.184.2017.10.09.08.47.51
-        for <linux-mm@kvack.org>;
-        Mon, 09 Oct 2017 08:47:51 -0700 (PDT)
-Date: Mon, 9 Oct 2017 16:46:10 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH v2 1/3] kcov: support comparison operands collection
-Message-ID: <20171009154610.GA22534@leverpostej>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D6C56B0268
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 11:50:07 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e26so47571391pfd.4
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 08:50:07 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0129.outbound.protection.outlook.com. [104.47.2.129])
+        by mx.google.com with ESMTPS id u12si6838375plz.134.2017.10.09.08.50.05
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 09 Oct 2017 08:50:05 -0700 (PDT)
+Subject: Re: [PATCH v2 2/3] Makefile: support flag
+ -fsanitizer-coverage=trace-cmp
 References: <20171009150521.82775-1-glider@google.com>
+ <20171009150521.82775-2-glider@google.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <0e1d9dbe-6c09-979d-e0ba-c39368028cbf@virtuozzo.com>
+Date: Mon, 9 Oct 2017 18:53:06 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171009150521.82775-1-glider@google.com>
+In-Reply-To: <20171009150521.82775-2-glider@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: akpm@linux-foundation.org, alex.popov@linux.com, aryabinin@virtuozzo.com, quentin.casasnovas@oracle.com, dvyukov@google.com, andreyknvl@google.com, keescook@chromium.org, vegard.nossum@oracle.com, syzkaller@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Alexander Potapenko <glider@google.com>, akpm@linux-foundation.org, mark.rutland@arm.com, alex.popov@linux.com, quentin.casasnovas@oracle.com, dvyukov@google.com, andreyknvl@google.com, keescook@chromium.org, vegard.nossum@oracle.com
+Cc: syzkaller@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi,
 
-I look forward to using this! :)
 
-I just have afew comments below.
+On 10/09/2017 06:05 PM, Alexander Potapenko wrote:
 
-On Mon, Oct 09, 2017 at 05:05:19PM +0200, Alexander Potapenko wrote:
-> +/*
-> + * Defines the format for the types of collected comparisons.
-> + */
-> +enum kcov_cmp_type {
-> +	/*
-> +	 * LSB shows whether one of the arguments is a compile-time constant.
-> +	 */
-> +	KCOV_CMP_CONST = 1,
-> +	/*
-> +	 * Second and third LSBs contain the size of arguments (1/2/4/8 bytes).
-> +	 */
-> +	KCOV_CMP_SIZE1 = 0,
-> +	KCOV_CMP_SIZE2 = 2,
-> +	KCOV_CMP_SIZE4 = 4,
-> +	KCOV_CMP_SIZE8 = 6,
-> +	KCOV_CMP_SIZE_MASK = 6,
-> +};
-
-Given that LSB is meant to be OR-ed in, (and hence combinations of
-values are meaningful) I don't think it makes sense for this to be an
-enum. This would clearer as something like:
-
-/*
- * The format for the types of collected comparisons.
- *
- * Bit 0 shows whether one of the arguments is a compile-time constant.
- * Bits 1 & 2 contain log2 of the argument size, up to 8 bytes.
- */
-#define	KCOV_CMP_CONST		(1 << 0)
-#define KCOV_CMP_SIZE(n)	((n) << 1)
-#define KCOV_CMP_MASK		KCOV_CMP_SIZE(3)
-
-... I note that a few places in the kernel use a 128-bit type. Are
-128-bit comparisons not instrumented?
-
-[...]
-
-> +static bool check_kcov_mode(enum kcov_mode needed_mode, struct task_struct *t)
-> +{
-> +	enum kcov_mode mode;
-> +
-> +	/*
-> +	 * We are interested in code coverage as a function of a syscall inputs,
-> +	 * so we ignore code executed in interrupts.
-> +	 */
-> +	if (!t || !in_task())
-> +		return false;
-
-This !t check can go, as with the one in __sanitizer_cov_trace_pc, since
-t is always current, and therefore cannot be NULL.
-
-IIRC there's a patch queued for that, which this may conflict with.
-
-> +	mode = READ_ONCE(t->kcov_mode);
-> +	/*
-> +	 * There is some code that runs in interrupts but for which
-> +	 * in_interrupt() returns false (e.g. preempt_schedule_irq()).
-> +	 * READ_ONCE()/barrier() effectively provides load-acquire wrt
-> +	 * interrupts, there are paired barrier()/WRITE_ONCE() in
-> +	 * kcov_ioctl_locked().
-> +	 */
-> +	barrier();
-> +	if (mode != needed_mode)
-> +		return false;
-> +	return true;
-
-This would be simpler as:
-	
-	return mode == needed_mode;
-
-[...]
-
-> +	area = t->kcov_area;
-> +	/* The first 64-bit word is the number of subsequent PCs. */
-> +	pos = READ_ONCE(area[0]) + 1;
-> +	if (likely(pos < t->kcov_size)) {
-> +		area[pos] = ip;
-> +		WRITE_ONCE(area[0], pos);
-
-Not a new problem, but if the area for one thread is mmap'd, and read by
-another thread, these two writes could be seen out-of-order, since we
-don't have an smp_wmb() between them.
-
-I guess Syzkaller doesn't read the mmap'd kcov file from another thread?
-
->  	}
->  }
->  EXPORT_SYMBOL(__sanitizer_cov_trace_pc);
+> v2: - updated KCOV_ENABLE_COMPARISONS description
+> ---
+>  Makefile             |  5 +++--
+>  lib/Kconfig.debug    | 10 ++++++++++
+>  scripts/Makefile.lib |  6 ++++++
+>  3 files changed, 19 insertions(+), 2 deletions(-)
+> 
+> diff --git a/Makefile b/Makefile
+> index 2835863bdd5a..c2a8e56df748 100644
+> --- a/Makefile
+> +++ b/Makefile
+> @@ -374,7 +374,7 @@ AFLAGS_KERNEL	=
+>  LDFLAGS_vmlinux =
+>  CFLAGS_GCOV	:= -fprofile-arcs -ftest-coverage -fno-tree-loop-im $(call cc-disable-warning,maybe-uninitialized,)
+>  CFLAGS_KCOV	:= $(call cc-option,-fsanitize-coverage=trace-pc,)
+> -
+> +CFLAGS_KCOV_COMPS := $(call cc-option,-fsanitize-coverage=trace-cmp,)
 >  
-> +#ifdef CONFIG_KCOV_ENABLE_COMPARISONS
-> +static void write_comp_data(u64 type, u64 arg1, u64 arg2, u64 ip)
-> +{
-> +	struct task_struct *t;
-> +	u64 *area;
-> +	u64 count, start_index, end_pos, max_pos;
+>  # Use USERINCLUDE when you must reference the UAPI directories only.
+>  USERINCLUDE    := \
+> @@ -420,7 +420,7 @@ export MAKE AWK GENKSYMS INSTALLKERNEL PERL PYTHON UTS_MACHINE
+>  export HOSTCXX HOSTCXXFLAGS LDFLAGS_MODULE CHECK CHECKFLAGS
+>  
+>  export KBUILD_CPPFLAGS NOSTDINC_FLAGS LINUXINCLUDE OBJCOPYFLAGS LDFLAGS
+> -export KBUILD_CFLAGS CFLAGS_KERNEL CFLAGS_MODULE CFLAGS_GCOV CFLAGS_KCOV CFLAGS_KASAN CFLAGS_UBSAN
+> +export KBUILD_CFLAGS CFLAGS_KERNEL CFLAGS_MODULE CFLAGS_GCOV CFLAGS_KCOV CFLAGS_KCOV_COMPS CFLAGS_KASAN CFLAGS_UBSAN
+>  export KBUILD_AFLAGS AFLAGS_KERNEL AFLAGS_MODULE
+>  export KBUILD_AFLAGS_MODULE KBUILD_CFLAGS_MODULE KBUILD_LDFLAGS_MODULE
+>  export KBUILD_AFLAGS_KERNEL KBUILD_CFLAGS_KERNEL
+> @@ -822,6 +822,7 @@ KBUILD_CFLAGS   += $(call cc-option,-Werror=designated-init)
+>  KBUILD_ARFLAGS := $(call ar-option,D)
+>  
+>  include scripts/Makefile.kasan
+> +include scripts/Makefile.kcov
+
+scripts/Makefile.kcov doesn't exist.
+
+
+
+> diff --git a/scripts/Makefile.lib b/scripts/Makefile.lib
+> index 5e975fee0f5b..7ddd5932c832 100644
+> --- a/scripts/Makefile.lib
+> +++ b/scripts/Makefile.lib
+> @@ -142,6 +142,12 @@ _c_flags += $(if $(patsubst n%,, \
+>  	$(CFLAGS_KCOV))
+>  endif
+>  
+> +ifeq ($(CONFIG_KCOV_ENABLE_COMPARISONS),y)
+> +_c_flags += $(if $(patsubst n%,, \
+> +	$(KCOV_INSTRUMENT_$(basetarget).o)$(KCOV_INSTRUMENT)$(CONFIG_KCOV_INSTRUMENT_ALL)), \
+> +	$(CFLAGS_KCOV_COMPS))
+> +endif
 > +
-> +	t = current;
-> +	if (!check_kcov_mode(KCOV_MODE_TRACE_CMP, t))
-> +		return;
-> +
-> +#ifdef CONFIG_RANDOMIZE_BASE
-> +	ip -= kaslr_offset();
-> +#endif
 
-Given we have this in two places, it might make sense to have a helper
-like:
+Instead of this you could simply add -fsanitize-coverage=trace-cmp to CFLAGS_KCOV.
 
-unsigned long canonicalize_ip(unsigned long ip)
-{
-#ifdef CONFIG_RANDOMIZE_BASE
-	ip -= kaslr_offset();
-#endif
-	return ip;
-}
 
-... to minimize the ifdeffery elsewhere.
-
-> +
-> +	/*
-> +	 * We write all comparison arguments and types as u64.
-> +	 * The buffer was allocated for t->kcov_size unsigned longs.
-> +	 */
-> +	area = (u64 *)t->kcov_area;
-> +	max_pos = t->kcov_size * sizeof(unsigned long);
-> +
-> +	count = READ_ONCE(area[0]);
-> +
-> +	/* Every record is KCOV_WORDS_PER_CMP 64-bit words. */
-> +	start_index = 1 + count * KCOV_WORDS_PER_CMP;
-> +	end_pos = (start_index + KCOV_WORDS_PER_CMP) * sizeof(u64);
-> +	if (likely(end_pos <= max_pos)) {
-> +		area[start_index] = type;
-> +		area[start_index + 1] = arg1;
-> +		area[start_index + 2] = arg2;
-> +		area[start_index + 3] = ip;
-> +		WRITE_ONCE(area[0], count + 1);
-
-That ordering problem applies here, too.
-
-Thanks,
-Mark.
+>  # If building the kernel in a separate objtree expand all occurrences
+>  # of -Idir to -I$(srctree)/dir except for absolute paths (starting with '/').
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
