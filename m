@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E17C6B025F
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 11:05:35 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id p130so1972521lfe.20
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 08:05:35 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0044C6B0268
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 11:05:38 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id m72so4574805wmc.0
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 08:05:37 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 35sor2813287wrt.66.2017.10.09.08.05.34
+        by mx.google.com with SMTPS id 138sor1782117wmf.91.2017.10.09.08.05.36
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 09 Oct 2017 08:05:34 -0700 (PDT)
+        Mon, 09 Oct 2017 08:05:36 -0700 (PDT)
 From: Alexander Potapenko <glider@google.com>
-Subject: [PATCH v2 2/3] Makefile: support flag -fsanitizer-coverage=trace-cmp
-Date: Mon,  9 Oct 2017 17:05:20 +0200
-Message-Id: <20171009150521.82775-2-glider@google.com>
+Subject: [PATCH v2 3/3] kcov: update documentation
+Date: Mon,  9 Oct 2017 17:05:21 +0200
+Message-Id: <20171009150521.82775-3-glider@google.com>
 In-Reply-To: <20171009150521.82775-1-glider@google.com>
 References: <20171009150521.82775-1-glider@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,9 +22,8 @@ Cc: syzkaller@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 From: Victor Chibotaru <tchibo@google.com>
 
-The flag enables Clang instrumentation of comparison operations
-(currently not supported by GCC). This instrumentation is needed by the
-new KCOV device to collect comparison operands.
+The updated documentation describes new KCOV mode for collecting
+comparison operands.
 
 Signed-off-by: Victor Chibotaru <tchibo@google.com>
 Signed-off-by: Alexander Potapenko <glider@google.com>
@@ -41,84 +40,153 @@ Cc: syzkaller@googlegroups.com
 Cc: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org
 ---
-Clang instrumentation:
-https://clang.llvm.org/docs/SanitizerCoverage.html#tracing-data-flow
-
-v2: - updated KCOV_ENABLE_COMPARISONS description
+v2: - reflect the changes to kcov.c in the test program.
 ---
- Makefile             |  5 +++--
- lib/Kconfig.debug    | 10 ++++++++++
- scripts/Makefile.lib |  6 ++++++
- 3 files changed, 19 insertions(+), 2 deletions(-)
+ Documentation/dev-tools/kcov.rst | 103 +++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 99 insertions(+), 4 deletions(-)
 
-diff --git a/Makefile b/Makefile
-index 2835863bdd5a..c2a8e56df748 100644
---- a/Makefile
-+++ b/Makefile
-@@ -374,7 +374,7 @@ AFLAGS_KERNEL	=
- LDFLAGS_vmlinux =
- CFLAGS_GCOV	:= -fprofile-arcs -ftest-coverage -fno-tree-loop-im $(call cc-disable-warning,maybe-uninitialized,)
- CFLAGS_KCOV	:= $(call cc-option,-fsanitize-coverage=trace-pc,)
--
-+CFLAGS_KCOV_COMPS := $(call cc-option,-fsanitize-coverage=trace-cmp,)
+diff --git a/Documentation/dev-tools/kcov.rst b/Documentation/dev-tools/kcov.rst
+index 44886c91e112..6ee65c6e2448 100644
+--- a/Documentation/dev-tools/kcov.rst
++++ b/Documentation/dev-tools/kcov.rst
+@@ -12,19 +12,30 @@ To achieve this goal it does not collect coverage in soft/hard interrupts
+ and instrumentation of some inherently non-deterministic parts of kernel is
+ disabled (e.g. scheduler, locking).
  
- # Use USERINCLUDE when you must reference the UAPI directories only.
- USERINCLUDE    := \
-@@ -420,7 +420,7 @@ export MAKE AWK GENKSYMS INSTALLKERNEL PERL PYTHON UTS_MACHINE
- export HOSTCXX HOSTCXXFLAGS LDFLAGS_MODULE CHECK CHECKFLAGS
- 
- export KBUILD_CPPFLAGS NOSTDINC_FLAGS LINUXINCLUDE OBJCOPYFLAGS LDFLAGS
--export KBUILD_CFLAGS CFLAGS_KERNEL CFLAGS_MODULE CFLAGS_GCOV CFLAGS_KCOV CFLAGS_KASAN CFLAGS_UBSAN
-+export KBUILD_CFLAGS CFLAGS_KERNEL CFLAGS_MODULE CFLAGS_GCOV CFLAGS_KCOV CFLAGS_KCOV_COMPS CFLAGS_KASAN CFLAGS_UBSAN
- export KBUILD_AFLAGS AFLAGS_KERNEL AFLAGS_MODULE
- export KBUILD_AFLAGS_MODULE KBUILD_CFLAGS_MODULE KBUILD_LDFLAGS_MODULE
- export KBUILD_AFLAGS_KERNEL KBUILD_CFLAGS_KERNEL
-@@ -822,6 +822,7 @@ KBUILD_CFLAGS   += $(call cc-option,-Werror=designated-init)
- KBUILD_ARFLAGS := $(call ar-option,D)
- 
- include scripts/Makefile.kasan
-+include scripts/Makefile.kcov
- include scripts/Makefile.extrawarn
- include scripts/Makefile.ubsan
- 
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 2689b7c50c52..a10eb4e34719 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -759,6 +759,16 @@ config KCOV
- 
- 	  For more details, see Documentation/dev-tools/kcov.rst.
- 
-+config KCOV_ENABLE_COMPARISONS
-+	bool "Enable comparison operands collection by KCOV"
-+	depends on KCOV
-+	default n
-+	help
-+	  KCOV also exposes operands of every comparison in the instrumented
-+	  code along with operand sizes and PCs of the comparison instructions.
-+	  These operands can be used by fuzzing engines to improve the quality
-+	  of fuzzing coverage.
+-Usage
+------
++kcov is also able to collect comparison operands from the instrumented code
++(this feature currently requires that the kernel is compiled with clang).
 +
- config KCOV_INSTRUMENT_ALL
- 	bool "Instrument all code by default"
- 	depends on KCOV
-diff --git a/scripts/Makefile.lib b/scripts/Makefile.lib
-index 5e975fee0f5b..7ddd5932c832 100644
---- a/scripts/Makefile.lib
-+++ b/scripts/Makefile.lib
-@@ -142,6 +142,12 @@ _c_flags += $(if $(patsubst n%,, \
- 	$(CFLAGS_KCOV))
- endif
++Prerequisites
++-------------
  
-+ifeq ($(CONFIG_KCOV_ENABLE_COMPARISONS),y)
-+_c_flags += $(if $(patsubst n%,, \
-+	$(KCOV_INSTRUMENT_$(basetarget).o)$(KCOV_INSTRUMENT)$(CONFIG_KCOV_INSTRUMENT_ALL)), \
-+	$(CFLAGS_KCOV_COMPS))
-+endif
+ Configure the kernel with::
+ 
+         CONFIG_KCOV=y
+ 
+ CONFIG_KCOV requires gcc built on revision 231296 or later.
 +
- # If building the kernel in a separate objtree expand all occurrences
- # of -Idir to -I$(srctree)/dir except for absolute paths (starting with '/').
++If the comparison operands need to be collected, set::
++
++	CONFIG_KCOV_ENABLE_COMPARISONS=y
++
+ Profiling data will only become accessible once debugfs has been mounted::
  
+         mount -t debugfs none /sys/kernel/debug
+ 
+-The following program demonstrates kcov usage from within a test program:
++Coverage collection
++-------------------
++The following program demonstrates coverage collection from within a test
++program using kcov:
+ 
+ .. code-block:: c
+ 
+@@ -44,6 +55,9 @@ The following program demonstrates kcov usage from within a test program:
+     #define KCOV_DISABLE			_IO('c', 101)
+     #define COVER_SIZE			(64<<10)
+ 
++    #define KCOV_TRACE_PC  0
++    #define KCOV_TRACE_CMP 1
++
+     int main(int argc, char **argv)
+     {
+ 	int fd;
+@@ -64,7 +78,7 @@ The following program demonstrates kcov usage from within a test program:
+ 	if ((void*)cover == MAP_FAILED)
+ 		perror("mmap"), exit(1);
+ 	/* Enable coverage collection on the current thread. */
+-	if (ioctl(fd, KCOV_ENABLE, 0))
++	if (ioctl(fd, KCOV_ENABLE, KCOV_TRACE_PC))
+ 		perror("ioctl"), exit(1);
+ 	/* Reset coverage from the tail of the ioctl() call. */
+ 	__atomic_store_n(&cover[0], 0, __ATOMIC_RELAXED);
+@@ -111,3 +125,84 @@ The interface is fine-grained to allow efficient forking of test processes.
+ That is, a parent process opens /sys/kernel/debug/kcov, enables trace mode,
+ mmaps coverage buffer and then forks child processes in a loop. Child processes
+ only need to enable coverage (disable happens automatically on thread end).
++
++Comparison operands collection
++------------------------------
++Comparison operands collection is similar to coverage collection:
++
++.. code-block:: c
++
++    /* Same includes and defines as above. */
++
++     /* Number of 64-bit words per record. */
++     #define KCOV_WORDS_PER_CMP 4
++
++     enum kcov_cmp_type {
++	/*
++	* LSB shows whether the first argument is a compile-time constant.
++	*/
++	KCOV_CMP_CONST = 1,
++	/*
++	* Second and third LSBs contain the size of arguments (1/2/4/8 bytes).
++	*/
++	KCOV_CMP_SIZE1 = 0,
++	KCOV_CMP_SIZE2 = 2,
++	KCOV_CMP_SIZE4 = 4,
++	KCOV_CMP_SIZE8 = 6,
++	KCOV_CMP_SIZE_MASK = 6,
++    };
++
++    int main(int argc, char **argv)
++    {
++	int fd;
++	uint64_t *cover, type, arg1, arg2, is_const, size;
++	unsigned long n, i;
++
++	fd = open("/sys/kernel/debug/kcov", O_RDWR);
++	if (fd == -1)
++		perror("open"), exit(1);
++	if (ioctl(fd, KCOV_INIT_TRACE, COVER_SIZE))
++		perror("ioctl"), exit(1);
++	/*
++	* Note that the buffer pointer is of type uint64_t*, because all
++	* the comparison operands are promoted to uint64_t.
++	*/
++	cover = (uint64_t *)mmap(NULL, COVER_SIZE * sizeof(unsigned long),
++				     PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
++	if ((void*)cover == MAP_FAILED)
++		perror("mmap"), exit(1);
++	/* Note KCOV_TRACE_CMP instead of KCOV_TRACE_PC. */
++	if (ioctl(fd, KCOV_ENABLE, KCOV_TRACE_CMP))
++		perror("ioctl"), exit(1);
++	__atomic_store_n(&cover[0], 0, __ATOMIC_RELAXED);
++	read(-1, NULL, 0);
++	/* Read number of comparisons collected. */
++	n = __atomic_load_n(&cover[0], __ATOMIC_RELAXED);
++	for (i = 0; i < n; i++) {
++		type = cover[i * KCOV_WORDS_PER_CMP + 1];
++		/* arg1 and arg2 - operands of the comparison. */
++		arg1 = cover[i * KCOV_WORDS_PER_CMP + 2];
++		arg2 = cover[i * KCOV_WORDS_PER_CMP + 3];
++		/* ip - caller address. */
++		ip = cover[i * KCOV_WORDS_PER_CMP + 4];
++		/* size == KCOV_CMP_SIZEi. */
++		size = type & KCOV_CMP_SIZE_MASK;
++		/* is_const - shows whether arg1 is a compile-time constant.*/
++		is_const = type & KCOV_CMP_CONST;
++		printf("ip: 0x%lx type: 0x%lx, arg1: 0x%lx, arg2: 0x%lx, "
++			"size: %lu, %s\n",
++			ip, type, arg1, arg2, size,
++		is_const ? "const" : "non-const");
++	}
++	if (ioctl(fd, KCOV_DISABLE, 0))
++		perror("ioctl"), exit(1);
++	/* Free resources. */
++	if (munmap(cover, COVER_SIZE * sizeof(unsigned long)))
++		perror("munmap"), exit(1);
++	if (close(fd))
++		perror("close"), exit(1);
++	return 0;
++    }
++
++Note that the kcov modes (coverage collection or comparison operands) are
++mutually exclusive.
 -- 
 2.14.2.920.gcf0c67979c-goog
 
