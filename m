@@ -1,99 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B343E6B025E
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 18:46:13 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id 103so17006910uas.3
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 15:46:13 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id a10si1613168qtg.183.2017.10.09.15.46.12
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Oct 2017 15:46:12 -0700 (PDT)
-From: Prakash Sangappa <prakash.sangappa@oracle.com>
-Subject: [PATCH v2] Userfaultfd: Add description for UFFD_FEATURE_SIGBUS
-Date: Mon,  9 Oct 2017 15:45:51 -0700
-Message-Id: <1507589151-27430-1-git-send-email-prakash.sangappa@oracle.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B448E6B025E
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 18:50:29 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id d28so9772658pfe.2
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 15:50:29 -0700 (PDT)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id d6si7113473pgn.192.2017.10.09.15.50.27
+        for <linux-mm@kvack.org>;
+        Mon, 09 Oct 2017 15:50:28 -0700 (PDT)
+Date: Tue, 10 Oct 2017 09:50:25 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v7 06/12] xfs: wire up MAP_DIRECT
+Message-ID: <20171009225025.GT3666@dastard>
+References: <150732931273.22363.8436792888326501071.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <150732934955.22363.14950885120988262779.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171009034030.GH3666@dastard>
+ <CAPcyv4i6WBxfVJ0yqWbuW2kiJ-wpi+iYRPk=Kykqt3U5Rrw7MA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4i6WBxfVJ0yqWbuW2kiJ-wpi+iYRPk=Kykqt3U5Rrw7MA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mtk.manpages@gmail.com
-Cc: linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com, rppt@linux.vnet.ibm.com, mhocko@suse.com, prakash.sangappa@oracle.com
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-xfs@vger.kernel.org, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, Linux API <linux-api@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, "J. Bruce Fields" <bfields@fieldses.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jeff Layton <jlayton@poochiereds.net>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-Userfaultfd feature UFFD_FEATURE_SIGBUS was merged recently and should
-be available in Linux 4.14 release. This patch is for the manpage
-changes documenting this API.
+On Mon, Oct 09, 2017 at 10:08:40AM -0700, Dan Williams wrote:
+> On Sun, Oct 8, 2017 at 8:40 PM, Dave Chinner <david@fromorbit.com> wrote:
+> >>
+> >>  /*
+> >>   * Clear the specified ranges to zero through either the pagecache or DAX.
+> >> @@ -1008,6 +1018,26 @@ xfs_file_llseek(
+> >>       return vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
+> >>  }
+> >>
+> >> +static int
+> >> +xfs_vma_checks(
+> >> +     struct vm_area_struct   *vma,
+> >> +     struct inode            *inode)
+> >
+> > Exactly what are we checking for - function name doesn't tell me,
+> > and there's no comments, either?
+> 
+> Ok, I'll improve this.
+> 
+> >
+> >> +{
+> >> +     if (!is_xfs_map_direct(vma))
+> >> +             return 0;
+> >> +
+> >> +     if (!is_map_direct_valid(vma->vm_private_data))
+> >> +             return VM_FAULT_SIGBUS;
+> >> +
+> >> +     if (xfs_is_reflink_inode(XFS_I(inode)))
+> >> +             return VM_FAULT_SIGBUS;
+> >> +
+> >> +     if (!IS_DAX(inode))
+> >> +             return VM_FAULT_SIGBUS;
+> >
+> > And how do we get is_xfs_map_direct() set to true if we don't have a
+> > DAX inode or the inode has shared extents?
+> 
+> So, this was my way of trying to satisfy the request you made here:
+> 
+>     https://lkml.org/lkml/2017/8/11/876
+> 
+> i.e. allow MAP_DIRECT on non-dax files to enable a use case of
+> freezing the block-map to examine which file extents are linked. If
+> you don't want to use MAP_DIRECT for this, we can move these checks to
+> mmap time.
 
-Documents the following commit:
+Ok, but I don't want to use mmap to deal with this, nor do I care
+whether DAX is in use or not. So I don't think this is really
+necessary for MAP_DIRECT.
 
-commit 2d6d6f5a09a96cc1fec7ed992b825e05f64cb50e
-Author: Prakash Sangappa <prakash.sangappa@oracle.com>
-Date: Wed Sep 6 16:23:39 2017 -0700
 
-     mm: userfaultfd: add feature to request for a signal delivery
+> >> +xfs_file_mmap_validate(
+> >> +     struct file             *filp,
+> >> +     struct vm_area_struct   *vma,
+> >> +     unsigned long           map_flags,
+> >> +     int                     fd)
+> >> +{
+> >> +     struct inode            *inode = file_inode(filp);
+> >> +     struct xfs_inode        *ip = XFS_I(inode);
+> >> +     struct map_direct_state *mds;
+> >> +
+> >> +     if (map_flags & ~(XFS_MAP_SUPPORTED))
+> >> +             return -EOPNOTSUPP;
+> >> +
+> >> +     if ((map_flags & MAP_DIRECT) == 0)
+> >> +             return xfs_file_mmap(filp, vma);
+> >> +
+> >> +     file_accessed(filp);
+> >> +     vma->vm_ops = &xfs_file_vm_direct_ops;
+> >> +     if (IS_DAX(inode))
+> >> +             vma->vm_flags |= VM_MIXEDMAP | VM_HUGEPAGE;
+> >
+> > And if it isn't a DAX inode? what is MAP_DIRECT supposed to do then?
+> 
+> In the non-DAX case it just takes the FL_LAYOUT file lease... although
+> we could also just have an fcntl for that purpose. The use case of
+> just freezing the block map does not need a mapping.
 
-Signed-off-by: Prakash Sangappa <prakash.sangappa@oracle.com>
----
-v2: Incorporated review feedback changes.
----
- man2/ioctl_userfaultfd.2 |  9 +++++++++
- man2/userfaultfd.2       | 23 +++++++++++++++++++++++
- 2 files changed, 32 insertions(+)
+RIght, so I think we should just add a fcntl for the non-DAX case I
+have in mind, and not complicate the MAP_DIRECT implementation right
+now.  We can alsways extend the scope of MAP_DIRECT in future if we
+actually need to do so.
 
-diff --git a/man2/ioctl_userfaultfd.2 b/man2/ioctl_userfaultfd.2
-index 60fd29b..32f0744 100644
---- a/man2/ioctl_userfaultfd.2
-+++ b/man2/ioctl_userfaultfd.2
-@@ -196,6 +196,15 @@ with the
- flag set,
- .BR memfd_create (2),
- and so on.
-+.TP
-+.B UFFD_FEATURE_SIGBUS
-+Since Linux 4.14, If this feature bit is set, no page-fault events
-+.B (UFFD_EVENT_PAGEFAULT)
-+will be delivered, instead a
-+.B SIGBUS
-+signal will be sent to the faulting process. Applications using this
-+feature will not require the use of a userfaultfd monitor for processing
-+memory accesses to the regions registered with userfaultfd.
- .IP
- The returned
- .I ioctls
-diff --git a/man2/userfaultfd.2 b/man2/userfaultfd.2
-index 1741ee3..3c5b9c0 100644
---- a/man2/userfaultfd.2
-+++ b/man2/userfaultfd.2
-@@ -172,6 +172,29 @@ or
- .BR ioctl (2)
- operations to resolve the page fault.
- .PP
-+Starting from Linux 4.14, if application sets
-+.B UFFD_FEATURE_SIGBUS
-+feature bit using
-+.B UFFDIO_API
-+.BR ioctl (2),
-+no page fault notification will be forwarded to
-+the user-space, instead a
-+.B SIGBUS
-+signal is delivered to the faulting process. With this feature,
-+userfaultfd can be used for robustness purpose to simply catch
-+any access to areas within the registered address range that do not
-+have pages allocated, without having to listen to userfaultfd events.
-+No userfaultfd monitor will be required for dealing with such memory
-+accesses. For example, this feature can be useful for applications that
-+want to prevent the kernel from automatically allocating pages and filling
-+holes in sparse files when the hole is accessed thru mapped address.
-+.PP
-+The
-+.B UFFD_FEATURE_SIGBUS
-+feature is implicitly inherited through fork() if used in combination with
-+.BR UFFD_FEATURE_FORK .
-+
-+.PP
- Details of the various
- .BR ioctl (2)
- operations can be found in
+> >> +     mds = map_direct_register(fd, vma);
+> >> +     if (IS_ERR(mds))
+> >> +             return PTR_ERR(mds);
+> >> +
+> >> +     /* flush in-flight faults */
+> >> +     xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+> >> +     xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
+> >
+> > Urk. That's nasty. And why is it even necessary? Please explain why
+> > this is necessary in the comment, because it's not at all obvious to
+> > me...
+> 
+> This is related to your other observation about i_mapdcount and adding
+> an iomap_can_allocate() helper. I think I can clean both of these up
+> by using a call to break_layout(inode, false) and bailing in
+> ->iomap_begin() if it returns EWOULDBLOCK. This would also fix the
+> current problem that allocating write-faults don't start the lease
+> break process.
+
+OK.
+
+Cheers,
+
+Dave.
 -- 
-2.7.4
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
