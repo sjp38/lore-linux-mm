@@ -1,148 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AAA86B0033
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 12:48:06 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id c3so7488496itc.19
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 09:48:06 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id n3si726455qkb.460.2017.10.09.09.48.04
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 177E76B0260
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 12:54:57 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e26so48235891pfd.4
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 09:54:57 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id j3si7200451pld.208.2017.10.09.09.54.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Oct 2017 09:48:04 -0700 (PDT)
-Subject: Re: PROBLEM: Remapping hugepages mappings causes kernel to return
- EINVAL
-References: <3ba05809-63a2-2969-e54f-fd0202fe336b@gmx.de>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <7403af16-ca37-fe4d-e6fc-b4a3cd78471f@oracle.com>
-Date: Mon, 9 Oct 2017 09:47:56 -0700
+        Mon, 09 Oct 2017 09:54:55 -0700 (PDT)
+Subject: Re: [PATCH, RFC] x86/boot/compressed/64: Handle 5-level paging boot
+ if kernel is above 4G
+References: <20171009160924.68032-1-kirill.shutemov@linux.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <af75f8aa-471d-34c5-8009-4009a8273989@intel.com>
+Date: Mon, 9 Oct 2017 09:54:53 -0700
 MIME-Version: 1.0
-In-Reply-To: <3ba05809-63a2-2969-e54f-fd0202fe336b@gmx.de>
+In-Reply-To: <20171009160924.68032-1-kirill.shutemov@linux.intel.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "C.Wehrmeyer" <c.wehrmeyer@gmx.de>, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 10/06/2017 06:58 PM, C.Wehrmeyer wrote:
-> This is my very first time reporting a Linux kernel problem. Despite my best efforts of doing homework I'm not yet used to the process.
-> 
+On 10/09/2017 09:09 AM, Kirill A. Shutemov wrote:
+> Apart from trampoline itself we also need place to store top level page
+> table in lower memory as we don't have a way to load 64-bit value into
+> CR3 from 32-bit mode. We only really need 8-bytes there as we only use
+> the very first entry of the page table.
 
-Thanks you for taking the effort to write to the list.
+Oh, and this is why you have to move "lvl5_pgtable" out of the kernel image?
 
-> Creating a private, anonymous mapping via mmap(2) which is supposed to use hugepages (test machine: x64 with 2-MiB pages) and later resizing that mapping via mremap(2) causes the kernel to return EINVAL. If the flags that create the hugepages mapping are omitted and thus allocating pages with the normal page size, mremap(2)succeeds.
-> 
-> The check to stop processing hugepages is in mm/mremap.c, function vma_to_resize:
-> 
-> if (is_vm_hugetlb_page(vma))
->         return ERR_PTR(-EINVAL);
+> diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
+> index cefe4958fda9..049a289342bd 100644
+> --- a/arch/x86/boot/compressed/head_64.S
+> +++ b/arch/x86/boot/compressed/head_64.S
+> @@ -288,6 +288,22 @@ ENTRY(startup_64)
+>  	leaq	boot_stack_end(%rbx), %rsp
+>  
+>  #ifdef CONFIG_X86_5LEVEL
+> +/*
+> + * We need trampoline in lower memory switch from 4- to 5-level paging for
+> + * cases when bootloader put kernel above 4G, but didn't enable 5-level paging
+> + * for us.
+> + *
+> + * Here we use MBR memory to store trampoline code.
+> + *
+> + * We also have to have top page table in lower memory as we don't have a way
+> + * to load 64-bit value into CR3 from 32-bit mode. We only need 8-bytes there
+> + * as we only use the very first entry of the page table.
+> + *
+> + * Here we use 0x7000 as top-level page table.
+> + */
+> +#define LVL5_TRAMPOLINE	0x7c00
+> +#define LVL5_PGTABLE	0x7000
+> +
+>  	/* Preserve RBX across CPUID */
+>  	movq	%rbx, %r8
+>  
+> @@ -323,29 +339,37 @@ ENTRY(startup_64)
+>  	 * long mode would trigger #GP. So we need to switch off long mode
+>  	 * first.
+>  	 *
+> -	 * NOTE: This is not going to work if bootloader put us above 4G
+> -	 * limit.
+> +	 * We use trampoline in lower memory to handle situation when
+> +	 * bootloader put the kernel image above 4G.
+>  	 *
+>  	 * The first step is go into compatibility mode.
+>  	 */
+>  
+> -	/* Clear additional page table */
+> -	leaq	lvl5_pgtable(%rbx), %rdi
+> -	xorq	%rax, %rax
+> -	movq	$(PAGE_SIZE/8), %rcx
+> -	rep	stosq
+> +	/* Copy trampoline code in place */
+> +	movq	%rsi, %r9
+> +	leaq	lvl5_trampoline(%rip), %rsi
+> +	movq	$LVL5_TRAMPOLINE, %rdi
+> +	movq	$(lvl5_trampoline_end - lvl5_trampoline), %rcx
+> +	rep	movsb
+> +	movq	%r9, %rsi
 
-You are correct.  That check in function vma_to_resize() will prevent
-mremap from growing or relocating hugetlb backed mappings.  This check
-existed in the 2.6.0 linux kernel, so this restriction has existed for
-a very long time.  I'm guessing that growing or relocating a hugetlb
-mapping was never allowed.  Perhaps the mremap man page should list this
-restriction.
+This needs to get more heavily commented, like the use of r9 to stash
+%rsi.  Why do you do that, btw?  I don't see it getting reused at first
+glance.
 
-Is there a specific use case where the ability to grow hugetlb mappings
-is desired?  Adding this functionality would involve more than simply
-removing the above if statement.  One area of concern would be hugetlb
-huge page reservations.  If there is a compelling use case, adding the
-functionality may be worth consideration.  If not, I suggest we just
-document the limitation.
+I think it will also be really nice to differentate "lvl5_trampoline"
+from "LVL5_TRAMPOLINE".  Maybe add "src" and "dst" to them or something.
 
--- 
-Mike Kravetz
+>  	/*
+> -	 * Setup current CR3 as the first and only entry in a new top level
+> +	 * Setup current CR3 as the first and the only entry in a new top level
+>  	 * page table.
+>  	 */
+>  	movq	%cr3, %rdi
+>  	leaq	0x7 (%rdi), %rax
+> -	movq	%rax, lvl5_pgtable(%rbx)
+> +	movq	%rax, LVL5_PGTABLE
+> +
+> +	/*
+> +	 * Load address of lvl5 into RDI.
+> +	 * It will be used to return address from trampoline.
+> +	 */
+> +	leaq	lvl5(%rip), %rdi
 
+Is there a reason to do a 'lea' here instead of just shoving the address
+in directly?  Is this a shorter instruction or something?
 
+>  	/* Switch to compatibility mode (CS.L = 0 CS.D = 1) via far return */
+>  	pushq	$__KERNEL32_CS
+> -	leaq	compatible_mode(%rip), %rax
+> +	movq	$LVL5_TRAMPOLINE, %rax
+>  	pushq	%rax
+>  	lretq
+>  lvl5:
+> @@ -488,9 +512,9 @@ relocated:
+>   */
+>  	jmp	*%rax
+>  
+> -	.code32
+>  #ifdef CONFIG_X86_5LEVEL
+> -compatible_mode:
+> +	.code32
+> +lvl5_trampoline:
+>  	/* Setup data and stack segments */
+>  	movl	$__KERNEL_DS, %eax
+>  	movl	%eax, %ds
+> @@ -502,7 +526,7 @@ compatible_mode:
+>  	movl	%eax, %cr0
+>  
+>  	/* Point CR3 to 5-level paging */
+> -	leal	lvl5_pgtable(%ebx), %eax
+> +	movl	$LVL5_PGTABLE, %eax
+>  	movl	%eax, %cr3
+>  
+>  	/* Enable PAE and LA57 mode */
+> @@ -510,14 +534,9 @@ compatible_mode:
+>  	orl	$(X86_CR4_PAE | X86_CR4_LA57), %eax
+>  	movl	%eax, %cr4
+>  
+> -	/* Calculate address we are running at */
+> -	call	1f
+> -1:	popl	%edi
+> -	subl	$1b, %edi
+> -
+>  	/* Prepare stack for far return to Long Mode */
+>  	pushl	$__KERNEL_CS
+> -	leal	lvl5(%edi), %eax
+> +	movl	$(lvl5_enabled - lvl5_trampoline + LVL5_TRAMPOLINE), %eax
+
+This loads the trampoline address of "lvl5_enabled", right?  That'd be
+handy to spell out explicitly.
+
+>  	push	%eax
+>  
+>  	/* Enable paging back */
+> @@ -525,8 +544,15 @@ compatible_mode:
+>  	movl	%eax, %cr0
+>  
+>  	lret
+> +
+> +	.code64
+> +lvl5_enabled:
+> +	/* Return from trampoline */
+> +	jmp	*%rdi
+> +lvl5_trampoline_end:
+>  #endif
+>  
+> +	.code32
+>  no_longmode:
+>  	/* This isn't an x86-64 CPU so hang */
+>  1:
+> @@ -584,7 +610,3 @@ boot_stack_end:
+>  	.balign 4096
+>  pgtable:
+>  	.fill BOOT_PGT_SIZE, 1, 0
+> -#ifdef CONFIG_X86_5LEVEL
+> -lvl5_pgtable:
+> -	.fill PAGE_SIZE, 1, 0
+> -#endif
 > 
-> Furthermore, the code makes no further attempt to map page shifts and page sizes if a hugepage mapping has been detected. I have too little experience with programming in kernelland to provide a proper patch - a cobbler should stick to his last.
-> 
-> The problem was first encountered on a 4.8.10 kernel, but can still be encountered in the latest git snapshot from 3:30 AM, 2017-10-07 CEST.
-> 
-> Steps to reproduce: Enable at least two 2-MiB hugepages:
-> # echo 2 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
-> # cat /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
-> 
-> Note that due to memory fragmentation the kernel might have problems allocating a big enough amount of memory. The second statement should print "2".
-> 
-> Then compile and run the following program:
-> 
-> #define USE_HUGEPAGES
-> #define _GNU_SOURCE
-> 
-> #include <errno.h> /*errno*/
-> #include <stdio.h> /*fprintf*/
-> 
-> #include <sys/mman.h> /*mmap*/
-> #include <asm/mman.h> /*hugepages flags*/
-> 
-> #define ALLOC_SIZE_1 (2 * 1024 * 1024)
-> #define ALLOC_SIZE_2 (2 * ALLOC_SIZE_1)
-> 
-> int main(void)
-> {
->         int errno_tmp = 0;
->         int prot  = PROT_READ | PROT_WRITE;
-> 
->         const int flags_huge =
-> #ifdef USE_HUGEPAGES
->         MAP_HUGETLB | MAP_HUGE_2MB
-> #else
->         0
-> #endif
->         ;
->         const int flags = MAP_PRIVATE | MAP_ANONYMOUS | flags_huge;
-> 
->         void *buf1;
->         void *buf2;
->         /*****/
->         buf1 = mmap (
->                 NULL,
->                 ALLOC_SIZE_1,
->                 prot,
->                 flags,
->                 -1,
->                 0
->         );
-> 
->         if (MAP_FAILED == buf1) {
->                 errno_tmp = errno;
->                 fprintf(stderr,"mmap: %u\n",errno_tmp);
->                 goto out;
->         }
->         /*****/
->         buf2 = mremap (
->                 buf1,
->                 ALLOC_SIZE_1,
->                 ALLOC_SIZE_2,
->                 MREMAP_MAYMOVE
->         );
-> 
->         if (MAP_FAILED == buf2) {
->                 errno_tmp = errno;
->                 fprintf(stderr,"mremap: %u\n",errno_tmp);
->                 munmap(buf1,ALLOC_SIZE_1);
->                 goto out;
->         }
-> 
->         fputs("mremap succeeded!\n",stdout);
->         munmap(buf2,ALLOC_SIZE_2);
-> out:
->         return errno_tmp;
-> }
-> 
-> Note that by commenting out USE_HUGEPAGES you can omit the flags that cause mremap to fail.
-> 
-> Using hugetlbfs is not a fix, but at most a workaround for this problem, seeing as the problem occurs with memory mappings. File systems shouldn't have anything to say when it comes to (simple) memory allocations.
-> 
-> Thank you very much.
-> 
-> -- 
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
