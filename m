@@ -1,77 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 66D3C6B0260
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 03:19:05 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id j64so42596982pfj.6
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 00:19:05 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o4sor1037873plb.40.2017.10.09.00.19.03
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FBC26B025E
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 03:37:53 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id u138so26593730wmu.2
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 00:37:53 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id n3si3315154edb.333.2017.10.09.00.37.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 09 Oct 2017 00:19:04 -0700 (PDT)
-Date: Mon, 9 Oct 2017 22:27:27 +0800
-From: Yubin Ruan <ablacktshirt@gmail.com>
-Subject: [PATCH] shmat(2) returns page size aligned memory address
-Message-ID: <20171009092251.GC5758@HP>
-References: <CAJYFCiPhNVCMRVD-QpwsZk0wAKRXzFWcwVZDqLXxsxYfhFcVpg@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Oct 2017 00:37:52 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v997XlVb035086
+	for <linux-mm@kvack.org>; Mon, 9 Oct 2017 03:37:50 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2dg3xea6te-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 09 Oct 2017 03:37:50 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Mon, 9 Oct 2017 08:37:48 +0100
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v997bjCh22020284
+	for <linux-mm@kvack.org>; Mon, 9 Oct 2017 07:37:46 GMT
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v997baZf013883
+	for <linux-mm@kvack.org>; Mon, 9 Oct 2017 18:37:36 +1100
+Subject: Re: [PATCH] page_alloc.c: inline __rmqueue()
+References: <20171009054434.GA1798@intel.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Mon, 9 Oct 2017 13:07:36 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJYFCiPhNVCMRVD-QpwsZk0wAKRXzFWcwVZDqLXxsxYfhFcVpg@mail.gmail.com>
+In-Reply-To: <20171009054434.GA1798@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <c1e5a3d4-c5ac-d6ee-88ab-d9e2aa433b16@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-man <linux-man@vger.kernel.org>, "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, linux-mm@kvack.org
+To: Aaron Lu <aaron.lu@intel.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>
 
-On Sun, Oct 08, 2017 at 11:37:05PM +0800, Yubin Ruan wrote:
-> Hi Michael,
-> At the current man page for shmat(2)[1], there is no mentioning
-> whether the returned memory address of shmat(2) will be page size
-> aligned or not. As that is quite important to many applications(e.g.,
-> those that use locks heavily and would like to avoid some locks by
-> some atomic guarantees provided by the CPU), it would be great to
-> specify that for Linux.
+On 10/09/2017 11:14 AM, Aaron Lu wrote:
+> __rmqueue() is called by rmqueue_bulk() and rmqueue() under zone->lock
+> and that lock can be heavily contended with memory intensive applications.
 > 
-> I walked down the current implementation of shmat(2) in the latest
-> kernel src and found that shmat(2) does return a page size aligned
-> memory address:
+> Since __rmqueue() is a small function, inline it can save us some time.
+> With the will-it-scale/page_fault1/process benchmark, when using nr_cpu
+> processes to stress buddy:
 > 
-> SYSCALL_DEFINE3(shmat, int, shmid, char __user *, shmaddr, int, shmflg)
->  -> do_shmat(...)
->  -> do_mmap_pgoff(...)
->  -> do_mmap(...)
->  -> get_unmapped_area(...)
->  -> get_area(...) -> offset_in_page(addr)
+> On a 2 sockets Intel-Skylake machine:
+>       base          %change       head
+>      77342            +6.3%      82203        will-it-scale.per_process_ops
 > 
-> there is a `offset_in_page(addr)' assertion at the end and if that is
-> true a -EINVAL would be returned, by which we can be sure that
-> shmat(2) will return a page size aligned memory address on success[2].
+> On a 4 sockets Intel-Skylake machine:
+>       base          %change       head
+>      75746            +4.6%      79248        will-it-scale.per_process_ops
 > 
-> I will create a patch later if that is acceptable.
+> This patch adds inline to __rmqueue().
 > 
-> Thanks,
-> Yubin
-> 
-> [1]: http://man7.org/linux/man-pages/man2/shmat.2.html
-> [2]: there is also a `offset_in_page(2)' in get_unmapped_area(...),
-> but that doesn't lead to -EINVAL...I am not sure whether the logic of
-> that code is right.
+> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
 
-add the page-alignment attribute of the return address of shmat(2)
----
+Ran it through kernel bench and ebizzy micro benchmarks. Results
+were comparable with and without the patch. May be these are not
+the appropriate tests for this inlining improvement. Anyways it
+does not have any performance degradation either.
 
-diff --git a/man2/shmop.2 b/man2/shmop.2
-index 849529f..b8d7595 100644
---- a/man2/shmop.2
-+++ b/man2/shmop.2
-@@ -63,7 +63,7 @@ with one of the following criteria:
- If
- .I shmaddr
- is NULL,
--the system chooses a suitable (unused) address at which to attach
-+the system chooses a suitable (unused) page-aligned address to attach
- the segment.
- .IP *
- If
+Reviewed-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Tested-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
