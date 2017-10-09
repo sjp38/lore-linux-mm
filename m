@@ -1,94 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BCBDD6B0268
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 18:20:29 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id k31so5824117qta.7
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 15:20:29 -0700 (PDT)
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D0D426B026B
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 18:20:30 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id 10so2882586qty.5
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 15:20:30 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id k58si2087616qtc.530.2017.10.09.15.20.28
+        by mx.google.com with ESMTPS id w5si5734684qtj.142.2017.10.09.15.20.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Oct 2017 15:20:28 -0700 (PDT)
+        Mon, 09 Oct 2017 15:20:29 -0700 (PDT)
 From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v11 9/9] sparc64: optimized struct page zeroing
-Date: Mon,  9 Oct 2017 18:19:31 -0400
-Message-Id: <20171009221931.1481-10-pasha.tatashin@oracle.com>
+Subject: [PATCH v11 8/9] mm: stop zeroing memory during allocation in vmemmap
+Date: Mon,  9 Oct 2017 18:19:30 -0400
+Message-Id: <20171009221931.1481-9-pasha.tatashin@oracle.com>
 In-Reply-To: <20171009221931.1481-1-pasha.tatashin@oracle.com>
 References: <20171009221931.1481-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-Add an optimized mm_zero_struct_page(), so struct page's are zeroed without
-calling memset(). We do eight to ten regular stores based on the size of
-struct page. Compiler optimizes out the conditions of switch() statement.
+vmemmap_alloc_block() will no longer zero the block, so zero memory
+at its call sites for everything except struct pages.  Struct page memory
+is zero'd by struct page initialization.
 
-SPARC-M6 with 15T of memory, single thread performance:
+Replace allocators in sprase-vmemmap to use the non-zeroing version. So,
+we will get the performance improvement by zeroing the memory in parallel
+when struct pages are zeroed.
 
-                               BASE            FIX  OPTIMIZED_FIX
-        bootmem_init   28.440467985s   2.305674818s   2.305161615s
-free_area_init_nodes  202.845901673s 225.343084508s 172.556506560s
-                      --------------------------------------------
-Total                 231.286369658s 227.648759326s 174.861668175s
+Add struct page zeroing as a part of initialization of other fields in
+__init_single_page().
 
-BASE:  current linux
-FIX:   This patch series without "optimized struct page zeroing"
-OPTIMIZED_FIX: This patch series including the current patch.
+This single thread performance collected on: Intel(R) Xeon(R) CPU E7-8895
+v3 @ 2.60GHz with 1T of memory (268400646 pages in 8 nodes):
 
-bootmem_init() is where memory for struct pages is zeroed during
-allocation. Note, about two seconds in this function is a fixed time: it
-does not increase as memory is increased.
+                         BASE            FIX
+sparse_init     11.244671836s   0.007199623s
+zone_sizes_init  4.879775891s   8.355182299s
+                  --------------------------
+Total           16.124447727s   8.362381922s
+
+sparse_init is where memory for struct pages is zeroed, and the zeroing
+part is moved later in this patch into __init_single_page(), which is
+called from zone_sizes_init().
 
 Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
 Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 Reviewed-by: Bob Picco <bob.picco@oracle.com>
-Acked-by: David S. Miller <davem@davemloft.net>
+Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- arch/sparc/include/asm/pgtable_64.h | 30 ++++++++++++++++++++++++++++++
- 1 file changed, 30 insertions(+)
+ include/linux/mm.h  | 11 +++++++++++
+ mm/page_alloc.c     |  1 +
+ mm/sparse-vmemmap.c | 15 +++++++--------
+ mm/sparse.c         |  6 +++---
+ 4 files changed, 22 insertions(+), 11 deletions(-)
 
-diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-index 4fefe3762083..8ed478abc630 100644
---- a/arch/sparc/include/asm/pgtable_64.h
-+++ b/arch/sparc/include/asm/pgtable_64.h
-@@ -230,6 +230,36 @@ extern unsigned long _PAGE_ALL_SZ_BITS;
- extern struct page *mem_map_zero;
- #define ZERO_PAGE(vaddr)	(mem_map_zero)
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 04c8b2e5aff4..fd045a3b243a 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2501,6 +2501,17 @@ static inline void *vmemmap_alloc_block_buf(unsigned long size, int node)
+ 	return __vmemmap_alloc_block_buf(size, node, NULL);
+ }
  
-+/* This macro must be updated when the size of struct page grows above 80
-+ * or reduces below 64.
-+ * The idea that compiler optimizes out switch() statement, and only
-+ * leaves clrx instructions
-+ */
-+#define	mm_zero_struct_page(pp) do {					\
-+	unsigned long *_pp = (void *)(pp);				\
-+									\
-+	 /* Check that struct page is either 64, 72, or 80 bytes */	\
-+	BUILD_BUG_ON(sizeof(struct page) & 7);				\
-+	BUILD_BUG_ON(sizeof(struct page) < 64);				\
-+	BUILD_BUG_ON(sizeof(struct page) > 80);				\
-+									\
-+	switch (sizeof(struct page)) {					\
-+	case 80:							\
-+		_pp[9] = 0;	/* fallthrough */			\
-+	case 72:							\
-+		_pp[8] = 0;	/* fallthrough */			\
-+	default:							\
-+		_pp[7] = 0;						\
-+		_pp[6] = 0;						\
-+		_pp[5] = 0;						\
-+		_pp[4] = 0;						\
-+		_pp[3] = 0;						\
-+		_pp[2] = 0;						\
-+		_pp[1] = 0;						\
-+		_pp[0] = 0;						\
-+	}								\
-+} while (0)
++static inline void *vmemmap_alloc_block_zero(unsigned long size, int node)
++{
++	void *p = vmemmap_alloc_block(size, node);
 +
- /* PFNs are real physical page numbers.  However, mem_map only begins to record
-  * per-page information starting at pfn_base.  This is to handle systems where
-  * the first physical page in the machine is at some huge physical address,
++	if (!p)
++		return NULL;
++	memset(p, 0, size);
++
++	return p;
++}
++
+ void vmemmap_verify(pte_t *, int, unsigned long, unsigned long);
+ int vmemmap_populate_basepages(unsigned long start, unsigned long end,
+ 			       int node);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5f0013bbbe9d..85e038e1e941 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1170,6 +1170,7 @@ static void free_one_page(struct zone *zone,
+ static void __meminit __init_single_page(struct page *page, unsigned long pfn,
+ 				unsigned long zone, int nid)
+ {
++	mm_zero_struct_page(page);
+ 	set_page_links(page, zone, nid, pfn);
+ 	init_page_count(page);
+ 	page_mapcount_reset(page);
+diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+index d1a39b8051e0..c2f5654e7c9d 100644
+--- a/mm/sparse-vmemmap.c
++++ b/mm/sparse-vmemmap.c
+@@ -41,7 +41,7 @@ static void * __ref __earlyonly_bootmem_alloc(int node,
+ 				unsigned long align,
+ 				unsigned long goal)
+ {
+-	return memblock_virt_alloc_try_nid(size, align, goal,
++	return memblock_virt_alloc_try_nid_raw(size, align, goal,
+ 					    BOOTMEM_ALLOC_ACCESSIBLE, node);
+ }
+ 
+@@ -54,9 +54,8 @@ void * __meminit vmemmap_alloc_block(unsigned long size, int node)
+ 	if (slab_is_available()) {
+ 		struct page *page;
+ 
+-		page = alloc_pages_node(node,
+-			GFP_KERNEL | __GFP_ZERO | __GFP_RETRY_MAYFAIL,
+-			get_order(size));
++		page = alloc_pages_node(node, GFP_KERNEL | __GFP_RETRY_MAYFAIL,
++					get_order(size));
+ 		if (page)
+ 			return page_address(page);
+ 		return NULL;
+@@ -183,7 +182,7 @@ pmd_t * __meminit vmemmap_pmd_populate(pud_t *pud, unsigned long addr, int node)
+ {
+ 	pmd_t *pmd = pmd_offset(pud, addr);
+ 	if (pmd_none(*pmd)) {
+-		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
++		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
+ 		if (!p)
+ 			return NULL;
+ 		pmd_populate_kernel(&init_mm, pmd, p);
+@@ -195,7 +194,7 @@ pud_t * __meminit vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node)
+ {
+ 	pud_t *pud = pud_offset(p4d, addr);
+ 	if (pud_none(*pud)) {
+-		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
++		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
+ 		if (!p)
+ 			return NULL;
+ 		pud_populate(&init_mm, pud, p);
+@@ -207,7 +206,7 @@ p4d_t * __meminit vmemmap_p4d_populate(pgd_t *pgd, unsigned long addr, int node)
+ {
+ 	p4d_t *p4d = p4d_offset(pgd, addr);
+ 	if (p4d_none(*p4d)) {
+-		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
++		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
+ 		if (!p)
+ 			return NULL;
+ 		p4d_populate(&init_mm, p4d, p);
+@@ -219,7 +218,7 @@ pgd_t * __meminit vmemmap_pgd_populate(unsigned long addr, int node)
+ {
+ 	pgd_t *pgd = pgd_offset_k(addr);
+ 	if (pgd_none(*pgd)) {
+-		void *p = vmemmap_alloc_block(PAGE_SIZE, node);
++		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
+ 		if (!p)
+ 			return NULL;
+ 		pgd_populate(&init_mm, pgd, p);
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 83b3bf6461af..d22f51bb7c79 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -437,9 +437,9 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+ 	}
+ 
+ 	size = PAGE_ALIGN(size);
+-	map = memblock_virt_alloc_try_nid(size * map_count,
+-					  PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
+-					  BOOTMEM_ALLOC_ACCESSIBLE, nodeid);
++	map = memblock_virt_alloc_try_nid_raw(size * map_count,
++					      PAGE_SIZE, __pa(MAX_DMA_ADDRESS),
++					      BOOTMEM_ALLOC_ACCESSIBLE, nodeid);
+ 	if (map) {
+ 		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+ 			if (!present_section_nr(pnum))
 -- 
 2.14.2
 
