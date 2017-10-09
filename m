@@ -1,79 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 54DC26B0266
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 14:48:33 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id s185so13110745oif.3
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 11:48:33 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id p200si3723278oic.247.2017.10.09.11.48.32
-        for <linux-mm@kvack.org>;
-        Mon, 09 Oct 2017 11:48:32 -0700 (PDT)
-Date: Mon, 9 Oct 2017 19:48:34 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v9 09/12] mm/kasan: kasan specific map populate function
-Message-ID: <20171009184834.GE30828@arm.com>
-References: <20170920201714.19817-1-pasha.tatashin@oracle.com>
- <20170920201714.19817-10-pasha.tatashin@oracle.com>
- <20171003144845.GD4931@leverpostej>
- <20171009171337.GE30085@arm.com>
- <CAOAebxtHHFvYn4WysMASe1GqvgKYPVyjJ572UM3Sef5sP0hi9A@mail.gmail.com>
- <20171009182217.GC30828@arm.com>
- <CAOAebxu1310eCrk88EC=Oaw3n90-9RuHZ1KBhPvLu_DyXBNZFQ@mail.gmail.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BA056B0260
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 14:53:27 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id l188so49276001pfc.7
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 11:53:27 -0700 (PDT)
+Received: from out0-201.mail.aliyun.com (out0-201.mail.aliyun.com. [140.205.0.201])
+        by mx.google.com with ESMTPS id f59si7527721plf.676.2017.10.09.11.53.25
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 09 Oct 2017 11:53:26 -0700 (PDT)
+Subject: Re: [PATCH 3/3] mm: oom: show unreclaimable slab info when
+ unreclaimable slabs > user memory
+References: <1507152550-46205-1-git-send-email-yang.s@alibaba-inc.com>
+ <1507152550-46205-4-git-send-email-yang.s@alibaba-inc.com>
+ <20171006093702.3ca2p6ymyycwfgbk@dhcp22.suse.cz>
+ <ff7e0d92-0f12-46fa-dbc7-79c556ffb7c2@alibaba-inc.com>
+ <20171009063316.qjmunbabyr2nzh52@dhcp22.suse.cz>
+ <20171009063642.nykrjazifntrj5zz@dhcp22.suse.cz>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <2a24ae2a-e2f3-52b2-0763-2ce31ba18965@alibaba-inc.com>
+Date: Tue, 10 Oct 2017 02:53:18 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAOAebxu1310eCrk88EC=Oaw3n90-9RuHZ1KBhPvLu_DyXBNZFQ@mail.gmail.com>
+In-Reply-To: <20171009063642.nykrjazifntrj5zz@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, catalin.marinas@arm.com, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, sam@ravnborg.org, mgorman@techsingularity.net, Steve Sistare <steven.sistare@oracle.com>, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Oct 09, 2017 at 02:42:32PM -0400, Pavel Tatashin wrote:
-> Hi Will,
-> 
-> In addition to what Michal wrote:
-> 
-> > As an interim step, why not introduce something like
-> > vmemmap_alloc_block_flags and make the page-table walking opt-out for
-> > architectures that don't want it? Then we can just pass __GFP_ZERO from
-> > our vmemmap_populate where necessary and other architectures can do the
-> > page-table walking dance if they prefer.
-> 
-> I do not see the benefit, implementing this approach means that we
-> would need to implement two table walks instead of one: one for x86,
-> another for ARM, as these two architectures support kasan. Also, this
-> would become a requirement for any future architecture that want to
-> add kasan support to add this page table walk implementation.
 
-We have two table walks even with your patch series applied afaict: one in
-our definition of vmemmap_populate (arch/arm64/mm/mmu.c) and this one
-in the core code.
 
-> >> IMO, while I understand that it looks strange that we must walk page
-> >> table after creating it, it is a better approach: more enclosed as it
-> >> effects kasan only, and more universal as it is in common code.
-> >
-> > I don't buy the more universal aspect, but I appreciate it's subjective.
-> > Frankly, I'd just sooner not have core code walking early page tables if
-> > it can be avoided, and it doesn't look hard to avoid it in this case.
-> > The fact that you're having to add pmd_large and pud_large, which are
-> > otherwise unused in mm/, is an indication that this isn't quite right imo.
+On 10/8/17 11:36 PM, Michal Hocko wrote:
+> On Mon 09-10-17 08:33:16, Michal Hocko wrote:
+>> On Sat 07-10-17 00:37:55, Yang Shi wrote:
+>>>
+>>>
+>>> On 10/6/17 2:37 AM, Michal Hocko wrote:
+>>>> On Thu 05-10-17 05:29:10, Yang Shi wrote:
+>> [...]
+>>>>> +	list_for_each_entry_safe(s, s2, &slab_caches, list) {
+>>>>> +		if (!is_root_cache(s) || (s->flags & SLAB_RECLAIM_ACCOUNT))
+>>>>> +			continue;
+>>>>> +
+>>>>> +		memset(&sinfo, 0, sizeof(sinfo));
+>>>>
+>>>> why do you zero out the structure. All the fields you are printing are
+>>>> filled out in get_slabinfo.
+>>>
+>>> No special reason, just wipe out the potential stale data on the stack.
+>>
+>> Do not add code that has no meaning. The OOM killer is a slow path but
+>> that doesn't mean we should throw spare cycles out of the window.
 > 
->  28 +#define pmd_large(pmd)         pmd_sect(pmd)
->  29 +#define pud_large(pud)         pud_sect(pud)
+> With this fixed and the compile fix [1] folded, feel free to add my
+> Acked-by: Michal Hocko <mhocko@suse.com>
 > 
-> it is just naming difference, ARM64 calls them pmd_sect, common mm and
-> other arches call them
-> pmd_large/pud_large. Even the ARM has these defines in
-> 
-> arm/include/asm/pgtable-3level.h
-> arm/include/asm/pgtable-2level.h
+> [1] http://lkml.kernel.org/r/1507492085-42264-1-git-send-email-yang.s@alibaba-inc.com
 
-My worry is that these are actually highly arch-specific, but will likely
-grow more users in mm/ that assume things for all architectures that aren't
-necessarily valid.
+Did some more thorough test and took the code a little deeper, it sounds 
+!CONFIG_SLOB is not enough. Some data structure and functions depends on 
+CONFIG_SLUB_DEBUG, i.e. kmem_cache_node->total_objects and 
+node_nr_objs(), which are essential of get_slabinfo().
 
-Will
+So, I'm supposed it makes more sense to protect the related slab stats 
+code and the unreclaimable slabinfo dump with CONFIG_SLAB || 
+CONFIG_SLUB_DEBUG.
+
+Thanks,
+Yang
+
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
