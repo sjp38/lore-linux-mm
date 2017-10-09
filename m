@@ -1,67 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CAFF6B025E
-	for <linux-mm@kvack.org>; Sun,  8 Oct 2017 15:51:21 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id j64so37369052pfj.6
-        for <linux-mm@kvack.org>; Sun, 08 Oct 2017 12:51:21 -0700 (PDT)
-Received: from out0-229.mail.aliyun.com (out0-229.mail.aliyun.com. [140.205.0.229])
-        by mx.google.com with ESMTPS id y5si4812978pgs.580.2017.10.08.12.51.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 08 Oct 2017 12:51:20 -0700 (PDT)
-Subject: Re: [RFC PATCH] mm: shm: round up tmpfs size to huge page size when
- huge=always
-References: <1507321330-22525-1-git-send-email-yang.s@alibaba-inc.com>
- <20171008125651.3mxiayuvuqi2hiku@node.shutemov.name>
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-Message-ID: <9357e3f2-6e49-b47a-20a6-ec7791c28fbd@alibaba-inc.com>
-Date: Mon, 09 Oct 2017 03:51:06 +0800
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5974A6B025E
+	for <linux-mm@kvack.org>; Sun,  8 Oct 2017 20:06:16 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p2so12422638pfk.0
+        for <linux-mm@kvack.org>; Sun, 08 Oct 2017 17:06:16 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id l6si5137798pgr.804.2017.10.08.17.06.13
+        for <linux-mm@kvack.org>;
+        Sun, 08 Oct 2017 17:06:14 -0700 (PDT)
+Date: Mon, 9 Oct 2017 11:05:29 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: kernel BUG at fs/xfs/xfs_aops.c:853! in kernel 4.13 rc6
+Message-ID: <20171009000529.GY3666@dastard>
 MIME-Version: 1.0
-In-Reply-To: <20171008125651.3mxiayuvuqi2hiku@node.shutemov.name>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CABXGCsMorRzy-dJrjTO6sP80BSb0RAeMhF3QGwSkk50m7VYzOA@mail.gmail.com>
+ <CABXGCsOeex62Y4qQJwvMJ+fJ+MnKyKGDj9eRbKemeMVWo5huKw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: kirill.shutemov@linux.intel.com, hughd@google.com, mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: =?utf-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, linux-xfs@vger.kernel.org, linux-mm@kvack.org
 
-
-
-On 10/8/17 5:56 AM, Kirill A. Shutemov wrote:
-> On Sat, Oct 07, 2017 at 04:22:10AM +0800, Yang Shi wrote:
->> When passing "huge=always" option for mounting tmpfs, THP is supposed to
->> be allocated all the time when it can fit, but when the available space is
->> smaller than the size of THP (2MB on x86), shmem fault handler still tries
->> to allocate huge page every time, then fallback to regular 4K page
->> allocation, i.e.:
->>
->> 	# mount -t tmpfs -o huge,size=3000k tmpfs /tmp
->> 	# dd if=/dev/zero of=/tmp/test bs=1k count=2048
->> 	# dd if=/dev/zero of=/tmp/test1 bs=1k count=2048
->>
->> The last dd command will handle 952 times page fault handler, then exit
->> with -ENOSPC.
->>
->> Rounding up tmpfs size to THP size in order to use THP with "always"
->> more efficiently. And, it will not wast too much memory (just allocate
->> 511 extra pages in worst case).
+On Sat, Oct 07, 2017 at 01:10:58PM +0500, D?D,N?D?D,D>> D?D?D2N?D,D>>D 3/4 D2 wrote:
+> But seems now got another issue:
 > 
-> Hm. I don't think it's good idea to silently increase size of fs.
+> [ 1966.953781] INFO: task tracker-store:8578 blocked for more than 120 seconds.
+> [ 1966.953797]       Not tainted 4.13.4-301.fc27.x86_64+debug #1
+> [ 1966.953800] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+> disables this message.
+> [ 1966.953804] tracker-store   D12840  8578   1655 0x00000000
+> [ 1966.953811] Call Trace:
+> [ 1966.953823]  __schedule+0x2dc/0xbb0
+> [ 1966.953830]  ? wait_on_page_bit_common+0xfb/0x1a0
+> [ 1966.953838]  schedule+0x3d/0x90
+> [ 1966.953843]  io_schedule+0x16/0x40
+> [ 1966.953847]  wait_on_page_bit_common+0x10a/0x1a0
+> [ 1966.953857]  ? page_cache_tree_insert+0x170/0x170
+> [ 1966.953865]  __filemap_fdatawait_range+0x101/0x1a0
+> [ 1966.953883]  file_write_and_wait_range+0x63/0xc0
 
-How about printing a warning to say the filesystem is resized?
+Ok, that's in wait_on_page_writeback(page)
+......
 
+> And yet another
 > 
-> Maybe better just refuse to mount with huge=always for too small fs?
+> [41288.797026] INFO: task tracker-store:4535 blocked for more than 120 seconds.
+> [41288.797034]       Not tainted 4.13.4-301.fc27.x86_64+debug #1
+> [41288.797037] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+> disables this message.
+> [41288.797041] tracker-store   D10616  4535   1655 0x00000000
+> [41288.797049] Call Trace:
+> [41288.797061]  __schedule+0x2dc/0xbb0
+> [41288.797072]  ? bit_wait+0x60/0x60
+> [41288.797076]  schedule+0x3d/0x90
+> [41288.797082]  io_schedule+0x16/0x40
+> [41288.797086]  bit_wait_io+0x11/0x60
+> [41288.797091]  __wait_on_bit+0x31/0x90
+> [41288.797099]  out_of_line_wait_on_bit+0x94/0xb0
+> [41288.797106]  ? bit_waitqueue+0x40/0x40
+> [41288.797113]  __block_write_begin_int+0x265/0x550
+> [41288.797132]  iomap_write_begin.constprop.14+0x7d/0x130
 
-It sounds fine too. When mounting tmpfs with "huge=always", if the size 
-is not THP size aligned, it just can refuse to mount, then show warning 
-about alignment restriction.
+And that's in wait_on_buffer().
 
-Thanks,
-Yang
+In both cases we are waiting on a bit lock for IO completion. In the
+first case it is on page, the second it's on sub-page read IO
+completion during a write.
 
-> 
+Triggeringa hung task timeouts like this doesn't usually indicate a
+filesystem problem. In general, it means that the
+IO subsystem is overloaded such that iowait times are blowing out
+to >120s, an IO has been lost and/or not completed correctly or you
+are getting single bit memory errors or corruption occurring.
+
+None of these things usually filesystem problems, and the trainsmash
+of blocked tasks on filesystem locks is typical for these types of
+"blocked indefinitely with locks held" type of situations. It does
+tend to indicate taht there is quite a bit of load on the
+filesystem, though...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
