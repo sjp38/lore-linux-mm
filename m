@@ -1,305 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BCBCA6B025E
-	for <linux-mm@kvack.org>; Sun,  8 Oct 2017 22:21:56 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id y77so53190423pfd.2
-        for <linux-mm@kvack.org>; Sun, 08 Oct 2017 19:21:56 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id b5si1593658pfc.233.2017.10.08.19.21.54
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 08 Oct 2017 19:21:54 -0700 (PDT)
-Subject: Re: [PATCH v3] mm, sysctl: make NUMA stats configurable
-References: <1506579101-5457-1-git-send-email-kemi.wang@intel.com>
- <2be4a268-2b31-8aa5-9d09-ef2d34323ad8@suse.cz>
-From: kemi <kemi.wang@intel.com>
-Message-ID: <1a5743b8-edb4-d4bc-a2e9-cb3625618d5b@intel.com>
-Date: Mon, 9 Oct 2017 10:20:24 +0800
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 52CEF6B025E
+	for <linux-mm@kvack.org>; Sun,  8 Oct 2017 23:08:40 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id p2so13779215pfk.0
+        for <linux-mm@kvack.org>; Sun, 08 Oct 2017 20:08:40 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id k8si5314747pgo.358.2017.10.08.20.08.38
+        for <linux-mm@kvack.org>;
+        Sun, 08 Oct 2017 20:08:39 -0700 (PDT)
+Date: Mon, 9 Oct 2017 14:08:24 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v7 03/12] fs: introduce i_mapdcount
+Message-ID: <20171009030824.GG3666@dastard>
+References: <150732931273.22363.8436792888326501071.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <150732933283.22363.570426117546397495.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <2be4a268-2b31-8aa5-9d09-ef2d34323ad8@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <150732933283.22363.570426117546397495.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: Dave <dave.hansen@linux.intel.com>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Proc sysctl <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org, Jan Kara <jack@suse.cz>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, linux-api@vger.kernel.org, Christoph Hellwig <hch@lst.de>, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, Jeff Layton <jlayton@poochiereds.net>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-
-
-On 2017a1'09ae??29ae?JPY 15:03, Vlastimil Babka wrote:
-> On 09/28/2017 08:11 AM, Kemi Wang wrote:
->> This is the second step which introduces a tunable interface that allow
->> numa stats configurable for optimizing zone_statistics(), as suggested by
->> Dave Hansen and Ying Huang.
->>
->> =========================================================================
->> When page allocation performance becomes a bottleneck and you can tolerate
->> some possible tool breakage and decreased numa counter precision, you can
->> do:
->> 	echo [C|c]oarse > /proc/sys/vm/numa_stats_mode
->> In this case, numa counter update is ignored. We can see about
->> *4.8%*(185->176) drop of cpu cycles per single page allocation and reclaim
->> on Jesper's page_bench01 (single thread) and *8.1%*(343->315) drop of cpu
->> cycles per single page allocation and reclaim on Jesper's page_bench03 (88
->> threads) running on a 2-Socket Broadwell-based server (88 threads, 126G
->> memory).
->>
->> Benchmark link provided by Jesper D Brouer(increase loop times to
->> 10000000):
->> https://github.com/netoptimizer/prototype-kernel/tree/master/kernel/mm/
->> bench
->>
->> =========================================================================
->> When page allocation performance is not a bottleneck and you want all
->> tooling to work, you can do:
->> 	echo [S|s]trict > /proc/sys/vm/numa_stats_mode
->>
->> =========================================================================
->> We recommend automatic detection of numa statistics by system, this is also
->> system default configuration, you can do:
->> 	echo [A|a]uto > /proc/sys/vm/numa_stats_mode
->> In this case, numa counter update is skipped unless it has been read by
->> users at least once, e.g. cat /proc/zoneinfo.
->>
->> Branch target selection with jump label:
->> a) When numa_stats_mode is changed to *strict*, jump to the branch for numa
->> counters update.
->> b) When numa_stats_mode is changed to *coarse*, return back directly.
->> c) When numa_stats_mode is changed to *auto*, the branch target used in
->> last time is kept, and the branch target is changed to the branch for numa
->> counters update once numa counters are *read* by users.
->>
->> Therefore, with the help of jump label, the page allocation performance is
->> hardly affected when numa counters are updated with a call in
->> zone_statistics(). Meanwhile, the auto mode can give people benefit without
->> manual tuning.
->>
->> Many thanks to Michal Hocko, Dave Hansen and Ying Huang for comments to
->> help improve the original patch.
->>
->> ChangeLog:
->>   V2->V3:
->>   a) Propose a better way to use jump label to eliminate the overhead of
->>   branch selection in zone_statistics(), as inspired by Ying Huang;
->>   b) Add a paragraph in commit log to describe the way for branch target
->>   selection;
->>   c) Use a more descriptive name numa_stats_mode instead of vmstat_mode,
->>   and change the description accordingly, as suggested by Michal Hocko;
->>   d) Make this functionality NUMA-specific via ifdef
->>
->>   V1->V2:
->>   a) Merge to one patch;
->>   b) Use jump label to eliminate the overhead of branch selection;
->>   c) Add a single-time log message at boot time to help tell users what
->>   happened.
->>
->> Reported-by: Jesper Dangaard Brouer <brouer@redhat.com>
->> Suggested-by: Dave Hansen <dave.hansen@intel.com>
->> Suggested-by: Ying Huang <ying.huang@intel.com>
->> Signed-off-by: Kemi Wang <kemi.wang@intel.com>
->> ---
->>  Documentation/sysctl/vm.txt |  24 +++++++++
->>  drivers/base/node.c         |   4 ++
->>  include/linux/vmstat.h      |  23 ++++++++
->>  init/main.c                 |   3 ++
->>  kernel/sysctl.c             |   7 +++
->>  mm/page_alloc.c             |  10 ++++
->>  mm/vmstat.c                 | 129 ++++++++++++++++++++++++++++++++++++++++++++
->>  7 files changed, 200 insertions(+)
->>
->> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
->> index 9baf66a..e310e69 100644
->> --- a/Documentation/sysctl/vm.txt
->> +++ b/Documentation/sysctl/vm.txt
->> @@ -61,6 +61,7 @@ Currently, these files are in /proc/sys/vm:
->>  - swappiness
->>  - user_reserve_kbytes
->>  - vfs_cache_pressure
->> +- numa_stats_mode
->>  - watermark_scale_factor
->>  - zone_reclaim_mode
->>  
->> @@ -843,6 +844,29 @@ ten times more freeable objects than there are.
->>  
->>  =============================================================
->>  
->> +numa_stats_mode
->> +
->> +This interface allows numa statistics configurable.
->> +
->> +When page allocation performance becomes a bottleneck and you can tolerate
->> +some possible tool breakage and decreased numa counter precision, you can
->> +do:
->> +	echo [C|c]oarse > /proc/sys/vm/numa_stats_mode
->> +
->> +When page allocation performance is not a bottleneck and you want all
->> +tooling to work, you can do:
->> +	echo [S|s]trict > /proc/sys/vm/numa_stat_mode
->> +
->> +We recommend automatic detection of numa statistics by system, because numa
->> +statistics does not affect system's decision and it is very rarely
->> +consumed. you can do:
->> +	echo [A|a]uto > /proc/sys/vm/numa_stats_mode
->> +This is also system default configuration, with this default setting, numa
->> +counters update is skipped unless the counter is *read* by users at least
->> +once.
+On Fri, Oct 06, 2017 at 03:35:32PM -0700, Dan Williams wrote:
+> When ->iomap_begin() sees this count being non-zero and determines that
+> the block map of the file needs to be modified to satisfy the I/O
+> request it will instead return an error. This is needed for MAP_DIRECT
+> where, due to locking constraints, we can't rely on xfs_break_layouts()
+> to protect against allocating write-faults either from the process that
+> setup the MAP_DIRECT mapping nor other processes that have the file
+> mapped.  xfs_break_layouts() requires XFS_IOLOCK which is problematic to
+> mix with the XFS_MMAPLOCK in the fault path.
 > 
-> It says "the counter", but it seems multiple files in /proc and /sys are
-> triggering this, so perhaps list them?
-
-Exactly, four files use it.
-/proc/zoneinfo
-/proc/vmstat
-/sys/devices/system/node/node*/vmstat
-/sys/devices/system/node/node*/numastat
-Well, I am not sure that it is worthy to list here.
-
-> Also, is it possible that with contemporary userspace/distros (systemd
-> etc.) there will always be something that will read one of those upon boot?
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Jeff Moyer <jmoyer@redhat.com>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: Dave Chinner <david@fromorbit.com>
+> Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Cc: Jeff Layton <jlayton@poochiereds.net>
+> Cc: "J. Bruce Fields" <bfields@fieldses.org>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  fs/xfs/xfs_iomap.c |    9 +++++++++
+>  include/linux/fs.h |   31 +++++++++++++++++++++++++++++++
+>  2 files changed, 40 insertions(+)
 > 
-It depends on the tools used in userspace. If some tool really read it,
-the active state in auto mode will be triggered.
+> diff --git a/fs/xfs/xfs_iomap.c b/fs/xfs/xfs_iomap.c
+> index a1909bc064e9..6816f8ebbdcf 100644
+> --- a/fs/xfs/xfs_iomap.c
+> +++ b/fs/xfs/xfs_iomap.c
+> @@ -1053,6 +1053,15 @@ xfs_file_iomap_begin(
+>  			goto out_unlock;
+>  		}
+>  		/*
+> +		 * If a file has MAP_DIRECT mappings disable block map
+> +		 * updates. This should only effect mmap write faults as
+> +		 * other paths are protected by an FL_LAYOUT lease.
+> +		 */
+> +		if (i_mapdcount_read(inode)) {
+> +			error = -ETXTBSY;
+> +			goto out_unlock;
+> +		}
 
->> +
->> +==============================================================
->> +
->>  watermark_scale_factor:
->>  
->>  This factor controls the aggressiveness of kswapd. It defines the
->> diff --git a/drivers/base/node.c b/drivers/base/node.c
->> index 3855902..b57b5622 100644
->> --- a/drivers/base/node.c
->> +++ b/drivers/base/node.c
->> @@ -153,6 +153,8 @@ static DEVICE_ATTR(meminfo, S_IRUGO, node_read_meminfo, NULL);
->>  static ssize_t node_read_numastat(struct device *dev,
->>  				struct device_attribute *attr, char *buf)
->>  {
->> +	if (vm_numa_stats_mode == VM_NUMA_STAT_AUTO_MODE)
->> +		static_branch_enable(&vm_numa_stats_mode_key);
->>  	return sprintf(buf,
->>  		       "numa_hit %lu\n"
->>  		       "numa_miss %lu\n"
->> @@ -186,6 +188,8 @@ static ssize_t node_read_vmstat(struct device *dev,
->>  		n += sprintf(buf+n, "%s %lu\n",
->>  			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
->>  			     sum_zone_numa_state(nid, i));
->> +	if (vm_numa_stats_mode == VM_NUMA_STAT_AUTO_MODE)
->> +		static_branch_enable(&vm_numa_stats_mode_key);
->>  #endif
->>  
->>  	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
->> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
->> index ade7cb5..d52e882 100644
->> --- a/include/linux/vmstat.h
->> +++ b/include/linux/vmstat.h
->> @@ -6,9 +6,28 @@
->>  #include <linux/mmzone.h>
->>  #include <linux/vm_event_item.h>
->>  #include <linux/atomic.h>
->> +#include <linux/static_key.h>
->>  
->>  extern int sysctl_stat_interval;
->>  
->> +#ifdef CONFIG_NUMA
->> +DECLARE_STATIC_KEY_FALSE(vm_numa_stats_mode_key);
->> +/*
->> + * vm_numa_stats_mode:
->> + * 0 = auto mode of NUMA stats, automatic detection of NUMA statistics.
->> + * 1 = strict mode of NUMA stats, keep NUMA statistics.
->> + * 2 = coarse mode of NUMA stats, ignore NUMA statistics.
->> + */
->> +#define VM_NUMA_STAT_AUTO_MODE 0
->> +#define VM_NUMA_STAT_STRICT_MODE  1
->> +#define VM_NUMA_STAT_COARSE_MODE  2
->> +#define VM_NUMA_STAT_MODE_LEN 16
->> +extern int vm_numa_stats_mode;
->> +extern char sysctl_vm_numa_stats_mode[];
->> +extern int sysctl_vm_numa_stats_mode_handler(struct ctl_table *table, int write,
->> +		void __user *buffer, size_t *length, loff_t *ppos);
->> +#endif
->> +
->>  #ifdef CONFIG_VM_EVENT_COUNTERS
->>  /*
->>   * Light weight per cpu counter implementation.
->> @@ -229,6 +248,10 @@ extern unsigned long sum_zone_node_page_state(int node,
->>  extern unsigned long sum_zone_numa_state(int node, enum numa_stat_item item);
->>  extern unsigned long node_page_state(struct pglist_data *pgdat,
->>  						enum node_stat_item item);
->> +extern void zero_zone_numa_counters(struct zone *zone);
->> +extern void zero_zones_numa_counters(void);
->> +extern void zero_global_numa_counters(void);
->> +extern void invalid_numa_statistics(void);
-> 
-> These seem to be called only from within mm/vmstat.c where they live, so
-> I'd suggest removing these extern declarations, and making them static
-> in vmstat.c.
-> 
+That looks really fragile. For one, it's going to miss modifications
+to reflinked files altogether. Ignoring that, however, I don't want to
+have to care one bit about the internals of the MAP_DIRECT
+implementation in the filesystem code. Hide it behind something with
+an obvious name that returns the appropriate error and the
+filesystem code becomes self documenting:
 
-Agree. Thanks for catching it.
+	if ((flags & IOMAP_WRITE) && imap_needs_alloc(inode, &imap, nimaps)) {
+		.....
+		error = iomap_can_allocate(inode);
+		if (error)
+			goto out_unlock;
 
-> ...
-> 
->>  #define NUMA_STATS_THRESHOLD (U16_MAX - 2)
->>  
->> +#ifdef CONFIG_NUMA
->> +int vm_numa_stats_mode = VM_NUMA_STAT_AUTO_MODE;
->> +char sysctl_vm_numa_stats_mode[VM_NUMA_STAT_MODE_LEN] = "auto";
->> +static const char *vm_numa_stats_mode_name[3] = {"auto", "strict", "coarse"};
->> +static DEFINE_MUTEX(vm_numa_stats_mode_lock);
->> +
->> +static int __parse_vm_numa_stats_mode(char *s)
->> +{
->> +	const char *str = s;
->> +
->> +	if (strcmp(str, "auto") == 0 || strcmp(str, "Auto") == 0)
->> +		vm_numa_stats_mode = VM_NUMA_STAT_AUTO_MODE;
->> +	else if (strcmp(str, "strict") == 0 || strcmp(str, "Strict") == 0)
->> +		vm_numa_stats_mode = VM_NUMA_STAT_STRICT_MODE;
->> +	else if (strcmp(str, "coarse") == 0 || strcmp(str, "Coarse") == 0)
->> +		vm_numa_stats_mode = VM_NUMA_STAT_COARSE_MODE;
->> +	else {
->> +		pr_warn("Ignoring invalid vm_numa_stats_mode value: %s\n", s);
->> +		return -EINVAL;
->> +	}
->> +
->> +	return 0;
->> +}
->> +
->> +int sysctl_vm_numa_stats_mode_handler(struct ctl_table *table, int write,
->> +		void __user *buffer, size_t *length, loff_t *ppos)
->> +{
->> +	char old_string[VM_NUMA_STAT_MODE_LEN];
->> +	int ret, oldval;
->> +
->> +	mutex_lock(&vm_numa_stats_mode_lock);
->> +	if (write)
->> +		strncpy(old_string, (char *)table->data, VM_NUMA_STAT_MODE_LEN);
->> +	ret = proc_dostring(table, write, buffer, length, ppos);
->> +	if (ret || !write) {
->> +		mutex_unlock(&vm_numa_stats_mode_lock);
->> +		return ret;
->> +	}
->> +
->> +	oldval = vm_numa_stats_mode;
->> +	if (__parse_vm_numa_stats_mode((char *)table->data)) {
->> +		/*
->> +		 * invalid sysctl_vm_numa_stats_mode value, restore saved string
->> +		 */
->> +		strncpy((char *)table->data, old_string, VM_NUMA_STAT_MODE_LEN);
->> +		vm_numa_stats_mode = oldval;
-> 
-> Do we need to restore vm_numa_stats_mode? 
+Then you can put all the MAP_DIRECT stuff and the comments
+explaining what is does inside the generic function that determines
+if we are allowed to allocate on that inode or not.
 
-Not necessary. 
+> +		/*
+>  		 * We cap the maximum length we map here to MAX_WRITEBACK_PAGES
+>  		 * pages to keep the chunks of work done where somewhat symmetric
+>  		 * with the work writeback does. This is a completely arbitrary
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index c2b9bf3dc4e9..f83871b188ff 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -642,6 +642,9 @@ struct inode {
+>  	atomic_t		i_count;
+>  	atomic_t		i_dio_count;
+>  	atomic_t		i_writecount;
+> +#ifdef CONFIG_FS_DAX
+> +	atomic_t		i_mapdcount;	/* count of MAP_DIRECT vmas */
+> +#endif
 
-AFAICS it didn't change. Also,
-> should the EINVAL be returned also to userspace? (not sure what's the
-> API here, hmm man 2 sysctl doesn't list EINVAL...)
-> 
+Is there any way to avoid growing the struct inode for this?
 
-I don't think so. __parse is only be called in sysctl handler and returns
-an invalid value to help restore back.
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
