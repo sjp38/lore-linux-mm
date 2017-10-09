@@ -1,66 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 985D86B025E
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 03:53:41 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id p2so16399464pfk.0
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 00:53:41 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id p5si6104050plk.185.2017.10.09.00.53.40
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BFD616B0260
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 03:55:52 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id i124so23518765wmf.7
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 00:55:52 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b58si2286502wra.248.2017.10.09.00.55.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Oct 2017 00:53:40 -0700 (PDT)
-Date: Mon, 9 Oct 2017 15:53:38 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [PATCH] page_alloc.c: inline __rmqueue()
-Message-ID: <20171009075338.GC1798@intel.com>
-References: <20171009054434.GA1798@intel.com>
- <c1e5a3d4-c5ac-d6ee-88ab-d9e2aa433b16@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 09 Oct 2017 00:55:51 -0700 (PDT)
+Date: Mon, 9 Oct 2017 09:55:49 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3] mm, sysctl: make NUMA stats configurable
+Message-ID: <20171009075549.pzohdnerillwuhqo@dhcp22.suse.cz>
+References: <1506579101-5457-1-git-send-email-kemi.wang@intel.com>
+ <20171003092352.2wh2jbtt2dudfi5a@dhcp22.suse.cz>
+ <221a1e93-ee33-d598-67de-d6071f192040@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <c1e5a3d4-c5ac-d6ee-88ab-d9e2aa433b16@linux.vnet.ibm.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <221a1e93-ee33-d598-67de-d6071f192040@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>
+To: kemi <kemi.wang@intel.com>
+Cc: "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, Dave <dave.hansen@linux.intel.com>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Proc sysctl <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Mon, Oct 09, 2017 at 01:07:36PM +0530, Anshuman Khandual wrote:
-> On 10/09/2017 11:14 AM, Aaron Lu wrote:
-> > __rmqueue() is called by rmqueue_bulk() and rmqueue() under zone->lock
-> > and that lock can be heavily contended with memory intensive applications.
-> > 
-> > Since __rmqueue() is a small function, inline it can save us some time.
-> > With the will-it-scale/page_fault1/process benchmark, when using nr_cpu
-> > processes to stress buddy:
-> > 
-> > On a 2 sockets Intel-Skylake machine:
-> >       base          %change       head
-> >      77342            +6.3%      82203        will-it-scale.per_process_ops
-> > 
-> > On a 4 sockets Intel-Skylake machine:
-> >       base          %change       head
-> >      75746            +4.6%      79248        will-it-scale.per_process_ops
-> > 
-> > This patch adds inline to __rmqueue().
-> > 
-> > Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+On Mon 09-10-17 14:34:11, kemi wrote:
 > 
-> Ran it through kernel bench and ebizzy micro benchmarks. Results
-> were comparable with and without the patch. May be these are not
-> the appropriate tests for this inlining improvement. Anyways it
-
-I think so.
-
-The benefit only appears when the lock contention is huge enough, e.g.
-perf-profile.self.cycles-pp.native_queued_spin_lock_slowpath is as high
-as 80% with the workload I have used.
-
-> does not have any performance degradation either.
 > 
-> Reviewed-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-> Tested-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> On 2017a1'10ae??03ae?JPY 17:23, Michal Hocko wrote:
+> > On Thu 28-09-17 14:11:41, Kemi Wang wrote:
+> >> This is the second step which introduces a tunable interface that allow
+> >> numa stats configurable for optimizing zone_statistics(), as suggested by
+> >> Dave Hansen and Ying Huang.
+> >>
+> >> =========================================================================
+> >> When page allocation performance becomes a bottleneck and you can tolerate
+> >> some possible tool breakage and decreased numa counter precision, you can
+> >> do:
+> >> 	echo [C|c]oarse > /proc/sys/vm/numa_stats_mode
+> >> In this case, numa counter update is ignored. We can see about
+> >> *4.8%*(185->176) drop of cpu cycles per single page allocation and reclaim
+> >> on Jesper's page_bench01 (single thread) and *8.1%*(343->315) drop of cpu
+> >> cycles per single page allocation and reclaim on Jesper's page_bench03 (88
+> >> threads) running on a 2-Socket Broadwell-based server (88 threads, 126G
+> >> memory).
+> >>
+> >> Benchmark link provided by Jesper D Brouer(increase loop times to
+> >> 10000000):
+> >> https://github.com/netoptimizer/prototype-kernel/tree/master/kernel/mm/
+> >> bench
+> >>
+> >> =========================================================================
+> >> When page allocation performance is not a bottleneck and you want all
+> >> tooling to work, you can do:
+> >> 	echo [S|s]trict > /proc/sys/vm/numa_stats_mode
+> >>
+> >> =========================================================================
+> >> We recommend automatic detection of numa statistics by system, this is also
+> >> system default configuration, you can do:
+> >> 	echo [A|a]uto > /proc/sys/vm/numa_stats_mode
+> >> In this case, numa counter update is skipped unless it has been read by
+> >> users at least once, e.g. cat /proc/zoneinfo.
+> > 
+> > I am still not convinced the auto mode is worth all the additional code
+> > and a safe default to use. The whole thing could have been 0/1 with a
+> > simpler parsing and less code to catch readers.
+> > 
+> 
+> I understood your concern. 
+> Well, we may get rid of auto mode if there is some obvious disadvantage
+> here. Now, I tend to keep it because most people may not touch this interface,
+> and auto mode is helpful in such case.
 
-Thanks!
+But you cannot guarantee it won't break any existing users, can you?
+Besides I do not remember anybody complaining about the performance
+impact of these counters other than very specialized workloads which are
+going to disable the accounting altogether. So I simply fail to see a
+reason to add more code with a questionable semantic (see below on
+partial reads).
+
+> > E.g. why do we have to do static_branch_enable on any read or even
+> > vmstat_stop? Wouldn't open be sufficient?
+> > 
+> 
+> NUMA stats is used in four files:
+> /proc/zoneinfo
+> /proc/vmstat
+> /sys/devices/system/node/node*/numastat
+> /sys/devices/system/node/node*/vmstat
+> In auto mode, each *read* will trigger the update of NUMA counter. 
+> So, we should make sure the target branch is jumped to the branch 
+> for NUMA counter update once the file is read from user space.
+> the intension of static_branch_enable in vmstat_stop(in the call site 
+> of file->file_ops.read) is for reading /proc/vmstat in case.  
+> 
+> I guess the *open* means file->file_op.open here, right?
+> Do you suggest to move static_branch_enable to file->file_op.open? Thanks.
+
+I haven't checked closely but what happens (or should happen) when you
+do a partial read? Should you get an inconsistent results? Or is this
+impossible?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
