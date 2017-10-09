@@ -1,72 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FBC26B025E
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 03:37:53 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id u138so26593730wmu.2
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 00:37:53 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id n3si3315154edb.333.2017.10.09.00.37.51
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E48656B025E
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 03:46:28 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id k40so4056557lfi.5
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 00:46:28 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u127si6138037wmd.17.2017.10.09.00.46.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Oct 2017 00:37:52 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v997XlVb035086
-	for <linux-mm@kvack.org>; Mon, 9 Oct 2017 03:37:50 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2dg3xea6te-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 09 Oct 2017 03:37:50 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Mon, 9 Oct 2017 08:37:48 +0100
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v997bjCh22020284
-	for <linux-mm@kvack.org>; Mon, 9 Oct 2017 07:37:46 GMT
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v997baZf013883
-	for <linux-mm@kvack.org>; Mon, 9 Oct 2017 18:37:36 +1100
-Subject: Re: [PATCH] page_alloc.c: inline __rmqueue()
-References: <20171009054434.GA1798@intel.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Mon, 9 Oct 2017 13:07:36 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 09 Oct 2017 00:46:27 -0700 (PDT)
+Date: Mon, 9 Oct 2017 09:46:25 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC] [PATCH] mm,oom: Offload OOM notify callback to a kernel
+ thread.
+Message-ID: <20171009074625.b7qztlyoa4u7lyy7@dhcp22.suse.cz>
+References: <201710022205.IGD04659.HSOMJFFQtFOLOV@I-love.SAKURA.ne.jp>
+ <20171002131330.5c5mpephrosfuxsa@dhcp22.suse.cz>
+ <201710022252.DDJ51535.JFQSLFHFVOtOOM@I-love.SAKURA.ne.jp>
+ <20171002171641-mutt-send-email-mst@kernel.org>
+ <201710022344.JII17368.HQtLOMJOOSFFVF@I-love.SAKURA.ne.jp>
+ <201710072030.HGE12424.HFFMVLJOOStFQO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20171009054434.GA1798@intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <c1e5a3d4-c5ac-d6ee-88ab-d9e2aa433b16@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201710072030.HGE12424.HFFMVLJOOStFQO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mst@redhat.com, linux-mm@kvack.org
 
-On 10/09/2017 11:14 AM, Aaron Lu wrote:
-> __rmqueue() is called by rmqueue_bulk() and rmqueue() under zone->lock
-> and that lock can be heavily contended with memory intensive applications.
+On Sat 07-10-17 20:30:19, Tetsuo Handa wrote:
+[...]
+> >From 6a0fd8a5e013ac63a6bcd06bd2ae6fdb25a4f3de Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Sat, 7 Oct 2017 19:29:21 +0900
+> Subject: [PATCH] virtio: avoid possible OOM lockup at virtballoon_oom_notify()
 > 
-> Since __rmqueue() is a small function, inline it can save us some time.
-> With the will-it-scale/page_fault1/process benchmark, when using nr_cpu
-> processes to stress buddy:
-> 
-> On a 2 sockets Intel-Skylake machine:
->       base          %change       head
->      77342            +6.3%      82203        will-it-scale.per_process_ops
-> 
-> On a 4 sockets Intel-Skylake machine:
->       base          %change       head
->      75746            +4.6%      79248        will-it-scale.per_process_ops
-> 
-> This patch adds inline to __rmqueue().
-> 
-> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+> In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
+> serialize against fill_balloon(). But in fill_balloon(),
+> alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
+> called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE]
+> implies __GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, despite __GFP_NORETRY
+> is specified, this allocation attempt might depend on somebody else's
+> __GFP_DIRECT_RECLAIM memory allocation.
 
-Ran it through kernel bench and ebizzy micro benchmarks. Results
-were comparable with and without the patch. May be these are not
-the appropriate tests for this inlining improvement. Anyways it
-does not have any performance degradation either.
-
-Reviewed-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Tested-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+How would that dependency look like? Is the holder of the lock doing
+only __GFP_NORETRY?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
