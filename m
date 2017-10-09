@@ -1,108 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 214FF6B0033
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 13:54:38 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id d28so7275093pfe.2
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 10:54:38 -0700 (PDT)
-Received: from out0-211.mail.aliyun.com (out0-211.mail.aliyun.com. [140.205.0.211])
-        by mx.google.com with ESMTPS id y5si2353941pfk.493.2017.10.09.10.54.36
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 718206B025F
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 14:04:11 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id r202so25703213wmd.1
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 11:04:11 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l33si2992881wre.262.2017.10.09.11.04.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Oct 2017 10:54:36 -0700 (PDT)
-Subject: Re: [RFC PATCH] mm: shm: round up tmpfs size to huge page size when
- huge=always
-References: <1507321330-22525-1-git-send-email-yang.s@alibaba-inc.com>
- <20171008125651.3mxiayuvuqi2hiku@node.shutemov.name>
- <20171009064811.lmotdeuewfbznhzq@dhcp22.suse.cz>
- <20e565eb-9cef-4203-4182-14e2b8e704bf@alibaba-inc.com>
- <20171009172515.gud5curdd32wdw6j@dhcp22.suse.cz>
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-Message-ID: <80c88550-d4d1-5851-ae1c-0ae8f66fa207@alibaba-inc.com>
-Date: Tue, 10 Oct 2017 01:54:27 +0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 09 Oct 2017 11:04:10 -0700 (PDT)
+Date: Mon, 9 Oct 2017 20:04:09 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
+Message-ID: <20171009180409.z3mpk3m7m75hjyfv@dhcp22.suse.cz>
+References: <20171005222144.123797-1-shakeelb@google.com>
+ <20171006075900.icqjx5rr7hctn3zd@dhcp22.suse.cz>
+ <CALvZod7YN4JCG7Anm2FViyZ0-APYy+nxEd3nyxe5LT_P0FC9wg@mail.gmail.com>
+ <20171009062426.hmqedtqz5hkmhnff@dhcp22.suse.cz>
+ <xr93a810xl77.fsf@gthelen.svl.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20171009172515.gud5curdd32wdw6j@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <xr93a810xl77.fsf@gthelen.svl.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, kirill.shutemov@linux.intel.com, hughd@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
 
+[CC Johannes - the thread starts
+http://lkml.kernel.org/r/20171005222144.123797-1-shakeelb@google.com]
 
+On Mon 09-10-17 10:52:44, Greg Thelen wrote:
+> Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> > On Fri 06-10-17 12:33:03, Shakeel Butt wrote:
+> >> >>       names_cachep = kmem_cache_create("names_cache", PATH_MAX, 0,
+> >> >> -                     SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
+> >> >> +                     SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT, NULL);
+> >> >
+> >> > I might be wrong but isn't name cache only holding temporary objects
+> >> > used for path resolution which are not stored anywhere?
+> >> >
+> >> 
+> >> Even though they're temporary, many containers can together use a
+> >> significant amount of transient uncharged memory. We've seen machines
+> >> with 100s of MiBs in names_cache.
+> >
+> > Yes that might be possible but are we prepared for random ENOMEM from
+> > vfs calls which need to allocate a temporary name?
+> >
+> >> 
+> >> >>       filp_cachep = kmem_cache_create("filp", sizeof(struct file), 0,
+> >> >> -                     SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
+> >> >> +                     SLAB_HWCACHE_ALIGN | SLAB_PANIC | SLAB_ACCOUNT, NULL);
+> >> >>       percpu_counter_init(&nr_files, 0, GFP_KERNEL);
+> >> >>  }
+> >> >
+> >> > Don't we have a limit for the maximum number of open files?
+> >> >
+> >> 
+> >> Yes, there is a system limit of maximum number of open files. However
+> >> this limit is shared between different users on the system and one
+> >> user can hog this resource. To cater that, we set the maximum limit
+> >> very high and let the memory limit of each user limit the number of
+> >> files they can open.
+> >
+> > Similarly here. Are all syscalls allocating a fd prepared to return
+> > ENOMEM?
+> >
+> > -- 
+> > Michal Hocko
+> > SUSE Labs
+> 
+> Even before this patch I find memcg oom handling inconsistent.  Page
+> cache pages trigger oom killer and may allow caller to succeed once the
+> kernel retries.  But kmem allocations don't call oom killer.  They
+> surface errors to user space.  This makes memcg hard to use for memory
+> overcommit because it's desirable for a high priority task to
+> transparently kill a lower priority task using the memcg oom killer.
+> 
+> A few ideas on how to make it more flexible:
+> 
+> a) Go back to memcg oom killing within memcg charging.  This runs risk
+>    of oom killing while caller holds locks which oom victim selection or
+>    oom victim termination may need.  Google's been running this way for
+>    a while.
+> 
+> b) Have every syscall return do something similar to page fault handler:
+>    kmem allocations in oom memcg mark the current task as needing an oom
+>    check return NULL.  If marked oom, syscall exit would use
+>    mem_cgroup_oom_synchronize() before retrying the syscall.  Seems
+>    risky.  I doubt every syscall is compatible with such a restart.
+> 
+> c) Overcharge kmem to oom memcg and queue an async memcg limit checker,
+>    which will oom kill if needed.
+> 
+> Comments?
+> 
+> Demo program which eventually gets ENOSPC from mkdir.
+> 
+> $ cat /tmp/t
+> while umount /tmp/mnt; do true; done
+> mkdir -p /tmp/mnt
+> mount -t tmpfs nodev /tmp/mnt
+> cd /dev/cgroup/memory
+> rmdir t
+> mkdir t
+> echo 32M > t/memory.limit_in_bytes
+> (echo $BASHPID > t/cgroup.procs && cd /tmp/mnt && exec /tmp/mkdirs)
+> 
+> $ cat /tmp/mkdirs.c
+> #include <err.h>
+> #include <stdio.h>
+> #include <sys/mman.h>
+> #include <sys/stat.h>
+> #include <sys/types.h>
+> 
+> int main()
+> {
+>         int i;
+>         char name[32];
+> 
+>         if (mlockall(MCL_CURRENT|MCL_FUTURE))
+>                 err(1, "mlockall");
+>         for (i = 0; i < (1<<20); i++) {
+>                 sprintf(name, "%d", i);
+>                 if (mkdir(name, 0700))
+>                         err(1, "mkdir");
+>         }
+>         printf("done\n");
+>         return 0;
+> }
 
-On 10/9/17 10:26 AM, Michal Hocko wrote:
-> On Tue 10-10-17 00:43:31, Yang Shi wrote:
->>
->>
->> On 10/8/17 11:48 PM, Michal Hocko wrote:
->>> On Sun 08-10-17 15:56:51, Kirill A. Shutemov wrote:
->>>> On Sat, Oct 07, 2017 at 04:22:10AM +0800, Yang Shi wrote:
->>>>> When passing "huge=always" option for mounting tmpfs, THP is supposed to
->>>>> be allocated all the time when it can fit, but when the available space is
->>>>> smaller than the size of THP (2MB on x86), shmem fault handler still tries
->>>>> to allocate huge page every time, then fallback to regular 4K page
->>>>> allocation, i.e.:
->>>>>
->>>>> 	# mount -t tmpfs -o huge,size=3000k tmpfs /tmp
->>>>> 	# dd if=/dev/zero of=/tmp/test bs=1k count=2048
->>>>> 	# dd if=/dev/zero of=/tmp/test1 bs=1k count=2048
->>>>>
->>>>> The last dd command will handle 952 times page fault handler, then exit
->>>>> with -ENOSPC.
->>>>>
->>>>> Rounding up tmpfs size to THP size in order to use THP with "always"
->>>>> more efficiently. And, it will not wast too much memory (just allocate
->>>>> 511 extra pages in worst case).
->>>>
->>>> Hm. I don't think it's good idea to silently increase size of fs.
->>>
->>> Agreed!
->>>
->>>> Maybe better just refuse to mount with huge=always for too small fs?
->>>
->>> We cannot we simply have the remaining page !THP? What is the actual
-> 
-> ups s@We@Why@
-> 
->>> problem?
->>
->> The remaining pages can be !THP, it will fall back to regular 4k pages when
->> the available space is less than THP size.
->>
->> I just wonder it sounds not make sense to *not* mount tmpfs with THP size
->> alignment when "huge=always" is passed.
-> 
-> yes failure seems overly excessive reaction to me.
-> 
->> I guess someone would like to assume all allocation in tmpfs with
->> "huge=always" should be THP.
-> 
-> Nobody can assume that because THP pages can be broken up at any point
-> in time. We have hugetlb to provide a guarantee
-> 
->> But, they might not be fully aware of in some
->> corner cases THP might be not used, for example, the remaining space is less
->> then THP size, then some unexpected performance degrade might be perceived.
->>
->> So, why not we do the mount correctly at the first place. It could be
->> delegated to the administrator, but it should be better to give some hint
->> from kernel side.
-> 
-> Because we are not trying to be more clever than the user. I still do
-> not see what is the actual problem you are trying to fix to be honest.
-
-Just try to provide a warning or hint to the users that it'd better to 
-mount tmpfs with THP size aligned when "huge=always" is passed to avoid 
-some unexpected performance degrade.
-
-Resizing or failure to mount might be overkill, documenting it might be 
-good enough.
-
-Thanks,
-Yang
-
-> 
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
