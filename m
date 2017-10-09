@@ -1,49 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 704486B0033
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 15:05:32 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id n82so8274525oig.1
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 12:05:32 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id g126sor485385oia.103.2017.10.09.12.05.31
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 19F696B0033
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 15:06:53 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 136so29043925wmu.3
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 12:06:53 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v9sor3102460wre.32.2017.10.09.12.06.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 09 Oct 2017 12:05:31 -0700 (PDT)
+        Mon, 09 Oct 2017 12:06:51 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20171009185840.GB15336@obsidianresearch.com>
-References: <150732931273.22363.8436792888326501071.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150732935473.22363.1853399637339625023.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171009185840.GB15336@obsidianresearch.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 9 Oct 2017 12:05:30 -0700
-Message-ID: <CAPcyv4gXzC8OUgO_PciQ2phyq0YtmXjMGWvoPSVVuuZR7ohVCg@mail.gmail.com>
-Subject: Re: [PATCH v7 07/12] dma-mapping: introduce dma_has_iommu()
+Reply-To: mtk.manpages@gmail.com
+In-Reply-To: <1505848907.5486.9.camel@redhat.com>
+References: <20170914130040.6faabb18@cuia.usersys.redhat.com>
+ <CAAF6GDdnY2AmzKx+t4ffCFxJ+RZS++4tmWvoazdVNVSYjra_WA@mail.gmail.com>
+ <20170914150546.74ad3a9a@cuia.usersys.redhat.com> <a1715d1d-7a03-d2db-7a8a-8a2edceae5d1@gmail.com>
+ <1505848907.5486.9.camel@redhat.com>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Date: Mon, 9 Oct 2017 21:06:30 +0200
+Message-ID: <CAKgNAkg8QJHfPfdfYXBU2-eW=_FWY99UYi_6hQejE=q5+66u1g@mail.gmail.com>
+Subject: Re: [patch v2] madvise.2: Add MADV_WIPEONFORK documentation
 Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Jan Kara <jack@suse.cz>, Ashok Raj <ashok.raj@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Joerg Roedel <joro@8bytes.org>, Dave Chinner <david@fromorbit.com>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Linux API <linux-api@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, David Woodhouse <dwmw2@infradead.org>, Robin Murphy <robin.murphy@arm.com>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: =?UTF-8?Q?Colm_MacC=C3=A1rthaigh?= <colm@allcosts.net>, linux-man <linux-man@vger.kernel.org>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, nilal@redhat.com, Florian Weimer <fweimer@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Mon, Oct 9, 2017 at 11:58 AM, Jason Gunthorpe
-<jgunthorpe@obsidianresearch.com> wrote:
-> On Fri, Oct 06, 2017 at 03:35:54PM -0700, Dan Williams wrote:
->> otherwise be quiesced. The need for this knowledge is driven by a need
->> to make RDMA transfers to DAX mappings safe. If the DAX file's block map
->> changes we need to be to reliably stop accesses to blocks that have been
->> freed or re-assigned to a new file.
+Hi Rik,
+
+I have a follow-up question re wipe-on-fork. What are the semantics
+for this setting with respect to fork() and exec()? That is, in the
+child of a fork(), does the flag remain set for the specified address
+range? (My quick read of the source suggests yes, but I have not
+tested.) And, when we do an exec(), my assumption is that the flag is
+cleared for the address range, but it would be good to have
+confirmation.
+
+Thanks,
+
+Michael
+
+
+On 19 September 2017 at 21:21, Rik van Riel <riel@redhat.com> wrote:
+> On Tue, 2017-09-19 at 21:07 +0200, Michael Kerrisk (man-pages) wrote:
 >
-> If RDMA is driving this need, why not invalidate backing RDMA MRs
-> instead of requiring a IOMMU to do it? RDMA MR are finer grained and
-> do not suffer from the re-use problem David W. brought up with IOVAs..
+>> Thanks. I applied this, and tweaked the madvise.2 text a little, to
+>> read as follows (please let me know if I messed anything up):
+>>
+>>        MADV_WIPEONFORK (since Linux 4.14)
+>>               Present the child process with zero-filled
+>> memory  in  this
+>>               range  after  a fork(2).  This is useful in forking
+>> servers
+>>               in order to ensure that  sensitive  per-
+>> process  data  (for
+>>               example,  PRNG  seeds, cryptographic secrets, and so
+>> on) is
+>>               not handed to child processes.
+>>
+>>               The MADV_WIPEONFORK operation can be applied
+>> only  to  pri=E2=80=90
+>>               vate anonymous pages (see mmap(2)).
+>
+> That looks great. Thank you, Michael!
+>
+> --
+> All rights reversed
 
-Sounds promising. All I want in the end is to be sure that the kernel
-is enabled to stop any in-flight RDMA at will without asking
-userspace. Does this require per-RDMA driver opt-in or is there a
-common call that can be made?
 
-Outside of that the re-use problem is already solved by just unmapping
-(iommu_unmap()) the IOVA, but keeping it allocated until the eventual
-dma_unmap_sg() at memory un-registration time frees it.
+
+--=20
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
