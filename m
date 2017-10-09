@@ -1,182 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 718976B026D
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 18:20:31 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id r202so26746714wmd.1
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 15:20:31 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id i42si3426823ede.137.2017.10.09.15.20.29
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Oct 2017 15:20:29 -0700 (PDT)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v11 5/9] mm: zero reserved and unavailable struct pages
-Date: Mon,  9 Oct 2017 18:19:27 -0400
-Message-Id: <20171009221931.1481-6-pasha.tatashin@oracle.com>
-In-Reply-To: <20171009221931.1481-1-pasha.tatashin@oracle.com>
-References: <20171009221931.1481-1-pasha.tatashin@oracle.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C01156B025E
+	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 18:28:55 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id j64so51276618pfj.6
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 15:28:55 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id s4si7130106plp.584.2017.10.09.15.28.53
+        for <linux-mm@kvack.org>;
+        Mon, 09 Oct 2017 15:28:54 -0700 (PDT)
+Date: Tue, 10 Oct 2017 09:28:51 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: kernel BUG at fs/xfs/xfs_aops.c:853! in kernel 4.13 rc6
+Message-ID: <20171009222851.GR3666@dastard>
+References: <CABXGCsMorRzy-dJrjTO6sP80BSb0RAeMhF3QGwSkk50m7VYzOA@mail.gmail.com>
+ <CABXGCsOeex62Y4qQJwvMJ+fJ+MnKyKGDj9eRbKemeMVWo5huKw@mail.gmail.com>
+ <20171009000529.GY3666@dastard>
+ <20171009183129.GE11645@wotan.suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20171009183129.GE11645@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: "Luis R. Rodriguez" <mcgrof@kernel.org>
+Cc: =?utf-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>, Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Aleksa Sarai <asarai@suse.com>, Hannes Reinecke <hare@suse.de>, "Eric W. Biederman" <ebiederm@xmission.com>, Jan Blunck <jblunck@infradead.org>, Oscar Salvador <osalvador@suse.com>
 
-Some memory is reserved but unavailable: not present in memblock.memory
-(because not backed by physical pages), but present in memblock.reserved.
-Such memory has backing struct pages, but they are not initialized by going
-through __init_single_page().
+On Mon, Oct 09, 2017 at 08:31:29PM +0200, Luis R. Rodriguez wrote:
+> On Mon, Oct 09, 2017 at 11:05:29AM +1100, Dave Chinner wrote:
+> > On Sat, Oct 07, 2017 at 01:10:58PM +0500, D?D,N?D?D,D>> D?D?D2N?D,D>>D 3/4 D2 wrote:
+> > > But seems now got another issue:
+> > > 
+> > > [ 1966.953781] INFO: task tracker-store:8578 blocked for more than 120 seconds.
+> > > [ 1966.953797]       Not tainted 4.13.4-301.fc27.x86_64+debug #1
+> > > [ 1966.953800] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+> > > disables this message.
+> > > [ 1966.953804] tracker-store   D12840  8578   1655 0x00000000
+> > > [ 1966.953811] Call Trace:
+> > > [ 1966.953823]  __schedule+0x2dc/0xbb0
+> > > [ 1966.953830]  ? wait_on_page_bit_common+0xfb/0x1a0
+> > > [ 1966.953838]  schedule+0x3d/0x90
+> > > [ 1966.953843]  io_schedule+0x16/0x40
+> > > [ 1966.953847]  wait_on_page_bit_common+0x10a/0x1a0
+> > > [ 1966.953857]  ? page_cache_tree_insert+0x170/0x170
+> > > [ 1966.953865]  __filemap_fdatawait_range+0x101/0x1a0
+> > > [ 1966.953883]  file_write_and_wait_range+0x63/0xc0
+> > 
+> > Ok, that's in wait_on_page_writeback(page)
+> > ......
+> > 
+> > > And yet another
+> > > 
+> > > [41288.797026] INFO: task tracker-store:4535 blocked for more than 120 seconds.
+> > > [41288.797034]       Not tainted 4.13.4-301.fc27.x86_64+debug #1
+> > > [41288.797037] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+> > > disables this message.
+> > > [41288.797041] tracker-store   D10616  4535   1655 0x00000000
+> > > [41288.797049] Call Trace:
+> > > [41288.797061]  __schedule+0x2dc/0xbb0
+> > > [41288.797072]  ? bit_wait+0x60/0x60
+> > > [41288.797076]  schedule+0x3d/0x90
+> > > [41288.797082]  io_schedule+0x16/0x40
+> > > [41288.797086]  bit_wait_io+0x11/0x60
+> > > [41288.797091]  __wait_on_bit+0x31/0x90
+> > > [41288.797099]  out_of_line_wait_on_bit+0x94/0xb0
+> > > [41288.797106]  ? bit_waitqueue+0x40/0x40
+> > > [41288.797113]  __block_write_begin_int+0x265/0x550
+> > > [41288.797132]  iomap_write_begin.constprop.14+0x7d/0x130
+> > 
+> > And that's in wait_on_buffer().
+> > 
+> > In both cases we are waiting on a bit lock for IO completion. In the
+> > first case it is on page, the second it's on sub-page read IO
+> > completion during a write.
+> > 
+> > Triggeringa hung task timeouts like this doesn't usually indicate a
+> > filesystem problem.
+> 
+> <-- snip -->
+> 
+> > None of these things usually filesystem problems, and the trainsmash
+> > of blocked tasks on filesystem locks is typical for these types of
+> > "blocked indefinitely with locks held" type of situations. It does
+> > tend to indicate taht there is quite a bit of load on the
+> > filesystem, though...
+> 
+> As Jan Kara noted we've seen this also on customers SLE12-SP2 kernel (4.4
+> based). Although we also were never able to root cause, since that bug
+> is now closed on our end I figured it would be worth mentioning two
+> theories we discussed, one more recent than the other.
 
-In some cases these struct pages are accessed even if they do not contain
-any data. One example is page_to_pfn() might access page->flags if this is
-where section information is stored (CONFIG_SPARSEMEM,
-SECTION_IN_PAGE_FLAGS).
+Sure, but stuff going on with docker mounts and namespaces has
+nothing to do with IO path locking and completions. There's
+something in the filesystem or the storage stack below going
+wrong here, not above it in the vfsmount layer....
 
-One example of such memory: trim_low_memory_range() unconditionally
-reserves from pfn 0, but e820__memblock_setup() might provide the exiting
-memory from pfn 1 (i.e. KVM).
+Cheers,
 
-Since, struct pages are zeroed in __init_single_page(), and not during
-allocation time, we must zero such struct pages explicitly.
-
-The patch involves adding a new memblock iterator:
-	for_each_resv_unavail_range(i, p_start, p_end)
-
-Which iterates through reserved && !memory lists, and we zero struct pages
-explicitly by calling mm_zero_struct_page().
-
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
-Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-Reviewed-by: Bob Picco <bob.picco@oracle.com>
----
- include/linux/memblock.h | 16 ++++++++++++++++
- include/linux/mm.h       | 15 +++++++++++++++
- mm/page_alloc.c          | 38 ++++++++++++++++++++++++++++++++++++++
- 3 files changed, 69 insertions(+)
-
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index bae11c7e7bf3..ce8bfa5f3e9b 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -237,6 +237,22 @@ unsigned long memblock_next_valid_pfn(unsigned long pfn, unsigned long max_pfn);
- 	for_each_mem_range_rev(i, &memblock.memory, &memblock.reserved,	\
- 			       nid, flags, p_start, p_end, p_nid)
- 
-+/**
-+ * for_each_resv_unavail_range - iterate through reserved and unavailable memory
-+ * @i: u64 used as loop variable
-+ * @flags: pick from blocks based on memory attributes
-+ * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
-+ * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
-+ *
-+ * Walks over unavailable but reserved (reserved && !memory) areas of memblock.
-+ * Available as soon as memblock is initialized.
-+ * Note: because this memory does not belong to any physical node, flags and
-+ * nid arguments do not make sense and thus not exported as arguments.
-+ */
-+#define for_each_resv_unavail_range(i, p_start, p_end)			\
-+	for_each_mem_range(i, &memblock.reserved, &memblock.memory,	\
-+			   NUMA_NO_NODE, MEMBLOCK_NONE, p_start, p_end, NULL)
-+
- static inline void memblock_set_region_flags(struct memblock_region *r,
- 					     unsigned long flags)
- {
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 065d99deb847..04c8b2e5aff4 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -94,6 +94,15 @@ extern int mmap_rnd_compat_bits __read_mostly;
- #define mm_forbids_zeropage(X)	(0)
- #endif
- 
-+/*
-+ * On some architectures it is expensive to call memset() for small sizes.
-+ * Those architectures should provide their own implementation of "struct page"
-+ * zeroing by defining this macro in <asm/pgtable.h>.
-+ */
-+#ifndef mm_zero_struct_page
-+#define mm_zero_struct_page(pp)  ((void)memset((pp), 0, sizeof(struct page)))
-+#endif
-+
- /*
-  * Default maximum number of active map areas, this limits the number of vmas
-  * per mm struct. Users can overwrite this number by sysctl but there is a
-@@ -2001,6 +2010,12 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
- 					struct mminit_pfnnid_cache *state);
- #endif
- 
-+#ifdef CONFIG_HAVE_MEMBLOCK
-+void zero_resv_unavail(void);
-+#else
-+static inline void zero_resv_unavail(void) {}
-+#endif
-+
- extern void set_dma_reserve(unsigned long new_dma_reserve);
- extern void memmap_init_zone(unsigned long, int, unsigned long,
- 				unsigned long, enum memmap_context);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 20b0bace2235..5f0013bbbe9d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6209,6 +6209,42 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
- 	free_area_init_core(pgdat);
- }
- 
-+#ifdef CONFIG_HAVE_MEMBLOCK
-+/*
-+ * Only struct pages that are backed by physical memory are zeroed and
-+ * initialized by going through __init_single_page(). But, there are some
-+ * struct pages which are reserved in memblock allocator and their fields
-+ * may be accessed (for example page_to_pfn() on some configuration accesses
-+ * flags). We must explicitly zero those struct pages.
-+ */
-+void __paginginit zero_resv_unavail(void)
-+{
-+	phys_addr_t start, end;
-+	unsigned long pfn;
-+	u64 i, pgcnt;
-+
-+	/* Loop through ranges that are reserved, but do not have reported
-+	 * physical memory backing.
-+	 */
-+	pgcnt = 0;
-+	for_each_resv_unavail_range(i, &start, &end) {
-+		for (pfn = PFN_DOWN(start); pfn < PFN_UP(end); pfn++) {
-+			mm_zero_struct_page(pfn_to_page(pfn));
-+			pgcnt++;
-+		}
-+	}
-+
-+	/*
-+	 * Struct pages that do not have backing memory. This could be because
-+	 * firmware is using some of this memory, or for some other reasons.
-+	 * Once memblock is changed so such behaviour is not allowed: i.e.
-+	 * list of "reserved" memory must be a subset of list of "memory", then
-+	 * this code can be removed.
-+	 */
-+	pr_info("Reserved but unavailable: %lld pages", pgcnt);
-+}
-+#endif /* CONFIG_HAVE_MEMBLOCK */
-+
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 
- #if MAX_NUMNODES > 1
-@@ -6632,6 +6668,7 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
- 			node_set_state(nid, N_MEMORY);
- 		check_for_memory(pgdat, nid);
- 	}
-+	zero_resv_unavail();
- }
- 
- static int __init cmdline_parse_core(char *p, unsigned long *core)
-@@ -6795,6 +6832,7 @@ void __init free_area_init(unsigned long *zones_size)
- {
- 	free_area_init_node(0, zones_size,
- 			__pa(PAGE_OFFSET) >> PAGE_SHIFT, NULL);
-+	zero_resv_unavail();
- }
- 
- static int page_alloc_cpu_dead(unsigned int cpu)
+Dave.
 -- 
-2.14.2
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
