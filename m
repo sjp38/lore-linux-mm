@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 744F36B0266
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 13:25:21 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id a7so76668815pfj.3
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:25:21 -0700 (PDT)
-Received: from out0-199.mail.aliyun.com (out0-199.mail.aliyun.com. [140.205.0.199])
-        by mx.google.com with ESMTPS id bf2si5743356plb.521.2017.10.10.10.25.19
+	by kanga.kvack.org (Postfix) with ESMTP id 8E8106B0268
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 13:25:22 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id a7so76668981pfj.3
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:25:22 -0700 (PDT)
+Received: from out0-193.mail.aliyun.com (out0-193.mail.aliyun.com. [140.205.0.193])
+        by mx.google.com with ESMTPS id k197si8903447pgc.187.2017.10.10.10.25.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Oct 2017 10:25:20 -0700 (PDT)
+        Tue, 10 Oct 2017 10:25:21 -0700 (PDT)
 From: "Yang Shi" <yang.s@alibaba-inc.com>
-Subject: [PATCH 1/3] tools: slabinfo: add "-U" option to show unreclaimable slabs only
-Date: Wed, 11 Oct 2017 01:25:01 +0800
-Message-Id: <1507656303-103845-2-git-send-email-yang.s@alibaba-inc.com>
+Subject: [PATCH 3/3] mm: oom: show unreclaimable slab info when unreclaimable slabs > user memory
+Date: Wed, 11 Oct 2017 01:25:03 +0800
+Message-Id: <1507656303-103845-4-git-send-email-yang.s@alibaba-inc.com>
 In-Reply-To: <1507656303-103845-1-git-send-email-yang.s@alibaba-inc.com>
 References: <1507656303-103845-1-git-send-email-yang.s@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,75 +20,162 @@ List-ID: <linux-mm.kvack.org>
 To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org
 Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Add "-U" option to show unreclaimable slabs only.
+Kernel may panic when oom happens without killable process sometimes it
+is caused by huge unreclaimable slabs used by kernel.
 
-"-U" and "-S" together can tell us what unreclaimable slabs use the most
-memory to help debug huge unreclaimable slabs issue.
+Although kdump could help debug such problem, however, kdump is not
+available on all architectures and it might be malfunction sometime.
+And, since kernel already panic it is worthy capturing such information
+in dmesg to aid touble shooting.
+
+Print out unreclaimable slab info (used size and total size) which
+actual memory usage is not zero (num_objs * size != 0) when
+unreclaimable slabs amount is greater than total user memory (LRU
+pages).
+
+The output looks like:
+
+Unreclaimable slab info:
+Name                      Used          Total
+rpc_buffers               31KB         31KB
+rpc_tasks                  7KB          7KB
+ebitmap_node            1964KB       1964KB
+avtab_node              5024KB       5024KB
+xfs_buf                 1402KB       1402KB
+xfs_ili                  134KB        134KB
+xfs_efi_item             115KB        115KB
+xfs_efd_item             115KB        115KB
+xfs_buf_item             134KB        134KB
+xfs_log_item_desc        342KB        342KB
+xfs_trans               1412KB       1412KB
+xfs_ifork                212KB        212KB
 
 Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
-Acked-by: Christoph Lameter <cl@linux.com>
-Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- tools/vm/slabinfo.c | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ mm/oom_kill.c    | 27 +++++++++++++++++++++++++--
+ mm/slab.h        |  8 ++++++++
+ mm/slab_common.c | 34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+), 2 deletions(-)
 
-diff --git a/tools/vm/slabinfo.c b/tools/vm/slabinfo.c
-index b9d34b3..de8fa11 100644
---- a/tools/vm/slabinfo.c
-+++ b/tools/vm/slabinfo.c
-@@ -83,6 +83,7 @@ struct aliasinfo {
- int sort_loss;
- int extended_totals;
- int show_bytes;
-+int unreclaim_only;
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index dee0f75..3023919 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -44,6 +44,7 @@
  
- /* Debug options */
- int sanity;
-@@ -132,6 +133,7 @@ static void usage(void)
- 		"-L|--Loss              Sort by loss\n"
- 		"-X|--Xtotals           Show extended summary information\n"
- 		"-B|--Bytes             Show size in bytes\n"
-+		"-U|--Unreclaim		Show unreclaimable slabs only\n"
- 		"\nValid debug options (FZPUT may be combined)\n"
- 		"a / A          Switch on all debug options (=FZUP)\n"
- 		"-              Switch off all debug options\n"
-@@ -568,6 +570,9 @@ static void slabcache(struct slabinfo *s)
- 	if (strcmp(s->name, "*") == 0)
- 		return;
+ #include <asm/tlb.h>
+ #include "internal.h"
++#include "slab.h"
  
-+	if (unreclaim_only && s->reclaim_account)
-+		return;
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/oom.h>
+@@ -161,6 +162,25 @@ static bool oom_unkillable_task(struct task_struct *p,
+ 	return false;
+ }
+ 
++/*
++ * Print out unreclaimble slabs info when unreclaimable slabs amount is greater
++ * than all user memory (LRU pages)
++ */
++static bool is_dump_unreclaim_slabs(void)
++{
++	unsigned long nr_lru;
 +
- 	if (actual_slabs == 1) {
- 		report(s);
- 		return;
-@@ -1346,6 +1351,7 @@ struct option opts[] = {
- 	{ "Loss", no_argument, NULL, 'L'},
- 	{ "Xtotals", no_argument, NULL, 'X'},
- 	{ "Bytes", no_argument, NULL, 'B'},
-+	{ "Unreclaim", no_argument, NULL, 'U'},
- 	{ NULL, 0, NULL, 0 }
- };
++	nr_lru = global_node_page_state(NR_ACTIVE_ANON) +
++		 global_node_page_state(NR_INACTIVE_ANON) +
++		 global_node_page_state(NR_ACTIVE_FILE) +
++		 global_node_page_state(NR_INACTIVE_FILE) +
++		 global_node_page_state(NR_ISOLATED_ANON) +
++		 global_node_page_state(NR_ISOLATED_FILE) +
++		 global_node_page_state(NR_UNEVICTABLE);
++
++	return (global_node_page_state(NR_SLAB_UNRECLAIMABLE) > nr_lru);
++}
++
+ /**
+  * oom_badness - heuristic function to determine which candidate task to kill
+  * @p: task struct of which task we should calculate
+@@ -420,10 +440,13 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
  
-@@ -1357,7 +1363,7 @@ int main(int argc, char *argv[])
+ 	cpuset_print_current_mems_allowed();
+ 	dump_stack();
+-	if (oc->memcg)
++	if (is_memcg_oom(oc))
+ 		mem_cgroup_print_oom_info(oc->memcg, p);
+-	else
++	else {
+ 		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
++		if (is_dump_unreclaim_slabs())
++			dump_unreclaimable_slab();
++	}
+ 	if (sysctl_oom_dump_tasks)
+ 		dump_tasks(oc->memcg, oc->nodemask);
+ }
+diff --git a/mm/slab.h b/mm/slab.h
+index 0733628..a1537cf 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -505,6 +505,14 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
+ void memcg_slab_stop(struct seq_file *m, void *p);
+ int memcg_slab_show(struct seq_file *m, void *p);
  
- 	page_size = getpagesize();
++#if defined(CONFIG_SLAB) || defined(CONFIG_SLUB_DEBUG)
++void dump_unreclaimable_slab(void);
++#else
++static inline void dump_unreclaimable_slab(void)
++{
++}
++#endif
++
+ void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr);
  
--	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:LXB",
-+	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:LXBU",
- 						opts, NULL)) != -1)
- 		switch (c) {
- 		case '1':
-@@ -1438,6 +1444,9 @@ int main(int argc, char *argv[])
- 		case 'B':
- 			show_bytes = 1;
- 			break;
-+		case 'U':
-+			unreclaim_only = 1;
-+			break;
- 		default:
- 			fatal("%s: Invalid option '%c'\n", argv[0], optopt);
+ #ifdef CONFIG_SLAB_FREELIST_RANDOM
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 68b2f0d..4413cee 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1279,6 +1279,40 @@ static int slab_show(struct seq_file *m, void *p)
+ 	return 0;
+ }
  
++void dump_unreclaimable_slab(void)
++{
++	struct kmem_cache *s, *s2;
++	struct slabinfo sinfo;
++
++	/*
++	 * Here acquiring slab_mutex is risky since we don't prefer to get
++	 * sleep in oom path. But, without mutex hold, it may introduce a
++	 * risk of crash.
++	 * Use mutex_trylock to protect the list traverse, dump nothing
++	 * without acquiring the mutex.
++	 */
++	if (!mutex_trylock(&slab_mutex)) {
++		pr_warn("excessive unreclaimable slab but cannot dump stats\n");
++		return;
++	}
++
++	pr_info("Unreclaimable slab info:\n");
++	pr_info("Name                      Used          Total\n");
++
++	list_for_each_entry_safe(s, s2, &slab_caches, list) {
++		if (!is_root_cache(s) || (s->flags & SLAB_RECLAIM_ACCOUNT))
++			continue;
++
++		get_slabinfo(s, &sinfo);
++
++		if (sinfo.num_objs > 0)
++			pr_info("%-17s %10luKB %10luKB\n", cache_name(s),
++				(sinfo.active_objs * s->size) / 1024,
++				(sinfo.num_objs * s->size) / 1024);
++	}
++	mutex_unlock(&slab_mutex);
++}
++
+ #if defined(CONFIG_MEMCG)
+ void *memcg_slab_start(struct seq_file *m, loff_t *pos)
+ {
 -- 
 1.8.3.1
 
