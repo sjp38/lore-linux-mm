@@ -1,66 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 19E816B025E
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 05:57:55 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id e123so20176473oig.7
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 02:57:55 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id w3si4570033oib.298.2017.10.10.02.57.53
-        for <linux-mm@kvack.org>;
-        Tue, 10 Oct 2017 02:57:53 -0700 (PDT)
-Date: Tue, 10 Oct 2017 10:56:19 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-Subject: Re: [PATCH v2 1/3] kcov: support comparison operands collection
-Message-ID: <20171010095618.GF27659@leverpostej>
-References: <20171009150521.82775-1-glider@google.com>
- <20171009154610.GA22534@leverpostej>
- <CACT4Y+Y_79MQVHg--92AJFk3_9XoLgaM2zF3zK5ErfnH-zNcPw@mail.gmail.com>
- <20171009183734.GA7784@leverpostej>
- <CACT4Y+apUD89-neN7GUsbdZ9a1hMgRPQk-h4dhC9iDf+_6Kh=w@mail.gmail.com>
-MIME-Version: 1.0
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CBE106B025E
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 07:09:26 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id n82so9842063oig.1
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 04:09:26 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 37si4961024oto.164.2017.10.10.04.09.24
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 10 Oct 2017 04:09:25 -0700 (PDT)
+Subject: Re: [PATCH v16 3/5] virtio-balloon: VIRTIO_BALLOON_F_SG
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1506744354-20979-1-git-send-email-wei.w.wang@intel.com>
+	<1506744354-20979-4-git-send-email-wei.w.wang@intel.com>
+	<20171009181612-mutt-send-email-mst@kernel.org>
+	<59DC76BA.7070202@intel.com>
+In-Reply-To: <59DC76BA.7070202@intel.com>
+Message-Id: <201710102008.FIG57851.QFJLMtVOFOHFOS@I-love.SAKURA.ne.jp>
+Date: Tue, 10 Oct 2017 20:08:37 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACT4Y+apUD89-neN7GUsbdZ9a1hMgRPQk-h4dhC9iDf+_6Kh=w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Popov <alex.popov@linux.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, andreyknvl <andreyknvl@google.com>, Kees Cook <keescook@chromium.org>, Vegard Nossum <vegard.nossum@oracle.com>, syzkaller <syzkaller@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: wei.w.wang@intel.com, mst@redhat.com
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On Mon, Oct 09, 2017 at 08:46:18PM +0200, 'Dmitry Vyukov' via syzkaller wrote:
-> On Mon, Oct 9, 2017 at 8:37 PM, Mark Rutland <mark.rutland@arm.com> wrote:
-> > On Mon, Oct 09, 2017 at 08:15:10PM +0200, 'Dmitry Vyukov' via syzkaller wrote:
-> >> On Mon, Oct 9, 2017 at 5:46 PM, Mark Rutland <mark.rutland@arm.com> wrote:
-> >> > On Mon, Oct 09, 2017 at 05:05:19PM +0200, Alexander Potapenko wrote:
+Wei Wang wrote:
+> On 10/09/2017 11:20 PM, Michael S. Tsirkin wrote:
+> > On Sat, Sep 30, 2017 at 12:05:52PM +0800, Wei Wang wrote:
+> >> +static inline void xb_set_page(struct virtio_balloon *vb,
+> >> +			       struct page *page,
+> >> +			       unsigned long *pfn_min,
+> >> +			       unsigned long *pfn_max)
+> >> +{
+> >> +	unsigned long pfn = page_to_pfn(page);
+> >> +
+> >> +	*pfn_min = min(pfn, *pfn_min);
+> >> +	*pfn_max = max(pfn, *pfn_max);
+> >> +	xb_preload(GFP_KERNEL);
+> >> +	xb_set_bit(&vb->page_xb, pfn);
+> >> +	xb_preload_end();
+> >> +}
+> >> +
+> > So, this will allocate memory
 > >
-> >> > ... I note that a few places in the kernel use a 128-bit type. Are
-> >> > 128-bit comparisons not instrumented?
-> >>
-> >> Yes, they are not instrumented.
-> >> How many are there? Can you give some examples?
+> > ...
 > >
-> > From a quick scan, it doesn't looks like there are currently any
-> > comparisons.
+> >> @@ -198,9 +327,12 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
+> >>   	struct page *page;
+> >>   	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
+> >>   	LIST_HEAD(pages);
+> >> +	bool use_sg = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_SG);
+> >> +	unsigned long pfn_max = 0, pfn_min = ULONG_MAX;
+> >>   
+> >> -	/* We can only do one array worth at a time. */
+> >> -	num = min(num, ARRAY_SIZE(vb->pfns));
+> >> +	/* Traditionally, we can only do one array worth at a time. */
+> >> +	if (!use_sg)
+> >> +		num = min(num, ARRAY_SIZE(vb->pfns));
+> >>   
+> >>   	mutex_lock(&vb->balloon_lock);
+> >>   	/* We can't release more pages than taken */
+> > And is sometimes called on OOM.
 > >
-> > It's used as a data type in a few places under arm64:
 > >
-> > arch/arm64/include/asm/checksum.h:      __uint128_t tmp;
-> > arch/arm64/include/asm/checksum.h:      tmp = *(const __uint128_t *)iph;
-> > arch/arm64/include/asm/fpsimd.h:                        __uint128_t vregs[32];
-> > arch/arm64/include/uapi/asm/ptrace.h:   __uint128_t     vregs[32];
-> > arch/arm64/include/uapi/asm/sigcontext.h:       __uint128_t vregs[32];
-> > arch/arm64/kernel/signal32.c:   __uint128_t     raw;
-> > arch/arm64/kvm/guest.c: __uint128_t tmp;
+> > I suspect we need to
+> >
+> > 1. keep around some memory for leak on oom
+> >
+> > 2. for non oom allocate outside locks
+> >
+> >
 > 
-> Then I think we just continue ignoring them for now :)
-> In the future we can extend kcov to trace 128-bits values. We will
-> need to add a special flag and write 2 consecutive entries for them.
-> Or something along these lines.
+> I think maybe we can optimize the existing balloon logic, which could 
+> remove the big balloon lock:
+> 
+> It would not be necessary to have the inflating and deflating run at the 
+> same time.
+> For example, 1st request to inflate 7G RAM, when 1GB has been given to 
+> the host (so 6G left), the
+> 2nd request to deflate 5G is received. Instead of waiting for the 1st 
+> request to inflate 6G and then
+> continuing with the 2nd request to deflate 5G, we can do a diff (6G to 
+> inflate - 5G to deflate) immediately,
+> and got 1G to inflate. In this way, all that driver will do is to simply 
+> inflate another 1G.
+> 
+> Same for the OOM case: when OOM asks for 1G, while inflating 5G is in 
+> progress, then the driver can
+> deduct 1G from the amount that needs to inflate, and as a result, it 
+> will inflate 4G.
+> 
+> In this case, we will never have the inflating and deflating task run at 
+> the same time, so I think it is
+> possible to remove the lock, and therefore, we will not have that 
+> deadlock issue.
+> 
+> What would you guys think?
 
-Just wanted to make sure that we weren't backing ourselves into a corner
-w.r.t. ABI; that sounds fine to me.
+What is balloon_lock at virtballoon_migratepage() for?
 
-Thanks,
-Mark.
+  e22504296d4f64fb "virtio_balloon: introduce migration primitives to balloon pages"
+  f68b992bbb474641 "virtio_balloon: fix race by fill and leak"
+
+And even if we could remove balloon_lock, you still cannot use
+__GFP_DIRECT_RECLAIM at xb_set_page(). I think you will need to use
+"whether it is safe to wait" flag from
+"[PATCH] virtio: avoid possible OOM lockup at virtballoon_oom_notify()" .
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
