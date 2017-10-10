@@ -1,127 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F57C6B025E
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 07:47:09 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id i124so30555615wmf.7
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 04:47:09 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ACE1C6B025E
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 07:54:39 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 136so32933622wmu.3
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 04:54:39 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k73si9715490wrc.84.2017.10.10.04.47.07
+        by mx.google.com with ESMTPS id b105si9361606wrd.480.2017.10.10.04.54.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 Oct 2017 04:47:07 -0700 (PDT)
-Date: Tue, 10 Oct 2017 13:47:06 +0200
+        Tue, 10 Oct 2017 04:54:38 -0700 (PDT)
+Date: Tue, 10 Oct 2017 13:54:36 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] virtio: avoid possible OOM lockup at
- virtballoon_oom_notify()
-Message-ID: <20171010114706.mp3hpuulze75av43@dhcp22.suse.cz>
-References: <1507632457-4611-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH] vmalloc: back off only when the current task is OOM
+ killed
+Message-ID: <20171010115436.nzgo4ewodx5pyrw7@dhcp22.suse.cz>
+References: <1507633133-5720-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1507632457-4611-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <1507633133-5720-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mst@redhat.com, wei.w.wang@intel.com, virtualization@lists.linux-foundation.org, linux-mm@kvack.org
+Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, alan@llwyncelyn.cymru, hch@lst.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Tue 10-10-17 19:47:37, Tetsuo Handa wrote:
-> In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
-> serialize against fill_balloon(). But in fill_balloon(),
-> alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
-> called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE]
-> implies __GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, despite __GFP_NORETRY
-> is specified, this allocation attempt might indirectly depend on somebody
-> else's __GFP_DIRECT_RECLAIM memory allocation. And such indirect
-> __GFP_DIRECT_RECLAIM memory allocation might call leak_balloon() via
-> virtballoon_oom_notify() via blocking_notifier_call_chain() callback via
-> out_of_memory() when it reached __alloc_pages_may_oom() and held oom_lock
-> mutex. Since vb->balloon_lock mutex is already held by fill_balloon(), it
-> will cause OOM lockup. Thus, do not wait for vb->balloon_lock mutex if
-> leak_balloon() is called from out_of_memory().
+On Tue 10-10-17 19:58:53, Tetsuo Handa wrote:
+> Commit 5d17a73a2ebeb8d1 ("vmalloc: back off when the current task is
+> killed") revealed two bugs [1] [2] that were not ready to fail vmalloc()
+> upon SIGKILL. But since the intent of that commit was to avoid unlimited
+> access to memory reserves, we should have checked tsk_is_oom_victim()
+> rather than fatal_signal_pending().
 > 
->   Thread1                                       Thread2
->     fill_balloon()
->       takes a balloon_lock
->       balloon_page_enqueue()
->         alloc_page(GFP_HIGHUSER_MOVABLE)
->           direct reclaim (__GFP_FS context)       takes a fs lock
->             waits for that fs lock                  alloc_page(GFP_NOFS)
->                                                       __alloc_pages_may_oom()
->                                                         takes the oom_lock
->                                                         out_of_memory()
->                                                           blocking_notifier_call_chain()
->                                                             leak_balloon()
->                                                               tries to take that balloon_lock and deadlocks
-> 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Note that even with commit cd04ae1e2dc8e365 ("mm, oom: do not rely on
+> TIF_MEMDIE for memory reserves access"), it is possible to trigger
+> "complete depletion of memory reserves"
 
-FWIW this looks good to me from the deadlock POV. I cannot judge virtio
-internals and I would appreciate if it could move away from the oom
-notifier API to a more generic reclaim mechanism (e.g. shrinkers).
+How would that be possible? OOM victims are not allowed to consume whole
+reserves and the vmalloc context would have to do something utterly
+wrong like PF_MEMALLOC to make this happen. Protecting from such a code
+is simply pointless.
 
-Reviewed-by: Michal Hocko <mhocko@suse.com>
-> ---
->  drivers/virtio/virtio_balloon.c | 16 +++++++++++-----
->  1 file changed, 11 insertions(+), 5 deletions(-)
-> 
-> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> index f0b3a0b..03e6078 100644
-> --- a/drivers/virtio/virtio_balloon.c
-> +++ b/drivers/virtio/virtio_balloon.c
-> @@ -192,7 +192,7 @@ static void release_pages_balloon(struct virtio_balloon *vb,
->  	}
->  }
->  
-> -static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
-> +static unsigned leak_balloon(struct virtio_balloon *vb, size_t num, bool wait)
->  {
->  	unsigned num_freed_pages;
->  	struct page *page;
-> @@ -202,7 +202,13 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
->  	/* We can only do one array worth at a time. */
->  	num = min(num, ARRAY_SIZE(vb->pfns));
->  
-> -	mutex_lock(&vb->balloon_lock);
-> +	if (wait)
-> +		mutex_lock(&vb->balloon_lock);
-> +	else if (!mutex_trylock(&vb->balloon_lock)) {
-> +		pr_info("virtio_balloon: Unable to release %lu pages due to lock contention.\n",
-> +			(unsigned long) min(num, (size_t)vb->num_pages));
-> +		return 0;
-> +	}
->  	/* We can't release more pages than taken */
->  	num = min(num, (size_t)vb->num_pages);
->  	for (vb->num_pfns = 0; vb->num_pfns < num;
-> @@ -367,7 +373,7 @@ static int virtballoon_oom_notify(struct notifier_block *self,
->  		return NOTIFY_OK;
->  
->  	freed = parm;
-> -	num_freed_pages = leak_balloon(vb, oom_pages);
-> +	num_freed_pages = leak_balloon(vb, oom_pages, false);
->  	update_balloon_size(vb);
->  	*freed += num_freed_pages;
->  
-> @@ -395,7 +401,7 @@ static void update_balloon_size_func(struct work_struct *work)
->  	if (diff > 0)
->  		diff -= fill_balloon(vb, diff);
->  	else if (diff < 0)
-> -		diff += leak_balloon(vb, -diff);
-> +		diff += leak_balloon(vb, -diff, true);
->  	update_balloon_size(vb);
->  
->  	if (diff)
-> @@ -597,7 +603,7 @@ static void remove_common(struct virtio_balloon *vb)
->  {
->  	/* There might be pages left in the balloon: free them. */
->  	while (vb->num_pages)
-> -		leak_balloon(vb, vb->num_pages);
-> +		leak_balloon(vb, vb->num_pages, true);
->  	update_balloon_size(vb);
->  
->  	/* Now we reset the device so we can clean up the queues. */
-> -- 
-> 1.8.3.1
+> and "extra OOM kills due to depletion of memory reserves"
 
+and this is simply the case for the most vmalloc allocations because
+they are not reflected in the oom selection so if there is a massive
+vmalloc consumer it is very likely that we will kill a large part the
+userspace before hitting the user context on behalf which the vmalloc
+allocation is performed.
+
+I have tried to explain this is not really needed before but you keep
+insisting which is highly annoying. The patch as is is not harmful but
+it is simply _pointless_ IMHO.
 -- 
 Michal Hocko
 SUSE Labs
