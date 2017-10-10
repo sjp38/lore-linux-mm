@@ -1,203 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 359246B025E
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 18:04:51 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id g70so4723114lfl.1
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 15:04:51 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id 30si5289415lfr.7.2017.10.10.15.04.48
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 58FA26B025E
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 18:21:57 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id r202so727063wmd.1
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 15:21:57 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id e7sor3680717wrg.71.2017.10.10.15.21.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Oct 2017 15:04:49 -0700 (PDT)
-Date: Tue, 10 Oct 2017 23:04:17 +0100
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [v11 3/6] mm, oom: cgroup-aware OOM killer
-Message-ID: <20171010220417.GA8667@castle>
-References: <20171005130454.5590-1-guro@fb.com>
- <20171005130454.5590-4-guro@fb.com>
- <alpine.DEB.2.10.1710091414260.59643@chino.kir.corp.google.com>
- <20171010122306.GA11653@castle.DHCP.thefacebook.com>
- <alpine.DEB.2.10.1710101345370.28262@chino.kir.corp.google.com>
+        (Google Transport Security);
+        Tue, 10 Oct 2017 15:21:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1710101345370.28262@chino.kir.corp.google.com>
+In-Reply-To: <20171010091042.eokqlrqec33w3qzt@dhcp22.suse.cz>
+References: <20171005222144.123797-1-shakeelb@google.com> <20171006075900.icqjx5rr7hctn3zd@dhcp22.suse.cz>
+ <CALvZod7YN4JCG7Anm2FViyZ0-APYy+nxEd3nyxe5LT_P0FC9wg@mail.gmail.com>
+ <20171009062426.hmqedtqz5hkmhnff@dhcp22.suse.cz> <xr93a810xl77.fsf@gthelen.svl.corp.google.com>
+ <20171009180409.z3mpk3m7m75hjyfv@dhcp22.suse.cz> <20171009181754.37svpqljub2goojr@dhcp22.suse.cz>
+ <20171010091042.eokqlrqec33w3qzt@dhcp22.suse.cz>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Tue, 10 Oct 2017 15:21:53 -0700
+Message-ID: <CALvZod5VzPRRbhxLSn5GkgPbJEVJ9X5SfA=rjzRtTqLbCAe+eA@mail.gmail.com>
+Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Greg Thelen <gthelen@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Tue, Oct 10, 2017 at 02:13:00PM -0700, David Rientjes wrote:
-> On Tue, 10 Oct 2017, Roman Gushchin wrote:
-> 
-> > > This seems to unfairly bias the root mem cgroup depending on process size.  
-> > > It isn't treated fairly as a leaf mem cgroup if they are being compared 
-> > > based on different criteria: the root mem cgroup as (mostly) the largest 
-> > > rss of a single process vs leaf mem cgroups as all anon, unevictable, and 
-> > > unreclaimable slab pages charged to it by all processes.
-> > > 
-> > > I imagine a configuration where the root mem cgroup has 100 processes 
-> > > attached each with rss of 80MB, compared to a leaf cgroup with 100 
-> > > processes of 1MB rss each.  How does this logic prevent repeatedly oom 
-> > > killing the processes of 1MB rss?
-> > > 
-> > > In this case, "the root cgroup is treated as a leaf memory cgroup" isn't 
-> > > quite fair, it can simply hide large processes from being selected.  Users 
-> > > who configure cgroups in a unified hierarchy for other resource 
-> > > constraints are penalized for this choice even though the mem cgroup with 
-> > > 100 processes of 1MB rss each may not be limited itself.
-> > > 
-> > > I think for this comparison to be fair, it requires accounting for the 
-> > > root mem cgroup itself or for a different accounting methodology for leaf 
-> > > memory cgroups.
-> > 
-> > This is basically a workaround, because we don't have necessary stats for root
-> > memory cgroup. If we'll start gathering them at some point, we can change this
-> > and treat root memcg exactly as other leaf cgroups.
-> > 
-> 
-> I understand why it currently cannot be an apples vs apples comparison 
-> without, as I suggest in the last paragraph, that the same accounting is 
-> done for the root mem cgroup, which is intuitive if it is to be considered 
-> on the same basis as leaf mem cgroups.
-> 
-> I understand for the design to work that leaf mem cgroups and the root mem 
-> cgroup must be compared if processes can be attached to the root mem 
-> cgroup.  My point is that it is currently completely unfair as I've 
-> stated: you can have 10000 processes attached to the root mem cgroup with 
-> rss of 80MB each and a leaf mem cgroup with 100 processes of 1MB rss each 
-> and the oom killer is going to target the leaf mem cgroup as a result of 
-> this apples vs oranges comparison.
-> 
-> In case it's not clear, the 10000 processes of 80MB rss each is the most 
-> likely contributor to a system-wide oom kill.  Unfortunately, the 
-> heuristic introduced by this patchset is broken wrt a fair comparison of 
-> the root mem cgroup usage.
-> 
-> > Or, if someone will come with an idea of a better approximation, it can be
-> > implemented as a separate enhancement on top of the initial implementation.
-> > This is more than welcome.
-> > 
-> 
-> We don't need a better approximation, we need a fair comparison.  The 
-> heuristic that this patchset is implementing is based on the usage of 
-> individual mem cgroups.  For the root mem cgroup to be considered 
-> eligible, we need to understand its usage.  That usage is _not_ what is 
-> implemented by this patchset, which is the largest rss of a single 
-> attached process.  This, in fact, is not an "approximation" at all.  In 
-> the example of 10000 processes attached with 80MB rss each, the usage of 
-> the root mem cgroup is _not_ 80MB.
+On Sun, Oct 8, 2017 at 11:24 PM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Fri 06-10-17 12:33:03, Shakeel Butt wrote:
+>> >>       names_cachep = kmem_cache_create("names_cache", PATH_MAX, 0,
+>> >> -                     SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
+>> >> +                     SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT, NULL);
+>> >
+>> > I might be wrong but isn't name cache only holding temporary objects
+>> > used for path resolution which are not stored anywhere?
+>> >
+>>
+>> Even though they're temporary, many containers can together use a
+>> significant amount of transient uncharged memory. We've seen machines
+>> with 100s of MiBs in names_cache.
+>
+> Yes that might be possible but are we prepared for random ENOMEM from
+> vfs calls which need to allocate a temporary name?
+>
 
-It's hard to imagine a "healthy" setup with 10000 process in the root
-memory cgroup, and even if we kill 1 process we will still have 9999
-remaining process. I agree with you at some point, but it's not
-a real world example.
+I looked at all the syscalls which invoke allocations from
+'names_cache' and tried to narrow down whose man page does not mention
+that they can return ENOMEM. I found couple of syscalls like
+truncate(), readdir() & getdents() which does not mention that they
+can return ENOMEM but this patch will make them return ENOMEM.
 
-> 
-> I'll restate that oom killing a process is a last resort for the kernel, 
-> but it also must be able to make a smart decision.  Targeting dozens of 
-> 1MB processes instead of 80MB processes because of a shortcoming in this 
-> implementation is not the appropriate selection, it's the opposite of the 
-> correct selection.
-> 
-> > > I'll reiterate what I did on the last version of the patchset: considering 
-> > > only leaf memory cgroups easily allows users to defeat this heuristic and 
-> > > bias against all of their memory usage up to the largest process size 
-> > > amongst the set of processes attached.  If the user creates N child mem 
-> > > cgroups for their N processes and attaches one process to each child, the 
-> > > _only_ thing this achieved is to defeat your heuristic and prefer other 
-> > > leaf cgroups simply because those other leaf cgroups did not do this.
-> > > 
-> > > Effectively:
-> > > 
-> > > for i in $(cat cgroup.procs); do mkdir $i; echo $i > $i/cgroup.procs; done
-> > > 
-> > > will radically shift the heuristic from a score of all anonymous + 
-> > > unevictable memory for all processes to a score of the largest anonymous +
-> > > unevictable memory for a single process.  There is no downside or 
-> > > ramifaction for the end user in doing this.  When comparing cgroups based 
-> > > on usage, it only makes sense to compare the hierarchical usage of that 
-> > > cgroup so that attaching processes to descendants or splitting the 
-> > > implementation of a process into several smaller individual processes does 
-> > > not allow this heuristic to be defeated.
-> > 
-> > To all previously said words I can only add that cgroup v2 allows to limit
-> > the amount of cgroups in the sub-tree:
-> > 1a926e0bbab8 ("cgroup: implement hierarchy limits").
-> > 
-> 
-> So the solution to 
-> 
-> for i in $(cat cgroup.procs); do mkdir $i; echo $i > $i/cgroup.procs; done
-> 
-> evading all oom kills for your mem cgroup is to limit the number of 
-> cgroups that can be created by the user?  With a unified cgroup hierarchy, 
-> that doesn't work well if I wanted to actually constrain these individual 
-> processes to different resource limits like cpu usage.  In fact, the user 
-> may not know it is effectively evading the oom killer entirely because it 
-> has constrained the cpu of individual processes because its a side-effect 
-> of this heuristic.
-> 
-> 
-> You chose not to respond to my reiteration of userspace having absolutely 
-> no control over victim selection with the new heuristic without setting 
-> all processes to be oom disabled via /proc/pid/oom_score_adj.  If I have a 
-> very important job that is running on a system that is really supposed to 
-> use 80% of memory, I need to be able to specify that it should not be oom 
-> killed based on user goals.  Setting all processes to be oom disabled in 
-> the important mem cgroup to avoid being oom killed unless absolutely 
-> necessary in a system oom condition is not a robust solution: (1) the mem 
-> cgroup livelocks if it reaches its own mem cgroup limit and (2) the system 
-> panic()'s if these preferred mem cgroups are the only consumers left on 
-> the system.  With overcommit, both of these possibilities exist in the 
-> wild and the problem is only a result of the implementation detail of this 
-> patchset.
-> 
-> For these reasons: unfair comparison of root mem cgroup usage to bias 
-> against that mem cgroup from oom kill in system oom conditions, the 
-> ability of users to completely evade the oom killer by attaching all 
-> processes to child cgroups either purposefully or unpurposefully, and the 
-> inability of userspace to effectively control oom victim selection:
-> 
-> Nacked-by: David Rientjes <rientjes@google.com>
+>>
+>> >>       filp_cachep = kmem_cache_create("filp", sizeof(struct file), 0,
+>> >> -                     SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
+>> >> +                     SLAB_HWCACHE_ALIGN | SLAB_PANIC | SLAB_ACCOUNT, NULL);
+>> >>       percpu_counter_init(&nr_files, 0, GFP_KERNEL);
+>> >>  }
+>> >
+>> > Don't we have a limit for the maximum number of open files?
+>> >
+>>
+>> Yes, there is a system limit of maximum number of open files. However
+>> this limit is shared between different users on the system and one
+>> user can hog this resource. To cater that, we set the maximum limit
+>> very high and let the memory limit of each user limit the number of
+>> files they can open.
+>
+> Similarly here. Are all syscalls allocating a fd prepared to return
+> ENOMEM?
 
-So, if we'll sum the oom_score of tasks belonging to the root memory cgroup,
-will it fix the problem?
+For filp, I found _sysctl(). However the man page says not to use it.
 
-It might have some drawbacks as well (especially around oom_score_adj),
-but it's doable, if we'll ignore tasks which are not owners of their's mm struct.
+On Tue, Oct 10, 2017 at 2:10 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Mon 09-10-17 20:17:54, Michal Hocko wrote:
+>> the primary concern for this patch was whether we really need/want to
+>> charge short therm objects which do not outlive a single syscall.
+>
+> Let me expand on this some more. What is the benefit of kmem accounting
+> of such an object? It cannot stop any runaway as a syscall lifetime
+> allocations are bound to number of processes which we kind of contain by
+> other means.
 
-> 
-> > > This is racy because mem_cgroup_select_oom_victim() found an eligible 
-> > > oc->chosen_memcg that is not INFLIGHT_VICTIM with at least one eligible 
-> > > process but mem_cgroup_scan_task(oc->chosen_memcg) did not.  It means if a 
-> > > process cannot be killed because of oom_unkillable_task(), the only 
-> > > eligible processes moved or exited, or the /proc/pid/oom_score_adj of the 
-> > > eligible processes changed, we end up falling back to the complete 
-> > > tasklist scan.  It would be better for oom_evaluate_memcg() to consider 
-> > > oom_unkillable_task() and also retry in the case where 
-> > > oom_kill_memcg_victim() returns NULL.
-> > 
-> > I agree with you here. The fallback to the existing mechanism is implemented
-> > to be safe for sure, especially in a case of a global OOM. When we'll get
-> > more confidence in cgroup-aware OOM killer reliability, we can change this
-> > behavior. Personally, I would prefer to get rid of looking at all tasks just
-> > to find a pre-existing OOM victim, but it might be quite tricky to implement.
-> > 
-> 
-> I'm not sure what this has to do with confidence in this patchset's 
-> reliability?  The race obviously exists: mem_cgroup_select_oom_victim() 
-> found an eligible process in oc->chosen_memcg but it was either ineligible 
-> later because of oom_unkillable_task(), it moved, or it exited.  It's a 
-> race.  For users who opt-in to this new heuristic, they should not be 
-> concerned with a process exiting and thus killing a completely unexpected 
-> process from an unexpected memcg when it should be possible to retry and 
-> select the correct victim.
+We can contain by limited the number of processes or thread but for us
+applications having thousands of threads is very common. So, limiting
+the number of threads/processes will not work.
 
-Yes, I have to agree here.
-Looks like we can't fallback to the original policy.
+> If we do account then we put a memory pressure due to
+> something that cannot be reclaimed by no means. Even the memcg OOM
+> killer would simply kick a single path while there might be others
+> to consume the same type of memory.
+>
+> So what is the actual point in accounting these? Does it help to contain
+> any workload better? What kind of workload?
+>
 
-Thanks!
+I think the benefits will be isolation and more accurate billing. As I
+have said before we have observed 100s of MiBs in names_cache on many
+machines and cumulative amount is not something we can ignore as just
+memory overhead.
+
+> Or am I completely wrong and name objects can outlive a syscall
+> considerably?
+>
+
+No, I didn't find any instance of the name objects outliving the syscall.
+
+Anyways, we can discuss more on names_cache, do you have any objection
+regarding charging filp?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
