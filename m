@@ -1,201 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A9416B0260
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 17:54:29 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id d28so24267391pfe.2
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 14:54:29 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id 1si6221914pli.36.2017.10.10.14.54.28
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 359246B025E
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 18:04:51 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id g70so4723114lfl.1
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 15:04:51 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id 30si5289415lfr.7.2017.10.10.15.04.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Oct 2017 14:54:28 -0700 (PDT)
-Date: Wed, 11 Oct 2017 05:53:27 +0800
-From: kbuild test robot <lkp@intel.com>
-Subject: Re: [PATCH v2 2/3] Makefile: support flag
- -fsanitizer-coverage=trace-cmp
-Message-ID: <201710110522.vmKt9IJS%fengguang.wu@intel.com>
+        Tue, 10 Oct 2017 15:04:49 -0700 (PDT)
+Date: Tue, 10 Oct 2017 23:04:17 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v11 3/6] mm, oom: cgroup-aware OOM killer
+Message-ID: <20171010220417.GA8667@castle>
+References: <20171005130454.5590-1-guro@fb.com>
+ <20171005130454.5590-4-guro@fb.com>
+ <alpine.DEB.2.10.1710091414260.59643@chino.kir.corp.google.com>
+ <20171010122306.GA11653@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.10.1710101345370.28262@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="zYM0uCDKw75PZbzx"
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20171009150521.82775-2-glider@google.com>
+In-Reply-To: <alpine.DEB.2.10.1710101345370.28262@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: kbuild-all@01.org, akpm@linux-foundation.org, mark.rutland@arm.com, alex.popov@linux.com, aryabinin@virtuozzo.com, quentin.casasnovas@oracle.com, dvyukov@google.com, andreyknvl@google.com, keescook@chromium.org, vegard.nossum@oracle.com, syzkaller@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
+On Tue, Oct 10, 2017 at 02:13:00PM -0700, David Rientjes wrote:
+> On Tue, 10 Oct 2017, Roman Gushchin wrote:
+> 
+> > > This seems to unfairly bias the root mem cgroup depending on process size.  
+> > > It isn't treated fairly as a leaf mem cgroup if they are being compared 
+> > > based on different criteria: the root mem cgroup as (mostly) the largest 
+> > > rss of a single process vs leaf mem cgroups as all anon, unevictable, and 
+> > > unreclaimable slab pages charged to it by all processes.
+> > > 
+> > > I imagine a configuration where the root mem cgroup has 100 processes 
+> > > attached each with rss of 80MB, compared to a leaf cgroup with 100 
+> > > processes of 1MB rss each.  How does this logic prevent repeatedly oom 
+> > > killing the processes of 1MB rss?
+> > > 
+> > > In this case, "the root cgroup is treated as a leaf memory cgroup" isn't 
+> > > quite fair, it can simply hide large processes from being selected.  Users 
+> > > who configure cgroups in a unified hierarchy for other resource 
+> > > constraints are penalized for this choice even though the mem cgroup with 
+> > > 100 processes of 1MB rss each may not be limited itself.
+> > > 
+> > > I think for this comparison to be fair, it requires accounting for the 
+> > > root mem cgroup itself or for a different accounting methodology for leaf 
+> > > memory cgroups.
+> > 
+> > This is basically a workaround, because we don't have necessary stats for root
+> > memory cgroup. If we'll start gathering them at some point, we can change this
+> > and treat root memcg exactly as other leaf cgroups.
+> > 
+> 
+> I understand why it currently cannot be an apples vs apples comparison 
+> without, as I suggest in the last paragraph, that the same accounting is 
+> done for the root mem cgroup, which is intuitive if it is to be considered 
+> on the same basis as leaf mem cgroups.
+> 
+> I understand for the design to work that leaf mem cgroups and the root mem 
+> cgroup must be compared if processes can be attached to the root mem 
+> cgroup.  My point is that it is currently completely unfair as I've 
+> stated: you can have 10000 processes attached to the root mem cgroup with 
+> rss of 80MB each and a leaf mem cgroup with 100 processes of 1MB rss each 
+> and the oom killer is going to target the leaf mem cgroup as a result of 
+> this apples vs oranges comparison.
+> 
+> In case it's not clear, the 10000 processes of 80MB rss each is the most 
+> likely contributor to a system-wide oom kill.  Unfortunately, the 
+> heuristic introduced by this patchset is broken wrt a fair comparison of 
+> the root mem cgroup usage.
+> 
+> > Or, if someone will come with an idea of a better approximation, it can be
+> > implemented as a separate enhancement on top of the initial implementation.
+> > This is more than welcome.
+> > 
+> 
+> We don't need a better approximation, we need a fair comparison.  The 
+> heuristic that this patchset is implementing is based on the usage of 
+> individual mem cgroups.  For the root mem cgroup to be considered 
+> eligible, we need to understand its usage.  That usage is _not_ what is 
+> implemented by this patchset, which is the largest rss of a single 
+> attached process.  This, in fact, is not an "approximation" at all.  In 
+> the example of 10000 processes attached with 80MB rss each, the usage of 
+> the root mem cgroup is _not_ 80MB.
 
---zYM0uCDKw75PZbzx
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+It's hard to imagine a "healthy" setup with 10000 process in the root
+memory cgroup, and even if we kill 1 process we will still have 9999
+remaining process. I agree with you at some point, but it's not
+a real world example.
 
-Hi Victor,
+> 
+> I'll restate that oom killing a process is a last resort for the kernel, 
+> but it also must be able to make a smart decision.  Targeting dozens of 
+> 1MB processes instead of 80MB processes because of a shortcoming in this 
+> implementation is not the appropriate selection, it's the opposite of the 
+> correct selection.
+> 
+> > > I'll reiterate what I did on the last version of the patchset: considering 
+> > > only leaf memory cgroups easily allows users to defeat this heuristic and 
+> > > bias against all of their memory usage up to the largest process size 
+> > > amongst the set of processes attached.  If the user creates N child mem 
+> > > cgroups for their N processes and attaches one process to each child, the 
+> > > _only_ thing this achieved is to defeat your heuristic and prefer other 
+> > > leaf cgroups simply because those other leaf cgroups did not do this.
+> > > 
+> > > Effectively:
+> > > 
+> > > for i in $(cat cgroup.procs); do mkdir $i; echo $i > $i/cgroup.procs; done
+> > > 
+> > > will radically shift the heuristic from a score of all anonymous + 
+> > > unevictable memory for all processes to a score of the largest anonymous +
+> > > unevictable memory for a single process.  There is no downside or 
+> > > ramifaction for the end user in doing this.  When comparing cgroups based 
+> > > on usage, it only makes sense to compare the hierarchical usage of that 
+> > > cgroup so that attaching processes to descendants or splitting the 
+> > > implementation of a process into several smaller individual processes does 
+> > > not allow this heuristic to be defeated.
+> > 
+> > To all previously said words I can only add that cgroup v2 allows to limit
+> > the amount of cgroups in the sub-tree:
+> > 1a926e0bbab8 ("cgroup: implement hierarchy limits").
+> > 
+> 
+> So the solution to 
+> 
+> for i in $(cat cgroup.procs); do mkdir $i; echo $i > $i/cgroup.procs; done
+> 
+> evading all oom kills for your mem cgroup is to limit the number of 
+> cgroups that can be created by the user?  With a unified cgroup hierarchy, 
+> that doesn't work well if I wanted to actually constrain these individual 
+> processes to different resource limits like cpu usage.  In fact, the user 
+> may not know it is effectively evading the oom killer entirely because it 
+> has constrained the cpu of individual processes because its a side-effect 
+> of this heuristic.
+> 
+> 
+> You chose not to respond to my reiteration of userspace having absolutely 
+> no control over victim selection with the new heuristic without setting 
+> all processes to be oom disabled via /proc/pid/oom_score_adj.  If I have a 
+> very important job that is running on a system that is really supposed to 
+> use 80% of memory, I need to be able to specify that it should not be oom 
+> killed based on user goals.  Setting all processes to be oom disabled in 
+> the important mem cgroup to avoid being oom killed unless absolutely 
+> necessary in a system oom condition is not a robust solution: (1) the mem 
+> cgroup livelocks if it reaches its own mem cgroup limit and (2) the system 
+> panic()'s if these preferred mem cgroups are the only consumers left on 
+> the system.  With overcommit, both of these possibilities exist in the 
+> wild and the problem is only a result of the implementation detail of this 
+> patchset.
+> 
+> For these reasons: unfair comparison of root mem cgroup usage to bias 
+> against that mem cgroup from oom kill in system oom conditions, the 
+> ability of users to completely evade the oom killer by attaching all 
+> processes to child cgroups either purposefully or unpurposefully, and the 
+> inability of userspace to effectively control oom victim selection:
+> 
+> Nacked-by: David Rientjes <rientjes@google.com>
 
-[auto build test ERROR on linus/master]
-[also build test ERROR on v4.14-rc4]
-[cannot apply to next-20171009]
-[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+So, if we'll sum the oom_score of tasks belonging to the root memory cgroup,
+will it fix the problem?
 
-url:    https://github.com/0day-ci/linux/commits/Alexander-Potapenko/kcov-support-comparison-operands-collection/20171011-052025
-config: i386-tinyconfig (attached as .config)
-compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
-reproduce:
-        # save the attached .config to linux build tree
-        make ARCH=i386 
+It might have some drawbacks as well (especially around oom_score_adj),
+but it's doable, if we'll ignore tasks which are not owners of their's mm struct.
 
-All errors (new ones prefixed by >>):
+> 
+> > > This is racy because mem_cgroup_select_oom_victim() found an eligible 
+> > > oc->chosen_memcg that is not INFLIGHT_VICTIM with at least one eligible 
+> > > process but mem_cgroup_scan_task(oc->chosen_memcg) did not.  It means if a 
+> > > process cannot be killed because of oom_unkillable_task(), the only 
+> > > eligible processes moved or exited, or the /proc/pid/oom_score_adj of the 
+> > > eligible processes changed, we end up falling back to the complete 
+> > > tasklist scan.  It would be better for oom_evaluate_memcg() to consider 
+> > > oom_unkillable_task() and also retry in the case where 
+> > > oom_kill_memcg_victim() returns NULL.
+> > 
+> > I agree with you here. The fallback to the existing mechanism is implemented
+> > to be safe for sure, especially in a case of a global OOM. When we'll get
+> > more confidence in cgroup-aware OOM killer reliability, we can change this
+> > behavior. Personally, I would prefer to get rid of looking at all tasks just
+> > to find a pre-existing OOM victim, but it might be quite tricky to implement.
+> > 
+> 
+> I'm not sure what this has to do with confidence in this patchset's 
+> reliability?  The race obviously exists: mem_cgroup_select_oom_victim() 
+> found an eligible process in oc->chosen_memcg but it was either ineligible 
+> later because of oom_unkillable_task(), it moved, or it exited.  It's a 
+> race.  For users who opt-in to this new heuristic, they should not be 
+> concerned with a process exiting and thus killing a completely unexpected 
+> process from an unexpected memcg when it should be possible to retry and 
+> select the correct victim.
 
->> Makefile:825: scripts/Makefile.kcov: No such file or directory
->> make[1]: *** No rule to make target 'scripts/Makefile.kcov'.
-   make[1]: Failed to remake makefile 'scripts/Makefile.kcov'.
->> Makefile:825: scripts/Makefile.kcov: No such file or directory
->> make[1]: *** No rule to make target 'scripts/Makefile.kcov'.
-   make[1]: Failed to remake makefile 'scripts/Makefile.kcov'.
-   make: *** [sub-make] Error 2
+Yes, I have to agree here.
+Looks like we can't fallback to the original policy.
 
-vim +825 Makefile
-
-   823	
-   824	include scripts/Makefile.kasan
- > 825	include scripts/Makefile.kcov
-   826	include scripts/Makefile.extrawarn
-   827	include scripts/Makefile.ubsan
-   828	
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-
---zYM0uCDKw75PZbzx
-Content-Type: application/gzip
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
-
-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
-
---zYM0uCDKw75PZbzx--
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
