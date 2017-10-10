@@ -1,54 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F6096B025F
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 11:56:19 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id t134so13677130oih.6
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 08:56:19 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id d5si2321606oia.472.2017.10.10.08.56.17
-        for <linux-mm@kvack.org>;
-        Tue, 10 Oct 2017 08:56:18 -0700 (PDT)
-Date: Tue, 10 Oct 2017 16:56:20 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v11 7/9] arm64/kasan: add and use kasan_map_populate()
-Message-ID: <20171010155619.GA2517@arm.com>
-References: <20171009221931.1481-1-pasha.tatashin@oracle.com>
- <20171009221931.1481-8-pasha.tatashin@oracle.com>
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F07E6B025E
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 13:07:40 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id o52so16472317qtc.10
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:07:40 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id t29si8874881qkt.434.2017.10.10.10.07.39
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Oct 2017 10:07:39 -0700 (PDT)
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by aserp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with ESMTP id v9AH7bbs003853
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 17:07:38 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id v9AH7bKH015771
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 17:07:37 GMT
+Received: from abhmp0015.oracle.com (abhmp0015.oracle.com [141.146.116.21])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id v9AH7aGW007823
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 17:07:37 GMT
+Received: by mail-oi0-f51.google.com with SMTP id v132so26944640oie.1
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:07:36 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171009221931.1481-8-pasha.tatashin@oracle.com>
+In-Reply-To: <20171010155619.GA2517@arm.com>
+References: <20171009221931.1481-1-pasha.tatashin@oracle.com>
+ <20171009221931.1481-8-pasha.tatashin@oracle.com> <20171010155619.GA2517@arm.com>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Tue, 10 Oct 2017 13:07:35 -0400
+Message-ID: <CAOAebxv21+KtXPAk-xWz=+2fqWQDgp9SAFZz-N=XsuBxev=zcg@mail.gmail.com>
+Subject: Re: [PATCH v11 7/9] arm64/kasan: add and use kasan_map_populate()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, Michal Hocko <mhocko@kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Mark Rutland <mark.rutland@arm.com>, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, Steve Sistare <steven.sistare@oracle.com>, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-Hi Pavel,
+Hi Will,
 
-On Mon, Oct 09, 2017 at 06:19:29PM -0400, Pavel Tatashin wrote:
-> During early boot, kasan uses vmemmap_populate() to establish its shadow
-> memory. But, that interface is intended for struct pages use.
-> 
-> Because of the current project, vmemmap won't be zeroed during allocation,
-> but kasan expects that memory to be zeroed. We are adding a new
-> kasan_map_populate() function to resolve this difference.
-> 
-> Therefore, we must use a new interface to allocate and map kasan shadow
-> memory, that also zeroes memory for us.
-> 
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> ---
->  arch/arm64/mm/kasan_init.c | 72 ++++++++++++++++++++++++++++++++++++++++++----
->  1 file changed, 66 insertions(+), 6 deletions(-)
+Thank you for doing this work. How would you like to proceed?
 
-Thanks for doing this, although I still think we can do better and avoid the
-additional walking code altogether, as well as removing the dependence on
-vmemmap. Rather than keep messing you about here (sorry about that), I've
-written an arm64 patch for you to take on top of this series. Please take
-a look below.
+- If you OK for my series to be accepted as-is, so your patch can be
+added later on top, I think, I need an ack from you for kasan changes.
+- Otherwise, I can replace: 4267aaf1d279 arm64/kasan: add and use
+kasan_map_populate() in my series with code from your patch.
 
-Cheers,
+Thank you,
+Pavel
 
-Will
-
---->8
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
