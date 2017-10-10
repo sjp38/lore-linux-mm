@@ -1,69 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 407F26B025E
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:13:36 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id t134so5565209oih.0
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 07:13:36 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id d33si5757016otc.379.2017.10.10.07.13.34
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 940FD6B025F
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:15:50 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id v2so7636954pfa.4
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 07:15:50 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 1si9014077pll.286.2017.10.10.07.15.49
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 Oct 2017 07:13:35 -0700 (PDT)
-Subject: Re: [PATCH] vmalloc: back off only when the current task is OOM killed
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1507633133-5720-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20171010115436.nzgo4ewodx5pyrw7@dhcp22.suse.cz>
-	<201710102147.IGJ90612.OQSFMFLVtOOJFH@I-love.SAKURA.ne.jp>
-	<20171010134916.x5iskqymwjj6akpo@dhcp22.suse.cz>
-In-Reply-To: <20171010134916.x5iskqymwjj6akpo@dhcp22.suse.cz>
-Message-Id: <201710102313.DBB60400.QOOVHLFJFOtMFS@I-love.SAKURA.ne.jp>
-Date: Tue, 10 Oct 2017 23:13:21 +0900
-Mime-Version: 1.0
+        Tue, 10 Oct 2017 07:15:49 -0700 (PDT)
+Date: Tue, 10 Oct 2017 16:15:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v11 0/9] complete deferred page initialization
+Message-ID: <20171010141547.zpdptsccsblyw634@dhcp22.suse.cz>
+References: <20171009221931.1481-1-pasha.tatashin@oracle.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171009221931.1481-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, alan@llwyncelyn.cymru, hch@lst.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-Michal Hocko wrote:
-> On Tue 10-10-17 21:47:02, Tetsuo Handa wrote:
-> > I think that massive vmalloc() consumers should be (as well as massive
-> > alloc_page() consumers) careful such that they will be chosen as first OOM
-> > victim, for vmalloc() does not abort as soon as an OOM occurs.
-> 
-> No. This would require to spread those checks all over the place. That
-> is why we have that logic inside the allocator which fails the
-> allocation at certain point in time. Large/unbound/user controlled sized
-> allocations from the kernel are always a bug and really hard one to
-> protect from. It is simply impossible to know the intention.
-> 
-> > Thus, I used
-> > set_current_oom_origin()/clear_current_oom_origin() when I demonstrated
-> > "complete" depletion.
-> 
-> which was a completely artificial example as already mentioned.
-> 
-> > > I have tried to explain this is not really needed before but you keep
-> > > insisting which is highly annoying. The patch as is is not harmful but
-> > > it is simply _pointless_ IMHO.
-> > 
-> > Then, how can massive vmalloc() consumers become careful?
-> > Explicitly use __vmalloc() and pass __GFP_NOMEMALLOC ?
-> > Then, what about adding some comment like "Never try to allocate large
-> > memory using plain vmalloc(). Use __vmalloc() with __GFP_NOMEMALLOC." ?
-> 
-> Come on! Seriously we do expect some competence from the code running in
-> the kernel space. We do not really need to add a comment that you
-> shouldn't shoot your head because it might hurt. Please try to focus on
-> real issues. There are many of them to chase after...
-> 
-My understanding is that vmalloc() is provided for allocating large memory
-where kmalloc() is difficult to satisfy. If we say "do not allocate large
-memory with vmalloc() because large allocations from the kernel are always
-a bug", it sounds like denial of raison d'etre of vmalloc(). Strange...
+Btw. thanks for your persistance and willingness to go over all the
+suggestions which might not have been consistent btween different
+versions. I believe this is a general improvement in the early
+initialization code. We do not rely on an implicit zeroing which just
+happens to work by a chance. The perfomance improvements are a bonus on
+top.
 
-But anyway, I am not bothered by vmalloc(). What I'm bothered is warn_alloc()
-lockup. Please go ahead with removal of fatal_signal_pending() for vmalloc().
+Thanks, good work!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
