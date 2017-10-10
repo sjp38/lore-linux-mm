@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EC1BF6B0271
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:56:20 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id j64so61850382pfj.6
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 07:56:20 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id s21si5540085pfj.274.2017.10.10.07.56.19
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EE986B0272
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:56:27 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id v2so8063500pfa.4
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 07:56:27 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id 1si9095939plw.287.2017.10.10.07.56.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Oct 2017 07:56:19 -0700 (PDT)
-Subject: [PATCH v8 10/14] device-dax: wire up ->lease_direct()
+        Tue, 10 Oct 2017 07:56:25 -0700 (PDT)
+Subject: [PATCH v8 11/14] iommu: up-level sg_num_pages() from amd-iommu
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 10 Oct 2017 07:49:54 -0700
-Message-ID: <150764699451.16882.18368970483709189847.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Tue, 10 Oct 2017 07:50:00 -0700
+Message-ID: <150764700026.16882.6848398427693240452.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <150764693502.16882.15848797003793552156.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <150764693502.16882.15848797003793552156.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -21,148 +21,135 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Jan Kara <jack@suse.cz>, linux-rdma@vger.kernel.org, linux-api@vger.kernel.org, iommu@lists.linux-foundation.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
+Cc: linux-rdma@vger.kernel.org, linux-api@vger.kernel.org, Joerg Roedel <joro@8bytes.org>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org
 
-The only event that will break a lease_direct lease in the device-dax
-case is the device shutdown path where the physical pages might get
-assigned to another device.
+iommu_sg_num_pages() is a helper that walks a scattlerlist and counts
+pages taking segment boundaries and iommu_num_pages() into account.
+Up-level it for determining the IOVA range that dma_map_ops established
+at dma_map_sg() time. The intent is to iommu_unmap() the IOVA range in
+advance of freeing IOVA range.
 
-Cc: Jan Kara <jack@suse.cz>
-Cc: Jeff Moyer <jmoyer@redhat.com>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Joerg Roedel <joro@8bytes.org>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/dax/Kconfig       |    1 +
- drivers/dax/device.c      |    4 ++++
- fs/Kconfig                |    4 ++++
- fs/Makefile               |    3 ++-
- fs/mapdirect.c            |    3 ++-
- include/linux/mapdirect.h |    5 ++++-
- 6 files changed, 17 insertions(+), 3 deletions(-)
+ drivers/iommu/amd_iommu.c |   30 ++----------------------------
+ drivers/iommu/iommu.c     |   27 +++++++++++++++++++++++++++
+ include/linux/iommu.h     |    2 ++
+ 3 files changed, 31 insertions(+), 28 deletions(-)
 
-diff --git a/drivers/dax/Kconfig b/drivers/dax/Kconfig
-index b79aa8f7a497..be03d4dbe646 100644
---- a/drivers/dax/Kconfig
-+++ b/drivers/dax/Kconfig
-@@ -8,6 +8,7 @@ if DAX
- config DEV_DAX
- 	tristate "Device DAX: direct access mapping device"
- 	depends on TRANSPARENT_HUGEPAGE
-+	depends on FILE_LOCKING
- 	help
- 	  Support raw access to differentiated (persistence, bandwidth,
- 	  latency...) memory via an mmap(2) capable character
-diff --git a/drivers/dax/device.c b/drivers/dax/device.c
-index e9f3b3e4bbf4..fa75004185c4 100644
---- a/drivers/dax/device.c
-+++ b/drivers/dax/device.c
-@@ -10,6 +10,7 @@
-  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  * General Public License for more details.
-  */
-+#include <linux/mapdirect.h>
- #include <linux/pagemap.h>
- #include <linux/module.h>
- #include <linux/device.h>
-@@ -430,6 +431,7 @@ static int dev_dax_fault(struct vm_fault *vmf)
- static const struct vm_operations_struct dax_vm_ops = {
- 	.fault = dev_dax_fault,
- 	.huge_fault = dev_dax_huge_fault,
-+	.lease_direct = map_direct_lease,
- };
- 
- static int dax_mmap(struct file *filp, struct vm_area_struct *vma)
-@@ -540,8 +542,10 @@ static void kill_dev_dax(struct dev_dax *dev_dax)
- {
- 	struct dax_device *dax_dev = dev_dax->dax_dev;
- 	struct inode *inode = dax_inode(dax_dev);
-+	const bool wait = true;
- 
- 	kill_dax(dax_dev);
-+	break_layout(inode, wait);
- 	unmap_mapping_range(inode->i_mapping, 0, 0, 1);
+diff --git a/drivers/iommu/amd_iommu.c b/drivers/iommu/amd_iommu.c
+index c8e1a45af182..4795b0823469 100644
+--- a/drivers/iommu/amd_iommu.c
++++ b/drivers/iommu/amd_iommu.c
+@@ -2459,32 +2459,6 @@ static void unmap_page(struct device *dev, dma_addr_t dma_addr, size_t size,
+ 	__unmap_single(dma_dom, dma_addr, size, dir);
  }
  
-diff --git a/fs/Kconfig b/fs/Kconfig
-index a7b31a96a753..3668cfb046d5 100644
---- a/fs/Kconfig
-+++ b/fs/Kconfig
-@@ -59,6 +59,10 @@ config FS_DAX_PMD
- 	depends on ZONE_DEVICE
- 	depends on TRANSPARENT_HUGEPAGE
+-static int sg_num_pages(struct device *dev,
+-			struct scatterlist *sglist,
+-			int nelems)
+-{
+-	unsigned long mask, boundary_size;
+-	struct scatterlist *s;
+-	int i, npages = 0;
+-
+-	mask          = dma_get_seg_boundary(dev);
+-	boundary_size = mask + 1 ? ALIGN(mask + 1, PAGE_SIZE) >> PAGE_SHIFT :
+-				   1UL << (BITS_PER_LONG - PAGE_SHIFT);
+-
+-	for_each_sg(sglist, s, nelems, i) {
+-		int p, n;
+-
+-		s->dma_address = npages << PAGE_SHIFT;
+-		p = npages % boundary_size;
+-		n = iommu_num_pages(sg_phys(s), s->length, PAGE_SIZE);
+-		if (p + n > boundary_size)
+-			npages += boundary_size - p;
+-		npages += n;
+-	}
+-
+-	return npages;
+-}
+-
+ /*
+  * The exported map_sg function for dma_ops (handles scatter-gather
+  * lists).
+@@ -2507,7 +2481,7 @@ static int map_sg(struct device *dev, struct scatterlist *sglist,
+ 	dma_dom  = to_dma_ops_domain(domain);
+ 	dma_mask = *dev->dma_mask;
  
-+config DAX_MAP_DIRECT
-+	bool
-+	default FS_DAX || DEV_DAX
+-	npages = sg_num_pages(dev, sglist, nelems);
++	npages = iommu_sg_num_pages(dev, sglist, nelems);
+ 
+ 	address = dma_ops_alloc_iova(dev, dma_dom, npages, dma_mask);
+ 	if (address == AMD_IOMMU_MAPPING_ERROR)
+@@ -2585,7 +2559,7 @@ static void unmap_sg(struct device *dev, struct scatterlist *sglist,
+ 
+ 	startaddr = sg_dma_address(sglist) & PAGE_MASK;
+ 	dma_dom   = to_dma_ops_domain(domain);
+-	npages    = sg_num_pages(dev, sglist, nelems);
++	npages    = iommu_sg_num_pages(dev, sglist, nelems);
+ 
+ 	__unmap_single(dma_dom, startaddr, npages << PAGE_SHIFT, dir);
+ }
+diff --git a/drivers/iommu/iommu.c b/drivers/iommu/iommu.c
+index 3de5c0bcb5cc..cfe6eeea3578 100644
+--- a/drivers/iommu/iommu.c
++++ b/drivers/iommu/iommu.c
+@@ -33,6 +33,7 @@
+ #include <linux/bitops.h>
+ #include <linux/property.h>
+ #include <trace/events/iommu.h>
++#include <linux/iommu-helper.h>
+ 
+ static struct kset *iommu_group_kset;
+ static DEFINE_IDA(iommu_group_ida);
+@@ -1631,6 +1632,32 @@ size_t iommu_unmap_fast(struct iommu_domain *domain,
+ }
+ EXPORT_SYMBOL_GPL(iommu_unmap_fast);
+ 
++int iommu_sg_num_pages(struct device *dev, struct scatterlist *sglist,
++		int nelems)
++{
++	unsigned long mask, boundary_size;
++	struct scatterlist *s;
++	int i, npages = 0;
 +
- endif # BLOCK
- 
- # Posix ACL utility routines
-diff --git a/fs/Makefile b/fs/Makefile
-index c0e791d235d8..21b8fb104656 100644
---- a/fs/Makefile
-+++ b/fs/Makefile
-@@ -29,7 +29,8 @@ obj-$(CONFIG_TIMERFD)		+= timerfd.o
- obj-$(CONFIG_EVENTFD)		+= eventfd.o
- obj-$(CONFIG_USERFAULTFD)	+= userfaultfd.o
- obj-$(CONFIG_AIO)               += aio.o
--obj-$(CONFIG_FS_DAX)		+= dax.o mapdirect.o
-+obj-$(CONFIG_FS_DAX)		+= dax.o
-+obj-$(CONFIG_DAX_MAP_DIRECT)	+= mapdirect.o
- obj-$(CONFIG_FS_ENCRYPTION)	+= crypto/
- obj-$(CONFIG_FILE_LOCKING)      += locks.o
- obj-$(CONFIG_COMPAT)		+= compat.o compat_ioctl.o
-diff --git a/fs/mapdirect.c b/fs/mapdirect.c
-index c6954033fc1a..dd4a16f9ffc6 100644
---- a/fs/mapdirect.c
-+++ b/fs/mapdirect.c
-@@ -218,7 +218,7 @@ static const struct lock_manager_operations lease_direct_lm_ops = {
- 	.lm_change = lease_direct_lm_change,
- };
- 
--static struct lease_direct *map_direct_lease(struct vm_area_struct *vma,
-+struct lease_direct *map_direct_lease(struct vm_area_struct *vma,
- 		void (*lds_break_fn)(void *), void *lds_owner)
++	mask = dma_get_seg_boundary(dev);
++	boundary_size = mask + 1 ? ALIGN(mask + 1, PAGE_SIZE) >> PAGE_SHIFT
++		: 1UL << (BITS_PER_LONG - PAGE_SHIFT);
++
++	for_each_sg(sglist, s, nelems, i) {
++		int p, n;
++
++		s->dma_address = npages << PAGE_SHIFT;
++		p = npages % boundary_size;
++		n = iommu_num_pages(sg_phys(s), s->length, PAGE_SIZE);
++		if (p + n > boundary_size)
++			npages += boundary_size - p;
++		npages += n;
++	}
++
++	return npages;
++}
++EXPORT_SYMBOL_GPL(iommu_sg_num_pages);
++
+ size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
+ 			 struct scatterlist *sg, unsigned int nents, int prot)
  {
- 	struct file *file = vma->vm_file;
-@@ -272,6 +272,7 @@ static struct lease_direct *map_direct_lease(struct vm_area_struct *vma,
- 	kfree(lds);
- 	return ERR_PTR(rc);
- }
-+EXPORT_SYMBOL_GPL(map_direct_lease);
- 
- struct lease_direct *generic_map_direct_lease(struct vm_area_struct *vma,
- 		void (*break_fn)(void *), void *owner)
-diff --git a/include/linux/mapdirect.h b/include/linux/mapdirect.h
-index e0df6ac5795a..6695fdcf8009 100644
---- a/include/linux/mapdirect.h
-+++ b/include/linux/mapdirect.h
-@@ -26,13 +26,15 @@ struct lease_direct {
- 	struct lease_direct_state *lds;
- };
- 
--#if IS_ENABLED(CONFIG_FS_DAX)
-+#if IS_ENABLED(CONFIG_DAX_MAP_DIRECT)
- struct map_direct_state *map_direct_register(int fd, struct vm_area_struct *vma);
- bool test_map_direct_valid(struct map_direct_state *mds);
- void generic_map_direct_open(struct vm_area_struct *vma);
- void generic_map_direct_close(struct vm_area_struct *vma);
- struct lease_direct *generic_map_direct_lease(struct vm_area_struct *vma,
- 		void (*ld_break_fn)(void *), void *ld_owner);
-+struct lease_direct *map_direct_lease(struct vm_area_struct *vma,
-+		void (*lds_break_fn)(void *), void *lds_owner);
- void map_direct_lease_destroy(struct lease_direct *ld);
- #else
- static inline struct map_direct_state *map_direct_register(int fd,
-@@ -47,6 +49,7 @@ static inline bool test_map_direct_valid(struct map_direct_state *mds)
- #define generic_map_direct_open NULL
- #define generic_map_direct_close NULL
- #define generic_map_direct_lease NULL
-+#define map_direct_lease NULL
- static inline void map_direct_lease_destroy(struct lease_direct *ld)
- {
- }
+diff --git a/include/linux/iommu.h b/include/linux/iommu.h
+index a7f2ac689d29..5b2d20e1475a 100644
+--- a/include/linux/iommu.h
++++ b/include/linux/iommu.h
+@@ -303,6 +303,8 @@ extern size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova,
+ 			  size_t size);
+ extern size_t iommu_unmap_fast(struct iommu_domain *domain,
+ 			       unsigned long iova, size_t size);
++extern int iommu_sg_num_pages(struct device *dev, struct scatterlist *sglist,
++		int nelems);
+ extern size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
+ 				struct scatterlist *sg,unsigned int nents,
+ 				int prot);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
