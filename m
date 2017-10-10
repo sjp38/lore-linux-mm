@@ -1,84 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 351D36B0260
-	for <linux-mm@kvack.org>; Mon,  9 Oct 2017 22:56:06 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id a7so67064904pfj.3
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 19:56:06 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id x5si7433594plv.552.2017.10.09.19.56.04
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 56A7E6B025E
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 00:26:00 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id k31so7479225qta.7
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 21:26:00 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id e12si125344qte.32.2017.10.09.21.25.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Oct 2017 19:56:05 -0700 (PDT)
-Date: Tue, 10 Oct 2017 10:56:01 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: [PATCH v2] mm/page_alloc.c: inline __rmqueue()
-Message-ID: <20171010025601.GE1798@intel.com>
-References: <20171009054434.GA1798@intel.com>
- <3a46edcf-88f8-e4f4-8b15-3c02620308e4@intel.com>
- <20171010025151.GD1798@intel.com>
+        Mon, 09 Oct 2017 21:25:59 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9A4PiEF055621
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 00:25:58 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2dgd11kqcw-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 00:25:57 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 10 Oct 2017 05:25:55 +0100
+Date: Tue, 10 Oct 2017 07:25:49 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2] Userfaultfd: Add description for UFFD_FEATURE_SIGBUS
+References: <1507589151-27430-1-git-send-email-prakash.sangappa@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171010025151.GD1798@intel.com>
+In-Reply-To: <1507589151-27430-1-git-send-email-prakash.sangappa@oracle.com>
+Message-Id: <20171010042549.GA32311@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Prakash Sangappa <prakash.sangappa@oracle.com>
+Cc: mtk.manpages@gmail.com, linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com, mhocko@suse.com
 
-__rmqueue() is called by rmqueue_bulk() and rmqueue() under zone->lock
-and the two __rmqueue() call sites are in very hot page allocator paths.
+On Mon, Oct 09, 2017 at 03:45:51PM -0700, Prakash Sangappa wrote:
+> Userfaultfd feature UFFD_FEATURE_SIGBUS was merged recently and should
+> be available in Linux 4.14 release. This patch is for the manpage
+> changes documenting this API.
+> 
+> Documents the following commit:
+> 
+> commit 2d6d6f5a09a96cc1fec7ed992b825e05f64cb50e
+> Author: Prakash Sangappa <prakash.sangappa@oracle.com>
+> Date: Wed Sep 6 16:23:39 2017 -0700
+> 
+>      mm: userfaultfd: add feature to request for a signal delivery
+> 
+> Signed-off-by: Prakash Sangappa <prakash.sangappa@oracle.com>
 
-Since __rmqueue() is a small function, inline it can save us some time.
-With the will-it-scale/page_fault1/process benchmark, when using nr_cpu
-processes to stress buddy, this patch improved the benchmark by 6.3% on
-a 2-sockets Intel-Skylake system and 4.6% on a 4-sockets Intel-Skylake
-system. The benefit being less on 4 sockets machine is due to the lock
-contention there(perf-profile/native_queued_spin_lock_slowpath=81%) is
-less severe than on the 2 sockets machine(84%).
+Reviewed-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-What the benchmark does is: it forks nr_cpu processes and then each
-process does the following:
-    1 mmap() 128M anonymous space;
-    2 writes to each page there to trigger actual page allocation;
-    3 munmap() it.
-in a loop.
-https://github.com/antonblanchard/will-it-scale/blob/master/tests/page_fault1.c
+> ---
+> v2: Incorporated review feedback changes.
+> ---
+>  man2/ioctl_userfaultfd.2 |  9 +++++++++
+>  man2/userfaultfd.2       | 23 +++++++++++++++++++++++
+>  2 files changed, 32 insertions(+)
+> 
+> diff --git a/man2/ioctl_userfaultfd.2 b/man2/ioctl_userfaultfd.2
+> index 60fd29b..32f0744 100644
+> --- a/man2/ioctl_userfaultfd.2
+> +++ b/man2/ioctl_userfaultfd.2
+> @@ -196,6 +196,15 @@ with the
+>  flag set,
+>  .BR memfd_create (2),
+>  and so on.
+> +.TP
+> +.B UFFD_FEATURE_SIGBUS
+> +Since Linux 4.14, If this feature bit is set, no page-fault events
+> +.B (UFFD_EVENT_PAGEFAULT)
+> +will be delivered, instead a
+> +.B SIGBUS
+> +signal will be sent to the faulting process. Applications using this
+> +feature will not require the use of a userfaultfd monitor for processing
+> +memory accesses to the regions registered with userfaultfd.
+>  .IP
+>  The returned
+>  .I ioctls
+> diff --git a/man2/userfaultfd.2 b/man2/userfaultfd.2
+> index 1741ee3..3c5b9c0 100644
+> --- a/man2/userfaultfd.2
+> +++ b/man2/userfaultfd.2
+> @@ -172,6 +172,29 @@ or
+>  .BR ioctl (2)
+>  operations to resolve the page fault.
+>  .PP
+> +Starting from Linux 4.14, if application sets
+> +.B UFFD_FEATURE_SIGBUS
+> +feature bit using
+> +.B UFFDIO_API
+> +.BR ioctl (2),
+> +no page fault notification will be forwarded to
+> +the user-space, instead a
+> +.B SIGBUS
+> +signal is delivered to the faulting process. With this feature,
+> +userfaultfd can be used for robustness purpose to simply catch
+> +any access to areas within the registered address range that do not
+> +have pages allocated, without having to listen to userfaultfd events.
+> +No userfaultfd monitor will be required for dealing with such memory
+> +accesses. For example, this feature can be useful for applications that
+> +want to prevent the kernel from automatically allocating pages and filling
+> +holes in sparse files when the hole is accessed thru mapped address.
+> +.PP
+> +The
+> +.B UFFD_FEATURE_SIGBUS
+> +feature is implicitly inherited through fork() if used in combination with
+> +.BR UFFD_FEATURE_FORK .
+> +
+> +.PP
+>  Details of the various
+>  .BR ioctl (2)
+>  operations can be found in
+> -- 
+> 2.7.4
+> 
 
-This patch adds inline to __rmqueue() and vmlinux' size doesn't have any
-change after this patch according to size(1).
-
-without this patch:
-   text    data     bss     dec     hex     filename
-9968576 5793372 17715200  33477148  1fed21c vmlinux
-
-with this patch:
-   text    data     bss     dec     hex     filename
-9968576 5793372 17715200  33477148  1fed21c vmlinux
-
-Reviewed-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Tested-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Signed-off-by: Aaron Lu <aaron.lu@intel.com>
----
-v2: change commit message according to Dave Hansen's suggestion.
-
- mm/page_alloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 0e309ce4a44a..c9605c7ebaf6 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2291,7 +2291,7 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
-  * Do the hard work of removing an element from the buddy allocator.
-  * Call me with the zone->lock already held.
-  */
--static struct page *__rmqueue(struct zone *zone, unsigned int order,
-+static inline struct page *__rmqueue(struct zone *zone, unsigned int order,
- 				int migratetype)
- {
- 	struct page *page;
 -- 
-2.13.6
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
