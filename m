@@ -1,124 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 56A7E6B025E
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 00:26:00 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id k31so7479225qta.7
-        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 21:26:00 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id e12si125344qte.32.2017.10.09.21.25.59
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EE6F66B025E
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 01:19:54 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id p2so28880508pfk.0
+        for <linux-mm@kvack.org>; Mon, 09 Oct 2017 22:19:54 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id s61si8227260plb.658.2017.10.09.22.19.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 09 Oct 2017 21:25:59 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9A4PiEF055621
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 00:25:58 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2dgd11kqcw-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 00:25:57 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Tue, 10 Oct 2017 05:25:55 +0100
-Date: Tue, 10 Oct 2017 07:25:49 +0300
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2] Userfaultfd: Add description for UFFD_FEATURE_SIGBUS
-References: <1507589151-27430-1-git-send-email-prakash.sangappa@oracle.com>
+        Mon, 09 Oct 2017 22:19:53 -0700 (PDT)
+Subject: Re: [PATCH v2] mm/page_alloc.c: inline __rmqueue()
+References: <20171009054434.GA1798@intel.com>
+ <3a46edcf-88f8-e4f4-8b15-3c02620308e4@intel.com>
+ <20171010025151.GD1798@intel.com> <20171010025601.GE1798@intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <8d6a98d3-764e-fd41-59dc-88a9d21822c7@intel.com>
+Date: Mon, 9 Oct 2017 22:19:52 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1507589151-27430-1-git-send-email-prakash.sangappa@oracle.com>
-Message-Id: <20171010042549.GA32311@rapoport-lnx>
+In-Reply-To: <20171010025601.GE1798@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Prakash Sangappa <prakash.sangappa@oracle.com>
-Cc: mtk.manpages@gmail.com, linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com, mhocko@suse.com
+To: Aaron Lu <aaron.lu@intel.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-On Mon, Oct 09, 2017 at 03:45:51PM -0700, Prakash Sangappa wrote:
-> Userfaultfd feature UFFD_FEATURE_SIGBUS was merged recently and should
-> be available in Linux 4.14 release. This patch is for the manpage
-> changes documenting this API.
+On 10/09/2017 07:56 PM, Aaron Lu wrote:
+> This patch adds inline to __rmqueue() and vmlinux' size doesn't have any
+> change after this patch according to size(1).
 > 
-> Documents the following commit:
+> without this patch:
+>    text    data     bss     dec     hex     filename
+> 9968576 5793372 17715200  33477148  1fed21c vmlinux
 > 
-> commit 2d6d6f5a09a96cc1fec7ed992b825e05f64cb50e
-> Author: Prakash Sangappa <prakash.sangappa@oracle.com>
-> Date: Wed Sep 6 16:23:39 2017 -0700
-> 
->      mm: userfaultfd: add feature to request for a signal delivery
-> 
-> Signed-off-by: Prakash Sangappa <prakash.sangappa@oracle.com>
+> with this patch:
+>    text    data     bss     dec     hex     filename
+> 9968576 5793372 17715200  33477148  1fed21c vmlinux
 
-Reviewed-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-
-> ---
-> v2: Incorporated review feedback changes.
-> ---
->  man2/ioctl_userfaultfd.2 |  9 +++++++++
->  man2/userfaultfd.2       | 23 +++++++++++++++++++++++
->  2 files changed, 32 insertions(+)
-> 
-> diff --git a/man2/ioctl_userfaultfd.2 b/man2/ioctl_userfaultfd.2
-> index 60fd29b..32f0744 100644
-> --- a/man2/ioctl_userfaultfd.2
-> +++ b/man2/ioctl_userfaultfd.2
-> @@ -196,6 +196,15 @@ with the
->  flag set,
->  .BR memfd_create (2),
->  and so on.
-> +.TP
-> +.B UFFD_FEATURE_SIGBUS
-> +Since Linux 4.14, If this feature bit is set, no page-fault events
-> +.B (UFFD_EVENT_PAGEFAULT)
-> +will be delivered, instead a
-> +.B SIGBUS
-> +signal will be sent to the faulting process. Applications using this
-> +feature will not require the use of a userfaultfd monitor for processing
-> +memory accesses to the regions registered with userfaultfd.
->  .IP
->  The returned
->  .I ioctls
-> diff --git a/man2/userfaultfd.2 b/man2/userfaultfd.2
-> index 1741ee3..3c5b9c0 100644
-> --- a/man2/userfaultfd.2
-> +++ b/man2/userfaultfd.2
-> @@ -172,6 +172,29 @@ or
->  .BR ioctl (2)
->  operations to resolve the page fault.
->  .PP
-> +Starting from Linux 4.14, if application sets
-> +.B UFFD_FEATURE_SIGBUS
-> +feature bit using
-> +.B UFFDIO_API
-> +.BR ioctl (2),
-> +no page fault notification will be forwarded to
-> +the user-space, instead a
-> +.B SIGBUS
-> +signal is delivered to the faulting process. With this feature,
-> +userfaultfd can be used for robustness purpose to simply catch
-> +any access to areas within the registered address range that do not
-> +have pages allocated, without having to listen to userfaultfd events.
-> +No userfaultfd monitor will be required for dealing with such memory
-> +accesses. For example, this feature can be useful for applications that
-> +want to prevent the kernel from automatically allocating pages and filling
-> +holes in sparse files when the hole is accessed thru mapped address.
-> +.PP
-> +The
-> +.B UFFD_FEATURE_SIGBUS
-> +feature is implicitly inherited through fork() if used in combination with
-> +.BR UFFD_FEATURE_FORK .
-> +
-> +.PP
->  Details of the various
->  .BR ioctl (2)
->  operations can be found in
-> -- 
-> 2.7.4
-> 
-
--- 
-Sincerely yours,
-Mike.
+This is unexpected.  Could you double-check this, please?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
