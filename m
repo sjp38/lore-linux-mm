@@ -1,59 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0218F6B025E
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 04:26:42 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id a7so70774436pfj.3
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 01:26:41 -0700 (PDT)
-Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
-        by mx.google.com with ESMTPS id n8si8420589plk.532.2017.10.10.01.26.40
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 59F536B025E
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 04:32:35 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id x54so11841464qth.14
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 01:32:35 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v12si4091449qta.252.2017.10.10.01.32.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Oct 2017 01:26:40 -0700 (PDT)
-Received: from epcas5p3.samsung.com (unknown [182.195.41.41])
-	by mailout1.samsung.com (KnoxPortal) with ESMTP id 20171010082637epoutp0156607700617953969144ce3ac064b078~sKAnVXKEK0327703277epoutp01a
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 08:26:37 +0000 (GMT)
-From: Ayush Mittal <ayush.m@samsung.com>
-Subject: [PATCH 1/1] mm: reducing page_owner structure size
-Date: Tue, 10 Oct 2017 13:55:17 +0530
-Message-Id: <1507623917-37991-1-git-send-email-ayush.m@samsung.com>
-Content-Type: text/plain; charset="utf-8"
-References: <CGME20171010082637epcas5p4b5d588057b336b4056b7bd2f84d52b32@epcas5p4.samsung.com>
+        Tue, 10 Oct 2017 01:32:34 -0700 (PDT)
+Subject: Re: [PATCH] kvm, mm: account kvm related kmem slabs to kmemcg
+References: <20171006010724.186563-1-shakeelb@google.com>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <362f2d20-6cc4-1ac4-604a-21dad88920b5@redhat.com>
+Date: Tue, 10 Oct 2017 10:32:28 +0200
+MIME-Version: 1.0
+In-Reply-To: <20171006010724.186563-1-shakeelb@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, vbabka@suse.cz, vinmenon@codeaurora.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: a.sahrawat@samsung.com, pankaj.m@samsung.com, v.narang@samsung.com, Ayush Mittal <ayush.m@samsung.com>
+To: Shakeel Butt <shakeelb@google.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, x86@kernel.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Maximum page order can be at max 10 which can be accomodated
-in short data type(2 bytes).
-last_migrate_reason is defined as enum type whose values can
-be accomodated in short data type (2 bytes).
+On 06/10/2017 03:07, Shakeel Butt wrote:
+> The kvm slabs can consume a significant amount of system memory
+> and indeed in our production environment we have observed that
+> a lot of machines are spending significant amount of memory that
+> can not be left as system memory overhead. Also the allocations
+> from these slabs can be triggered directly by user space applications
+> which has access to kvm and thus a buggy application can leak
+> such memory. So, these caches should be accounted to kmemcg.
+> 
+> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+> ---
+>  arch/x86/kvm/mmu.c  | 4 ++--
+>  virt/kvm/kvm_main.c | 2 +-
+>  2 files changed, 3 insertions(+), 3 deletions(-)
+> 
+> diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+> index eca30c1eb1d9..87c5db9e644d 100644
+> --- a/arch/x86/kvm/mmu.c
+> +++ b/arch/x86/kvm/mmu.c
+> @@ -5475,13 +5475,13 @@ int kvm_mmu_module_init(void)
+>  
+>  	pte_list_desc_cache = kmem_cache_create("pte_list_desc",
+>  					    sizeof(struct pte_list_desc),
+> -					    0, 0, NULL);
+> +					    0, SLAB_ACCOUNT, NULL);
+>  	if (!pte_list_desc_cache)
+>  		goto nomem;
+>  
+>  	mmu_page_header_cache = kmem_cache_create("kvm_mmu_page_header",
+>  						  sizeof(struct kvm_mmu_page),
+> -						  0, 0, NULL);
+> +						  0, SLAB_ACCOUNT, NULL);
+>  	if (!mmu_page_header_cache)
+>  		goto nomem;
+>  
+> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+> index 9deb5a245b83..3d73299e05f2 100644
+> --- a/virt/kvm/kvm_main.c
+> +++ b/virt/kvm/kvm_main.c
+> @@ -4010,7 +4010,7 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
+>  	if (!vcpu_align)
+>  		vcpu_align = __alignof__(struct kvm_vcpu);
+>  	kvm_vcpu_cache = kmem_cache_create("kvm_vcpu", vcpu_size, vcpu_align,
+> -					   0, NULL);
+> +					   SLAB_ACCOUNT, NULL);
+>  	if (!kvm_vcpu_cache) {
+>  		r = -ENOMEM;
+>  		goto out_free_3;
+> 
 
-Total structure size is currently 16 bytes but after changing structure
-size it goes to 12 bytes.
+Queued, thanks.
 
-Signed-off-by: Ayush Mittal <ayush.m@samsung.com>
----
- mm/page_owner.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index 0fd9dcf..4ab438a 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -19,9 +19,9 @@
- #define PAGE_OWNER_STACK_DEPTH (16)
- 
- struct page_owner {
--	unsigned int order;
-+	unsigned short order;
-+	short last_migrate_reason;
- 	gfp_t gfp_mask;
--	int last_migrate_reason;
- 	depot_stack_handle_t handle;
- };
- 
--- 
-1.7.1
+Paolo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
