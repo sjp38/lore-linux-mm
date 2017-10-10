@@ -1,97 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9743B6B025E
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 13:39:30 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id j126so9920026oib.9
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:39:30 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id k13sor1379451oih.294.2017.10.10.10.39.28
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 05EF86B025E
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 13:41:29 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id 10so9159474qty.5
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:41:29 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id 31si7174qth.225.2017.10.10.10.41.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 10 Oct 2017 10:39:28 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Oct 2017 10:41:28 -0700 (PDT)
+Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
+	by userp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with ESMTP id v9AHfQSK008773
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 17:41:27 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id v9AHfPGW010964
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 17:41:25 GMT
+Received: from abhmp0013.oracle.com (abhmp0013.oracle.com [141.146.116.19])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id v9AHfPNZ031417
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 17:41:25 GMT
+Received: by mail-oi0-f48.google.com with SMTP id v132so27112494oie.1
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:41:25 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20171010172516.GA29915@obsidianresearch.com>
-References: <150732931273.22363.8436792888326501071.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150732935473.22363.1853399637339625023.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171009185840.GB15336@obsidianresearch.com> <CAPcyv4gXzC8OUgO_PciQ2phyq0YtmXjMGWvoPSVVuuZR7ohVCg@mail.gmail.com>
- <20171009191820.GD15336@obsidianresearch.com> <CAPcyv4h_uQGBAX6-bMkkZLO_YyQ6t4n_b8tH8wU_P0Jh23N5MQ@mail.gmail.com>
- <20171010172516.GA29915@obsidianresearch.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 10 Oct 2017 10:39:27 -0700
-Message-ID: <CAPcyv4jL5fN7jjXkQum8ERQ45eW63dCYp5Pm6aHY4OPudz4Wsw@mail.gmail.com>
-Subject: Re: [PATCH v7 07/12] dma-mapping: introduce dma_has_iommu()
+In-Reply-To: <20171010171047.GC2517@arm.com>
+References: <20171009221931.1481-1-pasha.tatashin@oracle.com>
+ <20171009221931.1481-8-pasha.tatashin@oracle.com> <20171010155619.GA2517@arm.com>
+ <CAOAebxv21+KtXPAk-xWz=+2fqWQDgp9SAFZz-N=XsuBxev=zcg@mail.gmail.com> <20171010171047.GC2517@arm.com>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Tue, 10 Oct 2017 13:41:24 -0400
+Message-ID: <CAOAebxtrSthSP4NAa0obBbsCK1KZxO+x0w5xNrpY6m2y9UZFvQ@mail.gmail.com>
+Subject: Re: [PATCH v11 7/9] arm64/kasan: add and use kasan_map_populate()
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Jan Kara <jack@suse.cz>, Ashok Raj <ashok.raj@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Joerg Roedel <joro@8bytes.org>, Dave Chinner <david@fromorbit.com>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Linux API <linux-api@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, David Woodhouse <dwmw2@infradead.org>, Robin Murphy <robin.murphy@arm.com>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, Michal Hocko <mhocko@kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Mark Rutland <mark.rutland@arm.com>, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, Steve Sistare <steven.sistare@oracle.com>, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On Tue, Oct 10, 2017 at 10:25 AM, Jason Gunthorpe
-<jgunthorpe@obsidianresearch.com> wrote:
-> On Mon, Oct 09, 2017 at 12:28:29PM -0700, Dan Williams wrote:
->
->> > I don't think this has ever come up in the context of an all-device MR
->> > invalidate requirement. Drivers already have code to invalidate
->> > specifc MRs, but to find all MRs that touch certain pages and then
->> > invalidate them would be new code.
->> >
->> > We also have ODP aware drivers that can retarget a MR to new
->> > physical pages. If the block map changes DAX should synchronously
->> > retarget the ODP MR, not halt DMA.
->>
->> Have a look at the patch [1], I don't touch the ODP path.
->
-> But, does ODP work OK already? I'm not clear on that..
+Hi Will,
 
-It had better. If the mapping is invalidated I would hope that
-generates an io fault that gets handled by the driver to setup the new
-mapping. I don't see how it can work otherwise.
+Ok, I will add your patch at the end of my series.
 
->> > Most likely ODP & DAX would need to be used together to get robust
->> > user applications, as having the user QP's go to an error state at
->> > random times (due to DMA failures) during operation is never going to
->> > be acceptable...
->>
->> It's not random. The process that set up the mapping and registered
->> the memory gets SIGIO when someone else tries to modify the file map.
->> That process then gets /proc/sys/fs/lease-break-time seconds to fix
->> the problem before the kernel force revokes the DMA access.
->
-> Well, the process can't fix the problem in bounded time, so it is
-> random if it will fail or not.
->
-> MR life time is under the control of the remote side, and time to
-> complete the network exchanges required to release the MRs is hard to
-> bound. So even if I implement SIGIO properly my app will still likely
-> have random QP failures under various cases and work loads. :(
->
-> This is why ODP should be the focus because this cannot work fully
-> reliably otherwise..
-
-The lease break time is configurable. If that application can't
-respond to a stop request within a timeout of its own choosing then it
-should not be using DAX mappings.
+Thank you,
+Pavel
 
 >
->> > Perhaps you might want to initially only support ODP MR mappings with
->> > DAX and then the DMA fencing issue goes away?
->>
->> I'd rather try to fix the non-ODP DAX case instead of just turning it off.
+> I was thinking that you could just add my patch to the end of your series
+> and have the whole lot go up like that. If you want to merge it with your
+> patch, I'm fine with that too.
 >
-> Well, what about using SIGKILL if the lease-break-time hits? The
-> kernel will clean up the MRs when the process exits and this will
-> fence DMA to that memory.
-
-Can you point me to where the MR cleanup code fences DMA and quiesces
-the device?
-
-> But, still, if you really want to be fined graned, then I think
-> invalidating the impacted MR's is a better solution for RDMA than
-> trying to do it with the IOMMU...
-
-If there's a better routine for handling ib_umem_lease_break() I'd
-love to use it. Right now I'm reaching for the only tool I know for
-kernel enforced revocation of DMA access.
+> Will
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
