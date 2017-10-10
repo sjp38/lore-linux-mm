@@ -1,70 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 29D576B026A
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 05:34:48 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id l188so58140095pfc.7
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 02:34:48 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p14si7883062pgq.601.2017.10.10.02.34.46
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 Oct 2017 02:34:47 -0700 (PDT)
-Subject: Re: [PATCH 1/1] mm: reducing page_owner structure size
-References: <CGME20171010082637epcas5p4b5d588057b336b4056b7bd2f84d52b32@epcas5p4.samsung.com>
- <1507623917-37991-1-git-send-email-ayush.m@samsung.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <31948332-8f98-00c7-4da0-a8d20dacb3ba@suse.cz>
-Date: Tue, 10 Oct 2017 11:34:44 +0200
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 19E816B025E
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 05:57:55 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id e123so20176473oig.7
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 02:57:55 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id w3si4570033oib.298.2017.10.10.02.57.53
+        for <linux-mm@kvack.org>;
+        Tue, 10 Oct 2017 02:57:53 -0700 (PDT)
+Date: Tue, 10 Oct 2017 10:56:19 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [PATCH v2 1/3] kcov: support comparison operands collection
+Message-ID: <20171010095618.GF27659@leverpostej>
+References: <20171009150521.82775-1-glider@google.com>
+ <20171009154610.GA22534@leverpostej>
+ <CACT4Y+Y_79MQVHg--92AJFk3_9XoLgaM2zF3zK5ErfnH-zNcPw@mail.gmail.com>
+ <20171009183734.GA7784@leverpostej>
+ <CACT4Y+apUD89-neN7GUsbdZ9a1hMgRPQk-h4dhC9iDf+_6Kh=w@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1507623917-37991-1-git-send-email-ayush.m@samsung.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACT4Y+apUD89-neN7GUsbdZ9a1hMgRPQk-h4dhC9iDf+_6Kh=w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ayush Mittal <ayush.m@samsung.com>, akpm@linux-foundation.org, vinmenon@codeaurora.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: a.sahrawat@samsung.com, pankaj.m@samsung.com, v.narang@samsung.com
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Popov <alex.popov@linux.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, andreyknvl <andreyknvl@google.com>, Kees Cook <keescook@chromium.org>, Vegard Nossum <vegard.nossum@oracle.com>, syzkaller <syzkaller@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 10/10/2017 10:25 AM, Ayush Mittal wrote:
-> Maximum page order can be at max 10 which can be accomodated
-> in short data type(2 bytes).
-> last_migrate_reason is defined as enum type whose values can
-> be accomodated in short data type (2 bytes).
+On Mon, Oct 09, 2017 at 08:46:18PM +0200, 'Dmitry Vyukov' via syzkaller wrote:
+> On Mon, Oct 9, 2017 at 8:37 PM, Mark Rutland <mark.rutland@arm.com> wrote:
+> > On Mon, Oct 09, 2017 at 08:15:10PM +0200, 'Dmitry Vyukov' via syzkaller wrote:
+> >> On Mon, Oct 9, 2017 at 5:46 PM, Mark Rutland <mark.rutland@arm.com> wrote:
+> >> > On Mon, Oct 09, 2017 at 05:05:19PM +0200, Alexander Potapenko wrote:
+> >
+> >> > ... I note that a few places in the kernel use a 128-bit type. Are
+> >> > 128-bit comparisons not instrumented?
+> >>
+> >> Yes, they are not instrumented.
+> >> How many are there? Can you give some examples?
+> >
+> > From a quick scan, it doesn't looks like there are currently any
+> > comparisons.
+> >
+> > It's used as a data type in a few places under arm64:
+> >
+> > arch/arm64/include/asm/checksum.h:      __uint128_t tmp;
+> > arch/arm64/include/asm/checksum.h:      tmp = *(const __uint128_t *)iph;
+> > arch/arm64/include/asm/fpsimd.h:                        __uint128_t vregs[32];
+> > arch/arm64/include/uapi/asm/ptrace.h:   __uint128_t     vregs[32];
+> > arch/arm64/include/uapi/asm/sigcontext.h:       __uint128_t vregs[32];
+> > arch/arm64/kernel/signal32.c:   __uint128_t     raw;
+> > arch/arm64/kvm/guest.c: __uint128_t tmp;
 > 
-> Total structure size is currently 16 bytes but after changing structure
-> size it goes to 12 bytes.
-> 
-> Signed-off-by: Ayush Mittal <ayush.m@samsung.com>
+> Then I think we just continue ignoring them for now :)
+> In the future we can extend kcov to trace 128-bits values. We will
+> need to add a special flag and write 2 consecutive entries for them.
+> Or something along these lines.
 
-Looks like it works, so why not.
-Before:
-[    0.001000] allocated 50331648 bytes of page_ext
-After:
-[    0.001000] allocated 41943040 bytes of page_ext
+Just wanted to make sure that we weren't backing ourselves into a corner
+w.r.t. ABI; that sounds fine to me.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-> ---
->  mm/page_owner.c |    4 ++--
->  1 files changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/page_owner.c b/mm/page_owner.c
-> index 0fd9dcf..4ab438a 100644
-> --- a/mm/page_owner.c
-> +++ b/mm/page_owner.c
-> @@ -19,9 +19,9 @@
->  #define PAGE_OWNER_STACK_DEPTH (16)
->  
->  struct page_owner {
-> -	unsigned int order;
-> +	unsigned short order;
-> +	short last_migrate_reason;
->  	gfp_t gfp_mask;
-> -	int last_migrate_reason;
->  	depot_stack_handle_t handle;
->  };
->  
-> 
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
