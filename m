@@ -1,58 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 47C496B0260
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 11:48:50 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id v2so8654054pfa.4
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 08:48:50 -0700 (PDT)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00132.outbound.protection.outlook.com. [40.107.0.132])
-        by mx.google.com with ESMTPS id 82si8438614pgb.828.2017.10.10.08.48.48
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 02BDE6B025F
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 11:51:40 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id j64so62467154pfj.6
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 08:51:39 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s1sor1822314plk.38.2017.10.10.08.51.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 10 Oct 2017 08:48:49 -0700 (PDT)
-Subject: Re: [PATCH v3 2/3] Makefile: support flag
- -fsanitizer-coverage=trace-cmp
-References: <20171010152731.26031-1-glider@google.com>
- <20171010152731.26031-2-glider@google.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <6184cd73-6d78-b490-3fdd-2d577ef033a6@virtuozzo.com>
-Date: Tue, 10 Oct 2017 18:51:46 +0300
-MIME-Version: 1.0
-In-Reply-To: <20171010152731.26031-2-glider@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Tue, 10 Oct 2017 08:51:38 -0700 (PDT)
+From: Pintu Agarwal <pintu.ping@gmail.com>
+Subject: [PATCH 1/1] [mm]: cma: change pr_info to pr_err for cma_alloc fail log
+Date: Tue, 10 Oct 2017 11:50:33 -0400
+Message-Id: <1507650633-4430-1-git-send-email-pintu.ping@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>, akpm@linux-foundation.org, mark.rutland@arm.com, alex.popov@linux.com, quentin.casasnovas@oracle.com, dvyukov@google.com, andreyknvl@google.com, keescook@chromium.org, vegard.nossum@oracle.com
-Cc: syzkaller@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, labbott@redhat.com, gregkh@linuxfoundation.org, jaewon31.kim@samsung.com, opendmb@gmail.com, pintu.ping@gmail.com
 
+It was observed that under cma_alloc fail log, pr_info was
+used instead of pr_err.
+This will lead to problem if printk debug level is set to
+below 7. In this case the cma_alloc failure log will not
+be captured in the log and it will be difficult to debug.
 
+Simply replace the pr_info with pr_err to capture failure log.
 
-On 10/10/2017 06:27 PM, Alexander Potapenko wrote:
-> 
-> v3: - Andrey Ryabinin's comments: reinstated scripts/Makefile.kcov
->       and moved CFLAGS_KCOV there, dropped CFLAGS_KCOV_COMPS
+Signed-off-by: Pintu Agarwal <pintu.ping@gmail.com>
+---
+ mm/cma.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Huh? Try again.
-
-> diff --git a/scripts/Makefile.lib b/scripts/Makefile.lib
-> index 5e975fee0f5b..7ddd5932c832 100644
-> --- a/scripts/Makefile.lib
-> +++ b/scripts/Makefile.lib
-> @@ -142,6 +142,12 @@ _c_flags += $(if $(patsubst n%,, \
->  	$(CFLAGS_KCOV))
->  endif
->  
-> +ifeq ($(CONFIG_KCOV_ENABLE_COMPARISONS),y)
-> +_c_flags += $(if $(patsubst n%,, \
-> +	$(KCOV_INSTRUMENT_$(basetarget).o)$(KCOV_INSTRUMENT)$(CONFIG_KCOV_INSTRUMENT_ALL)), \
-> +	$(CFLAGS_KCOV_COMPS))
-> +endif
-> +
->  # If building the kernel in a separate objtree expand all occurrences
->  # of -Idir to -I$(srctree)/dir except for absolute paths (starting with '/').
->  
-> 
+diff --git a/mm/cma.c b/mm/cma.c
+index c0da318..e0d1393 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -461,7 +461,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
+ 	trace_cma_alloc(pfn, page, count, align);
+ 
+ 	if (ret) {
+-		pr_info("%s: alloc failed, req-size: %zu pages, ret: %d\n",
++		pr_err("%s: alloc failed, req-size: %zu pages, ret: %d\n",
+ 			__func__, count, ret);
+ 		cma_debug_show_areas(cma);
+ 	}
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
