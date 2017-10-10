@@ -1,53 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 02BDE6B025F
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 11:51:40 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id j64so62467154pfj.6
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 08:51:39 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s1sor1822314plk.38.2017.10.10.08.51.38
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 10 Oct 2017 08:51:38 -0700 (PDT)
-From: Pintu Agarwal <pintu.ping@gmail.com>
-Subject: [PATCH 1/1] [mm]: cma: change pr_info to pr_err for cma_alloc fail log
-Date: Tue, 10 Oct 2017 11:50:33 -0400
-Message-Id: <1507650633-4430-1-git-send-email-pintu.ping@gmail.com>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F6096B025F
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 11:56:19 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id t134so13677130oih.6
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 08:56:19 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id d5si2321606oia.472.2017.10.10.08.56.17
+        for <linux-mm@kvack.org>;
+        Tue, 10 Oct 2017 08:56:18 -0700 (PDT)
+Date: Tue, 10 Oct 2017 16:56:20 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v11 7/9] arm64/kasan: add and use kasan_map_populate()
+Message-ID: <20171010155619.GA2517@arm.com>
+References: <20171009221931.1481-1-pasha.tatashin@oracle.com>
+ <20171009221931.1481-8-pasha.tatashin@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171009221931.1481-8-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, labbott@redhat.com, gregkh@linuxfoundation.org, jaewon31.kim@samsung.com, opendmb@gmail.com, pintu.ping@gmail.com
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-It was observed that under cma_alloc fail log, pr_info was
-used instead of pr_err.
-This will lead to problem if printk debug level is set to
-below 7. In this case the cma_alloc failure log will not
-be captured in the log and it will be difficult to debug.
+Hi Pavel,
 
-Simply replace the pr_info with pr_err to capture failure log.
+On Mon, Oct 09, 2017 at 06:19:29PM -0400, Pavel Tatashin wrote:
+> During early boot, kasan uses vmemmap_populate() to establish its shadow
+> memory. But, that interface is intended for struct pages use.
+> 
+> Because of the current project, vmemmap won't be zeroed during allocation,
+> but kasan expects that memory to be zeroed. We are adding a new
+> kasan_map_populate() function to resolve this difference.
+> 
+> Therefore, we must use a new interface to allocate and map kasan shadow
+> memory, that also zeroes memory for us.
+> 
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> ---
+>  arch/arm64/mm/kasan_init.c | 72 ++++++++++++++++++++++++++++++++++++++++++----
+>  1 file changed, 66 insertions(+), 6 deletions(-)
 
-Signed-off-by: Pintu Agarwal <pintu.ping@gmail.com>
----
- mm/cma.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Thanks for doing this, although I still think we can do better and avoid the
+additional walking code altogether, as well as removing the dependence on
+vmemmap. Rather than keep messing you about here (sorry about that), I've
+written an arm64 patch for you to take on top of this series. Please take
+a look below.
 
-diff --git a/mm/cma.c b/mm/cma.c
-index c0da318..e0d1393 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -461,7 +461,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
- 	trace_cma_alloc(pfn, page, count, align);
- 
- 	if (ret) {
--		pr_info("%s: alloc failed, req-size: %zu pages, ret: %d\n",
-+		pr_err("%s: alloc failed, req-size: %zu pages, ret: %d\n",
- 			__func__, count, ret);
- 		cma_debug_show_areas(cma);
- 	}
--- 
-2.7.4
+Cheers,
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Will
+
+--->8
