@@ -1,102 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 53C316B025E
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 03:27:36 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id v2so3092168pfa.4
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 00:27:36 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id h9si8513344pll.316.2017.10.10.00.27.32
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Oct 2017 00:27:33 -0700 (PDT)
-Message-ID: <59DC76BA.7070202@intel.com>
-Date: Tue, 10 Oct 2017 15:28:58 +0800
-From: Wei Wang <wei.w.wang@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v16 3/5] virtio-balloon: VIRTIO_BALLOON_F_SG
-References: <1506744354-20979-1-git-send-email-wei.w.wang@intel.com> <1506744354-20979-4-git-send-email-wei.w.wang@intel.com> <20171009181612-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20171009181612-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BE84A6B0260
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 03:35:19 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p2so30448882pfk.0
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 00:35:19 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id o8si7787355pgp.196.2017.10.10.00.35.17
+        for <linux-mm@kvack.org>;
+        Tue, 10 Oct 2017 00:35:18 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH] mm:swap: skip swapcache only if swapped page has no other reference
+Date: Tue, 10 Oct 2017 16:33:45 +0900
+Message-Id: <1507620825-5537-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team <kernel-team@lge.com>, Minchan Kim <minchan@kernel.org>, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>
 
-On 10/09/2017 11:20 PM, Michael S. Tsirkin wrote:
-> On Sat, Sep 30, 2017 at 12:05:52PM +0800, Wei Wang wrote:
->> +static inline void xb_set_page(struct virtio_balloon *vb,
->> +			       struct page *page,
->> +			       unsigned long *pfn_min,
->> +			       unsigned long *pfn_max)
->> +{
->> +	unsigned long pfn = page_to_pfn(page);
->> +
->> +	*pfn_min = min(pfn, *pfn_min);
->> +	*pfn_max = max(pfn, *pfn_max);
->> +	xb_preload(GFP_KERNEL);
->> +	xb_set_bit(&vb->page_xb, pfn);
->> +	xb_preload_end();
->> +}
->> +
-> So, this will allocate memory
->
-> ...
->
->> @@ -198,9 +327,12 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
->>   	struct page *page;
->>   	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
->>   	LIST_HEAD(pages);
->> +	bool use_sg = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_SG);
->> +	unsigned long pfn_max = 0, pfn_min = ULONG_MAX;
->>   
->> -	/* We can only do one array worth at a time. */
->> -	num = min(num, ARRAY_SIZE(vb->pfns));
->> +	/* Traditionally, we can only do one array worth at a time. */
->> +	if (!use_sg)
->> +		num = min(num, ARRAY_SIZE(vb->pfns));
->>   
->>   	mutex_lock(&vb->balloon_lock);
->>   	/* We can't release more pages than taken */
-> And is sometimes called on OOM.
->
->
-> I suspect we need to
->
-> 1. keep around some memory for leak on oom
->
-> 2. for non oom allocate outside locks
->
->
+When swapped-in pages are shared by several processes, it can cause
+unnecessary memory wastage by skipping swap cache. Because, with
+swapin fault by read, they could share a page if the page were in swap
+cache. Thus, it avoids allocating same content new pages.
 
-I think maybe we can optimize the existing balloon logic, which could 
-remove the big balloon lock:
+This patch makes the swapcache skipping work only if the swap pte is
+non-sharable.
 
-It would not be necessary to have the inflating and deflating run at the 
-same time.
-For example, 1st request to inflate 7G RAM, when 1GB has been given to 
-the host (so 6G left), the
-2nd request to deflate 5G is received. Instead of waiting for the 1st 
-request to inflate 6G and then
-continuing with the 2nd request to deflate 5G, we can do a diff (6G to 
-inflate - 5G to deflate) immediately,
-and got 1G to inflate. In this way, all that driver will do is to simply 
-inflate another 1G.
+Cc: Huang Ying <ying.huang@intel.com>
+Cc: Hugh Dickins <hughd@google.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ include/linux/swap.h |  6 ++++++
+ mm/memory.c          | 19 ++++++++++---------
+ mm/swapfile.c        |  7 +++++++
+ 3 files changed, 23 insertions(+), 9 deletions(-)
 
-Same for the OOM case: when OOM asks for 1G, while inflating 5G is in 
-progress, then the driver can
-deduct 1G from the amount that needs to inflate, and as a result, it 
-will inflate 4G.
-
-In this case, we will never have the inflating and deflating task run at 
-the same time, so I think it is
-possible to remove the lock, and therefore, we will not have that 
-deadlock issue.
-
-What would you guys think?
-
-Best,
-Wei
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index cd2f66fdfc2d..1f5c52313890 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -458,6 +458,7 @@ extern unsigned int count_swap_pages(int, int);
+ extern sector_t map_swap_page(struct page *, struct block_device **);
+ extern sector_t swapdev_block(int, pgoff_t);
+ extern int page_swapcount(struct page *);
++extern int __swap_count(struct swap_info_struct *si, swp_entry_t entry);
+ extern int __swp_swapcount(swp_entry_t entry);
+ extern int swp_swapcount(swp_entry_t entry);
+ extern struct swap_info_struct *page_swap_info(struct page *);
+@@ -584,6 +585,11 @@ static inline int page_swapcount(struct page *page)
+ 	return 0;
+ }
+ 
++static inline int __swap_count(struct swap_info_struct *si, swp_entry_t entry)
++{
++	return 0;
++}
++
+ static inline int __swp_swapcount(swp_entry_t entry)
+ {
+ 	return 0;
+diff --git a/mm/memory.c b/mm/memory.c
+index 163ab2062385..aff7e324564f 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2890,15 +2890,8 @@ int do_swap_page(struct vm_fault *vmf)
+ 	if (!page) {
+ 		struct swap_info_struct *si = swp_swap_info(entry);
+ 
+-		if (!(si->flags & SWP_SYNCHRONOUS_IO)) {
+-			if (vma_readahead)
+-				page = do_swap_page_readahead(entry,
+-					GFP_HIGHUSER_MOVABLE, vmf, &swap_ra);
+-			else
+-				page = swapin_readahead(entry,
+-					GFP_HIGHUSER_MOVABLE, vma, vmf->address);
+-			swapcache = page;
+-		} else {
++		if (si->flags & SWP_SYNCHRONOUS_IO &&
++				__swap_count(si, entry) == 1) {
+ 			/* skip swapcache */
+ 			page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vmf->address);
+ 			if (page) {
+@@ -2908,6 +2901,14 @@ int do_swap_page(struct vm_fault *vmf)
+ 				lru_cache_add_anon(page);
+ 				swap_readpage(page, true);
+ 			}
++		} else {
++			if (vma_readahead)
++				page = do_swap_page_readahead(entry,
++					GFP_HIGHUSER_MOVABLE, vmf, &swap_ra);
++			else
++				page = swapin_readahead(entry,
++					GFP_HIGHUSER_MOVABLE, vma, vmf->address);
++			swapcache = page;
+ 		}
+ 
+ 		if (!page) {
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 64a3d85226ba..d67715ffc194 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -1328,6 +1328,13 @@ int page_swapcount(struct page *page)
+ 	return count;
+ }
+ 
++int __swap_count(struct swap_info_struct *si, swp_entry_t entry)
++{
++	pgoff_t offset = swp_offset(entry);
++
++	return swap_count(si->swap_map[offset]);
++}
++
+ static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
+ {
+ 	int count = 0;
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
