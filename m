@@ -1,78 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BCDF56B025E
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:17:36 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id z80so32269613pff.1
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 07:17:36 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w61si9250776plb.745.2017.10.10.07.17.35
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 152796B025F
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:17:42 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 136so33684653wmu.3
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 07:17:42 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id l59si9406128edl.487.2017.10.10.07.17.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 Oct 2017 07:17:35 -0700 (PDT)
-Date: Tue, 10 Oct 2017 16:17:33 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] vmalloc: back off only when the current task is OOM
- killed
-Message-ID: <20171010141733.juvbfjdglutehvie@dhcp22.suse.cz>
-References: <1507633133-5720-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171010115436.nzgo4ewodx5pyrw7@dhcp22.suse.cz>
- <201710102147.IGJ90612.OQSFMFLVtOOJFH@I-love.SAKURA.ne.jp>
- <20171010134916.x5iskqymwjj6akpo@dhcp22.suse.cz>
- <201710102313.DBB60400.QOOVHLFJFOtMFS@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 10 Oct 2017 07:17:40 -0700 (PDT)
+Date: Tue, 10 Oct 2017 10:17:33 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
+Message-ID: <20171010141733.GB16710@cmpxchg.org>
+References: <20171005222144.123797-1-shakeelb@google.com>
+ <20171006075900.icqjx5rr7hctn3zd@dhcp22.suse.cz>
+ <CALvZod7YN4JCG7Anm2FViyZ0-APYy+nxEd3nyxe5LT_P0FC9wg@mail.gmail.com>
+ <20171009062426.hmqedtqz5hkmhnff@dhcp22.suse.cz>
+ <xr93a810xl77.fsf@gthelen.svl.corp.google.com>
+ <20171009202613.GA15027@cmpxchg.org>
+ <20171010091430.giflzlayvjblx5bu@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201710102313.DBB60400.QOOVHLFJFOtMFS@I-love.SAKURA.ne.jp>
+In-Reply-To: <20171010091430.giflzlayvjblx5bu@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, alan@llwyncelyn.cymru, hch@lst.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Greg Thelen <gthelen@google.com>, Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 10-10-17 23:13:21, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Tue 10-10-17 21:47:02, Tetsuo Handa wrote:
-> > > I think that massive vmalloc() consumers should be (as well as massive
-> > > alloc_page() consumers) careful such that they will be chosen as first OOM
-> > > victim, for vmalloc() does not abort as soon as an OOM occurs.
+On Tue, Oct 10, 2017 at 11:14:30AM +0200, Michal Hocko wrote:
+> On Mon 09-10-17 16:26:13, Johannes Weiner wrote:
+> > It's consistent in the sense that only page faults enable the memcg
+> > OOM killer. It's not the type of memory that decides, it's whether the
+> > allocation context has a channel to communicate an error to userspace.
 > > 
-> > No. This would require to spread those checks all over the place. That
-> > is why we have that logic inside the allocator which fails the
-> > allocation at certain point in time. Large/unbound/user controlled sized
-> > allocations from the kernel are always a bug and really hard one to
-> > protect from. It is simply impossible to know the intention.
-> > 
-> > > Thus, I used
-> > > set_current_oom_origin()/clear_current_oom_origin() when I demonstrated
-> > > "complete" depletion.
-> > 
-> > which was a completely artificial example as already mentioned.
-> > 
-> > > > I have tried to explain this is not really needed before but you keep
-> > > > insisting which is highly annoying. The patch as is is not harmful but
-> > > > it is simply _pointless_ IMHO.
-> > > 
-> > > Then, how can massive vmalloc() consumers become careful?
-> > > Explicitly use __vmalloc() and pass __GFP_NOMEMALLOC ?
-> > > Then, what about adding some comment like "Never try to allocate large
-> > > memory using plain vmalloc(). Use __vmalloc() with __GFP_NOMEMALLOC." ?
-> > 
-> > Come on! Seriously we do expect some competence from the code running in
-> > the kernel space. We do not really need to add a comment that you
-> > shouldn't shoot your head because it might hurt. Please try to focus on
-> > real issues. There are many of them to chase after...
-> > 
-> My understanding is that vmalloc() is provided for allocating large memory
-> where kmalloc() is difficult to satisfy. If we say "do not allocate large
-> memory with vmalloc() because large allocations from the kernel are always
-> a bug", it sounds like denial of raison d'etre of vmalloc(). Strange...
+> > Whether userspace is able to handle -ENOMEM from syscalls was a voiced
+> > concern at the time this patch was merged, although there haven't been
+> > any reports so far,
+> 
+> Well, I remember reports about MAP_POPULATE breaking or at least having
+> an unexpected behavior.
 
-try to find some middle ground between literal following the wording and
-a common sense. In kernel anything larger than order-3 is a large
-allocation. The large we are arguing here is MBs of memory.
+Hm, that slipped past me. Did we do something about these? Or did they
+fix userspace?
 
--- 
-Michal Hocko
-SUSE Labs
+> Well, we should be able to do that with the oom_reaper. At least for v2
+> which doesn't have synchronous userspace oom killing.
+
+I don't see how the OOM reaper is a guarantee as long as we have this:
+
+	if (!down_read_trylock(&mm->mmap_sem)) {
+		ret = false;
+		trace_skip_task_reaping(tsk->pid);
+		goto unlock_oom;
+	}
+
+What do you mean by 'v2'?
+
+> > > c) Overcharge kmem to oom memcg and queue an async memcg limit checker,
+> > >    which will oom kill if needed.
+> > 
+> > This makes the most sense to me. Architecturally, I imagine this would
+> > look like b), with an OOM handler at the point of return to userspace,
+> > except that we'd overcharge instead of retrying the syscall.
+> 
+> I do not think we should break the hard limit semantic if possible. We
+> can currently allow that for allocations which are very short term (oom
+> victims) or too important to fail but allowing that for kmem charges in
+> general sounds like too easy to runaway.
+
+I'm not sure there is a convenient way out of this.
+
+If we want to respect the hard limit AND guarantee allocation success,
+the OOM killer has to free memory reliably - which it doesn't. But if
+it did, we could also break the limit temporarily and have the OOM
+killer replenish the pool before that userspace app can continue. The
+allocation wouldn't have to be short-lived, since memory is fungible.
+
+Until the OOM killer is 100% reliable, we have the choice between
+sometimes deadlocking the cgroup tasks and everything that interacts
+with them, returning -ENOMEM for syscalls, or breaking the hard limit
+guarantee during memcg OOM.
+
+It seems breaking the limit temporarily in order to reclaim memory is
+the best option. There is kernel memory we don't account to the memcg
+already because we think it's probably not going to be significant, so
+the isolation isn't 100% watertight in the first place. And I'd rather
+have the worst-case effect of a cgroup OOMing be spilling over its
+hard limit than deadlocking things inside and outside the cgroup.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
