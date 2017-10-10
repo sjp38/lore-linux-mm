@@ -1,56 +1,27 @@
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH] vmalloc: back off only when the current task is OOM killed
-Date: Tue, 10 Oct 2017 19:58:53 +0900
-Message-ID: <1507633133-5720-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-Return-path: <linux-kernel-owner@vger.kernel.org>
-Sender: linux-kernel-owner@vger.kernel.org
-To: hannes@cmpxchg.org, akpm@linux-foundation.org
-Cc: alan@llwyncelyn.cymru, hch@lst.de, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH v3] mm, sysctl: make NUMA stats configurable
+Date: Tue, 10 Oct 2017 10:14:20 -0500 (CDT)
+Message-ID: <alpine.DEB.2.20.1710101013270.15140@nuc-kabylake>
+References: <1506579101-5457-1-git-send-email-kemi.wang@intel.com> <20171003092352.2wh2jbtt2dudfi5a@dhcp22.suse.cz> <221a1e93-ee33-d598-67de-d6071f192040@intel.com> <20171009075549.pzohdnerillwuhqo@dhcp22.suse.cz> <20171010054902.sqp6yyid6qqhpsrt@dhcp22.suse.cz>
+ <bb13e610-758e-0fdd-ee65-781b4920f1c6@linux.intel.com> <20171010143113.gk6iqcrguefhhlmr@dhcp22.suse.cz> <eb9248f9-1941-57f9-de9e-596b4ead6491@linux.intel.com> <20171010145728.q2levvekbpwlg57q@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Return-path: <linux-fsdevel-owner@vger.kernel.org>
+In-Reply-To: <20171010145728.q2levvekbpwlg57q@dhcp22.suse.cz>
+Sender: linux-fsdevel-owner@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, kemi <kemi.wang@intel.com>, "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Proc sysctl <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-Id: linux-mm.kvack.org
 
-Commit 5d17a73a2ebeb8d1 ("vmalloc: back off when the current task is
-killed") revealed two bugs [1] [2] that were not ready to fail vmalloc()
-upon SIGKILL. But since the intent of that commit was to avoid unlimited
-access to memory reserves, we should have checked tsk_is_oom_victim()
-rather than fatal_signal_pending().
+On Tue, 10 Oct 2017, Michal Hocko wrote:
 
-Note that even with commit cd04ae1e2dc8e365 ("mm, oom: do not rely on
-TIF_MEMDIE for memory reserves access"), it is possible to trigger
-"complete depletion of memory reserves" and "extra OOM kills due to
-depletion of memory reserves" by doing a large vmalloc() request if commit
-5d17a73a2ebeb8d1 is reverted. Thus, let's keep checking tsk_is_oom_victim()
-rather than removing fatal_signal_pending().
+> > But, let's be honest, this leaves us with an option that nobody is ever
+> > going to turn on.  IOW, nobody except a very small portion of our users
+> > will ever see any benefit from this.
+>
+> But aren't those small groups who would like to squeeze every single
+> cycle out from the page allocator path the targeted audience?
 
-  [1] http://lkml.kernel.org/r/42eb5d53-5ceb-a9ce-791a-9469af30810c@I-love.SAKURA.ne.jp
-  [2] http://lkml.kernel.org/r/20171003225504.GA966@cmpxchg.org
-
-Fixes: 5d17a73a2ebeb8d1 ("vmalloc: back off when the current task is killed")
-Cc: stable # 4.11+
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- mm/vmalloc.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 8a43db6..6add29d 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -31,6 +31,7 @@
- #include <linux/compiler.h>
- #include <linux/llist.h>
- #include <linux/bitops.h>
-+#include <linux/oom.h>
- 
- #include <linux/uaccess.h>
- #include <asm/tlbflush.h>
-@@ -1695,7 +1696,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
- 	for (i = 0; i < area->nr_pages; i++) {
- 		struct page *page;
- 
--		if (fatal_signal_pending(current)) {
-+		if (tsk_is_oom_victim(current)) {
- 			area->nr_pages = i;
- 			goto fail_no_warn;
- 		}
--- 
-1.8.3.1
+Those have long sine raised the white flag and succumbed to the
+featuritis. Resigned to try to keep the bloat restricted to a couple of
+cores so that the rest of the cores stay usable.
