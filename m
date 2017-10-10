@@ -1,103 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 83E986B025E
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:24:36 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id t5so1494507lfe.1
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 07:24:36 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 26si5012372wrz.265.2017.10.10.07.24.35
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E359A6B025E
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:29:33 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id z80so32398524pff.1
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 07:29:33 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id t190si935708pgb.504.2017.10.10.07.29.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 Oct 2017 07:24:35 -0700 (PDT)
-Date: Tue, 10 Oct 2017 16:24:34 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
-Message-ID: <20171010142434.bpiqmsbb7gttrlcb@dhcp22.suse.cz>
-References: <20171005222144.123797-1-shakeelb@google.com>
- <20171006075900.icqjx5rr7hctn3zd@dhcp22.suse.cz>
- <CALvZod7YN4JCG7Anm2FViyZ0-APYy+nxEd3nyxe5LT_P0FC9wg@mail.gmail.com>
- <20171009062426.hmqedtqz5hkmhnff@dhcp22.suse.cz>
- <xr93a810xl77.fsf@gthelen.svl.corp.google.com>
- <20171009202613.GA15027@cmpxchg.org>
- <20171010091430.giflzlayvjblx5bu@dhcp22.suse.cz>
- <20171010141733.GB16710@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Oct 2017 07:29:32 -0700 (PDT)
+Subject: Re: [PATCH v3] mm, sysctl: make NUMA stats configurable
+References: <1506579101-5457-1-git-send-email-kemi.wang@intel.com>
+ <20171003092352.2wh2jbtt2dudfi5a@dhcp22.suse.cz>
+ <221a1e93-ee33-d598-67de-d6071f192040@intel.com>
+ <20171009075549.pzohdnerillwuhqo@dhcp22.suse.cz>
+ <20171010054902.sqp6yyid6qqhpsrt@dhcp22.suse.cz>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <bb13e610-758e-0fdd-ee65-781b4920f1c6@linux.intel.com>
+Date: Tue, 10 Oct 2017 07:29:31 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171010141733.GB16710@cmpxchg.org>
+In-Reply-To: <20171010054902.sqp6yyid6qqhpsrt@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Greg Thelen <gthelen@google.com>, Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, kemi <kemi.wang@intel.com>
+Cc: "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Proc sysctl <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Tue 10-10-17 10:17:33, Johannes Weiner wrote:
-> On Tue, Oct 10, 2017 at 11:14:30AM +0200, Michal Hocko wrote:
-> > On Mon 09-10-17 16:26:13, Johannes Weiner wrote:
-> > > It's consistent in the sense that only page faults enable the memcg
-> > > OOM killer. It's not the type of memory that decides, it's whether the
-> > > allocation context has a channel to communicate an error to userspace.
-> > > 
-> > > Whether userspace is able to handle -ENOMEM from syscalls was a voiced
-> > > concern at the time this patch was merged, although there haven't been
-> > > any reports so far,
-> > 
-> > Well, I remember reports about MAP_POPULATE breaking or at least having
-> > an unexpected behavior.
+On 10/09/2017 10:49 PM, Michal Hocko wrote:
+> On Mon 09-10-17 09:55:49, Michal Hocko wrote:
+>> I haven't checked closely but what happens (or should happen) when you
+>> do a partial read? Should you get an inconsistent results? Or is this
+>> impossible?
+> Well, after thinking about it little bit more, partial reads are always
+> inconsistent so this wouldn't add a new problem.
 > 
-> Hm, that slipped past me. Did we do something about these? Or did they
-> fix userspace?
+> Anyway I still stand by my position that this sounds over-engineered and
+> a simple 0/1 resp. on/off interface would be both simpler and safer. If
+> anybody wants an auto mode it can be added later (as a value 2 resp.
+> auto).
 
-Well it was mostly LTP complaining. I have tried to fix that but Linus
-was against so we just documented that this is possible and MAP_POPULATE
-is not a guarantee.
-
-> > Well, we should be able to do that with the oom_reaper. At least for v2
-> > which doesn't have synchronous userspace oom killing.
-> 
-> I don't see how the OOM reaper is a guarantee as long as we have this:
-> 
-> 	if (!down_read_trylock(&mm->mmap_sem)) {
-> 		ret = false;
-> 		trace_skip_task_reaping(tsk->pid);
-> 		goto unlock_oom;
-> 	}
-
-And we will simply mark the victim MMF_OOM_SKIP and hide it from the oom
-killer if we fail to get the mmap_sem after several attempts. This will
-allow to find a new victim. So we shouldn't deadlock.
-
-> What do you mean by 'v2'?
-
-cgroup v2 because the legacy memcg allowed sync wait for the oom killer
-and that would be a bigger problem from a deep callchains for obevious
-reasons.
-
-> > > > c) Overcharge kmem to oom memcg and queue an async memcg limit checker,
-> > > >    which will oom kill if needed.
-> > > 
-> > > This makes the most sense to me. Architecturally, I imagine this would
-> > > look like b), with an OOM handler at the point of return to userspace,
-> > > except that we'd overcharge instead of retrying the syscall.
-> > 
-> > I do not think we should break the hard limit semantic if possible. We
-> > can currently allow that for allocations which are very short term (oom
-> > victims) or too important to fail but allowing that for kmem charges in
-> > general sounds like too easy to runaway.
-> 
-> I'm not sure there is a convenient way out of this.
-> 
-> If we want to respect the hard limit AND guarantee allocation success,
-> the OOM killer has to free memory reliably - which it doesn't. But if
-> it did, we could also break the limit temporarily and have the OOM
-> killer replenish the pool before that userspace app can continue. The
-> allocation wouldn't have to be short-lived, since memory is fungible.
-
-If we can guarantee the oom killer is started then we can allow temporal
-access to reserves which is already implemented even for memcg. The
-thing is we do not invoke the oom killer...
--- 
-Michal Hocko
-SUSE Labs
+0/1 with the default set to the strict, slower mode?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
