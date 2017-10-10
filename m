@@ -1,119 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 29D856B0260
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 05:14:34 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id q203so30805980wmb.0
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 02:14:34 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 20si6444904wms.91.2017.10.10.02.14.32
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 292D06B0268
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 05:14:50 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id 186so843157itu.4
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 02:14:50 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p129sor3520505ite.52.2017.10.10.02.14.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 10 Oct 2017 02:14:33 -0700 (PDT)
-Date: Tue, 10 Oct 2017 11:14:30 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
-Message-ID: <20171010091430.giflzlayvjblx5bu@dhcp22.suse.cz>
-References: <20171005222144.123797-1-shakeelb@google.com>
- <20171006075900.icqjx5rr7hctn3zd@dhcp22.suse.cz>
- <CALvZod7YN4JCG7Anm2FViyZ0-APYy+nxEd3nyxe5LT_P0FC9wg@mail.gmail.com>
- <20171009062426.hmqedtqz5hkmhnff@dhcp22.suse.cz>
- <xr93a810xl77.fsf@gthelen.svl.corp.google.com>
- <20171009202613.GA15027@cmpxchg.org>
+        (Google Transport Security);
+        Tue, 10 Oct 2017 02:14:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171009202613.GA15027@cmpxchg.org>
+In-Reply-To: <20171010084817.GD775@quack2.suse.cz>
+References: <1507330684-2205-1-git-send-email-laoar.shao@gmail.com>
+ <20171009154212.bdf3645a2dce5d540657914b@linux-foundation.org>
+ <CALOAHbBRxYqhoeqzDiCNcpA6PG9ysAknaRBseCEYLoV1M9MyHA@mail.gmail.com> <20171010084817.GD775@quack2.suse.cz>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Tue, 10 Oct 2017 17:14:48 +0800
+Message-ID: <CALOAHbD61HNK=zshRJSHoWadjJqO4DxDSvHxw57kYm0V6o9sDA@mail.gmail.com>
+Subject: Re: [PATCH] mm/page-writeback.c: fix bug caused by disable periodic writeback
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Greg Thelen <gthelen@google.com>, Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, Johannes Weiner <hannes@cmpxchg.org>, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, Theodore Ts'o <tytso@mit.edu>, mawilcox@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>
 
-On Mon 09-10-17 16:26:13, Johannes Weiner wrote:
-> On Mon, Oct 09, 2017 at 10:52:44AM -0700, Greg Thelen wrote:
-> > Michal Hocko <mhocko@kernel.org> wrote:
-> > 
-> > > On Fri 06-10-17 12:33:03, Shakeel Butt wrote:
-> > >> >>       names_cachep = kmem_cache_create("names_cache", PATH_MAX, 0,
-> > >> >> -                     SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
-> > >> >> +                     SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT, NULL);
-> > >> >
-> > >> > I might be wrong but isn't name cache only holding temporary objects
-> > >> > used for path resolution which are not stored anywhere?
-> > >> >
-> > >> 
-> > >> Even though they're temporary, many containers can together use a
-> > >> significant amount of transient uncharged memory. We've seen machines
-> > >> with 100s of MiBs in names_cache.
-> > >
-> > > Yes that might be possible but are we prepared for random ENOMEM from
-> > > vfs calls which need to allocate a temporary name?
-> > >
-> > >> 
-> > >> >>       filp_cachep = kmem_cache_create("filp", sizeof(struct file), 0,
-> > >> >> -                     SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
-> > >> >> +                     SLAB_HWCACHE_ALIGN | SLAB_PANIC | SLAB_ACCOUNT, NULL);
-> > >> >>       percpu_counter_init(&nr_files, 0, GFP_KERNEL);
-> > >> >>  }
-> > >> >
-> > >> > Don't we have a limit for the maximum number of open files?
-> > >> >
-> > >> 
-> > >> Yes, there is a system limit of maximum number of open files. However
-> > >> this limit is shared between different users on the system and one
-> > >> user can hog this resource. To cater that, we set the maximum limit
-> > >> very high and let the memory limit of each user limit the number of
-> > >> files they can open.
-> > >
-> > > Similarly here. Are all syscalls allocating a fd prepared to return
-> > > ENOMEM?
-> > >
-> > > -- 
-> > > Michal Hocko
-> > > SUSE Labs
-> > 
-> > Even before this patch I find memcg oom handling inconsistent.  Page
-> > cache pages trigger oom killer and may allow caller to succeed once the
-> > kernel retries.  But kmem allocations don't call oom killer.
-> 
-> It's consistent in the sense that only page faults enable the memcg
-> OOM killer. It's not the type of memory that decides, it's whether the
-> allocation context has a channel to communicate an error to userspace.
-> 
-> Whether userspace is able to handle -ENOMEM from syscalls was a voiced
-> concern at the time this patch was merged, although there haven't been
-> any reports so far,
+2017-10-10 16:48 GMT+08:00 Jan Kara <jack@suse.cz>:
+> On Tue 10-10-17 16:00:29, Yafang Shao wrote:
+>> 2017-10-10 6:42 GMT+08:00 Andrew Morton <akpm@linux-foundation.org>:
+>> > On Sat,  7 Oct 2017 06:58:04 +0800 Yafang Shao <laoar.shao@gmail.com> wrote:
+>> >
+>> >> After disable periodic writeback by writing 0 to
+>> >> dirty_writeback_centisecs, the handler wb_workfn() will not be
+>> >> entered again until the dirty background limit reaches or
+>> >> sync syscall is executed or no enough free memory available or
+>> >> vmscan is triggered.
+>> >> So the periodic writeback can't be enabled by writing a non-zero
+>> >> value to dirty_writeback_centisecs
+>> >> As it can be disabled by sysctl, it should be able to enable by
+>> >> sysctl as well.
+>> >>
+>> >> ...
+>> >>
+>> >> --- a/mm/page-writeback.c
+>> >> +++ b/mm/page-writeback.c
+>> >> @@ -1972,7 +1972,13 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
+>> >>  int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
+>> >>       void __user *buffer, size_t *length, loff_t *ppos)
+>> >>  {
+>> >> -     proc_dointvec(table, write, buffer, length, ppos);
+>> >> +     unsigned int old_interval = dirty_writeback_interval;
+>> >> +     int ret;
+>> >> +
+>> >> +     ret = proc_dointvec(table, write, buffer, length, ppos);
+>> >> +     if (!ret && !old_interval && dirty_writeback_interval)
+>> >> +             wakeup_flusher_threads(0, WB_REASON_PERIODIC);
+>> >> +
+>> >>       return 0;
+>> >
+>> > We could do with a code comment here, explaining why this code exists.
+>> >
+>>
+>> OK. I will comment here.
+>>
+>> > And...  I'm not sure it works correctly?  For example, if a device
+>> > doesn't presently have bdi_has_dirty_io() then wakeup_flusher_threads()
+>> > will skip it and the periodic writeback still won't be started?
+>> >
+>>
+>> That's an issue.
+>> The periodic writeback won't be started.
+>>
+>> Maybe we'd better call  wb_wakeup_delayed(wb) here to bypass the
+>> bdi_has_dirty_io() check ?
+>
+> Well, wb_wakeup_delayed() would be more appropriate but you'd then have to
+> iterate over all bdis and wbs to be able to call it which IMO isn't worth
+> the pain for a special case like this. But the decision is worth mentioning
+> in the comment. Also wakeup_flusher_threads() does in principle what you
+> need - see my reply to Andrew for details.
+>
+>                                                                 Honza
 
-Well, I remember reports about MAP_POPULATE breaking or at least having
-an unexpected behavior.
+Thanks for your explaination. I understood.
+I will mention it in the comment.
 
-> and it seemed like the lesser evil between that
-> and deadlocking the kernel.
+Should we do the wakeup whenever dirty_writeback_interval changes ?
+If we still use wakeup_flusher_threads(), it will wakeup the flusher
+threads immediately after we make the change.
 
-agreed on this part though
-
-> If we could find a way to invoke the OOM killer safely, I would
-> welcome such patches.
-
-Well, we should be able to do that with the oom_reaper. At least for v2
-which doesn't have synchronous userspace oom killing.
-
-[...]
-
-> > c) Overcharge kmem to oom memcg and queue an async memcg limit checker,
-> >    which will oom kill if needed.
-> 
-> This makes the most sense to me. Architecturally, I imagine this would
-> look like b), with an OOM handler at the point of return to userspace,
-> except that we'd overcharge instead of retrying the syscall.
-
-I do not think we should break the hard limit semantic if possible. We
-can currently allow that for allocations which are very short term (oom
-victims) or too important to fail but allowing that for kmem charges in
-general sounds like too easy to runaway.
-
--- 
-Michal Hocko
-SUSE Labs
+Thanks
+Yafang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
