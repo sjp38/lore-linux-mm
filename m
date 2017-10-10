@@ -1,45 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FD5A6B0260
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 13:10:46 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id 14so3921403oii.2
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:10:46 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id k10si5011522oib.113.2017.10.10.10.10.45
-        for <linux-mm@kvack.org>;
-        Tue, 10 Oct 2017 10:10:45 -0700 (PDT)
-Date: Tue, 10 Oct 2017 18:10:47 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v11 7/9] arm64/kasan: add and use kasan_map_populate()
-Message-ID: <20171010171047.GC2517@arm.com>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AE3BC6B0260
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 13:20:02 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id i124so32295635wmf.7
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:20:02 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id s55si3715939edb.425.2017.10.10.10.20.00
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Oct 2017 10:20:00 -0700 (PDT)
+Subject: Re: [PATCH v11 0/9] complete deferred page initialization
 References: <20171009221931.1481-1-pasha.tatashin@oracle.com>
- <20171009221931.1481-8-pasha.tatashin@oracle.com>
- <20171010155619.GA2517@arm.com>
- <CAOAebxv21+KtXPAk-xWz=+2fqWQDgp9SAFZz-N=XsuBxev=zcg@mail.gmail.com>
+ <20171010141547.zpdptsccsblyw634@dhcp22.suse.cz>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <bd333387-fefc-c48a-2258-1d8c36f2db41@oracle.com>
+Date: Tue, 10 Oct 2017 13:19:19 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAOAebxv21+KtXPAk-xWz=+2fqWQDgp9SAFZz-N=XsuBxev=zcg@mail.gmail.com>
+In-Reply-To: <20171010141547.zpdptsccsblyw634@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, Michal Hocko <mhocko@kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Mark Rutland <mark.rutland@arm.com>, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, Steve Sistare <steven.sistare@oracle.com>, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-Hi Pavel,
+I wanted to thank you Michal for spending time and doing the in-depth 
+reviews of every incremental change. Overall the series is in much 
+better shape now because of your feedback.
 
-On Tue, Oct 10, 2017 at 01:07:35PM -0400, Pavel Tatashin wrote:
-> Thank you for doing this work. How would you like to proceed?
+Pavel
+
+On 10/10/2017 10:15 AM, Michal Hocko wrote:
+> Btw. thanks for your persistance and willingness to go over all the
+> suggestions which might not have been consistent btween different
+> versions. I believe this is a general improvement in the early
+> initialization code. We do not rely on an implicit zeroing which just
+> happens to work by a chance. The perfomance improvements are a bonus on
+> top.
 > 
-> - If you OK for my series to be accepted as-is, so your patch can be
-> added later on top, I think, I need an ack from you for kasan changes.
-> - Otherwise, I can replace: 4267aaf1d279 arm64/kasan: add and use
-> kasan_map_populate() in my series with code from your patch.
-
-I was thinking that you could just add my patch to the end of your series
-and have the whole lot go up like that. If you want to merge it with your
-patch, I'm fine with that too.
-
-Will
+> Thanks, good work!
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
