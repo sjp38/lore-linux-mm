@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EE986B0272
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:56:27 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id v2so8063500pfa.4
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 07:56:27 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id 1si9095939plw.287.2017.10.10.07.56.25
+	by kanga.kvack.org (Postfix) with ESMTP id 14D116B0273
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 10:56:33 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id l188so61607516pfc.7
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 07:56:33 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id g125si1301321pfc.0.2017.10.10.07.56.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Oct 2017 07:56:25 -0700 (PDT)
-Subject: [PATCH v8 11/14] iommu: up-level sg_num_pages() from amd-iommu
+        Tue, 10 Oct 2017 07:56:31 -0700 (PDT)
+Subject: [PATCH v8 12/14] iommu/vt-d: use iommu_num_sg_pages
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 10 Oct 2017 07:50:00 -0700
-Message-ID: <150764700026.16882.6848398427693240452.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Tue, 10 Oct 2017 07:50:05 -0700
+Message-ID: <150764700544.16882.8780240398561523090.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <150764693502.16882.15848797003793552156.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <150764693502.16882.15848797003793552156.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -21,135 +21,75 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: linux-rdma@vger.kernel.org, linux-api@vger.kernel.org, Joerg Roedel <joro@8bytes.org>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org
+Cc: Ashok Raj <ashok.raj@intel.com>, linux-rdma@vger.kernel.org, linux-api@vger.kernel.org, Joerg Roedel <joro@8bytes.org>, linux-xfs@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, linux-fsdevel@vger.kernel.org, David Woodhouse <dwmw2@infradead.org>
 
-iommu_sg_num_pages() is a helper that walks a scattlerlist and counts
-pages taking segment boundaries and iommu_num_pages() into account.
-Up-level it for determining the IOVA range that dma_map_ops established
-at dma_map_sg() time. The intent is to iommu_unmap() the IOVA range in
-advance of freeing IOVA range.
+Use the common helper for accounting the size of the IOVA range for a
+scatterlist so that iommu and dma apis agree on the size of a
+scatterlist. This is in support for using iommu_unmap() in advance of
+dma_unmap_sg() to invalidate an io-mapping in advance of the IOVA range
+being deallocated. MAP_DIRECT needs this functionality for force
+revoking RDMA access to a DAX mapping when userspace fails to respond to
+within a lease break timeout period.
 
+Cc: Ashok Raj <ashok.raj@intel.com>
+Cc: David Woodhouse <dwmw2@infradead.org>
 Cc: Joerg Roedel <joro@8bytes.org>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/iommu/amd_iommu.c |   30 ++----------------------------
- drivers/iommu/iommu.c     |   27 +++++++++++++++++++++++++++
- include/linux/iommu.h     |    2 ++
- 3 files changed, 31 insertions(+), 28 deletions(-)
+ drivers/iommu/intel-iommu.c |   19 +++++--------------
+ 1 file changed, 5 insertions(+), 14 deletions(-)
 
-diff --git a/drivers/iommu/amd_iommu.c b/drivers/iommu/amd_iommu.c
-index c8e1a45af182..4795b0823469 100644
---- a/drivers/iommu/amd_iommu.c
-+++ b/drivers/iommu/amd_iommu.c
-@@ -2459,32 +2459,6 @@ static void unmap_page(struct device *dev, dma_addr_t dma_addr, size_t size,
- 	__unmap_single(dma_dom, dma_addr, size, dir);
+diff --git a/drivers/iommu/intel-iommu.c b/drivers/iommu/intel-iommu.c
+index f3f4939cebad..94a5fbe62fb8 100644
+--- a/drivers/iommu/intel-iommu.c
++++ b/drivers/iommu/intel-iommu.c
+@@ -3785,14 +3785,9 @@ static void intel_unmap_sg(struct device *dev, struct scatterlist *sglist,
+ 			   unsigned long attrs)
+ {
+ 	dma_addr_t startaddr = sg_dma_address(sglist) & PAGE_MASK;
+-	unsigned long nrpages = 0;
+-	struct scatterlist *sg;
+-	int i;
+-
+-	for_each_sg(sglist, sg, nelems, i) {
+-		nrpages += aligned_nrpages(sg_dma_address(sg), sg_dma_len(sg));
+-	}
++	unsigned long nrpages;
+ 
++	nrpages = iommu_sg_num_pages(dev, sglist, nelems);
+ 	intel_unmap(dev, startaddr, nrpages << VTD_PAGE_SHIFT);
  }
  
--static int sg_num_pages(struct device *dev,
--			struct scatterlist *sglist,
--			int nelems)
--{
--	unsigned long mask, boundary_size;
--	struct scatterlist *s;
--	int i, npages = 0;
--
--	mask          = dma_get_seg_boundary(dev);
--	boundary_size = mask + 1 ? ALIGN(mask + 1, PAGE_SIZE) >> PAGE_SHIFT :
--				   1UL << (BITS_PER_LONG - PAGE_SHIFT);
--
--	for_each_sg(sglist, s, nelems, i) {
--		int p, n;
--
--		s->dma_address = npages << PAGE_SHIFT;
--		p = npages % boundary_size;
--		n = iommu_num_pages(sg_phys(s), s->length, PAGE_SIZE);
--		if (p + n > boundary_size)
--			npages += boundary_size - p;
--		npages += n;
--	}
--
--	return npages;
--}
--
- /*
-  * The exported map_sg function for dma_ops (handles scatter-gather
-  * lists).
-@@ -2507,7 +2481,7 @@ static int map_sg(struct device *dev, struct scatterlist *sglist,
- 	dma_dom  = to_dma_ops_domain(domain);
- 	dma_mask = *dev->dma_mask;
+@@ -3813,14 +3808,12 @@ static int intel_nontranslate_map_sg(struct device *hddev,
+ static int intel_map_sg(struct device *dev, struct scatterlist *sglist, int nelems,
+ 			enum dma_data_direction dir, unsigned long attrs)
+ {
+-	int i;
+ 	struct dmar_domain *domain;
+ 	size_t size = 0;
+ 	int prot = 0;
+ 	unsigned long iova_pfn;
+ 	int ret;
+-	struct scatterlist *sg;
+-	unsigned long start_vpfn;
++	unsigned long start_vpfn, npages;
+ 	struct intel_iommu *iommu;
  
--	npages = sg_num_pages(dev, sglist, nelems);
+ 	BUG_ON(dir == DMA_NONE);
+@@ -3833,11 +3826,9 @@ static int intel_map_sg(struct device *dev, struct scatterlist *sglist, int nele
+ 
+ 	iommu = domain_get_iommu(domain);
+ 
+-	for_each_sg(sglist, sg, nelems, i)
+-		size += aligned_nrpages(sg->offset, sg->length);
 +	npages = iommu_sg_num_pages(dev, sglist, nelems);
  
- 	address = dma_ops_alloc_iova(dev, dma_dom, npages, dma_mask);
- 	if (address == AMD_IOMMU_MAPPING_ERROR)
-@@ -2585,7 +2559,7 @@ static void unmap_sg(struct device *dev, struct scatterlist *sglist,
- 
- 	startaddr = sg_dma_address(sglist) & PAGE_MASK;
- 	dma_dom   = to_dma_ops_domain(domain);
--	npages    = sg_num_pages(dev, sglist, nelems);
-+	npages    = iommu_sg_num_pages(dev, sglist, nelems);
- 
- 	__unmap_single(dma_dom, startaddr, npages << PAGE_SHIFT, dir);
- }
-diff --git a/drivers/iommu/iommu.c b/drivers/iommu/iommu.c
-index 3de5c0bcb5cc..cfe6eeea3578 100644
---- a/drivers/iommu/iommu.c
-+++ b/drivers/iommu/iommu.c
-@@ -33,6 +33,7 @@
- #include <linux/bitops.h>
- #include <linux/property.h>
- #include <trace/events/iommu.h>
-+#include <linux/iommu-helper.h>
- 
- static struct kset *iommu_group_kset;
- static DEFINE_IDA(iommu_group_ida);
-@@ -1631,6 +1632,32 @@ size_t iommu_unmap_fast(struct iommu_domain *domain,
- }
- EXPORT_SYMBOL_GPL(iommu_unmap_fast);
- 
-+int iommu_sg_num_pages(struct device *dev, struct scatterlist *sglist,
-+		int nelems)
-+{
-+	unsigned long mask, boundary_size;
-+	struct scatterlist *s;
-+	int i, npages = 0;
-+
-+	mask = dma_get_seg_boundary(dev);
-+	boundary_size = mask + 1 ? ALIGN(mask + 1, PAGE_SIZE) >> PAGE_SHIFT
-+		: 1UL << (BITS_PER_LONG - PAGE_SHIFT);
-+
-+	for_each_sg(sglist, s, nelems, i) {
-+		int p, n;
-+
-+		s->dma_address = npages << PAGE_SHIFT;
-+		p = npages % boundary_size;
-+		n = iommu_num_pages(sg_phys(s), s->length, PAGE_SIZE);
-+		if (p + n > boundary_size)
-+			npages += boundary_size - p;
-+		npages += n;
-+	}
-+
-+	return npages;
-+}
-+EXPORT_SYMBOL_GPL(iommu_sg_num_pages);
-+
- size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
- 			 struct scatterlist *sg, unsigned int nents, int prot)
- {
-diff --git a/include/linux/iommu.h b/include/linux/iommu.h
-index a7f2ac689d29..5b2d20e1475a 100644
---- a/include/linux/iommu.h
-+++ b/include/linux/iommu.h
-@@ -303,6 +303,8 @@ extern size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova,
- 			  size_t size);
- extern size_t iommu_unmap_fast(struct iommu_domain *domain,
- 			       unsigned long iova, size_t size);
-+extern int iommu_sg_num_pages(struct device *dev, struct scatterlist *sglist,
-+		int nelems);
- extern size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
- 				struct scatterlist *sg,unsigned int nents,
- 				int prot);
+-	iova_pfn = intel_alloc_iova(dev, domain, dma_to_mm_pfn(size),
+-				*dev->dma_mask);
++	iova_pfn = intel_alloc_iova(dev, domain, npages, *dev->dma_mask);
+ 	if (!iova_pfn) {
+ 		sglist->dma_length = 0;
+ 		return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
