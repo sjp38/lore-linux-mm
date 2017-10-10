@@ -1,82 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 59F536B025E
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 04:32:35 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id x54so11841464qth.14
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 01:32:35 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v12si4091449qta.252.2017.10.10.01.32.34
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 741CD6B025E
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 04:45:06 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id t5so1098220lfe.1
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 01:45:06 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u68si9407353wrc.234.2017.10.10.01.45.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Oct 2017 01:32:34 -0700 (PDT)
-Subject: Re: [PATCH] kvm, mm: account kvm related kmem slabs to kmemcg
-References: <20171006010724.186563-1-shakeelb@google.com>
-From: Paolo Bonzini <pbonzini@redhat.com>
-Message-ID: <362f2d20-6cc4-1ac4-604a-21dad88920b5@redhat.com>
-Date: Tue, 10 Oct 2017 10:32:28 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 10 Oct 2017 01:45:04 -0700 (PDT)
+Date: Tue, 10 Oct 2017 10:45:01 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mm/page-writeback.c: fix bug caused by disable periodic
+ writeback
+Message-ID: <20171010084501.GC775@quack2.suse.cz>
+References: <1507330684-2205-1-git-send-email-laoar.shao@gmail.com>
+ <20171009154212.bdf3645a2dce5d540657914b@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20171006010724.186563-1-shakeelb@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171009154212.bdf3645a2dce5d540657914b@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, x86@kernel.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Yafang Shao <laoar.shao@gmail.com>, jack@suse.cz, mhocko@suse.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, tytso@mit.edu, mawilcox@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>
 
-On 06/10/2017 03:07, Shakeel Butt wrote:
-> The kvm slabs can consume a significant amount of system memory
-> and indeed in our production environment we have observed that
-> a lot of machines are spending significant amount of memory that
-> can not be left as system memory overhead. Also the allocations
-> from these slabs can be triggered directly by user space applications
-> which has access to kvm and thus a buggy application can leak
-> such memory. So, these caches should be accounted to kmemcg.
+On Mon 09-10-17 15:42:12, Andrew Morton wrote:
+> On Sat,  7 Oct 2017 06:58:04 +0800 Yafang Shao <laoar.shao@gmail.com> wrote:
 > 
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
-> ---
->  arch/x86/kvm/mmu.c  | 4 ++--
->  virt/kvm/kvm_main.c | 2 +-
->  2 files changed, 3 insertions(+), 3 deletions(-)
+> > After disable periodic writeback by writing 0 to
+> > dirty_writeback_centisecs, the handler wb_workfn() will not be
+> > entered again until the dirty background limit reaches or
+> > sync syscall is executed or no enough free memory available or
+> > vmscan is triggered.
+> > So the periodic writeback can't be enabled by writing a non-zero
+> > value to dirty_writeback_centisecs
+> > As it can be disabled by sysctl, it should be able to enable by 
+> > sysctl as well.
+> > 
+> > ...
+> >
+> > --- a/mm/page-writeback.c
+> > +++ b/mm/page-writeback.c
+> > @@ -1972,7 +1972,13 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
+> >  int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
+> >  	void __user *buffer, size_t *length, loff_t *ppos)
+> >  {
+> > -	proc_dointvec(table, write, buffer, length, ppos);
+> > +	unsigned int old_interval = dirty_writeback_interval;
+> > +	int ret;
+> > +
+> > +	ret = proc_dointvec(table, write, buffer, length, ppos);
+> > +	if (!ret && !old_interval && dirty_writeback_interval)
+> > +		wakeup_flusher_threads(0, WB_REASON_PERIODIC);
+> > +
+> >  	return 0;
 > 
-> diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-> index eca30c1eb1d9..87c5db9e644d 100644
-> --- a/arch/x86/kvm/mmu.c
-> +++ b/arch/x86/kvm/mmu.c
-> @@ -5475,13 +5475,13 @@ int kvm_mmu_module_init(void)
->  
->  	pte_list_desc_cache = kmem_cache_create("pte_list_desc",
->  					    sizeof(struct pte_list_desc),
-> -					    0, 0, NULL);
-> +					    0, SLAB_ACCOUNT, NULL);
->  	if (!pte_list_desc_cache)
->  		goto nomem;
->  
->  	mmu_page_header_cache = kmem_cache_create("kvm_mmu_page_header",
->  						  sizeof(struct kvm_mmu_page),
-> -						  0, 0, NULL);
-> +						  0, SLAB_ACCOUNT, NULL);
->  	if (!mmu_page_header_cache)
->  		goto nomem;
->  
-> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-> index 9deb5a245b83..3d73299e05f2 100644
-> --- a/virt/kvm/kvm_main.c
-> +++ b/virt/kvm/kvm_main.c
-> @@ -4010,7 +4010,7 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
->  	if (!vcpu_align)
->  		vcpu_align = __alignof__(struct kvm_vcpu);
->  	kvm_vcpu_cache = kmem_cache_create("kvm_vcpu", vcpu_size, vcpu_align,
-> -					   0, NULL);
-> +					   SLAB_ACCOUNT, NULL);
->  	if (!kvm_vcpu_cache) {
->  		r = -ENOMEM;
->  		goto out_free_3;
+> We could do with a code comment here, explaining why this code exists.
 > 
+> And...  I'm not sure it works correctly?  For example, if a device
+> doesn't presently have bdi_has_dirty_io() then wakeup_flusher_threads()
+> will skip it and the periodic writeback still won't be started?
 
-Queued, thanks.
+This works correctly. For this case __mark_inode_dirty() has:
 
-Paolo
+      if (bdi_cap_writeback_dirty(wb->bdi) && wakeup_bdi)
+              wb_wakeup_delayed(wb);
+
+So periodic writeback gets automatically started once first dirty inode
+appears on a bdi.
+
+> (why does the dirty_writeback_interval==0 special case exist, btw? 
+> Seems to be a strange thing to do).
+
+I guess to prevent busylooping? But I'm not sure...
+ 
+> (and what happens if the interval was set to 1 hour and the user
+> rewrites that to 1 second?  Does that change take 1 hour to take
+> effect?)
+
+That's a good point I didn't think about. So probably we should do the
+wakeup whenever dirty_writeback_interval changes. 
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
