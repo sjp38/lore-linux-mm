@@ -1,81 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 606326B0266
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 15:19:24 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id u138so3986001wmu.2
-        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 12:19:24 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d17sor904436wra.44.2017.10.11.12.19.23
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DD176B0253
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 15:22:43 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id t134so2010819oih.6
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 12:22:43 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id r26sor4213799ote.331.2017.10.11.12.22.42
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 11 Oct 2017 12:19:23 -0700 (PDT)
-Subject: Re: [PATCH 10/11] Change mapping of kasan_zero_page int readonly
-References: <20171011082227.20546-1-liuwenliang@huawei.com>
- <20171011082227.20546-11-liuwenliang@huawei.com>
-From: Florian Fainelli <f.fainelli@gmail.com>
-Message-ID: <c59a7a5a-8168-8409-228a-0e4f841ced98@gmail.com>
-Date: Wed, 11 Oct 2017 12:19:13 -0700
+        Wed, 11 Oct 2017 12:22:42 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20171011082227.20546-11-liuwenliang@huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20171011185146.20295-1-pagupta@redhat.com>
+References: <20171011185146.20295-1-pagupta@redhat.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 11 Oct 2017 12:22:41 -0700
+Message-ID: <CAPcyv4iav2gjHR63UfZmzp5u6mZciszarqrn=QXnvf+zjjgEUg@mail.gmail.com>
+Subject: Re: [RFC] KVM "fake DAX" device flushing
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Abbott Liu <liuwenliang@huawei.com>, linux@armlinux.org.uk, aryabinin@virtuozzo.com, afzal.mohd.ma@gmail.com, labbott@redhat.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, cdall@linaro.org, marc.zyngier@arm.com, catalin.marinas@arm.com, akpm@linux-foundation.org, mawilcox@microsoft.com, tglx@linutronix.de, thgarnie@google.com, keescook@chromium.org, arnd@arndb.de, vladimir.murzin@arm.com, tixy@linaro.org, ard.biesheuvel@linaro.org, robin.murphy@arm.com, mingo@kernel.org, grygorii.strashko@linaro.org
-Cc: glider@google.com, dvyukov@google.com, opendmb@gmail.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, jiazhenghua@huawei.com, dylix.dailei@huawei.com, zengweilin@huawei.com, heshaoliang@huawei.com
+To: Pankaj Gupta <pagupta@redhat.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KVM list <kvm@vger.kernel.org>, Qemu Developers <qemu-devel@nongnu.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Stefan Hajnoczi <stefanha@redhat.com>, Rik van Riel <riel@redhat.com>, Haozhong Zhang <haozhong.zhang@intel.com>, Nitesh Narayan Lal <nilal@redhat.com>, Kevin Wolf <kwolf@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, "Zwisler, Ross" <ross.zwisler@intel.com>, David Hildenbrand <david@redhat.com>, Xiao Guangrong <xiaoguangrong.eric@gmail.com>
 
-On 10/11/2017 01:22 AM, Abbott Liu wrote:
->  Because the kasan_zero_page(which is used as the shadow
->  region for some memory that KASan doesn't need to track.) won't be writen
->  after kasan_init, so change the mapping of kasan_zero_page into readonly.
-> 
-> Cc: Andrey Ryabinin <a.ryabinin@samsung.com>
-> ---
->  arch/arm/mm/kasan_init.c | 12 ++++++++++++
->  1 file changed, 12 insertions(+)
-> 
-> diff --git a/arch/arm/mm/kasan_init.c b/arch/arm/mm/kasan_init.c
-> index 7cfdc39..c11826a 100644
-> --- a/arch/arm/mm/kasan_init.c
-> +++ b/arch/arm/mm/kasan_init.c
-> @@ -200,6 +200,7 @@ void __init kasan_init(void)
->  {
->  	struct memblock_region *reg;
->  	u64 orig_ttbr0;
-> +	int i;
+On Wed, Oct 11, 2017 at 11:51 AM, Pankaj Gupta <pagupta@redhat.com> wrote:
+> We are sharing the prototype version of 'fake DAX' flushing
+> interface for the initial feedback. This is still work in progress
+> and not yet ready for merging.
+>
+> Protoype right now just implements basic functionality without advanced
+> features with two major parts:
+>
+> - Qemu virtio-pmem device
+>   It exposes a persistent memory range to KVM guest which at host side is file
+>   backed memory and works as persistent memory device. In addition to this it
+>   provides a virtio flushing interface for KVM guest to do a Qemu side sync for
+>   guest DAX persistent memory range.
+>
+> - Guest virtio-pmem driver
+>   Reads persistent memory range from paravirt device and reserves system memory map.
+>   It also allocates a block device corresponding to the pmem range which is accessed
+>   by DAX capable file systems. (file system support is still pending).
+>
+> We shared the project idea for 'fake DAX' flushing interface here [1].
+> Based on suggestions here [2], we implemented guest 'virtio-pmem'
+> driver and Qemu paravirt device.
+>
+> [1] https://www.spinics.net/lists/kvm/msg149761.html
+> [2] https://www.spinics.net/lists/kvm/msg153095.html
+>
+> Work yet to be done:
+>
+> - Separate out the common code used by ACPI pmem interface and
+>   reuse it.
+>
+> - In pmem device memmap allocation and working. There is some parallel work
+>   going on upstream related to 'memory_hotplug restructuring' [3] and also hitting
+>   a memory section alignment issue [4].
+>
+>   [3] https://lwn.net/Articles/712099/
+>   [4] https://www.mail-archive.com/linux-nvdimm@lists.01.org/msg02978.html
+>
+> - Provide DAX capable file-system(ext4 & XFS) support.
+> - Qemu device flush functionality.
+> - Qemu live migration work when host page cache is used.
+> - Multiple virtio-pmem disks support.
+>
+> Prototype implementation for feedback:
+>
+> Kernel: https://github.com/pagupta/linux/commit/d15cf90074eae91aeed7a228da3faf319566dd40
 
-Nit: unsigned int i.
-
->  
->  	orig_ttbr0 = cpu_get_ttbr(0);
->  
-> @@ -243,6 +244,17 @@ void __init kasan_init(void)
->  	create_mapping((unsigned long)kasan_mem_to_shadow((void *)MODULES_VADDR),
->  		(unsigned long)kasan_mem_to_shadow((void *)(PKMAP_BASE+PMD_SIZE)),
->  		NUMA_NO_NODE);
-> +
-> +	/*
-> +	 * KAsan may reuse the contents of kasan_zero_pte directly, so we
-> +	 * should make sure that it maps the zero page read-only.
-> +	 */
-> +	for (i = 0; i < PTRS_PER_PTE; i++)
-> +                set_pte_at(&init_mm, KASAN_SHADOW_START + i*PAGE_SIZE,
-> +                        &kasan_zero_pte[i], pfn_pte(
-> +                                virt_to_pfn(kasan_zero_page),
-> +                                __pgprot(_L_PTE_DEFAULT | L_PTE_DIRTY | L_PTE_XN | L_PTE_RDONLY)));
-> +	memset(kasan_zero_page, 0, PAGE_SIZE);
-
-
-
->  	cpu_set_ttbr0(orig_ttbr0);
->  	flush_cache_all();
->  	local_flush_bp_all();
-> 
-
-
--- 
-Florian
+Please send this as a patch so it can be reviewed over email.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
