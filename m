@@ -1,74 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 92AE46B0253
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 05:57:10 -0400 (EDT)
-Received: by mail-ua0-f200.google.com with SMTP id d3so572268uai.7
-        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 02:57:10 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id i92sor2663817uad.41.2017.10.11.02.57.09
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FA8E6B0253
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 07:15:17 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id u130so1002694oib.21
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 04:15:17 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id x4si5745884oti.73.2017.10.11.04.15.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 11 Oct 2017 02:57:09 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <6184cd73-6d78-b490-3fdd-2d577ef033a6@virtuozzo.com>
-References: <20171010152731.26031-1-glider@google.com> <20171010152731.26031-2-glider@google.com>
- <6184cd73-6d78-b490-3fdd-2d577ef033a6@virtuozzo.com>
-From: Alexander Potapenko <glider@google.com>
-Date: Wed, 11 Oct 2017 11:57:08 +0200
-Message-ID: <CAG_fn=UFQe7wrTcDxGAfi3Gr=JMjYDg_cRLxeDsxm508mR3yKg@mail.gmail.com>
-Subject: Re: [PATCH v3 2/3] Makefile: support flag -fsanitizer-coverage=trace-cmp
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 11 Oct 2017 04:15:14 -0700 (PDT)
+Subject: Re: [PATCH] mm,page_alloc: softlockup on warn_alloc on
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20170915095849.9927-1-yuwang668899@gmail.com>
+	<20170915143732.GA8397@cmpxchg.org>
+	<201709161312.CAJ73470.FSOHFMVJLFQOOt@I-love.SAKURA.ne.jp>
+In-Reply-To: <201709161312.CAJ73470.FSOHFMVJLFQOOt@I-love.SAKURA.ne.jp>
+Message-Id: <201710112014.CCJ78649.tOMFSHOFVLOJFQ@I-love.SAKURA.ne.jp>
+Date: Wed, 11 Oct 2017 20:14:56 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Alexander Popov <alex.popov@linux.com>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrey Konovalov <andreyknvl@google.com>, Kees Cook <keescook@chromium.org>, Vegard Nossum <vegard.nossum@oracle.com>, syzkaller <syzkaller@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: hannes@cmpxchg.org
+Cc: yuwang668899@gmail.com, mhocko@suse.com, linux-mm@kvack.org, chenggang.qcg@alibaba-inc.com, yuwang.yuwang@alibaba-inc.com, akpm@linux-foundation.org
 
-On Tue, Oct 10, 2017 at 5:51 PM, Andrey Ryabinin
-<aryabinin@virtuozzo.com> wrote:
->
->
-> On 10/10/2017 06:27 PM, Alexander Potapenko wrote:
->>
->> v3: - Andrey Ryabinin's comments: reinstated scripts/Makefile.kcov
->>       and moved CFLAGS_KCOV there, dropped CFLAGS_KCOV_COMPS
->
-> Huh? Try again.
-Reverted Makefile.lib in v4. Thanks!
->> diff --git a/scripts/Makefile.lib b/scripts/Makefile.lib
->> index 5e975fee0f5b..7ddd5932c832 100644
->> --- a/scripts/Makefile.lib
->> +++ b/scripts/Makefile.lib
->> @@ -142,6 +142,12 @@ _c_flags +=3D $(if $(patsubst n%,, \
->>       $(CFLAGS_KCOV))
->>  endif
->>
->> +ifeq ($(CONFIG_KCOV_ENABLE_COMPARISONS),y)
->> +_c_flags +=3D $(if $(patsubst n%,, \
->> +     $(KCOV_INSTRUMENT_$(basetarget).o)$(KCOV_INSTRUMENT)$(CONFIG_KCOV_=
-INSTRUMENT_ALL)), \
->> +     $(CFLAGS_KCOV_COMPS))
->> +endif
->> +
->>  # If building the kernel in a separate objtree expand all occurrences
->>  # of -Idir to -I$(srctree)/dir except for absolute paths (starting with=
- '/').
->>
->>
-
-
-
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+Tetsuo Handa wrote:
+> Johannes Weiner wrote:
+> > On Fri, Sep 15, 2017 at 05:58:49PM +0800, wang Yu wrote:
+> > > From: "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
+> > > 
+> > > I found a softlockup when running some stress testcase in 4.9.x,
+> > > but i think the mainline have the same problem.
+> > > 
+> > > call trace:
+> > > [365724.502896] NMI watchdog: BUG: soft lockup - CPU#31 stuck for 22s!
+> > > [jbd2/sda3-8:1164]
+> > 
+> > We've started seeing the same thing on 4.11. Tons and tons of
+> > allocation stall warnings followed by the soft lock-ups.
+> 
+> Forgot to comment. Since you are able to reproduce the problem (aren't you?),
+> please try setting 1 to /proc/sys/kernel/softlockup_all_cpu_backtrace so that
+> we can know what other CPUs are doing. It does not need to patch kernels.
+> 
+Johannes, were you able to reproduce the problem? I'd like to continue
+warn_alloc() serialization patch if you can confirm that uncontrolled
+flooding of allocation stall warning can lead to soft lockups.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
