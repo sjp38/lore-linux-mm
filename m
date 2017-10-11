@@ -1,191 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A8A86B0268
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 05:55:10 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id a32so521730wrc.12
-        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 02:55:10 -0700 (PDT)
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 451646B026B
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 05:56:03 -0400 (EDT)
+Received: by mail-ua0-f198.google.com with SMTP id l40so579120uah.2
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 02:56:03 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 56sor4672108wrx.88.2017.10.11.02.55.08
+        by mx.google.com with SMTPS id u40sor2374804uaf.186.2017.10.11.02.56.02
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 11 Oct 2017 02:55:08 -0700 (PDT)
+        Wed, 11 Oct 2017 02:56:02 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CACT4Y+ZeYmOXK8P37+HkfYAavnSsnoMDYLP7MF6FL_VpnC6bZw@mail.gmail.com>
+References: <20171009150521.82775-1-glider@google.com> <20171009154610.GA22534@leverpostej>
+ <CAG_fn=UsTCyueyuMGT8i6ZoX9CWwvE9GhJAWnsJsPhf1AY2Z4Q@mail.gmail.com> <CACT4Y+ZeYmOXK8P37+HkfYAavnSsnoMDYLP7MF6FL_VpnC6bZw@mail.gmail.com>
 From: Alexander Potapenko <glider@google.com>
-Subject: [PATCH v4 3/3] kcov: update documentation
-Date: Wed, 11 Oct 2017 11:54:59 +0200
-Message-Id: <20171011095459.70721-3-glider@google.com>
-In-Reply-To: <20171011095459.70721-1-glider@google.com>
-References: <20171011095459.70721-1-glider@google.com>
+Date: Wed, 11 Oct 2017 11:56:01 +0200
+Message-ID: <CAG_fn=XwnAoZHtwLEOkysKNY+WPkzz1gCi1ZwN9JbYKQinqnNA@mail.gmail.com>
+Subject: Re: [PATCH v2 1/3] kcov: support comparison operands collection
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mark.rutland@arm.com, alex.popov@linux.com, aryabinin@virtuozzo.com, quentin.casasnovas@oracle.com, dvyukov@google.com, andreyknvl@google.com, keescook@chromium.org, vegard.nossum@oracle.com
-Cc: syzkaller@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Popov <alex.popov@linux.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Andrey Konovalov <andreyknvl@google.com>, Kees Cook <keescook@chromium.org>, Vegard Nossum <vegard.nossum@oracle.com>, syzkaller <syzkaller@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-From: Victor Chibotaru <tchibo@google.com>
+On Tue, Oct 10, 2017 at 5:34 PM, 'Dmitry Vyukov' via syzkaller
+<syzkaller@googlegroups.com> wrote:
+> On Tue, Oct 10, 2017 at 5:28 PM, 'Alexander Potapenko' via syzkaller
+> <syzkaller@googlegroups.com> wrote:
+>> On Mon, Oct 9, 2017 at 8:46 AM, Mark Rutland <mark.rutland@arm.com> wrot=
+e:
+>>> Hi,
+>>>
+>>> I look forward to using this! :)
+>>>
+>>> I just have afew comments below.
+>>>
+>>> On Mon, Oct 09, 2017 at 05:05:19PM +0200, Alexander Potapenko wrote:
+>>>> +/*
+>>>> + * Defines the format for the types of collected comparisons.
+>>>> + */
+>>>> +enum kcov_cmp_type {
+>>>> +     /*
+>>>> +      * LSB shows whether one of the arguments is a compile-time cons=
+tant.
+>>>> +      */
+>>>> +     KCOV_CMP_CONST =3D 1,
+>>>> +     /*
+>>>> +      * Second and third LSBs contain the size of arguments (1/2/4/8 =
+bytes).
+>>>> +      */
+>>>> +     KCOV_CMP_SIZE1 =3D 0,
+>>>> +     KCOV_CMP_SIZE2 =3D 2,
+>>>> +     KCOV_CMP_SIZE4 =3D 4,
+>>>> +     KCOV_CMP_SIZE8 =3D 6,
+>>>> +     KCOV_CMP_SIZE_MASK =3D 6,
+>>>> +};
+>>>
+>>> Given that LSB is meant to be OR-ed in, (and hence combinations of
+>>> values are meaningful) I don't think it makes sense for this to be an
+>>> enum. This would clearer as something like:
+>>>
+>>> /*
+>>>  * The format for the types of collected comparisons.
+>>>  *
+>>>  * Bit 0 shows whether one of the arguments is a compile-time constant.
+>>>  * Bits 1 & 2 contain log2 of the argument size, up to 8 bytes.
+>>>  */
+>>> #define KCOV_CMP_CONST          (1 << 0)
+>>> #define KCOV_CMP_SIZE(n)        ((n) << 1)
+>>> #define KCOV_CMP_MASK           KCOV_CMP_SIZE(3)
+>> Agreed.
+>>> ... I note that a few places in the kernel use a 128-bit type. Are
+>>> 128-bit comparisons not instrumented?
+>>>
+>>> [...]
+>>>
+>>>> +static bool check_kcov_mode(enum kcov_mode needed_mode, struct task_s=
+truct *t)
+>>>> +{
+>>>> +     enum kcov_mode mode;
+>>>> +
+>>>> +     /*
+>>>> +      * We are interested in code coverage as a function of a syscall=
+ inputs,
+>>>> +      * so we ignore code executed in interrupts.
+>>>> +      */
+>>>> +     if (!t || !in_task())
+>>>> +             return false;
+>>>
+>>> This !t check can go, as with the one in __sanitizer_cov_trace_pc, sinc=
+e
+>>> t is always current, and therefore cannot be NULL.
+>> Ok.
+>>> IIRC there's a patch queued for that, which this may conflict with.
+>> Sorry, I don't quite understand what exactly is conflicting here.
+>
+>
+> This patch should be in mm tree:
+> https://patchwork.kernel.org/patch/9978383/
+Ok, I've rebased on top of it, see v4.
+> --
+> You received this message because you are subscribed to the Google Groups=
+ "syzkaller" group.
+> To unsubscribe from this group and stop receiving emails from it, send an=
+ email to syzkaller+unsubscribe@googlegroups.com.
+> For more options, visit https://groups.google.com/d/optout.
 
-The updated documentation describes new KCOV mode for collecting
-comparison operands.
 
-Signed-off-by: Victor Chibotaru <tchibo@google.com>
-Signed-off-by: Alexander Potapenko <glider@google.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mark Rutland <mark.rutland@arm.com>
-Cc: Alexander Popov <alex.popov@linux.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Vegard Nossum <vegard.nossum@oracle.com>
-Cc: Quentin Casasnovas <quentin.casasnovas@oracle.com>
-Cc: syzkaller@googlegroups.com
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
-v3: - update the test program to match new uapi
-v2: - reflect the changes to kcov.c in the test program.
----
- Documentation/dev-tools/kcov.rst | 99 ++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 95 insertions(+), 4 deletions(-)
 
-diff --git a/Documentation/dev-tools/kcov.rst b/Documentation/dev-tools/kcov.rst
-index 44886c91e112..c2f6452e38ed 100644
---- a/Documentation/dev-tools/kcov.rst
-+++ b/Documentation/dev-tools/kcov.rst
-@@ -12,19 +12,30 @@ To achieve this goal it does not collect coverage in soft/hard interrupts
- and instrumentation of some inherently non-deterministic parts of kernel is
- disabled (e.g. scheduler, locking).
- 
--Usage
-------
-+kcov is also able to collect comparison operands from the instrumented code
-+(this feature currently requires that the kernel is compiled with clang).
-+
-+Prerequisites
-+-------------
- 
- Configure the kernel with::
- 
-         CONFIG_KCOV=y
- 
- CONFIG_KCOV requires gcc built on revision 231296 or later.
-+
-+If the comparison operands need to be collected, set::
-+
-+	CONFIG_KCOV_ENABLE_COMPARISONS=y
-+
- Profiling data will only become accessible once debugfs has been mounted::
- 
-         mount -t debugfs none /sys/kernel/debug
- 
--The following program demonstrates kcov usage from within a test program:
-+Coverage collection
-+-------------------
-+The following program demonstrates coverage collection from within a test
-+program using kcov:
- 
- .. code-block:: c
- 
-@@ -44,6 +55,9 @@ The following program demonstrates kcov usage from within a test program:
-     #define KCOV_DISABLE			_IO('c', 101)
-     #define COVER_SIZE			(64<<10)
- 
-+    #define KCOV_TRACE_PC  0
-+    #define KCOV_TRACE_CMP 1
-+
-     int main(int argc, char **argv)
-     {
- 	int fd;
-@@ -64,7 +78,7 @@ The following program demonstrates kcov usage from within a test program:
- 	if ((void*)cover == MAP_FAILED)
- 		perror("mmap"), exit(1);
- 	/* Enable coverage collection on the current thread. */
--	if (ioctl(fd, KCOV_ENABLE, 0))
-+	if (ioctl(fd, KCOV_ENABLE, KCOV_TRACE_PC))
- 		perror("ioctl"), exit(1);
- 	/* Reset coverage from the tail of the ioctl() call. */
- 	__atomic_store_n(&cover[0], 0, __ATOMIC_RELAXED);
-@@ -111,3 +125,80 @@ The interface is fine-grained to allow efficient forking of test processes.
- That is, a parent process opens /sys/kernel/debug/kcov, enables trace mode,
- mmaps coverage buffer and then forks child processes in a loop. Child processes
- only need to enable coverage (disable happens automatically on thread end).
-+
-+Comparison operands collection
-+------------------------------
-+Comparison operands collection is similar to coverage collection:
-+
-+.. code-block:: c
-+
-+    /* Same includes and defines as above. */
-+
-+    /* Number of 64-bit words per record. */
-+    #define KCOV_WORDS_PER_CMP 4
-+
-+    /*
-+     * The format for the types of collected comparisons.
-+     *
-+     * Bit 0 shows whether one of the arguments is a compile-time constant.
-+     * Bits 1 & 2 contain log2 of the argument size, up to 8 bytes.
-+     */
-+
-+    #define KCOV_CMP_CONST          (1 << 0)
-+    #define KCOV_CMP_SIZE(n)        ((n) << 1)
-+    #define KCOV_CMP_MASK           KCOV_CMP_SIZE(3)
-+
-+    int main(int argc, char **argv)
-+    {
-+	int fd;
-+	uint64_t *cover, type, arg1, arg2, is_const, size;
-+	unsigned long n, i;
-+
-+	fd = open("/sys/kernel/debug/kcov", O_RDWR);
-+	if (fd == -1)
-+		perror("open"), exit(1);
-+	if (ioctl(fd, KCOV_INIT_TRACE, COVER_SIZE))
-+		perror("ioctl"), exit(1);
-+	/*
-+	* Note that the buffer pointer is of type uint64_t*, because all
-+	* the comparison operands are promoted to uint64_t.
-+	*/
-+	cover = (uint64_t *)mmap(NULL, COVER_SIZE * sizeof(unsigned long),
-+				     PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-+	if ((void*)cover == MAP_FAILED)
-+		perror("mmap"), exit(1);
-+	/* Note KCOV_TRACE_CMP instead of KCOV_TRACE_PC. */
-+	if (ioctl(fd, KCOV_ENABLE, KCOV_TRACE_CMP))
-+		perror("ioctl"), exit(1);
-+	__atomic_store_n(&cover[0], 0, __ATOMIC_RELAXED);
-+	read(-1, NULL, 0);
-+	/* Read number of comparisons collected. */
-+	n = __atomic_load_n(&cover[0], __ATOMIC_RELAXED);
-+	for (i = 0; i < n; i++) {
-+		type = cover[i * KCOV_WORDS_PER_CMP + 1];
-+		/* arg1 and arg2 - operands of the comparison. */
-+		arg1 = cover[i * KCOV_WORDS_PER_CMP + 2];
-+		arg2 = cover[i * KCOV_WORDS_PER_CMP + 3];
-+		/* ip - caller address. */
-+		ip = cover[i * KCOV_WORDS_PER_CMP + 4];
-+		/* size of the operands. */
-+		size = 1 << ((type & KCOV_CMP_MASK) >> 1);
-+		/* is_const - true if either operand is a compile-time constant.*/
-+		is_const = type & KCOV_CMP_CONST;
-+		printf("ip: 0x%lx type: 0x%lx, arg1: 0x%lx, arg2: 0x%lx, "
-+			"size: %lu, %s\n",
-+			ip, type, arg1, arg2, size,
-+		is_const ? "const" : "non-const");
-+	}
-+	if (ioctl(fd, KCOV_DISABLE, 0))
-+		perror("ioctl"), exit(1);
-+	/* Free resources. */
-+	if (munmap(cover, COVER_SIZE * sizeof(unsigned long)))
-+		perror("munmap"), exit(1);
-+	if (close(fd))
-+		perror("close"), exit(1);
-+	return 0;
-+    }
-+
-+Note that the kcov modes (coverage collection or comparison operands) are
-+mutually exclusive.
--- 
-2.15.0.rc0.271.g36b669edcc-goog
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
