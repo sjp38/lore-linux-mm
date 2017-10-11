@@ -1,75 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DD176B0253
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 15:22:43 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id t134so2010819oih.6
-        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 12:22:43 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id r26sor4213799ote.331.2017.10.11.12.22.42
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A68C6B025E
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 15:39:46 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id 10so7604486qty.5
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 12:39:46 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g7sor9040623qke.127.2017.10.11.12.39.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 11 Oct 2017 12:22:42 -0700 (PDT)
+        Wed, 11 Oct 2017 12:39:45 -0700 (PDT)
+Subject: Re: [PATCH 01/11] Initialize the mapping of KASan shadow memory
+References: <20171011082227.20546-1-liuwenliang@huawei.com>
+ <20171011082227.20546-2-liuwenliang@huawei.com>
+From: Florian Fainelli <f.fainelli@gmail.com>
+Message-ID: <b53b3281-5eef-7cbd-c7d3-5417d764667b@gmail.com>
+Date: Wed, 11 Oct 2017 12:39:39 -0700
 MIME-Version: 1.0
-In-Reply-To: <20171011185146.20295-1-pagupta@redhat.com>
-References: <20171011185146.20295-1-pagupta@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 11 Oct 2017 12:22:41 -0700
-Message-ID: <CAPcyv4iav2gjHR63UfZmzp5u6mZciszarqrn=QXnvf+zjjgEUg@mail.gmail.com>
-Subject: Re: [RFC] KVM "fake DAX" device flushing
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20171011082227.20546-2-liuwenliang@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pankaj Gupta <pagupta@redhat.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KVM list <kvm@vger.kernel.org>, Qemu Developers <qemu-devel@nongnu.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Stefan Hajnoczi <stefanha@redhat.com>, Rik van Riel <riel@redhat.com>, Haozhong Zhang <haozhong.zhang@intel.com>, Nitesh Narayan Lal <nilal@redhat.com>, Kevin Wolf <kwolf@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, "Zwisler, Ross" <ross.zwisler@intel.com>, David Hildenbrand <david@redhat.com>, Xiao Guangrong <xiaoguangrong.eric@gmail.com>
+To: Abbott Liu <liuwenliang@huawei.com>, linux@armlinux.org.uk, aryabinin@virtuozzo.com, afzal.mohd.ma@gmail.com, labbott@redhat.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, cdall@linaro.org, marc.zyngier@arm.com, catalin.marinas@arm.com, akpm@linux-foundation.org, mawilcox@microsoft.com, tglx@linutronix.de, thgarnie@google.com, keescook@chromium.org, arnd@arndb.de, vladimir.murzin@arm.com, tixy@linaro.org, ard.biesheuvel@linaro.org, robin.murphy@arm.com, mingo@kernel.org, grygorii.strashko@linaro.org
+Cc: glider@google.com, dvyukov@google.com, opendmb@gmail.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, jiazhenghua@huawei.com, dylix.dailei@huawei.com, zengweilin@huawei.com, heshaoliang@huawei.com
 
-On Wed, Oct 11, 2017 at 11:51 AM, Pankaj Gupta <pagupta@redhat.com> wrote:
-> We are sharing the prototype version of 'fake DAX' flushing
-> interface for the initial feedback. This is still work in progress
-> and not yet ready for merging.
->
-> Protoype right now just implements basic functionality without advanced
-> features with two major parts:
->
-> - Qemu virtio-pmem device
->   It exposes a persistent memory range to KVM guest which at host side is file
->   backed memory and works as persistent memory device. In addition to this it
->   provides a virtio flushing interface for KVM guest to do a Qemu side sync for
->   guest DAX persistent memory range.
->
-> - Guest virtio-pmem driver
->   Reads persistent memory range from paravirt device and reserves system memory map.
->   It also allocates a block device corresponding to the pmem range which is accessed
->   by DAX capable file systems. (file system support is still pending).
->
-> We shared the project idea for 'fake DAX' flushing interface here [1].
-> Based on suggestions here [2], we implemented guest 'virtio-pmem'
-> driver and Qemu paravirt device.
->
-> [1] https://www.spinics.net/lists/kvm/msg149761.html
-> [2] https://www.spinics.net/lists/kvm/msg153095.html
->
-> Work yet to be done:
->
-> - Separate out the common code used by ACPI pmem interface and
->   reuse it.
->
-> - In pmem device memmap allocation and working. There is some parallel work
->   going on upstream related to 'memory_hotplug restructuring' [3] and also hitting
->   a memory section alignment issue [4].
->
->   [3] https://lwn.net/Articles/712099/
->   [4] https://www.mail-archive.com/linux-nvdimm@lists.01.org/msg02978.html
->
-> - Provide DAX capable file-system(ext4 & XFS) support.
-> - Qemu device flush functionality.
-> - Qemu live migration work when host page cache is used.
-> - Multiple virtio-pmem disks support.
->
-> Prototype implementation for feedback:
->
-> Kernel: https://github.com/pagupta/linux/commit/d15cf90074eae91aeed7a228da3faf319566dd40
+On 10/11/2017 01:22 AM, Abbott Liu wrote:
+> From: Andrey Ryabinin <a.ryabinin@samsung.com>
+> 
+> This patch initializes KASan shadow region's page table and memory.
+> There are two stage for KASan initializing:
+> 1. At early boot stage the whole shadow region is mapped to just
+>    one physical page (kasan_zero_page). It's finished by the function
+>    kasan_early_init which is called by __mmap_switched(arch/arm/kernel/
+>    head-common.S)
+> 
+> 2. After the calling of paging_init, we use kasan_zero_page as zero
+>    shadow for some memory that KASan don't need to track, and we alloc
+>    new shadow space for the other memory that KASan need to track. These
+>    issues are finished by the function kasan_init which is call by setup_arch.
+> 
+> Cc: Andrey Ryabinin <a.ryabinin@samsung.com>
+> Signed-off-by: Abbott Liu <liuwenliang@huawei.com>
+> ---
 
-Please send this as a patch so it can be reviewed over email.
+[snip]
+
+				\
+> @@ -140,6 +149,30 @@ extern void cpu_resume(void);
+>  		pg &= ~0x3fff;				\
+>  		(pgd_t *)phys_to_virt(pg);		\
+>  	})
+> +
+> +#define cpu_set_ttbr(nr, val)					\
+> +	do {							\
+> +		u64 ttbr = val;					\
+> +		__asm__("mcr	p15, 0, %0, c2, c0, 0"		\
+> +			: : "r" (ttbr));			\
+> +	} while (0)
+
+nr seems to be unused here?
+
+> +
+> +#define cpu_get_ttbr(nr)					\
+> +	({							\
+> +		unsigned long ttbr;				\
+> +		__asm__("mrc	p15, 0, %0, c2, c0, 0"		\
+> +			: "=r" (ttbr));				\
+> +		ttbr;						\
+> +	})
+> +
+> +#define cpu_set_ttbr0(val)					\
+> +	do {							\
+> +		u64 ttbr = val;					\
+> +		__asm__("mcr	p15, 0, %0, c2, c0, 0"		\
+> +			: : "r" (ttbr));			\
+> +	} while (0)
+> +
+
+Why is not cpu_set_ttbr0() not using cpu_set_ttbr()?
+
+> +
+>  #endif
+>  
+>  #else	/*!CONFIG_MMU */
+> diff --git a/arch/arm/include/asm/thread_info.h b/arch/arm/include/asm/thread_info.h
+> index 1d468b5..52c4858 100644
+> --- a/arch/arm/include/asm/thread_info.h
+> +++ b/arch/arm/include/asm/thread_info.h
+> @@ -16,7 +16,11 @@
+>  #include <asm/fpstate.h>
+>  #include <asm/page.h>
+>  
+> +#ifdef CONFIG_KASAN
+> +#define THREAD_SIZE_ORDER       2
+> +#else
+>  #define THREAD_SIZE_ORDER	1
+> +#endif
+>  #define THREAD_SIZE		(PAGE_SIZE << THREAD_SIZE_ORDER)
+>  #define THREAD_START_SP		(THREAD_SIZE - 8)
+>  
+> diff --git a/arch/arm/kernel/head-common.S b/arch/arm/kernel/head-common.S
+> index 8733012..c17f4a2 100644
+> --- a/arch/arm/kernel/head-common.S
+> +++ b/arch/arm/kernel/head-common.S
+> @@ -101,7 +101,11 @@ __mmap_switched:
+>  	str	r2, [r6]			@ Save atags pointer
+>  	cmp	r7, #0
+>  	strne	r0, [r7]			@ Save control register values
+> +#ifdef CONFIG_KASAN
+> +	b	kasan_early_init
+> +#else
+>  	b	start_kernel
+> +#endif
+
+Please don't make this "exclusive" just conditionally call
+kasan_early_init(), remove the call to start_kernel from
+kasan_early_init and keep the call to start_kernel here.
+
+>  ENDPROC(__mmap_switched)
+>  
+>  	.align	2
+
+[snip]
+
+> +void __init kasan_early_init(void)
+> +{
+> +	struct proc_info_list *list;
+> +
+> +	/*
+> +	 * locate processor in the list of supported processor
+> +	 * types.  The linker builds this table for us from the
+> +	 * entries in arch/arm/mm/proc-*.S
+> +	 */
+> +	list = lookup_processor_type(read_cpuid_id());
+> +	if (list) {
+> +#ifdef MULTI_CPU
+> +		processor = *list->proc;
+> +#endif
+> +	}
+
+I could not quite spot in your patch series when do you need this
+information?
+-- 
+Florian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
