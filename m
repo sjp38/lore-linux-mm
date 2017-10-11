@@ -1,82 +1,323 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AC2386B0253
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 19:23:50 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id q124so1680567wmb.23
-        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 16:23:50 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j88si1503137edd.495.2017.10.11.16.23.49
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D082A6B0260
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 19:42:55 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id n69so66680lfn.18
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 16:42:55 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t4sor5520158wrb.18.2017.10.11.16.42.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Oct 2017 16:23:49 -0700 (PDT)
-Date: Wed, 11 Oct 2017 16:23:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 06/11] change memory_is_poisoned_16 for aligned error
-Message-Id: <20171011162345.f601c29d12c81af85bf38565@linux-foundation.org>
-In-Reply-To: <20171011082227.20546-7-liuwenliang@huawei.com>
+        (Google Transport Security);
+        Wed, 11 Oct 2017 16:42:54 -0700 (PDT)
+Subject: Re: [PATCH 01/11] Initialize the mapping of KASan shadow memory
 References: <20171011082227.20546-1-liuwenliang@huawei.com>
-	<20171011082227.20546-7-liuwenliang@huawei.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+ <20171011082227.20546-2-liuwenliang@huawei.com>
+From: Dmitry Osipenko <digetx@gmail.com>
+Message-ID: <31b16c9d-48c7-bc0a-51d1-cc6cf892329b@gmail.com>
+Date: Thu, 12 Oct 2017 02:42:49 +0300
+MIME-Version: 1.0
+In-Reply-To: <20171011082227.20546-2-liuwenliang@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Abbott Liu <liuwenliang@huawei.com>
-Cc: linux@armlinux.org.uk, aryabinin@virtuozzo.com, afzal.mohd.ma@gmail.com, f.fainelli@gmail.com, labbott@redhat.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, cdall@linaro.org, marc.zyngier@arm.com, catalin.marinas@arm.com, mawilcox@microsoft.com, tglx@linutronix.de, thgarnie@google.com, keescook@chromium.org, arnd@arndb.de, vladimir.murzin@arm.com, tixy@linaro.org, ard.biesheuvel@linaro.org, robin.murphy@arm.com, mingo@kernel.org, grygorii.strashko@linaro.org, glider@google.com, dvyukov@google.com, opendmb@gmail.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, jiazhenghua@huawei.com, dylix.dailei@huawei.com, zengweilin@huawei.com, heshaoliang@huawei.com
+To: Abbott Liu <liuwenliang@huawei.com>, linux@armlinux.org.uk, aryabinin@virtuozzo.com, afzal.mohd.ma@gmail.com, f.fainelli@gmail.com, labbott@redhat.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, cdall@linaro.org, marc.zyngier@arm.com, catalin.marinas@arm.com, akpm@linux-foundation.org, mawilcox@microsoft.com, tglx@linutronix.de, thgarnie@google.com, keescook@chromium.org, arnd@arndb.de, vladimir.murzin@arm.com, tixy@linaro.org, ard.biesheuvel@linaro.org, robin.murphy@arm.com, mingo@kernel.org, grygorii.strashko@linaro.org
+Cc: glider@google.com, dvyukov@google.com, opendmb@gmail.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, jiazhenghua@huawei.com, dylix.dailei@huawei.com, zengweilin@huawei.com, heshaoliang@huawei.com
 
-On Wed, 11 Oct 2017 16:22:22 +0800 Abbott Liu <liuwenliang@huawei.com> wrote:
-
->  Because arm instruction set don't support access the address which is
->  not aligned, so must change memory_is_poisoned_16 for arm.
+On 11.10.2017 11:22, Abbott Liu wrote:
+> From: Andrey Ryabinin <a.ryabinin@samsung.com>
 > 
-> ...
->
-> --- a/mm/kasan/kasan.c
-> +++ b/mm/kasan/kasan.c
-> @@ -149,6 +149,25 @@ static __always_inline bool memory_is_poisoned_2_4_8(unsigned long addr,
->  	return memory_is_poisoned_1(addr + size - 1);
->  }
->  
-> +#ifdef CONFIG_ARM
-> +static __always_inline bool memory_is_poisoned_16(unsigned long addr)
-> +{
-> +	u8 *shadow_addr = (u8 *)kasan_mem_to_shadow((void *)addr);
+> This patch initializes KASan shadow region's page table and memory.
+> There are two stage for KASan initializing:
+> 1. At early boot stage the whole shadow region is mapped to just
+>    one physical page (kasan_zero_page). It's finished by the function
+>    kasan_early_init which is called by __mmap_switched(arch/arm/kernel/
+>    head-common.S)
+> 
+> 2. After the calling of paging_init, we use kasan_zero_page as zero
+>    shadow for some memory that KASan don't need to track, and we alloc
+>    new shadow space for the other memory that KASan need to track. These
+>    issues are finished by the function kasan_init which is call by setup_arch.
+> 
+> Cc: Andrey Ryabinin <a.ryabinin@samsung.com>
+> Signed-off-by: Abbott Liu <liuwenliang@huawei.com>
+> ---
+>  arch/arm/include/asm/kasan.h       |  20 +++
+>  arch/arm/include/asm/pgalloc.h     |   5 +-
+>  arch/arm/include/asm/pgtable.h     |   1 +
+>  arch/arm/include/asm/proc-fns.h    |  33 +++++
+>  arch/arm/include/asm/thread_info.h |   4 +
+>  arch/arm/kernel/head-common.S      |   4 +
+>  arch/arm/kernel/setup.c            |   2 +
+>  arch/arm/mm/Makefile               |   5 +
+>  arch/arm/mm/kasan_init.c           | 257 +++++++++++++++++++++++++++++++++++++
+>  mm/kasan/kasan.c                   |   2 +-
+>  10 files changed, 331 insertions(+), 2 deletions(-)
+>  create mode 100644 arch/arm/include/asm/kasan.h
+>  create mode 100644 arch/arm/mm/kasan_init.c
+> 
+> diff --git a/arch/arm/include/asm/kasan.h b/arch/arm/include/asm/kasan.h
+> new file mode 100644
+> index 0000000..90ee60c
+> --- /dev/null
+> +++ b/arch/arm/include/asm/kasan.h
+> @@ -0,0 +1,20 @@
+> +#ifndef __ASM_KASAN_H
+> +#define __ASM_KASAN_H
 > +
-> +	if (unlikely(shadow_addr[0] || shadow_addr[1])) return true;
-
-Coding-style is messed up.  Please use scripts/checkpatch.pl.
-
-> +	else {
-> +		/*
-> +		 * If two shadow bytes covers 16-byte access, we don't
-> +		 * need to do anything more. Otherwise, test the last
-> +		 * shadow byte.
-> +		 */
-> +		if (likely(IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
-> +			return false;
-> +		return memory_is_poisoned_1(addr + 15);
+> +#ifdef CONFIG_KASAN
+> +
+> +#include <asm/kasan_def.h>
+> +/*
+> + * Compiler uses shadow offset assuming that addresses start
+> + * from 0. Kernel addresses don't start from 0, so shadow
+> + * for kernel really starts from 'compiler's shadow offset' +
+> + * ('kernel address space start' >> KASAN_SHADOW_SCALE_SHIFT)
+> + */
+> +
+> +extern void kasan_init(void);
+> +
+> +#else
+> +static inline void kasan_init(void) { }
+> +#endif
+> +
+> +#endif
+> diff --git a/arch/arm/include/asm/pgalloc.h b/arch/arm/include/asm/pgalloc.h
+> index b2902a5..10cee6a 100644
+> --- a/arch/arm/include/asm/pgalloc.h
+> +++ b/arch/arm/include/asm/pgalloc.h
+> @@ -50,8 +50,11 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
+>   */
+>  #define pmd_alloc_one(mm,addr)		({ BUG(); ((pmd_t *)2); })
+>  #define pmd_free(mm, pmd)		do { } while (0)
+> +#ifndef CONFIG_KASAN
+>  #define pud_populate(mm,pmd,pte)	BUG()
+> -
+> +#else
+> +#define pud_populate(mm,pmd,pte)	do { } while (0)
+> +#endif
+>  #endif	/* CONFIG_ARM_LPAE */
+>  
+>  extern pgd_t *pgd_alloc(struct mm_struct *mm);
+> diff --git a/arch/arm/include/asm/pgtable.h b/arch/arm/include/asm/pgtable.h
+> index 1c46238..fdf343f 100644
+> --- a/arch/arm/include/asm/pgtable.h
+> +++ b/arch/arm/include/asm/pgtable.h
+> @@ -97,6 +97,7 @@ extern pgprot_t		pgprot_s2_device;
+>  #define PAGE_READONLY		_MOD_PROT(pgprot_user, L_PTE_USER | L_PTE_RDONLY | L_PTE_XN)
+>  #define PAGE_READONLY_EXEC	_MOD_PROT(pgprot_user, L_PTE_USER | L_PTE_RDONLY)
+>  #define PAGE_KERNEL		_MOD_PROT(pgprot_kernel, L_PTE_XN)
+> +#define PAGE_KERNEL_RO		_MOD_PROT(pgprot_kernel, L_PTE_XN | L_PTE_RDONLY)
+>  #define PAGE_KERNEL_EXEC	pgprot_kernel
+>  #define PAGE_HYP		_MOD_PROT(pgprot_kernel, L_PTE_HYP | L_PTE_XN)
+>  #define PAGE_HYP_EXEC		_MOD_PROT(pgprot_kernel, L_PTE_HYP | L_PTE_RDONLY)
+> diff --git a/arch/arm/include/asm/proc-fns.h b/arch/arm/include/asm/proc-fns.h
+> index f2e1af4..6e26714 100644
+> --- a/arch/arm/include/asm/proc-fns.h
+> +++ b/arch/arm/include/asm/proc-fns.h
+> @@ -131,6 +131,15 @@ extern void cpu_resume(void);
+>  		pg &= ~(PTRS_PER_PGD*sizeof(pgd_t)-1);	\
+>  		(pgd_t *)phys_to_virt(pg);		\
+>  	})
+> +
+> +#define cpu_set_ttbr0(val)					\
+> +	do {							\
+> +		u64 ttbr = val;					\
+> +		__asm__("mcrr	p15, 0, %Q0, %R0, c2"		\
+> +			: : "r" (ttbr));	\
+> +	} while (0)
+> +
+> +
+>  #else
+>  #define cpu_get_pgd()	\
+>  	({						\
+> @@ -140,6 +149,30 @@ extern void cpu_resume(void);
+>  		pg &= ~0x3fff;				\
+>  		(pgd_t *)phys_to_virt(pg);		\
+>  	})
+> +
+> +#define cpu_set_ttbr(nr, val)					\
+> +	do {							\
+> +		u64 ttbr = val;					\
+> +		__asm__("mcr	p15, 0, %0, c2, c0, 0"		\
+> +			: : "r" (ttbr));			\
+> +	} while (0)
+> +
+> +#define cpu_get_ttbr(nr)					\
+> +	({							\
+> +		unsigned long ttbr;				\
+> +		__asm__("mrc	p15, 0, %0, c2, c0, 0"		\
+> +			: "=r" (ttbr));				\
+> +		ttbr;						\
+> +	})
+> +
+> +#define cpu_set_ttbr0(val)					\
+> +	do {							\
+> +		u64 ttbr = val;					\
+> +		__asm__("mcr	p15, 0, %0, c2, c0, 0"		\
+> +			: : "r" (ttbr));			\
+> +	} while (0)
+> +
+> +
+>  #endif
+>  
+>  #else	/*!CONFIG_MMU */
+> diff --git a/arch/arm/include/asm/thread_info.h b/arch/arm/include/asm/thread_info.h
+> index 1d468b5..52c4858 100644
+> --- a/arch/arm/include/asm/thread_info.h
+> +++ b/arch/arm/include/asm/thread_info.h
+> @@ -16,7 +16,11 @@
+>  #include <asm/fpstate.h>
+>  #include <asm/page.h>
+>  
+> +#ifdef CONFIG_KASAN
+> +#define THREAD_SIZE_ORDER       2
+> +#else
+>  #define THREAD_SIZE_ORDER	1
+> +#endif
+>  #define THREAD_SIZE		(PAGE_SIZE << THREAD_SIZE_ORDER)
+>  #define THREAD_START_SP		(THREAD_SIZE - 8)
+>  
+> diff --git a/arch/arm/kernel/head-common.S b/arch/arm/kernel/head-common.S
+> index 8733012..c17f4a2 100644
+> --- a/arch/arm/kernel/head-common.S
+> +++ b/arch/arm/kernel/head-common.S
+> @@ -101,7 +101,11 @@ __mmap_switched:
+>  	str	r2, [r6]			@ Save atags pointer
+>  	cmp	r7, #0
+>  	strne	r0, [r7]			@ Save control register values
+> +#ifdef CONFIG_KASAN
+> +	b	kasan_early_init
+> +#else
+>  	b	start_kernel
+> +#endif
+>  ENDPROC(__mmap_switched)
+>  
+>  	.align	2
+> diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
+> index 8e9a3e4..985d9a3 100644
+> --- a/arch/arm/kernel/setup.c
+> +++ b/arch/arm/kernel/setup.c
+> @@ -62,6 +62,7 @@
+>  #include <asm/unwind.h>
+>  #include <asm/memblock.h>
+>  #include <asm/virt.h>
+> +#include <asm/kasan.h>
+>  
+>  #include "atags.h"
+>  
+> @@ -1108,6 +1109,7 @@ void __init setup_arch(char **cmdline_p)
+>  	early_ioremap_reset();
+>  
+>  	paging_init(mdesc);
+> +	kasan_init();
+>  	request_standard_resources(mdesc);
+>  
+>  	if (mdesc->restart)
+> diff --git a/arch/arm/mm/Makefile b/arch/arm/mm/Makefile
+> index 950d19b..498c316 100644
+> --- a/arch/arm/mm/Makefile
+> +++ b/arch/arm/mm/Makefile
+> @@ -106,4 +106,9 @@ obj-$(CONFIG_CACHE_L2X0)	+= cache-l2x0.o l2c-l2x0-resume.o
+>  obj-$(CONFIG_CACHE_L2X0_PMU)	+= cache-l2x0-pmu.o
+>  obj-$(CONFIG_CACHE_XSC3L2)	+= cache-xsc3l2.o
+>  obj-$(CONFIG_CACHE_TAUROS2)	+= cache-tauros2.o
+> +
+> +KASAN_SANITIZE_kasan_init.o    := n
+> +obj-$(CONFIG_KASAN)            += kasan_init.o
+> +
+> +
+>  obj-$(CONFIG_CACHE_UNIPHIER)	+= cache-uniphier.o
+> diff --git a/arch/arm/mm/kasan_init.c b/arch/arm/mm/kasan_init.c
+> new file mode 100644
+> index 0000000..2bf0782
+> --- /dev/null
+> +++ b/arch/arm/mm/kasan_init.c
+> @@ -0,0 +1,257 @@
+> +#include <linux/bootmem.h>
+> +#include <linux/kasan.h>
+> +#include <linux/kernel.h>
+> +#include <linux/memblock.h>
+> +#include <linux/start_kernel.h>
+> +
+> +#include <asm/cputype.h>
+> +#include <asm/highmem.h>
+> +#include <asm/mach/map.h>
+> +#include <asm/memory.h>
+> +#include <asm/page.h>
+> +#include <asm/pgalloc.h>
+> +#include <asm/pgtable.h>
+> +#include <asm/procinfo.h>
+> +#include <asm/proc-fns.h>
+> +#include <asm/tlbflush.h>
+> +#include <asm/cp15.h>
+> +#include <linux/sched/task.h>
+> +
+> +#include "mm.h"
+> +
+> +static pgd_t tmp_page_table[PTRS_PER_PGD] __initdata __aligned(1ULL << 14);
+> +
+> +pmd_t tmp_pmd_table[PTRS_PER_PMD] __page_aligned_bss;
+> +
+> +static __init void *kasan_alloc_block(size_t size, int node)
+> +{
+> +	return memblock_virt_alloc_try_nid(size, size, __pa(MAX_DMA_ADDRESS),
+> +					BOOTMEM_ALLOC_ACCESSIBLE, node);
+> +}
+> +
+> +static void __init kasan_early_pmd_populate(unsigned long start, unsigned long end, pud_t *pud)
+> +{
+> +	unsigned long addr;
+> +	unsigned long next;
+> +	pmd_t *pmd;
+> +
+> +	pmd = pmd_offset(pud, start);
+> +	for (addr = start; addr < end;) {
+> +		pmd_populate_kernel(&init_mm, pmd, kasan_zero_pte);
+> +		next = pmd_addr_end(addr, end);
+> +		addr = next;
+> +		flush_pmd_entry(pmd);
+> +		pmd++;
 > +	}
 > +}
 > +
-> +#else
->  static __always_inline bool memory_is_poisoned_16(unsigned long addr)
->  {
->  	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
-> @@ -159,6 +178,7 @@ static __always_inline bool memory_is_poisoned_16(unsigned long addr)
->  
->  	return *shadow_addr;
->  }
-> +#endif
+> +static void __init kasan_early_pud_populate(unsigned long start, unsigned long end, pgd_t *pgd)
+> +{
+> +	unsigned long addr;
+> +	unsigned long next;
+> +	pud_t *pud;
+> +
+> +	pud = pud_offset(pgd, start);
+> +	for (addr = start; addr < end;) {
+> +		next = pud_addr_end(addr, end);
+> +		kasan_early_pmd_populate(addr, next, pud);
+> +		addr = next;
+> +		pud++;
+> +	}
+> +}
+> +
+> +void __init kasan_map_early_shadow(pgd_t *pgdp)
+> +{
+> +	int i;
+> +	unsigned long start = KASAN_SHADOW_START;
+> +	unsigned long end = KASAN_SHADOW_END;
+> +	unsigned long addr;
+> +	unsigned long next;
+> +	pgd_t *pgd;
+> +
+> +	for (i = 0; i < PTRS_PER_PTE; i++)
+> +		set_pte_at(&init_mm, KASAN_SHADOW_START + i*PAGE_SIZE,
+> +			&kasan_zero_pte[i], pfn_pte(
+> +				virt_to_pfn(kasan_zero_page),
+> +				__pgprot(_L_PTE_DEFAULT | L_PTE_DIRTY | L_PTE_XN)));
 
-- I don't understand why this is necessary.  memory_is_poisoned_16()
-  already handles unaligned addresses?
+Shouldn't all __pgprot's contain L_PTE_MT_WRITETHROUGH ?
 
-- If it's needed on ARM then presumably it will be needed on other
-  architectures, so CONFIG_ARM is insufficiently general.
+[...]
 
-- If the present memory_is_poisoned_16() indeed doesn't work on ARM,
-  it would be better to generalize/fix it in some fashion rather than
-  creating a new variant of the function.
+-- 
+Dmitry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
