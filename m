@@ -1,84 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BDDC6B0253
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 21:11:21 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id z80so1080048pff.1
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 18:11:21 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id a5si9513880plp.763.2017.10.10.18.11.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Oct 2017 18:11:20 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm] mm, swap: Use page-cluster as max window of VMA based swap readahead
-References: <20171010060855.17798-1-ying.huang@intel.com>
-	<20171010082040.GA16508@bbox> <87r2ubo08t.fsf@yhuang-dev.intel.com>
-	<20171010085524.GA16752@bbox>
-Date: Wed, 11 Oct 2017 09:11:17 +0800
-In-Reply-To: <20171010085524.GA16752@bbox> (Minchan Kim's message of "Tue, 10
-	Oct 2017 17:55:24 +0900")
-Message-ID: <871smao5e2.fsf@yhuang-dev.intel.com>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5498A6B0253
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 21:13:50 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id u144so543413pgb.0
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 18:13:50 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id h1si10036002pln.121.2017.10.10.18.13.48
+        for <linux-mm@kvack.org>;
+        Tue, 10 Oct 2017 18:13:49 -0700 (PDT)
+Date: Wed, 11 Oct 2017 12:09:22 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v8 06/14] xfs: wire up MAP_DIRECT
+Message-ID: <20171011010922.GY3666@dastard>
+References: <150764693502.16882.15848797003793552156.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <150764697001.16882.13486539828150761233.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <150764697001.16882.13486539828150761233.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, linux-api@vger.kernel.org, iommu@lists.linux-foundation.org, Christoph Hellwig <hch@lst.de>, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Jeff Layton <jlayton@poochiereds.net>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-Minchan Kim <minchan@kernel.org> writes:
+On Tue, Oct 10, 2017 at 07:49:30AM -0700, Dan Williams wrote:
+> @@ -1009,6 +1019,22 @@ xfs_file_llseek(
+>  }
+>  
+>  /*
+> + * MAP_DIRECT faults can only be serviced while the FL_LAYOUT lease is
+> + * valid. See map_direct_invalidate.
+> + */
+> +static int
+> +xfs_can_fault_direct(
+> +	struct vm_area_struct	*vma)
+> +{
+> +	if (!xfs_vma_is_direct(vma))
+> +		return 0;
+> +
+> +	if (!test_map_direct_valid(vma->vm_private_data))
+> +		return VM_FAULT_SIGBUS;
+> +	return 0;
+> +}
 
-> On Tue, Oct 10, 2017 at 04:50:10PM +0800, Huang, Ying wrote:
->> Minchan Kim <minchan@kernel.org> writes:
->> 
->> > On Tue, Oct 10, 2017 at 02:08:55PM +0800, Huang, Ying wrote:
->> >> From: Huang Ying <ying.huang@intel.com>
->> >> 
->> >> When the VMA based swap readahead was introduced, a new knob
->> >> 
->> >>   /sys/kernel/mm/swap/vma_ra_max_order
->> >> 
->> >> was added as the max window of VMA swap readahead.  This is to make it
->> >> possible to use different max window for VMA based readahead and
->> >> original physical readahead.  But Minchan Kim pointed out that this
->> >> will cause a regression because setting page-cluster sysctl to zero
->> >> cannot disable swap readahead with the change.
->> >> 
->> >> To fix the regression, the page-cluster sysctl is used as the max
->> >> window of both the VMA based swap readahead and original physical swap
->> >> readahead.  If more fine grained control is needed in the future, more
->> >> knobs can be added as the subordinate knobs of the page-cluster
->> >> sysctl.
->> >> 
->> >> The vma_ra_max_order knob is deleted.  Because the knob was
->> >> introduced in v4.14-rc1, and this patch is targeting being merged
->> >> before v4.14 releasing, there should be no existing users of this
->> >> newly added ABI.
->> >> 
->> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
->> >> Cc: Rik van Riel <riel@redhat.com>
->> >> Cc: Shaohua Li <shli@kernel.org>
->> >> Cc: Hugh Dickins <hughd@google.com>
->> >> Cc: Fengguang Wu <fengguang.wu@intel.com>
->> >> Cc: Tim Chen <tim.c.chen@intel.com>
->> >> Cc: Dave Hansen <dave.hansen@intel.com>
->> >> Reported-by: Minchan Kim <minchan@kernel.org>
->> >
->> > It seems your script is Ccing only with Cc: tag, not other tags.
->> > Fix it so any participant of topic can get the mail.
->> 
->> I just used `git send-email`, no other scripts.  We need to fix `git send-email`?
->
-> You can do it via cccmd.
->
-> Just a reference:
->
-> ~/bin/kcccmd
-> sed -nre 's/^(Acked|Reviewed|Reported|Tested|Suggested)-by: //p' "$1"
+Better, but I'm going to be an annoying pedant here: a "can
+<something>" check should return a boolean true/false.
 
-Thanks, will use this script in the future.
+Also, it's a bit jarring to see that a non-direct VMA that /can't/
+do direct faults returns the same thing as a direct-vma that /can/
+do direct faults, so a couple of extra comments for people who will
+quickly forget how this code works (i.e. me) will be helpful. Say
+something like this:
 
-Best Regards,
-Huang, Ying
+/*
+ * MAP_DIRECT faults can only be serviced while the FL_LAYOUT lease is
+ * valid. See map_direct_invalidate.
+ */
+static bool
+xfs_vma_has_direct_lease(
+	struct vm_area_struct	*vma)
+{
+	/* Non MAP_DIRECT vmas do not require layout leases */
+	if (!xfs_vma_is_direct(vma))
+		return true;
+
+	if (!test_map_direct_valid(vma->vm_private_data))
+		return false;
+
+	/* We have a valid lease */
+	return true;
+}
+
+.....
+	if (!xfs_vma_has_direct_lease(vma)) {
+		ret = VM_FAULT_SIGBUS;
+		goto out_unlock;
+	}
+....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
