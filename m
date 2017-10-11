@@ -1,76 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 707D76B0253
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 14:52:03 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id z50so6475719qtj.9
-        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 11:52:03 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b4si1773132qkd.396.2017.10.11.11.52.02
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C1EF6B0260
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 15:04:32 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id z80so5773065pff.1
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 12:04:32 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id a35sor2489898pli.137.2017.10.11.12.04.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Oct 2017 11:52:02 -0700 (PDT)
-From: Pankaj Gupta <pagupta@redhat.com>
-Subject: [RFC] KVM "fake DAX" device flushing
-Date: Thu, 12 Oct 2017 00:21:46 +0530
-Message-Id: <20171011185146.20295-1-pagupta@redhat.com>
+        (Google Transport Security);
+        Wed, 11 Oct 2017 12:04:31 -0700 (PDT)
+From: Shakeel Butt <shakeelb@google.com>
+Subject: [PATCH v2] fs, mm: account filp cache to kmemcg
+Date: Wed, 11 Oct 2017 12:03:59 -0700
+Message-Id: <20171011190359.34926-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-nvdimm@ml01.01.org, linux-mm@kvack.org
-Cc: jack@suse.cz, stefanha@redhat.com, dan.j.williams@intel.com, riel@redhat.com, haozhong.zhang@intel.com, nilal@redhat.com, kwolf@redhat.com, pbonzini@redhat.com, ross.zwisler@intel.com, david@redhat.com, xiaoguangrong.eric@gmail.com, pagupta@redhat.com
+To: Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
 
-We are sharing the prototype version of 'fake DAX' flushing
-interface for the initial feedback. This is still work in progress
-and not yet ready for merging.
+The allocations from filp cache can be directly triggered by user
+space applications. A buggy application can consume a significant
+amount of unaccounted system memory. Though we have not noticed
+such buggy applications in our production but upon close inspection,
+we found that a lot of machines spend very significant amount of
+memory on these caches.
 
-Protoype right now just implements basic functionality without advanced
-features with two major parts:
+One way to limit allocations from filp cache is to set system level
+limit of maximum number of open files. However this limit is shared
+between different users on the system and one user can hog this
+resource. To cater that, we can charge filp to kmemcg and set the
+maximum limit very high and let the memory limit of each user limit
+the number of files they can open and indirectly limiting their
+allocations from filp cache.
 
-- Qemu virtio-pmem device
-  It exposes a persistent memory range to KVM guest which at host side is file
-  backed memory and works as persistent memory device. In addition to this it
-  provides a virtio flushing interface for KVM guest to do a Qemu side sync for
-  guest DAX persistent memory range.  
+One side effect of this change is that it will allow _sysctl() to
+return ENOMEM and the man page of _sysctl() does not specify that.
+However the man page also discourages to use _sysctl() at all.
 
-- Guest virtio-pmem driver
-  Reads persistent memory range from paravirt device and reserves system memory map.
-  It also allocates a block device corresponding to the pmem range which is accessed
-  by DAX capable file systems. (file system support is still pending).  
-  
-We shared the project idea for 'fake DAX' flushing interface here [1].
-Based on suggestions here [2], we implemented guest 'virtio-pmem'
-driver and Qemu paravirt device.
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
+---
 
-[1] https://www.spinics.net/lists/kvm/msg149761.html
-[2] https://www.spinics.net/lists/kvm/msg153095.html
+Changelog since v1:
+- removed names_cache charging to kmemcg
 
-Work yet to be done:
+ fs/file_table.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-- Separate out the common code used by ACPI pmem interface and
-  reuse it.
-
-- In pmem device memmap allocation and working. There is some parallel work
-  going on upstream related to 'memory_hotplug restructuring' [3] and also hitting
-  a memory section alignment issue [4].
-  
-  [3] https://lwn.net/Articles/712099/
-  [4] https://www.mail-archive.com/linux-nvdimm@lists.01.org/msg02978.html
-  
-- Provide DAX capable file-system(ext4 & XFS) support.
-- Qemu device flush functionality.
-- Qemu live migration work when host page cache is used.
-- Multiple virtio-pmem disks support.
-
-Prototype implementation for feedback:
-
-Kernel: https://github.com/pagupta/linux/commit/d15cf90074eae91aeed7a228da3faf319566dd40
-Qemu  : https://github.com/pagupta/qemu/commit/9c428db1e1076970e097e2b0ef8afe52509af823
-
-Please provide feedback. Also, I would be attending KVM Forum in Prague from (25-27 Oct). 
-If you are attending KVM forum/Linux conference, I would love to have a discussion on ideas 
-and future work.
-
-Thank you,
-Pankaj Gupta
+diff --git a/fs/file_table.c b/fs/file_table.c
+index 61517f57f8ef..567888cdf7d3 100644
+--- a/fs/file_table.c
++++ b/fs/file_table.c
+@@ -312,7 +312,7 @@ void put_filp(struct file *file)
+ void __init files_init(void)
+ {
+ 	filp_cachep = kmem_cache_create("filp", sizeof(struct file), 0,
+-			SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
++			SLAB_HWCACHE_ALIGN | SLAB_PANIC | SLAB_ACCOUNT, NULL);
+ 	percpu_counter_init(&nr_files, 0, GFP_KERNEL);
+ }
+ 
+-- 
+2.15.0.rc0.271.g36b669edcc-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
