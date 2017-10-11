@@ -1,56 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C0F3C6B0253
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 20:46:36 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id d28so935330pfe.2
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 17:46:36 -0700 (PDT)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id h71si9085858pgc.321.2017.10.10.17.46.33
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 00AC36B0253
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 20:48:56 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id v13so407170pgq.1
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 17:48:55 -0700 (PDT)
+Received: from h3cmg01-ex.h3c.com (smtp.h3c.com. [60.191.123.56])
+        by mx.google.com with ESMTP id z100si10174047plh.362.2017.10.10.17.48.54
         for <linux-mm@kvack.org>;
-        Tue, 10 Oct 2017 17:46:35 -0700 (PDT)
-Date: Wed, 11 Oct 2017 11:46:31 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v8 04/14] xfs: prepare xfs_break_layouts() for reuse with
- MAP_DIRECT
-Message-ID: <20171011004631.GX3666@dastard>
-References: <150764693502.16882.15848797003793552156.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150764695771.16882.9179160793491582514.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Tue, 10 Oct 2017 17:48:54 -0700 (PDT)
+From: Changwei Ge <ge.changwei@h3c.com>
+Subject: Re: mmotm 2016-08-02-15-53 uploaded
+Date: Wed, 11 Oct 2017 00:48:34 +0000
+Message-ID: <63ADC13FD55D6546B7DECE290D39E373CED68187@H3CMLB14-EX.srv.huawei-3com.com>
+References: <57a124aa.eJmVCvd1SOHlQ1X8%akpm@linux-foundation.org>
+ <CAGF4SLgi6jgtxbqtTEjL8FGXUHHsSm6KeoVqANLt3LB6OTBboA@mail.gmail.com>
+ <20171010123749.2c59f3b762b3c0b33e80a67d@linux-foundation.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <150764695771.16882.9179160793491582514.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-nvdimm@lists.01.org, Jan Kara <jack@suse.cz>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, linux-api@vger.kernel.org, iommu@lists.linux-foundation.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@lst.de>
+To: Andrew Morton <akpm@linux-foundation.org>, Vitaly Mayatskih <v.mayatskih@gmail.com>
+Cc: "mm-commits@vger.kernel.org" <mm-commits@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, "sfr@canb.auug.org.au" <sfr@canb.auug.org.au>, "mhocko@suse.cz" <mhocko@suse.cz>, "broonie@kernel.org" <broonie@kernel.org>, "ocfs2-devel@oss.oracle.com" <ocfs2-devel@oss.oracle.com>, piaojun <piaojun@huawei.com>, Joseph Qi <joseph.qi@huawei.com>, Jiufei Xue <xuejiufei@huawei.com>, Mark Fasheh <mfasheh@suse.de>, Joel Becker <jlbec@evilplan.org>, Junxiao Bi <junxiao.bi@oracle.com>
 
-On Tue, Oct 10, 2017 at 07:49:17AM -0700, Dan Williams wrote:
-> Move xfs_break_layouts() to its own compilation unit so that it can be
-> used for both pnfs layouts and MAP_DIRECT mappings.
-.....
-> diff --git a/fs/xfs/xfs_pnfs.h b/fs/xfs/xfs_pnfs.h
-> index b587cb99b2b7..4135b2482697 100644
-> --- a/fs/xfs/xfs_pnfs.h
-> +++ b/fs/xfs/xfs_pnfs.h
-> @@ -1,19 +1,13 @@
->  #ifndef _XFS_PNFS_H
->  #define _XFS_PNFS_H 1
->  
-> +#include "xfs_layout.h"
-> +
-
-I missed this the first time through - we try not to put includes
-in header files, and instead make sure each C file has all the
-includes they require. Can you move this to all the C files that
-need layouts and remove the include of the xfs_pnfs.h include from
-them?
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Hi Andrew and Vitaly,=0A=
+=0A=
+I do agree that patch ee8f7fcbe638 ("ocfs2/dlm: continue to purge =0A=
+recovery lockres when recovery master goes down", 2016-08-02) introduced =
+=0A=
+an issue. It makes DLM recovery can't pick up a new master for an =0A=
+existed lock resource whose owner died seconds ago.=0A=
+=0A=
+But this patch truly solves another issue.=0A=
+So I think we can't just revert this patch but to give a fix to it.=0A=
+=0A=
+Thanks,=0A=
+Changwei=0A=
+=0A=
+On 2017/10/11 3:38, Andrew Morton wrote:=0A=
+> On Tue, 10 Oct 2017 14:06:41 -0400 Vitaly Mayatskih <v.mayatskih@gmail.co=
+m> wrote:=0A=
+> =0A=
+>> * ocfs2-dlm-continue-to-purge-recovery-lockres-when-recovery=0A=
+>> -master-goes-down.patch=0A=
+>>=0A=
+>> This one completely broke two node cluster use case: when one node dies,=
+=0A=
+>> the other one either eventually crashes (~4.14-rc4) or locks up (pre-4.1=
+4).=0A=
+> =0A=
+> Are you sure?=0A=
+> =0A=
+> Are you able to confirm that reverting this patch (ee8f7fcbe638b07e8)=0A=
+> and only this patch fixes up current mainline kernels?=0A=
+> =0A=
+> Are you able to supply more info on the crashes and lockups so that the=
+=0A=
+> ocfs2 developers can understand the failures?=0A=
+> =0A=
+> Thanks.=0A=
+> =0A=
+=0A=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
