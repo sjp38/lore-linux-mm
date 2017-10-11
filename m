@@ -1,60 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CB6CE6B0253
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 12:01:27 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id 101so1809068ioj.2
-        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 09:01:27 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k74sor478917ioo.76.2017.10.11.09.01.26
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CE3536B0253
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 12:11:11 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id z19so5418453qtg.21
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 09:11:11 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id t65si465328qkf.22.2017.10.11.09.11.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 11 Oct 2017 09:01:26 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Oct 2017 09:11:09 -0700 (PDT)
+Date: Wed, 11 Oct 2017 17:10:24 +0100
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [v11 3/6] mm, oom: cgroup-aware OOM killer
+Message-ID: <20171011161024.GA26974@castle>
+References: <20171005130454.5590-1-guro@fb.com>
+ <20171005130454.5590-4-guro@fb.com>
+ <alpine.DEB.2.10.1710091414260.59643@chino.kir.corp.google.com>
+ <20171010122306.GA11653@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.10.1710101345370.28262@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20171011115410.GF30803@8bytes.org>
-References: <150764693502.16882.15848797003793552156.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150764701194.16882.9682569707416653741.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171011115410.GF30803@8bytes.org>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 11 Oct 2017 09:01:25 -0700
-Message-ID: <CAA9_cmdN4N8nDdyhgn61A2_vwuTP3LJTgDCEHMQLoaFZg=DtHw@mail.gmail.com>
-Subject: Re: [PATCH v8 13/14] IB/core: use MAP_DIRECT to fix / enable RDMA to
- DAX mappings
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1710101345370.28262@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Sean Hefty <sean.hefty@intel.com>, linux-xfs@vger.kernel.org, Jan Kara <jack@suse.cz>, Ashok Raj <ashok.raj@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, Linux API <linux-api@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, Jeff Moyer <jmoyer@redhat.com>, iommu@lists.linux-foundation.org, Christoph Hellwig <hch@lst.de>, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm <linux-mm@kvack.org>, Doug Ledford <dledford@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jeff Layton <jlayton@poochiereds.net>, David Woodhouse <dwmw2@infradead.org>, Hal Rosenstock <hal.rosenstock@gmail.com>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Oct 11, 2017 at 4:54 AM, Joerg Roedel <joro@8bytes.org> wrote:
-> On Tue, Oct 10, 2017 at 07:50:12AM -0700, Dan Williams wrote:
->> +static void ib_umem_lease_break(void *__umem)
->> +{
->> +     struct ib_umem *umem = umem;
->> +     struct ib_device *idev = umem->context->device;
->> +     struct device *dev = idev->dma_device;
->> +     struct scatterlist *sgl = umem->sg_head.sgl;
->> +
->> +     iommu_unmap(umem->iommu, sg_dma_address(sgl) & PAGE_MASK,
->> +                     iommu_sg_num_pages(dev, sgl, umem->npages));
->> +}
->
-> This looks like an invitation to break your code by random iommu-driver
-> changes. There is no guarantee that an iommu-backed dma-api
-> implemenation will map exactly iommu_sg_num_pages() pages for a given
-> sg-list. In other words, you are mixing the use of the IOMMU-API and the
-> DMA-API in an incompatible way that only works because you know the
-> internals of the iommu-drivers.
->
-> I've seen in another patch that your changes strictly require an IOMMU,
-> so you what you should do instead is to switch from the DMA-API to the
-> IOMMU-API and do the address-space management yourself.
->
+On Tue, Oct 10, 2017 at 02:13:00PM -0700, David Rientjes wrote:
+> On Tue, 10 Oct 2017, Roman Gushchin wrote:
+> 
+> > > This seems to unfairly bias the root mem cgroup depending on process size.  
+> > > It isn't treated fairly as a leaf mem cgroup if they are being compared 
+> > > based on different criteria: the root mem cgroup as (mostly) the largest 
+> > > rss of a single process vs leaf mem cgroups as all anon, unevictable, and 
+> > > unreclaimable slab pages charged to it by all processes.
+> > > 
+> > > I imagine a configuration where the root mem cgroup has 100 processes 
+> > > attached each with rss of 80MB, compared to a leaf cgroup with 100 
+> > > processes of 1MB rss each.  How does this logic prevent repeatedly oom 
+> > > killing the processes of 1MB rss?
+> > > 
+> > > In this case, "the root cgroup is treated as a leaf memory cgroup" isn't 
+> > > quite fair, it can simply hide large processes from being selected.  Users 
+> > > who configure cgroups in a unified hierarchy for other resource 
+> > > constraints are penalized for this choice even though the mem cgroup with 
+> > > 100 processes of 1MB rss each may not be limited itself.
+> > > 
+> > > I think for this comparison to be fair, it requires accounting for the 
+> > > root mem cgroup itself or for a different accounting methodology for leaf 
+> > > memory cgroups.
+> > 
+> > This is basically a workaround, because we don't have necessary stats for root
+> > memory cgroup. If we'll start gathering them at some point, we can change this
+> > and treat root memcg exactly as other leaf cgroups.
+> > 
+> 
+> I understand why it currently cannot be an apples vs apples comparison 
+> without, as I suggest in the last paragraph, that the same accounting is 
+> done for the root mem cgroup, which is intuitive if it is to be considered 
+> on the same basis as leaf mem cgroups.
+> 
+> I understand for the design to work that leaf mem cgroups and the root mem 
+> cgroup must be compared if processes can be attached to the root mem 
+> cgroup.  My point is that it is currently completely unfair as I've 
+> stated: you can have 10000 processes attached to the root mem cgroup with 
+> rss of 80MB each and a leaf mem cgroup with 100 processes of 1MB rss each 
+> and the oom killer is going to target the leaf mem cgroup as a result of 
+> this apples vs oranges comparison.
+> 
+> In case it's not clear, the 10000 processes of 80MB rss each is the most 
+> likely contributor to a system-wide oom kill.  Unfortunately, the 
+> heuristic introduced by this patchset is broken wrt a fair comparison of 
+> the root mem cgroup usage.
+> 
+> > Or, if someone will come with an idea of a better approximation, it can be
+> > implemented as a separate enhancement on top of the initial implementation.
+> > This is more than welcome.
+> > 
+> 
+> We don't need a better approximation, we need a fair comparison.  The 
+> heuristic that this patchset is implementing is based on the usage of 
+> individual mem cgroups.  For the root mem cgroup to be considered 
+> eligible, we need to understand its usage.  That usage is _not_ what is 
+> implemented by this patchset, which is the largest rss of a single 
+> attached process.  This, in fact, is not an "approximation" at all.  In 
+> the example of 10000 processes attached with 80MB rss each, the usage of 
+> the root mem cgroup is _not_ 80MB.
+> 
+> I'll restate that oom killing a process is a last resort for the kernel, 
+> but it also must be able to make a smart decision.  Targeting dozens of 
+> 1MB processes instead of 80MB processes because of a shortcoming in this 
+> implementation is not the appropriate selection, it's the opposite of the 
+> correct selection.
+> 
+> > > I'll reiterate what I did on the last version of the patchset: considering 
+> > > only leaf memory cgroups easily allows users to defeat this heuristic and 
+> > > bias against all of their memory usage up to the largest process size 
+> > > amongst the set of processes attached.  If the user creates N child mem 
+> > > cgroups for their N processes and attaches one process to each child, the 
+> > > _only_ thing this achieved is to defeat your heuristic and prefer other 
+> > > leaf cgroups simply because those other leaf cgroups did not do this.
+> > > 
+> > > Effectively:
+> > > 
+> > > for i in $(cat cgroup.procs); do mkdir $i; echo $i > $i/cgroup.procs; done
+> > > 
+> > > will radically shift the heuristic from a score of all anonymous + 
+> > > unevictable memory for all processes to a score of the largest anonymous +
+> > > unevictable memory for a single process.  There is no downside or 
+> > > ramifaction for the end user in doing this.  When comparing cgroups based 
+> > > on usage, it only makes sense to compare the hierarchical usage of that 
+> > > cgroup so that attaching processes to descendants or splitting the 
+> > > implementation of a process into several smaller individual processes does 
+> > > not allow this heuristic to be defeated.
+> > 
+> > To all previously said words I can only add that cgroup v2 allows to limit
+> > the amount of cgroups in the sub-tree:
+> > 1a926e0bbab8 ("cgroup: implement hierarchy limits").
+> > 
+> 
+> So the solution to 
+> 
+> for i in $(cat cgroup.procs); do mkdir $i; echo $i > $i/cgroup.procs; done
+> 
+> evading all oom kills for your mem cgroup is to limit the number of 
+> cgroups that can be created by the user?  With a unified cgroup hierarchy, 
+> that doesn't work well if I wanted to actually constrain these individual 
+> processes to different resource limits like cpu usage.  In fact, the user 
+> may not know it is effectively evading the oom killer entirely because it 
+> has constrained the cpu of individual processes because its a side-effect 
+> of this heuristic.
+> 
+> 
+> You chose not to respond to my reiteration of userspace having absolutely 
+> no control over victim selection with the new heuristic without setting 
+> all processes to be oom disabled via /proc/pid/oom_score_adj.  If I have a 
+> very important job that is running on a system that is really supposed to 
+> use 80% of memory, I need to be able to specify that it should not be oom 
+> killed based on user goals.  Setting all processes to be oom disabled in 
+> the important mem cgroup to avoid being oom killed unless absolutely 
+> necessary in a system oom condition is not a robust solution: (1) the mem 
+> cgroup livelocks if it reaches its own mem cgroup limit and (2) the system 
+> panic()'s if these preferred mem cgroups are the only consumers left on 
+> the system.  With overcommit, both of these possibilities exist in the 
+> wild and the problem is only a result of the implementation detail of this 
+> patchset.
+> 
+> For these reasons: unfair comparison of root mem cgroup usage to bias 
+> against that mem cgroup from oom kill in system oom conditions, the 
+> ability of users to completely evade the oom killer by attaching all 
+> processes to child cgroups either purposefully or unpurposefully, and the 
+> inability of userspace to effectively control oom victim selection:
+> 
+> Nacked-by: David Rientjes <rientjes@google.com>
 
-Ok, I'll switch over completely to the iommu api for this. It will
-also address Robin's concern.
+Hi David!
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Do you find the following approach (summing oom_score of
+tasks belonging to the root memory cgroup) acceptable?
+
+Also, I've closed the race, you've pointed on.
+
+Thanks!
+
+--------------------------------------------------------------------------------
