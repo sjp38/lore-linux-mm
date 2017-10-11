@@ -1,137 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C53B46B0253
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 22:34:08 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id j3so982402pga.3
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 19:34:08 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id e12si4551267plj.21.2017.10.10.19.34.07
+	by kanga.kvack.org (Postfix) with ESMTP id 9C26E6B0253
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 22:37:55 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id u23so999865pgo.7
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 19:37:55 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id o15si2945041pgq.475.2017.10.10.19.37.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Oct 2017 19:34:07 -0700 (PDT)
-Date: Wed, 11 Oct 2017 10:34:02 +0800
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: Re: [PATCH v2] mm/page_alloc.c: inline __rmqueue()
-Message-ID: <20171011023402.GC27907@intel.com>
-References: <20171009054434.GA1798@intel.com>
- <3a46edcf-88f8-e4f4-8b15-3c02620308e4@intel.com>
- <20171010025151.GD1798@intel.com>
- <20171010025601.GE1798@intel.com>
- <8d6a98d3-764e-fd41-59dc-88a9d21822c7@intel.com>
- <20171010054342.GF1798@intel.com>
- <20171010144545.c87a28b0f3c4e475305254ab@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 10 Oct 2017 19:37:54 -0700 (PDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH 1/2] mm, memory_hotplug: do not fail offlining too early
+In-Reply-To: <20171010122726.6jrfdzkscwge6gez@dhcp22.suse.cz>
+References: <20170918070834.13083-1-mhocko@kernel.org> <20170918070834.13083-2-mhocko@kernel.org> <87bmlfw6mj.fsf@concordia.ellerman.id.au> <20171010122726.6jrfdzkscwge6gez@dhcp22.suse.cz>
+Date: Wed, 11 Oct 2017 13:37:50 +1100
+Message-ID: <87infmz9xd.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171010144545.c87a28b0f3c4e475305254ab@linux-foundation.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue, Oct 10, 2017 at 02:45:45PM -0700, Andrew Morton wrote:
-> On Tue, 10 Oct 2017 13:43:43 +0800 Aaron Lu <aaron.lu@intel.com> wrote:
-> 
-> > On Mon, Oct 09, 2017 at 10:19:52PM -0700, Dave Hansen wrote:
-> > > On 10/09/2017 07:56 PM, Aaron Lu wrote:
-> > > > This patch adds inline to __rmqueue() and vmlinux' size doesn't have any
-> > > > change after this patch according to size(1).
-> > > > 
-> > > > without this patch:
-> > > >    text    data     bss     dec     hex     filename
-> > > > 9968576 5793372 17715200  33477148  1fed21c vmlinux
-> > > > 
-> > > > with this patch:
-> > > >    text    data     bss     dec     hex     filename
-> > > > 9968576 5793372 17715200  33477148  1fed21c vmlinux
-> > > 
-> > > This is unexpected.  Could you double-check this, please?
-> > 
-> > mm/page_alloc.o has size changes:
-> > 
-> > Without this patch:
-> > $ size mm/page_alloc.o
-> >   text    data     bss     dec     hex filename
-> >  36695    9792    8396   54883    d663 mm/page_alloc.o
-> > 
-> > With this patch:
-> > $ size mm/page_alloc.o
-> >   text    data     bss     dec     hex filename
-> >  37511    9792    8396   55699    d993 mm/page_alloc.o
-> > 
-> > But vmlinux doesn't.
-> > 
-> > It's not clear to me what happened, do you want to me dig this out?
-> 
-> There's weird stuff going on.
-> 
-> With x86_64 gcc-4.8.4
-> 
-> Patch not applied:
-> 
-> akpm3:/usr/local/google/home/akpm/k/25> nm mm/page_alloc.o|grep __rmqueue
-> 0000000000002a00 t __rmqueue
-> 
-> Patch applied:
-> 
-> akpm3:/usr/local/google/home/akpm/k/25> nm mm/page_alloc.o|grep __rmqueue
-> 000000000000039f t __rmqueue_fallback
-> 0000000000001220 t __rmqueue_smallest
-> 
-> So inlining __rmqueue has caused the compiler to decide to uninline
-> __rmqueue_fallback and __rmqueue_smallest, which largely undoes the
-> effect of your patch.
-> 
-> `inline' is basically advisory (or ignored) in modern gcc's.  So gcc
-> has felt free to ignore it in __rmqueue_fallback and __rmqueue_smallest
-> because gcc thinks it knows best.  That's why we created
-> __always_inline, to grab gcc by the scruff of its neck.
+Michal Hocko <mhocko@kernel.org> writes:
 
-This is a good point and I agree with Andi to use always_inline for
-those functions that we really want to inline.
+> On Tue 10-10-17 23:05:08, Michael Ellerman wrote:
+>> Michal Hocko <mhocko@kernel.org> writes:
+>> 
+>> > From: Michal Hocko <mhocko@suse.com>
+>> >
+>> > Memory offlining can fail just too eagerly under a heavy memory pressure.
+>> >
+>> > [ 5410.336792] page:ffffea22a646bd00 count:255 mapcount:252 mapping:ffff88ff926c9f38 index:0x3
+>> > [ 5410.336809] flags: 0x9855fe40010048(uptodate|active|mappedtodisk)
+>> > [ 5410.336811] page dumped because: isolation failed
+>> > [ 5410.336813] page->mem_cgroup:ffff8801cd662000
+>> > [ 5420.655030] memory offlining [mem 0x18b580000000-0x18b5ffffffff] failed
+>> >
+>> > Isolation has failed here because the page is not on LRU. Most probably
+>> > because it was on the pcp LRU cache or it has been removed from the LRU
+>> > already but it hasn't been freed yet. In both cases the page doesn't look
+>> > non-migrable so retrying more makes sense.
+>> 
+>> This breaks offline for me.
+>> 
+>> Prior to this commit:
+>>   /sys/devices/system/memory/memory0# time echo 0 > online
+>>   -bash: echo: write error: Device or resource busy
+>>   
+>>   real	0m0.001s
+>>   user	0m0.000s
+>>   sys	0m0.001s
+>> 
+>> After:
+>>   /sys/devices/system/memory/memory0# time echo 0 > online
+>>   -bash: echo: write error: Device or resource busy
+>>   
+>>   real	2m0.009s
+>>   user	0m0.000s
+>>   sys	1m25.035s
+>> 
+>> 
+>> There's no way that block can be removed, it contains the kernel text,
+>> so it should instantly fail - which it used to.
+>
+> OK, that means that start_isolate_page_range should have failed but it
+> hasn't for some reason. I strongly suspect has_unmovable_pages is doing
+> something wrong. Is the kernel text marked somehow? E.g. PageReserved?
 
-> 
-> So...  I think this patch could do with quite a bit more care, tuning
-> and testing with various gcc versions.
+I'm not sure how the text is marked, will have to dig into that.
 
-I did some more testing.
+> In other words, does the diff below helps?
 
-With x86_64 gcc-4.6.3 available from kernel.org crosstool:
+No that doesn't help.
 
-Patch not applied:
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 3badcedf96a7..00d042052501 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -7368,6 +7368,9 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+>  
+>  		page = pfn_to_page(check);
+>  
+> +		if (PageReserved(page))
+> +			return true;
+> +
+>  		/*
+>  		 * Hugepages are not in LRU lists, but they're movable.
+>  		 * We need not scan over tail pages bacause we don't
+>
+>
+>> With commit 3aa2823fdf66 ("mm, memory_hotplug: remove timeout from
+>> __offline_memory") also applied, it appears to just get stuck forever,
+>> and I get lots of:
+>> 
+>>   [ 1232.112953] INFO: task kworker/3:0:4609 blocked for more than 120 seconds.
+>>   [ 1232.113067]       Not tainted 4.14.0-rc4-gcc6-next-20171009-g49827b9 #1
+>>   [ 1232.113183] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+>>   [ 1232.113319] kworker/3:0     D11984  4609      2 0x00000800
+>>   [ 1232.113416] Workqueue: memcg_kmem_cache memcg_kmem_cache_create_func
+>>   [ 1232.113531] Call Trace:
+>>   [ 1232.113579] [c0000000fb2db7a0] [c0000000fb2db900] 0xc0000000fb2db900 (unreliable)
+>>   [ 1232.113717] [c0000000fb2db970] [c00000000001c964] __switch_to+0x304/0x6e0
+>>   [ 1232.113840] [c0000000fb2dba10] [c000000000a408c0] __schedule+0x2e0/0xa80
+>>   [ 1232.113978] [c0000000fb2dbae0] [c000000000a410a8] schedule+0x48/0xc0
+>>   [ 1232.114113] [c0000000fb2dbb10] [c000000000a44d88] rwsem_down_read_failed+0x128/0x1b0
+>>   [ 1232.114269] [c0000000fb2dbb70] [c0000000001696a8] __percpu_down_read+0x108/0x110
+>>   [ 1232.114426] [c0000000fb2dbba0] [c00000000032e498] get_online_mems+0x68/0x80
+>>   [ 1232.115487] [c0000000fb2dbbc0] [c0000000002c82ec] memcg_create_kmem_cache+0x4c/0x190
+>>   [ 1232.115651] [c0000000fb2dbc60] [c0000000003483b8] memcg_kmem_cache_create_func+0x38/0xf0
+>>   [ 1232.115809] [c0000000fb2dbc90] [c000000000121594] process_one_work+0x2b4/0x590
+>>   [ 1232.115964] [c0000000fb2dbd20] [c000000000121908] worker_thread+0x98/0x5d0
+>>   [ 1232.116095] [c0000000fb2dbdc0] [c00000000012a134] kthread+0x164/0x1b0
+>>   [ 1232.116229] [c0000000fb2dbe30] [c00000000000bae0] ret_from_kernel_thread+0x5c/0x7c
+>
+> I do not see how this is related to the offline path.
 
-[aaron@aaronlu linux]$ nm mm/page_alloc.o |grep __rmqueue
-00000000000023f0 t __rmqueue
-00000000000027c0 t __rmqueue_pcplist.isra.95
+It's blocked doing get_online_mems(). So it's unrelated to the offline,
+but it can't proceed until the offline finishes, which it never does,
+IIUIC.
 
-Patch applied:
-
-[aaron@aaronlu linux]$ nm mm/page_alloc.o |grep __rmqueue
-0000000000002950 t __rmqueue_pcplist.isra.95
-
-Works expected.
-
-With self built x86_64 gcc-4.8.4:
-
-Patch not applied:
-
-[aaron@aaronlu linux]$ nm mm/page_alloc.o |grep __rmqueue
-0000000000001f20 t __rmqueue
-
-Patch applied:
-
-[aaron@aaronlu linux]$ nm mm/page_alloc.o |grep __rmqueue
-
-Works expected.(conflicts with your result though).
-
-I also tested gcc-4.9.4, gcc-5.3.1, gcc-6.4.0 and gcc-7.2.1, all have
-the same output as the above gcc-4.8.4.
-
-Then I realized CONFIG_OPTIMIZE_INLINING which I always disabled as
-suggested by the help message(If unsure, say N). Turnining that config
-on indeed caused gcc-4.8.4 to emit __rmqueue_fallback here.
-
-I think I'll just mark those functions always_inline.
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
