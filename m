@@ -1,87 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FBC26B0253
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 09:54:10 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id 24so5259503qts.2
-        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 06:54:10 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id c141si2245906qke.19.2017.10.11.06.54.08
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 27A866B025F
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 10:05:23 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id r202so2983132wmd.1
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 07:05:23 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 65si268353edj.513.2017.10.11.07.05.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Oct 2017 06:54:09 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9BDrToc124264
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 09:54:08 -0400
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2dhk63dswp-1
+        Wed, 11 Oct 2017 07:05:21 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9BDwhYI143649
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 10:05:20 -0400
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2dhhqbvkhd-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 09:54:07 -0400
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 10:05:17 -0400
 Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Wed, 11 Oct 2017 14:54:02 +0100
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Subject: [PATCH v5 22/22] powerpc/mm: Add speculative page fault
-Date: Wed, 11 Oct 2017 15:52:46 +0200
-In-Reply-To: <1507729966-10660-1-git-send-email-ldufour@linux.vnet.ibm.com>
-References: <1507729966-10660-1-git-send-email-ldufour@linux.vnet.ibm.com>
-Message-Id: <1507729966-10660-23-git-send-email-ldufour@linux.vnet.ibm.com>
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Wed, 11 Oct 2017 15:05:15 +0100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v9BE5CCP24576214
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 14:05:13 GMT
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v9BE54Ej010525
+	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 01:05:04 +1100
+Subject: Re: [PATCH 1/2] mm, memory_hotplug: do not fail offlining too early
+References: <20170918070834.13083-1-mhocko@kernel.org>
+ <20170918070834.13083-2-mhocko@kernel.org>
+ <87bmlfw6mj.fsf@concordia.ellerman.id.au>
+ <20171010122726.6jrfdzkscwge6gez@dhcp22.suse.cz>
+ <87infmz9xd.fsf@concordia.ellerman.id.au>
+ <87a80yz2gm.fsf@concordia.ellerman.id.au>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Wed, 11 Oct 2017 19:35:04 +0530
+MIME-Version: 1.0
+In-Reply-To: <87a80yz2gm.fsf@concordia.ellerman.id.au>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <fa9bd463-bb94-f060-bd57-2a1416a125df@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Michael Ellerman <mpe@ellerman.id.au>, Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>
 
-This patch enable the speculative page fault on the PowerPC
-architecture.
+On 10/11/2017 10:49 AM, Michael Ellerman wrote:
+> Michael Ellerman <mpe@ellerman.id.au> writes:
+>> Michal Hocko <mhocko@kernel.org> writes:
+>>> On Tue 10-10-17 23:05:08, Michael Ellerman wrote:
+>>>> Michal Hocko <mhocko@kernel.org> writes:
+>>>>> From: Michal Hocko <mhocko@suse.com>
+>>>>> Memory offlining can fail just too eagerly under a heavy memory pressure.
+>>>>>
+>>>>> [ 5410.336792] page:ffffea22a646bd00 count:255 mapcount:252 mapping:ffff88ff926c9f38 index:0x3
+>>>>> [ 5410.336809] flags: 0x9855fe40010048(uptodate|active|mappedtodisk)
+>>>>> [ 5410.336811] page dumped because: isolation failed
+>>>>> [ 5410.336813] page->mem_cgroup:ffff8801cd662000
+>>>>> [ 5420.655030] memory offlining [mem 0x18b580000000-0x18b5ffffffff] failed
+>>>>>
+>>>>> Isolation has failed here because the page is not on LRU. Most probably
+>>>>> because it was on the pcp LRU cache or it has been removed from the LRU
+>>>>> already but it hasn't been freed yet. In both cases the page doesn't look
+>>>>> non-migrable so retrying more makes sense.
+>>>> This breaks offline for me.
+>>>>
+>>>> Prior to this commit:
+>>>>   /sys/devices/system/memory/memory0# time echo 0 > online
+>>>>   -bash: echo: write error: Device or resource busy
+>>>>   
+>>>>   real	0m0.001s
+>>>>   user	0m0.000s
+>>>>   sys	0m0.001s
+>>>>
+>>>> After:
+>>>>   /sys/devices/system/memory/memory0# time echo 0 > online
+>>>>   -bash: echo: write error: Device or resource busy
+>>>>   
+>>>>   real	2m0.009s
+>>>>   user	0m0.000s
+>>>>   sys	1m25.035s
+>>>>
+>>>> There's no way that block can be removed, it contains the kernel text,
+>>>> so it should instantly fail - which it used to.
+>>> OK, that means that start_isolate_page_range should have failed but it
+>>> hasn't for some reason. I strongly suspect has_unmovable_pages is doing
+>>> something wrong. Is the kernel text marked somehow? E.g. PageReserved?
+>> I'm not sure how the text is marked, will have to dig into that.
+> Yeah it's reserved:
+> 
+>   $ grep __init_begin /proc/kallsyms
+>   c000000000d70000 T __init_begin
+>   $ ./page-types -r -a 0x0,0xd7
+>                flags	page-count       MB  symbolic-flags			long-symbolic-flags
+>   0x0000000100000000	       215       13  __________________________r_______________	reserved
+>                total	       215       13
 
-This will try a speculative page fault without holding the mmap_sem,
-if it returns with VM_FAULT_RETRY, the mmap_sem is acquired and the
-traditional page fault processing is done.
+Hey Michael,
 
-Build on if CONFIG_SPF is defined (currently for BOOK3S_64 && SMP).
-
-Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
----
- arch/powerpc/mm/fault.c | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
-
-diff --git a/arch/powerpc/mm/fault.c b/arch/powerpc/mm/fault.c
-index 4797d08581ce..c018c2554cc8 100644
---- a/arch/powerpc/mm/fault.c
-+++ b/arch/powerpc/mm/fault.c
-@@ -442,6 +442,20 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
- 	if (is_exec)
- 		flags |= FAULT_FLAG_INSTRUCTION;
- 
-+#ifdef CONFIG_SPF
-+	if (is_user) {
-+		/* let's try a speculative page fault without grabbing the
-+		 * mmap_sem.
-+		 */
-+		fault = handle_speculative_fault(mm, address, flags);
-+		if (!(fault & VM_FAULT_RETRY)) {
-+			perf_sw_event(PERF_COUNT_SW_SPF, 1,
-+				      regs, address);
-+			goto done;
-+		}
-+	}
-+#endif /* CONFIG_SPF */
-+
- 	/* When running in the kernel we expect faults to occur only to
- 	 * addresses in user space.  All other faults represent errors in the
- 	 * kernel and should generate an OOPS.  Unfortunately, in the case of an
-@@ -526,6 +540,9 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
- 
- 	up_read(&current->mm->mmap_sem);
- 
-+#ifdef CONFIG_SPF
-+done:
-+#endif
- 	if (unlikely(fault & VM_FAULT_ERROR))
- 		return mm_fault_error(regs, address, fault);
- 
--- 
-2.7.4
+What tool is this 'page-types' ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
