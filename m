@@ -1,87 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 76F0B6B0253
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 05:10:00 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id l1so912080wrc.6
-        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 02:10:00 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s3si10534007wmb.174.2017.10.11.02.09.59
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 821D86B0253
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 05:40:12 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id u138so2120546wmu.2
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 02:40:12 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id i92si1960968edi.365.2017.10.11.02.40.10
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 11 Oct 2017 02:09:59 -0700 (PDT)
-Date: Wed, 11 Oct 2017 11:09:57 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
-Message-ID: <20171011090957.i6z7e7akv3uuzti3@dhcp22.suse.cz>
-References: <20171005222144.123797-1-shakeelb@google.com>
- <20171006075900.icqjx5rr7hctn3zd@dhcp22.suse.cz>
- <CALvZod7YN4JCG7Anm2FViyZ0-APYy+nxEd3nyxe5LT_P0FC9wg@mail.gmail.com>
- <20171009062426.hmqedtqz5hkmhnff@dhcp22.suse.cz>
- <xr93a810xl77.fsf@gthelen.svl.corp.google.com>
- <20171009180409.z3mpk3m7m75hjyfv@dhcp22.suse.cz>
- <20171009181754.37svpqljub2goojr@dhcp22.suse.cz>
- <20171010091042.eokqlrqec33w3qzt@dhcp22.suse.cz>
- <CALvZod5VzPRRbhxLSn5GkgPbJEVJ9X5SfA=rjzRtTqLbCAe+eA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Oct 2017 02:40:11 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9B9dGIf025044
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 05:40:09 -0400
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2dhdr48rju-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 05:40:09 -0400
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Wed, 11 Oct 2017 10:40:07 +0100
+Subject: Re: [PATCH v4 19/20] x86/mm: Add speculative pagefault handling
+References: <1507543672-25821-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1507543672-25821-20-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20171010142356.b33f8a8fee3427fbdf0708e3@linux-foundation.org>
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Date: Wed, 11 Oct 2017 11:39:58 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALvZod5VzPRRbhxLSn5GkgPbJEVJ9X5SfA=rjzRtTqLbCAe+eA@mail.gmail.com>
+In-Reply-To: <20171010142356.b33f8a8fee3427fbdf0708e3@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Message-Id: <6c58b73a-b089-237f-46df-95e7c6fbe7ba@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Greg Thelen <gthelen@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Tue 10-10-17 15:21:53, Shakeel Butt wrote:
-[...]
-> On Tue, Oct 10, 2017 at 2:10 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Mon 09-10-17 20:17:54, Michal Hocko wrote:
-> >> the primary concern for this patch was whether we really need/want to
-> >> charge short therm objects which do not outlive a single syscall.
-> >
-> > Let me expand on this some more. What is the benefit of kmem accounting
-> > of such an object? It cannot stop any runaway as a syscall lifetime
-> > allocations are bound to number of processes which we kind of contain by
-> > other means.
+On 10/10/2017 23:23, Andrew Morton wrote:
+> On Mon,  9 Oct 2017 12:07:51 +0200 Laurent Dufour <ldufour@linux.vnet.ibm.com> wrote:
 > 
-> We can contain by limited the number of processes or thread but for us
-> applications having thousands of threads is very common. So, limiting
-> the number of threads/processes will not work.
-
-Well, the number of tasks is already contained in a way because we do
-account each task (kernel) stack AFAIR.
-
-> > If we do account then we put a memory pressure due to
-> > something that cannot be reclaimed by no means. Even the memcg OOM
-> > killer would simply kick a single path while there might be others
-> > to consume the same type of memory.
-> >
-> > So what is the actual point in accounting these? Does it help to contain
-> > any workload better? What kind of workload?
-> >
+>> +/*
+>> + * Advertise that we call the Speculative Page Fault handler.
+>> + */
+>> +#if defined(CONFIG_X86_64) && defined(CONFIG_SMP)
+>> +#define __HAVE_ARCH_CALL_SPF
+>> +#endif
 > 
-> I think the benefits will be isolation and more accurate billing. As I
-> have said before we have observed 100s of MiBs in names_cache on many
-> machines and cumulative amount is not something we can ignore as just
-> memory overhead.
+> Here's where I mess up your life ;)
 
-I do agree with Al arguing this is rather dubious and it can add an
-overhead without a good reason.
+That's ok... for this time ;)
 
-> > Or am I completely wrong and name objects can outlive a syscall
-> > considerably?
-> >
+> It would be more idiomatic to define this in arch/XXX/Kconfig:
 > 
-> No, I didn't find any instance of the name objects outliving the syscall.
+> config SPF
+> 	def_bool y if SMP
 > 
-> Anyways, we can discuss more on names_cache, do you have any objection
-> regarding charging filp?
+> then use CONFIG_SPF everywhere.
 
-I think filep makes more sense. But let's drop the names for now. I am
-not really convinced this is a good idea.
+That's far smarter ! Thanks for the tip, I'll change the series in this way.
 
--- 
-Michal Hocko
-SUSE Labs
+> Also, it would be better if CONFIG_SPF were defined at the start of the
+> patch series rather than the end, so that as the patches add new code,
+> that code is actually compilable.  For bisection purposes.  I can
+> understand if this is too much work and effort - we can live with
+> things the way they are now.
+
+I'll make the change and define CONFIG_SPF earlier, since until the patch
+enabling SPF page fault handler call in the arch part, the code is not
+triggered but the sequence count and the RCU stuff will be called this way.
+
+
+> This patchset is a ton of new code in very sensitive areas and seems to
+> have received little review and test.  I can do a
+> merge-and-see-what-happens but it would be quite a risk to send all
+> this upstream based only on my sketchy review and linux-next runtime
+> testing.  Can we bribe someone?
+
+I'll do appreciate to get more review too. So please...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
