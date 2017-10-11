@@ -1,126 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C26E6B0253
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 22:37:55 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id u23so999865pgo.7
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 19:37:55 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id o15si2945041pgq.475.2017.10.10.19.37.53
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 86DDE6B0253
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 23:15:00 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id u144so1203296pgb.0
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 20:15:00 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id g1si5121850plp.633.2017.10.10.20.14.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 10 Oct 2017 19:37:54 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH 1/2] mm, memory_hotplug: do not fail offlining too early
-In-Reply-To: <20171010122726.6jrfdzkscwge6gez@dhcp22.suse.cz>
-References: <20170918070834.13083-1-mhocko@kernel.org> <20170918070834.13083-2-mhocko@kernel.org> <87bmlfw6mj.fsf@concordia.ellerman.id.au> <20171010122726.6jrfdzkscwge6gez@dhcp22.suse.cz>
-Date: Wed, 11 Oct 2017 13:37:50 +1100
-Message-ID: <87infmz9xd.fsf@concordia.ellerman.id.au>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Oct 2017 20:14:59 -0700 (PDT)
+Message-ID: <59DD8D27.5010601@intel.com>
+Date: Wed, 11 Oct 2017 11:16:55 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH v16 3/5] virtio-balloon: VIRTIO_BALLOON_F_SG
+References: <201710102209.DBE39528.MtFLOJQSFOFVOH@I-love.SAKURA.ne.jp> <59DD7932.3070106@intel.com> <201710110226.v9B2QGdx019779@www262.sakura.ne.jp>
+In-Reply-To: <201710110226.v9B2QGdx019779@www262.sakura.ne.jp>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: mst@redhat.com, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-Michal Hocko <mhocko@kernel.org> writes:
-
-> On Tue 10-10-17 23:05:08, Michael Ellerman wrote:
->> Michal Hocko <mhocko@kernel.org> writes:
->> 
->> > From: Michal Hocko <mhocko@suse.com>
->> >
->> > Memory offlining can fail just too eagerly under a heavy memory pressure.
->> >
->> > [ 5410.336792] page:ffffea22a646bd00 count:255 mapcount:252 mapping:ffff88ff926c9f38 index:0x3
->> > [ 5410.336809] flags: 0x9855fe40010048(uptodate|active|mappedtodisk)
->> > [ 5410.336811] page dumped because: isolation failed
->> > [ 5410.336813] page->mem_cgroup:ffff8801cd662000
->> > [ 5420.655030] memory offlining [mem 0x18b580000000-0x18b5ffffffff] failed
->> >
->> > Isolation has failed here because the page is not on LRU. Most probably
->> > because it was on the pcp LRU cache or it has been removed from the LRU
->> > already but it hasn't been freed yet. In both cases the page doesn't look
->> > non-migrable so retrying more makes sense.
->> 
->> This breaks offline for me.
->> 
->> Prior to this commit:
->>   /sys/devices/system/memory/memory0# time echo 0 > online
->>   -bash: echo: write error: Device or resource busy
->>   
->>   real	0m0.001s
->>   user	0m0.000s
->>   sys	0m0.001s
->> 
->> After:
->>   /sys/devices/system/memory/memory0# time echo 0 > online
->>   -bash: echo: write error: Device or resource busy
->>   
->>   real	2m0.009s
->>   user	0m0.000s
->>   sys	1m25.035s
->> 
->> 
->> There's no way that block can be removed, it contains the kernel text,
->> so it should instantly fail - which it used to.
+On 10/11/2017 10:26 AM, Tetsuo Handa wrote:
+> Wei Wang wrote:
+>> On 10/10/2017 09:09 PM, Tetsuo Handa wrote:
+>>> Wei Wang wrote:
+>>>>> And even if we could remove balloon_lock, you still cannot use
+>>>>> __GFP_DIRECT_RECLAIM at xb_set_page(). I think you will need to use
+>>>>> "whether it is safe to wait" flag from
+>>>>> "[PATCH] virtio: avoid possible OOM lockup at virtballoon_oom_notify()" .
+>>>> Without the lock being held, why couldn't we use __GFP_DIRECT_RECLAIM at
+>>>> xb_set_page()?
+>>> Because of dependency shown below.
+>>>
+>>> leak_balloon()
+>>>    xb_set_page()
+>>>      xb_preload(GFP_KERNEL)
+>>>        kmalloc(GFP_KERNEL)
+>>>          __alloc_pages_may_oom()
+>>>            Takes oom_lock
+>>>            out_of_memory()
+>>>              blocking_notifier_call_chain()
+>>>                leak_balloon()
+>>>                  xb_set_page()
+>>>                    xb_preload(GFP_KERNEL)
+>>>                      kmalloc(GFP_KERNEL)
+>>>                        __alloc_pages_may_oom()
+>>>                          Fails to take oom_lock and loop forever
+>> __alloc_pages_may_oom() uses mutex_trylock(&oom_lock).
+> Yes. But this mutex_trylock(&oom_lock) is semantically mutex_lock(&oom_lock)
+> because __alloc_pages_slowpath() will continue looping until
+> mutex_trylock(&oom_lock) succeeds (or somebody releases memory).
 >
-> OK, that means that start_isolate_page_range should have failed but it
-> hasn't for some reason. I strongly suspect has_unmovable_pages is doing
-> something wrong. Is the kernel text marked somehow? E.g. PageReserved?
-
-I'm not sure how the text is marked, will have to dig into that.
-
-> In other words, does the diff below helps?
-
-No that doesn't help.
-
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 3badcedf96a7..00d042052501 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -7368,6 +7368,9 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
->  
->  		page = pfn_to_page(check);
->  
-> +		if (PageReserved(page))
-> +			return true;
-> +
->  		/*
->  		 * Hugepages are not in LRU lists, but they're movable.
->  		 * We need not scan over tail pages bacause we don't
+>> I think the second __alloc_pages_may_oom() will not continue since the
+>> first one is in progress.
+> The second __alloc_pages_may_oom() will be called repeatedly because
+> __alloc_pages_slowpath() will continue looping (unless somebody releases
+> memory).
 >
->
->> With commit 3aa2823fdf66 ("mm, memory_hotplug: remove timeout from
->> __offline_memory") also applied, it appears to just get stuck forever,
->> and I get lots of:
->> 
->>   [ 1232.112953] INFO: task kworker/3:0:4609 blocked for more than 120 seconds.
->>   [ 1232.113067]       Not tainted 4.14.0-rc4-gcc6-next-20171009-g49827b9 #1
->>   [ 1232.113183] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
->>   [ 1232.113319] kworker/3:0     D11984  4609      2 0x00000800
->>   [ 1232.113416] Workqueue: memcg_kmem_cache memcg_kmem_cache_create_func
->>   [ 1232.113531] Call Trace:
->>   [ 1232.113579] [c0000000fb2db7a0] [c0000000fb2db900] 0xc0000000fb2db900 (unreliable)
->>   [ 1232.113717] [c0000000fb2db970] [c00000000001c964] __switch_to+0x304/0x6e0
->>   [ 1232.113840] [c0000000fb2dba10] [c000000000a408c0] __schedule+0x2e0/0xa80
->>   [ 1232.113978] [c0000000fb2dbae0] [c000000000a410a8] schedule+0x48/0xc0
->>   [ 1232.114113] [c0000000fb2dbb10] [c000000000a44d88] rwsem_down_read_failed+0x128/0x1b0
->>   [ 1232.114269] [c0000000fb2dbb70] [c0000000001696a8] __percpu_down_read+0x108/0x110
->>   [ 1232.114426] [c0000000fb2dbba0] [c00000000032e498] get_online_mems+0x68/0x80
->>   [ 1232.115487] [c0000000fb2dbbc0] [c0000000002c82ec] memcg_create_kmem_cache+0x4c/0x190
->>   [ 1232.115651] [c0000000fb2dbc60] [c0000000003483b8] memcg_kmem_cache_create_func+0x38/0xf0
->>   [ 1232.115809] [c0000000fb2dbc90] [c000000000121594] process_one_work+0x2b4/0x590
->>   [ 1232.115964] [c0000000fb2dbd20] [c000000000121908] worker_thread+0x98/0x5d0
->>   [ 1232.116095] [c0000000fb2dbdc0] [c00000000012a134] kthread+0x164/0x1b0
->>   [ 1232.116229] [c0000000fb2dbe30] [c00000000000bae0] ret_from_kernel_thread+0x5c/0x7c
->
-> I do not see how this is related to the offline path.
 
-It's blocked doing get_online_mems(). So it's unrelated to the offline,
-but it can't proceed until the offline finishes, which it never does,
-IIUIC.
+OK, I see, thanks. So, the point is that the OOM code path should not
+have memory allocation, and the
+old leak_balloon (without the F_SG feature) don't need xb_preload(). I
+think one solution would be to let
+the OOM uses the old leak_balloon() code path, and we can add one more
+parameter to leak_balloon
+to control that:
 
-cheers
+leak_balloon(struct virtio_balloon *vb, size_t num, bool oom)
+
+
+
+>>> By the way, is xb_set_page() safe?
+>>> Sleeping in the kernel with preemption disabled is a bug, isn't it?
+>>> __radix_tree_preload() returns 0 with preemption disabled upon success.
+>>> xb_preload() disables preemption if __radix_tree_preload() fails.
+>>> Then, kmalloc() is called with preemption disabled, isn't it?
+>>> But xb_set_page() calls xb_preload(GFP_KERNEL) which might sleep with
+>>> preemption disabled.
+>> Yes, I think that should not be expected, thanks.
+>>
+>> I plan to change it like this:
+>>
+>> bool xb_preload(gfp_t gfp)
+>> {
+>>         if (!this_cpu_read(ida_bitmap)) {
+>>                 struct ida_bitmap *bitmap = kmalloc(sizeof(*bitmap), gfp);
+>>
+>>                 if (!bitmap)
+>>                         return false;
+>>                 bitmap = this_cpu_cmpxchg(ida_bitmap, NULL, bitmap);
+>>                 kfree(bitmap);
+>>         }
+> Excuse me, but you are allocating per-CPU memory when running CPU might
+> change at this line? What happens if running CPU has changed at this line?
+> Will it work even with new CPU's ida_bitmap == NULL ?
+>
+
+
+Yes, it will be detected in xb_set_bit(): when ida_bitmap = NULL on the
+new CPU, xb_set_bit() will
+return -EAGAIN to the caller, and the caller should restart from
+xb_preload().
+
+Best,
+Wei
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
