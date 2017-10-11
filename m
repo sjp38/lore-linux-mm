@@ -1,110 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 644E16B0253
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 02:01:26 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u23so2151563pgo.7
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 23:01:26 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id a5si9163995pll.504.2017.10.10.23.01.24
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 03A306B0253
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 02:16:32 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id u23so2224710pgo.7
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 23:16:31 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k11si9704668pgr.75.2017.10.10.23.16.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Oct 2017 23:01:24 -0700 (PDT)
-Message-ID: <59DDB428.4020208@intel.com>
-Date: Wed, 11 Oct 2017 14:03:20 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 10 Oct 2017 23:16:30 -0700 (PDT)
+Subject: Re: [PATCH v3] mm, sysctl: make NUMA stats configurable
+References: <1506579101-5457-1-git-send-email-kemi.wang@intel.com>
+ <20171003092352.2wh2jbtt2dudfi5a@dhcp22.suse.cz>
+ <221a1e93-ee33-d598-67de-d6071f192040@intel.com>
+ <20171009075549.pzohdnerillwuhqo@dhcp22.suse.cz>
+ <20171010054902.sqp6yyid6qqhpsrt@dhcp22.suse.cz>
+ <bb13e610-758e-0fdd-ee65-781b4920f1c6@linux.intel.com>
+ <20171010143113.gk6iqcrguefhhlmr@dhcp22.suse.cz>
+ <eb9248f9-1941-57f9-de9e-596b4ead6491@linux.intel.com>
+ <20171010145728.q2levvekbpwlg57q@dhcp22.suse.cz>
+ <4949ccef-6b7f-c2d6-f500-92eadb2ba649@linux.intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <d65b7725-238b-a92c-6ea7-6621696d0711@suse.cz>
+Date: Wed, 11 Oct 2017 08:16:24 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH v16 5/5] virtio-balloon: VIRTIO_BALLOON_F_CTRL_VQ
-References: <1506744354-20979-1-git-send-email-wei.w.wang@intel.com> <1506744354-20979-6-git-send-email-wei.w.wang@intel.com> <20171001060305-mutt-send-email-mst@kernel.org> <286AC319A985734F985F78AFA26841F73932025A@shsmsx102.ccr.corp.intel.com> <20171010180636-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20171010180636-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <4949ccef-6b7f-c2d6-f500-92eadb2ba649@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "willy@infradead.org" <willy@infradead.org>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>, Michal Hocko <mhocko@kernel.org>
+Cc: kemi <kemi.wang@intel.com>, "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Proc sysctl <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On 10/10/2017 11:15 PM, Michael S. Tsirkin wrote:
-> On Mon, Oct 02, 2017 at 04:38:01PM +0000, Wang, Wei W wrote:
->> On Sunday, October 1, 2017 11:19 AM, Michael S. Tsirkin wrote:
->>> On Sat, Sep 30, 2017 at 12:05:54PM +0800, Wei Wang wrote:
->>>> +static void ctrlq_send_cmd(struct virtio_balloon *vb,
->>>> +			  struct virtio_balloon_ctrlq_cmd *cmd,
->>>> +			  bool inbuf)
->>>> +{
->>>> +	struct virtqueue *vq = vb->ctrl_vq;
->>>> +
->>>> +	ctrlq_add_cmd(vq, cmd, inbuf);
->>>> +	if (!inbuf) {
->>>> +		/*
->>>> +		 * All the input cmd buffers are replenished here.
->>>> +		 * This is necessary because the input cmd buffers are lost
->>>> +		 * after live migration. The device needs to rewind all of
->>>> +		 * them from the ctrl_vq.
->>> Confused. Live migration somehow loses state? Why is that and why is it a good
->>> idea? And how do you know this is migration even?
->>> Looks like all you know is you got free page end. Could be any reason for this.
->>
->> I think this would be something that the current live migration lacks - what the
->> device read from the vq is not transferred during live migration, an example is the
->> stat_vq_elem:
->> Line 476 at https://github.com/qemu/qemu/blob/master/hw/virtio/virtio-balloon.c
-> This does not touch guest memory though it just manipulates
-> internal state to make it easier to migrate.
-> It's transparent to guest as migration should be.
->
->> For all the things that are added to the vq and need to be held by the device
->> to use later need to consider the situation that live migration might happen at any
->> time and they need to be re-taken from the vq by the device on the destination
->> machine.
->>
->> So, even without this live migration optimization feature, I think all the things that are
->> added to the vq for the device to hold, need a way for the device to rewind back from
->> the vq - re-adding all the elements to the vq is a trick to keep a record of all of them
->> on the vq so that the device side rewinding can work.
->>
->> Please let me know if anything is missed or if you have other suggestions.
-> IMO migration should pass enough data source to destination for
-> destination to continue where source left off without guest help.
->
+On 10/10/2017 05:39 PM, Dave Hansen wrote:
+> On 10/10/2017 07:57 AM, Michal Hocko wrote:
+>>> But, let's be honest, this leaves us with an option that nobody is ever
+>>> going to turn on.  IOW, nobody except a very small portion of our users
+>>> will ever see any benefit from this.
+>> But aren't those small groups who would like to squeeze every single
+>> cycle out from the page allocator path the targeted audience?
+> 
+> They're the reason we started looking at this.  They also care the most.
+> 
+> But, the cost of these stats, especially we get more and more cores in a
+> NUMA node is really making them show up in profiles.  It would be nice
+> to get rid of them there, too.
 
-I'm afraid it would be difficult to pass the entire VirtQueueElement to 
-the destination. I think
-that would also be the reason that stats_vq_elem chose to rewind from 
-the guest vq, which re-do the
-virtqueue_pop() --> virtqueue_map_desc() steps (the QEMU virtual address 
-to the guest physical
-address relationship may be changed on the destination).
+Furthermore, the group that actually looks at those stats, could be also
+expected to be quite small. The group that cares neither about the
+stats, nor relies on top allocator performance, might still arguably
+benefit from improved allocator performance, but won't for sure benefit
+from the stats.
 
-
-How about another direction which would be easier - using two 32-bit 
-device specific configuration registers,
-Host2Guest and Guest2Host command registers, to replace the ctrlq for 
-command exchange:
-
-The flow can be as follows:
-
-1) Before Host sending a StartCMD, it flushes the free_page_vq in case 
-any old free page hint is left there;
-
-2) Host writes StartCMD to the Host2Guest register, and notifies the guest;
-
-3) Upon receiving a configuration notification, Guest reads the 
-Host2Guest register, and detaches all the used buffers from free_page_vq;
-(then for each StartCMD, the free_page_vq will always have no obsolete 
-free page hints, right? )
-
-4) Guest start report free pages:
-     4.1) Host may actively write StopCMD to the Host2Guest register 
-before the guest finishes; or
-     4.2) Guest finishes reporting, write StopCMD  the Guest2HOST 
-register, which traps to QEMU, to stop.
-
-
-Best,
-Wei
-
-
-
+> Aaron, do you remember offhand how much of the allocator overhead was
+> coming from NUMA stats?
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
