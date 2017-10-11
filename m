@@ -1,173 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C44EC6B0253
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 08:29:56 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u144so3849383pgb.0
-        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 05:29:56 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C6DBE6B0253
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 09:08:19 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id b189so2722406wmd.5
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 06:08:19 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d34si11403360pld.648.2017.10.11.05.29.55
+        by mx.google.com with ESMTPS id r187si10184314wmr.161.2017.10.11.06.08.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 11 Oct 2017 05:29:55 -0700 (PDT)
-Date: Wed, 11 Oct 2017 14:29:48 +0200
+        Wed, 11 Oct 2017 06:08:17 -0700 (PDT)
+Date: Wed, 11 Oct 2017 15:08:15 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH -mm -v2] mm, swap: Use page-cluster as max window of VMA
- based swap readahead
-Message-ID: <20171011122948.amcbow6w64eidkfq@dhcp22.suse.cz>
-References: <20171011070847.16003-1-ying.huang@intel.com>
+Subject: Re: [v11 3/6] mm, oom: cgroup-aware OOM killer
+Message-ID: <20171011130815.qjw7jfnnqz3gpn4s@dhcp22.suse.cz>
+References: <20171005130454.5590-1-guro@fb.com>
+ <20171005130454.5590-4-guro@fb.com>
+ <alpine.DEB.2.10.1710091414260.59643@chino.kir.corp.google.com>
+ <20171010122306.GA11653@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.10.1710101345370.28262@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171011070847.16003-1-ying.huang@intel.com>
+In-Reply-To: <alpine.DEB.2.10.1710101345370.28262@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Shaohua Li <shli@kernel.org>, Hugh Dickins <hughd@google.com>, Fengguang Wu <fengguang.wu@intel.com>, Tim Chen <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>, Minchan Kim <minchan@kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 11-10-17 15:08:47, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
+On Tue 10-10-17 14:13:00, David Rientjes wrote:
+[...]
+> For these reasons: unfair comparison of root mem cgroup usage to bias 
+> against that mem cgroup from oom kill in system oom conditions, the 
+> ability of users to completely evade the oom killer by attaching all 
+> processes to child cgroups either purposefully or unpurposefully, and the 
+> inability of userspace to effectively control oom victim selection:
 > 
-> When the VMA based swap readahead was introduced, a new knob
-> 
->   /sys/kernel/mm/swap/vma_ra_max_order
-> 
-> was added as the max window of VMA swap readahead.  This is to make it
-> possible to use different max window for VMA based readahead and
-> original physical readahead.  But Minchan Kim pointed out that this
-> will cause a regression because setting page-cluster sysctl to zero
-> cannot disable swap readahead with the change.
-> 
-> To fix the regression, the page-cluster sysctl is used as the max
-> window of both the VMA based swap readahead and original physical swap
-> readahead.  If more fine grained control is needed in the future, more
-> knobs can be added as the subordinate knobs of the page-cluster
-> sysctl.
-> 
-> The vma_ra_max_order knob is deleted.  Because the knob was
-> introduced in v4.14-rc1, and this patch is targeting being merged
-> before v4.14 releasing, there should be no existing users of this
-> newly added ABI.
-> 
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Shaohua Li <shli@kernel.org>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Fengguang Wu <fengguang.wu@intel.com>
-> Cc: Tim Chen <tim.c.chen@intel.com>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Reported-by: Minchan Kim <minchan@kernel.org>
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> Nacked-by: David Rientjes <rientjes@google.com>
 
-Thanks for addressing this issue.
-Acked-by: Michal Hocko <mhocko@suse.com>
+I consider this NACK rather dubious. Evading the heuristic as you
+describe requires root privileges in default configuration because
+normal users are not allowed to create subtrees. If you
+really want to delegate subtree to an untrusted entity then you do not
+have to opt-in for this oom strategy. We can work on an additional means
+which would allow to cover those as well (e.g. priority based one which
+is requested for other usecases).
 
-> ---
->  Documentation/ABI/testing/sysfs-kernel-mm-swap | 10 -------
->  mm/swap_state.c                                | 41 +++++---------------------
->  2 files changed, 7 insertions(+), 44 deletions(-)
-> 
-> diff --git a/Documentation/ABI/testing/sysfs-kernel-mm-swap b/Documentation/ABI/testing/sysfs-kernel-mm-swap
-> index 587db52084c7..94672016c268 100644
-> --- a/Documentation/ABI/testing/sysfs-kernel-mm-swap
-> +++ b/Documentation/ABI/testing/sysfs-kernel-mm-swap
-> @@ -14,13 +14,3 @@ Description:	Enable/disable VMA based swap readahead.
->  		still used for tmpfs etc. other users.  If set to
->  		false, the global swap readahead algorithm will be
->  		used for all swappable pages.
-> -
-> -What:		/sys/kernel/mm/swap/vma_ra_max_order
-> -Date:		August 2017
-> -Contact:	Linux memory management mailing list <linux-mm@kvack.org>
-> -Description:	The max readahead size in order for VMA based swap readahead
-> -
-> -		VMA based swap readahead algorithm will readahead at
-> -		most 1 << max_order pages for each readahead.  The
-> -		real readahead size for each readahead will be scaled
-> -		according to the estimation algorithm.
-> diff --git a/mm/swap_state.c b/mm/swap_state.c
-> index ed91091d1e68..05b6803f0cce 100644
-> --- a/mm/swap_state.c
-> +++ b/mm/swap_state.c
-> @@ -39,10 +39,6 @@ struct address_space *swapper_spaces[MAX_SWAPFILES];
->  static unsigned int nr_swapper_spaces[MAX_SWAPFILES];
->  bool swap_vma_readahead = true;
->  
-> -#define SWAP_RA_MAX_ORDER_DEFAULT	3
-> -
-> -static int swap_ra_max_order = SWAP_RA_MAX_ORDER_DEFAULT;
-> -
->  #define SWAP_RA_WIN_SHIFT	(PAGE_SHIFT / 2)
->  #define SWAP_RA_HITS_MASK	((1UL << SWAP_RA_WIN_SHIFT) - 1)
->  #define SWAP_RA_HITS_MAX	SWAP_RA_HITS_MASK
-> @@ -664,6 +660,13 @@ struct page *swap_readahead_detect(struct vm_fault *vmf,
->  	pte_t *tpte;
->  #endif
->  
-> +	max_win = 1 << min_t(unsigned int, READ_ONCE(page_cluster),
-> +			     SWAP_RA_ORDER_CEILING);
-> +	if (max_win == 1) {
-> +		swap_ra->win = 1;
-> +		return NULL;
-> +	}
-> +
->  	faddr = vmf->address;
->  	entry = pte_to_swp_entry(vmf->orig_pte);
->  	if ((unlikely(non_swap_entry(entry))))
-> @@ -672,12 +675,6 @@ struct page *swap_readahead_detect(struct vm_fault *vmf,
->  	if (page)
->  		return page;
->  
-> -	max_win = 1 << READ_ONCE(swap_ra_max_order);
-> -	if (max_win == 1) {
-> -		swap_ra->win = 1;
-> -		return NULL;
-> -	}
-> -
->  	fpfn = PFN_DOWN(faddr);
->  	swap_ra_info = GET_SWAP_RA_VAL(vma);
->  	pfn = PFN_DOWN(SWAP_RA_ADDR(swap_ra_info));
-> @@ -786,32 +783,8 @@ static struct kobj_attribute vma_ra_enabled_attr =
->  	__ATTR(vma_ra_enabled, 0644, vma_ra_enabled_show,
->  	       vma_ra_enabled_store);
->  
-> -static ssize_t vma_ra_max_order_show(struct kobject *kobj,
-> -				     struct kobj_attribute *attr, char *buf)
-> -{
-> -	return sprintf(buf, "%d\n", swap_ra_max_order);
-> -}
-> -static ssize_t vma_ra_max_order_store(struct kobject *kobj,
-> -				      struct kobj_attribute *attr,
-> -				      const char *buf, size_t count)
-> -{
-> -	int err, v;
-> -
-> -	err = kstrtoint(buf, 10, &v);
-> -	if (err || v > SWAP_RA_ORDER_CEILING || v <= 0)
-> -		return -EINVAL;
-> -
-> -	swap_ra_max_order = v;
-> -
-> -	return count;
-> -}
-> -static struct kobj_attribute vma_ra_max_order_attr =
-> -	__ATTR(vma_ra_max_order, 0644, vma_ra_max_order_show,
-> -	       vma_ra_max_order_store);
-> -
->  static struct attribute *swap_attrs[] = {
->  	&vma_ra_enabled_attr.attr,
-> -	&vma_ra_max_order_attr.attr,
->  	NULL,
->  };
->  
-> -- 
-> 2.14.2
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+A similar argument applies to the root memcg evaluation. While the
+proposed behavior is not optimal it would work for general usecase
+described here where the root memcg doesn't really run any large number
+of tasks. If somebody who explicitly opts-in for the new strategy and it
+doesn't work well for that usecase we can enhance the behavior. That
+alone is not a reason to nack the whole thing.
 
+I find it really disturbing that you keep nacking this approach just
+because it doesn't suite your specific usecase while it doesn't break
+it. Moreover it has been stated several times already that future
+improvements are possible and cover what you have described already.
 -- 
 Michal Hocko
 SUSE Labs
