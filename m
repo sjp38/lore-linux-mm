@@ -1,114 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 86DDE6B0253
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 23:15:00 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id u144so1203296pgb.0
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 20:15:00 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id g1si5121850plp.633.2017.10.10.20.14.59
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BEF5D6B0253
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 00:06:37 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id l196so679154itl.15
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 21:06:37 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 23sor2078263ioc.168.2017.10.10.21.06.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Oct 2017 20:14:59 -0700 (PDT)
-Message-ID: <59DD8D27.5010601@intel.com>
-Date: Wed, 11 Oct 2017 11:16:55 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (Google Transport Security);
+        Tue, 10 Oct 2017 21:06:36 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v16 3/5] virtio-balloon: VIRTIO_BALLOON_F_SG
-References: <201710102209.DBE39528.MtFLOJQSFOFVOH@I-love.SAKURA.ne.jp> <59DD7932.3070106@intel.com> <201710110226.v9B2QGdx019779@www262.sakura.ne.jp>
-In-Reply-To: <201710110226.v9B2QGdx019779@www262.sakura.ne.jp>
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20171010093353.GG775@quack2.suse.cz>
+References: <1507330684-2205-1-git-send-email-laoar.shao@gmail.com>
+ <20171009154212.bdf3645a2dce5d540657914b@linux-foundation.org>
+ <CALOAHbBRxYqhoeqzDiCNcpA6PG9ysAknaRBseCEYLoV1M9MyHA@mail.gmail.com>
+ <20171010084817.GD775@quack2.suse.cz> <CALOAHbD61HNK=zshRJSHoWadjJqO4DxDSvHxw57kYm0V6o9sDA@mail.gmail.com>
+ <20171010093353.GG775@quack2.suse.cz>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Wed, 11 Oct 2017 12:06:35 +0800
+Message-ID: <CALOAHbADB_yuXxmCEx1_zTxYuc0XdvTp2YAbWyFNe=mnJ3iz6Q@mail.gmail.com>
+Subject: Re: [PATCH] mm/page-writeback.c: fix bug caused by disable periodic writeback
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: mst@redhat.com, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, Johannes Weiner <hannes@cmpxchg.org>, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, Theodore Ts'o <tytso@mit.edu>, mawilcox@microsoft.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>
 
-On 10/11/2017 10:26 AM, Tetsuo Handa wrote:
-> Wei Wang wrote:
->> On 10/10/2017 09:09 PM, Tetsuo Handa wrote:
->>> Wei Wang wrote:
->>>>> And even if we could remove balloon_lock, you still cannot use
->>>>> __GFP_DIRECT_RECLAIM at xb_set_page(). I think you will need to use
->>>>> "whether it is safe to wait" flag from
->>>>> "[PATCH] virtio: avoid possible OOM lockup at virtballoon_oom_notify()" .
->>>> Without the lock being held, why couldn't we use __GFP_DIRECT_RECLAIM at
->>>> xb_set_page()?
->>> Because of dependency shown below.
->>>
->>> leak_balloon()
->>>    xb_set_page()
->>>      xb_preload(GFP_KERNEL)
->>>        kmalloc(GFP_KERNEL)
->>>          __alloc_pages_may_oom()
->>>            Takes oom_lock
->>>            out_of_memory()
->>>              blocking_notifier_call_chain()
->>>                leak_balloon()
->>>                  xb_set_page()
->>>                    xb_preload(GFP_KERNEL)
->>>                      kmalloc(GFP_KERNEL)
->>>                        __alloc_pages_may_oom()
->>>                          Fails to take oom_lock and loop forever
->> __alloc_pages_may_oom() uses mutex_trylock(&oom_lock).
-> Yes. But this mutex_trylock(&oom_lock) is semantically mutex_lock(&oom_lock)
-> because __alloc_pages_slowpath() will continue looping until
-> mutex_trylock(&oom_lock) succeeds (or somebody releases memory).
+2017-10-10 17:33 GMT+08:00 Jan Kara <jack@suse.cz>:
+> On Tue 10-10-17 17:14:48, Yafang Shao wrote:
+>> 2017-10-10 16:48 GMT+08:00 Jan Kara <jack@suse.cz>:
+>> > On Tue 10-10-17 16:00:29, Yafang Shao wrote:
+>> >> 2017-10-10 6:42 GMT+08:00 Andrew Morton <akpm@linux-foundation.org>:
+>> >> > On Sat,  7 Oct 2017 06:58:04 +0800 Yafang Shao <laoar.shao@gmail.com> wrote:
+>> >> >
+>> >> >> After disable periodic writeback by writing 0 to
+>> >> >> dirty_writeback_centisecs, the handler wb_workfn() will not be
+>> >> >> entered again until the dirty background limit reaches or
+>> >> >> sync syscall is executed or no enough free memory available or
+>> >> >> vmscan is triggered.
+>> >> >> So the periodic writeback can't be enabled by writing a non-zero
+>> >> >> value to dirty_writeback_centisecs
+>> >> >> As it can be disabled by sysctl, it should be able to enable by
+>> >> >> sysctl as well.
+>> >> >>
+>> >> >> ...
+>> >> >>
+>> >> >> --- a/mm/page-writeback.c
+>> >> >> +++ b/mm/page-writeback.c
+>> >> >> @@ -1972,7 +1972,13 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
+>> >> >>  int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
+>> >> >>       void __user *buffer, size_t *length, loff_t *ppos)
+>> >> >>  {
+>> >> >> -     proc_dointvec(table, write, buffer, length, ppos);
+>> >> >> +     unsigned int old_interval = dirty_writeback_interval;
+>> >> >> +     int ret;
+>> >> >> +
+>> >> >> +     ret = proc_dointvec(table, write, buffer, length, ppos);
+>> >> >> +     if (!ret && !old_interval && dirty_writeback_interval)
+>> >> >> +             wakeup_flusher_threads(0, WB_REASON_PERIODIC);
+>> >> >> +
+>> >> >>       return 0;
+>> >> >
+>> >> > We could do with a code comment here, explaining why this code exists.
+>> >> >
+>> >>
+>> >> OK. I will comment here.
+>> >>
+>> >> > And...  I'm not sure it works correctly?  For example, if a device
+>> >> > doesn't presently have bdi_has_dirty_io() then wakeup_flusher_threads()
+>> >> > will skip it and the periodic writeback still won't be started?
+>> >> >
+>> >>
+>> >> That's an issue.
+>> >> The periodic writeback won't be started.
+>> >>
+>> >> Maybe we'd better call  wb_wakeup_delayed(wb) here to bypass the
+>> >> bdi_has_dirty_io() check ?
+>> >
+>> > Well, wb_wakeup_delayed() would be more appropriate but you'd then have to
+>> > iterate over all bdis and wbs to be able to call it which IMO isn't worth
+>> > the pain for a special case like this. But the decision is worth mentioning
+>> > in the comment. Also wakeup_flusher_threads() does in principle what you
+>> > need - see my reply to Andrew for details.
+>> >
+>> >                                                                 Honza
+>>
+>> Thanks for your explaination. I understood.
+>> I will mention it in the comment.
+>>
+>> Should we do the wakeup whenever dirty_writeback_interval changes ?
+>> If we still use wakeup_flusher_threads(), it will wakeup the flusher
+>> threads immediately after we make the change.
 >
->> I think the second __alloc_pages_may_oom() will not continue since the
->> first one is in progress.
-> The second __alloc_pages_may_oom() will be called repeatedly because
-> __alloc_pages_slowpath() will continue looping (unless somebody releases
-> memory).
->
-
-OK, I see, thanks. So, the point is that the OOM code path should not
-have memory allocation, and the
-old leak_balloon (without the F_SG feature) don't need xb_preload(). I
-think one solution would be to let
-the OOM uses the old leak_balloon() code path, and we can add one more
-parameter to leak_balloon
-to control that:
-
-leak_balloon(struct virtio_balloon *vb, size_t num, bool oom)
-
-
-
->>> By the way, is xb_set_page() safe?
->>> Sleeping in the kernel with preemption disabled is a bug, isn't it?
->>> __radix_tree_preload() returns 0 with preemption disabled upon success.
->>> xb_preload() disables preemption if __radix_tree_preload() fails.
->>> Then, kmalloc() is called with preemption disabled, isn't it?
->>> But xb_set_page() calls xb_preload(GFP_KERNEL) which might sleep with
->>> preemption disabled.
->> Yes, I think that should not be expected, thanks.
->>
->> I plan to change it like this:
->>
->> bool xb_preload(gfp_t gfp)
->> {
->>         if (!this_cpu_read(ida_bitmap)) {
->>                 struct ida_bitmap *bitmap = kmalloc(sizeof(*bitmap), gfp);
->>
->>                 if (!bitmap)
->>                         return false;
->>                 bitmap = this_cpu_cmpxchg(ida_bitmap, NULL, bitmap);
->>                 kfree(bitmap);
->>         }
-> Excuse me, but you are allocating per-CPU memory when running CPU might
-> change at this line? What happens if running CPU has changed at this line?
-> Will it work even with new CPU's ida_bitmap == NULL ?
+> Yes, I think we should wakeup for every change of dirty_writeback_interval.
+> And immediate wakeup is not a problem IMO.
 >
 
-
-Yes, it will be detected in xb_set_bit(): when ida_bitmap = NULL on the
-new CPU, xb_set_bit() will
-return -EAGAIN to the caller, and the caller should restart from
-xb_preload().
-
-Best,
-Wei
+Got it!
 
 
+Thanks
+Yafang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
