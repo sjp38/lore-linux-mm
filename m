@@ -1,131 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F8F56B0253
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 01:19:11 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id j64so2314964pfj.6
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 22:19:11 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id h68si9324908pgc.508.2017.10.10.22.19.08
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 644E16B0253
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 02:01:26 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id u23so2151563pgo.7
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 23:01:26 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id a5si9163995pll.504.2017.10.10.23.01.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 10 Oct 2017 22:19:09 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH 1/2] mm, memory_hotplug: do not fail offlining too early
-In-Reply-To: <87infmz9xd.fsf@concordia.ellerman.id.au>
-References: <20170918070834.13083-1-mhocko@kernel.org> <20170918070834.13083-2-mhocko@kernel.org> <87bmlfw6mj.fsf@concordia.ellerman.id.au> <20171010122726.6jrfdzkscwge6gez@dhcp22.suse.cz> <87infmz9xd.fsf@concordia.ellerman.id.au>
-Date: Wed, 11 Oct 2017 16:19:05 +1100
-Message-ID: <87a80yz2gm.fsf@concordia.ellerman.id.au>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Oct 2017 23:01:24 -0700 (PDT)
+Message-ID: <59DDB428.4020208@intel.com>
+Date: Wed, 11 Oct 2017 14:03:20 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH v16 5/5] virtio-balloon: VIRTIO_BALLOON_F_CTRL_VQ
+References: <1506744354-20979-1-git-send-email-wei.w.wang@intel.com> <1506744354-20979-6-git-send-email-wei.w.wang@intel.com> <20171001060305-mutt-send-email-mst@kernel.org> <286AC319A985734F985F78AFA26841F73932025A@shsmsx102.ccr.corp.intel.com> <20171010180636-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20171010180636-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "willy@infradead.org" <willy@infradead.org>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
 
-Michael Ellerman <mpe@ellerman.id.au> writes:
-> Michal Hocko <mhocko@kernel.org> writes:
->> On Tue 10-10-17 23:05:08, Michael Ellerman wrote:
->>> Michal Hocko <mhocko@kernel.org> writes:
->>> > From: Michal Hocko <mhocko@suse.com>
->>> > Memory offlining can fail just too eagerly under a heavy memory pressure.
->>> >
->>> > [ 5410.336792] page:ffffea22a646bd00 count:255 mapcount:252 mapping:ffff88ff926c9f38 index:0x3
->>> > [ 5410.336809] flags: 0x9855fe40010048(uptodate|active|mappedtodisk)
->>> > [ 5410.336811] page dumped because: isolation failed
->>> > [ 5410.336813] page->mem_cgroup:ffff8801cd662000
->>> > [ 5420.655030] memory offlining [mem 0x18b580000000-0x18b5ffffffff] failed
->>> >
->>> > Isolation has failed here because the page is not on LRU. Most probably
->>> > because it was on the pcp LRU cache or it has been removed from the LRU
->>> > already but it hasn't been freed yet. In both cases the page doesn't look
->>> > non-migrable so retrying more makes sense.
->>> 
->>> This breaks offline for me.
->>> 
->>> Prior to this commit:
->>>   /sys/devices/system/memory/memory0# time echo 0 > online
->>>   -bash: echo: write error: Device or resource busy
->>>   
->>>   real	0m0.001s
->>>   user	0m0.000s
->>>   sys	0m0.001s
->>> 
->>> After:
->>>   /sys/devices/system/memory/memory0# time echo 0 > online
->>>   -bash: echo: write error: Device or resource busy
->>>   
->>>   real	2m0.009s
->>>   user	0m0.000s
->>>   sys	1m25.035s
->>> 
->>> There's no way that block can be removed, it contains the kernel text,
->>> so it should instantly fail - which it used to.
+On 10/10/2017 11:15 PM, Michael S. Tsirkin wrote:
+> On Mon, Oct 02, 2017 at 04:38:01PM +0000, Wang, Wei W wrote:
+>> On Sunday, October 1, 2017 11:19 AM, Michael S. Tsirkin wrote:
+>>> On Sat, Sep 30, 2017 at 12:05:54PM +0800, Wei Wang wrote:
+>>>> +static void ctrlq_send_cmd(struct virtio_balloon *vb,
+>>>> +			  struct virtio_balloon_ctrlq_cmd *cmd,
+>>>> +			  bool inbuf)
+>>>> +{
+>>>> +	struct virtqueue *vq = vb->ctrl_vq;
+>>>> +
+>>>> +	ctrlq_add_cmd(vq, cmd, inbuf);
+>>>> +	if (!inbuf) {
+>>>> +		/*
+>>>> +		 * All the input cmd buffers are replenished here.
+>>>> +		 * This is necessary because the input cmd buffers are lost
+>>>> +		 * after live migration. The device needs to rewind all of
+>>>> +		 * them from the ctrl_vq.
+>>> Confused. Live migration somehow loses state? Why is that and why is it a good
+>>> idea? And how do you know this is migration even?
+>>> Looks like all you know is you got free page end. Could be any reason for this.
 >>
->> OK, that means that start_isolate_page_range should have failed but it
->> hasn't for some reason. I strongly suspect has_unmovable_pages is doing
->> something wrong. Is the kernel text marked somehow? E.g. PageReserved?
+>> I think this would be something that the current live migration lacks - what the
+>> device read from the vq is not transferred during live migration, an example is the
+>> stat_vq_elem:
+>> Line 476 at https://github.com/qemu/qemu/blob/master/hw/virtio/virtio-balloon.c
+> This does not touch guest memory though it just manipulates
+> internal state to make it easier to migrate.
+> It's transparent to guest as migration should be.
 >
-> I'm not sure how the text is marked, will have to dig into that.
+>> For all the things that are added to the vq and need to be held by the device
+>> to use later need to consider the situation that live migration might happen at any
+>> time and they need to be re-taken from the vq by the device on the destination
+>> machine.
+>>
+>> So, even without this live migration optimization feature, I think all the things that are
+>> added to the vq for the device to hold, need a way for the device to rewind back from
+>> the vq - re-adding all the elements to the vq is a trick to keep a record of all of them
+>> on the vq so that the device side rewinding can work.
+>>
+>> Please let me know if anything is missed or if you have other suggestions.
+> IMO migration should pass enough data source to destination for
+> destination to continue where source left off without guest help.
+>
 
-Yeah it's reserved:
-
-  $ grep __init_begin /proc/kallsyms
-  c000000000d70000 T __init_begin
-  $ ./page-types -r -a 0x0,0xd7
-               flags	page-count       MB  symbolic-flags			long-symbolic-flags
-  0x0000000100000000	       215       13  __________________________r_______________	reserved
-               total	       215       13
-
-
-I added some printks, we're getting EBUSY from do_migrate_range(pfn, end_pfn).
-
-So we seem to just have an infinite loop:
-
-  repeat:
-  	/* start memory hot removal */
-  	ret = -EINTR;
-  	if (signal_pending(current))
-  		goto failed_removal;
-  
-  	cond_resched();
-  	lru_add_drain_all_cpuslocked();
-  	drain_all_pages(zone);
-  
-  	pfn = scan_movable_pages(start_pfn, end_pfn);
-  	if (pfn) { /* We have movable pages */
-  		ret = do_migrate_range(pfn, end_pfn);
-  		printk_ratelimited("memory-hotplug: migrate range returned %ld\n", ret);
-  		goto repeat;
-  	}
+I'm afraid it would be difficult to pass the entire VirtQueueElement to 
+the destination. I think
+that would also be the reason that stats_vq_elem chose to rewind from 
+the guest vq, which re-do the
+virtqueue_pop() --> virtqueue_map_desc() steps (the QEMU virtual address 
+to the guest physical
+address relationship may be changed on the destination).
 
 
-eg:
+How about another direction which would be easier - using two 32-bit 
+device specific configuration registers,
+Host2Guest and Guest2Host command registers, to replace the ctrlq for 
+command exchange:
 
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  __offline_pages: 354031 callbacks suppressed
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  memory-hotplug: migrate range returned -16
-  __offline_pages: 355794 callbacks suppressed
+The flow can be as follows:
+
+1) Before Host sending a StartCMD, it flushes the free_page_vq in case 
+any old free page hint is left there;
+
+2) Host writes StartCMD to the Host2Guest register, and notifies the guest;
+
+3) Upon receiving a configuration notification, Guest reads the 
+Host2Guest register, and detaches all the used buffers from free_page_vq;
+(then for each StartCMD, the free_page_vq will always have no obsolete 
+free page hints, right? )
+
+4) Guest start report free pages:
+     4.1) Host may actively write StopCMD to the Host2Guest register 
+before the guest finishes; or
+     4.2) Guest finishes reporting, write StopCMD  the Guest2HOST 
+register, which traps to QEMU, to stop.
 
 
-cheers
+Best,
+Wei
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
