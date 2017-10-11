@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 363C96B0260
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 15:15:51 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id h4so6660332qtk.4
-        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 12:15:51 -0700 (PDT)
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CE536B0260
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 15:16:56 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id 37so6658821qto.2
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 12:16:56 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r10sor10043320qtk.16.2017.10.11.12.15.50
+        by mx.google.com with SMTPS id s68sor1710701qkc.37.2017.10.11.12.16.55
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 11 Oct 2017 12:15:50 -0700 (PDT)
-Subject: Re: [PATCH 03/11] arm: Kconfig: enable KASan
+        Wed, 11 Oct 2017 12:16:55 -0700 (PDT)
+Subject: Re: [PATCH 05/11] Disable kasan's instrumentation
 References: <20171011082227.20546-1-liuwenliang@huawei.com>
- <20171011082227.20546-4-liuwenliang@huawei.com>
+ <20171011082227.20546-6-liuwenliang@huawei.com>
 From: Florian Fainelli <f.fainelli@gmail.com>
-Message-ID: <a3902e32-0141-9616-ba3e-9cbbd396b99a@gmail.com>
-Date: Wed, 11 Oct 2017 12:15:44 -0700
+Message-ID: <cf3776c0-b6e0-7a6e-9d43-d77ddd83749b@gmail.com>
+Date: Wed, 11 Oct 2017 12:16:50 -0700
 MIME-Version: 1.0
-In-Reply-To: <20171011082227.20546-4-liuwenliang@huawei.com>
+In-Reply-To: <20171011082227.20546-6-liuwenliang@huawei.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -28,14 +28,17 @@ Cc: glider@google.com, dvyukov@google.com, opendmb@gmail.com, linux-arm-kernel@l
 On 10/11/2017 01:22 AM, Abbott Liu wrote:
 > From: Andrey Ryabinin <a.ryabinin@samsung.com>
 > 
-> This patch enable kernel address sanitizer for arm.
+>  To avoid some build and runtime errors, compiler's instrumentation must
+>  be disabled for code not linked with kernel image.
 > 
 > Cc: Andrey Ryabinin <a.ryabinin@samsung.com>
 > Signed-off-by: Abbott Liu <liuwenliang@huawei.com>
 
-This needs to be the last patch in the series, otherwise you allow
-people between patch 3 and 11 to have varying degrees of experience with
-this patch series depending on their system type (LPAE or not, etc.)
+Same as patch 3, this needs to be moved before you allow KAsan to be
+enabled/selected. This has little to no dependencies on other patches so
+this could be moved as the first patch in the series.
+
+Thanks!
 -- 
 Florian
 
