@@ -1,65 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 799756B0272
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 04:24:57 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id j3so2825854pga.3
-        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 01:24:57 -0700 (PDT)
-Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id q2si6085622plh.162.2017.10.11.01.24.48
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8900C6B0253
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 04:53:44 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id 10so3564874qty.5
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 01:53:44 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k88si1733098qtd.521.2017.10.11.01.53.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 11 Oct 2017 01:24:48 -0700 (PDT)
-From: Abbott Liu <liuwenliang@huawei.com>
-Subject: [PATCH 08/11] Add support arm LPAE
-Date: Wed, 11 Oct 2017 16:22:24 +0800
-Message-ID: <20171011082227.20546-9-liuwenliang@huawei.com>
-In-Reply-To: <20171011082227.20546-1-liuwenliang@huawei.com>
-References: <20171011082227.20546-1-liuwenliang@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Oct 2017 01:53:43 -0700 (PDT)
+From: shuwang@redhat.com
+Subject: [PATCH] mm: kmemleak: start address align for scan_large_block
+Date: Wed, 11 Oct 2017 16:53:34 +0800
+Message-Id: <20171011085334.7391-1-shuwang@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux@armlinux.org.uk, aryabinin@virtuozzo.com, liuwenliang@huawei.com, afzal.mohd.ma@gmail.com, f.fainelli@gmail.com, labbott@redhat.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, cdall@linaro.org, marc.zyngier@arm.com, catalin.marinas@arm.com, akpm@linux-foundation.org, mawilcox@microsoft.com, tglx@linutronix.de, thgarnie@google.com, keescook@chromium.org, arnd@arndb.de, vladimir.murzin@arm.com, tixy@linaro.org, ard.biesheuvel@linaro.org, robin.murphy@arm.com, mingo@kernel.org, grygorii.strashko@linaro.org
-Cc: glider@google.com, dvyukov@google.com, opendmb@gmail.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, jiazhenghua@huawei.com, dylix.dailei@huawei.com, zengweilin@huawei.com, heshaoliang@huawei.com
+To: catalin.marinas@arm.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, chuhu@redhat.com, yizhan@redhat.com, Shu Wang <shuwang@redhat.com>
 
-  On arm LPAE architecture,  the mapping table of KASan shadow memory(if
-PAGE_OFFSET is 0xc0000000, the KASan shadow memory's virtual space is
-0xb6e000000~0xbf000000) can't be filled in do_translation_fault function,
-because kasan instrumentation maybe cause do_translation_fault function
-accessing KASan shadow memory. The accessing of KASan shadow memory in
-do_translation_fault function maybe cause dead circle. So the mapping table
-of KASan shadow memory need be copyed in pgd_alloc function.
+From: Shu Wang <shuwang@redhat.com>
 
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>
+If the start address is not ptr bytes aligned, it may cause false
+positives when a pointer is split by MAX_SCAN_SIZE.
+
+For example:
+tcp_metrics_nl_family is in __ro_after_init area. On my PC, the
+__start_ro_after_init is not ptr aligned, and
+tcp_metrics_nl_family->attrbuf was break by MAX_SCAN_SIZE.
+
+ # cat /proc/kallsyms | grep __start_ro_after_init
+ ffffffff81afac8b R __start_ro_after_init
+
+ (gdb) p &tcp_metrics_nl_family->attrbuf
+   (struct nlattr ***) 0xffffffff81b12c88 <tcp_metrics_nl_family+72>
+
+ (gdb) p tcp_metrics_nl_family->attrbuf
+   (struct nlattr **) 0xffff88007b9d9400
+
+ scan_block(_start=0xffffffff81b11c8b, _end=0xffffffff81b12c8b, 0)
+ scan_block(_start=0xffffffff81b12c8b, _end=0xffffffff81b13c8b, 0)
+
+unreferenced object 0xffff88007b9d9400 (size 128):
+  backtrace:
+    kmemleak_alloc+0x4a/0xa0
+    __kmalloc+0xec/0x220
+    genl_register_family.part.8+0x11c/0x5c0
+    genl_register_family+0x6f/0x90
+    tcp_metrics_init+0x33/0x47
+    tcp_init+0x27a/0x293
+    inet_init+0x176/0x28a
+    do_one_initcall+0x51/0x1b0
+
+Signed-off-by: Shu Wang <shuwang@redhat.com>
 ---
- arch/arm/mm/pgd.c | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ mm/kmemleak.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/arch/arm/mm/pgd.c b/arch/arm/mm/pgd.c
-index c1c1a5c..4f73978 100644
---- a/arch/arm/mm/pgd.c
-+++ b/arch/arm/mm/pgd.c
-@@ -64,6 +64,18 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
- 	new_pmd = pmd_alloc(mm, new_pud, 0);
- 	if (!new_pmd)
- 		goto no_pmd;
-+#ifdef CONFIG_KASAN
-+	/*
-+	 *Copy PMD table for KASAN shadow mappings.
-+	 */
-+	init_pgd = pgd_offset_k(TASK_SIZE); 
-+	init_pud = pud_offset(init_pgd, TASK_SIZE);
-+	init_pmd = pmd_offset(init_pud, TASK_SIZE);
-+	new_pmd = pmd_offset(new_pud,TASK_SIZE);
-+	memcpy(new_pmd, init_pmd, (pmd_index(MODULES_VADDR)-pmd_index(TASK_SIZE)) * sizeof(pmd_t));
-+	clean_dcache_area(new_pmd,PTRS_PER_PMD*sizeof(pmd_t));
-+#endif
-+
- #endif
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 7780cd83a495..388b73e01fa4 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -1376,6 +1376,7 @@ static void scan_block(void *_start, void *_end,
+ static void scan_large_block(void *start, void *end)
+ {
+ 	void *next;
++	start = PTR_ALIGN(start, BYTES_PER_POINTER);
  
- 	if (!vectors_high()) {
+ 	while (start < end) {
+ 		next = min(start + MAX_SCAN_SIZE, end);
 -- 
-2.9.0
+2.13.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
