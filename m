@@ -1,111 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 451646B026B
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 05:56:03 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id l40so579120uah.2
-        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 02:56:03 -0700 (PDT)
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 92AE46B0253
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 05:57:10 -0400 (EDT)
+Received: by mail-ua0-f200.google.com with SMTP id d3so572268uai.7
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 02:57:10 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id u40sor2374804uaf.186.2017.10.11.02.56.02
+        by mx.google.com with SMTPS id i92sor2663817uad.41.2017.10.11.02.57.09
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 11 Oct 2017 02:56:02 -0700 (PDT)
+        Wed, 11 Oct 2017 02:57:09 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+ZeYmOXK8P37+HkfYAavnSsnoMDYLP7MF6FL_VpnC6bZw@mail.gmail.com>
-References: <20171009150521.82775-1-glider@google.com> <20171009154610.GA22534@leverpostej>
- <CAG_fn=UsTCyueyuMGT8i6ZoX9CWwvE9GhJAWnsJsPhf1AY2Z4Q@mail.gmail.com> <CACT4Y+ZeYmOXK8P37+HkfYAavnSsnoMDYLP7MF6FL_VpnC6bZw@mail.gmail.com>
+In-Reply-To: <6184cd73-6d78-b490-3fdd-2d577ef033a6@virtuozzo.com>
+References: <20171010152731.26031-1-glider@google.com> <20171010152731.26031-2-glider@google.com>
+ <6184cd73-6d78-b490-3fdd-2d577ef033a6@virtuozzo.com>
 From: Alexander Potapenko <glider@google.com>
-Date: Wed, 11 Oct 2017 11:56:01 +0200
-Message-ID: <CAG_fn=XwnAoZHtwLEOkysKNY+WPkzz1gCi1ZwN9JbYKQinqnNA@mail.gmail.com>
-Subject: Re: [PATCH v2 1/3] kcov: support comparison operands collection
+Date: Wed, 11 Oct 2017 11:57:08 +0200
+Message-ID: <CAG_fn=UFQe7wrTcDxGAfi3Gr=JMjYDg_cRLxeDsxm508mR3yKg@mail.gmail.com>
+Subject: Re: [PATCH v3 2/3] Makefile: support flag -fsanitizer-coverage=trace-cmp
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Popov <alex.popov@linux.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Andrey Konovalov <andreyknvl@google.com>, Kees Cook <keescook@chromium.org>, Vegard Nossum <vegard.nossum@oracle.com>, syzkaller <syzkaller@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mark Rutland <mark.rutland@arm.com>, Alexander Popov <alex.popov@linux.com>, Quentin Casasnovas <quentin.casasnovas@oracle.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrey Konovalov <andreyknvl@google.com>, Kees Cook <keescook@chromium.org>, Vegard Nossum <vegard.nossum@oracle.com>, syzkaller <syzkaller@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Oct 10, 2017 at 5:34 PM, 'Dmitry Vyukov' via syzkaller
-<syzkaller@googlegroups.com> wrote:
-> On Tue, Oct 10, 2017 at 5:28 PM, 'Alexander Potapenko' via syzkaller
-> <syzkaller@googlegroups.com> wrote:
->> On Mon, Oct 9, 2017 at 8:46 AM, Mark Rutland <mark.rutland@arm.com> wrot=
-e:
->>> Hi,
->>>
->>> I look forward to using this! :)
->>>
->>> I just have afew comments below.
->>>
->>> On Mon, Oct 09, 2017 at 05:05:19PM +0200, Alexander Potapenko wrote:
->>>> +/*
->>>> + * Defines the format for the types of collected comparisons.
->>>> + */
->>>> +enum kcov_cmp_type {
->>>> +     /*
->>>> +      * LSB shows whether one of the arguments is a compile-time cons=
-tant.
->>>> +      */
->>>> +     KCOV_CMP_CONST =3D 1,
->>>> +     /*
->>>> +      * Second and third LSBs contain the size of arguments (1/2/4/8 =
-bytes).
->>>> +      */
->>>> +     KCOV_CMP_SIZE1 =3D 0,
->>>> +     KCOV_CMP_SIZE2 =3D 2,
->>>> +     KCOV_CMP_SIZE4 =3D 4,
->>>> +     KCOV_CMP_SIZE8 =3D 6,
->>>> +     KCOV_CMP_SIZE_MASK =3D 6,
->>>> +};
->>>
->>> Given that LSB is meant to be OR-ed in, (and hence combinations of
->>> values are meaningful) I don't think it makes sense for this to be an
->>> enum. This would clearer as something like:
->>>
->>> /*
->>>  * The format for the types of collected comparisons.
->>>  *
->>>  * Bit 0 shows whether one of the arguments is a compile-time constant.
->>>  * Bits 1 & 2 contain log2 of the argument size, up to 8 bytes.
->>>  */
->>> #define KCOV_CMP_CONST          (1 << 0)
->>> #define KCOV_CMP_SIZE(n)        ((n) << 1)
->>> #define KCOV_CMP_MASK           KCOV_CMP_SIZE(3)
->> Agreed.
->>> ... I note that a few places in the kernel use a 128-bit type. Are
->>> 128-bit comparisons not instrumented?
->>>
->>> [...]
->>>
->>>> +static bool check_kcov_mode(enum kcov_mode needed_mode, struct task_s=
-truct *t)
->>>> +{
->>>> +     enum kcov_mode mode;
->>>> +
->>>> +     /*
->>>> +      * We are interested in code coverage as a function of a syscall=
- inputs,
->>>> +      * so we ignore code executed in interrupts.
->>>> +      */
->>>> +     if (!t || !in_task())
->>>> +             return false;
->>>
->>> This !t check can go, as with the one in __sanitizer_cov_trace_pc, sinc=
-e
->>> t is always current, and therefore cannot be NULL.
->> Ok.
->>> IIRC there's a patch queued for that, which this may conflict with.
->> Sorry, I don't quite understand what exactly is conflicting here.
+On Tue, Oct 10, 2017 at 5:51 PM, Andrey Ryabinin
+<aryabinin@virtuozzo.com> wrote:
 >
 >
-> This patch should be in mm tree:
-> https://patchwork.kernel.org/patch/9978383/
-Ok, I've rebased on top of it, see v4.
-> --
-> You received this message because you are subscribed to the Google Groups=
- "syzkaller" group.
-> To unsubscribe from this group and stop receiving emails from it, send an=
- email to syzkaller+unsubscribe@googlegroups.com.
-> For more options, visit https://groups.google.com/d/optout.
+> On 10/10/2017 06:27 PM, Alexander Potapenko wrote:
+>>
+>> v3: - Andrey Ryabinin's comments: reinstated scripts/Makefile.kcov
+>>       and moved CFLAGS_KCOV there, dropped CFLAGS_KCOV_COMPS
+>
+> Huh? Try again.
+Reverted Makefile.lib in v4. Thanks!
+>> diff --git a/scripts/Makefile.lib b/scripts/Makefile.lib
+>> index 5e975fee0f5b..7ddd5932c832 100644
+>> --- a/scripts/Makefile.lib
+>> +++ b/scripts/Makefile.lib
+>> @@ -142,6 +142,12 @@ _c_flags +=3D $(if $(patsubst n%,, \
+>>       $(CFLAGS_KCOV))
+>>  endif
+>>
+>> +ifeq ($(CONFIG_KCOV_ENABLE_COMPARISONS),y)
+>> +_c_flags +=3D $(if $(patsubst n%,, \
+>> +     $(KCOV_INSTRUMENT_$(basetarget).o)$(KCOV_INSTRUMENT)$(CONFIG_KCOV_=
+INSTRUMENT_ALL)), \
+>> +     $(CFLAGS_KCOV_COMPS))
+>> +endif
+>> +
+>>  # If building the kernel in a separate objtree expand all occurrences
+>>  # of -Idir to -I$(srctree)/dir except for absolute paths (starting with=
+ '/').
+>>
+>>
 
 
 
