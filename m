@@ -1,89 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5498A6B0253
-	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 21:13:50 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id u144so543413pgb.0
-        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 18:13:50 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id h1si10036002pln.121.2017.10.10.18.13.48
-        for <linux-mm@kvack.org>;
-        Tue, 10 Oct 2017 18:13:49 -0700 (PDT)
-Date: Wed, 11 Oct 2017 12:09:22 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v8 06/14] xfs: wire up MAP_DIRECT
-Message-ID: <20171011010922.GY3666@dastard>
-References: <150764693502.16882.15848797003793552156.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150764697001.16882.13486539828150761233.stgit@dwillia2-desk3.amr.corp.intel.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 978466B0253
+	for <linux-mm@kvack.org>; Tue, 10 Oct 2017 21:49:55 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p2so1295199pfk.0
+        for <linux-mm@kvack.org>; Tue, 10 Oct 2017 18:49:55 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id p14si9047971pgq.58.2017.10.10.18.49.53
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 10 Oct 2017 18:49:54 -0700 (PDT)
+Message-ID: <59DD7932.3070106@intel.com>
+Date: Wed, 11 Oct 2017 09:51:46 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <150764697001.16882.13486539828150761233.stgit@dwillia2-desk3.amr.corp.intel.com>
+Subject: Re: [PATCH v16 3/5] virtio-balloon: VIRTIO_BALLOON_F_SG
+References: <1506744354-20979-4-git-send-email-wei.w.wang@intel.com>	<20171009181612-mutt-send-email-mst@kernel.org>	<59DC76BA.7070202@intel.com>	<201710102008.FIG57851.QFJLMtVOFOHFOS@I-love.SAKURA.ne.jp>	<59DCBDE9.4050404@intel.com> <201710102209.DBE39528.MtFLOJQSFOFVOH@I-love.SAKURA.ne.jp>
+In-Reply-To: <201710102209.DBE39528.MtFLOJQSFOFVOH@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, linux-api@vger.kernel.org, iommu@lists.linux-foundation.org, Christoph Hellwig <hch@lst.de>, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Jeff Layton <jlayton@poochiereds.net>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mst@redhat.com
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On Tue, Oct 10, 2017 at 07:49:30AM -0700, Dan Williams wrote:
-> @@ -1009,6 +1019,22 @@ xfs_file_llseek(
->  }
->  
->  /*
-> + * MAP_DIRECT faults can only be serviced while the FL_LAYOUT lease is
-> + * valid. See map_direct_invalidate.
-> + */
-> +static int
-> +xfs_can_fault_direct(
-> +	struct vm_area_struct	*vma)
-> +{
-> +	if (!xfs_vma_is_direct(vma))
-> +		return 0;
-> +
-> +	if (!test_map_direct_valid(vma->vm_private_data))
-> +		return VM_FAULT_SIGBUS;
-> +	return 0;
-> +}
+On 10/10/2017 09:09 PM, Tetsuo Handa wrote:
+> Wei Wang wrote:
+>>> And even if we could remove balloon_lock, you still cannot use
+>>> __GFP_DIRECT_RECLAIM at xb_set_page(). I think you will need to use
+>>> "whether it is safe to wait" flag from
+>>> "[PATCH] virtio: avoid possible OOM lockup at virtballoon_oom_notify()" .
+>> Without the lock being held, why couldn't we use __GFP_DIRECT_RECLAIM at
+>> xb_set_page()?
+> Because of dependency shown below.
+>
+> leak_balloon()
+>    xb_set_page()
+>      xb_preload(GFP_KERNEL)
+>        kmalloc(GFP_KERNEL)
+>          __alloc_pages_may_oom()
+>            Takes oom_lock
+>            out_of_memory()
+>              blocking_notifier_call_chain()
+>                leak_balloon()
+>                  xb_set_page()
+>                    xb_preload(GFP_KERNEL)
+>                      kmalloc(GFP_KERNEL)
+>                        __alloc_pages_may_oom()
+>                          Fails to take oom_lock and loop forever
 
-Better, but I'm going to be an annoying pedant here: a "can
-<something>" check should return a boolean true/false.
+__alloc_pages_may_oom() uses mutex_trylock(&oom_lock).
 
-Also, it's a bit jarring to see that a non-direct VMA that /can't/
-do direct faults returns the same thing as a direct-vma that /can/
-do direct faults, so a couple of extra comments for people who will
-quickly forget how this code works (i.e. me) will be helpful. Say
-something like this:
+I think the second __alloc_pages_may_oom() will not continue since the
+first one is in progress.
 
-/*
- * MAP_DIRECT faults can only be serviced while the FL_LAYOUT lease is
- * valid. See map_direct_invalidate.
- */
-static bool
-xfs_vma_has_direct_lease(
-	struct vm_area_struct	*vma)
+>
+> By the way, is xb_set_page() safe?
+> Sleeping in the kernel with preemption disabled is a bug, isn't it?
+> __radix_tree_preload() returns 0 with preemption disabled upon success.
+> xb_preload() disables preemption if __radix_tree_preload() fails.
+> Then, kmalloc() is called with preemption disabled, isn't it?
+> But xb_set_page() calls xb_preload(GFP_KERNEL) which might sleep with
+> preemption disabled.
+
+Yes, I think that should not be expected, thanks.
+
+I plan to change it like this:
+
+bool xb_preload(gfp_t gfp)
 {
-	/* Non MAP_DIRECT vmas do not require layout leases */
-	if (!xfs_vma_is_direct(vma))
-		return true;
+         if (!this_cpu_read(ida_bitmap)) {
+                 struct ida_bitmap *bitmap = kmalloc(sizeof(*bitmap), gfp);
 
-	if (!test_map_direct_valid(vma->vm_private_data))
-		return false;
+                 if (!bitmap)
+                         return false;
+                 bitmap = this_cpu_cmpxchg(ida_bitmap, NULL, bitmap);
+                 kfree(bitmap);
+         }
 
-	/* We have a valid lease */
-	return true;
+         if (__radix_tree_preload(gfp, XB_PRELOAD_SIZE) < 0)
+                 return false;
+
+         return true;
 }
 
-.....
-	if (!xfs_vma_has_direct_lease(vma)) {
-		ret = VM_FAULT_SIGBUS;
-		goto out_unlock;
-	}
-....
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
