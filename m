@@ -1,54 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 648D66B0253
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 03:40:03 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id s9so397255wrc.16
-        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 00:40:03 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6138E6B0253
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 03:43:24 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id r202so458564wmd.17
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 00:43:24 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 136si10244713wmj.207.2017.10.11.00.40.01
+        by mx.google.com with ESMTPS id 61si3294830wro.126.2017.10.11.00.43.23
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 11 Oct 2017 00:40:02 -0700 (PDT)
-Date: Wed, 11 Oct 2017 08:39:59 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 7/7] mm: Batch radix tree operations when truncating pages
-Message-ID: <20171011073959.tvajcejxho7g7zw2@suse.de>
-References: <20171010151937.26984-1-jack@suse.cz>
- <20171010151937.26984-8-jack@suse.cz>
+        Wed, 11 Oct 2017 00:43:23 -0700 (PDT)
+Date: Wed, 11 Oct 2017 09:43:20 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v8 01/14] mm: introduce MAP_SHARED_VALIDATE, a mechanism
+ to safely define new mmap flags
+Message-ID: <20171011074320.GG3667@quack2.suse.cz>
+References: <150764693502.16882.15848797003793552156.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <150764694114.16882.5128952296874418457.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171010151937.26984-8-jack@suse.cz>
+In-Reply-To: <150764694114.16882.5128952296874418457.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-fsdevel@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@lists.01.org, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, linux-rdma@vger.kernel.org, linux-api@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Andy Lutomirski <luto@kernel.org>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
 
-On Tue, Oct 10, 2017 at 05:19:37PM +0200, Jan Kara wrote:
-> Currently we remove pages from the radix tree one by one. To speed up
-> page cache truncation, lock several pages at once and free them in one
-> go. This allows us to batch radix tree operations in a more efficient
-> way and also save round-trips on mapping->tree_lock. As a result we gain
-> about 20% speed improvement in page cache truncation.
+On Tue 10-10-17 07:49:01, Dan Williams wrote:
+> The mmap(2) syscall suffers from the ABI anti-pattern of not validating
+> unknown flags. However, proposals like MAP_SYNC and MAP_DIRECT need a
+> mechanism to define new behavior that is known to fail on older kernels
+> without the support. Define a new MAP_SHARED_VALIDATE flag pattern that
+> is guaranteed to fail on all legacy mmap implementations.
 > 
-> Data from a simple benchmark timing 10000 truncates of 1024 pages (on
-> ext4 on ramdisk but the filesystem is barely visible in the profiles).
-> The range shows 1% and 95% percentiles of the measured times:
+> It is worth noting that the original proposal was for a standalone
+> MAP_VALIDATE flag. However, when that  could not be supported by all
+> archs Linus observed:
 > 
-> 4.14-rc2	4.14-rc2 + batched truncation
-> 248-256		209-219
-> 249-258		209-217
-> 248-255		211-239
-> 248-255		209-217
-> 247-256		210-218
+>     I see why you *think* you want a bitmap. You think you want
+>     a bitmap because you want to make MAP_VALIDATE be part of MAP_SYNC
+>     etc, so that people can do
 > 
-> Signed-off-by: Jan Kara <jack@suse.cz>
+>     ret = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED
+> 		    | MAP_SYNC, fd, 0);
+> 
+>     and "know" that MAP_SYNC actually takes.
+> 
+>     And I'm saying that whole wish is bogus. You're fundamentally
+>     depending on special semantics, just make it explicit. It's already
+>     not portable, so don't try to make it so.
+> 
+>     Rename that MAP_VALIDATE as MAP_SHARED_VALIDATE, make it have a value
+>     of 0x3, and make people do
+> 
+>     ret = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED_VALIDATE
+> 		    | MAP_SYNC, fd, 0);
+> 
+>     and then the kernel side is easier too (none of that random garbage
+>     playing games with looking at the "MAP_VALIDATE bit", but just another
+>     case statement in that map type thing.
+> 
+>     Boom. Done.
+> 
+> Similar to ->fallocate() we also want the ability to validate the
+> support for new flags on a per ->mmap() 'struct file_operations'
+> instance basis.  Towards that end arrange for flags to be generically
+> validated against a mmap_supported_mask exported by 'struct
+> file_operations'. By default all existing flags are implicitly
+> supported, but new flags require MAP_SHARED_VALIDATE and
+> per-instance-opt-in.
+> 
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Arnd Bergmann <arnd@arndb.de>
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Suggested-by: Christoph Hellwig <hch@lst.de>
+> Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  arch/alpha/include/uapi/asm/mman.h           |    1 +
+>  arch/mips/include/uapi/asm/mman.h            |    1 +
+>  arch/mips/kernel/vdso.c                      |    2 +
+>  arch/parisc/include/uapi/asm/mman.h          |    1 +
+>  arch/tile/mm/elf.c                           |    3 +-
+>  arch/xtensa/include/uapi/asm/mman.h          |    1 +
+>  include/linux/fs.h                           |    2 +
+>  include/linux/mm.h                           |    2 +
+>  include/linux/mman.h                         |   39 ++++++++++++++++++++++++++
+>  include/uapi/asm-generic/mman-common.h       |    1 +
+>  mm/mmap.c                                    |   21 ++++++++++++--
+>  tools/include/uapi/asm-generic/mman-common.h |    1 +
+>  12 files changed, 69 insertions(+), 6 deletions(-)
+> 
+> diff --git a/arch/alpha/include/uapi/asm/mman.h b/arch/alpha/include/uapi/asm/mman.h
+> index 3b26cc62dadb..92823f24890b 100644
+> --- a/arch/alpha/include/uapi/asm/mman.h
+> +++ b/arch/alpha/include/uapi/asm/mman.h
+> @@ -14,6 +14,7 @@
+>  #define MAP_TYPE	0x0f		/* Mask for type of mapping (OSF/1 is _wrong_) */
+>  #define MAP_FIXED	0x100		/* Interpret addr exactly */
+>  #define MAP_ANONYMOUS	0x10		/* don't use a file */
+> +#define MAP_SHARED_VALIDATE 0x3		/* share + validate extension flags */
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+Just a nit but I'd put definition of MAP_SHARED_VALIDATE close to the
+definition of MAP_SHARED and MAP_PRIVATE where it logically belongs (for
+all archs).
 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index f8c10d336e42..5c4c98e4adc9 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -2133,7 +2133,7 @@ extern unsigned long get_unmapped_area(struct file *, unsigned long, unsigned lo
+>  
+>  extern unsigned long mmap_region(struct file *file, unsigned long addr,
+>  	unsigned long len, vm_flags_t vm_flags, unsigned long pgoff,
+> -	struct list_head *uf);
+> +	struct list_head *uf, unsigned long map_flags);
+>  extern unsigned long do_mmap(struct file *file, unsigned long addr,
+>  	unsigned long len, unsigned long prot, unsigned long flags,
+>  	vm_flags_t vm_flags, unsigned long pgoff, unsigned long *populate,
+
+I have to say I'm not very keen on passing down both vm_flags and map_flags
+- vm_flags are almost a subset of map_flags but not quite and the ambiguity
+which needs to be used for a particular check seems to open a space for
+errors. Granted you currently only care about MAP_DIRECT in ->mmap_validate
+and just pass map_flags through mmap_region() so there's no space for
+confusion but future checks could do something different. But OTOH I don't
+see a cleaner way of avoiding the need to allocate vma flag for something
+you need to check down in ->mmap_validate so I guess I'll live with that
+and if problems really happen, we may have cleaner idea what needs to be
+done.
+
+So overall feel free to add:
+
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+								Honza
 -- 
-Mel Gorman
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
