@@ -1,49 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CF6F16B0038
-	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 12:32:19 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id a125so4145252ita.8
-        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 09:32:19 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b8sor365063itc.58.2017.10.12.09.32.17
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 12 Oct 2017 09:32:18 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 79BBD6B0038
+	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 13:03:43 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e64so3991718pfk.0
+        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 10:03:43 -0700 (PDT)
+Received: from relmlie2.idc.renesas.com (relmlor3.renesas.com. [210.160.252.173])
+        by mx.google.com with ESMTP id m39si12465753plg.228.2017.10.12.10.03.41
+        for <linux-mm@kvack.org>;
+        Thu, 12 Oct 2017 10:03:42 -0700 (PDT)
+From: Chris Brandt <Chris.Brandt@renesas.com>
+Subject: RE: [PATCH v6 1/4] cramfs: direct memory access support
+Date: Thu, 12 Oct 2017 17:03:37 +0000
+Message-ID: <SG2PR06MB1165E92262CE88C704AE5ED48A4B0@SG2PR06MB1165.apcprd06.prod.outlook.com>
+References: <20171012061613.28705-1-nicolas.pitre@linaro.org>
+ <20171012061613.28705-2-nicolas.pitre@linaro.org>
+In-Reply-To: <20171012061613.28705-2-nicolas.pitre@linaro.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20171012135127.GG29293@quack2.suse.cz>
-References: <150776922692.9144.16963640112710410217.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150776923320.9144.6119113178052262946.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171012135127.GG29293@quack2.suse.cz>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 12 Oct 2017 09:32:17 -0700
-Message-ID: <CA+55aFyy-nz99c6erFh=aeyCOzsk0td5wHaVLpwBNA-sWNDZkA@mail.gmail.com>
-Subject: Re: [PATCH v9 1/6] mm: introduce MAP_SHARED_VALIDATE, a mechanism to
- safely define new mmap flags
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Dan Williams <dan.j.williams@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Arnd Bergmann <arnd@arndb.de>, Linux API <linux-api@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+To: Nicolas Pitre <nicolas.pitre@linaro.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@infradead.org>
+Cc: "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-embedded@vger.kernel.org" <linux-embedded@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Thu, Oct 12, 2017 at 6:51 AM, Jan Kara <jack@suse.cz> wrote:
->
-> When thinking a bit more about this I've realized one problem: Currently
-> user can call mmap() with MAP_SHARED type and MAP_SYNC or MAP_DIRECT flags
-> and he will get the new semantics (if the kernel happens to support it).  I
-> think that is undesirable [..]
+On Thursday, October 12, 2017, Nicolas Pitre wrote:
+> Small embedded systems typically execute the kernel code in place (XIP)
+> directly from flash to save on precious RAM usage. This adds the ability
+> to consume filesystem data directly from flash to the cramfs filesystem
+> as well. Cramfs is particularly well suited to this feature as it is
+> very simple and its RAM usage is already very low, and with this feature
+> it is possible to use it with no block device support and even lower RAM
+> usage.
+>=20
+> This patch was inspired by a similar patch from Shane Nay dated 17 years
+> ago that used to be very popular in embedded circles but never made it
+> into mainline. This is a cleaned-up implementation that uses far fewer
+> ifdef's and gets the actual memory location for the filesystem image
+> via MTD at run time. In the context of small IoT deployments, this
+> functionality has become relevant and useful again.
+>=20
+> Signed-off-by: Nicolas Pitre <nico@linaro.org>
+> ---
+>  fs/cramfs/Kconfig |  30 +++++++-
+>  fs/cramfs/inode.c | 215 +++++++++++++++++++++++++++++++++++++++++++-----=
+-
+> -----
 
-Why?
+Works!
 
-If you have a performance preference for MAP_DIRECT or something like
-that, but you don't want to *enforce* it, you'd use just plain
-MAP_SHARED with it.
+I first applied the MTD patch series from here:
 
-Ie there may well be "I want this to work, possibly with downsides" issues.
+http://patchwork.ozlabs.org/project/linux-mtd/list/?series=3D7504
 
-So it seems to be a reasonable model, and disallowing it seems to
-limit people and not really help anything.
+Then this v6 patch series on top of it.
 
-                 Linus
+I created a mtd-rom/direct-mapped partition and was able to both mount afte=
+r boot, and also boot as the rootfs.
+
+Log from booting as rootfs:
+
+[    1.586625] cramfs: checking physical address 0x1b000000 for linear cram=
+fs image
+[    1.594512] cramfs: linear cramfs image on mtd:rootfs_xipcramfs appears =
+to be 15744 KB in size
+[    1.603619] VFS: Mounted root (cramfs filesystem) readonly on device 31:=
+1.
+
+
+$ cat /proc/self/maps
+00008000-000a1000 r-xp 1b005000 1f:01 18192      /bin/busybox
+000a9000-000aa000 rw-p 00099000 1f:01 18192      /bin/busybox
+000aa000-000ac000 rw-p 00000000 00:00 0          [heap]
+b6e07000-b6ee0000 r-xp 00000000 1f:01 766540     /lib/libc-2.18-2013.10.so
+b6ee0000-b6ee8000 ---p 000d9000 1f:01 766540     /lib/libc-2.18-2013.10.so
+b6ee8000-b6eea000 r--p 000d9000 1f:01 766540     /lib/libc-2.18-2013.10.so
+b6eea000-b6eeb000 rw-p 000db000 1f:01 766540     /lib/libc-2.18-2013.10.so
+b6eeb000-b6eee000 rw-p 00000000 00:00 0
+b6eee000-b6f05000 r-xp 00000000 1f:01 670372     /lib/ld-2.18-2013.10.so
+b6f08000-b6f09000 rw-p 00000000 00:00 0
+b6f0a000-b6f0c000 rw-p 00000000 00:00 0
+b6f0c000-b6f0d000 r--p 00016000 1f:01 670372     /lib/ld-2.18-2013.10.so
+b6f0d000-b6f0e000 rw-p 00017000 1f:01 670372     /lib/ld-2.18-2013.10.so
+bedb0000-bedd1000 rw-p 00000000 00:00 0          [stack]
+bedf4000-bedf5000 r-xp 00000000 00:00 0          [sigpage]
+ffff0000-ffff1000 r-xp 00000000 00:00 0          [vectors]
+
+So far, so good.
+
+Thank you!
+
+
+Tested-by: Chris Brandt <chris.brandt@renesas.com>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
