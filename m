@@ -1,90 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CD4016B0033
-	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 14:27:44 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id n195so4453747itg.14
-        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 11:27:44 -0700 (PDT)
-Received: from quartz.orcorp.ca (quartz.orcorp.ca. [184.70.90.242])
-        by mx.google.com with ESMTPS id h20si5038146iob.414.2017.10.12.11.27.43
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AE62B6B0033
+	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 14:48:47 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id r202so6818335wmd.1
+        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 11:48:47 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 81si617943wmj.84.2017.10.12.11.48.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Oct 2017 11:27:43 -0700 (PDT)
-Date: Thu, 12 Oct 2017 12:27:12 -0600
-From: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
-Subject: Re: [PATCH v7 07/12] dma-mapping: introduce dma_has_iommu()
-Message-ID: <20171012182712.GA5772@obsidianresearch.com>
-References: <150732931273.22363.8436792888326501071.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150732935473.22363.1853399637339625023.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171009185840.GB15336@obsidianresearch.com>
- <CAPcyv4gXzC8OUgO_PciQ2phyq0YtmXjMGWvoPSVVuuZR7ohVCg@mail.gmail.com>
- <20171009191820.GD15336@obsidianresearch.com>
- <CAPcyv4h_uQGBAX6-bMkkZLO_YyQ6t4n_b8tH8wU_P0Jh23N5MQ@mail.gmail.com>
- <20171010172516.GA29915@obsidianresearch.com>
- <CAPcyv4jL5fN7jjXkQum8ERQ45eW63dCYp5Pm6aHY4OPudz4Wsw@mail.gmail.com>
- <20171010180512.GA31734@obsidianresearch.com>
- <CAPcyv4gCBu5ptmWyof+Z-p7NbuCygEs2rMe2wdL0n3QQbXhrzA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4gCBu5ptmWyof+Z-p7NbuCygEs2rMe2wdL0n3QQbXhrzA@mail.gmail.com>
+        Thu, 12 Oct 2017 11:48:46 -0700 (PDT)
+Date: Thu, 12 Oct 2017 11:48:43 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [lkp-robot] [x86/kconfig] 81d3871900:
+ BUG:unable_to_handle_kernel
+Message-Id: <20171012114843.d74096014cb88eedbaa7ac70@linux-foundation.org>
+In-Reply-To: <CAADWXX-M2uftDuCyAS+UMKACC6d-B+Zb-DDNGO76yRS5wuigHw@mail.gmail.com>
+References: <20171010121513.GC5445@yexl-desktop>
+	<20171011023106.izaulhwjcoam55jt@treble>
+	<20171011170120.7flnk6r77dords7a@treble>
+	<alpine.DEB.2.20.1710121202210.28556@nuc-kabylake>
+	<CAADWXX-M2uftDuCyAS+UMKACC6d-B+Zb-DDNGO76yRS5wuigHw@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Jan Kara <jack@suse.cz>, Ashok Raj <ashok.raj@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Joerg Roedel <joro@8bytes.org>, Dave Chinner <david@fromorbit.com>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Linux API <linux-api@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, David Woodhouse <dwmw2@infradead.org>, Robin Murphy <robin.murphy@arm.com>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Christopher Lameter <cl@linux.com>, Josh Poimboeuf <jpoimboe@redhat.com>, kernel test robot <xiaolong.ye@intel.com>, Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Slaby <jslaby@suse.cz>, Mike Galbraith <efault@gmx.de>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, lkp@01.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Matt Mackall <mpm@selenic.com>
 
-On Tue, Oct 10, 2017 at 01:17:26PM -0700, Dan Williams wrote:
+On Thu, 12 Oct 2017 10:54:57 -0700 Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-> Also keep in mind that what triggers the lease break is another
-> application trying to write or punch holes in a file that is mapped
-> for RDMA. So, if the hardware can't handle the iommu mapping getting
-> invalidated asynchronously and the application can't react in the
-> lease break timeout period then the administrator should arrange for
-> the file to not be written or truncated while it is mapped.
-
-That makes sense, but why not return ENOSYS or something to the app
-trying to alter the file if the RDMA hardware can't support this
-instead of having the RDMA app deal with this lease break weirdness?
-
-> It's already the case that get_user_pages() does not lock down file
-> associations, so if your application is contending with these types of
-> file changes it likely already has a problem keeping transactions in
-> sync with the file state even without DAX.
-
-Yes, things go weird in non-ODP RDMA cases like this..
-
-Also, just to clear, I would expect an app using the SIGIO interface
-to basically halt ongoing RDMA, wait for MRs to become unused locally
-and remotely, destroy the MRs, then somehow, establish new MRs that
-cover the same logical map (eg what ODP would do transparently) after
-the lease breaker has made their changes, then restart their IO.
-
-Does your SIGIO approach have a race-free way to do that last steps?
-
-> > So, not being able to support DAX on certain RDMA hardware is not
-> > an unreasonable situation in our space.
+> On Thu, Oct 12, 2017 at 10:05 AM, Christopher Lameter <cl@linux.com> wrote:
+> > On Wed, 11 Oct 2017, Josh Poimboeuf wrote:
+> >
+> >> I failed to add the slab maintainers to CC on the last attempt.  Trying
+> >> again.
+> >
+> > Hmmm... Yea. SLOB is rarely used and tested. Good illustration of a simple
+> > allocator and the K&R mechanism that was used in the early kernels.
 > 
-> That makes sense, but it still seems to me that this proposed solution
-> allows more than enough ways to avoid that worst case scenario where
-> hardware reacts badly to iommu invalidation.
+> Should we finally just get rid of SLOB?
+> 
+> I'm not happy about the whole "three different allocators" crap. It's
+> been there for much too long, and I've tried to cut it down before.
+> People always protest, but three different allocators, one of which
+> gets basically no testing, is not good.
+> 
 
-Yes, although I am concerned that returning PCI-E errors is such an
-unusual and untested path for some of our RDMA drivers that they may
-malfunction badly...
-
-Again, going back to the question of who would ever use this, I would
-be very relucant to deploy a production configuration relying on the iommu
-invalidate or SIGIO techniques, when ODP HW is available and works
-flawlessly.
-
-> be blacklisted from supporting DAX altogether. In other words this is
-> a starting point to incrementally enhance or disable specific drivers,
-> but with the assurance that the kernel can always do the safe thing
-> when / if the driver is missing a finer grained solution.
-
-Seems reasonable.. I think existing HW will have an easier time adding
-invalidate, while new hardware really should implement ODP.
-
-Jason
+I am not aware of anyone using slob.  We could disable it in Kconfig
+for a year, see what the feedback looks like.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
