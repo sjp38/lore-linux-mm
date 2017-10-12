@@ -1,123 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CE1086B0033
-	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 15:03:21 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b189so3915178wmd.9
-        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 12:03:21 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0880C6B0033
+	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 15:11:46 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id i124so3936988wmf.1
+        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 12:11:45 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id a3si2378045edd.224.2017.10.12.12.03.19
+        by mx.google.com with ESMTPS id 94si1494451edq.368.2017.10.12.12.11.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 12 Oct 2017 12:03:20 -0700 (PDT)
-Date: Thu, 12 Oct 2017 15:03:12 -0400
+        Thu, 12 Oct 2017 12:11:44 -0700 (PDT)
+Date: Thu, 12 Oct 2017 15:11:33 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
-Message-ID: <20171012190312.GA5075@cmpxchg.org>
-References: <20171005222144.123797-1-shakeelb@google.com>
- <20171006075900.icqjx5rr7hctn3zd@dhcp22.suse.cz>
- <CALvZod7YN4JCG7Anm2FViyZ0-APYy+nxEd3nyxe5LT_P0FC9wg@mail.gmail.com>
- <20171009062426.hmqedtqz5hkmhnff@dhcp22.suse.cz>
- <xr93a810xl77.fsf@gthelen.svl.corp.google.com>
- <20171009202613.GA15027@cmpxchg.org>
- <20171010091430.giflzlayvjblx5bu@dhcp22.suse.cz>
- <20171010141733.GB16710@cmpxchg.org>
- <20171010142434.bpiqmsbb7gttrlcb@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/8] mm, truncate: Do not check mapping for every page
+ being truncated
+Message-ID: <20171012191133.GB5075@cmpxchg.org>
+References: <20171012093103.13412-1-mgorman@techsingularity.net>
+ <20171012093103.13412-3-mgorman@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171010142434.bpiqmsbb7gttrlcb@dhcp22.suse.cz>
+In-Reply-To: <20171012093103.13412-3-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Greg Thelen <gthelen@google.com>, Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dave Chinner <david@fromorbit.com>
 
-On Tue, Oct 10, 2017 at 04:24:34PM +0200, Michal Hocko wrote:
-> On Tue 10-10-17 10:17:33, Johannes Weiner wrote:
-> > On Tue, Oct 10, 2017 at 11:14:30AM +0200, Michal Hocko wrote:
-> > > On Mon 09-10-17 16:26:13, Johannes Weiner wrote:
-> > > > It's consistent in the sense that only page faults enable the memcg
-> > > > OOM killer. It's not the type of memory that decides, it's whether the
-> > > > allocation context has a channel to communicate an error to userspace.
-> > > > 
-> > > > Whether userspace is able to handle -ENOMEM from syscalls was a voiced
-> > > > concern at the time this patch was merged, although there haven't been
-> > > > any reports so far,
-> > > 
-> > > Well, I remember reports about MAP_POPULATE breaking or at least having
-> > > an unexpected behavior.
-> > 
-> > Hm, that slipped past me. Did we do something about these? Or did they
-> > fix userspace?
+On Thu, Oct 12, 2017 at 10:30:57AM +0100, Mel Gorman wrote:
+> During truncation, the mapping has already been checked for shmem and dax
+> so it's known that workingset_update_node is required. This patch avoids
+> the checks on mapping for each page being truncated. In all other cases,
+> a lookup helper is used to determine if workingset_update_node() needs
+> to be called. The one danger is that the API is slightly harder to use as
+> calling workingset_update_node directly without checking for dax or shmem
+> mappings could lead to surprises. However, the API rarely needs to be used
+> and hopefully the comment is enough to give people the hint.
 > 
-> Well it was mostly LTP complaining. I have tried to fix that but Linus
-> was against so we just documented that this is possible and MAP_POPULATE
-> is not a guarantee.
-
-Okay, makes sense. I wouldn't really count that as a regression.
-
-> > > Well, we should be able to do that with the oom_reaper. At least for v2
-> > > which doesn't have synchronous userspace oom killing.
-> > 
-> > I don't see how the OOM reaper is a guarantee as long as we have this:
-> > 
-> > 	if (!down_read_trylock(&mm->mmap_sem)) {
-> > 		ret = false;
-> > 		trace_skip_task_reaping(tsk->pid);
-> > 		goto unlock_oom;
-> > 	}
+> sparsetruncate (tiny)
+>                               4.14.0-rc4             4.14.0-rc4
+>                              oneirq-v1r1        pickhelper-v1r1
+> Min          Time      141.00 (   0.00%)      140.00 (   0.71%)
+> 1st-qrtle    Time      142.00 (   0.00%)      141.00 (   0.70%)
+> 2nd-qrtle    Time      142.00 (   0.00%)      142.00 (   0.00%)
+> 3rd-qrtle    Time      143.00 (   0.00%)      143.00 (   0.00%)
+> Max-90%      Time      144.00 (   0.00%)      144.00 (   0.00%)
+> Max-95%      Time      147.00 (   0.00%)      145.00 (   1.36%)
+> Max-99%      Time      195.00 (   0.00%)      191.00 (   2.05%)
+> Max          Time      230.00 (   0.00%)      205.00 (  10.87%)
+> Amean        Time      144.37 (   0.00%)      143.82 (   0.38%)
+> Stddev       Time       10.44 (   0.00%)        9.00 (  13.74%)
+> Coeff        Time        7.23 (   0.00%)        6.26 (  13.41%)
+> Best99%Amean Time      143.72 (   0.00%)      143.34 (   0.26%)
+> Best95%Amean Time      142.37 (   0.00%)      142.00 (   0.26%)
+> Best90%Amean Time      142.19 (   0.00%)      141.85 (   0.24%)
+> Best75%Amean Time      141.92 (   0.00%)      141.58 (   0.24%)
+> Best50%Amean Time      141.69 (   0.00%)      141.31 (   0.27%)
+> Best25%Amean Time      141.38 (   0.00%)      140.97 (   0.29%)
 > 
-> And we will simply mark the victim MMF_OOM_SKIP and hide it from the oom
-> killer if we fail to get the mmap_sem after several attempts. This will
-> allow to find a new victim. So we shouldn't deadlock.
-
-It's less likely to deadlock, but not exactly deadlock-free. There
-might not BE any other mm's holding significant amounts of memory.
-
-> > What do you mean by 'v2'?
+> As you'd expect, the gain is marginal but it can be detected. The differences
+> in bonnie are all within the noise which is not surprising given the impact
+> on the microbenchmark.
 > 
-> cgroup v2 because the legacy memcg allowed sync wait for the oom killer
-> and that would be a bigger problem from a deep callchains for obevious
-> reasons.
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-Actually, the async oom killing code isn't dependent on cgroup
-version. cgroup1 doesn't wait inside the charge context, either.
+With Jan's suggestion to remove the private parameter,
 
-> > > > > c) Overcharge kmem to oom memcg and queue an async memcg limit checker,
-> > > > >    which will oom kill if needed.
-> > > > 
-> > > > This makes the most sense to me. Architecturally, I imagine this would
-> > > > look like b), with an OOM handler at the point of return to userspace,
-> > > > except that we'd overcharge instead of retrying the syscall.
-> > > 
-> > > I do not think we should break the hard limit semantic if possible. We
-> > > can currently allow that for allocations which are very short term (oom
-> > > victims) or too important to fail but allowing that for kmem charges in
-> > > general sounds like too easy to runaway.
-> > 
-> > I'm not sure there is a convenient way out of this.
-> > 
-> > If we want to respect the hard limit AND guarantee allocation success,
-> > the OOM killer has to free memory reliably - which it doesn't. But if
-> > it did, we could also break the limit temporarily and have the OOM
-> > killer replenish the pool before that userspace app can continue. The
-> > allocation wouldn't have to be short-lived, since memory is fungible.
-> 
-> If we can guarantee the oom killer is started then we can allow temporal
-> access to reserves which is already implemented even for memcg. The
-> thing is we do not invoke the oom killer...
-
-You lost me here. Which reserves?
-
-All I'm saying is that, when the syscall-context fails to charge, we
-should do mem_cgroup_oom() to set up the async OOM killer, let the
-charge succeed over the hard limit - since the OOM killer will most
-likely get us back below the limit - then mem_cgroup_oom_synchronize()
-before the syscall returns to userspace.
-
-That would avoid returning -ENOMEM from syscalls without the risk of
-the hard limit deadlocking - at the risk of sometimes overrunning the
-hard limit, but that seems like the least problematic behavior out of
-the three.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
