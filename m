@@ -1,323 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D082A6B0260
-	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 19:42:55 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id n69so66680lfn.18
-        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 16:42:55 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t4sor5520158wrb.18.2017.10.11.16.42.53
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C6506B0253
+	for <linux-mm@kvack.org>; Wed, 11 Oct 2017 20:53:34 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id u27so7614261pfg.3
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 17:53:34 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id e9si11748057pli.519.2017.10.11.17.53.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 11 Oct 2017 16:42:54 -0700 (PDT)
-Subject: Re: [PATCH 01/11] Initialize the mapping of KASan shadow memory
-References: <20171011082227.20546-1-liuwenliang@huawei.com>
- <20171011082227.20546-2-liuwenliang@huawei.com>
-From: Dmitry Osipenko <digetx@gmail.com>
-Message-ID: <31b16c9d-48c7-bc0a-51d1-cc6cf892329b@gmail.com>
-Date: Thu, 12 Oct 2017 02:42:49 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Oct 2017 17:53:33 -0700 (PDT)
+Subject: [PATCH v9 0/6] MAP_DIRECT for DAX userspace flush
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 11 Oct 2017 17:47:07 -0700
+Message-ID: <150776922692.9144.16963640112710410217.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20171011082227.20546-2-liuwenliang@huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Abbott Liu <liuwenliang@huawei.com>, linux@armlinux.org.uk, aryabinin@virtuozzo.com, afzal.mohd.ma@gmail.com, f.fainelli@gmail.com, labbott@redhat.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, cdall@linaro.org, marc.zyngier@arm.com, catalin.marinas@arm.com, akpm@linux-foundation.org, mawilcox@microsoft.com, tglx@linutronix.de, thgarnie@google.com, keescook@chromium.org, arnd@arndb.de, vladimir.murzin@arm.com, tixy@linaro.org, ard.biesheuvel@linaro.org, robin.murphy@arm.com, mingo@kernel.org, grygorii.strashko@linaro.org
-Cc: glider@google.com, dvyukov@google.com, opendmb@gmail.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, jiazhenghua@huawei.com, dylix.dailei@huawei.com, zengweilin@huawei.com, heshaoliang@huawei.com
+To: linux-nvdimm@lists.01.org
+Cc: linux-xfs@vger.kernel.org, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-api@vger.kernel.org, Dave Chinner <david@fromorbit.com>, Christoph Hellwig <hch@lst.de>, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel@vger.kernel.org, Jeff Layton <jlayton@poochiereds.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 11.10.2017 11:22, Abbott Liu wrote:
-> From: Andrey Ryabinin <a.ryabinin@samsung.com>
-> 
-> This patch initializes KASan shadow region's page table and memory.
-> There are two stage for KASan initializing:
-> 1. At early boot stage the whole shadow region is mapped to just
->    one physical page (kasan_zero_page). It's finished by the function
->    kasan_early_init which is called by __mmap_switched(arch/arm/kernel/
->    head-common.S)
-> 
-> 2. After the calling of paging_init, we use kasan_zero_page as zero
->    shadow for some memory that KASan don't need to track, and we alloc
->    new shadow space for the other memory that KASan need to track. These
->    issues are finished by the function kasan_init which is call by setup_arch.
-> 
-> Cc: Andrey Ryabinin <a.ryabinin@samsung.com>
-> Signed-off-by: Abbott Liu <liuwenliang@huawei.com>
-> ---
->  arch/arm/include/asm/kasan.h       |  20 +++
->  arch/arm/include/asm/pgalloc.h     |   5 +-
->  arch/arm/include/asm/pgtable.h     |   1 +
->  arch/arm/include/asm/proc-fns.h    |  33 +++++
->  arch/arm/include/asm/thread_info.h |   4 +
->  arch/arm/kernel/head-common.S      |   4 +
->  arch/arm/kernel/setup.c            |   2 +
->  arch/arm/mm/Makefile               |   5 +
->  arch/arm/mm/kasan_init.c           | 257 +++++++++++++++++++++++++++++++++++++
->  mm/kasan/kasan.c                   |   2 +-
->  10 files changed, 331 insertions(+), 2 deletions(-)
->  create mode 100644 arch/arm/include/asm/kasan.h
->  create mode 100644 arch/arm/mm/kasan_init.c
-> 
-> diff --git a/arch/arm/include/asm/kasan.h b/arch/arm/include/asm/kasan.h
-> new file mode 100644
-> index 0000000..90ee60c
-> --- /dev/null
-> +++ b/arch/arm/include/asm/kasan.h
-> @@ -0,0 +1,20 @@
-> +#ifndef __ASM_KASAN_H
-> +#define __ASM_KASAN_H
-> +
-> +#ifdef CONFIG_KASAN
-> +
-> +#include <asm/kasan_def.h>
-> +/*
-> + * Compiler uses shadow offset assuming that addresses start
-> + * from 0. Kernel addresses don't start from 0, so shadow
-> + * for kernel really starts from 'compiler's shadow offset' +
-> + * ('kernel address space start' >> KASAN_SHADOW_SCALE_SHIFT)
-> + */
-> +
-> +extern void kasan_init(void);
-> +
-> +#else
-> +static inline void kasan_init(void) { }
-> +#endif
-> +
-> +#endif
-> diff --git a/arch/arm/include/asm/pgalloc.h b/arch/arm/include/asm/pgalloc.h
-> index b2902a5..10cee6a 100644
-> --- a/arch/arm/include/asm/pgalloc.h
-> +++ b/arch/arm/include/asm/pgalloc.h
-> @@ -50,8 +50,11 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
->   */
->  #define pmd_alloc_one(mm,addr)		({ BUG(); ((pmd_t *)2); })
->  #define pmd_free(mm, pmd)		do { } while (0)
-> +#ifndef CONFIG_KASAN
->  #define pud_populate(mm,pmd,pte)	BUG()
-> -
-> +#else
-> +#define pud_populate(mm,pmd,pte)	do { } while (0)
-> +#endif
->  #endif	/* CONFIG_ARM_LPAE */
->  
->  extern pgd_t *pgd_alloc(struct mm_struct *mm);
-> diff --git a/arch/arm/include/asm/pgtable.h b/arch/arm/include/asm/pgtable.h
-> index 1c46238..fdf343f 100644
-> --- a/arch/arm/include/asm/pgtable.h
-> +++ b/arch/arm/include/asm/pgtable.h
-> @@ -97,6 +97,7 @@ extern pgprot_t		pgprot_s2_device;
->  #define PAGE_READONLY		_MOD_PROT(pgprot_user, L_PTE_USER | L_PTE_RDONLY | L_PTE_XN)
->  #define PAGE_READONLY_EXEC	_MOD_PROT(pgprot_user, L_PTE_USER | L_PTE_RDONLY)
->  #define PAGE_KERNEL		_MOD_PROT(pgprot_kernel, L_PTE_XN)
-> +#define PAGE_KERNEL_RO		_MOD_PROT(pgprot_kernel, L_PTE_XN | L_PTE_RDONLY)
->  #define PAGE_KERNEL_EXEC	pgprot_kernel
->  #define PAGE_HYP		_MOD_PROT(pgprot_kernel, L_PTE_HYP | L_PTE_XN)
->  #define PAGE_HYP_EXEC		_MOD_PROT(pgprot_kernel, L_PTE_HYP | L_PTE_RDONLY)
-> diff --git a/arch/arm/include/asm/proc-fns.h b/arch/arm/include/asm/proc-fns.h
-> index f2e1af4..6e26714 100644
-> --- a/arch/arm/include/asm/proc-fns.h
-> +++ b/arch/arm/include/asm/proc-fns.h
-> @@ -131,6 +131,15 @@ extern void cpu_resume(void);
->  		pg &= ~(PTRS_PER_PGD*sizeof(pgd_t)-1);	\
->  		(pgd_t *)phys_to_virt(pg);		\
->  	})
-> +
-> +#define cpu_set_ttbr0(val)					\
-> +	do {							\
-> +		u64 ttbr = val;					\
-> +		__asm__("mcrr	p15, 0, %Q0, %R0, c2"		\
-> +			: : "r" (ttbr));	\
-> +	} while (0)
-> +
-> +
->  #else
->  #define cpu_get_pgd()	\
->  	({						\
-> @@ -140,6 +149,30 @@ extern void cpu_resume(void);
->  		pg &= ~0x3fff;				\
->  		(pgd_t *)phys_to_virt(pg);		\
->  	})
-> +
-> +#define cpu_set_ttbr(nr, val)					\
-> +	do {							\
-> +		u64 ttbr = val;					\
-> +		__asm__("mcr	p15, 0, %0, c2, c0, 0"		\
-> +			: : "r" (ttbr));			\
-> +	} while (0)
-> +
-> +#define cpu_get_ttbr(nr)					\
-> +	({							\
-> +		unsigned long ttbr;				\
-> +		__asm__("mrc	p15, 0, %0, c2, c0, 0"		\
-> +			: "=r" (ttbr));				\
-> +		ttbr;						\
-> +	})
-> +
-> +#define cpu_set_ttbr0(val)					\
-> +	do {							\
-> +		u64 ttbr = val;					\
-> +		__asm__("mcr	p15, 0, %0, c2, c0, 0"		\
-> +			: : "r" (ttbr));			\
-> +	} while (0)
-> +
-> +
->  #endif
->  
->  #else	/*!CONFIG_MMU */
-> diff --git a/arch/arm/include/asm/thread_info.h b/arch/arm/include/asm/thread_info.h
-> index 1d468b5..52c4858 100644
-> --- a/arch/arm/include/asm/thread_info.h
-> +++ b/arch/arm/include/asm/thread_info.h
-> @@ -16,7 +16,11 @@
->  #include <asm/fpstate.h>
->  #include <asm/page.h>
->  
-> +#ifdef CONFIG_KASAN
-> +#define THREAD_SIZE_ORDER       2
-> +#else
->  #define THREAD_SIZE_ORDER	1
-> +#endif
->  #define THREAD_SIZE		(PAGE_SIZE << THREAD_SIZE_ORDER)
->  #define THREAD_START_SP		(THREAD_SIZE - 8)
->  
-> diff --git a/arch/arm/kernel/head-common.S b/arch/arm/kernel/head-common.S
-> index 8733012..c17f4a2 100644
-> --- a/arch/arm/kernel/head-common.S
-> +++ b/arch/arm/kernel/head-common.S
-> @@ -101,7 +101,11 @@ __mmap_switched:
->  	str	r2, [r6]			@ Save atags pointer
->  	cmp	r7, #0
->  	strne	r0, [r7]			@ Save control register values
-> +#ifdef CONFIG_KASAN
-> +	b	kasan_early_init
-> +#else
->  	b	start_kernel
-> +#endif
->  ENDPROC(__mmap_switched)
->  
->  	.align	2
-> diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
-> index 8e9a3e4..985d9a3 100644
-> --- a/arch/arm/kernel/setup.c
-> +++ b/arch/arm/kernel/setup.c
-> @@ -62,6 +62,7 @@
->  #include <asm/unwind.h>
->  #include <asm/memblock.h>
->  #include <asm/virt.h>
-> +#include <asm/kasan.h>
->  
->  #include "atags.h"
->  
-> @@ -1108,6 +1109,7 @@ void __init setup_arch(char **cmdline_p)
->  	early_ioremap_reset();
->  
->  	paging_init(mdesc);
-> +	kasan_init();
->  	request_standard_resources(mdesc);
->  
->  	if (mdesc->restart)
-> diff --git a/arch/arm/mm/Makefile b/arch/arm/mm/Makefile
-> index 950d19b..498c316 100644
-> --- a/arch/arm/mm/Makefile
-> +++ b/arch/arm/mm/Makefile
-> @@ -106,4 +106,9 @@ obj-$(CONFIG_CACHE_L2X0)	+= cache-l2x0.o l2c-l2x0-resume.o
->  obj-$(CONFIG_CACHE_L2X0_PMU)	+= cache-l2x0-pmu.o
->  obj-$(CONFIG_CACHE_XSC3L2)	+= cache-xsc3l2.o
->  obj-$(CONFIG_CACHE_TAUROS2)	+= cache-tauros2.o
-> +
-> +KASAN_SANITIZE_kasan_init.o    := n
-> +obj-$(CONFIG_KASAN)            += kasan_init.o
-> +
-> +
->  obj-$(CONFIG_CACHE_UNIPHIER)	+= cache-uniphier.o
-> diff --git a/arch/arm/mm/kasan_init.c b/arch/arm/mm/kasan_init.c
-> new file mode 100644
-> index 0000000..2bf0782
-> --- /dev/null
-> +++ b/arch/arm/mm/kasan_init.c
-> @@ -0,0 +1,257 @@
-> +#include <linux/bootmem.h>
-> +#include <linux/kasan.h>
-> +#include <linux/kernel.h>
-> +#include <linux/memblock.h>
-> +#include <linux/start_kernel.h>
-> +
-> +#include <asm/cputype.h>
-> +#include <asm/highmem.h>
-> +#include <asm/mach/map.h>
-> +#include <asm/memory.h>
-> +#include <asm/page.h>
-> +#include <asm/pgalloc.h>
-> +#include <asm/pgtable.h>
-> +#include <asm/procinfo.h>
-> +#include <asm/proc-fns.h>
-> +#include <asm/tlbflush.h>
-> +#include <asm/cp15.h>
-> +#include <linux/sched/task.h>
-> +
-> +#include "mm.h"
-> +
-> +static pgd_t tmp_page_table[PTRS_PER_PGD] __initdata __aligned(1ULL << 14);
-> +
-> +pmd_t tmp_pmd_table[PTRS_PER_PMD] __page_aligned_bss;
-> +
-> +static __init void *kasan_alloc_block(size_t size, int node)
-> +{
-> +	return memblock_virt_alloc_try_nid(size, size, __pa(MAX_DMA_ADDRESS),
-> +					BOOTMEM_ALLOC_ACCESSIBLE, node);
-> +}
-> +
-> +static void __init kasan_early_pmd_populate(unsigned long start, unsigned long end, pud_t *pud)
-> +{
-> +	unsigned long addr;
-> +	unsigned long next;
-> +	pmd_t *pmd;
-> +
-> +	pmd = pmd_offset(pud, start);
-> +	for (addr = start; addr < end;) {
-> +		pmd_populate_kernel(&init_mm, pmd, kasan_zero_pte);
-> +		next = pmd_addr_end(addr, end);
-> +		addr = next;
-> +		flush_pmd_entry(pmd);
-> +		pmd++;
-> +	}
-> +}
-> +
-> +static void __init kasan_early_pud_populate(unsigned long start, unsigned long end, pgd_t *pgd)
-> +{
-> +	unsigned long addr;
-> +	unsigned long next;
-> +	pud_t *pud;
-> +
-> +	pud = pud_offset(pgd, start);
-> +	for (addr = start; addr < end;) {
-> +		next = pud_addr_end(addr, end);
-> +		kasan_early_pmd_populate(addr, next, pud);
-> +		addr = next;
-> +		pud++;
-> +	}
-> +}
-> +
-> +void __init kasan_map_early_shadow(pgd_t *pgdp)
-> +{
-> +	int i;
-> +	unsigned long start = KASAN_SHADOW_START;
-> +	unsigned long end = KASAN_SHADOW_END;
-> +	unsigned long addr;
-> +	unsigned long next;
-> +	pgd_t *pgd;
-> +
-> +	for (i = 0; i < PTRS_PER_PTE; i++)
-> +		set_pte_at(&init_mm, KASAN_SHADOW_START + i*PAGE_SIZE,
-> +			&kasan_zero_pte[i], pfn_pte(
-> +				virt_to_pfn(kasan_zero_page),
-> +				__pgprot(_L_PTE_DEFAULT | L_PTE_DIRTY | L_PTE_XN)));
+Changes since v8 [1]:
+* Move MAP_SHARED_VALIDATE definition next to MAP_SHARED in all arch
+  headers (Jan)
 
-Shouldn't all __pgprot's contain L_PTE_MT_WRITETHROUGH ?
+* Include xfs_layout.h directly in all the files that call
+  xfs_break_layouts() (Dave)
 
-[...]
+* Clarify / add more comments to the MAP_DIRECT checks at fault time
+  (Dave)
 
--- 
-Dmitry
+* Rename iomap_can_allocate() to break_layouts_nowait() to make it plain
+  the reason we are bailing out of iomap_begin.
+
+* Defer the lease_direct mechanism and RDMA core changes to a later
+  patch series.
+
+* EXT4 support is in the works and will be rebased on Jan's MAP_SYNC
+  patches.
+
+[1]: https://lists.01.org/pipermail/linux-nvdimm/2017-October/012772.html
+
+---
+
+MAP_DIRECT is a mechanism that allows an application to establish a
+mapping where the kernel will not change the block-map, or otherwise
+dirty the block-map metadata of a file without notification. It supports
+a "flush from userspace" model where persistent memory applications can
+bypass the overhead of ongoing coordination of writes with the
+filesystem, and it provides safety to RDMA operations involving DAX
+mappings.
+
+The kernel always has the ability to revoke access and convert the file
+back to normal operation after performing a "lease break". Similar to
+fcntl leases, there is no way for userspace to to cancel the lease break
+process once it has started, it can only delay it via the
+/proc/sys/fs/lease-break-time setting.
+
+MAP_DIRECT enables XFS to supplant the device-dax interface for
+mmap-write access to persistent memory with no ongoing coordination with
+the filesystem via fsync/msync syscalls.
+
+The MAP_DIRECT mechanism is complimentary to MAP_SYNC. Here are some
+scenarios where you would choose one over the other:
+
+* 3rd party DMA / RDMA to DAX with hardware that does not support
+  on-demand paging (shared virtual memory) => MAP_DIRECT
+
+* Support for reflinked inodes, fallocate-punch-hole, truncate, or any
+  other operation that mutates the block map of an actively
+  mapped file => MAP_SYNC
+
+* Userpsace flush => MAP_SYNC or MAP_DIRECT
+
+* Assurances that the file's block map metadata is stable, i.e. minimize
+  worst case fault latency by locking out updates => MAP_DIRECT
+
+---
+
+Dan Williams (6):
+      mm: introduce MAP_SHARED_VALIDATE, a mechanism to safely define new mmap flags
+      fs, mm: pass fd to ->mmap_validate()
+      fs: MAP_DIRECT core
+      xfs: prepare xfs_break_layouts() for reuse with MAP_DIRECT
+      fs, xfs, iomap: introduce break_layout_nowait()
+      xfs: wire up MAP_DIRECT
+
+
+ arch/alpha/include/uapi/asm/mman.h           |    1 
+ arch/mips/include/uapi/asm/mman.h            |    1 
+ arch/mips/kernel/vdso.c                      |    2 
+ arch/parisc/include/uapi/asm/mman.h          |    1 
+ arch/tile/mm/elf.c                           |    3 
+ arch/x86/mm/mpx.c                            |    3 
+ arch/xtensa/include/uapi/asm/mman.h          |    1 
+ fs/Kconfig                                   |    1 
+ fs/Makefile                                  |    2 
+ fs/aio.c                                     |    2 
+ fs/mapdirect.c                               |  237 ++++++++++++++++++++++++++
+ fs/xfs/Kconfig                               |    4 
+ fs/xfs/Makefile                              |    1 
+ fs/xfs/xfs_file.c                            |  108 ++++++++++++
+ fs/xfs/xfs_ioctl.c                           |    1 
+ fs/xfs/xfs_iomap.c                           |    3 
+ fs/xfs/xfs_iops.c                            |    1 
+ fs/xfs/xfs_layout.c                          |   45 +++++
+ fs/xfs/xfs_layout.h                          |   13 +
+ fs/xfs/xfs_pnfs.c                            |   31 ---
+ fs/xfs/xfs_pnfs.h                            |    8 -
+ include/linux/fs.h                           |   11 +
+ include/linux/mapdirect.h                    |   40 ++++
+ include/linux/mm.h                           |    9 +
+ include/linux/mman.h                         |   42 +++++
+ include/uapi/asm-generic/mman-common.h       |    1 
+ include/uapi/asm-generic/mman.h              |    1 
+ ipc/shm.c                                    |    3 
+ mm/internal.h                                |    2 
+ mm/mmap.c                                    |   28 ++-
+ mm/nommu.c                                   |    5 -
+ mm/util.c                                    |    7 -
+ tools/include/uapi/asm-generic/mman-common.h |    1 
+ 33 files changed, 557 insertions(+), 62 deletions(-)
+ create mode 100644 fs/mapdirect.c
+ create mode 100644 fs/xfs/xfs_layout.c
+ create mode 100644 fs/xfs/xfs_layout.h
+ create mode 100644 include/linux/mapdirect.h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
