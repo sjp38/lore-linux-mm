@@ -1,141 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D04DC6B0033
-	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 10:53:08 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r202so3299968wmd.17
-        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 07:53:08 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id b13si2800562edi.30.2017.10.12.07.53.07
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 514E46B0033
+	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 10:54:27 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id i23so3468125pfi.5
+        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 07:54:27 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id e16si12680525pli.328.2017.10.12.07.54.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Oct 2017 07:53:07 -0700 (PDT)
-Received: from outbound-smtp14.blacknight.com (outbound-smtp14.blacknight.com [46.22.139.231])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 1F0BD1C209E
-	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 15:53:07 +0100 (IST)
-Received: from mail.blacknight.com (unknown [81.17.254.26])
-	by outbound-smtp14.blacknight.com (Postfix) with ESMTPS id 0C2981C2099
-	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 15:53:07 +0100 (IST)
-Date: Thu, 12 Oct 2017 15:53:06 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 3/8] mm, truncate: Remove all exceptional entries from
- pagevec under one lock
-Message-ID: <20171012145306.2lepcjtpdxshua6j@techsingularity.net>
-References: <20171012093103.13412-1-mgorman@techsingularity.net>
- <20171012093103.13412-4-mgorman@techsingularity.net>
- <20171012133323.GB29293@quack2.suse.cz>
+        Thu, 12 Oct 2017 07:54:26 -0700 (PDT)
+Date: Thu, 12 Oct 2017 17:54:20 +0300
+From: Leon Romanovsky <leon@kernel.org>
+Subject: Re: [PATCH for-next 2/4] RDMA/hns: Add IOMMU enable support in hip08
+Message-ID: <20171012145420.GQ2106@mtr-leonro.local>
+References: <1506763741-81429-1-git-send-email-xavier.huwei@huawei.com>
+ <1506763741-81429-3-git-send-email-xavier.huwei@huawei.com>
+ <20170930161023.GI2965@mtr-leonro.local>
+ <59DF60A3.7080803@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="kZU6r8y0YpRwyDfh"
 Content-Disposition: inline
-In-Reply-To: <20171012133323.GB29293@quack2.suse.cz>
+In-Reply-To: <59DF60A3.7080803@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dave Chinner <david@fromorbit.com>
+To: "Wei Hu (Xavier)" <xavier.huwei@huawei.com>
+Cc: dledford@redhat.com, linux-rdma@vger.kernel.org, lijun_nudt@163.com, oulijun@huawei.com, charles.chenxin@huawei.com, liuyixian@huawei.com, linux-mm@kvack.org, zhangxiping3@huawei.com, xavier.huwei@tom.com, linuxarm@huawei.com, linux-kernel@vger.kernel.org, shaobo.xu@intel.com, shaoboxu@tom.com, leizhen 00275356 <thunder.leizhen@huawei.com>, joro@8bytes.org, iommu@lists.linux-foundation.org
 
-On Thu, Oct 12, 2017 at 03:33:23PM +0200, Jan Kara wrote:
-> >  		return;
-> >  
-> > -	if (dax_mapping(mapping)) {
-> > -		dax_delete_mapping_entry(mapping, index);
-> > -		return;
-> > +	dax = dax_mapping(mapping);
-> > +	if (!dax)
-> > +		spin_lock_irq(&mapping->tree_lock);
-> > +
-> > +	for (i = ei, j = ei; i < pagevec_count(pvec); i++) {
-> > +		struct page *page = pvec->pages[i];
-> > +		pgoff_t index = indices[i];
-> > +
-> > +		if (!radix_tree_exceptional_entry(page)) {
-> > +			pvec->pages[j++] = page;
-> > +			continue;
-> > +		}
-> > +
-> > +		if (unlikely(dax)) {
-> > +			dax_delete_mapping_entry(mapping, index);
-> > +			continue;
-> > +		}
-> > +
-> > +		__clear_shadow_entry(mapping, index, page);
-> >  	}
-> > -	clear_shadow_entry(mapping, index, entry);
-> > +
-> > +	if (!dax)
-> > +		spin_unlock_irq(&mapping->tree_lock);
-> > +	pvec->nr = j;
-> >  }
-> 
-> When I look at this I think could make things cleaner. I have the following
-> observations:
-> 
-> 1) All truncate_inode_pages(), invalidate_mapping_pages(),
-> invalidate_inode_pages2_range() essentially do very similar thing and would
-> benefit from a similar kind of batching.
-> 
 
-While this is true, the benefit is much more marginal that I didn't feel
-the level of churn was justified. Primarily it would help fadvise() and
-invalidating when buffered and direct IO is mixed. I didn't think it would
-be that much cleaner as a result so I left it.
+--kZU6r8y0YpRwyDfh
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-> 2) As you observed and measured, batching of radix tree operations makes
-> sense both when removing pages and shadow entries, I'm very confident it
-> would make sense for DAX exceptional entries as well.
-> 
+On Thu, Oct 12, 2017 at 08:31:31PM +0800, Wei Hu (Xavier) wrote:
+>
+>
+> On 2017/10/1 0:10, Leon Romanovsky wrote:
+> > On Sat, Sep 30, 2017 at 05:28:59PM +0800, Wei Hu (Xavier) wrote:
+> > > If the IOMMU is enabled, the length of sg obtained from
+> > > __iommu_map_sg_attrs is not 4kB. When the IOVA is set with the sg
+> > > dma address, the IOVA will not be page continuous. and the VA
+> > > returned from dma_alloc_coherent is a vmalloc address. However,
+> > > the VA obtained by the page_address is a discontinuous VA. Under
+> > > these circumstances, the IOVA should be calculated based on the
+> > > sg length, and record the VA returned from dma_alloc_coherent
+> > > in the struct of hem.
+> > >
+> > > Signed-off-by: Wei Hu (Xavier) <xavier.huwei@huawei.com>
+> > > Signed-off-by: Shaobo Xu <xushaobo2@huawei.com>
+> > > Signed-off-by: Lijun Ou <oulijun@huawei.com>
+> > > ---
+> > Doug,
+> >
+> > I didn't invest time in reviewing it, but having "is_vmalloc_addr" in
+> > driver code to deal with dma_alloc_coherent is most probably wrong.
+> >
+> > Thanks
+> Hi,  Leon & Doug
+>     We refered the function named __ttm_dma_alloc_page in the kernel code as
+> below:
+>     And there are similar methods in bch_bio_map and mem_to_page functions
+> in current 4.14-rcx.
 
-True, but I didn't have a suitable setup for testing DAX so I wasn't
-comfortable with making the change. dax_delete_mapping_entry can sleep but it
-should be as simple as not taking the spinlock in dax_delete_mapping_entry
-and always locking in truncate_exceptional_pvec_entries. dax is already
-releasing the mapping->tree_lock if it needs to sleep and I didn't spot
-any other gotcha but I'd prefer that change was done by someone that can
-verify it works properly.
-
-> 3) In all cases (i.e., those three functions and for all entry types) the
-> workflow seems to be:
->   * lockless lookup of entries
->   * prepare entry for reclaim (or determine it is not elligible)
->   * lock mapping->tree_lock
->   * verify entry is still elligible for reclaim (otherwise bail)
->   * clear radix tree entry
->   * unlock mapping->tree_lock
->   * final cleanup of the entry
-> 
-> So I'm wondering whether we cannot somehow refactor stuff so that batching
-> of radix tree operations could be shared and we wouldn't have to duplicate
-> it in all those cases.
-> 
-> But it would be rather large overhaul of the code so it may be a bit out of
-> scope for these improvements...
-> 
-
-I think it would be out of scope for this improvement but I can look into
-it if the series is accepted. I think it would be a lot of churn for fairly
-marginal benefit though.
-
-> > @@ -409,8 +445,8 @@ void truncate_inode_pages_range(struct address_space *mapping,
-> >  			}
-> >  
-> >  			if (radix_tree_exceptional_entry(page)) {
-> > -				truncate_exceptional_entry(mapping, index,
-> > -							   page);
-> > +				if (ei != PAGEVEC_SIZE)
-> > +					ei = i;
-> 
-> This should be ei == PAGEVEC_SIZE I think.
-> 
-> Otherwise the patch looks good to me so feel free to add:
-> 
-
-Fixed.
-
-> Reviewed-by: Jan Kara <jack@suse.cz>
+Let's put aside TTM, I don't know the rationale behind their implementation,
+but both mem_to_page and bch_bio_map are don't operate on DMA addresses
+and don't belong to HW driver code.
 
 Thanks
 
--- 
-Mel Gorman
-SUSE Labs
+--kZU6r8y0YpRwyDfh
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEkhr/r4Op1/04yqaB5GN7iDZyWKcFAlnfghwACgkQ5GN7iDZy
+WKfnThAAkCAcg/gWetYtOCp2APtHDSYURzJFAsyQ3tk4q5WJKXHWNGp+BDn/EVdo
+5XyF/anfFiZSh7fQytyXrWDwwfuLeJhR0zBX3N2OnywXImA1+x05Y3UkNb5HZRbR
+rYxOkthJgvw7fydhPxcg+NOvZFF28Fgb8JrRF/WbaXPU+fC6363zpTENzAGjdkXv
+BoFHQhBne0SpmgZgooC2Twuk6NJP4ITCNt67q09kd1nojMfWwqBuXvsqi9QmCZAh
+vY+Yt2UkJxvuTD/46lppqhRil9EhTOENGGZtgBU6nmzOIbZR/lZd+OQr1qpsMWL5
+KqSUyuWNRoL+hpDQ584lW8dKT/3OfUnCF4ec4O7SfDwfxOlSiZB1RLb3LlZFBrKc
+7L18ZS5MPJev9fjXNUq1dD2t9dLUZ8KJU+2NFQdF8X/BYZZcFO8UxfTJN6a1rkLn
+DnDGlMJ0RmuJ0N9evJuM2Jd/eEpxmCfERSL+3tykkcZln1CJsAwHJ5L5C9igpwg+
++1W9eZcrUdn7VgF/7NkG0kYr0DKmSL3k1R/t5BykGvIf5fHIwsWCPBE80bV3CNXm
+Mb4JdmFimeDKpscU86C0s29e079lftQMvMWG4TIyV8pBVJ8Tibj9W+NKjNuR8sTs
+sC8d+BythwvjzNa9wfmF+3imQCti8r8waoX+UavmbhPKMoaNnfE=
+=y/UZ
+-----END PGP SIGNATURE-----
+
+--kZU6r8y0YpRwyDfh--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
