@@ -1,173 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A71116B027A
-	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 03:59:04 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id b189so3085636oia.10
-        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 00:59:04 -0700 (PDT)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id l32si7509067otb.27.2017.10.12.00.59.02
-        for <linux-mm@kvack.org>;
-        Thu, 12 Oct 2017 00:59:02 -0700 (PDT)
-Subject: Re: [PATCH 01/11] Initialize the mapping of KASan shadow memory
-References: <20171011082227.20546-1-liuwenliang@huawei.com>
- <20171011082227.20546-2-liuwenliang@huawei.com>
-From: Marc Zyngier <marc.zyngier@arm.com>
-Message-ID: <227e2c6e-f479-849d-8942-1d5ff4ccd440@arm.com>
-Date: Thu, 12 Oct 2017 08:58:53 +0100
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B831A6B027B
+	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 04:46:38 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id d28so2392587pfe.1
+        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 01:46:38 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p4si10927216pgc.443.2017.10.12.01.46.36
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 12 Oct 2017 01:46:37 -0700 (PDT)
+Date: Thu, 12 Oct 2017 10:46:33 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v1] mm/mempolicy.c: Fix get_nodes() off-by-one error.
+Message-ID: <20171012084633.ipr5cfxsrs3lyb5n@dhcp22.suse.cz>
+References: <1507296994-175620-1-git-send-email-luis.felipe.sandoval.castro@intel.com>
+ <1507296994-175620-2-git-send-email-luis.felipe.sandoval.castro@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20171011082227.20546-2-liuwenliang@huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1507296994-175620-2-git-send-email-luis.felipe.sandoval.castro@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Abbott Liu <liuwenliang@huawei.com>, linux@armlinux.org.uk, aryabinin@virtuozzo.com, afzal.mohd.ma@gmail.com, f.fainelli@gmail.com, labbott@redhat.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, cdall@linaro.org, catalin.marinas@arm.com, akpm@linux-foundation.org, mawilcox@microsoft.com, tglx@linutronix.de, thgarnie@google.com, keescook@chromium.org, arnd@arndb.de, vladimir.murzin@arm.com, tixy@linaro.org, ard.biesheuvel@linaro.org, robin.murphy@arm.com, mingo@kernel.org, grygorii.strashko@linaro.org
-Cc: glider@google.com, dvyukov@google.com, opendmb@gmail.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, jiazhenghua@huawei.com, dylix.dailei@huawei.com, zengweilin@huawei.com, heshaoliang@huawei.com
+To: Luis Felipe Sandoval Castro <luis.felipe.sandoval.castro@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu, Cristopher Lameter <cl@linux.com>, Andi Kleen <ak@linux.intel.com>
 
-On 11/10/17 09:22, Abbott Liu wrote:
-> From: Andrey Ryabinin <a.ryabinin@samsung.com>
-> 
-> This patch initializes KASan shadow region's page table and memory.
-> There are two stage for KASan initializing:
-> 1. At early boot stage the whole shadow region is mapped to just
->    one physical page (kasan_zero_page). It's finished by the function
->    kasan_early_init which is called by __mmap_switched(arch/arm/kernel/
->    head-common.S)
-> 
-> 2. After the calling of paging_init, we use kasan_zero_page as zero
->    shadow for some memory that KASan don't need to track, and we alloc
->    new shadow space for the other memory that KASan need to track. These
->    issues are finished by the function kasan_init which is call by setup_arch.
-> 
-> Cc: Andrey Ryabinin <a.ryabinin@samsung.com>
-> Signed-off-by: Abbott Liu <liuwenliang@huawei.com>
+[CC Christoph who seems to be the author of the code]
+
+I would also note that a single patch rarely requires a separate cover
+letter. If there is an information which is not suitable for the
+changelog then you can place it in the diffstate area.
+
+On Fri 06-10-17 08:36:34, Luis Felipe Sandoval Castro wrote:
+> set_mempolicy() and mbind() take as argument a pointer to a bit mask
+> (nodemask) and the number of bits in the mask the kernel will use
+> (maxnode), among others.  For instace on a system with 2 NUMA nodes valid
+> masks are: 0b00, 0b01, 0b10 and 0b11 it's clear maxnode=2, however an
+> off-by-one error in get_nodes() the function that copies the node mask from
+> user space requires users to pass maxnode = 3 in this example and maxnode =
+> actual_maxnode + 1 in the general case. This patch fixes such error.
+
+man page of mbind says this
+: nodemask points to a bit mask of nodes containing up to maxnode bits.
+: The bit mask size is rounded to the next multiple of sizeof(unsigned
+: long), but the kernel will use bits only up to maxnode.
+
+The definition is rather unfortunate. My understanding is that maxnode==1
+will result in copying only bit 0, maxnode==2 will result bits 0 and 1
+being copied. This would be consistent with
+
+: A NULL value of nodemask or a maxnode value of zero specifies the
+: empty set of nodes.  If the value of maxnode is zero, the nodemask
+: argument is ignored.
+
+where maxnode==0 means an empty mask. While maxnode==0 will return
+EINVAL AFAICS so it clearly breaks the above wording.
+
+mbind(0x7ff990b83000, 4096, MPOL_BIND, {}, 0, MPOL_MF_MOVE) = -1 EINVAL (Invalid argument)
+
+This has been broken for ages and I suspect that tools have found their
+way around that. E.g.
+$ strace -e set_mempolicy numactl --membind=0,1 sleep 1s
+set_mempolicy(MPOL_BIND, 0x21753b0, 1025) = 0
+
+I assume that the existing userspace simply does the same thing. Pre
+zeros the whole mask with the maxnode being set to the maximum possible
+NUMA nodes.
+
+Your patch seems broken in the similar way AFAICS. maxnode==1 shouldn't
+be any special.
+
+Andi has voiced a concern about backward compatibility but I am not sure
+the risk is very high. The current behavior is simply broken unless you
+use a large maxnode anyway. What kind of breakage would you envision
+Andi?
+
+> Signed-off-by: Luis Felipe Sandoval Castro <luis.felipe.sandoval.castro@intel.com>
 > ---
->  arch/arm/include/asm/kasan.h       |  20 +++
->  arch/arm/include/asm/pgalloc.h     |   5 +-
->  arch/arm/include/asm/pgtable.h     |   1 +
->  arch/arm/include/asm/proc-fns.h    |  33 +++++
->  arch/arm/include/asm/thread_info.h |   4 +
->  arch/arm/kernel/head-common.S      |   4 +
->  arch/arm/kernel/setup.c            |   2 +
->  arch/arm/mm/Makefile               |   5 +
->  arch/arm/mm/kasan_init.c           | 257 +++++++++++++++++++++++++++++++++++++
->  mm/kasan/kasan.c                   |   2 +-
->  10 files changed, 331 insertions(+), 2 deletions(-)
->  create mode 100644 arch/arm/include/asm/kasan.h
->  create mode 100644 arch/arm/mm/kasan_init.c
+>  mm/mempolicy.c | 5 ++---
+>  1 file changed, 2 insertions(+), 3 deletions(-)
 > 
-> diff --git a/arch/arm/include/asm/kasan.h b/arch/arm/include/asm/kasan.h
-> new file mode 100644
-> index 0000000..90ee60c
-> --- /dev/null
-> +++ b/arch/arm/include/asm/kasan.h
-> @@ -0,0 +1,20 @@
-> +#ifndef __ASM_KASAN_H
-> +#define __ASM_KASAN_H
-> +
-> +#ifdef CONFIG_KASAN
-> +
-> +#include <asm/kasan_def.h>
-> +/*
-> + * Compiler uses shadow offset assuming that addresses start
-> + * from 0. Kernel addresses don't start from 0, so shadow
-> + * for kernel really starts from 'compiler's shadow offset' +
-> + * ('kernel address space start' >> KASAN_SHADOW_SCALE_SHIFT)
-> + */
-> +
-> +extern void kasan_init(void);
-> +
-> +#else
-> +static inline void kasan_init(void) { }
-> +#endif
-> +
-> +#endif
-> diff --git a/arch/arm/include/asm/pgalloc.h b/arch/arm/include/asm/pgalloc.h
-> index b2902a5..10cee6a 100644
-> --- a/arch/arm/include/asm/pgalloc.h
-> +++ b/arch/arm/include/asm/pgalloc.h
-> @@ -50,8 +50,11 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
->   */
->  #define pmd_alloc_one(mm,addr)		({ BUG(); ((pmd_t *)2); })
->  #define pmd_free(mm, pmd)		do { } while (0)
-> +#ifndef CONFIG_KASAN
->  #define pud_populate(mm,pmd,pte)	BUG()
-> -
-> +#else
-> +#define pud_populate(mm,pmd,pte)	do { } while (0)
-> +#endif
->  #endif	/* CONFIG_ARM_LPAE */
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 006ba62..0c2e3cd 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -1265,11 +1265,10 @@ static int get_nodes(nodemask_t *nodes, const unsigned long __user *nmask,
+>  	unsigned long nlongs;
+>  	unsigned long endmask;
 >  
->  extern pgd_t *pgd_alloc(struct mm_struct *mm);
-> diff --git a/arch/arm/include/asm/pgtable.h b/arch/arm/include/asm/pgtable.h
-> index 1c46238..fdf343f 100644
-> --- a/arch/arm/include/asm/pgtable.h
-> +++ b/arch/arm/include/asm/pgtable.h
-> @@ -97,6 +97,7 @@ extern pgprot_t		pgprot_s2_device;
->  #define PAGE_READONLY		_MOD_PROT(pgprot_user, L_PTE_USER | L_PTE_RDONLY | L_PTE_XN)
->  #define PAGE_READONLY_EXEC	_MOD_PROT(pgprot_user, L_PTE_USER | L_PTE_RDONLY)
->  #define PAGE_KERNEL		_MOD_PROT(pgprot_kernel, L_PTE_XN)
-> +#define PAGE_KERNEL_RO		_MOD_PROT(pgprot_kernel, L_PTE_XN | L_PTE_RDONLY)
->  #define PAGE_KERNEL_EXEC	pgprot_kernel
->  #define PAGE_HYP		_MOD_PROT(pgprot_kernel, L_PTE_HYP | L_PTE_XN)
->  #define PAGE_HYP_EXEC		_MOD_PROT(pgprot_kernel, L_PTE_HYP | L_PTE_RDONLY)
-> diff --git a/arch/arm/include/asm/proc-fns.h b/arch/arm/include/asm/proc-fns.h
-> index f2e1af4..6e26714 100644
-> --- a/arch/arm/include/asm/proc-fns.h
-> +++ b/arch/arm/include/asm/proc-fns.h
-> @@ -131,6 +131,15 @@ extern void cpu_resume(void);
->  		pg &= ~(PTRS_PER_PGD*sizeof(pgd_t)-1);	\
->  		(pgd_t *)phys_to_virt(pg);		\
->  	})
-> +
-> +#define cpu_set_ttbr0(val)					\
-> +	do {							\
-> +		u64 ttbr = val;					\
-> +		__asm__("mcrr	p15, 0, %Q0, %R0, c2"		\
-> +			: : "r" (ttbr));	\
-> +	} while (0)
-> +
-> +
->  #else
->  #define cpu_get_pgd()	\
->  	({						\
-> @@ -140,6 +149,30 @@ extern void cpu_resume(void);
->  		pg &= ~0x3fff;				\
->  		(pgd_t *)phys_to_virt(pg);		\
->  	})
-> +
-> +#define cpu_set_ttbr(nr, val)					\
-> +	do {							\
-> +		u64 ttbr = val;					\
-> +		__asm__("mcr	p15, 0, %0, c2, c0, 0"		\
-> +			: : "r" (ttbr));			\
-> +	} while (0)
-> +
-> +#define cpu_get_ttbr(nr)					\
-> +	({							\
-> +		unsigned long ttbr;				\
-> +		__asm__("mrc	p15, 0, %0, c2, c0, 0"		\
-> +			: "=r" (ttbr));				\
-> +		ttbr;						\
-> +	})
-> +
-> +#define cpu_set_ttbr0(val)					\
-> +	do {							\
-> +		u64 ttbr = val;					\
-> +		__asm__("mcr	p15, 0, %0, c2, c0, 0"		\
-> +			: : "r" (ttbr));			\
-> +	} while (0)
-> +
-> +
+> -	--maxnode;
+>  	nodes_clear(*nodes);
+> -	if (maxnode == 0 || !nmask)
+> +	if (maxnode == 1 || !nmask)
+>  		return 0;
+> -	if (maxnode > PAGE_SIZE*BITS_PER_BYTE)
+> +	if (maxnode - 1 > PAGE_SIZE * BITS_PER_BYTE)
+>  		return -EINVAL;
+>  
+>  	nlongs = BITS_TO_LONGS(maxnode);
+> -- 
+> 1.8.3.1
+> 
 
-You could instead lift and extend the definitions provided in kvm_hyp.h,
-and use the read_sysreg/write_sysreg helpers defined in cp15.h.
-
-Thanks,
-
-	M.
 -- 
-Jazz is not dead. It just smells funny...
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
