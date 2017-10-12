@@ -1,85 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C99AA6B0253
-	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 13:41:55 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id f66so4439183oib.4
-        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 10:41:55 -0700 (PDT)
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 924056B0253
+	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 13:54:59 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id l196so4378711itl.15
+        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 10:54:59 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l16sor4547754ote.199.2017.10.12.10.41.52
+        by mx.google.com with SMTPS id r194sor7268itr.62.2017.10.12.10.54.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 12 Oct 2017 10:41:52 -0700 (PDT)
+        Thu, 12 Oct 2017 10:54:58 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20171012142319.GA11254@lst.de>
-References: <150776922692.9144.16963640112710410217.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171012142319.GA11254@lst.de>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 12 Oct 2017 10:41:39 -0700
-Message-ID: <CAPcyv4gTON__Ohop0B5R2gsKXC71bycTBozqGmF3WmwG9C6LVA@mail.gmail.com>
-Subject: Re: [PATCH v9 0/6] MAP_DIRECT for DAX userspace flush
+In-Reply-To: <alpine.DEB.2.20.1710121202210.28556@nuc-kabylake>
+References: <20171010121513.GC5445@yexl-desktop> <20171011023106.izaulhwjcoam55jt@treble>
+ <20171011170120.7flnk6r77dords7a@treble> <alpine.DEB.2.20.1710121202210.28556@nuc-kabylake>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 12 Oct 2017 10:54:57 -0700
+Message-ID: <CAADWXX-M2uftDuCyAS+UMKACC6d-B+Zb-DDNGO76yRS5wuigHw@mail.gmail.com>
+Subject: Re: [lkp-robot] [x86/kconfig] 81d3871900: BUG:unable_to_handle_kernel
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-xfs@vger.kernel.org, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "Darrick J. Wong" <darrick.wong@oracle.com>, Linux API <linux-api@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jeff Layton <jlayton@poochiereds.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+To: Christopher Lameter <cl@linux.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>, kernel test robot <xiaolong.ye@intel.com>, Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Slaby <jslaby@suse.cz>, Mike Galbraith <efault@gmx.de>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, lkp@01.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Oct 12, 2017 at 7:23 AM, Christoph Hellwig <hch@lst.de> wrote:
-> Sorry for chiming in so late, been extremely busy lately.
+On Thu, Oct 12, 2017 at 10:05 AM, Christopher Lameter <cl@linux.com> wrote:
+> On Wed, 11 Oct 2017, Josh Poimboeuf wrote:
 >
-> From quickly glacing over what the now finally described use case is
-> (which contradicts the subject btw - it's not about flushing, it's
-> about not removing block mapping under a MR) and the previous comments
-> I think that mmap is simply the wrong kind of interface for this.
+>> I failed to add the slab maintainers to CC on the last attempt.  Trying
+>> again.
 >
-> What we want is support for a new kinds of userspace memory registration in the
-> RDMA code that uses the pnfs export interface, both getting the block (or
-> rather byte in this case) mapping, and also gets the FL_LAYOUT lease for the
-> memory registration.
->
-> That btw is exactly what I do for the pNFS RDMA layout, just in-kernel.
+> Hmmm... Yea. SLOB is rarely used and tested. Good illustration of a simple
+> allocator and the K&R mechanism that was used in the early kernels.
 
-...and this is exactly my plan.
+Should we finally just get rid of SLOB?
 
-So, you're jumping into this review at v9 where I've split the patches
-that take an initial MAP_DIRECT lease out from the patches that take
-FL_LAYOUT leases at memory registration time. You can see a previous
-attempt in "[PATCH v8 00/14] MAP_DIRECT for DAX RDMA and userspace
-flush" which should be in your inbox.
+I'm not happy about the whole "three different allocators" crap. It's
+been there for much too long, and I've tried to cut it down before.
+People always protest, but three different allocators, one of which
+gets basically no testing, is not good.
 
-I'm not proposing mmap as the memory registration interface, it's the
-"register for notification of lease break" interface. Here's my
-proposed sequence:
-
-addr = mmap(..., MAP_DIRECT.., fd); <- register a vma for "direct"
-memory registrations with an FL_LAYOUT lease that at a lease break
-event sends SIGIO on the fd used for mmap.
-
-ibv_reg_mr(..., addr, ...); <- check for a valid MAP_DIRECT vma, and
-take out another FL_LAYOUT lease. This lease force revokes the RDMA
-mapping when it expires, and it relies on the process receiving SIGIO
-as the 'break' notification.
-
-fallocate(fd, PUNCH_HOLE...) <- breaks all the FL_LAYOUT leases, the
-vma owner gets notified by fd.
-
-Al, rightly points out that the fd may be closed by the time the event
-fires since the lease follows the vma lifetime. I see two ways to
-solve this, document that the process may get notifications on a stale
-fd if close() happens before munmap(), or, similar to how we call
-locks_remove_posix() in filp_close(), add a routine to disable any
-lease notifiers on close(). I'll investigate the second option because
-this seems to be a general problem with leases.
-
-For RDMA I am presently re-working the implementation [1]. Inspired by
-a discussion with Jason [2], I am going to add something like
-ib_umem_ops to allow drivers to override the default policy of what
-happens on a lease that expires. The default action is to invalidate
-device access to the memory with iommu_unmap(), but I want to allow
-for drivers to do something smarter or choose to not support DAX
-mappings at all.
-
-[1]: https://lists.01.org/pipermail/linux-nvdimm/2017-October/012785.html
-[2]: https://lists.01.org/pipermail/linux-nvdimm/2017-October/012793.html
+               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
