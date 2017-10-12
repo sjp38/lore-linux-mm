@@ -1,256 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F94D6B026A
-	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 02:16:58 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id w134so514530qkb.13
-        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 23:16:58 -0700 (PDT)
-Received: from sasl.smtp.pobox.com (pb-smtp1.pobox.com. [64.147.108.70])
-        by mx.google.com with ESMTPS id i8si1574639qke.299.2017.10.11.23.16.57
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 575306B0271
+	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 02:33:15 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id u138so5009440wmu.2
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 23:33:15 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y130si10520752wmg.119.2017.10.11.23.33.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Oct 2017 23:16:57 -0700 (PDT)
-From: Nicolas Pitre <nicolas.pitre@linaro.org>
-Subject: [PATCH v6 2/4] cramfs: implement uncompressed and arbitrary data block positioning
-Date: Thu, 12 Oct 2017 02:16:11 -0400
-Message-Id: <20171012061613.28705-3-nicolas.pitre@linaro.org>
-In-Reply-To: <20171012061613.28705-1-nicolas.pitre@linaro.org>
-References: <20171012061613.28705-1-nicolas.pitre@linaro.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 11 Oct 2017 23:33:14 -0700 (PDT)
+Date: Thu, 12 Oct 2017 08:33:12 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [v11 3/6] mm, oom: cgroup-aware OOM killer
+Message-ID: <20171012063312.s37uwybbo3tfiii3@dhcp22.suse.cz>
+References: <20171005130454.5590-1-guro@fb.com>
+ <20171005130454.5590-4-guro@fb.com>
+ <alpine.DEB.2.10.1710091414260.59643@chino.kir.corp.google.com>
+ <20171010122306.GA11653@castle.DHCP.thefacebook.com>
+ <alpine.DEB.2.10.1710101345370.28262@chino.kir.corp.google.com>
+ <20171011130815.qjw7jfnnqz3gpn4s@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1710111323380.98307@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1710111323380.98307@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@infradead.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-embedded@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Brandt <Chris.Brandt@renesas.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Two new capabilities are introduced here:
+On Wed 11-10-17 13:27:44, David Rientjes wrote:
+> On Wed, 11 Oct 2017, Michal Hocko wrote:
+> 
+> > > For these reasons: unfair comparison of root mem cgroup usage to bias 
+> > > against that mem cgroup from oom kill in system oom conditions, the 
+> > > ability of users to completely evade the oom killer by attaching all 
+> > > processes to child cgroups either purposefully or unpurposefully, and the 
+> > > inability of userspace to effectively control oom victim selection:
+> > > 
+> > > Nacked-by: David Rientjes <rientjes@google.com>
+> > 
+> > I consider this NACK rather dubious. Evading the heuristic as you
+> > describe requires root privileges in default configuration because
+> > normal users are not allowed to create subtrees. If you
+> > really want to delegate subtree to an untrusted entity then you do not
+> > have to opt-in for this oom strategy. We can work on an additional means
+> > which would allow to cover those as well (e.g. priority based one which
+> > is requested for other usecases).
+> > 
+> 
+> You're missing the point that the user is trusted and it may be doing 
+> something to circumvent oom kill unknowingly.
 
-- The ability to store some blocks uncompressed.
+I would really like to see a practical example of something like that. I
+am not saying this is completely impossible but as already pointed out
+this _can_ be addressed _on top_ of the current implementation. We will
+need some way to consider hierarchies anyway.
 
-- The ability to locate blocks anywhere.
+So I really fail to see why this would be a blocker. After all it
+is no different than skipping oom selection by splitting a process
+(knowingly or otherwise) into subprocesses which is possible even
+now. OOM killer selection has never been, will not be and cannot be
+perfect in principal. Quite contrary, the more clever the heuristics are
+trying to be the more corner cases they might generate as we could see
+in the past.
 
-Those capabilities can be used independently, but the combination
-opens the possibility for execute-in-place (XIP) of program text segments
-that must remain uncompressed, and in the MMU case, must have a specific
-alignment.  It is even possible to still have the writable data segments
-from the same file compressed as they have to be copied into RAM anyway.
+> With a single unified 
+> hierarchy, the user is forced to attach its processes to subcontainers if 
+> it wants to constrain resources with other controllers.  Doing so ends up 
+> completely avoiding oom kill because of this implementation detail.  It 
+> has nothing to do with trust and the admin who is opting-in will not know 
+> a user has cirumvented oom kill purely because it constrains its processes 
+> with controllers other than the memory controller.
+> 
+> > A similar argument applies to the root memcg evaluation. While the
+> > proposed behavior is not optimal it would work for general usecase
+> > described here where the root memcg doesn't really run any large number
+> > of tasks. If somebody who explicitly opts-in for the new strategy and it
+> > doesn't work well for that usecase we can enhance the behavior. That
+> > alone is not a reason to nack the whole thing.
+> > 
+> > I find it really disturbing that you keep nacking this approach just
+> > because it doesn't suite your specific usecase while it doesn't break
+> > it. Moreover it has been stated several times already that future
+> > improvements are possible and cover what you have described already.
+> 
+> This has nothing to do with my specific usecase.
 
-This is achieved by giving special meanings to some unused block pointer
-bits while remaining compatible with legacy cramfs images.
-
-Signed-off-by: Nicolas Pitre <nico@linaro.org>
-Tested-by: Chris Brandt <chris.brandt@renesas.com>
----
- fs/cramfs/README               | 31 ++++++++++++++-
- fs/cramfs/inode.c              | 90 +++++++++++++++++++++++++++++++++---------
- include/uapi/linux/cramfs_fs.h | 26 +++++++++++-
- 3 files changed, 126 insertions(+), 21 deletions(-)
-
-diff --git a/fs/cramfs/README b/fs/cramfs/README
-index 9d4e7ea311..d71b27e0ff 100644
---- a/fs/cramfs/README
-+++ b/fs/cramfs/README
-@@ -49,17 +49,46 @@ same as the start of the (i+1)'th <block> if there is one).  The first
- <block> immediately follows the last <block_pointer> for the file.
- <block_pointer>s are each 32 bits long.
- 
-+When the CRAMFS_FLAG_EXT_BLOCK_POINTERS capability bit is set, each
-+<block_pointer>'s top bits may contain special flags as follows:
-+
-+CRAMFS_BLK_FLAG_UNCOMPRESSED (bit 31):
-+	The block data is not compressed and should be copied verbatim.
-+
-+CRAMFS_BLK_FLAG_DIRECT_PTR (bit 30):
-+	The <block_pointer> stores the actual block start offset and not
-+	its end, shifted right by 2 bits. The block must therefore be
-+	aligned to a 4-byte boundary. The block size is either blksize
-+	if CRAMFS_BLK_FLAG_UNCOMPRESSED is also specified, otherwise
-+	the compressed data length is included in the first 2 bytes of
-+	the block data. This is used to allow discontiguous data layout
-+	and specific data block alignments e.g. for XIP applications.
-+
-+
- The order of <file_data>'s is a depth-first descent of the directory
- tree, i.e. the same order as `find -size +0 \( -type f -o -type l \)
- -print'.
- 
- 
- <block>: The i'th <block> is the output of zlib's compress function
--applied to the i'th blksize-sized chunk of the input data.
-+applied to the i'th blksize-sized chunk of the input data if the
-+corresponding CRAMFS_BLK_FLAG_UNCOMPRESSED <block_ptr> bit is not set,
-+otherwise it is the input data directly.
- (For the last <block> of the file, the input may of course be smaller.)
- Each <block> may be a different size.  (See <block_pointer> above.)
-+
- <block>s are merely byte-aligned, not generally u32-aligned.
- 
-+When CRAMFS_BLK_FLAG_DIRECT_PTR is specified then the corresponding
-+<block> may be located anywhere and not necessarily contiguous with
-+the previous/next blocks. In that case it is minimally u32-aligned.
-+If CRAMFS_BLK_FLAG_UNCOMPRESSED is also specified then the size is always
-+blksize except for the last block which is limited by the file length.
-+If CRAMFS_BLK_FLAG_DIRECT_PTR is set and CRAMFS_BLK_FLAG_UNCOMPRESSED
-+is not set then the first 2 bytes of the block contains the size of the
-+remaining block data as this cannot be determined from the placement of
-+logically adjacent blocks.
-+
- 
- Holes
- -----
-diff --git a/fs/cramfs/inode.c b/fs/cramfs/inode.c
-index 321a1fe17e..d3066a8534 100644
---- a/fs/cramfs/inode.c
-+++ b/fs/cramfs/inode.c
-@@ -621,34 +621,86 @@ static int cramfs_readpage(struct file *file, struct page *page)
- 
- 	if (page->index < maxblock) {
- 		struct super_block *sb = inode->i_sb;
--		u32 blkptr_offset = OFFSET(inode) + page->index*4;
--		u32 start_offset, compr_len;
-+		u32 blkptr_offset = OFFSET(inode) + page->index * 4;
-+		u32 block_ptr, block_start, block_len;
-+		bool uncompressed, direct;
- 
--		start_offset = OFFSET(inode) + maxblock*4;
- 		mutex_lock(&read_mutex);
--		if (page->index)
--			start_offset = *(u32 *) cramfs_read(sb, blkptr_offset-4,
--				4);
--		compr_len = (*(u32 *) cramfs_read(sb, blkptr_offset, 4) -
--			start_offset);
--		mutex_unlock(&read_mutex);
-+		block_ptr = *(u32 *) cramfs_read(sb, blkptr_offset, 4);
-+		uncompressed = (block_ptr & CRAMFS_BLK_FLAG_UNCOMPRESSED);
-+		direct = (block_ptr & CRAMFS_BLK_FLAG_DIRECT_PTR);
-+		block_ptr &= ~CRAMFS_BLK_FLAGS;
-+
-+		if (direct) {
-+			/*
-+			 * The block pointer is an absolute start pointer,
-+			 * shifted by 2 bits. The size is included in the
-+			 * first 2 bytes of the data block when compressed,
-+			 * or PAGE_SIZE otherwise.
-+			 */
-+			block_start = block_ptr << CRAMFS_BLK_DIRECT_PTR_SHIFT;
-+			if (uncompressed) {
-+				block_len = PAGE_SIZE;
-+				/* if last block: cap to file length */
-+				if (page->index == maxblock - 1)
-+					block_len =
-+						offset_in_page(inode->i_size);
-+			} else {
-+				block_len = *(u16 *)
-+					cramfs_read(sb, block_start, 2);
-+				block_start += 2;
-+			}
-+		} else {
-+			/*
-+			 * The block pointer indicates one past the end of
-+			 * the current block (start of next block). If this
-+			 * is the first block then it starts where the block
-+			 * pointer table ends, otherwise its start comes
-+			 * from the previous block's pointer.
-+			 */
-+			block_start = OFFSET(inode) + maxblock * 4;
-+			if (page->index)
-+				block_start = *(u32 *)
-+					cramfs_read(sb, blkptr_offset - 4, 4);
-+			/* Beware... previous ptr might be a direct ptr */
-+			if (unlikely(block_start & CRAMFS_BLK_FLAG_DIRECT_PTR)) {
-+				/* See comments on earlier code. */
-+				u32 prev_start = block_start;
-+			       block_start = prev_start & ~CRAMFS_BLK_FLAGS;
-+			       block_start <<= CRAMFS_BLK_DIRECT_PTR_SHIFT;
-+				if (prev_start & CRAMFS_BLK_FLAG_UNCOMPRESSED) {
-+					block_start += PAGE_SIZE;
-+				} else {
-+					block_len = *(u16 *)
-+						cramfs_read(sb, block_start, 2);
-+					block_start += 2 + block_len;
-+				}
-+			}
-+			block_start &= ~CRAMFS_BLK_FLAGS;
-+			block_len = block_ptr - block_start;
-+		}
- 
--		if (compr_len == 0)
-+		if (block_len == 0)
- 			; /* hole */
--		else if (unlikely(compr_len > (PAGE_SIZE << 1))) {
--			pr_err("bad compressed blocksize %u\n",
--				compr_len);
-+		else if (unlikely(block_len > 2*PAGE_SIZE ||
-+				  (uncompressed && block_len > PAGE_SIZE))) {
-+			mutex_unlock(&read_mutex);
-+			pr_err("bad data blocksize %u\n", block_len);
- 			goto err;
-+		} else if (uncompressed) {
-+			memcpy(pgdata,
-+			       cramfs_read(sb, block_start, block_len),
-+			       block_len);
-+			bytes_filled = block_len;
- 		} else {
--			mutex_lock(&read_mutex);
- 			bytes_filled = cramfs_uncompress_block(pgdata,
- 				 PAGE_SIZE,
--				 cramfs_read(sb, start_offset, compr_len),
--				 compr_len);
--			mutex_unlock(&read_mutex);
--			if (unlikely(bytes_filled < 0))
--				goto err;
-+				 cramfs_read(sb, block_start, block_len),
-+				 block_len);
- 		}
-+		mutex_unlock(&read_mutex);
-+		if (unlikely(bytes_filled < 0))
-+			goto err;
- 	}
- 
- 	memset(pgdata + bytes_filled, 0, PAGE_SIZE - bytes_filled);
-diff --git a/include/uapi/linux/cramfs_fs.h b/include/uapi/linux/cramfs_fs.h
-index e4611a9b92..ce2c885133 100644
---- a/include/uapi/linux/cramfs_fs.h
-+++ b/include/uapi/linux/cramfs_fs.h
-@@ -73,6 +73,7 @@ struct cramfs_super {
- #define CRAMFS_FLAG_HOLES		0x00000100	/* support for holes */
- #define CRAMFS_FLAG_WRONG_SIGNATURE	0x00000200	/* reserved */
- #define CRAMFS_FLAG_SHIFTED_ROOT_OFFSET	0x00000400	/* shifted root fs */
-+#define CRAMFS_FLAG_EXT_BLOCK_POINTERS	0x00000800	/* block pointer extensions */
- 
- /*
-  * Valid values in super.flags.  Currently we refuse to mount
-@@ -82,7 +83,30 @@ struct cramfs_super {
- #define CRAMFS_SUPPORTED_FLAGS	( 0x000000ff \
- 				| CRAMFS_FLAG_HOLES \
- 				| CRAMFS_FLAG_WRONG_SIGNATURE \
--				| CRAMFS_FLAG_SHIFTED_ROOT_OFFSET )
-+				| CRAMFS_FLAG_SHIFTED_ROOT_OFFSET \
-+				| CRAMFS_FLAG_EXT_BLOCK_POINTERS )
- 
-+/*
-+ * Block pointer flags
-+ *
-+ * The maximum block offset that needs to be represented is roughly:
-+ *
-+ *   (1 << CRAMFS_OFFSET_WIDTH) * 4 +
-+ *   (1 << CRAMFS_SIZE_WIDTH) / PAGE_SIZE * (4 + PAGE_SIZE)
-+ *   = 0x11004000
-+ *
-+ * That leaves room for 3 flag bits in the block pointer table.
-+ */
-+#define CRAMFS_BLK_FLAG_UNCOMPRESSED	(1 << 31)
-+#define CRAMFS_BLK_FLAG_DIRECT_PTR	(1 << 30)
-+
-+#define CRAMFS_BLK_FLAGS	( CRAMFS_BLK_FLAG_UNCOMPRESSED \
-+				| CRAMFS_BLK_FLAG_DIRECT_PTR )
-+
-+/*
-+ * Direct blocks are at least 4-byte aligned.
-+ * Pointers to direct blocks are shifted down by 2 bits.
-+ */
-+#define CRAMFS_BLK_DIRECT_PTR_SHIFT	2
- 
- #endif /* _UAPI__CRAMFS_H */
+Well, I might be really wrong but it is hard to not notice how most of
+your complains push towards hierarchical level-by-level comparisons.
+Which has been considered and deemed unsuitable for the default cgroup
+aware oom selection because it imposes structural constrains on how
+the hierarchy is organized and thus disallow many usecases. So pushing
+for this just because it resembles your current inhouse implementation
+leaves me with a feeling that you care more about your usecase than a
+general usability.
 -- 
-2.9.5
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
