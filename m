@@ -1,94 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 514E46B0033
-	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 10:54:27 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id i23so3468125pfi.5
-        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 07:54:27 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id e16si12680525pli.328.2017.10.12.07.54.26
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B76896B0038
+	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 11:28:50 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p87so3588857pfj.21
+        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 08:28:50 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id w16si7805534pge.598.2017.10.12.08.28.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Oct 2017 07:54:26 -0700 (PDT)
-Date: Thu, 12 Oct 2017 17:54:20 +0300
-From: Leon Romanovsky <leon@kernel.org>
-Subject: Re: [PATCH for-next 2/4] RDMA/hns: Add IOMMU enable support in hip08
-Message-ID: <20171012145420.GQ2106@mtr-leonro.local>
-References: <1506763741-81429-1-git-send-email-xavier.huwei@huawei.com>
- <1506763741-81429-3-git-send-email-xavier.huwei@huawei.com>
- <20170930161023.GI2965@mtr-leonro.local>
- <59DF60A3.7080803@huawei.com>
+        Thu, 12 Oct 2017 08:28:48 -0700 (PDT)
+Date: Thu, 12 Oct 2017 08:28:25 -0700
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [PATCH v1] mm/mempolicy.c: Fix get_nodes() off-by-one error.
+Message-ID: <20171012152825.GJ5109@tassilo.jf.intel.com>
+References: <1507296994-175620-1-git-send-email-luis.felipe.sandoval.castro@intel.com>
+ <1507296994-175620-2-git-send-email-luis.felipe.sandoval.castro@intel.com>
+ <20171012084633.ipr5cfxsrs3lyb5n@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="kZU6r8y0YpRwyDfh"
-Content-Disposition: inline
-In-Reply-To: <59DF60A3.7080803@huawei.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: "Wei Hu (Xavier)" <xavier.huwei@huawei.com>
-Cc: dledford@redhat.com, linux-rdma@vger.kernel.org, lijun_nudt@163.com, oulijun@huawei.com, charles.chenxin@huawei.com, liuyixian@huawei.com, linux-mm@kvack.org, zhangxiping3@huawei.com, xavier.huwei@tom.com, linuxarm@huawei.com, linux-kernel@vger.kernel.org, shaobo.xu@intel.com, shaoboxu@tom.com, leizhen 00275356 <thunder.leizhen@huawei.com>, joro@8bytes.org, iommu@lists.linux-foundation.org
-
-
---kZU6r8y0YpRwyDfh
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20171012084633.ipr5cfxsrs3lyb5n@dhcp22.suse.cz>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Luis Felipe Sandoval Castro <luis.felipe.sandoval.castro@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu, Cristopher Lameter <cl@linux.com>
 
-On Thu, Oct 12, 2017 at 08:31:31PM +0800, Wei Hu (Xavier) wrote:
->
->
-> On 2017/10/1 0:10, Leon Romanovsky wrote:
-> > On Sat, Sep 30, 2017 at 05:28:59PM +0800, Wei Hu (Xavier) wrote:
-> > > If the IOMMU is enabled, the length of sg obtained from
-> > > __iommu_map_sg_attrs is not 4kB. When the IOVA is set with the sg
-> > > dma address, the IOVA will not be page continuous. and the VA
-> > > returned from dma_alloc_coherent is a vmalloc address. However,
-> > > the VA obtained by the page_address is a discontinuous VA. Under
-> > > these circumstances, the IOVA should be calculated based on the
-> > > sg length, and record the VA returned from dma_alloc_coherent
-> > > in the struct of hem.
-> > >
-> > > Signed-off-by: Wei Hu (Xavier) <xavier.huwei@huawei.com>
-> > > Signed-off-by: Shaobo Xu <xushaobo2@huawei.com>
-> > > Signed-off-by: Lijun Ou <oulijun@huawei.com>
-> > > ---
-> > Doug,
-> >
-> > I didn't invest time in reviewing it, but having "is_vmalloc_addr" in
-> > driver code to deal with dma_alloc_coherent is most probably wrong.
-> >
-> > Thanks
-> Hi,  Leon & Doug
->     We refered the function named __ttm_dma_alloc_page in the kernel code as
-> below:
->     And there are similar methods in bch_bio_map and mem_to_page functions
-> in current 4.14-rcx.
+On Thu, Oct 12, 2017 at 10:46:33AM +0200, Michal Hocko wrote:
+> [CC Christoph who seems to be the author of the code]
 
-Let's put aside TTM, I don't know the rationale behind their implementation,
-but both mem_to_page and bch_bio_map are don't operate on DMA addresses
-and don't belong to HW driver code.
+Actually you can blame me. I did the mistake originally.
+It was found many years ago, but then it was already too late
+to change.
 
-Thanks
+> Andi has voiced a concern about backward compatibility but I am not sure
+> the risk is very high. The current behavior is simply broken unless you
+> use a large maxnode anyway. What kind of breakage would you envision
+> Andi?
 
---kZU6r8y0YpRwyDfh
-Content-Type: application/pgp-signature; name="signature.asc"
+libnuma uses the available number of nodes as max. 
 
------BEGIN PGP SIGNATURE-----
+So it would always lose the last one with your chance.
 
-iQIzBAEBCAAdFiEEkhr/r4Op1/04yqaB5GN7iDZyWKcFAlnfghwACgkQ5GN7iDZy
-WKfnThAAkCAcg/gWetYtOCp2APtHDSYURzJFAsyQ3tk4q5WJKXHWNGp+BDn/EVdo
-5XyF/anfFiZSh7fQytyXrWDwwfuLeJhR0zBX3N2OnywXImA1+x05Y3UkNb5HZRbR
-rYxOkthJgvw7fydhPxcg+NOvZFF28Fgb8JrRF/WbaXPU+fC6363zpTENzAGjdkXv
-BoFHQhBne0SpmgZgooC2Twuk6NJP4ITCNt67q09kd1nojMfWwqBuXvsqi9QmCZAh
-vY+Yt2UkJxvuTD/46lppqhRil9EhTOENGGZtgBU6nmzOIbZR/lZd+OQr1qpsMWL5
-KqSUyuWNRoL+hpDQ584lW8dKT/3OfUnCF4ec4O7SfDwfxOlSiZB1RLb3LlZFBrKc
-7L18ZS5MPJev9fjXNUq1dD2t9dLUZ8KJU+2NFQdF8X/BYZZcFO8UxfTJN6a1rkLn
-DnDGlMJ0RmuJ0N9evJuM2Jd/eEpxmCfERSL+3tykkcZln1CJsAwHJ5L5C9igpwg+
-+1W9eZcrUdn7VgF/7NkG0kYr0DKmSL3k1R/t5BykGvIf5fHIwsWCPBE80bV3CNXm
-Mb4JdmFimeDKpscU86C0s29e079lftQMvMWG4TIyV8pBVJ8Tibj9W+NKjNuR8sTs
-sC8d+BythwvjzNa9wfmF+3imQCti8r8waoX+UavmbhPKMoaNnfE=
-=y/UZ
------END PGP SIGNATURE-----
+Your change would be catastrophic.
 
---kZU6r8y0YpRwyDfh--
+The only way to fix it really would be to define
+a new syscall. But I don't think it is needed, 
+the existing maxnode+1 interface works
+(just should be properly documented)
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
