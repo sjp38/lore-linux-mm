@@ -1,70 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0880C6B0033
-	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 15:11:46 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id i124so3936988wmf.1
-        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 12:11:45 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 94si1494451edq.368.2017.10.12.12.11.44
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 719AE6B0033
+	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 15:19:03 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id t69so3865312wmt.7
+        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 12:19:03 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z66sor293689wmb.12.2017.10.12.12.19.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 12 Oct 2017 12:11:44 -0700 (PDT)
-Date: Thu, 12 Oct 2017 15:11:33 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/8] mm, truncate: Do not check mapping for every page
- being truncated
-Message-ID: <20171012191133.GB5075@cmpxchg.org>
-References: <20171012093103.13412-1-mgorman@techsingularity.net>
- <20171012093103.13412-3-mgorman@techsingularity.net>
+        (Google Transport Security);
+        Thu, 12 Oct 2017 12:19:02 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171012093103.13412-3-mgorman@techsingularity.net>
+In-Reply-To: <20171012114843.d74096014cb88eedbaa7ac70@linux-foundation.org>
+References: <20171010121513.GC5445@yexl-desktop> <20171011023106.izaulhwjcoam55jt@treble>
+ <20171011170120.7flnk6r77dords7a@treble> <alpine.DEB.2.20.1710121202210.28556@nuc-kabylake>
+ <CAADWXX-M2uftDuCyAS+UMKACC6d-B+Zb-DDNGO76yRS5wuigHw@mail.gmail.com> <20171012114843.d74096014cb88eedbaa7ac70@linux-foundation.org>
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Date: Thu, 12 Oct 2017 21:19:01 +0200
+Message-ID: <CAMuHMdWmp5cJf82d_V8=Kzii9r6oFpDMGitBsLRUMNW2HmZxog@mail.gmail.com>
+Subject: Re: [lkp-robot] [x86/kconfig] 81d3871900: BUG:unable_to_handle_kernel
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dave Chinner <david@fromorbit.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Christopher Lameter <cl@linux.com>, Josh Poimboeuf <jpoimboe@redhat.com>, kernel test robot <xiaolong.ye@intel.com>, Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Slaby <jslaby@suse.cz>, Mike Galbraith <efault@gmx.de>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, LKP <lkp@01.org>, Linux MM <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Matt Mackall <mpm@selenic.com>
 
-On Thu, Oct 12, 2017 at 10:30:57AM +0100, Mel Gorman wrote:
-> During truncation, the mapping has already been checked for shmem and dax
-> so it's known that workingset_update_node is required. This patch avoids
-> the checks on mapping for each page being truncated. In all other cases,
-> a lookup helper is used to determine if workingset_update_node() needs
-> to be called. The one danger is that the API is slightly harder to use as
-> calling workingset_update_node directly without checking for dax or shmem
-> mappings could lead to surprises. However, the API rarely needs to be used
-> and hopefully the comment is enough to give people the hint.
-> 
-> sparsetruncate (tiny)
->                               4.14.0-rc4             4.14.0-rc4
->                              oneirq-v1r1        pickhelper-v1r1
-> Min          Time      141.00 (   0.00%)      140.00 (   0.71%)
-> 1st-qrtle    Time      142.00 (   0.00%)      141.00 (   0.70%)
-> 2nd-qrtle    Time      142.00 (   0.00%)      142.00 (   0.00%)
-> 3rd-qrtle    Time      143.00 (   0.00%)      143.00 (   0.00%)
-> Max-90%      Time      144.00 (   0.00%)      144.00 (   0.00%)
-> Max-95%      Time      147.00 (   0.00%)      145.00 (   1.36%)
-> Max-99%      Time      195.00 (   0.00%)      191.00 (   2.05%)
-> Max          Time      230.00 (   0.00%)      205.00 (  10.87%)
-> Amean        Time      144.37 (   0.00%)      143.82 (   0.38%)
-> Stddev       Time       10.44 (   0.00%)        9.00 (  13.74%)
-> Coeff        Time        7.23 (   0.00%)        6.26 (  13.41%)
-> Best99%Amean Time      143.72 (   0.00%)      143.34 (   0.26%)
-> Best95%Amean Time      142.37 (   0.00%)      142.00 (   0.26%)
-> Best90%Amean Time      142.19 (   0.00%)      141.85 (   0.24%)
-> Best75%Amean Time      141.92 (   0.00%)      141.58 (   0.24%)
-> Best50%Amean Time      141.69 (   0.00%)      141.31 (   0.27%)
-> Best25%Amean Time      141.38 (   0.00%)      140.97 (   0.29%)
-> 
-> As you'd expect, the gain is marginal but it can be detected. The differences
-> in bonnie are all within the noise which is not surprising given the impact
-> on the microbenchmark.
-> 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+On Thu, Oct 12, 2017 at 8:48 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Thu, 12 Oct 2017 10:54:57 -0700 Linus Torvalds <torvalds@linux-foundation.org> wrote:
+>> On Thu, Oct 12, 2017 at 10:05 AM, Christopher Lameter <cl@linux.com> wrote:
+>> > On Wed, 11 Oct 2017, Josh Poimboeuf wrote:
+>> >
+>> >> I failed to add the slab maintainers to CC on the last attempt.  Trying
+>> >> again.
+>> >
+>> > Hmmm... Yea. SLOB is rarely used and tested. Good illustration of a simple
+>> > allocator and the K&R mechanism that was used in the early kernels.
+>>
+>> Should we finally just get rid of SLOB?
+>>
+>> I'm not happy about the whole "three different allocators" crap. It's
+>> been there for much too long, and I've tried to cut it down before.
+>> People always protest, but three different allocators, one of which
+>> gets basically no testing, is not good.
+>
+> I am not aware of anyone using slob.  We could disable it in Kconfig
+> for a year, see what the feedback looks like.
 
-With Jan's suggestion to remove the private parameter,
+$ git grep CONFIG_SLOB=y
+arch/arm/configs/clps711x_defconfig:CONFIG_SLOB=y
+arch/arm/configs/collie_defconfig:CONFIG_SLOB=y
+arch/arm/configs/multi_v4t_defconfig:CONFIG_SLOB=y
+arch/arm/configs/omap1_defconfig:CONFIG_SLOB=y
+arch/arm/configs/pxa_defconfig:CONFIG_SLOB=y
+arch/arm/configs/tct_hammer_defconfig:CONFIG_SLOB=y
+arch/arm/configs/xcep_defconfig:CONFIG_SLOB=y
+arch/blackfin/configs/DNP5370_defconfig:CONFIG_SLOB=y
+arch/h8300/configs/edosk2674_defconfig:CONFIG_SLOB=y
+arch/h8300/configs/h8300h-sim_defconfig:CONFIG_SLOB=y
+arch/h8300/configs/h8s-sim_defconfig:CONFIG_SLOB=y
+arch/openrisc/configs/or1ksim_defconfig:CONFIG_SLOB=y
+arch/sh/configs/rsk7201_defconfig:CONFIG_SLOB=y
+arch/sh/configs/rsk7203_defconfig:CONFIG_SLOB=y
+arch/sh/configs/se7206_defconfig:CONFIG_SLOB=y
+arch/sh/configs/shmin_defconfig:CONFIG_SLOB=y
+arch/sh/configs/shx3_defconfig:CONFIG_SLOB=y
+kernel/configs/tiny.config:CONFIG_SLOB=y
+$
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Gr{oetje,eeting}s,
+
+                        Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
