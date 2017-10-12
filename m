@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 815C46B0268
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F94D6B026A
 	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 02:16:58 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id o187so480421qke.1
+Received: by mail-qk0-f200.google.com with SMTP id w134so514530qkb.13
         for <linux-mm@kvack.org>; Wed, 11 Oct 2017 23:16:58 -0700 (PDT)
 Received: from sasl.smtp.pobox.com (pb-smtp1.pobox.com. [64.147.108.70])
-        by mx.google.com with ESMTPS id y188si4768383qkd.187.2017.10.11.23.16.56
+        by mx.google.com with ESMTPS id i8si1574639qke.299.2017.10.11.23.16.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Oct 2017 23:16:56 -0700 (PDT)
+        Wed, 11 Oct 2017 23:16:57 -0700 (PDT)
 From: Nicolas Pitre <nicolas.pitre@linaro.org>
-Subject: [PATCH v6 3/4] cramfs: add mmap support
-Date: Thu, 12 Oct 2017 02:16:12 -0400
-Message-Id: <20171012061613.28705-4-nicolas.pitre@linaro.org>
+Subject: [PATCH v6 2/4] cramfs: implement uncompressed and arbitrary data block positioning
+Date: Thu, 12 Oct 2017 02:16:11 -0400
+Message-Id: <20171012061613.28705-3-nicolas.pitre@linaro.org>
 In-Reply-To: <20171012061613.28705-1-nicolas.pitre@linaro.org>
 References: <20171012061613.28705-1-nicolas.pitre@linaro.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,275 +20,235 @@ List-ID: <linux-mm.kvack.org>
 To: Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@infradead.org>
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-embedded@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Brandt <Chris.Brandt@renesas.com>
 
-When cramfs in physical memory is used then we have the opportunity
-to map files directly from ROM, directly into user space, saving on
-RAM usage. This gives us Execute-In-Place (XIP) support.
+Two new capabilities are introduced here:
 
-For a file to be mmap()-able, the map area has to correspond to a range
-of uncompressed and contiguous blocks, and in the MMU case it also has
-to be page aligned. A version of mkcramfs with appropriate support is
-necessary to create such a filesystem image.
+- The ability to store some blocks uncompressed.
 
-In the MMU case it may happen for a vma structure to extend beyond the
-actual file size. This is notably the case in binfmt_elf.c:elf_map().
-Or the file's last block is shared with other files and cannot be mapped
-as is. Rather than refusing to mmap it, we do a "mixed" map and let the
-regular fault handler populate the unmapped area with RAM-backed pages.
-In practice the unmapped area is seldom accessed so page faults might
-never occur before this area is discarded.
+- The ability to locate blocks anywhere.
 
-In the non-MMU case it is the get_unmapped_area method that is responsible
-for providing the address where the actual data can be found. No mapping
-is necessary of course.
+Those capabilities can be used independently, but the combination
+opens the possibility for execute-in-place (XIP) of program text segments
+that must remain uncompressed, and in the MMU case, must have a specific
+alignment.  It is even possible to still have the writable data segments
+from the same file compressed as they have to be copied into RAM anyway.
+
+This is achieved by giving special meanings to some unused block pointer
+bits while remaining compatible with legacy cramfs images.
 
 Signed-off-by: Nicolas Pitre <nico@linaro.org>
 Tested-by: Chris Brandt <chris.brandt@renesas.com>
 ---
- fs/cramfs/inode.c | 209 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 209 insertions(+)
+ fs/cramfs/README               | 31 ++++++++++++++-
+ fs/cramfs/inode.c              | 90 +++++++++++++++++++++++++++++++++---------
+ include/uapi/linux/cramfs_fs.h | 26 +++++++++++-
+ 3 files changed, 126 insertions(+), 21 deletions(-)
 
+diff --git a/fs/cramfs/README b/fs/cramfs/README
+index 9d4e7ea311..d71b27e0ff 100644
+--- a/fs/cramfs/README
++++ b/fs/cramfs/README
+@@ -49,17 +49,46 @@ same as the start of the (i+1)'th <block> if there is one).  The first
+ <block> immediately follows the last <block_pointer> for the file.
+ <block_pointer>s are each 32 bits long.
+ 
++When the CRAMFS_FLAG_EXT_BLOCK_POINTERS capability bit is set, each
++<block_pointer>'s top bits may contain special flags as follows:
++
++CRAMFS_BLK_FLAG_UNCOMPRESSED (bit 31):
++	The block data is not compressed and should be copied verbatim.
++
++CRAMFS_BLK_FLAG_DIRECT_PTR (bit 30):
++	The <block_pointer> stores the actual block start offset and not
++	its end, shifted right by 2 bits. The block must therefore be
++	aligned to a 4-byte boundary. The block size is either blksize
++	if CRAMFS_BLK_FLAG_UNCOMPRESSED is also specified, otherwise
++	the compressed data length is included in the first 2 bytes of
++	the block data. This is used to allow discontiguous data layout
++	and specific data block alignments e.g. for XIP applications.
++
++
+ The order of <file_data>'s is a depth-first descent of the directory
+ tree, i.e. the same order as `find -size +0 \( -type f -o -type l \)
+ -print'.
+ 
+ 
+ <block>: The i'th <block> is the output of zlib's compress function
+-applied to the i'th blksize-sized chunk of the input data.
++applied to the i'th blksize-sized chunk of the input data if the
++corresponding CRAMFS_BLK_FLAG_UNCOMPRESSED <block_ptr> bit is not set,
++otherwise it is the input data directly.
+ (For the last <block> of the file, the input may of course be smaller.)
+ Each <block> may be a different size.  (See <block_pointer> above.)
++
+ <block>s are merely byte-aligned, not generally u32-aligned.
+ 
++When CRAMFS_BLK_FLAG_DIRECT_PTR is specified then the corresponding
++<block> may be located anywhere and not necessarily contiguous with
++the previous/next blocks. In that case it is minimally u32-aligned.
++If CRAMFS_BLK_FLAG_UNCOMPRESSED is also specified then the size is always
++blksize except for the last block which is limited by the file length.
++If CRAMFS_BLK_FLAG_DIRECT_PTR is set and CRAMFS_BLK_FLAG_UNCOMPRESSED
++is not set then the first 2 bytes of the block contains the size of the
++remaining block data as this cannot be determined from the placement of
++logically adjacent blocks.
++
+ 
+ Holes
+ -----
 diff --git a/fs/cramfs/inode.c b/fs/cramfs/inode.c
-index d3066a8534..d967904c53 100644
+index 321a1fe17e..d3066a8534 100644
 --- a/fs/cramfs/inode.c
 +++ b/fs/cramfs/inode.c
-@@ -15,7 +15,10 @@
+@@ -621,34 +621,86 @@ static int cramfs_readpage(struct file *file, struct page *page)
  
- #include <linux/module.h>
- #include <linux/fs.h>
-+#include <linux/file.h>
- #include <linux/pagemap.h>
-+#include <linux/pfn_t.h>
-+#include <linux/ramfs.h>
- #include <linux/init.h>
- #include <linux/string.h>
- #include <linux/blkdev.h>
-@@ -51,6 +54,7 @@ static inline struct cramfs_sb_info *CRAMFS_SB(struct super_block *sb)
- static const struct super_operations cramfs_ops;
- static const struct inode_operations cramfs_dir_inode_operations;
- static const struct file_operations cramfs_directory_operations;
-+static const struct file_operations cramfs_physmem_fops;
- static const struct address_space_operations cramfs_aops;
+ 	if (page->index < maxblock) {
+ 		struct super_block *sb = inode->i_sb;
+-		u32 blkptr_offset = OFFSET(inode) + page->index*4;
+-		u32 start_offset, compr_len;
++		u32 blkptr_offset = OFFSET(inode) + page->index * 4;
++		u32 block_ptr, block_start, block_len;
++		bool uncompressed, direct;
  
- static DEFINE_MUTEX(read_mutex);
-@@ -98,6 +102,10 @@ static struct inode *get_cramfs_inode(struct super_block *sb,
- 	case S_IFREG:
- 		inode->i_fop = &generic_ro_fops;
- 		inode->i_data.a_ops = &cramfs_aops;
-+		if (IS_ENABLED(CONFIG_CRAMFS_MTD) &&
-+		    CRAMFS_SB(sb)->flags & CRAMFS_FLAG_EXT_BLOCK_POINTERS &&
-+		    CRAMFS_SB(sb)->linear_phys_addr)
-+			inode->i_fop = &cramfs_physmem_fops;
- 		break;
- 	case S_IFDIR:
- 		inode->i_op = &cramfs_dir_inode_operations;
-@@ -279,6 +287,207 @@ static void *cramfs_read(struct super_block *sb, unsigned int offset,
- 		return NULL;
- }
+-		start_offset = OFFSET(inode) + maxblock*4;
+ 		mutex_lock(&read_mutex);
+-		if (page->index)
+-			start_offset = *(u32 *) cramfs_read(sb, blkptr_offset-4,
+-				4);
+-		compr_len = (*(u32 *) cramfs_read(sb, blkptr_offset, 4) -
+-			start_offset);
+-		mutex_unlock(&read_mutex);
++		block_ptr = *(u32 *) cramfs_read(sb, blkptr_offset, 4);
++		uncompressed = (block_ptr & CRAMFS_BLK_FLAG_UNCOMPRESSED);
++		direct = (block_ptr & CRAMFS_BLK_FLAG_DIRECT_PTR);
++		block_ptr &= ~CRAMFS_BLK_FLAGS;
++
++		if (direct) {
++			/*
++			 * The block pointer is an absolute start pointer,
++			 * shifted by 2 bits. The size is included in the
++			 * first 2 bytes of the data block when compressed,
++			 * or PAGE_SIZE otherwise.
++			 */
++			block_start = block_ptr << CRAMFS_BLK_DIRECT_PTR_SHIFT;
++			if (uncompressed) {
++				block_len = PAGE_SIZE;
++				/* if last block: cap to file length */
++				if (page->index == maxblock - 1)
++					block_len =
++						offset_in_page(inode->i_size);
++			} else {
++				block_len = *(u16 *)
++					cramfs_read(sb, block_start, 2);
++				block_start += 2;
++			}
++		} else {
++			/*
++			 * The block pointer indicates one past the end of
++			 * the current block (start of next block). If this
++			 * is the first block then it starts where the block
++			 * pointer table ends, otherwise its start comes
++			 * from the previous block's pointer.
++			 */
++			block_start = OFFSET(inode) + maxblock * 4;
++			if (page->index)
++				block_start = *(u32 *)
++					cramfs_read(sb, blkptr_offset - 4, 4);
++			/* Beware... previous ptr might be a direct ptr */
++			if (unlikely(block_start & CRAMFS_BLK_FLAG_DIRECT_PTR)) {
++				/* See comments on earlier code. */
++				u32 prev_start = block_start;
++			       block_start = prev_start & ~CRAMFS_BLK_FLAGS;
++			       block_start <<= CRAMFS_BLK_DIRECT_PTR_SHIFT;
++				if (prev_start & CRAMFS_BLK_FLAG_UNCOMPRESSED) {
++					block_start += PAGE_SIZE;
++				} else {
++					block_len = *(u16 *)
++						cramfs_read(sb, block_start, 2);
++					block_start += 2 + block_len;
++				}
++			}
++			block_start &= ~CRAMFS_BLK_FLAGS;
++			block_len = block_ptr - block_start;
++		}
+ 
+-		if (compr_len == 0)
++		if (block_len == 0)
+ 			; /* hole */
+-		else if (unlikely(compr_len > (PAGE_SIZE << 1))) {
+-			pr_err("bad compressed blocksize %u\n",
+-				compr_len);
++		else if (unlikely(block_len > 2*PAGE_SIZE ||
++				  (uncompressed && block_len > PAGE_SIZE))) {
++			mutex_unlock(&read_mutex);
++			pr_err("bad data blocksize %u\n", block_len);
+ 			goto err;
++		} else if (uncompressed) {
++			memcpy(pgdata,
++			       cramfs_read(sb, block_start, block_len),
++			       block_len);
++			bytes_filled = block_len;
+ 		} else {
+-			mutex_lock(&read_mutex);
+ 			bytes_filled = cramfs_uncompress_block(pgdata,
+ 				 PAGE_SIZE,
+-				 cramfs_read(sb, start_offset, compr_len),
+-				 compr_len);
+-			mutex_unlock(&read_mutex);
+-			if (unlikely(bytes_filled < 0))
+-				goto err;
++				 cramfs_read(sb, block_start, block_len),
++				 block_len);
+ 		}
++		mutex_unlock(&read_mutex);
++		if (unlikely(bytes_filled < 0))
++			goto err;
+ 	}
+ 
+ 	memset(pgdata + bytes_filled, 0, PAGE_SIZE - bytes_filled);
+diff --git a/include/uapi/linux/cramfs_fs.h b/include/uapi/linux/cramfs_fs.h
+index e4611a9b92..ce2c885133 100644
+--- a/include/uapi/linux/cramfs_fs.h
++++ b/include/uapi/linux/cramfs_fs.h
+@@ -73,6 +73,7 @@ struct cramfs_super {
+ #define CRAMFS_FLAG_HOLES		0x00000100	/* support for holes */
+ #define CRAMFS_FLAG_WRONG_SIGNATURE	0x00000200	/* reserved */
+ #define CRAMFS_FLAG_SHIFTED_ROOT_OFFSET	0x00000400	/* shifted root fs */
++#define CRAMFS_FLAG_EXT_BLOCK_POINTERS	0x00000800	/* block pointer extensions */
+ 
+ /*
+  * Valid values in super.flags.  Currently we refuse to mount
+@@ -82,7 +83,30 @@ struct cramfs_super {
+ #define CRAMFS_SUPPORTED_FLAGS	( 0x000000ff \
+ 				| CRAMFS_FLAG_HOLES \
+ 				| CRAMFS_FLAG_WRONG_SIGNATURE \
+-				| CRAMFS_FLAG_SHIFTED_ROOT_OFFSET )
++				| CRAMFS_FLAG_SHIFTED_ROOT_OFFSET \
++				| CRAMFS_FLAG_EXT_BLOCK_POINTERS )
  
 +/*
-+ * For a mapping to be possible, we need a range of uncompressed and
-+ * contiguous blocks. Return the offset for the first block and number of
-+ * valid blocks for which that is true, or zero otherwise.
++ * Block pointer flags
++ *
++ * The maximum block offset that needs to be represented is roughly:
++ *
++ *   (1 << CRAMFS_OFFSET_WIDTH) * 4 +
++ *   (1 << CRAMFS_SIZE_WIDTH) / PAGE_SIZE * (4 + PAGE_SIZE)
++ *   = 0x11004000
++ *
++ * That leaves room for 3 flag bits in the block pointer table.
 + */
-+static u32 cramfs_get_block_range(struct inode *inode, u32 pgoff, u32 *pages)
-+{
-+	struct cramfs_sb_info *sbi = CRAMFS_SB(inode->i_sb);
-+	int i;
-+	u32 *blockptrs, first_block_addr;
++#define CRAMFS_BLK_FLAG_UNCOMPRESSED	(1 << 31)
++#define CRAMFS_BLK_FLAG_DIRECT_PTR	(1 << 30)
 +
-+	/*
-+	 * We can dereference memory directly here as this code may be
-+	 * reached only when there is a direct filesystem image mapping
-+	 * available in memory.
-+	 */
-+	blockptrs = (u32 *)(sbi->linear_virt_addr + OFFSET(inode) + pgoff * 4);
-+	first_block_addr = blockptrs[0] & ~CRAMFS_BLK_FLAGS;
-+	i = 0;
-+	do {
-+		u32 block_off = i * (PAGE_SIZE >> CRAMFS_BLK_DIRECT_PTR_SHIFT);
-+		u32 expect = (first_block_addr + block_off) |
-+			     CRAMFS_BLK_FLAG_DIRECT_PTR |
-+			     CRAMFS_BLK_FLAG_UNCOMPRESSED;
-+		if (blockptrs[i] != expect) {
-+			pr_debug("range: block %d/%d got %#x expects %#x\n",
-+				 pgoff+i, pgoff + *pages - 1,
-+				 blockptrs[i], expect);
-+			if (i == 0)
-+				return 0;
-+			break;
-+		}
-+	} while (++i < *pages);
-+
-+	*pages = i;
-+	return first_block_addr << CRAMFS_BLK_DIRECT_PTR_SHIFT;
-+}
-+
-+#ifdef CONFIG_MMU
++#define CRAMFS_BLK_FLAGS	( CRAMFS_BLK_FLAG_UNCOMPRESSED \
++				| CRAMFS_BLK_FLAG_DIRECT_PTR )
 +
 +/*
-+ * Return true if the last page of a file in the filesystem image contains
-+ * some other data that doesn't belong to that file. It is assumed that the
-+ * last block is CRAMFS_BLK_FLAG_DIRECT_PTR | CRAMFS_BLK_FLAG_UNCOMPRESSED
-+ * (verified by cramfs_get_block_range() and directly accessible in memory.
++ * Direct blocks are at least 4-byte aligned.
++ * Pointers to direct blocks are shifted down by 2 bits.
 + */
-+static bool cramfs_last_page_is_shared(struct inode *inode)
-+{
-+	struct cramfs_sb_info *sbi = CRAMFS_SB(inode->i_sb);
-+	u32 partial, last_page, blockaddr, *blockptrs;
-+	char *tail_data;
-+
-+	partial = offset_in_page(inode->i_size);
-+	if (!partial)
-+		return false;
-+	last_page = inode->i_size >> PAGE_SHIFT;
-+	blockptrs = (u32 *)(sbi->linear_virt_addr + OFFSET(inode));
-+	blockaddr = blockptrs[last_page] & ~CRAMFS_BLK_FLAGS;
-+	blockaddr <<= CRAMFS_BLK_DIRECT_PTR_SHIFT;
-+	tail_data = sbi->linear_virt_addr + blockaddr + partial;
-+	return memchr_inv(tail_data, 0, PAGE_SIZE - partial) ? true : false;
-+}
-+
-+static int cramfs_physmem_mmap(struct file *file, struct vm_area_struct *vma)
-+{
-+	struct inode *inode = file_inode(file);
-+	struct cramfs_sb_info *sbi = CRAMFS_SB(inode->i_sb);
-+	unsigned int pages, max_pages, offset;
-+	unsigned long address, pgoff = vma->vm_pgoff;
-+	char *bailout_reason;
-+	int ret;
-+
-+	ret = generic_file_readonly_mmap(file, vma);
-+	if (ret)
-+		return ret;
-+
-+	/*
-+	 * Now try to pre-populate ptes for this vma with a direct
-+	 * mapping avoiding memory allocation when possible.
-+	 */
-+
-+	/* Could COW work here? */
-+	bailout_reason = "vma is writable";
-+	if (vma->vm_flags & VM_WRITE)
-+		goto bailout;
-+
-+	max_pages = (inode->i_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-+	bailout_reason = "beyond file limit";
-+	if (pgoff >= max_pages)
-+		goto bailout;
-+	pages = min(vma_pages(vma), max_pages - pgoff);
-+
-+	offset = cramfs_get_block_range(inode, pgoff, &pages);
-+	bailout_reason = "unsuitable block layout";
-+	if (!offset)
-+		goto bailout;
-+	address = sbi->linear_phys_addr + offset;
-+	bailout_reason = "data is not page aligned";
-+	if (!PAGE_ALIGNED(address))
-+		goto bailout;
-+
-+	/* Don't map the last page if it contains some other data */
-+	if (pgoff + pages == max_pages && cramfs_last_page_is_shared(inode)) {
-+		pr_debug("mmap: %s: last page is shared\n",
-+			 file_dentry(file)->d_name.name);
-+		pages--;
-+	}
-+
-+	if (!pages) {
-+		bailout_reason = "no suitable block remaining";
-+		goto bailout;
-+	}
-+
-+	if (pages == vma_pages(vma)) {
-+		/*
-+		 * The entire vma is mappable. remap_pfn_range() will
-+		 * make it distinguishable from a non-direct mapping
-+		 * in /proc/<pid>/maps by substituting the file offset
-+		 * with the actual physical address.
-+		 */
-+		ret = remap_pfn_range(vma, vma->vm_start, address >> PAGE_SHIFT,
-+				      pages * PAGE_SIZE, vma->vm_page_prot);
-+	} else {
-+		/*
-+		 * Let's create a mixed map if we can't map it all.
-+		 * The normal paging machinery will take care of the
-+		 * unpopulated ptes via cramfs_readpage().
-+		 */
-+		int i;
-+		vma->vm_flags |= VM_MIXEDMAP;
-+		for (i = 0; i < pages && !ret; i++) {
-+			unsigned long off = i * PAGE_SIZE;
-+			pfn_t pfn = phys_to_pfn_t(address + off, PFN_DEV);
-+			ret = vm_insert_mixed(vma, vma->vm_start + off, pfn);
-+		}
-+	}
-+
-+	if (!ret)
-+		pr_debug("mapped %s[%lu] at 0x%08lx (%u/%lu pages) "
-+			 "to vma 0x%08lx, page_prot 0x%llx\n",
-+			 file_dentry(file)->d_name.name, pgoff,
-+			 address, pages, vma_pages(vma), vma->vm_start,
-+			 (unsigned long long)pgprot_val(vma->vm_page_prot));
-+	return ret;
-+
-+bailout:
-+	pr_debug("%s[%lu]: direct mmap impossible: %s\n",
-+		 file_dentry(file)->d_name.name, pgoff, bailout_reason);
-+	/* Didn't manage any direct map, but normal paging is still possible */
-+	return 0;
-+}
-+
-+#else /* CONFIG_MMU */
-+
-+static int cramfs_physmem_mmap(struct file *file, struct vm_area_struct *vma)
-+{
-+	return vma->vm_flags & (VM_SHARED | VM_MAYSHARE) ? 0 : -ENOSYS;
-+}
-+
-+static unsigned long cramfs_physmem_get_unmapped_area(struct file *file,
-+			unsigned long addr, unsigned long len,
-+			unsigned long pgoff, unsigned long flags)
-+{
-+	struct inode *inode = file_inode(file);
-+	struct super_block *sb = inode->i_sb;
-+	struct cramfs_sb_info *sbi = CRAMFS_SB(sb);
-+	unsigned int pages, block_pages, max_pages, offset;
-+
-+	pages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-+	max_pages = (inode->i_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-+	if (pgoff >= max_pages || pages > max_pages - pgoff)
-+		return -EINVAL;
-+	block_pages = pages;
-+	offset = cramfs_get_block_range(inode, pgoff, &block_pages);
-+	if (!offset || block_pages != pages)
-+		return -ENOSYS;
-+	addr = sbi->linear_phys_addr + offset;
-+	pr_debug("get_unmapped for %s ofs %#lx siz %lu at 0x%08lx\n",
-+		 file_dentry(file)->d_name.name, pgoff*PAGE_SIZE, len, addr);
-+	return addr;
-+}
-+
-+static unsigned int cramfs_physmem_mmap_capabilities(struct file *file)
-+{
-+	return NOMMU_MAP_COPY | NOMMU_MAP_DIRECT |
-+	       NOMMU_MAP_READ | NOMMU_MAP_EXEC;
-+}
-+
-+#endif /* CONFIG_MMU */
-+
-+static const struct file_operations cramfs_physmem_fops = {
-+	.llseek			= generic_file_llseek,
-+	.read_iter		= generic_file_read_iter,
-+	.splice_read		= generic_file_splice_read,
-+	.mmap			= cramfs_physmem_mmap,
-+#ifndef CONFIG_MMU
-+	.get_unmapped_area	= cramfs_physmem_get_unmapped_area,
-+	.mmap_capabilities	= cramfs_physmem_mmap_capabilities,
-+#endif
-+};
-+
- static void cramfs_kill_sb(struct super_block *sb)
- {
- 	struct cramfs_sb_info *sbi = CRAMFS_SB(sb);
++#define CRAMFS_BLK_DIRECT_PTR_SHIFT	2
+ 
+ #endif /* _UAPI__CRAMFS_H */
 -- 
 2.9.5
 
