@@ -1,240 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C60FC6B025F
-	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 01:01:17 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id j204so912291lfe.8
-        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 22:01:17 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
-        by mx.google.com with ESMTPS id b8si7331249ljf.139.2017.10.11.22.01.11
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 479D86B0261
+	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 02:16:46 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id 24so2949291qts.2
+        for <linux-mm@kvack.org>; Wed, 11 Oct 2017 23:16:46 -0700 (PDT)
+Received: from sasl.smtp.pobox.com (pb-smtp2.pobox.com. [64.147.108.71])
+        by mx.google.com with ESMTPS id d29si3721256qtc.94.2017.10.11.23.16.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 11 Oct 2017 22:01:15 -0700 (PDT)
-From: "Liuwenliang (Lamb)" <liuwenliang@huawei.com>
-Subject: Re: [PATCH 00/11] KASan for arm
-Date: Thu, 12 Oct 2017 04:55:54 +0000
-Message-ID: <B8AC3E80E903784988AB3003E3E97330B25281D5@dggemm510-mbs.china.huawei.com>
-References: <20171011082227.20546-1-liuwenliang@huawei.com>
- <26660524-3b0a-c634-e8ce-4ba7e10c055d@gmail.com>
- <bb809843-4fb8-0827-170e-26efde0eb37f@gmail.com>
- <44c86924-930b-3eff-55b8-b02c9060ebe3@gmail.com>
-In-Reply-To: <44c86924-930b-3eff-55b8-b02c9060ebe3@gmail.com>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 11 Oct 2017 23:16:44 -0700 (PDT)
+From: Nicolas Pitre <nicolas.pitre@linaro.org>
+Subject: [PATCH v6 0/4] cramfs refresh for embedded usage
+Date: Thu, 12 Oct 2017 02:16:09 -0400
+Message-Id: <20171012061613.28705-1-nicolas.pitre@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Fainelli <f.fainelli@gmail.com>, "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "cdall@linaro.org" <cdall@linaro.org>, "marc.zyngier@arm.com" <marc.zyngier@arm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "mingo@kernel.org" <mingo@kernel.org>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>
-Cc: "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiazhenghua <jiazhenghua@huawei.com>, Dailei <dylix.dailei@huawei.com>, Zengweilin <zengweilin@huawei.com>, Heshaoliang <heshaoliang@huawei.com>
+To: Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@infradead.org>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-embedded@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Brandt <Chris.Brandt@renesas.com>
 
-T24gMTAvMTIvMjAxNyAxMjoxMCBBTSwgQWJib3R0IExpdSB3cm90ZToNCj5PbiAxMC8xMS8yMDE3
-IDEyOjUwIFBNLCBGbG9yaWFuIEZhaW5lbGxpIHdyb3RlOg0KPj4gT24gMTAvMTEvMjAxNyAxMjox
-MyBQTSwgRmxvcmlhbiBGYWluZWxsaSB3cm90ZToNCj4+PiBIaSBBYmJvdHQsDQo+Pj4NCj4+PiBP
-biAxMC8xMS8yMDE3IDAxOjIyIEFNLCBBYmJvdHQgTGl1IHdyb3RlOg0KPj4+PiBIaSxhbGw6DQo+
-Pj4+ICAgIFRoZXNlIHBhdGNoZXMgYWRkIGFyY2ggc3BlY2lmaWMgY29kZSBmb3Iga2VybmVsIGFk
-ZHJlc3Mgc2FuaXRpemVyDQo+Pj4+IChzZWUgRG9jdW1lbnRhdGlvbi9rYXNhbi50eHQpLg0KPj4+
-Pg0KPj4+PiAgICAxLzggb2Yga2VybmVsIGFkZHJlc3NlcyByZXNlcnZlZCBmb3Igc2hhZG93IG1l
-bW9yeS4gVGhlcmUgd2FzIG5vDQo+Pj4+IGJpZyBlbm91Z2ggaG9sZSBmb3IgdGhpcywgc28gdmly
-dHVhbCBhZGRyZXNzZXMgZm9yIHNoYWRvdyB3ZXJlDQo+Pj4+IHN0b2xlbiBmcm9tIHVzZXIgc3Bh
-Y2UuDQo+Pj4+DQo+Pj4+ICAgIEF0IGVhcmx5IGJvb3Qgc3RhZ2UgdGhlIHdob2xlIHNoYWRvdyBy
-ZWdpb24gcG9wdWxhdGVkIHdpdGgganVzdA0KPj4+PiBvbmUgcGh5c2ljYWwgcGFnZSAoa2FzYW5f
-emVyb19wYWdlKS4gTGF0ZXIsIHRoaXMgcGFnZSByZXVzZWQNCj4+Pj4gYXMgcmVhZG9ubHkgemVy
-byBzaGFkb3cgZm9yIHNvbWUgbWVtb3J5IHRoYXQgS0FTYW4gY3VycmVudGx5DQo+Pj4+IGRvbid0
-IHRyYWNrICh2bWFsbG9jKS4NCj4+Pj4NCj4+Pj4gICBBZnRlciBtYXBwaW5nIHRoZSBwaHlzaWNh
-bCBtZW1vcnksIHBhZ2VzIGZvciBzaGFkb3cgbWVtb3J5IGFyZQ0KPj4+PiBhbGxvY2F0ZWQgYW5k
-IG1hcHBlZC4NCj4+Pj4NCj4+Pj4gICBLQVNhbidzIHN0YWNrIGluc3RydW1lbnRhdGlvbiBzaWdu
-aWZpY2FudGx5IGluY3JlYXNlcyBzdGFjaydzDQo+Pj4+IGNvbnN1bXB0aW9uLCBzbyBDT05GSUdf
-S0FTQU4gZG91YmxlcyBUSFJFQURfU0laRS4NCj4+Pj4NCj4+Pj4gICBGdW5jdGlvbnMgbGlrZSBt
-ZW1zZXQvbWVtbW92ZS9tZW1jcHkgZG8gYSBsb3Qgb2YgbWVtb3J5IGFjY2Vzc2VzLg0KPj4+PiBJ
-ZiBiYWQgcG9pbnRlciBwYXNzZWQgdG8gb25lIG9mIHRoZXNlIGZ1bmN0aW9uIGl0IGlzIGltcG9y
-dGFudA0KPj4+PiB0byBjYXRjaCB0aGlzLiBDb21waWxlcidzIGluc3RydW1lbnRhdGlvbiBjYW5u
-b3QgZG8gdGhpcyBzaW5jZQ0KPj4+PiB0aGVzZSBmdW5jdGlvbnMgYXJlIHdyaXR0ZW4gaW4gYXNz
-ZW1ibHkuDQo+Pj4+DQo+Pj4+ICAgS0FTYW4gcmVwbGFjZXMgbWVtb3J5IGZ1bmN0aW9ucyB3aXRo
-IG1hbnVhbGx5IGluc3RydW1lbnRlZCB2YXJpYW50cy4NCj4+Pj4gT3JpZ2luYWwgZnVuY3Rpb25z
-IGRlY2xhcmVkIGFzIHdlYWsgc3ltYm9scyBzbyBzdHJvbmcgZGVmaW5pdGlvbnMNCj4+Pj4gaW4g
-bW0va2FzYW4va2FzYW4uYyBjb3VsZCByZXBsYWNlIHRoZW0uIE9yaWdpbmFsIGZ1bmN0aW9ucyBo
-YXZlIGFsaWFzZXMNCj4+Pj4gd2l0aCAnX18nIHByZWZpeCBpbiBuYW1lLCBzbyB3ZSBjb3VsZCBj
-YWxsIG5vbi1pbnN0cnVtZW50ZWQgdmFyaWFudA0KPj4+PiBpZiBuZWVkZWQuDQo+Pj4+DQo+Pj4+
-ICAgU29tZSBmaWxlcyBidWlsdCB3aXRob3V0IGthc2FuIGluc3RydW1lbnRhdGlvbiAoZS5nLiBt
-bS9zbHViLmMpLg0KPj4+PiBPcmlnaW5hbCBtZW0qIGZ1bmN0aW9uIHJlcGxhY2VkICh2aWEgI2Rl
-ZmluZSkgd2l0aCBwcmVmaXhlZCB2YXJpYW50cw0KPj4+PiB0byBkaXNhYmxlIG1lbW9yeSBhY2Nl
-c3MgY2hlY2tzIGZvciBzdWNoIGZpbGVzLg0KPj4+Pg0KPj4+PiAgIE9uIGFybSBMUEFFIGFyY2hp
-dGVjdHVyZSwgIHRoZSBtYXBwaW5nIHRhYmxlIG9mIEtBU2FuIHNoYWRvdyBtZW1vcnkoaWYNCj4+
-Pj4gUEFHRV9PRkZTRVQgaXMgMHhjMDAwMDAwMCwgdGhlIEtBU2FuIHNoYWRvdyBtZW1vcnkncyB2
-aXJ0dWFsIHNwYWNlIGlzDQo+Pj4+IDB4YjZlMDAwMDAwfjB4YmYwMDAwMDApIGNhbid0IGJlIGZp
-bGxlZCBpbiBkb190cmFuc2xhdGlvbl9mYXVsdCBmdW5jdGlvbiwNCj4+Pj4gYmVjYXVzZSBrYXNh
-biBpbnN0cnVtZW50YXRpb24gbWF5YmUgY2F1c2UgZG9fdHJhbnNsYXRpb25fZmF1bHQgZnVuY3Rp
-b24NCj4+Pj4gYWNjZXNzaW5nIEtBU2FuIHNoYWRvdyBtZW1vcnkuIFRoZSBhY2Nlc3Npbmcgb2Yg
-S0FTYW4gc2hhZG93IG1lbW9yeSBpbg0KPj4+PiBkb190cmFuc2xhdGlvbl9mYXVsdCBmdW5jdGlv
-biBtYXliZSBjYXVzZSBkZWFkIGNpcmNsZS4gU28gdGhlIG1hcHBpbmcgdGFibGUNCj4+Pj4gb2Yg
-S0FTYW4gc2hhZG93IG1lbW9yeSBuZWVkIGJlIGNvcHllZCBpbiBwZ2RfYWxsb2MgZnVuY3Rpb24u
-DQo+Pj4+DQo+Pj4+DQo+Pj4+IE1vc3Qgb2YgdGhlIGNvZGUgY29tZXMgZnJvbToNCj4+Pj4gaHR0
-cHM6Ly9naXRodWIuY29tL2FyeWFiaW5pbi9saW51eC9jb21taXQvMGI1NGYxN2U3MGZmNTBhOTAy
-YzRhZjA1YmI5MjcxNmViOTVhY2VmZS4NCj4+Pg0KPj4+IFRoYW5rcyBmb3IgcHV0dGluZyB0aGVz
-ZSBwYXRjaGVzIHRvZ2V0aGVyLCBJIGNhbid0IGdldCBhIGtlcm5lbCB0byBidWlsZA0KPj4+IHdp
-dGggQVJNX0xQQUU9eSBvciBBUk1fTFBBRT1uIHRoYXQgZG9lcyBub3QgcmVzdWx0IGluIHRoZSBm
-b2xsb3dpbmc6DQo+Pj4NCj4+PiAgIEFTICAgICAgYXJjaC9hcm0va2VybmVsL2VudHJ5LWNvbW1v
-bi5vDQo+Pj4gYXJjaC9hcm0va2VybmVsL2VudHJ5LWNvbW1vbi5TOiBBc3NlbWJsZXIgbWVzc2Fn
-ZXM6DQo+Pj4gYXJjaC9hcm0va2VybmVsL2VudHJ5LWNvbW1vbi5TOjUzOiBFcnJvcjogaW52YWxp
-ZCBjb25zdGFudA0KPj4+IChmZmZmZmZmZmI2ZTAwMDAwKSBhZnRlciBmaXh1cA0KPj4+IGFyY2gv
-YXJtL2tlcm5lbC9lbnRyeS1jb21tb24uUzoxMTg6IEVycm9yOiBpbnZhbGlkIGNvbnN0YW50DQo+
-Pj4gKGZmZmZmZmZmYjZlMDAwMDApIGFmdGVyIGZpeHVwDQo+Pj4gc2NyaXB0cy9NYWtlZmlsZS5i
-dWlsZDo0MTI6IHJlY2lwZSBmb3IgdGFyZ2V0DQo+Pj4gJ2FyY2gvYXJtL2tlcm5lbC9lbnRyeS1j
-b21tb24ubycgZmFpbGVkDQo+Pj4gbWFrZVszXTogKioqIFthcmNoL2FybS9rZXJuZWwvZW50cnkt
-Y29tbW9uLm9dIEVycm9yIDENCj4+PiBNYWtlZmlsZToxMDE5OiByZWNpcGUgZm9yIHRhcmdldCAn
-YXJjaC9hcm0va2VybmVsJyBmYWlsZWQNCj4+PiBtYWtlWzJdOiAqKiogW2FyY2gvYXJtL2tlcm5l
-bF0gRXJyb3IgMg0KPj4+IG1ha2VbMl06ICoqKiBXYWl0aW5nIGZvciB1bmZpbmlzaGVkIGpvYnMu
-Li4uDQo+Pj4NCj4+PiBUaGlzIGlzIGNvbWluZyBmcm9tIHRoZSBpbmNyZWFzZSBpbiBUQVNLX1NJ
-WkUgaXQgc2VlbXMuDQo+Pj4NCj4+PiBUaGlzIGlzIG9uIHRvcCBvZiB2NC4xNC1yYzQtODQtZ2Zm
-NWFiYmU3OTllMg0KPj4NCj4+IFNlZW1zIGxpa2Ugd2UgY2FuIHVzZSB0aGUgZm9sbG93aW5nIHRv
-IGdldCB0aHJvdWdoIHRoYXQgYnVpbGQgZmFpbHVyZToNCj4+DQo+PiBkaWZmIC0tZ2l0IGEvYXJj
-aC9hcm0va2VybmVsL2VudHJ5LWNvbW1vbi5TIGIvYXJjaC9hcm0va2VybmVsL2VudHJ5LWNvbW1v
-bi5TDQo+PiBpbmRleCA5OWM5MDgyMjYwNjUuLjBkZTExNjBkMTM2ZSAxMDA2NDQNCj4+IC0tLSBh
-L2FyY2gvYXJtL2tlcm5lbC9lbnRyeS1jb21tb24uUw0KPj4gKysrIGIvYXJjaC9hcm0va2VybmVs
-L2VudHJ5LWNvbW1vbi5TDQo+PiBAQCAtNTAsNyArNTAsMTMgQEAgcmV0X2Zhc3Rfc3lzY2FsbDoN
-Cj4+ICAgVU5XSU5EKC5jYW50dW53aW5kICAgICkNCj4+ICAgICAgICAgZGlzYWJsZV9pcnFfbm90
-cmFjZSAgICAgICAgICAgICAgICAgICAgIEAgZGlzYWJsZSBpbnRlcnJ1cHRzDQo+PiAgICAgICAg
-IGxkciAgICAgcjIsIFt0c2ssICNUSV9BRERSX0xJTUlUXQ0KPj4gKyNpZmRlZiBDT05GSUdfS0FT
-QU4NCj4+ICsgICAgICAgbW92dyAgICByMSwgIzpsb3dlcjE2OlRBU0tfU0laRQ0KPj4gKyAgICAg
-ICBtb3Z0ICAgIHIxLCAjOnVwcGVyMTY6VEFTS19TSVpFDQo+PiArICAgICAgIGNtcCAgICAgcjIs
-IHIxDQo+PiArI2Vsc2UNCj4+ICAgICAgICAgY21wICAgICByMiwgI1RBU0tfU0laRQ0KPj4gKyNl
-bmRpZg0KPj4gICAgICAgICBibG5lICAgIGFkZHJfbGltaXRfY2hlY2tfZmFpbGVkDQo+PiAgICAg
-ICAgIGxkciAgICAgcjEsIFt0c2ssICNUSV9GTEFHU10gICAgICAgICAgICBAIHJlLWNoZWNrIGZv
-ciBzeXNjYWxsDQo+PiB0cmFjaW5nDQo+PiAgICAgICAgIHRzdCAgICAgcjEsICNfVElGX1NZU0NB
-TExfV09SSyB8IF9USUZfV09SS19NQVNLDQo+PiBAQCAtMTE1LDcgKzEyMSwxMyBAQCByZXRfc2xv
-d19zeXNjYWxsOg0KPj4gICAgICAgICBkaXNhYmxlX2lycV9ub3RyYWNlICAgICAgICAgICAgICAg
-ICAgICAgQCBkaXNhYmxlIGludGVycnVwdHMNCj4+ICBFTlRSWShyZXRfdG9fdXNlcl9mcm9tX2ly
-cSkNCj4+ICAgICAgICAgbGRyICAgICByMiwgW3RzaywgI1RJX0FERFJfTElNSVRdDQo+PiArI2lm
-ZGVmIENPTkZJR19LQVNBTg0KPj4gKyAgICAgICBtb3Z3ICAgIHIxLCAjOmxvd2VyMTY6VEFTS19T
-SVpFDQo+PiArICAgICAgIG1vdnQgICAgcjEsICM6dXBwZXIxNjpUQVNLX1NJWkUNCj4+ICsgICAg
-ICAgY21wICAgICByMiwgcjENCj4+ICsjZWxzZQ0KPj4gICAgICAgICBjbXAgICAgIHIyLCAjVEFT
-S19TSVpFDQo+PiArI2VuZGlmDQo+PiAgICAgICAgIGJsbmUgICAgYWRkcl9saW1pdF9jaGVja19m
-YWlsZWQNCj4+ICAgICAgICAgbGRyICAgICByMSwgW3RzaywgI1RJX0ZMQUdTXQ0KPj4gICAgICAg
-ICB0c3QgICAgIHIxLCAjX1RJRl9XT1JLX01BU0sNCj4+DQo+Pg0KPj4NCj4+IGJ1dCB0aGVuIHdl
-IHdpbGwgc2VlIGFub3RoZXIgc2V0IG9mIGJ1aWxkIGZhaWx1cmVzIHdpdGggdGhlIGRlY29tcHJl
-c3Nvcg0KPj4gY29kZToNCj4+DQo+PiBXQVJOSU5HOiBtb2Rwb3N0OiBGb3VuZCAyIHNlY3Rpb24g
-bWlzbWF0Y2goZXMpLg0KPj4gVG8gc2VlIGZ1bGwgZGV0YWlscyBidWlsZCB5b3VyIGtlcm5lbCB3
-aXRoOg0KPj4gJ21ha2UgQ09ORklHX0RFQlVHX1NFQ1RJT05fTUlTTUFUQ0g9eScNCj4+ICAgS1NZ
-TSAgICAudG1wX2thbGxzeW1zMS5vDQo+PiAgIEtTWU0gICAgLnRtcF9rYWxsc3ltczIubw0KPj4g
-ICBMRCAgICAgIHZtbGludXgNCj4+ICAgU09SVEVYICB2bWxpbnV4DQo+PiAgIFNZU01BUCAgU3lz
-dGVtLm1hcA0KPj4gICBPQkpDT1BZIGFyY2gvYXJtL2Jvb3QvSW1hZ2UNCj4+ICAgS2VybmVsOiBh
-cmNoL2FybS9ib290L0ltYWdlIGlzIHJlYWR5DQo+PiAgIExEUyAgICAgYXJjaC9hcm0vYm9vdC9j
-b21wcmVzc2VkL3ZtbGludXgubGRzDQo+PiAgIEFTICAgICAgYXJjaC9hcm0vYm9vdC9jb21wcmVz
-c2VkL2hlYWQubw0KPj4gICBYWktFUk4gIGFyY2gvYXJtL2Jvb3QvY29tcHJlc3NlZC9waWdneV9k
-YXRhDQo+PiAgIENDICAgICAgYXJjaC9hcm0vYm9vdC9jb21wcmVzc2VkL21pc2Mubw0KPj4gICBD
-QyAgICAgIGFyY2gvYXJtL2Jvb3QvY29tcHJlc3NlZC9kZWNvbXByZXNzLm8NCj4+ICAgQ0MgICAg
-ICBhcmNoL2FybS9ib290L2NvbXByZXNzZWQvc3RyaW5nLm8NCj4+IGFyY2gvYXJtL2Jvb3QvY29t
-cHJlc3NlZC9kZWNvbXByZXNzLmM6NTE6MDogd2FybmluZzogIm1lbW1vdmUiIHJlZGVmaW5lZA0K
-Pj4gICNkZWZpbmUgbWVtbW92ZSBtZW1tb3ZlDQo+Pg0KPj4gSW4gZmlsZSBpbmNsdWRlZCBmcm9t
-IGFyY2gvYXJtL2Jvb3QvY29tcHJlc3NlZC9kZWNvbXByZXNzLmM6NzowOg0KPj4gLi9hcmNoL2Fy
-bS9pbmNsdWRlL2FzbS9zdHJpbmcuaDo2NzowOiBub3RlOiB0aGlzIGlzIHRoZSBsb2NhdGlvbiBv
-ZiB0aGUNCj4+IHByZXZpb3VzIGRlZmluaXRpb24NCj4+ICAjZGVmaW5lIG1lbW1vdmUoZHN0LCBz
-cmMsIGxlbikgX19tZW1tb3ZlKGRzdCwgc3JjLCBsZW4pDQo+Pg0KPj4gYXJjaC9hcm0vYm9vdC9j
-b21wcmVzc2VkL2RlY29tcHJlc3MuYzo1MjowOiB3YXJuaW5nOiAibWVtY3B5IiByZWRlZmluZWQN
-Cj4+ICAjZGVmaW5lIG1lbWNweSBtZW1jcHkNCj4+DQo+PiBJbiBmaWxlIGluY2x1ZGVkIGZyb20g
-YXJjaC9hcm0vYm9vdC9jb21wcmVzc2VkL2RlY29tcHJlc3MuYzo3OjA6DQo+PiAuL2FyY2gvYXJt
-L2luY2x1ZGUvYXNtL3N0cmluZy5oOjY2OjA6IG5vdGU6IHRoaXMgaXMgdGhlIGxvY2F0aW9uIG9m
-IHRoZQ0KPj4gcHJldmlvdXMgZGVmaW5pdGlvbg0KPj4gICNkZWZpbmUgbWVtY3B5KGRzdCwgc3Jj
-LCBsZW4pIF9fbWVtY3B5KGRzdCwgc3JjLCBsZW4pDQo+Pg0KPj4gICBTSElQUEVEIGFyY2gvYXJt
-L2Jvb3QvY29tcHJlc3NlZC9oeXAtc3R1Yi5TDQo+PiAgIFNISVBQRUQgYXJjaC9hcm0vYm9vdC9j
-b21wcmVzc2VkL2ZkdF9ydy5jDQo+PiAgIFNISVBQRUQgYXJjaC9hcm0vYm9vdC9jb21wcmVzc2Vk
-L2ZkdC5oDQo+PiAgIFNISVBQRUQgYXJjaC9hcm0vYm9vdC9jb21wcmVzc2VkL2xpYmZkdC5oDQo+
-PiAgIFNISVBQRUQgYXJjaC9hcm0vYm9vdC9jb21wcmVzc2VkL2xpYmZkdF9pbnRlcm5hbC5oDQo+
-PiAgIFNISVBQRUQgYXJjaC9hcm0vYm9vdC9jb21wcmVzc2VkL2ZkdF9yby5jDQo+PiAgIFNISVBQ
-RUQgYXJjaC9hcm0vYm9vdC9jb21wcmVzc2VkL2ZkdF93aXAuYw0KPj4gICBTSElQUEVEIGFyY2gv
-YXJtL2Jvb3QvY29tcHJlc3NlZC9mZHQuYw0KPj4gICBDQyAgICAgIGFyY2gvYXJtL2Jvb3QvY29t
-cHJlc3NlZC9hdGFnc190b19mZHQubw0KPj4gICBTSElQUEVEIGFyY2gvYXJtL2Jvb3QvY29tcHJl
-c3NlZC9saWIxZnVuY3MuUw0KPj4gICBTSElQUEVEIGFyY2gvYXJtL2Jvb3QvY29tcHJlc3NlZC9h
-c2hsZGkzLlMNCj4+ICAgU0hJUFBFRCBhcmNoL2FybS9ib290L2NvbXByZXNzZWQvYnN3YXBzZGky
-LlMNCj4+ICAgQVMgICAgICBhcmNoL2FybS9ib290L2NvbXByZXNzZWQvaHlwLXN0dWIubw0KPj4g
-ICBDQyAgICAgIGFyY2gvYXJtL2Jvb3QvY29tcHJlc3NlZC9mZHRfcncubw0KPj4gICBDQyAgICAg
-IGFyY2gvYXJtL2Jvb3QvY29tcHJlc3NlZC9mZHRfcm8ubw0KPj4gICBDQyAgICAgIGFyY2gvYXJt
-L2Jvb3QvY29tcHJlc3NlZC9mZHRfd2lwLm8NCj4+ICAgQ0MgICAgICBhcmNoL2FybS9ib290L2Nv
-bXByZXNzZWQvZmR0Lm8NCj4+ICAgQVMgICAgICBhcmNoL2FybS9ib290L2NvbXByZXNzZWQvbGli
-MWZ1bmNzLm8NCj4+ICAgQVMgICAgICBhcmNoL2FybS9ib290L2NvbXByZXNzZWQvYXNobGRpMy5v
-DQo+PiAgIEFTICAgICAgYXJjaC9hcm0vYm9vdC9jb21wcmVzc2VkL2Jzd2Fwc2RpMi5vDQo+PiAg
-IEFTICAgICAgYXJjaC9hcm0vYm9vdC9jb21wcmVzc2VkL3BpZ2d5Lm8NCj4+ICAgTEQgICAgICBh
-cmNoL2FybS9ib290L2NvbXByZXNzZWQvdm1saW51eA0KPj4gYXJjaC9hcm0vYm9vdC9jb21wcmVz
-c2VkL2RlY29tcHJlc3MubzogSW4gZnVuY3Rpb24gYGZpbGxfdGVtcCc6DQo+PiAvaG9tZS9mYWlu
-ZWxsaS9kZXYvbGludXgvYXJjaC9hcm0vYm9vdC9jb21wcmVzc2VkLy4uLy4uLy4uLy4uL2xpYi94
-ei94el9kZWNfc3RyZWFtLmM6MTYyOg0KPj4gdW5kZWZpbmVkIHJlZmVyZW5jZSB0byBgbWVtY3B5
-Jw0KPj4gYXJjaC9hcm0vYm9vdC9jb21wcmVzc2VkL2RlY29tcHJlc3MubzogSW4gZnVuY3Rpb24g
-YGJjal9mbHVzaCc6DQo+PiAvaG9tZS9mYWluZWxsaS9kZXYvbGludXgvYXJjaC9hcm0vYm9vdC9j
-b21wcmVzc2VkLy4uLy4uLy4uLy4uL2xpYi94ei94el9kZWNfYmNqLmM6NDA0Og0KPj4gdW5kZWZp
-bmVkIHJlZmVyZW5jZSB0byBgbWVtY3B5Jw0KPj4gL2hvbWUvZmFpbmVsbGkvZGV2L2xpbnV4L2Fy
-Y2gvYXJtL2Jvb3QvY29tcHJlc3NlZC8uLi8uLi8uLi8uLi9saWIveHoveHpfZGVjX2Jjai5jOjQw
-OToNCj4+IHVuZGVmaW5lZCByZWZlcmVuY2UgdG8gYG1lbW1vdmUnDQo+PiBhcmNoL2FybS9ib290
-L2NvbXByZXNzZWQvZGVjb21wcmVzcy5vOiBJbiBmdW5jdGlvbiBgbHptYTJfbHptYSc6DQo+PiAv
-aG9tZS9mYWluZWxsaS9kZXYvbGludXgvYXJjaC9hcm0vYm9vdC9jb21wcmVzc2VkLy4uLy4uLy4u
-Ly4uL2xpYi94ei94el9kZWNfbHptYTIuYzo5MTk6DQo+PiB1bmRlZmluZWQgcmVmZXJlbmNlIHRv
-IGBtZW1jcHknDQo+PiBhcmNoL2FybS9ib290L2NvbXByZXNzZWQvZGVjb21wcmVzcy5vOiBJbiBm
-dW5jdGlvbiBgZGljdF9mbHVzaCc6DQo+PiAvaG9tZS9mYWluZWxsaS9kZXYvbGludXgvYXJjaC9h
-cm0vYm9vdC9jb21wcmVzc2VkLy4uLy4uLy4uLy4uL2xpYi94ei94el9kZWNfbHptYTIuYzo0MjQ6
-DQo+PiB1bmRlZmluZWQgcmVmZXJlbmNlIHRvIGBtZW1jcHknDQo+PiBhcmNoL2FybS9ib290L2Nv
-bXByZXNzZWQvZGVjb21wcmVzcy5vOiBJbiBmdW5jdGlvbiBgZGljdF91bmNvbXByZXNzZWQnOg0K
-Pj4gL2hvbWUvZmFpbmVsbGkvZGV2L2xpbnV4L2FyY2gvYXJtL2Jvb3QvY29tcHJlc3NlZC8uLi8u
-Li8uLi8uLi9saWIveHoveHpfZGVjX2x6bWEyLmM6MzkwOg0KPj4gdW5kZWZpbmVkIHJlZmVyZW5j
-ZSB0byBgbWVtY3B5Jw0KPj4gL2hvbWUvZmFpbmVsbGkvZGV2L2xpbnV4L2FyY2gvYXJtL2Jvb3Qv
-Y29tcHJlc3NlZC8uLi8uLi8uLi8uLi9saWIveHoveHpfZGVjX2x6bWEyLmM6NDAwOg0KPj4gdW5k
-ZWZpbmVkIHJlZmVyZW5jZSB0byBgbWVtY3B5Jw0KPj4gYXJjaC9hcm0vYm9vdC9jb21wcmVzc2Vk
-L2RlY29tcHJlc3MubzogSW4gZnVuY3Rpb24gYGx6bWEyX2x6bWEnOg0KPj4gL2hvbWUvZmFpbmVs
-bGkvZGV2L2xpbnV4L2FyY2gvYXJtL2Jvb3QvY29tcHJlc3NlZC8uLi8uLi8uLi8uLi9saWIveHov
-eHpfZGVjX2x6bWEyLmM6ODU5Og0KPj4gdW5kZWZpbmVkIHJlZmVyZW5jZSB0byBgbWVtY3B5Jw0K
-Pj4gL2hvbWUvZmFpbmVsbGkvZGV2L2xpbnV4L2FyY2gvYXJtL2Jvb3QvY29tcHJlc3NlZC8uLi8u
-Li8uLi8uLi9saWIveHoveHpfZGVjX2x6bWEyLmM6ODg0Og0KPj4gdW5kZWZpbmVkIHJlZmVyZW5j
-ZSB0byBgbWVtbW92ZScNCj4+IGFyY2gvYXJtL2Jvb3QvY29tcHJlc3NlZC9kZWNvbXByZXNzLm86
-IEluIGZ1bmN0aW9uIGB4el9kZWNfYmNqX3J1bic6DQo+PiAvaG9tZS9mYWluZWxsaS9kZXYvbGlu
-dXgvYXJjaC9hcm0vYm9vdC9jb21wcmVzc2VkLy4uLy4uLy4uLy4uL2xpYi94ei94el9kZWNfYmNq
-LmM6NDUxOg0KPj4gdW5kZWZpbmVkIHJlZmVyZW5jZSB0byBgbWVtY3B5Jw0KPj4gL2hvbWUvZmFp
-bmVsbGkvZGV2L2xpbnV4L2FyY2gvYXJtL2Jvb3QvY29tcHJlc3NlZC8uLi8uLi8uLi8uLi9saWIv
-eHoveHpfZGVjX2Jjai5jOjQ3MToNCj4+IHVuZGVmaW5lZCByZWZlcmVuY2UgdG8gYG1lbWNweScN
-Cj4+IGFyY2gvYXJtL2Jvb3QvY29tcHJlc3NlZC9mZHRfcncubzogSW4gZnVuY3Rpb24gYGZkdF9h
-ZGRfc3Vibm9kZV9uYW1lbGVuJzoNCj4+IC9ob21lL2ZhaW5lbGxpL2Rldi9saW51eC9hcmNoL2Fy
-bS9ib290L2NvbXByZXNzZWQvZmR0X3J3LmM6MzY2Og0KPj4gdW5kZWZpbmVkIHJlZmVyZW5jZSB0
-byBgX19tZW1zZXQnDQo+PiBhcmNoL2FybS9ib290L2NvbXByZXNzZWQvTWFrZWZpbGU6MTgyOiBy
-ZWNpcGUgZm9yIHRhcmdldA0KPj4gJ2FyY2gvYXJtL2Jvb3QvY29tcHJlc3NlZC92bWxpbnV4JyBm
-YWlsZWQNCj4+IG1ha2VbNF06ICoqKiBbYXJjaC9hcm0vYm9vdC9jb21wcmVzc2VkL3ZtbGludXhd
-IEVycm9yIDENCj4+IGFyY2gvYXJtL2Jvb3QvTWFrZWZpbGU6NTM6IHJlY2lwZSBmb3IgdGFyZ2V0
-DQo+PiAnYXJjaC9hcm0vYm9vdC9jb21wcmVzc2VkL3ZtbGludXgnIGZhaWxlZA0KPj4gbWFrZVsz
-XTogKioqIFthcmNoL2FybS9ib290L2NvbXByZXNzZWQvdm1saW51eF0gRXJyb3IgMg0KDQo+SSBl
-bmRlZCB1cCBmaXhpbmcgdGhlIHJlZGVmaW5pdGlvbiB3YXJuaW5ncy9idWlsZCBmYWlsdXJlcyB0
-aGlzIHdheSwgYnV0DQo+SSBhbSBub3QgMTAwJSBjb25maWRlbnQgdGhpcyBpcyB0aGUgcmlnaHQg
-Zml4Og0KDQo+ZGlmZiAtLWdpdCBhL2FyY2gvYXJtL2Jvb3QvY29tcHJlc3NlZC9kZWNvbXByZXNz
-LmMNCj5iL2FyY2gvYXJtL2Jvb3QvY29tcHJlc3NlZC9kZWNvbXByZXNzLmMNCj5pbmRleCBmM2E0
-YmVkZDFhZmMuLjdkNGE0Nzc1Mjc2MCAxMDA2NDQNCj4tLS0gYS9hcmNoL2FybS9ib290L2NvbXBy
-ZXNzZWQvZGVjb21wcmVzcy5jDQo+KysrIGIvYXJjaC9hcm0vYm9vdC9jb21wcmVzc2VkL2RlY29t
-cHJlc3MuYw0KPkBAIC00OCw4ICs0OCwxMCBAQCBleHRlcm4gaW50IG1lbWNtcChjb25zdCB2b2lk
-ICpjcywgY29uc3Qgdm9pZCAqY3QsDQo+c2l6ZV90IGNvdW50KTsNCj4gI2VuZGlmDQo+DQo+ICNp
-ZmRlZiBDT05GSUdfS0VSTkVMX1haDQo+KyNpZm5kZWYgQ09ORklHX0tBU0FODQo+ICNkZWZpbmUg
-bWVtbW92ZSBtZW1tb3ZlDQo+ICNkZWZpbmUgbWVtY3B5IG1lbWNweQ0KPisjZW5kaWYNCj4gI2lu
-Y2x1ZGUgIi4uLy4uLy4uLy4uL2xpYi9kZWNvbXByZXNzX3VueHouYyINCj4gI2VuZGlmDQo+DQo+
-V2FzIG5vdCBhYmxlIHlldCB0byB0cmFjayBkb3duIHdoeSBfX21lbXNldCBpcyBub3QgYmVpbmcg
-cmVzb2x2ZWQsIGJ1dA0KPnNpbmNlIEkgZG9uJ3QgbmVlZCB0aGVtLCBkaXNhYmxlZCBDT05GSUdf
-QVRBR1MgYW5kDQo+Q09ORklHX0FSTV9BVEFHX0RUQl9DT01QQVQgYW5kIHRoaXMgYWxsb3dlZCBt
-ZSB0byBnZXQgYSBidWlsZCB3b3JraW5nLg0KPg0KPlRoaXMgYnJvdWdodCBtZSBhbGwgdGhlIHdh
-eSB0byBhIHByb21wdCBhbmQgcGxlYXNlIGZpbmQgYXR0YWNoZWQgdGhlDQo+cmVzdWx0cyBvZiBp
-bnNtb2QgdGVzdF9rYXNhbi5rbyBmb3IgQ09ORklHX0FSTV9MUEFFPXkgYW5kDQo+Q09ORklHX0FS
-TV9MUEFFPW4uIFlvdXIgcGF0Y2hlcyBhY3R1YWxseSBzcG90dGVkIGEgZ2VudWluZSB1c2UgYWZ0
-ZXINCj5mcmVlIGluIG9uZSBvZiBvdXIgZHJpdmVycyAoc3BpLWJjbS1xc3BpKSBzbyB3aXRoIHRo
-aXM6DQo+DQo+VGVzdGVkLWJ5OiBGbG9yaWFuIEZhaW5lbGxpIDxmLmZhaW5lbGxpQGdtYWlsLmNv
-bT4NCj4NCj5HcmVhdCBqb2IgdGhhbmtzIQ0KPi0tDQo+Rmxvcmlhbg0KDQpUaGFua3MgZm9yIHlv
-dXIgdGVzdGluZyBhbmQgc29sdXRpb24uIEknbSBzb3JyeSB0aGF0IEkgZG9uJ3QgdGVzdCB3aGVu
-IENPTkZJR19BVEFHUywNCkNPTkZJR19BUk1fQVRBR19EVEJfQ09NUEFUIGFuZCBDT05GSUdfS0VS
-TkVMX1haIGFyZSBlbmFibGluZy4NCg0KVGhlIGZlbGxvdyBlcnJvcjoNCmFyY2gvYXJtL2Jvb3Qv
-Y29tcHJlc3NlZC9mZHRfcncubzogSW4gZnVuY3Rpb24gYGZkdF9hZGRfc3Vibm9kZV9uYW1lbGVu
-JzoNCi9ob21lL2ZhaW5lbGxpL2Rldi9saW51eC9hcmNoL2FybS9ib290L2NvbXByZXNzZWQvZmR0
-X3J3LmM6MzY2Og0KdW5kZWZpbmVkIHJlZmVyZW5jZSB0byBgX19tZW1zZXQnDQoNCkl0IGNhbiBi
-ZSByZXNvbHZlZCBieSB0aGUgY29kZSBvZiBBbmRyZXkgUnlhYmluaW4gPGEucnlhYmluaW5Ac2Ft
-c3VuZy5jb20+IG9uDQpodHRwczovL2dpdGh1Yi5jb20vYXJ5YWJpbmluL2xpbnV4L2NvbW1pdC8w
-YjU0ZjE3ZTcwZmY1MGE5MDJjNGFmMDViYjkyNzE2ZWI5NWFjZWZlLg0KSGVyZSBpcyB0aGUgcGF0
-Y2g6DQoNCi0tLSBhL2FyY2gvYXJtL2Jvb3QvY29tcHJlc3NlZC9saWJmZHRfZW52LmgNCisrKyBi
-L2FyY2gvYXJtL2Jvb3QvY29tcHJlc3NlZC9saWJmZHRfZW52LmgNCkBAIC0xNiw0ICsxNiw2IEBA
-IHR5cGVkZWYgX19iZTY0IGZkdDY0X3Q7DQogI2RlZmluZSBmZHQ2NF90b19jcHUoeCkgICAgICAg
-ICAgICAgICAgYmU2NF90b19jcHUoeCkNCiAjZGVmaW5lIGNwdV90b19mZHQ2NCh4KSAgICAgICAg
-ICAgICAgICBjcHVfdG9fYmU2NCh4KQ0KDQorI3VuZGVmIG1lbXNldA0KKw0KICNlbmRpZg0KDQpJ
-IGRlbGV0ZSBpdCBiZWNhdXNlIEkgZG9uJ3Qga25vdyB0aGF0IGlzIG5lZWRlZCB3aGVuIENPTkZJ
-R19BVEFHUyBhbmQgDQpDT05GSUdfQVJNX0FUQUdfRFRCX0NPTVBBVCBhcmUgZW5hYmxpbmcuIEkn
-bSBzb3JyeSBmb3IgbXkgZmF1bHQuDQoNCg0K
+This series brings a nice refresh to the cramfs filesystem, adding the
+following capabilities:
+
+- Direct memory access, bypassing the block and/or MTD layers entirely.
+
+- Ability to store individual data blocks uncompressed.
+
+- Ability to locate individual data blocks anywhere in the filesystem.
+
+The end result is a very tight filesystem that can be accessed directly
+from ROM without any other subsystem underneath. This also allows for
+user space XIP which is a very important feature for tiny embedded
+systems.
+
+This series is also available based on v4.14-rc3 via git here:
+
+  http://git.linaro.org/people/nicolas.pitre/linux xipcramfs
+
+Why cramfs?
+
+  Because cramfs is very simple and small. With CONFIG_CRAMFS_BLOCK=n and
+  CONFIG_CRAMFS_PHYSMEM=y the cramfs driver may use as little as 3704 bytes
+  of code. That's many times smaller than squashfs. And the runtime memory
+  usage is also much less with cramfs than squashfs. It packs very tightly
+  already compared to romfs which has no compression support. And the cramfs
+  format was simple to extend, allowing for both compressed and uncompressed
+  blocks within the same file.
+
+Does it use MTD or not?
+
+  The MTD layer is used to get at the actual physical/virtual address
+  for the filesystem image. The underlying MTD device (or a partition
+  based on it) specified as mount argument must use a driver that
+  implements the mtd->_point method. Once mtd_point() is successful,
+  all accesses are performed directly in memory and the MTD layer is
+  no longer involved. Patches adding point support to a few more MTD
+  drivers can be found here:
+
+    http://git.linaro.org/people/nicolas.pitre/linux mtd_point
+
+Why not using DAX?
+
+  DAX stands for "Direct Access" and is a generic kernel layer helping
+  with the necessary tasks involved with XIP. It is tailored for large
+  writable filesystems and relies on the presence of an MMU. It also has
+  the following shortcoming: "The DAX code does not work correctly on
+  architectures which have virtually mapped caches such as ARM, MIPS and
+  SPARC." That makes it unsuitable for a large portion of the intended
+  targets for this series. And due to the read-only nature of cramfs, it is
+  possible to achieve the intended result with a much simpler approach making
+  DAX somewhat overkill in this context.
+
+The maximum size of a cramfs image can't exceed 272MB. In practice it is
+likely to be much much less. Given this series is concerned with small
+memory systems, even in the MMU case there is always plenty of vmalloc
+space left to map it all and even a 272MB memremap() wouldn't be a
+problem. If it is then maybe your system is big enough with large
+resources to manage already and you're pretty unlikely to be using cramfs
+in the first place.
+
+Of course, while this cramfs remains backward compatible with existing
+filesystem images, a newer mkcramfs version is necessary to take advantage
+of the extended data layout. I created a version of mkcramfs that
+detects ELF files and marks text+rodata segments for XIP and compresses the
+rest of those ELF files automatically.
+
+So here it is. I'm also willing to step up as cramfs maintainer given
+that no sign of any maintenance activities appeared for years.
+
+
+Changes from v5:
+
+- Switch to MTD for obtaining the cramfs image memory address rather than
+  accepting a physical address directly as a mount argument.
+- Drop the patch for making root mount possible as the MTD mount case is
+  already supported and that covers our usage.
+- There is no longer a separate filesystem type. It is "cramfs" for both
+  blockdev based and MTD/memory based accesses.
+- Fix NULL deref in cramfs_statfs() when using direct memory access.
+
+Changes from v4:
+
+- Remove fault handler with vma splitting code in favor of VM_MIXEDMAP for
+  much simpler code. Thanks to Christoph Hellwig for review and suggestions.
+- Additional code cleanups, mostly from Christoph's suggestions.
+
+Changes from v3:
+
+- Rebased on v4.13.
+- Made direct access depend on cramfs not being modular due to unexported
+  vma handling functions.
+- Solicit comments from mm people explicitly.
+
+Changes from v2:
+
+- Plugged a few races in cramfs_vmasplit_fault(). Thanks to Al Viro for
+  highlighting them.
+- Fixed some checkpatch warnings
+
+Changes from v1:
+
+- Improved mmap() support by adding the ability to partially populate a
+  mapping and lazily split the non directly mapable pages to a separate
+  vma at fault time (thanks to Chris Brandt for testing).
+- Clarified the documentation some more.
+
+
+diffstat:
+
+ Documentation/filesystems/cramfs.txt |  42 +++
+ MAINTAINERS                          |   4 +-
+ fs/cramfs/Kconfig                    |  39 ++-
+ fs/cramfs/README                     |  31 +-
+ fs/cramfs/inode.c                    | 514 +++++++++++++++++++++++++----
+ include/uapi/linux/cramfs_fs.h       |  26 +-
+ 6 files changed, 587 insertions(+), 69 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
