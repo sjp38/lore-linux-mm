@@ -1,194 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 38BDF6B0038
-	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 19:08:07 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id m63so5273588pfk.20
-        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 16:08:07 -0700 (PDT)
-Received: from out03.mta.xmission.com (out03.mta.xmission.com. [166.70.13.233])
-        by mx.google.com with ESMTPS id j6si12867078plk.810.2017.10.12.16.08.05
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BF16A6B0033
+	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 19:57:26 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 76so5436248pfr.3
+        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 16:57:26 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id v68sor3664408pfb.42.2017.10.12.16.57.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Oct 2017 16:08:06 -0700 (PDT)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <20171009160924.68032-1-kirill.shutemov@linux.intel.com>
-	<af75f8aa-471d-34c5-8009-4009a8273989@intel.com>
-	<20171009170900.gyl5sizwnd54ridc@node.shutemov.name>
-Date: Thu, 12 Oct 2017 18:07:36 -0500
-In-Reply-To: <20171009170900.gyl5sizwnd54ridc@node.shutemov.name> (Kirill
-	A. Shutemov's message of "Mon, 9 Oct 2017 20:09:00 +0300")
-Message-ID: <87k200vubr.fsf@xmission.com>
+        (Google Transport Security);
+        Thu, 12 Oct 2017 16:57:25 -0700 (PDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
+In-Reply-To: <20171012190312.GA5075@cmpxchg.org>
+References: <20171005222144.123797-1-shakeelb@google.com> <20171006075900.icqjx5rr7hctn3zd@dhcp22.suse.cz> <CALvZod7YN4JCG7Anm2FViyZ0-APYy+nxEd3nyxe5LT_P0FC9wg@mail.gmail.com> <20171009062426.hmqedtqz5hkmhnff@dhcp22.suse.cz> <xr93a810xl77.fsf@gthelen.svl.corp.google.com> <20171009202613.GA15027@cmpxchg.org> <20171010091430.giflzlayvjblx5bu@dhcp22.suse.cz> <20171010141733.GB16710@cmpxchg.org> <20171010142434.bpiqmsbb7gttrlcb@dhcp22.suse.cz> <20171012190312.GA5075@cmpxchg.org>
+Date: Thu, 12 Oct 2017 16:57:22 -0700
+Message-ID: <xr937evzyl5p.fsf@gthelen.svl.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain
-Subject: Re: [PATCH, RFC] x86/boot/compressed/64: Handle 5-level paging boot if kernel is above 4G
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Dave Hansen <dave.hansen@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+Cc: Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-"Kirill A. Shutemov" <kirill@shutemov.name> writes:
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> On Mon, Oct 09, 2017 at 09:54:53AM -0700, Dave Hansen wrote:
->> On 10/09/2017 09:09 AM, Kirill A. Shutemov wrote:
->> > Apart from trampoline itself we also need place to store top level page
->> > table in lower memory as we don't have a way to load 64-bit value into
->> > CR3 from 32-bit mode. We only really need 8-bytes there as we only use
->> > the very first entry of the page table.
+> On Tue, Oct 10, 2017 at 04:24:34PM +0200, Michal Hocko wrote:
+>> On Tue 10-10-17 10:17:33, Johannes Weiner wrote:
+>> > On Tue, Oct 10, 2017 at 11:14:30AM +0200, Michal Hocko wrote:
+>> > > On Mon 09-10-17 16:26:13, Johannes Weiner wrote:
+>> > > > It's consistent in the sense that only page faults enable the memcg
+>> > > > OOM killer. It's not the type of memory that decides, it's whether the
+>> > > > allocation context has a channel to communicate an error to userspace.
+>> > > > 
+>> > > > Whether userspace is able to handle -ENOMEM from syscalls was a voiced
+>> > > > concern at the time this patch was merged, although there haven't been
+>> > > > any reports so far,
+>> > > 
+>> > > Well, I remember reports about MAP_POPULATE breaking or at least having
+>> > > an unexpected behavior.
+>> > 
+>> > Hm, that slipped past me. Did we do something about these? Or did they
+>> > fix userspace?
 >> 
->> Oh, and this is why you have to move "lvl5_pgtable" out of the kernel image?
+>> Well it was mostly LTP complaining. I have tried to fix that but Linus
+>> was against so we just documented that this is possible and MAP_POPULATE
+>> is not a guarantee.
 >
-> Right. I initialize the new location of top level page table directly.
-
-So just a quick note.  I have a fuzzy memory of people loading their
-kernels above 4G physical because they did not have any memory below
-4G.
-
-That might be a very specialized case if my memory is correct because
-cpu startup has to have a trampoline below 1MB.  So I don't know how
-that works.  But I do seem to remember someone mentioning it.
-
-Is there really no way to switch to 5 level paging other than to drop to
-32bit mode and disable paging?    The x86 architecture does some very
-bizarre things so I can believe it but that seems like a lot of work to
-get somewhere.
-
-Eric
-
-
+> Okay, makes sense. I wouldn't really count that as a regression.
 >
->> > diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
->> > index cefe4958fda9..049a289342bd 100644
->> > --- a/arch/x86/boot/compressed/head_64.S
->> > +++ b/arch/x86/boot/compressed/head_64.S
->> > @@ -288,6 +288,22 @@ ENTRY(startup_64)
->> >  	leaq	boot_stack_end(%rbx), %rsp
->> >  
->> >  #ifdef CONFIG_X86_5LEVEL
->> > +/*
->> > + * We need trampoline in lower memory switch from 4- to 5-level paging for
->> > + * cases when bootloader put kernel above 4G, but didn't enable 5-level paging
->> > + * for us.
->> > + *
->> > + * Here we use MBR memory to store trampoline code.
->> > + *
->> > + * We also have to have top page table in lower memory as we don't have a way
->> > + * to load 64-bit value into CR3 from 32-bit mode. We only need 8-bytes there
->> > + * as we only use the very first entry of the page table.
->> > + *
->> > + * Here we use 0x7000 as top-level page table.
->> > + */
->> > +#define LVL5_TRAMPOLINE	0x7c00
->> > +#define LVL5_PGTABLE	0x7000
->> > +
->> >  	/* Preserve RBX across CPUID */
->> >  	movq	%rbx, %r8
->> >  
->> > @@ -323,29 +339,37 @@ ENTRY(startup_64)
->> >  	 * long mode would trigger #GP. So we need to switch off long mode
->> >  	 * first.
->> >  	 *
->> > -	 * NOTE: This is not going to work if bootloader put us above 4G
->> > -	 * limit.
->> > +	 * We use trampoline in lower memory to handle situation when
->> > +	 * bootloader put the kernel image above 4G.
->> >  	 *
->> >  	 * The first step is go into compatibility mode.
->> >  	 */
->> >  
->> > -	/* Clear additional page table */
->> > -	leaq	lvl5_pgtable(%rbx), %rdi
->> > -	xorq	%rax, %rax
->> > -	movq	$(PAGE_SIZE/8), %rcx
->> > -	rep	stosq
->> > +	/* Copy trampoline code in place */
->> > +	movq	%rsi, %r9
->> > +	leaq	lvl5_trampoline(%rip), %rsi
->> > +	movq	$LVL5_TRAMPOLINE, %rdi
->> > +	movq	$(lvl5_trampoline_end - lvl5_trampoline), %rcx
->> > +	rep	movsb
->> > +	movq	%r9, %rsi
+>> > > Well, we should be able to do that with the oom_reaper. At least for v2
+>> > > which doesn't have synchronous userspace oom killing.
+>> > 
+>> > I don't see how the OOM reaper is a guarantee as long as we have this:
+>> > 
+>> > 	if (!down_read_trylock(&mm->mmap_sem)) {
+>> > 		ret = false;
+>> > 		trace_skip_task_reaping(tsk->pid);
+>> > 		goto unlock_oom;
+>> > 	}
 >> 
->> This needs to get more heavily commented, like the use of r9 to stash
->> %rsi.  Why do you do that, btw?  I don't see it getting reused at first
->> glance.
+>> And we will simply mark the victim MMF_OOM_SKIP and hide it from the oom
+>> killer if we fail to get the mmap_sem after several attempts. This will
+>> allow to find a new victim. So we shouldn't deadlock.
 >
-> %rsi holds pointer to real_mode_data. It need to be preserved.
+> It's less likely to deadlock, but not exactly deadlock-free. There
+> might not BE any other mm's holding significant amounts of memory.
 >
-> I'll add more comments.
->
->> I think it will also be really nice to differentate "lvl5_trampoline"
->> from "LVL5_TRAMPOLINE".  Maybe add "src" and "dst" to them or something.
->
-> Makes sense. Thanks.
->
->> >  	/*
->> > -	 * Setup current CR3 as the first and only entry in a new top level
->> > +	 * Setup current CR3 as the first and the only entry in a new top level
->> >  	 * page table.
->> >  	 */
->> >  	movq	%cr3, %rdi
->> >  	leaq	0x7 (%rdi), %rax
->> > -	movq	%rax, lvl5_pgtable(%rbx)
->> > +	movq	%rax, LVL5_PGTABLE
->> > +
->> > +	/*
->> > +	 * Load address of lvl5 into RDI.
->> > +	 * It will be used to return address from trampoline.
->> > +	 */
->> > +	leaq	lvl5(%rip), %rdi
+>> > What do you mean by 'v2'?
 >> 
->> Is there a reason to do a 'lea' here instead of just shoving the address
->> in directly?  Is this a shorter instruction or something?
+>> cgroup v2 because the legacy memcg allowed sync wait for the oom killer
+>> and that would be a bigger problem from a deep callchains for obevious
+>> reasons.
 >
-> This code can be loaded anywhere in memory and we need to calculate
-> absolute address of the label here.
-> AFAIK, "lea <label>(%rip), <register>" is idiomatic way to do this.
+> Actually, the async oom killing code isn't dependent on cgroup
+> version. cgroup1 doesn't wait inside the charge context, either.
 >
->> >  	/* Switch to compatibility mode (CS.L = 0 CS.D = 1) via far return */
->> >  	pushq	$__KERNEL32_CS
->> > -	leaq	compatible_mode(%rip), %rax
->> > +	movq	$LVL5_TRAMPOLINE, %rax
->> >  	pushq	%rax
->> >  	lretq
->> >  lvl5:
->> > @@ -488,9 +512,9 @@ relocated:
->> >   */
->> >  	jmp	*%rax
->> >  
->> > -	.code32
->> >  #ifdef CONFIG_X86_5LEVEL
->> > -compatible_mode:
->> > +	.code32
->> > +lvl5_trampoline:
->> >  	/* Setup data and stack segments */
->> >  	movl	$__KERNEL_DS, %eax
->> >  	movl	%eax, %ds
->> > @@ -502,7 +526,7 @@ compatible_mode:
->> >  	movl	%eax, %cr0
->> >  
->> >  	/* Point CR3 to 5-level paging */
->> > -	leal	lvl5_pgtable(%ebx), %eax
->> > +	movl	$LVL5_PGTABLE, %eax
->> >  	movl	%eax, %cr3
->> >  
->> >  	/* Enable PAE and LA57 mode */
->> > @@ -510,14 +534,9 @@ compatible_mode:
->> >  	orl	$(X86_CR4_PAE | X86_CR4_LA57), %eax
->> >  	movl	%eax, %cr4
->> >  
->> > -	/* Calculate address we are running at */
->> > -	call	1f
->> > -1:	popl	%edi
->> > -	subl	$1b, %edi
->> > -
->> >  	/* Prepare stack for far return to Long Mode */
->> >  	pushl	$__KERNEL_CS
->> > -	leal	lvl5(%edi), %eax
->> > +	movl	$(lvl5_enabled - lvl5_trampoline + LVL5_TRAMPOLINE), %eax
+>> > > > > c) Overcharge kmem to oom memcg and queue an async memcg limit checker,
+>> > > > >    which will oom kill if needed.
+>> > > > 
+>> > > > This makes the most sense to me. Architecturally, I imagine this would
+>> > > > look like b), with an OOM handler at the point of return to userspace,
+>> > > > except that we'd overcharge instead of retrying the syscall.
+>> > > 
+>> > > I do not think we should break the hard limit semantic if possible. We
+>> > > can currently allow that for allocations which are very short term (oom
+>> > > victims) or too important to fail but allowing that for kmem charges in
+>> > > general sounds like too easy to runaway.
+>> > 
+>> > I'm not sure there is a convenient way out of this.
+>> > 
+>> > If we want to respect the hard limit AND guarantee allocation success,
+>> > the OOM killer has to free memory reliably - which it doesn't. But if
+>> > it did, we could also break the limit temporarily and have the OOM
+>> > killer replenish the pool before that userspace app can continue. The
+>> > allocation wouldn't have to be short-lived, since memory is fungible.
 >> 
->> This loads the trampoline address of "lvl5_enabled", right?  That'd be
->> handy to spell out explicitly.
+>> If we can guarantee the oom killer is started then we can allow temporal
+>> access to reserves which is already implemented even for memcg. The
+>> thing is we do not invoke the oom killer...
 >
-> Yep, will do.
+> You lost me here. Which reserves?
+>
+> All I'm saying is that, when the syscall-context fails to charge, we
+> should do mem_cgroup_oom() to set up the async OOM killer, let the
+> charge succeed over the hard limit - since the OOM killer will most
+> likely get us back below the limit - then mem_cgroup_oom_synchronize()
+> before the syscall returns to userspace.
+>
+> That would avoid returning -ENOMEM from syscalls without the risk of
+> the hard limit deadlocking - at the risk of sometimes overrunning the
+> hard limit, but that seems like the least problematic behavior out of
+> the three.
+
+Overcharging kmem with deferred reconciliation sounds good to me.
+
+A few comments (not reasons to avoid this):
+
+1) If a task is moved between memcg it seems possible to overcharge
+   multiple oom memcg for different kmem/user allocations.
+   mem_cgroup_oom_synchronize() would see at most one oom memcg in
+   current->memcg_in_oom.  Thus it'd only reconcile a single memcg.  But
+   that seems pretty rare and the next charge to any of the other memcg
+   would reconcile them.
+
+2) if a kernel thread charges kmem on behalf of a client mm then there
+   is no good place to call mem_cgroup_oom_synchronize(), short of
+   launching a work item in mem_cgroup_oom().  I don't we have anything
+   like that yet.  So nothing to worry about.
+
+3) it's debatable if mem_cgroup_oom_synchronize() should first attempt
+   reclaim before killing.  But that's a whole 'nother thread.
+
+4) overcharging with deferred reconciliation could also be used for user
+   pages.  But I haven't looked at the code long enough to know if this
+   would be a net win.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
