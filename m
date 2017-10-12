@@ -1,288 +1,224 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0271C6B0069
-	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 08:59:18 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id s185so3512394oif.16
-        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 05:59:17 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 31si7127534otf.43.2017.10.12.05.59.15
-        for <linux-mm@kvack.org>;
-        Thu, 12 Oct 2017 05:59:16 -0700 (PDT)
-Subject: Re: [PATCH for-next 2/4] RDMA/hns: Add IOMMU enable support in hip08
-References: <1506763741-81429-1-git-send-email-xavier.huwei@huawei.com>
- <1506763741-81429-3-git-send-email-xavier.huwei@huawei.com>
- <20170930161023.GI2965@mtr-leonro.local> <59DF60A3.7080803@huawei.com>
-From: Robin Murphy <robin.murphy@arm.com>
-Message-ID: <5fe5f9b9-2c2b-ab3c-dafa-3e2add051bbb@arm.com>
-Date: Thu, 12 Oct 2017 13:59:11 +0100
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 600F66B0033
+	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 09:33:26 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 136so3142288wmu.10
+        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 06:33:26 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p14si817992wre.148.2017.10.12.06.33.24
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 12 Oct 2017 06:33:24 -0700 (PDT)
+Date: Thu, 12 Oct 2017 15:33:23 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 3/8] mm, truncate: Remove all exceptional entries from
+ pagevec under one lock
+Message-ID: <20171012133323.GB29293@quack2.suse.cz>
+References: <20171012093103.13412-1-mgorman@techsingularity.net>
+ <20171012093103.13412-4-mgorman@techsingularity.net>
 MIME-Version: 1.0
-In-Reply-To: <59DF60A3.7080803@huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171012093103.13412-4-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wei Hu (Xavier)" <xavier.huwei@huawei.com>, Leon Romanovsky <leon@kernel.org>
-Cc: shaobo.xu@intel.com, xavier.huwei@tom.com, lijun_nudt@163.com, oulijun@huawei.com, linux-rdma@vger.kernel.org, charles.chenxin@huawei.com, linuxarm@huawei.com, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dledford@redhat.com, liuyixian@huawei.com, zhangxiping3@huawei.com, shaoboxu@tom.com
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dave Chinner <david@fromorbit.com>
 
-On 12/10/17 13:31, Wei Hu (Xavier) wrote:
+On Thu 12-10-17 10:30:58, Mel Gorman wrote:
+> During truncate each entry in a pagevec is checked to see if it is an
+> exceptional entry and if so, the shadow entry is cleaned up.  This is
+> potentially expensive as multiple entries for a mapping locks/unlocks the
+> tree lock.  This batches the operation such that any exceptional entries
+> removed from a pagevec only acquire the mapping tree lock once. The corner
+> case where this is more expensive is where there is only one exceptional
+> entry but this is unlikely due to temporal locality and how it affects
+> LRU ordering. Note that for truncations of small files created recently,
+> this patch should show no gain because it only batches the handling of
+> exceptional entries.
 > 
+> sparsetruncate (large)
+>                               4.14.0-rc4             4.14.0-rc4
+>                          pickhelper-v1r1       batchshadow-v1r1
+> Min          Time       38.00 (   0.00%)       27.00 (  28.95%)
+> 1st-qrtle    Time       40.00 (   0.00%)       28.00 (  30.00%)
+> 2nd-qrtle    Time       44.00 (   0.00%)       41.00 (   6.82%)
+> 3rd-qrtle    Time      146.00 (   0.00%)      147.00 (  -0.68%)
+> Max-90%      Time      153.00 (   0.00%)      153.00 (   0.00%)
+> Max-95%      Time      155.00 (   0.00%)      156.00 (  -0.65%)
+> Max-99%      Time      181.00 (   0.00%)      171.00 (   5.52%)
+> Amean        Time       93.04 (   0.00%)       88.43 (   4.96%)
+> Best99%Amean Time       92.08 (   0.00%)       86.13 (   6.46%)
+> Best95%Amean Time       89.19 (   0.00%)       83.13 (   6.80%)
+> Best90%Amean Time       85.60 (   0.00%)       79.15 (   7.53%)
+> Best75%Amean Time       72.95 (   0.00%)       65.09 (  10.78%)
+> Best50%Amean Time       39.86 (   0.00%)       28.20 (  29.25%)
+> Best25%Amean Time       39.44 (   0.00%)       27.70 (  29.77%)
 > 
-> On 2017/10/1 0:10, Leon Romanovsky wrote:
->> On Sat, Sep 30, 2017 at 05:28:59PM +0800, Wei Hu (Xavier) wrote:
->>> If the IOMMU is enabled, the length of sg obtained from
->>> __iommu_map_sg_attrs is not 4kB. When the IOVA is set with the sg
->>> dma address, the IOVA will not be page continuous. and the VA
->>> returned from dma_alloc_coherent is a vmalloc address. However,
->>> the VA obtained by the page_address is a discontinuous VA. Under
->>> these circumstances, the IOVA should be calculated based on the
->>> sg length, and record the VA returned from dma_alloc_coherent
->>> in the struct of hem.
->>>
->>> Signed-off-by: Wei Hu (Xavier) <xavier.huwei@huawei.com>
->>> Signed-off-by: Shaobo Xu <xushaobo2@huawei.com>
->>> Signed-off-by: Lijun Ou <oulijun@huawei.com>
->>> ---
->> Doug,
->>
->> I didn't invest time in reviewing it, but having "is_vmalloc_addr" in
->> driver code to deal with dma_alloc_coherent is most probably wrong.
->>
->> Thanks
-> Hi,A  Leon & Doug
-> A A A  We refered the function named __ttm_dma_alloc_page in the kernel
-> code as below:
-> A A A  And there are similar methods in bch_bio_map and mem_to_page
-> functions in current 4.14-rcx.
+> bonnie
+>                                       4.14.0-rc4             4.14.0-rc4
+>                                  pickhelper-v1r1       batchshadow-v1r1
+> Hmean     SeqCreate ops         71.92 (   0.00%)       76.78 (   6.76%)
+> Hmean     SeqCreate read        42.42 (   0.00%)       45.01 (   6.10%)
+> Hmean     SeqCreate del      26519.88 (   0.00%)    27191.87 (   2.53%)
+> Hmean     RandCreate ops        71.92 (   0.00%)       76.95 (   7.00%)
+> Hmean     RandCreate read       44.44 (   0.00%)       49.23 (  10.78%)
+> Hmean     RandCreate del     24948.62 (   0.00%)    24764.97 (  -0.74%)
 > 
-> A A A A A A A  static struct dma_page *__ttm_dma_alloc_page(struct dma_pool *pool)
-> A A A A A A A  {
-> A A A A A A A A A A A  struct dma_page *d_page;
+> Truncation of a large number of files shows a substantial gain with 99% of files
+> being trruncated 6.46% faster. bonnie shows a modest gain of 2.53%
 > 
-> A A A A A A A A A A A  d_page = kmalloc(sizeof(struct dma_page), GFP_KERNEL);
-> A A A A A A A A A A A  if (!d_page)
-> A A A A A A A A A A A A A A A  return NULL;
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> ---
+>  mm/truncate.c | 86 ++++++++++++++++++++++++++++++++++++++++++-----------------
+>  1 file changed, 61 insertions(+), 25 deletions(-)
 > 
-> A A A A A A A A A A A  d_page->vaddr = dma_alloc_coherent(pool->dev, pool->size,
-> A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  &d_page->dma,
-> A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  pool->gfp_flags);
-> A A A A A A A A A A A  if (d_page->vaddr) {
-> A A A A A A A A A A A A A A A  if (is_vmalloc_addr(d_page->vaddr))
-> A A A A A A A A A A A A A A A A A A A  d_page->p = vmalloc_to_page(d_page->vaddr);
-> A A A A A A A A A A A A A A A  else
-> A A A A A A A A A A A A A A A A A A A  d_page->p = virt_to_page(d_page->vaddr);
+> diff --git a/mm/truncate.c b/mm/truncate.c
+> index 3dfa2d5e642e..af1eaa5b9450 100644
+> --- a/mm/truncate.c
+> +++ b/mm/truncate.c
+> @@ -25,44 +25,77 @@
+>  #include <linux/rmap.h>
+>  #include "internal.h"
+>  
+> -static void clear_shadow_entry(struct address_space *mapping, pgoff_t index,
+> -			       void *entry)
+> +/*
+> + * Regular page slots are stabilized by the page lock even without the tree
+> + * itself locked.  These unlocked entries need verification under the tree
+> + * lock.
+> + */
+> +static inline void __clear_shadow_entry(struct address_space *mapping,
+> +				pgoff_t index, void *entry)
+>  {
+>  	struct radix_tree_node *node;
+>  	void **slot;
+>  
+> -	spin_lock_irq(&mapping->tree_lock);
+> -	/*
+> -	 * Regular page slots are stabilized by the page lock even
+> -	 * without the tree itself locked.  These unlocked entries
+> -	 * need verification under the tree lock.
+> -	 */
+>  	if (!__radix_tree_lookup(&mapping->page_tree, index, &node, &slot))
+> -		goto unlock;
+> +		return;
+>  	if (*slot != entry)
+> -		goto unlock;
+> +		return;
+>  	__radix_tree_replace(&mapping->page_tree, node, slot, NULL,
+>  			     workingset_update_node, mapping);
+>  	mapping->nrexceptional--;
+> -unlock:
+> +}
+> +
+> +static void clear_shadow_entry(struct address_space *mapping, pgoff_t index,
+> +			       void *entry)
+> +{
+> +	spin_lock_irq(&mapping->tree_lock);
+> +	__clear_shadow_entry(mapping, index, entry);
+>  	spin_unlock_irq(&mapping->tree_lock);
+>  }
+>  
+>  /*
+> - * Unconditionally remove exceptional entry. Usually called from truncate path.
+> + * Unconditionally remove exceptional entries. Usually called from truncate
+> + * path. Note that the pagevec may be altered by this function by removing
+> + * exceptional entries similar to what pagevec_remove_exceptionals does.
+>   */
+> -static void truncate_exceptional_entry(struct address_space *mapping,
+> -				       pgoff_t index, void *entry)
+> +static void truncate_exceptional_pvec_entries(struct address_space *mapping,
+> +				struct pagevec *pvec, pgoff_t *indices, int ei)
+>  {
+> +	int i, j;
+> +	bool dax;
+> +
+> +	/* Return immediately if caller indicates there are no entries */
+> +	if (ei == PAGEVEC_SIZE)
+> +		return;
+> +
+>  	/* Handled by shmem itself */
+>  	if (shmem_mapping(mapping))
+>  		return;
+>  
+> -	if (dax_mapping(mapping)) {
+> -		dax_delete_mapping_entry(mapping, index);
+> -		return;
+> +	dax = dax_mapping(mapping);
+> +	if (!dax)
+> +		spin_lock_irq(&mapping->tree_lock);
+> +
+> +	for (i = ei, j = ei; i < pagevec_count(pvec); i++) {
+> +		struct page *page = pvec->pages[i];
+> +		pgoff_t index = indices[i];
+> +
+> +		if (!radix_tree_exceptional_entry(page)) {
+> +			pvec->pages[j++] = page;
+> +			continue;
+> +		}
+> +
+> +		if (unlikely(dax)) {
+> +			dax_delete_mapping_entry(mapping, index);
+> +			continue;
+> +		}
+> +
+> +		__clear_shadow_entry(mapping, index, page);
+>  	}
+> -	clear_shadow_entry(mapping, index, entry);
+> +
+> +	if (!dax)
+> +		spin_unlock_irq(&mapping->tree_lock);
+> +	pvec->nr = j;
+>  }
 
-There are cases on various architectures where neither of those is
-right. Whether those actually intersect with TTM or RDMA use-cases is
-another matter, of course.
+When I look at this I think could make things cleaner. I have the following
+observations:
 
-What definitely is a problem is if you ever take that page and end up
-accessing it through any virtual address other than the one explicitly
-returned by dma_alloc_coherent(). That can blow the coherency wide open
-and invite data loss, right up to killing the whole system with a
-machine check on certain architectures.
+1) All truncate_inode_pages(), invalidate_mapping_pages(),
+invalidate_inode_pages2_range() essentially do very similar thing and would
+benefit from a similar kind of batching.
 
-Robin.
+2) As you observed and measured, batching of radix tree operations makes
+sense both when removing pages and shadow entries, I'm very confident it
+would make sense for DAX exceptional entries as well.
 
-> A A A A A A A A A A A  } else {
-> A A A A A A A A A A A A A A A  kfree(d_page);
-> A A A A A A A A A A A A A A A  d_page = NULL;
-> A A A A A A A A A A A  }
-> A A A A A A A A A A A  return d_page;
-> A A A A A A A  }
-> 
-> A A A  Regards
-> Wei Hu
->>
->>> A  drivers/infiniband/hw/hns/hns_roce_alloc.c |A  5 ++++-
->>> A  drivers/infiniband/hw/hns/hns_roce_hem.cA A  | 30
->>> +++++++++++++++++++++++++++---
->>> A  drivers/infiniband/hw/hns/hns_roce_hem.hA A  |A  6 ++++++
->>> A  drivers/infiniband/hw/hns/hns_roce_hw_v2.c | 22 +++++++++++++++-------
->>> A  4 files changed, 52 insertions(+), 11 deletions(-)
->>>
->>> diff --git a/drivers/infiniband/hw/hns/hns_roce_alloc.c
->>> b/drivers/infiniband/hw/hns/hns_roce_alloc.c
->>> index 3e4c525..a69cd4b 100644
->>> --- a/drivers/infiniband/hw/hns/hns_roce_alloc.c
->>> +++ b/drivers/infiniband/hw/hns/hns_roce_alloc.c
->>> @@ -243,7 +243,10 @@ int hns_roce_buf_alloc(struct hns_roce_dev
->>> *hr_dev, u32 size, u32 max_direct,
->>> A A A A A A A A A A A A A A A A A  goto err_free;
->>>
->>> A A A A A A A A A A A A A  for (i = 0; i < buf->nbufs; ++i)
->>> -A A A A A A A A A A A A A A A  pages[i] = virt_to_page(buf->page_list[i].buf);
->>> +A A A A A A A A A A A A A A A  pages[i] =
->>> +A A A A A A A A A A A A A A A A A A A  is_vmalloc_addr(buf->page_list[i].buf) ?
->>> +A A A A A A A A A A A A A A A A A A A  vmalloc_to_page(buf->page_list[i].buf) :
->>> +A A A A A A A A A A A A A A A A A A A  virt_to_page(buf->page_list[i].buf);
->>>
->>> A A A A A A A A A A A A A  buf->direct.buf = vmap(pages, buf->nbufs, VM_MAP,
->>> A A A A A A A A A A A A A A A A A A A A A A A A A A A A  PAGE_KERNEL);
->>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hem.c
->>> b/drivers/infiniband/hw/hns/hns_roce_hem.c
->>> index 8388ae2..4a3d1d4 100644
->>> --- a/drivers/infiniband/hw/hns/hns_roce_hem.c
->>> +++ b/drivers/infiniband/hw/hns/hns_roce_hem.c
->>> @@ -200,6 +200,7 @@ static struct hns_roce_hem
->>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
->>> A A A A A A A A A A A A A A A A A A A A A A A A A A A A  gfp_t gfp_mask)
->>> A  {
->>> A A A A A  struct hns_roce_hem_chunk *chunk = NULL;
->>> +A A A  struct hns_roce_vmalloc *vmalloc;
->>> A A A A A  struct hns_roce_hem *hem;
->>> A A A A A  struct scatterlist *mem;
->>> A A A A A  int order;
->>> @@ -227,6 +228,7 @@ static struct hns_roce_hem
->>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
->>> A A A A A A A A A A A A A  sg_init_table(chunk->mem, HNS_ROCE_HEM_CHUNK_LEN);
->>> A A A A A A A A A A A A A  chunk->npages = 0;
->>> A A A A A A A A A A A A A  chunk->nsg = 0;
->>> +A A A A A A A A A A A  memset(chunk->vmalloc, 0, sizeof(chunk->vmalloc));
->>> A A A A A A A A A A A A A  list_add_tail(&chunk->list, &hem->chunk_list);
->>> A A A A A A A A A  }
->>>
->>> @@ -243,7 +245,15 @@ static struct hns_roce_hem
->>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
->>> A A A A A A A A A  if (!buf)
->>> A A A A A A A A A A A A A  goto fail;
->>>
->>> -A A A A A A A  sg_set_buf(mem, buf, PAGE_SIZE << order);
->>> +A A A A A A A  if (is_vmalloc_addr(buf)) {
->>> +A A A A A A A A A A A  vmalloc = &chunk->vmalloc[chunk->npages];
->>> +A A A A A A A A A A A  vmalloc->is_vmalloc_addr = true;
->>> +A A A A A A A A A A A  vmalloc->vmalloc_addr = buf;
->>> +A A A A A A A A A A A  sg_set_page(mem, vmalloc_to_page(buf),
->>> +A A A A A A A A A A A A A A A A A A A  PAGE_SIZE << order, offset_in_page(buf));
->>> +A A A A A A A  } else {
->>> +A A A A A A A A A A A  sg_set_buf(mem, buf, PAGE_SIZE << order);
->>> +A A A A A A A  }
->>> A A A A A A A A A  WARN_ON(mem->offset);
->>> A A A A A A A A A  sg_dma_len(mem) = PAGE_SIZE << order;
->>>
->>> @@ -262,17 +272,25 @@ static struct hns_roce_hem
->>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
->>> A  void hns_roce_free_hem(struct hns_roce_dev *hr_dev, struct
->>> hns_roce_hem *hem)
->>> A  {
->>> A A A A A  struct hns_roce_hem_chunk *chunk, *tmp;
->>> +A A A  void *cpu_addr;
->>> A A A A A  int i;
->>>
->>> A A A A A  if (!hem)
->>> A A A A A A A A A  return;
->>>
->>> A A A A A  list_for_each_entry_safe(chunk, tmp, &hem->chunk_list, list) {
->>> -A A A A A A A  for (i = 0; i < chunk->npages; ++i)
->>> +A A A A A A A  for (i = 0; i < chunk->npages; ++i) {
->>> +A A A A A A A A A A A  if (chunk->vmalloc[i].is_vmalloc_addr)
->>> +A A A A A A A A A A A A A A A  cpu_addr = chunk->vmalloc[i].vmalloc_addr;
->>> +A A A A A A A A A A A  else
->>> +A A A A A A A A A A A A A A A  cpu_addr =
->>> +A A A A A A A A A A A A A A A A A A  lowmem_page_address(sg_page(&chunk->mem[i]));
->>> +
->>> A A A A A A A A A A A A A  dma_free_coherent(hr_dev->dev,
->>> A A A A A A A A A A A A A A A A A A A A  chunk->mem[i].length,
->>> -A A A A A A A A A A A A A A A A A A  lowmem_page_address(sg_page(&chunk->mem[i])),
->>> +A A A A A A A A A A A A A A A A A A  cpu_addr,
->>> A A A A A A A A A A A A A A A A A A A A  sg_dma_address(&chunk->mem[i]));
->>> +A A A A A A A  }
->>> A A A A A A A A A  kfree(chunk);
->>> A A A A A  }
->>>
->>> @@ -774,6 +792,12 @@ void *hns_roce_table_find(struct hns_roce_dev
->>> *hr_dev,
->>>
->>> A A A A A A A A A A A A A  if (chunk->mem[i].length > (u32)offset) {
->>> A A A A A A A A A A A A A A A A A  page = sg_page(&chunk->mem[i]);
->>> +A A A A A A A A A A A A A A A  if (chunk->vmalloc[i].is_vmalloc_addr) {
->>> +A A A A A A A A A A A A A A A A A A A  mutex_unlock(&table->mutex);
->>> +A A A A A A A A A A A A A A A A A A A  return page ?
->>> +A A A A A A A A A A A A A A A A A A A A A A A  chunk->vmalloc[i].vmalloc_addr
->>> +A A A A A A A A A A A A A A A A A A A A A A A  + offset : NULL;
->>> +A A A A A A A A A A A A A A A  }
->>> A A A A A A A A A A A A A A A A A  goto out;
->>> A A A A A A A A A A A A A  }
->>> A A A A A A A A A A A A A  offset -= chunk->mem[i].length;
->>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hem.h
->>> b/drivers/infiniband/hw/hns/hns_roce_hem.h
->>> index af28bbf..62d712a 100644
->>> --- a/drivers/infiniband/hw/hns/hns_roce_hem.h
->>> +++ b/drivers/infiniband/hw/hns/hns_roce_hem.h
->>> @@ -72,11 +72,17 @@ enum {
->>> A A A A A A  HNS_ROCE_HEM_PAGE_SIZEA  = 1 << HNS_ROCE_HEM_PAGE_SHIFT,
->>> A  };
->>>
->>> +struct hns_roce_vmalloc {
->>> +A A A  boolA A A  is_vmalloc_addr;
->>> +A A A  voidA A A  *vmalloc_addr;
->>> +};
->>> +
->>> A  struct hns_roce_hem_chunk {
->>> A A A A A  struct list_headA A A A  list;
->>> A A A A A  intA A A A A A A A A A A A  npages;
->>> A A A A A  intA A A A A A A A A A A A  nsg;
->>> A A A A A  struct scatterlistA A A A  mem[HNS_ROCE_HEM_CHUNK_LEN];
->>> +A A A  struct hns_roce_vmallocA A A A  vmalloc[HNS_ROCE_HEM_CHUNK_LEN];
->>> A  };
->>>
->>> A  struct hns_roce_hem {
->>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
->>> b/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
->>> index b99d70a..9e19bf1 100644
->>> --- a/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
->>> +++ b/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
->>> @@ -1093,9 +1093,11 @@ static int hns_roce_v2_write_mtpt(void
->>> *mb_buf, struct hns_roce_mr *mr,
->>> A  {
->>> A A A A A  struct hns_roce_v2_mpt_entry *mpt_entry;
->>> A A A A A  struct scatterlist *sg;
->>> +A A A  u64 page_addr = 0;
->>> A A A A A  u64 *pages;
->>> +A A A  int i = 0, j = 0;
->>> +A A A  int len = 0;
->>> A A A A A  int entry;
->>> -A A A  int i;
->>>
->>> A A A A A  mpt_entry = mb_buf;
->>> A A A A A  memset(mpt_entry, 0, sizeof(*mpt_entry));
->>> @@ -1153,14 +1155,20 @@ static int hns_roce_v2_write_mtpt(void
->>> *mb_buf, struct hns_roce_mr *mr,
->>>
->>> A A A A A  i = 0;
->>> A A A A A  for_each_sg(mr->umem->sg_head.sgl, sg, mr->umem->nmap, entry) {
->>> -A A A A A A A  pages[i] = ((u64)sg_dma_address(sg)) >> 6;
->>> -
->>> -A A A A A A A  /* Record the first 2 entry directly to MTPT table */
->>> -A A A A A A A  if (i >= HNS_ROCE_V2_MAX_INNER_MTPT_NUM - 1)
->>> -A A A A A A A A A A A  break;
->>> -A A A A A A A  i++;
->>> +A A A A A A A  len = sg_dma_len(sg) >> PAGE_SHIFT;
->>> +A A A A A A A  for (j = 0; j < len; ++j) {
->>> +A A A A A A A A A A A  page_addr = sg_dma_address(sg) +
->>> +A A A A A A A A A A A A A A A A A A A  (j << mr->umem->page_shift);
->>> +A A A A A A A A A A A  pages[i] = page_addr >> 6;
->>> +
->>> +A A A A A A A A A A A  /* Record the first 2 entry directly to MTPT table */
->>> +A A A A A A A A A A A  if (i >= HNS_ROCE_V2_MAX_INNER_MTPT_NUM - 1)
->>> +A A A A A A A A A A A A A A A  goto found;
->>> +A A A A A A A A A A A  i++;
->>> +A A A A A A A  }
->>> A A A A A  }
->>>
->>> +found:
->>> A A A A A  mpt_entry->pa0_l = cpu_to_le32(lower_32_bits(pages[0]));
->>> A A A A A  roce_set_field(mpt_entry->byte_56_pa0_h, V2_MPT_BYTE_56_PA0_H_M,
->>> A A A A A A A A A A A A A A A A  V2_MPT_BYTE_56_PA0_H_S,
->>> -- 
->>> 1.9.1
->>>
-> 
-> 
-> _______________________________________________
-> iommu mailing list
-> iommu@lists.linux-foundation.org
-> https://lists.linuxfoundation.org/mailman/listinfo/iommu
+3) In all cases (i.e., those three functions and for all entry types) the
+workflow seems to be:
+  * lockless lookup of entries
+  * prepare entry for reclaim (or determine it is not elligible)
+  * lock mapping->tree_lock
+  * verify entry is still elligible for reclaim (otherwise bail)
+  * clear radix tree entry
+  * unlock mapping->tree_lock
+  * final cleanup of the entry
+
+So I'm wondering whether we cannot somehow refactor stuff so that batching
+of radix tree operations could be shared and we wouldn't have to duplicate
+it in all those cases.
+
+But it would be rather large overhaul of the code so it may be a bit out of
+scope for these improvements...
+
+> @@ -409,8 +445,8 @@ void truncate_inode_pages_range(struct address_space *mapping,
+>  			}
+>  
+>  			if (radix_tree_exceptional_entry(page)) {
+> -				truncate_exceptional_entry(mapping, index,
+> -							   page);
+> +				if (ei != PAGEVEC_SIZE)
+> +					ei = i;
+
+This should be ei == PAGEVEC_SIZE I think.
+
+Otherwise the patch looks good to me so feel free to add:
+
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
