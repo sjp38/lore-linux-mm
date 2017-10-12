@@ -1,82 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 719AE6B0033
-	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 15:19:03 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id t69so3865312wmt.7
-        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 12:19:03 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z66sor293689wmb.12.2017.10.12.12.19.01
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BB1516B0033
+	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 15:45:45 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 136so3954704wmu.10
+        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 12:45:45 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id c35si2757332edd.94.2017.10.12.12.45.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 12 Oct 2017 12:19:02 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 12 Oct 2017 12:45:44 -0700 (PDT)
+Date: Thu, 12 Oct 2017 15:45:36 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 3/8] mm, truncate: Remove all exceptional entries from
+ pagevec under one lock
+Message-ID: <20171012194536.GC5075@cmpxchg.org>
+References: <20171012093103.13412-1-mgorman@techsingularity.net>
+ <20171012093103.13412-4-mgorman@techsingularity.net>
 MIME-Version: 1.0
-In-Reply-To: <20171012114843.d74096014cb88eedbaa7ac70@linux-foundation.org>
-References: <20171010121513.GC5445@yexl-desktop> <20171011023106.izaulhwjcoam55jt@treble>
- <20171011170120.7flnk6r77dords7a@treble> <alpine.DEB.2.20.1710121202210.28556@nuc-kabylake>
- <CAADWXX-M2uftDuCyAS+UMKACC6d-B+Zb-DDNGO76yRS5wuigHw@mail.gmail.com> <20171012114843.d74096014cb88eedbaa7ac70@linux-foundation.org>
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Date: Thu, 12 Oct 2017 21:19:01 +0200
-Message-ID: <CAMuHMdWmp5cJf82d_V8=Kzii9r6oFpDMGitBsLRUMNW2HmZxog@mail.gmail.com>
-Subject: Re: [lkp-robot] [x86/kconfig] 81d3871900: BUG:unable_to_handle_kernel
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171012093103.13412-4-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Christopher Lameter <cl@linux.com>, Josh Poimboeuf <jpoimboe@redhat.com>, kernel test robot <xiaolong.ye@intel.com>, Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Slaby <jslaby@suse.cz>, Mike Galbraith <efault@gmx.de>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, LKP <lkp@01.org>, Linux MM <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Matt Mackall <mpm@selenic.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dave Chinner <david@fromorbit.com>
 
-On Thu, Oct 12, 2017 at 8:48 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Thu, 12 Oct 2017 10:54:57 -0700 Linus Torvalds <torvalds@linux-foundation.org> wrote:
->> On Thu, Oct 12, 2017 at 10:05 AM, Christopher Lameter <cl@linux.com> wrote:
->> > On Wed, 11 Oct 2017, Josh Poimboeuf wrote:
->> >
->> >> I failed to add the slab maintainers to CC on the last attempt.  Trying
->> >> again.
->> >
->> > Hmmm... Yea. SLOB is rarely used and tested. Good illustration of a simple
->> > allocator and the K&R mechanism that was used in the early kernels.
->>
->> Should we finally just get rid of SLOB?
->>
->> I'm not happy about the whole "three different allocators" crap. It's
->> been there for much too long, and I've tried to cut it down before.
->> People always protest, but three different allocators, one of which
->> gets basically no testing, is not good.
->
-> I am not aware of anyone using slob.  We could disable it in Kconfig
-> for a year, see what the feedback looks like.
+On Thu, Oct 12, 2017 at 10:30:58AM +0100, Mel Gorman wrote:
+> During truncate each entry in a pagevec is checked to see if it is an
+> exceptional entry and if so, the shadow entry is cleaned up.  This is
+> potentially expensive as multiple entries for a mapping locks/unlocks the
+> tree lock.  This batches the operation such that any exceptional entries
+> removed from a pagevec only acquire the mapping tree lock once. The corner
+> case where this is more expensive is where there is only one exceptional
+> entry but this is unlikely due to temporal locality and how it affects
+> LRU ordering. Note that for truncations of small files created recently,
+> this patch should show no gain because it only batches the handling of
+> exceptional entries.
+> 
+> sparsetruncate (large)
+>                               4.14.0-rc4             4.14.0-rc4
+>                          pickhelper-v1r1       batchshadow-v1r1
+> Min          Time       38.00 (   0.00%)       27.00 (  28.95%)
+> 1st-qrtle    Time       40.00 (   0.00%)       28.00 (  30.00%)
+> 2nd-qrtle    Time       44.00 (   0.00%)       41.00 (   6.82%)
+> 3rd-qrtle    Time      146.00 (   0.00%)      147.00 (  -0.68%)
+> Max-90%      Time      153.00 (   0.00%)      153.00 (   0.00%)
+> Max-95%      Time      155.00 (   0.00%)      156.00 (  -0.65%)
+> Max-99%      Time      181.00 (   0.00%)      171.00 (   5.52%)
+> Amean        Time       93.04 (   0.00%)       88.43 (   4.96%)
+> Best99%Amean Time       92.08 (   0.00%)       86.13 (   6.46%)
+> Best95%Amean Time       89.19 (   0.00%)       83.13 (   6.80%)
+> Best90%Amean Time       85.60 (   0.00%)       79.15 (   7.53%)
+> Best75%Amean Time       72.95 (   0.00%)       65.09 (  10.78%)
+> Best50%Amean Time       39.86 (   0.00%)       28.20 (  29.25%)
+> Best25%Amean Time       39.44 (   0.00%)       27.70 (  29.77%)
+> 
+> bonnie
+>                                       4.14.0-rc4             4.14.0-rc4
+>                                  pickhelper-v1r1       batchshadow-v1r1
+> Hmean     SeqCreate ops         71.92 (   0.00%)       76.78 (   6.76%)
+> Hmean     SeqCreate read        42.42 (   0.00%)       45.01 (   6.10%)
+> Hmean     SeqCreate del      26519.88 (   0.00%)    27191.87 (   2.53%)
+> Hmean     RandCreate ops        71.92 (   0.00%)       76.95 (   7.00%)
+> Hmean     RandCreate read       44.44 (   0.00%)       49.23 (  10.78%)
+> Hmean     RandCreate del     24948.62 (   0.00%)    24764.97 (  -0.74%)
+> 
+> Truncation of a large number of files shows a substantial gain with 99% of files
+> being trruncated 6.46% faster. bonnie shows a modest gain of 2.53%
+> 
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-$ git grep CONFIG_SLOB=y
-arch/arm/configs/clps711x_defconfig:CONFIG_SLOB=y
-arch/arm/configs/collie_defconfig:CONFIG_SLOB=y
-arch/arm/configs/multi_v4t_defconfig:CONFIG_SLOB=y
-arch/arm/configs/omap1_defconfig:CONFIG_SLOB=y
-arch/arm/configs/pxa_defconfig:CONFIG_SLOB=y
-arch/arm/configs/tct_hammer_defconfig:CONFIG_SLOB=y
-arch/arm/configs/xcep_defconfig:CONFIG_SLOB=y
-arch/blackfin/configs/DNP5370_defconfig:CONFIG_SLOB=y
-arch/h8300/configs/edosk2674_defconfig:CONFIG_SLOB=y
-arch/h8300/configs/h8300h-sim_defconfig:CONFIG_SLOB=y
-arch/h8300/configs/h8s-sim_defconfig:CONFIG_SLOB=y
-arch/openrisc/configs/or1ksim_defconfig:CONFIG_SLOB=y
-arch/sh/configs/rsk7201_defconfig:CONFIG_SLOB=y
-arch/sh/configs/rsk7203_defconfig:CONFIG_SLOB=y
-arch/sh/configs/se7206_defconfig:CONFIG_SLOB=y
-arch/sh/configs/shmin_defconfig:CONFIG_SLOB=y
-arch/sh/configs/shx3_defconfig:CONFIG_SLOB=y
-kernel/configs/tiny.config:CONFIG_SLOB=y
-$
-
-Gr{oetje,eeting}s,
-
-                        Geert
-
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
