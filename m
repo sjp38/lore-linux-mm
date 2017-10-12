@@ -1,91 +1,255 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A15086B0033
-	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 08:15:30 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id u78so5764881wmd.4
-        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 05:15:30 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t4si12522644wrb.421.2017.10.12.05.15.28
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BC246B0033
+	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 08:32:21 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id v2so1623294pfa.10
+        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 05:32:21 -0700 (PDT)
+Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id r9si11388768pge.637.2017.10.12.05.32.19
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 12 Oct 2017 05:15:29 -0700 (PDT)
-Date: Thu, 12 Oct 2017 14:15:27 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/8] mm, truncate: Do not check mapping for every page
- being truncated
-Message-ID: <20171012121527.GA29293@quack2.suse.cz>
-References: <20171012093103.13412-1-mgorman@techsingularity.net>
- <20171012093103.13412-3-mgorman@techsingularity.net>
+        Thu, 12 Oct 2017 05:32:20 -0700 (PDT)
+Subject: Re: [PATCH for-next 2/4] RDMA/hns: Add IOMMU enable support in hip08
+References: <1506763741-81429-1-git-send-email-xavier.huwei@huawei.com>
+ <1506763741-81429-3-git-send-email-xavier.huwei@huawei.com>
+ <20170930161023.GI2965@mtr-leonro.local>
+From: "Wei Hu (Xavier)" <xavier.huwei@huawei.com>
+Message-ID: <59DF60A3.7080803@huawei.com>
+Date: Thu, 12 Oct 2017 20:31:31 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171012093103.13412-3-mgorman@techsingularity.net>
+In-Reply-To: <20170930161023.GI2965@mtr-leonro.local>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dave Chinner <david@fromorbit.com>
+To: Leon Romanovsky <leon@kernel.org>
+Cc: dledford@redhat.com, linux-rdma@vger.kernel.org, lijun_nudt@163.com, oulijun@huawei.com, charles.chenxin@huawei.com, liuyixian@huawei.com, linux-mm@kvack.org, zhangxiping3@huawei.com, xavier.huwei@tom.com, linuxarm@huawei.com, linux-kernel@vger.kernel.org, shaobo.xu@intel.com, shaoboxu@tom.com, leizhen 00275356 <thunder.leizhen@huawei.com>, joro@8bytes.org, iommu@lists.linux-foundation.org
 
-On Thu 12-10-17 10:30:57, Mel Gorman wrote:
-> During truncation, the mapping has already been checked for shmem and dax
-> so it's known that workingset_update_node is required. This patch avoids
-> the checks on mapping for each page being truncated. In all other cases,
-> a lookup helper is used to determine if workingset_update_node() needs
-> to be called. The one danger is that the API is slightly harder to use as
-> calling workingset_update_node directly without checking for dax or shmem
-> mappings could lead to surprises. However, the API rarely needs to be used
-> and hopefully the comment is enough to give people the hint.
-> 
-> sparsetruncate (tiny)
->                               4.14.0-rc4             4.14.0-rc4
->                              oneirq-v1r1        pickhelper-v1r1
-> Min          Time      141.00 (   0.00%)      140.00 (   0.71%)
-> 1st-qrtle    Time      142.00 (   0.00%)      141.00 (   0.70%)
-> 2nd-qrtle    Time      142.00 (   0.00%)      142.00 (   0.00%)
-> 3rd-qrtle    Time      143.00 (   0.00%)      143.00 (   0.00%)
-> Max-90%      Time      144.00 (   0.00%)      144.00 (   0.00%)
-> Max-95%      Time      147.00 (   0.00%)      145.00 (   1.36%)
-> Max-99%      Time      195.00 (   0.00%)      191.00 (   2.05%)
-> Max          Time      230.00 (   0.00%)      205.00 (  10.87%)
-> Amean        Time      144.37 (   0.00%)      143.82 (   0.38%)
-> Stddev       Time       10.44 (   0.00%)        9.00 (  13.74%)
-> Coeff        Time        7.23 (   0.00%)        6.26 (  13.41%)
-> Best99%Amean Time      143.72 (   0.00%)      143.34 (   0.26%)
-> Best95%Amean Time      142.37 (   0.00%)      142.00 (   0.26%)
-> Best90%Amean Time      142.19 (   0.00%)      141.85 (   0.24%)
-> Best75%Amean Time      141.92 (   0.00%)      141.58 (   0.24%)
-> Best50%Amean Time      141.69 (   0.00%)      141.31 (   0.27%)
-> Best25%Amean Time      141.38 (   0.00%)      140.97 (   0.29%)
-> 
-> As you'd expect, the gain is marginal but it can be detected. The differences
-> in bonnie are all within the noise which is not surprising given the impact
-> on the microbenchmark.
-> 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-...
-> diff --git a/mm/workingset.c b/mm/workingset.c
-> index 7119cd745ace..a80d52387734 100644
-> --- a/mm/workingset.c
-> +++ b/mm/workingset.c
-> @@ -341,12 +341,6 @@ static struct list_lru shadow_nodes;
->  
->  void workingset_update_node(struct radix_tree_node *node, void *private)
->  {
-> -	struct address_space *mapping = private;
-> -
-> -	/* Only regular page cache has shadow entries */
-> -	if (dax_mapping(mapping) || shmem_mapping(mapping))
-> -		return;
-> -
 
-Hum, we don't need to pass 'mapping' from call sites then? Either pass NULL
-or just remove the argument completely since nobody needs it anymore...
-Otherwise the patch looks good.
 
-								Honza
+On 2017/10/1 0:10, Leon Romanovsky wrote:
+> On Sat, Sep 30, 2017 at 05:28:59PM +0800, Wei Hu (Xavier) wrote:
+>> If the IOMMU is enabled, the length of sg obtained from
+>> __iommu_map_sg_attrs is not 4kB. When the IOVA is set with the sg
+>> dma address, the IOVA will not be page continuous. and the VA
+>> returned from dma_alloc_coherent is a vmalloc address. However,
+>> the VA obtained by the page_address is a discontinuous VA. Under
+>> these circumstances, the IOVA should be calculated based on the
+>> sg length, and record the VA returned from dma_alloc_coherent
+>> in the struct of hem.
+>>
+>> Signed-off-by: Wei Hu (Xavier) <xavier.huwei@huawei.com>
+>> Signed-off-by: Shaobo Xu <xushaobo2@huawei.com>
+>> Signed-off-by: Lijun Ou <oulijun@huawei.com>
+>> ---
+> Doug,
+>
+> I didn't invest time in reviewing it, but having "is_vmalloc_addr" in
+> driver code to deal with dma_alloc_coherent is most probably wrong.
+>
+> Thanks
+Hi,  Leon & Doug
+     We refered the function named __ttm_dma_alloc_page in the kernel 
+code as below:
+     And there are similar methods in bch_bio_map and mem_to_page 
+functions in current 4.14-rcx.
 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+         static struct dma_page *__ttm_dma_alloc_page(struct dma_pool *pool)
+         {
+             struct dma_page *d_page;
+
+             d_page = kmalloc(sizeof(struct dma_page), GFP_KERNEL);
+             if (!d_page)
+                 return NULL;
+
+             d_page->vaddr = dma_alloc_coherent(pool->dev, pool->size,
+                                &d_page->dma,
+                                    pool->gfp_flags);
+             if (d_page->vaddr) {
+                 if (is_vmalloc_addr(d_page->vaddr))
+                     d_page->p = vmalloc_to_page(d_page->vaddr);
+                 else
+                     d_page->p = virt_to_page(d_page->vaddr);
+             } else {
+                 kfree(d_page);
+                 d_page = NULL;
+             }
+             return d_page;
+         }
+
+     Regards
+Wei Hu
+>
+>>   drivers/infiniband/hw/hns/hns_roce_alloc.c |  5 ++++-
+>>   drivers/infiniband/hw/hns/hns_roce_hem.c   | 30 +++++++++++++++++++++++++++---
+>>   drivers/infiniband/hw/hns/hns_roce_hem.h   |  6 ++++++
+>>   drivers/infiniband/hw/hns/hns_roce_hw_v2.c | 22 +++++++++++++++-------
+>>   4 files changed, 52 insertions(+), 11 deletions(-)
+>>
+>> diff --git a/drivers/infiniband/hw/hns/hns_roce_alloc.c b/drivers/infiniband/hw/hns/hns_roce_alloc.c
+>> index 3e4c525..a69cd4b 100644
+>> --- a/drivers/infiniband/hw/hns/hns_roce_alloc.c
+>> +++ b/drivers/infiniband/hw/hns/hns_roce_alloc.c
+>> @@ -243,7 +243,10 @@ int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
+>>   				goto err_free;
+>>
+>>   			for (i = 0; i < buf->nbufs; ++i)
+>> -				pages[i] = virt_to_page(buf->page_list[i].buf);
+>> +				pages[i] =
+>> +					is_vmalloc_addr(buf->page_list[i].buf) ?
+>> +					vmalloc_to_page(buf->page_list[i].buf) :
+>> +					virt_to_page(buf->page_list[i].buf);
+>>
+>>   			buf->direct.buf = vmap(pages, buf->nbufs, VM_MAP,
+>>   					       PAGE_KERNEL);
+>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hem.c b/drivers/infiniband/hw/hns/hns_roce_hem.c
+>> index 8388ae2..4a3d1d4 100644
+>> --- a/drivers/infiniband/hw/hns/hns_roce_hem.c
+>> +++ b/drivers/infiniband/hw/hns/hns_roce_hem.c
+>> @@ -200,6 +200,7 @@ static struct hns_roce_hem *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
+>>   					       gfp_t gfp_mask)
+>>   {
+>>   	struct hns_roce_hem_chunk *chunk = NULL;
+>> +	struct hns_roce_vmalloc *vmalloc;
+>>   	struct hns_roce_hem *hem;
+>>   	struct scatterlist *mem;
+>>   	int order;
+>> @@ -227,6 +228,7 @@ static struct hns_roce_hem *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
+>>   			sg_init_table(chunk->mem, HNS_ROCE_HEM_CHUNK_LEN);
+>>   			chunk->npages = 0;
+>>   			chunk->nsg = 0;
+>> +			memset(chunk->vmalloc, 0, sizeof(chunk->vmalloc));
+>>   			list_add_tail(&chunk->list, &hem->chunk_list);
+>>   		}
+>>
+>> @@ -243,7 +245,15 @@ static struct hns_roce_hem *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
+>>   		if (!buf)
+>>   			goto fail;
+>>
+>> -		sg_set_buf(mem, buf, PAGE_SIZE << order);
+>> +		if (is_vmalloc_addr(buf)) {
+>> +			vmalloc = &chunk->vmalloc[chunk->npages];
+>> +			vmalloc->is_vmalloc_addr = true;
+>> +			vmalloc->vmalloc_addr = buf;
+>> +			sg_set_page(mem, vmalloc_to_page(buf),
+>> +				    PAGE_SIZE << order, offset_in_page(buf));
+>> +		} else {
+>> +			sg_set_buf(mem, buf, PAGE_SIZE << order);
+>> +		}
+>>   		WARN_ON(mem->offset);
+>>   		sg_dma_len(mem) = PAGE_SIZE << order;
+>>
+>> @@ -262,17 +272,25 @@ static struct hns_roce_hem *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
+>>   void hns_roce_free_hem(struct hns_roce_dev *hr_dev, struct hns_roce_hem *hem)
+>>   {
+>>   	struct hns_roce_hem_chunk *chunk, *tmp;
+>> +	void *cpu_addr;
+>>   	int i;
+>>
+>>   	if (!hem)
+>>   		return;
+>>
+>>   	list_for_each_entry_safe(chunk, tmp, &hem->chunk_list, list) {
+>> -		for (i = 0; i < chunk->npages; ++i)
+>> +		for (i = 0; i < chunk->npages; ++i) {
+>> +			if (chunk->vmalloc[i].is_vmalloc_addr)
+>> +				cpu_addr = chunk->vmalloc[i].vmalloc_addr;
+>> +			else
+>> +				cpu_addr =
+>> +				   lowmem_page_address(sg_page(&chunk->mem[i]));
+>> +
+>>   			dma_free_coherent(hr_dev->dev,
+>>   				   chunk->mem[i].length,
+>> -				   lowmem_page_address(sg_page(&chunk->mem[i])),
+>> +				   cpu_addr,
+>>   				   sg_dma_address(&chunk->mem[i]));
+>> +		}
+>>   		kfree(chunk);
+>>   	}
+>>
+>> @@ -774,6 +792,12 @@ void *hns_roce_table_find(struct hns_roce_dev *hr_dev,
+>>
+>>   			if (chunk->mem[i].length > (u32)offset) {
+>>   				page = sg_page(&chunk->mem[i]);
+>> +				if (chunk->vmalloc[i].is_vmalloc_addr) {
+>> +					mutex_unlock(&table->mutex);
+>> +					return page ?
+>> +						chunk->vmalloc[i].vmalloc_addr
+>> +						+ offset : NULL;
+>> +				}
+>>   				goto out;
+>>   			}
+>>   			offset -= chunk->mem[i].length;
+>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hem.h b/drivers/infiniband/hw/hns/hns_roce_hem.h
+>> index af28bbf..62d712a 100644
+>> --- a/drivers/infiniband/hw/hns/hns_roce_hem.h
+>> +++ b/drivers/infiniband/hw/hns/hns_roce_hem.h
+>> @@ -72,11 +72,17 @@ enum {
+>>   	 HNS_ROCE_HEM_PAGE_SIZE  = 1 << HNS_ROCE_HEM_PAGE_SHIFT,
+>>   };
+>>
+>> +struct hns_roce_vmalloc {
+>> +	bool	is_vmalloc_addr;
+>> +	void	*vmalloc_addr;
+>> +};
+>> +
+>>   struct hns_roce_hem_chunk {
+>>   	struct list_head	 list;
+>>   	int			 npages;
+>>   	int			 nsg;
+>>   	struct scatterlist	 mem[HNS_ROCE_HEM_CHUNK_LEN];
+>> +	struct hns_roce_vmalloc	 vmalloc[HNS_ROCE_HEM_CHUNK_LEN];
+>>   };
+>>
+>>   struct hns_roce_hem {
+>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hw_v2.c b/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
+>> index b99d70a..9e19bf1 100644
+>> --- a/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
+>> +++ b/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
+>> @@ -1093,9 +1093,11 @@ static int hns_roce_v2_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
+>>   {
+>>   	struct hns_roce_v2_mpt_entry *mpt_entry;
+>>   	struct scatterlist *sg;
+>> +	u64 page_addr = 0;
+>>   	u64 *pages;
+>> +	int i = 0, j = 0;
+>> +	int len = 0;
+>>   	int entry;
+>> -	int i;
+>>
+>>   	mpt_entry = mb_buf;
+>>   	memset(mpt_entry, 0, sizeof(*mpt_entry));
+>> @@ -1153,14 +1155,20 @@ static int hns_roce_v2_write_mtpt(void *mb_buf, struct hns_roce_mr *mr,
+>>
+>>   	i = 0;
+>>   	for_each_sg(mr->umem->sg_head.sgl, sg, mr->umem->nmap, entry) {
+>> -		pages[i] = ((u64)sg_dma_address(sg)) >> 6;
+>> -
+>> -		/* Record the first 2 entry directly to MTPT table */
+>> -		if (i >= HNS_ROCE_V2_MAX_INNER_MTPT_NUM - 1)
+>> -			break;
+>> -		i++;
+>> +		len = sg_dma_len(sg) >> PAGE_SHIFT;
+>> +		for (j = 0; j < len; ++j) {
+>> +			page_addr = sg_dma_address(sg) +
+>> +				    (j << mr->umem->page_shift);
+>> +			pages[i] = page_addr >> 6;
+>> +
+>> +			/* Record the first 2 entry directly to MTPT table */
+>> +			if (i >= HNS_ROCE_V2_MAX_INNER_MTPT_NUM - 1)
+>> +				goto found;
+>> +			i++;
+>> +		}
+>>   	}
+>>
+>> +found:
+>>   	mpt_entry->pa0_l = cpu_to_le32(lower_32_bits(pages[0]));
+>>   	roce_set_field(mpt_entry->byte_56_pa0_h, V2_MPT_BYTE_56_PA0_H_M,
+>>   		       V2_MPT_BYTE_56_PA0_H_S,
+>> --
+>> 1.9.1
+>>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
