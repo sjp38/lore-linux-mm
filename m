@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 459896B0033
-	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 18:39:15 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id q83so3493118qke.16
-        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 15:39:15 -0700 (PDT)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 27E1F6B0033
+	for <linux-mm@kvack.org>; Thu, 12 Oct 2017 18:52:55 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id b15so3519713qkg.23
+        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 15:52:55 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w185si8021274qkc.84.2017.10.12.15.39.14
+        by mx.google.com with ESMTPS id b29si3492548qtk.59.2017.10.12.15.52.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Oct 2017 15:39:14 -0700 (PDT)
-Date: Thu, 12 Oct 2017 18:39:08 -0400 (EDT)
+        Thu, 12 Oct 2017 15:52:54 -0700 (PDT)
+Date: Thu, 12 Oct 2017 18:52:45 -0400 (EDT)
 From: Pankaj Gupta <pagupta@redhat.com>
-Message-ID: <161871630.19945909.1507847948038.JavaMail.zimbra@redhat.com>
+Message-ID: <1111804283.19946669.1507848765955.JavaMail.zimbra@redhat.com>
 In-Reply-To: <1507847249.21121.207.camel@redhat.com>
 References: <20171012155027.3277-1-pagupta@redhat.com> <20171012155027.3277-3-pagupta@redhat.com> <CAPcyv4i7k6aYK_y4zZtL6p8sW-E_Ft58d2HuxO=dYciqQxaoLg@mail.gmail.com> <1567317495.19940236.1507843517318.JavaMail.zimbra@redhat.com> <CAPcyv4gkri7t+3Unf0sc9AHMnz-v9G_qV_bJppLjUUNAn7drrQ@mail.gmail.com> <1363955128.19944709.1507846719987.JavaMail.zimbra@redhat.com> <1507847249.21121.207.camel@redhat.com>
 Subject: Re: [RFC 2/2] KVM: add virtio-pmem driver
@@ -20,9 +20,11 @@ Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, linux-kernel@vger.kernel.org, KVM list <kvm@vger.kernel.org>, Qemu Developers <qemu-devel@nongnu.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Stefan Hajnoczi <stefanha@redhat.com>, Haozhong Zhang <haozhong.zhang@intel.com>, Nitesh Narayan Lal <nilal@redhat.com>, Kevin Wolf <kwolf@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Ross Zwisler <ross.zwisler@intel.com>, David Hildenbrand <david@redhat.com>, Xiao Guangrong <xiaoguangrong.eric@gmail.com>
+To: Dan Williams <dan.j.williams@intel.com>, Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, KVM list <kvm@vger.kernel.org>, Qemu Developers <qemu-devel@nongnu.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Stefan Hajnoczi <stefanha@redhat.com>, Haozhong Zhang <haozhong.zhang@intel.com>, Nitesh Narayan Lal <nilal@redhat.com>, Kevin Wolf <kwolf@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Ross Zwisler <ross.zwisler@intel.com>, David Hildenbrand <david@redhat.com>, Xiao Guangrong <xiaoguangrong.eric@gmail.com>
 
+
+> > > wrote:
 > > > >=20
 > > > > > > =C2=A0 This patch adds virtio-pmem driver for KVM guest.
 > > > > > > =C2=A0 Guest reads the persistent memory range information
@@ -75,10 +77,6 @@ ds persistent memory range within a
 > The documentation text could make it clear to people that the
 > image shows up as a disk image on the host, but as a pmem
 > memory range in the guest.
-
-yes, this looks better.=20
-thank you.
-
 >=20
 > > > > > I think we need to call this something other than persistent
 > > > > > memory to
@@ -102,9 +100,15 @@ likely
 > > so.
 >=20
 > Still hoping for better ideas than "Virtio Block Backed Pmem" :)
-
-:-)
 >=20
+
+Dan,
+
+I have a query regarding below patch [*]. My assumption is its halted
+because of memory hotplug restructuring work? Anything I am missing=20
+here?
+
+[*] https://www.mail-archive.com/linux-nvdimm@lists.01.org/msg02978.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
