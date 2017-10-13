@@ -1,114 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A438A6B0033
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 12:19:22 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id f199so6222453qke.20
-        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 09:19:22 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j64si1055121qte.443.2017.10.13.09.19.21
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 724256B0038
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 12:19:47 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id j14so871029wre.4
+        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 09:19:47 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id 65si1103857edj.513.2017.10.13.09.19.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Oct 2017 09:19:21 -0700 (PDT)
-Date: Fri, 13 Oct 2017 11:19:16 -0500
-From: Josh Poimboeuf <jpoimboe@redhat.com>
-Subject: Re: [lkp-robot] [x86/kconfig] 81d3871900: BUG:unable_to_handle_kernel
-Message-ID: <20171013161916.pnezqxc5omfy35vh@treble>
-References: <20171010121513.GC5445@yexl-desktop>
- <20171011023106.izaulhwjcoam55jt@treble>
- <20171011170120.7flnk6r77dords7a@treble>
- <alpine.DEB.2.20.1710121202210.28556@nuc-kabylake>
- <20171013044521.662ck56gkwaw3xog@treble>
- <9a1c3232-86e3-7301-23f8-50116abf37d3@virtuozzo.com>
+        Fri, 13 Oct 2017 09:19:43 -0700 (PDT)
+Subject: Re: [PATCH v8 9/9] sparc64: Add support for ADI (Application Data
+ Integrity)
+From: Khalid Aziz <khalid.aziz@oracle.com>
+References: <cover.1506089472.git.khalid.aziz@oracle.com>
+ <cover.1506089472.git.khalid.aziz@oracle.com>
+ <9e3a8c90ade57d94d1ab2100c6d9508fc2d0a212.1506089472.git.khalid.aziz@oracle.com>
+ <ABC0A87C-2B65-493D-8D7C-998616015FF7@oracle.com>
+ <5edaf7dc-6bc7-c365-0b54-b78975c08894@oracle.com>
+ <782BD060-74C5-4D9B-B013-731249A72F87@oracle.com>
+ <44c3473b-a8fb-197e-7fd3-03613569f339@oracle.com>
+Message-ID: <ce3a91db-0fa0-8dda-492d-2ddd281070a7@oracle.com>
+Date: Fri, 13 Oct 2017 10:18:34 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <9a1c3232-86e3-7301-23f8-50116abf37d3@virtuozzo.com>
+In-Reply-To: <44c3473b-a8fb-197e-7fd3-03613569f339@oracle.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Christopher Lameter <cl@linux.com>, kernel test robot <xiaolong.ye@intel.com>, Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Slaby <jslaby@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Mike Galbraith <efault@gmx.de>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, lkp@01.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Megha Dey <megha.dey@linux.intel.com>, Herbert Xu <herbert@gondor.apana.org.au>, "David S. Miller" <davem@davemloft.net>, linux-crypto@vger.kernel.org
+To: Anthony Yznaga <anthony.yznaga@oracle.com>
+Cc: David Miller <davem@davemloft.net>, dave.hansen@linux.intel.com, corbet@lwn.net, Bob Picco <bob.picco@oracle.com>, STEVEN_SISTARE <steven.sistare@oracle.com>, Pasha Tatashin <pasha.tatashin@oracle.com>, Mike Kravetz <mike.kravetz@oracle.com>, Rob Gardner <rob.gardner@oracle.com>, mingo@kernel.org, Nitin Gupta <nitin.m.gupta@oracle.com>, kirill.shutemov@linux.intel.com, Tom Hromatka <tom.hromatka@oracle.com>, Eric Saint Etienne <eric.saint.etienne@oracle.com>, Allen Pais <allen.pais@oracle.com>, cmetcalf@mellanox.com, akpm@linux-foundation.org, geert@linux-m68k.org, pmladek@suse.com, tklauser@distanz.ch, Atish Patra <atish.patra@oracle.com>, Shannon Nelson <shannon.nelson@oracle.com>, Vijay Kumar <vijay.ac.kumar@oracle.com>, peterz@infradead.org, mhocko@suse.com, jack@suse.cz, lstoakes@gmail.com, punit.agrawal@arm.com, hughd@google.com, thomas.tai@oracle.com, paul.gortmaker@windriver.com, ross.zwisler@linux.intel.com, dave.jiang@intel.com, willy@infradead.org, ying.huang@intel.com, zhongjiang@huawei.com, minchan@kernel.org, imbrenda@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, Khalid Aziz <khalid@gonehiking.org>
 
-On Fri, Oct 13, 2017 at 04:56:43PM +0300, Andrey Ryabinin wrote:
-> On 10/13/2017 07:45 AM, Josh Poimboeuf wrote:
-> > On Thu, Oct 12, 2017 at 12:05:04PM -0500, Christopher Lameter wrote:
-> >> On Wed, 11 Oct 2017, Josh Poimboeuf wrote:
-> >>
-> >>> I failed to add the slab maintainers to CC on the last attempt.  Trying
-> >>> again.
-> >>
-> >>
-> >> Hmmm... Yea. SLOB is rarely used and tested. Good illustration of a simple
-> >> allocator and the K&R mechanism that was used in the early kernels.
-> >>
-> >>>> Adding the slub maintainers.  Is slob still supposed to work?
-> >>
-> >> Have not seen anyone using it in a decade or so.
-> >>
-> >> Does the same config with SLUB and slub_debug on the commandline run
-> >> cleanly?
-> >>
-> >>>> I have no idea how that crypto panic could could be related to slob, but
-> >>>> at least it goes away when I switch to slub.
-> >>
-> >> Can you run SLUB with full debug? specify slub_debug on the commandline or
-> >> set CONFIG_SLUB_DEBUG_ON
-> > 
-> > Oddly enough, with CONFIG_SLUB+slub_debug, I get the same crypto panic I
-> > got with CONFIG_SLOB.  The trapping instruction is:
-> > 
-> >   vmovdqa 0x140(%rdi),%xmm0
+On 10/13/2017 08:14 AM, Khalid Aziz wrote:
+> On 10/12/2017 02:27 PM, Anthony Yznaga wrote:
+>>
+>>> On Oct 12, 2017, at 7:44 AM, Khalid Aziz <khalid.aziz@oracle.com> wrote:
+>>>
+>>>
+>>> On 10/06/2017 04:12 PM, Anthony Yznaga wrote:
+>>>>> On Sep 25, 2017, at 9:49 AM, Khalid Aziz <khalid.aziz@oracle.com> 
+>>>>> wrote:
+>>>>>
+>>>>> This patch extends mprotect to enable ADI (TSTATE.mcde), 
+>>>>> enable/disable
+>>>>> MCD (Memory Corruption Detection) on selected memory ranges, enable
+>>>>> TTE.mcd in PTEs, return ADI parameters to userspace and 
+>>>>> save/restore ADI
+>>>>> version tags on page swap out/in or migration. ADI is not enabled by
+>>>> I still don't believe migration is properly supported.A  Your
+>>>> implementation is relying on a fault happening on a page while its
+>>>> migration is in progress so that do_swap_page() will be called, but
+>>>> I don't see how do_swap_page() will be called if a fault does not
+>>>> happen until after the migration has completed.
+>>>
+>>> User pages are on LRU list and for the mapped pages on LRU list, 
+>>> migrate_pages() ultimately calls try_to_unmap_one and makes a 
+>>> migration swap entry for the page being migrated. This forces a page 
+>>> fault upon access on the destination node and the page is swapped 
+>>> back in from swap cache. The fault is forced by the migration swap 
+>>> entry, rather than fault being an accidental event. If page fault 
+>>> happens on the destination node while migration is in progress, 
+>>> do_swap_page() waits until migration is done. Please take a look at 
+>>> the code in __unmap_and_move().
+>>
+>> I looked at the code again, and I now believe ADI tags are never 
+>> restored for migrated pages.A  Here's why:
+>>
 > 
-> 
-> It's unaligned access. Look at %rdi. vmovdqa requires 16-byte alignment.
-> Apparently, something fed kmalloc()'ed data here. But kmalloc() guarantees only sizeof(unsigned long)
-> alignment. slub_debug changes slub's objects layout, so what happened to be 16-bytes aligned
-> without slub_debug, may become 8-byte aligned with slub_debg on.
-> 
->    
-> > I'll try to bisect it tomorrow.  It at least goes back to v4.10.
-> 
-> Probably no point. I bet this bug always was here (since this code added).
-> 
-> This could be fixed by s/vmovdqa/vmovdqu change like bellow, but maybe the right fix
-> would be to align the data properly?
-> 
-> ---
->  arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S | 8 ++++----
->  1 file changed, 4 insertions(+), 4 deletions(-)
-> 
-> diff --git a/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S b/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S
-> index 8fe6338bcc84..7fd5d9b568c7 100644
-> --- a/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S
-> +++ b/arch/x86/crypto/sha256-mb/sha256_mb_mgr_flush_avx2.S
-> @@ -155,8 +155,8 @@ LABEL skip_ %I
->  .endr
->  
->  	# Find min length
-> -	vmovdqa _lens+0*16(state), %xmm0
-> -	vmovdqa _lens+1*16(state), %xmm1
-> +	vmovdqu _lens+0*16(state), %xmm0
-> +	vmovdqu _lens+1*16(state), %xmm1
->  
->  	vpminud %xmm1, %xmm0, %xmm2		# xmm2 has {D,C,B,A}
->  	vpalignr $8, %xmm2, %xmm3, %xmm3	# xmm3 has {x,x,D,C}
-> @@ -176,8 +176,8 @@ LABEL skip_ %I
->  	vpsubd	%xmm2, %xmm0, %xmm0
->  	vpsubd	%xmm2, %xmm1, %xmm1
->  
-> -	vmovdqa	%xmm0, _lens+0*16(state)
-> -	vmovdqa	%xmm1, _lens+1*16(state)
-> +	vmovdqu	%xmm0, _lens+0*16(state)
-> +	vmovdqu	%xmm1, _lens+1*16(state)
->  
->  	# "state" and "args" are the same address, arg1
->  	# len is arg2
-> -- 
-> 2.13.6
+> I will take a look at it again. I have run extensive tests migrating 
+> pages of a process across multiple NUMA nodes over and over again and 
+> ADI tags were never lost, so this does work. I won't rule out the 
+> possibility of having missed a code path where tags are not restored and 
+> I will look for it.
 
-Makes sense.  I can confirm that the above patch fixes the panic.
+Anthony,
 
--- 
-Josh
+I just ran my migration test again which:
+
+- malloc's 16 GB of memory
+- Assigns a rotating ADI tag every 64 bytes to the malloc'd buffer
+- Writes a pattern to the entire buffer
+- Verifies the pattern it wrote using ADI tagged addresses.
+
+While this test was running, I had a script migrate test program pages 
+across two NUMA nodes every 30 seconds using migratepages command. I did 
+not see an ADI tag mismatch over multiple runs of this test. This test 
+shows migration is working.
+
+Can you give me a test that shows the failure you think we should see 
+and I will debug it.
+
+Thanks,
+Khalid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
