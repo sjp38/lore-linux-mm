@@ -1,111 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 437086B0033
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 03:00:04 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id m72so5219172wmc.0
-        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 00:00:04 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q80si279288wrb.397.2017.10.13.00.00.02
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DD57A6B0253
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 03:09:30 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id i124so8539646wmf.7
+        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 00:09:30 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id 128si472525wmz.85.2017.10.13.00.09.29
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 13 Oct 2017 00:00:03 -0700 (PDT)
-Date: Fri, 13 Oct 2017 09:00:01 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
-Message-ID: <20171013070001.mglwdzdrqjt47clz@dhcp22.suse.cz>
-References: <20171006075900.icqjx5rr7hctn3zd@dhcp22.suse.cz>
- <CALvZod7YN4JCG7Anm2FViyZ0-APYy+nxEd3nyxe5LT_P0FC9wg@mail.gmail.com>
- <20171009062426.hmqedtqz5hkmhnff@dhcp22.suse.cz>
- <xr93a810xl77.fsf@gthelen.svl.corp.google.com>
- <20171009202613.GA15027@cmpxchg.org>
- <20171010091430.giflzlayvjblx5bu@dhcp22.suse.cz>
- <20171010141733.GB16710@cmpxchg.org>
- <20171010142434.bpiqmsbb7gttrlcb@dhcp22.suse.cz>
- <20171012190312.GA5075@cmpxchg.org>
- <20171013063555.pa7uco43mod7vrkn@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Oct 2017 00:09:29 -0700 (PDT)
+Date: Fri, 13 Oct 2017 09:09:29 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH v7 07/12] dma-mapping: introduce dma_has_iommu()
+Message-ID: <20171013070929.GA26652@lst.de>
+References: <150732931273.22363.8436792888326501071.stgit@dwillia2-desk3.amr.corp.intel.com> <150732935473.22363.1853399637339625023.stgit@dwillia2-desk3.amr.corp.intel.com> <20171009185840.GB15336@obsidianresearch.com> <CAPcyv4gXzC8OUgO_PciQ2phyq0YtmXjMGWvoPSVVuuZR7ohVCg@mail.gmail.com> <20171009191820.GD15336@obsidianresearch.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171013063555.pa7uco43mod7vrkn@dhcp22.suse.cz>
+In-Reply-To: <20171009191820.GD15336@obsidianresearch.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Greg Thelen <gthelen@google.com>, Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Jan Kara <jack@suse.cz>, Ashok Raj <ashok.raj@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Joerg Roedel <joro@8bytes.org>, Dave Chinner <david@fromorbit.com>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Linux API <linux-api@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, David Woodhouse <dwmw2@infradead.org>, Robin Murphy <robin.murphy@arm.com>, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-Just to be explicit what I've had in mind. This hasn't been even compile
-tested but it should provide at least an idea where I am trying to go..
----
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index d5f3a62887cf..91fa05372114 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1528,26 +1528,36 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
- 
- static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
- {
--	if (!current->memcg_may_oom)
--		return;
- 	/*
- 	 * We are in the middle of the charge context here, so we
- 	 * don't want to block when potentially sitting on a callstack
- 	 * that holds all kinds of filesystem and mm locks.
- 	 *
--	 * Also, the caller may handle a failed allocation gracefully
--	 * (like optional page cache readahead) and so an OOM killer
--	 * invocation might not even be necessary.
-+	 * cgroup v1 allowes sync users space handling so we cannot afford
-+	 * to get stuck here for that configuration. That's why we don't do
-+	 * anything here except remember the OOM context and then deal with
-+	 * it at the end of the page fault when the stack is unwound, the 
-+	 * locks are released, and when we know whether the fault was overall
-+	 * successful.
- 	 *
--	 * That's why we don't do anything here except remember the
--	 * OOM context and then deal with it at the end of the page
--	 * fault when the stack is unwound, the locks are released,
--	 * and when we know whether the fault was overall successful.
-+	 * On the other hand, in-kernel OOM killer allows for an async victim
-+	 * memory reclaim (oom_reaper) and that means that we are not solely
-+	 * relying on the oom victim to make a forward progress so we can stay
-+	 * in the the try_charge context and keep retrying as long as there
-+	 * are oom victims to select.
- 	 */
--	css_get(&memcg->css);
--	current->memcg_in_oom = memcg;
--	current->memcg_oom_gfp_mask = mask;
--	current->memcg_oom_order = order;
-+	if (memcg->oom_kill_disable) {
-+		if (!current->memcg_may_oom)
-+			return false;
-+		css_get(&memcg->css);
-+		current->memcg_in_oom = memcg;
-+		current->memcg_oom_gfp_mask = mask;
-+		current->memcg_oom_order = order;
-+
-+		return false;
-+	}
-+
-+	return mem_cgroup_out_of_memory(memcg, mask, order);
- }
- 
- /**
-@@ -2007,8 +2017,11 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 
- 	mem_cgroup_event(mem_over_limit, MEMCG_OOM);
- 
--	mem_cgroup_oom(mem_over_limit, gfp_mask,
--		       get_order(nr_pages * PAGE_SIZE));
-+	if (mem_cgroup_oom(mem_over_limit, gfp_mask,
-+		       get_order(nr_pages * PAGE_SIZE))) {
-+		nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-+		goto retry;
-+	}
- nomem:
- 	if (!(gfp_mask & __GFP_NOFAIL))
- 		return -ENOMEM;
--- 
-Michal Hocko
-SUSE Labs
+On Mon, Oct 09, 2017 at 01:18:20PM -0600, Jason Gunthorpe wrote:
+> > > If RDMA is driving this need, why not invalidate backing RDMA MRs
+> > > instead of requiring a IOMMU to do it? RDMA MR are finer grained and
+> > > do not suffer from the re-use problem David W. brought up with IOVAs..
+> > 
+> > Sounds promising. All I want in the end is to be sure that the kernel
+> > is enabled to stop any in-flight RDMA at will without asking
+> > userspace. Does this require per-RDMA driver opt-in or is there a
+> > common call that can be made?
+> 
+> I don't think this has ever come up in the context of an all-device MR
+> invalidate requirement. Drivers already have code to invalidate
+> specifc MRs, but to find all MRs that touch certain pages and then
+> invalidate them would be new code.
+
+The whole point is that we should not need that IFF we provide the
+right interface.
+
+If we have a new 'register memory with a lease', the driver (or in fact
+probably the umem core for the drivers using it) has the lease associated
+with the ib_umem structure, which will just need a backpointer from the
+ib_umem to the to the MR to unregister it.
+
+Which might be a good opportunity to break the user MR from the in-kernel
+ones and merge it with ib_umem, but that's a different story..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
