@@ -1,106 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6ACD16B0033
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 11:02:47 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id k123so3849498qke.5
-        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 08:02:47 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id u6si943265qkd.122.2017.10.13.08.02.45
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 56D8F6B0038
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 11:04:28 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id g128so6539085itb.5
+        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 08:04:28 -0700 (PDT)
+Received: from quartz.orcorp.ca (quartz.orcorp.ca. [184.70.90.242])
+        by mx.google.com with ESMTPS id p204si772554iod.235.2017.10.13.08.04.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Oct 2017 08:02:46 -0700 (PDT)
-Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
-	by aserp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with ESMTP id v9DF2i76020861
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 15:02:45 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id v9DF2i7o032610
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 15:02:44 GMT
-Received: from abhmp0004.oracle.com (abhmp0004.oracle.com [141.146.116.10])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id v9DF2hVY016069
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 15:02:44 GMT
-Received: by mail-oi0-f53.google.com with SMTP id h200so14723503oib.4
-        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 08:02:43 -0700 (PDT)
+        Fri, 13 Oct 2017 08:04:26 -0700 (PDT)
+Date: Fri, 13 Oct 2017 09:03:48 -0600
+From: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+Subject: Re: [PATCH v7 07/12] dma-mapping: introduce dma_has_iommu()
+Message-ID: <20171013150348.GA11257@obsidianresearch.com>
+References: <CAPcyv4gXzC8OUgO_PciQ2phyq0YtmXjMGWvoPSVVuuZR7ohVCg@mail.gmail.com>
+ <20171009191820.GD15336@obsidianresearch.com>
+ <CAPcyv4h_uQGBAX6-bMkkZLO_YyQ6t4n_b8tH8wU_P0Jh23N5MQ@mail.gmail.com>
+ <20171010172516.GA29915@obsidianresearch.com>
+ <CAPcyv4jL5fN7jjXkQum8ERQ45eW63dCYp5Pm6aHY4OPudz4Wsw@mail.gmail.com>
+ <20171010180512.GA31734@obsidianresearch.com>
+ <CAPcyv4gCBu5ptmWyof+Z-p7NbuCygEs2rMe2wdL0n3QQbXhrzA@mail.gmail.com>
+ <20171012182712.GA5772@obsidianresearch.com>
+ <CAPcyv4g1zXq7MbtivoviHEME6Oi8YJOnVG3jBah3YpHXPAhg6Q@mail.gmail.com>
+ <20171013065047.GA26461@lst.de>
 MIME-Version: 1.0
-In-Reply-To: <20171013145431.GA5919@leverpostej>
-References: <20171009221931.1481-1-pasha.tatashin@oracle.com>
- <20171009221931.1481-8-pasha.tatashin@oracle.com> <20171010155619.GA2517@arm.com>
- <CAOAebxv21+KtXPAk-xWz=+2fqWQDgp9SAFZz-N=XsuBxev=zcg@mail.gmail.com>
- <20171010171047.GC2517@arm.com> <CAOAebxtrSthSP4NAa0obBbsCK1KZxO+x0w5xNrpY6m2y9UZFvQ@mail.gmail.com>
- <CAOAebxu5WL-FQLgfCxNcWy36V6zsTO1v3LLqXv5rM1Pp9R-=YA@mail.gmail.com>
- <20171013144319.GB4746@arm.com> <20171013145431.GA5919@leverpostej>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Fri, 13 Oct 2017 11:02:42 -0400
-Message-ID: <CAOAebxvdxNwq5yV+7DpHu_u_k_vxmmwMdGQJzT+iGwnez8EO-g@mail.gmail.com>
-Subject: Re: [PATCH v11 7/9] arm64/kasan: add and use kasan_map_populate()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171013065047.GA26461@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, Michal Hocko <mhocko@kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, Steve Sistare <steven.sistare@oracle.com>, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: Christoph Hellwig <hch@lst.de>
+Cc: Dan Williams <dan.j.williams@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Jan Kara <jack@suse.cz>, Ashok Raj <ashok.raj@intel.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-rdma@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Joerg Roedel <joro@8bytes.org>, Dave Chinner <david@fromorbit.com>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Linux API <linux-api@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, David Woodhouse <dwmw2@infradead.org>, Robin Murphy <robin.murphy@arm.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-> Do you know what your physical memory layout looks like?
+On Fri, Oct 13, 2017 at 08:50:47AM +0200, Christoph Hellwig wrote:
 
-[    0.000000] Memory: 34960K/131072K available (16316K kernel code,
-6716K rwdata, 7996K rodata, 1472K init, 8837K bss, 79728K reserved,
-16384K cma-reserved)
-[    0.000000] Virtual kernel memory layout:
-[    0.000000]     kasan   : 0xffff000000000000 - 0xffff200000000000
-( 32768 GB)
-[    0.000000]     modules : 0xffff200000000000 - 0xffff200008000000
-(   128 MB)
-[    0.000000]     vmalloc : 0xffff200008000000 - 0xffff7dffbfff0000
-( 96254 GB)
-[    0.000000]       .text : 0xffff200008080000 - 0xffff200009070000
-( 16320 KB)
-[    0.000000]     .rodata : 0xffff200009070000 - 0xffff200009850000
-(  8064 KB)
-[    0.000000]       .init : 0xffff200009850000 - 0xffff2000099c0000
-(  1472 KB)
-[    0.000000]       .data : 0xffff2000099c0000 - 0xffff20000a04f200
-(  6717 KB)
-[    0.000000]        .bss : 0xffff20000a04f200 - 0xffff20000a8f09e0
-(  8838 KB)
-[    0.000000]     fixed   : 0xffff7dfffe7fd000 - 0xffff7dfffec00000
-(  4108 KB)
-[    0.000000]     PCI I/O : 0xffff7dfffee00000 - 0xffff7dffffe00000
-(    16 MB)
-[    0.000000]     vmemmap : 0xffff7e0000000000 - 0xffff800000000000
-(  2048 GB maximum)
-[    0.000000]               0xffff7e0000000000 - 0xffff7e0000200000
-(     2 MB actual)
-[    0.000000]     memory  : 0xffff800000000000 - 0xffff800008000000
-(   128 MB)
+> > However, chatting this over with a few more people I have an alternate
+> > solution that effectively behaves the same as how non-ODP hardware
+> > handles this case of hole punch / truncation today. So, today if this
+> > scenario happens on a page-cache backed mapping, the file blocks are
+> > unmapped and the RDMA continues into pinned pages that are no longer
+> > part of the file. We can achieve the same thing with the iommu, just
+> > re-target the I/O into memory that isn't part of the file. That way
+> > hardware does not see I/O errors and the DAX data consistency model is
+> > no worse than the page-cache case.
+> 
+> Yikes.
 
->
-> Knowing that would tell us where shadow memory *should* be.
->
-> Can you share the command line you're using the launch the VM?
->
+Well, as much as you say Yikes, Dan is correct, this does match the
+semantics RDMA MR's already have. They become non-coherent if their
+underlying object is changed, and there are many ways to get there.
+I've never thought about it, but it does sound like ftruncate,
+fallocate, etc on a normal file would break the MR coherency too??
 
-virtme-run --kdir . --arch aarch64 --qemu-opts -s -S
+There have been efforts in the past driven by the MPI people to
+create, essentially, something like lease-break' SIGIO. Except it was
+intended to be general, and wanted solve all the problems related with
+MR de-coherence. This was complicated and never became acceptable to
+mainline.
 
-and get messages from connected gdb session via lx-dmesg command.
+Instead ODP was developed, and ODP actually solves all the problem
+sanely.
 
-The actual qemu arguments are these:
+Thinking about it some more, and with your other comments on
+get_user_pages in this thread, I tend to agree. It doesn't make sense
+to develop a user space lease break API for MR's that is a DAX
+specific feature.
 
-qemu-system-aarch64 -fsdev
-local,id=virtfs1,path=/,security_model=none,readonly -device
-virtio-9p-device,fsdev=virtfs1,mount_tag=/dev/root -fsdev
-local,id=virtfs5,path=/usr/share/virtme-guest-0,security_model=none,readonly
--device virtio-9p-device,fsdev=virtfs5,mount_tag=virtme.guesttools -M
-virt -cpu cortex-a57 -parallel none -net none -echr 1 -serial none
--chardev stdio,id=console,signal=off,mux=on -serial chardev:console
--mon chardev=console -vga none -display none -kernel
-./arch/arm64/boot/Image -append 'earlyprintk=serial,ttyAMA0,115200
-console=ttyAMA0 psmouse.proto=exps "virtme_stty_con=rows 57 cols 105
-iutf8" TERM=screen-256color-bce rootfstype=9p
-rootflags=version=9p2000.L,trans=virtio,access=any raid=noautodetect
-ro init=/bin/sh -- -c "mount -t tmpfs run /run;mkdir -p
-/run/virtme/guesttools;/bin/mount -n -t 9p -o
-ro,version=9p2000.L,trans=virtio,access=any virtme.guesttools
-/run/virtme/guesttools;exec /run/virtme/guesttools/virtme-init"' -s -S
+Along the some lines, it also doesn't make sense to force-invalidate
+MR's linked to DAX regions, while leaving MR's linked to other
+regions that have the same problem alone.
+
+If you want to make non-ODP MR's work better, then you need to have a
+general overall solution to tell userspace when the MR becomes (or I
+guess, is becoming) non-coherent, that covers all the cases that break
+MR coherence, not just via DAX.
+
+Otherwise, I think Dan is right, keeping the current semantic of
+having MRs just do something wrong, but not corrupt memory, when they
+loose coherence, is broadly consistent with how non-ODP MRs work today.
+
+Jason
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
