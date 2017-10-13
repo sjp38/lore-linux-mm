@@ -1,71 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B9766B025F
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 14:23:49 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id a12so6580497qka.7
-        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 11:23:49 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id v187si1286559qkc.172.2017.10.13.11.23.47
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 67EE86B0260
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 15:09:27 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id n79so7199228ion.17
+        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 12:09:27 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c62sor866180ioc.3.2017.10.13.12.09.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Oct 2017 11:23:48 -0700 (PDT)
-Date: Fri, 13 Oct 2017 14:23:58 -0400
-From: Bob Picco <bob.picco@oracle.com>
-Subject: Re: [PATCH v12 00/11] complete deferred page initialization
-Message-ID: <20171013182358.GE17753@zareason>
-References: <20171013173214.27300-1-pasha.tatashin@oracle.com>
+        (Google Transport Security);
+        Fri, 13 Oct 2017 12:09:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171013173214.27300-1-pasha.tatashin@oracle.com>
+In-Reply-To: <9a1c3232-86e3-7301-23f8-50116abf37d3@virtuozzo.com>
+References: <20171010121513.GC5445@yexl-desktop> <20171011023106.izaulhwjcoam55jt@treble>
+ <20171011170120.7flnk6r77dords7a@treble> <alpine.DEB.2.20.1710121202210.28556@nuc-kabylake>
+ <20171013044521.662ck56gkwaw3xog@treble> <9a1c3232-86e3-7301-23f8-50116abf37d3@virtuozzo.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 13 Oct 2017 12:09:23 -0700
+Message-ID: <CA+55aFyvK+proOBKfc41qSH8hoPU+mBiT0=hLhbt_ZQv4N82iA@mail.gmail.com>
+Subject: Re: [lkp-robot] [x86/kconfig] 81d3871900: BUG:unable_to_handle_kernel
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, akpm@linux-foundation.org, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>, Christopher Lameter <cl@linux.com>, kernel test robot <xiaolong.ye@intel.com>, Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Slaby <jslaby@suse.cz>, Mike Galbraith <efault@gmx.de>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, LKP <lkp@01.org>, linux-mm <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Megha Dey <megha.dey@linux.intel.com>, Herbert Xu <herbert@gondor.apana.org.au>, "David S. Miller" <davem@davemloft.net>, Linux Crypto Mailing List <linux-crypto@vger.kernel.org>
 
-Pavel Tatashin wrote:	[Fri Oct 13 2017, 01:32:03PM EDT]
-> Changelog:
-> v12 - v11
-> - Improved comments for mm: zero reserved and unavailable struct pages
-> - Added back patch: mm: deferred_init_memmap improvements
-> - Added patch from Will Deacon: arm64: kasan: Avoid using
->   vmemmap_populate to initialise shadow
-[...]
-> Pavel Tatashin (10):
->   mm: deferred_init_memmap improvements
->   x86/mm: setting fields in deferred pages
->   sparc64/mm: setting fields in deferred pages
->   sparc64: simplify vmemmap_populate
->   mm: defining memblock_virt_alloc_try_nid_raw
->   mm: zero reserved and unavailable struct pages
->   x86/kasan: add and use kasan_map_populate()
->   arm64/kasan: add and use kasan_map_populate()
->   mm: stop zeroing memory during allocation in vmemmap
->   sparc64: optimized struct page zeroing
-> 
-> Will Deacon (1):
->   arm64: kasan: Avoid using vmemmap_populate to initialise shadow
-> 
->  arch/arm64/Kconfig                  |   2 +-
->  arch/arm64/mm/kasan_init.c          | 130 +++++++++++++--------
->  arch/sparc/include/asm/pgtable_64.h |  30 +++++
->  arch/sparc/mm/init_64.c             |  32 +++---
->  arch/x86/mm/init_64.c               |  10 +-
->  arch/x86/mm/kasan_init_64.c         |  75 +++++++++++-
->  include/linux/bootmem.h             |  27 +++++
->  include/linux/memblock.h            |  16 +++
->  include/linux/mm.h                  |  26 +++++
->  mm/memblock.c                       |  60 ++++++++--
->  mm/page_alloc.c                     | 224 +++++++++++++++++++++---------------
->  mm/sparse-vmemmap.c                 |  15 ++-
->  mm/sparse.c                         |   6 +-
->  13 files changed, 469 insertions(+), 184 deletions(-)
-> 
-> -- 
-> 2.14.2
-> 
-Boot tested on ThunderX2 VM.
-Tested-by: Bob Picco <bob.picco@oracle.com>
+On Fri, Oct 13, 2017 at 6:56 AM, Andrey Ryabinin
+<aryabinin@virtuozzo.com> wrote:
+>
+> This could be fixed by s/vmovdqa/vmovdqu change like bellow, but maybe the right fix
+> would be to align the data properly?
+
+I suspect anything that has the SHA extensions should also do
+unaligned loads efficiently. The whole "aligned only" model is broken.
+It's just doing two loads from the state pointer, there's likely no
+point in trying to align it.
+
+So your patch looks fine, but maybe somebody could add the required
+alignment to the sha256 context allocation (which I don't know where
+it is).
+
+But yeah, that other SLOB panic looks unrelated to this.
+
+                   Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
