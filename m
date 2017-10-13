@@ -1,36 +1,43 @@
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: [lkp-robot] [x86/kconfig]  81d3871900:
- BUG:unable_to_handle_kernel
-Date: Fri, 13 Oct 2017 10:22:54 -0500 (CDT)
-Message-ID: <alpine.DEB.2.20.1710131021240.3949@nuc-kabylake>
-References: <20171010121513.GC5445@yexl-desktop> <20171011023106.izaulhwjcoam55jt@treble> <20171011170120.7flnk6r77dords7a@treble> <alpine.DEB.2.20.1710121202210.28556@nuc-kabylake> <20171013044521.662ck56gkwaw3xog@treble>
+Subject: Re: [RFC PATCH 3/3] mm/map_contig: Add mmap(MAP_CONTIG) support
+Date: Fri, 13 Oct 2017 10:42:37 -0500 (CDT)
+Message-ID: <alpine.DEB.2.20.1710131040570.4247@nuc-kabylake>
+References: <21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com> <20171012014611.18725-1-mike.kravetz@oracle.com> <20171012014611.18725-4-mike.kravetz@oracle.com> <20171012143756.p5bv4zx476qkmqhh@dhcp22.suse.cz> <f4a46a19-5f71-ebcc-3098-a35728fbfd03@oracle.com>
+ <20171013084054.me3kxhgbxzgm2lpr@dhcp22.suse.cz> <alpine.DEB.2.20.1710131015420.3949@nuc-kabylake> <20171013152801.nbpk6nluotgbmfrs@dhcp22.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <20171013044521.662ck56gkwaw3xog@treble>
+In-Reply-To: <20171013152801.nbpk6nluotgbmfrs@dhcp22.suse.cz>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: kernel test robot <xiaolong.ye@intel.com>, Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Slaby <jslaby@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Mike Galbraith <efault@gmx.de>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, lkp@01.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 List-Id: linux-mm.kvack.org
 
-On Thu, 12 Oct 2017, Josh Poimboeuf wrote:
+On Fri, 13 Oct 2017, Michal Hocko wrote:
 
-> > Can you run SLUB with full debug? specify slub_debug on the commandline or
-> > set CONFIG_SLUB_DEBUG_ON
+> On Fri 13-10-17 10:20:06, Cristopher Lameter wrote:
+> > On Fri, 13 Oct 2017, Michal Hocko wrote:
+> [...]
+> > > I am not really convinced this is a good interface. You are basically
+> > > trying to bypass virtual memory abstraction and that is quite
+> > > contradicting the mmap API to me.
+> >
+> > This is a standardized posix interface as described in our presentation at
+> > the plumbers conference. See the presentation on contiguous allocations.
 >
-> Oddly enough, with CONFIG_SLUB+slub_debug, I get the same crypto panic I
-> got with CONFIG_SLOB.  The trapping instruction is:
+> Are you trying to desing a generic interface with a very specific and HW
+> dependent usecase in mind?
+
+There is a generic posix interface that could we used for a variety of
+specific hardware dependent use cases.
+
+> > The contiguous allocations are particularly useful for the RDMA API which
+> > allows registering user space memory with devices.
 >
->   vmovdqa 0x140(%rdi),%xmm0
->
-> I'll try to bisect it tomorrow.  It at least goes back to v4.10.  I'm
-> not really sure whether this panic is related to SLUB or SLOB at all.
+> then make those devices expose an implementation of an mmap which does
+> that. You would get both a proper access control (via fd), accounting
+> and others.
 
-Guess not. The slab allocators can fail if the metadata gets corrupted.
-That is why we have extensive debug modes so we can find who is to blame
-for corruptions.
-
-> (Though the original panic reported upthread by the kernel test robot
-> *does* look SLOB related.)
-
-Yup. Just happened to be configured for SLOB then.
+There are numerous RDMA devices that would all need the mmap
+implementation. And this covers only the needs of one subsystem. There are
+other use cases.
