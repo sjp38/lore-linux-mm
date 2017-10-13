@@ -1,117 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 11BF26B0253
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 00:45:31 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id q4so13806148qtq.16
-        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 21:45:31 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n30si112638qtf.26.2017.10.12.21.45.29
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E8C86B0033
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 02:31:20 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id a8so6982083pfc.6
+        for <linux-mm@kvack.org>; Thu, 12 Oct 2017 23:31:20 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id w12si164974pfa.434.2017.10.12.23.31.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 12 Oct 2017 21:45:29 -0700 (PDT)
-Date: Thu, 12 Oct 2017 23:45:21 -0500
-From: Josh Poimboeuf <jpoimboe@redhat.com>
-Subject: Re: [lkp-robot] [x86/kconfig]  81d3871900:
- BUG:unable_to_handle_kernel
-Message-ID: <20171013044521.662ck56gkwaw3xog@treble>
-References: <20171010121513.GC5445@yexl-desktop>
- <20171011023106.izaulhwjcoam55jt@treble>
- <20171011170120.7flnk6r77dords7a@treble>
- <alpine.DEB.2.20.1710121202210.28556@nuc-kabylake>
+        Thu, 12 Oct 2017 23:31:18 -0700 (PDT)
+Date: Fri, 13 Oct 2017 14:31:11 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: [PATCH] mm/page_alloc: make sure __rmqueue() etc. always inline
+Message-ID: <20171013063111.GA26032@intel.com>
+References: <20171009054434.GA1798@intel.com>
+ <3a46edcf-88f8-e4f4-8b15-3c02620308e4@intel.com>
+ <20171010025151.GD1798@intel.com>
+ <20171010025601.GE1798@intel.com>
+ <8d6a98d3-764e-fd41-59dc-88a9d21822c7@intel.com>
+ <20171010054342.GF1798@intel.com>
+ <20171010144545.c87a28b0f3c4e475305254ab@linux-foundation.org>
+ <20171011023402.GC27907@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1710121202210.28556@nuc-kabylake>
+In-Reply-To: <20171011023402.GC27907@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: kernel test robot <xiaolong.ye@intel.com>, Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Slaby <jslaby@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Mike Galbraith <efault@gmx.de>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, lkp@01.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
 
-On Thu, Oct 12, 2017 at 12:05:04PM -0500, Christopher Lameter wrote:
-> On Wed, 11 Oct 2017, Josh Poimboeuf wrote:
-> 
-> > I failed to add the slab maintainers to CC on the last attempt.  Trying
-> > again.
-> 
-> 
-> Hmmm... Yea. SLOB is rarely used and tested. Good illustration of a simple
-> allocator and the K&R mechanism that was used in the early kernels.
-> 
-> > > Adding the slub maintainers.  Is slob still supposed to work?
-> 
-> Have not seen anyone using it in a decade or so.
-> 
-> Does the same config with SLUB and slub_debug on the commandline run
-> cleanly?
-> 
-> > > I have no idea how that crypto panic could could be related to slob, but
-> > > at least it goes away when I switch to slub.
-> 
-> Can you run SLUB with full debug? specify slub_debug on the commandline or
-> set CONFIG_SLUB_DEBUG_ON
+__rmqueue(), __rmqueue_fallback(), __rmqueue_smallest() and
+__rmqueue_cma_fallback() are all in page allocator's hot path and
+better be finished as soon as possible. One way to make them faster
+is by making them inline. But as Andrew Morton and Andi Kleen pointed
+out:
+https://lkml.org/lkml/2017/10/10/1252
+https://lkml.org/lkml/2017/10/10/1279
+To make sure they are inlined, we should use __always_inline for them.
 
-Oddly enough, with CONFIG_SLUB+slub_debug, I get the same crypto panic I
-got with CONFIG_SLOB.  The trapping instruction is:
+With the will-it-scale/page_fault1/process benchmark, when using nr_cpu
+processes to stress buddy, the results for will-it-scale.processes with
+and without the patch are:
 
-  vmovdqa 0x140(%rdi),%xmm0
-  
-I'll try to bisect it tomorrow.  It at least goes back to v4.10.  I'm
-not really sure whether this panic is related to SLUB or SLOB at all.
-(Though the original panic reported upthread by the kernel test robot
-*does* look SLOB related.)
+On a 2-sockets Intel-Skylake machine:
 
-  general protection fault: 0000 [#1] PREEMPT SMP
-  Modules linked in:
-  CPU: 0 PID: 58 Comm: kworker/0:1 Not tainted 4.13.0 #81
-  Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1.fc26 04/01/2014
-  Workqueue: crypto mcryptd_flusher
-  task: ffff880139108040 task.stack: ffffc9000082c000
-  RIP: 0010:skip_7+0x0/0x67
-  RSP: 0018:ffffc9000082fd88 EFLAGS: 00010246
-  RAX: ffff88013834172c RBX: 00000000f7654321 RCX: 0000000000000003
-  RDX: 0000000000000000 RSI: ffffffff81d254f9 RDI: ffff8801381b1a88
-  RBP: ffffc9000082fd90 R08: 0000000000000000 R09: 0000000000000001
-  R10: 0000000000000001 R11: 0000000000000000 R12: ffffffff82392260
-  R13: ffff88013a7e6500 R14: 00000000fffb80f5 R15: 0000000000000000
-  FS:  0000000000000000(0000) GS:ffff88013a600000(0000) knlGS:0000000000000000
-  CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-  CR2: 00007f88491ef914 CR3: 0000000001e11000 CR4: 00000000001406f0
-  Call Trace:
-   sha256_ctx_mgr_flush+0x28/0x30
-   sha256_mb_flusher+0x53/0x120
-   mcryptd_flusher+0xc4/0xf0
-   process_one_work+0x253/0x6b0
-   worker_thread+0x4d/0x3b0
-   ? preempt_count_sub+0x9b/0x100
-   kthread+0x133/0x150
-   ? process_one_work+0x6b0/0x6b0
-   ? kthread_create_on_node+0x70/0x70
-   ret_from_fork+0x2a/0x40
-  Code: 89 87 30 01 00 00 c7 87 58 01 00 00 ff ff ff ff 48 83 bf a0 01 00 00 00 75 11 48 89 87 38 01 00 00 c7 87 5c 01 00 00 ff ff ff ff <c5> f9 6f 87 40 01 00 00 c5 f9 6f 8f 50 01 00 00 c4 e2 79 3b d1
-  RIP: skip_7+0x0/0x67 RSP: ffffc9000082fd88
-  ---[ end trace d89a1613b7d1b8bc ]---
-  BUG: sleeping function called from invalid context at ./include/linux/percpu-rwsem.h:33
-  in_atomic(): 1, irqs_disabled(): 0, pid: 58, name: kworker/0:1
-  INFO: lockdep is turned off.
-  Preemption disabled at:
-  [<ffffffff81041933>] kernel_fpu_begin+0x13/0x20
-  CPU: 0 PID: 58 Comm: kworker/0:1 Tainted: G      D         4.13.0 #81
-  Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1.fc26 04/01/2014
-  Workqueue: crypto mcryptd_flusher
-  Call Trace:
-   dump_stack+0x8e/0xcd
-   ___might_sleep+0x185/0x260
-   __might_sleep+0x4a/0x80
-   exit_signals+0x33/0x2d0
-   do_exit+0xb4/0xd80
-   ? kthread+0x133/0x150
-   rewind_stack_do_exit+0x17/0x20
-  note: kworker/0:1[58] exited with preempt_count 1
-  tsc: Refined TSC clocksource calibration: 2793.538 MHz
-  clocksource: tsc: mask: 0xffffffffffffffff max_cycles: 0x28446877189, max_idle_ns: 440795280878 ns
+ compiler          base        head
+gcc-4.4.7       6496131     6911823 +6.4%
+gcc-4.9.4       7225110     7731072 +7.0%
+gcc-5.4.1       7054224     7688146 +9.0%
+gcc-6.2.0       7059794     7651675 +8.4%
 
+On a 4-sockets Intel-Skylake machine:
+
+ compiler          base        head
+gcc-4.4.7      13162890    13508193 +2.6%
+gcc-4.9.4      14997463    15484353 +3.2%
+gcc-5.4.1      14708711    15449805 +5.0%
+gcc-6.2.0      14574099    15349204 +5.3%
+
+The above 4 compilers are used becuase I've done the tests through Intel's
+Linux Kernel Performance(LKP) infrastructure and they are the available
+compilers there.
+
+The benefit being less on 4 sockets machine is due to the lock contention
+there(perf-profile/native_queued_spin_lock_slowpath=81%) is less severe
+than on the 2 sockets machine(85%).
+
+What the benchmark does is: it forks nr_cpu processes and then each
+process does the following:
+    1 mmap() 128M anonymous space;
+    2 writes to each page there to trigger actual page allocation;
+    3 munmap() it.
+in a loop.
+https://github.com/antonblanchard/will-it-scale/blob/master/tests/page_fault1.c
+
+Binary size wise, I have locally built them with different compilers:
+
+[aaron@aaronlu obj]$ size */*/mm/page_alloc.o
+   text    data     bss     dec     hex filename
+  37409    9904    8524   55837    da1d gcc-4.9.4/base/mm/page_alloc.o
+  38273    9904    8524   56701    dd7d gcc-4.9.4/head/mm/page_alloc.o
+  37465    9840    8428   55733    d9b5 gcc-5.5.0/base/mm/page_alloc.o
+  38169    9840    8428   56437    dc75 gcc-5.5.0/head/mm/page_alloc.o
+  37573    9840    8428   55841    da21 gcc-6.4.0/base/mm/page_alloc.o
+  38261    9840    8428   56529    dcd1 gcc-6.4.0/head/mm/page_alloc.o
+  36863    9840    8428   55131    d75b gcc-7.2.0/base/mm/page_alloc.o
+  37711    9840    8428   55979    daab gcc-7.2.0/head/mm/page_alloc.o
+
+Text size increased about 800 bytes for mm/page_alloc.o.
+
+[aaron@aaronlu obj]$ size */*/vmlinux
+   text    data     bss     dec       hex     filename
+10342757   5903208 17723392 33969357  20654cd gcc-4.9.4/base/vmlinux
+10342757   5903208 17723392 33969357  20654cd gcc-4.9.4/head/vmlinux
+10332448   5836608 17715200 33884256  2050860 gcc-5.5.0/base/vmlinux
+10332448   5836608 17715200 33884256  2050860 gcc-5.5.0/head/vmlinux
+10094546   5836696 17715200 33646442  201676a gcc-6.4.0/base/vmlinux
+10094546   5836696 17715200 33646442  201676a gcc-6.4.0/head/vmlinux
+10018775   5828732 17715200 33562707  2002053 gcc-7.2.0/base/vmlinux
+10018775   5828732 17715200 33562707  2002053 gcc-7.2.0/head/vmlinux
+
+Text size for vmlinux has no change though, probably due to function
+alignment.
+
+Signed-off-by: Aaron Lu <aaron.lu@intel.com>
+---
+ mm/page_alloc.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 0e309ce4a44a..0fe3e2095268 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1794,7 +1794,7 @@ static void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags
+  * Go through the free lists for the given migratetype and remove
+  * the smallest available page from the freelists
+  */
+-static inline
++static __always_inline
+ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+ 						int migratetype)
+ {
+@@ -1838,7 +1838,7 @@ static int fallbacks[MIGRATE_TYPES][4] = {
+ };
+ 
+ #ifdef CONFIG_CMA
+-static struct page *__rmqueue_cma_fallback(struct zone *zone,
++static __always_inline struct page *__rmqueue_cma_fallback(struct zone *zone,
+ 					unsigned int order)
+ {
+ 	return __rmqueue_smallest(zone, order, MIGRATE_CMA);
+@@ -2219,7 +2219,7 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac,
+  * deviation from the rest of this file, to make the for loop
+  * condition simpler.
+  */
+-static inline bool
++static __always_inline bool
+ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+ {
+ 	struct free_area *area;
+@@ -2291,8 +2291,8 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
+  * Do the hard work of removing an element from the buddy allocator.
+  * Call me with the zone->lock already held.
+  */
+-static struct page *__rmqueue(struct zone *zone, unsigned int order,
+-				int migratetype)
++static __always_inline struct page *
++__rmqueue(struct zone *zone, unsigned int order, int migratetype)
+ {
+ 	struct page *page;
+ 
 -- 
-Josh
+2.13.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
