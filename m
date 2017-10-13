@@ -1,36 +1,26 @@
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: [lkp-robot] [x86/kconfig]  81d3871900:
- BUG:unable_to_handle_kernel
-Date: Thu, 12 Oct 2017 12:05:04 -0500 (CDT)
-Message-ID: <alpine.DEB.2.20.1710121202210.28556@nuc-kabylake>
-References: <20171010121513.GC5445@yexl-desktop> <20171011023106.izaulhwjcoam55jt@treble> <20171011170120.7flnk6r77dords7a@treble>
+Subject: Re: [RFC PATCH 3/3] mm/map_contig: Add mmap(MAP_CONTIG) support
+Date: Fri, 13 Oct 2017 10:14:16 -0500 (CDT)
+Message-ID: <alpine.DEB.2.20.1710131013210.3949@nuc-kabylake>
+References: <21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com> <20171012014611.18725-1-mike.kravetz@oracle.com> <20171012014611.18725-4-mike.kravetz@oracle.com> <5ea60591-c9b5-6520-6292-7a4d6fd04b5f@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <20171011170120.7flnk6r77dords7a@treble>
+In-Reply-To: <5ea60591-c9b5-6520-6292-7a4d6fd04b5f@linux.vnet.ibm.com>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: kernel test robot <xiaolong.ye@intel.com>, Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Slaby <jslaby@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Mike Galbraith <efault@gmx.de>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, lkp@01.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Guy Shattah <sguy@mellanox.com>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 List-Id: linux-mm.kvack.org
 
-On Wed, 11 Oct 2017, Josh Poimboeuf wrote:
+On Thu, 12 Oct 2017, Anshuman Khandual wrote:
 
-> I failed to add the slab maintainers to CC on the last attempt.  Trying
-> again.
+> > +static long __alloc_vma_contig_range(struct vm_area_struct *vma)
+> > +{
+> > +	gfp_t gfp = GFP_HIGHUSER | __GFP_ZERO;
+>
+> Would it be GFP_HIGHUSER_MOVABLE instead ? Why __GFP_ZERO ? If its
+> coming from Buddy, every thing should have already been zeroed out
+> in there. Am I missing something ?
 
-
-Hmmm... Yea. SLOB is rarely used and tested. Good illustration of a simple
-allocator and the K&R mechanism that was used in the early kernels.
-
-> > Adding the slub maintainers.  Is slob still supposed to work?
-
-Have not seen anyone using it in a decade or so.
-
-Does the same config with SLUB and slub_debug on the commandline run
-cleanly?
-
-> > I have no idea how that crypto panic could could be related to slob, but
-> > at least it goes away when I switch to slub.
-
-Can you run SLUB with full debug? specify slub_debug on the commandline or
-set CONFIG_SLUB_DEBUG_ON
+Contiguous pages cannot and should not be moved. They will no longer be
+contiguous then. Also the page migration code cannot handle this case.
