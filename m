@@ -1,50 +1,36 @@
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH 3/3] mm/map_contig: Add mmap(MAP_CONTIG) support
-Date: Fri, 13 Oct 2017 10:20:06 -0500 (CDT)
-Message-ID: <alpine.DEB.2.20.1710131015420.3949@nuc-kabylake>
-References: <21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com> <20171012014611.18725-1-mike.kravetz@oracle.com> <20171012014611.18725-4-mike.kravetz@oracle.com> <20171012143756.p5bv4zx476qkmqhh@dhcp22.suse.cz> <f4a46a19-5f71-ebcc-3098-a35728fbfd03@oracle.com>
- <20171013084054.me3kxhgbxzgm2lpr@dhcp22.suse.cz>
+Subject: Re: [lkp-robot] [x86/kconfig]  81d3871900:
+ BUG:unable_to_handle_kernel
+Date: Fri, 13 Oct 2017 10:22:54 -0500 (CDT)
+Message-ID: <alpine.DEB.2.20.1710131021240.3949@nuc-kabylake>
+References: <20171010121513.GC5445@yexl-desktop> <20171011023106.izaulhwjcoam55jt@treble> <20171011170120.7flnk6r77dords7a@treble> <alpine.DEB.2.20.1710121202210.28556@nuc-kabylake> <20171013044521.662ck56gkwaw3xog@treble>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <20171013084054.me3kxhgbxzgm2lpr@dhcp22.suse.cz>
+In-Reply-To: <20171013044521.662ck56gkwaw3xog@treble>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: kernel test robot <xiaolong.ye@intel.com>, Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Slaby <jslaby@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Mike Galbraith <efault@gmx.de>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, lkp@01.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
 List-Id: linux-mm.kvack.org
 
-On Fri, 13 Oct 2017, Michal Hocko wrote:
+On Thu, 12 Oct 2017, Josh Poimboeuf wrote:
 
-> I would, quite contrary, suggest a device specific mmap implementation
-> which would guarantee both the best memory wrt. physical contiguous
-> aspect as well as the placement - what if the device have a restriction
-> on that as well?
-
-Contemporary high end devices can handle all of memory. If someone does
-not have the requirements to get all that hardware can give you in terms
-of speed then they also wont need contiguous memory.
-
-> > Yes, it remains contiguous.  It is locked in memory.
+> > Can you run SLUB with full debug? specify slub_debug on the commandline or
+> > set CONFIG_SLUB_DEBUG_ON
 >
-> Hmm, so hugetlb on steroids...
-
-Its actually better because there is no requirements of allocation in
-exacytly 2M chunks. The remainder can be used for regular 4k page
-allocations.
-
-> > > Who is going to use such an interface? And probably many other
-> > > questions...
-> >
-> > Thanks for asking.  I am just throwing out the idea of providing an interface
-> > for doing contiguous memory allocations from user space.  There are at least
-> > two (and possibly more) devices that could benefit from such an interface.
+> Oddly enough, with CONFIG_SLUB+slub_debug, I get the same crypto panic I
+> got with CONFIG_SLOB.  The trapping instruction is:
 >
-> I am not really convinced this is a good interface. You are basically
-> trying to bypass virtual memory abstraction and that is quite
-> contradicting the mmap API to me.
+>   vmovdqa 0x140(%rdi),%xmm0
+>
+> I'll try to bisect it tomorrow.  It at least goes back to v4.10.  I'm
+> not really sure whether this panic is related to SLUB or SLOB at all.
 
-This is a standardized posix interface as described in our presentation at
-the plumbers conference. See the presentation on contiguous allocations.
+Guess not. The slab allocators can fail if the metadata gets corrupted.
+That is why we have extensive debug modes so we can find who is to blame
+for corruptions.
 
-The contiguous allocations are particularly useful for the RDMA API which
-allows registering user space memory with devices.
+> (Though the original panic reported upthread by the kernel test robot
+> *does* look SLOB related.)
+
+Yup. Just happened to be configured for SLOB then.
