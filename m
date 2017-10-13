@@ -1,257 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 394AB6B0038
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 08:24:04 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id t188so1621698pfd.20
-        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 05:24:04 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id o3si570658pld.135.2017.10.13.05.24.02
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DFFB6B0033
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 09:19:11 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id k123so5557415qke.10
+        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 06:19:11 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c207si778908qkg.220.2017.10.13.06.19.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Oct 2017 05:24:02 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2, RFC] x86/boot/compressed/64: Handle 5-level paging boot if kernel is above 4G
-Date: Fri, 13 Oct 2017 15:23:45 +0300
-Message-Id: <20171013122345.86304-1-kirill.shutemov@linux.intel.com>
+        Fri, 13 Oct 2017 06:19:10 -0700 (PDT)
+Date: Fri, 13 Oct 2017 16:19:07 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH] virtio: avoid possible OOM lockup at
+ virtballoon_oom_notify()
+Message-ID: <20171013161804-mutt-send-email-mst@kernel.org>
+References: <1507632457-4611-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <59DED510.5000407@intel.com>
+ <201710132028.EHI23713.MJLHOFFOOVtFQS@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201710132028.EHI23713.MJLHOFFOOVtFQS@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: jasowang@redhat.com, virtualization@lists.linux-foundation.org, linux-mm@kvack.org
 
-This patch addresses shortcoming in current boot process on machines
-that supports 5-level paging.
+On Fri, Oct 13, 2017 at 08:28:37PM +0900, Tetsuo Handa wrote:
+> Michael, will you pick up this patch?
+> ----------
+> >From 210dba24134e54cd470e79712c5cb8bb255566c0 Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Tue, 10 Oct 2017 19:28:20 +0900
+> Subject: [PATCH] virtio: avoid possible OOM lockup at virtballoon_oom_notify()
+> 
+> In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
+> serialize against fill_balloon(). But in fill_balloon(),
+> alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
+> called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE]
+> implies __GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, despite __GFP_NORETRY
+> is specified, this allocation attempt might indirectly depend on somebody
+> else's __GFP_DIRECT_RECLAIM memory allocation. And such indirect
+> __GFP_DIRECT_RECLAIM memory allocation might call leak_balloon() via
+> virtballoon_oom_notify() via blocking_notifier_call_chain() callback via
+> out_of_memory() when it reached __alloc_pages_may_oom() and held oom_lock
+> mutex. Since vb->balloon_lock mutex is already held by fill_balloon(), it
+> will cause OOM lockup. Thus, do not wait for vb->balloon_lock mutex if
+> leak_balloon() is called from out_of_memory().
+> 
+>   Thread1                                       Thread2
+>     fill_balloon()
+>       takes a balloon_lock
+>       balloon_page_enqueue()
+>         alloc_page(GFP_HIGHUSER_MOVABLE)
+>           direct reclaim (__GFP_FS context)       takes a fs lock
+>             waits for that fs lock                  alloc_page(GFP_NOFS)
+>                                                       __alloc_pages_may_oom()
+>                                                         takes the oom_lock
+>                                                         out_of_memory()
+>                                                           blocking_notifier_call_chain()
+>                                                             leak_balloon()
+>                                                               tries to take that balloon_lock and deadlocks
+> 
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Reviewed-by: Michal Hocko <mhocko@suse.com>
+> Reviewed-by: Wei Wang <wei.w.wang@intel.com>
 
-If bootloader enables 64-bit mode with 4-level paging, we need to
-switch over to 5-level paging. The switching requires disabling paging.
-It works fine if kernel itself is loaded below 4G.
+I won't since it does not deflate on OOM as we have promised host to do.
+Will post a patch to fix the issue shortly.
 
-If bootloader put the kernel above 4G (not sure if anybody does this),
-we would loose control as soon as paging is disabled as code becomes
-unreachable.
-
-This patch implements trampoline in lower memory to handle this
-situation.
-
-Apart from trampoline itself we also need place to store top level page
-table in lower memory as we don't have a way to load 64-bit value into
-CR3 from 32-bit mode. We only really need 8-bytes there as we only use
-the very first entry of the page table.
-
-place_trampoline() would choose an address for the trampoline page.
-The implementation is based on reserve_bios_regions(). We take a page
-next to end of lowmem.
-
-We only need the page  for very short time, until main kernel image
-setup its own page tables.
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/boot/compressed/head_64.S | 87 ++++++++++++++++++++++++++------------
- arch/x86/boot/compressed/misc.c    | 25 +++++++++++
- 2 files changed, 84 insertions(+), 28 deletions(-)
-
-diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
-index cefe4958fda9..961c72755986 100644
---- a/arch/x86/boot/compressed/head_64.S
-+++ b/arch/x86/boot/compressed/head_64.S
-@@ -288,8 +288,23 @@ ENTRY(startup_64)
- 	leaq	boot_stack_end(%rbx), %rsp
- 
- #ifdef CONFIG_X86_5LEVEL
-+/*
-+ * We need trampoline in lower memory switch from 4- to 5-level paging for
-+ * cases when bootloader put kernel above 4G, but didn't enable 5-level paging
-+ * for us.
-+ *
-+ * We also have to have top page table in lower memory as we don't have a way
-+ * to load 64-bit value into CR3 from 32-bit mode. We only need 8-bytes there
-+ * as we only use the very first entry of the page table.
-+ *
-+ * The same page can be used to place both trampoline code and top level page
-+ * table. place_trampoline() will find suitable place for the trampoline page.
-+ * Code will be placed with offset 0x100 from beginning of the page.
-+ */
-+#define LVL5_TRAMPOLINE_CODE	0x100
-+
- 	/* Preserve RBX across CPUID */
--	movq	%rbx, %r8
-+	movq	%rbx, %r15
- 
- 	/* Check if leaf 7 is supported */
- 	xorl	%eax, %eax
-@@ -307,9 +322,6 @@ ENTRY(startup_64)
- 	andl	$(1 << 16), %ecx
- 	jz	lvl5
- 
--	/* Restore RBX */
--	movq	%r8, %rbx
--
- 	/* Check if 5-level paging has already been enabled */
- 	movq	%cr4, %rax
- 	testl	$X86_CR4_LA57, %eax
-@@ -323,34 +335,53 @@ ENTRY(startup_64)
- 	 * long mode would trigger #GP. So we need to switch off long mode
- 	 * first.
- 	 *
--	 * NOTE: This is not going to work if bootloader put us above 4G
--	 * limit.
-+	 * We use trampoline in lower memory to handle situation when
-+	 * bootloader put the kernel image above 4G.
- 	 *
- 	 * The first step is go into compatibility mode.
- 	 */
- 
--	/* Clear additional page table */
--	leaq	lvl5_pgtable(%rbx), %rdi
--	xorq	%rax, %rax
--	movq	$(PAGE_SIZE/8), %rcx
--	rep	stosq
-+	/*
-+	 * Find sitable place for trampoline.
-+	 * The address will be stored in RBX.
-+	 */
-+	call	place_trampoline
-+	movq	%rax, %rbx
-+
-+	/* Preserve RSI, to be used by movsb below */
-+	movq	%rsi, %r14
-+
-+	/* Copy trampoline code in place */
-+	leaq	lvl5_trampoline_src(%rip), %rsi
-+	leaq	LVL5_TRAMPOLINE_CODE(%rbx), %rdi
-+	movq	$(lvl5_trampoline_end - lvl5_trampoline_src), %rcx
-+	rep	movsb
-+
-+	/* Restore RSI */
-+	movq	%r14, %rsi
- 
- 	/*
--	 * Setup current CR3 as the first and only entry in a new top level
-+	 * Setup current CR3 as the first and the only entry in a new top level
- 	 * page table.
- 	 */
- 	movq	%cr3, %rdi
- 	leaq	0x7 (%rdi), %rax
--	movq	%rax, lvl5_pgtable(%rbx)
-+	movq	%rax, (%rbx)
-+
-+	/*
-+	 * Load address of lvl5 into RDI.
-+	 * It will be used to return address from trampoline.
-+	 */
-+	leaq	lvl5(%rip), %rdi
- 
- 	/* Switch to compatibility mode (CS.L = 0 CS.D = 1) via far return */
- 	pushq	$__KERNEL32_CS
--	leaq	compatible_mode(%rip), %rax
-+	leaq	LVL5_TRAMPOLINE_CODE(%rbx), %rax
- 	pushq	%rax
- 	lretq
- lvl5:
- 	/* Restore RBX */
--	movq	%r8, %rbx
-+	movq	%r15, %rbx
- #endif
- 
- 	/* Zero EFLAGS */
-@@ -488,9 +519,9 @@ relocated:
-  */
- 	jmp	*%rax
- 
--	.code32
- #ifdef CONFIG_X86_5LEVEL
--compatible_mode:
-+	.code32
-+lvl5_trampoline_src:
- 	/* Setup data and stack segments */
- 	movl	$__KERNEL_DS, %eax
- 	movl	%eax, %ds
-@@ -502,7 +533,7 @@ compatible_mode:
- 	movl	%eax, %cr0
- 
- 	/* Point CR3 to 5-level paging */
--	leal	lvl5_pgtable(%ebx), %eax
-+	leal	(%ebx), %eax
- 	movl	%eax, %cr3
- 
- 	/* Enable PAE and LA57 mode */
-@@ -510,23 +541,27 @@ compatible_mode:
- 	orl	$(X86_CR4_PAE | X86_CR4_LA57), %eax
- 	movl	%eax, %cr4
- 
--	/* Calculate address we are running at */
--	call	1f
--1:	popl	%edi
--	subl	$1b, %edi
-+	/* Calculate address of lvl5_enabled once we are in trampoline */
-+	leal	lvl5_enabled - lvl5_trampoline_src + LVL5_TRAMPOLINE_CODE (%ebx), %eax
- 
- 	/* Prepare stack for far return to Long Mode */
- 	pushl	$__KERNEL_CS
--	leal	lvl5(%edi), %eax
--	push	%eax
-+	pushl	%eax
- 
- 	/* Enable paging back */
- 	movl	$(X86_CR0_PG | X86_CR0_PE), %eax
- 	movl	%eax, %cr0
- 
- 	lret
-+
-+	.code64
-+lvl5_enabled:
-+	/* Return from trampoline */
-+	jmp	*%rdi
-+lvl5_trampoline_end:
- #endif
- 
-+	.code32
- no_longmode:
- 	/* This isn't an x86-64 CPU so hang */
- 1:
-@@ -584,7 +619,3 @@ boot_stack_end:
- 	.balign 4096
- pgtable:
- 	.fill BOOT_PGT_SIZE, 1, 0
--#ifdef CONFIG_X86_5LEVEL
--lvl5_pgtable:
--	.fill PAGE_SIZE, 1, 0
--#endif
-diff --git a/arch/x86/boot/compressed/misc.c b/arch/x86/boot/compressed/misc.c
-index c14217cd0155..809c91837521 100644
---- a/arch/x86/boot/compressed/misc.c
-+++ b/arch/x86/boot/compressed/misc.c
-@@ -415,3 +415,28 @@ void fortify_panic(const char *name)
- {
- 	error("detected buffer overflow");
- }
-+
-+#ifdef CONFIG_X86_5LEVEL
-+
-+#define BIOS_START_MIN		0x20000U	/* 128K, less than this is insane */
-+#define BIOS_START_MAX		0x9f000U	/* 640K, absolute maximum */
-+
-+asmlinkage __visible unsigned int place_trampoline()
-+{
-+	unsigned int bios_start, ebda_start;
-+
-+	/* Based on reserve_bios_regions() */
-+
-+	ebda_start = *(unsigned short *)0x40e << 4;
-+	bios_start = *(unsigned short *)0x413 << 10;
-+
-+	if (bios_start < BIOS_START_MIN || bios_start > BIOS_START_MAX)
-+		bios_start = BIOS_START_MAX;
-+
-+	if (ebda_start > BIOS_START_MIN && ebda_start < bios_start)
-+		bios_start = ebda_start;
-+
-+	/* Place trampoline one page below end of low memory, alinged to 4k */
-+	return round_down(bios_start - PAGE_SIZE, PAGE_SIZE);
-+}
-+#endif
--- 
-2.14.2
+> ---
+>  drivers/virtio/virtio_balloon.c | 16 +++++++++++-----
+>  1 file changed, 11 insertions(+), 5 deletions(-)
+> 
+> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> index f0b3a0b..03e6078 100644
+> --- a/drivers/virtio/virtio_balloon.c
+> +++ b/drivers/virtio/virtio_balloon.c
+> @@ -192,7 +192,7 @@ static void release_pages_balloon(struct virtio_balloon *vb,
+>  	}
+>  }
+>  
+> -static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
+> +static unsigned leak_balloon(struct virtio_balloon *vb, size_t num, bool wait)
+>  {
+>  	unsigned num_freed_pages;
+>  	struct page *page;
+> @@ -202,7 +202,13 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
+>  	/* We can only do one array worth at a time. */
+>  	num = min(num, ARRAY_SIZE(vb->pfns));
+>  
+> -	mutex_lock(&vb->balloon_lock);
+> +	if (wait)
+> +		mutex_lock(&vb->balloon_lock);
+> +	else if (!mutex_trylock(&vb->balloon_lock)) {
+> +		pr_info("virtio_balloon: Unable to release %lu pages due to lock contention.\n",
+> +			(unsigned long) min(num, (size_t)vb->num_pages));
+> +		return 0;
+> +	}
+>  	/* We can't release more pages than taken */
+>  	num = min(num, (size_t)vb->num_pages);
+>  	for (vb->num_pfns = 0; vb->num_pfns < num;
+> @@ -367,7 +373,7 @@ static int virtballoon_oom_notify(struct notifier_block *self,
+>  		return NOTIFY_OK;
+>  
+>  	freed = parm;
+> -	num_freed_pages = leak_balloon(vb, oom_pages);
+> +	num_freed_pages = leak_balloon(vb, oom_pages, false);
+>  	update_balloon_size(vb);
+>  	*freed += num_freed_pages;
+>  
+> @@ -395,7 +401,7 @@ static void update_balloon_size_func(struct work_struct *work)
+>  	if (diff > 0)
+>  		diff -= fill_balloon(vb, diff);
+>  	else if (diff < 0)
+> -		diff += leak_balloon(vb, -diff);
+> +		diff += leak_balloon(vb, -diff, true);
+>  	update_balloon_size(vb);
+>  
+>  	if (diff)
+> @@ -597,7 +603,7 @@ static void remove_common(struct virtio_balloon *vb)
+>  {
+>  	/* There might be pages left in the balloon: free them. */
+>  	while (vb->num_pages)
+> -		leak_balloon(vb, vb->num_pages);
+> +		leak_balloon(vb, vb->num_pages, true);
+>  	update_balloon_size(vb);
+>  
+>  	/* Now we reset the device so we can clean up the queues. */
+> -- 
+> 1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
