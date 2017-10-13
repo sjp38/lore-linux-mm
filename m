@@ -1,75 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 08DA16B0033
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 11:47:52 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k15so830961wrc.1
-        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 08:47:51 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b191si1127456wma.214.2017.10.13.08.47.50
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F6696B0033
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 11:54:27 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id c36so15413476qtc.12
+        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 08:54:27 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id x35si1024949qte.401.2017.10.13.08.54.26
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 13 Oct 2017 08:47:50 -0700 (PDT)
-Date: Fri, 13 Oct 2017 17:47:47 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 3/3] mm/map_contig: Add mmap(MAP_CONTIG) support
-Message-ID: <20171013154747.2jv7rtfqyyagiodn@dhcp22.suse.cz>
-References: <21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com>
- <20171012014611.18725-1-mike.kravetz@oracle.com>
- <20171012014611.18725-4-mike.kravetz@oracle.com>
- <20171012143756.p5bv4zx476qkmqhh@dhcp22.suse.cz>
- <f4a46a19-5f71-ebcc-3098-a35728fbfd03@oracle.com>
- <20171013084054.me3kxhgbxzgm2lpr@dhcp22.suse.cz>
- <alpine.DEB.2.20.1710131015420.3949@nuc-kabylake>
- <20171013152801.nbpk6nluotgbmfrs@dhcp22.suse.cz>
- <alpine.DEB.2.20.1710131040570.4247@nuc-kabylake>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Oct 2017 08:54:26 -0700 (PDT)
+Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
+	by aserp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with ESMTP id v9DFsObM030092
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 15:54:25 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id v9DFsNfx022462
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 15:54:24 GMT
+Received: from abhmp0005.oracle.com (abhmp0005.oracle.com [141.146.116.11])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id v9DFsN8P023836
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 15:54:23 GMT
+Received: by mail-oi0-f46.google.com with SMTP id v9so14964133oif.13
+        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 08:54:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1710131040570.4247@nuc-kabylake>
+In-Reply-To: <20171013154426.GC4746@arm.com>
+References: <20171009221931.1481-1-pasha.tatashin@oracle.com>
+ <20171009221931.1481-8-pasha.tatashin@oracle.com> <20171010155619.GA2517@arm.com>
+ <CAOAebxv21+KtXPAk-xWz=+2fqWQDgp9SAFZz-N=XsuBxev=zcg@mail.gmail.com>
+ <20171010171047.GC2517@arm.com> <CAOAebxtrSthSP4NAa0obBbsCK1KZxO+x0w5xNrpY6m2y9UZFvQ@mail.gmail.com>
+ <CAOAebxu5WL-FQLgfCxNcWy36V6zsTO1v3LLqXv5rM1Pp9R-=YA@mail.gmail.com>
+ <20171013144319.GB4746@arm.com> <CAOAebxv4h+8ej6JA_DZbXaNV5JsAk4MbcCLf1+2RvwKGF2+MxQ@mail.gmail.com>
+ <20171013154426.GC4746@arm.com>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Fri, 13 Oct 2017 11:54:21 -0400
+Message-ID: <CAOAebxspETEqFXL1Ez_4TK9CAwwk+uhHbYOmZk2QR8b=GO80cQ@mail.gmail.com>
+Subject: Re: [PATCH v11 7/9] arm64/kasan: add and use kasan_map_populate()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, Michal Hocko <mhocko@kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Mark Rutland <mark.rutland@arm.com>, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, Steve Sistare <steven.sistare@oracle.com>, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On Fri 13-10-17 10:42:37, Cristopher Lameter wrote:
-> On Fri, 13 Oct 2017, Michal Hocko wrote:
-> 
-> > On Fri 13-10-17 10:20:06, Cristopher Lameter wrote:
-> > > On Fri, 13 Oct 2017, Michal Hocko wrote:
-> > [...]
-> > > > I am not really convinced this is a good interface. You are basically
-> > > > trying to bypass virtual memory abstraction and that is quite
-> > > > contradicting the mmap API to me.
-> > >
-> > > This is a standardized posix interface as described in our presentation at
-> > > the plumbers conference. See the presentation on contiguous allocations.
-> >
-> > Are you trying to desing a generic interface with a very specific and HW
-> > dependent usecase in mind?
-> 
-> There is a generic posix interface that could we used for a variety of
-> specific hardware dependent use cases.
+> Thanks for sharing the .config and tree. It looks like the problem is that
+> kimg_shadow_start and kimg_shadow_end are not page-aligned. Whilst I fix
+> them up in kasan_map_populate, they remain unaligned when passed to
+> kasan_populate_zero_shadow, which confuses the loop termination conditions
+> in e.g. zero_pte_populate and the shadow isn't configured properly.
 
-Yes you wrote that already and my counter argument was that this generic
-posix interface shouldn't bypass virtual memory abstraction.
+This makes sense. Thank you. I will insert these changes into your
+patch, and send out a new series soon after sanity checking it.
 
-> > > The contiguous allocations are particularly useful for the RDMA API which
-> > > allows registering user space memory with devices.
-> >
-> > then make those devices expose an implementation of an mmap which does
-> > that. You would get both a proper access control (via fd), accounting
-> > and others.
-> 
-> There are numerous RDMA devices that would all need the mmap
-> implementation. And this covers only the needs of one subsystem. There are
-> other use cases.
-
-That doesn't prevent providing a library function which could be reused
-by all those drivers. Nothing really too much different from
-remap_pfn_range.
--- 
-Michal Hocko
-SUSE Labs
+Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
