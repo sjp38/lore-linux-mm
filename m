@@ -1,61 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BC67A6B0033
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 05:07:52 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id n14so7656448pfh.15
-        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 02:07:52 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id f3si353523plb.556.2017.10.13.02.07.50
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E16F6B025F
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 05:10:05 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id k80so7606022pfj.18
+        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 02:10:05 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b34sor263258pld.12.2017.10.13.02.10.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Oct 2017 02:07:50 -0700 (PDT)
-Date: Fri, 13 Oct 2017 11:07:44 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: Dramatic lockdep slowdown in 4.14
-Message-ID: <20171013090744.lvvc66qexmomsd5f@hirez.programming.kicks-ass.net>
-References: <20171013090333.GA17356@localhost>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171013090333.GA17356@localhost>
+        (Google Transport Security);
+        Fri, 13 Oct 2017 02:10:04 -0700 (PDT)
+From: Yafang Shao <laoar.shao@gmail.com>
+Subject: [PATCH resend] mm/page-writeback.c: make changes of dirty_writeback_centisecs take effect immediately
+Date: Sat, 14 Oct 2017 00:56:17 +0800
+Message-Id: <1507913777-14799-1-git-send-email-laoar.shao@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johan Hovold <johan@kernel.org>
-Cc: Byungchul Park <byungchul.park@lge.com>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, tglx@linutronix.de, linux-mm@kvack.org, kernel-team@lge.com, Tony Lindgren <tony@atomide.com>, Arnd Bergmann <arnd@arndb.de>, linux-omap@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: akpm@linux-foundation.org
+Cc: jack@suse.cz, hannes@cmpxchg.org, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, tytso@mit.edu, yamada.masahiro@socionext.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, laoar.shao@gmail.com
 
-On Fri, Oct 13, 2017 at 11:03:33AM +0200, Johan Hovold wrote:
-> Hi,
-> 
-> I had noticed that the BeagleBone Black boot time appeared to have
-> increased significantly with 4.14 and yesterday I finally had time to
-> investigate it.
-> 
-> Boot time (from "Linux version" to login prompt) had in fact doubled
-> since 4.13 where it took 17 seconds (with my current config) compared to
-> the 35 seconds I now see with 4.14-rc4.
-> 
-> I quick bisect pointed to lockdep and specifically the following commit:
-> 
-> 	28a903f63ec0 ("locking/lockdep: Handle non(or multi)-acquisition
-> 	               of a crosslock")
-> 
-> which I've verified is the commit which doubled the boot time (compared
-> to 28a903f63ec0^) (added by lockdep crossrelease series [1]).
-> 
-> I also verified that simply disabling CONFIG_PROVE_LOCKING on 4.14-rc4
-> brought boot time down to about 14 seconds.
-> 
-> Now since it's lockdep I guess this can't really be considered a
-> regression if these changes did improve lockdep correctness, but still,
-> this dramatic slow down essentially forces me to disable PROVE_LOCKING
-> by default on this system.
-> 
-> Is this lockdep slowdown expected and desirable?
+Two problems with /proc/sys/vm/dirty_writeback_centisecs:
 
-Expected yes, desirable not so much. Its the save_stack_trace() in
-add_xhlock() (IIRC).
+- When the tunable is set to 0 (disable), writing a non-zero value
+  doesn't restart the flushing operations until the dirty background limit
+  is reached or sys_sync is executed or not enough free memory is
+  available or vmscan is triggered.
 
-I've not yet had time to figure out what to do about that.
+- When the tunable was set to one hour and is reset to one second, the
+  new setting will not take effect for up to one hour.
+
+Kicking the flusher threads immediately fixes these issues.
+
+Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+---
+ mm/page-writeback.c | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 0b9c5cb..4e7e739 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -1972,8 +1972,23 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
+ int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
+ 	void __user *buffer, size_t *length, loff_t *ppos)
+ {
+-	proc_dointvec(table, write, buffer, length, ppos);
+-	return 0;
++	unsigned int old_interval = dirty_writeback_interval;
++	int ret;
++
++	ret = proc_dointvec(table, write, buffer, length, ppos);
++
++	/*
++	 * Writing 0 to dirty_writeback_interval will disable periodic writeback
++	 * and a different non-zero value will wakeup the writeback threads.
++	 * wb_wakeup_delayed() would be more appropriate, but it's a pain to
++	 * iterate over all bdis and wbs.
++	 * The reason we do this is to make the change take effect immediately.
++	 */
++	if (!ret && write && dirty_writeback_interval &&
++		dirty_writeback_interval != old_interval)
++		wakeup_flusher_threads(0, WB_REASON_PERIODIC);
++
++	return ret;
+ }
+ 
+ #ifdef CONFIG_BLOCK
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
