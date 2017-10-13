@@ -1,126 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 092C56B0033
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 07:28:40 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id l188so8205453pfc.4
-        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 04:28:40 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id m123si458090pgm.712.2017.10.13.04.28.37
+	by kanga.kvack.org (Postfix) with ESMTP id 4CB706B0033
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 07:42:57 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e64so8259432pfk.0
+        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 04:42:57 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id 69si494423pfh.27.2017.10.13.04.42.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 13 Oct 2017 04:28:38 -0700 (PDT)
-Subject: [PATCH] virtio: avoid possible OOM lockup at virtballoon_oom_notify()
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1507632457-4611-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp><59DED510.5000407@intel.com>
-In-Reply-To: <59DED510.5000407@intel.com>
-Message-Id: <201710132028.EHI23713.MJLHOFFOOVtFQS@I-love.SAKURA.ne.jp>
-Date: Fri, 13 Oct 2017 20:28:37 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 13 Oct 2017 04:42:54 -0700 (PDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH 1/2] mm, memory_hotplug: do not fail offlining too early
+In-Reply-To: <d29b6788-da1b-23e9-090c-d43428deb97d@suse.cz>
+References: <20170918070834.13083-1-mhocko@kernel.org> <20170918070834.13083-2-mhocko@kernel.org> <87bmlfw6mj.fsf@concordia.ellerman.id.au> <20171010122726.6jrfdzkscwge6gez@dhcp22.suse.cz> <87infmz9xd.fsf@concordia.ellerman.id.au> <20171011065123.e7jvoftmtso3vcha@dhcp22.suse.cz> <d29b6788-da1b-23e9-090c-d43428deb97d@suse.cz>
+Date: Fri, 13 Oct 2017 22:42:46 +1100
+Message-ID: <87bmlbtgsp.fsf@concordia.ellerman.id.au>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mst@redhat.com, jasowang@redhat.com
-Cc: virtualization@lists.linux-foundation.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Michael, will you pick up this patch?
-----------
->From 210dba24134e54cd470e79712c5cb8bb255566c0 Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Tue, 10 Oct 2017 19:28:20 +0900
-Subject: [PATCH] virtio: avoid possible OOM lockup at virtballoon_oom_notify()
+Vlastimil Babka <vbabka@suse.cz> writes:
+> On 10/11/2017 08:51 AM, Michal Hocko wrote:
+>> On Wed 11-10-17 13:37:50, Michael Ellerman wrote:
+>>> Michal Hocko <mhocko@kernel.org> writes:
+>>>> On Tue 10-10-17 23:05:08, Michael Ellerman wrote:
+>>>>> Michal Hocko <mhocko@kernel.org> writes:
+>>>>>> From: Michal Hocko <mhocko@suse.com>
+>>>>>>
+>>>>>> Memory offlining can fail just too eagerly under a heavy memory pressure.
+...
+>>>>>
+>>>>> This breaks offline for me.
+>>>>>
+>>>>> Prior to this commit:
+>>>>>   /sys/devices/system/memory/memory0# time echo 0 > online
+>>>>>   -bash: echo: write error: Device or resource busy
+>
+> Well, that means offline didn't actually work for that block even before
+> this patch, right? Is it even a movable_node block? I guess not?
 
-In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
-serialize against fill_balloon(). But in fill_balloon(),
-alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
-called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE]
-implies __GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, despite __GFP_NORETRY
-is specified, this allocation attempt might indirectly depend on somebody
-else's __GFP_DIRECT_RECLAIM memory allocation. And such indirect
-__GFP_DIRECT_RECLAIM memory allocation might call leak_balloon() via
-virtballoon_oom_notify() via blocking_notifier_call_chain() callback via
-out_of_memory() when it reached __alloc_pages_may_oom() and held oom_lock
-mutex. Since vb->balloon_lock mutex is already held by fill_balloon(), it
-will cause OOM lockup. Thus, do not wait for vb->balloon_lock mutex if
-leak_balloon() is called from out_of_memory().
+Correct. It should fail.
 
-  Thread1                                       Thread2
-    fill_balloon()
-      takes a balloon_lock
-      balloon_page_enqueue()
-        alloc_page(GFP_HIGHUSER_MOVABLE)
-          direct reclaim (__GFP_FS context)       takes a fs lock
-            waits for that fs lock                  alloc_page(GFP_NOFS)
-                                                      __alloc_pages_may_oom()
-                                                        takes the oom_lock
-                                                        out_of_memory()
-                                                          blocking_notifier_call_chain()
-                                                            leak_balloon()
-                                                              tries to take that balloon_lock and deadlocks
+>>>>> After:
+>>>>>   /sys/devices/system/memory/memory0# time echo 0 > online
+>>>>>   -bash: echo: write error: Device or resource busy
+>>>>>   
+>>>>>   real	2m0.009s
+>>>>>   user	0m0.000s
+>>>>>   sys	1m25.035s
+>>>>>
+>>>>> There's no way that block can be removed, it contains the kernel text,
+>>>>> so it should instantly fail - which it used to.
+>
+> Ah, right. So your complain is really about that the failure is not
+> instant anymore for blocks that can't be offlined.
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Reviewed-by: Michal Hocko <mhocko@suse.com>
-Reviewed-by: Wei Wang <wei.w.wang@intel.com>
----
- drivers/virtio/virtio_balloon.c | 16 +++++++++++-----
- 1 file changed, 11 insertions(+), 5 deletions(-)
+Yes. Previously it failed instantly, now it doesn't fail, and loops
+infinitely (once the 2 minute limit is removed).
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index f0b3a0b..03e6078 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -192,7 +192,7 @@ static void release_pages_balloon(struct virtio_balloon *vb,
- 	}
- }
- 
--static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
-+static unsigned leak_balloon(struct virtio_balloon *vb, size_t num, bool wait)
- {
- 	unsigned num_freed_pages;
- 	struct page *page;
-@@ -202,7 +202,13 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
- 	/* We can only do one array worth at a time. */
- 	num = min(num, ARRAY_SIZE(vb->pfns));
- 
--	mutex_lock(&vb->balloon_lock);
-+	if (wait)
-+		mutex_lock(&vb->balloon_lock);
-+	else if (!mutex_trylock(&vb->balloon_lock)) {
-+		pr_info("virtio_balloon: Unable to release %lu pages due to lock contention.\n",
-+			(unsigned long) min(num, (size_t)vb->num_pages));
-+		return 0;
-+	}
- 	/* We can't release more pages than taken */
- 	num = min(num, (size_t)vb->num_pages);
- 	for (vb->num_pfns = 0; vb->num_pfns < num;
-@@ -367,7 +373,7 @@ static int virtballoon_oom_notify(struct notifier_block *self,
- 		return NOTIFY_OK;
- 
- 	freed = parm;
--	num_freed_pages = leak_balloon(vb, oom_pages);
-+	num_freed_pages = leak_balloon(vb, oom_pages, false);
- 	update_balloon_size(vb);
- 	*freed += num_freed_pages;
- 
-@@ -395,7 +401,7 @@ static void update_balloon_size_func(struct work_struct *work)
- 	if (diff > 0)
- 		diff -= fill_balloon(vb, diff);
- 	else if (diff < 0)
--		diff += leak_balloon(vb, -diff);
-+		diff += leak_balloon(vb, -diff, true);
- 	update_balloon_size(vb);
- 
- 	if (diff)
-@@ -597,7 +603,7 @@ static void remove_common(struct virtio_balloon *vb)
- {
- 	/* There might be pages left in the balloon: free them. */
- 	while (vb->num_pages)
--		leak_balloon(vb, vb->num_pages);
-+		leak_balloon(vb, vb->num_pages, true);
- 	update_balloon_size(vb);
- 
- 	/* Now we reset the device so we can clean up the queues. */
--- 
-1.8.3.1
+>> This is really strange! As you write in other email the page is
+>> reserved. That means that some of the earlier checks 
+>> 	if (zone_idx(zone) == ZONE_MOVABLE)
+>> 		return false;
+>> 	mt = get_pageblock_migratetype(page);
+>> 	if (mt == MIGRATE_MOVABLE || is_migrate_cma(mt))
+>
+> The MIGRATE_MOVABLE check is indeed bogus, because that doesn't
+> guarantee there are no unmovable pages in the block (CMA block OTOH
+> should be a guarantee).
+
+OK I'll try that and get back to you.
+
+cheers
+
+
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 3badcedf96a7..5b4d85ae445c 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -7355,9 +7355,6 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+>>  	 */
+>>  	if (zone_idx(zone) == ZONE_MOVABLE)
+>>  		return false;
+>> -	mt = get_pageblock_migratetype(page);
+>> -	if (mt == MIGRATE_MOVABLE || is_migrate_cma(mt))
+>> -		return false;
+>>  
+>>  	pfn = page_to_pfn(page);
+>>  	for (found = 0, iter = 0; iter < pageblock_nr_pages; iter++) {
+>> @@ -7368,6 +7365,9 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+>>  
+>>  		page = pfn_to_page(check);
+>>  
+>> +		if (PageReserved(page))
+>> +			return true;
+>> +
+>>  		/*
+>>  		 * Hugepages are not in LRU lists, but they're movable.
+>>  		 * We need not scan over tail pages bacause we don't
+>> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
