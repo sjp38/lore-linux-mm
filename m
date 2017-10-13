@@ -1,67 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BCB466B0033
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 13:29:40 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id b189so9914039wmd.5
-        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 10:29:40 -0700 (PDT)
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
-        by mx.google.com with ESMTPS id k128si1274649wmb.181.2017.10.13.10.29.37
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E3C466B0033
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 13:31:59 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id p186so6850745ioe.9
+        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 10:31:59 -0700 (PDT)
+Received: from quartz.orcorp.ca (quartz.orcorp.ca. [184.70.90.242])
+        by mx.google.com with ESMTPS id t23si1008011ioe.229.2017.10.13.10.31.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Oct 2017 10:29:37 -0700 (PDT)
-Date: Fri, 13 Oct 2017 18:29:34 +0100
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH v6 1/4] cramfs: direct memory access support
-Message-ID: <20171013172934.GG21978@ZenIV.linux.org.uk>
-References: <20171012061613.28705-1-nicolas.pitre@linaro.org>
- <20171012061613.28705-2-nicolas.pitre@linaro.org>
+        Fri, 13 Oct 2017 10:31:58 -0700 (PDT)
+Date: Fri, 13 Oct 2017 11:31:45 -0600
+From: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+Subject: Re: [PATCH v9 0/6] MAP_DIRECT for DAX userspace flush
+Message-ID: <20171013173145.GA18702@obsidianresearch.com>
+References: <150776922692.9144.16963640112710410217.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171012142319.GA11254@lst.de>
+ <CAPcyv4gTON__Ohop0B5R2gsKXC71bycTBozqGmF3WmwG9C6LVA@mail.gmail.com>
+ <20171013065716.GB26461@lst.de>
+ <CAPcyv4gaLBBefOU+8f7_ypYnCTjSMk+9nq8NfCqBHAE+NbUusw@mail.gmail.com>
+ <20171013163822.GA17411@obsidianresearch.com>
+ <CAPcyv4jDHp8z2VgVfyRK1WwMzixYVQnh54LZoPD57HB3yqSPPQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171012061613.28705-2-nicolas.pitre@linaro.org>
+In-Reply-To: <CAPcyv4jDHp8z2VgVfyRK1WwMzixYVQnh54LZoPD57HB3yqSPPQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicolas Pitre <nicolas.pitre@linaro.org>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-embedded@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Brandt <Chris.Brandt@renesas.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Christoph Hellwig <hch@lst.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-xfs@vger.kernel.org, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "Darrick J. Wong" <darrick.wong@oracle.com>, Linux API <linux-api@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jeff Layton <jlayton@poochiereds.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Oct 12, 2017 at 02:16:10AM -0400, Nicolas Pitre wrote:
+On Fri, Oct 13, 2017 at 10:01:04AM -0700, Dan Williams wrote:
+> On Fri, Oct 13, 2017 at 9:38 AM, Jason Gunthorpe
+> <jgunthorpe@obsidianresearch.com> wrote:
+> > On Fri, Oct 13, 2017 at 08:14:55AM -0700, Dan Williams wrote:
+> >
+> >> scheme specific to RDMA which seems like a waste to me when we can
+> >> generically signal an event on the fd for any event that effects any
+> >> of the vma's on the file. The FL_LAYOUT lease impacts the entire file,
+> >> so as far as I can see delaying the notification until MR-init is too
+> >> late, too granular, and too RDMA specific.
+> >
+> > But for RDMA a FD is not what we care about - we want the MR handle so
+> > the app knows which MR needs fixing.
+> 
+> I'd rather put the onus on userspace to remember where it used a
+> MAP_DIRECT mapping and be aware that all the mappings of that file are
+> subject to a lease break. Sure, we could build up a pile of kernel
+> infrastructure to notify on a per-MR basis, but I think that would
+> only be worth it if leases were range based. As it is, the entire file
+> is covered by a lease instance and all MRs that might reference that
+> file get one notification. That said, we can always arrange for a
+> per-driver callback at lease-break time so that it can do something
+> above and beyond the default notification.
 
->  static void cramfs_kill_sb(struct super_block *sb)
->  {
->  	struct cramfs_sb_info *sbi = CRAMFS_SB(sb);
->  
-> -	kill_block_super(sb);
-> +	if (IS_ENABLED(CCONFIG_CRAMFS_MTD)) {
-> +		if (sbi->mtd_point_size)
-> +			mtd_unpoint(sb->s_mtd, 0, sbi->mtd_point_size);
-> +		if (sb->s_mtd)
-> +			kill_mtd_super(sb);
+I don't think that really represents how lots of apps actually use
+RDMA.
 
-...
+RDMA is often buried down in the software stack (eg in a MPI), and by
+the time a mapping gets used for RDMA transfer the link between the
+FD, mmap and the MR is totally opaque.
 
-> +	mtd_unpoint(sb->s_mtd, 0, PAGE_SIZE);
-> +	err = mtd_point(sb->s_mtd, 0, sbi->size, &sbi->mtd_point_size,
-> +			&sbi->linear_virt_addr, &sbi->linear_phys_addr);
-> +	if (err || sbi->mtd_point_size != sbi->size) {
+Having a MR specific notification means the low level RDMA libraries
+have a chance to deal with everything for the app.
 
-What happens if that mtd_point() fails?  Note that ->kill_sb() will be
-called anyway and ->mtd_point_size is going to be non-zero here...  Do
-we get the second mtd_unpoint(), or am I misreading that code?
+Eg consider a HPC app using MPI that uses some DAX aware library to
+get DAX backed mmap's. It then passes memory in those mmaps to the
+MPI library to do transfers. The MPI creates the MR on demand.
 
-This logics does look fishy, but I'm not familiar enough with mtd guts
-to tell if that's OK...
+So, who should be responsible for MR coherency? Today we say the MPI
+is responsible. But we can't really expect the MPI
+to hook SIGIO and somehow try to reverse engineer what MRs are
+impacted from a FD that may not even still be open.
 
-Rules regarding ->kill_sb(): any struct super_block instance that
-got out of sget() and its ilk will have ->kill_sb() called.  In case of
-mtd, it's simply "if that thing got past setting ->s_mtd, it will be
-passed to ->kill_sb()".
+I think, if you want to build a uAPI for notification of MR lease
+break, then you need show how it fits into the above software model:
+ - How it can be hidden in a RDMA specific library
+ - How lease break can be done hitlessly, so the library user never
+   needs to know it is happening or see failed/missed transfers
+ - Whatever fast path checking is needed does not kill performance
 
-Note, BTW, that you *must* have generic_shutdown_super() called once on
-every reachable path in ->kill_sb().  AFAICS your patch is correct in
-that area (all instances with that ->s_type are created either in
-mount_bdev() or in mount_mtd(); the former will have non-NULL ->s_bdev,
-the latter - non-NULL ->s_mtd), but that's one thing to watch out when
-doing any modifications.
+Jason
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
