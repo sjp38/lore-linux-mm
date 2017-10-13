@@ -1,73 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F86C6B0033
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 11:14:57 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id j126so6204175oib.9
-        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 08:14:57 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id g104sor478090otg.304.2017.10.13.08.14.55
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 192236B0033
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 11:24:28 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k7so1305282wre.5
+        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 08:24:28 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b18si958520wrc.406.2017.10.13.08.24.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 13 Oct 2017 08:14:55 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 13 Oct 2017 08:24:26 -0700 (PDT)
+Date: Fri, 13 Oct 2017 17:24:21 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
+Message-ID: <20171013152421.yf76n7jui3z5bbn4@dhcp22.suse.cz>
+References: <CALvZod7YN4JCG7Anm2FViyZ0-APYy+nxEd3nyxe5LT_P0FC9wg@mail.gmail.com>
+ <20171009062426.hmqedtqz5hkmhnff@dhcp22.suse.cz>
+ <xr93a810xl77.fsf@gthelen.svl.corp.google.com>
+ <20171009202613.GA15027@cmpxchg.org>
+ <20171010091430.giflzlayvjblx5bu@dhcp22.suse.cz>
+ <20171010141733.GB16710@cmpxchg.org>
+ <20171010142434.bpiqmsbb7gttrlcb@dhcp22.suse.cz>
+ <20171012190312.GA5075@cmpxchg.org>
+ <20171013063555.pa7uco43mod7vrkn@dhcp22.suse.cz>
+ <20171013070001.mglwdzdrqjt47clz@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20171013065716.GB26461@lst.de>
-References: <150776922692.9144.16963640112710410217.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171012142319.GA11254@lst.de> <CAPcyv4gTON__Ohop0B5R2gsKXC71bycTBozqGmF3WmwG9C6LVA@mail.gmail.com>
- <20171013065716.GB26461@lst.de>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 13 Oct 2017 08:14:55 -0700
-Message-ID: <CAPcyv4gaLBBefOU+8f7_ypYnCTjSMk+9nq8NfCqBHAE+NbUusw@mail.gmail.com>
-Subject: Re: [PATCH v9 0/6] MAP_DIRECT for DAX userspace flush
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171013070001.mglwdzdrqjt47clz@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-xfs@vger.kernel.org, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "Darrick J. Wong" <darrick.wong@oracle.com>, Linux API <linux-api@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jeff Layton <jlayton@poochiereds.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Greg Thelen <gthelen@google.com>, Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Oct 12, 2017 at 11:57 PM, Christoph Hellwig <hch@lst.de> wrote:
-> On Thu, Oct 12, 2017 at 10:41:39AM -0700, Dan Williams wrote:
->> So, you're jumping into this review at v9 where I've split the patches
->> that take an initial MAP_DIRECT lease out from the patches that take
->> FL_LAYOUT leases at memory registration time. You can see a previous
->> attempt in "[PATCH v8 00/14] MAP_DIRECT for DAX RDMA and userspace
->> flush" which should be in your inbox.
->
-> The point is that your problem has absolutely nothing to do with mmap,
-> and all with get_user_pages.
->
-> get_user_pages on DAX doesn't give the same guarantees as on pagecache
-> or anonymous memory, and that is the prbolem we need to fix.  In fact
-> I'm pretty sure if we try hard enough (and we might have to try
-> very hard) we can see the same problem with plain direct I/O and without
-> any RDMA involved, e.g. do a larger direct I/O write to memory that is
-> mmap()ed from a DAX file, then truncate the DAX file and reallocate
-> the blocks, and we might corrupt that new file.  We'll probably need
-> a special setup where there is little other chance but to reallocate
-> those used blocks.
-
-I'll take a harder look at this...
-
-> So what we need to do first is to fix get_user_pages vs unmapping
-> DAX mmap()ed blocks, be that from a hole punch, truncate, COW
-> operation, etc.
->
-> Then we need to look into the special case of a long-living non-transient
-> get_user_pages that RDMA does - we can't just reject any truncate or
-> other operation for that, so that's where something like me layout
-> lease suggestion comes into play - but the call that should get the
-> least is not the mmap - it's the memory registration call that does
-> the get_user_pages.
-
-Yes, mmap is not the place to get the lease for a later
-get_user_pages, and my patches do take an additional lease at
-get_user_pages / MR init time. However, the mmap call has the
-file-descriptor for SIGIO the MR-init call does not. If we delay all
-of the setup it to MR time then we need to invent a notification
-scheme specific to RDMA which seems like a waste to me when we can
-generically signal an event on the fd for any event that effects any
-of the vma's on the file. The FL_LAYOUT lease impacts the entire file,
-so as far as I can see delaying the notification until MR-init is too
-late, too granular, and too RDMA specific.
+Well, it actually occured to me that this would trigger the global oom
+killer in case no memcg specific victim can be found which is definitely
+not something we would like to do. This should work better. I am not
+sure we can trigger this corner case but we should cover it and it
+actually doesn't make the code much worse.
+---
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index d5f3a62887cf..7b370f070b82 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1528,26 +1528,40 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
+ 
+ static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
+ {
+-	if (!current->memcg_may_oom)
+-		return;
+ 	/*
+ 	 * We are in the middle of the charge context here, so we
+ 	 * don't want to block when potentially sitting on a callstack
+ 	 * that holds all kinds of filesystem and mm locks.
+ 	 *
+-	 * Also, the caller may handle a failed allocation gracefully
+-	 * (like optional page cache readahead) and so an OOM killer
+-	 * invocation might not even be necessary.
++	 * cgroup v1 allowes sync users space handling so we cannot afford
++	 * to get stuck here for that configuration. That's why we don't do
++	 * anything here except remember the OOM context and then deal with
++	 * it at the end of the page fault when the stack is unwound, the
++	 * locks are released, and when we know whether the fault was overall
++	 * successful.
++	 *
++	 * On the other hand, in-kernel OOM killer allows for an async victim
++	 * memory reclaim (oom_reaper) and that means that we are not solely
++	 * relying on the oom victim to make a forward progress so we can stay
++	 * in the the try_charge context and keep retrying as long as there
++	 * are oom victims to select.
+ 	 *
+-	 * That's why we don't do anything here except remember the
+-	 * OOM context and then deal with it at the end of the page
+-	 * fault when the stack is unwound, the locks are released,
+-	 * and when we know whether the fault was overall successful.
++	 * Please note that mem_cgroup_oom_synchronize might fail to find a
++	 * victim and then we have rely on mem_cgroup_oom_synchronize otherwise
++	 * we would fall back to the global oom killer in pagefault_out_of_memory
+ 	 */
++	if (!memcg->oom_kill_disable &&
++			mem_cgroup_out_of_memory(memcg, mask, order))
++		return true;
++
++	if (!current->memcg_may_oom)
++		return false;
+ 	css_get(&memcg->css);
+ 	current->memcg_in_oom = memcg;
+ 	current->memcg_oom_gfp_mask = mask;
+ 	current->memcg_oom_order = order;
++
++	return false;
+ }
+ 
+ /**
+@@ -2007,8 +2021,11 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 
+ 	mem_cgroup_event(mem_over_limit, MEMCG_OOM);
+ 
+-	mem_cgroup_oom(mem_over_limit, gfp_mask,
+-		       get_order(nr_pages * PAGE_SIZE));
++	if (mem_cgroup_oom(mem_over_limit, gfp_mask,
++		       get_order(nr_pages * PAGE_SIZE))) {
++		nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
++		goto retry;
++	}
+ nomem:
+ 	if (!(gfp_mask & __GFP_NOFAIL))
+ 		return -ENOMEM;
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
