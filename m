@@ -1,41 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D9C1A6B0033
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 11:26:00 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id f66so6479436oib.4
-        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 08:26:00 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 66sor476299otl.31.2017.10.13.08.26.00
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E7B816B0033
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 11:28:07 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id h191so6202993wmd.15
+        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 08:28:07 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w18si1006484wra.552.2017.10.13.08.28.05
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 13 Oct 2017 08:26:00 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 13 Oct 2017 08:28:05 -0700 (PDT)
+Date: Fri, 13 Oct 2017 17:28:01 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 3/3] mm/map_contig: Add mmap(MAP_CONTIG) support
+Message-ID: <20171013152801.nbpk6nluotgbmfrs@dhcp22.suse.cz>
+References: <21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com>
+ <20171012014611.18725-1-mike.kravetz@oracle.com>
+ <20171012014611.18725-4-mike.kravetz@oracle.com>
+ <20171012143756.p5bv4zx476qkmqhh@dhcp22.suse.cz>
+ <f4a46a19-5f71-ebcc-3098-a35728fbfd03@oracle.com>
+ <20171013084054.me3kxhgbxzgm2lpr@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1710131015420.3949@nuc-kabylake>
 MIME-Version: 1.0
-In-Reply-To: <20171013094431.GA27308@stefanha-x1.localdomain>
-References: <20171012155027.3277-1-pagupta@redhat.com> <20171012155027.3277-3-pagupta@redhat.com>
- <20171013094431.GA27308@stefanha-x1.localdomain>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 13 Oct 2017 08:25:59 -0700
-Message-ID: <CAPcyv4itKNqVbisM7aAZKZ02QRwfvy9XBHZYWTjqJqcGEZVguw@mail.gmail.com>
-Subject: Re: [RFC 2/2] KVM: add virtio-pmem driver
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1710131015420.3949@nuc-kabylake>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Hajnoczi <stefanha@gmail.com>
-Cc: Pankaj Gupta <pagupta@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KVM list <kvm@vger.kernel.org>, Qemu Developers <qemu-devel@nongnu.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Stefan Hajnoczi <stefanha@redhat.com>, Rik van Riel <riel@redhat.com>, Haozhong Zhang <haozhong.zhang@intel.com>, Nitesh Narayan Lal <nilal@redhat.com>, Kevin Wolf <kwolf@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, "Zwisler, Ross" <ross.zwisler@intel.com>, David Hildenbrand <david@redhat.com>, Xiao Guangrong <xiaoguangrong.eric@gmail.com>
+To: Christopher Lameter <cl@linux.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Fri, Oct 13, 2017 at 2:44 AM, Stefan Hajnoczi <stefanha@gmail.com> wrote:
-> On Thu, Oct 12, 2017 at 09:20:26PM +0530, Pankaj Gupta wrote:
-[..]
->> +#ifndef REQ_FLUSH
->> +#define REQ_FLUSH REQ_PREFLUSH
->> +#endif
->
-> Is this out-of-tree kernel module compatibility stuff that can be
-> removed?
+On Fri 13-10-17 10:20:06, Cristopher Lameter wrote:
+> On Fri, 13 Oct 2017, Michal Hocko wrote:
+[...]
+> > I am not really convinced this is a good interface. You are basically
+> > trying to bypass virtual memory abstraction and that is quite
+> > contradicting the mmap API to me.
+> 
+> This is a standardized posix interface as described in our presentation at
+> the plumbers conference. See the presentation on contiguous allocations.
 
-Yes, this was copied from the pmem driver where it can also be
-removed, it was used to workaround a merge order problem in linux-next
-when these definitions were changed several kernel releases back.
+Are you trying to desing a generic interface with a very specific and HW
+dependent usecase in mind?
+ 
+> The contiguous allocations are particularly useful for the RDMA API which
+> allows registering user space memory with devices.
+
+then make those devices expose an implementation of an mmap which does
+that. You would get both a proper access control (via fd), accounting
+and others.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
