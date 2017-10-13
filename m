@@ -1,92 +1,253 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E4EF16B0033
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 09:38:44 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id b15so5608060qkg.23
-        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 06:38:44 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z33si535158qtd.357.2017.10.13.06.38.43
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 478646B0253
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 09:44:43 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id y44so1181662wry.3
+        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 06:44:43 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 60si937050wrp.1.2017.10.13.06.44.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Oct 2017 06:38:44 -0700 (PDT)
-Date: Fri, 13 Oct 2017 16:38:34 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v16 5/5] virtio-balloon: VIRTIO_BALLOON_F_CTRL_VQ
-Message-ID: <20171013163503-mutt-send-email-mst@kernel.org>
-References: <1506744354-20979-1-git-send-email-wei.w.wang@intel.com>
- <1506744354-20979-6-git-send-email-wei.w.wang@intel.com>
- <20171001060305-mutt-send-email-mst@kernel.org>
- <286AC319A985734F985F78AFA26841F73932025A@shsmsx102.ccr.corp.intel.com>
- <20171010180636-mutt-send-email-mst@kernel.org>
- <59DDB428.4020208@intel.com>
- <20171011161912-mutt-send-email-mst@kernel.org>
- <59DEE790.5040809@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 13 Oct 2017 06:44:41 -0700 (PDT)
+Date: Fri, 13 Oct 2017 15:44:38 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] virtio_balloon: fix deadlock on OOM
+Message-ID: <20171013134438.bdm2zaos22uvkb4s@dhcp22.suse.cz>
+References: <1507900754-32239-1-git-send-email-mst@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <59DEE790.5040809@intel.com>
+In-Reply-To: <1507900754-32239-1-git-send-email-mst@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "willy@infradead.org" <willy@infradead.org>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Wei Wang <wei.w.wang@intel.com>, Jason Wang <jasowang@redhat.com>, virtualization@lists.linux-foundation.org, linux-mm@kvack.org
 
-On Thu, Oct 12, 2017 at 11:54:56AM +0800, Wei Wang wrote:
-> > But I think flushing is very fragile. You will easily run into races
-> > if one of the actors gets out of sync and keeps adding data.
-> > I think adding an ID in the free vq stream is a more robust
-> > approach.
-> > 
+On Fri 13-10-17 16:21:22, Michael S. Tsirkin wrote:
+> fill_balloon doing memory allocations under balloon_lock
+> can cause a deadlock when leak_balloon is called from
+> virtballoon_oom_notify and tries to take same lock.
 > 
-> Adding ID to the free vq would need the device to distinguish whether it
-> receives an ID or a free page hint,
+> To fix, split page allocation and enqueue and do allocations outside the lock.
 
-Not really.  It's pretty simple: a 64 bit buffer is an ID. A 4K and bigger one
-is a page.
+OK, that sounds like a better fix. As long as there are no other
+allocations or indirect waiting for an allocation this should work
+correctly. Thanks!
 
+> Here's a detailed analysis of the deadlock by Tetsuo Handa:
+> 
+> In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
+> serialize against fill_balloon(). But in fill_balloon(),
+> alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
+> called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE]
+> implies __GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, despite __GFP_NORETRY
+> is specified, this allocation attempt might indirectly depend on somebody
+> else's __GFP_DIRECT_RECLAIM memory allocation. And such indirect
+> __GFP_DIRECT_RECLAIM memory allocation might call leak_balloon() via
+> virtballoon_oom_notify() via blocking_notifier_call_chain() callback via
+> out_of_memory() when it reached __alloc_pages_may_oom() and held oom_lock
+> mutex. Since vb->balloon_lock mutex is already held by fill_balloon(), it
+> will cause OOM lockup. Thus, do not wait for vb->balloon_lock mutex if
+> leak_balloon() is called from out_of_memory().
+> 
+>   Thread1                                       Thread2
+>     fill_balloon()
+>       takes a balloon_lock
+>       balloon_page_enqueue()
+>         alloc_page(GFP_HIGHUSER_MOVABLE)
+>           direct reclaim (__GFP_FS context)       takes a fs lock
+>             waits for that fs lock                  alloc_page(GFP_NOFS)
+>                                                       __alloc_pages_may_oom()
+>                                                         takes the oom_lock
+>                                                         out_of_memory()
+>                                                           blocking_notifier_call_chain()
+>                                                             leak_balloon()
+>                                                               tries to take that balloon_lock and deadlocks
+> 
+> Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Wei Wang <wei.w.wang@intel.com>
+> ---
+> 
+> This is a replacement for
+> 	[PATCH] virtio: avoid possible OOM lockup at virtballoon_oom_notify()
+> but unlike that patch it actually deflates on oom even in presence of
+> lock contention.
+> 
+>  drivers/virtio/virtio_balloon.c    | 30 ++++++++++++++++++++++--------
+>  include/linux/balloon_compaction.h | 38 +++++++++++++++++++++++++++++++++++++-
+>  mm/balloon_compaction.c            | 27 +++++++++++++++++++++------
+>  3 files changed, 80 insertions(+), 15 deletions(-)
+> 
+> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> index f0b3a0b..725e366 100644
+> --- a/drivers/virtio/virtio_balloon.c
+> +++ b/drivers/virtio/virtio_balloon.c
+> @@ -143,16 +143,14 @@ static void set_page_pfns(struct virtio_balloon *vb,
+>  
+>  static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
+>  {
+> -	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
+>  	unsigned num_allocated_pages;
+> +	unsigned num_pfns;
+> +	struct page *page;
+> +	LIST_HEAD(pages);
+>  
+> -	/* We can only do one array worth at a time. */
+> -	num = min(num, ARRAY_SIZE(vb->pfns));
+> -
+> -	mutex_lock(&vb->balloon_lock);
+> -	for (vb->num_pfns = 0; vb->num_pfns < num;
+> -	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+> -		struct page *page = balloon_page_enqueue(vb_dev_info);
+> +	for (num_pfns = 0; num_pfns < num;
+> +	     num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+> +		struct page *page = balloon_page_alloc();
+>  
+>  		if (!page) {
+>  			dev_info_ratelimited(&vb->vdev->dev,
+> @@ -162,6 +160,22 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
+>  			msleep(200);
+>  			break;
+>  		}
+> +
+> +		balloon_page_push(&pages, page);
+> +	}
+> +
+> +	/* We can only do one array worth at a time. */
+> +	num = min(num, ARRAY_SIZE(vb->pfns));
+> +
+> +	mutex_lock(&vb->balloon_lock);
+> +
+> +	vb->num_pfns = 0;
+> +
+> +	while ((page = balloon_page_pop(&pages))) {
+> +		balloon_page_enqueue(&vb->vb_dev_info, page);
+> +
+> +		vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE;
+> +
+>  		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
+>  		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
+>  		if (!virtio_has_feature(vb->vdev,
+> diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
+> index 79542b2..88cfac4 100644
+> --- a/include/linux/balloon_compaction.h
+> +++ b/include/linux/balloon_compaction.h
+> @@ -49,6 +49,7 @@
+>  #include <linux/gfp.h>
+>  #include <linux/err.h>
+>  #include <linux/fs.h>
+> +#include <linux/list.h>
+>  
+>  /*
+>   * Balloon device information descriptor.
+> @@ -66,9 +67,14 @@ struct balloon_dev_info {
+>  	struct inode *inode;
+>  };
+>  
+> -extern struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info);
+> +extern struct page *balloon_page_alloc(void);
+> +extern void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
+> +				 struct page *page);
+>  extern struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info);
+>  
+> +extern void balloon_devinfo_splice(struct balloon_dev_info *to_add,
+> +				   struct balloon_dev_info *b_dev_info);
+> +
+>  static inline void balloon_devinfo_init(struct balloon_dev_info *balloon)
+>  {
+>  	balloon->isolated_pages = 0;
+> @@ -88,6 +94,36 @@ extern int balloon_page_migrate(struct address_space *mapping,
+>  				struct page *page, enum migrate_mode mode);
+>  
+>  /*
+> + * balloon_page_push - insert a page into a page list.
+> + * @head : pointer to list
+> + * @page : page to be added
+> + *
+> + * Caller must ensure the page is private and protect the list.
+> + */
+> +static inline void balloon_page_push(struct list_head *pages, struct page *page)
+> +{
+> +	list_add(&page->lru, pages);
+> +}
+> +
+> +/*
+> + * balloon_page_pop - remove a page from a page list.
+> + * @head : pointer to list
+> + * @page : page to be added
+> + *
+> + * Caller must ensure the page is private and protect the list.
+> + */
+> +static inline struct page *balloon_page_pop(struct list_head *pages)
+> +{
+> +	struct page *page = list_first_entry_or_null(pages, struct page, lru);
+> +
+> +	if (!page)
+> +		return NULL;
+> +
+> +	list_del(&page->lru);
+> +	return page;
+> +}
+> +
+> +/*
+>   * balloon_page_insert - insert a page into the balloon's page list and make
+>   *			 the page->private assignment accordingly.
+>   * @balloon : pointer to balloon device
+> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+> index b06d9fe..cd605bf 100644
+> --- a/mm/balloon_compaction.c
+> +++ b/mm/balloon_compaction.c
+> @@ -11,22 +11,37 @@
+>  #include <linux/balloon_compaction.h>
+>  
+>  /*
+> + * balloon_page_alloc - allocates a new page for insertion into the balloon
+> + *			  page list.
+> + *
+> + * Driver must call it to properly allocate a new enlisted balloon page.
+> + * Driver must call balloon_page_enqueue before definitively removing it from
+> + * the guest system.  This function returns the page address for the recently
+> + * allocated page or NULL in the case we fail to allocate a new page this turn.
+> + */
+> +struct page *balloon_page_alloc(void)
+> +{
+> +	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
+> +				       __GFP_NOMEMALLOC | __GFP_NORETRY);
+> +	return page;
+> +}
+> +EXPORT_SYMBOL_GPL(balloon_page_alloc);
+> +
+> +/*
+>   * balloon_page_enqueue - allocates a new page and inserts it into the balloon
+>   *			  page list.
+>   * @b_dev_info: balloon device descriptor where we will insert a new page to
+> + * @page: new page to enqueue - allocated using balloon_page_alloc.
+>   *
+> - * Driver must call it to properly allocate a new enlisted balloon page
+> + * Driver must call it to properly enqueue a new allocated balloon page
+>   * before definitively removing it from the guest system.
+>   * This function returns the page address for the recently enqueued page or
+>   * NULL in the case we fail to allocate a new page this turn.
+>   */
+> -struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info)
+> +void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
+> +			  struct page *page)
+>  {
+>  	unsigned long flags;
+> -	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
+> -				       __GFP_NOMEMALLOC | __GFP_NORETRY);
+> -	if (!page)
+> -		return NULL;
+>  
+>  	/*
+>  	 * Block others from accessing the 'page' when we get around to
+> -- 
+> MST
 
-> so an extra protocol is needed for the two sides to talk. Currently, we
-> directly assign the free page
-> address to desc->addr. With ID support, we would need to first allocate
-> buffer for the protocol header,
-> and add the free page address to the header, then desc->addr = &header.
-
-
-I do not think you should add ID on each page. What would be the point?
-Add it each time you detect a new start command.
-
-> How about putting the ID to the command path? This would avoid the above
-> trouble.
-> 
-> For example, using the 32-bit config registers:
-> first 16-bit: Command field
-> send 16-bit: ID field
-> 
-> Then, the working flow would look like this:
-> 
-> 1) Host writes "Start, 1" to the Host2Guest register and notify;
-> 
-> 2) Guest reads Host2Guest register, and ACKs by writing "Start, 1" to
-> Guest2Host register;
-> 
-> 3) Guest starts report free pages;
-> 
-> 4) Each time when the host receives a free page hint from the free_page_vq,
-> it compares the ID fields of
-> the Host2Guest and Guest2Host register. If matching, then filter out the
-> free page from the migration dirty bitmap,
-> otherwise, simply push back without doing the filtering.
-> 
-> 
-> Best,
-> Wei
-
-
-All fine but config and vq ops are asynchronous. Host has no idea when
-were entries added to vq. So the ID sent to host needs to be through vq.
-And I would make it a 64 or at least 32 bit ID, not a 16 bit one,
-to avoid wrap-around.
 -- 
-MST
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
