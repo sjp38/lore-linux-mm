@@ -1,85 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E3C466B0033
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 13:31:59 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id p186so6850745ioe.9
-        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 10:31:59 -0700 (PDT)
-Received: from quartz.orcorp.ca (quartz.orcorp.ca. [184.70.90.242])
-        by mx.google.com with ESMTPS id t23si1008011ioe.229.2017.10.13.10.31.58
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4943B6B0038
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 13:33:02 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id c76so2736563vkd.0
+        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 10:33:02 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id y35si375837uay.17.2017.10.13.10.33.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 13 Oct 2017 10:31:58 -0700 (PDT)
-Date: Fri, 13 Oct 2017 11:31:45 -0600
-From: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
-Subject: Re: [PATCH v9 0/6] MAP_DIRECT for DAX userspace flush
-Message-ID: <20171013173145.GA18702@obsidianresearch.com>
-References: <150776922692.9144.16963640112710410217.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171012142319.GA11254@lst.de>
- <CAPcyv4gTON__Ohop0B5R2gsKXC71bycTBozqGmF3WmwG9C6LVA@mail.gmail.com>
- <20171013065716.GB26461@lst.de>
- <CAPcyv4gaLBBefOU+8f7_ypYnCTjSMk+9nq8NfCqBHAE+NbUusw@mail.gmail.com>
- <20171013163822.GA17411@obsidianresearch.com>
- <CAPcyv4jDHp8z2VgVfyRK1WwMzixYVQnh54LZoPD57HB3yqSPPQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4jDHp8z2VgVfyRK1WwMzixYVQnh54LZoPD57HB3yqSPPQ@mail.gmail.com>
+        Fri, 13 Oct 2017 10:33:00 -0700 (PDT)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [PATCH v12 03/11] sparc64/mm: setting fields in deferred pages
+Date: Fri, 13 Oct 2017 13:32:06 -0400
+Message-Id: <20171013173214.27300-4-pasha.tatashin@oracle.com>
+In-Reply-To: <20171013173214.27300-1-pasha.tatashin@oracle.com>
+References: <20171013173214.27300-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Christoph Hellwig <hch@lst.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-xfs@vger.kernel.org, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "Darrick J. Wong" <darrick.wong@oracle.com>, Linux API <linux-api@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jeff Layton <jlayton@poochiereds.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, akpm@linux-foundation.org, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On Fri, Oct 13, 2017 at 10:01:04AM -0700, Dan Williams wrote:
-> On Fri, Oct 13, 2017 at 9:38 AM, Jason Gunthorpe
-> <jgunthorpe@obsidianresearch.com> wrote:
-> > On Fri, Oct 13, 2017 at 08:14:55AM -0700, Dan Williams wrote:
-> >
-> >> scheme specific to RDMA which seems like a waste to me when we can
-> >> generically signal an event on the fd for any event that effects any
-> >> of the vma's on the file. The FL_LAYOUT lease impacts the entire file,
-> >> so as far as I can see delaying the notification until MR-init is too
-> >> late, too granular, and too RDMA specific.
-> >
-> > But for RDMA a FD is not what we care about - we want the MR handle so
-> > the app knows which MR needs fixing.
-> 
-> I'd rather put the onus on userspace to remember where it used a
-> MAP_DIRECT mapping and be aware that all the mappings of that file are
-> subject to a lease break. Sure, we could build up a pile of kernel
-> infrastructure to notify on a per-MR basis, but I think that would
-> only be worth it if leases were range based. As it is, the entire file
-> is covered by a lease instance and all MRs that might reference that
-> file get one notification. That said, we can always arrange for a
-> per-driver callback at lease-break time so that it can do something
-> above and beyond the default notification.
+Without deferred struct page feature (CONFIG_DEFERRED_STRUCT_PAGE_INIT),
+flags and other fields in "struct page"es are never changed prior to first
+initializing struct pages by going through __init_single_page().
 
-I don't think that really represents how lots of apps actually use
-RDMA.
+With deferred struct page feature enabled there is a case where we set some
+fields prior to initializing:
 
-RDMA is often buried down in the software stack (eg in a MPI), and by
-the time a mapping gets used for RDMA transfer the link between the
-FD, mmap and the MR is totally opaque.
+mem_init() {
+     register_page_bootmem_info();
+     free_all_bootmem();
+     ...
+}
 
-Having a MR specific notification means the low level RDMA libraries
-have a chance to deal with everything for the app.
+When register_page_bootmem_info() is called only non-deferred struct pages
+are initialized. But, this function goes through some reserved pages which
+might be part of the deferred, and thus are not yet initialized.
 
-Eg consider a HPC app using MPI that uses some DAX aware library to
-get DAX backed mmap's. It then passes memory in those mmaps to the
-MPI library to do transfers. The MPI creates the MR on demand.
+mem_init
+register_page_bootmem_info
+register_page_bootmem_info_node
+ get_page_bootmem
+  .. setting fields here ..
+  such as: page->freelist = (void *)type;
 
-So, who should be responsible for MR coherency? Today we say the MPI
-is responsible. But we can't really expect the MPI
-to hook SIGIO and somehow try to reverse engineer what MRs are
-impacted from a FD that may not even still be open.
+free_all_bootmem()
+free_low_memory_core_early()
+ for_each_reserved_mem_region()
+  reserve_bootmem_region()
+   init_reserved_page() <- Only if this is deferred reserved page
+    __init_single_pfn()
+     __init_single_page()
+      memset(0) <-- Loose the set fields here
 
-I think, if you want to build a uAPI for notification of MR lease
-break, then you need show how it fits into the above software model:
- - How it can be hidden in a RDMA specific library
- - How lease break can be done hitlessly, so the library user never
-   needs to know it is happening or see failed/missed transfers
- - Whatever fast path checking is needed does not kill performance
+We end-up with similar issue as in the previous patch, where currently we
+do not observe problem as memory is zeroed. But, if flag asserts are
+changed we can start hitting issues.
 
-Jason
+Also, because in this patch series we will stop zeroing struct page memory
+during allocation, we must make sure that struct pages are properly
+initialized prior to using them.
+
+The deferred-reserved pages are initialized in free_all_bootmem().
+Therefore, the fix is to switch the above calls.
+
+Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
+Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+Reviewed-by: Bob Picco <bob.picco@oracle.com>
+Acked-by: David S. Miller <davem@davemloft.net>
+Acked-by: Michal Hocko <mhocko@suse.com>
+---
+ arch/sparc/mm/init_64.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
+index 6034569e2c0d..caed495544e9 100644
+--- a/arch/sparc/mm/init_64.c
++++ b/arch/sparc/mm/init_64.c
+@@ -2548,9 +2548,16 @@ void __init mem_init(void)
+ {
+ 	high_memory = __va(last_valid_pfn << PAGE_SHIFT);
+ 
+-	register_page_bootmem_info();
+ 	free_all_bootmem();
+ 
++	/*
++	 * Must be done after boot memory is put on freelist, because here we
++	 * might set fields in deferred struct pages that have not yet been
++	 * initialized, and free_all_bootmem() initializes all the reserved
++	 * deferred pages for us.
++	 */
++	register_page_bootmem_info();
++
+ 	/*
+ 	 * Set up the zero page, mark it reserved, so that page count
+ 	 * is not manipulated when freeing the page from user ptes.
+-- 
+2.14.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
