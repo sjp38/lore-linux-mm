@@ -1,113 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 66D0E6B0273
-	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 20:00:17 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id s16so1941221lfs.22
-        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 17:00:17 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g79sor362399lje.107.2017.10.13.17.00.13
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B6D26B0275
+	for <linux-mm@kvack.org>; Fri, 13 Oct 2017 20:31:58 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id k7so1874424wre.5
+        for <linux-mm@kvack.org>; Fri, 13 Oct 2017 17:31:58 -0700 (PDT)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
+        by mx.google.com with ESMTPS id c36si1698689wrg.161.2017.10.13.17.31.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 13 Oct 2017 17:00:13 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 13 Oct 2017 17:31:56 -0700 (PDT)
+Date: Sat, 14 Oct 2017 01:31:51 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH v6 1/4] cramfs: direct memory access support
+Message-ID: <20171014003151.GK21978@ZenIV.linux.org.uk>
+References: <20171012061613.28705-1-nicolas.pitre@linaro.org>
+ <20171012061613.28705-2-nicolas.pitre@linaro.org>
+ <20171013172934.GG21978@ZenIV.linux.org.uk>
+ <nycvar.YSQ.7.76.1710131332360.1718@knanqh.ubzr>
+ <20171013175208.GI21978@ZenIV.linux.org.uk>
+ <nycvar.YSQ.7.76.1710131532291.1750@knanqh.ubzr>
 MIME-Version: 1.0
-In-Reply-To: <20170929140821.37654-3-kirill.shutemov@linux.intel.com>
-References: <20170929140821.37654-1-kirill.shutemov@linux.intel.com> <20170929140821.37654-3-kirill.shutemov@linux.intel.com>
-From: Nitin Gupta <ngupta@vflare.org>
-Date: Fri, 13 Oct 2017 17:00:12 -0700
-Message-ID: <CAPkvG_c3=78Yd5kQOeZM_yiv89HowjEthhZtysoGmxcDZMwunQ@mail.gmail.com>
-Subject: Re: [PATCH 2/6] mm/zsmalloc: Prepare to variable MAX_PHYSMEM_BITS
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <nycvar.YSQ.7.76.1710131532291.1750@knanqh.ubzr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Nicolas Pitre <nicolas.pitre@linaro.org>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-embedded@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Brandt <Chris.Brandt@renesas.com>
 
-On Fri, Sep 29, 2017 at 7:08 AM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> With boot-time switching between paging mode we will have variable
-> MAX_PHYSMEM_BITS.
->
-> Let's use the maximum variable possible for CONFIG_X86_5LEVEL=y
-> configuration to define zsmalloc data structures.
->
-> The patch introduces MAX_POSSIBLE_PHYSMEM_BITS to cover such case.
-> It also suits well to handle PAE special case.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Nitin Gupta <ngupta@vflare.org>
-> Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-> ---
->  arch/x86/include/asm/pgtable-3level_types.h |  1 +
->  arch/x86/include/asm/pgtable_64_types.h     |  2 ++
->  mm/zsmalloc.c                               | 13 +++++++------
->  3 files changed, 10 insertions(+), 6 deletions(-)
->
-> diff --git a/arch/x86/include/asm/pgtable-3level_types.h b/arch/x86/include/asm/pgtable-3level_types.h
-> index b8a4341faafa..3fe1d107a875 100644
-> --- a/arch/x86/include/asm/pgtable-3level_types.h
-> +++ b/arch/x86/include/asm/pgtable-3level_types.h
-> @@ -43,5 +43,6 @@ typedef union {
->   */
->  #define PTRS_PER_PTE   512
->
-> +#define MAX_POSSIBLE_PHYSMEM_BITS      36
->
->  #endif /* _ASM_X86_PGTABLE_3LEVEL_DEFS_H */
-> diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h
-> index 06470da156ba..39075df30b8a 100644
-> --- a/arch/x86/include/asm/pgtable_64_types.h
-> +++ b/arch/x86/include/asm/pgtable_64_types.h
-> @@ -39,6 +39,8 @@ typedef struct { pteval_t pte; } pte_t;
->  #define P4D_SIZE       (_AC(1, UL) << P4D_SHIFT)
->  #define P4D_MASK       (~(P4D_SIZE - 1))
->
-> +#define MAX_POSSIBLE_PHYSMEM_BITS      52
-> +
->  #else /* CONFIG_X86_5LEVEL */
->
->  /*
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index 7c38e850a8fc..7bde01c55c90 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -82,18 +82,19 @@
->   * This is made more complicated by various memory models and PAE.
->   */
->
-> -#ifndef MAX_PHYSMEM_BITS
-> -#ifdef CONFIG_HIGHMEM64G
-> -#define MAX_PHYSMEM_BITS 36
-> -#else /* !CONFIG_HIGHMEM64G */
-> +#ifndef MAX_POSSIBLE_PHYSMEM_BITS
-> +#ifdef MAX_PHYSMEM_BITS
-> +#define MAX_POSSIBLE_PHYSMEM_BITS MAX_PHYSMEM_BITS
-> +#else
->  /*
->   * If this definition of MAX_PHYSMEM_BITS is used, OBJ_INDEX_BITS will just
->   * be PAGE_SHIFT
->   */
-> -#define MAX_PHYSMEM_BITS BITS_PER_LONG
-> +#define MAX_POSSIBLE_PHYSMEM_BITS BITS_PER_LONG
->  #endif
->  #endif
-> -#define _PFN_BITS              (MAX_PHYSMEM_BITS - PAGE_SHIFT)
-> +
-> +#define _PFN_BITS              (MAX_POSSIBLE_PHYSMEM_BITS - PAGE_SHIFT)
->
+On Fri, Oct 13, 2017 at 04:09:23PM -0400, Nicolas Pitre wrote:
+> On Fri, 13 Oct 2017, Al Viro wrote:
+> 
+> > OK...  I wonder if it should simply define stubs for kill_mtd_super(),
+> > mtd_unpoint() and kill_block_super() in !CONFIG_MTD and !CONFIG_BLOCK
+> > cases.  mount_mtd() and mount_bdev() as well - e.g.  mount_bdev()
+> > returning ERR_PTR(-ENODEV) and kill_block_super() being simply BUG()
+> > in !CONFIG_BLOCK case.  Then cramfs_kill_sb() would be
+> > 	if (sb->s_mtd) {
+> > 		if (sbi->mtd_point_size)
+> > 			mtd_unpoint(sb->s_mtd, 0, sbi->mtd_point_size);
+> > 		kill_mtd_super(sb);
+> > 	} else {
+> > 		kill_block_super(sb);
+> > 	}
+> > 	kfree(sbi);
+> 
+> Well... Stubs have to be named differently or they conflict with 
+> existing declarations. At that point that makes for more lines of code 
+> compared to the current patch and the naming indirection makes it less 
+> obvious when reading the code. Alternatively I could add those stubs in 
+> the corresponding header files and #ifdef the existing declarations 
+> away. That might look somewhat less cluttered in the main code but it 
+> also hides what is actually going on and left me unconvinced. And I'm 
+> not sure this is worth it in the end given this is not a common 
+> occurrence in the kernel either.
 
+What I mean is this (completely untested) for CONFIG_BLOCK side of things,
+with something similar for CONFIG_MTD one:
 
-I think we can avoid using this new constant in zsmalloc.
+Provide definitions of mount_bdev/kill_block_super() in case !CONFIG_BLOCK
 
-The reason for trying to save on MAX_PHYSMEM_BITS is just to gain more
-bits for OBJ_INDEX_BITS which would reduce ZS_MIN_ALLOC_SIZE. However,
-for all practical values of ZS_MAX_PAGES_PER_ZSPAGE, this min size
-would remain 32 bytes.
+mount_bdev() and kill_block_super() are defined only when CONFIG_BLOCK is
+defined; however, their declarations in fs.h are unconditional.  We could
+make these conditional upon CONFIG_BLOCK as well, but it's easy to provide
+inline definitions for !CONFIG_BLOCK case - mount_bdev() should fail with
+ENODEV, while kill_block_super() can be simply BUG(); there should be no
+superblock instances with non-NULL ->s_bdev on such configs.
 
-So, we can unconditionally use MAX_PHYSMEM_BITS = BITS_PER_LONG and
-thus OBJ_INDEX_BITS = PAGE_SHIFT.
-
-- Nitin
+Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
+---
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 339e73742e73..e773c1c51aad 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2094,9 +2094,18 @@ struct file_system_type {
+ extern struct dentry *mount_ns(struct file_system_type *fs_type,
+ 	int flags, void *data, void *ns, struct user_namespace *user_ns,
+ 	int (*fill_super)(struct super_block *, void *, int));
++#ifdef CONFIG_BLOCK
+ extern struct dentry *mount_bdev(struct file_system_type *fs_type,
+ 	int flags, const char *dev_name, void *data,
+ 	int (*fill_super)(struct super_block *, void *, int));
++#else
++static inline struct dentry *mount_bdev(struct file_system_type *fs_type,
++	int flags, const char *dev_name, void *data,
++	int (*fill_super)(struct super_block *, void *, int))
++{
++	return ERR_PTR(-ENODEV);
++}
++#endif
+ extern struct dentry *mount_single(struct file_system_type *fs_type,
+ 	int flags, void *data,
+ 	int (*fill_super)(struct super_block *, void *, int));
+@@ -2105,7 +2114,14 @@ extern struct dentry *mount_nodev(struct file_system_type *fs_type,
+ 	int (*fill_super)(struct super_block *, void *, int));
+ extern struct dentry *mount_subtree(struct vfsmount *mnt, const char *path);
+ void generic_shutdown_super(struct super_block *sb);
++#ifdef CONFIG_BLOCK
+ void kill_block_super(struct super_block *sb);
++#else
++static inline void kill_block_super(struct super_block *sb)
++{
++	BUG();
++}
++#endif
+ void kill_anon_super(struct super_block *sb);
+ void kill_litter_super(struct super_block *sb);
+ void deactivate_super(struct super_block *sb);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
