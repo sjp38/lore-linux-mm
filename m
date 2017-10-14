@@ -1,45 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B3616B028C
-	for <linux-mm@kvack.org>; Sat, 14 Oct 2017 11:15:02 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id y7so3032867pgb.16
-        for <linux-mm@kvack.org>; Sat, 14 Oct 2017 08:15:02 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id s14sor813182pgc.161.2017.10.14.08.15.00
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 627D16B028D
+	for <linux-mm@kvack.org>; Sat, 14 Oct 2017 11:38:02 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id y39so1715715wrd.17
+        for <linux-mm@kvack.org>; Sat, 14 Oct 2017 08:38:02 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b13sor1624575edk.55.2017.10.14.08.37.59
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 14 Oct 2017 08:15:00 -0700 (PDT)
-Subject: Re: [PATCH for linux-next] mm/page-writeback.c: make changes of
- dirty_writeback_centisecs take effect immediately
-References: <1507970307-16431-1-git-send-email-laoar.shao@gmail.com>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <082a7d89-d2c1-cef7-e07d-d7876f653e92@kernel.dk>
-Date: Sat, 14 Oct 2017 09:14:53 -0600
+        Sat, 14 Oct 2017 08:38:00 -0700 (PDT)
+Date: Sat, 14 Oct 2017 18:37:57 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2, RFC] x86/boot/compressed/64: Handle 5-level paging
+ boot if kernel is above 4G
+Message-ID: <20171014153757.wpyzw76cswgw4lym@node.shutemov.name>
+References: <20171013122345.86304-1-kirill.shutemov@linux.intel.com>
+ <20171014073353.trbh3w4lo7t2njsi@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1507970307-16431-1-git-send-email-laoar.shao@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171014073353.trbh3w4lo7t2njsi@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yafang Shao <laoar.shao@gmail.com>, akpm@linux-foundation.org
-Cc: jack@suse.cz, hannes@cmpxchg.org, vdavydov.dev@gmail.com, jlayton@redhat.com, nborisov@suse.com, tytso@mit.edu, yamada.masahiro@socionext.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 10/14/2017 02:38 AM, Yafang Shao wrote:
-> This patch is the followup of the prvious patch:
-> [writeback: schedule periodic writeback with sysctl].
-> 
-> There's another issue to fix.
-> For example,
-> - When the tunable was set to one hour and is reset to one second, the
->   new setting will not take effect for up to one hour.
-> 
-> Kicking the flusher threads immediately fixes it.
+On Sat, Oct 14, 2017 at 09:33:53AM +0200, Ingo Molnar wrote:
+> Yeah, so first most of this code should be moved from assembly to C. Any reason 
+> why that cannot be done?
 
-Queued up, thanks.
+Well, we can move a little bit more code into C, like populating the
+trampoline page, but I don't the think we can move the rest.
+
+Switching to compatibility mode is too low-level to be written in C.
+
+And we cannot write the trampoline code in C, as it's in 32-bit mode and
+we wouldn't be able to generate it from C in a sane manner while building
+64-bit kernel (we discussed this before).
 
 -- 
-Jens Axboe
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
