@@ -1,60 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C62FC6B0069
-	for <linux-mm@kvack.org>; Sat, 14 Oct 2017 22:24:39 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id m16so9980079iod.11
-        for <linux-mm@kvack.org>; Sat, 14 Oct 2017 19:24:39 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id t73si3250659ioi.117.2017.10.14.19.24.38
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 71DB86B0033
+	for <linux-mm@kvack.org>; Sun, 15 Oct 2017 01:39:02 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id l24so3230986pgu.22
+        for <linux-mm@kvack.org>; Sat, 14 Oct 2017 22:39:02 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id bd7si1710315plb.694.2017.10.14.22.39.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 14 Oct 2017 19:24:38 -0700 (PDT)
-Subject: Re: [mmotm:master 120/209] warning:
- (FAULT_INJECTION_STACKTRACE_FILTER && ..) selects FRAME_POINTER which has
- unmet direct dependencies (DEBUG_KERNEL && ..) || ..)
-From: Randy Dunlap <rdunlap@infradead.org>
-References: <201710141255.eqxNqLrb%fengguang.wu@intel.com>
- <0b40bf6c-7454-c8e6-045b-1a3cfbf6c4b3@infradead.org>
-Message-ID: <d2f45293-1422-d983-8853-a8e08e0d3964@infradead.org>
-Date: Sat, 14 Oct 2017 19:24:33 -0700
-MIME-Version: 1.0
-In-Reply-To: <0b40bf6c-7454-c8e6-045b-1a3cfbf6c4b3@infradead.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 14 Oct 2017 22:39:00 -0700 (PDT)
+Subject: Re: [PATCH] virtio: avoid possible OOM lockup at virtballoon_oom_notify()
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1507632457-4611-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20171013162134-mutt-send-email-mst@kernel.org>
+	<201710140141.JFF26087.FLQHOFOOtFMVSJ@I-love.SAKURA.ne.jp>
+	<20171015030921-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20171015030921-mutt-send-email-mst@kernel.org>
+Message-Id: <201710151438.FAD86443.tOOFHVOSFQJLMF@I-love.SAKURA.ne.jp>
+Date: Sun, 15 Oct 2017 14:38:48 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>
-Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: mst@redhat.com
+Cc: mhocko@kernel.org, wei.w.wang@intel.com, virtualization@lists.linux-foundation.org, linux-mm@kvack.org
 
-On 10/14/17 19:21, Randy Dunlap wrote:
-> On 10/13/17 21:20, kbuild test robot wrote:
->> tree:   git://git.cmpxchg.org/linux-mmotm.git master
->> head:   cc4a10c92b384ba2b80393c37639808df0ebbf56
->> commit: 05f4b3e9e49122144fa1c5b1f3a3dc9b1c2c643a [120/209] kmemcheck: rip it out
->> config: ia64-allyesconfig (attached as .config)
->> compiler: ia64-linux-gcc (GCC) 6.2.0
->> reproduce:
->>         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->>         chmod +x ~/bin/make.cross
->>         git checkout 05f4b3e9e49122144fa1c5b1f3a3dc9b1c2c643a
->>         # save the attached .config to linux build tree
->>         make.cross ARCH=ia64 
->>
->> All warnings (new ones prefixed by >>):
->>
->> warning: (FAULT_INJECTION_STACKTRACE_FILTER && LATENCYTOP && LOCKDEP) selects FRAME_POINTER which has unmet direct dependencies (DEBUG_KERNEL && (CRIS || M68K || FRV || UML || SUPERH || BLACKFIN || MN10300 || METAG) || ARCH_WANT_FRAME_POINTERS)
+Michael S. Tsirkin wrote:
+> > > 
+> > > The proper fix isn't that hard - just avoid allocations under lock.
+> > > 
+> > > Patch posted, pls take a look.
+> > 
+> > Your patch allocates pages in order to inflate the balloon, but
+> > your patch will allow leak_balloon() to deflate the balloon.
+> > How deflating the balloon (i.e. calling leak_balloon()) makes sense
+> > when allocating pages for inflating the balloon (i.e. calling
+> > fill_balloon()) ?
 > 
-> So this one isn't new, right?
+> The idea is that fill_balloon is allocating memory with __GFP_NORETRY
+> so it will avoid disruptive actions like the OOM killer.
+> Under pressure it will normally fail and retry in half a second or so.
 > 
-> It also occurs in linux-next, 4.14-rc4, 4.14-rc3, 4.14-rc2, and 4.13.
-> That's all that I have checked so far.
+> Calling leak_balloon in that situation could benefit the system as a whole.
+> 
+> I might be misunderstanding the meaning of the relevant GFP flags,
+> pls correct me if I'm wrong.
 
-and in 4.12 and 4.11.
+Would you answer to below question by "yes"/"no" ?
 
+  If leak_balloon() is called via out_of_memory(), leak_balloon()
+  will decrease "struct virtio_balloon"->num_pages.
+  But, is "struct virtio_balloon_config"->num_pages updated when
+  leak_balloon() is called via out_of_memory() ?
 
--- 
-~Randy
+Below explanation assumes that your answer is "no".
+
+I consider that fill_balloon() is using __GFP_NORETRY is a bug.
+Consider an extreme situation that guest1 is started with 8192MB
+memory and then guest1's memory is reduced to 128MB by
+
+  virsh qemu-monitor-command --domain guest1 --hmp 'balloon 128'
+
+when VIRTIO_BALLOON_F_DEFLATE_ON_OOM was not negotiated.
+Of course, 128MB would be too small to operate guest1 properly.
+Since update_balloon_size_func() continues calling fill_balloon()
+until guest1's memory is reduced to 128MB, you will see flooding of
+"puff" messages (and guest1 is practically unusable because all CPU
+resource will be wasted for unsuccessful memory reclaim attempts)
+unless the OOM killer is invoked.
+
+What this patch is trying to handle is a situation when
+VIRTIO_BALLOON_F_DEFLATE_ON_OOM was negotiated. Once
+update_balloon_size_func() started calling fill_balloon(),
+update_balloon_size_func() will continue calling fill_balloon()
+until guest1's memory is reduced to 128MB, won't it?
+
+Since fill_balloon() uses __GFP_IO | __GFP_FS, fill_balloon() can
+indirectly trigger out_of_memory() despite __GFP_NORETRY is specified.
+
+When update_balloon_size_func() is running for calling fill_balloon(),
+calling leak_balloon() will increase number of pages to fill which
+fill_balloon() is supposed to fill. Leaking some pages from leak_balloon()
+via blocking_notifier_call_chain() callback could avoid invocation of the
+OOM killer for that specific moment, but it bounces back to us later because
+number of pages to allocate later (note that update_balloon_size_func() is
+running for calling fill_balloon()) is increased by leak_balloon().
+
+Thus, I don't think that avoid invoking the OOM killer by calling leak_balloon()
+makes sense when update_balloon_size_func() is running for calling fill_balloon().
+And this patch tries to detect it by replacing mutex_lock() with mutex_trylock().
+
+> Well the point of this flag is that when it's acked,
+> host knows that it's safe to inflate the balloon
+> to a large portion of guest memory and this won't
+> cause an OOM situation.
+
+Assuming that your answer to the question is "no", I don't think it is
+safe to inflate the balloon to a large portion of guest memory, for once
+update_balloon_size_func() started calling fill_balloon(),
+update_balloon_size_func() can not stop calling fill_balloon() even when
+blocking_notifier_call_chain() callback called leak_balloon() because
+"struct virtio_balloon_config"->num_pages will not be updated when
+blocking_notifier_call_chain() callback called leak_balloon().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
