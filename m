@@ -1,98 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 10A806B0038
-	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 13:43:47 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id d67so16260727qkg.3
-        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 10:43:47 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 28si789848qtn.62.2017.10.16.10.43.45
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EFF66B0069
+	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 13:43:54 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id f66so12643745oib.1
+        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 10:43:54 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s100sor2759842ota.116.2017.10.16.10.43.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Oct 2017 10:43:46 -0700 (PDT)
-Subject: Re: [RFC PATCH 3/3] mm/map_contig: Add mmap(MAP_CONTIG) support
-References: <20171012014611.18725-1-mike.kravetz@oracle.com>
- <20171012014611.18725-4-mike.kravetz@oracle.com>
- <20171012143756.p5bv4zx476qkmqhh@dhcp22.suse.cz>
- <f4a46a19-5f71-ebcc-3098-a35728fbfd03@oracle.com>
- <20171013084054.me3kxhgbxzgm2lpr@dhcp22.suse.cz>
- <alpine.DEB.2.20.1710131015420.3949@nuc-kabylake>
- <20171013152801.nbpk6nluotgbmfrs@dhcp22.suse.cz>
- <alpine.DEB.2.20.1710131040570.4247@nuc-kabylake>
- <20171013154747.2jv7rtfqyyagiodn@dhcp22.suse.cz>
- <alpine.DEB.2.20.1710131053450.4400@nuc-kabylake>
- <20171013161736.htumyr4cskfrjq64@dhcp22.suse.cz>
- <752b49eb-55c6-5a34-ab41-6e91dd93ea70@mellanox.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <aff6b405-6a06-f84d-c9b1-c6fb166dff81@oracle.com>
-Date: Mon, 16 Oct 2017 10:43:38 -0700
+        (Google Transport Security);
+        Mon, 16 Oct 2017 10:43:53 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <752b49eb-55c6-5a34-ab41-6e91dd93ea70@mellanox.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20171016072644.GB28270@lst.de>
+References: <150776922692.9144.16963640112710410217.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171012142319.GA11254@lst.de> <CAPcyv4gTON__Ohop0B5R2gsKXC71bycTBozqGmF3WmwG9C6LVA@mail.gmail.com>
+ <20171013065716.GB26461@lst.de> <CAPcyv4gaLBBefOU+8f7_ypYnCTjSMk+9nq8NfCqBHAE+NbUusw@mail.gmail.com>
+ <20171013163822.GA17411@obsidianresearch.com> <CAPcyv4jDHp8z2VgVfyRK1WwMzixYVQnh54LZoPD57HB3yqSPPQ@mail.gmail.com>
+ <20171013173145.GA18702@obsidianresearch.com> <20171016072644.GB28270@lst.de>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 16 Oct 2017 10:43:52 -0700
+Message-ID: <CAPcyv4itbYQqVrHBZ=+BRLH39WwDZ_RGg6sSaodVZ93LRYigNA@mail.gmail.com>
+Subject: Re: [PATCH v9 0/6] MAP_DIRECT for DAX userspace flush
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Guy Shattah <sguy@mellanox.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-xfs@vger.kernel.org, Jan Kara <jack@suse.cz>, Arnd Bergmann <arnd@arndb.de>, "Darrick J. Wong" <darrick.wong@oracle.com>, Linux API <linux-api@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Jeff Layton <jlayton@poochiereds.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 10/15/2017 12:50 AM, Guy Shattah wrote:
-> On 13/10/2017 19:17, Michal Hocko wrote:
->> On Fri 13-10-17 10:56:13, Cristopher Lameter wrote:
->>> On Fri, 13 Oct 2017, Michal Hocko wrote:
->>>
->>>>> There is a generic posix interface that could we used for a variety of
->>>>> specific hardware dependent use cases.
->>>> Yes you wrote that already and my counter argument was that this generic
->>>> posix interface shouldn't bypass virtual memory abstraction.
->>> It does do that? In what way?
->> availability of the virtual address space depends on the availability of
->> the same sized contiguous physical memory range. That sounds like the
->> abstraction is gone to large part to me.
-> In what way? userspace users will still be working with virtual memory.
-> 
+On Mon, Oct 16, 2017 at 12:26 AM, Christoph Hellwig <hch@lst.de> wrote:
+> On Fri, Oct 13, 2017 at 11:31:45AM -0600, Jason Gunthorpe wrote:
+>> I don't think that really represents how lots of apps actually use
+>> RDMA.
 >>
->>>>> There are numerous RDMA devices that would all need the mmap
->>>>> implementation. And this covers only the needs of one subsystem. There are
->>>>> other use cases.
->>>> That doesn't prevent providing a library function which could be reused
->>>> by all those drivers. Nothing really too much different from
->>>> remap_pfn_range.
->>> And then in all the other use cases as well. It would be much easier if
->>> mmap could give you the memory you need instead of havig numerous drivers
->>> improvise on their own. This is in particular also useful
->>> for numerous embedded use cases where you need contiguous memory.
->> But a generic implementation would have to deal with many issues as
->> already mentioned. If you make this driver specific you can have access
->> control based on fd etc... I really fail to see how this is any
->> different from remap_pfn_range.
-> Why have several driver specific implementation if you can generalize the idea and implement
-> an already existing POSIX standard?
+>> RDMA is often buried down in the software stack (eg in a MPI), and by
+>> the time a mapping gets used for RDMA transfer the link between the
+>> FD, mmap and the MR is totally opaque.
+>>
+>> Having a MR specific notification means the low level RDMA libraries
+>> have a chance to deal with everything for the app.
+>>
+>> Eg consider a HPC app using MPI that uses some DAX aware library to
+>> get DAX backed mmap's. It then passes memory in those mmaps to the
+>> MPI library to do transfers. The MPI creates the MR on demand.
+>>
+>
+> I suspect one of the more interesting use cases might be a file server,
+> for which that's not the case.  But otherwise I agree with the above,
+> and also thing that notifying the MR handle is the only way to go for
+> another very important reason:  fencing.  What if the application/library
+> does not react on the notification?  With a per-MR notification we
+> can unregister the MR in kernel space and have a rock solid fencing
+> mechanism.  And that is the most important bit here.
 
-Just to be clear, the posix standard talks about a typed memory object.
-The suggested implementation has one create a connection to the memory
-object to receive a fd, then use mmap as usual to get a mapping backed
-by contiguous pages/memory.  Of course, this type of implementation is
-not a requirement.  However, this type of implementation looks quite a
-bit like hugetlbfs today.
-- Both require opening a special file/device, and then calling mmap on
-  the returned fd.  You can technically use mmap(MAP_HUGETLB), but that
-  still ends up using hugetbfs.  BTW, there was resistance to adding the
-  MAP_HUGETLB flag to mmap.
-- Allocation of contiguous memory is much like 'on demand' allocation of
-  huge pages.  There are some (not many) users that use this model.  They
-  attempt to allocate huge pages on demand, and if not available fall back
-  to base pages.  This is how contiguous allocations would need to work.
-  Of course, most hugetlbfs users pre-allocate pages for their use, and
-  this 'might' be something useful for contiguous allocations as well.
-
-I wonder if going down the path of a separate devide/filesystem/etc for
-contiguous allocations might be a better option.  It would keep the
-implementation somewhat separate.  However, I would then be afraid that
-we end up with another 'separate/special vm' as in the case of hugetlbfs
-today.
-
--- 
-Mike Kravetz
+While I agree with the need for a per-MR notification mechanism, one
+thing we lose by walking away from MAP_DIRECT is a way for a
+hypervisor to coordinate pass through of a DAX mapping to an RDMA
+device in a guest. That will remain a case where we will still need to
+use device-dax. I'm fine if that's the answer, but just want to be
+clear about all the places we need to protect a DAX mapping against
+RDMA from a non-ODP device.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
