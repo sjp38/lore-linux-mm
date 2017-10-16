@@ -1,314 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 453486B0038
-	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 10:52:24 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id z11so14708862pfk.23
-        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 07:52:24 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id h25si4480669pfh.126.2017.10.16.07.52.17
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C14AE6B0038
+	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 11:01:18 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id l24so7281965pgu.17
+        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 08:01:18 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id q10si4584593pll.319.2017.10.16.08.01.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Oct 2017 07:52:17 -0700 (PDT)
+        Mon, 16 Oct 2017 08:01:17 -0700 (PDT)
+Date: Mon, 16 Oct 2017 18:01:14 +0300
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3, RFC] x86/boot/compressed/64: Handle 5-level paging boot if kernel is above 4G
-Date: Mon, 16 Oct 2017 17:52:09 +0300
-Message-Id: <20171016145209.60233-1-kirill.shutemov@linux.intel.com>
+Subject: Re: [mmotm:master 112/209] mm/debug.c:137:21: warning: passing
+ argument 1 of 'mm_pgtables_bytes' discards 'const' qualifier from pointer
+ target type
+Message-ID: <20171016150113.ikfxy3e7zzfvsr4w@black.fi.intel.com>
+References: <201710141547.41n3nN1Y%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201710141547.41n3nN1Y%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-[
-  The patch is based on my boot-time switching patchset and would not apply
-  directly to current upstream, but I would appreciate early feedback.
-]
+On Sat, Oct 14, 2017 at 07:38:55AM +0000, kbuild test robot wrote:
+> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> head:   cc4a10c92b384ba2b80393c37639808df0ebbf56
+> commit: ae7f37f07ee1eb08dd1eaaf79182ce9aa6ef7c09 [112/209] mm: consolidate page table accounting
+> config: blackfin-allmodconfig (attached as .config)
+> compiler: bfin-uclinux-gcc (GCC) 6.2.0
+> reproduce:
+>         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+>         chmod +x ~/bin/make.cross
+>         git checkout ae7f37f07ee1eb08dd1eaaf79182ce9aa6ef7c09
+>         # save the attached .config to linux build tree
+>         make.cross ARCH=blackfin 
+> 
+> All warnings (new ones prefixed by >>):
+> 
+>    In file included from include/linux/kernel.h:13:0,
+>                     from mm/debug.c:8:
+>    mm/debug.c: In function 'dump_mm':
+> >> mm/debug.c:137:21: warning: passing argument 1 of 'mm_pgtables_bytes' discards 'const' qualifier from pointer target type [-Wdiscarded-qualifiers]
+>       mm_pgtables_bytes(mm),
+>                         ^
+>    include/linux/printk.h:295:35: note: in definition of macro 'pr_emerg'
+>      printk(KERN_EMERG pr_fmt(fmt), ##__VA_ARGS__)
+>                                       ^~~~~~~~~~~
+>    In file included from mm/debug.c:9:0:
+>    include/linux/mm.h:1671:29: note: expected 'struct mm_struct *' but argument is of type 'const struct mm_struct *'
+>     static inline unsigned long mm_pgtables_bytes(struct mm_struct *mm)
 
-This patch addresses shortcoming in current boot process on machines
-that supports 5-level paging.
+Andrew, could you please take this fixup:
 
-If bootloader enables 64-bit mode with 4-level paging, we need to
-switch over to 5-level paging. The switching requires disabling paging.
-It works fine if kernel itself is loaded below 4G.
-
-If bootloader put the kernel above 4G (not sure if anybody does this),
-we would loose control as soon as paging is disabled as code becomes
-unreachable.
-
-This patch implements trampoline in lower memory to handle this
-situation.
-
-Apart from trampoline itself we also need place to store top level page
-table in lower memory as we don't have a way to load 64-bit value into
-CR3 from 32-bit mode. We only really need 8-bytes there as we only use
-the very first entry of the page table. but we allocate whole page
-anyway. We cannot have the code in the same because, there's hazard that
-a CPU would read page table speculatively and get confused seeing
-garbage.
-
-We only need the memory for very short time, until main kernel image
-setup its own page tables.
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/boot/compressed/head_64.S   | 83 ++++++++++++++++++++++--------------
- arch/x86/boot/compressed/pagetable.c | 45 +++++++++++++++++++
- arch/x86/boot/compressed/pagetable.h | 16 +++++++
- 3 files changed, 111 insertions(+), 33 deletions(-)
- create mode 100644 arch/x86/boot/compressed/pagetable.h
-
-diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
-index cefe4958fda9..7e806a55ea1c 100644
---- a/arch/x86/boot/compressed/head_64.S
-+++ b/arch/x86/boot/compressed/head_64.S
-@@ -32,6 +32,7 @@
- #include <asm/processor-flags.h>
- #include <asm/asm-offsets.h>
- #include <asm/bootparam.h>
-+#include "pagetable.h"
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a7e50c464021..d3c4b1f19da4 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1668,7 +1668,7 @@ static inline void mm_dec_nr_ptes(struct mm_struct *mm)
+ #else
  
- /*
-  * Locally defined symbols should be marked hidden:
-@@ -288,8 +289,22 @@ ENTRY(startup_64)
- 	leaq	boot_stack_end(%rbx), %rsp
- 
- #ifdef CONFIG_X86_5LEVEL
--	/* Preserve RBX across CPUID */
--	movq	%rbx, %r8
-+/*
-+ * We need trampoline in lower memory switch from 4- to 5-level paging for
-+ * cases when bootloader put kernel above 4G, but didn't enable 5-level paging
-+ * for us.
-+ *
-+ * We also have to have top page table in lower memory as we don't have a way
-+ * to load 64-bit value into CR3 from 32-bit mode. We only need 8-bytes there
-+ * as we only use the very first entry of the page table, but we allocate whole
-+ * page anyway. We cannot have the code in the same because, there's hazard
-+ * that a CPU would read page table speculatively and get confused seeing
-+ * garbage.
-+ */
-+
-+	/* Preserve RBX and ESP */
-+	movq	%rbx, %r15
-+	movq	%rsp, %r14
- 
- 	/* Check if leaf 7 is supported */
- 	xorl	%eax, %eax
-@@ -307,9 +322,6 @@ ENTRY(startup_64)
- 	andl	$(1 << 16), %ecx
- 	jz	lvl5
- 
--	/* Restore RBX */
--	movq	%r8, %rbx
--
- 	/* Check if 5-level paging has already been enabled */
- 	movq	%cr4, %rax
- 	testl	$X86_CR4_LA57, %eax
-@@ -323,34 +335,34 @@ ENTRY(startup_64)
- 	 * long mode would trigger #GP. So we need to switch off long mode
- 	 * first.
- 	 *
--	 * NOTE: This is not going to work if bootloader put us above 4G
--	 * limit.
-+	 * We use trampoline in lower memory to handle situation when
-+	 * bootloader put the kernel image above 4G.
- 	 *
- 	 * The first step is go into compatibility mode.
- 	 */
- 
--	/* Clear additional page table */
--	leaq	lvl5_pgtable(%rbx), %rdi
--	xorq	%rax, %rax
--	movq	$(PAGE_SIZE/8), %rcx
--	rep	stosq
-+	/*
-+	 * Find sitable place for trampoline.
-+	 * The address will be stored in RBX.
-+	 */
-+	call	place_trampoline
-+	movq	%rax, %rbx
- 
- 	/*
--	 * Setup current CR3 as the first and only entry in a new top level
--	 * page table.
-+	 * Load address of lvl5 into RDI.
-+	 * It will be used to return address from trampoline.
- 	 */
--	movq	%cr3, %rdi
--	leaq	0x7 (%rdi), %rax
--	movq	%rax, lvl5_pgtable(%rbx)
-+	leaq	lvl5(%rip), %rdi
- 
- 	/* Switch to compatibility mode (CS.L = 0 CS.D = 1) via far return */
- 	pushq	$__KERNEL32_CS
--	leaq	compatible_mode(%rip), %rax
-+	leaq	LVL5_TRAMPOLINE_CODE_OFF(%rbx), %rax
- 	pushq	%rax
- 	lretq
- lvl5:
--	/* Restore RBX */
--	movq	%r8, %rbx
-+	/* Restore RBX and ESP */
-+	movq	%r15, %rbx
-+	movq	%r14, %rsp
- #endif
- 
- 	/* Zero EFLAGS */
-@@ -488,21 +500,24 @@ relocated:
-  */
- 	jmp	*%rax
- 
--	.code32
- #ifdef CONFIG_X86_5LEVEL
--compatible_mode:
-+	.code32
-+ENTRY(lvl5_trampoline_src)
- 	/* Setup data and stack segments */
- 	movl	$__KERNEL_DS, %eax
- 	movl	%eax, %ds
- 	movl	%eax, %ss
- 
-+	/* Setup new stack at the end of trampoline memory */
-+	leal	LVL5_TRAMPOLINE_STACK_END (%ebx), %esp
-+
- 	/* Disable paging */
- 	movl	%cr0, %eax
- 	btrl	$X86_CR0_PG_BIT, %eax
- 	movl	%eax, %cr0
- 
- 	/* Point CR3 to 5-level paging */
--	leal	lvl5_pgtable(%ebx), %eax
-+	leal	(%ebx), %eax
- 	movl	%eax, %cr3
- 
- 	/* Enable PAE and LA57 mode */
-@@ -510,23 +525,29 @@ compatible_mode:
- 	orl	$(X86_CR4_PAE | X86_CR4_LA57), %eax
- 	movl	%eax, %cr4
- 
--	/* Calculate address we are running at */
--	call	1f
--1:	popl	%edi
--	subl	$1b, %edi
-+	/* Calculate address of lvl5_enabled once we are in trampoline */
-+	leal	lvl5_enabled - lvl5_trampoline_src + LVL5_TRAMPOLINE_CODE_OFF (%ebx), %eax
- 
- 	/* Prepare stack for far return to Long Mode */
- 	pushl	$__KERNEL_CS
--	leal	lvl5(%edi), %eax
--	push	%eax
-+	pushl	%eax
- 
- 	/* Enable paging back */
- 	movl	$(X86_CR0_PG | X86_CR0_PE), %eax
- 	movl	%eax, %cr0
- 
- 	lret
-+
-+	.code64
-+lvl5_enabled:
-+	/* Return from trampoline */
-+	jmp	*%rdi
-+
-+	/* Bound size of trampoline code */
-+	.org	lvl5_trampoline_src + LVL5_TRAMPOLINE_CODE_SIZE
- #endif
- 
-+	.code32
- no_longmode:
- 	/* This isn't an x86-64 CPU so hang */
- 1:
-@@ -584,7 +605,3 @@ boot_stack_end:
- 	.balign 4096
- pgtable:
- 	.fill BOOT_PGT_SIZE, 1, 0
--#ifdef CONFIG_X86_5LEVEL
--lvl5_pgtable:
--	.fill PAGE_SIZE, 1, 0
--#endif
-diff --git a/arch/x86/boot/compressed/pagetable.c b/arch/x86/boot/compressed/pagetable.c
-index f1aa43854bed..4f9d7bfca94b 100644
---- a/arch/x86/boot/compressed/pagetable.c
-+++ b/arch/x86/boot/compressed/pagetable.c
-@@ -23,6 +23,8 @@
- #undef CONFIG_AMD_MEM_ENCRYPT
- 
- #include "misc.h"
-+#include "pagetable.h"
-+#include "../string.h"
- 
- /* These actually do the work of building the kernel identity maps. */
- #include <asm/init.h>
-@@ -149,3 +151,46 @@ void finalize_identity_maps(void)
+ static inline void mm_pgtables_bytes_init(struct mm_struct *mm) {}
+-static inline unsigned long mm_pgtables_bytes(struct mm_struct *mm)
++static inline unsigned long mm_pgtables_bytes(const struct mm_struct *mm)
  {
- 	write_cr3(top_level_pgt);
+ 	return 0;
  }
-+
-+#ifdef CONFIG_X86_5LEVEL
-+
-+#define BIOS_START_MIN		0x20000U	/* 128K, less than this is insane */
-+#define BIOS_START_MAX		0x9f000U	/* 640K, absolute maximum */
-+
-+asmlinkage __visible unsigned long *place_trampoline()
-+{
-+	unsigned long bios_start, ebda_start, trampoline_start, *trampoline;
-+
-+	/* Based on reserve_bios_regions() */
-+
-+	ebda_start = *(unsigned short *)0x40e << 4;
-+	bios_start = *(unsigned short *)0x413 << 10;
-+
-+	if (bios_start < BIOS_START_MIN || bios_start > BIOS_START_MAX)
-+		bios_start = BIOS_START_MAX;
-+
-+	if (ebda_start > BIOS_START_MIN && ebda_start < bios_start)
-+		bios_start = ebda_start;
-+
-+	/* Place trampoline below end of low memory, aligned to 4k */
-+	trampoline_start = bios_start - LVL5_TRAMPOLINE_SIZE;
-+	trampoline_start = round_down(trampoline_start, PAGE_SIZE);
-+
-+	trampoline = (unsigned long *)trampoline_start;
-+
-+	/* Clear trampoline memory first */
-+	memset(trampoline, 0, LVL5_TRAMPOLINE_SIZE);
-+
-+	/* Copy trampoline code in place */
-+	memcpy(trampoline + LVL5_TRAMPOLINE_CODE_OFF / sizeof(unsigned long),
-+			&lvl5_trampoline_src, LVL5_TRAMPOLINE_CODE_SIZE);
-+
-+	/*
-+	 * Setup current CR3 as the first and the only entry in a new top level
-+	 * page table.
-+	 */
-+	trampoline[0] = __read_cr3() + _PAGE_TABLE_NOENC;
-+
-+	return trampoline;
-+}
-+#endif
-diff --git a/arch/x86/boot/compressed/pagetable.h b/arch/x86/boot/compressed/pagetable.h
-new file mode 100644
-index 000000000000..22b05f1e22ea
---- /dev/null
-+++ b/arch/x86/boot/compressed/pagetable.h
-@@ -0,0 +1,16 @@
-+#ifndef BOOT_COMPRESSED_PAGETABLE_H
-+#define BOOT_COMPRESSED_PAGETABLE_H
-+
-+#define LVL5_TRAMPOLINE_SIZE		(2 * PAGE_SIZE)
-+
-+#define LVL5_TRAMPOLINE_CODE_OFF	PAGE_SIZE
-+#define LVL5_TRAMPOLINE_CODE_SIZE	0x40
-+
-+#define LVL5_TRAMPOLINE_STACK_END	LVL5_TRAMPOLINE_SIZE
-+
-+#ifndef __ASSEMBLER__
-+
-+extern void (*lvl5_trampoline_src)(void *return_ptr);
-+
-+#endif /* __ASSEMBLER__ */
-+#endif /* BOOT_COMPRESSED_PAGETABLE_H */
 -- 
-2.14.2
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
