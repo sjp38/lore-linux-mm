@@ -1,127 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C27A66B0033
-	for <linux-mm@kvack.org>; Sun, 15 Oct 2017 21:13:13 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id z50so9723132qtj.0
-        for <linux-mm@kvack.org>; Sun, 15 Oct 2017 18:13:13 -0700 (PDT)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id 184si1111878ybz.406.2017.10.15.18.13.12
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C050F6B0033
+	for <linux-mm@kvack.org>; Sun, 15 Oct 2017 23:58:28 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id r25so5989478pgn.23
+        for <linux-mm@kvack.org>; Sun, 15 Oct 2017 20:58:28 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id 11si4030078plf.247.2017.10.15.20.58.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 15 Oct 2017 18:13:12 -0700 (PDT)
-Date: Sun, 15 Oct 2017 21:13:01 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: kernel BUG at fs/xfs/xfs_aops.c:853! in kernel 4.13 rc6
-Message-ID: <20171016011301.dcam44qylno7rm6a@thunk.org>
-References: <CABXGCsMorRzy-dJrjTO6sP80BSb0RAeMhF3QGwSkk50m7VYzOA@mail.gmail.com>
- <CABXGCsOeex62Y4qQJwvMJ+fJ+MnKyKGDj9eRbKemeMVWo5huKw@mail.gmail.com>
- <20171009000529.GY3666@dastard>
- <20171009183129.GE11645@wotan.suse.de>
- <87wp442lgm.fsf@xmission.com>
- <8729041d-05e5-6bea-98db-7f265edde193@suse.de>
- <20171015130625.o5k6tk5uflm3rx65@thunk.org>
- <87efq4qcry.fsf@xmission.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 15 Oct 2017 20:58:27 -0700 (PDT)
+Date: Mon, 16 Oct 2017 11:58:24 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [mmotm:master 120/209] warning:
+ (FAULT_INJECTION_STACKTRACE_FILTER && ..) selects FRAME_POINTER which has
+ unmet direct dependencies (DEBUG_KERNEL && ..) || ..)
+Message-ID: <20171016035824.s5afysu33xwgrpna@wfg-t540p.sh.intel.com>
+References: <201710141255.eqxNqLrb%fengguang.wu@intel.com>
+ <0b40bf6c-7454-c8e6-045b-1a3cfbf6c4b3@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-In-Reply-To: <87efq4qcry.fsf@xmission.com>
+In-Reply-To: <0b40bf6c-7454-c8e6-045b-1a3cfbf6c4b3@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Aleksa Sarai <asarai@suse.de>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Dave Chinner <david@fromorbit.com>, =?utf-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>, Christoph Hellwig <hch@infradead.org>, Jan Blunck <jblunck@infradead.org>, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.com>, Jan Kara <jack@suse.cz>, Hannes Reinecke <hare@suse.de>, linux-xfs@vger.kernel.org
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Sun, Oct 15, 2017 at 05:14:41PM -0500, Eric W. Biederman wrote:
-> 
-> Looking at the code it appears ext4, f2fs, and xfs shutdown path
-> implements revoking a bdev from a filesystem.  Further if the ext4
-> implementation is anything to go by it looks like something we could
-> generalize into the vfs.
+On Sat, Oct 14, 2017 at 07:21:34PM -0700, Randy Dunlap wrote:
+>On 10/13/17 21:20, kbuild test robot wrote:
+>> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+>> head:   cc4a10c92b384ba2b80393c37639808df0ebbf56
+>> commit: 05f4b3e9e49122144fa1c5b1f3a3dc9b1c2c643a [120/209] kmemcheck: rip it out
+>> config: ia64-allyesconfig (attached as .config)
+>> compiler: ia64-linux-gcc (GCC) 6.2.0
+>> reproduce:
+>>         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+>>         chmod +x ~/bin/make.cross
+>>         git checkout 05f4b3e9e49122144fa1c5b1f3a3dc9b1c2c643a
+>>         # save the attached .config to linux build tree
+>>         make.cross ARCH=ia64
+>>
+>> All warnings (new ones prefixed by >>):
+>>
+>> warning: (FAULT_INJECTION_STACKTRACE_FILTER && LATENCYTOP && LOCKDEP) selects FRAME_POINTER which has unmet direct dependencies (DEBUG_KERNEL && (CRIS || M68K || FRV || UML || SUPERH || BLACKFIN || MN10300 || METAG) || ARCH_WANT_FRAME_POINTERS)
+>
+>So this one isn't new, right?
+>
+>It also occurs in linux-next, 4.14-rc4, 4.14-rc3, 4.14-rc2, and 4.13.
+>That's all that I have checked so far.
 
-There are two things which the current file system shutdown paths do.
-The first is that they prevent the file system from attempting to
-write to the bdev.  That's all very file system specific, and can't be
-generalized into the VFS.
+Yeah I can find that warning in reports back to 2014. So it's at least
+3 years old.
 
-The second thing they do is they cause system calls which might modify
-the file system to return an error.  Currently operations that might
-result in _reads_ are not shutdown, so it's not a true revoke(2)
-functionality ala *BSD.  I assume that's what you are talking about
-generalizing into the VFS.  Personally, I would prefer to see us
-generalize something like vhangup() but which works on a file
-descriptor, not just a TTY.  That it is, it disconnects the file
-descriptor entirely from the hardware / file system so in the case of
-the tty, it can be used by other login session, and in the case of the
-file descriptor belonging to a file system, it stops the file system
-from being unmounted.
-
-The reason why I want to see something which actually does disconnect
-the file descriptor and replaces the CWD for processes is because the
-shutdown path is inherently a fairly violent procedure.  It forcibly
-disconnects the file system from the block device, which means we
-can't do a clean unmount.  If the block device has disappeared, we
-don't have a choice, and that's the only thing we can do.
-
-But if the USB thumb drive hasn't been yanked out yet, it would be
-nice to simply disconnect everything at the file descriptor level,
-then do a normal umount in all of the namespaces.  This will allow the
-file system to be cleanly unmounted, which means it will work for
-those file systems which don't have journals.  (The ext4/btrfs/xfs
-shutdown paths rely on the file system's journalling capability
-because it causes the block device to look like the system had been
-powered off, and so you have to replay the journal when file system is
-remounted.  That's fine, but it's not going to work on file systems
-like VFAT, or worse, on NTFS, where we don't correctly support the
-native file system's logging capability, so power-fail or a forced
-shutdown may end up corrupting the file system enough that you have
-boot into Windows to run CHKDSK.EXE in order clean it up.)
-
-> I won't call this a security regression with user namespaces, or a mount
-> namespace specific issue as it appears any process that can open a file
-> has always been able to trigger this.  That said it does appear this has
-> gone from a theoretical issue to an actuall problem so it is most
-> definitely time to address and fix this.
-
-The reason why this has started become a really painful issue is that
-mount namespaces are extremely painful to debug.  You can't iterate
-over all of the possible namespaces, without having to iterate over
-every process and every thread's /proc/*/mounts.  So if there are 10
-mount namespaces, but 10,000 threads, that's 10,000 /proc/*/mounts
-file that you have to examine individually, just to *find* that needle
-in the haystack which is keeping the mount pinned.
-
-And there is at least one system daemon where when it starts, it opens
-a new mount namespace.  Which means if you happen to have a USB
-thumbdrive mounted when you restart that system daemon, it is not at
-all obvious what you need to do to unmount the USB thumb drive.  And
-yes, any process can open a file, but people at least knew how to find
-it by using lsof.  So perhaps this could be solved partially by better
-tooling, but I would argue that having userspace do a brute force
-search through all of /proc/*/fd/* actually wasn't particularly clean,
-either.  We've lived with it, true.  But perhaps it's time to do
-something better?
-
-And in the case where the system daemon only accidentally captured the
-USB thumb drive by forking a mount namespace, it would be *definitely*
-nice if we could simply make the mount disappear, instead of what we
-have to today, which is kill the system daemon, unmount the USB thumb
-drive, and then restart the system daemon.  (Once, that is, you have
-figured what is going on first.  Often, you end up reporting an ext4
-bug to the ext4 maintainer first, because you think it's an ext4 bug
-that ext4 is refusing to unmount the file system.  After all, you are
-an experienced system administrator, so you *know* that *nothing*
-could *possibly* be keeping the file system busy.  lsof said so.  :-)
-
-> Ted, Aleksa would either of you be interested in generalizing what ext4,
-> f2fs, and xfs does now and working to put a good interface on it?  I can
-> help especially with review but for the short term I am rather booked.
-
-Unfortunately, I have way too much travel coming up in the short term,
-so I probably won't have to take on a new project until at least
-mid-to-late-November at the earliest.  Aleska, do you have time?  I
-can consult on a design, but I have zero coding time for the next
-couple of weeks.
-
-	     	    	       	       	  - Ted
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
