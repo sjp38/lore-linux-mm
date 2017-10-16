@@ -1,98 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E2096B0038
-	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 13:04:41 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id x82so16009420qkb.11
-        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 10:04:41 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f7si444951qte.316.2017.10.16.10.04.39
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 96E4B6B0033
+	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 13:18:02 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id y142so9631698wme.12
+        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 10:18:02 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k135sor1900435wmd.68.2017.10.16.10.18.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Oct 2017 10:04:40 -0700 (PDT)
-Date: Mon, 16 Oct 2017 13:04:34 -0400 (EDT)
-From: Pankaj Gupta <pagupta@redhat.com>
-Message-ID: <1080174355.20804941.1508173474622.JavaMail.zimbra@redhat.com>
-In-Reply-To: <20171016144753.GB14135@stefanha-x1.localdomain>
-References: <20171012155027.3277-1-pagupta@redhat.com> <20171012155027.3277-3-pagupta@redhat.com> <20171013094431.GA27308@stefanha-x1.localdomain> <24301306.20068579.1507891695416.JavaMail.zimbra@redhat.com> <20171016144753.GB14135@stefanha-x1.localdomain>
-Subject: Re: [RFC 2/2] KVM: add virtio-pmem driver
+        (Google Transport Security);
+        Mon, 16 Oct 2017 10:18:00 -0700 (PDT)
+Date: Mon, 16 Oct 2017 19:17:57 +0200
+From: Laszlo Toth <laszlth@gmail.com>
+Subject: [PATCH] mm, soft_offline: improve hugepage soft offlining error log
+Message-ID: <20171016171757.GA3018@ubuntu-desk-vm>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Hajnoczi <stefanha@gmail.com>
-Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-nvdimm@ml01.01.org, linux-mm@kvack.org, jack@suse.cz, stefanha@redhat.com, dan j williams <dan.j.williams@intel.com>, riel@redhat.com, haozhong zhang <haozhong.zhang@intel.com>, nilal@redhat.com, kwolf@redhat.com, pbonzini@redhat.com, ross zwisler <ross.zwisler@intel.com>, david@redhat.com, xiaoguangrong eric <xiaoguangrong.eric@gmail.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
 
+On a failed attempt, we get the following entry:
+soft offline: 0x3c0000: migration failed 1, type 17ffffc0008008
+(uptodate|head)
 
-> 
-> On Fri, Oct 13, 2017 at 06:48:15AM -0400, Pankaj Gupta wrote:
-> > > On Thu, Oct 12, 2017 at 09:20:26PM +0530, Pankaj Gupta wrote:
-> > > > +static blk_qc_t virtio_pmem_make_request(struct request_queue *q,
-> > > > +			struct bio *bio)
-> > > > +{
-> > > > +	blk_status_t rc = 0;
-> > > > +	struct bio_vec bvec;
-> > > > +	struct bvec_iter iter;
-> > > > +	struct virtio_pmem *pmem = q->queuedata;
-> > > > +
-> > > > +	if (bio->bi_opf & REQ_FLUSH)
-> > > > +		//todo host flush command
-> > > 
-> > > This detail is critical to the device design.  What is the plan?
-> > 
-> > yes, this is good point.
-> > 
-> > was thinking of guest sending a flush command to Qemu which
-> > will do a fsync on file fd.
-> 
-> Previously there was discussion about fsyncing a specific file range
-> instead of the whole file.  This could perform better in cases where
-> only a subset of dirty pages need to be flushed.
+Make this more specific to be straightforward and to follow
+other error log formats in soft_offline_huge_page().
 
-yes, We had discussion about this and decided to do entire block flush
-then to range level flush.
+Signed-off-by: Laszlo Toth <laszlth@gmail.com>
+---
+ mm/memory-failure.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-> 
-> One possibility is to design the virtio interface to communicate ranges
-> but the emulation code simply fsyncs the fd for the time being.  Later
-> on, if the necessary kernel and userspace interfaces are added, we can
-> make use of the interface.
-> 
-> > If we do a async flush and move the task to wait queue till we receive
-> > flush complete reply from host we can allow other tasks to execute
-> > in current cpu.
-> > 
-> > Any suggestions you have or anything I am not foreseeing here?
-> 
-> My main thought about this patch series is whether pmem should be a
-> virtio-blk feature bit instead of a whole new device.  There is quite a
-> bit of overlap between the two.
-
-Exposing options with existing virtio-blk device to be used as persistent memory
-range at high level would require additional below features:
-
-- Use a persistent memory range with an option to allocate memmap array in the device
-  itself for .
-
-- Block operations for DAX and persistent memory range.
-
-- Bifurcation at filesystem level based on type of virtio-blk device selected.
-
-- Bifurcation of flushing interface and communication channel between guest & host.
-
-But yes these features can be dynamically configured based on type of device
-added? What if we have virtio-blk:virtio-pmem (m:n) devices ratio?And scale involved? 
-
-If i understand correctly virtio-blk is high performance interface with multiqueue support 
-and additional features at host side like data-plane mode etc. If we bloat it with additional
-stuff(even when we need them) and provide locking with additional features both at guest as 
-well as host side we will get a hit in performance? Also as requirement of both the interfaces
-would grow it will be more difficult to maintain? I would prefer more simpler interfaces with
-defined functionality but yes common code can be shared and used using well defined wrappers. 
-
-> 
-> Stefan
-> 
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 8836662..4acdf39 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1587,7 +1587,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
+ 	ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
+ 				MIGRATE_SYNC, MR_MEMORY_FAILURE);
+ 	if (ret) {
+-		pr_info("soft offline: %#lx: migration failed %d, type %lx (%pGp)\n",
++		pr_info("soft offline: %#lx: hugepage migration failed %d, type %lx (%pGp)\n",
+ 			pfn, ret, page->flags, &page->flags);
+ 		if (!list_empty(&pagelist))
+ 			putback_movable_pages(&pagelist);
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
