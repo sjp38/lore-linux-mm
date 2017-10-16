@@ -1,111 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C3FE6B0033
-	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 05:54:50 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f4so8755061wme.21
-        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 02:54:49 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id 60si5829021wrp.1.2017.10.16.02.54.48
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 67D686B0033
+	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 06:33:12 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id t69so8780116wmt.7
+        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 03:33:12 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id j9sor3346898edf.30.2017.10.16.03.33.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Oct 2017 02:54:48 -0700 (PDT)
-Date: Mon, 16 Oct 2017 11:54:47 +0200
-From: Pavel Machek <pavel@ucw.cz>
+        (Google Transport Security);
+        Mon, 16 Oct 2017 03:33:10 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
 Subject: Re: [RFC PATCH 3/3] mm/map_contig: Add mmap(MAP_CONTIG) support
-Message-ID: <20171016095447.GA4639@amd>
-References: <20171012014611.18725-4-mike.kravetz@oracle.com>
- <20171012143756.p5bv4zx476qkmqhh@dhcp22.suse.cz>
- <f4a46a19-5f71-ebcc-3098-a35728fbfd03@oracle.com>
- <20171013084054.me3kxhgbxzgm2lpr@dhcp22.suse.cz>
- <alpine.DEB.2.20.1710131015420.3949@nuc-kabylake>
- <20171013152801.nbpk6nluotgbmfrs@dhcp22.suse.cz>
- <alpine.DEB.2.20.1710131040570.4247@nuc-kabylake>
- <20171013154747.2jv7rtfqyyagiodn@dhcp22.suse.cz>
- <20171015065856.GC3916@xo-6d-61-c0.localdomain>
- <20171016081804.yiqck2g4bwlbdqi6@dhcp22.suse.cz>
+In-Reply-To: <752b49eb-55c6-5a34-ab41-6e91dd93ea70@mellanox.com>
+References: <20171012014611.18725-1-mike.kravetz@oracle.com> <20171012014611.18725-4-mike.kravetz@oracle.com> <20171012143756.p5bv4zx476qkmqhh@dhcp22.suse.cz> <f4a46a19-5f71-ebcc-3098-a35728fbfd03@oracle.com> <20171013084054.me3kxhgbxzgm2lpr@dhcp22.suse.cz> <alpine.DEB.2.20.1710131015420.3949@nuc-kabylake> <20171013152801.nbpk6nluotgbmfrs@dhcp22.suse.cz> <alpine.DEB.2.20.1710131040570.4247@nuc-kabylake> <20171013154747.2jv7rtfqyyagiodn@dhcp22.suse.cz> <alpine.DEB.2.20.1710131053450.4400@nuc-kabylake> <20171013161736.htumyr4cskfrjq64@dhcp22.suse.cz> <752b49eb-55c6-5a34-ab41-6e91dd93ea70@mellanox.com>
+Date: Mon, 16 Oct 2017 12:33:07 +0200
+Message-ID: <xa1t60bfxtzw.fsf@mina86.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="XsQoSWH+UP9D9v3l"
-Content-Disposition: inline
-In-Reply-To: <20171016081804.yiqck2g4bwlbdqi6@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Christopher Lameter <cl@linux.com>, Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Guy Shattah <sguy@mellanox.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Guy Shattah <sguy@mellanox.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
+On Sun, Oct 15 2017, Guy Shattah wrote:
+> Why have several driver specific implementation if you can generalize
+> the idea and implement an already existing POSIX standard?
 
---XsQoSWH+UP9D9v3l
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Why is there a need for contiguous allocation?
 
-On Mon 2017-10-16 10:18:04, Michal Hocko wrote:
-> On Sun 15-10-17 08:58:56, Pavel Machek wrote:
-> > Hi!
-> >=20
-> > > Yes you wrote that already and my counter argument was that this gene=
-ric
-> > > posix interface shouldn't bypass virtual memory abstraction.
-> > >=20
-> > > > > > The contiguous allocations are particularly useful for the RDMA=
- API which
-> > > > > > allows registering user space memory with devices.
-> > > > >
-> > > > > then make those devices expose an implementation of an mmap which=
- does
-> > > > > that. You would get both a proper access control (via fd), accoun=
-ting
-> > > > > and others.
-> > > >=20
-> > > > There are numerous RDMA devices that would all need the mmap
-> > > > implementation. And this covers only the needs of one subsystem. Th=
-ere are
-> > > > other use cases.
-> > >=20
-> > > That doesn't prevent providing a library function which could be reus=
-ed
-> > > by all those drivers. Nothing really too much different from
-> > > remap_pfn_range.
-> >=20
-> > So you'd suggest using ioctl() for allocating memory?
->=20
-> Why not using standard mmap on the device fd?
+CPU cares only to the point of huge pages and there=E2=80=99s already an ef=
+fort
+in the kernel to allocate huge pages transparently without user space
+being aware of it.
 
-No, sorry, that's something very different work, right? Lets say I
-have a disk, and I'd like to write to it, using continguous memory for
-performance.
+If not CPU than various devices all of which may have very different
+needs.  Some may be behind an IO MMU.  Some may support DMA.  Some may
+indeed require physically continuous memory.  How is user space to know?
 
-So I mmap(MAP_CONTIG) 1GB working of working memory, prefer some data
-structures there, maybe recieve from network, then decide to write
-some and not write some other.
+Furthermore, user space does not care whether allocation is physically
+contiguous or not.  What it cares about is whether given allocation can
+be passed as a buffer to a particular device.
 
-mmap(sda) does something very different... Everything you write to
-that mmap will eventually go to the disk, and you don't have complete
-control when.
+If generalisation is the issue, then the solution is to define a common
+API where user-space can allocate memory *in the context of* a device.
+This provides a =E2=80=98give me memory I can use for this device=E2=80=99 =
+request which
+is what user space really wants.
 
-Also, you can do mmap(MAP_CONTIG) and use that to both disk and
-network. That would not work with mmap(sda) and mmap(eth0)...
-
-									Pavel
+So yeah, like others in this thread, the reason for this change alludes
+me.  On the other hand, I don=E2=80=99t care much so I=E2=80=99ll limit mys=
+elf to this
+one message.
 
 --=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
-
---XsQoSWH+UP9D9v3l
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAlnkgecACgkQMOfwapXb+vJgngCcCzYHX0fmHkOhE/joYCYp3Fa5
-/SQAn0uQyszIUPiwNwtkp2C1AoYRwbhf
-=mNEn
------END PGP SIGNATURE-----
-
---XsQoSWH+UP9D9v3l--
+Best regards
+=E3=83=9F=E3=83=8F=E3=82=A6 =E2=80=9C=F0=9D=93=B6=F0=9D=93=B2=F0=9D=93=B7=
+=F0=9D=93=AA86=E2=80=9D =E3=83=8A=E3=82=B6=E3=83=AC=E3=83=B4=E3=82=A4=E3=83=
+=84
+=C2=ABIf at first you don=E2=80=99t succeed, give up skydiving=C2=BB
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
