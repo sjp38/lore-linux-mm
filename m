@@ -1,75 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 205906B0038
-	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 18:59:17 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id s2so8120353pge.19
-        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 15:59:17 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id v32sor2350180plg.72.2017.10.16.15.59.15
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E8426B0038
+	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 19:14:47 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 22so3844725wrb.9
+        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 16:14:47 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id m192si6092123wmb.206.2017.10.16.16.14.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 16 Oct 2017 15:59:16 -0700 (PDT)
-Date: Mon, 16 Oct 2017 15:59:13 -0700
-From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH] writeback: Convert timers to use timer_setup()
-Message-ID: <20171016225913.GA99214@beast>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Oct 2017 16:14:46 -0700 (PDT)
+Date: Mon, 16 Oct 2017 16:14:43 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/1] userfaultfd: hugetlbfs: prevent UFFDIO_COPY to fill
+ beyond the end of i_size
+Message-Id: <20171016161443.5365a280c44dc80e8c11298c@linux-foundation.org>
+In-Reply-To: <20171016223914.2421-2-aarcange@redhat.com>
+References: <20171016223914.2421-1-aarcange@redhat.com>
+	<20171016223914.2421-2-aarcange@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Matthew Wilcox <mawilcox@microsoft.com>, Jeff Layton <jlayton@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Mike Rapoport <rppt@linux.vnet.ibm.com>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-In preparation for unconditionally passing the struct timer_list pointer to
-all timer callbacks, switch to using the new timer_setup() and from_timer()
-to pass the timer pointer explicitly.
+On Tue, 17 Oct 2017 00:39:14 +0200 Andrea Arcangeli <aarcange@redhat.com> wrote:
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>
-Cc: Jeff Layton <jlayton@redhat.com>
-Cc: linux-mm@kvack.org
-Signed-off-by: Kees Cook <keescook@chromium.org>
----
- mm/page-writeback.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+> kernel BUG at fs/hugetlbfs/inode.c:484!
+> RIP: 0010:[<ffffffff815f8520>]  [<ffffffff815f8520>] remove_inode_hugepages+0x3d0/0x410
+> Call Trace:
+>  [<ffffffff815f95b9>] hugetlbfs_setattr+0xd9/0x130
+>  [<ffffffff81526312>] notify_change+0x292/0x410
+>  [<ffffffff816cc6b6>] ? security_inode_need_killpriv+0x16/0x20
+>  [<ffffffff81503c65>] do_truncate+0x65/0xa0
+>  [<ffffffff81504035>] ? do_sys_ftruncate.constprop.3+0xe5/0x180
+>  [<ffffffff8150406a>] do_sys_ftruncate.constprop.3+0x11a/0x180
+>  [<ffffffff8150410e>] SyS_ftruncate+0xe/0x10
+>  [<ffffffff81999f27>] tracesys+0xd9/0xde
+> 
+> This oops was caused by the lack of i_size check in
+> hugetlb_mcopy_atomic_pte. mmap() can still succeed beyond the end of
+> the i_size after vmtruncate zapped vmas in those ranges, but the
+> faults must not succeed, and that includes UFFDIO_COPY.
+> 
+> We could differentiate the retval to userland to represent a SIGBUS
+> like a page fault would do (vs SIGSEGV), but it doesn't seem very
+> useful and we'd need to pick a random retval as there's no meaningful
+> syscall retval that would differentiate from SIGSEGV and SIGBUS,
+> there's just -EFAULT.
+> 
+> Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 94854e243b11..65ba42c7c7da 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -628,9 +628,9 @@ EXPORT_SYMBOL_GPL(wb_writeout_inc);
-  * On idle system, we can be called long after we scheduled because we use
-  * deferred timers so count with missed periods.
-  */
--static void writeout_period(unsigned long t)
-+static void writeout_period(struct timer_list *t)
- {
--	struct wb_domain *dom = (void *)t;
-+	struct wb_domain *dom = from_timer(dom, t, period_timer);
- 	int miss_periods = (jiffies - dom->period_time) /
- 						 VM_COMPLETIONS_PERIOD_LEN;
- 
-@@ -653,8 +653,7 @@ int wb_domain_init(struct wb_domain *dom, gfp_t gfp)
- 
- 	spin_lock_init(&dom->lock);
- 
--	setup_deferrable_timer(&dom->period_timer, writeout_period,
--			       (unsigned long)dom);
-+	timer_setup(&dom->period_timer, writeout_period, TIMER_DEFERRABLE);
- 
- 	dom->dirty_limit_tstamp = jiffies;
- 
--- 
-2.7.4
-
-
--- 
-Kees Cook
-Pixel Security
+No cc:stable?  The patch applies to 4.13 textually...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
