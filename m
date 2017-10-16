@@ -1,17 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 488366B0033
-	for <linux-mm@kvack.org>; Sun, 15 Oct 2017 19:22:52 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id m18so5489490pgd.13
-        for <linux-mm@kvack.org>; Sun, 15 Oct 2017 16:22:52 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id w7si3322880pgp.252.2017.10.15.16.22.49
-        for <linux-mm@kvack.org>;
-        Sun, 15 Oct 2017 16:22:50 -0700 (PDT)
-Date: Mon, 16 Oct 2017 10:22:46 +1100
-From: Dave Chinner <david@fromorbit.com>
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C27A66B0033
+	for <linux-mm@kvack.org>; Sun, 15 Oct 2017 21:13:13 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id z50so9723132qtj.0
+        for <linux-mm@kvack.org>; Sun, 15 Oct 2017 18:13:13 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id 184si1111878ybz.406.2017.10.15.18.13.12
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sun, 15 Oct 2017 18:13:12 -0700 (PDT)
+Date: Sun, 15 Oct 2017 21:13:01 -0400
+From: Theodore Ts'o <tytso@mit.edu>
 Subject: Re: kernel BUG at fs/xfs/xfs_aops.c:853! in kernel 4.13 rc6
-Message-ID: <20171015232246.GI3666@dastard>
+Message-ID: <20171016011301.dcam44qylno7rm6a@thunk.org>
 References: <CABXGCsMorRzy-dJrjTO6sP80BSb0RAeMhF3QGwSkk50m7VYzOA@mail.gmail.com>
  <CABXGCsOeex62Y4qQJwvMJ+fJ+MnKyKGDj9eRbKemeMVWo5huKw@mail.gmail.com>
  <20171009000529.GY3666@dastard>
@@ -27,181 +28,100 @@ In-Reply-To: <87efq4qcry.fsf@xmission.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Theodore Ts'o <tytso@mit.edu>, Aleksa Sarai <asarai@suse.de>, "Luis R. Rodriguez" <mcgrof@kernel.org>, =?utf-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>, Christoph Hellwig <hch@infradead.org>, Jan Blunck <jblunck@infradead.org>, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.com>, Jan Kara <jack@suse.cz>, Hannes Reinecke <hare@suse.de>, linux-xfs@vger.kernel.org
+Cc: Aleksa Sarai <asarai@suse.de>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Dave Chinner <david@fromorbit.com>, =?utf-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>, Christoph Hellwig <hch@infradead.org>, Jan Blunck <jblunck@infradead.org>, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.com>, Jan Kara <jack@suse.cz>, Hannes Reinecke <hare@suse.de>, linux-xfs@vger.kernel.org
 
 On Sun, Oct 15, 2017 at 05:14:41PM -0500, Eric W. Biederman wrote:
-> Theodore Ts'o <tytso@mit.edu> writes:
-> 
-> > On Sun, Oct 15, 2017 at 07:53:11PM +1100, Aleksa Sarai wrote:
-> >> This is the bug that I talked to you about at LPC, related to devicemapper
-> >> and it not being possible to issue DELETE and REMOVE operations on a
-> >> devicemapper device that is still mounted in $some_namespace. [Before we go
-> >> on, deferred removal and deletion can help here, but the deferral will never
-> >> kick in until the reference goes away. On SUSE systems, deferred removal
-> >> doesn't appear to work at all, but that's an issue for us to solve.]
-> >
-> > Yeah, it's not really a bug, as much as (IMHO) a profound design
-> > misfeature in the way mount namespaces work.  And the fundamental
-> > problem is that there are two distinct things that you might want to
-> > do:
-> >
-> >     * In a container, "unmount" a file system is it no longer shows up in
-> >       your mount namespace.
-> >
-> >     * As a system administrator, make a mounted file system **go** **away**
-> >       because the device is about to disapear, either because:
-> >          * The iscsi/nbd device is gone or about to disappear (maybe the server is
-> > 	   about to shut down)
-> > 	 * The user wants to yank out the USB thumb drive
-> > 	 * The system is shutting down and for whatever reason the shutdown
-> > 	   sequence wants to remove the block device driver or otherwise shutdown
-> > 	   the UFS device on the Android system.
-> >
-> > The last three examples are all real world examples where people have
-> > complained to me about, and there have been some hacky things we've
-> > done as a result.
-> >
-> > We sort of have a hacky solution which works today, at least for f2fs,
-> > ext4 and xfs file systems, which is you can use
-> > {EXT4,F2FS}_FS_IOC_SHUTDOWN / XFS_IOC_GOINGDOWN ioctls to forcibly
-> > shutdown the file system, and then recurse over all of /proc looking
-> > for /proc/*/mounts files and seeing if the file system is mounted in
-> > that namespace, and then either killing the pid or somehow entering
-> > the namespace of that process and unmounting the file system.  But
-> > it's ugly and messy, and it's not at all intuitive, and so people keep
-> > tripping against the problem.
-> >
-> > What we really need is some kind of "global shutdown and unmount"
-> > system call which safely and cleanly does this.  Instead of relying on
-> > the file system's brute force shutdown sequence, it would be better if
-> > we implemented some kind of VFS-level revoke(2) functionality (ala the
-> > *BSD revoke system call, which they've had for ages) on all file
-> > descriptors opened on the file systems, and if any processes have a
-> > CWD in the file system, it is replaced by an anonymous
-> > invalid/"deleted" directory, followed by a syncfs() on the file
-> > system, followed by a recursive search and removal of the file system
-> > from all mount namespaces.
-> >
-> > Obviously, this could only be used by someone with root privileges on
-> > the "root" container.
-> 
-> There are two practical cases here.
-> 
-> 1) What to do if someone is actively using the filesystem?
->    AKA Is using the file system as a working directory or has a file on
->    that filesystem open possibly mmaped.
-> 
-> 2) What to do if the filesystem is simply mounted in some set of mount
->    namespaces.
-> 
-> For the second case we should be able to solve it easily with a
-> variation on the internal detach_mounts call that we use when the mount
-> point goes away.  All of the infrastructure exists.
-> 
 > 
 > Looking at the code it appears ext4, f2fs, and xfs shutdown path
-> implements revoking a bdev from a filesystem. 
+> implements revoking a bdev from a filesystem.  Further if the ext4
+> implementation is anything to go by it looks like something we could
+> generalize into the vfs.
 
-Deja vu.
+There are two things which the current file system shutdown paths do.
+The first is that they prevent the file system from attempting to
+write to the bdev.  That's all very file system specific, and can't be
+generalized into the VFS.
 
-I raised the concept of a ->shutdown() superblock op more than
-ten years ago to deal with the problem of a block device being
-yanked out from underneath a filesystem without the fs being aware
-of it. I wanted it called from the block device invalidation code
-that is run when a device is yanked out so the filesystem has
-immediate notification that the bdev is gone an is never coming
-back....
+The second thing they do is they cause system calls which might modify
+the file system to return an error.  Currently operations that might
+result in _reads_ are not shutdown, so it's not a true revoke(2)
+functionality ala *BSD.  I assume that's what you are talking about
+generalizing into the VFS.  Personally, I would prefer to see us
+generalize something like vhangup() but which works on a file
+descriptor, not just a TTY.  That it is, it disconnects the file
+descriptor entirely from the hardware / file system so in the case of
+the tty, it can be used by other login session, and in the case of the
+file descriptor belonging to a file system, it stops the file system
+from being unmounted.
 
-Unfortunately, like so many of the things we wanted the VFS to
-support to integrate XFS properly into Linux 10-15 years ago (e.g.
-preallocation, unwritten extents, fiemap, freeze/thaw, shutdown,
-etc) it was considered "that a silly XFS problem" and so doesn't get
-any further until years later someone else has suddenly realises
-"you know, if we had ....".
+The reason why I want to see something which actually does disconnect
+the file descriptor and replaces the CWD for processes is because the
+shutdown path is inherently a fairly violent procedure.  It forcibly
+disconnects the file system from the block device, which means we
+can't do a clean unmount.  If the block device has disappeared, we
+don't have a choice, and that's the only thing we can do.
 
-That's when we've finally been able to either just lifted the XFS
-ioctl interface to the VFS or implemented a new API that end up
-being a thin wrapper around existing XFS functionality.... :P
+But if the USB thumb drive hasn't been yanked out yet, it would be
+nice to simply disconnect everything at the file descriptor level,
+then do a normal umount in all of the namespaces.  This will allow the
+file system to be cleanly unmounted, which means it will work for
+those file systems which don't have journals.  (The ext4/btrfs/xfs
+shutdown paths rely on the file system's journalling capability
+because it causes the block device to look like the system had been
+powered off, and so you have to replay the journal when file system is
+remounted.  That's fine, but it's not going to work on file systems
+like VFAT, or worse, on NTFS, where we don't correctly support the
+native file system's logging capability, so power-fail or a forced
+shutdown may end up corrupting the file system enough that you have
+boot into Windows to run CHKDSK.EXE in order clean it up.)
 
-> Further if the ext4 implementation is anything to go by it looks
-> like something we could generalize into the vfs.
+> I won't call this a security regression with user namespaces, or a mount
+> namespace specific issue as it appears any process that can open a file
+> has always been able to trigger this.  That said it does appear this has
+> gone from a theoretical issue to an actuall problem so it is most
+> definitely time to address and fix this.
 
-In case you hadn't guessed by now, shutdown didn't originate in ext4.
+The reason why this has started become a really painful issue is that
+mount namespaces are extremely painful to debug.  You can't iterate
+over all of the possible namespaces, without having to iterate over
+every process and every thread's /proc/*/mounts.  So if there are 10
+mount namespaces, but 10,000 threads, that's 10,000 /proc/*/mounts
+file that you have to examine individually, just to *find* that needle
+in the haystack which is keeping the mount pinned.
 
-The ext4 shutdown code (EXT4_IOC_SHUTDOWN) and the f2fs code
-(F2FS_IOC_SHUTDOWN) are all copies of the XFS shutdown ioctl
-interface (that's the 'X' in the ioctl definition). They got added
-so various XFS specific filesystem and data integrity tests in
-fstests that relied on the shutdown interface could be run on f2fs,
-and then more recently ext4.
+And there is at least one system daemon where when it starts, it opens
+a new mount namespace.  Which means if you happen to have a USB
+thumbdrive mounted when you restart that system daemon, it is not at
+all obvious what you need to do to unmount the USB thumb drive.  And
+yes, any process can open a file, but people at least knew how to find
+it by using lsof.  So perhaps this could be solved partially by better
+tooling, but I would argue that having userspace do a brute force
+search through all of /proc/*/fd/* actually wasn't particularly clean,
+either.  We've lived with it, true.  But perhaps it's time to do
+something better?
 
-Historically stuff like this only gets pulled up to the VFS until
-someone on the XFS side says "stop copy-n-pasting ioctl definitions
-and define it generically!".  Hence if we pull it up to the VFS, it
-needs to takes it's cues from the XFS semantics, not the ext4
-reimplementation. They should be the same, but copy-n-paste has a
-habit of changing subtle stuff....
+And in the case where the system daemon only accidentally captured the
+USB thumb drive by forking a mount namespace, it would be *definitely*
+nice if we could simply make the mount disappear, instead of what we
+have to today, which is kill the system daemon, unmount the USB thumb
+drive, and then restart the system daemon.  (Once, that is, you have
+figured what is going on first.  Often, you end up reporting an ext4
+bug to the ext4 maintainer first, because you think it's an ext4 bug
+that ext4 is refusing to unmount the file system.  After all, you are
+an experienced system administrator, so you *know* that *nothing*
+could *possibly* be keeping the file system busy.  lsof said so.  :-)
 
-> Hmm.  Unless I am completely mistake we already have a super block
-> operation that pretty much does this in umount_begin (the guts behind
-> mount -f).  Which makes the set of filesystems that can support this
-> kind of operation to: 9p, ceph, cifs, fuse, nfs, ext4, f2fs, and xfs.
+> Ted, Aleksa would either of you be interested in generalizing what ext4,
+> f2fs, and xfs does now and working to put a good interface on it?  I can
+> help especially with review but for the short term I am rather booked.
 
-I'm not sure that a shutdown operation is correct here.  A shutdown
-operation on a filesystem like XFS chops off all IO in flight, stops
-all modifications in flight, triggers EIO on all current and future
-IO and refuses to allow anyone to read anything from the filesystem.
-Shutdown is a nasty, hard stop for a filesystem, not a "prepare to
-unmount" operation.
+Unfortunately, I have way too much travel coming up in the short term,
+so I probably won't have to take on a new project until at least
+mid-to-late-November at the earliest.  Aleska, do you have time?  I
+can consult on a design, but I have zero coding time for the next
+couple of weeks.
 
-Indeed, shutdowns can occur during unmount (e.g. corruption occurs
-due to metadata writeback errors when flushing the journal) which
-leave us with a tricky situation if unmount is supposed to use
-shutdowns to force unmounts...
-
-It must also be said here that a shutdown of an active, valid
-filesystem *will* cause unrecoverable data loss. And if it's your
-root filesystem, shutdown will be the last thing the system is able
-to do correctly until it is forcibly rebooted by hand (because the
-reboot command won't be able to be loaded from the fs)....
-
-> If the filesystem can cut all communication with the backing store as
-> ext4, f2fs, and xfs can I don't know that we need to remove the
-> filesystem from the mount tree.  The superblock will just be useless not
-> gone.
-
-So the problem that often occurs with this is that the sb can still
-hold a reference to the block device and so the device cannot be
-remounted (will give block device EBUSY errors) even though the user
-cannot find a reference to an active mount or user of the block
-device.
-
-> So my suggestions for this case are two fold.
-> 
-> - Tweak Docker and friends to not be sloppy and hold onto extra
->   resources that they don't need.  That is just bad form.
-> 
-> - Generalize what ext4, f2fs, xfs and possibly the network filesystems
->   with umount_begin are doing into a general disconnect this filesystem
->   from it's backing store operation.
-> 
->   That operation should be enough to drop the reference to the backing
->   device so that device mapper doesn't care.
-
-Define the semantics of a forced filesystem unmount are supposed to
-be first, then decide whether an existing shutdown operation can be
-used. It may be we just need a new flag to the existing API to
-implement slightly different semantics (e.g to silence unnecessary
-warnings), but at minimum I think we've need the ->unmount_begin op
-name to change to indicate it's function, not document the calling
-context...
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+	     	    	       	       	  - Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
