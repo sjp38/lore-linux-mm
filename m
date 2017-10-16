@@ -1,79 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 570EA6B0038
-	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 18:00:15 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id s2so8029225pge.19
-        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 15:00:15 -0700 (PDT)
-Received: from ipmail01.adl2.internode.on.net (ipmail01.adl2.internode.on.net. [150.101.137.133])
-        by mx.google.com with ESMTP id t8si5068090plz.145.2017.10.16.15.00.13
-        for <linux-mm@kvack.org>;
-        Mon, 16 Oct 2017 15:00:14 -0700 (PDT)
-Date: Tue, 17 Oct 2017 09:00:11 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: kernel BUG at fs/xfs/xfs_aops.c:853! in kernel 4.13 rc6
-Message-ID: <20171016220010.GI15067@dastard>
-References: <CABXGCsMorRzy-dJrjTO6sP80BSb0RAeMhF3QGwSkk50m7VYzOA@mail.gmail.com>
- <CABXGCsOeex62Y4qQJwvMJ+fJ+MnKyKGDj9eRbKemeMVWo5huKw@mail.gmail.com>
- <20171009000529.GY3666@dastard>
- <20171009183129.GE11645@wotan.suse.de>
- <87wp442lgm.fsf@xmission.com>
- <8729041d-05e5-6bea-98db-7f265edde193@suse.de>
- <20171015130625.o5k6tk5uflm3rx65@thunk.org>
- <87efq4qcry.fsf@xmission.com>
- <20171016011301.dcam44qylno7rm6a@thunk.org>
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 987606B0038
+	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 18:03:40 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id j140so89684itj.10
+        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 15:03:40 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id d16sor4749800itj.44.2017.10.16.15.03.39
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 16 Oct 2017 15:03:39 -0700 (PDT)
+Date: Mon, 16 Oct 2017 15:03:37 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, compaction: properly initialize alloc_flags in
+ compact_control
+Message-ID: <alpine.DEB.2.10.1710161503020.102726@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171016011301.dcam44qylno7rm6a@thunk.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Aleksa Sarai <asarai@suse.de>, "Luis R. Rodriguez" <mcgrof@kernel.org>, =?utf-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>, Christoph Hellwig <hch@infradead.org>, Jan Blunck <jblunck@infradead.org>, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.com>, Jan Kara <jack@suse.cz>, Hannes Reinecke <hare@suse.de>, linux-xfs@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, Oct 15, 2017 at 09:13:01PM -0400, Theodore Ts'o wrote:
-> On Sun, Oct 15, 2017 at 05:14:41PM -0500, Eric W. Biederman wrote:
-> > 
-> > Looking at the code it appears ext4, f2fs, and xfs shutdown path
-> > implements revoking a bdev from a filesystem.  Further if the ext4
-> > implementation is anything to go by it looks like something we could
-> > generalize into the vfs.
-> 
-> There are two things which the current file system shutdown paths do.
-> The first is that they prevent the file system from attempting to
-> write to the bdev.  That's all very file system specific, and can't be
-> generalized into the VFS.
-> 
-> The second thing they do is they cause system calls which might modify
-> the file system to return an error.  Currently operations that might
-> result in _reads_ are not shutdown, so it's not a true revoke(2)
 
-Which is different to XFS - XFS shuts down all access to the bdev,
-read or write, and returns EIO to the callers.(*) IOWs, a UAPI has
-been copy-and-pasted, but the behaviour and semantics have not been
-copied/duplicated. The requirement was "close enough for fstests to
-use it" not "must behave the exact same way on all filesystems".
+compaction_suitable() requires a useful cc->alloc_flags, otherwise the
+results of compact_zone() can be indeterminate.  Kcompactd currently
+checks compaction_suitable() itself with alloc_flags == 0, but passes an
+uninitialized value from the stack to compact_zone(), which does its own
+check.
 
->From that perspective, I agree with Ted:  we need an interface
-that provides userspace with sane, consistent semantics and allows
-filesystems to be disconnected from userspace references so can be
-unmounted. What the filesystem then does to disconnect itself from
-the block device and allow unmount to complete (i.e. the shutdown
-implementation) is irrelevant to the VFS and users....
+The same is true for compact_node() when explicitly triggering full node
+compaction.
 
-Cheers,
+Properly initialize cc.alloc_flags on the stack.
 
-Dave.
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/compaction.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
 
-(*) Shutdown in XFS is primarily intended to prevent propagating
-damage in the filesystem when corruption is first detected or an
-unrecoverable error occurs. Historically speaking, it is always
-initiated by the XFS filesystem itself, so whatever we do to provide
-unmount sanity isn't going to replace internal filesystem shutdown
-functionality...
-
--- 
-Dave Chinner
-david@fromorbit.com
+diff --git a/mm/compaction.c b/mm/compaction.c
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1792,9 +1792,9 @@ static void compact_node(int nid)
+ {
+ 	pg_data_t *pgdat = NODE_DATA(nid);
+ 	int zoneid;
+-	struct zone *zone;
+ 	struct compact_control cc = {
+ 		.order = -1,
++		.alloc_flags = 0,
+ 		.total_migrate_scanned = 0,
+ 		.total_free_scanned = 0,
+ 		.mode = MIGRATE_SYNC,
+@@ -1805,6 +1805,7 @@ static void compact_node(int nid)
+ 
+ 
+ 	for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
++		struct zone *zone;
+ 
+ 		zone = &pgdat->node_zones[zoneid];
+ 		if (!populated_zone(zone))
+@@ -1923,6 +1924,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+ 	struct zone *zone;
+ 	struct compact_control cc = {
+ 		.order = pgdat->kcompactd_max_order,
++		.alloc_flags = 0,
+ 		.total_migrate_scanned = 0,
+ 		.total_free_scanned = 0,
+ 		.classzone_idx = pgdat->kcompactd_classzone_idx,
+@@ -1945,8 +1947,8 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+ 		if (compaction_deferred(zone, cc.order))
+ 			continue;
+ 
+-		if (compaction_suitable(zone, cc.order, 0, zoneid) !=
+-							COMPACT_CONTINUE)
++		if (compaction_suitable(zone, cc.order, cc.alloc_flags,
++					zoneid) != COMPACT_CONTINUE)
+ 			continue;
+ 
+ 		cc.nr_freepages = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
