@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 802D86B0038
-	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 16:58:31 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id n89so9387609pfk.17
-        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 13:58:31 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h64si4512740pge.382.2017.10.16.13.58.30
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 077756B0038
+	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 17:03:21 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id h7so25983231qth.13
+        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 14:03:21 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y83sor4741280qkb.8.2017.10.16.14.03.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 16 Oct 2017 13:58:30 -0700 (PDT)
-Date: Mon, 16 Oct 2017 22:58:22 +0200
-From: Michal Hocko <mhocko@kernel.org>
+        (Google Transport Security);
+        Mon, 16 Oct 2017 14:03:20 -0700 (PDT)
 Subject: Re: [RFC PATCH 3/3] mm/map_contig: Add mmap(MAP_CONTIG) support
-Message-ID: <20171016205822.dgcp2klsosqq6a5f@dhcp22.suse.cz>
-References: <alpine.DEB.2.20.1710131015420.3949@nuc-kabylake>
+References: <f4a46a19-5f71-ebcc-3098-a35728fbfd03@oracle.com>
+ <20171013084054.me3kxhgbxzgm2lpr@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1710131015420.3949@nuc-kabylake>
  <20171013152801.nbpk6nluotgbmfrs@dhcp22.suse.cz>
  <alpine.DEB.2.20.1710131040570.4247@nuc-kabylake>
  <20171013154747.2jv7rtfqyyagiodn@dhcp22.suse.cz>
@@ -23,43 +22,48 @@ References: <alpine.DEB.2.20.1710131015420.3949@nuc-kabylake>
  <aff6b405-6a06-f84d-c9b1-c6fb166dff81@oracle.com>
  <20171016180749.2y2v4ucchb33xnde@dhcp22.suse.cz>
  <e8cf6227-003d-8a82-8b4d-07176b43810c@oracle.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <4994fc18-f0ee-300d-d61f-c1a1b63e55e4@redhat.com>
+Date: Mon, 16 Oct 2017 14:03:16 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <e8cf6227-003d-8a82-8b4d-07176b43810c@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Guy Shattah <sguy@mellanox.com>, Christopher Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Mike Kravetz <mike.kravetz@oracle.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Guy Shattah <sguy@mellanox.com>, Christopher Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Mon 16-10-17 13:32:45, Mike Kravetz wrote:
+On 10/16/2017 01:32 PM, Mike Kravetz wrote:
 > On 10/16/2017 11:07 AM, Michal Hocko wrote:
-[...]
-> > That depends on who is actually going to use the contiguous memory. If
-> > we are talking about drivers to communication to the userspace then
-> > using driver specific fd with its mmap implementation then we do not
-> > need any special fs nor a seperate infrastructure. Well except for a
-> > library function to handle the MM side of the thing.
+>> On Mon 16-10-17 10:43:38, Mike Kravetz wrote:
+>>> Just to be clear, the posix standard talks about a typed memory object.
+>>> The suggested implementation has one create a connection to the memory
+>>> object to receive a fd, then use mmap as usual to get a mapping backed
+>>> by contiguous pages/memory.  Of course, this type of implementation is
+>>> not a requirement.
+>>
+>> I am not sure that POSIC standard for typed memory is easily
+>> implementable in Linux. Does any OS actually implement this API?
 > 
-> If we embed this functionality into device specific mmap calls it will
-> closely tie the usage to the devices.  However, don't we still have to
-> worry about potential interaction with other parts of the mm as you mention
-> below?  I guess that would be the library function and how it is used
-> by drivers.
+> A quick search only reveals Blackberry QNX and PlayBook OS.
+> 
+> Also somewhat related.  In a earlier thread someone pointed out this
+> out of tree module used for contiguous allocations in SOC (and other?)
+> environments.  It even has the option of making use of CMA.
+> http://processors.wiki.ti.com/index.php/CMEM_Overview
+> 
 
-Yes, those problems with pinning the amount of contiguous memory are
-simply inherent. You have to be really careful when allowing to reserve large
-partions of the contiguous memory. Especially if this is going to be a
-very dynamic allocator. The main advantage of the per
-device mmap is that it has its access control by default via file
-permissions. You can simply rule the untrusted user out of the game. You
-can also implement the per device usage limits. So you have some tools to
-keep the usage under leash and evaluate potential costs vs. benefits.
-That sounds to me much more safer than a generic API which would have
-a tricky accounting and access control restrictions.
--- 
-Michal Hocko
-SUSE Labs
+If we're at the point where we're discussing CMEM, I'd like to
+point out that ion (drivers/staging/android/ion) already provides an
+ioctl interface to allocate CMA and other types of memory. It's
+mostly used for Android as the name implies. I don't pretend the
+interface is perfect but it could be useful as a discussion point
+for allocation interfaces.
+
+Thanks,
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
