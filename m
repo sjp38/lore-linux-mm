@@ -1,71 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A50146B0033
-	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 07:51:08 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id f4so9021667wme.21
-        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 04:51:08 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
-        by mx.google.com with ESMTPS id o73si5348653wmi.45.2017.10.16.04.50.11
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 139266B0033
+	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 08:02:58 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r202so8993635wmd.17
+        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 05:02:58 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id k57sor2700359wrf.39.2017.10.16.05.02.56
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 16 Oct 2017 04:51:07 -0700 (PDT)
-From: "Liuwenliang (Lamb)" <liuwenliang@huawei.com>
-Subject: Re: [PATCH 04/11] Define the virtual space of KASan's shadow region
-Date: Mon, 16 Oct 2017 11:42:05 +0000
-Message-ID: <B8AC3E80E903784988AB3003E3E97330C005B9BF@dggemm510-mbx.china.huawei.com>
-References: <20171011082227.20546-5-liuwenliang@huawei.com>
- <201710141957.mbxeZJHB%fengguang.wu@intel.com>
-In-Reply-To: <201710141957.mbxeZJHB%fengguang.wu@intel.com>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Mon, 16 Oct 2017 05:02:56 -0700 (PDT)
+Subject: Re: [PATCH v9 0/6] MAP_DIRECT for DAX userspace flush
+References: <150776922692.9144.16963640112710410217.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171012142319.GA11254@lst.de>
+ <CAPcyv4gTON__Ohop0B5R2gsKXC71bycTBozqGmF3WmwG9C6LVA@mail.gmail.com>
+ <20171013065716.GB26461@lst.de>
+ <CAPcyv4gaLBBefOU+8f7_ypYnCTjSMk+9nq8NfCqBHAE+NbUusw@mail.gmail.com>
+ <20171013163822.GA17411@obsidianresearch.com>
+ <CAPcyv4jDHp8z2VgVfyRK1WwMzixYVQnh54LZoPD57HB3yqSPPQ@mail.gmail.com>
+ <20171013173145.GA18702@obsidianresearch.com>
+ <CAPcyv4jZJRto1jwmNU--pqH_6dOVMyj=68ZwEjAmmkgX=mRk7w@mail.gmail.com>
+ <20171014015752.GA25172@obsidianresearch.com>
+From: Sagi Grimberg <sagi@grimberg.me>
+Message-ID: <e29eb9ed-2d87-cde8-4efa-50de1fff0c04@grimberg.me>
+Date: Mon, 16 Oct 2017 15:02:52 +0300
 MIME-Version: 1.0
+In-Reply-To: <20171014015752.GA25172@obsidianresearch.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: "kbuild-all@01.org" <kbuild-all@01.org>, "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "cdall@linaro.org" <cdall@linaro.org>, "marc.zyngier@arm.com" <marc.zyngier@arm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "mingo@kernel.org" <mingo@kernel.org>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiazhenghua <jiazhenghua@huawei.com>, Dailei <dylix.dailei@huawei.com>, Zengweilin <zengweilin@huawei.com>, Heshaoliang <heshaoliang@huawei.com>
+To: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Dan Williams <dan.j.williams@intel.com>
+Cc: "J. Bruce Fields" <bfields@fieldses.org>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Darrick J. Wong" <darrick.wong@oracle.com>, Linux API <linux-api@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Dave Chinner <david@fromorbit.com>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Al Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, Jeff Layton <jlayton@poochiereds.net>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
 
-On 10/16/2017 07:03 PM, Abbott Liu wrote:
->arch/arm/kernel/entry-armv.S:348: Error: selected processor does not suppo=
-rt `movw r1,
-  #:lower16:((((0xC0000000-0x01000000)>>3)+((0xC0000000-0x01000000)-(1<<29)=
-)))' in ARM mode
->arch/arm/kernel/entry-armv.S:348: Error: selected processor does not suppo=
-rt `movt r1,
-  #:upper16:((((0xC0000000-0x01000000)>>3)+((0xC0000000-0x01000000)-(1<<29)=
-)))' in ARM mode
 
-Thanks for building test. This error can be solved by following code:
---- a/arch/arm/kernel/entry-armv.S
-+++ b/arch/arm/kernel/entry-armv.S
-@@ -188,8 +188,7 @@ ENDPROC(__und_invalid)
-        get_thread_info tsk
-        ldr     r0, [tsk, #TI_ADDR_LIMIT]
- #ifdef CONFIG_KASAN
--   movw r1, #:lower16:TASK_SIZE
--   movt r1, #:upper16:TASK_SIZE
-+ ldr r1, =3DTASK_SIZE
- #else
-        mov r1, #TASK_SIZE
- #endif
-@@ -446,7 +445,12 @@ ENDPROC(__fiq_abt)
-        @ if it was interrupted in a critical region.  Here we
-        @ perform a quick test inline since it should be false
-        @ 99.9999% of the time.  The rest is done out of line.
-+#if CONFIG_KASAN
-+ ldr r0, =3DTASK_SIZE
-+ cmp r4, r0
-+#else
-        cmp     r4, #TASK_SIZE
-+#endif
-        blhs    kuser_cmpxchg64_fixup
- #endif
- #endif
+Hey folks, (chiming in very late here...)
 
-movt,movw can only be used in ARMv6*, ARMv7 instruction set. But ldr can be=
- used in ARMv4*, ARMv5T*, ARMv6*, ARMv7.
-Maybe the performance is going to fall down by using ldr, but I think the i=
-nfluence of performance is very limited.
+>>> I think, if you want to build a uAPI for notification of MR lease
+>>> break, then you need show how it fits into the above software model:
+>>>   - How it can be hidden in a RDMA specific library
+>>
+>> So, here's a strawman can ibv_poll_cq() start returning ibv_wc_status
+>> == IBV_WC_LOC_PROT_ERR when file coherency is lost. This would make
+>> the solution generic across DAX and non-DAX. What's you're feeling for
+>> how well applications are prepared to deal with that status return?
+> 
+> Stuffing an entry into the CQ is difficult. The CQ is in user memory
+> and it is DMA'd from the HCA for several pieces of hardware, so the
+> kernel can't just stuff something in there. It can be done
+> with HW support by having the HCA DMA it via an exception path or
+> something, but even then, you run into questions like CQ overflow and
+> accounting issues since it is not ment for this.
+
+But why should the kernel ever need to mangle the CQ? if a lease break
+would deregister the MR the device is expected to generate remote
+protection errors on its own.
+
+And in that case, I think we need a query mechanism rather an event
+mechanism so when the application starts seeing protection errors
+it can query the relevant MR (I think most if not all devices have that
+information in their internal completion queue entries).
+
+> 
+> So, you need a side channel of some kind, either in certain drivers or
+> generically..
+> 
+>>>   - How lease break can be done hitlessly, so the library user never
+>>>     needs to know it is happening or see failed/missed transfers
+
+I agree that the application should not be aware of lease breakages, but
+seeing failed transfers is perfectly acceptable given that an access
+violation is happening (my assumption is that failed transfers are error
+completions reported in the user completion queue). What we need to have
+is a framework to help user-space to recover sanely, which is to query
+what MR had the access violation, restore it, and re-establish the queue
+pair.
+
+>>
+>> iommu redirect should be hit less and behave like the page cache case
+>> where RDMA targets pages that are no longer part of the file.
+> 
+> Yes, if the iommu can be fenced properly it sounds doable.
+> 
+>>>   - Whatever fast path checking is needed does not kill performance
+>>
+>> What do you consider a fast path? I was assuming that memory
+>> registration is a slow path, and iommu operations are asynchronous so
+>> should not impact performance of ongoing operations beyond typical
+>> iommu overhead.
+> 
+> ibv_poll_cq() and ibv_post_send() would be a fast path.
+> 
+> Where this struggled before is in creating a side channel you also now
+> have to check that side channel, and checking it at high performance
+> is quite hard.. Even quiecing things to be able to tear down the MR
+> has performance implications on post send...
+
+This is exactly why I think we should not have it, but instead give
+building blocks to recover sanely from error completions...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
