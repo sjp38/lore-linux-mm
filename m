@@ -1,284 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 99D6E6B0038
-	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 13:01:09 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id 10so5402529qty.10
-        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 10:01:09 -0700 (PDT)
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E2096B0038
+	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 13:04:41 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id x82so16009420qkb.11
+        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 10:04:41 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n33si377332qtd.460.2017.10.16.10.01.07
+        by mx.google.com with ESMTPS id f7si444951qte.316.2017.10.16.10.04.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Oct 2017 10:01:07 -0700 (PDT)
-Date: Mon, 16 Oct 2017 20:01:04 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH] virtio: avoid possible OOM lockup at
- virtballoon_oom_notify()
-Message-ID: <20171016195317-mutt-send-email-mst@kernel.org>
-References: <1507632457-4611-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171013162134-mutt-send-email-mst@kernel.org>
- <201710140141.JFF26087.FLQHOFOOtFMVSJ@I-love.SAKURA.ne.jp>
- <20171015030921-mutt-send-email-mst@kernel.org>
- <201710151438.FAD86443.tOOFHVOSFQJLMF@I-love.SAKURA.ne.jp>
- <201710161958.IAE65151.HFOLMQSFOVFJtO@I-love.SAKURA.ne.jp>
+        Mon, 16 Oct 2017 10:04:40 -0700 (PDT)
+Date: Mon, 16 Oct 2017 13:04:34 -0400 (EDT)
+From: Pankaj Gupta <pagupta@redhat.com>
+Message-ID: <1080174355.20804941.1508173474622.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20171016144753.GB14135@stefanha-x1.localdomain>
+References: <20171012155027.3277-1-pagupta@redhat.com> <20171012155027.3277-3-pagupta@redhat.com> <20171013094431.GA27308@stefanha-x1.localdomain> <24301306.20068579.1507891695416.JavaMail.zimbra@redhat.com> <20171016144753.GB14135@stefanha-x1.localdomain>
+Subject: Re: [RFC 2/2] KVM: add virtio-pmem driver
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201710161958.IAE65151.HFOLMQSFOVFJtO@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@kernel.org, wei.w.wang@intel.com, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, Raushaniya Maksudova <rmaksudova@parallels.com>, "Denis V. Lunev" <den@openvz.org>
+To: Stefan Hajnoczi <stefanha@gmail.com>
+Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-nvdimm@ml01.01.org, linux-mm@kvack.org, jack@suse.cz, stefanha@redhat.com, dan j williams <dan.j.williams@intel.com>, riel@redhat.com, haozhong zhang <haozhong.zhang@intel.com>, nilal@redhat.com, kwolf@redhat.com, pbonzini@redhat.com, ross zwisler <ross.zwisler@intel.com>, david@redhat.com, xiaoguangrong eric <xiaoguangrong.eric@gmail.com>
 
-On Mon, Oct 16, 2017 at 07:58:29PM +0900, Tetsuo Handa wrote:
-> Tetsuo Handa wrote:
-> > Michael S. Tsirkin wrote:
-> > > > > 
-> > > > > The proper fix isn't that hard - just avoid allocations under lock.
-> > > > > 
-> > > > > Patch posted, pls take a look.
-> > > > 
-> > > > Your patch allocates pages in order to inflate the balloon, but
-> > > > your patch will allow leak_balloon() to deflate the balloon.
-> > > > How deflating the balloon (i.e. calling leak_balloon()) makes sense
-> > > > when allocating pages for inflating the balloon (i.e. calling
-> > > > fill_balloon()) ?
+
+> 
+> On Fri, Oct 13, 2017 at 06:48:15AM -0400, Pankaj Gupta wrote:
+> > > On Thu, Oct 12, 2017 at 09:20:26PM +0530, Pankaj Gupta wrote:
+> > > > +static blk_qc_t virtio_pmem_make_request(struct request_queue *q,
+> > > > +			struct bio *bio)
+> > > > +{
+> > > > +	blk_status_t rc = 0;
+> > > > +	struct bio_vec bvec;
+> > > > +	struct bvec_iter iter;
+> > > > +	struct virtio_pmem *pmem = q->queuedata;
+> > > > +
+> > > > +	if (bio->bi_opf & REQ_FLUSH)
+> > > > +		//todo host flush command
 > > > 
-> > > The idea is that fill_balloon is allocating memory with __GFP_NORETRY
-> > > so it will avoid disruptive actions like the OOM killer.
-> > > Under pressure it will normally fail and retry in half a second or so.
-> > > 
-> > > Calling leak_balloon in that situation could benefit the system as a whole.
-> > > 
-> > > I might be misunderstanding the meaning of the relevant GFP flags,
-> > > pls correct me if I'm wrong.
+> > > This detail is critical to the device design.  What is the plan?
 > > 
-> > Would you answer to below question by "yes"/"no" ?
+> > yes, this is good point.
 > > 
-> >   If leak_balloon() is called via out_of_memory(), leak_balloon()
-> >   will decrease "struct virtio_balloon"->num_pages.
-> >   But, is "struct virtio_balloon_config"->num_pages updated when
-> >   leak_balloon() is called via out_of_memory() ?
-> > 
-> > Below explanation assumes that your answer is "no".
-> > 
-> > I consider that fill_balloon() is using __GFP_NORETRY is a bug.
+> > was thinking of guest sending a flush command to Qemu which
+> > will do a fsync on file fd.
 > 
-> Below are my test results using 4.14-rc5.
-> 
->   http://I-love.SAKURA.ne.jp/tmp/20171016-default.log.xz
->   http://I-love.SAKURA.ne.jp/tmp/20171016-deflate.log.xz
-> 
-> 20171016-default.log.xz is without VIRTIO_BALLOON_F_DEFLATE_ON_OOM and
-> 20171016-deflate.log.xz is with VIRTIO_BALLOON_F_DEFLATE_ON_OOM. (I used
-> inverting virtio_has_feature(VIRTIO_BALLOON_F_DEFLATE_ON_OOM) test
-> because the QEMU I'm using does not support deflate-on-oom option.)
-> 
-> > Consider an extreme situation that guest1 is started with 8192MB
-> > memory and then guest1's memory is reduced to 128MB by
-> > 
-> >   virsh qemu-monitor-command --domain guest1 --hmp 'balloon 128'
-> > 
-> > when VIRTIO_BALLOON_F_DEFLATE_ON_OOM was not negotiated.
-> > Of course, 128MB would be too small to operate guest1 properly.
-> > Since update_balloon_size_func() continues calling fill_balloon()
-> > until guest1's memory is reduced to 128MB, you will see flooding of
-> > "puff" messages (and guest1 is practically unusable because all CPU
-> > resource will be wasted for unsuccessful memory reclaim attempts)
-> > unless the OOM killer is invoked.
-> 
-> 20171016-default.log.xz continued printing "puff" messages until kernel
-> panic caused by somebody else killing all OOM killable processes via
-> GFP_KERNEL allocation requests. Although fill_balloon() was printing
-> a lot of noises due to __GFP_NORETRY, the system made forward progress
-> in the form of kernel panic triggered by no more OOM killable processes.
-> 
-> ----------
-> [   88.270838] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   88.503496] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   88.730058] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   88.937971] Out of memory: Kill process 669 (dhclient) score 54 or sacrifice child
-> [   89.007322] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   89.234874] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   89.439735] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   89.496389] Out of memory: Kill process 853 (tuned) score 47 or sacrifice child
-> [   89.663808] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   89.883812] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   90.104417] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   90.251293] Out of memory: Kill process 568 (polkitd) score 36 or sacrifice child
-> [   90.326131] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   90.821722] Out of memory: Kill process 601 (NetworkManager) score 23 or sacrifice child
-> [   91.293848] Out of memory: Kill process 585 (rsyslogd) score 13 or sacrifice child
-> [   91.799413] Out of memory: Kill process 415 (systemd-journal) score 13 or sacrifice child
-> [   91.861974] Out of memory: Kill process 987 (qmgr) score 6 or sacrifice child
-> [   91.925297] Out of memory: Kill process 985 (master) score 6 or sacrifice child
-> [   92.254082] Out of memory: Kill process 985 (master) score 6 or sacrifice child
-> [   92.464029] Out of memory: Kill process 881 (login) score 4 or sacrifice child
-> [   92.467859] Out of memory: Kill process 881 (login) score 4 or sacrifice child
-> [   93.490928] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   93.713220] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   93.932145] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   94.147652] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   94.363826] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   94.606404] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   94.833539] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   95.053230] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   95.267805] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   95.483789] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   98.290124] Out of memory: Kill process 595 (crond) score 3 or sacrifice child
-> [   98.643588] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   98.864487] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   99.084685] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   99.299766] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   99.515745] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   99.758334] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   99.985175] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  100.204474] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  100.419757] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  100.635681] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  101.263840] Out of memory: Kill process 587 (systemd-logind) score 2 or sacrifice child
-> [  101.319432] Out of memory: Kill process 586 (irqbalance) score 1 or sacrifice child
-> [  101.386546] Out of memory: Kill process 569 (dbus-daemon) score 0 or sacrifice child
-> [  103.805754] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  104.033073] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  104.253104] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  104.467810] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  104.683792] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  104.926409] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  105.153490] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  105.372610] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  105.587751] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  105.803719] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  108.958882] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  109.185254] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  109.404393] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  109.621584] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  109.697419] Kernel panic - not syncing: Out of memory and no killable processes...
-> [  109.723710] ---[ end Kernel panic - not syncing: Out of memory and no killable processes...
-> ----------
-> 
-> > 
-> > What this patch is trying to handle is a situation when
-> > VIRTIO_BALLOON_F_DEFLATE_ON_OOM was negotiated. Once
-> > update_balloon_size_func() started calling fill_balloon(),
-> > update_balloon_size_func() will continue calling fill_balloon()
-> > until guest1's memory is reduced to 128MB, won't it?
-> > 
-> > Since fill_balloon() uses __GFP_IO | __GFP_FS, fill_balloon() can
-> > indirectly trigger out_of_memory() despite __GFP_NORETRY is specified.
-> > 
-> > When update_balloon_size_func() is running for calling fill_balloon(),
-> > calling leak_balloon() will increase number of pages to fill which
-> > fill_balloon() is supposed to fill. Leaking some pages from leak_balloon()
-> > via blocking_notifier_call_chain() callback could avoid invocation of the
-> > OOM killer for that specific moment, but it bounces back to us later because
-> > number of pages to allocate later (note that update_balloon_size_func() is
-> > running for calling fill_balloon()) is increased by leak_balloon().
-> 
-> 20171016-deflate.log.xz continued printing "puff" messages without any OOM
-> killer messages, for fill_balloon() always inflates faster than leak_balloon()
-> deflates.
-> 
-> Since the OOM killer cannot be invoked unless leak_balloon() completely
-> deflates faster than fill_balloon() inflates, the guest remained unusable
-> (e.g. unable to login via ssh) other than printing "puff" messages.
-> This result was worse than 20171016-default.log.xz , for the system was
-> not able to make any forward progress (i.e. complete OOM lockup).
-> 
-> ----------
-> [   19.866938] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   20.089350] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   20.430965] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   20.652641] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   20.894680] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   21.122063] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   21.340872] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   21.556128] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   21.772473] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   22.014960] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   24.972961] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   25.201565] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   25.420875] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   25.636081] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   25.851670] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   26.095842] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   26.322284] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [   26.851691] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> (...snipped...)
-> [  211.748567] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  211.963910] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  215.157737] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  215.385239] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  215.604426] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  215.819807] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  216.036491] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  216.278718] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  216.505410] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  216.724334] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  216.940318] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  217.155560] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  220.312187] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-> [  220.342980] sysrq: SysRq : Resetting
-> ----------
-> 
-> > 
-> > Thus, I don't think that avoid invoking the OOM killer by calling leak_balloon()
-> > makes sense when update_balloon_size_func() is running for calling fill_balloon().
-> > And this patch tries to detect it by replacing mutex_lock() with mutex_trylock().
-> > 
-> > > Well the point of this flag is that when it's acked,
-> > > host knows that it's safe to inflate the balloon
-> > > to a large portion of guest memory and this won't
-> > > cause an OOM situation.
-> > 
-> > Assuming that your answer to the question is "no", I don't think it is
-> > safe to inflate the balloon to a large portion of guest memory, for once
-> > update_balloon_size_func() started calling fill_balloon(),
-> > update_balloon_size_func() can not stop calling fill_balloon() even when
-> > blocking_notifier_call_chain() callback called leak_balloon() because
-> > "struct virtio_balloon_config"->num_pages will not be updated when
-> > blocking_notifier_call_chain() callback called leak_balloon().
-> 
-> As I demonstrated above, VIRTIO_BALLOON_F_DEFLATE_ON_OOM can lead to complete
-> OOM lockup because out_of_memory() => fill_balloon() => out_of_memory() =>
-> fill_balloon() sequence can effectively disable the OOM killer when the host
-> assumed that it's safe to inflate the balloon to a large portion of guest
-> memory and this won't cause an OOM situation.
+> Previously there was discussion about fsyncing a specific file range
+> instead of the whole file.  This could perform better in cases where
+> only a subset of dirty pages need to be flushed.
 
-I agree. But I wonder how did the contributors use it in their systems.
+yes, We had discussion about this and decided to do entire block flush
+then to range level flush.
 
-
-> > > I think the assumption is that it fill back up eventually
-> > > when guest does have some free memory.
 > 
-> So, my question again because such assumption is broken.
-> What is the expected behavior after deflating while inflating?
-> How should "struct virtio_balloon_config"->num_pages be interpreted?
+> One possibility is to design the virtio interface to communicate ranges
+> but the emulation code simply fsyncs the fd for the time being.  Later
+> on, if the necessary kernel and userspace interfaces are added, we can
+> make use of the interface.
 > 
->   struct virtio_balloon_config {
->   	/* Number of pages host wants Guest to give up. */
->   	__u32 num_pages;
->   	/* Number of pages we've actually got in balloon. */
->   	__u32 actual;
->   };
+> > If we do a async flush and move the task to wait queue till we receive
+> > flush complete reply from host we can allow other tasks to execute
+> > in current cpu.
+> > 
+> > Any suggestions you have or anything I am not foreseeing here?
 > 
-> If leak_balloon() from out_of_memory() should be stronger than
-> fill_balloon() from update_balloon_size_func(), we need to make
-> sure that update_balloon_size_func() stops calling fill_balloon()
-> when leak_balloon() was called from out_of_memory().
+> My main thought about this patch series is whether pmem should be a
+> virtio-blk feature bit instead of a whole new device.  There is quite a
+> bit of overlap between the two.
 
-I think that's the case. Question is, when can we inflate again?
+Exposing options with existing virtio-blk device to be used as persistent memory
+range at high level would require additional below features:
 
-> If fill_balloon() from update_balloon_size_func() should be
-> stronger than leak_balloon() from out_of_memory(), we need to make
-> sure that leak_balloon() from out_of_memory() is ignored when
-> fill_balloon() from update_balloon_size_func() is running.
+- Use a persistent memory range with an option to allocate memmap array in the device
+  itself for .
+
+- Block operations for DAX and persistent memory range.
+
+- Bifurcation at filesystem level based on type of virtio-blk device selected.
+
+- Bifurcation of flushing interface and communication channel between guest & host.
+
+But yes these features can be dynamically configured based on type of device
+added? What if we have virtio-blk:virtio-pmem (m:n) devices ratio?And scale involved? 
+
+If i understand correctly virtio-blk is high performance interface with multiqueue support 
+and additional features at host side like data-plane mode etc. If we bloat it with additional
+stuff(even when we need them) and provide locking with additional features both at guest as 
+well as host side we will get a hit in performance? Also as requirement of both the interfaces
+would grow it will be more difficult to maintain? I would prefer more simpler interfaces with
+defined functionality but yes common code can be shared and used using well defined wrappers. 
+
 > 
-> Apart from vb->balloon_lock deadlock avoidance, we need to define
-> the expected behavior.
-
-
--- 
-MST
+> Stefan
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
