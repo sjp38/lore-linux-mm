@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 139266B0033
-	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 08:02:58 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r202so8993635wmd.17
-        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 05:02:58 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id k57sor2700359wrf.39.2017.10.16.05.02.56
+	by kanga.kvack.org (Postfix) with ESMTP id C0E3F6B0033
+	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 08:07:32 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id u138so9199732wmu.19
+        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 05:07:32 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b47sor2079369wrd.35.2017.10.16.05.07.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 16 Oct 2017 05:02:56 -0700 (PDT)
+        Mon, 16 Oct 2017 05:07:31 -0700 (PDT)
 Subject: Re: [PATCH v9 0/6] MAP_DIRECT for DAX userspace flush
 References: <150776922692.9144.16963640112710410217.stgit@dwillia2-desk3.amr.corp.intel.com>
  <20171012142319.GA11254@lst.de>
@@ -17,87 +17,49 @@ References: <150776922692.9144.16963640112710410217.stgit@dwillia2-desk3.amr.cor
  <CAPcyv4gaLBBefOU+8f7_ypYnCTjSMk+9nq8NfCqBHAE+NbUusw@mail.gmail.com>
  <20171013163822.GA17411@obsidianresearch.com>
  <CAPcyv4jDHp8z2VgVfyRK1WwMzixYVQnh54LZoPD57HB3yqSPPQ@mail.gmail.com>
- <20171013173145.GA18702@obsidianresearch.com>
- <CAPcyv4jZJRto1jwmNU--pqH_6dOVMyj=68ZwEjAmmkgX=mRk7w@mail.gmail.com>
- <20171014015752.GA25172@obsidianresearch.com>
+ <20171013173145.GA18702@obsidianresearch.com> <20171016072644.GB28270@lst.de>
 From: Sagi Grimberg <sagi@grimberg.me>
-Message-ID: <e29eb9ed-2d87-cde8-4efa-50de1fff0c04@grimberg.me>
-Date: Mon, 16 Oct 2017 15:02:52 +0300
+Message-ID: <27694a5e-ec3a-0a68-b053-c138e0c91446@grimberg.me>
+Date: Mon, 16 Oct 2017 15:07:28 +0300
 MIME-Version: 1.0
-In-Reply-To: <20171014015752.GA25172@obsidianresearch.com>
+In-Reply-To: <20171016072644.GB28270@lst.de>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Dan Williams <dan.j.williams@intel.com>
-Cc: "J. Bruce Fields" <bfields@fieldses.org>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "Darrick J. Wong" <darrick.wong@oracle.com>, Linux API <linux-api@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Dave Chinner <david@fromorbit.com>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Al Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, Jeff Layton <jlayton@poochiereds.net>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Christoph Hellwig <hch@lst.de>
+To: Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+Cc: "J. Bruce Fields" <bfields@fieldses.org>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Jeff Layton <jlayton@poochiereds.net>, Al Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
 
-Hey folks, (chiming in very late here...)
-
->>> I think, if you want to build a uAPI for notification of MR lease
->>> break, then you need show how it fits into the above software model:
->>>   - How it can be hidden in a RDMA specific library
+>> I don't think that really represents how lots of apps actually use
+>> RDMA.
 >>
->> So, here's a strawman can ibv_poll_cq() start returning ibv_wc_status
->> == IBV_WC_LOC_PROT_ERR when file coherency is lost. This would make
->> the solution generic across DAX and non-DAX. What's you're feeling for
->> how well applications are prepared to deal with that status return?
-> 
-> Stuffing an entry into the CQ is difficult. The CQ is in user memory
-> and it is DMA'd from the HCA for several pieces of hardware, so the
-> kernel can't just stuff something in there. It can be done
-> with HW support by having the HCA DMA it via an exception path or
-> something, but even then, you run into questions like CQ overflow and
-> accounting issues since it is not ment for this.
-
-But why should the kernel ever need to mangle the CQ? if a lease break
-would deregister the MR the device is expected to generate remote
-protection errors on its own.
-
-And in that case, I think we need a query mechanism rather an event
-mechanism so when the application starts seeing protection errors
-it can query the relevant MR (I think most if not all devices have that
-information in their internal completion queue entries).
-
-> 
-> So, you need a side channel of some kind, either in certain drivers or
-> generically..
-> 
->>>   - How lease break can be done hitlessly, so the library user never
->>>     needs to know it is happening or see failed/missed transfers
-
-I agree that the application should not be aware of lease breakages, but
-seeing failed transfers is perfectly acceptable given that an access
-violation is happening (my assumption is that failed transfers are error
-completions reported in the user completion queue). What we need to have
-is a framework to help user-space to recover sanely, which is to query
-what MR had the access violation, restore it, and re-establish the queue
-pair.
-
+>> RDMA is often buried down in the software stack (eg in a MPI), and by
+>> the time a mapping gets used for RDMA transfer the link between the
+>> FD, mmap and the MR is totally opaque.
 >>
->> iommu redirect should be hit less and behave like the page cache case
->> where RDMA targets pages that are no longer part of the file.
-> 
-> Yes, if the iommu can be fenced properly it sounds doable.
-> 
->>>   - Whatever fast path checking is needed does not kill performance
+>> Having a MR specific notification means the low level RDMA libraries
+>> have a chance to deal with everything for the app.
 >>
->> What do you consider a fast path? I was assuming that memory
->> registration is a slow path, and iommu operations are asynchronous so
->> should not impact performance of ongoing operations beyond typical
->> iommu overhead.
+>> Eg consider a HPC app using MPI that uses some DAX aware library to
+>> get DAX backed mmap's. It then passes memory in those mmaps to the
+>> MPI library to do transfers. The MPI creates the MR on demand.
+>>
 > 
-> ibv_poll_cq() and ibv_post_send() would be a fast path.
-> 
-> Where this struggled before is in creating a side channel you also now
-> have to check that side channel, and checking it at high performance
-> is quite hard.. Even quiecing things to be able to tear down the MR
-> has performance implications on post send...
+> I suspect one of the more interesting use cases might be a file server,
+> for which that's not the case.  But otherwise I agree with the above,
+> and also thing that notifying the MR handle is the only way to go for
+> another very important reason:  fencing.  What if the application/library
+> does not react on the notification?  With a per-MR notification we
+> can unregister the MR in kernel space and have a rock solid fencing
+> mechanism.  And that is the most important bit here.
 
-This is exactly why I think we should not have it, but instead give
-building blocks to recover sanely from error completions...
+I agree we must deregister the MR in kernel space. As said, I think
+its perfectly reasonable to let user-space see error completions and
+provide query mechanism for MR granularity (unfortunately this will
+probably need drivers assistance as they know how their device reports
+in MR granularity access violations).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
