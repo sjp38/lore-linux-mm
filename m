@@ -1,75 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C14AE6B0038
-	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 11:01:18 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id l24so7281965pgu.17
-        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 08:01:18 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id q10si4584593pll.319.2017.10.16.08.01.17
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 974916B0038
+	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 11:58:40 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id h6so8869112oia.17
+        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 08:58:40 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 70sor2636596otf.244.2017.10.16.08.58.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Oct 2017 08:01:17 -0700 (PDT)
-Date: Mon, 16 Oct 2017 18:01:14 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [mmotm:master 112/209] mm/debug.c:137:21: warning: passing
- argument 1 of 'mm_pgtables_bytes' discards 'const' qualifier from pointer
- target type
-Message-ID: <20171016150113.ikfxy3e7zzfvsr4w@black.fi.intel.com>
-References: <201710141547.41n3nN1Y%fengguang.wu@intel.com>
+        (Google Transport Security);
+        Mon, 16 Oct 2017 08:58:38 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201710141547.41n3nN1Y%fengguang.wu@intel.com>
+In-Reply-To: <20171016144753.GB14135@stefanha-x1.localdomain>
+References: <20171012155027.3277-1-pagupta@redhat.com> <20171012155027.3277-3-pagupta@redhat.com>
+ <20171013094431.GA27308@stefanha-x1.localdomain> <24301306.20068579.1507891695416.JavaMail.zimbra@redhat.com>
+ <20171016144753.GB14135@stefanha-x1.localdomain>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 16 Oct 2017 08:58:37 -0700
+Message-ID: <CAPcyv4hffSdoONfFohKZzfB2gywGYG9MmDxC0H9+5R53w+ROVQ@mail.gmail.com>
+Subject: Re: [RFC 2/2] KVM: add virtio-pmem driver
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Stefan Hajnoczi <stefanha@gmail.com>
+Cc: Pankaj Gupta <pagupta@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, KVM list <kvm@vger.kernel.org>, Qemu Developers <qemu-devel@nongnu.org>, linux-nvdimm <linux-nvdimm@ml01.01.org>, Linux MM <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Stefan Hajnoczi <stefanha@redhat.com>, Rik van Riel <riel@redhat.com>, haozhong zhang <haozhong.zhang@intel.com>, Nitesh Narayan Lal <nilal@redhat.com>, Kevin Wolf <kwolf@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, ross zwisler <ross.zwisler@intel.com>, David Hildenbrand <david@redhat.com>, xiaoguangrong eric <xiaoguangrong.eric@gmail.com>
 
-On Sat, Oct 14, 2017 at 07:38:55AM +0000, kbuild test robot wrote:
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   cc4a10c92b384ba2b80393c37639808df0ebbf56
-> commit: ae7f37f07ee1eb08dd1eaaf79182ce9aa6ef7c09 [112/209] mm: consolidate page table accounting
-> config: blackfin-allmodconfig (attached as .config)
-> compiler: bfin-uclinux-gcc (GCC) 6.2.0
-> reproduce:
->         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         git checkout ae7f37f07ee1eb08dd1eaaf79182ce9aa6ef7c09
->         # save the attached .config to linux build tree
->         make.cross ARCH=blackfin 
-> 
-> All warnings (new ones prefixed by >>):
-> 
->    In file included from include/linux/kernel.h:13:0,
->                     from mm/debug.c:8:
->    mm/debug.c: In function 'dump_mm':
-> >> mm/debug.c:137:21: warning: passing argument 1 of 'mm_pgtables_bytes' discards 'const' qualifier from pointer target type [-Wdiscarded-qualifiers]
->       mm_pgtables_bytes(mm),
->                         ^
->    include/linux/printk.h:295:35: note: in definition of macro 'pr_emerg'
->      printk(KERN_EMERG pr_fmt(fmt), ##__VA_ARGS__)
->                                       ^~~~~~~~~~~
->    In file included from mm/debug.c:9:0:
->    include/linux/mm.h:1671:29: note: expected 'struct mm_struct *' but argument is of type 'const struct mm_struct *'
->     static inline unsigned long mm_pgtables_bytes(struct mm_struct *mm)
+On Mon, Oct 16, 2017 at 7:47 AM, Stefan Hajnoczi <stefanha@gmail.com> wrote:
+> On Fri, Oct 13, 2017 at 06:48:15AM -0400, Pankaj Gupta wrote:
+>> > On Thu, Oct 12, 2017 at 09:20:26PM +0530, Pankaj Gupta wrote:
+>> > > +static blk_qc_t virtio_pmem_make_request(struct request_queue *q,
+>> > > +                 struct bio *bio)
+>> > > +{
+>> > > + blk_status_t rc = 0;
+>> > > + struct bio_vec bvec;
+>> > > + struct bvec_iter iter;
+>> > > + struct virtio_pmem *pmem = q->queuedata;
+>> > > +
+>> > > + if (bio->bi_opf & REQ_FLUSH)
+>> > > +         //todo host flush command
+>> >
+>> > This detail is critical to the device design.  What is the plan?
+>>
+>> yes, this is good point.
+>>
+>> was thinking of guest sending a flush command to Qemu which
+>> will do a fsync on file fd.
+>
+> Previously there was discussion about fsyncing a specific file range
+> instead of the whole file.  This could perform better in cases where
+> only a subset of dirty pages need to be flushed.
+>
+> One possibility is to design the virtio interface to communicate ranges
+> but the emulation code simply fsyncs the fd for the time being.  Later
+> on, if the necessary kernel and userspace interfaces are added, we can
+> make use of the interface.
 
-Andrew, could you please take this fixup:
+Range based is not a natural storage cache management mechanism. All
+that is it available typically is a full write-cache-flush mechanism
+and upper layers would need to customized for range-based flushing.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a7e50c464021..d3c4b1f19da4 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1668,7 +1668,7 @@ static inline void mm_dec_nr_ptes(struct mm_struct *mm)
- #else
- 
- static inline void mm_pgtables_bytes_init(struct mm_struct *mm) {}
--static inline unsigned long mm_pgtables_bytes(struct mm_struct *mm)
-+static inline unsigned long mm_pgtables_bytes(const struct mm_struct *mm)
- {
- 	return 0;
- }
--- 
- Kirill A. Shutemov
+>> If we do a async flush and move the task to wait queue till we receive
+>> flush complete reply from host we can allow other tasks to execute
+>> in current cpu.
+>>
+>> Any suggestions you have or anything I am not foreseeing here?
+>
+> My main thought about this patch series is whether pmem should be a
+> virtio-blk feature bit instead of a whole new device.  There is quite a
+> bit of overlap between the two.
+
+I'd be open to that... there's already provisions in the pmem driver
+for platforms where cpu caches are flushed on power-loss, a virtio
+mode for this shared-memory case seems reasonable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
