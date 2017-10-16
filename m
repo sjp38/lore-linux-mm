@@ -1,82 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EC9056B0038
-	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 13:42:33 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id k7so3406890wre.22
-        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 10:42:33 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t202si5430934wmt.200.2017.10.16.10.42.32
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 10A806B0038
+	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 13:43:47 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id d67so16260727qkg.3
+        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 10:43:47 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id 28si789848qtn.62.2017.10.16.10.43.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 16 Oct 2017 10:42:32 -0700 (PDT)
-Date: Mon, 16 Oct 2017 19:42:29 +0200
-From: Michal Hocko <mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Oct 2017 10:43:46 -0700 (PDT)
 Subject: Re: [RFC PATCH 3/3] mm/map_contig: Add mmap(MAP_CONTIG) support
-Message-ID: <20171016174229.pz3o4uhzz3qbrp6n@dhcp22.suse.cz>
-References: <20171013152801.nbpk6nluotgbmfrs@dhcp22.suse.cz>
+References: <20171012014611.18725-1-mike.kravetz@oracle.com>
+ <20171012014611.18725-4-mike.kravetz@oracle.com>
+ <20171012143756.p5bv4zx476qkmqhh@dhcp22.suse.cz>
+ <f4a46a19-5f71-ebcc-3098-a35728fbfd03@oracle.com>
+ <20171013084054.me3kxhgbxzgm2lpr@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1710131015420.3949@nuc-kabylake>
+ <20171013152801.nbpk6nluotgbmfrs@dhcp22.suse.cz>
  <alpine.DEB.2.20.1710131040570.4247@nuc-kabylake>
  <20171013154747.2jv7rtfqyyagiodn@dhcp22.suse.cz>
  <alpine.DEB.2.20.1710131053450.4400@nuc-kabylake>
  <20171013161736.htumyr4cskfrjq64@dhcp22.suse.cz>
  <752b49eb-55c6-5a34-ab41-6e91dd93ea70@mellanox.com>
- <20171016082456.no6ux63uy2rmj4fe@dhcp22.suse.cz>
- <0e238c56-c59d-f648-95fc-c8cb56c3652e@mellanox.com>
- <20171016123248.csntl6luxgafst6q@dhcp22.suse.cz>
- <alpine.DEB.2.20.1710161058470.12436@nuc-kabylake>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <aff6b405-6a06-f84d-c9b1-c6fb166dff81@oracle.com>
+Date: Mon, 16 Oct 2017 10:43:38 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1710161058470.12436@nuc-kabylake>
+In-Reply-To: <752b49eb-55c6-5a34-ab41-6e91dd93ea70@mellanox.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Guy Shattah <sguy@mellanox.com>, Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Guy Shattah <sguy@mellanox.com>, Michal Hocko <mhocko@kernel.org>, Christopher Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Mon 16-10-17 11:00:19, Cristopher Lameter wrote:
-> On Mon, 16 Oct 2017, Michal Hocko wrote:
+On 10/15/2017 12:50 AM, Guy Shattah wrote:
+> On 13/10/2017 19:17, Michal Hocko wrote:
+>> On Fri 13-10-17 10:56:13, Cristopher Lameter wrote:
+>>> On Fri, 13 Oct 2017, Michal Hocko wrote:
+>>>
+>>>>> There is a generic posix interface that could we used for a variety of
+>>>>> specific hardware dependent use cases.
+>>>> Yes you wrote that already and my counter argument was that this generic
+>>>> posix interface shouldn't bypass virtual memory abstraction.
+>>> It does do that? In what way?
+>> availability of the virtual address space depends on the availability of
+>> the same sized contiguous physical memory range. That sounds like the
+>> abstraction is gone to large part to me.
+> In what way? userspace users will still be working with virtual memory.
 > 
-> > But putting that aside. Pinning a lot of memory might cause many
-> > performance issues and misbehavior. There are still kernel users
-> > who need high order memory to work properly. On top of that you are
-> > basically allowing an untrusted user to deplete higher order pages very
-> > easily unless there is a clever way to enforce per user limit on this.
-> 
-> We already have that issue and have ways to control that by tracking
-> pinned and mlocked pages as well as limits on their allocations.
+>>
+>>>>> There are numerous RDMA devices that would all need the mmap
+>>>>> implementation. And this covers only the needs of one subsystem. There are
+>>>>> other use cases.
+>>>> That doesn't prevent providing a library function which could be reused
+>>>> by all those drivers. Nothing really too much different from
+>>>> remap_pfn_range.
+>>> And then in all the other use cases as well. It would be much easier if
+>>> mmap could give you the memory you need instead of havig numerous drivers
+>>> improvise on their own. This is in particular also useful
+>>> for numerous embedded use cases where you need contiguous memory.
+>> But a generic implementation would have to deal with many issues as
+>> already mentioned. If you make this driver specific you can have access
+>> control based on fd etc... I really fail to see how this is any
+>> different from remap_pfn_range.
+> Why have several driver specific implementation if you can generalize the idea and implement
+> an already existing POSIX standard?
 
-Ohh, it is very different because mlock limit is really small (64kB)
-which is not even close to what this is supposed to be about. Moreover
-mlock doesn't prevent from migration and so it doesn't prevent
-compaction to form higher order allocations.
+Just to be clear, the posix standard talks about a typed memory object.
+The suggested implementation has one create a connection to the memory
+object to receive a fd, then use mmap as usual to get a mapping backed
+by contiguous pages/memory.  Of course, this type of implementation is
+not a requirement.  However, this type of implementation looks quite a
+bit like hugetlbfs today.
+- Both require opening a special file/device, and then calling mmap on
+  the returned fd.  You can technically use mmap(MAP_HUGETLB), but that
+  still ends up using hugetbfs.  BTW, there was resistance to adding the
+  MAP_HUGETLB flag to mmap.
+- Allocation of contiguous memory is much like 'on demand' allocation of
+  huge pages.  There are some (not many) users that use this model.  They
+  attempt to allocate huge pages on demand, and if not available fall back
+  to base pages.  This is how contiguous allocations would need to work.
+  Of course, most hugetlbfs users pre-allocate pages for their use, and
+  this 'might' be something useful for contiguous allocations as well.
 
-Really, this is just too dangerous without a deep consideration of all
-the potential consequences. The more I am thinking about this the more I
-am convinced that this all should be driver specific mmap based thing.
-If it turns out to be too restrictive over time and there are more
-experiences about the usage we can consider thinking about a more
-generic API. But starting from the generic MAP_ flag is just asking for
-problems.
-
-> > That being said, the list is far from being complete, I am pretty sure
-> > more would pop out if I thought more thoroughly. The bottom line is that
-> > while I see many problems to actually implement this feature and
-> > maintain it longterm I simply do not see a large benefit outside of a
-> > very specific HW.
-> 
-> There is not much new here in terms of problems. The hardware that
-> needs this seems to become more and more plentiful. That is why we need a
-> generic implementation.
-
-It would really help to name that HW and other potential usecases
-independent on the HW because I am rather skeptical about the
-_plentiful_ part. And so I really do not see any foundation to claim
-the generic part. Because, fundamentally, it is the HW which requires
-the specific memory placement/physically contiguous range etc. So the
-generic implementation doesn't really make sense in such a context.
+I wonder if going down the path of a separate devide/filesystem/etc for
+contiguous allocations might be a better option.  It would keep the
+implementation somewhat separate.  However, I would then be afraid that
+we end up with another 'separate/special vm' as in the case of hugetlbfs
+today.
 
 -- 
-Michal Hocko
-SUSE Labs
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
