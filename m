@@ -1,65 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 39F606B0253
-	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 18:39:34 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id j17so129462iod.18
-        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 15:39:34 -0700 (PDT)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id i187si6223290ioa.67.2017.10.16.15.39.32
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 205906B0038
+	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 18:59:17 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id s2so8120353pge.19
+        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 15:59:17 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id v32sor2350180plg.72.2017.10.16.15.59.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Oct 2017 15:39:33 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm, soft_offline: improve hugepage soft offlining error
- log
-Date: Mon, 16 Oct 2017 22:35:22 +0000
-Message-ID: <3046fe8d-cdeb-6609-416e-8b016d162ea2@ah.jp.nec.com>
-References: <20171016171757.GA3018@ubuntu-desk-vm>
-In-Reply-To: <20171016171757.GA3018@ubuntu-desk-vm>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <9442E6E1FA4C37489F5CB5058145FF40@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Mon, 16 Oct 2017 15:59:16 -0700 (PDT)
+Date: Mon, 16 Oct 2017 15:59:13 -0700
+From: Kees Cook <keescook@chromium.org>
+Subject: [PATCH] writeback: Convert timers to use timer_setup()
+Message-ID: <20171016225913.GA99214@beast>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laszlo Toth <laszlth@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Matthew Wilcox <mawilcox@microsoft.com>, Jeff Layton <jlayton@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 10/17/2017 02:17 AM, Laszlo Toth wrote:
-> On a failed attempt, we get the following entry:
-> soft offline: 0x3c0000: migration failed 1, type 17ffffc0008008
-> (uptodate|head)
->=20
-> Make this more specific to be straightforward and to follow
-> other error log formats in soft_offline_huge_page().
->=20
-> Signed-off-by: Laszlo Toth <laszlth@gmail.com>
+In preparation for unconditionally passing the struct timer_list pointer to
+all timer callbacks, switch to using the new timer_setup() and from_timer()
+to pass the timer pointer explicitly.
 
-Looks good to me.
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>
+Cc: Jeff Layton <jlayton@redhat.com>
+Cc: linux-mm@kvack.org
+Signed-off-by: Kees Cook <keescook@chromium.org>
+---
+ mm/page-writeback.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 94854e243b11..65ba42c7c7da 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -628,9 +628,9 @@ EXPORT_SYMBOL_GPL(wb_writeout_inc);
+  * On idle system, we can be called long after we scheduled because we use
+  * deferred timers so count with missed periods.
+  */
+-static void writeout_period(unsigned long t)
++static void writeout_period(struct timer_list *t)
+ {
+-	struct wb_domain *dom = (void *)t;
++	struct wb_domain *dom = from_timer(dom, t, period_timer);
+ 	int miss_periods = (jiffies - dom->period_time) /
+ 						 VM_COMPLETIONS_PERIOD_LEN;
+ 
+@@ -653,8 +653,7 @@ int wb_domain_init(struct wb_domain *dom, gfp_t gfp)
+ 
+ 	spin_lock_init(&dom->lock);
+ 
+-	setup_deferrable_timer(&dom->period_timer, writeout_period,
+-			       (unsigned long)dom);
++	timer_setup(&dom->period_timer, writeout_period, TIMER_DEFERRABLE);
+ 
+ 	dom->dirty_limit_tstamp = jiffies;
+ 
+-- 
+2.7.4
 
-> ---
->  mm/memory-failure.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->=20
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 8836662..4acdf39 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -1587,7 +1587,7 @@ static int soft_offline_huge_page(struct page *page=
-, int flags)
->  	ret =3D migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
->  				MIGRATE_SYNC, MR_MEMORY_FAILURE);
->  	if (ret) {
-> -		pr_info("soft offline: %#lx: migration failed %d, type %lx (%pGp)\n",
-> +		pr_info("soft offline: %#lx: hugepage migration failed %d, type %lx (%=
-pGp)\n",
->  			pfn, ret, page->flags, &page->flags);
->  		if (!list_empty(&pagelist))
->  			putback_movable_pages(&pagelist);
-> =
+
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
