@@ -1,125 +1,221 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C5946B0038
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 05:20:21 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 196so599758wma.6
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 02:20:21 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f58si7731850wra.512.2017.10.17.02.20.19
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 977166B0038
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 05:23:30 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id g6so1077963pgn.11
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 02:23:30 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id u3si5939811plm.546.2017.10.17.02.23.29
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Oct 2017 02:20:19 -0700 (PDT)
-Date: Tue, 17 Oct 2017 11:20:17 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: kernel BUG at fs/xfs/xfs_aops.c:853! in kernel 4.13 rc6
-Message-ID: <20171017092017.GN9762@quack2.suse.cz>
-References: <CABXGCsMorRzy-dJrjTO6sP80BSb0RAeMhF3QGwSkk50m7VYzOA@mail.gmail.com>
- <CABXGCsOeex62Y4qQJwvMJ+fJ+MnKyKGDj9eRbKemeMVWo5huKw@mail.gmail.com>
- <20171009000529.GY3666@dastard>
- <20171009183129.GE11645@wotan.suse.de>
- <87wp442lgm.fsf@xmission.com>
- <8729041d-05e5-6bea-98db-7f265edde193@suse.de>
- <20171015130625.o5k6tk5uflm3rx65@thunk.org>
- <87efq4qcry.fsf@xmission.com>
- <20171016011301.dcam44qylno7rm6a@thunk.org>
- <c5bb6c1b-90c9-f50e-7283-af7e0de67caa@suse.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Oct 2017 02:23:29 -0700 (PDT)
+Date: Tue, 17 Oct 2017 17:16:39 +0800
+From: "Du, Changbin" <changbin.du@intel.com>
+Subject: Re: [PATCH 1/2] mm, thp: introduce dedicated transparent huge page
+ allocation interfaces
+Message-ID: <20171017091638.GA7748@intel.com>
+References: <1508145557-9944-1-git-send-email-changbin.du@intel.com>
+ <1508145557-9944-2-git-send-email-changbin.du@intel.com>
+ <66a3f340-ff44-efad-48ad-a95554938a29@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="RnlQjJ0d97Da+TV1"
 Content-Disposition: inline
-In-Reply-To: <c5bb6c1b-90c9-f50e-7283-af7e0de67caa@suse.de>
+In-Reply-To: <66a3f340-ff44-efad-48ad-a95554938a29@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aleksa Sarai <asarai@suse.de>
-Cc: Theodore Ts'o <tytso@mit.edu>, "Eric W. Biederman" <ebiederm@xmission.com>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Dave Chinner <david@fromorbit.com>, =?utf-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>, Christoph Hellwig <hch@infradead.org>, Jan Blunck <jblunck@infradead.org>, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.com>, Jan Kara <jack@suse.cz>, Hannes Reinecke <hare@suse.de>, linux-xfs@vger.kernel.org
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: changbin.du@intel.com, akpm@linux-foundation.org, corbet@lwn.net, hughd@google.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 17-10-17 11:59:50, Aleksa Sarai wrote:
-> >>Looking at the code it appears ext4, f2fs, and xfs shutdown path
-> >>implements revoking a bdev from a filesystem.  Further if the ext4
-> >>implementation is anything to go by it looks like something we could
-> >>generalize into the vfs.
-> >
-> >There are two things which the current file system shutdown paths do.
-> >The first is that they prevent the file system from attempting to
-> >write to the bdev.  That's all very file system specific, and can't be
-> >generalized into the VFS.
-> >
-> >The second thing they do is they cause system calls which might modify
-> >the file system to return an error.  Currently operations that might
-> >result in _reads_ are not shutdown, so it's not a true revoke(2)
-> >functionality ala *BSD.  I assume that's what you are talking about
-> >generalizing into the VFS.  Personally, I would prefer to see us
-> >generalize something like vhangup() but which works on a file
-> >descriptor, not just a TTY.  That it is, it disconnects the file
-> >descriptor entirely from the hardware / file system so in the case of
-> >the tty, it can be used by other login session, and in the case of the
-> >file descriptor belonging to a file system, it stops the file system
-> >from being unmounted
-> Presumably the fd would just be used to specify the backing store? I was
-> imagining doing it through an additional umount(2) flag but I guess that
-> having an fd open is probably better form.
-> 
-> I'm a little confused about whether this actually will solve the original
-> problem though, because it still requires the iteration over /proc/**/mounts
-> in order for userspace to finish the unmounts. I feel like this is trying to
-> generalise the idea behind luksSuspend -- am I misunderstanding how this
-> would solve the original issue? Is it the case that if we "disconnect" at
-> the file descriptor level, then the bdev is no longer considered "used" and
-> it can be operated on safely?
 
-So umount(2) is essentially a directory tree operation - detach filesystem
-mounted on 'dir' from the directory tree. If this was the last point where
-the superblock was mounted, we also cleanup the superblock and release the
-underlying device.
+--RnlQjJ0d97Da+TV1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-The operation we are speaking about here is different. It is more along the
-lines of "release this device".  And in the current world of containers,
-mount namespaces, etc. it is not trivial for userspace to implement this
-using umount(2) as Ted points out. I believe we could do that by walking
-through all mount points of a superblock and unmounting them (and I don't
-want to get into a discussion how to efficiently implement that now but in
-principle the kernel has all the necessary information).
+Hi Khandual,
+Thanks for your review.
 
-And then there's another dimension to this problem (and I believe it is
-good to explicitely distinguish this) - what to do if someone is actually
-using some of the mountpoints either by having CWD there, having file open
-there, or having something else mounted underneath. umount(2) returns EBUSY
-in these cases which is impractical for some use cases. And I believe the
-proposal here is to "invalidate" open file descriptors through revoke, then
-put the superblock into quiescent state and make filesystem stop accessing
-the device (and probably release the device reference so that the device is
-really free).
+On Tue, Oct 17, 2017 at 01:38:07PM +0530, Anshuman Khandual wrote:
+> On 10/16/2017 02:49 PM, changbin.du@intel.com wrote:
+> > From: Changbin Du <changbin.du@intel.com>
+> >=20
+> > This patch introduced 4 new interfaces to allocate a prepared
+> > transparent huge page.
+> >   - alloc_transhuge_page_vma
+> >   - alloc_transhuge_page_nodemask
+> >   - alloc_transhuge_page_node
+> >   - alloc_transhuge_page
+> >=20
+>=20
+> If we are trying to match HugeTLB helpers, then it should have
+> format something like alloc_transhugepage_xxx instead of
+> alloc_transhuge_page_XXX. But I think its okay.
+>
+HugeTLB helpers are something like alloc_huge_page, so I think
+alloc_transhuge_page match it. And existing names already have
+*transhuge_page* style.
 
-I think we could implement the "put the superblock into quiescent state
-and make filesystem stop accessing the device" by a mechanism similar to
-filesystem freezing. That already implements putting filesystem into
-quiescent state while still in use. We would have to modify
-sb_start_write() etc. calls to be able to return errors in case write
-access is revoked and never going back (instead of blocking forever) but
-that should be doable and in my opinion that is easier than trying to tweak
-fs shutdown to result in a consistent filesystem. The read part could be
-handled as well by putting checks in strategic place.
+> > diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+> > index 14bc21c..1dd2c33 100644
+> > --- a/include/linux/huge_mm.h
+> > +++ b/include/linux/huge_mm.h
+> > @@ -130,9 +130,20 @@ extern unsigned long thp_get_unmapped_area(struct =
+file *filp,
+> >  		unsigned long addr, unsigned long len, unsigned long pgoff,
+> >  		unsigned long flags);
+> > =20
+> > -extern void prep_transhuge_page(struct page *page);
+> >  extern void free_transhuge_page(struct page *page);
+> > =20
+> > +struct page *alloc_transhuge_page_vma(gfp_t gfp_mask,
+> > +		struct vm_area_struct *vma, unsigned long addr);
+> > +struct page *alloc_transhuge_page_nodemask(gfp_t gfp_mask,
+> > +		int preferred_nid, nodemask_t *nmask);
+>=20
+> Would not they require 'extern' here ?
+>
+Need or not, function declaration are implicitly 'extern'. I will add it to
+align with existing code.
 
-What I'm a bit concerned about is the "release device reference" part - for
-a block device to stop looking busy we have to do that however then the
-block device can go away and the filesystem isn't prepared to that - we
-reference sb->s_bdev in lots of places, we have buffer heads which are part
-of bdev page cache, and probably other indirect assumptions I forgot about
-now. One solution to this is to not just stop accessing the device but
-truly cleanup the filesystem up to a point where it is practically
-unmounted. I like this solution more but we have to be careful to block
-any access attemps high enough in VFS ideally before ever entering fs code.
+> > +
+> > +static inline struct page *alloc_transhuge_page_node(int nid, gfp_t gf=
+p_mask)
+> > +{
+> > +	return alloc_transhuge_page_nodemask(gfp_mask, nid, NULL);
+> > +}
+> > +
+> > +struct page *alloc_transhuge_page(gfp_t gfp_mask);
+> > +
+> >  bool can_split_huge_page(struct page *page, int *pextra_pins);
+> >  int split_huge_page_to_list(struct page *page, struct list_head *list);
+> >  static inline int split_huge_page(struct page *page)
+> > diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+> > index 643c7ae..70a00f3 100644
+> > --- a/include/linux/migrate.h
+> > +++ b/include/linux/migrate.h
+> > @@ -42,19 +42,15 @@ static inline struct page *new_page_nodemask(struct=
+ page *page,
+> >  		return alloc_huge_page_nodemask(page_hstate(compound_head(page)),
+> >  				preferred_nid, nodemask);
+> > =20
+> > -	if (thp_migration_supported() && PageTransHuge(page)) {
+> > -		order =3D HPAGE_PMD_ORDER;
+> > -		gfp_mask |=3D GFP_TRANSHUGE;
+> > -	}
+> > -
+> >  	if (PageHighMem(page) || (zone_idx(page_zone(page)) =3D=3D ZONE_MOVAB=
+LE))
+> >  		gfp_mask |=3D __GFP_HIGHMEM;
+> > =20
+> > -	new_page =3D __alloc_pages_nodemask(gfp_mask, order,
+> > +	if (thp_migration_supported() && PageTransHuge(page))
+> > +		return alloc_transhuge_page_nodemask(gfp_mask | GFP_TRANSHUGE,
+> > +				preferred_nid, nodemask);
+> > +	else
+> > +		return __alloc_pages_nodemask(gfp_mask, order,
+> >  				preferred_nid, nodemask);
+> > -
+> > -	if (new_page && PageTransHuge(page))
+> > -		prep_transhuge_page(new_page);
+>=20
+> This makes sense, calling prep_transhuge_page() inside the
+> function alloc_transhuge_page_nodemask() is better I guess.
+>=20
+> > =20
+> >  	return new_page;
+> >  }
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > index 269b5df..e267488 100644
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -490,7 +490,7 @@ static inline struct list_head *page_deferred_list(=
+struct page *page)
+> >  	return (struct list_head *)&page[2].mapping;
+> >  }
+> > =20
+> > -void prep_transhuge_page(struct page *page)
+> > +static void prep_transhuge_page(struct page *page)
+>=20
+> Right. It wont be used outside huge page allocation context and
+> you have already mentioned about it.
+>=20
+> >  {
+> >  	/*
+> >  	 * we use page->mapping and page->indexlru in second tail page
+> > @@ -501,6 +501,45 @@ void prep_transhuge_page(struct page *page)
+> >  	set_compound_page_dtor(page, TRANSHUGE_PAGE_DTOR);
+> >  }
+> > =20
+> > +struct page *alloc_transhuge_page_vma(gfp_t gfp_mask,
+> > +		struct vm_area_struct *vma, unsigned long addr)
+> > +{
+> > +	struct page *page;
+> > +
+> > +	page =3D alloc_pages_vma(gfp_mask | __GFP_COMP, HPAGE_PMD_ORDER,
+> > +			       vma, addr, numa_node_id(), true);
+> > +	if (unlikely(!page))
+> > +		return NULL;
+> > +	prep_transhuge_page(page);
+> > +	return page;
+> > +}
+>=20
+> __GFP_COMP and HPAGE_PMD_ORDER are the minimum flags which will be used
+> for huge page allocation and preparation. Any thing else depending upon
+> the context will be passed by the caller. Makes sense.
+>=20
+yes, thanks.
 
-Another option would be to do something similar to what we do when the
-device just gets unplugged under our hands - we detach bdev from gendisk,
-leave it dangling and invisible. But we would still somehow have to
-convince DM that the bdev practically went away by calling
-disk->fops->release() and it all just seems fragile to me. But I wanted to
-mention this option in case the above solution proves to be too difficult.
+> > +
+> > +struct page *alloc_transhuge_page_nodemask(gfp_t gfp_mask,
+> > +		int preferred_nid, nodemask_t *nmask)
+> > +{
+> > +	struct page *page;
+> > +
+> > +	page =3D __alloc_pages_nodemask(gfp_mask | __GFP_COMP, HPAGE_PMD_ORDE=
+R,
+> > +				      preferred_nid, nmask);
+> > +	if (unlikely(!page))
+> > +		return NULL;
+> > +	prep_transhuge_page(page);
+> > +	return page;
+> > +}
+> > +
+>=20
+> Same here.
+>=20
+> > +struct page *alloc_transhuge_page(gfp_t gfp_mask)
+> > +{
+> > +	struct page *page;
+> > +
+> > +	VM_BUG_ON(!(gfp_mask & __GFP_COMP));
+>=20
+> You expect the caller to provide __GFP_COMP, why ? You are
+> anyways providing it later.
+>=20
+oops, I forgot to update this line. Will remove it. Thanks for figuring it =
+out.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+--=20
+Thanks,
+Changbin Du
+
+--RnlQjJ0d97Da+TV1
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQEcBAEBAgAGBQJZ5cp2AAoJEAanuZwLnPNUnc4IAI8JihFynL2P5Lzy2dzcSg4B
+2evr1cmQ8vmf6TKygDpzg+uo2Q0wMXznXo4rgCszf0iH1LwQzSasi/iNcK0WUSeE
+l1/fUzouDomNCaAVu7QA0Dc4ov710Zli8Yj1PTRH2VnHrG7qeiAu0OsimX06Wh3S
+y6ZHkz9PRw7QmVZWm05MENjJVRsAHWIZ9ZxcBnxvrO2T8S02HnFU9NOM65r8LnA+
+HipRnmOERQz0ZJHdeC4/LyYGaD2aCLCsOY9jDoNHBnVL08sZ3bnpE1/RtlFLLFz0
+G681odJDKMFSIxURYmfL51fXigENsTSBAv9Z5j9M63ahL6BKwjcOh1UVoESzmS4=
+=EAaI
+-----END PGP SIGNATURE-----
+
+--RnlQjJ0d97Da+TV1--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
