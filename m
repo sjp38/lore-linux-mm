@@ -1,56 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C7AB6B0038
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 08:00:25 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id y39so704233wrd.17
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 05:00:25 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 76F206B0038
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 08:03:21 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id y39so708089wrd.17
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 05:03:21 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g206si6964833wmg.269.2017.10.17.05.00.23
+        by mx.google.com with ESMTPS id o17si6647071wme.34.2017.10.17.05.03.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Oct 2017 05:00:23 -0700 (PDT)
-Date: Tue, 17 Oct 2017 14:00:22 +0200
+        Tue, 17 Oct 2017 05:03:20 -0700 (PDT)
+Date: Tue, 17 Oct 2017 14:03:18 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm: rename page dtor functions to
- {compound,huge,transhuge}_page__dtor
-Message-ID: <20171017120022.m4gblhcfs7xf7zld@dhcp22.suse.cz>
-References: <1508145557-9944-1-git-send-email-changbin.du@intel.com>
- <1508145557-9944-3-git-send-email-changbin.du@intel.com>
- <20171017102203.u2v3p2ivuogu4rk6@dhcp22.suse.cz>
- <20171017112214.n5emzjzstmbktn6m@node.shutemov.name>
+Subject: Re: [PATCH 1/2] mm: drop migrate type checks from has_unmovable_pages
+Message-ID: <20171017120318.rers7zga3cnirt4i@dhcp22.suse.cz>
+References: <20171013115835.zaehapuucuzl2vlv@dhcp22.suse.cz>
+ <20171013120013.698-1-mhocko@kernel.org>
+ <871sm2j92j.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171017112214.n5emzjzstmbktn6m@node.shutemov.name>
+In-Reply-To: <871sm2j92j.fsf@concordia.ellerman.id.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: changbin.du@intel.com, akpm@linux-foundation.org, corbet@lwn.net, hughd@google.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 17-10-17 14:22:14, Kirill A. Shutemov wrote:
-> On Tue, Oct 17, 2017 at 12:22:03PM +0200, Michal Hocko wrote:
-> > On Mon 16-10-17 17:19:17, changbin.du@intel.com wrote:
-> > > From: Changbin Du <changbin.du@intel.com>
-> > > 
-> > > The current name free_{huge,transhuge}_page are paired with
-> > > alloc_{huge,transhuge}_page functions, but the actual page free
-> > > function is still free_page() which will indirectly call
-> > > free_{huge,transhuge}_page. So this patch removes this confusion
-> > > by renaming all the compound page dtors.
-> > 
-> > Is this code churn really worth it?
+On Tue 17-10-17 22:41:08, Michael Ellerman wrote:
+> Michal Hocko <mhocko@kernel.org> writes:
 > 
-> Getting naming straight is kinda nit. :)
+> > From: Michal Hocko <mhocko@suse.com>
+> >
+> > Michael has noticed that the memory offline tries to migrate kernel code
+> > pages when doing
+> >  echo 0 > /sys/devices/system/memory/memory0/online
+> >
+> > The current implementation will fail the operation after several failed
+> > page migration attempts but we shouldn't even attempt to migrate
+> > that memory and fail right away because this memory is clearly not
+> > migrateable. This will become a real problem when we drop the retry loop
+> > counter resp. timeout.
+> >
+> > The real problem is in has_unmovable_pages in fact. We should fail if
+> > there are any non migrateable pages in the area. In orther to guarantee
+> > that remove the migrate type checks because MIGRATE_MOVABLE is not
+> > guaranteed to contain only migrateable pages. It is merely a heuristic.
+> > Similarly MIGRATE_CMA does guarantee that the page allocator doesn't
+> > allocate any non-migrateable pages from the block but CMA allocations
+> > themselves are unlikely to migrateable. Therefore remove both checks.
+> >
+> > Reported-by: Michael Ellerman <mpe@ellerman.id.au>
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> 
+> Thanks, that works for me.
+> 
+> Tested-by: Michael Ellerman <mpe@ellerman.id.au>
 
-yes
+Thanks a lot Michael!
 
-> But I don't feel strong either way.
-
-Me neither, I am just trying to understand why the patch has been
-created? Is it a preparation for some other changes? If it was removing
-some code it would be much more clear but it actually adds twice as much
-as it removes so it doesn't save anything there. It makes the API more
-explicit which might be good but is it worth that?
+Andrew, could you add these two patches and merge them before
+mm-memory_hotplug-do-not-fail-offlining-too-early.patch? Or should I
+rather repost the full series (including 2 already merged patches?
+again?
 -- 
 Michal Hocko
 SUSE Labs
