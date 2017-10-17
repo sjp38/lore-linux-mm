@@ -1,190 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B1446B0253
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 04:48:32 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id b192so998788pga.14
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 01:48:32 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C5946B0038
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 05:20:21 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 196so599758wma.6
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 02:20:21 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s9si2587169pfi.517.2017.10.17.01.48.30
+        by mx.google.com with ESMTPS id f58si7731850wra.512.2017.10.17.02.20.19
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Oct 2017 01:48:31 -0700 (PDT)
-Date: Tue, 17 Oct 2017 10:48:27 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH -mm] mm, swap: Fix race between swap count continuation
- operations
-Message-ID: <20171017084827.bochtr5ufsgylvkd@dhcp22.suse.cz>
-References: <20171017081320.28133-1-ying.huang@intel.com>
+        Tue, 17 Oct 2017 02:20:19 -0700 (PDT)
+Date: Tue, 17 Oct 2017 11:20:17 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: kernel BUG at fs/xfs/xfs_aops.c:853! in kernel 4.13 rc6
+Message-ID: <20171017092017.GN9762@quack2.suse.cz>
+References: <CABXGCsMorRzy-dJrjTO6sP80BSb0RAeMhF3QGwSkk50m7VYzOA@mail.gmail.com>
+ <CABXGCsOeex62Y4qQJwvMJ+fJ+MnKyKGDj9eRbKemeMVWo5huKw@mail.gmail.com>
+ <20171009000529.GY3666@dastard>
+ <20171009183129.GE11645@wotan.suse.de>
+ <87wp442lgm.fsf@xmission.com>
+ <8729041d-05e5-6bea-98db-7f265edde193@suse.de>
+ <20171015130625.o5k6tk5uflm3rx65@thunk.org>
+ <87efq4qcry.fsf@xmission.com>
+ <20171016011301.dcam44qylno7rm6a@thunk.org>
+ <c5bb6c1b-90c9-f50e-7283-af7e0de67caa@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171017081320.28133-1-ying.huang@intel.com>
+In-Reply-To: <c5bb6c1b-90c9-f50e-7283-af7e0de67caa@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Shaohua Li <shli@kernel.org>, Tim Chen <tim.c.chen@intel.com>, Aaron Lu <aaron.lu@intel.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <ak@linux.intel.com>, Minchan Kim <minchan@kernel.org>
+To: Aleksa Sarai <asarai@suse.de>
+Cc: Theodore Ts'o <tytso@mit.edu>, "Eric W. Biederman" <ebiederm@xmission.com>, "Luis R. Rodriguez" <mcgrof@kernel.org>, Dave Chinner <david@fromorbit.com>, =?utf-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>, Christoph Hellwig <hch@infradead.org>, Jan Blunck <jblunck@infradead.org>, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.com>, Jan Kara <jack@suse.cz>, Hannes Reinecke <hare@suse.de>, linux-xfs@vger.kernel.org
 
-On Tue 17-10-17 16:13:20, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
+On Tue 17-10-17 11:59:50, Aleksa Sarai wrote:
+> >>Looking at the code it appears ext4, f2fs, and xfs shutdown path
+> >>implements revoking a bdev from a filesystem.  Further if the ext4
+> >>implementation is anything to go by it looks like something we could
+> >>generalize into the vfs.
+> >
+> >There are two things which the current file system shutdown paths do.
+> >The first is that they prevent the file system from attempting to
+> >write to the bdev.  That's all very file system specific, and can't be
+> >generalized into the VFS.
+> >
+> >The second thing they do is they cause system calls which might modify
+> >the file system to return an error.  Currently operations that might
+> >result in _reads_ are not shutdown, so it's not a true revoke(2)
+> >functionality ala *BSD.  I assume that's what you are talking about
+> >generalizing into the VFS.  Personally, I would prefer to see us
+> >generalize something like vhangup() but which works on a file
+> >descriptor, not just a TTY.  That it is, it disconnects the file
+> >descriptor entirely from the hardware / file system so in the case of
+> >the tty, it can be used by other login session, and in the case of the
+> >file descriptor belonging to a file system, it stops the file system
+> >from being unmounted
+> Presumably the fd would just be used to specify the backing store? I was
+> imagining doing it through an additional umount(2) flag but I guess that
+> having an fd open is probably better form.
 > 
-> One page may store a set of entries of the
-> sis->swap_map (swap_info_struct->swap_map) in multiple swap clusters.
-> If some of the entries has sis->swap_map[offset] > SWAP_MAP_MAX,
-> multiple pages will be used to store the set of entries of the
-> sis->swap_map.  And the pages are linked with page->lru.  This is
-> called swap count continuation.  To access the pages which store the
-> set of entries of the sis->swap_map simultaneously, previously,
-> sis->lock is used.  But to improve the scalability of
-> __swap_duplicate(), swap cluster lock may be used in
-> swap_count_continued() now.  This may race with
-> add_swap_count_continuation() which operates on a nearby swap cluster,
-> in which the sis->swap_map entries are stored in the same page.
+> I'm a little confused about whether this actually will solve the original
+> problem though, because it still requires the iteration over /proc/**/mounts
+> in order for userspace to finish the unmounts. I feel like this is trying to
+> generalise the idea behind luksSuspend -- am I misunderstanding how this
+> would solve the original issue? Is it the case that if we "disconnect" at
+> the file descriptor level, then the bdev is no longer considered "used" and
+> it can be operated on safely?
 
-So what is the result of the race? Is a user able to trigger it?
+So umount(2) is essentially a directory tree operation - detach filesystem
+mounted on 'dir' from the directory tree. If this was the last point where
+the superblock was mounted, we also cleanup the superblock and release the
+underlying device.
 
-> To fix the race, a new spin lock called cont_lock is added to struct
-> swap_info_struct to protect the swap count continuation page list.
-> This is a lock at the swap device level, so the scalability isn't very
-> well.  But it is still much better than the original sis->lock,
-> because it is only acquired/released when swap count continuation is
-> used.  Which is considered rare in practice.  If it turns out that the
-> scalability becomes an issue for some workloads, we can split the lock
-> into some more fine grained locks.
+The operation we are speaking about here is different. It is more along the
+lines of "release this device".  And in the current world of containers,
+mount namespaces, etc. it is not trivial for userspace to implement this
+using umount(2) as Ted points out. I believe we could do that by walking
+through all mount points of a superblock and unmounting them (and I don't
+want to get into a discussion how to efficiently implement that now but in
+principle the kernel has all the necessary information).
 
-Is this a stable material? Could you think of the appropriate Fixes:
-tags?
+And then there's another dimension to this problem (and I believe it is
+good to explicitely distinguish this) - what to do if someone is actually
+using some of the mountpoints either by having CWD there, having file open
+there, or having something else mounted underneath. umount(2) returns EBUSY
+in these cases which is impractical for some use cases. And I believe the
+proposal here is to "invalidate" open file descriptors through revoke, then
+put the superblock into quiescent state and make filesystem stop accessing
+the device (and probably release the device reference so that the device is
+really free).
 
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Shaohua Li <shli@kernel.org>
-> Cc: Tim Chen <tim.c.chen@intel.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Aaron Lu <aaron.lu@intel.com>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Andi Kleen <ak@linux.intel.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> ---
->  include/linux/swap.h |  4 ++++
->  mm/swapfile.c        | 23 +++++++++++++++++------
->  2 files changed, 21 insertions(+), 6 deletions(-)
-> 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 1f5c52313890..9e8e11be7e0b 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -266,6 +266,10 @@ struct swap_info_struct {
->  					 * both locks need hold, hold swap_lock
->  					 * first.
->  					 */
-> +	spinlock_t cont_lock;		/*
-> +					 * protect swap count continuation page
-> +					 * list.
-> +					 */
->  	struct work_struct discard_work; /* discard worker */
->  	struct swap_cluster_list discard_clusters; /* discard clusters list */
->  };
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index d67715ffc194..3074b02eaa09 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -2876,6 +2876,7 @@ static struct swap_info_struct *alloc_swap_info(void)
->  	p->flags = SWP_USED;
->  	spin_unlock(&swap_lock);
->  	spin_lock_init(&p->lock);
-> +	spin_lock_init(&p->cont_lock);
->  
->  	return p;
->  }
-> @@ -3558,6 +3559,7 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
->  	head = vmalloc_to_page(si->swap_map + offset);
->  	offset &= ~PAGE_MASK;
->  
-> +	spin_lock(&si->cont_lock);
->  	/*
->  	 * Page allocation does not initialize the page's lru field,
->  	 * but it does always reset its private field.
-> @@ -3577,7 +3579,7 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
->  		 * a continuation page, free our allocation and use this one.
->  		 */
->  		if (!(count & COUNT_CONTINUED))
-> -			goto out;
-> +			goto out_unlock_cont;
->  
->  		map = kmap_atomic(list_page) + offset;
->  		count = *map;
-> @@ -3588,11 +3590,13 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
->  		 * free our allocation and use this one.
->  		 */
->  		if ((count & ~COUNT_CONTINUED) != SWAP_CONT_MAX)
-> -			goto out;
-> +			goto out_unlock_cont;
->  	}
->  
->  	list_add_tail(&page->lru, &head->lru);
->  	page = NULL;			/* now it's attached, don't free it */
-> +out_unlock_cont:
-> +	spin_unlock(&si->cont_lock);
->  out:
->  	unlock_cluster(ci);
->  	spin_unlock(&si->lock);
-> @@ -3617,6 +3621,7 @@ static bool swap_count_continued(struct swap_info_struct *si,
->  	struct page *head;
->  	struct page *page;
->  	unsigned char *map;
-> +	bool ret;
->  
->  	head = vmalloc_to_page(si->swap_map + offset);
->  	if (page_private(head) != SWP_CONTINUED) {
-> @@ -3624,6 +3629,7 @@ static bool swap_count_continued(struct swap_info_struct *si,
->  		return false;		/* need to add count continuation */
->  	}
->  
-> +	spin_lock(&si->cont_lock);
->  	offset &= ~PAGE_MASK;
->  	page = list_entry(head->lru.next, struct page, lru);
->  	map = kmap_atomic(page) + offset;
-> @@ -3644,8 +3650,10 @@ static bool swap_count_continued(struct swap_info_struct *si,
->  		if (*map == SWAP_CONT_MAX) {
->  			kunmap_atomic(map);
->  			page = list_entry(page->lru.next, struct page, lru);
-> -			if (page == head)
-> -				return false;	/* add count continuation */
-> +			if (page == head) {
-> +				ret = false;	/* add count continuation */
-> +				goto out;
-> +			}
->  			map = kmap_atomic(page) + offset;
->  init_map:		*map = 0;		/* we didn't zero the page */
->  		}
-> @@ -3658,7 +3666,7 @@ init_map:		*map = 0;		/* we didn't zero the page */
->  			kunmap_atomic(map);
->  			page = list_entry(page->lru.prev, struct page, lru);
->  		}
-> -		return true;			/* incremented */
-> +		ret = true;			/* incremented */
->  
->  	} else {				/* decrementing */
->  		/*
-> @@ -3684,8 +3692,11 @@ init_map:		*map = 0;		/* we didn't zero the page */
->  			kunmap_atomic(map);
->  			page = list_entry(page->lru.prev, struct page, lru);
->  		}
-> -		return count == COUNT_CONTINUED;
-> +		ret = count == COUNT_CONTINUED;
->  	}
-> +out:
-> +	spin_unlock(&si->cont_lock);
-> +	return ret;
->  }
->  
->  /*
-> -- 
-> 2.14.2
-> 
+I think we could implement the "put the superblock into quiescent state
+and make filesystem stop accessing the device" by a mechanism similar to
+filesystem freezing. That already implements putting filesystem into
+quiescent state while still in use. We would have to modify
+sb_start_write() etc. calls to be able to return errors in case write
+access is revoked and never going back (instead of blocking forever) but
+that should be doable and in my opinion that is easier than trying to tweak
+fs shutdown to result in a consistent filesystem. The read part could be
+handled as well by putting checks in strategic place.
 
+What I'm a bit concerned about is the "release device reference" part - for
+a block device to stop looking busy we have to do that however then the
+block device can go away and the filesystem isn't prepared to that - we
+reference sb->s_bdev in lots of places, we have buffer heads which are part
+of bdev page cache, and probably other indirect assumptions I forgot about
+now. One solution to this is to not just stop accessing the device but
+truly cleanup the filesystem up to a point where it is practically
+unmounted. I like this solution more but we have to be careful to block
+any access attemps high enough in VFS ideally before ever entering fs code.
+
+Another option would be to do something similar to what we do when the
+device just gets unplugged under our hands - we detach bdev from gendisk,
+leave it dangling and invisible. But we would still somehow have to
+convince DM that the bdev practically went away by calling
+disk->fops->release() and it all just seems fragile to me. But I wanted to
+mention this option in case the above solution proves to be too difficult.
+
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
