@@ -1,69 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 447236B0253
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 02:51:10 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id o44so353112wrf.0
-        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 23:51:10 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 415A96B0253
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 02:59:50 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id q42so360228wrb.3
+        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 23:59:50 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e8si1442325wrd.327.2017.10.16.23.51.08
+        by mx.google.com with ESMTPS id 76si6380842wml.118.2017.10.16.23.59.48
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 16 Oct 2017 23:51:08 -0700 (PDT)
-Subject: Re: [patch] mm, compaction: properly initialize alloc_flags in
- compact_control
-References: <alpine.DEB.2.10.1710161503020.102726@chino.kir.corp.google.com>
- <20171016151252.ee4cc68f7e022bab447478d4@linux-foundation.org>
+        Mon, 16 Oct 2017 23:59:48 -0700 (PDT)
+Subject: Re: [RFC PATCH 3/3] mm/map_contig: Add mmap(MAP_CONTIG) support
+References: <f4a46a19-5f71-ebcc-3098-a35728fbfd03@oracle.com>
+ <20171013084054.me3kxhgbxzgm2lpr@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1710131015420.3949@nuc-kabylake>
+ <20171013152801.nbpk6nluotgbmfrs@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1710131040570.4247@nuc-kabylake>
+ <20171013154747.2jv7rtfqyyagiodn@dhcp22.suse.cz>
+ <alpine.DEB.2.20.1710131053450.4400@nuc-kabylake>
+ <20171013161736.htumyr4cskfrjq64@dhcp22.suse.cz>
+ <752b49eb-55c6-5a34-ab41-6e91dd93ea70@mellanox.com>
+ <aff6b405-6a06-f84d-c9b1-c6fb166dff81@oracle.com>
+ <20171016180749.2y2v4ucchb33xnde@dhcp22.suse.cz>
+ <e8cf6227-003d-8a82-8b4d-07176b43810c@oracle.com>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <cf51bc1a-8e12-8c91-3012-238a65ce1c55@suse.cz>
-Date: Tue, 17 Oct 2017 08:51:07 +0200
+Message-ID: <704611ff-2fb0-9b99-6edb-b050e3d1e850@suse.cz>
+Date: Tue, 17 Oct 2017 08:59:41 +0200
 MIME-Version: 1.0
-In-Reply-To: <20171016151252.ee4cc68f7e022bab447478d4@linux-foundation.org>
+In-Reply-To: <e8cf6227-003d-8a82-8b4d-07176b43810c@oracle.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mike Kravetz <mike.kravetz@oracle.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Guy Shattah <sguy@mellanox.com>, Christopher Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Laura Abbott <labbott@redhat.com>
 
-On 10/17/2017 12:12 AM, Andrew Morton wrote:
-> On Mon, 16 Oct 2017 15:03:37 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
-> 
->>
->> compaction_suitable() requires a useful cc->alloc_flags, otherwise the
->> results of compact_zone() can be indeterminate.  Kcompactd currently
->> checks compaction_suitable() itself with alloc_flags == 0, but passes an
->> uninitialized value from the stack to compact_zone(), which does its own
->> check.
->>
->> The same is true for compact_node() when explicitly triggering full node
->> compaction.
->>
->> Properly initialize cc.alloc_flags on the stack.
->>
-> 
-> The compiler will zero any not-explicitly-initialized fields in these
-> initializers.
+On 10/16/2017 10:32 PM, Mike Kravetz wrote:
+> Agree.  I only wanted to point out the similarities.
+> But, it does make me wonder how much of a benefit hugetlb 1G pages would
+> make in the the RDMA performance comparison.  The table in the presentation
+> show a average speedup of something like 27% (or so) for contiguous allocation
+> which I assume are 2GB in size.  Certainly, using hugetlb is not the ideal
+> case, just wondering if it does help and how much.
 
-Right.
-
->> @@ -1945,8 +1947,8 @@ static void kcompactd_do_work(pg_data_t *pgdat)
->>  		if (compaction_deferred(zone, cc.order))
->>  			continue;
->>  
->> -		if (compaction_suitable(zone, cc.order, 0, zoneid) !=
->> -							COMPACT_CONTINUE)
->> +		if (compaction_suitable(zone, cc.order, cc.alloc_flags,
->> +					zoneid) != COMPACT_CONTINUE)
->>  			continue;
-> 
-> So afaict the above hunk is the only functional change here.  It will
-> propagate any of compact_zone()'s modifications to cc->alloc_flags into
-> succeeding calls to compaction_suitable().  I suspect this is a
-> no-op (didn't look), and it wasn't changelogged.
-
-compact_zone() shouldn't modify cc->alloc_flags. Actually, it's even
-declared as "const" in struct compact_control.
+Good point. If somebody cares about performance benefits of contiguous
+memory wrt device access, they would probably want also the TLB
+performance benefits of huge pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
