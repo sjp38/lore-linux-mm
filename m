@@ -1,51 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 415A96B0253
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 02:59:50 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id q42so360228wrb.3
-        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 23:59:50 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 76si6380842wml.118.2017.10.16.23.59.48
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C9C676B0038
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 03:16:44 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 76so731075pfr.3
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 00:16:44 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id b1si349188pgq.241.2017.10.17.00.16.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 16 Oct 2017 23:59:48 -0700 (PDT)
-Subject: Re: [RFC PATCH 3/3] mm/map_contig: Add mmap(MAP_CONTIG) support
-References: <f4a46a19-5f71-ebcc-3098-a35728fbfd03@oracle.com>
- <20171013084054.me3kxhgbxzgm2lpr@dhcp22.suse.cz>
- <alpine.DEB.2.20.1710131015420.3949@nuc-kabylake>
- <20171013152801.nbpk6nluotgbmfrs@dhcp22.suse.cz>
- <alpine.DEB.2.20.1710131040570.4247@nuc-kabylake>
- <20171013154747.2jv7rtfqyyagiodn@dhcp22.suse.cz>
- <alpine.DEB.2.20.1710131053450.4400@nuc-kabylake>
- <20171013161736.htumyr4cskfrjq64@dhcp22.suse.cz>
- <752b49eb-55c6-5a34-ab41-6e91dd93ea70@mellanox.com>
- <aff6b405-6a06-f84d-c9b1-c6fb166dff81@oracle.com>
- <20171016180749.2y2v4ucchb33xnde@dhcp22.suse.cz>
- <e8cf6227-003d-8a82-8b4d-07176b43810c@oracle.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <704611ff-2fb0-9b99-6edb-b050e3d1e850@suse.cz>
-Date: Tue, 17 Oct 2017 08:59:41 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Oct 2017 00:16:40 -0700 (PDT)
+Date: Tue, 17 Oct 2017 00:16:33 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [RFC 2/2] KVM: add virtio-pmem driver
+Message-ID: <20171017071633.GA9207@infradead.org>
+References: <20171012155027.3277-1-pagupta@redhat.com>
+ <20171012155027.3277-3-pagupta@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <e8cf6227-003d-8a82-8b4d-07176b43810c@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171012155027.3277-3-pagupta@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Guy Shattah <sguy@mellanox.com>, Christopher Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Laura Abbott <labbott@redhat.com>
+To: Pankaj Gupta <pagupta@redhat.com>
+Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, linux-nvdimm@ml01.01.org, linux-mm@kvack.org, jack@suse.cz, stefanha@redhat.com, dan.j.williams@intel.com, riel@redhat.com, haozhong.zhang@intel.com, nilal@redhat.com, kwolf@redhat.com, pbonzini@redhat.com, ross.zwisler@intel.com, david@redhat.com, xiaoguangrong.eric@gmail.com
 
-On 10/16/2017 10:32 PM, Mike Kravetz wrote:
-> Agree.  I only wanted to point out the similarities.
-> But, it does make me wonder how much of a benefit hugetlb 1G pages would
-> make in the the RDMA performance comparison.  The table in the presentation
-> show a average speedup of something like 27% (or so) for contiguous allocation
-> which I assume are 2GB in size.  Certainly, using hugetlb is not the ideal
-> case, just wondering if it does help and how much.
+I think this driver is at entirely the wrong level.
 
-Good point. If somebody cares about performance benefits of contiguous
-memory wrt device access, they would probably want also the TLB
-performance benefits of huge pages.
+If you want to expose pmem to a guest with flushing assist do it
+as pmem, and not a block driver.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
