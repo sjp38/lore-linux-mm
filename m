@@ -1,80 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B38956B0253
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 04:18:43 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id i23so835674pfi.5
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 01:18:43 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id m21si4980175pfi.290.2017.10.17.01.18.42
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 57B386B0038
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 04:30:47 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id q83so1166692qke.16
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 01:30:47 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u201si2227522qka.61.2017.10.17.01.30.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Oct 2017 01:18:42 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm] mm, pagemap: Fix soft dirty marking for PMD migration entry
-Date: Tue, 17 Oct 2017 16:18:18 +0800
-Message-Id: <20171017081818.31795-1-ying.huang@intel.com>
+        Tue, 17 Oct 2017 01:30:46 -0700 (PDT)
+Date: Tue, 17 Oct 2017 04:30:41 -0400 (EDT)
+From: Pankaj Gupta <pagupta@redhat.com>
+Message-ID: <670833322.21037148.1508229041158.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20171017080236.GA27649@infradead.org>
+References: <20171012155027.3277-1-pagupta@redhat.com> <20171012155027.3277-3-pagupta@redhat.com> <20171017071633.GA9207@infradead.org> <1441791227.21027037.1508226056893.JavaMail.zimbra@redhat.com> <20171017080236.GA27649@infradead.org>
+Subject: Re: [Qemu-devel] [RFC 2/2] KVM: add virtio-pmem driver
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Arnd Bergmann <arnd@arndb.de>, Hugh Dickins <hughd@google.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Daniel Colascione <dancol@google.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: kwolf@redhat.com, haozhong zhang <haozhong.zhang@intel.com>, jack@suse.cz, xiaoguangrong eric <xiaoguangrong.eric@gmail.com>, kvm@vger.kernel.org, david@redhat.com, linux-nvdimm@ml01.01.org, ross zwisler <ross.zwisler@intel.com>, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, linux-mm@kvack.org, stefanha@redhat.com, pbonzini@redhat.com, dan j williams <dan.j.williams@intel.com>, nilal@redhat.com
 
-From: Huang Ying <ying.huang@intel.com>
 
-Now, when the page table is walked in the implementation of
-/proc/<pid>/pagemap, pmd_soft_dirty() is used for both the PMD huge
-page map and the PMD migration entries.  That is wrong,
-pmd_swp_soft_dirty() should be used for the PMD migration entries
-instead because the different page table entry flag is used.
+> > Are you saying do it as existing i.e ACPI pmem like interface?
+> > The reason we have created this new driver is exiting pmem driver
+> > does not define proper semantics for guest flushing requests.
+> 
+> At this point I'm caring about the Linux-internal interface, and
+> for that it should be integrated into the nvdimm subsystem and not
+> a block driver.  How the host <-> guest interface looks is a different
+> idea.
+> 
+> > 
+> > Regarding block support of driver, we want to achieve DAX support
+> > to bypass guest page cache. Also, we want to utilize existing DAX
+> > capable file-system interfaces(e.g fsync) from userspace file API's
+> > to trigger the host side flush request.
+> 
+> Well, if you want to support XFS+DAX better don't make it a block
+> devices, because I'll post patches soon to stop using the block device
+> entirely for the DAX case.
 
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
-Cc: Daniel Colascione <dancol@google.com>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
----
- fs/proc/task_mmu.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+o.k I will look at your patches once they are in mailing list.
+Thanks for the heads up.
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 2593a0c609d7..01aad772f8db 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -1311,13 +1311,15 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
- 		pmd_t pmd = *pmdp;
- 		struct page *page = NULL;
- 
--		if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(pmd))
-+		if (vma->vm_flags & VM_SOFTDIRTY)
- 			flags |= PM_SOFT_DIRTY;
- 
- 		if (pmd_present(pmd)) {
- 			page = pmd_page(pmd);
- 
- 			flags |= PM_PRESENT;
-+			if (pmd_soft_dirty(pmd))
-+				flags |= PM_SOFT_DIRTY;
- 			if (pm->show_pfn)
- 				frame = pmd_pfn(pmd) +
- 					((addr & ~PMD_MASK) >> PAGE_SHIFT);
-@@ -1329,6 +1331,8 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
- 			frame = swp_type(entry) |
- 				(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
- 			flags |= PM_SWAP;
-+			if (pmd_swp_soft_dirty(pmd))
-+				flags |= PM_SOFT_DIRTY;
- 			VM_BUG_ON(!is_pmd_migration_entry(pmd));
- 			page = migration_entry_to_page(entry);
- 		}
--- 
-2.14.2
+If I am guessing it right, we don't need block device additional features
+for pmem? We can bypass block device features like blk device cache flush etc.
+Also, still we would be supporting ext4 & XFS filesystem with pmem?
+
+If there is time to your patches can you please elaborate on this a bit.
+
+Thanks,
+Pankaj
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
