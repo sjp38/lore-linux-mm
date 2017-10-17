@@ -1,60 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C63C6B0253
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 09:07:31 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id p87so1260206pfj.21
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 06:07:31 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [45.249.212.187])
-        by mx.google.com with ESMTPS id u127si5433651pgc.803.2017.10.17.06.07.28
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C3E016B0253
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 09:22:45 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id c36so1990006qtc.12
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 06:22:45 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id b76sor6063439qkj.110.2017.10.17.06.22.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Oct 2017 06:07:29 -0700 (PDT)
-From: "Liuwenliang (Lamb)" <liuwenliang@huawei.com>
-Subject: Re:  [PATCH 04/11] Define the virtual space of KASan's shadow region
-Date: Tue, 17 Oct 2017 13:02:06 +0000
-Message-ID: <B8AC3E80E903784988AB3003E3E97330C005CB08@dggemm510-mbx.china.huawei.com>
-References: <20171011082227.20546-5-liuwenliang@huawei.com>
- <201710141957.mbxeZJHB%fengguang.wu@intel.com>
- <B8AC3E80E903784988AB3003E3E97330C005B9BF@dggemm510-mbx.china.huawei.com>
- <CAKv+Gu98M9PZk3qm0PYC8nQ3zMvLZmNmOn4=hNdFE7NTBuHbgg@mail.gmail.com>
- <B8AC3E80E903784988AB3003E3E97330C005CAC2@dggemm510-mbx.china.huawei.com>
- <CAKv+Gu-+yOyAC4R_JNNy7NqWiSQ=HwfR=uTr1Ntt=2cDzAZ5nw@mail.gmail.com>
-In-Reply-To: <CAKv+Gu-+yOyAC4R_JNNy7NqWiSQ=HwfR=uTr1Ntt=2cDzAZ5nw@mail.gmail.com>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        (Google Transport Security);
+        Tue, 17 Oct 2017 06:22:44 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [RFC PATCH 3/3] mm/map_contig: Add mmap(MAP_CONTIG) support
+In-Reply-To: <AM6PR0502MB378375AF8B569DBCCFE20D7DBD4C0@AM6PR0502MB3783.eurprd05.prod.outlook.com>
+References: <20171013084054.me3kxhgbxzgm2lpr@dhcp22.suse.cz> <alpine.DEB.2.20.1710131015420.3949@nuc-kabylake> <20171013152801.nbpk6nluotgbmfrs@dhcp22.suse.cz> <alpine.DEB.2.20.1710131040570.4247@nuc-kabylake> <20171013154747.2jv7rtfqyyagiodn@dhcp22.suse.cz> <alpine.DEB.2.20.1710131053450.4400@nuc-kabylake> <20171013161736.htumyr4cskfrjq64@dhcp22.suse.cz> <752b49eb-55c6-5a34-ab41-6e91dd93ea70@mellanox.com> <20171016082456.no6ux63uy2rmj4fe@dhcp22.suse.cz> <0e238c56-c59d-f648-95fc-c8cb56c3652e@mellanox.com> <20171016123248.csntl6luxgafst6q@dhcp22.suse.cz> <AM6PR0502MB378375AF8B569DBCCFE20D7DBD4C0@AM6PR0502MB3783.eurprd05.prod.outlook.com>
+Date: Tue, 17 Oct 2017 15:22:39 +0200
+Message-ID: <xa1tlgk9c3j4.fsf@mina86.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: kbuild test robot <lkp@intel.com>, "kbuild-all@01.org" <kbuild-all@01.org>, "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "cdall@linaro.org" <cdall@linaro.org>, "marc.zyngier@arm.com" <marc.zyngier@arm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "mingo@kernel.org" <mingo@kernel.org>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiazhenghua <jiazhenghua@huawei.com>, Dailei <dylix.dailei@huawei.com>, Zengweilin <zengweilin@huawei.com>, Heshaoliang <heshaoliang@huawei.com>
+To: Guy Shattah <sguy@mellanox.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Christopher Lameter <cl@linux.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-api@vger.kernel.org" <linux-api@vger.kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-T24gMTAvMTcvMjAxNyA4OjQ1IFBNLCBBYmJvdHQgTGl1IHdyb3RlOg0KPldoYXQgSSBzYWlkIHdh
-cw0KPg0KPidpZiB0aGUgdmFsdWUgb2YgVEFTS19TSVpFIGZpdHMgaXRzIDEyLWJpdCBpbW1lZGlh
-dGUgZmllbGQnDQo+DQo+YW5kIHlvdXIgdmFsdWUgb2YgVEFTS19TSVpFIGlzIDB4YjZlMDAwMDAs
-IHdoaWNoIGNhbm5vdCBiZSBkZWNvbXBvc2VkIGluIHRoZSByaWdodCB3YXkuDQo+DQo+SWYgeW91
-IGJ1aWxkIHdpdGggS0FTQU4gZGlzYWJsZWQsIGl0IHdpbGwgZ2VuZXJhdGUgYSBtb3YgaW5zdHJ1
-Y3Rpb24gaW5zdGVhZC4NCg0KVGhhbmtzIGZvciB5b3VyIGV4cGxhaW4uIEkgdW5kZXJzdGFuZCBu
-b3cuICBJIGhhcyB0ZXN0ZWQgYW5kIHRoZSB0ZXN0aW5nIHJlc3VsdCBwcm92ZXMgdGhhdCB3aGF0
-IA0KeW91IHNhaWQgaXMgcmlnaHQuIA0KDQpIZXJlIGlzIHRlc3QgbG9nOg0KYzAxMGU5ZTAgPF9f
-aXJxX3N2Yz46DQpjMDEwZTllMDogICAgICAgZTI0ZGQwNGMgICAgICAgIHN1YiAgICAgc3AsIHNw
-LCAjNzYgICAgIDsgMHg0Yw0KYzAxMGU5ZTQ6ICAgICAgIGUzMWQwMDA0ICAgICAgICB0c3QgICAg
-IHNwLCAjNA0KYzAxMGU5ZTg6ICAgICAgIDAyNGRkMDA0ICAgICAgICBzdWJlcSAgIHNwLCBzcCwg
-IzQNCmMwMTBlOWVjOiAgICAgICBlODhkMWZmZSAgICAgICAgc3RtICAgICBzcCwge3IxLCByMiwg
-cjMsIHI0LCByNSwgcjYsIHI3LCByOCwgcjksIHNsLCBmcCwgaXB9DQpjMDEwZTlmMDogICAgICAg
-ZTg5MDAwMzggICAgICAgIGxkbSAgICAgcjAsIHtyMywgcjQsIHI1fQ0KYzAxMGU5ZjQ6ICAgICAg
-IGUyOGQ3MDMwICAgICAgICBhZGQgICAgIHI3LCBzcCwgIzQ4ICAgICA7IDB4MzANCmMwMTBlOWY4
-OiAgICAgICBlM2UwNjAwMCAgICAgICAgbXZuICAgICByNiwgIzANCmMwMTBlOWZjOiAgICAgICBl
-MjhkMjA0YyAgICAgICAgYWRkICAgICByMiwgc3AsICM3NiAgICAgOyAweDRjDQpjMDEwZWEwMDog
-ICAgICAgMDI4MjIwMDQgICAgICAgIGFkZGVxICAgcjIsIHIyLCAjNA0KYzAxMGVhMDQ6ICAgICAg
-IGU1MmQzMDA0ICAgICAgICBwdXNoICAgIHtyM30gICAgICAgICAgICA7IChzdHIgcjMsIFtzcCwg
-Iy00XSEpDQpjMDEwZWEwODogICAgICAgZTFhMDMwMGUgICAgICAgIG1vdiAgICAgcjMsIGxyDQpj
-MDEwZWEwYzogICAgICAgZTg4NzAwN2MgICAgICAgIHN0bSAgICAgcjcsIHtyMiwgcjMsIHI0LCBy
-NSwgcjZ9DQpjMDEwZWExMDogICAgICAgZTFhMDk3MmQgICAgICAgIGxzciAgICAgcjksIHNwLCAj
-MTQNCmMwMTBlYTE0OiAgICAgICBlMWEwOTcwOSAgICAgICAgbHNsICAgICByOSwgcjksICMxNA0K
-YzAxMGVhMTg6ICAgICAgIGU1OTkwMDA4ICAgICAgICBsZHIgICAgIHIwLCBbcjksICM4XQ0KYzAx
-MGVhMWM6ICAgICAgIGUzYTAxNGJmICAgICAgICBtb3YgICAgIHIxLCAjLTEwOTA1MTkwNDAgICAg
-ICAgIDsgMHhiZjAwMDAwMCAgLy8gbGRyIHIxLD0weGJmMDAwMDAwDQo=
+On Tue, Oct 17 2017, Guy Shattah wrote:
+> Are you going to be OK with kernel API which implements contiguous
+> memory allocation?  Possibly with mmap style?  Many drivers could
+> utilize it instead of having their own weird and possibly non-standard
+> way to allocate contiguous memory.  Such API won't be available for
+> user space.
+
+What you describe sounds like CMA.  It may be far from perfect but it=E2=80=
+=99s
+there already and drivers which need contiguous memory can allocate it.
+
+--=20
+Best regards
+=E3=83=9F=E3=83=8F=E3=82=A6 =E2=80=9C=F0=9D=93=B6=F0=9D=93=B2=F0=9D=93=B7=
+=F0=9D=93=AA86=E2=80=9D =E3=83=8A=E3=82=B6=E3=83=AC=E3=83=B4=E3=82=A4=E3=83=
+=84
+=C2=ABIf at first you don=E2=80=99t succeed, give up skydiving=C2=BB
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
