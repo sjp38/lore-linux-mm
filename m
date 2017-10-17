@@ -1,86 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 156CB6B0253
-	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 21:00:02 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id y10so168204wmd.4
-        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 18:00:02 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j62si5875634wmd.114.2017.10.16.18.00.00
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C44F86B0038
+	for <linux-mm@kvack.org>; Mon, 16 Oct 2017 21:15:44 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id 14so160750oii.2
+        for <linux-mm@kvack.org>; Mon, 16 Oct 2017 18:15:44 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
+        by mx.google.com with ESMTPS id 73si2340556oik.359.2017.10.16.18.15.42
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 16 Oct 2017 18:00:00 -0700 (PDT)
-Subject: Re: kernel BUG at fs/xfs/xfs_aops.c:853! in kernel 4.13 rc6
-References: <CABXGCsMorRzy-dJrjTO6sP80BSb0RAeMhF3QGwSkk50m7VYzOA@mail.gmail.com>
- <CABXGCsOeex62Y4qQJwvMJ+fJ+MnKyKGDj9eRbKemeMVWo5huKw@mail.gmail.com>
- <20171009000529.GY3666@dastard> <20171009183129.GE11645@wotan.suse.de>
- <87wp442lgm.fsf@xmission.com> <8729041d-05e5-6bea-98db-7f265edde193@suse.de>
- <20171015130625.o5k6tk5uflm3rx65@thunk.org> <87efq4qcry.fsf@xmission.com>
- <20171016011301.dcam44qylno7rm6a@thunk.org>
-From: Aleksa Sarai <asarai@suse.de>
-Message-ID: <c5bb6c1b-90c9-f50e-7283-af7e0de67caa@suse.de>
-Date: Tue, 17 Oct 2017 11:59:50 +1100
+        Mon, 16 Oct 2017 18:15:43 -0700 (PDT)
+From: "Liuwenliang (Lamb)" <liuwenliang@huawei.com>
+Subject: =?utf-8?B?562U5aSNOiBbUEFUQ0ggMDAvMTFdIEtBU2FuIGZvciBhcm0=?=
+Date: Tue, 17 Oct 2017 01:04:01 +0000
+Message-ID: <B8AC3E80E903784988AB3003E3E97330C005CA4D@dggemm510-mbx.china.huawei.com>
+References: <20171011082227.20546-1-liuwenliang@huawei.com>
+ <CAK8P3a3OOMxsr0QM+Uukec4Uq4UxHnUYF6jozxbzwJisd7vOaA@mail.gmail.com>
+In-Reply-To: <CAK8P3a3OOMxsr0QM+Uukec4Uq4UxHnUYF6jozxbzwJisd7vOaA@mail.gmail.com>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <20171016011301.dcam44qylno7rm6a@thunk.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: "Luis R. Rodriguez" <mcgrof@kernel.org>, Dave Chinner <david@fromorbit.com>, =?UTF-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>, Christoph Hellwig <hch@infradead.org>, Jan Blunck <jblunck@infradead.org>, linux-mm@kvack.org, Oscar Salvador <osalvador@suse.com>, Jan Kara <jack@suse.cz>, Hannes Reinecke <hare@suse.de>, linux-xfs@vger.kernel.org
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Russell King - ARM Linux <linux@armlinux.org.uk>, Andrey Ryabinin <aryabinin@virtuozzo.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, Florian Fainelli <f.fainelli@gmail.com>, Laura
+ Abbott <labbott@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Christoffer Dall <cdall@linaro.org>, Marc Zyngier <marc.zyngier@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Andrew Morton <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, Thomas Gleixner <tglx@linutronix.de>, Thomas
+ Garnier <thgarnie@google.com>, Kees Cook <keescook@chromium.org>, Vladimir
+ Murzin <vladimir.murzin@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, Ard
+ Biesheuvel <ard.biesheuvel@linaro.org>, Robin Murphy <robin.murphy@arm.com>, Ingo Molnar <mingo@kernel.org>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Doug Berger <opendmb@gmail.com>, Linux
+ ARM <linux-arm-kernel@lists.infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, Jiazhenghua <jiazhenghua@huawei.com>, Dailei <dylix.dailei@huawei.com>, Zengweilin <zengweilin@huawei.com>, Heshaoliang <heshaoliang@huawei.com>
 
->> Looking at the code it appears ext4, f2fs, and xfs shutdown path
->> implements revoking a bdev from a filesystem.  Further if the ext4
->> implementation is anything to go by it looks like something we could
->> generalize into the vfs.
-> 
-> There are two things which the current file system shutdown paths do.
-> The first is that they prevent the file system from attempting to
-> write to the bdev.  That's all very file system specific, and can't be
-> generalized into the VFS.
-> 
-> The second thing they do is they cause system calls which might modify
-> the file system to return an error.  Currently operations that might
-> result in _reads_ are not shutdown, so it's not a true revoke(2)
-> functionality ala *BSD.  I assume that's what you are talking about
-> generalizing into the VFS.  Personally, I would prefer to see us
-> generalize something like vhangup() but which works on a file
-> descriptor, not just a TTY.  That it is, it disconnects the file
-> descriptor entirely from the hardware / file system so in the case of
-> the tty, it can be used by other login session, and in the case of the
-> file descriptor belonging to a file system, it stops the file system
-> from being unmounted
-Presumably the fd would just be used to specify the backing store? I was 
-imagining doing it through an additional umount(2) flag but I guess that 
-having an fd open is probably better form.
-
-I'm a little confused about whether this actually will solve the 
-original problem though, because it still requires the iteration over 
-/proc/**/mounts in order for userspace to finish the unmounts. I feel 
-like this is trying to generalise the idea behind luksSuspend -- am I 
-misunderstanding how this would solve the original issue? Is it the case 
-that if we "disconnect" at the file descriptor level, then the bdev is 
-no longer considered "used" and it can be operated on safely?
-
->> Ted, Aleksa would either of you be interested in generalizing what ext4,
->> f2fs, and xfs does now and working to put a good interface on it?  I can
->> help especially with review but for the short term I am rather booked.
-> 
-> Unfortunately, I have way too much travel coming up in the short term,
-> so I probably won't have to take on a new project until at least
-> mid-to-late-November at the earliest.  Aleska, do you have time?  I
-> can consult on a design, but I have zero coding time for the next
-> couple of weeks.
-
-I can give it a shot, but a quick disclaimer that I'm not very familiar 
-with the VFS codebase so the review cycle will probably take a while. Oh 
-well, it's a good opportunity for me to learn more about it. :D
-
--- 
-Aleksa Sarai
-Snr. Software Engineer (Containers)
-SUSE Linux GmbH
-https://www.cyphar.com/
+T24gMTAvMTYvMjAxNyAwNzo1NyBQTSwgQWJib3R0IExpdSB3cm90ZToNCj5OaWNlIQ0KPg0KPldo
+ZW4gSSBidWlsZC10ZXN0ZWQgS0FTQU4gb24geDg2IGFuZCBhcm02NCwgSSByYW4gaW50byBhIGxv
+dCBvZiBidWlsZC10aW1lDQo+cmVncmVzc2lvbnMgKG1vc3RseSB3YXJuaW5ncyBidXQgYWxzbyBz
+b21lIGVycm9ycyksIHNvIEknZCBsaWtlIHRvIGdpdmUgaXQNCj5hIHNwaW4gaW4gbXkgcmFuZGNv
+bmZpZyB0cmVlIGJlZm9yZSB0aGlzIGdldHMgbWVyZ2VkLiBDYW4geW91IHBvaW50IG1lDQo+dG8g
+YSBnaXQgVVJMIHRoYXQgSSBjYW4gcHVsbCBpbnRvIG15IHRlc3RpbmcgdHJlZT8NCj4NCj5JIGNv
+dWxkIG9mIGNvdXJzZSBhcHBseSB0aGUgcGF0Y2hlcyBmcm9tIGVtYWlsLCBidXQgSSBleHBlY3Qg
+dGhhdCB0aGVyZQ0KPndpbGwgYmUgdXBkYXRlZCB2ZXJzaW9ucyBvZiB0aGUgc2VyaWVzLCBzbyBp
+dCdzIGVhc2llciBpZiBJIGNhbiBqdXN0IHB1bGwNCj50aGUgbGF0ZXN0IHZlcnNpb24uDQo+DQo+
+ICAgICAgQXJuZA0KDQpJJ20gc29ycnkuIEkgZG9uJ3QgaGF2ZSBnaXQgc2VydmVyLiBUaGVzZSBw
+YXRjaGVzIGJhc2Ugb246DQoxLiBnaXQgcmVtb3RlIC12DQpvcmlnaW4gIGdpdDovL2dpdC5rZXJu
+ZWwub3JnL3B1Yi9zY20vbGludXgva2VybmVsL2dpdC90b3J2YWxkcy9saW51eC5naXQgKGZldGNo
+KQ0Kb3JpZ2luICBnaXQ6Ly9naXQua2VybmVsLm9yZy9wdWIvc2NtL2xpbnV4L2tlcm5lbC9naXQv
+dG9ydmFsZHMvbGludXguZ2l0IChwdXNoKQ0KDQoyLiB0aGUgY29tbWl0IGlzOg0KY29tbWl0IDQ2
+YzFlNzlmZWU0MTdmMTUxNTQ3YWE0NmZhZTA0YWIwNmNiNjY2ZjQNCk1lcmdlOiBlYzg0NmVjIGIx
+MzBhNjkNCkF1dGhvcjogTGludXMgVG9ydmFsZHMgPHRvcnZhbGRzQGxpbnV4LWZvdW5kYXRpb24u
+b3JnPg0KRGF0ZTogICBXZWQgU2VwIDEzIDEyOjI0OjIwIDIwMTcgLTA3MDANCg0KICAgIE1lcmdl
+IGJyYW5jaCAncGVyZi11cmdlbnQtZm9yLWxpbnVzJyBvZiBnaXQ6Ly9naXQua2VybmVsLm9yZy9w
+dWIvc2NtL2xpbnV4L2tlcm5lbC9naXQvdGlwL3RpcA0KDQogICAgUHVsbCBwZXJmIGZpeGVzIGZy
+b20gSW5nbyBNb2xuYXI6DQogICAgICJBIGhhbmRmdWwgb2YgdG9vbGluZyBmaXhlcyINCg0KICAg
+ICogJ3BlcmYtdXJnZW50LWZvci1saW51cycgb2YgZ2l0Oi8vZ2l0Lmtlcm5lbC5vcmcvcHViL3Nj
+bS9saW51eC9rZXJuZWwvZ2l0L3RpcC90aXA6DQogICAgICBwZXJmIHN0YXQ6IFdhaXQgZm9yIHRo
+ZSBjb3JyZWN0IGNoaWxkDQogICAgICBwZXJmIHRvb2xzOiBTdXBwb3J0IHJ1bm5pbmcgcGVyZiBi
+aW5hcmllcyB3aXRoIGEgZGFzaCBpbiB0aGVpciBuYW1lDQogICAgICBwZXJmIGNvbmZpZzogQ2hl
+Y2sgbm90IG9ubHkgc2VjdGlvbi0+ZnJvbV9zeXN0ZW1fY29uZmlnIGJ1dCBhbHNvIGl0ZW0ncw0K
+ICAgICAgcGVyZiB1aSBwcm9ncmVzczogRml4IHByb2dyZXNzIHVwZGF0ZQ0KICAgICAgcGVyZiB1
+aSBwcm9ncmVzczogTWFrZSBzdXJlIHdlIGFsd2F5cyBkZWZpbmUgc3RlcCB2YWx1ZQ0KICAgICAg
+cGVyZiB0b29sczogT3BlbiBwZXJmLmRhdGEgd2l0aCBPX0NMT0VYRUMgZmxhZw0KICAgICAgdG9v
+bHMgbGliIGFwaTogRml4IG1ha2UgREVCVUc9MSBidWlsZA0KICAgICAgcGVyZiB0ZXN0czogRml4
+IGNvbXBpbGUgd2hlbiBsaWJ1bndpbmQncyB1bndpbmQuaCBpcyBhdmFpbGFibGUNCiAgICAgIHRv
+b2xzIGluY2x1ZGUgbGludXg6IEd1YXJkIGFnYWluc3QgcmVkZWZpbml0aW9uIG9mIHNvbWUgbWFj
+cm9zDQpJJ20gc29ycnkgdGhhdCBJIGRpZG4ndCBiYXNlIG9uIGEgc3RhYmUgdmVyc2lvbi4NCg0K
+My4gY29uZmlnOiBhcmNoL2FybS9jb25maWdzL3ZleHByZXNzX2RlZmNvbmZpZw0KDQo0LiBnY2Mg
+dmVyc2lvbjogZ2NjIHZlcnNpb24gNi4xLjANCg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
