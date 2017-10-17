@@ -1,57 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 81B0A6B0038
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 10:21:01 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id l24so1588782pgu.17
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 07:21:01 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0071.outbound.protection.outlook.com. [104.47.0.71])
-        by mx.google.com with ESMTPS id s25si5905242pfk.554.2017.10.17.07.20.59
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CA8FF6B0033
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 10:38:39 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id v127so987738wma.3
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 07:38:39 -0700 (PDT)
+Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
+        by mx.google.com with ESMTPS id 63si7816915wrb.8.2017.10.17.07.38.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 17 Oct 2017 07:20:59 -0700 (PDT)
-From: Guy Shattah <sguy@mellanox.com>
-Subject: RE: [RFC PATCH 3/3] mm/map_contig: Add mmap(MAP_CONTIG) support
-Date: Tue, 17 Oct 2017 14:20:55 +0000
-Message-ID: <AM6PR0502MB3783280D15C96E5A3A831DCBBD4C0@AM6PR0502MB3783.eurprd05.prod.outlook.com>
-References: <20171013084054.me3kxhgbxzgm2lpr@dhcp22.suse.cz>
- <alpine.DEB.2.20.1710131015420.3949@nuc-kabylake>
- <20171013152801.nbpk6nluotgbmfrs@dhcp22.suse.cz>
- <alpine.DEB.2.20.1710131040570.4247@nuc-kabylake>
- <20171013154747.2jv7rtfqyyagiodn@dhcp22.suse.cz>
- <alpine.DEB.2.20.1710131053450.4400@nuc-kabylake>
- <20171013161736.htumyr4cskfrjq64@dhcp22.suse.cz>
- <752b49eb-55c6-5a34-ab41-6e91dd93ea70@mellanox.com>
- <20171016082456.no6ux63uy2rmj4fe@dhcp22.suse.cz>
- <0e238c56-c59d-f648-95fc-c8cb56c3652e@mellanox.com>
- <20171016123248.csntl6luxgafst6q@dhcp22.suse.cz>
- <AM6PR0502MB378375AF8B569DBCCFE20D7DBD4C0@AM6PR0502MB3783.eurprd05.prod.outlook.com>
- <xa1tlgk9c3j4.fsf@mina86.com>
-In-Reply-To: <xa1tlgk9c3j4.fsf@mina86.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 17 Oct 2017 07:38:38 -0700 (PDT)
+From: Colin King <colin.king@canonical.com>
+Subject: [PATCH] mm/hmm: remove redundant variable align_end
+Date: Tue, 17 Oct 2017 15:38:37 +0100
+Message-Id: <20171017143837.23207-1-colin.king@canonical.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Christopher Lameter <cl@linux.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-api@vger.kernel.org" <linux-api@vger.kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
+To: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, linux-mm@kvack.org
+Cc: kernel-janitors@vger.kernel.org, linux-kernel@vger.kernel.org
 
-DQoNCj4gT24gVHVlLCBPY3QgMTcgMjAxNywgR3V5IFNoYXR0YWggd3JvdGU6DQo+ID4gQXJlIHlv
-dSBnb2luZyB0byBiZSBPSyB3aXRoIGtlcm5lbCBBUEkgd2hpY2ggaW1wbGVtZW50cyBjb250aWd1
-b3VzDQo+ID4gbWVtb3J5IGFsbG9jYXRpb24/ICBQb3NzaWJseSB3aXRoIG1tYXAgc3R5bGU/ICBN
-YW55IGRyaXZlcnMgY291bGQNCj4gPiB1dGlsaXplIGl0IGluc3RlYWQgb2YgaGF2aW5nIHRoZWly
-IG93biB3ZWlyZCBhbmQgcG9zc2libHkgbm9uLXN0YW5kYXJkDQo+ID4gd2F5IHRvIGFsbG9jYXRl
-IGNvbnRpZ3VvdXMgbWVtb3J5LiAgU3VjaCBBUEkgd29uJ3QgYmUgYXZhaWxhYmxlIGZvcg0KPiA+
-IHVzZXIgc3BhY2UuDQo+IA0KPiBXaGF0IHlvdSBkZXNjcmliZSBzb3VuZHMgbGlrZSBDTUEuICBJ
-dCBtYXkgYmUgZmFyIGZyb20gcGVyZmVjdCBidXQgaXTigJlzIHRoZXJlDQo+IGFscmVhZHkgYW5k
-IGRyaXZlcnMgd2hpY2ggbmVlZCBjb250aWd1b3VzIG1lbW9yeSBjYW4gYWxsb2NhdGUgaXQuDQo+
-IA0KDQoxLiBDTUEgaGFzIHRvIHByZWNvbmZpZ3VyZWQuIFdlJ3JlIHN1Z2dlc3RpbmcgbWVjaGFu
-aXNtIHRoYXQgd29ya3MgJ291dCBvZiB0aGUgYm94Jw0KMi4gRHVlIHRvIHRoZSBwcmUtYWxsb2Nh
-dGlvbiB0ZWNobmlxdWVzIENNQSBpbXBvc2VzIGxpbWl0YXRpb24gb24gbWF4aW11bSANCiAgIGFs
-bG9jYXRlZCBtZW1vcnkuIFJETUEgdXNlcnMgb2Z0ZW4gcmVxdWlyZSAxR2Igb3IgbW9yZSwgc29t
-ZXRpbWVzIG1vcmUuDQozLiBDTUEgcmVzZXJ2ZXMgbWVtb3J5IGluIGFkdmFuY2UsIG91ciBzdWdn
-ZXN0aW9uIGlzIHVzaW5nIGV4aXN0aW5nIGtlcm5lbCBtZW1vcnkNCiAgICAgbWVjaGFuaXNtcyAo
-VEhQIGZvciBleGFtcGxlKSB0byBhbGxvY2F0ZSBtZW1vcnkuIA0KDQpHdXkNCg0KDQo=
+From: Colin Ian King <colin.king@canonical.com>
+
+Variable align_end is assigned a value but it is never read, so
+the variable is redundant and can be removed. Cleans up the clang
+warning: Value stored to 'align_end' is never read
+
+Signed-off-by: Colin Ian King <colin.king@canonical.com>
+---
+ mm/hmm.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/mm/hmm.c b/mm/hmm.c
+index a88a847bccba..ea19742a5d60 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -803,11 +803,10 @@ static RADIX_TREE(hmm_devmem_radix, GFP_KERNEL);
+ 
+ static void hmm_devmem_radix_release(struct resource *resource)
+ {
+-	resource_size_t key, align_start, align_size, align_end;
++	resource_size_t key, align_start, align_size;
+ 
+ 	align_start = resource->start & ~(PA_SECTION_SIZE - 1);
+ 	align_size = ALIGN(resource_size(resource), PA_SECTION_SIZE);
+-	align_end = align_start + align_size - 1;
+ 
+ 	mutex_lock(&hmm_devmem_lock);
+ 	for (key = resource->start;
+-- 
+2.14.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
