@@ -1,187 +1,306 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BBC76B0069
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 07:32:10 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id f85so1138249pfe.7
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 04:32:10 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 38A046B0038
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 07:40:32 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id v127so769407wma.3
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 04:40:32 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j75si5750362pfj.26.2017.10.17.04.32.07
+        by mx.google.com with ESMTPS id 30si8017109wrl.22.2017.10.17.04.40.29
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Oct 2017 04:32:08 -0700 (PDT)
-Subject: Re: [PATCH] mm/page_alloc: make sure __rmqueue() etc. always inline
-References: <20171009054434.GA1798@intel.com>
- <3a46edcf-88f8-e4f4-8b15-3c02620308e4@intel.com>
- <20171010025151.GD1798@intel.com> <20171010025601.GE1798@intel.com>
- <8d6a98d3-764e-fd41-59dc-88a9d21822c7@intel.com>
- <20171010054342.GF1798@intel.com>
- <20171010144545.c87a28b0f3c4e475305254ab@linux-foundation.org>
- <20171011023402.GC27907@intel.com> <20171013063111.GA26032@intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <7304b3a4-d6cb-63fa-743d-ea8e7b126e32@suse.cz>
-Date: Tue, 17 Oct 2017 13:32:04 +0200
+        Tue, 17 Oct 2017 04:40:29 -0700 (PDT)
+Date: Tue, 17 Oct 2017 13:40:28 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v12 01/11] mm: deferred_init_memmap improvements
+Message-ID: <20171017114028.uyt63277md5tuc4j@dhcp22.suse.cz>
+References: <20171013173214.27300-1-pasha.tatashin@oracle.com>
+ <20171013173214.27300-2-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20171013063111.GA26032@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171013173214.27300-2-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Kemi Wang <kemi.wang@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, akpm@linux-foundation.org, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On 10/13/2017 08:31 AM, Aaron Lu wrote:
-> __rmqueue(), __rmqueue_fallback(), __rmqueue_smallest() and
-> __rmqueue_cma_fallback() are all in page allocator's hot path and
-> better be finished as soon as possible. One way to make them faster
-> is by making them inline. But as Andrew Morton and Andi Kleen pointed
-> out:
-> https://lkml.org/lkml/2017/10/10/1252
-> https://lkml.org/lkml/2017/10/10/1279
-> To make sure they are inlined, we should use __always_inline for them.
+On Fri 13-10-17 13:32:04, Pavel Tatashin wrote:
+> deferred_init_memmap() is called when struct pages are initialized later
+> in boot by slave CPUs. This patch simplifies and optimizes this function,
+> and also fixes a couple issues (described below).
 > 
-> With the will-it-scale/page_fault1/process benchmark, when using nr_cpu
-> processes to stress buddy, the results for will-it-scale.processes with
-> and without the patch are:
+> The main change is that now we are iterating through free memblock areas
+> instead of all configured memory. Thus, we do not have to check if the
+> struct page has already been initialized.
 > 
-> On a 2-sockets Intel-Skylake machine:
+> =====
+> In deferred_init_memmap() where all deferred struct pages are initialized
+> we have a check like this:
 > 
->  compiler          base        head
-> gcc-4.4.7       6496131     6911823 +6.4%
-> gcc-4.9.4       7225110     7731072 +7.0%
-> gcc-5.4.1       7054224     7688146 +9.0%
-> gcc-6.2.0       7059794     7651675 +8.4%
+> if (page->flags) {
+> 	VM_BUG_ON(page_zone(page) != zone);
+> 	goto free_range;
+> }
 > 
-> On a 4-sockets Intel-Skylake machine:
+> This way we are checking if the current deferred page has already been
+> initialized. It works, because memory for struct pages has been zeroed, and
+> the only way flags are not zero if it went through __init_single_page()
+> before.  But, once we change the current behavior and won't zero the memory
+> in memblock allocator, we cannot trust anything inside "struct page"es
+> until they are initialized. This patch fixes this.
 > 
->  compiler          base        head
-> gcc-4.4.7      13162890    13508193 +2.6%
-> gcc-4.9.4      14997463    15484353 +3.2%
-> gcc-5.4.1      14708711    15449805 +5.0%
-> gcc-6.2.0      14574099    15349204 +5.3%
+> The deferred_init_memmap() is re-written to loop through only free memory
+> ranges provided by memblock.
 > 
-> The above 4 compilers are used becuase I've done the tests through Intel's
-> Linux Kernel Performance(LKP) infrastructure and they are the available
-> compilers there.
+> Note, this first issue is relevant only when the following change is
+> merged:
 > 
-> The benefit being less on 4 sockets machine is due to the lock contention
-> there(perf-profile/native_queued_spin_lock_slowpath=81%) is less severe
-> than on the 2 sockets machine(85%).
+> =====
+> This patch fixes another existing issue on systems that have holes in
+> zones i.e CONFIG_HOLES_IN_ZONE is defined.
 > 
-> What the benchmark does is: it forks nr_cpu processes and then each
-> process does the following:
->     1 mmap() 128M anonymous space;
->     2 writes to each page there to trigger actual page allocation;
->     3 munmap() it.
-> in a loop.
-> https://github.com/antonblanchard/will-it-scale/blob/master/tests/page_fault1.c
+> In for_each_mem_pfn_range() we have code like this:
+> 
+> if (!pfn_valid_within(pfn)
+> 	goto free_range;
+> 
+> Note: 'page' is not set to NULL and is not incremented but 'pfn' advances.
+> Thus means if deferred struct pages are enabled on systems with these kind
+> of holes, linux would get memory corruptions. I have fixed this issue by
+> defining a new macro that performs all the necessary operations when we
+> free the current set of pages.
 
-Are transparent hugepages enabled? If yes, __rmqueue() is called from
-rmqueue(), and there's only one page fault (and __rmqueue()) per 512
-"writes to each page". If not, __rmqueue() is called from rmqueue_bulk()
-in bursts once pcplists are depleted. I guess it's the latter, otherwise
-I wouldn't expect a function call to have such visible overhead.
+This really begs to have two patches... I will not insist though. I also
+suspect the code can be further simplified but again this is nothing to
+block this to go.
+ 
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Reviewed-by: Steven Sistare <steven.sistare@oracle.com>
+> Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+> Reviewed-by: Bob Picco <bob.picco@oracle.com>
 
-I guess what would help much more would be a bulk __rmqueue_smallest()
-to grab multiple pages from the freelists. But can't argue with your
-numbers against this patch.
+I do not see any obvious issues in the patch
 
-> Binary size wise, I have locally built them with different compilers:
-> 
-> [aaron@aaronlu obj]$ size */*/mm/page_alloc.o
->    text    data     bss     dec     hex filename
->   37409    9904    8524   55837    da1d gcc-4.9.4/base/mm/page_alloc.o
->   38273    9904    8524   56701    dd7d gcc-4.9.4/head/mm/page_alloc.o
->   37465    9840    8428   55733    d9b5 gcc-5.5.0/base/mm/page_alloc.o
->   38169    9840    8428   56437    dc75 gcc-5.5.0/head/mm/page_alloc.o
->   37573    9840    8428   55841    da21 gcc-6.4.0/base/mm/page_alloc.o
->   38261    9840    8428   56529    dcd1 gcc-6.4.0/head/mm/page_alloc.o
->   36863    9840    8428   55131    d75b gcc-7.2.0/base/mm/page_alloc.o
->   37711    9840    8428   55979    daab gcc-7.2.0/head/mm/page_alloc.o
-> 
-> Text size increased about 800 bytes for mm/page_alloc.o.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-BTW, do you know about ./scripts/bloat-o-meter? :)
-With gcc 7.2.1:
-> ./scripts/bloat-o-meter base.o mm/page_alloc.o
-add/remove: 1/2 grow/shrink: 2/0 up/down: 2493/-1649 (844)
-function                                     old     new   delta
-get_page_from_freelist                      2898    4937   +2039
-steal_suitable_fallback                        -     365    +365
-find_suitable_fallback                        31     120     +89
-find_suitable_fallback.part                  115       -    -115
-__rmqueue                                   1534       -   -1534
-
-
-> [aaron@aaronlu obj]$ size */*/vmlinux
->    text    data     bss     dec       hex     filename
-> 10342757   5903208 17723392 33969357  20654cd gcc-4.9.4/base/vmlinux
-> 10342757   5903208 17723392 33969357  20654cd gcc-4.9.4/head/vmlinux
-> 10332448   5836608 17715200 33884256  2050860 gcc-5.5.0/base/vmlinux
-> 10332448   5836608 17715200 33884256  2050860 gcc-5.5.0/head/vmlinux
-> 10094546   5836696 17715200 33646442  201676a gcc-6.4.0/base/vmlinux
-> 10094546   5836696 17715200 33646442  201676a gcc-6.4.0/head/vmlinux
-> 10018775   5828732 17715200 33562707  2002053 gcc-7.2.0/base/vmlinux
-> 10018775   5828732 17715200 33562707  2002053 gcc-7.2.0/head/vmlinux
-> 
-> Text size for vmlinux has no change though, probably due to function
-> alignment.
-
-Yep that's useless to show. These differences do add up though, until
-they eventually cross the alignment boundary.
-
-Thanks,
-Vlastimil
-
-> 
-> Signed-off-by: Aaron Lu <aaron.lu@intel.com>
 > ---
->  mm/page_alloc.c | 10 +++++-----
->  1 file changed, 5 insertions(+), 5 deletions(-)
+>  mm/page_alloc.c | 168 ++++++++++++++++++++++++++++----------------------------
+>  1 file changed, 85 insertions(+), 83 deletions(-)
 > 
 > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 0e309ce4a44a..0fe3e2095268 100644
+> index 77e4d3c5c57b..cdbd14829fd3 100644
 > --- a/mm/page_alloc.c
 > +++ b/mm/page_alloc.c
-> @@ -1794,7 +1794,7 @@ static void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags
->   * Go through the free lists for the given migratetype and remove
->   * the smallest available page from the freelists
->   */
-> -static inline
-> +static __always_inline
->  struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
->  						int migratetype)
->  {
-> @@ -1838,7 +1838,7 @@ static int fallbacks[MIGRATE_TYPES][4] = {
->  };
+> @@ -1410,14 +1410,17 @@ void clear_zone_contiguous(struct zone *zone)
+>  }
 >  
->  #ifdef CONFIG_CMA
-> -static struct page *__rmqueue_cma_fallback(struct zone *zone,
-> +static __always_inline struct page *__rmqueue_cma_fallback(struct zone *zone,
->  					unsigned int order)
+>  #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+> -static void __init deferred_free_range(struct page *page,
+> -					unsigned long pfn, int nr_pages)
+> +static void __init deferred_free_range(unsigned long pfn,
+> +				       unsigned long nr_pages)
 >  {
->  	return __rmqueue_smallest(zone, order, MIGRATE_CMA);
-> @@ -2219,7 +2219,7 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac,
->   * deviation from the rest of this file, to make the for loop
->   * condition simpler.
->   */
-> -static inline bool
-> +static __always_inline bool
->  __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
->  {
->  	struct free_area *area;
-> @@ -2291,8 +2291,8 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
->   * Do the hard work of removing an element from the buddy allocator.
->   * Call me with the zone->lock already held.
->   */
-> -static struct page *__rmqueue(struct zone *zone, unsigned int order,
-> -				int migratetype)
-> +static __always_inline struct page *
-> +__rmqueue(struct zone *zone, unsigned int order, int migratetype)
->  {
->  	struct page *page;
+> -	int i;
+> +	struct page *page;
+> +	unsigned long i;
 >  
-> 
+> -	if (!page)
+> +	if (!nr_pages)
+>  		return;
+>  
+> +	page = pfn_to_page(pfn);
+> +
+>  	/* Free a large naturally-aligned chunk if possible */
+>  	if (nr_pages == pageblock_nr_pages &&
+>  	    (pfn & (pageblock_nr_pages - 1)) == 0) {
+> @@ -1443,19 +1446,89 @@ static inline void __init pgdat_init_report_one_done(void)
+>  		complete(&pgdat_init_all_done_comp);
+>  }
+>  
+> +/*
+> + * Helper for deferred_init_range, free the given range, reset the counters, and
+> + * return number of pages freed.
+> + */
+> +static inline unsigned long __def_free(unsigned long *nr_free,
+> +				       unsigned long *free_base_pfn,
+> +				       struct page **page)
+> +{
+> +	unsigned long nr = *nr_free;
+> +
+> +	deferred_free_range(*free_base_pfn, nr);
+> +	*free_base_pfn = 0;
+> +	*nr_free = 0;
+> +	*page = NULL;
+> +
+> +	return nr;
+> +}
+> +
+> +static unsigned long deferred_init_range(int nid, int zid, unsigned long pfn,
+> +					 unsigned long end_pfn)
+> +{
+> +	struct mminit_pfnnid_cache nid_init_state = { };
+> +	unsigned long nr_pgmask = pageblock_nr_pages - 1;
+> +	unsigned long free_base_pfn = 0;
+> +	unsigned long nr_pages = 0;
+> +	unsigned long nr_free = 0;
+> +	struct page *page = NULL;
+> +
+> +	for (; pfn < end_pfn; pfn++) {
+> +		/*
+> +		 * First we check if pfn is valid on architectures where it is
+> +		 * possible to have holes within pageblock_nr_pages. On systems
+> +		 * where it is not possible, this function is optimized out.
+> +		 *
+> +		 * Then, we check if a current large page is valid by only
+> +		 * checking the validity of the head pfn.
+> +		 *
+> +		 * meminit_pfn_in_nid is checked on systems where pfns can
+> +		 * interleave within a node: a pfn is between start and end
+> +		 * of a node, but does not belong to this memory node.
+> +		 *
+> +		 * Finally, we minimize pfn page lookups and scheduler checks by
+> +		 * performing it only once every pageblock_nr_pages.
+> +		 */
+> +		if (!pfn_valid_within(pfn)) {
+> +			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
+> +		} else if (!(pfn & nr_pgmask) && !pfn_valid(pfn)) {
+> +			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
+> +		} else if (!meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
+> +			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
+> +		} else if (page && (pfn & nr_pgmask)) {
+> +			page++;
+> +			__init_single_page(page, pfn, zid, nid);
+> +			nr_free++;
+> +		} else {
+> +			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
+> +			page = pfn_to_page(pfn);
+> +			__init_single_page(page, pfn, zid, nid);
+> +			free_base_pfn = pfn;
+> +			nr_free = 1;
+> +			cond_resched();
+> +		}
+> +	}
+> +	/* Free the last block of pages to allocator */
+> +	nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
+> +
+> +	return nr_pages;
+> +}
+> +
+>  /* Initialise remaining memory on a node */
+>  static int __init deferred_init_memmap(void *data)
+>  {
+>  	pg_data_t *pgdat = data;
+>  	int nid = pgdat->node_id;
+> -	struct mminit_pfnnid_cache nid_init_state = { };
+>  	unsigned long start = jiffies;
+>  	unsigned long nr_pages = 0;
+> -	unsigned long walk_start, walk_end;
+> -	int i, zid;
+> +	unsigned long spfn, epfn;
+> +	phys_addr_t spa, epa;
+> +	int zid;
+>  	struct zone *zone;
+>  	unsigned long first_init_pfn = pgdat->first_deferred_pfn;
+>  	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
+> +	u64 i;
+>  
+>  	if (first_init_pfn == ULONG_MAX) {
+>  		pgdat_init_report_one_done();
+> @@ -1477,83 +1550,12 @@ static int __init deferred_init_memmap(void *data)
+>  		if (first_init_pfn < zone_end_pfn(zone))
+>  			break;
+>  	}
+> +	first_init_pfn = max(zone->zone_start_pfn, first_init_pfn);
+>  
+> -	for_each_mem_pfn_range(i, nid, &walk_start, &walk_end, NULL) {
+> -		unsigned long pfn, end_pfn;
+> -		struct page *page = NULL;
+> -		struct page *free_base_page = NULL;
+> -		unsigned long free_base_pfn = 0;
+> -		int nr_to_free = 0;
+> -
+> -		end_pfn = min(walk_end, zone_end_pfn(zone));
+> -		pfn = first_init_pfn;
+> -		if (pfn < walk_start)
+> -			pfn = walk_start;
+> -		if (pfn < zone->zone_start_pfn)
+> -			pfn = zone->zone_start_pfn;
+> -
+> -		for (; pfn < end_pfn; pfn++) {
+> -			if (!pfn_valid_within(pfn))
+> -				goto free_range;
+> -
+> -			/*
+> -			 * Ensure pfn_valid is checked every
+> -			 * pageblock_nr_pages for memory holes
+> -			 */
+> -			if ((pfn & (pageblock_nr_pages - 1)) == 0) {
+> -				if (!pfn_valid(pfn)) {
+> -					page = NULL;
+> -					goto free_range;
+> -				}
+> -			}
+> -
+> -			if (!meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
+> -				page = NULL;
+> -				goto free_range;
+> -			}
+> -
+> -			/* Minimise pfn page lookups and scheduler checks */
+> -			if (page && (pfn & (pageblock_nr_pages - 1)) != 0) {
+> -				page++;
+> -			} else {
+> -				nr_pages += nr_to_free;
+> -				deferred_free_range(free_base_page,
+> -						free_base_pfn, nr_to_free);
+> -				free_base_page = NULL;
+> -				free_base_pfn = nr_to_free = 0;
+> -
+> -				page = pfn_to_page(pfn);
+> -				cond_resched();
+> -			}
+> -
+> -			if (page->flags) {
+> -				VM_BUG_ON(page_zone(page) != zone);
+> -				goto free_range;
+> -			}
+> -
+> -			__init_single_page(page, pfn, zid, nid);
+> -			if (!free_base_page) {
+> -				free_base_page = page;
+> -				free_base_pfn = pfn;
+> -				nr_to_free = 0;
+> -			}
+> -			nr_to_free++;
+> -
+> -			/* Where possible, batch up pages for a single free */
+> -			continue;
+> -free_range:
+> -			/* Free the current block of pages to allocator */
+> -			nr_pages += nr_to_free;
+> -			deferred_free_range(free_base_page, free_base_pfn,
+> -								nr_to_free);
+> -			free_base_page = NULL;
+> -			free_base_pfn = nr_to_free = 0;
+> -		}
+> -		/* Free the last block of pages to allocator */
+> -		nr_pages += nr_to_free;
+> -		deferred_free_range(free_base_page, free_base_pfn, nr_to_free);
+> -
+> -		first_init_pfn = max(end_pfn, first_init_pfn);
+> +	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
+> +		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
+> +		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
+> +		nr_pages += deferred_init_range(nid, zid, spfn, epfn);
+>  	}
+>  
+>  	/* Sanity check that the next zone really is unpopulated */
+> -- 
+> 2.14.2
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
