@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AB2C66B0033
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 13:46:06 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id q124so1167600wmb.23
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 10:46:06 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h143si7638985wma.123.2017.10.17.10.46.04
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 657A16B0033
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 14:24:00 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id l194so3225293qke.22
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 11:24:00 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id 4si483916qtg.30.2017.10.17.11.23.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Oct 2017 10:46:04 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Oct 2017 11:23:59 -0700 (PDT)
 Subject: Re: [RFC PATCH 3/3] mm/map_contig: Add mmap(MAP_CONTIG) support
 References: <20171013084054.me3kxhgbxzgm2lpr@dhcp22.suse.cz>
  <alpine.DEB.2.20.1710131015420.3949@nuc-kabylake>
@@ -24,9 +24,9 @@ References: <20171013084054.me3kxhgbxzgm2lpr@dhcp22.suse.cz>
  <AM6PR0502MB378375AF8B569DBCCFE20D7DBD4C0@AM6PR0502MB3783.eurprd05.prod.outlook.com>
  <xa1tlgk9c3j4.fsf@mina86.com>
  <AM6PR0502MB3783280D15C96E5A3A831DCBBD4C0@AM6PR0502MB3783.eurprd05.prod.outlook.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <32726f82-e044-25e3-fdbf-ba3630da5053@suse.cz>
-Date: Tue, 17 Oct 2017 19:44:44 +0200
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <5f48b8a3-f187-0645-4b7d-3643129daf41@oracle.com>
+Date: Tue, 17 Oct 2017 11:23:50 -0700
 MIME-Version: 1.0
 In-Reply-To: <AM6PR0502MB3783280D15C96E5A3A831DCBBD4C0@AM6PR0502MB3783.eurprd05.prod.outlook.com>
 Content-Type: text/plain; charset=utf-8
@@ -35,9 +35,9 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Guy Shattah <sguy@mellanox.com>, Michal Nazarewicz <mina86@mina86.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Christopher Lameter <cl@linux.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-api@vger.kernel.org" <linux-api@vger.kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Laura Abbott <labbott@redhat.com>
+Cc: Christopher Lameter <cl@linux.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-api@vger.kernel.org" <linux-api@vger.kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Laura Abbott <labbott@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On 10/17/2017 04:20 PM, Guy Shattah wrote:
+On 10/17/2017 07:20 AM, Guy Shattah wrote:
 > 
 > 
 >> On Tue, Oct 17 2017, Guy Shattah wrote:
@@ -57,17 +57,18 @@ On 10/17/2017 04:20 PM, Guy Shattah wrote:
 > 3. CMA reserves memory in advance, our suggestion is using existing kernel memory
 >      mechanisms (THP for example) to allocate memory. 
 
-You can already use THP, right? madvise(MADV_HUGEPAGE) increases your
-chances to get the huge pages. Then you can mlock() them if you want.
-And you get the TLB benefits. There's no guarantee of course, but you
-shouldn't require a guarantee for MMAP_CONTIG anyway, because it's for
-performance reasons, not functionality. So either MMAP_CONTIG would have
-to fallback itself, or the userspace caller. Or would your scenario
-rather fail than perform suboptimally?
+I would not totally rule out the use of CMA.  I like the way that it reserves
+memory, but does not prohibit use by others.  In addition, there can be
+device (or purpose) specific reservations.
 
-> Guy
-> 
-> 
+However, since reservations need to happen quite early it is often done on
+the kernel command line.  IMO, this should be avoided if possible.  There
+are interfaces for arch specific code to make reservations.  I do not know
+the system initialization sequence well enough to know if it would be
+possible for driver code to make CMA reservations.  But, it looks doubtful.
+
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
