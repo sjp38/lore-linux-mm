@@ -1,108 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D50EE6B0069
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 09:03:32 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id n4so785514wrb.8
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 06:03:32 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m22si1994313wrb.94.2017.10.17.06.03.31
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C63C6B0253
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 09:07:31 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id p87so1260206pfj.21
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 06:07:31 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [45.249.212.187])
+        by mx.google.com with ESMTPS id u127si5433651pgc.803.2017.10.17.06.07.28
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Oct 2017 06:03:31 -0700 (PDT)
-Subject: Re: [PATCH 2/2] mm, page_alloc: fail has_unmovable_pages when seeing
- reserved pages
-References: <20171013115835.zaehapuucuzl2vlv@dhcp22.suse.cz>
- <20171013120013.698-1-mhocko@kernel.org>
- <20171013120013.698-2-mhocko@kernel.org>
- <d98bfc90-e857-4bbe-bfbc-ee69dc310cc0@suse.cz>
- <20171013120756.jeopthigbmm3c7bl@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <7d389744-13c9-4f01-106a-902af61643e1@suse.cz>
-Date: Tue, 17 Oct 2017 15:03:30 +0200
+        Tue, 17 Oct 2017 06:07:29 -0700 (PDT)
+From: "Liuwenliang (Lamb)" <liuwenliang@huawei.com>
+Subject: Re:  [PATCH 04/11] Define the virtual space of KASan's shadow region
+Date: Tue, 17 Oct 2017 13:02:06 +0000
+Message-ID: <B8AC3E80E903784988AB3003E3E97330C005CB08@dggemm510-mbx.china.huawei.com>
+References: <20171011082227.20546-5-liuwenliang@huawei.com>
+ <201710141957.mbxeZJHB%fengguang.wu@intel.com>
+ <B8AC3E80E903784988AB3003E3E97330C005B9BF@dggemm510-mbx.china.huawei.com>
+ <CAKv+Gu98M9PZk3qm0PYC8nQ3zMvLZmNmOn4=hNdFE7NTBuHbgg@mail.gmail.com>
+ <B8AC3E80E903784988AB3003E3E97330C005CAC2@dggemm510-mbx.china.huawei.com>
+ <CAKv+Gu-+yOyAC4R_JNNy7NqWiSQ=HwfR=uTr1Ntt=2cDzAZ5nw@mail.gmail.com>
+In-Reply-To: <CAKv+Gu-+yOyAC4R_JNNy7NqWiSQ=HwfR=uTr1Ntt=2cDzAZ5nw@mail.gmail.com>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <20171013120756.jeopthigbmm3c7bl@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: kbuild test robot <lkp@intel.com>, "kbuild-all@01.org" <kbuild-all@01.org>, "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "cdall@linaro.org" <cdall@linaro.org>, "marc.zyngier@arm.com" <marc.zyngier@arm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "mingo@kernel.org" <mingo@kernel.org>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiazhenghua <jiazhenghua@huawei.com>, Dailei <dylix.dailei@huawei.com>, Zengweilin <zengweilin@huawei.com>, Heshaoliang <heshaoliang@huawei.com>
 
-On 10/13/2017 02:07 PM, Michal Hocko wrote:
-> On Fri 13-10-17 14:04:08, Vlastimil Babka wrote:
->> On 10/13/2017 02:00 PM, Michal Hocko wrote:
->>> From: Michal Hocko <mhocko@suse.com>
->>>
->>> Reserved pages should be completely ignored by the core mm because they
->>> have a special meaning for their owners. has_unmovable_pages doesn't
->>> check those so we rely on other tests (reference count, or PageLRU) to
->>> fail on such pages. Althought this happens to work it is safer to simply
->>> check for those explicitly and do not rely on the owner of the page
->>> to abuse those fields for special purposes.
->>>
->>> Please note that this is more of a further fortification of the code
->>> rahter than a fix of an existing issue.
->>>
->>> Signed-off-by: Michal Hocko <mhocko@suse.com>
->>> ---
->>>  mm/page_alloc.c | 3 +++
->>>  1 file changed, 3 insertions(+)
->>>
->>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>> index ad0294ab3e4f..a8800b0a5619 100644
->>> --- a/mm/page_alloc.c
->>> +++ b/mm/page_alloc.c
->>> @@ -7365,6 +7365,9 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
->>>  
->>>  		page = pfn_to_page(check);
->>>  
->>> +		if (PageReferenced(page))
->>
->> "Referenced" != "Reserved"
-> 
-> Dohh, you are right of course. I blame auto-completion ;) but I am lame
-> in fact...
-> ---
-> From 44b20bdb03846bc5fd79c883d16b8f3aa436878f Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Fri, 13 Oct 2017 13:55:21 +0200
-> Subject: [PATCH] mm, page_alloc: fail has_unmovable_pages when seeing reserved
->  pages
-> 
-> Reserved pages should be completely ignored by the core mm because they
-> have a special meaning for their owners. has_unmovable_pages doesn't
-> check those so we rely on other tests (reference count, or PageLRU) to
-> fail on such pages. Althought this happens to work it is safer to simply
-> check for those explicitly and do not rely on the owner of the page
-> to abuse those fields for special purposes.
-> 
-> Please note that this is more of a further fortification of the code
-> rahter than a fix of an existing issue.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-> ---
->  mm/page_alloc.c | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index ad0294ab3e4f..5b4d85ae445c 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -7365,6 +7365,9 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
->  
->  		page = pfn_to_page(check);
->  
-> +		if (PageReserved(page))
-> +			return true;
-> +
->  		/*
->  		 * Hugepages are not in LRU lists, but they're movable.
->  		 * We need not scan over tail pages bacause we don't
-> 
+T24gMTAvMTcvMjAxNyA4OjQ1IFBNLCBBYmJvdHQgTGl1IHdyb3RlOg0KPldoYXQgSSBzYWlkIHdh
+cw0KPg0KPidpZiB0aGUgdmFsdWUgb2YgVEFTS19TSVpFIGZpdHMgaXRzIDEyLWJpdCBpbW1lZGlh
+dGUgZmllbGQnDQo+DQo+YW5kIHlvdXIgdmFsdWUgb2YgVEFTS19TSVpFIGlzIDB4YjZlMDAwMDAs
+IHdoaWNoIGNhbm5vdCBiZSBkZWNvbXBvc2VkIGluIHRoZSByaWdodCB3YXkuDQo+DQo+SWYgeW91
+IGJ1aWxkIHdpdGggS0FTQU4gZGlzYWJsZWQsIGl0IHdpbGwgZ2VuZXJhdGUgYSBtb3YgaW5zdHJ1
+Y3Rpb24gaW5zdGVhZC4NCg0KVGhhbmtzIGZvciB5b3VyIGV4cGxhaW4uIEkgdW5kZXJzdGFuZCBu
+b3cuICBJIGhhcyB0ZXN0ZWQgYW5kIHRoZSB0ZXN0aW5nIHJlc3VsdCBwcm92ZXMgdGhhdCB3aGF0
+IA0KeW91IHNhaWQgaXMgcmlnaHQuIA0KDQpIZXJlIGlzIHRlc3QgbG9nOg0KYzAxMGU5ZTAgPF9f
+aXJxX3N2Yz46DQpjMDEwZTllMDogICAgICAgZTI0ZGQwNGMgICAgICAgIHN1YiAgICAgc3AsIHNw
+LCAjNzYgICAgIDsgMHg0Yw0KYzAxMGU5ZTQ6ICAgICAgIGUzMWQwMDA0ICAgICAgICB0c3QgICAg
+IHNwLCAjNA0KYzAxMGU5ZTg6ICAgICAgIDAyNGRkMDA0ICAgICAgICBzdWJlcSAgIHNwLCBzcCwg
+IzQNCmMwMTBlOWVjOiAgICAgICBlODhkMWZmZSAgICAgICAgc3RtICAgICBzcCwge3IxLCByMiwg
+cjMsIHI0LCByNSwgcjYsIHI3LCByOCwgcjksIHNsLCBmcCwgaXB9DQpjMDEwZTlmMDogICAgICAg
+ZTg5MDAwMzggICAgICAgIGxkbSAgICAgcjAsIHtyMywgcjQsIHI1fQ0KYzAxMGU5ZjQ6ICAgICAg
+IGUyOGQ3MDMwICAgICAgICBhZGQgICAgIHI3LCBzcCwgIzQ4ICAgICA7IDB4MzANCmMwMTBlOWY4
+OiAgICAgICBlM2UwNjAwMCAgICAgICAgbXZuICAgICByNiwgIzANCmMwMTBlOWZjOiAgICAgICBl
+MjhkMjA0YyAgICAgICAgYWRkICAgICByMiwgc3AsICM3NiAgICAgOyAweDRjDQpjMDEwZWEwMDog
+ICAgICAgMDI4MjIwMDQgICAgICAgIGFkZGVxICAgcjIsIHIyLCAjNA0KYzAxMGVhMDQ6ICAgICAg
+IGU1MmQzMDA0ICAgICAgICBwdXNoICAgIHtyM30gICAgICAgICAgICA7IChzdHIgcjMsIFtzcCwg
+Iy00XSEpDQpjMDEwZWEwODogICAgICAgZTFhMDMwMGUgICAgICAgIG1vdiAgICAgcjMsIGxyDQpj
+MDEwZWEwYzogICAgICAgZTg4NzAwN2MgICAgICAgIHN0bSAgICAgcjcsIHtyMiwgcjMsIHI0LCBy
+NSwgcjZ9DQpjMDEwZWExMDogICAgICAgZTFhMDk3MmQgICAgICAgIGxzciAgICAgcjksIHNwLCAj
+MTQNCmMwMTBlYTE0OiAgICAgICBlMWEwOTcwOSAgICAgICAgbHNsICAgICByOSwgcjksICMxNA0K
+YzAxMGVhMTg6ICAgICAgIGU1OTkwMDA4ICAgICAgICBsZHIgICAgIHIwLCBbcjksICM4XQ0KYzAx
+MGVhMWM6ICAgICAgIGUzYTAxNGJmICAgICAgICBtb3YgICAgIHIxLCAjLTEwOTA1MTkwNDAgICAg
+ICAgIDsgMHhiZjAwMDAwMCAgLy8gbGRyIHIxLD0weGJmMDAwMDAwDQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
