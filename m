@@ -1,55 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 723F66B0038
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 08:53:33 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id p46so782923wrb.19
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 05:53:33 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
-        by mx.google.com with ESMTPS id a84si6974619wmc.144.2017.10.17.05.53.28
+	by kanga.kvack.org (Postfix) with ESMTP id 998C26B0038
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 09:02:54 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id g90so797486wrd.14
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 06:02:54 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q187si7037533wmg.174.2017.10.17.06.02.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Oct 2017 05:53:31 -0700 (PDT)
-From: "Liuwenliang (Lamb)" <liuwenliang@huawei.com>
-Subject: Re: [PATCH 00/11] KASan for arm
-Date: Tue, 17 Oct 2017 12:41:49 +0000
-Message-ID: <B8AC3E80E903784988AB3003E3E97330C005CAEB@dggemm510-mbx.china.huawei.com>
-References: <20171011082227.20546-1-liuwenliang@huawei.com>
- <26660524-3b0a-c634-e8ce-4ba7e10c055d@gmail.com>
- <bb809843-4fb8-0827-170e-26efde0eb37f@gmail.com>
- <44c86924-930b-3eff-55b8-b02c9060ebe3@gmail.com>
- <4b7b2b3c-cba9-d8ab-72a7-119bd5fae65d@redhat.com>
- <20171011225805.GY20805@n2100.armlinux.org.uk>
-In-Reply-To: <20171011225805.GY20805@n2100.armlinux.org.uk>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Tue, 17 Oct 2017 06:02:53 -0700 (PDT)
+Subject: Re: [PATCH 1/2] mm: drop migrate type checks from has_unmovable_pages
+References: <20171013115835.zaehapuucuzl2vlv@dhcp22.suse.cz>
+ <20171013120013.698-1-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <c543061a-ac27-30de-b1c4-ca40a3244579@suse.cz>
+Date: Tue, 17 Oct 2017 15:02:51 +0200
 MIME-Version: 1.0
+In-Reply-To: <20171013120013.698-1-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@armlinux.org.uk>, Laura Abbott <labbott@redhat.com>
-Cc: Florian Fainelli <f.fainelli@gmail.com>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "cdall@linaro.org" <cdall@linaro.org>, "marc.zyngier@arm.com" <marc.zyngier@arm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "mingo@kernel.org" <mingo@kernel.org>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, Nicolas Pitre <nicolas.pitre@linaro.org>, "opendmb@gmail.com" <opendmb@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, Zengweilin <zengweilin@huawei.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dailei <dylix.dailei@huawei.com>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, Jiazhenghua <jiazhenghua@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Heshaoliang <heshaoliang@huawei.com>
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On 10/17/2017 7:40 PM, Abbott Liu wrote:
->On Wed, Oct 11, 2017 at 03:10:56PM -0700, Laura Abbott wrote:
->The decompressor does not link with the standard C library, so it
->needs to provide implementations of standard C library functionality
->where required.  That means, if we have any memset() users, we need
->to provide the memset() function.
->
->The undef is there to avoid the optimisation we have in asm/string.h
->for __memzero, because we don't want to use __memzero in the
->decompressor.
->
->Whether memset() is required depends on which compression method is
->being used - LZO and LZ4 appear to make direct references to it, but
->the inflate (gzip) decompressor code does not.
->
->What this means is that all supported kernel compression options need
->to be tested.
+On 10/13/2017 02:00 PM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> Michael has noticed that the memory offline tries to migrate kernel code
+> pages when doing
+>  echo 0 > /sys/devices/system/memory/memory0/online
+> 
+> The current implementation will fail the operation after several failed
+> page migration attempts but we shouldn't even attempt to migrate
+> that memory and fail right away because this memory is clearly not
+> migrateable. This will become a real problem when we drop the retry loop
+> counter resp. timeout.
+> 
+> The real problem is in has_unmovable_pages in fact. We should fail if
+> there are any non migrateable pages in the area. In orther to guarantee
+> that remove the migrate type checks because MIGRATE_MOVABLE is not
+> guaranteed to contain only migrateable pages. It is merely a heuristic.
+> Similarly MIGRATE_CMA does guarantee that the page allocator doesn't
+> allocate any non-migrateable pages from the block but CMA allocations
+> themselves are unlikely to migrateable. Therefore remove both checks.
+> 
+> Reported-by: Michael Ellerman <mpe@ellerman.id.au>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 
-Thanks for your review. I am sorry that I am so late to reply your email.
-I will test all arm kernel compression options.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
+> ---
+>  mm/page_alloc.c | 3 ---
+>  1 file changed, 3 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 3badcedf96a7..ad0294ab3e4f 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -7355,9 +7355,6 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+>  	 */
+>  	if (zone_idx(zone) == ZONE_MOVABLE)
+>  		return false;
+> -	mt = get_pageblock_migratetype(page);
+> -	if (mt == MIGRATE_MOVABLE || is_migrate_cma(mt))
+> -		return false;
+>  
+>  	pfn = page_to_pfn(page);
+>  	for (found = 0, iter = 0; iter < pageblock_nr_pages; iter++) {
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
