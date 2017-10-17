@@ -1,57 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BEFDF6B0038
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 07:21:03 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id h191so732420wmd.15
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 04:21:03 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E02A6B0069
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 07:22:17 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id v127so749153wma.3
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 04:22:17 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k26sor4810015edk.44.2017.10.17.04.21.02
+        by mx.google.com with SMTPS id v23sor4403202eda.27.2017.10.17.04.22.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 17 Oct 2017 04:21:02 -0700 (PDT)
-Date: Tue, 17 Oct 2017 14:21:00 +0300
+        Tue, 17 Oct 2017 04:22:16 -0700 (PDT)
+Date: Tue, 17 Oct 2017 14:22:14 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH -mm] mm, pagemap: Fix soft dirty marking for PMD
- migration entry
-Message-ID: <20171017112100.pciya6pmo62owpht@node.shutemov.name>
-References: <20171017081818.31795-1-ying.huang@intel.com>
+Subject: Re: [PATCH 2/2] mm: rename page dtor functions to
+ {compound,huge,transhuge}_page__dtor
+Message-ID: <20171017112214.n5emzjzstmbktn6m@node.shutemov.name>
+References: <1508145557-9944-1-git-send-email-changbin.du@intel.com>
+ <1508145557-9944-3-git-send-email-changbin.du@intel.com>
+ <20171017102203.u2v3p2ivuogu4rk6@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20171017081818.31795-1-ying.huang@intel.com>
+In-Reply-To: <20171017102203.u2v3p2ivuogu4rk6@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Arnd Bergmann <arnd@arndb.de>, Hugh Dickins <hughd@google.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Daniel Colascione <dancol@google.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: changbin.du@intel.com, akpm@linux-foundation.org, corbet@lwn.net, hughd@google.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Oct 17, 2017 at 04:18:18PM +0800, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
+On Tue, Oct 17, 2017 at 12:22:03PM +0200, Michal Hocko wrote:
+> On Mon 16-10-17 17:19:17, changbin.du@intel.com wrote:
+> > From: Changbin Du <changbin.du@intel.com>
+> > 
+> > The current name free_{huge,transhuge}_page are paired with
+> > alloc_{huge,transhuge}_page functions, but the actual page free
+> > function is still free_page() which will indirectly call
+> > free_{huge,transhuge}_page. So this patch removes this confusion
+> > by renaming all the compound page dtors.
 > 
-> Now, when the page table is walked in the implementation of
-> /proc/<pid>/pagemap, pmd_soft_dirty() is used for both the PMD huge
-> page map and the PMD migration entries.  That is wrong,
-> pmd_swp_soft_dirty() should be used for the PMD migration entries
-> instead because the different page table entry flag is used.
-> 
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Arnd Bergmann <arnd@arndb.de>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: "Jerome Glisse" <jglisse@redhat.com>
-> Cc: Daniel Colascione <dancol@google.com>
-> Cc: Zi Yan <zi.yan@cs.rutgers.edu>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> Is this code churn really worth it?
 
-What is effect of the misbehaviour? pagemap reports garbage?
+Getting naming straight is kinda nit. :)
 
-Shoudn't it be in stable@? And maybe add Fixes: <sha1>.
-
-Otherwise, looks good to me.
-
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+But I don't feel strong either way.
 
 -- 
  Kirill A. Shutemov
