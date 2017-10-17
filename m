@@ -1,54 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C3A126B025E
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 04:14:09 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id d28so831541pfe.1
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 01:14:09 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j65si4978541pge.256.2017.10.17.01.14.08
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B38956B0253
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 04:18:43 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id i23so835674pfi.5
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 01:18:43 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id m21si4980175pfi.290.2017.10.17.01.18.42
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Oct 2017 01:14:08 -0700 (PDT)
-Date: Tue, 17 Oct 2017 10:14:02 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v4] mm, sysctl: make NUMA stats configurable
-Message-ID: <20171017081402.y5kz5i6puxcgrmkv@dhcp22.suse.cz>
-References: <1508203258-9444-1-git-send-email-kemi.wang@intel.com>
- <20171017075420.dege7aabzau5wrss@dhcp22.suse.cz>
- <7103ce83-358e-2dfb-7880-ac2faea158f1@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Oct 2017 01:18:42 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -mm] mm, pagemap: Fix soft dirty marking for PMD migration entry
+Date: Tue, 17 Oct 2017 16:18:18 +0800
+Message-Id: <20171017081818.31795-1-ying.huang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <7103ce83-358e-2dfb-7880-ac2faea158f1@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kemi <kemi.wang@intel.com>
-Cc: "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave <dave.hansen@linux.intel.com>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Proc sysctl <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Arnd Bergmann <arnd@arndb.de>, Hugh Dickins <hughd@google.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Daniel Colascione <dancol@google.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Tue 17-10-17 16:03:44, kemi wrote:
-> On 2017a1'10ae??17ae?JPY 15:54, Michal Hocko wrote:
-[...]
-> > So basically any value will enable numa stats. This means that we would
-> > never be able to extend this interface to e.g. auto mode (say value 2).
-> > I guess you meant to check sysctl_vm_numa_stat == ENABLE_NUMA_STAT?
-> > 
-> 
-> I meant to make it more general other than ENABLE_NUMA_STAT(non 0 is enough), 
-> but it will make it hard to scale, as you said.
-> So, it would be like this:
-> 0 -- disable
-> 1 -- enable
-> other value is invalid.
-> 
-> May add option 2 later for auto if necessary:)
+From: Huang Ying <ying.huang@intel.com>
 
-But if you allow to set 2 without EINVAL now then you cannot change it
-in future.
+Now, when the page table is walked in the implementation of
+/proc/<pid>/pagemap, pmd_soft_dirty() is used for both the PMD huge
+page map and the PMD migration entries.  That is wrong,
+pmd_swp_soft_dirty() should be used for the PMD migration entries
+instead because the different page table entry flag is used.
 
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
+Cc: Daniel Colascione <dancol@google.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+---
+ fs/proc/task_mmu.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 2593a0c609d7..01aad772f8db 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -1311,13 +1311,15 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
+ 		pmd_t pmd = *pmdp;
+ 		struct page *page = NULL;
+ 
+-		if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(pmd))
++		if (vma->vm_flags & VM_SOFTDIRTY)
+ 			flags |= PM_SOFT_DIRTY;
+ 
+ 		if (pmd_present(pmd)) {
+ 			page = pmd_page(pmd);
+ 
+ 			flags |= PM_PRESENT;
++			if (pmd_soft_dirty(pmd))
++				flags |= PM_SOFT_DIRTY;
+ 			if (pm->show_pfn)
+ 				frame = pmd_pfn(pmd) +
+ 					((addr & ~PMD_MASK) >> PAGE_SHIFT);
+@@ -1329,6 +1331,8 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
+ 			frame = swp_type(entry) |
+ 				(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
+ 			flags |= PM_SWAP;
++			if (pmd_swp_soft_dirty(pmd))
++				flags |= PM_SOFT_DIRTY;
+ 			VM_BUG_ON(!is_pmd_migration_entry(pmd));
+ 			page = migration_entry_to_page(entry);
+ 		}
 -- 
-Michal Hocko
-SUSE Labs
+2.14.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
