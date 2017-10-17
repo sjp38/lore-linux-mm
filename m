@@ -1,50 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 268D96B0038
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 04:02:47 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id h28so792134pfh.16
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 01:02:47 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id g2si3240482pll.718.2017.10.17.01.02.46
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 39EA76B0253
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 04:05:28 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id i196so931895pgd.2
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 01:05:28 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id h70si5505058pfd.491.2017.10.17.01.05.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Oct 2017 01:02:46 -0700 (PDT)
-Date: Tue, 17 Oct 2017 01:02:36 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [Qemu-devel] [RFC 2/2] KVM: add virtio-pmem driver
-Message-ID: <20171017080236.GA27649@infradead.org>
-References: <20171012155027.3277-1-pagupta@redhat.com>
- <20171012155027.3277-3-pagupta@redhat.com>
- <20171017071633.GA9207@infradead.org>
- <1441791227.21027037.1508226056893.JavaMail.zimbra@redhat.com>
+        Tue, 17 Oct 2017 01:05:27 -0700 (PDT)
+Subject: Re: [PATCH v4] mm, sysctl: make NUMA stats configurable
+References: <1508203258-9444-1-git-send-email-kemi.wang@intel.com>
+ <20171017075420.dege7aabzau5wrss@dhcp22.suse.cz>
+From: kemi <kemi.wang@intel.com>
+Message-ID: <7103ce83-358e-2dfb-7880-ac2faea158f1@intel.com>
+Date: Tue, 17 Oct 2017 16:03:44 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1441791227.21027037.1508226056893.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20171017075420.dege7aabzau5wrss@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pankaj Gupta <pagupta@redhat.com>
-Cc: Christoph Hellwig <hch@infradead.org>, kwolf@redhat.com, haozhong zhang <haozhong.zhang@intel.com>, jack@suse.cz, xiaoguangrong eric <xiaoguangrong.eric@gmail.com>, kvm@vger.kernel.org, david@redhat.com, linux-nvdimm@ml01.01.org, ross zwisler <ross.zwisler@intel.com>, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, linux-mm@kvack.org, stefanha@redhat.com, pbonzini@redhat.com, dan j williams <dan.j.williams@intel.com>, nilal@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Dave <dave.hansen@linux.intel.com>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Proc sysctl <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On Tue, Oct 17, 2017 at 03:40:56AM -0400, Pankaj Gupta wrote:
-> Are you saying do it as existing i.e ACPI pmem like interface?
-> The reason we have created this new driver is exiting pmem driver
-> does not define proper semantics for guest flushing requests.
 
-At this point I'm caring about the Linux-internal interface, and
-for that it should be integrated into the nvdimm subsystem and not
-a block driver.  How the host <-> guest interface looks is a different
-idea.
 
+On 2017a1'10ae??17ae?JPY 15:54, Michal Hocko wrote:
+> On Tue 17-10-17 09:20:58, Kemi Wang wrote:
+> [...]
 > 
-> Regarding block support of driver, we want to achieve DAX support
-> to bypass guest page cache. Also, we want to utilize existing DAX
-> capable file-system interfaces(e.g fsync) from userspace file API's
-> to trigger the host side flush request.
+> Other than two remarks below, it looks good to me and it also looks
+> simpler.
+> 
+>> diff --git a/mm/vmstat.c b/mm/vmstat.c
+>> index 4bb13e7..e746ed1 100644
+>> --- a/mm/vmstat.c
+>> +++ b/mm/vmstat.c
+>> @@ -32,6 +32,76 @@
+>>  
+>>  #define NUMA_STATS_THRESHOLD (U16_MAX - 2)
+>>  
+>> +#ifdef CONFIG_NUMA
+>> +int sysctl_vm_numa_stat = ENABLE_NUMA_STAT;
+>> +static DEFINE_MUTEX(vm_numa_stat_lock);
+> 
+> You can scope this mutex to the sysctl handler function
+> 
 
-Well, if you want to support XFS+DAX better don't make it a block
-devices, because I'll post patches soon to stop using the block device
-entirely for the DAX case.
+OK, thanks.
+
+>> +int sysctl_vm_numa_stat_handler(struct ctl_table *table, int write,
+>> +		void __user *buffer, size_t *length, loff_t *ppos)
+>> +{
+>> +	int ret, oldval;
+>> +
+>> +	mutex_lock(&vm_numa_stat_lock);
+>> +	if (write)
+>> +		oldval = sysctl_vm_numa_stat;
+>> +	ret = proc_dointvec(table, write, buffer, length, ppos);
+>> +	if (ret || !write)
+>> +		goto out;
+>> +
+>> +	if (oldval == sysctl_vm_numa_stat)
+>> +		goto out;
+>> +	else if (oldval == DISABLE_NUMA_STAT) {
+> 
+> So basically any value will enable numa stats. This means that we would
+> never be able to extend this interface to e.g. auto mode (say value 2).
+> I guess you meant to check sysctl_vm_numa_stat == ENABLE_NUMA_STAT?
+> 
+
+I meant to make it more general other than ENABLE_NUMA_STAT(non 0 is enough), 
+but it will make it hard to scale, as you said.
+So, it would be like this:
+0 -- disable
+1 -- enable
+other value is invalid.
+
+May add option 2 later for auto if necessary:)
+
+>> +		static_branch_enable(&vm_numa_stat_key);
+>> +		pr_info("enable numa statistics\n");
+>> +	} else if (sysctl_vm_numa_stat == DISABLE_NUMA_STAT) {
+>> +		static_branch_disable(&vm_numa_stat_key);
+>> +		invalid_numa_statistics();
+>> +		pr_info("disable numa statistics, and clear numa counters\n");
+>> +	}
+>> +
+>> +out:
+>> +	mutex_unlock(&vm_numa_stat_lock);
+>> +	return ret;
+>> +}
+>> +#endif
+>> +
+>>  #ifdef CONFIG_VM_EVENT_COUNTERS
+>>  DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
+>>  EXPORT_PER_CPU_SYMBOL(vm_event_states);
+>> -- 
+>> 2.7.4
+>>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
