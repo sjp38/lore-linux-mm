@@ -1,348 +1,277 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 80D966B0038
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 06:20:56 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id r18so1193491pgu.9
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 03:20:56 -0700 (PDT)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E09256B0038
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 06:22:06 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id k7so1188925pga.8
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 03:22:06 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 85si4608402pfz.417.2017.10.17.03.20.54
+        by mx.google.com with ESMTPS id z21si1449659plo.160.2017.10.17.03.22.05
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Oct 2017 03:20:55 -0700 (PDT)
-Date: Tue, 17 Oct 2017 12:20:52 +0200
+        Tue, 17 Oct 2017 03:22:05 -0700 (PDT)
+Date: Tue, 17 Oct 2017 12:22:03 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm, thp: introduce dedicated transparent huge page
- allocation interfaces
-Message-ID: <20171017102052.ltc2lb6r7kloazgs@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/2] mm: rename page dtor functions to
+ {compound,huge,transhuge}_page__dtor
+Message-ID: <20171017102203.u2v3p2ivuogu4rk6@dhcp22.suse.cz>
 References: <1508145557-9944-1-git-send-email-changbin.du@intel.com>
- <1508145557-9944-2-git-send-email-changbin.du@intel.com>
+ <1508145557-9944-3-git-send-email-changbin.du@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1508145557-9944-2-git-send-email-changbin.du@intel.com>
+In-Reply-To: <1508145557-9944-3-git-send-email-changbin.du@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: changbin.du@intel.com
 Cc: akpm@linux-foundation.org, corbet@lwn.net, hughd@google.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-[CC Kirill]
-
-On Mon 16-10-17 17:19:16, changbin.du@intel.com wrote:
+On Mon 16-10-17 17:19:17, changbin.du@intel.com wrote:
 > From: Changbin Du <changbin.du@intel.com>
 > 
-> This patch introduced 4 new interfaces to allocate a prepared
-> transparent huge page.
->   - alloc_transhuge_page_vma
->   - alloc_transhuge_page_nodemask
->   - alloc_transhuge_page_node
->   - alloc_transhuge_page
-> 
-> The aim is to remove duplicated code and simplify transparent
-> huge page allocation. These are similar to alloc_hugepage_xxx
-> which are for hugetlbfs pages. This patch does below changes:
->   - define alloc_transhuge_page_xxx interfaces
->   - apply them to all existing code
->   - declare prep_transhuge_page as static since no others use it
->   - remove alloc_hugepage_vma definition since it no longer has users
+> The current name free_{huge,transhuge}_page are paired with
+> alloc_{huge,transhuge}_page functions, but the actual page free
+> function is still free_page() which will indirectly call
+> free_{huge,transhuge}_page. So this patch removes this confusion
+> by renaming all the compound page dtors.
 
-So what exactly is the advantage of the new API? The diffstat doesn't
-sound very convincing to me.
+Is this code churn really worth it?
 
 > Signed-off-by: Changbin Du <changbin.du@intel.com>
 > ---
->  include/linux/gfp.h     |  4 ----
->  include/linux/huge_mm.h | 13 ++++++++++++-
->  include/linux/migrate.h | 14 +++++---------
->  mm/huge_memory.c        | 50 ++++++++++++++++++++++++++++++++++++++++++-------
->  mm/khugepaged.c         | 11 ++---------
->  mm/mempolicy.c          | 10 +++-------
->  mm/migrate.c            | 12 ++++--------
->  mm/shmem.c              |  6 ++----
->  8 files changed, 71 insertions(+), 49 deletions(-)
+>  Documentation/vm/hugetlbfs_reserv.txt |  4 ++--
+>  include/linux/huge_mm.h               |  2 +-
+>  include/linux/hugetlb.h               |  2 +-
+>  include/linux/mm.h                    |  8 ++++----
+>  mm/huge_memory.c                      |  4 ++--
+>  mm/hugetlb.c                          | 14 +++++++-------
+>  mm/page_alloc.c                       | 10 +++++-----
+>  mm/swap.c                             |  2 +-
+>  mm/userfaultfd.c                      |  2 +-
+>  9 files changed, 24 insertions(+), 24 deletions(-)
 > 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index f780718..855c72e 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -507,15 +507,11 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
->  extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
->  			struct vm_area_struct *vma, unsigned long addr,
->  			int node, bool hugepage);
-> -#define alloc_hugepage_vma(gfp_mask, vma, addr, order)	\
-> -	alloc_pages_vma(gfp_mask, order, vma, addr, numa_node_id(), true)
->  #else
->  #define alloc_pages(gfp_mask, order) \
->  		alloc_pages_node(numa_node_id(), gfp_mask, order)
->  #define alloc_pages_vma(gfp_mask, order, vma, addr, node, false)\
->  	alloc_pages(gfp_mask, order)
-> -#define alloc_hugepage_vma(gfp_mask, vma, addr, order)	\
-> -	alloc_pages(gfp_mask, order)
->  #endif
->  #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
->  #define alloc_page_vma(gfp_mask, vma, addr)			\
+> diff --git a/Documentation/vm/hugetlbfs_reserv.txt b/Documentation/vm/hugetlbfs_reserv.txt
+> index 9aca09a..b3ffa3e 100644
+> --- a/Documentation/vm/hugetlbfs_reserv.txt
+> +++ b/Documentation/vm/hugetlbfs_reserv.txt
+> @@ -238,7 +238,7 @@ to the global reservation count (resv_huge_pages).
+>  
+>  Freeing Huge Pages
+>  ------------------
+> -Huge page freeing is performed by the routine free_huge_page().  This routine
+> +Huge page freeing is performed by the routine huge_page_dtor().  This routine
+>  is the destructor for hugetlbfs compound pages.  As a result, it is only
+>  passed a pointer to the page struct.  When a huge page is freed, reservation
+>  accounting may need to be performed.  This would be the case if the page was
+> @@ -468,7 +468,7 @@ However, there are several instances where errors are encountered after a huge
+>  page is allocated but before it is instantiated.  In this case, the page
+>  allocation has consumed the reservation and made the appropriate subpool,
+>  reservation map and global count adjustments.  If the page is freed at this
+> -time (before instantiation and clearing of PagePrivate), then free_huge_page
+> +time (before instantiation and clearing of PagePrivate), then huge_page_dtor
+>  will increment the global reservation count.  However, the reservation map
+>  indicates the reservation was consumed.  This resulting inconsistent state
+>  will cause the 'leak' of a reserved huge page.  The global reserve count will
 > diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> index 14bc21c..1dd2c33 100644
+> index 1dd2c33..40ae3058 100644
 > --- a/include/linux/huge_mm.h
 > +++ b/include/linux/huge_mm.h
-> @@ -130,9 +130,20 @@ extern unsigned long thp_get_unmapped_area(struct file *filp,
+> @@ -130,7 +130,7 @@ extern unsigned long thp_get_unmapped_area(struct file *filp,
 >  		unsigned long addr, unsigned long len, unsigned long pgoff,
 >  		unsigned long flags);
 >  
-> -extern void prep_transhuge_page(struct page *page);
->  extern void free_transhuge_page(struct page *page);
+> -extern void free_transhuge_page(struct page *page);
+> +extern void transhuge_page_dtor(struct page *page);
 >  
-> +struct page *alloc_transhuge_page_vma(gfp_t gfp_mask,
-> +		struct vm_area_struct *vma, unsigned long addr);
-> +struct page *alloc_transhuge_page_nodemask(gfp_t gfp_mask,
-> +		int preferred_nid, nodemask_t *nmask);
-> +
-> +static inline struct page *alloc_transhuge_page_node(int nid, gfp_t gfp_mask)
-> +{
-> +	return alloc_transhuge_page_nodemask(gfp_mask, nid, NULL);
-> +}
-> +
-> +struct page *alloc_transhuge_page(gfp_t gfp_mask);
-> +
->  bool can_split_huge_page(struct page *page, int *pextra_pins);
->  int split_huge_page_to_list(struct page *page, struct list_head *list);
->  static inline int split_huge_page(struct page *page)
-> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-> index 643c7ae..70a00f3 100644
-> --- a/include/linux/migrate.h
-> +++ b/include/linux/migrate.h
-> @@ -42,19 +42,15 @@ static inline struct page *new_page_nodemask(struct page *page,
->  		return alloc_huge_page_nodemask(page_hstate(compound_head(page)),
->  				preferred_nid, nodemask);
+>  struct page *alloc_transhuge_page_vma(gfp_t gfp_mask,
+>  		struct vm_area_struct *vma, unsigned long addr);
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 8bbbd37..24492c5 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -118,7 +118,7 @@ long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
+>  						long freed);
+>  bool isolate_huge_page(struct page *page, struct list_head *list);
+>  void putback_active_hugepage(struct page *page);
+> -void free_huge_page(struct page *page);
+> +void huge_page_dtor(struct page *page);
+>  void hugetlb_fix_reserve_counts(struct inode *inode);
+>  extern struct mutex *hugetlb_fault_mutex_table;
+>  u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 065d99d..adfa906 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -616,7 +616,7 @@ void split_page(struct page *page, unsigned int order);
+>   * prototype for that function and accessor functions.
+>   * These are _only_ valid on the head of a compound page.
+>   */
+> -typedef void compound_page_dtor(struct page *);
+> +typedef void compound_page_dtor_t(struct page *);
 >  
-> -	if (thp_migration_supported() && PageTransHuge(page)) {
-> -		order = HPAGE_PMD_ORDER;
-> -		gfp_mask |= GFP_TRANSHUGE;
-> -	}
-> -
->  	if (PageHighMem(page) || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
->  		gfp_mask |= __GFP_HIGHMEM;
+>  /* Keep the enum in sync with compound_page_dtors array in mm/page_alloc.c */
+>  enum compound_dtor_id {
+> @@ -630,7 +630,7 @@ enum compound_dtor_id {
+>  #endif
+>  	NR_COMPOUND_DTORS,
+>  };
+> -extern compound_page_dtor * const compound_page_dtors[];
+> +extern compound_page_dtor_t * const compound_page_dtors[];
 >  
-> -	new_page = __alloc_pages_nodemask(gfp_mask, order,
-> +	if (thp_migration_supported() && PageTransHuge(page))
-> +		return alloc_transhuge_page_nodemask(gfp_mask | GFP_TRANSHUGE,
-> +				preferred_nid, nodemask);
-> +	else
-> +		return __alloc_pages_nodemask(gfp_mask, order,
->  				preferred_nid, nodemask);
-> -
-> -	if (new_page && PageTransHuge(page))
-> -		prep_transhuge_page(new_page);
->  
->  	return new_page;
+>  static inline void set_compound_page_dtor(struct page *page,
+>  		enum compound_dtor_id compound_dtor)
+> @@ -639,7 +639,7 @@ static inline void set_compound_page_dtor(struct page *page,
+>  	page[1].compound_dtor = compound_dtor;
 >  }
+>  
+> -static inline compound_page_dtor *get_compound_page_dtor(struct page *page)
+> +static inline compound_page_dtor_t *get_compound_page_dtor(struct page *page)
+>  {
+>  	VM_BUG_ON_PAGE(page[1].compound_dtor >= NR_COMPOUND_DTORS, page);
+>  	return compound_page_dtors[page[1].compound_dtor];
+> @@ -657,7 +657,7 @@ static inline void set_compound_order(struct page *page, unsigned int order)
+>  	page[1].compound_order = order;
+>  }
+>  
+> -void free_compound_page(struct page *page);
+> +void compound_page_dtor(struct page *page);
+>  
+>  #ifdef CONFIG_MMU
+>  /*
 > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 269b5df..e267488 100644
+> index e267488..a01125b 100644
 > --- a/mm/huge_memory.c
 > +++ b/mm/huge_memory.c
-> @@ -490,7 +490,7 @@ static inline struct list_head *page_deferred_list(struct page *page)
->  	return (struct list_head *)&page[2].mapping;
+> @@ -2717,7 +2717,7 @@ fail:		if (mapping)
+>  	return ret;
 >  }
 >  
-> -void prep_transhuge_page(struct page *page)
-> +static void prep_transhuge_page(struct page *page)
+> -void free_transhuge_page(struct page *page)
+> +void transhuge_page_dtor(struct page *page)
+>  {
+>  	struct pglist_data *pgdata = NODE_DATA(page_to_nid(page));
+>  	unsigned long flags;
+> @@ -2728,7 +2728,7 @@ void free_transhuge_page(struct page *page)
+>  		list_del(page_deferred_list(page));
+>  	}
+>  	spin_unlock_irqrestore(&pgdata->split_queue_lock, flags);
+> -	free_compound_page(page);
+> +	compound_page_dtor(page);
+>  }
+>  
+>  void deferred_split_huge_page(struct page *page)
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 424b0ef..1af2c4e7 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1250,7 +1250,7 @@ static void clear_page_huge_active(struct page *page)
+>  	ClearPagePrivate(&page[1]);
+>  }
+>  
+> -void free_huge_page(struct page *page)
+> +void huge_page_dtor(struct page *page)
 >  {
 >  	/*
->  	 * we use page->mapping and page->indexlru in second tail page
-> @@ -501,6 +501,45 @@ void prep_transhuge_page(struct page *page)
->  	set_compound_page_dtor(page, TRANSHUGE_PAGE_DTOR);
+>  	 * Can't pass hstate in here because it is called from the
+> @@ -1363,7 +1363,7 @@ int PageHeadHuge(struct page *page_head)
+>  	if (!PageHead(page_head))
+>  		return 0;
+>  
+> -	return get_compound_page_dtor(page_head) == free_huge_page;
+> +	return get_compound_page_dtor(page_head) == huge_page_dtor;
 >  }
 >  
-> +struct page *alloc_transhuge_page_vma(gfp_t gfp_mask,
-> +		struct vm_area_struct *vma, unsigned long addr)
-> +{
-> +	struct page *page;
-> +
-> +	page = alloc_pages_vma(gfp_mask | __GFP_COMP, HPAGE_PMD_ORDER,
-> +			       vma, addr, numa_node_id(), true);
-> +	if (unlikely(!page))
-> +		return NULL;
-> +	prep_transhuge_page(page);
-> +	return page;
-> +}
-> +
-> +struct page *alloc_transhuge_page_nodemask(gfp_t gfp_mask,
-> +		int preferred_nid, nodemask_t *nmask)
-> +{
-> +	struct page *page;
-> +
-> +	page = __alloc_pages_nodemask(gfp_mask | __GFP_COMP, HPAGE_PMD_ORDER,
-> +				      preferred_nid, nmask);
-> +	if (unlikely(!page))
-> +		return NULL;
-> +	prep_transhuge_page(page);
-> +	return page;
-> +}
-> +
-> +struct page *alloc_transhuge_page(gfp_t gfp_mask)
-> +{
-> +	struct page *page;
-> +
-> +	VM_BUG_ON(!(gfp_mask & __GFP_COMP));
-> +
-> +	page = alloc_pages(gfp_mask | __GFP_COMP, HPAGE_PMD_ORDER);
-> +	if (unlikely(!page))
-> +		return NULL;
-> +	prep_transhuge_page(page);
-> +	return page;
-> +}
-> +
->  unsigned long __thp_get_unmapped_area(struct file *filp, unsigned long len,
->  		loff_t off, unsigned long flags, unsigned long size)
+>  pgoff_t __basepage_index(struct page *page)
+> @@ -1932,11 +1932,11 @@ static long vma_add_reservation(struct hstate *h,
+>   * specific error paths, a huge page was allocated (via alloc_huge_page)
+>   * and is about to be freed.  If a reservation for the page existed,
+>   * alloc_huge_page would have consumed the reservation and set PagePrivate
+> - * in the newly allocated page.  When the page is freed via free_huge_page,
+> + * in the newly allocated page.  When the page is freed via huge_page_dtor,
+>   * the global reservation count will be incremented if PagePrivate is set.
+> - * However, free_huge_page can not adjust the reserve map.  Adjust the
+> + * However, huge_page_dtor can not adjust the reserve map.  Adjust the
+>   * reserve map here to be consistent with global reserve count adjustments
+> - * to be made by free_huge_page.
+> + * to be made by huge_page_dtor.
+>   */
+>  static void restore_reserve_on_error(struct hstate *h,
+>  			struct vm_area_struct *vma, unsigned long address,
+> @@ -1950,7 +1950,7 @@ static void restore_reserve_on_error(struct hstate *h,
+>  			 * Rare out of memory condition in reserve map
+>  			 * manipulation.  Clear PagePrivate so that
+>  			 * global reserve count will not be incremented
+> -			 * by free_huge_page.  This will make it appear
+> +			 * by huge_page_dtor.  This will make it appear
+>  			 * as though the reservation for this page was
+>  			 * consumed.  This may prevent the task from
+>  			 * faulting in the page at a later time.  This
+> @@ -2304,7 +2304,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
+>  	while (count > persistent_huge_pages(h)) {
+>  		/*
+>  		 * If this allocation races such that we no longer need the
+> -		 * page, free_huge_page will handle it by freeing the page
+> +		 * page, huge_page_dtor will handle it by freeing the page
+>  		 * and reducing the surplus.
+>  		 */
+>  		spin_unlock(&hugetlb_lock);
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 77e4d3c..b31205c 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -248,14 +248,14 @@ char * const migratetype_names[MIGRATE_TYPES] = {
+>  #endif
+>  };
+>  
+> -compound_page_dtor * const compound_page_dtors[] = {
+> +compound_page_dtor_t * const compound_page_dtors[] = {
+>  	NULL,
+> -	free_compound_page,
+> +	compound_page_dtor,
+>  #ifdef CONFIG_HUGETLB_PAGE
+> -	free_huge_page,
+> +	huge_page_dtor,
+>  #endif
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> -	free_transhuge_page,
+> +	transhuge_page_dtor,
+>  #endif
+>  };
+>  
+> @@ -586,7 +586,7 @@ static void bad_page(struct page *page, const char *reason,
+>   * This usage means that zero-order pages may not be compound.
+>   */
+>  
+> -void free_compound_page(struct page *page)
+> +void compound_page_dtor(struct page *page)
 >  {
-> @@ -719,12 +758,11 @@ int do_huge_pmd_anonymous_page(struct vm_fault *vmf)
->  		return ret;
->  	}
->  	gfp = alloc_hugepage_direct_gfpmask(vma);
-> -	page = alloc_hugepage_vma(gfp, vma, haddr, HPAGE_PMD_ORDER);
-> +	page = alloc_transhuge_page_vma(gfp, vma, haddr);
->  	if (unlikely(!page)) {
->  		count_vm_event(THP_FAULT_FALLBACK);
->  		return VM_FAULT_FALLBACK;
->  	}
-> -	prep_transhuge_page(page);
->  	return __do_huge_pmd_anonymous_page(vmf, page, gfp);
+>  	__free_pages_ok(page, compound_order(page));
 >  }
+> diff --git a/mm/swap.c b/mm/swap.c
+> index a77d68f..8f98caf 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -81,7 +81,7 @@ static void __put_single_page(struct page *page)
 >  
-> @@ -1288,13 +1326,11 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
->  	if (transparent_hugepage_enabled(vma) &&
->  	    !transparent_hugepage_debug_cow()) {
->  		huge_gfp = alloc_hugepage_direct_gfpmask(vma);
-> -		new_page = alloc_hugepage_vma(huge_gfp, vma, haddr, HPAGE_PMD_ORDER);
-> +		new_page = alloc_transhuge_page_vma(huge_gfp, vma, haddr);
->  	} else
->  		new_page = NULL;
->  
-> -	if (likely(new_page)) {
-> -		prep_transhuge_page(new_page);
-> -	} else {
-> +	if (unlikely(!new_page)) {
->  		if (!page) {
->  			split_huge_pmd(vma, vmf->pmd, vmf->address);
->  			ret |= VM_FAULT_FALLBACK;
-> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-> index c01f177..d17a694 100644
-> --- a/mm/khugepaged.c
-> +++ b/mm/khugepaged.c
-> @@ -745,14 +745,13 @@ khugepaged_alloc_page(struct page **hpage, gfp_t gfp, int node)
+>  static void __put_compound_page(struct page *page)
 >  {
->  	VM_BUG_ON_PAGE(*hpage, *hpage);
+> -	compound_page_dtor *dtor;
+> +	compound_page_dtor_t *dtor;
 >  
-> -	*hpage = __alloc_pages_node(node, gfp, HPAGE_PMD_ORDER);
-> +	*hpage = alloc_transhuge_page_node(node, gfp);
->  	if (unlikely(!*hpage)) {
->  		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
->  		*hpage = ERR_PTR(-ENOMEM);
->  		return NULL;
->  	}
->  
-> -	prep_transhuge_page(*hpage);
->  	count_vm_event(THP_COLLAPSE_ALLOC);
->  	return *hpage;
->  }
-> @@ -764,13 +763,7 @@ static int khugepaged_find_target_node(void)
->  
->  static inline struct page *alloc_khugepaged_hugepage(void)
->  {
-> -	struct page *page;
-> -
-> -	page = alloc_pages(alloc_hugepage_khugepaged_gfpmask(),
-> -			   HPAGE_PMD_ORDER);
-> -	if (page)
-> -		prep_transhuge_page(page);
-> -	return page;
-> +	return alloc_transhuge_page(alloc_hugepage_khugepaged_gfpmask());
->  }
->  
->  static struct page *khugepaged_alloc_hugepage(bool *wait)
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index a2af6d5..aa24285 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -949,12 +949,10 @@ static struct page *new_node_page(struct page *page, unsigned long node, int **x
->  	else if (thp_migration_supported() && PageTransHuge(page)) {
->  		struct page *thp;
->  
-> -		thp = alloc_pages_node(node,
-> -			(GFP_TRANSHUGE | __GFP_THISNODE),
-> -			HPAGE_PMD_ORDER);
-> +		thp = alloc_transhuge_page_node(node,
-> +			(GFP_TRANSHUGE | __GFP_THISNODE));
->  		if (!thp)
->  			return NULL;
-> -		prep_transhuge_page(thp);
->  		return thp;
->  	} else
->  		return __alloc_pages_node(node, GFP_HIGHUSER_MOVABLE |
-> @@ -1125,11 +1123,9 @@ static struct page *new_page(struct page *page, unsigned long start, int **x)
->  	} else if (thp_migration_supported() && PageTransHuge(page)) {
->  		struct page *thp;
->  
-> -		thp = alloc_hugepage_vma(GFP_TRANSHUGE, vma, address,
-> -					 HPAGE_PMD_ORDER);
-> +		thp = alloc_transhuge_page_vma(GFP_TRANSHUGE, vma, address);
->  		if (!thp)
->  			return NULL;
-> -		prep_transhuge_page(thp);
->  		return thp;
->  	}
 >  	/*
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index e00814c..7f0486f 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -1472,12 +1472,10 @@ static struct page *new_page_node(struct page *p, unsigned long private,
->  	else if (thp_migration_supported() && PageTransHuge(p)) {
->  		struct page *thp;
->  
-> -		thp = alloc_pages_node(pm->node,
-> -			(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM,
-> -			HPAGE_PMD_ORDER);
-> +		thp = alloc_transhuge_page_node(pm->node,
-> +			(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM);
->  		if (!thp)
->  			return NULL;
-> -		prep_transhuge_page(thp);
->  		return thp;
->  	} else
->  		return __alloc_pages_node(pm->node,
-> @@ -2017,12 +2015,10 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
->  	if (numamigrate_update_ratelimit(pgdat, HPAGE_PMD_NR))
->  		goto out_dropref;
->  
-> -	new_page = alloc_pages_node(node,
-> -		(GFP_TRANSHUGE_LIGHT | __GFP_THISNODE),
-> -		HPAGE_PMD_ORDER);
-> +	new_page = alloc_transhuge_page_node(node,
-> +			(GFP_TRANSHUGE_LIGHT | __GFP_THISNODE));
->  	if (!new_page)
->  		goto out_fail;
-> -	prep_transhuge_page(new_page);
->  
->  	isolated = numamigrate_isolate_page(pgdat, page);
->  	if (!isolated) {
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 07a1d22..52468f7 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -1444,11 +1444,9 @@ static struct page *shmem_alloc_hugepage(gfp_t gfp,
->  	rcu_read_unlock();
->  
->  	shmem_pseudo_vma_init(&pvma, info, hindex);
-> -	page = alloc_pages_vma(gfp | __GFP_COMP | __GFP_NORETRY | __GFP_NOWARN,
-> -			HPAGE_PMD_ORDER, &pvma, 0, numa_node_id(), true);
-> +	gfp |= __GFP_COMP | __GFP_NORETRY | __GFP_NOWARN;
-> +	page = alloc_transhuge_page_vma(gfp, &pvma, 0);
->  	shmem_pseudo_vma_destroy(&pvma);
-> -	if (page)
-> -		prep_transhuge_page(page);
->  	return page;
->  }
->  
+>  	 * __page_cache_release() is supposed to be called for thp, not for
+> diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
+> index 8119270..91d9045 100644
+> --- a/mm/userfaultfd.c
+> +++ b/mm/userfaultfd.c
+> @@ -323,7 +323,7 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
+>  		 * map of a private mapping, the map was modified to indicate
+>  		 * the reservation was consumed when the page was allocated.
+>  		 * We clear the PagePrivate flag now so that the global
+> -		 * reserve count will not be incremented in free_huge_page.
+> +		 * reserve count will not be incremented in huge_page_dtor.
+>  		 * The reservation map will still indicate the reservation
+>  		 * was consumed and possibly prevent later page allocation.
+>  		 * This is better than leaking a global reservation.  If no
 > -- 
 > 2.7.4
 > 
