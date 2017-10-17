@@ -1,123 +1,360 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 557C66B0038
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 05:47:51 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id p54so1357643qtc.5
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 02:47:51 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id q196si2196198qke.194.2017.10.17.02.47.50
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 80D966B0038
+	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 06:20:56 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id r18so1193491pgu.9
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 03:20:56 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 85si4608402pfz.417.2017.10.17.03.20.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Oct 2017 02:47:50 -0700 (PDT)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9H9lh8L071338
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 05:47:49 -0400
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2dna1sdngd-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 05:47:49 -0400
-Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 17 Oct 2017 10:47:47 +0100
-Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v9H9lh4p18546816
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 09:47:44 GMT
-Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
-	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v9H9lg2n032568
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 20:47:42 +1100
-Subject: Re: [PATCH -mm] mm, pagemap: Fix soft dirty marking for PMD migration
- entry
-References: <20171017081818.31795-1-ying.huang@intel.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Tue, 17 Oct 2017 15:17:38 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 17 Oct 2017 03:20:55 -0700 (PDT)
+Date: Tue, 17 Oct 2017 12:20:52 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm, thp: introduce dedicated transparent huge page
+ allocation interfaces
+Message-ID: <20171017102052.ltc2lb6r7kloazgs@dhcp22.suse.cz>
+References: <1508145557-9944-1-git-send-email-changbin.du@intel.com>
+ <1508145557-9944-2-git-send-email-changbin.du@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20171017081818.31795-1-ying.huang@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Message-Id: <8fd6b1d8-6dc3-29a8-0377-e4323b74d6af@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1508145557-9944-2-git-send-email-changbin.du@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Arnd Bergmann <arnd@arndb.de>, Hugh Dickins <hughd@google.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Daniel Colascione <dancol@google.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: changbin.du@intel.com
+Cc: akpm@linux-foundation.org, corbet@lwn.net, hughd@google.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 10/17/2017 01:48 PM, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
+[CC Kirill]
+
+On Mon 16-10-17 17:19:16, changbin.du@intel.com wrote:
+> From: Changbin Du <changbin.du@intel.com>
 > 
-> Now, when the page table is walked in the implementation of
-> /proc/<pid>/pagemap, pmd_soft_dirty() is used for both the PMD huge
-> page map and the PMD migration entries.  That is wrong,
-> pmd_swp_soft_dirty() should be used for the PMD migration entries
-> instead because the different page table entry flag is used.
-
-Yeah, different flags can be used on various archs to represent
-mapped a PMD and a migration PMD entry. Sounds good.
-
+> This patch introduced 4 new interfaces to allocate a prepared
+> transparent huge page.
+>   - alloc_transhuge_page_vma
+>   - alloc_transhuge_page_nodemask
+>   - alloc_transhuge_page_node
+>   - alloc_transhuge_page
 > 
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Arnd Bergmann <arnd@arndb.de>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
-> Cc: Daniel Colascione <dancol@google.com>
-> Cc: Zi Yan <zi.yan@cs.rutgers.edu>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> The aim is to remove duplicated code and simplify transparent
+> huge page allocation. These are similar to alloc_hugepage_xxx
+> which are for hugetlbfs pages. This patch does below changes:
+>   - define alloc_transhuge_page_xxx interfaces
+>   - apply them to all existing code
+>   - declare prep_transhuge_page as static since no others use it
+>   - remove alloc_hugepage_vma definition since it no longer has users
+
+So what exactly is the advantage of the new API? The diffstat doesn't
+sound very convincing to me.
+
+> Signed-off-by: Changbin Du <changbin.du@intel.com>
 > ---
->  fs/proc/task_mmu.c | 6 +++++-
->  1 file changed, 5 insertions(+), 1 deletion(-)
+>  include/linux/gfp.h     |  4 ----
+>  include/linux/huge_mm.h | 13 ++++++++++++-
+>  include/linux/migrate.h | 14 +++++---------
+>  mm/huge_memory.c        | 50 ++++++++++++++++++++++++++++++++++++++++++-------
+>  mm/khugepaged.c         | 11 ++---------
+>  mm/mempolicy.c          | 10 +++-------
+>  mm/migrate.c            | 12 ++++--------
+>  mm/shmem.c              |  6 ++----
+>  8 files changed, 71 insertions(+), 49 deletions(-)
 > 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 2593a0c609d7..01aad772f8db 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -1311,13 +1311,15 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
->  		pmd_t pmd = *pmdp;
->  		struct page *page = NULL;
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index f780718..855c72e 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -507,15 +507,11 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
+>  extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
+>  			struct vm_area_struct *vma, unsigned long addr,
+>  			int node, bool hugepage);
+> -#define alloc_hugepage_vma(gfp_mask, vma, addr, order)	\
+> -	alloc_pages_vma(gfp_mask, order, vma, addr, numa_node_id(), true)
+>  #else
+>  #define alloc_pages(gfp_mask, order) \
+>  		alloc_pages_node(numa_node_id(), gfp_mask, order)
+>  #define alloc_pages_vma(gfp_mask, order, vma, addr, node, false)\
+>  	alloc_pages(gfp_mask, order)
+> -#define alloc_hugepage_vma(gfp_mask, vma, addr, order)	\
+> -	alloc_pages(gfp_mask, order)
+>  #endif
+>  #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
+>  #define alloc_page_vma(gfp_mask, vma, addr)			\
+> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+> index 14bc21c..1dd2c33 100644
+> --- a/include/linux/huge_mm.h
+> +++ b/include/linux/huge_mm.h
+> @@ -130,9 +130,20 @@ extern unsigned long thp_get_unmapped_area(struct file *filp,
+>  		unsigned long addr, unsigned long len, unsigned long pgoff,
+>  		unsigned long flags);
 >  
-> -		if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(pmd))
-> +		if (vma->vm_flags & VM_SOFTDIRTY)
->  			flags |= PM_SOFT_DIRTY;
+> -extern void prep_transhuge_page(struct page *page);
+>  extern void free_transhuge_page(struct page *page);
 >  
->  		if (pmd_present(pmd)) {
->  			page = pmd_page(pmd);
+> +struct page *alloc_transhuge_page_vma(gfp_t gfp_mask,
+> +		struct vm_area_struct *vma, unsigned long addr);
+> +struct page *alloc_transhuge_page_nodemask(gfp_t gfp_mask,
+> +		int preferred_nid, nodemask_t *nmask);
+> +
+> +static inline struct page *alloc_transhuge_page_node(int nid, gfp_t gfp_mask)
+> +{
+> +	return alloc_transhuge_page_nodemask(gfp_mask, nid, NULL);
+> +}
+> +
+> +struct page *alloc_transhuge_page(gfp_t gfp_mask);
+> +
+>  bool can_split_huge_page(struct page *page, int *pextra_pins);
+>  int split_huge_page_to_list(struct page *page, struct list_head *list);
+>  static inline int split_huge_page(struct page *page)
+> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+> index 643c7ae..70a00f3 100644
+> --- a/include/linux/migrate.h
+> +++ b/include/linux/migrate.h
+> @@ -42,19 +42,15 @@ static inline struct page *new_page_nodemask(struct page *page,
+>  		return alloc_huge_page_nodemask(page_hstate(compound_head(page)),
+>  				preferred_nid, nodemask);
 >  
->  			flags |= PM_PRESENT;
-> +			if (pmd_soft_dirty(pmd))
-> +				flags |= PM_SOFT_DIRTY;
->  			if (pm->show_pfn)
->  				frame = pmd_pfn(pmd) +
->  					((addr & ~PMD_MASK) >> PAGE_SHIFT);
-> @@ -1329,6 +1331,8 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
->  			frame = swp_type(entry) |
->  				(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
->  			flags |= PM_SWAP;
-> +			if (pmd_swp_soft_dirty(pmd))
-> +				flags |= PM_SOFT_DIRTY;
+> -	if (thp_migration_supported() && PageTransHuge(page)) {
+> -		order = HPAGE_PMD_ORDER;
+> -		gfp_mask |= GFP_TRANSHUGE;
+> -	}
+> -
+>  	if (PageHighMem(page) || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
+>  		gfp_mask |= __GFP_HIGHMEM;
+>  
+> -	new_page = __alloc_pages_nodemask(gfp_mask, order,
+> +	if (thp_migration_supported() && PageTransHuge(page))
+> +		return alloc_transhuge_page_nodemask(gfp_mask | GFP_TRANSHUGE,
+> +				preferred_nid, nodemask);
+> +	else
+> +		return __alloc_pages_nodemask(gfp_mask, order,
+>  				preferred_nid, nodemask);
+> -
+> -	if (new_page && PageTransHuge(page))
+> -		prep_transhuge_page(new_page);
+>  
+>  	return new_page;
+>  }
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 269b5df..e267488 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -490,7 +490,7 @@ static inline struct list_head *page_deferred_list(struct page *page)
+>  	return (struct list_head *)&page[2].mapping;
+>  }
+>  
+> -void prep_transhuge_page(struct page *page)
+> +static void prep_transhuge_page(struct page *page)
+>  {
+>  	/*
+>  	 * we use page->mapping and page->indexlru in second tail page
+> @@ -501,6 +501,45 @@ void prep_transhuge_page(struct page *page)
+>  	set_compound_page_dtor(page, TRANSHUGE_PAGE_DTOR);
+>  }
+>  
+> +struct page *alloc_transhuge_page_vma(gfp_t gfp_mask,
+> +		struct vm_area_struct *vma, unsigned long addr)
+> +{
+> +	struct page *page;
+> +
+> +	page = alloc_pages_vma(gfp_mask | __GFP_COMP, HPAGE_PMD_ORDER,
+> +			       vma, addr, numa_node_id(), true);
+> +	if (unlikely(!page))
+> +		return NULL;
+> +	prep_transhuge_page(page);
+> +	return page;
+> +}
+> +
+> +struct page *alloc_transhuge_page_nodemask(gfp_t gfp_mask,
+> +		int preferred_nid, nodemask_t *nmask)
+> +{
+> +	struct page *page;
+> +
+> +	page = __alloc_pages_nodemask(gfp_mask | __GFP_COMP, HPAGE_PMD_ORDER,
+> +				      preferred_nid, nmask);
+> +	if (unlikely(!page))
+> +		return NULL;
+> +	prep_transhuge_page(page);
+> +	return page;
+> +}
+> +
+> +struct page *alloc_transhuge_page(gfp_t gfp_mask)
+> +{
+> +	struct page *page;
+> +
+> +	VM_BUG_ON(!(gfp_mask & __GFP_COMP));
+> +
+> +	page = alloc_pages(gfp_mask | __GFP_COMP, HPAGE_PMD_ORDER);
+> +	if (unlikely(!page))
+> +		return NULL;
+> +	prep_transhuge_page(page);
+> +	return page;
+> +}
+> +
+>  unsigned long __thp_get_unmapped_area(struct file *filp, unsigned long len,
+>  		loff_t off, unsigned long flags, unsigned long size)
+>  {
+> @@ -719,12 +758,11 @@ int do_huge_pmd_anonymous_page(struct vm_fault *vmf)
+>  		return ret;
+>  	}
+>  	gfp = alloc_hugepage_direct_gfpmask(vma);
+> -	page = alloc_hugepage_vma(gfp, vma, haddr, HPAGE_PMD_ORDER);
+> +	page = alloc_transhuge_page_vma(gfp, vma, haddr);
+>  	if (unlikely(!page)) {
+>  		count_vm_event(THP_FAULT_FALLBACK);
+>  		return VM_FAULT_FALLBACK;
+>  	}
+> -	prep_transhuge_page(page);
+>  	return __do_huge_pmd_anonymous_page(vmf, page, gfp);
+>  }
+>  
+> @@ -1288,13 +1326,11 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
+>  	if (transparent_hugepage_enabled(vma) &&
+>  	    !transparent_hugepage_debug_cow()) {
+>  		huge_gfp = alloc_hugepage_direct_gfpmask(vma);
+> -		new_page = alloc_hugepage_vma(huge_gfp, vma, haddr, HPAGE_PMD_ORDER);
+> +		new_page = alloc_transhuge_page_vma(huge_gfp, vma, haddr);
+>  	} else
+>  		new_page = NULL;
+>  
+> -	if (likely(new_page)) {
+> -		prep_transhuge_page(new_page);
+> -	} else {
+> +	if (unlikely(!new_page)) {
+>  		if (!page) {
+>  			split_huge_pmd(vma, vmf->pmd, vmf->address);
+>  			ret |= VM_FAULT_FALLBACK;
+> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> index c01f177..d17a694 100644
+> --- a/mm/khugepaged.c
+> +++ b/mm/khugepaged.c
+> @@ -745,14 +745,13 @@ khugepaged_alloc_page(struct page **hpage, gfp_t gfp, int node)
+>  {
+>  	VM_BUG_ON_PAGE(*hpage, *hpage);
+>  
+> -	*hpage = __alloc_pages_node(node, gfp, HPAGE_PMD_ORDER);
+> +	*hpage = alloc_transhuge_page_node(node, gfp);
+>  	if (unlikely(!*hpage)) {
+>  		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
+>  		*hpage = ERR_PTR(-ENOMEM);
+>  		return NULL;
+>  	}
+>  
+> -	prep_transhuge_page(*hpage);
+>  	count_vm_event(THP_COLLAPSE_ALLOC);
+>  	return *hpage;
+>  }
+> @@ -764,13 +763,7 @@ static int khugepaged_find_target_node(void)
+>  
+>  static inline struct page *alloc_khugepaged_hugepage(void)
+>  {
+> -	struct page *page;
+> -
+> -	page = alloc_pages(alloc_hugepage_khugepaged_gfpmask(),
+> -			   HPAGE_PMD_ORDER);
+> -	if (page)
+> -		prep_transhuge_page(page);
+> -	return page;
+> +	return alloc_transhuge_page(alloc_hugepage_khugepaged_gfpmask());
+>  }
+>  
+>  static struct page *khugepaged_alloc_hugepage(bool *wait)
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index a2af6d5..aa24285 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -949,12 +949,10 @@ static struct page *new_node_page(struct page *page, unsigned long node, int **x
+>  	else if (thp_migration_supported() && PageTransHuge(page)) {
+>  		struct page *thp;
+>  
+> -		thp = alloc_pages_node(node,
+> -			(GFP_TRANSHUGE | __GFP_THISNODE),
+> -			HPAGE_PMD_ORDER);
+> +		thp = alloc_transhuge_page_node(node,
+> +			(GFP_TRANSHUGE | __GFP_THISNODE));
+>  		if (!thp)
+>  			return NULL;
+> -		prep_transhuge_page(thp);
+>  		return thp;
+>  	} else
+>  		return __alloc_pages_node(node, GFP_HIGHUSER_MOVABLE |
+> @@ -1125,11 +1123,9 @@ static struct page *new_page(struct page *page, unsigned long start, int **x)
+>  	} else if (thp_migration_supported() && PageTransHuge(page)) {
+>  		struct page *thp;
+>  
+> -		thp = alloc_hugepage_vma(GFP_TRANSHUGE, vma, address,
+> -					 HPAGE_PMD_ORDER);
+> +		thp = alloc_transhuge_page_vma(GFP_TRANSHUGE, vma, address);
+>  		if (!thp)
+>  			return NULL;
+> -		prep_transhuge_page(thp);
+>  		return thp;
+>  	}
+>  	/*
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index e00814c..7f0486f 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -1472,12 +1472,10 @@ static struct page *new_page_node(struct page *p, unsigned long private,
+>  	else if (thp_migration_supported() && PageTransHuge(p)) {
+>  		struct page *thp;
+>  
+> -		thp = alloc_pages_node(pm->node,
+> -			(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM,
+> -			HPAGE_PMD_ORDER);
+> +		thp = alloc_transhuge_page_node(pm->node,
+> +			(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM);
+>  		if (!thp)
+>  			return NULL;
+> -		prep_transhuge_page(thp);
+>  		return thp;
+>  	} else
+>  		return __alloc_pages_node(pm->node,
+> @@ -2017,12 +2015,10 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+>  	if (numamigrate_update_ratelimit(pgdat, HPAGE_PMD_NR))
+>  		goto out_dropref;
+>  
+> -	new_page = alloc_pages_node(node,
+> -		(GFP_TRANSHUGE_LIGHT | __GFP_THISNODE),
+> -		HPAGE_PMD_ORDER);
+> +	new_page = alloc_transhuge_page_node(node,
+> +			(GFP_TRANSHUGE_LIGHT | __GFP_THISNODE));
+>  	if (!new_page)
+>  		goto out_fail;
+> -	prep_transhuge_page(new_page);
+>  
+>  	isolated = numamigrate_isolate_page(pgdat, page);
+>  	if (!isolated) {
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 07a1d22..52468f7 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -1444,11 +1444,9 @@ static struct page *shmem_alloc_hugepage(gfp_t gfp,
+>  	rcu_read_unlock();
+>  
+>  	shmem_pseudo_vma_init(&pvma, info, hindex);
+> -	page = alloc_pages_vma(gfp | __GFP_COMP | __GFP_NORETRY | __GFP_NOWARN,
+> -			HPAGE_PMD_ORDER, &pvma, 0, numa_node_id(), true);
+> +	gfp |= __GFP_COMP | __GFP_NORETRY | __GFP_NOWARN;
+> +	page = alloc_transhuge_page_vma(gfp, &pvma, 0);
+>  	shmem_pseudo_vma_destroy(&pvma);
+> -	if (page)
+> -		prep_transhuge_page(page);
+>  	return page;
+>  }
+>  
+> -- 
+> 2.7.4
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Though I was initially skeptical about whether this will compile
-on POWER because of lack of a pmd_swp_soft_dirty() definition
-but it turns out we have a generic one to fallback on as we dont
-define ARCH_ENABLE_THP_MIGRATION yet.
-
-#ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
-#ifndef CONFIG_ARCH_ENABLE_THP_MIGRATION
-static inline pmd_t pmd_swp_mksoft_dirty(pmd_t pmd)
-{
-	return pmd;
-}
-
-static inline int pmd_swp_soft_dirty(pmd_t pmd)
-{
-	return 0;
-}
-
-static inline pmd_t pmd_swp_clear_soft_dirty(pmd_t pmd)
-{
-	return pmd;
-}
-#endif
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
