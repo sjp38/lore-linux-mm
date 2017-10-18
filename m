@@ -1,126 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 79C826B0069
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 05:13:38 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id z80so3137516pff.11
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 02:13:38 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id z14si6668452pgc.589.2017.10.18.02.13.36
-        for <linux-mm@kvack.org>;
-        Wed, 18 Oct 2017 02:13:37 -0700 (PDT)
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH 1/2] lockdep: Introduce CROSSRELEASE_STACK_TRACE and make it not unwind as default
-Date: Wed, 18 Oct 2017 18:13:25 +0900
-Message-Id: <1508318006-2090-1-git-send-email-byungchul.park@lge.com>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CF3016B0069
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 05:38:33 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id i196so3738656pgd.2
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 02:38:33 -0700 (PDT)
+Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id u16si2438494pfl.163.2017.10.18.02.38.32
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 18 Oct 2017 02:38:32 -0700 (PDT)
+Subject: Re: [PATCH] mm/mempolicy: add node_empty check in SYSC_migrate_pages
+References: <1508290660-60619-1-git-send-email-xieyisheng1@huawei.com>
+ <7086c6ea-b721-684e-fe3d-ff59ae1d78ed@suse.cz>
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Message-ID: <20aac66a-7252-947c-355b-6da4be671dcf@huawei.com>
+Date: Wed, 18 Oct 2017 17:34:15 +0800
+MIME-Version: 1.0
+In-Reply-To: <7086c6ea-b721-684e-fe3d-ff59ae1d78ed@suse.cz>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peterz@infradead.org, mingo@kernel.org
-Cc: tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@lge.com
+To: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, tanxiaojun@huawei.com, Linux API <linux-api@vger.kernel.org>
 
-Johan Hovold reported a performance regression by crossrelease like:
+Hi Vlastimil,
 
-> Boot time (from "Linux version" to login prompt) had in fact doubled
-> since 4.13 where it took 17 seconds (with my current config) compared to
-> the 35 seconds I now see with 4.14-rc4.
->
-> I quick bisect pointed to lockdep and specifically the following commit:
->
-> 	28a903f63ec0 ("locking/lockdep: Handle non(or multi)-acquisition
-> 	               of a crosslock")
->
-> which I've verified is the commit which doubled the boot time (compared
-> to 28a903f63ec0^) (added by lockdep crossrelease series [1]).
+Thanks for your comment!
+On 2017/10/18 15:54, Vlastimil Babka wrote:
+> +CC linux-api
+> 
+> On 10/18/2017 03:37 AM, Yisheng Xie wrote:
+>> As Xiaojun reported the ltp of migrate_pages01 will failed on ARCH arm64
+>> system whoes has 4 nodes[0...3], all have memory and CONFIG_NODES_SHIFT=2:
+>>
+>> migrate_pages01    0  TINFO  :  test_invalid_nodes
+>> migrate_pages01   14  TFAIL  :  migrate_pages_common.c:45: unexpected failure - returned value = 0, expected: -1
+>> migrate_pages01   15  TFAIL  :  migrate_pages_common.c:55: call succeeded unexpectedly
+>>
+>> In this case the test_invalid_nodes of migrate_pages01 will call:
+>> SYSC_migrate_pages as:
+>>
+>> migrate_pages(0, , {0x0000000000000001}, 64, , {0x0000000000000010}, 64) = 0
+> 
+> is 64 here the maxnode parameter of migrate_pages() ?
 
-Currently crossrelease performs unwind on every acquisition. But, that
-overloads systems too much. So this patch makes unwind optional and set
-it to N as default. Instead, it records only acquire_ip normally. Of
-course, unwind is sometimes required for full analysis. In that case, we
-can set CROSSRELEASE_STACK_TRACE to Y and use it.
+Yes, I have print it in the kernel.
 
-In my qemu ubuntu machin (x86_64, 4 cores, 512M), the regression was
-fixed like, measuring timestamp of "Freeing unused kernel memory":
+> 
+>> For MAX_NUMNODES is 4, so 0x10 nodemask will tread as empty set which makes
+>> 	nodes_subset(*new, node_states[N_MEMORY])
+> 
+> According to manpage of migrate_pages:
+> 
+>         EINVAL The value specified by maxnode exceeds a kernel-imposed
+> limit.  Or, old_nodes or new_nodes specifies one or more node IDs that
+> are greater than the maximum supported node ID.  Or, none of the node
+> IDs specified by new_nodes are on-line and allowed by the process's
+> current cpuset context, or none of the specified nodes contain memory.
+> 
+> if maxnode parameter is 64, but MAX_NUMNODES ("kernel-imposed limit") is
+> 4, we should get EINVAL just because of that. I don't see such check in
+> the migrate_pages implementation though.
 
-1. No lockdep enabled
-   Average : 1.543353 secs
+Yes, that is what manpage said, but I have a question about this: if user
+set maxnode exceeds a kernel-imposed and try to access node without enough
+privilege, which errors values we should return ? For I have seen that all
+of the ltp migrate_pages01 will set maxnode to 64 in my system.
 
-2. Lockdep enabled
-   Average : 1.570806 secs
+> But then at least the
+> "new_nodes specifies one or more node IDs that are greater than the
+> maximum supported node ID" part should trigger here, because you have
+> node number 8 set in the new_nodes nodemask, right?
+> get_nodes() should be checking this according to comment:
+> 
+>         /* When the user specified more nodes than supported just check
+>            if the non supported part is all zero. */
+> 
+> Somehow that doesn't seem to work then? I think we should look into
+> this. Your patch may still be needed, or not, after that is resolved.
 
-3. Lockdep enabled + crossrelease enabled
-   Average : 1.870317 secs
+OK, I will check why get_nodes do not works as it comments.
 
-4. Lockdep enabled + crossrelease enabled + this patch applied
-   Average : 1.574143 secs
+Thanks
+Yisheng Xie
 
-Signed-off-by: Byungchul Park <byungchul.park@lge.com>
----
- include/linux/lockdep.h  |  4 ++++
- kernel/locking/lockdep.c |  5 +++++
- lib/Kconfig.debug        | 15 +++++++++++++++
- 3 files changed, 24 insertions(+)
-
-diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
-index bfa8e0b..70358b5 100644
---- a/include/linux/lockdep.h
-+++ b/include/linux/lockdep.h
-@@ -278,7 +278,11 @@ struct held_lock {
- };
- 
- #ifdef CONFIG_LOCKDEP_CROSSRELEASE
-+#ifdef CONFIG_CROSSRELEASE_STACK_TRACE
- #define MAX_XHLOCK_TRACE_ENTRIES 5
-+#else
-+#define MAX_XHLOCK_TRACE_ENTRIES 1
-+#endif
- 
- /*
-  * This is for keeping locks waiting for commit so that true dependencies
-diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index e36e652..5c2ddf2 100644
---- a/kernel/locking/lockdep.c
-+++ b/kernel/locking/lockdep.c
-@@ -4863,8 +4863,13 @@ static void add_xhlock(struct held_lock *hlock)
- 	xhlock->trace.nr_entries = 0;
- 	xhlock->trace.max_entries = MAX_XHLOCK_TRACE_ENTRIES;
- 	xhlock->trace.entries = xhlock->trace_entries;
-+#ifdef CONFIG_CROSSRELEASE_STACK_TRACE
- 	xhlock->trace.skip = 3;
- 	save_stack_trace(&xhlock->trace);
-+#else
-+	xhlock->trace.nr_entries = 1;
-+	xhlock->trace.entries[0] = hlock->acquire_ip;
-+#endif
- }
- 
- static inline int same_context_xhlock(struct hist_lock *xhlock)
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 3db9167..5be7bdd 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -1225,6 +1225,21 @@ config LOCKDEP_COMPLETIONS
- 	 A deadlock caused by wait_for_completion() and complete() can be
- 	 detected by lockdep using crossrelease feature.
- 
-+config CROSSRELEASE_STACK_TRACE
-+	bool "Record more than one entity of stack trace in crossrelease"
-+	depends on LOCKDEP_CROSSRELEASE
-+	default n
-+	help
-+	 Crossrelease feature needs to record stack traces for all
-+	 acquisitions for later use. And only acquire_ip is normally
-+	 recorded because the unwind operation is too expensive. However,
-+	 sometimes more than acquire_ip are required for full analysis.
-+	 In the case that we need to record more than one entity of
-+	 stack trace using unwind, this feature would be useful, with
-+	 taking more overhead.
-+
-+	 If unsure, say N.
-+
- config DEBUG_LOCKDEP
- 	bool "Lock dependency engine debugging"
- 	depends on DEBUG_KERNEL && LOCKDEP
--- 
-1.9.1
+> 
+>> return true, as empty set is subset of any set.
+>>
+>> So this is a common issue which also can happens in X86_64 system eg. 8 nodes[0..7],
+>> all with memory and CONFIG_NODES_SHIFT=3. Fix it by adding node_empty check in
+>> SYSC_migrate_pages.
+>>
+>> Reported-by: Tan Xiaojun <tanxiaojun@huawei.com>
+>> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+>> ---
+>>  mm/mempolicy.c | 5 +++++
+>>  1 file changed, 5 insertions(+)
+>>
+>> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+>> index a2af6d5..1dfd3cc 100644
+>> --- a/mm/mempolicy.c
+>> +++ b/mm/mempolicy.c
+>> @@ -1388,6 +1388,11 @@ static int copy_nodes_to_user(unsigned long __user *mask, unsigned long maxnode,
+>>  	if (err)
+>>  		goto out;
+>>  
+>> +	if (nodes_empty(*new)) {
+>> +		err = -EINVAL;
+>> +		goto out;
+>> +	}
+>> +
+>>  	/* Find the mm_struct */
+>>  	rcu_read_lock();
+>>  	task = pid ? find_task_by_vpid(pid) : current;
+>>
+> 
+> 
+> .
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
