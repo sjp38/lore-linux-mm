@@ -1,56 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 24E606B0033
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 04:32:36 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id j14so2111405wre.4
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 01:32:36 -0700 (PDT)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.130])
-        by mx.google.com with ESMTPS id b5si9047004wrf.514.2017.10.18.01.32.34
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A00CD6B0069
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 04:38:16 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l10so1835459wmg.5
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 01:38:16 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 195si7964410wmq.131.2017.10.18.01.38.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Oct 2017 01:32:35 -0700 (PDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: [PATCH] mm: mark mm_pgtables_bytes() argument as const
-Date: Wed, 18 Oct 2017 10:31:17 +0200
-Message-Id: <20171018083226.3124972-1-arnd@arndb.de>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 18 Oct 2017 01:38:15 -0700 (PDT)
+Subject: Re: [PATCH] mm, page_alloc: simplify hot/cold page handling in
+ rmqueue_bulk()
+References: <20171018073528.30982-1-vbabka@suse.cz>
+ <20171018080631.7ebimdlwek4inits@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <d1f1fb5d-6f93-9a9b-bde1-491f4ebf29e0@suse.cz>
+Date: Wed, 18 Oct 2017 10:38:14 +0200
+MIME-Version: 1.0
+In-Reply-To: <20171018080631.7ebimdlwek4inits@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Ross Zwisler <ross.zwisler@linux.intel.com>, Lorenzo Stoakes <lstoakes@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-The newly introduced mm_pgtables_bytes() function has two
-definitions with slightly different prototypes. The one
-used for CONFIG_MMU=n causes a compile-time warning:
+On 10/18/2017 10:06 AM, Mel Gorman wrote:
+> On Wed, Oct 18, 2017 at 09:35:28AM +0200, Vlastimil Babka wrote:
+>> The code for filling the pcplists in order determined by the cold flag also
+>> seems unnecessarily hard to follow. It's sufficient to either use list_add()
+>> or list_add_tail(), but the current code also updates the list head pointer
+>> in each step to the last added page, which then counterintuitively requires
+>> to switch the usage of list_add() and list_add_tail() to achieve the desired
+>> order, with no apparent benefit. This patch simplifies the code.
+>>
+>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> 
+> The "cold" treatment is dubious because almost everything that frees
+> considers the page "hot" which limits the usefulness of hot/cold in the
+> allocator. While I do not see a problem with your patch as such, please
+> take a look at "mm: Remove __GFP_COLD" in particular. The last 4 patches
+> in that series make a number of observations on how "cold" is treated in
+> the allocator.
 
-In file included from include/linux/kernel.h:13:0,
-                 from mm/debug.c:8:
-mm/debug.c: In function 'dump_mm':
-mm/debug.c:137:21: error: passing argument 1 of 'mm_pgtables_bytes' discards 'const' qualifier from pointer target type [-Werror=discarded-qualifiers]
-
-This changes it to be the same as the other one and avoid the
-warning.
-
-Fixes: 7444e6ee9cce ("mm: consolidate page table accounting")
-Signed-off-by: Arnd Bergmann <arnd@arndb.de>
----
- include/linux/mm.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index f7db128d2c59..2067dc7d03e7 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1677,7 +1677,7 @@ static inline void mm_dec_nr_ptes(struct mm_struct *mm)
- #else
- 
- static inline void mm_pgtables_bytes_init(struct mm_struct *mm) {}
--static inline unsigned long mm_pgtables_bytes(struct mm_struct *mm)
-+static inline unsigned long mm_pgtables_bytes(const struct mm_struct *mm)
- {
- 	return 0;
- }
--- 
-2.9.0
+Ah, somehow I managed to miss that series, thanks for pointing me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
