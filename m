@@ -1,245 +1,369 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E8EAD6B0069
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 06:54:27 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id g125so4297803oib.13
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:54:27 -0700 (PDT)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 00C966B0069
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 06:59:34 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id b192so3858373pga.14
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:59:34 -0700 (PDT)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id e64si3236339oia.360.2017.10.18.03.54.25
+        by mx.google.com with ESMTPS id q83si7309444pfj.99.2017.10.18.03.59.32
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Oct 2017 03:54:25 -0700 (PDT)
-Subject: Re: [PATCH] mm,page_alloc: softlockup on warn_alloc on
+        Wed, 18 Oct 2017 03:59:33 -0700 (PDT)
+Subject: Re: [PATCH] virtio: avoid possible OOM lockup at virtballoon_oom_notify()
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20170915095849.9927-1-yuwang668899@gmail.com>
-	<20170915143732.GA8397@cmpxchg.org>
-	<201709161312.CAJ73470.FSOHFMVJLFQOOt@I-love.SAKURA.ne.jp>
-	<201710112014.CCJ78649.tOMFSHOFVLOJFQ@I-love.SAKURA.ne.jp>
-In-Reply-To: <201710112014.CCJ78649.tOMFSHOFVLOJFQ@I-love.SAKURA.ne.jp>
-Message-Id: <201710181954.FHH51594.MtFOFLOQFSOHVJ@I-love.SAKURA.ne.jp>
-Date: Wed, 18 Oct 2017 19:54:04 +0900
+References: <201710140141.JFF26087.FLQHOFOOtFMVSJ@I-love.SAKURA.ne.jp>
+	<20171015030921-mutt-send-email-mst@kernel.org>
+	<201710151438.FAD86443.tOOFHVOSFQJLMF@I-love.SAKURA.ne.jp>
+	<201710161958.IAE65151.HFOLMQSFOVFJtO@I-love.SAKURA.ne.jp>
+	<20171016195317-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20171016195317-mutt-send-email-mst@kernel.org>
+Message-Id: <201710181959.ACI05296.JLMVQOOFtHSOFF@I-love.SAKURA.ne.jp>
+Date: Wed, 18 Oct 2017 19:59:23 +0900
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, akpm@linux-foundation.org
-Cc: hannes@cmpxchg.org, yuwang668899@gmail.com, linux-mm@kvack.org, chenggang.qcg@alibaba-inc.com, yuwang.yuwang@alibaba-inc.com
+To: mst@redhat.com
+Cc: mhocko@kernel.org, wei.w.wang@intel.com, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, rmaksudova@parallels.com, den@openvz.org
 
 Tetsuo Handa wrote:
-> Tetsuo Handa wrote:
-> > Johannes Weiner wrote:
-> > > On Fri, Sep 15, 2017 at 05:58:49PM +0800, wang Yu wrote:
-> > > > From: "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
-> > > > 
-> > > > I found a softlockup when running some stress testcase in 4.9.x,
-> > > > but i think the mainline have the same problem.
-> > > > 
-> > > > call trace:
-> > > > [365724.502896] NMI watchdog: BUG: soft lockup - CPU#31 stuck for 22s!
-> > > > [jbd2/sda3-8:1164]
-> > > 
-> > > We've started seeing the same thing on 4.11. Tons and tons of
-> > > allocation stall warnings followed by the soft lock-ups.
-> > 
-> > Forgot to comment. Since you are able to reproduce the problem (aren't you?),
-> > please try setting 1 to /proc/sys/kernel/softlockup_all_cpu_backtrace so that
-> > we can know what other CPUs are doing. It does not need to patch kernels.
-> > 
-> Johannes, were you able to reproduce the problem? I'd like to continue
-> warn_alloc() serialization patch if you can confirm that uncontrolled
-> flooding of allocation stall warning can lead to soft lockups.
+> 20171016-deflate.log.xz continued printing "puff" messages without any OOM
+> killer messages, for fill_balloon() always inflates faster than leak_balloon()
+> deflates.
 > 
+> Since the OOM killer cannot be invoked unless leak_balloon() completely
+> deflates faster than fill_balloon() inflates, the guest remained unusable
+> (e.g. unable to login via ssh) other than printing "puff" messages.
+> This result was worse than 20171016-default.log.xz , for the system was
+> not able to make any forward progress (i.e. complete OOM lockup).
 
-I hit soft lockup when I was examining why fork() is failing when virtio_balloon
-driver has a lot of pages to free and VIRTIO_BALLOON_F_DEFLATE_ON_OOM is
-negotiated using a debug patch (part of the patch is shown below).
+I tested further and found that it is not complete OOM lockup.
 
-----------------------------------------
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 07cc743..e806695 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -1985,6 +1985,7 @@ static __latent_entropy struct task_struct *copy_process(
- 	put_task_stack(p);
- 	free_task(p);
- fork_out:
-+	WARN_ON(1);
- 	return ERR_PTR(retval);
- }
- 
-diff --git a/mm/util.c b/mm/util.c
-index 34e57fae..ce458de 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -675,6 +675,7 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- error:
- 	vm_unacct_memory(pages);
- 
-+	WARN_ON(1);
- 	return -ENOMEM;
- }
- 
-----------------------------------------
-
-It turned out that the cause of failing fork() was failing __vm_enough_memory()
-because /proc/sys/vm/overcommit_memory was set to 0. Although virtio_balloon
-driver was ready to release pages if asked via virtballoon_oom_notify() from
+It turned out that the reason of being unable to login via ssh was that fork()
+was failing because __vm_enough_memory() was failing because
+/proc/sys/vm/overcommit_memory was set to 0. Although virtio_balloon driver
+was ready to release pages if asked via virtballoon_oom_notify() from
 out_of_memory(), __vm_enough_memory() was not able to take such pages into
-account. As a result, operations which need to use fork() (e.g. login via ssh)
-and operations which calls vm_enough_memory() (e.g. mmap()) were failing without
+account. As a result, operations which need to use fork() were failing without
 calling out_of_memory().
+( http://lkml.kernel.org/r/201710181954.FHH51594.MtFOFLOQFSOHVJ@I-love.SAKURA.ne.jp )
 
-But what I want to say here is that we should serialize warn_alloc() for reporting
-allocation stalls because the essence is the same for warn_alloc() and WARN_ON(1)
-above. Although warn_alloc() uses ratelimiting, both cases allow unbounded number
-of threads to call printk() concurrently under memory pressure.
+Do you see anything wrong with the patch I used for emulating
+VIRTIO_BALLOON_F_DEFLATE_ON_OOM path (shown below) ?
 
-Since offloading printk() to the kernel thread is not yet available, and writing
-to printk() buffer faster than the kernel thread can write to consoles (even if
-it became possible) results in loss of messages, we should try to avoid appending
-to printk() buffer when printk() is called from the same location in order to
-reduce possibility of hitting soft lockup and getting unreadably-jumbled messages.
-It is ridiculous to keep depending on not yet available printk() offloading.
-printk() does want careful coordination from users in order to deliver important
-messages reliably. Calling printk() uncontrolledly is not offered for free.
-
-Complete log is http://I-love.SAKURA.ne.jp/tmp/20171018-softlockup.log.xz .
 ----------------------------------------
-[   63.721863] ------------[ cut here ]------------
-[   63.722467] WARNING: CPU: 1 PID: 852 at mm/util.c:678 __vm_enough_memory+0x11f/0x130
-[   63.723100] Modules linked in: netconsole ip_set nfnetlink snd_hda_codec_generic snd_hda_intel snd_hda_codec snd_hwdep crct10dif_pclmul crc32_pclmul snd_hda_core snd_seq ghash_clmulni_intel snd_seq_device ppdev snd_pcm aesni_intel crypto_simd cryptd glue_helper snd_timer snd joydev sg virtio_balloon pcspkr parport_pc soundcore i2c_piix4 parport xfs libcrc32c sr_mod cdrom ata_generic pata_acpi qxl drm_kms_helper syscopyarea sysfillrect sysimgblt fb_sys_fops ttm virtio_blk drm virtio_net virtio_console ata_piix crc32c_intel serio_raw libata virtio_pci i2c_core virtio_ring virtio floppy
-[   63.726200] CPU: 1 PID: 852 Comm: sshd Tainted: G        W       4.14.0-rc5+ #303
-[   63.726831] Hardware name: Red Hat KVM, BIOS 0.5.1 01/01/2011
-[   63.727498] task: ffff8e8cf07b8000 task.stack: ffff9ad48179c000
-[   63.728282] RIP: 0010:__vm_enough_memory+0x11f/0x130
-[   63.728964] RSP: 0018:ffff9ad48179fd58 EFLAGS: 00010257
-[   63.729621] RAX: 000000000001fc2c RBX: fffffffffffffffc RCX: 00000000000007ca
-[   63.730281] RDX: fffffffffffff836 RSI: fffffffffffffffc RDI: ffffffff914a4fc0
-[   63.730924] RBP: ffff9ad48179fd70 R08: ffffffff9152f530 R09: ffff9ad48179fcfc
-[   63.731582] R10: 0000000000000020 R11: ffff8e8cf61142a8 R12: 0000000000000001
-[   63.732250] R13: ffff8e8cd6b47800 R14: ffff8e8cf6ebdc80 R15: 0000000000000004
-[   63.732903] FS:  00007feb5d71f8c0(0000) GS:ffff8e8cffc80000(0000) knlGS:0000000000000000
-[   63.733579] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[   63.734258] CR2: 00007feb5aaf38c0 CR3: 0000000230ab9000 CR4: 00000000001406e0
-[   63.734936] Call Trace:
-[   63.735623]  security_vm_enough_memory_mm+0x53/0x60
-[   63.736310]  copy_process.part.34+0xd7d/0x1d60
-[   63.736976]  _do_fork+0xed/0x390
-[   63.737653]  SyS_clone+0x19/0x20
-[   63.738359]  do_syscall_64+0x67/0x1b0
-[   63.739030]  entry_SYSCALL64_slow_path+0x25/0x25
-[   63.739726] RIP: 0033:0x7feb5ab39291
-[   63.740390] RSP: 002b:00007fff7ff715c0 EFLAGS: 00000246 ORIG_RAX: 0000000000000038
-(... 1000+ mostly "WARNING: CPU: 2 PID: 417 at mm/util.c:678 __vm_enough_memory+0x11f/0x130" lines snipped...)
-[   88.005016] watchdog: BUG: soft lockup - CPU#1 stuck for 22s! [sshd:852]
-[   88.005017] Modules linked in: netconsole ip_set nfnetlink snd_hda_codec_generic snd_hda_intel snd_hda_codec snd_hwdep crct10dif_pclmul crc32_pclmul snd_hda_core snd_seq ghash_clmulni_intel snd_seq_device ppdev snd_pcm aesni_intel crypto_simd cryptd glue_helper snd_timer snd joydev sg virtio_balloon pcspkr parport_pc soundcore i2c_piix4 parport xfs libcrc32c sr_mod cdrom ata_generic pata_acpi qxl drm_kms_helper syscopyarea sysfillrect sysimgblt fb_sys_fops ttm virtio_blk drm virtio_net virtio_console ata_piix crc32c_intel serio_raw libata virtio_pci i2c_core virtio_ring virtio floppy
-[   88.005036] CPU: 1 PID: 852 Comm: sshd Tainted: G        W       4.14.0-rc5+ #303
-[   88.005036] Hardware name: Red Hat KVM, BIOS 0.5.1 01/01/2011
-[   88.005037] task: ffff8e8cf07b8000 task.stack: ffff9ad48179c000
-[   88.005041] RIP: 0010:console_unlock+0x24e/0x4c0
-[   88.005042] RSP: 0018:ffff9ad48179f810 EFLAGS: 00000246 ORIG_RAX: ffffffffffffff10
-[   88.005043] RAX: 0000000000000001 RBX: 0000000000000051 RCX: ffff8e8cee406000
-[   88.005043] RDX: 0000000000000051 RSI: 0000000000000087 RDI: 0000000000000246
-[   88.005044] RBP: ffff9ad48179f850 R08: 0000000001080020 R09: 00007174c0000000
-[   88.005044] R10: 0000000000000c06 R11: 000000000000000c R12: 0000000000000400
-[   88.005045] R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000051
-[   88.005050] FS:  00007feb5d71f8c0(0000) GS:ffff8e8cffc80000(0000) knlGS:0000000000000000
-[   88.005050] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[   88.005051] CR2: 00007feb5aaf38c0 CR3: 0000000230ab9000 CR4: 00000000001406e0
-[   88.005054] Call Trace:
-[   88.005058]  vprintk_emit+0x2f5/0x3a0
-[   88.005061]  ? entry_SYSCALL64_slow_path+0x25/0x25
-[   88.005061]  vprintk_default+0x29/0x50
-[   88.005063]  vprintk_func+0x27/0x60
-[   88.005064]  printk+0x58/0x6f
-[   88.005065]  ? entry_SYSCALL64_slow_path+0x25/0x25
-[   88.005067]  __show_regs+0x7a/0x2d0
-[   88.005068]  ? printk+0x58/0x6f
-[   88.005069]  ? entry_SYSCALL64_slow_path+0x25/0x25
-[   88.005070]  ? entry_SYSCALL64_slow_path+0x25/0x25
-[   88.005071]  show_trace_log_lvl+0x2bf/0x410
-[   88.005073]  show_regs+0x9f/0x1a0
-[   88.005076]  ? __vm_enough_memory+0x11f/0x130
-[   88.005077]  __warn+0x9b/0xeb
-[   88.005078]  ? __vm_enough_memory+0x11f/0x130
-[   88.005080]  report_bug+0x87/0x100
-[   88.005081]  fixup_bug+0x2c/0x50
-[   88.005083]  do_trap+0x12e/0x180
-[   88.005084]  do_error_trap+0x89/0x110
-[   88.005085]  ? __vm_enough_memory+0x11f/0x130
-[   88.005087]  ? avc_has_perm_noaudit+0xca/0x140
-[   88.005089]  do_invalid_op+0x20/0x30
-[   88.005090]  invalid_op+0x18/0x20
-[   88.005091] RIP: 0010:__vm_enough_memory+0x11f/0x130
-[   88.005091] RSP: 0018:ffff9ad48179fd58 EFLAGS: 00010257
-[   88.005092] RAX: 000000000001fc2c RBX: fffffffffffffffc RCX: 00000000000007ca
-[   88.005092] RDX: fffffffffffff836 RSI: fffffffffffffffc RDI: ffffffff914a4fc0
-[   88.005093] RBP: ffff9ad48179fd70 R08: ffffffff9152f530 R09: ffff9ad48179fcfc
-[   88.005093] R10: 0000000000000020 R11: ffff8e8cf61142a8 R12: 0000000000000001
-[   88.005094] R13: ffff8e8cd6b47800 R14: ffff8e8cf6ebdc80 R15: 0000000000000004
-[   88.005096]  ? __vm_enough_memory+0x11f/0x130
-[   88.005098]  security_vm_enough_memory_mm+0x53/0x60
-[   88.005100]  copy_process.part.34+0xd7d/0x1d60
-[   88.005102]  _do_fork+0xed/0x390
-[   88.005104]  SyS_clone+0x19/0x20
-[   88.005106]  do_syscall_64+0x67/0x1b0
-[   88.005107]  entry_SYSCALL64_slow_path+0x25/0x25
-[   88.005108] RIP: 0033:0x7feb5ab39291
-[   88.005108] RSP: 002b:00007fff7ff715c0 EFLAGS: 00000246 ORIG_RAX: 0000000000000038
-[   88.005109] RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00007feb5ab39291
-[   88.005109] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000001200011
-[   88.005110] RBP: 00007fff7ff71600 R08: 00007feb5d71f8c0 R09: 0000000000000354
-[   88.005110] R10: 00007feb5d71fb90 R11: 0000000000000246 R12: 00007fff7ff715c0
-[   88.005111] R13: 0000000000000000 R14: 0000000000000000 R15: 000055e03ff11e08
-[   88.005111] Code: a8 40 0f 84 ad 01 00 00 4c 89 f7 44 89 ea 48 c7 c6 c0 a3 2d 91 ff d1 4d 8b 76 50 4d 85 f6 75 a6 e8 88 17 00 00 48 8b 7d d0 57 9d <0f> 1f 44 00 00 8b 55 c8 85 d2 0f 84 26 fe ff ff e8 fd 29 68 00
-[   88.161470] virtio_balloon virtio3: Released 256 pages. Remains 1977163 pages.
-[   88.277947] virtio_balloon virtio3: Released 256 pages. Remains 1976907 pages.
-[   88.279782] virtio_balloon virtio3: Released 256 pages. Remains 1976651 pages.
-[   90.526651] virtio_balloon virtio3: Released 256 pages. Remains 1976395 pages.
-[   91.714541] virtio_balloon virtio3: Released 256 pages. Remains 1976139 pages.
-[   92.900111] virtio_balloon virtio3: Released 256 pages. Remains 1975883 pages.
-[   93.379880] virtio_balloon virtio3: Released 256 pages. Remains 1975627 pages.
-[   93.408485] virtio_balloon virtio3: Released 256 pages. Remains 1975371 pages.
-[   94.567452] virtio_balloon virtio3: Released 256 pages. Remains 1975115 pages.
-[   95.194615] virtio_balloon virtio3: Released 256 pages. Remains 1974859 pages.
-[   95.458030] RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00007feb5ab39291
-[   95.458453] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000001200011
-[   95.458873] RBP: 00007fff7ff71600 R08: 00007feb5d71f8c0 R09: 0000000000000354
-[   95.459307] R10: 00007feb5d71fb90 R11: 0000000000000246 R12: 00007fff7ff715c0
-[   95.459732] R13: 0000000000000000 R14: 0000000000000000 R15: 000055e03ff11e08
-[   95.460172] Code: 0d 9f 41 0d 01 31 d2 48 85 c9 48 0f 49 d1 48 39 d0 7f a5 8b 15 23 c5 b2 00 48 f7 db 48 c7 c7 c0 4f 4a 91 48 89 de e8 d1 06 1e 00 <0f> ff b8 f4 ff ff ff eb 86 0f 1f 84 00 00 00 00 00 0f 1f 44 00
-[   95.461110] ---[ end trace 7b4eb70d4e6de603 ]---
-[   95.461622] ------------[ cut here ]------------
-[   95.462147] WARNING: CPU: 2 PID: 852 at kernel/fork.c:1988 copy_process.part.34+0x5ce/0x1d60
-[   95.462675] Modules linked in: netconsole ip_set nfnetlink snd_hda_codec_generic snd_hda_intel snd_hda_codec snd_hwdep crct10dif_pclmul crc32_pclmul snd_hda_core snd_seq ghash_clmulni_intel snd_seq_device ppdev snd_pcm aesni_intel crypto_simd cryptd glue_helper snd_timer snd joydev sg virtio_balloon pcspkr parport_pc soundcore i2c_piix4 parport xfs libcrc32c sr_mod cdrom ata_generic pata_acpi qxl drm_kms_helper syscopyarea sysfillrect sysimgblt fb_sys_fops ttm virtio_blk drm virtio_net virtio_console ata_piix crc32c_intel serio_raw libata virtio_pci i2c_core virtio_ring virtio floppy
-[   95.465775] CPU: 2 PID: 852 Comm: sshd Tainted: G        W    L  4.14.0-rc5+ #303
-[   95.466404] Hardware name: Red Hat KVM, BIOS 0.5.1 01/01/2011
-[   95.467015] task: ffff8e8cf07b8000 task.stack: ffff9ad48179c000
-[   95.467705] RIP: 0010:copy_process.part.34+0x5ce/0x1d60
-[   95.468314] RSP: 0000:ffff9ad48179fda8 EFLAGS: 00010202
-[   95.468902] RAX: 0000000000000001 RBX: ffff8e8cf07bae80 RCX: 0000000180050004
-[   95.469520] RDX: 0000000180050005 RSI: fffff98608c1ee00 RDI: 0000000044040000
-[   95.470139] RBP: ffff9ad48179fe90 R08: ffff8e8cf07bae80 R09: 0000000180050004
-[   95.470724] R10: 0000000000000001 R11: ffff8e8cf07bae80 R12: fffffffffffffff4
-[   95.471348] R13: 0000000000000000 R14: ffff8e8cf6ebdc80 R15: 0000000000000000
-[   95.471964] FS:  00007feb5d71f8c0(0000) GS:ffff8e8cffd00000(0000) knlGS:0000000000000000
-[   95.472607] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[   95.473246] CR2: 00007f7d9da40690 CR3: 0000000230ab9000 CR4: 00000000001406e0
-[   95.473870] Call Trace:
-[   95.474593]  _do_fork+0xed/0x390
-[   95.475267]  SyS_clone+0x19/0x20
-[   95.475901]  do_syscall_64+0x67/0x1b0
-[   95.476554]  entry_SYSCALL64_slow_path+0x25/0x25
-[   95.477241] RIP: 0033:0x7feb5ab39291
-[   95.477857] RSP: 002b:00007fff7ff715c0 EFLAGS: 00000246 ORIG_RAX: 0000000000000038
-[   95.478534] RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00007feb5ab39291
-[   95.479187] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000001200011
-[   95.479785] RBP: 00007fff7ff71600 R08: 00007feb5d71f8c0 R09: 0000000000000354
-[   95.480391] R10: 00007feb5d71fb90 R11: 0000000000000246 R12: 00007fff7ff715c0
-[   95.480988] R13: 0000000000000000 R14: 0000000000000000 R15: 000055e03ff11e08
-[   95.481610] Code: 48 8b 80 80 00 00 00 f0 ff 48 04 48 89 df e8 ba 58 02 00 48 89 df 48 c7 43 08 80 00 00 00 e8 3a f3 ff ff 48 89 df e8 52 f1 ff ff <0f> ff 4c 89 e3 e9 ba fa ff ff 4c 63 e0 eb d9 65 48 8b 05 63 5b
-[   95.482925] ---[ end trace 7b4eb70d4e6de604 ]---
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index f0b3a0b..a679ac2 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -164,7 +164,7 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
+ 		}
+ 		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
+ 		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
+-		if (!virtio_has_feature(vb->vdev,
++		if (virtio_has_feature(vb->vdev,
+ 					VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+ 			adjust_managed_page_count(page, -1);
+ 	}
+@@ -184,7 +184,7 @@ static void release_pages_balloon(struct virtio_balloon *vb,
+ 	struct page *page, *next;
+ 
+ 	list_for_each_entry_safe(page, next, pages, lru) {
+-		if (!virtio_has_feature(vb->vdev,
++		if (virtio_has_feature(vb->vdev,
+ 					VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+ 			adjust_managed_page_count(page, 1);
+ 		list_del(&page->lru);
+@@ -363,7 +363,7 @@ static int virtballoon_oom_notify(struct notifier_block *self,
+ 	unsigned num_freed_pages;
+ 
+ 	vb = container_of(self, struct virtio_balloon, nb);
+-	if (!virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
++	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+ 		return NOTIFY_OK;
+ 
+ 	freed = parm;
 ----------------------------------------
+
+> As I demonstrated above, VIRTIO_BALLOON_F_DEFLATE_ON_OOM can lead to complete
+> OOM lockup because out_of_memory() => fill_balloon() => out_of_memory() =>
+> fill_balloon() sequence can effectively disable the OOM killer when the host
+> assumed that it's safe to inflate the balloon to a large portion of guest
+> memory and this won't cause an OOM situation.
+
+The other problem is that, although it is not complete OOM lockup, it is too
+slow to wait if we hit out_of_memory() => fill_balloon() => out_of_memory() =>
+fill_balloon() sequence.
+
+> If leak_balloon() from out_of_memory() should be stronger than
+> fill_balloon() from update_balloon_size_func(), we need to make
+> sure that update_balloon_size_func() stops calling fill_balloon()
+> when leak_balloon() was called from out_of_memory().
+
+I tried below patch to reduce the possibility of hitting out_of_memory() =>
+fill_balloon() => out_of_memory() => fill_balloon() sequence.
+
+----------------------------------------
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index a679ac2..9037fee 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -57,7 +57,7 @@ struct virtio_balloon {
+ 
+ 	/* The balloon servicing is delegated to a freezable workqueue. */
+ 	struct work_struct update_balloon_stats_work;
+-	struct work_struct update_balloon_size_work;
++	struct delayed_work update_balloon_size_work;
+ 
+ 	/* Prevent updating balloon when it is being canceled. */
+ 	spinlock_t stop_update_lock;
+@@ -88,6 +88,7 @@ struct virtio_balloon {
+ 
+ 	/* To register callback in oom notifier call chain */
+ 	struct notifier_block nb;
++	struct timer_list deflate_on_oom_timer;
+ };
+ 
+ static struct virtio_device_id id_table[] = {
+@@ -141,7 +142,8 @@ static void set_page_pfns(struct virtio_balloon *vb,
+ 					  page_to_balloon_pfn(page) + i);
+ }
+ 
+-static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
++static unsigned fill_balloon(struct virtio_balloon *vb, size_t num,
++			     unsigned long *delay)
+ {
+ 	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
+ 	unsigned num_allocated_pages;
+@@ -152,14 +154,21 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
+ 	mutex_lock(&vb->balloon_lock);
+ 	for (vb->num_pfns = 0; vb->num_pfns < num;
+ 	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+-		struct page *page = balloon_page_enqueue(vb_dev_info);
++		struct page *page;
++
++		if (timer_pending(&vb->deflate_on_oom_timer)) {
++			/* Wait for hold off timer expiracy. */
++			*delay = HZ;
++			break;
++		}
++		page = balloon_page_enqueue(vb_dev_info);
+ 
+ 		if (!page) {
+ 			dev_info_ratelimited(&vb->vdev->dev,
+ 					     "Out of puff! Can't get %u pages\n",
+ 					     VIRTIO_BALLOON_PAGES_PER_PAGE);
+ 			/* Sleep for at least 1/5 of a second before retry. */
+-			msleep(200);
++			*delay = HZ / 5;
+ 			break;
+ 		}
+ 		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
+@@ -310,7 +319,8 @@ static void virtballoon_changed(struct virtio_device *vdev)
+ 
+ 	spin_lock_irqsave(&vb->stop_update_lock, flags);
+ 	if (!vb->stop_update)
+-		queue_work(system_freezable_wq, &vb->update_balloon_size_work);
++		queue_delayed_work(system_freezable_wq,
++				   &vb->update_balloon_size_work, 0);
+ 	spin_unlock_irqrestore(&vb->stop_update_lock, flags);
+ }
+ 
+@@ -366,9 +376,13 @@ static int virtballoon_oom_notify(struct notifier_block *self,
+ 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+ 		return NOTIFY_OK;
+ 
++	/* Hold off fill_balloon() for 60 seconds. */
++	mod_timer(&vb->deflate_on_oom_timer, jiffies + 60 * HZ);
+ 	freed = parm;
+ 	num_freed_pages = leak_balloon(vb, oom_pages);
+ 	update_balloon_size(vb);
++	dev_info_ratelimited(&vb->vdev->dev, "Released %u pages. Remains %u pages.\n",
++			     num_freed_pages, vb->num_pages);
+ 	*freed += num_freed_pages;
+ 
+ 	return NOTIFY_OK;
+@@ -387,19 +401,21 @@ static void update_balloon_size_func(struct work_struct *work)
+ {
+ 	struct virtio_balloon *vb;
+ 	s64 diff;
++	unsigned long delay = 0;
+ 
+-	vb = container_of(work, struct virtio_balloon,
++	vb = container_of(to_delayed_work(work), struct virtio_balloon,
+ 			  update_balloon_size_work);
+ 	diff = towards_target(vb);
+ 
+ 	if (diff > 0)
+-		diff -= fill_balloon(vb, diff);
++		diff -= fill_balloon(vb, diff, &delay);
+ 	else if (diff < 0)
+ 		diff += leak_balloon(vb, -diff);
+ 	update_balloon_size(vb);
+ 
+ 	if (diff)
+-		queue_work(system_freezable_wq, work);
++		queue_delayed_work(system_freezable_wq, to_delayed_work(work),
++				   delay);
+ }
+ 
+ static int init_vqs(struct virtio_balloon *vb)
+@@ -521,6 +537,10 @@ static struct dentry *balloon_mount(struct file_system_type *fs_type,
+ 
+ #endif /* CONFIG_BALLOON_COMPACTION */
+ 
++static void timer_expired(unsigned long unused)
++{
++}
++
+ static int virtballoon_probe(struct virtio_device *vdev)
+ {
+ 	struct virtio_balloon *vb;
+@@ -539,7 +559,8 @@ static int virtballoon_probe(struct virtio_device *vdev)
+ 	}
+ 
+ 	INIT_WORK(&vb->update_balloon_stats_work, update_balloon_stats_func);
+-	INIT_WORK(&vb->update_balloon_size_work, update_balloon_size_func);
++	INIT_DELAYED_WORK(&vb->update_balloon_size_work,
++			  update_balloon_size_func);
+ 	spin_lock_init(&vb->stop_update_lock);
+ 	vb->stop_update = false;
+ 	vb->num_pages = 0;
+@@ -553,6 +574,7 @@ static int virtballoon_probe(struct virtio_device *vdev)
+ 	if (err)
+ 		goto out_free_vb;
+ 
++	setup_timer(&vb->deflate_on_oom_timer, timer_expired, 0);
+ 	vb->nb.notifier_call = virtballoon_oom_notify;
+ 	vb->nb.priority = VIRTBALLOON_OOM_NOTIFY_PRIORITY;
+ 	err = register_oom_notifier(&vb->nb);
+@@ -564,6 +586,7 @@ static int virtballoon_probe(struct virtio_device *vdev)
+ 	if (IS_ERR(balloon_mnt)) {
+ 		err = PTR_ERR(balloon_mnt);
+ 		unregister_oom_notifier(&vb->nb);
++		del_timer_sync(&vb->deflate_on_oom_timer);
+ 		goto out_del_vqs;
+ 	}
+ 
+@@ -573,6 +596,7 @@ static int virtballoon_probe(struct virtio_device *vdev)
+ 		err = PTR_ERR(vb->vb_dev_info.inode);
+ 		kern_unmount(balloon_mnt);
+ 		unregister_oom_notifier(&vb->nb);
++		del_timer_sync(&vb->deflate_on_oom_timer);
+ 		vb->vb_dev_info.inode = NULL;
+ 		goto out_del_vqs;
+ 	}
+@@ -611,11 +635,12 @@ static void virtballoon_remove(struct virtio_device *vdev)
+ 	struct virtio_balloon *vb = vdev->priv;
+ 
+ 	unregister_oom_notifier(&vb->nb);
++	del_timer_sync(&vb->deflate_on_oom_timer);
+ 
+ 	spin_lock_irq(&vb->stop_update_lock);
+ 	vb->stop_update = true;
+ 	spin_unlock_irq(&vb->stop_update_lock);
+-	cancel_work_sync(&vb->update_balloon_size_work);
++	cancel_delayed_work_sync(&vb->update_balloon_size_work);
+ 	cancel_work_sync(&vb->update_balloon_stats_work);
+ 
+ 	remove_common(vb);
+----------------------------------------
+
+While response was better than now, inflating again spoiled the effort.
+Retrying to inflate until allocation fails is already too painful.
+
+Complete log is at http://I-love.SAKURA.ne.jp/tmp/20171018-deflate.log.xz .
+----------------------------------------
+[   19.529096] kworker/0:2: page allocation failure: order:0, mode:0x14310ca(GFP_HIGHUSER_MOVABLE|__GFP_NORETRY|__GFP_NOMEMALLOC), nodemask=(null)
+[   19.530721] kworker/0:2 cpuset=/ mems_allowed=0
+[   19.531581] CPU: 0 PID: 111 Comm: kworker/0:2 Not tainted 4.14.0-rc5+ #302
+[   19.532397] Hardware name: Red Hat KVM, BIOS 0.5.1 01/01/2011
+[   19.533285] Workqueue: events_freezable update_balloon_size_func [virtio_balloon]
+[   19.534143] Call Trace:
+[   19.535015]  dump_stack+0x63/0x87
+[   19.535844]  warn_alloc+0x114/0x1c0
+[   19.536667]  __alloc_pages_slowpath+0x9a6/0xba7
+[   19.537491]  ? sched_clock_cpu+0x11/0xb0
+[   19.538311]  __alloc_pages_nodemask+0x26a/0x290
+[   19.539188]  alloc_pages_current+0x6a/0xb0
+[   19.540004]  balloon_page_enqueue+0x25/0xf0
+[   19.540818]  update_balloon_size_func+0xe1/0x260 [virtio_balloon]
+[   19.541626]  process_one_work+0x149/0x360
+[   19.542417]  worker_thread+0x4d/0x3c0
+[   19.543186]  kthread+0x109/0x140
+[   19.543930]  ? rescuer_thread+0x380/0x380
+[   19.544716]  ? kthread_park+0x60/0x60
+[   19.545426]  ret_from_fork+0x25/0x30
+[   19.546141] virtio_balloon virtio3: Out of puff! Can't get 1 pages
+[   19.547903] virtio_balloon virtio3: Released 256 pages. Remains 1984834 pages.
+[   19.659660] virtio_balloon virtio3: Released 256 pages. Remains 1984578 pages.
+[   21.891392] virtio_balloon virtio3: Released 256 pages. Remains 1984322 pages.
+[   21.894719] virtio_balloon virtio3: Released 256 pages. Remains 1984066 pages.
+[   22.490131] virtio_balloon virtio3: Released 256 pages. Remains 1983810 pages.
+[   31.939666] virtio_balloon virtio3: Released 256 pages. Remains 1983554 pages.
+[   95.524753] kworker/0:2: page allocation failure: order:0, mode:0x14310ca(GFP_HIGHUSER_MOVABLE|__GFP_NORETRY|__GFP_NOMEMALLOC), nodemask=(null)
+[   95.525641] kworker/0:2 cpuset=/ mems_allowed=0
+[   95.526110] CPU: 0 PID: 111 Comm: kworker/0:2 Not tainted 4.14.0-rc5+ #302
+[   95.526552] Hardware name: Red Hat KVM, BIOS 0.5.1 01/01/2011
+[   95.527018] Workqueue: events_freezable update_balloon_size_func [virtio_balloon]
+[   95.527492] Call Trace:
+[   95.527969]  dump_stack+0x63/0x87
+[   95.528469]  warn_alloc+0x114/0x1c0
+[   95.528922]  __alloc_pages_slowpath+0x9a6/0xba7
+[   95.529388]  ? qxl_image_free_objects+0x56/0x60 [qxl]
+[   95.529849]  ? qxl_draw_opaque_fb+0x102/0x3a0 [qxl]
+[   95.530315]  __alloc_pages_nodemask+0x26a/0x290
+[   95.530777]  alloc_pages_current+0x6a/0xb0
+[   95.531243]  balloon_page_enqueue+0x25/0xf0
+[   95.531703]  update_balloon_size_func+0xe1/0x260 [virtio_balloon]
+[   95.532180]  process_one_work+0x149/0x360
+[   95.532645]  worker_thread+0x4d/0x3c0
+[   95.533143]  kthread+0x109/0x140
+[   95.533622]  ? rescuer_thread+0x380/0x380
+[   95.534100]  ? kthread_park+0x60/0x60
+[   95.534568]  ret_from_fork+0x25/0x30
+[   95.535093] warn_alloc_show_mem: 1 callbacks suppressed
+[   95.535093] Mem-Info:
+[   95.536072] active_anon:11171 inactive_anon:2084 isolated_anon:0
+[   95.536072]  active_file:8 inactive_file:70 isolated_file:0
+[   95.536072]  unevictable:0 dirty:0 writeback:0 unstable:0
+[   95.536072]  slab_reclaimable:3554 slab_unreclaimable:6848
+[   95.536072]  mapped:588 shmem:2144 pagetables:749 bounce:0
+[   95.536072]  free:25859 free_pcp:72 free_cma:0
+[   95.538922] Node 0 active_anon:44684kB inactive_anon:8336kB active_file:32kB inactive_file:280kB unevictable:0kB isolated(anon):0kB isolated(file):0kB mapped:2352kB dirty:0kB writeback:0kB shmem:8576kB shmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 10240kB writeback_tmp:0kB unstable:0kB all_unreclaimable? no
+[   95.540516] Node 0 DMA free:15900kB min:132kB low:164kB high:196kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15992kB managed:15908kB mlocked:0kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+[   95.542325] lowmem_reserve[]: 0 2954 7925 7925 7925
+[   95.543020] Node 0 DMA32 free:44748kB min:25144kB low:31428kB high:37712kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:3129308kB managed:3063740kB mlocked:0kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+[   95.544949] lowmem_reserve[]: 0 0 4970 4970 4970
+[   95.545624] Node 0 Normal free:42788kB min:42304kB low:52880kB high:63456kB active_anon:44684kB inactive_anon:8336kB active_file:32kB inactive_file:108kB unevictable:0kB writepending:0kB present:5242880kB managed:5093540kB mlocked:0kB kernel_stack:1984kB pagetables:2996kB bounce:0kB free_pcp:372kB local_pcp:220kB free_cma:0kB
+[   95.547739] lowmem_reserve[]: 0 0 0 0 0
+[   95.548464] Node 0 DMA: 1*4kB (U) 1*8kB (U) 1*16kB (U) 0*32kB 2*64kB (U) 1*128kB (U) 1*256kB (U) 0*512kB 1*1024kB (U) 1*2048kB (M) 3*4096kB (M) = 15900kB
+[   95.549988] Node 0 DMA32: 3*4kB (UM) 4*8kB (UM) 2*16kB (U) 2*32kB (U) 1*64kB (U) 0*128kB 2*256kB (UM) 2*512kB (UM) 2*1024kB (UM) 2*2048kB (UM) 9*4096kB (M) = 44748kB
+[   95.551551] Node 0 Normal: 925*4kB (UME) 455*8kB (UME) 349*16kB (UME) 137*32kB (UME) 37*64kB (UME) 23*128kB (UME) 8*256kB (UME) 5*512kB (UM) 3*1024kB (UM) 6*2048kB (U) 0*4096kB = 42588kB
+[   95.553147] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
+[   95.554030] 2224 total pagecache pages
+[   95.554874] 0 pages in swap cache
+[   95.555667] Swap cache stats: add 0, delete 0, find 0/0
+[   95.556469] Free swap  = 0kB
+[   95.557280] Total swap = 0kB
+[   95.558079] 2097045 pages RAM
+[   95.558856] 0 pages HighMem/MovableOnly
+[   95.559652] 53748 pages reserved
+[   95.560444] 0 pages cma reserved
+[   95.561262] 0 pages hwpoisoned
+[   95.562086] virtio_balloon virtio3: Out of puff! Can't get 1 pages
+[   95.565779] virtio_balloon virtio3: Released 256 pages. Remains 1984947 pages.
+[   96.265255] virtio_balloon virtio3: Released 256 pages. Remains 1984691 pages.
+[  105.498910] virtio_balloon virtio3: Released 256 pages. Remains 1984435 pages.
+[  105.500518] virtio_balloon virtio3: Released 256 pages. Remains 1984179 pages.
+[  105.520034] virtio_balloon virtio3: Released 256 pages. Remains 1983923 pages.
+----------------------------------------
+
+Michael S. Tsirkin wrote:
+> I think that's the case. Question is, when can we inflate again?
+
+I think that it is when the host explicitly asked again, for
+VIRTIO_BALLOON_F_DEFLATE_ON_OOM path does not schedule for later inflation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
