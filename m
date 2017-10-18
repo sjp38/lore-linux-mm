@@ -1,63 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F3EDB6B0069
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 10:11:19 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id k7so4179275pga.8
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 07:11:19 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id w12si2975151pld.307.2017.10.18.07.11.18
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 57DED6B025E
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 10:13:43 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id f4so2215175wme.21
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 07:13:43 -0700 (PDT)
+Received: from outbound-smtp13.blacknight.com (outbound-smtp13.blacknight.com. [46.22.139.230])
+        by mx.google.com with ESMTPS id i5si67883edd.36.2017.10.18.07.13.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Oct 2017 07:11:18 -0700 (PDT)
-Date: Wed, 18 Oct 2017 07:11:16 -0700
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] zswap: Same-filled pages handling
-Message-ID: <20171018141116.GA12063@bombadil.infradead.org>
-References: <CGME20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p1>
- <20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p1>
- <20171018123427.GA7271@bombadil.infradead.org>
- <CAGqmi77nDU+z2PhNFJq3i208mxMbdTdk2=uPwfj42y0G3yyiWw@mail.gmail.com>
+        Wed, 18 Oct 2017 07:13:42 -0700 (PDT)
+Received: from mail.blacknight.com (unknown [81.17.254.10])
+	by outbound-smtp13.blacknight.com (Postfix) with ESMTPS id C97301C2611
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 15:13:41 +0100 (IST)
+Date: Wed, 18 Oct 2017 15:13:41 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [patch] mm, slab: only set __GFP_RECLAIMABLE once
+Message-ID: <20171018141341.46atga2mi6eudnw2@techsingularity.net>
+References: <alpine.DEB.2.10.1710171527560.140898@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <CAGqmi77nDU+z2PhNFJq3i208mxMbdTdk2=uPwfj42y0G3yyiWw@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.10.1710171527560.140898@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Timofey Titovets <nefelim4ag@gmail.com>
-Cc: Srividya Desireddy <srividya.dr@samsung.com>, "sjenning@redhat.com" <sjenning@redhat.com>, "ddstreet@ieee.org" <ddstreet@ieee.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "penberg@kernel.org" <penberg@kernel.org>, Dinakar Reddy Pathireddy <dinakar.p@samsung.com>, SHARAN ALLUR <sharan.allur@samsung.com>, RAJIB BASU <rajib.basu@samsung.com>, JUHUN KIM <juhunkim@samsung.com>, "srividya.desireddy@gmail.com" <srividya.desireddy@gmail.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Oct 18, 2017 at 04:33:43PM +0300, Timofey Titovets wrote:
-> 2017-10-18 15:34 GMT+03:00 Matthew Wilcox <willy@infradead.org>:
-> > On Wed, Oct 18, 2017 at 10:48:32AM +0000, Srividya Desireddy wrote:
-> >> +static void zswap_fill_page(void *ptr, unsigned long value)
-> >> +{
-> >> +     unsigned int pos;
-> >> +     unsigned long *page;
-> >> +
-> >> +     page = (unsigned long *)ptr;
-> >> +     if (value == 0)
-> >> +             memset(page, 0, PAGE_SIZE);
-> >> +     else {
-> >> +             for (pos = 0; pos < PAGE_SIZE / sizeof(*page); pos++)
-> >> +                     page[pos] = value;
-> >> +     }
-> >> +}
-> >
-> > I think you meant:
-> >
-> > static void zswap_fill_page(void *ptr, unsigned long value)
-> > {
-> >         memset_l(ptr, value, PAGE_SIZE / sizeof(unsigned long));
-> > }
+On Tue, Oct 17, 2017 at 03:30:01PM -0700, David Rientjes wrote:
+> SLAB_RECLAIM_ACCOUNT is a permanent attribute of a slab cache.  Set 
+> __GFP_RECLAIMABLE as part of its ->allocflags rather than check the cachep 
+> flag on every page allocation.
 > 
-> IIRC kernel have special zero page, and if i understand correctly.
-> You can map all zero pages to that zero page and not touch zswap completely.
-> (Your situation look like some KSM case (i.e. KSM can handle pages
-> with same content), but i'm not sure if that applicable there)
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-You're confused by the word "same".  What Srividya meant was that the
-page is filled with a pattern, eg 0xfffefffefffefffe..., not that it is
-the same as any other page.
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
