@@ -1,81 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E90ED6B0038
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:36:01 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id a192so3508786pge.1
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 00:36:01 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DD556B0033
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:54:08 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id z99so284736wrc.15
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 00:54:08 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x18si6584071pge.118.2017.10.18.00.36.00
+        by mx.google.com with ESMTPS id w65si7834078wmg.89.2017.10.18.00.54.06
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Oct 2017 00:36:00 -0700 (PDT)
+        Wed, 18 Oct 2017 00:54:06 -0700 (PDT)
+Subject: Re: [PATCH] mm/mempolicy: add node_empty check in SYSC_migrate_pages
+References: <1508290660-60619-1-git-send-email-xieyisheng1@huawei.com>
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH] mm, page_alloc: simplify hot/cold page handling in rmqueue_bulk()
-Date: Wed, 18 Oct 2017 09:35:28 +0200
-Message-Id: <20171018073528.30982-1-vbabka@suse.cz>
+Message-ID: <7086c6ea-b721-684e-fe3d-ff59ae1d78ed@suse.cz>
+Date: Wed, 18 Oct 2017 09:54:05 +0200
+MIME-Version: 1.0
+In-Reply-To: <1508290660-60619-1-git-send-email-xieyisheng1@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>
+To: Yisheng Xie <xieyisheng1@huawei.com>, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, tanxiaojun@huawei.com, Linux API <linux-api@vger.kernel.org>
 
-The rmqueue_bulk() function fills an empty pcplist with pages from the free
-list. It tries to preserve increasing order by pfn to the caller, because it
-leads to better performance with some I/O controllers, as explained in
-e084b2d95e48 ("page-allocator: preserve PFN ordering when __GFP_COLD is set").
-For callers requesting cold pages, which are obtained from the tail of
-pcplists, it means the pcplist has to be filled in reverse order from the free
-lists (the hot/cold property only applies when pages are recycled on the
-pcplists, not when refilled from free lists).
++CC linux-api
 
-The related comment in rmqueue_bulk() wasn't clear to me without reading the
-log of the commit mentioned above, so try to clarify it.
+On 10/18/2017 03:37 AM, Yisheng Xie wrote:
+> As Xiaojun reported the ltp of migrate_pages01 will failed on ARCH arm64
+> system whoes has 4 nodes[0...3], all have memory and CONFIG_NODES_SHIFT=2:
+> 
+> migrate_pages01    0  TINFO  :  test_invalid_nodes
+> migrate_pages01   14  TFAIL  :  migrate_pages_common.c:45: unexpected failure - returned value = 0, expected: -1
+> migrate_pages01   15  TFAIL  :  migrate_pages_common.c:55: call succeeded unexpectedly
+> 
+> In this case the test_invalid_nodes of migrate_pages01 will call:
+> SYSC_migrate_pages as:
+> 
+> migrate_pages(0, , {0x0000000000000001}, 64, , {0x0000000000000010}, 64) = 0
 
-The code for filling the pcplists in order determined by the cold flag also
-seems unnecessarily hard to follow. It's sufficient to either use list_add()
-or list_add_tail(), but the current code also updates the list head pointer
-in each step to the last added page, which then counterintuitively requires
-to switch the usage of list_add() and list_add_tail() to achieve the desired
-order, with no apparent benefit. This patch simplifies the code.
+is 64 here the maxnode parameter of migrate_pages() ?
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/page_alloc.c | 17 ++++++++---------
- 1 file changed, 8 insertions(+), 9 deletions(-)
+> For MAX_NUMNODES is 4, so 0x10 nodemask will tread as empty set which makes
+> 	nodes_subset(*new, node_states[N_MEMORY])
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6191c9a04789..4b296fc8e599 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2329,19 +2329,18 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
- 			continue;
- 
- 		/*
--		 * Split buddy pages returned by expand() are received here
--		 * in physical page order. The page is added to the callers and
--		 * list and the list head then moves forward. From the callers
--		 * perspective, the linked list is ordered by page number in
--		 * some conditions. This is useful for IO devices that can
--		 * merge IO requests if the physical pages are ordered
-+		 * Split buddy pages returned by expand() are received here in
-+		 * physical page order. The page is added to the caller's list.
-+		 * From the callers perspective, make sure the pages will be
-+		 * consumed in the order as returned by expand(), regardless of
-+		 * cold being true or false. This is useful for IO devices that
-+		 * can merge IO requests if the physical pages are ordered
- 		 * properly.
- 		 */
- 		if (likely(!cold))
--			list_add(&page->lru, list);
--		else
- 			list_add_tail(&page->lru, list);
--		list = &page->lru;
-+		else
-+			list_add(&page->lru, list);
- 		alloced++;
- 		if (is_migrate_cma(get_pcppage_migratetype(page)))
- 			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES,
--- 
-2.14.2
+According to manpage of migrate_pages:
+
+        EINVAL The value specified by maxnode exceeds a kernel-imposed
+limit.  Or, old_nodes or new_nodes specifies one or more node IDs that
+are greater than the maximum supported node ID.  Or, none of the node
+IDs specified by new_nodes are on-line and allowed by the process's
+current cpuset context, or none of the specified nodes contain memory.
+
+if maxnode parameter is 64, but MAX_NUMNODES ("kernel-imposed limit") is
+4, we should get EINVAL just because of that. I don't see such check in
+the migrate_pages implementation though. But then at least the
+"new_nodes specifies one or more node IDs that are greater than the
+maximum supported node ID" part should trigger here, because you have
+node number 8 set in the new_nodes nodemask, right?
+get_nodes() should be checking this according to comment:
+
+        /* When the user specified more nodes than supported just check
+           if the non supported part is all zero. */
+
+Somehow that doesn't seem to work then? I think we should look into
+this. Your patch may still be needed, or not, after that is resolved.
+
+> return true, as empty set is subset of any set.
+> 
+> So this is a common issue which also can happens in X86_64 system eg. 8 nodes[0..7],
+> all with memory and CONFIG_NODES_SHIFT=3. Fix it by adding node_empty check in
+> SYSC_migrate_pages.
+> 
+> Reported-by: Tan Xiaojun <tanxiaojun@huawei.com>
+> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+> ---
+>  mm/mempolicy.c | 5 +++++
+>  1 file changed, 5 insertions(+)
+> 
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index a2af6d5..1dfd3cc 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -1388,6 +1388,11 @@ static int copy_nodes_to_user(unsigned long __user *mask, unsigned long maxnode,
+>  	if (err)
+>  		goto out;
+>  
+> +	if (nodes_empty(*new)) {
+> +		err = -EINVAL;
+> +		goto out;
+> +	}
+> +
+>  	/* Find the mm_struct */
+>  	rcu_read_lock();
+>  	task = pid ? find_task_by_vpid(pid) : current;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
