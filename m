@@ -1,45 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ECB76B0069
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 10:36:03 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id q18so2209965wmg.18
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 07:36:03 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id u13si10034301wrb.325.2017.10.18.07.36.01
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E66E86B0069
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 10:43:55 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id a192so4262762pge.1
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 07:43:55 -0700 (PDT)
+Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
+        by mx.google.com with ESMTPS id l9si7082139pgn.319.2017.10.18.07.43.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Oct 2017 07:36:02 -0700 (PDT)
-Date: Wed, 18 Oct 2017 16:35:54 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 1/2] lockdep: Introduce CROSSRELEASE_STACK_TRACE and make
- it not unwind as default
-In-Reply-To: <20171018141502.GB12063@bombadil.infradead.org>
-Message-ID: <alpine.DEB.2.20.1710181634420.1925@nanos>
-References: <1508318006-2090-1-git-send-email-byungchul.park@lge.com> <alpine.DEB.2.20.1710181519580.1925@nanos> <20171018133019.cwfhnt46pvhirt57@gmail.com> <alpine.DEB.2.20.1710181533260.1925@nanos> <20171018141502.GB12063@bombadil.infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Oct 2017 07:43:54 -0700 (PDT)
+Received: from epcas5p1.samsung.com (unknown [182.195.41.39])
+	by mailout2.samsung.com (KnoxPortal) with ESMTP id 20171018144351epoutp02168170887902d8d052cbc1cc188ac429~usUQ9vrNH1414714147epoutp02Z
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 14:43:51 +0000 (GMT)
+Mime-Version: 1.0
+Subject: Re: [PATCH] zswap: Same-filled pages handling
+Reply-To: srividya.dr@samsung.com
+From: Srividya Desireddy <srividya.dr@samsung.com>
+In-Reply-To: <20171018141116.GA12063@bombadil.infradead.org>
+Message-ID: <20171018144350epcms5p1f390fae66f1c9440b8552acec555ca01@epcms5p1>
+Date: Wed, 18 Oct 2017 14:43:50 +0000
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+References: <20171018141116.GA12063@bombadil.infradead.org>
+	<20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p1>
+	<20171018123427.GA7271@bombadil.infradead.org>
+	<CAGqmi77nDU+z2PhNFJq3i208mxMbdTdk2=uPwfj42y0G3yyiWw@mail.gmail.com>
+	<CGME20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Byungchul Park <byungchul.park@lge.com>, peterz@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@lge.com
+To: Matthew Wilcox <willy@infradead.org>, Timofey Titovets <nefelim4ag@gmail.com>
+Cc: "sjenning@redhat.com" <sjenning@redhat.com>, "ddstreet@ieee.org" <ddstreet@ieee.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "penberg@kernel.org" <penberg@kernel.org>, Dinakar Reddy Pathireddy <dinakar.p@samsung.com>, SHARAN ALLUR <sharan.allur@samsung.com>, RAJIB BASU <rajib.basu@samsung.com>, JUHUN KIM <juhunkim@samsung.com>, "srividya.desireddy@gmail.com" <srividya.desireddy@gmail.com>
 
-On Wed, 18 Oct 2017, Matthew Wilcox wrote:
-
-> On Wed, Oct 18, 2017 at 03:36:05PM +0200, Thomas Gleixner wrote:
-> > Which reminds me that I wanted to convert them to static_key so they are
-> > zero overhead when disabled. Sigh, why are todo lists growth only?
+On Wed, Oct 18, 2017 at 7:41 PM, Matthew Wilcox wrote: 
+> On Wed, Oct 18, 2017 at 04:33:43PM +0300, Timofey Titovets wrote:
+>> 2017-10-18 15:34 GMT+03:00 Matthew Wilcox <willy@infradead.org>:
+>> > On Wed, Oct 18, 2017 at 10:48:32AM +0000, Srividya Desireddy wrote:
+>> >> +static void zswap_fill_page(void *ptr, unsigned long value)
+>> >> +{
+>> >> +     unsigned int pos;
+>> >> +     unsigned long *page;
+>> >> +
+>> >> +     page = (unsigned long *)ptr;
+>> >> +     if (value == 0)
+>> >> +             memset(page, 0, PAGE_SIZE);
+>> >> +     else {
+>> >> +             for (pos = 0; pos < PAGE_SIZE / sizeof(*page); pos++)
+>> >> +                     page[pos] = value;
+>> >> +     }
+>> >> +}
+>> >
+>> > I think you meant:
+>> >
+>> > static void zswap_fill_page(void *ptr, unsigned long value)
+>> > {
+>> >         memset_l(ptr, value, PAGE_SIZE / sizeof(unsigned long));
+>> > }
+>> 
+>> IIRC kernel have special zero page, and if i understand correctly.
+>> You can map all zero pages to that zero page and not touch zswap completely.
+>> (Your situation look like some KSM case (i.e. KSM can handle pages
+>> with same content), but i'm not sure if that applicable there)
 > 
-> This is why you need an Outreachy intern -- it gets at least one task
-> off your todo list, and in the best possible case, it gets a second
-> person working on your todo list for a long time.
-> 
-> ... eventually they start their own todo lists ...
+>You're confused by the word "same".  What Srividya meant was that the
+>page is filled with a pattern, eg 0xfffefffefffefffe..., not that it is
+>the same as any other page.
 
-Good idea. Oh, wait.....  Getting an Outreachy intern is on my todo list already. 
+In kernel there is a special zero page or empty_zero_page which is in
+general allocated in paging_init() function, to map all zero pages. But,
+same-value-filled pages including zero pages exist in memory because
+applications may be initializing the allocated pages with a value and not
+using them; or the actual content written to the memory pages during 
+execution itself is same-value, in case of multimedia data for example.
 
-Thanks,
+I had earlier posted a patch with similar implementaion of KSM concept 
+for Zswap:
+https://lkml.org/lkml/2016/8/17/171
+https://lkml.org/lkml/2017/2/17/612
 
-	tglx
+- Srividya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
