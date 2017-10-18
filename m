@@ -1,218 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 40C5D6B0038
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 09:36:10 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id q4so4618692oic.12
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 06:36:10 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id h137si3387874oib.195.2017.10.18.06.36.09
-        for <linux-mm@kvack.org>;
-        Wed, 18 Oct 2017 06:36:09 -0700 (PDT)
-From: Robin Murphy <robin.murphy@arm.com>
-Subject: Re: [PATCH 3/4] iommu/arm-smmu-v3: Use NUMA memory allocations for
- stream tables and comamnd queues
-References: <20170921085922.11659-1-ganapatrao.kulkarni@cavium.com>
- <20170921085922.11659-4-ganapatrao.kulkarni@cavium.com>
- <db28d6ff-77e5-ed59-c1b8-57c917564a68@arm.com>
- <CAKTKpr508ArR1RUSY8HnaOkp==zPZ2=P_6gcXOAfi9hJq6XcqA@mail.gmail.com>
-Message-ID: <c14854ea-2f58-2d30-1b6c-153a7f3e24a6@arm.com>
-Date: Wed, 18 Oct 2017 14:36:03 +0100
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6785D6B0069
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 09:36:16 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 136so2175811wmu.10
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 06:36:16 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id 60si4422787wrs.117.2017.10.18.06.36.15
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 18 Oct 2017 06:36:15 -0700 (PDT)
+Date: Wed, 18 Oct 2017 15:36:05 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 1/2] lockdep: Introduce CROSSRELEASE_STACK_TRACE and make
+ it not unwind as default
+In-Reply-To: <20171018133019.cwfhnt46pvhirt57@gmail.com>
+Message-ID: <alpine.DEB.2.20.1710181533260.1925@nanos>
+References: <1508318006-2090-1-git-send-email-byungchul.park@lge.com> <alpine.DEB.2.20.1710181519580.1925@nanos> <20171018133019.cwfhnt46pvhirt57@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAKTKpr508ArR1RUSY8HnaOkp==zPZ2=P_6gcXOAfi9hJq6XcqA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ganapatrao Kulkarni <gklkml16@gmail.com>
-Cc: Ganapatrao Kulkarni <ganapatrao.kulkarni@cavium.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Will Deacon <Will.Deacon@arm.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Hanjun Guo <hanjun.guo@linaro.org>, Joerg Roedel <joro@8bytes.org>, vbabka@suse.cz, akpm@linux-foundation.org, mhocko@suse.com, Tomasz.Nowicki@cavium.com, Robert.Richter@cavium.com, jnair@caviumnetworks.com
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Byungchul Park <byungchul.park@lge.com>, peterz@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@lge.com
 
-On 04/10/17 14:53, Ganapatrao Kulkarni wrote:
-> Hi Robin,
+On Wed, 18 Oct 2017, Ingo Molnar wrote:
+> * Thomas Gleixner <tglx@linutronix.de> wrote:
 > 
+> > On Wed, 18 Oct 2017, Byungchul Park wrote:
+> > >  #ifdef CONFIG_LOCKDEP_CROSSRELEASE
+> > > +#ifdef CONFIG_CROSSRELEASE_STACK_TRACE
+> > >  #define MAX_XHLOCK_TRACE_ENTRIES 5
+> > > +#else
+> > > +#define MAX_XHLOCK_TRACE_ENTRIES 1
+> > > +#endif
+> > >  
+> > >  /*
+> > >   * This is for keeping locks waiting for commit so that true dependencies
+> > > diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+> > > index e36e652..5c2ddf2 100644
+> > > --- a/kernel/locking/lockdep.c
+> > > +++ b/kernel/locking/lockdep.c
+> > > @@ -4863,8 +4863,13 @@ static void add_xhlock(struct held_lock *hlock)
+> > >  	xhlock->trace.nr_entries = 0;
+> > >  	xhlock->trace.max_entries = MAX_XHLOCK_TRACE_ENTRIES;
+> > >  	xhlock->trace.entries = xhlock->trace_entries;
+> > > +#ifdef CONFIG_CROSSRELEASE_STACK_TRACE
+> > >  	xhlock->trace.skip = 3;
+> > >  	save_stack_trace(&xhlock->trace);
+> > > +#else
+> > > +	xhlock->trace.nr_entries = 1;
+> > > +	xhlock->trace.entries[0] = hlock->acquire_ip;
+> > > +#endif
+> > 
+> > Hmm. Would it be possible to have this switchable at boot time via a
+> > command line parameter? So in case of a splat with no stack trace, one
+> > could just reboot and set something like 'lockdep_fullstack' on the kernel
+> > command line to get the full data without having to recompile the kernel.
 > 
-> On Thu, Sep 21, 2017 at 5:28 PM, Robin Murphy <robin.murphy@arm.com> wrote:
->> [+Christoph and Marek]
->>
->> On 21/09/17 09:59, Ganapatrao Kulkarni wrote:
->>> Introduce smmu_alloc_coherent and smmu_free_coherent functions to
->>> allocate/free dma coherent memory from NUMA node associated with SMMU.
->>> Replace all calls of dmam_alloc_coherent with smmu_alloc_coherent
->>> for SMMU stream tables and command queues.
->>
->> This doesn't work - not only do you lose the 'managed' aspect and risk
->> leaking various tables on probe failure or device removal, but more
->> importantly, unless you add DMA syncs around all the CPU accesses to the
->> tables, you lose the critical 'coherent' aspect, and that's a horribly
->> invasive change that I really don't want to make.
-> 
-> this implementation is similar to function used to allocate memory for
-> translation tables.
+> Yeah, and I'd suggest keeping the Kconfig option to default-enable that boot 
+> option as well - i.e. let's have both.
 
-The concept is similar, yes, and would work if implemented *correctly*
-with the aforementioned comprehensive and hugely invasive changes. The
-implementation as presented in this patch, however, is incomplete and
-badly broken.
+That makes sense. Like we have with debug objects:
+DEBUG_OBJECTS_ENABLE_DEFAULT.
 
-By way of comparison, the io-pgtable implementations contain all the
-necessary dma_sync_* calls, never relied on devres, and only have one
-DMA direction to worry about (hint: the queues don't all work
-identically). There are also a couple of practical reasons for using
-streaming mappings with the DMA == phys restriction there - tracking
-both the CPU and DMA addresses for each table would significantly
-increase the memory overhead, and using the cacheable linear map address
-in all cases sidesteps any potential problems with the atomic PTE
-updates. Neither of those concerns apply to the SMMUv3 data structures,
-which are textbook coherent DMA allocations (being tied to the lifetime
-of the device, rather than transient).
+Which reminds me that I wanted to convert them to static_key so they are
+zero overhead when disabled. Sigh, why are todo lists growth only?
 
-> why do you see it affects to stream tables and not to page tables.
-> at runtime, both tables are accessed by SMMU only.
-> 
-> As said in cover letter, having stream table from respective NUMA node
-> is yielding
-> around 30% performance!
-> please suggest, if there is any better way to address this issue?
+Thanks,
 
-I fully agree that NUMA-aware allocations are a worthwhile thing that we
-want. I just don't like the idea of going around individual drivers
-replacing coherent API usage with bodged-up streaming mappings - I
-really think it's worth making the effort to to tackle it once, in the
-proper place, in a way that benefits all users together.
-
-Robin.
-
->>
->> Christoph, Marek; how reasonable do you think it is to expect
->> dma_alloc_coherent() to be inherently NUMA-aware on NUMA-capable
->> systems? SWIOTLB looks fairly straightforward to fix up (for the simple
->> allocation case; I'm not sure it's even worth it for bounce-buffering),
->> but the likes of CMA might be a little trickier...
->>
->> Robin.
->>
->>> Signed-off-by: Ganapatrao Kulkarni <ganapatrao.kulkarni@cavium.com>
->>> ---
->>>  drivers/iommu/arm-smmu-v3.c | 57 ++++++++++++++++++++++++++++++++++++++++-----
->>>  1 file changed, 51 insertions(+), 6 deletions(-)
->>>
->>> diff --git a/drivers/iommu/arm-smmu-v3.c b/drivers/iommu/arm-smmu-v3.c
->>> index e67ba6c..bc4ba1f 100644
->>> --- a/drivers/iommu/arm-smmu-v3.c
->>> +++ b/drivers/iommu/arm-smmu-v3.c
->>> @@ -1158,6 +1158,50 @@ static void arm_smmu_init_bypass_stes(u64 *strtab, unsigned int nent)
->>>       }
->>>  }
->>>
->>> +static void *smmu_alloc_coherent(struct arm_smmu_device *smmu, size_t size,
->>> +             dma_addr_t *dma_handle, gfp_t gfp)
->>> +{
->>> +     struct device *dev = smmu->dev;
->>> +     void *pages;
->>> +     dma_addr_t dma;
->>> +     int numa_node = dev_to_node(dev);
->>> +
->>> +     pages = alloc_pages_exact_nid(numa_node, size, gfp | __GFP_ZERO);
->>> +     if (!pages)
->>> +             return NULL;
->>> +
->>> +     if (!(smmu->features & ARM_SMMU_FEAT_COHERENCY)) {
->>> +             dma = dma_map_single(dev, pages, size, DMA_TO_DEVICE);
->>> +             if (dma_mapping_error(dev, dma))
->>> +                     goto out_free;
->>> +             /*
->>> +              * We depend on the SMMU being able to work with any physical
->>> +              * address directly, so if the DMA layer suggests otherwise by
->>> +              * translating or truncating them, that bodes very badly...
->>> +              */
->>> +             if (dma != virt_to_phys(pages))
->>> +                     goto out_unmap;
->>> +     }
->>> +
->>> +     *dma_handle = (dma_addr_t)virt_to_phys(pages);
->>> +     return pages;
->>> +
->>> +out_unmap:
->>> +     dev_err(dev, "Cannot accommodate DMA translation for IOMMU page tables\n");
->>> +     dma_unmap_single(dev, dma, size, DMA_TO_DEVICE);
->>> +out_free:
->>> +     free_pages_exact(pages, size);
->>> +     return NULL;
->>> +}
->>> +
->>> +static void smmu_free_coherent(struct arm_smmu_device *smmu, size_t size,
->>> +             void *pages, dma_addr_t dma_handle)
->>> +{
->>> +     if (!(smmu->features & ARM_SMMU_FEAT_COHERENCY))
->>> +             dma_unmap_single(smmu->dev, dma_handle, size, DMA_TO_DEVICE);
->>> +     free_pages_exact(pages, size);
->>> +}
->>> +
->>>  static int arm_smmu_init_l2_strtab(struct arm_smmu_device *smmu, u32 sid)
->>>  {
->>>       size_t size;
->>> @@ -1172,7 +1216,7 @@ static int arm_smmu_init_l2_strtab(struct arm_smmu_device *smmu, u32 sid)
->>>       strtab = &cfg->strtab[(sid >> STRTAB_SPLIT) * STRTAB_L1_DESC_DWORDS];
->>>
->>>       desc->span = STRTAB_SPLIT + 1;
->>> -     desc->l2ptr = dmam_alloc_coherent(smmu->dev, size, &desc->l2ptr_dma,
->>> +     desc->l2ptr = smmu_alloc_coherent(smmu, size, &desc->l2ptr_dma,
->>>                                         GFP_KERNEL | __GFP_ZERO);
->>>       if (!desc->l2ptr) {
->>>               dev_err(smmu->dev,
->>> @@ -1487,7 +1531,7 @@ static void arm_smmu_domain_free(struct iommu_domain *domain)
->>>               struct arm_smmu_s1_cfg *cfg = &smmu_domain->s1_cfg;
->>>
->>>               if (cfg->cdptr) {
->>> -                     dmam_free_coherent(smmu_domain->smmu->dev,
->>> +                     smmu_free_coherent(smmu,
->>>                                          CTXDESC_CD_DWORDS << 3,
->>>                                          cfg->cdptr,
->>>                                          cfg->cdptr_dma);
->>> @@ -1515,7 +1559,7 @@ static int arm_smmu_domain_finalise_s1(struct arm_smmu_domain *smmu_domain,
->>>       if (asid < 0)
->>>               return asid;
->>>
->>> -     cfg->cdptr = dmam_alloc_coherent(smmu->dev, CTXDESC_CD_DWORDS << 3,
->>> +     cfg->cdptr = smmu_alloc_coherent(smmu, CTXDESC_CD_DWORDS << 3,
->>>                                        &cfg->cdptr_dma,
->>>                                        GFP_KERNEL | __GFP_ZERO);
->>>       if (!cfg->cdptr) {
->>> @@ -1984,7 +2028,7 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
->>>  {
->>>       size_t qsz = ((1 << q->max_n_shift) * dwords) << 3;
->>>
->>> -     q->base = dmam_alloc_coherent(smmu->dev, qsz, &q->base_dma, GFP_KERNEL);
->>> +     q->base = smmu_alloc_coherent(smmu, qsz, &q->base_dma, GFP_KERNEL);
->>>       if (!q->base) {
->>>               dev_err(smmu->dev, "failed to allocate queue (0x%zx bytes)\n",
->>>                       qsz);
->>> @@ -2069,7 +2113,7 @@ static int arm_smmu_init_strtab_2lvl(struct arm_smmu_device *smmu)
->>>                        size, smmu->sid_bits);
->>>
->>>       l1size = cfg->num_l1_ents * (STRTAB_L1_DESC_DWORDS << 3);
->>> -     strtab = dmam_alloc_coherent(smmu->dev, l1size, &cfg->strtab_dma,
->>> +     strtab = smmu_alloc_coherent(smmu, l1size, &cfg->strtab_dma,
->>>                                    GFP_KERNEL | __GFP_ZERO);
->>>       if (!strtab) {
->>>               dev_err(smmu->dev,
->>> @@ -2097,8 +2141,9 @@ static int arm_smmu_init_strtab_linear(struct arm_smmu_device *smmu)
->>>       u32 size;
->>>       struct arm_smmu_strtab_cfg *cfg = &smmu->strtab_cfg;
->>>
->>> +
->>>       size = (1 << smmu->sid_bits) * (STRTAB_STE_DWORDS << 3);
->>> -     strtab = dmam_alloc_coherent(smmu->dev, size, &cfg->strtab_dma,
->>> +     strtab = smmu_alloc_coherent(smmu, size, &cfg->strtab_dma,
->>>                                    GFP_KERNEL | __GFP_ZERO);
->>>       if (!strtab) {
->>>               dev_err(smmu->dev,
->>>
->>
-> 
-> thanks
-> Ganapat
-> 
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
