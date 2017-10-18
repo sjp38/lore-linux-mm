@@ -1,228 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E5636B0033
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 01:55:14 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id 1so5148276qtn.16
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 22:55:14 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 192si3869550qkg.222.2017.10.17.22.55.12
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D96E56B0069
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 02:28:59 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id s78so1699841wmd.14
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 23:28:59 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x194si8323348wme.55.2017.10.17.23.28.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Oct 2017 22:55:13 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9I5oinx130836
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 01:55:12 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2dnya9c8cw-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 01:55:11 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 18 Oct 2017 06:55:09 +0100
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v9I5t53V24051838
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 05:55:06 GMT
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v9I5sw6F005483
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 16:54:58 +1100
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [PATCH V3] selftests/vm: Add tests validating mremap mirror functionality
-Date: Wed, 18 Oct 2017 11:25:02 +0530
-Message-Id: <20171018055502.31752-1-khandual@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 17 Oct 2017 23:28:58 -0700 (PDT)
+Subject: Re: [PATCH] mm/page_alloc: make sure __rmqueue() etc. always inline
+References: <20171009054434.GA1798@intel.com>
+ <3a46edcf-88f8-e4f4-8b15-3c02620308e4@intel.com>
+ <20171010025151.GD1798@intel.com> <20171010025601.GE1798@intel.com>
+ <8d6a98d3-764e-fd41-59dc-88a9d21822c7@intel.com>
+ <20171010054342.GF1798@intel.com>
+ <20171010144545.c87a28b0f3c4e475305254ab@linux-foundation.org>
+ <20171011023402.GC27907@intel.com> <20171013063111.GA26032@intel.com>
+ <7304b3a4-d6cb-63fa-743d-ea8e7b126e32@suse.cz>
+ <1508291629.14336.14.camel@intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <29e5343f-b352-fe6a-02a8-74955cd606b8@suse.cz>
+Date: Wed, 18 Oct 2017 08:28:56 +0200
+MIME-Version: 1.0
+In-Reply-To: <1508291629.14336.14.camel@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: mike.kravetz@oracle.com, mhocko@kernel.org, shuahkh@osg.samsung.com
+To: "Lu, Aaron" <aaron.lu@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tim.c.chen@linux.intel.com" <tim.c.chen@linux.intel.com>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "Wang, Kemi" <kemi.wang@intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Huang, Ying" <ying.huang@intel.com>
 
-This adds two tests to validate mirror functionality with mremap()
-system call on shared and private anon mappings. After the commit
-dba58d3b8c5 ("mm/mremap: fail map duplication attempts for private
-mappings"), any attempt to mirror private anon mapping will fail.
+On 10/18/2017 03:53 AM, Lu, Aaron wrote:
+> On Tue, 2017-10-17 at 13:32 +0200, Vlastimil Babka wrote:
+>>
+>> Are transparent hugepages enabled? If yes, __rmqueue() is called from
+>> rmqueue(), and there's only one page fault (and __rmqueue()) per 512
+>> "writes to each page". If not, __rmqueue() is called from rmqueue_bulk()
+>> in bursts once pcplists are depleted. I guess it's the latter, otherwise
+>> I wouldn't expect a function call to have such visible overhead.
+> 
+> THP is disabled. I should have mentioned this in the changelog, sorry
+> about that.
 
-Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
-Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
----
+OK, then it makes sense!
 
-Changes in V3:
+>>
+>> I guess what would help much more would be a bulk __rmqueue_smallest()
+>> to grab multiple pages from the freelists. But can't argue with your
+> 
+> Do I understand you correctly that you suggest to use a bulk
+> __rmqueue_smallest(), say __rmqueue_smallest_bulk(). With that, instead
+> of looping pcp->batch times in rmqueue_bulk(), a single call to
+> __rmqueue_smallest_bulk() is enough and __rmqueue_smallest_bulk() will
+> loop pcp->batch times to get those pages?
 
-- Fail any attempts to mirror an existing anon private mapping
-- Updated run_vmtests to include these new mremap tests
-- Updated the commit message
+Yeah, but I looked at it more closely, and maybe there's not much to
+gain after all. E.g., there seem to be no atomic counter updates that
+would benefit from batching, or expensive setup/cleanup in
+__rmqueue_smallest().
 
-Changes in V2: (https://patchwork.kernel.org/patch/9861259/)
+> Then it feels like __rmqueue_smallest_bulk() has become rmqueue_bulk(),
+> or do I miss something?
 
-- Added a test for private anon mappings
-- Used sysconf(_SC_PAGESIZE) instead of hard coding page size
-- Used MREMAP_MAYMOVE instead of hard coding the flag value 1
+Right, looks like thanks to inlining, the compiler can already achieve
+most of the potential gains.
 
-Original V1: (https://patchwork.kernel.org/patch/9854415/)
+>> With gcc 7.2.1:
+>>> ./scripts/bloat-o-meter base.o mm/page_alloc.o
+>>
+>> add/remove: 1/2 grow/shrink: 2/0 up/down: 2493/-1649 (844)
+> 
+> Nice, it clearly showed 844 bytes bloat.
+> 
+>> function                                     old     new   delta
+>> get_page_from_freelist                      2898    4937   +2039
+>> steal_suitable_fallback                        -     365    +365
+>> find_suitable_fallback                        31     120     +89
+>> find_suitable_fallback.part                  115       -    -115
+>> __rmqueue                                   1534       -   -1534
 
- tools/testing/selftests/vm/Makefile                |  2 +
- .../selftests/vm/mremap_mirror_private_anon.c      | 41 +++++++++++++++
- .../selftests/vm/mremap_mirror_shared_anon.c       | 58 ++++++++++++++++++++++
- tools/testing/selftests/vm/run_vmtests             | 22 ++++++++
- 4 files changed, 123 insertions(+)
- create mode 100644 tools/testing/selftests/vm/mremap_mirror_private_anon.c
- create mode 100644 tools/testing/selftests/vm/mremap_mirror_shared_anon.c
+It also shows that steal_suitable_fallback() is no longer inlined. Which
+is fine, because that should ideally be rarely executed.
 
-diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
-index cbb29e4..6401f91 100644
---- a/tools/testing/selftests/vm/Makefile
-+++ b/tools/testing/selftests/vm/Makefile
-@@ -17,6 +17,8 @@ TEST_GEN_FILES += transhuge-stress
- TEST_GEN_FILES += userfaultfd
- TEST_GEN_FILES += mlock-random-test
- TEST_GEN_FILES += virtual_address_range
-+TEST_GEN_FILES += mremap_mirror_shared_anon
-+TEST_GEN_FILES += mremap_mirror_private_anon
- 
- TEST_PROGS := run_vmtests
- 
-diff --git a/tools/testing/selftests/vm/mremap_mirror_private_anon.c b/tools/testing/selftests/vm/mremap_mirror_private_anon.c
-new file mode 100644
-index 0000000..e4fa85b
---- /dev/null
-+++ b/tools/testing/selftests/vm/mremap_mirror_private_anon.c
-@@ -0,0 +1,41 @@
-+/*
-+ * Test to verify mirror functionality with mremap() system
-+ * call for private anon mappings. Any attempt to create a
-+ * mirror mapping for an anon private one should fail.
-+ *
-+ * Copyright (C) 2017 Anshuman Khandual, IBM Corporation
-+ *
-+ * Licensed under GPL V2
-+ */
-+#define _GNU_SOURCE
-+#include <stdio.h>
-+#include <string.h>
-+#include <unistd.h>
-+#include <errno.h>
-+#include <sys/mman.h>
-+#include <sys/time.h>
-+
-+#define PATTERN		0xbe
-+#define NR_PAGES	10
-+
-+int main(int argc, char *argv[])
-+{
-+	unsigned long alloc_size;
-+	char *ptr, *mirror_ptr;
-+
-+	alloc_size = sysconf(_SC_PAGESIZE) * NR_PAGES;
-+	ptr = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE,
-+			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-+	if (ptr == MAP_FAILED) {
-+		perror("map() failed");
-+		return -1;
-+	}
-+	memset(ptr, PATTERN, alloc_size);
-+
-+	mirror_ptr =  (char *) mremap(ptr, 0, alloc_size, MREMAP_MAYMOVE);
-+	if (mirror_ptr == MAP_FAILED)
-+		return 0;
-+
-+	printf("Mirror attempt on private anon mapping should have failed\n");
-+	return 1;
-+}
-diff --git a/tools/testing/selftests/vm/mremap_mirror_shared_anon.c b/tools/testing/selftests/vm/mremap_mirror_shared_anon.c
-new file mode 100644
-index 0000000..1d5c838
---- /dev/null
-+++ b/tools/testing/selftests/vm/mremap_mirror_shared_anon.c
-@@ -0,0 +1,58 @@
-+/*
-+ * Test to verify mirror functionality with mremap() system
-+ * call for shared anon mappings. The 'mirrored' buffer will
-+ * match element to element with that of the original one.
-+ *
-+ * Copyright (C) 2017 Anshuman Khandual, IBM Corporation
-+ *
-+ * Licensed under GPL V2
-+ */
-+#define _GNU_SOURCE
-+#include <stdio.h>
-+#include <string.h>
-+#include <unistd.h>
-+#include <errno.h>
-+#include <sys/mman.h>
-+#include <sys/time.h>
-+
-+#define PATTERN		0xbe
-+#define NR_PAGES	10
-+
-+int test_mirror(char *old, char *new, unsigned long size)
-+{
-+	unsigned long i;
-+
-+	for (i = 0; i < size; i++) {
-+		if (new[i] != old[i]) {
-+			printf("Mismatch at new[%lu] expected \
-+				%d received %d\n", i, old[i], new[i]);
-+			return 1;
-+		}
-+	}
-+	return 0;
-+}
-+
-+int main(int argc, char *argv[])
-+{
-+	unsigned long alloc_size;
-+	char *ptr, *mirror_ptr;
-+
-+	alloc_size = sysconf(_SC_PAGESIZE) * NR_PAGES;
-+	ptr = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE,
-+			MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-+	if (ptr == MAP_FAILED) {
-+		perror("map() failed");
-+		return -1;
-+	}
-+	memset(ptr, PATTERN, alloc_size);
-+
-+	mirror_ptr =  (char *) mremap(ptr, 0, alloc_size, MREMAP_MAYMOVE);
-+	if (mirror_ptr == MAP_FAILED) {
-+		perror("mremap() failed");
-+		return -1;
-+	}
-+
-+	if (test_mirror(ptr, mirror_ptr, alloc_size))
-+		return 1;
-+	return 0;
-+}
-diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
-index 07548a1..4c8d111 100755
---- a/tools/testing/selftests/vm/run_vmtests
-+++ b/tools/testing/selftests/vm/run_vmtests
-@@ -176,4 +176,26 @@ else
- 	echo "[PASS]"
- fi
- 
-+echo "-----------------------------"
-+echo "mremap_mirror_private_anon"
-+echo "-----------------------------"
-+./mremap_mirror_private_anon
-+if [ $? -ne 0 ]; then
-+	echo "[FAIL]"
-+	exitcode=1
-+else
-+	echo "[PASS]"
-+fi
-+
-+echo "-----------------------------"
-+echo "mremap_mirror_shared_anon"
-+echo "-----------------------------"
-+./mremap_mirror_shared_anon
-+if [ $? -ne 0 ]; then
-+	echo "[FAIL]"
-+	exitcode=1
-+else
-+	echo "[PASS]"
-+fi
-+
- exit $exitcode
--- 
-1.8.5.2
+>>
+>>> [aaron@aaronlu obj]$ size */*/vmlinux
+>>>    text    data     bss     dec       hex     filename
+>>> 10342757   5903208 17723392 33969357  20654cd gcc-4.9.4/base/vmlinux
+>>> 10342757   5903208 17723392 33969357  20654cd gcc-4.9.4/head/vmlinux
+>>> 10332448   5836608 17715200 33884256  2050860 gcc-5.5.0/base/vmlinux
+>>> 10332448   5836608 17715200 33884256  2050860 gcc-5.5.0/head/vmlinux
+>>> 10094546   5836696 17715200 33646442  201676a gcc-6.4.0/base/vmlinux
+>>> 10094546   5836696 17715200 33646442  201676a gcc-6.4.0/head/vmlinux
+>>> 10018775   5828732 17715200 33562707  2002053 gcc-7.2.0/base/vmlinux
+>>> 10018775   5828732 17715200 33562707  2002053 gcc-7.2.0/head/vmlinux
+>>>
+>>> Text size for vmlinux has no change though, probably due to function
+>>> alignment.
+>>
+>> Yep that's useless to show. These differences do add up though, until
+>> they eventually cross the alignment boundary.
+> 
+> Agreed.
+> But you know, it is the hot path, the performance improvement might be
+> worth it.
+
+I'd agree, so you can add
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
