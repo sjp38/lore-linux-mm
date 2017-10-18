@@ -1,137 +1,228 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 528C86B0069
-	for <linux-mm@kvack.org>; Tue, 17 Oct 2017 21:54:04 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id r6so2450109pfj.14
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 18:54:04 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id r1si531814plb.99.2017.10.17.18.54.02
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E5636B0033
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 01:55:14 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id 1so5148276qtn.16
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 22:55:14 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 192si3869550qkg.222.2017.10.17.22.55.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 17 Oct 2017 18:54:03 -0700 (PDT)
-From: "Lu, Aaron" <aaron.lu@intel.com>
-Subject: Re: [PATCH] mm/page_alloc: make sure __rmqueue() etc. always inline
-Date: Wed, 18 Oct 2017 01:53:47 +0000
-Message-ID: <1508291629.14336.14.camel@intel.com>
-References: <20171009054434.GA1798@intel.com>
-	 <3a46edcf-88f8-e4f4-8b15-3c02620308e4@intel.com>
-	 <20171010025151.GD1798@intel.com> <20171010025601.GE1798@intel.com>
-	 <8d6a98d3-764e-fd41-59dc-88a9d21822c7@intel.com>
-	 <20171010054342.GF1798@intel.com>
-	 <20171010144545.c87a28b0f3c4e475305254ab@linux-foundation.org>
-	 <20171011023402.GC27907@intel.com> <20171013063111.GA26032@intel.com>
-	 <7304b3a4-d6cb-63fa-743d-ea8e7b126e32@suse.cz>
-In-Reply-To: <7304b3a4-d6cb-63fa-743d-ea8e7b126e32@suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <A030326CC108574ABCEB6177D592CACA@intel.com>
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        Tue, 17 Oct 2017 22:55:13 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9I5oinx130836
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 01:55:12 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2dnya9c8cw-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 01:55:11 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Wed, 18 Oct 2017 06:55:09 +0100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v9I5t53V24051838
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 05:55:06 GMT
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v9I5sw6F005483
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 16:54:58 +1100
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [PATCH V3] selftests/vm: Add tests validating mremap mirror functionality
+Date: Wed, 18 Oct 2017 11:25:02 +0530
+Message-Id: <20171018055502.31752-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "vbabka@suse.cz" <vbabka@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tim.c.chen@linux.intel.com" <tim.c.chen@linux.intel.com>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "Wang, Kemi" <kemi.wang@intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Huang, Ying" <ying.huang@intel.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: mike.kravetz@oracle.com, mhocko@kernel.org, shuahkh@osg.samsung.com
 
-T24gVHVlLCAyMDE3LTEwLTE3IGF0IDEzOjMyICswMjAwLCBWbGFzdGltaWwgQmFia2Egd3JvdGU6
-DQo+IE9uIDEwLzEzLzIwMTcgMDg6MzEgQU0sIEFhcm9uIEx1IHdyb3RlOg0KPiA+IF9fcm1xdWV1
-ZSgpLCBfX3JtcXVldWVfZmFsbGJhY2soKSwgX19ybXF1ZXVlX3NtYWxsZXN0KCkgYW5kDQo+ID4g
-X19ybXF1ZXVlX2NtYV9mYWxsYmFjaygpIGFyZSBhbGwgaW4gcGFnZSBhbGxvY2F0b3IncyBob3Qg
-cGF0aCBhbmQNCj4gPiBiZXR0ZXIgYmUgZmluaXNoZWQgYXMgc29vbiBhcyBwb3NzaWJsZS4gT25l
-IHdheSB0byBtYWtlIHRoZW0gZmFzdGVyDQo+ID4gaXMgYnkgbWFraW5nIHRoZW0gaW5saW5lLiBC
-dXQgYXMgQW5kcmV3IE1vcnRvbiBhbmQgQW5kaSBLbGVlbiBwb2ludGVkDQo+ID4gb3V0Og0KPiA+
-IGh0dHBzOi8vbGttbC5vcmcvbGttbC8yMDE3LzEwLzEwLzEyNTINCj4gPiBodHRwczovL2xrbWwu
-b3JnL2xrbWwvMjAxNy8xMC8xMC8xMjc5DQo+ID4gVG8gbWFrZSBzdXJlIHRoZXkgYXJlIGlubGlu
-ZWQsIHdlIHNob3VsZCB1c2UgX19hbHdheXNfaW5saW5lIGZvciB0aGVtLg0KPiA+IA0KPiA+IFdp
-dGggdGhlIHdpbGwtaXQtc2NhbGUvcGFnZV9mYXVsdDEvcHJvY2VzcyBiZW5jaG1hcmssIHdoZW4g
-dXNpbmcgbnJfY3B1DQo+ID4gcHJvY2Vzc2VzIHRvIHN0cmVzcyBidWRkeSwgdGhlIHJlc3VsdHMg
-Zm9yIHdpbGwtaXQtc2NhbGUucHJvY2Vzc2VzIHdpdGgNCj4gPiBhbmQgd2l0aG91dCB0aGUgcGF0
-Y2ggYXJlOg0KPiA+IA0KPiA+IE9uIGEgMi1zb2NrZXRzIEludGVsLVNreWxha2UgbWFjaGluZToN
-Cj4gPiANCj4gPiAgY29tcGlsZXIgICAgICAgICAgYmFzZSAgICAgICAgaGVhZA0KPiA+IGdjYy00
-LjQuNyAgICAgICA2NDk2MTMxICAgICA2OTExODIzICs2LjQlDQo+ID4gZ2NjLTQuOS40ICAgICAg
-IDcyMjUxMTAgICAgIDc3MzEwNzIgKzcuMCUNCj4gPiBnY2MtNS40LjEgICAgICAgNzA1NDIyNCAg
-ICAgNzY4ODE0NiArOS4wJQ0KPiA+IGdjYy02LjIuMCAgICAgICA3MDU5Nzk0ICAgICA3NjUxNjc1
-ICs4LjQlDQo+ID4gDQo+ID4gT24gYSA0LXNvY2tldHMgSW50ZWwtU2t5bGFrZSBtYWNoaW5lOg0K
-PiA+IA0KPiA+ICBjb21waWxlciAgICAgICAgICBiYXNlICAgICAgICBoZWFkDQo+ID4gZ2NjLTQu
-NC43ICAgICAgMTMxNjI4OTAgICAgMTM1MDgxOTMgKzIuNiUNCj4gPiBnY2MtNC45LjQgICAgICAx
-NDk5NzQ2MyAgICAxNTQ4NDM1MyArMy4yJQ0KPiA+IGdjYy01LjQuMSAgICAgIDE0NzA4NzExICAg
-IDE1NDQ5ODA1ICs1LjAlDQo+ID4gZ2NjLTYuMi4wICAgICAgMTQ1NzQwOTkgICAgMTUzNDkyMDQg
-KzUuMyUNCj4gPiANCj4gPiBUaGUgYWJvdmUgNCBjb21waWxlcnMgYXJlIHVzZWQgYmVjdWFzZSBJ
-J3ZlIGRvbmUgdGhlIHRlc3RzIHRocm91Z2ggSW50ZWwncw0KPiA+IExpbnV4IEtlcm5lbCBQZXJm
-b3JtYW5jZShMS1ApIGluZnJhc3RydWN0dXJlIGFuZCB0aGV5IGFyZSB0aGUgYXZhaWxhYmxlDQo+
-ID4gY29tcGlsZXJzIHRoZXJlLg0KPiA+IA0KPiA+IFRoZSBiZW5lZml0IGJlaW5nIGxlc3Mgb24g
-NCBzb2NrZXRzIG1hY2hpbmUgaXMgZHVlIHRvIHRoZSBsb2NrIGNvbnRlbnRpb24NCj4gPiB0aGVy
-ZShwZXJmLXByb2ZpbGUvbmF0aXZlX3F1ZXVlZF9zcGluX2xvY2tfc2xvd3BhdGg9ODElKSBpcyBs
-ZXNzIHNldmVyZQ0KPiA+IHRoYW4gb24gdGhlIDIgc29ja2V0cyBtYWNoaW5lKDg1JSkuDQo+ID4g
-DQo+ID4gV2hhdCB0aGUgYmVuY2htYXJrIGRvZXMgaXM6IGl0IGZvcmtzIG5yX2NwdSBwcm9jZXNz
-ZXMgYW5kIHRoZW4gZWFjaA0KPiA+IHByb2Nlc3MgZG9lcyB0aGUgZm9sbG93aW5nOg0KPiA+ICAg
-ICAxIG1tYXAoKSAxMjhNIGFub255bW91cyBzcGFjZTsNCj4gPiAgICAgMiB3cml0ZXMgdG8gZWFj
-aCBwYWdlIHRoZXJlIHRvIHRyaWdnZXIgYWN0dWFsIHBhZ2UgYWxsb2NhdGlvbjsNCj4gPiAgICAg
-MyBtdW5tYXAoKSBpdC4NCj4gPiBpbiBhIGxvb3AuDQo+ID4gaHR0cHM6Ly9naXRodWIuY29tL2Fu
-dG9uYmxhbmNoYXJkL3dpbGwtaXQtc2NhbGUvYmxvYi9tYXN0ZXIvdGVzdHMvcGFnZV9mYXVsdDEu
-Yw0KPiANCj4gQXJlIHRyYW5zcGFyZW50IGh1Z2VwYWdlcyBlbmFibGVkPyBJZiB5ZXMsIF9fcm1x
-dWV1ZSgpIGlzIGNhbGxlZCBmcm9tDQo+IHJtcXVldWUoKSwgYW5kIHRoZXJlJ3Mgb25seSBvbmUg
-cGFnZSBmYXVsdCAoYW5kIF9fcm1xdWV1ZSgpKSBwZXIgNTEyDQo+ICJ3cml0ZXMgdG8gZWFjaCBw
-YWdlIi4gSWYgbm90LCBfX3JtcXVldWUoKSBpcyBjYWxsZWQgZnJvbSBybXF1ZXVlX2J1bGsoKQ0K
-PiBpbiBidXJzdHMgb25jZSBwY3BsaXN0cyBhcmUgZGVwbGV0ZWQuIEkgZ3Vlc3MgaXQncyB0aGUg
-bGF0dGVyLCBvdGhlcndpc2UNCj4gSSB3b3VsZG4ndCBleHBlY3QgYSBmdW5jdGlvbiBjYWxsIHRv
-IGhhdmUgc3VjaCB2aXNpYmxlIG92ZXJoZWFkLg0KDQpUSFAgaXMgZGlzYWJsZWQuIEkgc2hvdWxk
-IGhhdmUgbWVudGlvbmVkIHRoaXMgaW4gdGhlIGNoYW5nZWxvZywgc29ycnkNCmFib3V0IHRoYXQu
-DQoNCj4gDQo+IEkgZ3Vlc3Mgd2hhdCB3b3VsZCBoZWxwIG11Y2ggbW9yZSB3b3VsZCBiZSBhIGJ1
-bGsgX19ybXF1ZXVlX3NtYWxsZXN0KCkNCj4gdG8gZ3JhYiBtdWx0aXBsZSBwYWdlcyBmcm9tIHRo
-ZSBmcmVlbGlzdHMuIEJ1dCBjYW4ndCBhcmd1ZSB3aXRoIHlvdXINCg0KRG8gSSB1bmRlcnN0YW5k
-IHlvdSBjb3JyZWN0bHkgdGhhdCB5b3Ugc3VnZ2VzdCB0byB1c2UgYSBidWxrDQpfX3JtcXVldWVf
-c21hbGxlc3QoKSwgc2F5IF9fcm1xdWV1ZV9zbWFsbGVzdF9idWxrKCkuIFdpdGggdGhhdCwgaW5z
-dGVhZA0Kb2YgbG9vcGluZyBwY3AtPmJhdGNoIHRpbWVzIGluIHJtcXVldWVfYnVsaygpLCBhIHNp
-bmdsZSBjYWxsIHRvDQpfX3JtcXVldWVfc21hbGxlc3RfYnVsaygpIGlzIGVub3VnaCBhbmQgX19y
-bXF1ZXVlX3NtYWxsZXN0X2J1bGsoKSB3aWxsDQpsb29wIHBjcC0+YmF0Y2ggdGltZXMgdG8gZ2V0
-IHRob3NlIHBhZ2VzPw0KDQpUaGVuIGl0IGZlZWxzIGxpa2UgX19ybXF1ZXVlX3NtYWxsZXN0X2J1
-bGsoKSBoYXMgYmVjb21lIHJtcXVldWVfYnVsaygpLA0Kb3IgZG8gSSBtaXNzIHNvbWV0aGluZz8N
-Cg0KPiBudW1iZXJzIGFnYWluc3QgdGhpcyBwYXRjaC4NCj4gDQo+ID4gQmluYXJ5IHNpemUgd2lz
-ZSwgSSBoYXZlIGxvY2FsbHkgYnVpbHQgdGhlbSB3aXRoIGRpZmZlcmVudCBjb21waWxlcnM6DQo+
-ID4gDQo+ID4gW2Fhcm9uQGFhcm9ubHUgb2JqXSQgc2l6ZSAqLyovbW0vcGFnZV9hbGxvYy5vDQo+
-ID4gICAgdGV4dCAgICBkYXRhICAgICBic3MgICAgIGRlYyAgICAgaGV4IGZpbGVuYW1lDQo+ID4g
-ICAzNzQwOSAgICA5OTA0ICAgIDg1MjQgICA1NTgzNyAgICBkYTFkIGdjYy00LjkuNC9iYXNlL21t
-L3BhZ2VfYWxsb2Mubw0KPiA+ICAgMzgyNzMgICAgOTkwNCAgICA4NTI0ICAgNTY3MDEgICAgZGQ3
-ZCBnY2MtNC45LjQvaGVhZC9tbS9wYWdlX2FsbG9jLm8NCj4gPiAgIDM3NDY1ICAgIDk4NDAgICAg
-ODQyOCAgIDU1NzMzICAgIGQ5YjUgZ2NjLTUuNS4wL2Jhc2UvbW0vcGFnZV9hbGxvYy5vDQo+ID4g
-ICAzODE2OSAgICA5ODQwICAgIDg0MjggICA1NjQzNyAgICBkYzc1IGdjYy01LjUuMC9oZWFkL21t
-L3BhZ2VfYWxsb2Mubw0KPiA+ICAgMzc1NzMgICAgOTg0MCAgICA4NDI4ICAgNTU4NDEgICAgZGEy
-MSBnY2MtNi40LjAvYmFzZS9tbS9wYWdlX2FsbG9jLm8NCj4gPiAgIDM4MjYxICAgIDk4NDAgICAg
-ODQyOCAgIDU2NTI5ICAgIGRjZDEgZ2NjLTYuNC4wL2hlYWQvbW0vcGFnZV9hbGxvYy5vDQo+ID4g
-ICAzNjg2MyAgICA5ODQwICAgIDg0MjggICA1NTEzMSAgICBkNzViIGdjYy03LjIuMC9iYXNlL21t
-L3BhZ2VfYWxsb2Mubw0KPiA+ICAgMzc3MTEgICAgOTg0MCAgICA4NDI4ICAgNTU5NzkgICAgZGFh
-YiBnY2MtNy4yLjAvaGVhZC9tbS9wYWdlX2FsbG9jLm8NCj4gPiANCj4gPiBUZXh0IHNpemUgaW5j
-cmVhc2VkIGFib3V0IDgwMCBieXRlcyBmb3IgbW0vcGFnZV9hbGxvYy5vLg0KPiANCj4gQlRXLCBk
-byB5b3Uga25vdyBhYm91dCAuL3NjcmlwdHMvYmxvYXQtby1tZXRlcj8gOikNCg0KTk8hISEgVGhh
-bmtzIGZvciBicmluZ2luZyB0aGlzIHVwIDopDQoNCj4gV2l0aCBnY2MgNy4yLjE6DQo+ID4gLi9z
-Y3JpcHRzL2Jsb2F0LW8tbWV0ZXIgYmFzZS5vIG1tL3BhZ2VfYWxsb2Mubw0KPiANCj4gYWRkL3Jl
-bW92ZTogMS8yIGdyb3cvc2hyaW5rOiAyLzAgdXAvZG93bjogMjQ5My8tMTY0OSAoODQ0KQ0KDQpO
-aWNlLCBpdCBjbGVhcmx5IHNob3dlZCA4NDQgYnl0ZXMgYmxvYXQuDQoNCj4gZnVuY3Rpb24gICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgb2xkICAgICBuZXcgICBkZWx0YQ0KPiBn
-ZXRfcGFnZV9mcm9tX2ZyZWVsaXN0ICAgICAgICAgICAgICAgICAgICAgIDI4OTggICAgNDkzNyAg
-ICsyMDM5DQo+IHN0ZWFsX3N1aXRhYmxlX2ZhbGxiYWNrICAgICAgICAgICAgICAgICAgICAgICAg
-LSAgICAgMzY1ICAgICszNjUNCj4gZmluZF9zdWl0YWJsZV9mYWxsYmFjayAgICAgICAgICAgICAg
-ICAgICAgICAgIDMxICAgICAxMjAgICAgICs4OQ0KPiBmaW5kX3N1aXRhYmxlX2ZhbGxiYWNrLnBh
-cnQgICAgICAgICAgICAgICAgICAxMTUgICAgICAgLSAgICAtMTE1DQo+IF9fcm1xdWV1ZSAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgMTUzNCAgICAgICAtICAgLTE1MzQNCj4gDQo+
-IA0KPiA+IFthYXJvbkBhYXJvbmx1IG9ial0kIHNpemUgKi8qL3ZtbGludXgNCj4gPiAgICB0ZXh0
-ICAgIGRhdGEgICAgIGJzcyAgICAgZGVjICAgICAgIGhleCAgICAgZmlsZW5hbWUNCj4gPiAxMDM0
-Mjc1NyAgIDU5MDMyMDggMTc3MjMzOTIgMzM5NjkzNTcgIDIwNjU0Y2QgZ2NjLTQuOS40L2Jhc2Uv
-dm1saW51eA0KPiA+IDEwMzQyNzU3ICAgNTkwMzIwOCAxNzcyMzM5MiAzMzk2OTM1NyAgMjA2NTRj
-ZCBnY2MtNC45LjQvaGVhZC92bWxpbnV4DQo+ID4gMTAzMzI0NDggICA1ODM2NjA4IDE3NzE1MjAw
-IDMzODg0MjU2ICAyMDUwODYwIGdjYy01LjUuMC9iYXNlL3ZtbGludXgNCj4gPiAxMDMzMjQ0OCAg
-IDU4MzY2MDggMTc3MTUyMDAgMzM4ODQyNTYgIDIwNTA4NjAgZ2NjLTUuNS4wL2hlYWQvdm1saW51
-eA0KPiA+IDEwMDk0NTQ2ICAgNTgzNjY5NiAxNzcxNTIwMCAzMzY0NjQ0MiAgMjAxNjc2YSBnY2Mt
-Ni40LjAvYmFzZS92bWxpbnV4DQo+ID4gMTAwOTQ1NDYgICA1ODM2Njk2IDE3NzE1MjAwIDMzNjQ2
-NDQyICAyMDE2NzZhIGdjYy02LjQuMC9oZWFkL3ZtbGludXgNCj4gPiAxMDAxODc3NSAgIDU4Mjg3
-MzIgMTc3MTUyMDAgMzM1NjI3MDcgIDIwMDIwNTMgZ2NjLTcuMi4wL2Jhc2Uvdm1saW51eA0KPiA+
-IDEwMDE4Nzc1ICAgNTgyODczMiAxNzcxNTIwMCAzMzU2MjcwNyAgMjAwMjA1MyBnY2MtNy4yLjAv
-aGVhZC92bWxpbnV4DQo+ID4gDQo+ID4gVGV4dCBzaXplIGZvciB2bWxpbnV4IGhhcyBubyBjaGFu
-Z2UgdGhvdWdoLCBwcm9iYWJseSBkdWUgdG8gZnVuY3Rpb24NCj4gPiBhbGlnbm1lbnQuDQo+IA0K
-PiBZZXAgdGhhdCdzIHVzZWxlc3MgdG8gc2hvdy4gVGhlc2UgZGlmZmVyZW5jZXMgZG8gYWRkIHVw
-IHRob3VnaCwgdW50aWwNCj4gdGhleSBldmVudHVhbGx5IGNyb3NzIHRoZSBhbGlnbm1lbnQgYm91
-bmRhcnkuDQoNCkFncmVlZC4NCkJ1dCB5b3Uga25vdywgaXQgaXMgdGhlIGhvdCBwYXRoLCB0aGUg
-cGVyZm9ybWFuY2UgaW1wcm92ZW1lbnQgbWlnaHQgYmUNCndvcnRoIGl0Lg==
+This adds two tests to validate mirror functionality with mremap()
+system call on shared and private anon mappings. After the commit
+dba58d3b8c5 ("mm/mremap: fail map duplication attempts for private
+mappings"), any attempt to mirror private anon mapping will fail.
+
+Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+---
+
+Changes in V3:
+
+- Fail any attempts to mirror an existing anon private mapping
+- Updated run_vmtests to include these new mremap tests
+- Updated the commit message
+
+Changes in V2: (https://patchwork.kernel.org/patch/9861259/)
+
+- Added a test for private anon mappings
+- Used sysconf(_SC_PAGESIZE) instead of hard coding page size
+- Used MREMAP_MAYMOVE instead of hard coding the flag value 1
+
+Original V1: (https://patchwork.kernel.org/patch/9854415/)
+
+ tools/testing/selftests/vm/Makefile                |  2 +
+ .../selftests/vm/mremap_mirror_private_anon.c      | 41 +++++++++++++++
+ .../selftests/vm/mremap_mirror_shared_anon.c       | 58 ++++++++++++++++++++++
+ tools/testing/selftests/vm/run_vmtests             | 22 ++++++++
+ 4 files changed, 123 insertions(+)
+ create mode 100644 tools/testing/selftests/vm/mremap_mirror_private_anon.c
+ create mode 100644 tools/testing/selftests/vm/mremap_mirror_shared_anon.c
+
+diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
+index cbb29e4..6401f91 100644
+--- a/tools/testing/selftests/vm/Makefile
++++ b/tools/testing/selftests/vm/Makefile
+@@ -17,6 +17,8 @@ TEST_GEN_FILES += transhuge-stress
+ TEST_GEN_FILES += userfaultfd
+ TEST_GEN_FILES += mlock-random-test
+ TEST_GEN_FILES += virtual_address_range
++TEST_GEN_FILES += mremap_mirror_shared_anon
++TEST_GEN_FILES += mremap_mirror_private_anon
+ 
+ TEST_PROGS := run_vmtests
+ 
+diff --git a/tools/testing/selftests/vm/mremap_mirror_private_anon.c b/tools/testing/selftests/vm/mremap_mirror_private_anon.c
+new file mode 100644
+index 0000000..e4fa85b
+--- /dev/null
++++ b/tools/testing/selftests/vm/mremap_mirror_private_anon.c
+@@ -0,0 +1,41 @@
++/*
++ * Test to verify mirror functionality with mremap() system
++ * call for private anon mappings. Any attempt to create a
++ * mirror mapping for an anon private one should fail.
++ *
++ * Copyright (C) 2017 Anshuman Khandual, IBM Corporation
++ *
++ * Licensed under GPL V2
++ */
++#define _GNU_SOURCE
++#include <stdio.h>
++#include <string.h>
++#include <unistd.h>
++#include <errno.h>
++#include <sys/mman.h>
++#include <sys/time.h>
++
++#define PATTERN		0xbe
++#define NR_PAGES	10
++
++int main(int argc, char *argv[])
++{
++	unsigned long alloc_size;
++	char *ptr, *mirror_ptr;
++
++	alloc_size = sysconf(_SC_PAGESIZE) * NR_PAGES;
++	ptr = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	if (ptr == MAP_FAILED) {
++		perror("map() failed");
++		return -1;
++	}
++	memset(ptr, PATTERN, alloc_size);
++
++	mirror_ptr =  (char *) mremap(ptr, 0, alloc_size, MREMAP_MAYMOVE);
++	if (mirror_ptr == MAP_FAILED)
++		return 0;
++
++	printf("Mirror attempt on private anon mapping should have failed\n");
++	return 1;
++}
+diff --git a/tools/testing/selftests/vm/mremap_mirror_shared_anon.c b/tools/testing/selftests/vm/mremap_mirror_shared_anon.c
+new file mode 100644
+index 0000000..1d5c838
+--- /dev/null
++++ b/tools/testing/selftests/vm/mremap_mirror_shared_anon.c
+@@ -0,0 +1,58 @@
++/*
++ * Test to verify mirror functionality with mremap() system
++ * call for shared anon mappings. The 'mirrored' buffer will
++ * match element to element with that of the original one.
++ *
++ * Copyright (C) 2017 Anshuman Khandual, IBM Corporation
++ *
++ * Licensed under GPL V2
++ */
++#define _GNU_SOURCE
++#include <stdio.h>
++#include <string.h>
++#include <unistd.h>
++#include <errno.h>
++#include <sys/mman.h>
++#include <sys/time.h>
++
++#define PATTERN		0xbe
++#define NR_PAGES	10
++
++int test_mirror(char *old, char *new, unsigned long size)
++{
++	unsigned long i;
++
++	for (i = 0; i < size; i++) {
++		if (new[i] != old[i]) {
++			printf("Mismatch at new[%lu] expected \
++				%d received %d\n", i, old[i], new[i]);
++			return 1;
++		}
++	}
++	return 0;
++}
++
++int main(int argc, char *argv[])
++{
++	unsigned long alloc_size;
++	char *ptr, *mirror_ptr;
++
++	alloc_size = sysconf(_SC_PAGESIZE) * NR_PAGES;
++	ptr = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE,
++			MAP_SHARED | MAP_ANONYMOUS, -1, 0);
++	if (ptr == MAP_FAILED) {
++		perror("map() failed");
++		return -1;
++	}
++	memset(ptr, PATTERN, alloc_size);
++
++	mirror_ptr =  (char *) mremap(ptr, 0, alloc_size, MREMAP_MAYMOVE);
++	if (mirror_ptr == MAP_FAILED) {
++		perror("mremap() failed");
++		return -1;
++	}
++
++	if (test_mirror(ptr, mirror_ptr, alloc_size))
++		return 1;
++	return 0;
++}
+diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
+index 07548a1..4c8d111 100755
+--- a/tools/testing/selftests/vm/run_vmtests
++++ b/tools/testing/selftests/vm/run_vmtests
+@@ -176,4 +176,26 @@ else
+ 	echo "[PASS]"
+ fi
+ 
++echo "-----------------------------"
++echo "mremap_mirror_private_anon"
++echo "-----------------------------"
++./mremap_mirror_private_anon
++if [ $? -ne 0 ]; then
++	echo "[FAIL]"
++	exitcode=1
++else
++	echo "[PASS]"
++fi
++
++echo "-----------------------------"
++echo "mremap_mirror_shared_anon"
++echo "-----------------------------"
++./mremap_mirror_shared_anon
++if [ $? -ne 0 ]; then
++	echo "[FAIL]"
++	exitcode=1
++else
++	echo "[PASS]"
++fi
++
+ exit $exitcode
+-- 
+1.8.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
