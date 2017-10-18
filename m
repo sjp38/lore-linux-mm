@@ -1,118 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EEFF6B0033
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:10:54 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id z99so236734wrc.15
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 00:10:54 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id k71si8253809wmi.254.2017.10.18.00.10.52
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Oct 2017 00:10:53 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9I79cg7076104
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:10:51 -0400
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2dnsxujh80-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:10:51 -0400
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 18 Oct 2017 08:10:50 +0100
-Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v9I7Aket28639340
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 07:10:48 GMT
-Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
-	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v9I7AkgF022734
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 18:10:46 +1100
-Subject: Re: [rfc 2/2] smaps: Show zone device memory used
-References: <20171018063123.21983-1-bsingharora@gmail.com>
- <20171018063123.21983-2-bsingharora@gmail.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Wed, 18 Oct 2017 12:40:43 +0530
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 779996B0033
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:27:55 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id y184so2160514pgd.15
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 00:27:55 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id r10si6467016pgp.392.2017.10.18.00.27.53
+        for <linux-mm@kvack.org>;
+        Wed, 18 Oct 2017 00:27:54 -0700 (PDT)
+Date: Wed, 18 Oct 2017 16:31:29 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [lkp-robot] [x86/kconfig] 81d3871900: BUG:unable_to_handle_kernel
+Message-ID: <20171018073128.GA27595@js1304-P5Q-DELUXE>
+References: <20171010121513.GC5445@yexl-desktop>
+ <20171011023106.izaulhwjcoam55jt@treble>
+ <20171011170120.7flnk6r77dords7a@treble>
+ <20171017073326.GA23865@js1304-P5Q-DELUXE>
+ <alpine.DEB.2.20.1710170948550.1932@nanos>
 MIME-Version: 1.0
-In-Reply-To: <20171018063123.21983-2-bsingharora@gmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <d33c5a32-2b1a-85c7-be68-d006517b1ecd@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1710170948550.1932@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>, jglisse@redhat.com
-Cc: linux-mm@kvack.org, mhocko@suse.com
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>, kernel test robot <xiaolong.ye@intel.com>, Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Slaby <jslaby@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Mike Galbraith <efault@gmx.de>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, lkp@01.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
 
-On 10/18/2017 12:01 PM, Balbir Singh wrote:
-> With HMM, we can have either public or private zone
-> device pages. With private zone device pages, they should
-> show up as swapped entities. For public zone device pages
-
-Might be missing something here but why they should show up
-as swapped entities ? Could you please elaborate.
-
-> the smaps output can be confusing and incomplete.
+On Tue, Oct 17, 2017 at 09:50:04AM +0200, Thomas Gleixner wrote:
+> On Tue, 17 Oct 2017, Joonsoo Kim wrote:
+> > On Wed, Oct 11, 2017 at 12:01:20PM -0500, Josh Poimboeuf wrote:
+> > > > Looking at the panic, the code in slob_free() was:
+> > > > 
+> > > >    0:	e8 8d f7 ff ff       	callq  0xfffffffffffff792
+> > > >    5:	48 ff 05 c9 8c 91 02 	incq   0x2918cc9(%rip)        # 0x2918cd5
+> > > >    c:	85 c0                	test   %eax,%eax
+> > > >    e:	75 51                	jne    0x61
+> > > >   10:	49 0f bf c5          	movswq %r13w,%rax
+> > > >   14:	48 ff 05 c2 8c 91 02 	incq   0x2918cc2(%rip)        # 0x2918cdd
+> > > >   1b:	48 8d 3c 43          	lea    (%rbx,%rax,2),%rdi
+> > > >   1f:	48 39 ef             	cmp    %rbp,%rdi
+> > > >   22:	75 3d                	jne    0x61
+> > > >   24:	48 ff 05 ba 8c 91 02 	incq   0x2918cba(%rip)        # 0x2918ce5
+> > > >   2b:*	8b 6d 00             	mov    0x0(%rbp),%ebp		<-- trapping instruction
+> > > >   2e:	66 85 ed             	test   %bp,%bp
+> > > >   31:	7e 09                	jle    0x3c
+> > > >   33:	48 ff 05 b3 8c 91 02 	incq   0x2918cb3(%rip)        # 0x2918ced
+> > > >   3a:	eb 05                	jmp    0x41
+> > > >   3c:	bd                   	.byte 0xbd
+> > > >   3d:	01 00                	add    %eax,(%rax)
+> > > > 
+> > > > The slob_free() code tried to read four bytes at ffff88001c4afffe, and
+> > > > ended up reading past the page into a bad area.  I think the bad address
+> > > > (ffff88001c4afffe) was returned from slob_next() and it panicked trying
+> > > > to read s->units in slob_units().
+> > 
+> > Hello,
+> > 
+> > It looks like a compiler bug. The code of slob_units() try to read two
+> > bytes at ffff88001c4afffe. It's valid. But the compiler generates
+> > wrong code that try to read four bytes.
+> > 
+> > static slobidx_t slob_units(slob_t *s) 
+> > {
+> >   if (s->units > 0)
+> >     return s->units;
+> >   return 1;
+> > }
+> > 
+> > s->units is defined as two bytes in this setup.
+> > 
+> > Wrongly generated code for this part.
+> > 
+> > 'mov 0x0(%rbp), %ebp'
+> > 
+> > %ebp is four bytes.
+> > 
+> > I guess that this wrong four bytes read cross over the valid memory
+> > boundary and this issue happend.
+> > 
+> > Proper code (two bytes read) is generated if different version of gcc
+> > is used.
 > 
-> This patch adds a new attribute to just smaps to show
-> device memory usage.
-
-If we are any way adding a new entry here then why not one
-more for private device memory pages as well. Just being
-curious.
-
+> Which version fails to generate proper code and which versions work?
 > 
-> Signed-off-by: Balbir Singh <bsingharora@gmail.com>
-> ---
->  fs/proc/task_mmu.c | 17 +++++++++++++++--
->  1 file changed, 15 insertions(+), 2 deletions(-)
-> 
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 9f1e2b2b5f5a..b7f32f42ee93 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -451,6 +451,7 @@ struct mem_size_stats {
->  	unsigned long shared_hugetlb;
->  	unsigned long private_hugetlb;
->  	unsigned long first_vma_start;
-> +	unsigned long device_memory;
->  	u64 pss;
->  	u64 pss_locked;
->  	u64 swap_pss;
-> @@ -463,12 +464,22 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
->  	int i, nr = compound ? 1 << compound_order(page) : 1;
->  	unsigned long size = nr * PAGE_SIZE;
->  
-> +	/*
-> +	 * We don't want to process public zone device pages further
-> +	 * than just showing how much device memory we have
-> +	 */
-> +	if (is_zone_device_page(page)) {
 
-Should not this contain both public and private device pages.
+gcc 4.8 and 4.9 fails to generate proper code. gcc 5.1 and
+the latest version works fine.
 
-> +		mss->device_memory += size;
-> +		return;
-> +	}
-> +
->  	if (PageAnon(page)) {
->  		mss->anonymous += size;
->  		if (!PageSwapBacked(page) && !dirty && !PageDirty(page))
->  			mss->lazyfree += size;
->  	}
->  
-> +
+I guess that this problem is related to the corner case of some
+optimization feature since minor code change makes the result
+different. And, with -O2, proper code is generated even if gcc 4.8 is
+used.
 
-Stray new line.
-
->  	mss->resident += size;
->  	/* Accumulate the size in pages that have been accessed. */
->  	if (young || page_is_young(page) || PageReferenced(page))
-> @@ -833,7 +844,8 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
->  			   "Private_Hugetlb: %7lu kB\n"
->  			   "Swap:           %8lu kB\n"
->  			   "SwapPss:        %8lu kB\n"
-> -			   "Locked:         %8lu kB\n",
-> +			   "Locked:         %8lu kB\n"
-
-Stray changed line.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
