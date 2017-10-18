@@ -1,43 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 57DED6B025E
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 10:13:43 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id f4so2215175wme.21
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 07:13:43 -0700 (PDT)
-Received: from outbound-smtp13.blacknight.com (outbound-smtp13.blacknight.com. [46.22.139.230])
-        by mx.google.com with ESMTPS id i5si67883edd.36.2017.10.18.07.13.42
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D5CE6B025E
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 10:15:08 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id f85so3581758pfe.7
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 07:15:08 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id f29si7040426pgn.736.2017.10.18.07.15.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Oct 2017 07:13:42 -0700 (PDT)
-Received: from mail.blacknight.com (unknown [81.17.254.10])
-	by outbound-smtp13.blacknight.com (Postfix) with ESMTPS id C97301C2611
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 15:13:41 +0100 (IST)
-Date: Wed, 18 Oct 2017 15:13:41 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [patch] mm, slab: only set __GFP_RECLAIMABLE once
-Message-ID: <20171018141341.46atga2mi6eudnw2@techsingularity.net>
-References: <alpine.DEB.2.10.1710171527560.140898@chino.kir.corp.google.com>
+        Wed, 18 Oct 2017 07:15:07 -0700 (PDT)
+Date: Wed, 18 Oct 2017 07:15:02 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 1/2] lockdep: Introduce CROSSRELEASE_STACK_TRACE and make
+ it not unwind as default
+Message-ID: <20171018141502.GB12063@bombadil.infradead.org>
+References: <1508318006-2090-1-git-send-email-byungchul.park@lge.com>
+ <alpine.DEB.2.20.1710181519580.1925@nanos>
+ <20171018133019.cwfhnt46pvhirt57@gmail.com>
+ <alpine.DEB.2.20.1710181533260.1925@nanos>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1710171527560.140898@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.20.1710181533260.1925@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@kernel.org>, Byungchul Park <byungchul.park@lge.com>, peterz@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@lge.com
 
-On Tue, Oct 17, 2017 at 03:30:01PM -0700, David Rientjes wrote:
-> SLAB_RECLAIM_ACCOUNT is a permanent attribute of a slab cache.  Set 
-> __GFP_RECLAIMABLE as part of its ->allocflags rather than check the cachep 
-> flag on every page allocation.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+On Wed, Oct 18, 2017 at 03:36:05PM +0200, Thomas Gleixner wrote:
+> Which reminds me that I wanted to convert them to static_key so they are
+> zero overhead when disabled. Sigh, why are todo lists growth only?
 
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
+This is why you need an Outreachy intern -- it gets at least one task
+off your todo list, and in the best possible case, it gets a second
+person working on your todo list for a long time.
 
--- 
-Mel Gorman
-SUSE Labs
+... eventually they start their own todo lists ...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
