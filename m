@@ -1,119 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C004B6B0260
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 13:19:43 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id x82so6781175qkb.11
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 10:19:43 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k7si1392256qtk.147.2017.10.18.10.19.42
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1629A6B025F
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 13:24:04 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id d9so6481092qtd.8
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 10:24:04 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id d79si7278431qkc.32.2017.10.18.10.24.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Oct 2017 10:19:43 -0700 (PDT)
-Date: Wed, 18 Oct 2017 20:19:40 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH] virtio_balloon: fix deadlock on OOM
-Message-ID: <20171018201700-mutt-send-email-mst@kernel.org>
-References: <1507900754-32239-1-git-send-email-mst@redhat.com>
- <201710132306.FBC78628.OJLHFVQSFOtOMF@I-love.SAKURA.ne.jp>
+        Wed, 18 Oct 2017 10:24:03 -0700 (PDT)
+Subject: Re: [PATCH v12 08/11] arm64/kasan: add and use kasan_map_populate()
+References: <20171013173214.27300-1-pasha.tatashin@oracle.com>
+ <20171013173214.27300-9-pasha.tatashin@oracle.com>
+ <0ae84532-8dcb-10aa-9d69-79d7025b089e@virtuozzo.com>
+ <ad8c5715-dc4f-1fa7-c25b-e08df68643d0@oracle.com>
+ <20171018170651.GG21820@arm.com>
+ <e32c677e-62ac-8977-2f9d-7fe7bda4b547@oracle.com>
+ <f1cb8d18-4d0f-1f88-c3c5-0add8c6c077a@virtuozzo.com>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <a587687a-5d90-c03d-f3d2-1ea9cab1b0c4@oracle.com>
+Date: Wed, 18 Oct 2017 13:23:22 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201710132306.FBC78628.OJLHFVQSFOtOMF@I-love.SAKURA.ne.jp>
+In-Reply-To: <f1cb8d18-4d0f-1f88-c3c5-0add8c6c077a@virtuozzo.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-kernel@vger.kernel.org, mhocko@suse.com, wei.w.wang@intel.com, jasowang@redhat.com, virtualization@lists.linux-foundation.org, linux-mm@kvack.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Will Deacon <will.deacon@arm.com>, mhocko@kernel.org, akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On Fri, Oct 13, 2017 at 11:06:23PM +0900, Tetsuo Handa wrote:
-> Michael S. Tsirkin wrote:
-> > This is a replacement for
-> > 	[PATCH] virtio: avoid possible OOM lockup at virtballoon_oom_notify()
-> > but unlike that patch it actually deflates on oom even in presence of
-> > lock contention.
-> 
-> But Wei Wang is proposing VIRTIO_BALLOON_F_SG which will try to allocate
-> memory, isn't he?
+Hi Andrew and Michal,
 
-Hopefully that can be fixed by allocating outside the lock.
+There are a few changes I need to do to my series:
 
+1. Replace these two patches:
 
-> > 
-> >  drivers/virtio/virtio_balloon.c    | 30 ++++++++++++++++++++++--------
-> >  include/linux/balloon_compaction.h | 38 +++++++++++++++++++++++++++++++++++++-
-> >  mm/balloon_compaction.c            | 27 +++++++++++++++++++++------
-> >  3 files changed, 80 insertions(+), 15 deletions(-)
-> > 
-> > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> > index f0b3a0b..725e366 100644
-> > --- a/drivers/virtio/virtio_balloon.c
-> > +++ b/drivers/virtio/virtio_balloon.c
-> > @@ -143,16 +143,14 @@ static void set_page_pfns(struct virtio_balloon *vb,
-> >  
-> >  static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
-> >  {
-> > -	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
-> >  	unsigned num_allocated_pages;
-> > +	unsigned num_pfns;
-> > +	struct page *page;
-> > +	LIST_HEAD(pages);
-> >  
-> > -	/* We can only do one array worth at a time. */
-> > -	num = min(num, ARRAY_SIZE(vb->pfns));
-> > -
-> 
-> I don't think moving this min() to later is correct, for
-> "num" can be e.g. 1048576, can't it?
+arm64/kasan: add and use kasan_map_populate()
+x86/kasan: add and use kasan_map_populate()
 
+With:
 
-Good catch, will fix. Thanks!
+x86/mm/kasan: don't use vmemmap_populate() to initialize
+  shadow
+arm64/mm/kasan: don't use vmemmap_populate() to initialize
+  shadow
 
-> > -	mutex_lock(&vb->balloon_lock);
-> > -	for (vb->num_pfns = 0; vb->num_pfns < num;
-> > -	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
-> > -		struct page *page = balloon_page_enqueue(vb_dev_info);
-> > +	for (num_pfns = 0; num_pfns < num;
-> > +	     num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
-> > +		struct page *page = balloon_page_alloc();
-> >  
-> >  		if (!page) {
-> >  			dev_info_ratelimited(&vb->vdev->dev,
-> > @@ -162,6 +160,22 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
-> >  			msleep(200);
-> >  			break;
-> >  		}
-> > +
-> > +		balloon_page_push(&pages, page);
-> > +	}
+2. Fix a kbuild warning about section mismatch in
+mm: deferred_init_memmap improvements
+
+How should I proceed to get these replaced in mm-tree? Send three new 
+patches, or send a new series?
+
+Thank you,
+Pavel
+
+On 10/18/2017 01:18 PM, Andrey Ryabinin wrote:
+> On 10/18/2017 08:08 PM, Pavel Tatashin wrote:
+>>>
+>>> As I said, I'm fine either way, I just didn't want to cause extra work
+>>> or rebasing:
+>>>
+>>> http://lists.infradead.org/pipermail/linux-arm-kernel/2017-October/535703.html
+>>
+>> Makes sense. I am also fine either way, I can submit a new patch merging together the two if needed.
+>>
 > 
-> If balloon_page_alloc() did not fail, it will queue "num"
-> (e.g. 1048576) pages into pages list, won't it?
+> Please, do this. Single patch makes more sense
 > 
-> > +
-> > +	/* We can only do one array worth at a time. */
-> > +	num = min(num, ARRAY_SIZE(vb->pfns));
-> > +
 > 
-> Now we cap "num" to VIRTIO_BALLOON_ARRAY_PFNS_MAX (which is 256), but
-> 
-> > +	mutex_lock(&vb->balloon_lock);
-> > +
-> > +	vb->num_pfns = 0;
-> > +
-> > +	while ((page = balloon_page_pop(&pages))) {
-> 
-> this loop will repeat for e.g. 1048576 times, and
-> 
-> > +		balloon_page_enqueue(&vb->vb_dev_info, page);
-> > +
-> > +		vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE;
-> > +
-> 
-> we increment vb->num_pfns for e.g. 1048576 times which will go
-> beyond VIRTIO_BALLOON_ARRAY_PFNS_MAX array index.
-> 
-> >  		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
-> >  		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
-> >  		if (!virtio_has_feature(vb->vdev,
+>> Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
