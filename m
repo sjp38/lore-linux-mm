@@ -1,69 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 811506B0033
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 07:09:00 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id a8so3327458pfc.6
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 04:09:00 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id b4si979949plb.202.2017.10.18.04.08.59
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FBCC6B025E
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 07:16:56 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id z99so530320wrc.15
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 04:16:56 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a134si8527367wmd.9.2017.10.18.04.16.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Oct 2017 04:08:59 -0700 (PDT)
-Date: Wed, 18 Oct 2017 19:02:08 +0800
-From: "Du, Changbin" <changbin.du@intel.com>
-Subject: Re: [PATCH 0/2] mm, thp: introduce dedicated transparent huge page
- allocation interfaces
-Message-ID: <20171018110208.GC4352@intel.com>
-References: <1508145557-9944-1-git-send-email-changbin.du@intel.com>
- <20171017162816.c5751bda5d51d3bf560b8503@linux-foundation.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 18 Oct 2017 04:16:54 -0700 (PDT)
+Subject: Re: KASAN: use-after-free Read in do_get_mempolicy
+References: <CAGHG8Fcnzck+_uOW7rQHBKM4bkC+b2KGBzDPKmMyqp5LQ5t+qQ@mail.gmail.com>
+ <CACT4Y+Yx+e+cKiQ7dvXAC-=TeFHGdZGsqE6grgiZEY-sC_e4+w@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <e08d4c87-1cc7-ea09-3459-e0d03a920519@suse.cz>
+Date: Wed, 18 Oct 2017 13:16:52 +0200
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="kfjH4zxOES6UT95V"
-Content-Disposition: inline
-In-Reply-To: <20171017162816.c5751bda5d51d3bf560b8503@linux-foundation.org>
+In-Reply-To: <CACT4Y+Yx+e+cKiQ7dvXAC-=TeFHGdZGsqE6grgiZEY-sC_e4+w@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: changbin.du@intel.com, corbet@lwn.net, hughd@google.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dmitry Vyukov <dvyukov@google.com>, Chase Bertke <ceb2817@gmail.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, syzkaller <syzkaller@googlegroups.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
+On 10/17/2017 05:55 PM, Dmitry Vyukov wrote:
+> On Tue, Oct 17, 2017 at 5:38 PM, Chase Bertke <ceb2817@gmail.com> wrote:
+>> Hello,
+>>
+>> I would like to report a bug found via syzkaller on version 4.13.0-rc4. I
+>> have searched the syzkaller mailing list and did not see any other reports
+>> for this bug.
+>>
+>> Please see below:
+>>
+>> ==================================================================
+>> BUG: KASAN: use-after-free in do_get_mempolicy+0x1d4/0x740
+>> Read of size 8 at addr ffff88006d32fb28 by task syz-executor0/1422
+>>
+>> CPU: 0 PID: 1422 Comm: syz-executor0 Not tainted 4.13.0-rc4+ #0
 
---kfjH4zxOES6UT95V
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Most likely already fixed by 73223e4e2e38 ("mm/mempolicy: fix use after
+free when calling get_mempolicy") which landed in v4.13-rc6.
 
-Hi Morton,
-On Tue, Oct 17, 2017 at 04:28:16PM -0700, Andrew Morton wrote:
-> On Mon, 16 Oct 2017 17:19:15 +0800 changbin.du@intel.com wrote:
->=20
-> > The first one introduce new interfaces, the second one kills naming con=
-fusion.
-> > The aim is to remove duplicated code and simplify transparent huge page
-> > allocation.
->=20
-> These introduce various allnoconfig build errors.
-Thanks, I will fix and have more test.
+Please focus the fuzzing the latest 4.14-rcX instead :)
 
---=20
-Thanks,
-Changbin Du
-
---kfjH4zxOES6UT95V
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQEcBAEBAgAGBQJZ5zSwAAoJEAanuZwLnPNUmI4H/ja8BV3PjCpkZMHQJkoJp6i+
-Hu9KbqxodBGSaAfwjg/gYxi15SGx8xSwA5x4AHdI7HdW8CK5FuTkQErbSWz8iTQy
-/DFq3/uWu6vg8MYEEWZJDhDg7DjVLaP2MHA1A01dtqN3Djn0pOVrdT52fhayVA+K
-Nus1XRIBK+AwFRN1tck1SBc/ubowQadvOrsg7Dpkv5yITgLx/VpXioAObYpTp8HO
-VWHTT9kXiKHSgdFkTVnClXFCieJHX86dqV+gcIn54980klH2R0JkCbp0XKWB0yVf
-PbqCbU61XZf/1h8HSXxQAuv6p6QdAtxHuSL9C2bkhzII6v6FeuA31c7R9xtklU8=
-=alrn
------END PGP SIGNATURE-----
-
---kfjH4zxOES6UT95V--
+Vlastimil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
