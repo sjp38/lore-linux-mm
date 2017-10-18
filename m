@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E0DCC6B0260
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 05:39:15 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u23so3731777pgo.4
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 02:39:15 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id 63si6655510pgi.562.2017.10.18.02.39.14
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 676826B0261
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 05:39:19 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 191so3740366pgd.0
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 02:39:19 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id i15si6756827pgc.477.2017.10.18.02.39.17
         for <linux-mm@kvack.org>;
-        Wed, 18 Oct 2017 02:39:14 -0700 (PDT)
+        Wed, 18 Oct 2017 02:39:18 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [RESEND PATCH 2/3] lockdep: Remove unnecessary acquisitions wrt workqueue flush
-Date: Wed, 18 Oct 2017 18:38:51 +0900
-Message-Id: <1508319532-24655-3-git-send-email-byungchul.park@lge.com>
+Subject: [RESEND PATCH 3/3] lockdep: Assign a lock_class per gendisk used for wait_for_completion()
+Date: Wed, 18 Oct 2017 18:38:52 +0900
+Message-Id: <1508319532-24655-4-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1508319532-24655-1-git-send-email-byungchul.park@lge.com>
 References: <1508319532-24655-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,90 +19,217 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
 
-The workqueue added manual acquisitions to catch deadlock cases.
-Now crossrelease was introduced, some of those are redundant, since
-wait_for_completion() already includes the acquisition for itself.
-Removed it.
+Darrick and Dave Chinner posted the following warning:
+
+> ======================================================
+> WARNING: possible circular locking dependency detected
+> 4.14.0-rc1-fixes #1 Tainted: G        W
+> ------------------------------------------------------
+> loop0/31693 is trying to acquire lock:
+>  (&(&ip->i_mmaplock)->mr_lock){++++}, at: [<ffffffffa00f1b0c>] xfs_ilock+0x23c/0x330 [xfs]
+>
+> but now in release context of a crosslock acquired at the following:
+>  ((complete)&ret.event){+.+.}, at: [<ffffffff81326c1f>] submit_bio_wait+0x7f/0xb0
+>
+> which lock already depends on the new lock.
+>
+> the existing dependency chain (in reverse order) is:
+>
+> -> #2 ((complete)&ret.event){+.+.}:
+>        lock_acquire+0xab/0x200
+>        wait_for_completion_io+0x4e/0x1a0
+>        submit_bio_wait+0x7f/0xb0
+>        blkdev_issue_zeroout+0x71/0xa0
+>        xfs_bmapi_convert_unwritten+0x11f/0x1d0 [xfs]
+>        xfs_bmapi_write+0x374/0x11f0 [xfs]
+>        xfs_iomap_write_direct+0x2ac/0x430 [xfs]
+>        xfs_file_iomap_begin+0x20d/0xd50 [xfs]
+>        iomap_apply+0x43/0xe0
+>        dax_iomap_rw+0x89/0xf0
+>        xfs_file_dax_write+0xcc/0x220 [xfs]
+>        xfs_file_write_iter+0xf0/0x130 [xfs]
+>        __vfs_write+0xd9/0x150
+>        vfs_write+0xc8/0x1c0
+>        SyS_write+0x45/0xa0
+>        entry_SYSCALL_64_fastpath+0x1f/0xbe
+>
+> -> #1 (&xfs_nondir_ilock_class){++++}:
+>        lock_acquire+0xab/0x200
+>        down_write_nested+0x4a/0xb0
+>        xfs_ilock+0x263/0x330 [xfs]
+>        xfs_setattr_size+0x152/0x370 [xfs]
+>        xfs_vn_setattr+0x6b/0x90 [xfs]
+>        notify_change+0x27d/0x3f0
+>        do_truncate+0x5b/0x90
+>        path_openat+0x237/0xa90
+>        do_filp_open+0x8a/0xf0
+>        do_sys_open+0x11c/0x1f0
+>        entry_SYSCALL_64_fastpath+0x1f/0xbe
+>
+> -> #0 (&(&ip->i_mmaplock)->mr_lock){++++}:
+>        up_write+0x1c/0x40
+>        xfs_iunlock+0x1d0/0x310 [xfs]
+>        xfs_file_fallocate+0x8a/0x310 [xfs]
+>        loop_queue_work+0xb7/0x8d0
+>        kthread_worker_fn+0xb9/0x1f0
+>
+> Chain exists of:
+>   &(&ip->i_mmaplock)->mr_lock --> &xfs_nondir_ilock_class --> (complete)&ret.event
+>
+>  Possible unsafe locking scenario by crosslock:
+>
+>        CPU0                    CPU1
+>        ----                    ----
+>   lock(&xfs_nondir_ilock_class);
+>   lock((complete)&ret.event);
+>                                lock(&(&ip->i_mmaplock)->mr_lock);
+>                                unlock((complete)&ret.event);
+>
+>                *** DEADLOCK ***
+
+The warning is a false positive, caused by the fact that all
+wait_for_completion()s in submit_bio_wait() are waiting with the same
+lock class.
+
+However, some bios have nothing to do with others, for example, the case
+might happen while using loop devices, between bios of an upper device
+and a lower device(=loop device).
+
+The safest way to assign different lock classes to different devices is
+to do it for each gendisk. In other words, this patch assigns a
+lockdep_map per gendisk and uses it when initializing completion in
+submit_bio_wait().
+
+Of course, it might be too conservative. But, making it safest for now
+and extended by block layer experts later is good, atm.
 
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- include/linux/workqueue.h |  4 ++--
- kernel/workqueue.c        | 20 ++++----------------
- 2 files changed, 6 insertions(+), 18 deletions(-)
+ block/bio.c           |  4 ++--
+ block/genhd.c         | 13 +++++--------
+ include/linux/genhd.h | 26 ++++++++++++++++++++++----
+ 3 files changed, 29 insertions(+), 14 deletions(-)
 
-diff --git a/include/linux/workqueue.h b/include/linux/workqueue.h
-index db6dc9d..1bef13e 100644
---- a/include/linux/workqueue.h
-+++ b/include/linux/workqueue.h
-@@ -218,7 +218,7 @@ static inline void destroy_delayed_work_on_stack(struct delayed_work *work) { }
- 									\
- 		__init_work((_work), _onstack);				\
- 		(_work)->data = (atomic_long_t) WORK_DATA_INIT();	\
--		lockdep_init_map(&(_work)->lockdep_map, #_work, &__key, 0); \
-+		lockdep_init_map(&(_work)->lockdep_map, "(complete)"#_work, &__key, 0); \
- 		INIT_LIST_HEAD(&(_work)->entry);			\
- 		(_work)->func = (_func);				\
- 	} while (0)
-@@ -398,7 +398,7 @@ enum {
- 	static struct lock_class_key __key;				\
- 	const char *__lock_name;					\
- 									\
--	__lock_name = #fmt#args;					\
-+	__lock_name = "(complete)"#fmt#args;				\
- 									\
- 	__alloc_workqueue_key((fmt), (flags), (max_active),		\
- 			      &__key, __lock_name, ##args);		\
-diff --git a/kernel/workqueue.c b/kernel/workqueue.c
-index ab3c0dc..72f68b1 100644
---- a/kernel/workqueue.c
-+++ b/kernel/workqueue.c
-@@ -2497,15 +2497,8 @@ static void insert_wq_barrier(struct pool_workqueue *pwq,
- 	INIT_WORK_ONSTACK(&barr->work, wq_barrier_func);
- 	__set_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(&barr->work));
+diff --git a/block/bio.c b/block/bio.c
+index 9a63597..0d4d6c0 100644
+--- a/block/bio.c
++++ b/block/bio.c
+@@ -941,7 +941,7 @@ int submit_bio_wait(struct bio *bio)
+ {
+ 	struct submit_bio_ret ret;
  
--	/*
--	 * Explicitly init the crosslock for wq_barrier::done, make its lock
--	 * key a subkey of the corresponding work. As a result we won't
--	 * build a dependency between wq_barrier::done and unrelated work.
--	 */
--	lockdep_init_map_crosslock((struct lockdep_map *)&barr->done.map,
--				   "(complete)wq_barr::done",
--				   target->lockdep_map.key, 1);
--	__init_completion(&barr->done);
-+	init_completion_with_map(&barr->done, &target->lockdep_map);
+-	init_completion(&ret.event);
++	init_completion_with_map(&ret.event, &bio->bi_disk->lockdep_map);
+ 	bio->bi_private = &ret;
+ 	bio->bi_end_io = submit_bio_wait_endio;
+ 	bio->bi_opf |= REQ_SYNC;
+@@ -1382,7 +1382,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
+ 
+ 			if (len <= 0)
+ 				break;
+-			
 +
- 	barr->task = current;
+ 			if (bytes > len)
+ 				bytes = len;
  
- 	/*
-@@ -2611,16 +2604,14 @@ void flush_workqueue(struct workqueue_struct *wq)
- 	struct wq_flusher this_flusher = {
- 		.list = LIST_HEAD_INIT(this_flusher.list),
- 		.flush_color = -1,
--		.done = COMPLETION_INITIALIZER_ONSTACK(this_flusher.done),
- 	};
- 	int next_color;
+diff --git a/block/genhd.c b/block/genhd.c
+index 7f520fa..676c245 100644
+--- a/block/genhd.c
++++ b/block/genhd.c
+@@ -1304,13 +1304,7 @@ dev_t blk_lookup_devt(const char *name, int partno)
+ }
+ EXPORT_SYMBOL(blk_lookup_devt);
  
-+	init_completion_with_map(&this_flusher.done, &wq->lockdep_map);
+-struct gendisk *alloc_disk(int minors)
+-{
+-	return alloc_disk_node(minors, NUMA_NO_NODE);
+-}
+-EXPORT_SYMBOL(alloc_disk);
+-
+-struct gendisk *alloc_disk_node(int minors, int node_id)
++struct gendisk *__alloc_disk_node(int minors, int node_id, struct lock_class_key *key, const char *lock_name)
+ {
+ 	struct gendisk *disk;
+ 
+@@ -1350,9 +1344,12 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
+ 		disk_to_dev(disk)->type = &disk_type;
+ 		device_initialize(disk_to_dev(disk));
+ 	}
 +
- 	if (WARN_ON(!wq_online))
- 		return;
++	lockdep_init_map(&disk->lockdep_map, lock_name, key, 0);
++
+ 	return disk;
+ }
+-EXPORT_SYMBOL(alloc_disk_node);
++EXPORT_SYMBOL(__alloc_disk_node);
  
--	lock_map_acquire(&wq->lockdep_map);
--	lock_map_release(&wq->lockdep_map);
--
- 	mutex_lock(&wq->mutex);
+ struct kobject *get_disk(struct gendisk *disk)
+ {
+diff --git a/include/linux/genhd.h b/include/linux/genhd.h
+index e619fae..5225efc 100644
+--- a/include/linux/genhd.h
++++ b/include/linux/genhd.h
+@@ -3,7 +3,7 @@
  
- 	/*
-@@ -2883,9 +2874,6 @@ bool flush_work(struct work_struct *work)
- 	if (WARN_ON(!wq_online))
- 		return false;
+ /*
+  * 	genhd.h Copyright (C) 1992 Drew Eckhardt
+- *	Generic hard disk header file by  
++ *	Generic hard disk header file by
+  * 		Drew Eckhardt
+  *
+  *		<drew@colorado.edu>
+@@ -206,6 +206,9 @@ struct gendisk {
+ #endif	/* CONFIG_BLK_DEV_INTEGRITY */
+ 	int node_id;
+ 	struct badblocks *bb;
++#ifdef CONFIG_LOCKDEP_COMPLETIONS
++	struct lockdep_map lockdep_map;
++#endif
+ };
  
--	lock_map_acquire(&work->lockdep_map);
--	lock_map_release(&work->lockdep_map);
--
- 	if (start_flush_work(work, &barr)) {
- 		wait_for_completion(&barr.done);
- 		destroy_work_on_stack(&barr.work);
+ static inline struct gendisk *part_to_disk(struct hd_struct *part)
+@@ -483,7 +486,7 @@ struct bsd_disklabel {
+ 	__s16	d_type;			/* drive type */
+ 	__s16	d_subtype;		/* controller/d_type specific */
+ 	char	d_typename[16];		/* type name, e.g. "eagle" */
+-	char	d_packname[16];			/* pack identifier */ 
++	char	d_packname[16];			/* pack identifier */
+ 	__u32	d_secsize;		/* # of bytes per sector */
+ 	__u32	d_nsectors;		/* # of data sectors per track */
+ 	__u32	d_ntracks;		/* # of tracks per cylinder */
+@@ -602,8 +605,7 @@ extern struct hd_struct * __must_check add_partition(struct gendisk *disk,
+ extern void delete_partition(struct gendisk *, int);
+ extern void printk_all_partitions(void);
+ 
+-extern struct gendisk *alloc_disk_node(int minors, int node_id);
+-extern struct gendisk *alloc_disk(int minors);
++extern struct gendisk *__alloc_disk_node(int minors, int node_id, struct lock_class_key *key, const char *lock_name);
+ extern struct kobject *get_disk(struct gendisk *disk);
+ extern void put_disk(struct gendisk *disk);
+ extern void blk_register_region(dev_t devt, unsigned long range,
+@@ -627,6 +629,22 @@ extern ssize_t part_fail_store(struct device *dev,
+ 			       const char *buf, size_t count);
+ #endif /* CONFIG_FAIL_MAKE_REQUEST */
+ 
++#ifdef CONFIG_LOCKDEP_COMPLETIONS
++#define alloc_disk_node(m, id) \
++({									\
++	static struct lock_class_key __key;				\
++	const char *__lock_name;					\
++									\
++	__lock_name = "(complete)"#m"("#id")";				\
++									\
++	__alloc_disk_node(m, id, &__key, __lock_name);			\
++})
++#else
++#define alloc_disk_node(m, id)	__alloc_disk_node(m, id, NULL, NULL)
++#endif
++
++#define alloc_disk(m)		alloc_disk_node(m, NUMA_NO_NODE)
++
+ static inline int hd_ref_init(struct hd_struct *part)
+ {
+ 	if (percpu_ref_init(&part->ref, __delete_partition, 0,
 -- 
 1.9.1
 
