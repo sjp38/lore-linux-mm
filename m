@@ -1,76 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 389746B0038
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 09:03:44 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id y10so2152510wmd.4
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 06:03:44 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c14sor3403083wmh.3.2017.10.18.06.03.42
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 88C796B0253
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 09:15:58 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id s78so2164539wmd.14
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 06:15:58 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id 81si8660091wmn.49.2017.10.18.06.15.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 18 Oct 2017 06:03:42 -0700 (PDT)
-Date: Wed, 18 Oct 2017 15:03:39 +0200
-From: Stefan Hajnoczi <stefanha@gmail.com>
-Subject: Re: [Qemu-devel] [RFC 2/2] KVM: add virtio-pmem driver
-Message-ID: <20171018130339.GB29767@stefanha-x1.localdomain>
-References: <20171012155027.3277-1-pagupta@redhat.com>
- <20171012155027.3277-3-pagupta@redhat.com>
- <20171017071633.GA9207@infradead.org>
- <1441791227.21027037.1508226056893.JavaMail.zimbra@redhat.com>
- <20171017080236.GA27649@infradead.org>
- <670833322.21037148.1508229041158.JavaMail.zimbra@redhat.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 18 Oct 2017 06:15:56 -0700 (PDT)
+Date: Wed, 18 Oct 2017 15:15:03 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [lkp-robot] [x86/kconfig] 81d3871900:
+ BUG:unable_to_handle_kernel
+In-Reply-To: <CA+55aFxVnFeFcjt=MW=_Uxx6S7nJh5eFxhQCamE5BG6Jr8MXfg@mail.gmail.com>
+Message-ID: <alpine.DEB.2.20.1710181509310.1925@nanos>
+References: <20171010121513.GC5445@yexl-desktop> <20171011023106.izaulhwjcoam55jt@treble> <20171011170120.7flnk6r77dords7a@treble> <20171017073326.GA23865@js1304-P5Q-DELUXE> <CA+55aFxVnFeFcjt=MW=_Uxx6S7nJh5eFxhQCamE5BG6Jr8MXfg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <670833322.21037148.1508229041158.JavaMail.zimbra@redhat.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pankaj Gupta <pagupta@redhat.com>
-Cc: Christoph Hellwig <hch@infradead.org>, kwolf@redhat.com, haozhong zhang <haozhong.zhang@intel.com>, jack@suse.cz, xiaoguangrong eric <xiaoguangrong.eric@gmail.com>, kvm@vger.kernel.org, david@redhat.com, linux-nvdimm@ml01.01.org, ross zwisler <ross.zwisler@intel.com>, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, linux-mm@kvack.org, stefanha@redhat.com, pbonzini@redhat.com, dan j williams <dan.j.williams@intel.com>, nilal@redhat.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Josh Poimboeuf <jpoimboe@redhat.com>, kernel test robot <xiaolong.ye@intel.com>, Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Slaby <jslaby@suse.cz>, Mike Galbraith <efault@gmx.de>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, LKP <lkp@01.org>, linux-mm <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
 
-On Tue, Oct 17, 2017 at 04:30:41AM -0400, Pankaj Gupta wrote:
+On Wed, 18 Oct 2017, Linus Torvalds wrote:
+> On Tue, Oct 17, 2017 at 3:33 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> >
+> > It looks like a compiler bug. The code of slob_units() try to read two
+> > bytes at ffff88001c4afffe. It's valid. But the compiler generates
+> > wrong code that try to read four bytes.
+> >
+> > static slobidx_t slob_units(slob_t *s)
+> > {
+> >   if (s->units > 0)
+> >     return s->units;
+> >   return 1;
+> > }
+> >
+> > s->units is defined as two bytes in this setup.
+> >
+> > Wrongly generated code for this part.
+> >
+> > 'mov 0x0(%rbp), %ebp'
+> >
+> > %ebp is four bytes.
+> >
+> > I guess that this wrong four bytes read cross over the valid memory
+> > boundary and this issue happend.
 > 
-> > > Are you saying do it as existing i.e ACPI pmem like interface?
-> > > The reason we have created this new driver is exiting pmem driver
-> > > does not define proper semantics for guest flushing requests.
-> > 
-> > At this point I'm caring about the Linux-internal interface, and
-> > for that it should be integrated into the nvdimm subsystem and not
-> > a block driver.  How the host <-> guest interface looks is a different
-> > idea.
-> > 
-> > > 
-> > > Regarding block support of driver, we want to achieve DAX support
-> > > to bypass guest page cache. Also, we want to utilize existing DAX
-> > > capable file-system interfaces(e.g fsync) from userspace file API's
-> > > to trigger the host side flush request.
-> > 
-> > Well, if you want to support XFS+DAX better don't make it a block
-> > devices, because I'll post patches soon to stop using the block device
-> > entirely for the DAX case.
+> Hmm. I can see why the compiler would do that (16-bit accesses are
+> slow), but it's definitely wrong.
 > 
-> o.k I will look at your patches once they are in mailing list.
-> Thanks for the heads up.
+> Does it work ok if that slob_units() code is written as
 > 
-> If I am guessing it right, we don't need block device additional features
-> for pmem? We can bypass block device features like blk device cache flush etc.
-> Also, still we would be supporting ext4 & XFS filesystem with pmem?
+>   static slobidx_t slob_units(slob_t *s)
+>   {
+>      int units = READ_ONCE(s->units);
 > 
-> If there is time to your patches can you please elaborate on this a bit.
+>      if (units > 0)
+>          return units;
+>      return 1;
+>   }
+> 
+> which might be an acceptable workaround for now?
 
-I think the idea is that the nvdimm subsystem already adds block device
-semantics on top of the struct nvdimms that it manages.  See
-drivers/nvdimm/blk.c.
+Discussed exactly that with Peter Zijlstra yesterday, but we came to the
+conclusion that this is a whack a mole game. It might fix this slob issue,
+but what guarantees that we don't have the same problem in some other
+place? Just duct taping this particular instance makes me nervous.
 
-So it would be cleaner to make virtio-pmem an nvdimm bus.  This will
-eliminate the duplication between your driver and drivers/nvdimm/ code.
-Try "git grep nvdimm_bus_register" to find drivers that use the nvdimm
-subsystem.
+Joonsoo says:
 
-The virtio-pmem driver could register itself similar to the existing
-ACPI NFIT and BIOS e820 pmem drivers.
+> gcc 4.8 and 4.9 fails to generate proper code. gcc 5.1 and
+> the latest version works fine.
 
-Stefan
+> I guess that this problem is related to the corner case of some
+> optimization feature since minor code change makes the result
+> different. And, with -O2, proper code is generated even if gcc 4.8 is
+> used.
+
+So it would be useful to figure out which optimization bit is causing that
+and blacklist it for the affected compiler versions.
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
