@@ -1,112 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FE3A6B0033
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 06:15:50 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 136so1936338wmu.10
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:15:50 -0700 (PDT)
-Received: from outbound-smtp13.blacknight.com (outbound-smtp13.blacknight.com. [46.22.139.230])
-        by mx.google.com with ESMTPS id p56si3701571eda.49.2017.10.18.03.15.48
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B66D66B0033
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 06:40:50 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id 101so4445732ioj.6
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:40:50 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id g35sor5297681iod.292.2017.10.18.03.40.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Oct 2017 03:15:48 -0700 (PDT)
-Received: from mail.blacknight.com (unknown [81.17.254.26])
-	by outbound-smtp13.blacknight.com (Postfix) with ESMTPS id 5387B1C3036
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 11:15:48 +0100 (IST)
-Date: Wed, 18 Oct 2017 11:15:47 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 1/8] mm, page_alloc: Enable/disable IRQs once when
- freeing a list of pages
-Message-ID: <20171018101547.mjycw7zreb66jzpa@techsingularity.net>
-References: <20171018075952.10627-1-mgorman@techsingularity.net>
- <20171018075952.10627-2-mgorman@techsingularity.net>
- <bcd95a87-3f63-9f5d-77a0-2b2115f53919@suse.cz>
+        (Google Transport Security);
+        Wed, 18 Oct 2017 03:40:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <bcd95a87-3f63-9f5d-77a0-2b2115f53919@suse.cz>
+In-Reply-To: <20171017073326.GA23865@js1304-P5Q-DELUXE>
+References: <20171010121513.GC5445@yexl-desktop> <20171011023106.izaulhwjcoam55jt@treble>
+ <20171011170120.7flnk6r77dords7a@treble> <20171017073326.GA23865@js1304-P5Q-DELUXE>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 18 Oct 2017 06:40:48 -0400
+Message-ID: <CA+55aFxVnFeFcjt=MW=_Uxx6S7nJh5eFxhQCamE5BG6Jr8MXfg@mail.gmail.com>
+Subject: Re: [lkp-robot] [x86/kconfig] 81d3871900: BUG:unable_to_handle_kernel
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dave Chinner <david@fromorbit.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>, kernel test robot <xiaolong.ye@intel.com>, Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Slaby <jslaby@suse.cz>, Mike Galbraith <efault@gmx.de>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, LKP <lkp@01.org>, linux-mm <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
 
-On Wed, Oct 18, 2017 at 11:02:18AM +0200, Vlastimil Babka wrote:
-> On 10/18/2017 09:59 AM, Mel Gorman wrote:
-> > Freeing a list of pages current enables/disables IRQs for each page freed.
-> > This patch splits freeing a list of pages into two operations -- preparing
-> > the pages for freeing and the actual freeing. This is a tradeoff - we're
-> > taking two passes of the list to free in exchange for avoiding multiple
-> > enable/disable of IRQs.
-> 
-> There's also some overhead of storing pfn in page->private, but all that
-> seems negligible compared to irq disable/enable...
-> 
+On Tue, Oct 17, 2017 at 3:33 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+>
+> It looks like a compiler bug. The code of slob_units() try to read two
+> bytes at ffff88001c4afffe. It's valid. But the compiler generates
+> wrong code that try to read four bytes.
+>
+> static slobidx_t slob_units(slob_t *s)
+> {
+>   if (s->units > 0)
+>     return s->units;
+>   return 1;
+> }
+>
+> s->units is defined as two bytes in this setup.
+>
+> Wrongly generated code for this part.
+>
+> 'mov 0x0(%rbp), %ebp'
+>
+> %ebp is four bytes.
+>
+> I guess that this wrong four bytes read cross over the valid memory
+> boundary and this issue happend.
 
-Exactly and it's cheaper than doing a second page to pfn lookup.
+Hmm. I can see why the compiler would do that (16-bit accesses are
+slow), but it's definitely wrong.
 
-> <SNIP>
-> Looks good.
-> 
-> > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> 
+Does it work ok if that slob_units() code is written as
 
-Thanks.
+  static slobidx_t slob_units(slob_t *s)
+  {
+     int units = READ_ONCE(s->units);
 
-> A nit below.
-> 
-> > @@ -2647,11 +2663,25 @@ void free_hot_cold_page(struct page *page, bool cold)
-> >  void free_hot_cold_page_list(struct list_head *list, bool cold)
-> >  {
-> >  	struct page *page, *next;
-> > +	unsigned long flags, pfn;
-> > +
-> > +	/* Prepare pages for freeing */
-> > +	list_for_each_entry_safe(page, next, list, lru) {
-> > +		pfn = page_to_pfn(page);
-> > +		if (!free_hot_cold_page_prepare(page, pfn))
-> > +			list_del(&page->lru);
-> > +		page->private = pfn;
-> 
-> We have (set_)page_private() helpers so better to use them (makes it a
-> bit easier to check for all places where page->private is used to e.g.
-> avoid a clash)?
-> 
+     if (units > 0)
+         return units;
+     return 1;
+  }
 
-Agreed and it's trivial to do so
+which might be an acceptable workaround for now?
 
----8<---
-mm, page_alloc: Enable/disable IRQs once when freeing a list of page -fix
-
-Use page_private and set_page_private helpers.
-
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/page_alloc.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 167e163cf733..092973014c1e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2670,14 +2670,14 @@ void free_hot_cold_page_list(struct list_head *list, bool cold)
- 		pfn = page_to_pfn(page);
- 		if (!free_hot_cold_page_prepare(page, pfn))
- 			list_del(&page->lru);
--		page->private = pfn;
-+		set_page_private(page, pfn);
- 	}
- 
- 	local_irq_save(flags);
- 	list_for_each_entry_safe(page, next, list, lru) {
--		unsigned long pfn = page->private;
-+		unsigned long pfn = page_private(page);
- 
--		page->private = 0;
-+		set_page_private(page, 0);
- 		trace_mm_page_free_batched(page, cold);
- 		free_hot_cold_page_commit(page, pfn, cold);
- 	}
+                   Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
