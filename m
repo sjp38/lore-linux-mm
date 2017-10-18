@@ -1,56 +1,262 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E2F66B0069
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 06:46:46 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id q18so1935764wmg.18
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:46:46 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b1si9833418wrf.391.2017.10.18.03.46.44
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 668F46B025E
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 06:48:38 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id v2so3289789pfa.10
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:48:38 -0700 (PDT)
+Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
+        by mx.google.com with ESMTPS id r7si1543870pfa.380.2017.10.18.03.48.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Oct 2017 03:46:44 -0700 (PDT)
-Subject: Re: [PATCH] mm/mempolicy: add node_empty check in SYSC_migrate_pages
-References: <1508290660-60619-1-git-send-email-xieyisheng1@huawei.com>
- <7086c6ea-b721-684e-fe3d-ff59ae1d78ed@suse.cz>
- <20aac66a-7252-947c-355b-6da4be671dcf@huawei.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <f889d39f-ca1f-9239-dc95-4e1806a6345f@suse.cz>
-Date: Wed, 18 Oct 2017 12:46:41 +0200
-MIME-Version: 1.0
-In-Reply-To: <20aac66a-7252-947c-355b-6da4be671dcf@huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Oct 2017 03:48:37 -0700 (PDT)
+Received: from epcas5p4.samsung.com (unknown [182.195.41.42])
+	by mailout1.samsung.com (KnoxPortal) with ESMTP id 20171018104834epoutp0111a162df011e8994343de2f62cfee35f~upG1aHytx3236732367epoutp01t
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 10:48:34 +0000 (GMT)
+Mime-Version: 1.0
+Subject: [PATCH] zswap: Same-filled pages handling
+Reply-To: srividya.dr@samsung.com
+From: Srividya Desireddy <srividya.dr@samsung.com>
+Message-ID: <20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p1>
+Date: Wed, 18 Oct 2017 10:48:32 +0000
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+References: <CGME20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p1>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <xieyisheng1@huawei.com>, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, tanxiaojun@huawei.com, Linux API <linux-api@vger.kernel.org>
+To: "sjenning@redhat.com" <sjenning@redhat.com>, "ddstreet@ieee.org" <ddstreet@ieee.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "penberg@kernel.org" <penberg@kernel.org>
+Cc: Dinakar Reddy Pathireddy <dinakar.p@samsung.com>, SHARAN ALLUR <sharan.allur@samsung.com>, RAJIB BASU <rajib.basu@samsung.com>, JUHUN KIM <juhunkim@samsung.com>, "srividya.desireddy@gmail.com" <srividya.desireddy@gmail.com>
 
-On 10/18/2017 11:34 AM, Yisheng Xie wrote:
->>> For MAX_NUMNODES is 4, so 0x10 nodemask will tread as empty set which makes
->>> 	nodes_subset(*new, node_states[N_MEMORY])
->>
->> According to manpage of migrate_pages:
->>
->>         EINVAL The value specified by maxnode exceeds a kernel-imposed
->> limit.  Or, old_nodes or new_nodes specifies one or more node IDs that
->> are greater than the maximum supported node ID.  Or, none of the node
->> IDs specified by new_nodes are on-line and allowed by the process's
->> current cpuset context, or none of the specified nodes contain memory.
->>
->> if maxnode parameter is 64, but MAX_NUMNODES ("kernel-imposed limit") is
->> 4, we should get EINVAL just because of that. I don't see such check in
->> the migrate_pages implementation though.
-> 
-> Yes, that is what manpage said, but I have a question about this: if user
-> set maxnode exceeds a kernel-imposed and try to access node without enough
-> privilege, which errors values we should return ? For I have seen that all
-> of the ltp migrate_pages01 will set maxnode to 64 in my system.
+From: Srividya Desireddy <srividya.dr@samsung.com>
+Date: Wed, 18 Oct 2017 15:39:02 +0530
+Subject: [PATCH] zswap: Same-filled pages handling
 
-Hm I don't think it matters much and don't know if there's some commonly
-used priority. Personally I would do the checks resulting in EINVAL
-first, before EPERM, but if the code is structured differently, it may
-stay as it is.
+Zswap is a cache which compresses the pages that are being swapped out
+and stores them into a dynamically allocated RAM-based memory pool.
+Experiments have shown that around 10-20% of pages stored in zswap
+are same-filled pages (i.e. contents of the page are all same), but
+these pages are handled as normal pages by compressing and allocating
+memory in the pool.
+
+This patch adds a check in zswap_frontswap_store() to identify same-filled
+page before compression of the page. If the page is a same-filled page, set
+zswap_entry.length to zero, save the same-filled value and skip the
+compression of the page and alloction of memory in zpool.
+In zswap_frontswap_load(), check if value of zswap_entry.length is zero
+corresponding to the page to be loaded. If zswap_entry.length is zero,
+fill the page with same-filled value. This saves the decompression time
+during load.
+
+On a ARM Quad Core 32-bit device with 1.5GB RAM by launching and
+relaunching different applications, out of ~64000 pages stored in
+zswap, ~11000 pages were same-value filled pages (including zero-filled
+pages) and ~9000 pages were zero-filled pages.
+
+An average of 17% of pages(including zero-filled pages) in zswap are
+same-value filled pages and 14% pages are zero-filled pages.
+An average of 3% of pages are same-filled non-zero pages.
+
+The below table shows the execution time profiling with the patch.
+
+                          Baseline    With patch  % Improvement
+-----------------------------------------------------------------
+*Zswap Store Time           26.5ms       18ms          32%
+ (of same value pages)
+*Zswap Load Time
+ (of same value pages)      25.5ms       13ms          49%
+-----------------------------------------------------------------
+
+On Ubuntu PC with 2GB RAM, while executing kernel build and other test
+scripts and running multimedia applications, out of 360000 pages
+stored in zswap 78000(~22%) of pages were found to be same-value filled
+pages (including zero-filled pages) and 64000(~17%) are zero-filled
+pages. So an average of %5 of pages are same-filled non-zero pages.
+
+The below table shows the execution time profiling with the patch.
+
+                          Baseline    With patch  % Improvement
+-----------------------------------------------------------------
+*Zswap Store Time           91ms        74ms           19%
+ (of same value pages)
+*Zswap Load Time            50ms        7.5ms          85%
+ (of same value pages)
+-----------------------------------------------------------------
+
+*The execution times may vary with test device used.
+
+Signed-off-by: Srividya Desireddy <srividya.dr@samsung.com>
+---
+ mm/zswap.c | 77 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 72 insertions(+), 5 deletions(-)
+
+diff --git a/mm/zswap.c b/mm/zswap.c
+index d39581a..4dd8b89 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -49,6 +49,8 @@
+ static u64 zswap_pool_total_size;
+ /* The number of compressed pages currently stored in zswap */
+ static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
++/* The number of same-value filled pages currently stored in zswap */
++static atomic_t zswap_same_filled_pages = ATOMIC_INIT(0);
+ 
+ /*
+  * The statistics below are not protected from concurrent access for
+@@ -116,6 +118,11 @@ static int zswap_compressor_param_set(const char *,
+ static unsigned int zswap_max_pool_percent = 20;
+ module_param_named(max_pool_percent, zswap_max_pool_percent, uint, 0644);
+ 
++/* Enable/disable handling same-value filled pages (enabled by default) */
++static bool zswap_same_filled_pages_enabled = true;
++module_param_named(same_filled_pages_enabled, zswap_same_filled_pages_enabled,
++		   bool, 0644);
++
+ /*********************************
+ * data structures
+ **********************************/
+@@ -145,9 +152,10 @@ struct zswap_pool {
+  *            be held while changing the refcount.  Since the lock must
+  *            be held, there is no reason to also make refcount atomic.
+  * length - the length in bytes of the compressed page data.  Needed during
+- *          decompression
++ *          decompression. For a same value filled page length is 0.
+  * pool - the zswap_pool the entry's data is in
+  * handle - zpool allocation handle that stores the compressed page data
++ * value - value of the same-value filled pages which have same content
+  */
+ struct zswap_entry {
+ 	struct rb_node rbnode;
+@@ -155,7 +163,10 @@ struct zswap_entry {
+ 	int refcount;
+ 	unsigned int length;
+ 	struct zswap_pool *pool;
+-	unsigned long handle;
++	union {
++		unsigned long handle;
++		unsigned long value;
++	};
+ };
+ 
+ struct zswap_header {
+@@ -320,8 +331,12 @@ static void zswap_rb_erase(struct rb_root *root, struct zswap_entry *entry)
+  */
+ static void zswap_free_entry(struct zswap_entry *entry)
+ {
+-	zpool_free(entry->pool->zpool, entry->handle);
+-	zswap_pool_put(entry->pool);
++	if (!entry->length)
++		atomic_dec(&zswap_same_filled_pages);
++	else {
++		zpool_free(entry->pool->zpool, entry->handle);
++		zswap_pool_put(entry->pool);
++	}
+ 	zswap_entry_cache_free(entry);
+ 	atomic_dec(&zswap_stored_pages);
+ 	zswap_update_total_size();
+@@ -953,6 +968,34 @@ static int zswap_shrink(void)
+ 	return ret;
+ }
+ 
++static int zswap_is_page_same_filled(void *ptr, unsigned long *value)
++{
++	unsigned int pos;
++	unsigned long *page;
++
++	page = (unsigned long *)ptr;
++	for (pos = 1; pos < PAGE_SIZE / sizeof(*page); pos++) {
++		if (page[pos] != page[0])
++			return 0;
++	}
++	*value = page[0];
++	return 1;
++}
++
++static void zswap_fill_page(void *ptr, unsigned long value)
++{
++	unsigned int pos;
++	unsigned long *page;
++
++	page = (unsigned long *)ptr;
++	if (value == 0)
++		memset(page, 0, PAGE_SIZE);
++	else {
++		for (pos = 0; pos < PAGE_SIZE / sizeof(*page); pos++)
++			page[pos] = value;
++	}
++}
++
+ /*********************************
+ * frontswap hooks
+ **********************************/
+@@ -965,7 +1008,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+ 	struct crypto_comp *tfm;
+ 	int ret;
+ 	unsigned int dlen = PAGE_SIZE, len;
+-	unsigned long handle;
++	unsigned long handle, value;
+ 	char *buf;
+ 	u8 *src, *dst;
+ 	struct zswap_header *zhdr;
+@@ -993,6 +1036,19 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+ 		goto reject;
+ 	}
+ 
++	if (zswap_same_filled_pages_enabled) {
++		src = kmap_atomic(page);
++		if (zswap_is_page_same_filled(src, &value)) {
++			kunmap_atomic(src);
++			entry->offset = offset;
++			entry->length = 0;
++			entry->value = value;
++			atomic_inc(&zswap_same_filled_pages);
++			goto insert_entry;
++		}
++		kunmap_atomic(src);
++	}
++
+ 	/* if entry is successfully added, it keeps the reference */
+ 	entry->pool = zswap_pool_current_get();
+ 	if (!entry->pool) {
+@@ -1037,6 +1093,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+ 	entry->handle = handle;
+ 	entry->length = dlen;
+ 
++insert_entry:
+ 	/* map */
+ 	spin_lock(&tree->lock);
+ 	do {
+@@ -1089,6 +1146,13 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
+ 	}
+ 	spin_unlock(&tree->lock);
+ 
++	if (!entry->length) {
++		dst = kmap_atomic(page);
++		zswap_fill_page(dst, entry->value);
++		kunmap_atomic(dst);
++		goto freeentry;
++	}
++
+ 	/* decompress */
+ 	dlen = PAGE_SIZE;
+ 	src = (u8 *)zpool_map_handle(entry->pool->zpool, entry->handle,
+@@ -1101,6 +1165,7 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
+ 	zpool_unmap_handle(entry->pool->zpool, entry->handle);
+ 	BUG_ON(ret);
+ 
++freeentry:
+ 	spin_lock(&tree->lock);
+ 	zswap_entry_put(tree, entry);
+ 	spin_unlock(&tree->lock);
+@@ -1209,6 +1274,8 @@ static int __init zswap_debugfs_init(void)
+ 			zswap_debugfs_root, &zswap_pool_total_size);
+ 	debugfs_create_atomic_t("stored_pages", S_IRUGO,
+ 			zswap_debugfs_root, &zswap_stored_pages);
++	debugfs_create_atomic_t("same_filled_pages", 0444,
++			zswap_debugfs_root, &zswap_same_filled_pages);
+ 
+ 	return 0;
+ }
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
