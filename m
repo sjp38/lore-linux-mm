@@ -1,43 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 10A606B0038
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 13:04:05 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id b7so2458669vkh.6
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 10:04:05 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id c187si2787640vke.10.2017.10.18.10.04.03
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 935856B0253
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 13:05:54 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id p186so2392224wmd.11
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 10:05:54 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v9sor5474199wre.32.2017.10.18.10.05.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Oct 2017 10:04:04 -0700 (PDT)
-Subject: Re: [PATCH v12 08/11] arm64/kasan: add and use kasan_map_populate()
-References: <20171013173214.27300-1-pasha.tatashin@oracle.com>
- <20171013173214.27300-9-pasha.tatashin@oracle.com>
- <0ae84532-8dcb-10aa-9d69-79d7025b089e@virtuozzo.com>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <ad8c5715-dc4f-1fa7-c25b-e08df68643d0@oracle.com>
-Date: Wed, 18 Oct 2017 13:03:10 -0400
+        (Google Transport Security);
+        Wed, 18 Oct 2017 10:05:53 -0700 (PDT)
+Date: Wed, 18 Oct 2017 19:05:50 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 1/2] lockdep: Introduce CROSSRELEASE_STACK_TRACE and make
+ it not unwind as default
+Message-ID: <20171018170550.qycebtl4y2xrpiy5@gmail.com>
+References: <1508318006-2090-1-git-send-email-byungchul.park@lge.com>
+ <alpine.DEB.2.20.1710181519580.1925@nanos>
+ <20171018133019.cwfhnt46pvhirt57@gmail.com>
+ <alpine.DEB.2.20.1710181533260.1925@nanos>
+ <20171018141502.GB12063@bombadil.infradead.org>
+ <alpine.DEB.2.20.1710181634420.1925@nanos>
 MIME-Version: 1.0
-In-Reply-To: <0ae84532-8dcb-10aa-9d69-79d7025b089e@virtuozzo.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1710181634420.1925@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, akpm@linux-foundation.org, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Matthew Wilcox <willy@infradead.org>, Byungchul Park <byungchul.park@lge.com>, peterz@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@lge.com
 
-Hi Andrey,
 
-I asked Will, about it, and he preferred to have this patched added to 
-the end of my series instead of replacing "arm64/kasan: add and use 
-kasan_map_populate()".
+* Thomas Gleixner <tglx@linutronix.de> wrote:
 
-In addition, Will's patch stops using large pages for kasan memory, and 
-thus might add some regression in which case it is easier to revert just 
-that patch instead of the whole series. It is unlikely that regression 
-is going to be detectable, because kasan by itself makes system quiet 
-slow already.
+> On Wed, 18 Oct 2017, Matthew Wilcox wrote:
+> 
+> > On Wed, Oct 18, 2017 at 03:36:05PM +0200, Thomas Gleixner wrote:
+> > > Which reminds me that I wanted to convert them to static_key so they are
+> > > zero overhead when disabled. Sigh, why are todo lists growth only?
+> > 
+> > This is why you need an Outreachy intern -- it gets at least one task
+> > off your todo list, and in the best possible case, it gets a second
+> > person working on your todo list for a long time.
+> > 
+> > ... eventually they start their own todo lists ...
+> 
+> Good idea. Oh, wait.....  Getting an Outreachy intern is on my todo list already. 
 
-Pasha
+Please add "shrink my TODO list" to your TODO list ... wait a minute ...
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
