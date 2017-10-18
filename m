@@ -1,75 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1629A6B025F
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 13:24:04 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id d9so6481092qtd.8
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 10:24:04 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id d79si7278431qkc.32.2017.10.18.10.24.02
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EA5726B0038
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 15:10:01 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id a8so4038151pfc.6
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 12:10:01 -0700 (PDT)
+Received: from out4434.biz.mail.alibaba.com (out4434.biz.mail.alibaba.com. [47.88.44.34])
+        by mx.google.com with ESMTPS id f81si1311085pfj.30.2017.10.18.12.09.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Oct 2017 10:24:03 -0700 (PDT)
-Subject: Re: [PATCH v12 08/11] arm64/kasan: add and use kasan_map_populate()
-References: <20171013173214.27300-1-pasha.tatashin@oracle.com>
- <20171013173214.27300-9-pasha.tatashin@oracle.com>
- <0ae84532-8dcb-10aa-9d69-79d7025b089e@virtuozzo.com>
- <ad8c5715-dc4f-1fa7-c25b-e08df68643d0@oracle.com>
- <20171018170651.GG21820@arm.com>
- <e32c677e-62ac-8977-2f9d-7fe7bda4b547@oracle.com>
- <f1cb8d18-4d0f-1f88-c3c5-0add8c6c077a@virtuozzo.com>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Message-ID: <a587687a-5d90-c03d-f3d2-1ea9cab1b0c4@oracle.com>
-Date: Wed, 18 Oct 2017 13:23:22 -0400
+        Wed, 18 Oct 2017 12:10:00 -0700 (PDT)
+Subject: Re: [PATCH 3/3] mm: oom: show unreclaimable slab info when
+ unreclaimable slabs > user memory
+References: <1507656303-103845-1-git-send-email-yang.s@alibaba-inc.com>
+ <1507656303-103845-4-git-send-email-yang.s@alibaba-inc.com>
+ <alpine.DEB.2.10.1710161709460.140151@chino.kir.corp.google.com>
+ <20171017074448.qupoajpjbcfdpz5z@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1710171357260.100885@chino.kir.corp.google.com>
+ <7ac4f9f6-3c3d-c1df-e60f-a519650cd330@alibaba-inc.com>
+ <alpine.DEB.2.10.1710171449000.100885@chino.kir.corp.google.com>
+ <a324af3f-f5c4-8c26-400e-ca3a590db37d@alibaba-inc.com>
+ <alpine.DEB.2.10.1710171537170.141832@chino.kir.corp.google.com>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <3063d036-93b6-7ac9-30f6-fab493e5e5d4@alibaba-inc.com>
+Date: Thu, 19 Oct 2017 03:09:40 +0800
 MIME-Version: 1.0
-In-Reply-To: <f1cb8d18-4d0f-1f88-c3c5-0add8c6c077a@virtuozzo.com>
+In-Reply-To: <alpine.DEB.2.10.1710171537170.141832@chino.kir.corp.google.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Will Deacon <will.deacon@arm.com>, mhocko@kernel.org, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, cl@linux.com, penberg@kernel.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Andrew and Michal,
 
-There are a few changes I need to do to my series:
 
-1. Replace these two patches:
-
-arm64/kasan: add and use kasan_map_populate()
-x86/kasan: add and use kasan_map_populate()
-
-With:
-
-x86/mm/kasan: don't use vmemmap_populate() to initialize
-  shadow
-arm64/mm/kasan: don't use vmemmap_populate() to initialize
-  shadow
-
-2. Fix a kbuild warning about section mismatch in
-mm: deferred_init_memmap improvements
-
-How should I proceed to get these replaced in mm-tree? Send three new 
-patches, or send a new series?
-
-Thank you,
-Pavel
-
-On 10/18/2017 01:18 PM, Andrey Ryabinin wrote:
-> On 10/18/2017 08:08 PM, Pavel Tatashin wrote:
->>>
->>> As I said, I'm fine either way, I just didn't want to cause extra work
->>> or rebasing:
->>>
->>> http://lists.infradead.org/pipermail/linux-arm-kernel/2017-October/535703.html
+On 10/17/17 3:39 PM, David Rientjes wrote:
+> On Wed, 18 Oct 2017, Yang Shi wrote:
+> 
+>>> Yes, this should catch occurrences of "huge unreclaimable slabs", right?
 >>
->> Makes sense. I am also fine either way, I can submit a new patch merging together the two if needed.
+>> Yes, it sounds so. Although single "huge" unreclaimable slab might not result
+>> in excessive slabs use in a whole, but this would help to filter out "small"
+>> unreclaimable slab.
 >>
 > 
-> Please, do this. Single patch makes more sense
+> Keep in mind this is regardless of SLAB_RECLAIM_ACCOUNT: your patch has
+> value beyond only unreclaimable slab, it can also be used to show
+> instances where the oom killer was invoked without properly reclaiming
+> slab.  If the total footprint of a slab cache exceeds 5%, I think a line
+> should be emitted unconditionally to the kernel log.
+
+OK, sounds good. I will propose an incremental patch to see the comments.
+
+Thanks,
+Yang
+
 > 
-> 
->> Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
