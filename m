@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E9796B0266
+	by kanga.kvack.org (Postfix) with ESMTP id 288A46B025E
 	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:59:56 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id v91so2032733wrc.11
+Received: by mail-wr0-f198.google.com with SMTP id o44so2076251wrf.0
         for <linux-mm@kvack.org>; Wed, 18 Oct 2017 00:59:56 -0700 (PDT)
-Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
-        by mx.google.com with ESMTPS id g24si1292859edh.376.2017.10.18.00.59.53
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id k13si1570602edl.288.2017.10.18.00.59.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 18 Oct 2017 00:59:54 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id AA5BF1C2F81
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 08:59:53 +0100 (IST)
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 722C41C2F81
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 08:59:54 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 2/8] mm, truncate: Do not check mapping for every page being truncated
-Date: Wed, 18 Oct 2017 08:59:46 +0100
-Message-Id: <20171018075952.10627-3-mgorman@techsingularity.net>
+Subject: [PATCH 6/8] mm: Remove cold parameter for release_pages
+Date: Wed, 18 Oct 2017 08:59:50 +0100
+Message-Id: <20171018075952.10627-7-mgorman@techsingularity.net>
 In-Reply-To: <20171018075952.10627-1-mgorman@techsingularity.net>
 References: <20171018075952.10627-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,363 +23,237 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dave Chinner <david@fromorbit.com>, Mel Gorman <mgorman@techsingularity.net>
 
-During truncation, the mapping has already been checked for shmem and dax
-so it's known that workingset_update_node is required. This patch avoids
-the checks on mapping for each page being truncated. In all other cases,
-a lookup helper is used to determine if workingset_update_node() needs
-to be called. The one danger is that the API is slightly harder to use as
-calling workingset_update_node directly without checking for dax or shmem
-mappings could lead to surprises. However, the API rarely needs to be used
-and hopefully the comment is enough to give people the hint.
+All callers of release_pages claim the pages being released are cache hot.
+As no one cares about the hotness of pages being released to the allocator,
+just ditch the parameter.
 
-sparsetruncate (tiny)
-                              4.14.0-rc4             4.14.0-rc4
-                             oneirq-v1r1        pickhelper-v1r1
-Min          Time      141.00 (   0.00%)      140.00 (   0.71%)
-1st-qrtle    Time      142.00 (   0.00%)      141.00 (   0.70%)
-2nd-qrtle    Time      142.00 (   0.00%)      142.00 (   0.00%)
-3rd-qrtle    Time      143.00 (   0.00%)      143.00 (   0.00%)
-Max-90%      Time      144.00 (   0.00%)      144.00 (   0.00%)
-Max-95%      Time      147.00 (   0.00%)      145.00 (   1.36%)
-Max-99%      Time      195.00 (   0.00%)      191.00 (   2.05%)
-Max          Time      230.00 (   0.00%)      205.00 (  10.87%)
-Amean        Time      144.37 (   0.00%)      143.82 (   0.38%)
-Stddev       Time       10.44 (   0.00%)        9.00 (  13.74%)
-Coeff        Time        7.23 (   0.00%)        6.26 (  13.41%)
-Best99%Amean Time      143.72 (   0.00%)      143.34 (   0.26%)
-Best95%Amean Time      142.37 (   0.00%)      142.00 (   0.26%)
-Best90%Amean Time      142.19 (   0.00%)      141.85 (   0.24%)
-Best75%Amean Time      141.92 (   0.00%)      141.58 (   0.24%)
-Best50%Amean Time      141.69 (   0.00%)      141.31 (   0.27%)
-Best25%Amean Time      141.38 (   0.00%)      140.97 (   0.29%)
-
-As you'd expect, the gain is marginal but it can be detected. The differences
-in bonnie are all within the noise which is not surprising given the impact
-on the microbenchmark.
-
-radix_tree_update_node_t is a callback for some radix operations that
-optionally passes in a private field. The only user of the callback is
-workingset_update_node and as it no longer requires a mapping, the private
-field is removed.
+No performance impact is expected as the overhead is marginal. The parameter
+is removed simply because it is a bit stupid to have a useless parameter
+copied everywhere.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- fs/dax.c                              |  2 +-
- include/linux/radix-tree.h            |  7 +++----
- include/linux/swap.h                  | 13 ++++++++++++-
- lib/idr.c                             |  2 +-
- lib/radix-tree.c                      | 30 +++++++++++++-----------------
- mm/filemap.c                          |  7 ++++---
- mm/shmem.c                            |  2 +-
- mm/truncate.c                         |  2 +-
- mm/workingset.c                       | 10 ++--------
- tools/testing/radix-tree/multiorder.c |  2 +-
- 10 files changed, 39 insertions(+), 38 deletions(-)
+ drivers/gpu/drm/amd/amdgpu/amdgpu_cs.c  | 6 ++----
+ drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c | 2 +-
+ drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c | 2 +-
+ drivers/gpu/drm/etnaviv/etnaviv_gem.c   | 6 +++---
+ drivers/gpu/drm/i915/i915_gem_userptr.c | 4 ++--
+ drivers/gpu/drm/radeon/radeon_ttm.c     | 2 +-
+ fs/fuse/dev.c                           | 2 +-
+ include/linux/pagemap.h                 | 2 +-
+ include/linux/swap.h                    | 2 +-
+ mm/swap.c                               | 8 ++++----
+ mm/swap_state.c                         | 2 +-
+ 11 files changed, 18 insertions(+), 20 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index f001d8c72a06..3318ae9046e6 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -565,7 +565,7 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
- 		ret = __radix_tree_lookup(page_tree, index, &node, &slot);
- 		WARN_ON_ONCE(ret != entry);
- 		__radix_tree_replace(page_tree, node, slot,
--				     new_entry, NULL, NULL);
-+				     new_entry, NULL);
- 		entry = new_entry;
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_cs.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_cs.c
+index 60d8bedb694d..cd664832f9e8 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_cs.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_cs.c
+@@ -553,8 +553,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
+ 				 * invalidated it. Free it and try again
+ 				 */
+ 				release_pages(e->user_pages,
+-					      e->robj->tbo.ttm->num_pages,
+-					      false);
++					      e->robj->tbo.ttm->num_pages);
+ 				kvfree(e->user_pages);
+ 				e->user_pages = NULL;
+ 			}
+@@ -691,8 +690,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
+ 				continue;
+ 
+ 			release_pages(e->user_pages,
+-				      e->robj->tbo.ttm->num_pages,
+-				      false);
++				      e->robj->tbo.ttm->num_pages);
+ 			kvfree(e->user_pages);
+ 		}
+ 	}
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
+index 7171968f261e..8cd32598276e 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
+@@ -347,7 +347,7 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
+ 	return 0;
+ 
+ free_pages:
+-	release_pages(bo->tbo.ttm->pages, bo->tbo.ttm->num_pages, false);
++	release_pages(bo->tbo.ttm->pages, bo->tbo.ttm->num_pages);
+ 
+ unlock_mmap_sem:
+ 	up_read(&current->mm->mmap_sem);
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
+index bc746131987f..d792959fac43 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
+@@ -659,7 +659,7 @@ int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages)
+ 	return 0;
+ 
+ release_pages:
+-	release_pages(pages, pinned, 0);
++	release_pages(pages, pinned);
+ 	return r;
+ }
+ 
+diff --git a/drivers/gpu/drm/etnaviv/etnaviv_gem.c b/drivers/gpu/drm/etnaviv/etnaviv_gem.c
+index 57881167ccd2..bcc8c2d7c7c9 100644
+--- a/drivers/gpu/drm/etnaviv/etnaviv_gem.c
++++ b/drivers/gpu/drm/etnaviv/etnaviv_gem.c
+@@ -779,7 +779,7 @@ static struct page **etnaviv_gem_userptr_do_get_pages(
+ 	up_read(&mm->mmap_sem);
+ 
+ 	if (ret < 0) {
+-		release_pages(pvec, pinned, 0);
++		release_pages(pvec, pinned);
+ 		kvfree(pvec);
+ 		return ERR_PTR(ret);
+ 	}
+@@ -852,7 +852,7 @@ static int etnaviv_gem_userptr_get_pages(struct etnaviv_gem_object *etnaviv_obj)
+ 		}
  	}
  
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index 567ebb5eaab0..0ca448c1cb42 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -301,18 +301,17 @@ void *__radix_tree_lookup(const struct radix_tree_root *, unsigned long index,
- void *radix_tree_lookup(const struct radix_tree_root *, unsigned long);
- void __rcu **radix_tree_lookup_slot(const struct radix_tree_root *,
- 					unsigned long index);
--typedef void (*radix_tree_update_node_t)(struct radix_tree_node *, void *);
-+typedef void (*radix_tree_update_node_t)(struct radix_tree_node *);
- void __radix_tree_replace(struct radix_tree_root *, struct radix_tree_node *,
- 			  void __rcu **slot, void *entry,
--			  radix_tree_update_node_t update_node, void *private);
-+			  radix_tree_update_node_t update_node);
- void radix_tree_iter_replace(struct radix_tree_root *,
- 		const struct radix_tree_iter *, void __rcu **slot, void *entry);
- void radix_tree_replace_slot(struct radix_tree_root *,
- 			     void __rcu **slot, void *entry);
- void __radix_tree_delete_node(struct radix_tree_root *,
- 			      struct radix_tree_node *,
--			      radix_tree_update_node_t update_node,
--			      void *private);
-+			      radix_tree_update_node_t update_node);
- void radix_tree_iter_delete(struct radix_tree_root *,
- 			struct radix_tree_iter *iter, void __rcu **slot);
- void *radix_tree_delete_item(struct radix_tree_root *, unsigned long, void *);
+-	release_pages(pvec, pinned, 0);
++	release_pages(pvec, pinned);
+ 	kvfree(pvec);
+ 
+ 	work = kmalloc(sizeof(*work), GFP_KERNEL);
+@@ -886,7 +886,7 @@ static void etnaviv_gem_userptr_release(struct etnaviv_gem_object *etnaviv_obj)
+ 	if (etnaviv_obj->pages) {
+ 		int npages = etnaviv_obj->base.size >> PAGE_SHIFT;
+ 
+-		release_pages(etnaviv_obj->pages, npages, 0);
++		release_pages(etnaviv_obj->pages, npages);
+ 		kvfree(etnaviv_obj->pages);
+ 	}
+ 	put_task_struct(etnaviv_obj->userptr.task);
+diff --git a/drivers/gpu/drm/i915/i915_gem_userptr.c b/drivers/gpu/drm/i915/i915_gem_userptr.c
+index 709efe2357ea..aa22361bd5a1 100644
+--- a/drivers/gpu/drm/i915/i915_gem_userptr.c
++++ b/drivers/gpu/drm/i915/i915_gem_userptr.c
+@@ -554,7 +554,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
+ 	}
+ 	mutex_unlock(&obj->mm.lock);
+ 
+-	release_pages(pvec, pinned, 0);
++	release_pages(pvec, pinned);
+ 	kvfree(pvec);
+ 
+ 	i915_gem_object_put(obj);
+@@ -668,7 +668,7 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
+ 		__i915_gem_userptr_set_active(obj, true);
+ 
+ 	if (IS_ERR(pages))
+-		release_pages(pvec, pinned, 0);
++		release_pages(pvec, pinned);
+ 	kvfree(pvec);
+ 
+ 	return pages;
+diff --git a/drivers/gpu/drm/radeon/radeon_ttm.c b/drivers/gpu/drm/radeon/radeon_ttm.c
+index bf69bf9086bf..1fdfc7a46072 100644
+--- a/drivers/gpu/drm/radeon/radeon_ttm.c
++++ b/drivers/gpu/drm/radeon/radeon_ttm.c
+@@ -597,7 +597,7 @@ static int radeon_ttm_tt_pin_userptr(struct ttm_tt *ttm)
+ 	kfree(ttm->sg);
+ 
+ release_pages:
+-	release_pages(ttm->pages, pinned, 0);
++	release_pages(ttm->pages, pinned);
+ 	return r;
+ }
+ 
+diff --git a/fs/fuse/dev.c b/fs/fuse/dev.c
+index 13c65dd2d37d..6ea5bd9fc023 100644
+--- a/fs/fuse/dev.c
++++ b/fs/fuse/dev.c
+@@ -1636,7 +1636,7 @@ static int fuse_notify_store(struct fuse_conn *fc, unsigned int size,
+ 
+ static void fuse_retrieve_end(struct fuse_conn *fc, struct fuse_req *req)
+ {
+-	release_pages(req->pages, req->num_pages, false);
++	release_pages(req->pages, req->num_pages);
+ }
+ 
+ static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 333349585776..514f6d9d8083 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -115,7 +115,7 @@ static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask)
+ 	m->gfp_mask = mask;
+ }
+ 
+-void release_pages(struct page **pages, int nr, bool cold);
++void release_pages(struct page **pages, int nr);
+ 
+ /*
+  * speculatively take a reference to a page.
 diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 8a807292037f..257c48a525c8 100644
+index 257c48a525c8..31a89eb48e71 100644
 --- a/include/linux/swap.h
 +++ b/include/linux/swap.h
-@@ -292,7 +292,18 @@ struct vma_swap_readahead {
- void *workingset_eviction(struct address_space *mapping, struct page *page);
- bool workingset_refault(void *shadow);
- void workingset_activation(struct page *page);
--void workingset_update_node(struct radix_tree_node *node, void *private);
-+
-+/* Do not use directly, use workingset_lookup_update */
-+void workingset_update_node(struct radix_tree_node *node);
-+
-+/* Returns workingset_update_node() if the mapping has shadow entries. */
-+#define workingset_lookup_update(mapping)				\
-+({									\
-+	radix_tree_update_node_t __helper = workingset_update_node;	\
-+	if (dax_mapping(mapping) || shmem_mapping(mapping))		\
-+		__helper = NULL;					\
-+	__helper;							\
-+})
+@@ -492,7 +492,7 @@ extern void exit_swap_address_space(unsigned int type);
+ #define free_page_and_swap_cache(page) \
+ 	put_page(page)
+ #define free_pages_and_swap_cache(pages, nr) \
+-	release_pages((pages), (nr), false);
++	release_pages((pages), (nr));
  
- /* linux/mm/page_alloc.c */
- extern unsigned long totalram_pages;
-diff --git a/lib/idr.c b/lib/idr.c
-index edd9b2be1651..2593ce513a18 100644
---- a/lib/idr.c
-+++ b/lib/idr.c
-@@ -171,7 +171,7 @@ void *idr_replace_ext(struct idr *idr, void *ptr, unsigned long id)
- 	if (!slot || radix_tree_tag_get(&idr->idr_rt, id, IDR_FREE))
- 		return ERR_PTR(-ENOENT);
- 
--	__radix_tree_replace(&idr->idr_rt, node, slot, ptr, NULL, NULL);
-+	__radix_tree_replace(&idr->idr_rt, node, slot, ptr, NULL);
- 
- 	return entry;
+ static inline void show_swap_cache_info(void)
+ {
+diff --git a/mm/swap.c b/mm/swap.c
+index 73682e1dc0a2..0b78ea3cbdea 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -210,7 +210,7 @@ static void pagevec_lru_move_fn(struct pagevec *pvec,
+ 	}
+ 	if (pgdat)
+ 		spin_unlock_irqrestore(&pgdat->lru_lock, flags);
+-	release_pages(pvec->pages, pvec->nr, 0);
++	release_pages(pvec->pages, pvec->nr);
+ 	pagevec_reinit(pvec);
  }
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 8b1feca1230a..c8d55565fafa 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -677,8 +677,7 @@ static int radix_tree_extend(struct radix_tree_root *root, gfp_t gfp,
-  *	@root		radix tree root
+ 
+@@ -740,7 +740,7 @@ void lru_add_drain_all(void)
+  * Decrement the reference count on all the pages in @pages.  If it
+  * fell to zero, remove the page from the LRU and free it.
   */
- static inline bool radix_tree_shrink(struct radix_tree_root *root,
--				     radix_tree_update_node_t update_node,
--				     void *private)
-+				     radix_tree_update_node_t update_node)
+-void release_pages(struct page **pages, int nr, bool cold)
++void release_pages(struct page **pages, int nr)
  {
- 	bool shrunk = false;
+ 	int i;
+ 	LIST_HEAD(pages_to_free);
+@@ -817,7 +817,7 @@ void release_pages(struct page **pages, int nr, bool cold)
+ 		spin_unlock_irqrestore(&locked_pgdat->lru_lock, flags);
  
-@@ -739,7 +738,7 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root,
- 		if (!radix_tree_is_internal_node(child)) {
- 			node->slots[0] = (void __rcu *)RADIX_TREE_RETRY;
- 			if (update_node)
--				update_node(node, private);
-+				update_node(node);
- 		}
- 
- 		WARN_ON_ONCE(!list_empty(&node->private_list));
-@@ -752,7 +751,7 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root,
- 
- static bool delete_node(struct radix_tree_root *root,
- 			struct radix_tree_node *node,
--			radix_tree_update_node_t update_node, void *private)
-+			radix_tree_update_node_t update_node)
- {
- 	bool deleted = false;
- 
-@@ -762,8 +761,8 @@ static bool delete_node(struct radix_tree_root *root,
- 		if (node->count) {
- 			if (node_to_entry(node) ==
- 					rcu_dereference_raw(root->rnode))
--				deleted |= radix_tree_shrink(root, update_node,
--								private);
-+				deleted |= radix_tree_shrink(root,
-+								update_node);
- 			return deleted;
- 		}
- 
-@@ -1173,7 +1172,6 @@ static int calculate_count(struct radix_tree_root *root,
-  * @slot:		pointer to slot in @node
-  * @item:		new item to store in the slot.
-  * @update_node:	callback for changing leaf nodes
-- * @private:		private data to pass to @update_node
-  *
-  * For use with __radix_tree_lookup().  Caller must hold tree write locked
-  * across slot lookup and replacement.
-@@ -1181,7 +1179,7 @@ static int calculate_count(struct radix_tree_root *root,
- void __radix_tree_replace(struct radix_tree_root *root,
- 			  struct radix_tree_node *node,
- 			  void __rcu **slot, void *item,
--			  radix_tree_update_node_t update_node, void *private)
-+			  radix_tree_update_node_t update_node)
- {
- 	void *old = rcu_dereference_raw(*slot);
- 	int exceptional = !!radix_tree_exceptional_entry(item) -
-@@ -1201,9 +1199,9 @@ void __radix_tree_replace(struct radix_tree_root *root,
- 		return;
- 
- 	if (update_node)
--		update_node(node, private);
-+		update_node(node);
- 
--	delete_node(root, node, update_node, private);
-+	delete_node(root, node, update_node);
+ 	mem_cgroup_uncharge_list(&pages_to_free);
+-	free_hot_cold_page_list(&pages_to_free, cold);
++	free_hot_cold_page_list(&pages_to_free, 0);
  }
+ EXPORT_SYMBOL(release_pages);
  
- /**
-@@ -1225,7 +1223,7 @@ void __radix_tree_replace(struct radix_tree_root *root,
- void radix_tree_replace_slot(struct radix_tree_root *root,
- 			     void __rcu **slot, void *item)
- {
--	__radix_tree_replace(root, NULL, slot, item, NULL, NULL);
-+	__radix_tree_replace(root, NULL, slot, item, NULL);
- }
- EXPORT_SYMBOL(radix_tree_replace_slot);
- 
-@@ -1242,7 +1240,7 @@ void radix_tree_iter_replace(struct radix_tree_root *root,
- 				const struct radix_tree_iter *iter,
- 				void __rcu **slot, void *item)
- {
--	__radix_tree_replace(root, iter->node, slot, item, NULL, NULL);
-+	__radix_tree_replace(root, iter->node, slot, item, NULL);
- }
- 
- #ifdef CONFIG_RADIX_TREE_MULTIORDER
-@@ -1972,7 +1970,6 @@ EXPORT_SYMBOL(radix_tree_gang_lookup_tag_slot);
-  *	@root:		radix tree root
-  *	@node:		node containing @index
-  *	@update_node:	callback for changing leaf nodes
-- *	@private:	private data to pass to @update_node
-  *
-  *	After clearing the slot at @index in @node from radix tree
-  *	rooted at @root, call this function to attempt freeing the
-@@ -1980,10 +1977,9 @@ EXPORT_SYMBOL(radix_tree_gang_lookup_tag_slot);
-  */
- void __radix_tree_delete_node(struct radix_tree_root *root,
- 			      struct radix_tree_node *node,
--			      radix_tree_update_node_t update_node,
--			      void *private)
-+			      radix_tree_update_node_t update_node)
- {
--	delete_node(root, node, update_node, private);
-+	delete_node(root, node, update_node);
- }
- 
- static bool __radix_tree_delete(struct radix_tree_root *root,
-@@ -2001,7 +1997,7 @@ static bool __radix_tree_delete(struct radix_tree_root *root,
- 			node_tag_clear(root, node, tag, offset);
- 
- 	replace_slot(slot, NULL, node, -1, exceptional);
--	return node && delete_node(root, node, NULL, NULL);
-+	return node && delete_node(root, node, NULL);
- }
- 
- /**
-diff --git a/mm/filemap.c b/mm/filemap.c
-index dba68e1d9869..e59580feefd9 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -35,6 +35,7 @@
- #include <linux/hugetlb.h>
- #include <linux/memcontrol.h>
- #include <linux/cleancache.h>
-+#include <linux/shmem_fs.h>
- #include <linux/rmap.h>
- #include "internal.h"
- 
-@@ -134,7 +135,7 @@ static int page_cache_tree_insert(struct address_space *mapping,
- 			*shadowp = p;
+@@ -837,7 +837,7 @@ void __pagevec_release(struct pagevec *pvec)
+ 		lru_add_drain();
+ 		pvec->drained = true;
  	}
- 	__radix_tree_replace(&mapping->page_tree, node, slot, page,
--			     workingset_update_node, mapping);
-+			     workingset_lookup_update(mapping));
- 	mapping->nrpages++;
- 	return 0;
+-	release_pages(pvec->pages, pagevec_count(pvec), 0);
++	release_pages(pvec->pages, pagevec_count(pvec));
+ 	pagevec_reinit(pvec);
  }
-@@ -162,7 +163,7 @@ static void page_cache_tree_delete(struct address_space *mapping,
- 
- 		radix_tree_clear_tags(&mapping->page_tree, node, slot);
- 		__radix_tree_replace(&mapping->page_tree, node, slot, shadow,
--				     workingset_update_node, mapping);
-+				workingset_lookup_update(mapping));
- 	}
- 
- 	page->mapping = NULL;
-@@ -360,7 +361,7 @@ page_cache_tree_delete_batch(struct address_space *mapping, int count,
- 		}
- 		radix_tree_clear_tags(&mapping->page_tree, iter.node, slot);
- 		__radix_tree_replace(&mapping->page_tree, iter.node, slot, NULL,
--				     workingset_update_node, mapping);
-+				workingset_lookup_update(mapping));
- 		total_pages++;
- 	}
- 	mapping->nrpages -= total_pages;
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 07a1d22807be..a72f68aee6a4 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -338,7 +338,7 @@ static int shmem_radix_tree_replace(struct address_space *mapping,
- 	if (item != expected)
- 		return -ENOENT;
- 	__radix_tree_replace(&mapping->page_tree, node, pslot,
--			     replacement, NULL, NULL);
-+			     replacement, NULL);
- 	return 0;
+ EXPORT_SYMBOL(__pagevec_release);
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 05b6803f0cce..f7048f1c8e3e 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -318,7 +318,7 @@ void free_pages_and_swap_cache(struct page **pages, int nr)
+ 	lru_add_drain();
+ 	for (i = 0; i < nr; i++)
+ 		free_swap_cache(pagep[i]);
+-	release_pages(pagep, nr, false);
++	release_pages(pagep, nr);
  }
  
-diff --git a/mm/truncate.c b/mm/truncate.c
-index 3dfa2d5e642e..d578d542a6ee 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -42,7 +42,7 @@ static void clear_shadow_entry(struct address_space *mapping, pgoff_t index,
- 	if (*slot != entry)
- 		goto unlock;
- 	__radix_tree_replace(&mapping->page_tree, node, slot, NULL,
--			     workingset_update_node, mapping);
-+			     workingset_update_node);
- 	mapping->nrexceptional--;
- unlock:
- 	spin_unlock_irq(&mapping->tree_lock);
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 7119cd745ace..0f7b4fb130e3 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -339,14 +339,8 @@ void workingset_activation(struct page *page)
- 
- static struct list_lru shadow_nodes;
- 
--void workingset_update_node(struct radix_tree_node *node, void *private)
-+void workingset_update_node(struct radix_tree_node *node)
- {
--	struct address_space *mapping = private;
--
--	/* Only regular page cache has shadow entries */
--	if (dax_mapping(mapping) || shmem_mapping(mapping))
--		return;
--
- 	/*
- 	 * Track non-empty nodes that contain only shadow entries;
- 	 * unlink those that contain pages or are being freed.
-@@ -474,7 +468,7 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
- 		goto out_invalid;
- 	inc_lruvec_page_state(virt_to_page(node), WORKINGSET_NODERECLAIM);
- 	__radix_tree_delete_node(&mapping->page_tree, node,
--				 workingset_update_node, mapping);
-+				 workingset_lookup_update(mapping));
- 
- out_invalid:
- 	spin_unlock(&mapping->tree_lock);
-diff --git a/tools/testing/radix-tree/multiorder.c b/tools/testing/radix-tree/multiorder.c
-index 06c71178d07d..59245b3d587c 100644
---- a/tools/testing/radix-tree/multiorder.c
-+++ b/tools/testing/radix-tree/multiorder.c
-@@ -618,7 +618,7 @@ static void multiorder_account(void)
- 	__radix_tree_insert(&tree, 1 << 5, 5, (void *)0x12);
- 	__radix_tree_lookup(&tree, 1 << 5, &node, &slot);
- 	assert(node->count == node->exceptional * 2);
--	__radix_tree_replace(&tree, node, slot, NULL, NULL, NULL);
-+	__radix_tree_replace(&tree, node, slot, NULL, NULL);
- 	assert(node->exceptional == 0);
- 
- 	item_kill_tree(&tree);
+ /*
 -- 
 2.14.0
 
