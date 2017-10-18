@@ -1,59 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 16BE86B0069
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 06:44:31 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id u27so3851465pgn.3
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:44:31 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E2F66B0069
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 06:46:46 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id q18so1935764wmg.18
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:46:46 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f10si7643361pln.470.2017.10.18.03.44.29
+        by mx.google.com with ESMTPS id b1si9833418wrf.391.2017.10.18.03.46.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Oct 2017 03:44:30 -0700 (PDT)
-Date: Wed, 18 Oct 2017 12:44:28 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 7/7] mm: Batch radix tree operations when truncating pages
-Message-ID: <20171018104428.GB32403@quack2.suse.cz>
-References: <20171010151937.26984-1-jack@suse.cz>
- <20171010151937.26984-8-jack@suse.cz>
- <20171017160521.33ca85c45431c355833daa63@linux-foundation.org>
+        Wed, 18 Oct 2017 03:46:44 -0700 (PDT)
+Subject: Re: [PATCH] mm/mempolicy: add node_empty check in SYSC_migrate_pages
+References: <1508290660-60619-1-git-send-email-xieyisheng1@huawei.com>
+ <7086c6ea-b721-684e-fe3d-ff59ae1d78ed@suse.cz>
+ <20aac66a-7252-947c-355b-6da4be671dcf@huawei.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <f889d39f-ca1f-9239-dc95-4e1806a6345f@suse.cz>
+Date: Wed, 18 Oct 2017 12:46:41 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171017160521.33ca85c45431c355833daa63@linux-foundation.org>
+In-Reply-To: <20aac66a-7252-947c-355b-6da4be671dcf@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-fsdevel@vger.kernel.org
+To: Yisheng Xie <xieyisheng1@huawei.com>, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, tanxiaojun@huawei.com, Linux API <linux-api@vger.kernel.org>
 
-On Tue 17-10-17 16:05:21, Andrew Morton wrote:
-> On Tue, 10 Oct 2017 17:19:37 +0200 Jan Kara <jack@suse.cz> wrote:
+On 10/18/2017 11:34 AM, Yisheng Xie wrote:
+>>> For MAX_NUMNODES is 4, so 0x10 nodemask will tread as empty set which makes
+>>> 	nodes_subset(*new, node_states[N_MEMORY])
+>>
+>> According to manpage of migrate_pages:
+>>
+>>         EINVAL The value specified by maxnode exceeds a kernel-imposed
+>> limit.  Or, old_nodes or new_nodes specifies one or more node IDs that
+>> are greater than the maximum supported node ID.  Or, none of the node
+>> IDs specified by new_nodes are on-line and allowed by the process's
+>> current cpuset context, or none of the specified nodes contain memory.
+>>
+>> if maxnode parameter is 64, but MAX_NUMNODES ("kernel-imposed limit") is
+>> 4, we should get EINVAL just because of that. I don't see such check in
+>> the migrate_pages implementation though.
 > 
-> > --- a/mm/truncate.c
-> > +++ b/mm/truncate.c
-> > @@ -294,6 +294,14 @@ void truncate_inode_pages_range(struct address_space *mapping,
-> >  	while (index < end && pagevec_lookup_entries(&pvec, mapping, index,
-> >  			min(end - index, (pgoff_t)PAGEVEC_SIZE),
-> >  			indices)) {
-> > +		/*
-> > +		 * Pagevec array has exceptional entries and we may also fail
-> > +		 * to lock some pages. So we store pages that can be deleted
-> > +		 * in an extra array.
-> > +		 */
-> > +		struct page *pages[PAGEVEC_SIZE];
-> > +		int batch_count = 0;
-> 
-> OK, but we could still use a new pagevec here.  Then
-> delete_from_page_cache_batch() and page_cache_tree_delete_batch() would
-> take one less argument.
+> Yes, that is what manpage said, but I have a question about this: if user
+> set maxnode exceeds a kernel-imposed and try to access node without enough
+> privilege, which errors values we should return ? For I have seen that all
+> of the ltp migrate_pages01 will set maxnode to 64 in my system.
 
-Originally, I didn't want to manually construct new pagevec outside of
-pagevec code. But now I see there are clean helpers for that. I'll send you
-a patch to fold. Thanks for the suggestion!
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Hm I don't think it matters much and don't know if there's some commonly
+used priority. Personally I would do the checks resulting in EINVAL
+first, before EPERM, but if the code is structured differently, it may
+stay as it is.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
