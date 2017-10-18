@@ -1,369 +1,414 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 00C966B0069
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 06:59:34 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id b192so3858373pga.14
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:59:34 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id q83si7309444pfj.99.2017.10.18.03.59.32
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 869FD6B0033
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 07:07:19 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p2so3314726pfk.13
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 04:07:19 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id a91si656223pla.788.2017.10.18.04.07.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Oct 2017 03:59:33 -0700 (PDT)
-Subject: Re: [PATCH] virtio: avoid possible OOM lockup at virtballoon_oom_notify()
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201710140141.JFF26087.FLQHOFOOtFMVSJ@I-love.SAKURA.ne.jp>
-	<20171015030921-mutt-send-email-mst@kernel.org>
-	<201710151438.FAD86443.tOOFHVOSFQJLMF@I-love.SAKURA.ne.jp>
-	<201710161958.IAE65151.HFOLMQSFOVFJtO@I-love.SAKURA.ne.jp>
-	<20171016195317-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20171016195317-mutt-send-email-mst@kernel.org>
-Message-Id: <201710181959.ACI05296.JLMVQOOFtHSOFF@I-love.SAKURA.ne.jp>
-Date: Wed, 18 Oct 2017 19:59:23 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Oct 2017 04:07:18 -0700 (PDT)
+Date: Wed, 18 Oct 2017 19:00:26 +0800
+From: "Du, Changbin" <changbin.du@intel.com>
+Subject: Re: [PATCH 1/2] mm, thp: introduce dedicated transparent huge page
+ allocation interfaces
+Message-ID: <20171018110026.GA4352@intel.com>
+References: <1508145557-9944-1-git-send-email-changbin.du@intel.com>
+ <1508145557-9944-2-git-send-email-changbin.du@intel.com>
+ <20171017102052.ltc2lb6r7kloazgs@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="W/nzBZO5zC0uMSeA"
+Content-Disposition: inline
+In-Reply-To: <20171017102052.ltc2lb6r7kloazgs@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mst@redhat.com
-Cc: mhocko@kernel.org, wei.w.wang@intel.com, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, rmaksudova@parallels.com, den@openvz.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: changbin.du@intel.com, akpm@linux-foundation.org, corbet@lwn.net, hughd@google.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Tetsuo Handa wrote:
-> 20171016-deflate.log.xz continued printing "puff" messages without any OOM
-> killer messages, for fill_balloon() always inflates faster than leak_balloon()
-> deflates.
-> 
-> Since the OOM killer cannot be invoked unless leak_balloon() completely
-> deflates faster than fill_balloon() inflates, the guest remained unusable
-> (e.g. unable to login via ssh) other than printing "puff" messages.
-> This result was worse than 20171016-default.log.xz , for the system was
-> not able to make any forward progress (i.e. complete OOM lockup).
 
-I tested further and found that it is not complete OOM lockup.
+--W/nzBZO5zC0uMSeA
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-It turned out that the reason of being unable to login via ssh was that fork()
-was failing because __vm_enough_memory() was failing because
-/proc/sys/vm/overcommit_memory was set to 0. Although virtio_balloon driver
-was ready to release pages if asked via virtballoon_oom_notify() from
-out_of_memory(), __vm_enough_memory() was not able to take such pages into
-account. As a result, operations which need to use fork() were failing without
-calling out_of_memory().
-( http://lkml.kernel.org/r/201710181954.FHH51594.MtFOFLOQFSOHVJ@I-love.SAKURA.ne.jp )
+Hi Hocko,
 
-Do you see anything wrong with the patch I used for emulating
-VIRTIO_BALLOON_F_DEFLATE_ON_OOM path (shown below) ?
+On Tue, Oct 17, 2017 at 12:20:52PM +0200, Michal Hocko wrote:
+> [CC Kirill]
+>=20
+> On Mon 16-10-17 17:19:16, changbin.du@intel.com wrote:
+> > From: Changbin Du <changbin.du@intel.com>
+> >=20
+> > This patch introduced 4 new interfaces to allocate a prepared
+> > transparent huge page.
+> >   - alloc_transhuge_page_vma
+> >   - alloc_transhuge_page_nodemask
+> >   - alloc_transhuge_page_node
+> >   - alloc_transhuge_page
+> >=20
+> > The aim is to remove duplicated code and simplify transparent
+> > huge page allocation. These are similar to alloc_hugepage_xxx
+> > which are for hugetlbfs pages. This patch does below changes:
+> >   - define alloc_transhuge_page_xxx interfaces
+> >   - apply them to all existing code
+> >   - declare prep_transhuge_page as static since no others use it
+> >   - remove alloc_hugepage_vma definition since it no longer has users
+>=20
+> So what exactly is the advantage of the new API? The diffstat doesn't
+> sound very convincing to me.
+>
+The caller only need one step to allocate thp. Several LOCs removed for all=
+ the
+caller side with this change. So it's little more convinent.
 
-----------------------------------------
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index f0b3a0b..a679ac2 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -164,7 +164,7 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
- 		}
- 		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
- 		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
--		if (!virtio_has_feature(vb->vdev,
-+		if (virtio_has_feature(vb->vdev,
- 					VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
- 			adjust_managed_page_count(page, -1);
- 	}
-@@ -184,7 +184,7 @@ static void release_pages_balloon(struct virtio_balloon *vb,
- 	struct page *page, *next;
- 
- 	list_for_each_entry_safe(page, next, pages, lru) {
--		if (!virtio_has_feature(vb->vdev,
-+		if (virtio_has_feature(vb->vdev,
- 					VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
- 			adjust_managed_page_count(page, 1);
- 		list_del(&page->lru);
-@@ -363,7 +363,7 @@ static int virtballoon_oom_notify(struct notifier_block *self,
- 	unsigned num_freed_pages;
- 
- 	vb = container_of(self, struct virtio_balloon, nb);
--	if (!virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
- 		return NOTIFY_OK;
- 
- 	freed = parm;
-----------------------------------------
+> > Signed-off-by: Changbin Du <changbin.du@intel.com>
+> > ---
+> >  include/linux/gfp.h     |  4 ----
+> >  include/linux/huge_mm.h | 13 ++++++++++++-
+> >  include/linux/migrate.h | 14 +++++---------
+> >  mm/huge_memory.c        | 50 +++++++++++++++++++++++++++++++++++++++++=
++-------
+> >  mm/khugepaged.c         | 11 ++---------
+> >  mm/mempolicy.c          | 10 +++-------
+> >  mm/migrate.c            | 12 ++++--------
+> >  mm/shmem.c              |  6 ++----
+> >  8 files changed, 71 insertions(+), 49 deletions(-)
+> >=20
+> > diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> > index f780718..855c72e 100644
+> > --- a/include/linux/gfp.h
+> > +++ b/include/linux/gfp.h
+> > @@ -507,15 +507,11 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
+> >  extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
+> >  			struct vm_area_struct *vma, unsigned long addr,
+> >  			int node, bool hugepage);
+> > -#define alloc_hugepage_vma(gfp_mask, vma, addr, order)	\
+> > -	alloc_pages_vma(gfp_mask, order, vma, addr, numa_node_id(), true)
+> >  #else
+> >  #define alloc_pages(gfp_mask, order) \
+> >  		alloc_pages_node(numa_node_id(), gfp_mask, order)
+> >  #define alloc_pages_vma(gfp_mask, order, vma, addr, node, false)\
+> >  	alloc_pages(gfp_mask, order)
+> > -#define alloc_hugepage_vma(gfp_mask, vma, addr, order)	\
+> > -	alloc_pages(gfp_mask, order)
+> >  #endif
+> >  #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
+> >  #define alloc_page_vma(gfp_mask, vma, addr)			\
+> > diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+> > index 14bc21c..1dd2c33 100644
+> > --- a/include/linux/huge_mm.h
+> > +++ b/include/linux/huge_mm.h
+> > @@ -130,9 +130,20 @@ extern unsigned long thp_get_unmapped_area(struct =
+file *filp,
+> >  		unsigned long addr, unsigned long len, unsigned long pgoff,
+> >  		unsigned long flags);
+> > =20
+> > -extern void prep_transhuge_page(struct page *page);
+> >  extern void free_transhuge_page(struct page *page);
+> > =20
+> > +struct page *alloc_transhuge_page_vma(gfp_t gfp_mask,
+> > +		struct vm_area_struct *vma, unsigned long addr);
+> > +struct page *alloc_transhuge_page_nodemask(gfp_t gfp_mask,
+> > +		int preferred_nid, nodemask_t *nmask);
+> > +
+> > +static inline struct page *alloc_transhuge_page_node(int nid, gfp_t gf=
+p_mask)
+> > +{
+> > +	return alloc_transhuge_page_nodemask(gfp_mask, nid, NULL);
+> > +}
+> > +
+> > +struct page *alloc_transhuge_page(gfp_t gfp_mask);
+> > +
+> >  bool can_split_huge_page(struct page *page, int *pextra_pins);
+> >  int split_huge_page_to_list(struct page *page, struct list_head *list);
+> >  static inline int split_huge_page(struct page *page)
+> > diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+> > index 643c7ae..70a00f3 100644
+> > --- a/include/linux/migrate.h
+> > +++ b/include/linux/migrate.h
+> > @@ -42,19 +42,15 @@ static inline struct page *new_page_nodemask(struct=
+ page *page,
+> >  		return alloc_huge_page_nodemask(page_hstate(compound_head(page)),
+> >  				preferred_nid, nodemask);
+> > =20
+> > -	if (thp_migration_supported() && PageTransHuge(page)) {
+> > -		order =3D HPAGE_PMD_ORDER;
+> > -		gfp_mask |=3D GFP_TRANSHUGE;
+> > -	}
+> > -
+> >  	if (PageHighMem(page) || (zone_idx(page_zone(page)) =3D=3D ZONE_MOVAB=
+LE))
+> >  		gfp_mask |=3D __GFP_HIGHMEM;
+> > =20
+> > -	new_page =3D __alloc_pages_nodemask(gfp_mask, order,
+> > +	if (thp_migration_supported() && PageTransHuge(page))
+> > +		return alloc_transhuge_page_nodemask(gfp_mask | GFP_TRANSHUGE,
+> > +				preferred_nid, nodemask);
+> > +	else
+> > +		return __alloc_pages_nodemask(gfp_mask, order,
+> >  				preferred_nid, nodemask);
+> > -
+> > -	if (new_page && PageTransHuge(page))
+> > -		prep_transhuge_page(new_page);
+> > =20
+> >  	return new_page;
+> >  }
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > index 269b5df..e267488 100644
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -490,7 +490,7 @@ static inline struct list_head *page_deferred_list(=
+struct page *page)
+> >  	return (struct list_head *)&page[2].mapping;
+> >  }
+> > =20
+> > -void prep_transhuge_page(struct page *page)
+> > +static void prep_transhuge_page(struct page *page)
+> >  {
+> >  	/*
+> >  	 * we use page->mapping and page->indexlru in second tail page
+> > @@ -501,6 +501,45 @@ void prep_transhuge_page(struct page *page)
+> >  	set_compound_page_dtor(page, TRANSHUGE_PAGE_DTOR);
+> >  }
+> > =20
+> > +struct page *alloc_transhuge_page_vma(gfp_t gfp_mask,
+> > +		struct vm_area_struct *vma, unsigned long addr)
+> > +{
+> > +	struct page *page;
+> > +
+> > +	page =3D alloc_pages_vma(gfp_mask | __GFP_COMP, HPAGE_PMD_ORDER,
+> > +			       vma, addr, numa_node_id(), true);
+> > +	if (unlikely(!page))
+> > +		return NULL;
+> > +	prep_transhuge_page(page);
+> > +	return page;
+> > +}
+> > +
+> > +struct page *alloc_transhuge_page_nodemask(gfp_t gfp_mask,
+> > +		int preferred_nid, nodemask_t *nmask)
+> > +{
+> > +	struct page *page;
+> > +
+> > +	page =3D __alloc_pages_nodemask(gfp_mask | __GFP_COMP, HPAGE_PMD_ORDE=
+R,
+> > +				      preferred_nid, nmask);
+> > +	if (unlikely(!page))
+> > +		return NULL;
+> > +	prep_transhuge_page(page);
+> > +	return page;
+> > +}
+> > +
+> > +struct page *alloc_transhuge_page(gfp_t gfp_mask)
+> > +{
+> > +	struct page *page;
+> > +
+> > +	VM_BUG_ON(!(gfp_mask & __GFP_COMP));
+> > +
+> > +	page =3D alloc_pages(gfp_mask | __GFP_COMP, HPAGE_PMD_ORDER);
+> > +	if (unlikely(!page))
+> > +		return NULL;
+> > +	prep_transhuge_page(page);
+> > +	return page;
+> > +}
+> > +
+> >  unsigned long __thp_get_unmapped_area(struct file *filp, unsigned long=
+ len,
+> >  		loff_t off, unsigned long flags, unsigned long size)
+> >  {
+> > @@ -719,12 +758,11 @@ int do_huge_pmd_anonymous_page(struct vm_fault *v=
+mf)
+> >  		return ret;
+> >  	}
+> >  	gfp =3D alloc_hugepage_direct_gfpmask(vma);
+> > -	page =3D alloc_hugepage_vma(gfp, vma, haddr, HPAGE_PMD_ORDER);
+> > +	page =3D alloc_transhuge_page_vma(gfp, vma, haddr);
+> >  	if (unlikely(!page)) {
+> >  		count_vm_event(THP_FAULT_FALLBACK);
+> >  		return VM_FAULT_FALLBACK;
+> >  	}
+> > -	prep_transhuge_page(page);
+> >  	return __do_huge_pmd_anonymous_page(vmf, page, gfp);
+> >  }
+> > =20
+> > @@ -1288,13 +1326,11 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, p=
+md_t orig_pmd)
+> >  	if (transparent_hugepage_enabled(vma) &&
+> >  	    !transparent_hugepage_debug_cow()) {
+> >  		huge_gfp =3D alloc_hugepage_direct_gfpmask(vma);
+> > -		new_page =3D alloc_hugepage_vma(huge_gfp, vma, haddr, HPAGE_PMD_ORDE=
+R);
+> > +		new_page =3D alloc_transhuge_page_vma(huge_gfp, vma, haddr);
+> >  	} else
+> >  		new_page =3D NULL;
+> > =20
+> > -	if (likely(new_page)) {
+> > -		prep_transhuge_page(new_page);
+> > -	} else {
+> > +	if (unlikely(!new_page)) {
+> >  		if (!page) {
+> >  			split_huge_pmd(vma, vmf->pmd, vmf->address);
+> >  			ret |=3D VM_FAULT_FALLBACK;
+> > diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> > index c01f177..d17a694 100644
+> > --- a/mm/khugepaged.c
+> > +++ b/mm/khugepaged.c
+> > @@ -745,14 +745,13 @@ khugepaged_alloc_page(struct page **hpage, gfp_t =
+gfp, int node)
+> >  {
+> >  	VM_BUG_ON_PAGE(*hpage, *hpage);
+> > =20
+> > -	*hpage =3D __alloc_pages_node(node, gfp, HPAGE_PMD_ORDER);
+> > +	*hpage =3D alloc_transhuge_page_node(node, gfp);
+> >  	if (unlikely(!*hpage)) {
+> >  		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
+> >  		*hpage =3D ERR_PTR(-ENOMEM);
+> >  		return NULL;
+> >  	}
+> > =20
+> > -	prep_transhuge_page(*hpage);
+> >  	count_vm_event(THP_COLLAPSE_ALLOC);
+> >  	return *hpage;
+> >  }
+> > @@ -764,13 +763,7 @@ static int khugepaged_find_target_node(void)
+> > =20
+> >  static inline struct page *alloc_khugepaged_hugepage(void)
+> >  {
+> > -	struct page *page;
+> > -
+> > -	page =3D alloc_pages(alloc_hugepage_khugepaged_gfpmask(),
+> > -			   HPAGE_PMD_ORDER);
+> > -	if (page)
+> > -		prep_transhuge_page(page);
+> > -	return page;
+> > +	return alloc_transhuge_page(alloc_hugepage_khugepaged_gfpmask());
+> >  }
+> > =20
+> >  static struct page *khugepaged_alloc_hugepage(bool *wait)
+> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> > index a2af6d5..aa24285 100644
+> > --- a/mm/mempolicy.c
+> > +++ b/mm/mempolicy.c
+> > @@ -949,12 +949,10 @@ static struct page *new_node_page(struct page *pa=
+ge, unsigned long node, int **x
+> >  	else if (thp_migration_supported() && PageTransHuge(page)) {
+> >  		struct page *thp;
+> > =20
+> > -		thp =3D alloc_pages_node(node,
+> > -			(GFP_TRANSHUGE | __GFP_THISNODE),
+> > -			HPAGE_PMD_ORDER);
+> > +		thp =3D alloc_transhuge_page_node(node,
+> > +			(GFP_TRANSHUGE | __GFP_THISNODE));
+> >  		if (!thp)
+> >  			return NULL;
+> > -		prep_transhuge_page(thp);
+> >  		return thp;
+> >  	} else
+> >  		return __alloc_pages_node(node, GFP_HIGHUSER_MOVABLE |
+> > @@ -1125,11 +1123,9 @@ static struct page *new_page(struct page *page, =
+unsigned long start, int **x)
+> >  	} else if (thp_migration_supported() && PageTransHuge(page)) {
+> >  		struct page *thp;
+> > =20
+> > -		thp =3D alloc_hugepage_vma(GFP_TRANSHUGE, vma, address,
+> > -					 HPAGE_PMD_ORDER);
+> > +		thp =3D alloc_transhuge_page_vma(GFP_TRANSHUGE, vma, address);
+> >  		if (!thp)
+> >  			return NULL;
+> > -		prep_transhuge_page(thp);
+> >  		return thp;
+> >  	}
+> >  	/*
+> > diff --git a/mm/migrate.c b/mm/migrate.c
+> > index e00814c..7f0486f 100644
+> > --- a/mm/migrate.c
+> > +++ b/mm/migrate.c
+> > @@ -1472,12 +1472,10 @@ static struct page *new_page_node(struct page *=
+p, unsigned long private,
+> >  	else if (thp_migration_supported() && PageTransHuge(p)) {
+> >  		struct page *thp;
+> > =20
+> > -		thp =3D alloc_pages_node(pm->node,
+> > -			(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM,
+> > -			HPAGE_PMD_ORDER);
+> > +		thp =3D alloc_transhuge_page_node(pm->node,
+> > +			(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM);
+> >  		if (!thp)
+> >  			return NULL;
+> > -		prep_transhuge_page(thp);
+> >  		return thp;
+> >  	} else
+> >  		return __alloc_pages_node(pm->node,
+> > @@ -2017,12 +2015,10 @@ int migrate_misplaced_transhuge_page(struct mm_=
+struct *mm,
+> >  	if (numamigrate_update_ratelimit(pgdat, HPAGE_PMD_NR))
+> >  		goto out_dropref;
+> > =20
+> > -	new_page =3D alloc_pages_node(node,
+> > -		(GFP_TRANSHUGE_LIGHT | __GFP_THISNODE),
+> > -		HPAGE_PMD_ORDER);
+> > +	new_page =3D alloc_transhuge_page_node(node,
+> > +			(GFP_TRANSHUGE_LIGHT | __GFP_THISNODE));
+> >  	if (!new_page)
+> >  		goto out_fail;
+> > -	prep_transhuge_page(new_page);
+> > =20
+> >  	isolated =3D numamigrate_isolate_page(pgdat, page);
+> >  	if (!isolated) {
+> > diff --git a/mm/shmem.c b/mm/shmem.c
+> > index 07a1d22..52468f7 100644
+> > --- a/mm/shmem.c
+> > +++ b/mm/shmem.c
+> > @@ -1444,11 +1444,9 @@ static struct page *shmem_alloc_hugepage(gfp_t g=
+fp,
+> >  	rcu_read_unlock();
+> > =20
+> >  	shmem_pseudo_vma_init(&pvma, info, hindex);
+> > -	page =3D alloc_pages_vma(gfp | __GFP_COMP | __GFP_NORETRY | __GFP_NOW=
+ARN,
+> > -			HPAGE_PMD_ORDER, &pvma, 0, numa_node_id(), true);
+> > +	gfp |=3D __GFP_COMP | __GFP_NORETRY | __GFP_NOWARN;
+> > +	page =3D alloc_transhuge_page_vma(gfp, &pvma, 0);
+> >  	shmem_pseudo_vma_destroy(&pvma);
+> > -	if (page)
+> > -		prep_transhuge_page(page);
+> >  	return page;
+> >  }
+> > =20
+> > --=20
+> > 2.7.4
+> >=20
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>=20
+> --=20
+> Michal Hocko
+> SUSE Labs
 
-> As I demonstrated above, VIRTIO_BALLOON_F_DEFLATE_ON_OOM can lead to complete
-> OOM lockup because out_of_memory() => fill_balloon() => out_of_memory() =>
-> fill_balloon() sequence can effectively disable the OOM killer when the host
-> assumed that it's safe to inflate the balloon to a large portion of guest
-> memory and this won't cause an OOM situation.
+--=20
+Thanks,
+Changbin Du
 
-The other problem is that, although it is not complete OOM lockup, it is too
-slow to wait if we hit out_of_memory() => fill_balloon() => out_of_memory() =>
-fill_balloon() sequence.
+--W/nzBZO5zC0uMSeA
+Content-Type: application/pgp-signature; name="signature.asc"
 
-> If leak_balloon() from out_of_memory() should be stronger than
-> fill_balloon() from update_balloon_size_func(), we need to make
-> sure that update_balloon_size_func() stops calling fill_balloon()
-> when leak_balloon() was called from out_of_memory().
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
 
-I tried below patch to reduce the possibility of hitting out_of_memory() =>
-fill_balloon() => out_of_memory() => fill_balloon() sequence.
+iQEcBAEBAgAGBQJZ5zRKAAoJEAanuZwLnPNUT/cIAJKvD87yGe3HbMgNYvNO5xmV
+SNw2SDJqvxcNLc3+UUb7aL+Tclt4r20qbwnVQp9vA03es5Zv4bAHfeN7y2g5/uxU
+AbHU/nAFfZ8ma3kMdy29YQCwW7IVAMgNUcIHiLwE/pdf5hgSPQxVO1BOar1nhGjq
+0866XRuzdMhu18SyoHtJrT5rFyUXKyAf9kW/GirRlSK437v57JVE+oI9lf7Hu/U7
+GYjcTz8e2F7FFIFlbwgd5J3qK9m07L/7KqIcglohNSGAyU6BiyRlz+Ep4SbvWIhw
+ZLk3u7tIH1GgceKIYkLOzXPktIkFqijt1FJjcx77Eivov/ITRqj5cMcKR5S0rig=
+=bysx
+-----END PGP SIGNATURE-----
 
-----------------------------------------
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index a679ac2..9037fee 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -57,7 +57,7 @@ struct virtio_balloon {
- 
- 	/* The balloon servicing is delegated to a freezable workqueue. */
- 	struct work_struct update_balloon_stats_work;
--	struct work_struct update_balloon_size_work;
-+	struct delayed_work update_balloon_size_work;
- 
- 	/* Prevent updating balloon when it is being canceled. */
- 	spinlock_t stop_update_lock;
-@@ -88,6 +88,7 @@ struct virtio_balloon {
- 
- 	/* To register callback in oom notifier call chain */
- 	struct notifier_block nb;
-+	struct timer_list deflate_on_oom_timer;
- };
- 
- static struct virtio_device_id id_table[] = {
-@@ -141,7 +142,8 @@ static void set_page_pfns(struct virtio_balloon *vb,
- 					  page_to_balloon_pfn(page) + i);
- }
- 
--static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
-+static unsigned fill_balloon(struct virtio_balloon *vb, size_t num,
-+			     unsigned long *delay)
- {
- 	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
- 	unsigned num_allocated_pages;
-@@ -152,14 +154,21 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
- 	mutex_lock(&vb->balloon_lock);
- 	for (vb->num_pfns = 0; vb->num_pfns < num;
- 	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
--		struct page *page = balloon_page_enqueue(vb_dev_info);
-+		struct page *page;
-+
-+		if (timer_pending(&vb->deflate_on_oom_timer)) {
-+			/* Wait for hold off timer expiracy. */
-+			*delay = HZ;
-+			break;
-+		}
-+		page = balloon_page_enqueue(vb_dev_info);
- 
- 		if (!page) {
- 			dev_info_ratelimited(&vb->vdev->dev,
- 					     "Out of puff! Can't get %u pages\n",
- 					     VIRTIO_BALLOON_PAGES_PER_PAGE);
- 			/* Sleep for at least 1/5 of a second before retry. */
--			msleep(200);
-+			*delay = HZ / 5;
- 			break;
- 		}
- 		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
-@@ -310,7 +319,8 @@ static void virtballoon_changed(struct virtio_device *vdev)
- 
- 	spin_lock_irqsave(&vb->stop_update_lock, flags);
- 	if (!vb->stop_update)
--		queue_work(system_freezable_wq, &vb->update_balloon_size_work);
-+		queue_delayed_work(system_freezable_wq,
-+				   &vb->update_balloon_size_work, 0);
- 	spin_unlock_irqrestore(&vb->stop_update_lock, flags);
- }
- 
-@@ -366,9 +376,13 @@ static int virtballoon_oom_notify(struct notifier_block *self,
- 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
- 		return NOTIFY_OK;
- 
-+	/* Hold off fill_balloon() for 60 seconds. */
-+	mod_timer(&vb->deflate_on_oom_timer, jiffies + 60 * HZ);
- 	freed = parm;
- 	num_freed_pages = leak_balloon(vb, oom_pages);
- 	update_balloon_size(vb);
-+	dev_info_ratelimited(&vb->vdev->dev, "Released %u pages. Remains %u pages.\n",
-+			     num_freed_pages, vb->num_pages);
- 	*freed += num_freed_pages;
- 
- 	return NOTIFY_OK;
-@@ -387,19 +401,21 @@ static void update_balloon_size_func(struct work_struct *work)
- {
- 	struct virtio_balloon *vb;
- 	s64 diff;
-+	unsigned long delay = 0;
- 
--	vb = container_of(work, struct virtio_balloon,
-+	vb = container_of(to_delayed_work(work), struct virtio_balloon,
- 			  update_balloon_size_work);
- 	diff = towards_target(vb);
- 
- 	if (diff > 0)
--		diff -= fill_balloon(vb, diff);
-+		diff -= fill_balloon(vb, diff, &delay);
- 	else if (diff < 0)
- 		diff += leak_balloon(vb, -diff);
- 	update_balloon_size(vb);
- 
- 	if (diff)
--		queue_work(system_freezable_wq, work);
-+		queue_delayed_work(system_freezable_wq, to_delayed_work(work),
-+				   delay);
- }
- 
- static int init_vqs(struct virtio_balloon *vb)
-@@ -521,6 +537,10 @@ static struct dentry *balloon_mount(struct file_system_type *fs_type,
- 
- #endif /* CONFIG_BALLOON_COMPACTION */
- 
-+static void timer_expired(unsigned long unused)
-+{
-+}
-+
- static int virtballoon_probe(struct virtio_device *vdev)
- {
- 	struct virtio_balloon *vb;
-@@ -539,7 +559,8 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 	}
- 
- 	INIT_WORK(&vb->update_balloon_stats_work, update_balloon_stats_func);
--	INIT_WORK(&vb->update_balloon_size_work, update_balloon_size_func);
-+	INIT_DELAYED_WORK(&vb->update_balloon_size_work,
-+			  update_balloon_size_func);
- 	spin_lock_init(&vb->stop_update_lock);
- 	vb->stop_update = false;
- 	vb->num_pages = 0;
-@@ -553,6 +574,7 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 	if (err)
- 		goto out_free_vb;
- 
-+	setup_timer(&vb->deflate_on_oom_timer, timer_expired, 0);
- 	vb->nb.notifier_call = virtballoon_oom_notify;
- 	vb->nb.priority = VIRTBALLOON_OOM_NOTIFY_PRIORITY;
- 	err = register_oom_notifier(&vb->nb);
-@@ -564,6 +586,7 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 	if (IS_ERR(balloon_mnt)) {
- 		err = PTR_ERR(balloon_mnt);
- 		unregister_oom_notifier(&vb->nb);
-+		del_timer_sync(&vb->deflate_on_oom_timer);
- 		goto out_del_vqs;
- 	}
- 
-@@ -573,6 +596,7 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 		err = PTR_ERR(vb->vb_dev_info.inode);
- 		kern_unmount(balloon_mnt);
- 		unregister_oom_notifier(&vb->nb);
-+		del_timer_sync(&vb->deflate_on_oom_timer);
- 		vb->vb_dev_info.inode = NULL;
- 		goto out_del_vqs;
- 	}
-@@ -611,11 +635,12 @@ static void virtballoon_remove(struct virtio_device *vdev)
- 	struct virtio_balloon *vb = vdev->priv;
- 
- 	unregister_oom_notifier(&vb->nb);
-+	del_timer_sync(&vb->deflate_on_oom_timer);
- 
- 	spin_lock_irq(&vb->stop_update_lock);
- 	vb->stop_update = true;
- 	spin_unlock_irq(&vb->stop_update_lock);
--	cancel_work_sync(&vb->update_balloon_size_work);
-+	cancel_delayed_work_sync(&vb->update_balloon_size_work);
- 	cancel_work_sync(&vb->update_balloon_stats_work);
- 
- 	remove_common(vb);
-----------------------------------------
-
-While response was better than now, inflating again spoiled the effort.
-Retrying to inflate until allocation fails is already too painful.
-
-Complete log is at http://I-love.SAKURA.ne.jp/tmp/20171018-deflate.log.xz .
-----------------------------------------
-[   19.529096] kworker/0:2: page allocation failure: order:0, mode:0x14310ca(GFP_HIGHUSER_MOVABLE|__GFP_NORETRY|__GFP_NOMEMALLOC), nodemask=(null)
-[   19.530721] kworker/0:2 cpuset=/ mems_allowed=0
-[   19.531581] CPU: 0 PID: 111 Comm: kworker/0:2 Not tainted 4.14.0-rc5+ #302
-[   19.532397] Hardware name: Red Hat KVM, BIOS 0.5.1 01/01/2011
-[   19.533285] Workqueue: events_freezable update_balloon_size_func [virtio_balloon]
-[   19.534143] Call Trace:
-[   19.535015]  dump_stack+0x63/0x87
-[   19.535844]  warn_alloc+0x114/0x1c0
-[   19.536667]  __alloc_pages_slowpath+0x9a6/0xba7
-[   19.537491]  ? sched_clock_cpu+0x11/0xb0
-[   19.538311]  __alloc_pages_nodemask+0x26a/0x290
-[   19.539188]  alloc_pages_current+0x6a/0xb0
-[   19.540004]  balloon_page_enqueue+0x25/0xf0
-[   19.540818]  update_balloon_size_func+0xe1/0x260 [virtio_balloon]
-[   19.541626]  process_one_work+0x149/0x360
-[   19.542417]  worker_thread+0x4d/0x3c0
-[   19.543186]  kthread+0x109/0x140
-[   19.543930]  ? rescuer_thread+0x380/0x380
-[   19.544716]  ? kthread_park+0x60/0x60
-[   19.545426]  ret_from_fork+0x25/0x30
-[   19.546141] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-[   19.547903] virtio_balloon virtio3: Released 256 pages. Remains 1984834 pages.
-[   19.659660] virtio_balloon virtio3: Released 256 pages. Remains 1984578 pages.
-[   21.891392] virtio_balloon virtio3: Released 256 pages. Remains 1984322 pages.
-[   21.894719] virtio_balloon virtio3: Released 256 pages. Remains 1984066 pages.
-[   22.490131] virtio_balloon virtio3: Released 256 pages. Remains 1983810 pages.
-[   31.939666] virtio_balloon virtio3: Released 256 pages. Remains 1983554 pages.
-[   95.524753] kworker/0:2: page allocation failure: order:0, mode:0x14310ca(GFP_HIGHUSER_MOVABLE|__GFP_NORETRY|__GFP_NOMEMALLOC), nodemask=(null)
-[   95.525641] kworker/0:2 cpuset=/ mems_allowed=0
-[   95.526110] CPU: 0 PID: 111 Comm: kworker/0:2 Not tainted 4.14.0-rc5+ #302
-[   95.526552] Hardware name: Red Hat KVM, BIOS 0.5.1 01/01/2011
-[   95.527018] Workqueue: events_freezable update_balloon_size_func [virtio_balloon]
-[   95.527492] Call Trace:
-[   95.527969]  dump_stack+0x63/0x87
-[   95.528469]  warn_alloc+0x114/0x1c0
-[   95.528922]  __alloc_pages_slowpath+0x9a6/0xba7
-[   95.529388]  ? qxl_image_free_objects+0x56/0x60 [qxl]
-[   95.529849]  ? qxl_draw_opaque_fb+0x102/0x3a0 [qxl]
-[   95.530315]  __alloc_pages_nodemask+0x26a/0x290
-[   95.530777]  alloc_pages_current+0x6a/0xb0
-[   95.531243]  balloon_page_enqueue+0x25/0xf0
-[   95.531703]  update_balloon_size_func+0xe1/0x260 [virtio_balloon]
-[   95.532180]  process_one_work+0x149/0x360
-[   95.532645]  worker_thread+0x4d/0x3c0
-[   95.533143]  kthread+0x109/0x140
-[   95.533622]  ? rescuer_thread+0x380/0x380
-[   95.534100]  ? kthread_park+0x60/0x60
-[   95.534568]  ret_from_fork+0x25/0x30
-[   95.535093] warn_alloc_show_mem: 1 callbacks suppressed
-[   95.535093] Mem-Info:
-[   95.536072] active_anon:11171 inactive_anon:2084 isolated_anon:0
-[   95.536072]  active_file:8 inactive_file:70 isolated_file:0
-[   95.536072]  unevictable:0 dirty:0 writeback:0 unstable:0
-[   95.536072]  slab_reclaimable:3554 slab_unreclaimable:6848
-[   95.536072]  mapped:588 shmem:2144 pagetables:749 bounce:0
-[   95.536072]  free:25859 free_pcp:72 free_cma:0
-[   95.538922] Node 0 active_anon:44684kB inactive_anon:8336kB active_file:32kB inactive_file:280kB unevictable:0kB isolated(anon):0kB isolated(file):0kB mapped:2352kB dirty:0kB writeback:0kB shmem:8576kB shmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 10240kB writeback_tmp:0kB unstable:0kB all_unreclaimable? no
-[   95.540516] Node 0 DMA free:15900kB min:132kB low:164kB high:196kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15992kB managed:15908kB mlocked:0kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-[   95.542325] lowmem_reserve[]: 0 2954 7925 7925 7925
-[   95.543020] Node 0 DMA32 free:44748kB min:25144kB low:31428kB high:37712kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:3129308kB managed:3063740kB mlocked:0kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-[   95.544949] lowmem_reserve[]: 0 0 4970 4970 4970
-[   95.545624] Node 0 Normal free:42788kB min:42304kB low:52880kB high:63456kB active_anon:44684kB inactive_anon:8336kB active_file:32kB inactive_file:108kB unevictable:0kB writepending:0kB present:5242880kB managed:5093540kB mlocked:0kB kernel_stack:1984kB pagetables:2996kB bounce:0kB free_pcp:372kB local_pcp:220kB free_cma:0kB
-[   95.547739] lowmem_reserve[]: 0 0 0 0 0
-[   95.548464] Node 0 DMA: 1*4kB (U) 1*8kB (U) 1*16kB (U) 0*32kB 2*64kB (U) 1*128kB (U) 1*256kB (U) 0*512kB 1*1024kB (U) 1*2048kB (M) 3*4096kB (M) = 15900kB
-[   95.549988] Node 0 DMA32: 3*4kB (UM) 4*8kB (UM) 2*16kB (U) 2*32kB (U) 1*64kB (U) 0*128kB 2*256kB (UM) 2*512kB (UM) 2*1024kB (UM) 2*2048kB (UM) 9*4096kB (M) = 44748kB
-[   95.551551] Node 0 Normal: 925*4kB (UME) 455*8kB (UME) 349*16kB (UME) 137*32kB (UME) 37*64kB (UME) 23*128kB (UME) 8*256kB (UME) 5*512kB (UM) 3*1024kB (UM) 6*2048kB (U) 0*4096kB = 42588kB
-[   95.553147] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
-[   95.554030] 2224 total pagecache pages
-[   95.554874] 0 pages in swap cache
-[   95.555667] Swap cache stats: add 0, delete 0, find 0/0
-[   95.556469] Free swap  = 0kB
-[   95.557280] Total swap = 0kB
-[   95.558079] 2097045 pages RAM
-[   95.558856] 0 pages HighMem/MovableOnly
-[   95.559652] 53748 pages reserved
-[   95.560444] 0 pages cma reserved
-[   95.561262] 0 pages hwpoisoned
-[   95.562086] virtio_balloon virtio3: Out of puff! Can't get 1 pages
-[   95.565779] virtio_balloon virtio3: Released 256 pages. Remains 1984947 pages.
-[   96.265255] virtio_balloon virtio3: Released 256 pages. Remains 1984691 pages.
-[  105.498910] virtio_balloon virtio3: Released 256 pages. Remains 1984435 pages.
-[  105.500518] virtio_balloon virtio3: Released 256 pages. Remains 1984179 pages.
-[  105.520034] virtio_balloon virtio3: Released 256 pages. Remains 1983923 pages.
-----------------------------------------
-
-Michael S. Tsirkin wrote:
-> I think that's the case. Question is, when can we inflate again?
-
-I think that it is when the host explicitly asked again, for
-VIRTIO_BALLOON_F_DEFLATE_ON_OOM path does not schedule for later inflation.
+--W/nzBZO5zC0uMSeA--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
