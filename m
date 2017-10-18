@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 88BBD6B0266
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:59:56 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id z55so2072281wrz.2
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 00:59:56 -0700 (PDT)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id c64si111403edd.550.2017.10.18.00.59.54
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A5126B0268
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 04:00:16 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 196so1780038wma.6
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 01:00:16 -0700 (PDT)
+Received: from outbound-smtp13.blacknight.com (outbound-smtp13.blacknight.com. [46.22.139.230])
+        by mx.google.com with ESMTPS id j33si689298edb.403.2017.10.18.01.00.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Oct 2017 00:59:54 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id A16C61C2F9B
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 08:59:54 +0100 (IST)
+        Wed, 18 Oct 2017 01:00:14 -0700 (PDT)
+Received: from mail.blacknight.com (unknown [81.17.254.17])
+	by outbound-smtp13.blacknight.com (Postfix) with ESMTPS id 7DF4D1C2F88
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 09:00:14 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 7/8] mm, Remove cold parameter from free_hot_cold_page*
-Date: Wed, 18 Oct 2017 08:59:51 +0100
-Message-Id: <20171018075952.10627-8-mgorman@techsingularity.net>
+Subject: [PATCH 1/8] mm, page_alloc: Enable/disable IRQs once when freeing a list of pages
+Date: Wed, 18 Oct 2017 08:59:45 +0100
+Message-Id: <20171018075952.10627-2-mgorman@techsingularity.net>
 In-Reply-To: <20171018075952.10627-1-mgorman@techsingularity.net>
 References: <20171018075952.10627-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,306 +23,154 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dave Chinner <david@fromorbit.com>, Mel Gorman <mgorman@techsingularity.net>
 
-Most callers users of free_hot_cold_page claim the pages being released are
-cache hot. The exception is the page reclaim paths where it is likely that
-enough pages will be freed in the near future that the per-cpu lists are
-going to be recycled and the cache hotness information is lost. As no one
-really cares about the hotness of pages being released to the allocator,
-just ditch the parameter.
+Freeing a list of pages current enables/disables IRQs for each page freed.
+This patch splits freeing a list of pages into two operations -- preparing
+the pages for freeing and the actual freeing. This is a tradeoff - we're
+taking two passes of the list to free in exchange for avoiding multiple
+enable/disable of IRQs.
 
-The APIs are renamed to indicate that it's no longer about hot/cold pages. It
-should also be less confusing as there are subtle differences between them.
-__free_pages drops a reference and frees a page when the refcount reaches
-zero. free_hot_cold_page handled pages whose refcount was already zero
-which is non-obvious from the name. free_unref_page should be more obvious.
+sparsetruncate (tiny)
+                              4.14.0-rc4             4.14.0-rc4
+                           janbatch-v1r1            oneirq-v1r1
+Min          Time      149.00 (   0.00%)      141.00 (   5.37%)
+1st-qrtle    Time      150.00 (   0.00%)      142.00 (   5.33%)
+2nd-qrtle    Time      151.00 (   0.00%)      142.00 (   5.96%)
+3rd-qrtle    Time      151.00 (   0.00%)      143.00 (   5.30%)
+Max-90%      Time      153.00 (   0.00%)      144.00 (   5.88%)
+Max-95%      Time      155.00 (   0.00%)      147.00 (   5.16%)
+Max-99%      Time      201.00 (   0.00%)      195.00 (   2.99%)
+Max          Time      236.00 (   0.00%)      230.00 (   2.54%)
+Amean        Time      152.65 (   0.00%)      144.37 (   5.43%)
+Stddev       Time        9.78 (   0.00%)       10.44 (  -6.72%)
+Coeff        Time        6.41 (   0.00%)        7.23 ( -12.84%)
+Best99%Amean Time      152.07 (   0.00%)      143.72 (   5.50%)
+Best95%Amean Time      150.75 (   0.00%)      142.37 (   5.56%)
+Best90%Amean Time      150.59 (   0.00%)      142.19 (   5.58%)
+Best75%Amean Time      150.36 (   0.00%)      141.92 (   5.61%)
+Best50%Amean Time      150.04 (   0.00%)      141.69 (   5.56%)
+Best25%Amean Time      149.85 (   0.00%)      141.38 (   5.65%)
 
-No performance impact is expected as the overhead is marginal. The parameter
-is removed simply because it is a bit stupid to have a useless parameter
-copied everywhere.
+With a tiny number of files, each file truncated has resident page cache
+and it shows that time to truncate is roughtly 5-6% with some minor jitter.
+
+                                      4.14.0-rc4             4.14.0-rc4
+                                   janbatch-v1r1            oneirq-v1r1
+Hmean     SeqCreate ops         65.27 (   0.00%)       81.86 (  25.43%)
+Hmean     SeqCreate read        39.48 (   0.00%)       47.44 (  20.16%)
+Hmean     SeqCreate del      24963.95 (   0.00%)    26319.99 (   5.43%)
+Hmean     RandCreate ops        65.47 (   0.00%)       82.01 (  25.26%)
+Hmean     RandCreate read       42.04 (   0.00%)       51.75 (  23.09%)
+Hmean     RandCreate del     23377.66 (   0.00%)    23764.79 (   1.66%)
+
+As expected, there is a small gain for the delete operation.
 
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- arch/powerpc/mm/mmu_context_book3s64.c |  2 +-
- arch/powerpc/mm/pgtable_64.c           |  2 +-
- arch/sparc/mm/init_64.c                |  2 +-
- arch/tile/mm/homecache.c               |  2 +-
- include/linux/gfp.h                    |  4 ++--
- include/trace/events/kmem.h            | 11 ++++-------
- mm/page_alloc.c                        | 29 ++++++++++++-----------------
- mm/rmap.c                              |  2 +-
- mm/swap.c                              |  4 ++--
- mm/vmscan.c                            |  6 +++---
- 10 files changed, 28 insertions(+), 36 deletions(-)
+ mm/page_alloc.c | 58 +++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 44 insertions(+), 14 deletions(-)
 
-diff --git a/arch/powerpc/mm/mmu_context_book3s64.c b/arch/powerpc/mm/mmu_context_book3s64.c
-index 05e15386d4cb..a7e998158f37 100644
---- a/arch/powerpc/mm/mmu_context_book3s64.c
-+++ b/arch/powerpc/mm/mmu_context_book3s64.c
-@@ -200,7 +200,7 @@ static void destroy_pagetable_page(struct mm_struct *mm)
- 	/* We allow PTE_FRAG_NR fragments from a PTE page */
- 	if (page_ref_sub_and_test(page, PTE_FRAG_NR - count)) {
- 		pgtable_page_dtor(page);
--		free_hot_cold_page(page, 0);
-+		free_unref_page(page);
- 	}
- }
- 
-diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
-index ac0717a90ca6..1ec3aee43624 100644
---- a/arch/powerpc/mm/pgtable_64.c
-+++ b/arch/powerpc/mm/pgtable_64.c
-@@ -404,7 +404,7 @@ void pte_fragment_free(unsigned long *table, int kernel)
- 	if (put_page_testzero(page)) {
- 		if (!kernel)
- 			pgtable_page_dtor(page);
--		free_hot_cold_page(page, 0);
-+		free_unref_page(page);
- 	}
- }
- 
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index b2ba410b26f4..42f535b6935a 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -2942,7 +2942,7 @@ pgtable_t pte_alloc_one(struct mm_struct *mm,
- 	if (!page)
- 		return NULL;
- 	if (!pgtable_page_ctor(page)) {
--		free_hot_cold_page(page, 0);
-+		free_unref_page(page);
- 		return NULL;
- 	}
- 	return (pte_t *) page_address(page);
-diff --git a/arch/tile/mm/homecache.c b/arch/tile/mm/homecache.c
-index b51cc28acd0a..4432f31e8479 100644
---- a/arch/tile/mm/homecache.c
-+++ b/arch/tile/mm/homecache.c
-@@ -409,7 +409,7 @@ void __homecache_free_pages(struct page *page, unsigned int order)
- 	if (put_page_testzero(page)) {
- 		homecache_change_page_home(page, order, PAGE_HOME_HASH);
- 		if (order == 0) {
--			free_hot_cold_page(page, false);
-+			free_unref_page(page);
- 		} else {
- 			init_page_count(page);
- 			__free_pages(page, order);
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index f780718b7391..cc0cdbaa1b24 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -538,8 +538,8 @@ void * __meminit alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask);
- 
- extern void __free_pages(struct page *page, unsigned int order);
- extern void free_pages(unsigned long addr, unsigned int order);
--extern void free_hot_cold_page(struct page *page, bool cold);
--extern void free_hot_cold_page_list(struct list_head *list, bool cold);
-+extern void free_unref_page(struct page *page);
-+extern void free_unref_page_list(struct list_head *list);
- 
- struct page_frag_cache;
- extern void __page_frag_cache_drain(struct page *page, unsigned int count);
-diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-index 6b2e154fd23a..8e87ee321c33 100644
---- a/include/trace/events/kmem.h
-+++ b/include/trace/events/kmem.h
-@@ -171,24 +171,21 @@ TRACE_EVENT(mm_page_free,
- 
- TRACE_EVENT(mm_page_free_batched,
- 
--	TP_PROTO(struct page *page, int cold),
-+	TP_PROTO(struct page *page),
- 
--	TP_ARGS(page, cold),
-+	TP_ARGS(page),
- 
- 	TP_STRUCT__entry(
- 		__field(	unsigned long,	pfn		)
--		__field(	int,		cold		)
- 	),
- 
- 	TP_fast_assign(
- 		__entry->pfn		= page_to_pfn(page);
--		__entry->cold		= cold;
- 	),
- 
--	TP_printk("page=%p pfn=%lu order=0 cold=%d",
-+	TP_printk("page=%p pfn=%lu order=0",
- 			pfn_to_page(__entry->pfn),
--			__entry->pfn,
--			__entry->cold)
-+			__entry->pfn)
- );
- 
- TRACE_EVENT(mm_page_alloc,
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 167e163cf733..13582efc57a0 100644
+index 77e4d3c5c57b..167e163cf733 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -2590,7 +2590,7 @@ void mark_free_pages(struct zone *zone)
+@@ -2590,24 +2590,26 @@ void mark_free_pages(struct zone *zone)
  }
  #endif /* CONFIG_PM */
  
--static bool free_hot_cold_page_prepare(struct page *page, unsigned long pfn)
-+static bool free_unref_page_prepare(struct page *page, unsigned long pfn)
+-/*
+- * Free a 0-order page
+- * cold == true ? free a cold page : free a hot page
+- */
+-void free_hot_cold_page(struct page *page, bool cold)
++static bool free_hot_cold_page_prepare(struct page *page, unsigned long pfn)
  {
+-	struct zone *zone = page_zone(page);
+-	struct per_cpu_pages *pcp;
+-	unsigned long flags;
+-	unsigned long pfn = page_to_pfn(page);
  	int migratetype;
  
-@@ -2602,8 +2602,7 @@ static bool free_hot_cold_page_prepare(struct page *page, unsigned long pfn)
- 	return true;
- }
+ 	if (!free_pcp_prepare(page))
+-		return;
++		return false;
  
--static void free_hot_cold_page_commit(struct page *page, unsigned long pfn,
--				bool cold)
-+static void free_unref_page_commit(struct page *page, unsigned long pfn)
- {
- 	struct zone *zone = page_zone(page);
- 	struct per_cpu_pages *pcp;
-@@ -2628,10 +2627,7 @@ static void free_hot_cold_page_commit(struct page *page, unsigned long pfn,
- 	}
- 
- 	pcp = &this_cpu_ptr(zone->pageset)->pcp;
--	if (!cold)
--		list_add(&page->lru, &pcp->lists[migratetype]);
--	else
--		list_add_tail(&page->lru, &pcp->lists[migratetype]);
-+	list_add_tail(&page->lru, &pcp->lists[migratetype]);
- 	pcp->count++;
- 	if (pcp->count >= pcp->high) {
- 		unsigned long batch = READ_ONCE(pcp->batch);
-@@ -2642,25 +2638,24 @@ static void free_hot_cold_page_commit(struct page *page, unsigned long pfn,
- 
- /*
-  * Free a 0-order page
-- * cold == true ? free a cold page : free a hot page
-  */
--void free_hot_cold_page(struct page *page, bool cold)
-+void free_unref_page(struct page *page)
- {
- 	unsigned long flags;
- 	unsigned long pfn = page_to_pfn(page);
- 
--	if (!free_hot_cold_page_prepare(page, pfn))
-+	if (!free_unref_page_prepare(page, pfn))
- 		return;
- 
- 	local_irq_save(flags);
--	free_hot_cold_page_commit(page, pfn, cold);
-+	free_unref_page_commit(page, pfn);
- 	local_irq_restore(flags);
- }
- 
- /*
-  * Free a list of 0-order pages
-  */
--void free_hot_cold_page_list(struct list_head *list, bool cold)
-+void free_unref_page_list(struct list_head *list)
- {
- 	struct page *page, *next;
- 	unsigned long flags, pfn;
-@@ -2668,7 +2663,7 @@ void free_hot_cold_page_list(struct list_head *list, bool cold)
- 	/* Prepare pages for freeing */
- 	list_for_each_entry_safe(page, next, list, lru) {
- 		pfn = page_to_pfn(page);
--		if (!free_hot_cold_page_prepare(page, pfn))
-+		if (!free_unref_page_prepare(page, pfn))
- 			list_del(&page->lru);
- 		page->private = pfn;
- 	}
-@@ -2678,8 +2673,8 @@ void free_hot_cold_page_list(struct list_head *list, bool cold)
- 		unsigned long pfn = page->private;
- 
- 		page->private = 0;
--		trace_mm_page_free_batched(page, cold);
--		free_hot_cold_page_commit(page, pfn, cold);
-+		trace_mm_page_free_batched(page);
-+		free_unref_page_commit(page, pfn);
- 	}
- 	local_irq_restore(flags);
- }
-@@ -4292,7 +4287,7 @@ void __free_pages(struct page *page, unsigned int order)
- {
- 	if (put_page_testzero(page)) {
- 		if (order == 0)
--			free_hot_cold_page(page, false);
-+			free_unref_page(page);
- 		else
- 			__free_pages_ok(page, order);
- 	}
-@@ -4350,7 +4345,7 @@ void __page_frag_cache_drain(struct page *page, unsigned int count)
- 		unsigned int order = compound_order(page);
- 
- 		if (order == 0)
--			free_hot_cold_page(page, false);
-+			free_unref_page(page);
- 		else
- 			__free_pages_ok(page, order);
- 	}
-diff --git a/mm/rmap.c b/mm/rmap.c
-index b874c4761e84..8f3889553209 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1318,7 +1318,7 @@ void page_remove_rmap(struct page *page, bool compound)
- 	 * It would be tidy to reset the PageAnon mapping here,
- 	 * but that might overwrite a racing page_add_anon_rmap
- 	 * which increments mapcount after us but sets mapping
--	 * before us: so leave the reset to free_hot_cold_page,
-+	 * before us: so leave the reset to free_unref_page,
- 	 * and remember that it's only reliable while mapped.
- 	 * Leaving it set also helps swapoff to reinstate ptes
- 	 * faster for those pages still in swapcache.
-diff --git a/mm/swap.c b/mm/swap.c
-index 0b78ea3cbdea..beaf11ff67d5 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -76,7 +76,7 @@ static void __page_cache_release(struct page *page)
- static void __put_single_page(struct page *page)
- {
- 	__page_cache_release(page);
--	free_hot_cold_page(page, false);
-+	free_unref_page(page);
- }
- 
- static void __put_compound_page(struct page *page)
-@@ -817,7 +817,7 @@ void release_pages(struct page **pages, int nr)
- 		spin_unlock_irqrestore(&locked_pgdat->lru_lock, flags);
- 
- 	mem_cgroup_uncharge_list(&pages_to_free);
--	free_hot_cold_page_list(&pages_to_free, 0);
-+	free_unref_page_list(&pages_to_free);
- }
- EXPORT_SYMBOL(release_pages);
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 13d711dd8776..e574e6266ab8 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1348,7 +1348,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 
- 	mem_cgroup_uncharge_list(&free_pages);
- 	try_to_unmap_flush();
--	free_hot_cold_page_list(&free_pages, true);
-+	free_unref_page_list(&free_pages);
- 
- 	list_splice(&ret_pages, page_list);
- 	count_vm_events(PGACTIVATE, pgactivate);
-@@ -1823,7 +1823,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	spin_unlock_irq(&pgdat->lru_lock);
- 
- 	mem_cgroup_uncharge_list(&page_list);
--	free_hot_cold_page_list(&page_list, true);
-+	free_unref_page_list(&page_list);
+ 	migratetype = get_pfnblock_migratetype(page, pfn);
+ 	set_pcppage_migratetype(page, migratetype);
+-	local_irq_save(flags);
++	return true;
++}
++
++static void free_hot_cold_page_commit(struct page *page, unsigned long pfn,
++				bool cold)
++{
++	struct zone *zone = page_zone(page);
++	struct per_cpu_pages *pcp;
++	int migratetype;
++
++	migratetype = get_pcppage_migratetype(page);
+ 	__count_vm_event(PGFREE);
  
  	/*
- 	 * If reclaim is isolating dirty pages under writeback, it implies
-@@ -2062,7 +2062,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
- 	spin_unlock_irq(&pgdat->lru_lock);
+@@ -2620,7 +2622,7 @@ void free_hot_cold_page(struct page *page, bool cold)
+ 	if (migratetype >= MIGRATE_PCPTYPES) {
+ 		if (unlikely(is_migrate_isolate(migratetype))) {
+ 			free_one_page(zone, page, pfn, 0, migratetype);
+-			goto out;
++			return;
+ 		}
+ 		migratetype = MIGRATE_MOVABLE;
+ 	}
+@@ -2636,8 +2638,22 @@ void free_hot_cold_page(struct page *page, bool cold)
+ 		free_pcppages_bulk(zone, batch, pcp);
+ 		pcp->count -= batch;
+ 	}
++}
  
- 	mem_cgroup_uncharge_list(&l_hold);
--	free_hot_cold_page_list(&l_hold, true);
-+	free_unref_page_list(&l_hold);
- 	trace_mm_vmscan_lru_shrink_active(pgdat->node_id, nr_taken, nr_activate,
- 			nr_deactivate, nr_rotated, sc->priority, file);
+-out:
++/*
++ * Free a 0-order page
++ * cold == true ? free a cold page : free a hot page
++ */
++void free_hot_cold_page(struct page *page, bool cold)
++{
++	unsigned long flags;
++	unsigned long pfn = page_to_pfn(page);
++
++	if (!free_hot_cold_page_prepare(page, pfn))
++		return;
++
++	local_irq_save(flags);
++	free_hot_cold_page_commit(page, pfn, cold);
+ 	local_irq_restore(flags);
  }
+ 
+@@ -2647,11 +2663,25 @@ void free_hot_cold_page(struct page *page, bool cold)
+ void free_hot_cold_page_list(struct list_head *list, bool cold)
+ {
+ 	struct page *page, *next;
++	unsigned long flags, pfn;
++
++	/* Prepare pages for freeing */
++	list_for_each_entry_safe(page, next, list, lru) {
++		pfn = page_to_pfn(page);
++		if (!free_hot_cold_page_prepare(page, pfn))
++			list_del(&page->lru);
++		page->private = pfn;
++	}
+ 
++	local_irq_save(flags);
+ 	list_for_each_entry_safe(page, next, list, lru) {
++		unsigned long pfn = page->private;
++
++		page->private = 0;
+ 		trace_mm_page_free_batched(page, cold);
+-		free_hot_cold_page(page, cold);
++		free_hot_cold_page_commit(page, pfn, cold);
+ 	}
++	local_irq_restore(flags);
+ }
+ 
+ /*
 -- 
 2.14.0
 
