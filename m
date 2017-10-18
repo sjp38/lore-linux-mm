@@ -1,86 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 88C796B0253
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 09:15:58 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id s78so2164539wmd.14
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 06:15:58 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D14876B0253
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 09:23:41 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id y10so2180258wmd.4
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 06:23:41 -0700 (PDT)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 81si8660091wmn.49.2017.10.18.06.15.56
+        by mx.google.com with ESMTPS id s14si10156874wrf.380.2017.10.18.06.23.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Oct 2017 06:15:56 -0700 (PDT)
-Date: Wed, 18 Oct 2017 15:15:03 +0200 (CEST)
+        Wed, 18 Oct 2017 06:23:40 -0700 (PDT)
+Date: Wed, 18 Oct 2017 15:23:32 +0200 (CEST)
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [lkp-robot] [x86/kconfig] 81d3871900:
- BUG:unable_to_handle_kernel
-In-Reply-To: <CA+55aFxVnFeFcjt=MW=_Uxx6S7nJh5eFxhQCamE5BG6Jr8MXfg@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1710181509310.1925@nanos>
-References: <20171010121513.GC5445@yexl-desktop> <20171011023106.izaulhwjcoam55jt@treble> <20171011170120.7flnk6r77dords7a@treble> <20171017073326.GA23865@js1304-P5Q-DELUXE> <CA+55aFxVnFeFcjt=MW=_Uxx6S7nJh5eFxhQCamE5BG6Jr8MXfg@mail.gmail.com>
+Subject: Re: [PATCH 1/2] lockdep: Introduce CROSSRELEASE_STACK_TRACE and make
+ it not unwind as default
+In-Reply-To: <1508318006-2090-1-git-send-email-byungchul.park@lge.com>
+Message-ID: <alpine.DEB.2.20.1710181519580.1925@nanos>
+References: <1508318006-2090-1-git-send-email-byungchul.park@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Josh Poimboeuf <jpoimboe@redhat.com>, kernel test robot <xiaolong.ye@intel.com>, Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Slaby <jslaby@suse.cz>, Mike Galbraith <efault@gmx.de>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, LKP <lkp@01.org>, linux-mm <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: peterz@infradead.org, mingo@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@lge.com
 
-On Wed, 18 Oct 2017, Linus Torvalds wrote:
-> On Tue, Oct 17, 2017 at 3:33 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> >
-> > It looks like a compiler bug. The code of slob_units() try to read two
-> > bytes at ffff88001c4afffe. It's valid. But the compiler generates
-> > wrong code that try to read four bytes.
-> >
-> > static slobidx_t slob_units(slob_t *s)
-> > {
-> >   if (s->units > 0)
-> >     return s->units;
-> >   return 1;
-> > }
-> >
-> > s->units is defined as two bytes in this setup.
-> >
-> > Wrongly generated code for this part.
-> >
-> > 'mov 0x0(%rbp), %ebp'
-> >
-> > %ebp is four bytes.
-> >
-> > I guess that this wrong four bytes read cross over the valid memory
-> > boundary and this issue happend.
-> 
-> Hmm. I can see why the compiler would do that (16-bit accesses are
-> slow), but it's definitely wrong.
-> 
-> Does it work ok if that slob_units() code is written as
-> 
->   static slobidx_t slob_units(slob_t *s)
->   {
->      int units = READ_ONCE(s->units);
-> 
->      if (units > 0)
->          return units;
->      return 1;
->   }
-> 
-> which might be an acceptable workaround for now?
+On Wed, 18 Oct 2017, Byungchul Park wrote:
+>  #ifdef CONFIG_LOCKDEP_CROSSRELEASE
+> +#ifdef CONFIG_CROSSRELEASE_STACK_TRACE
+>  #define MAX_XHLOCK_TRACE_ENTRIES 5
+> +#else
+> +#define MAX_XHLOCK_TRACE_ENTRIES 1
+> +#endif
+>  
+>  /*
+>   * This is for keeping locks waiting for commit so that true dependencies
+> diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+> index e36e652..5c2ddf2 100644
+> --- a/kernel/locking/lockdep.c
+> +++ b/kernel/locking/lockdep.c
+> @@ -4863,8 +4863,13 @@ static void add_xhlock(struct held_lock *hlock)
+>  	xhlock->trace.nr_entries = 0;
+>  	xhlock->trace.max_entries = MAX_XHLOCK_TRACE_ENTRIES;
+>  	xhlock->trace.entries = xhlock->trace_entries;
+> +#ifdef CONFIG_CROSSRELEASE_STACK_TRACE
+>  	xhlock->trace.skip = 3;
+>  	save_stack_trace(&xhlock->trace);
+> +#else
+> +	xhlock->trace.nr_entries = 1;
+> +	xhlock->trace.entries[0] = hlock->acquire_ip;
+> +#endif
 
-Discussed exactly that with Peter Zijlstra yesterday, but we came to the
-conclusion that this is a whack a mole game. It might fix this slob issue,
-but what guarantees that we don't have the same problem in some other
-place? Just duct taping this particular instance makes me nervous.
-
-Joonsoo says:
-
-> gcc 4.8 and 4.9 fails to generate proper code. gcc 5.1 and
-> the latest version works fine.
-
-> I guess that this problem is related to the corner case of some
-> optimization feature since minor code change makes the result
-> different. And, with -O2, proper code is generated even if gcc 4.8 is
-> used.
-
-So it would be useful to figure out which optimization bit is causing that
-and blacklist it for the affected compiler versions.
+Hmm. Would it be possible to have this switchable at boot time via a
+command line parameter? So in case of a splat with no stack trace, one
+could just reboot and set something like 'lockdep_fullstack' on the kernel
+command line to get the full data without having to recompile the kernel.
 
 Thanks,
 
