@@ -1,123 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A127B6B0069
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 04:42:46 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id m72so1850249wmc.0
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 01:42:46 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d8sor6032343edk.17.2017.10.18.01.42.45
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B6ECF6B0069
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 04:57:12 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id g6so3638470pgn.11
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 01:57:12 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id l12si6667665pgq.59.2017.10.18.01.57.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 18 Oct 2017 01:42:45 -0700 (PDT)
-Subject: Re: [PATCH v2] Userfaultfd: Add description for UFFD_FEATURE_SIGBUS
-References: <1507589151-27430-1-git-send-email-prakash.sangappa@oracle.com>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Message-ID: <08376364-8110-3003-bc37-46cd0147263d@gmail.com>
-Date: Wed, 18 Oct 2017 10:42:43 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Oct 2017 01:57:11 -0700 (PDT)
+Date: Wed, 18 Oct 2017 16:57:11 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: [PATCH] mm/page_alloc: make sure __rmqueue() etc. always inline
+Message-ID: <20171018085711.GC1753@intel.com>
+References: <20171010025151.GD1798@intel.com>
+ <20171010025601.GE1798@intel.com>
+ <8d6a98d3-764e-fd41-59dc-88a9d21822c7@intel.com>
+ <20171010054342.GF1798@intel.com>
+ <20171010144545.c87a28b0f3c4e475305254ab@linux-foundation.org>
+ <20171011023402.GC27907@intel.com>
+ <20171013063111.GA26032@intel.com>
+ <7304b3a4-d6cb-63fa-743d-ea8e7b126e32@suse.cz>
+ <1508291629.14336.14.camel@intel.com>
+ <29e5343f-b352-fe6a-02a8-74955cd606b8@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1507589151-27430-1-git-send-email-prakash.sangappa@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <29e5343f-b352-fe6a-02a8-74955cd606b8@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Prakash Sangappa <prakash.sangappa@oracle.com>
-Cc: mtk.manpages@gmail.com, linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org, aarcange@redhat.com, rppt@linux.vnet.ibm.com, mhocko@suse.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tim.c.chen@linux.intel.com" <tim.c.chen@linux.intel.com>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "Wang, Kemi" <kemi.wang@intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Huang, Ying" <ying.huang@intel.com>
 
-Hello Prakash,
-
-On 10/10/2017 12:45 AM, Prakash Sangappa wrote:
-> Userfaultfd feature UFFD_FEATURE_SIGBUS was merged recently and should
-> be available in Linux 4.14 release. This patch is for the manpage
-> changes documenting this API.
+On Wed, Oct 18, 2017 at 08:28:56AM +0200, Vlastimil Babka wrote:
+> On 10/18/2017 03:53 AM, Lu, Aaron wrote:
+> > On Tue, 2017-10-17 at 13:32 +0200, Vlastimil Babka wrote:
+> >> With gcc 7.2.1:
+> >>> ./scripts/bloat-o-meter base.o mm/page_alloc.o
+> >>
+> >> add/remove: 1/2 grow/shrink: 2/0 up/down: 2493/-1649 (844)
+> > 
+> > Nice, it clearly showed 844 bytes bloat.
+> > 
+> >> function                                     old     new   delta
+> >> get_page_from_freelist                      2898    4937   +2039
+> >> steal_suitable_fallback                        -     365    +365
+> >> find_suitable_fallback                        31     120     +89
+> >> find_suitable_fallback.part                  115       -    -115
+> >> __rmqueue                                   1534       -   -1534
 > 
-> Documents the following commit:
+> It also shows that steal_suitable_fallback() is no longer inlined. Which
+> is fine, because that should ideally be rarely executed.
+
+Ah right, so this script is really good for analysing inline changes.
+
 > 
-> commit 2d6d6f5a09a96cc1fec7ed992b825e05f64cb50e
-> Author: Prakash Sangappa <prakash.sangappa@oracle.com>
-> Date: Wed Sep 6 16:23:39 2017 -0700
+> >>
+> >>> [aaron@aaronlu obj]$ size */*/vmlinux
+> >>>    text    data     bss     dec       hex     filename
+> >>> 10342757   5903208 17723392 33969357  20654cd gcc-4.9.4/base/vmlinux
+> >>> 10342757   5903208 17723392 33969357  20654cd gcc-4.9.4/head/vmlinux
+> >>> 10332448   5836608 17715200 33884256  2050860 gcc-5.5.0/base/vmlinux
+> >>> 10332448   5836608 17715200 33884256  2050860 gcc-5.5.0/head/vmlinux
+> >>> 10094546   5836696 17715200 33646442  201676a gcc-6.4.0/base/vmlinux
+> >>> 10094546   5836696 17715200 33646442  201676a gcc-6.4.0/head/vmlinux
+> >>> 10018775   5828732 17715200 33562707  2002053 gcc-7.2.0/base/vmlinux
+> >>> 10018775   5828732 17715200 33562707  2002053 gcc-7.2.0/head/vmlinux
+> >>>
+> >>> Text size for vmlinux has no change though, probably due to function
+> >>> alignment.
+> >>
+> >> Yep that's useless to show. These differences do add up though, until
+> >> they eventually cross the alignment boundary.
+> > 
+> > Agreed.
+> > But you know, it is the hot path, the performance improvement might be
+> > worth it.
 > 
->      mm: userfaultfd: add feature to request for a signal delivery
-
-Thanks for the patch. I've applied it, and polished it a little.
-The results are already visible in Git.
-
-Thanks, Mike and Andrea, for the reviews!
-
-Cheers,
-
-Michael
-
-
-> Signed-off-by: Prakash Sangappa <prakash.sangappa@oracle.com>
-> ---
-> v2: Incorporated review feedback changes.
-> ---
->  man2/ioctl_userfaultfd.2 |  9 +++++++++
->  man2/userfaultfd.2       | 23 +++++++++++++++++++++++
->  2 files changed, 32 insertions(+)
+> I'd agree, so you can add
 > 
-> diff --git a/man2/ioctl_userfaultfd.2 b/man2/ioctl_userfaultfd.2
-> index 60fd29b..32f0744 100644
-> --- a/man2/ioctl_userfaultfd.2
-> +++ b/man2/ioctl_userfaultfd.2
-> @@ -196,6 +196,15 @@ with the
->  flag set,
->  .BR memfd_create (2),
->  and so on.
-> +.TP
-> +.B UFFD_FEATURE_SIGBUS
-> +Since Linux 4.14, If this feature bit is set, no page-fault events
-> +.B (UFFD_EVENT_PAGEFAULT)
-> +will be delivered, instead a
-> +.B SIGBUS
-> +signal will be sent to the faulting process. Applications using this
-> +feature will not require the use of a userfaultfd monitor for processing
-> +memory accesses to the regions registered with userfaultfd.
->  .IP
->  The returned
->  .I ioctls
-> diff --git a/man2/userfaultfd.2 b/man2/userfaultfd.2
-> index 1741ee3..3c5b9c0 100644
-> --- a/man2/userfaultfd.2
-> +++ b/man2/userfaultfd.2
-> @@ -172,6 +172,29 @@ or
->  .BR ioctl (2)
->  operations to resolve the page fault.
->  .PP
-> +Starting from Linux 4.14, if application sets
-> +.B UFFD_FEATURE_SIGBUS
-> +feature bit using
-> +.B UFFDIO_API
-> +.BR ioctl (2),
-> +no page fault notification will be forwarded to
-> +the user-space, instead a
-> +.B SIGBUS
-> +signal is delivered to the faulting process. With this feature,
-> +userfaultfd can be used for robustness purpose to simply catch
-> +any access to areas within the registered address range that do not
-> +have pages allocated, without having to listen to userfaultfd events.
-> +No userfaultfd monitor will be required for dealing with such memory
-> +accesses. For example, this feature can be useful for applications that
-> +want to prevent the kernel from automatically allocating pages and filling
-> +holes in sparse files when the hole is accessed thru mapped address.
-> +.PP
-> +The
-> +.B UFFD_FEATURE_SIGBUS
-> +feature is implicitly inherited through fork() if used in combination with
-> +.BR UFFD_FEATURE_FORK .
-> +
-> +.PP
->  Details of the various
->  .BR ioctl (2)
->  operations can be found in
-> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
