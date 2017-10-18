@@ -1,54 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 935856B0253
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 13:05:54 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id p186so2392224wmd.11
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 10:05:54 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v9sor5474199wre.32.2017.10.18.10.05.53
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 18 Oct 2017 10:05:53 -0700 (PDT)
-Date: Wed, 18 Oct 2017 19:05:50 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 1/2] lockdep: Introduce CROSSRELEASE_STACK_TRACE and make
- it not unwind as default
-Message-ID: <20171018170550.qycebtl4y2xrpiy5@gmail.com>
-References: <1508318006-2090-1-git-send-email-byungchul.park@lge.com>
- <alpine.DEB.2.20.1710181519580.1925@nanos>
- <20171018133019.cwfhnt46pvhirt57@gmail.com>
- <alpine.DEB.2.20.1710181533260.1925@nanos>
- <20171018141502.GB12063@bombadil.infradead.org>
- <alpine.DEB.2.20.1710181634420.1925@nanos>
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E445E6B025F
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 13:06:47 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id b189so5232351oia.10
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 10:06:47 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id j85si1434699oiy.438.2017.10.18.10.06.46
+        for <linux-mm@kvack.org>;
+        Wed, 18 Oct 2017 10:06:46 -0700 (PDT)
+Date: Wed, 18 Oct 2017 18:06:51 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v12 08/11] arm64/kasan: add and use kasan_map_populate()
+Message-ID: <20171018170651.GG21820@arm.com>
+References: <20171013173214.27300-1-pasha.tatashin@oracle.com>
+ <20171013173214.27300-9-pasha.tatashin@oracle.com>
+ <0ae84532-8dcb-10aa-9d69-79d7025b089e@virtuozzo.com>
+ <ad8c5715-dc4f-1fa7-c25b-e08df68643d0@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1710181634420.1925@nanos>
+In-Reply-To: <ad8c5715-dc4f-1fa7-c25b-e08df68643d0@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Matthew Wilcox <willy@infradead.org>, Byungchul Park <byungchul.park@lge.com>, peterz@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@lge.com
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, willy@infradead.org, mhocko@kernel.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, akpm@linux-foundation.org, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
+On Wed, Oct 18, 2017 at 01:03:10PM -0400, Pavel Tatashin wrote:
+> I asked Will, about it, and he preferred to have this patched added to the
+> end of my series instead of replacing "arm64/kasan: add and use
+> kasan_map_populate()".
 
-* Thomas Gleixner <tglx@linutronix.de> wrote:
+As I said, I'm fine either way, I just didn't want to cause extra work
+or rebasing:
 
-> On Wed, 18 Oct 2017, Matthew Wilcox wrote:
-> 
-> > On Wed, Oct 18, 2017 at 03:36:05PM +0200, Thomas Gleixner wrote:
-> > > Which reminds me that I wanted to convert them to static_key so they are
-> > > zero overhead when disabled. Sigh, why are todo lists growth only?
-> > 
-> > This is why you need an Outreachy intern -- it gets at least one task
-> > off your todo list, and in the best possible case, it gets a second
-> > person working on your todo list for a long time.
-> > 
-> > ... eventually they start their own todo lists ...
-> 
-> Good idea. Oh, wait.....  Getting an Outreachy intern is on my todo list already. 
+http://lists.infradead.org/pipermail/linux-arm-kernel/2017-October/535703.html
 
-Please add "shrink my TODO list" to your TODO list ... wait a minute ...
+> In addition, Will's patch stops using large pages for kasan memory, and thus
+> might add some regression in which case it is easier to revert just that
+> patch instead of the whole series. It is unlikely that regression is going
+> to be detectable, because kasan by itself makes system quiet slow already.
 
-	Ingo
+If it causes problems, I'll just fix them. No need to revert.
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
