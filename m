@@ -1,112 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D96E56B0069
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 02:28:59 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id s78so1699841wmd.14
-        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 23:28:59 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DC7706B025F
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 02:30:57 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id v91so1939105wrc.11
+        for <linux-mm@kvack.org>; Tue, 17 Oct 2017 23:30:57 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x194si8323348wme.55.2017.10.17.23.28.57
+        by mx.google.com with ESMTPS id g84si7743952wmf.275.2017.10.17.23.30.56
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 17 Oct 2017 23:28:58 -0700 (PDT)
-Subject: Re: [PATCH] mm/page_alloc: make sure __rmqueue() etc. always inline
-References: <20171009054434.GA1798@intel.com>
- <3a46edcf-88f8-e4f4-8b15-3c02620308e4@intel.com>
- <20171010025151.GD1798@intel.com> <20171010025601.GE1798@intel.com>
- <8d6a98d3-764e-fd41-59dc-88a9d21822c7@intel.com>
- <20171010054342.GF1798@intel.com>
- <20171010144545.c87a28b0f3c4e475305254ab@linux-foundation.org>
- <20171011023402.GC27907@intel.com> <20171013063111.GA26032@intel.com>
- <7304b3a4-d6cb-63fa-743d-ea8e7b126e32@suse.cz>
- <1508291629.14336.14.camel@intel.com>
+        Tue, 17 Oct 2017 23:30:56 -0700 (PDT)
+Subject: Re: [PATCH v5] mm, sysctl: make NUMA stats configurable
+References: <1508290927-8518-1-git-send-email-kemi.wang@intel.com>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <29e5343f-b352-fe6a-02a8-74955cd606b8@suse.cz>
-Date: Wed, 18 Oct 2017 08:28:56 +0200
+Message-ID: <082e44ef-c5f2-ae99-8672-37a678c61edd@suse.cz>
+Date: Wed, 18 Oct 2017 08:30:53 +0200
 MIME-Version: 1.0
-In-Reply-To: <1508291629.14336.14.camel@intel.com>
+In-Reply-To: <1508290927-8518-1-git-send-email-kemi.wang@intel.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Lu, Aaron" <aaron.lu@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "tim.c.chen@linux.intel.com" <tim.c.chen@linux.intel.com>, "khandual@linux.vnet.ibm.com" <khandual@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "ak@linux.intel.com" <ak@linux.intel.com>, "Wang, Kemi" <kemi.wang@intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, "Huang, Ying" <ying.huang@intel.com>
+To: Kemi Wang <kemi.wang@intel.com>, "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Dave <dave.hansen@linux.intel.com>, Tim Chen <tim.c.chen@intel.com>, Andi Kleen <andi.kleen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Proc sysctl <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>
 
-On 10/18/2017 03:53 AM, Lu, Aaron wrote:
-> On Tue, 2017-10-17 at 13:32 +0200, Vlastimil Babka wrote:
->>
->> Are transparent hugepages enabled? If yes, __rmqueue() is called from
->> rmqueue(), and there's only one page fault (and __rmqueue()) per 512
->> "writes to each page". If not, __rmqueue() is called from rmqueue_bulk()
->> in bursts once pcplists are depleted. I guess it's the latter, otherwise
->> I wouldn't expect a function call to have such visible overhead.
+On 10/18/2017 03:42 AM, Kemi Wang wrote:
+> This is the second step which introduces a tunable interface that allow
+> numa stats configurable for optimizing zone_statistics(), as suggested by
+> Dave Hansen and Ying Huang.
 > 
-> THP is disabled. I should have mentioned this in the changelog, sorry
-> about that.
-
-OK, then it makes sense!
-
->>
->> I guess what would help much more would be a bulk __rmqueue_smallest()
->> to grab multiple pages from the freelists. But can't argue with your
+> =========================================================================
+> When page allocation performance becomes a bottleneck and you can tolerate
+> some possible tool breakage and decreased numa counter precision, you can
+> do:
+> 	echo 0 > /proc/sys/vm/numa_stat
+> In this case, numa counter update is ignored. We can see about
+> *4.8%*(185->176) drop of cpu cycles per single page allocation and reclaim
+> on Jesper's page_bench01 (single thread) and *8.1%*(343->315) drop of cpu
+> cycles per single page allocation and reclaim on Jesper's page_bench03 (88
+> threads) running on a 2-Socket Broadwell-based server (88 threads, 126G
+> memory).
 > 
-> Do I understand you correctly that you suggest to use a bulk
-> __rmqueue_smallest(), say __rmqueue_smallest_bulk(). With that, instead
-> of looping pcp->batch times in rmqueue_bulk(), a single call to
-> __rmqueue_smallest_bulk() is enough and __rmqueue_smallest_bulk() will
-> loop pcp->batch times to get those pages?
-
-Yeah, but I looked at it more closely, and maybe there's not much to
-gain after all. E.g., there seem to be no atomic counter updates that
-would benefit from batching, or expensive setup/cleanup in
-__rmqueue_smallest().
-
-> Then it feels like __rmqueue_smallest_bulk() has become rmqueue_bulk(),
-> or do I miss something?
-
-Right, looks like thanks to inlining, the compiler can already achieve
-most of the potential gains.
-
->> With gcc 7.2.1:
->>> ./scripts/bloat-o-meter base.o mm/page_alloc.o
->>
->> add/remove: 1/2 grow/shrink: 2/0 up/down: 2493/-1649 (844)
+> Benchmark link provided by Jesper D Brouer(increase loop times to
+> 10000000):
+> https://github.com/netoptimizer/prototype-kernel/tree/master/kernel/mm/
+> bench
 > 
-> Nice, it clearly showed 844 bytes bloat.
+> =========================================================================
+> When page allocation performance is not a bottleneck and you want all
+> tooling to work, you can do:
+> 	echo 1 > /proc/sys/vm/numa_stat
+> This is system default setting.
 > 
->> function                                     old     new   delta
->> get_page_from_freelist                      2898    4937   +2039
->> steal_suitable_fallback                        -     365    +365
->> find_suitable_fallback                        31     120     +89
->> find_suitable_fallback.part                  115       -    -115
->> __rmqueue                                   1534       -   -1534
-
-It also shows that steal_suitable_fallback() is no longer inlined. Which
-is fine, because that should ideally be rarely executed.
-
->>
->>> [aaron@aaronlu obj]$ size */*/vmlinux
->>>    text    data     bss     dec       hex     filename
->>> 10342757   5903208 17723392 33969357  20654cd gcc-4.9.4/base/vmlinux
->>> 10342757   5903208 17723392 33969357  20654cd gcc-4.9.4/head/vmlinux
->>> 10332448   5836608 17715200 33884256  2050860 gcc-5.5.0/base/vmlinux
->>> 10332448   5836608 17715200 33884256  2050860 gcc-5.5.0/head/vmlinux
->>> 10094546   5836696 17715200 33646442  201676a gcc-6.4.0/base/vmlinux
->>> 10094546   5836696 17715200 33646442  201676a gcc-6.4.0/head/vmlinux
->>> 10018775   5828732 17715200 33562707  2002053 gcc-7.2.0/base/vmlinux
->>> 10018775   5828732 17715200 33562707  2002053 gcc-7.2.0/head/vmlinux
->>>
->>> Text size for vmlinux has no change though, probably due to function
->>> alignment.
->>
->> Yep that's useless to show. These differences do add up though, until
->> they eventually cross the alignment boundary.
+> Many thanks to Michal Hocko, Dave Hansen, Ying Huang and Vlastimil Babka
+> for comments to help improve the original patch.
 > 
-> Agreed.
-> But you know, it is the hot path, the performance improvement might be
-> worth it.
-
-I'd agree, so you can add
+> ChangeLog:
+>   V4->V5
+>   a) Scope vm_numa_stat_lock into the sysctl handler function, as suggested
+>   by Michal Hocko;
+>   b) Only allow 0/1 value when setting a value to numa_stat at userspace,
+>   that would keep the possibility for add auto mode in future (e.g. 2 for
+>   auto mode), as suggested by Michal Hocko.
+> 
+>   V3->V4
+>   a) Get rid of auto mode of numa stats, and may add it back if necessary,
+>   as alignment before;
+>   b) Skip NUMA_INTERLEAVE_HIT counter update when numa stats is disabled,
+>   as reported by Andrey Ryabinin. See commit "de55c8b2519" for details
+>   c) Remove extern declaration for those clear_numa_ function, and make
+>   them static in vmstat.c, as suggested by Vlastimil Babka.
+> 
+>   V2->V3:
+>   a) Propose a better way to use jump label to eliminate the overhead of
+>   branch selection in zone_statistics(), as inspired by Ying Huang;
+>   b) Add a paragraph in commit log to describe the way for branch target
+>   selection;
+>   c) Use a more descriptive name numa_stats_mode instead of vmstat_mode,
+>   and change the description accordingly, as suggested by Michal Hocko;
+>   d) Make this functionality NUMA-specific via ifdef
+> 
+>   V1->V2:
+>   a) Merge to one patch;
+>   b) Use jump label to eliminate the overhead of branch selection;
+>   c) Add a single-time log message at boot time to help tell users what
+>   happened.
+> 
+> Reported-by: Jesper Dangaard Brouer <brouer@redhat.com>
+> Suggested-by: Dave Hansen <dave.hansen@intel.com>
+> Suggested-by: Ying Huang <ying.huang@intel.com>
+> Signed-off-by: Kemi Wang <kemi.wang@intel.com>
 
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
