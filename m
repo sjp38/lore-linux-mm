@@ -1,83 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F294E6B0033
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 05:59:20 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id u138so1928778wmu.19
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 02:59:20 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y14sor3369221wmh.20.2017.10.18.02.59.19
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EA6B6B0033
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 06:09:49 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id u78so1943197wmd.13
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:09:49 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id l72sor2895662wmi.72.2017.10.18.03.09.47
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 18 Oct 2017 02:59:19 -0700 (PDT)
-Date: Wed, 18 Oct 2017 11:59:16 +0200
+        Wed, 18 Oct 2017 03:09:47 -0700 (PDT)
+Date: Wed, 18 Oct 2017 12:09:44 +0200
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [RESEND PATCH 3/3] lockdep: Assign a lock_class per gendisk used
- for wait_for_completion()
-Message-ID: <20171018095916.gr3n4mal6dz5xs7v@gmail.com>
-References: <1508319532-24655-1-git-send-email-byungchul.park@lge.com>
- <1508319532-24655-4-git-send-email-byungchul.park@lge.com>
+Subject: Re: [PATCH 1/2] lockdep: Introduce CROSSRELEASE_STACK_TRACE and make
+ it not unwind as default
+Message-ID: <20171018100944.g2mc6yorhtm5piom@gmail.com>
+References: <1508318006-2090-1-git-send-email-byungchul.park@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1508319532-24655-4-git-send-email-byungchul.park@lge.com>
+In-Reply-To: <1508318006-2090-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Byungchul Park <byungchul.park@lge.com>
-Cc: peterz@infradead.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
+Cc: peterz@infradead.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@lge.com
 
 
 * Byungchul Park <byungchul.park@lge.com> wrote:
 
-> diff --git a/block/bio.c b/block/bio.c
-> index 9a63597..0d4d6c0 100644
-> --- a/block/bio.c
-> +++ b/block/bio.c
-> @@ -941,7 +941,7 @@ int submit_bio_wait(struct bio *bio)
->  {
->  	struct submit_bio_ret ret;
->  
-> -	init_completion(&ret.event);
-> +	init_completion_with_map(&ret.event, &bio->bi_disk->lockdep_map);
->  	bio->bi_private = &ret;
->  	bio->bi_end_io = submit_bio_wait_endio;
->  	bio->bi_opf |= REQ_SYNC;
-> @@ -1382,7 +1382,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
->  
->  			if (len <= 0)
->  				break;
-> -			
+> Johan Hovold reported a performance regression by crossrelease like:
+> 
+> > Boot time (from "Linux version" to login prompt) had in fact doubled
+> > since 4.13 where it took 17 seconds (with my current config) compared to
+> > the 35 seconds I now see with 4.14-rc4.
+> >
+> > I quick bisect pointed to lockdep and specifically the following commit:
+> >
+> > 	28a903f63ec0 ("locking/lockdep: Handle non(or multi)-acquisition
+> > 	               of a crosslock")
+> >
+> > which I've verified is the commit which doubled the boot time (compared
+> > to 28a903f63ec0^) (added by lockdep crossrelease series [1]).
+> 
+> Currently crossrelease performs unwind on every acquisition. But, that
+> overloads systems too much. So this patch makes unwind optional and set
+> it to N as default. Instead, it records only acquire_ip normally. Of
+> course, unwind is sometimes required for full analysis. In that case, we
+> can set CROSSRELEASE_STACK_TRACE to Y and use it.
+> 
+> In my qemu ubuntu machin (x86_64, 4 cores, 512M), the regression was
+> fixed like, measuring timestamp of "Freeing unused kernel memory":
+> 
+> 1. No lockdep enabled
+>    Average : 1.543353 secs
+> 
+> 2. Lockdep enabled
+>    Average : 1.570806 secs
+> 
+> 3. Lockdep enabled + crossrelease enabled
+>    Average : 1.870317 secs
+> 
+> 4. Lockdep enabled + crossrelease enabled + this patch applied
+>    Average : 1.574143 secs
+
+Ok, that looks really nice, recovers almost all of the lost performance, right?
+
+Could you please run perf stat --null --repeat type of stats of a boot test (for 
+example running init=/bin/true should boot up Qemu and make it exit), so that we 
+can see how stable the numbers are and what the real slowdown is?
+
+> +config CROSSRELEASE_STACK_TRACE
+> +	bool "Record more than one entity of stack trace in crossrelease"
+> +	depends on LOCKDEP_CROSSRELEASE
+> +	default n
+> +	help
+> +	 Crossrelease feature needs to record stack traces for all
+> +	 acquisitions for later use. And only acquire_ip is normally
+> +	 recorded because the unwind operation is too expensive. However,
+> +	 sometimes more than acquire_ip are required for full analysis.
+> +	 In the case that we need to record more than one entity of
+> +	 stack trace using unwind, this feature would be useful, with
+> +	 taking more overhead.
 > +
->  			if (bytes > len)
->  				bytes = len;
->  
+> +	 If unsure, say N.
 
-That's a spurious cleanup unrelated to this patch.
+Fixed the text for you:
 
-> --- a/include/linux/genhd.h
-> +++ b/include/linux/genhd.h
-> @@ -3,7 +3,7 @@
->  
->  /*
->   * 	genhd.h Copyright (C) 1992 Drew Eckhardt
-> - *	Generic hard disk header file by  
-> + *	Generic hard disk header file by
->   * 		Drew Eckhardt
->   *
->   *		<drew@colorado.edu>
+> +	 The lockdep "cross-release" feature needs to record stack traces
+> +	 (of calling functions) for all acquisitions, for eventual later use
+> +	 during analysis.
+> +	 By default only a single caller is recorded, because the unwind
+> +	 operation can be very expensive with deeper stack chains.
+> +	 However, sometimes deeper traces are required for full analysis.
+> +	 This option turns on the saving of the full stack trace entries.
+> +
+> +	 If unsure, say N.
 
-Ditto.
-
-> @@ -483,7 +486,7 @@ struct bsd_disklabel {
->  	__s16	d_type;			/* drive type */
->  	__s16	d_subtype;		/* controller/d_type specific */
->  	char	d_typename[16];		/* type name, e.g. "eagle" */
-> -	char	d_packname[16];			/* pack identifier */ 
-> +	char	d_packname[16];			/* pack identifier */
->  	__u32	d_secsize;		/* # of bytes per sector */
->  	__u32	d_nsectors;		/* # of data sectors per track */
->  	__u32	d_ntracks;		/* # of tracks per cylinder */
-
-Ditto.
+BTW., have you attempted limiting the depth of the stack traces? I suspect more 
+than 2-4 are rarely required to disambiguate the calling context.
 
 Thanks,
 
