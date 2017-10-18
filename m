@@ -1,60 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F5766B0253
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 16:43:12 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id b85so4141117pfj.22
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 13:43:12 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id z81si7999266pfl.235.2017.10.18.13.43.11
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 264676B025F
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 17:32:00 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id j17so5922935iod.18
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 14:32:00 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d192sor7357663ith.87.2017.10.18.14.31.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Oct 2017 13:43:11 -0700 (PDT)
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: [PATCH] zswap: Same-filled pages handling
-References: <CGME20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p1>
-	<20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p1>
-Date: Wed, 18 Oct 2017 13:43:10 -0700
-In-Reply-To: <20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p1>
-	(Srividya Desireddy's message of "Wed, 18 Oct 2017 10:48:32 +0000")
-Message-ID: <8760bci3vl.fsf@linux.intel.com>
+        (Google Transport Security);
+        Wed, 18 Oct 2017 14:31:59 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p1>
+References: <CGME20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p1>
+ <20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p1>
+From: Timofey Titovets <nefelim4ag@gmail.com>
+Date: Thu, 19 Oct 2017 00:31:18 +0300
+Message-ID: <CAGqmi75Y9wbwBS0ZythcNF1gi6bW7g_XcuMDgLu=Nx4=pWC8Jw@mail.gmail.com>
+Subject: Re: [PATCH] zswap: Same-filled pages handling
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Srividya Desireddy <srividya.dr@samsung.com>
 Cc: "sjenning@redhat.com" <sjenning@redhat.com>, "ddstreet@ieee.org" <ddstreet@ieee.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "penberg@kernel.org" <penberg@kernel.org>, Dinakar Reddy Pathireddy <dinakar.p@samsung.com>, SHARAN ALLUR <sharan.allur@samsung.com>, RAJIB BASU <rajib.basu@samsung.com>, JUHUN KIM <juhunkim@samsung.com>, "srividya.desireddy@gmail.com" <srividya.desireddy@gmail.com>
 
-Srividya Desireddy <srividya.dr@samsung.com> writes:
->
-> On a ARM Quad Core 32-bit device with 1.5GB RAM by launching and
-> relaunching different applications, out of ~64000 pages stored in
-> zswap, ~11000 pages were same-value filled pages (including zero-filled
-> pages) and ~9000 pages were zero-filled pages.
-
-What are the values for the non zero cases?
-
 > +static int zswap_is_page_same_filled(void *ptr, unsigned long *value)
 > +{
-> +	unsigned int pos;
-> +	unsigned long *page;
+> +       unsigned int pos;
+> +       unsigned long *page;
 > +
-> +	page = (unsigned long *)ptr;
-> +	for (pos = 1; pos < PAGE_SIZE / sizeof(*page); pos++) {
-> +		if (page[pos] != page[0])
-> +			return 0;
-> +	}
+> +       page = (unsigned long *)ptr;
+> +       for (pos = 1; pos < PAGE_SIZE / sizeof(*page); pos++) {
+> +               if (page[pos] != page[0])
+> +                       return 0;
+> +       }
+> +       *value = page[0];
+> +       return 1;
+> +}
+> +
 
-So on 32bit it checks for 32bit repeating values and on 64bit
-for 64bit repeating values. Does that make sense?
+In theory you can speedup that check by memcmp(),
+And do something like first:
+memcmp(ptr, ptr + PAGE_SIZE/sizeof(*page)/2, PAGE_SIZE/2);
+After compare 1/4 with 2/4
+Then 1/8 with 2/8.
+And after do you check with pattern, only on first 512 bytes.
 
-Did you test the patch on a 64bit system?
+Just because memcmp() on fresh CPU are crazy fast.
+That can easy make you check less expensive.
 
-Overall I would expect this extra pass to be fairly expensive. It may
-be better to add some special check to the compressor, and let
-it abort if it sees a string of same values, and only do the check
-then.
+> +static void zswap_fill_page(void *ptr, unsigned long value)
+> +{
+> +       unsigned int pos;
+> +       unsigned long *page;
+> +
+> +       page = (unsigned long *)ptr;
+> +       if (value == 0)
+> +               memset(page, 0, PAGE_SIZE);
+> +       else {
+> +               for (pos = 0; pos < PAGE_SIZE / sizeof(*page); pos++)
+> +                       page[pos] = value;
+> +       }
+> +}
 
--Andi
+Same here, but with memcpy().
+
+P.S.
+I'm just too busy to make fast performance test in user space,
+but my recent experience with that CPU commands, show what that make a sense:
+KSM patch: https://patchwork.kernel.org/patch/9980803/
+User space tests: https://github.com/Nefelim4ag/memcmpe
+PAGE_SIZE: 65536, loop count: 1966080
+memcmp:  -28                    time: 3216 ms,  th: 40064.644611 MiB/s
+memcmpe: -28, offset: 62232     time: 3588 ms,  th: 35902.462390 MiB/s
+memcmpe: -28, offset: 62232     time: 71 ms,    th: 1792233.164286 MiB/s
+
+IIRC, with code like our, you must see ~2.5GiB/s
+
+Thanks.
+-- 
+Have a nice day,
+Timofey.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
