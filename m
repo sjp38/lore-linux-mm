@@ -1,100 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DD556B0033
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:54:08 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id z99so284736wrc.15
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 00:54:08 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w65si7834078wmg.89.2017.10.18.00.54.06
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D3AC6B0069
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 03:59:55 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id z55so2072260wrz.2
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 00:59:55 -0700 (PDT)
+Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
+        by mx.google.com with ESMTPS id w1si3282146edk.103.2017.10.18.00.59.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 18 Oct 2017 00:54:06 -0700 (PDT)
-Subject: Re: [PATCH] mm/mempolicy: add node_empty check in SYSC_migrate_pages
-References: <1508290660-60619-1-git-send-email-xieyisheng1@huawei.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <7086c6ea-b721-684e-fe3d-ff59ae1d78ed@suse.cz>
-Date: Wed, 18 Oct 2017 09:54:05 +0200
-MIME-Version: 1.0
-In-Reply-To: <1508290660-60619-1-git-send-email-xieyisheng1@huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 18 Oct 2017 00:59:53 -0700 (PDT)
+Received: from outbound-smtp14.blacknight.com (outbound-smtp14.blacknight.com [46.22.139.231])
+	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 702C11C2F64
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 08:59:53 +0100 (IST)
+Received: from mail.blacknight.com (unknown [81.17.254.17])
+	by outbound-smtp14.blacknight.com (Postfix) with ESMTPS id 5EFDA1C2F7E
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 08:59:53 +0100 (IST)
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH 0/8] Follow-up for speed up page cache truncation v2
+Date: Wed, 18 Oct 2017 08:59:44 +0100
+Message-Id: <20171018075952.10627-1-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <xieyisheng1@huawei.com>, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, tanxiaojun@huawei.com, Linux API <linux-api@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dave Chinner <david@fromorbit.com>, Mel Gorman <mgorman@techsingularity.net>
 
-+CC linux-api
+Changelog since v1
+o Remove "private" parameter from radix tree callbacks
+o Rebase on v4.14-rc5 + Jan's v2 series
+o Acked/Reviews by
 
-On 10/18/2017 03:37 AM, Yisheng Xie wrote:
-> As Xiaojun reported the ltp of migrate_pages01 will failed on ARCH arm64
-> system whoes has 4 nodes[0...3], all have memory and CONFIG_NODES_SHIFT=2:
-> 
-> migrate_pages01    0  TINFO  :  test_invalid_nodes
-> migrate_pages01   14  TFAIL  :  migrate_pages_common.c:45: unexpected failure - returned value = 0, expected: -1
-> migrate_pages01   15  TFAIL  :  migrate_pages_common.c:55: call succeeded unexpectedly
-> 
-> In this case the test_invalid_nodes of migrate_pages01 will call:
-> SYSC_migrate_pages as:
-> 
-> migrate_pages(0, , {0x0000000000000001}, 64, , {0x0000000000000010}, 64) = 0
+This series is a follow-on for Jan Kara's series "Speed up page cache
+truncation" series. We both ended up looking at the same problem but saw
+different problems based on the same data. This series builds upon his work.
 
-is 64 here the maxnode parameter of migrate_pages() ?
+A variety of workloads were compared on four separate machines but each
+machine showed gains albeit at different levels. Minimally, some of the
+differences are due to NUMA where truncating data from a remote node is
+slower than a local node. The workloads checked were
 
-> For MAX_NUMNODES is 4, so 0x10 nodemask will tread as empty set which makes
-> 	nodes_subset(*new, node_states[N_MEMORY])
+o sparse truncate microbenchmark, tiny
+o sparse truncate microbenchmark, large
+o reaim-io disk workfile
+o dbench4 (modified by mmtests to produce more stable results)
+o filebench varmail configuration for small memory size
+o bonnie, directory operations, working set size 2*RAM
 
-According to manpage of migrate_pages:
+reaim-io, dbench and filebench all showed minor gains.  Truncation does not
+dominate those workloads but were tested to ensure no other regressions.
+They will not be reported further.
 
-        EINVAL The value specified by maxnode exceeds a kernel-imposed
-limit.  Or, old_nodes or new_nodes specifies one or more node IDs that
-are greater than the maximum supported node ID.  Or, none of the node
-IDs specified by new_nodes are on-line and allowed by the process's
-current cpuset context, or none of the specified nodes contain memory.
+The sparse truncate microbench was written by Jan. It creates a number of
+files and then times how long it takes to truncate each one. The "tiny"
+configuraiton creates a number of files that easily fits in memory and
+times how long it takes to truncate files with page cache. The large
+configuration uses enough files to have data that is twice the size of
+memory and so timings there include truncating page cache and working set
+shadow entries in the radix tree.
 
-if maxnode parameter is 64, but MAX_NUMNODES ("kernel-imposed limit") is
-4, we should get EINVAL just because of that. I don't see such check in
-the migrate_pages implementation though. But then at least the
-"new_nodes specifies one or more node IDs that are greater than the
-maximum supported node ID" part should trigger here, because you have
-node number 8 set in the new_nodes nodemask, right?
-get_nodes() should be checking this according to comment:
+Patches 1-4 are the most relevant parts of this series. Patches 5-8 are
+optional as they are deleting code that is essentially useless but has a
+negligible performance impact.
 
-        /* When the user specified more nodes than supported just check
-           if the non supported part is all zero. */
+The changelogs have more information on performance but just for bonnie
+delete options, the main comparison is
 
-Somehow that doesn't seem to work then? I think we should look into
-this. Your patch may still be needed, or not, after that is resolved.
+bonnie
+                                      4.14.0-rc5             4.14.0-rc5             4.14.0-rc5
+                                          jan-v2                vanilla                 mel-v2
+Hmean     SeqCreate ops         76.20 (   0.00%)       75.80 (  -0.53%)       76.80 (   0.79%)
+Hmean     SeqCreate read        85.00 (   0.00%)       85.00 (   0.00%)       85.00 (   0.00%)
+Hmean     SeqCreate del      13752.31 (   0.00%)    12090.23 ( -12.09%)    15304.84 (  11.29%)
+Hmean     RandCreate ops        76.00 (   0.00%)       75.60 (  -0.53%)       77.00 (   1.32%)
+Hmean     RandCreate read       96.80 (   0.00%)       96.80 (   0.00%)       97.00 (   0.21%)
+Hmean     RandCreate del     13233.75 (   0.00%)    11525.35 ( -12.91%)    14446.61 (   9.16%)
 
-> return true, as empty set is subset of any set.
-> 
-> So this is a common issue which also can happens in X86_64 system eg. 8 nodes[0..7],
-> all with memory and CONFIG_NODES_SHIFT=3. Fix it by adding node_empty check in
-> SYSC_migrate_pages.
-> 
-> Reported-by: Tan Xiaojun <tanxiaojun@huawei.com>
-> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-> ---
->  mm/mempolicy.c | 5 +++++
->  1 file changed, 5 insertions(+)
-> 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index a2af6d5..1dfd3cc 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1388,6 +1388,11 @@ static int copy_nodes_to_user(unsigned long __user *mask, unsigned long maxnode,
->  	if (err)
->  		goto out;
->  
-> +	if (nodes_empty(*new)) {
-> +		err = -EINVAL;
-> +		goto out;
-> +	}
-> +
->  	/* Find the mm_struct */
->  	rcu_read_lock();
->  	task = pid ? find_task_by_vpid(pid) : current;
-> 
+Jan's series is the baseline and the vanilla kernel is 12% slower where as
+this series on top gains another 11%.  This is from a different machine
+than the data in the changelogs but the detailed data was not collected
+as there was no substantial change in v2.
+
+ arch/powerpc/mm/mmu_context_book3s64.c             |  2 +-
+ arch/powerpc/mm/pgtable_64.c                       |  2 +-
+ arch/sparc/mm/init_64.c                            |  2 +-
+ arch/tile/mm/homecache.c                           |  2 +-
+ drivers/gpu/drm/amd/amdgpu/amdgpu_cs.c             |  6 +-
+ drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c            |  2 +-
+ drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c            |  2 +-
+ drivers/gpu/drm/etnaviv/etnaviv_gem.c              |  6 +-
+ drivers/gpu/drm/i915/i915_gem_gtt.c                |  2 +-
+ drivers/gpu/drm/i915/i915_gem_userptr.c            |  4 +-
+ drivers/gpu/drm/radeon/radeon_ttm.c                |  2 +-
+ drivers/net/ethernet/amazon/ena/ena_netdev.c       |  2 +-
+ drivers/net/ethernet/amd/xgbe/xgbe-desc.c          |  2 +-
+ drivers/net/ethernet/aquantia/atlantic/aq_ring.c   |  3 +-
+ .../net/ethernet/cavium/liquidio/octeon_network.h  |  2 +-
+ drivers/net/ethernet/mellanox/mlx4/en_rx.c         |  5 +-
+ .../net/ethernet/netronome/nfp/nfp_net_common.c    |  4 +-
+ drivers/net/ethernet/qlogic/qlge/qlge_main.c       |  3 +-
+ drivers/net/ethernet/sfc/falcon/rx.c               |  2 +-
+ drivers/net/ethernet/sfc/rx.c                      |  2 +-
+ drivers/net/ethernet/synopsys/dwc-xlgmac-desc.c    |  2 +-
+ drivers/net/ethernet/ti/netcp_core.c               |  2 +-
+ drivers/net/virtio_net.c                           |  1 -
+ drivers/staging/lustre/lustre/mdc/mdc_request.c    |  2 +-
+ fs/afs/write.c                                     |  4 +-
+ fs/btrfs/extent_io.c                               |  4 +-
+ fs/buffer.c                                        |  4 +-
+ fs/cachefiles/rdwr.c                               | 10 +--
+ fs/ceph/addr.c                                     |  4 +-
+ fs/dax.c                                           |  4 +-
+ fs/ext4/file.c                                     |  2 +-
+ fs/ext4/inode.c                                    |  6 +-
+ fs/f2fs/checkpoint.c                               |  2 +-
+ fs/f2fs/data.c                                     |  2 +-
+ fs/f2fs/file.c                                     |  2 +-
+ fs/f2fs/node.c                                     |  8 +-
+ fs/fscache/page.c                                  |  2 +-
+ fs/fuse/dev.c                                      |  2 +-
+ fs/gfs2/aops.c                                     |  2 +-
+ fs/hugetlbfs/inode.c                               |  2 +-
+ fs/nilfs2/btree.c                                  |  2 +-
+ fs/nilfs2/page.c                                   |  8 +-
+ fs/nilfs2/segment.c                                |  4 +-
+ include/linux/gfp.h                                |  9 +--
+ include/linux/pagemap.h                            | 10 +--
+ include/linux/pagevec.h                            |  6 +-
+ include/linux/radix-tree.h                         |  7 +-
+ include/linux/skbuff.h                             |  2 +-
+ include/linux/slab.h                               |  3 -
+ include/linux/swap.h                               | 15 +++-
+ include/trace/events/kmem.h                        | 11 +--
+ include/trace/events/mmflags.h                     |  1 -
+ kernel/power/snapshot.c                            |  4 +-
+ lib/idr.c                                          |  2 +-
+ lib/radix-tree.c                                   | 30 +++----
+ mm/filemap.c                                       | 15 ++--
+ mm/mlock.c                                         |  4 +-
+ mm/page-writeback.c                                |  2 +-
+ mm/page_alloc.c                                    | 89 +++++++++++---------
+ mm/percpu-vm.c                                     |  2 +-
+ mm/rmap.c                                          |  2 +-
+ mm/shmem.c                                         |  8 +-
+ mm/swap.c                                          | 15 ++--
+ mm/swap_state.c                                    |  2 +-
+ mm/truncate.c                                      | 94 +++++++++++++++-------
+ mm/vmscan.c                                        |  6 +-
+ mm/workingset.c                                    | 10 +--
+ net/core/skbuff.c                                  |  4 +-
+ tools/perf/builtin-kmem.c                          |  1 -
+ tools/testing/radix-tree/multiorder.c              |  2 +-
+ 70 files changed, 262 insertions(+), 232 deletions(-)
+
+-- 
+2.14.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
