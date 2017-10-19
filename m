@@ -1,135 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E9516B0069
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 09:54:19 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id o88so1273403wrb.18
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 06:54:19 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id q8si3401742wrg.254.2017.10.19.06.54.17
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BD2106B0033
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 10:22:45 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id x82so8653191qkb.11
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 07:22:45 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id r124si37000qkf.182.2017.10.19.07.22.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Oct 2017 06:54:18 -0700 (PDT)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 3.18 01/27] x86/mm: Disable preemption during CR3 read+write
-Date: Thu, 19 Oct 2017 15:49:07 +0200
-Message-Id: <20171019134844.626889370@linuxfoundation.org>
-In-Reply-To: <20171019134844.523725420@linuxfoundation.org>
-References: <20171019134844.523725420@linuxfoundation.org>
+        Thu, 19 Oct 2017 07:22:44 -0700 (PDT)
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by aserp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with ESMTP id v9JEMhiv006280
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 14:22:43 GMT
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id v9JEMgvc029996
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 14:22:42 GMT
+Received: from abhmp0017.oracle.com (abhmp0017.oracle.com [141.146.116.23])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id v9JEMgXR005041
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 14:22:42 GMT
+Received: by mail-oi0-f41.google.com with SMTP id f66so15200574oib.2
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 07:22:42 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20171018144019.c20bc90461c71fc80ac49ff4@linux-foundation.org>
+References: <201710181834.h61cZcRt%fengguang.wu@intel.com> <20171018144019.c20bc90461c71fc80ac49ff4@linux-foundation.org>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Date: Thu, 19 Oct 2017 10:22:41 -0400
+Message-ID: <CAOAebxsJVrDuMEqC+B4RNH5gFb6u7B70RwCceyuHwquRXiB4Zw@mail.gmail.com>
+Subject: Re: [linux-next:master 6243/6567] WARNING: vmlinux.o(.text.unlikely+0x5fb7):
+ Section mismatch in reference from the function __def_free() to the function .init.text:__free_pages_boot_core()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Borislav Petkov <bp@suse.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Bernhard Kaindl <bernhard.kaindl@thalesgroup.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Mark Brown <broonie@kernel.org>, Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Bob Picco <bob.picco@oracle.com>, Linux Memory Management List <linux-mm@kvack.org>
 
-3.18-stable review patch.  If anyone has any objections, please let me know.
+Hi Andrew,
 
-------------------
+Yes, we need __init for both: deferred_init_range() and __def_free().
 
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Thank you,
+Pavel
 
-commit 5cf0791da5c162ebc14b01eb01631cfa7ed4fa6e upstream.
-
-There's a subtle preemption race on UP kernels:
-
-Usually current->mm (and therefore mm->pgd) stays the same during the
-lifetime of a task so it does not matter if a task gets preempted during
-the read and write of the CR3.
-
-But then, there is this scenario on x86-UP:
-
-TaskA is in do_exit() and exit_mm() sets current->mm = NULL followed by:
-
- -> mmput()
- -> exit_mmap()
- -> tlb_finish_mmu()
- -> tlb_flush_mmu()
- -> tlb_flush_mmu_tlbonly()
- -> tlb_flush()
- -> flush_tlb_mm_range()
- -> __flush_tlb_up()
- -> __flush_tlb()
- ->  __native_flush_tlb()
-
-At this point current->mm is NULL but current->active_mm still points to
-the "old" mm.
-
-Let's preempt taskA _after_ native_read_cr3() by taskB. TaskB has its
-own mm so CR3 has changed.
-
-Now preempt back to taskA. TaskA has no ->mm set so it borrows taskB's
-mm and so CR3 remains unchanged. Once taskA gets active it continues
-where it was interrupted and that means it writes its old CR3 value
-back. Everything is fine because userland won't need its memory
-anymore.
-
-Now the fun part:
-
-Let's preempt taskA one more time and get back to taskB. This
-time switch_mm() won't do a thing because oldmm (->active_mm)
-is the same as mm (as per context_switch()). So we remain
-with a bad CR3 / PGD and return to userland.
-
-The next thing that happens is handle_mm_fault() with an address for
-the execution of its code in userland. handle_mm_fault() realizes that
-it has a PTE with proper rights so it returns doing nothing. But the
-CPU looks at the wrong PGD and insists that something is wrong and
-faults again. And again. And one more timea?|
-
-This pagefault circle continues until the scheduler gets tired of it and
-puts another task on the CPU. It gets little difficult if the task is a
-RT task with a high priority. The system will either freeze or it gets
-fixed by the software watchdog thread which usually runs at RT-max prio.
-But waiting for the watchdog will increase the latency of the RT task
-which is no good.
-
-Fix this by disabling preemption across the critical code section.
-
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Andy Lutomirski <luto@kernel.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Cc: stable@vger.kernel.org
-Link: http://lkml.kernel.org/r/1470404259-26290-1-git-send-email-bigeasy@linutronix.de
-[ Prettified the changelog. ]
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Cc: Bernhard Kaindl <bernhard.kaindl@thalesgroup.com>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-
----
- arch/x86/include/asm/tlbflush.h |    7 +++++++
- 1 file changed, 7 insertions(+)
-
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -86,7 +86,14 @@ static inline void cr4_set_bits_and_upda
- 
- static inline void __native_flush_tlb(void)
- {
-+	/*
-+	 * If current->mm == NULL then we borrow a mm which may change during a
-+	 * task switch and therefore we must not be preempted while we write CR3
-+	 * back:
-+	 */
-+	preempt_disable();
- 	native_write_cr3(native_read_cr3());
-+	preempt_enable();
- }
- 
- static inline void __native_flush_tlb_global_irq_disabled(void)
-
+On Wed, Oct 18, 2017 at 5:40 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Wed, 18 Oct 2017 18:41:44 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+>
+>> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+>> head:   a7dd40274d75326ca868479c62090b1198a357ad
+>> commit: 430676b385fb341d5a33950bae284d0df2e70117 [6243/6567] mm: deferred_init_memmap improvements
+>> config: x86_64-randconfig-it0-10181522 (attached as .config)
+>> compiler: gcc-4.9 (Debian 4.9.4-2) 4.9.4
+>> reproduce:
+>>         git checkout 430676b385fb341d5a33950bae284d0df2e70117
+>>         # save the attached .config to linux build tree
+>>         make ARCH=x86_64
+>>
+>> All warnings (new ones prefixed by >>):
+>>
+>> >> WARNING: vmlinux.o(.text.unlikely+0x5fb7): Section mismatch in reference from the function __def_free() to the function .init.text:__free_pages_boot_core()
+>>    The function __def_free() references
+>>    the function __init __free_pages_boot_core().
+>>    This is often because __def_free lacks a __init
+>>    annotation or the annotation of __free_pages_boot_core is wrong.
+>
+> This?
+>
+> --- a/mm/page_alloc.c~mm-deferred_init_memmap-improvements-fix
+> +++ a/mm/page_alloc.c
+> @@ -1448,7 +1448,7 @@ static inline void __init pgdat_init_rep
+>   * Helper for deferred_init_range, free the given range, reset the counters, and
+>   * return number of pages freed.
+>   */
+> -static inline unsigned long __def_free(unsigned long *nr_free,
+> +static unsigned long __init __def_free(unsigned long *nr_free,
+>                                        unsigned long *free_base_pfn,
+>                                        struct page **page)
+>  {
+> @@ -1462,8 +1462,8 @@ static inline unsigned long __def_free(u
+>         return nr;
+>  }
+>
+> -static unsigned long deferred_init_range(int nid, int zid, unsigned long pfn,
+> -                                        unsigned long end_pfn)
+> +static unsigned long __init deferred_init_range(int nid, int zid,
+> +                               unsigned long pfn, unsigned long end_pfn)
+>  {
+>         struct mminit_pfnnid_cache nid_init_state = { };
+>         unsigned long nr_pgmask = pageblock_nr_pages - 1;
+> _
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
