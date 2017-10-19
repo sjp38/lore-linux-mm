@@ -1,100 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 561B06B025E
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 22:11:01 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 76so4668579pfr.3
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 19:11:01 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id r8si8767584pli.733.2017.10.18.19.10.59
-        for <linux-mm@kvack.org>;
-        Wed, 18 Oct 2017 19:11:00 -0700 (PDT)
-Date: Thu, 19 Oct 2017 11:14:38 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [lkp-robot] [x86/kconfig] 81d3871900: BUG:unable_to_handle_kernel
-Message-ID: <20171019021437.GA3662@js1304-P5Q-DELUXE>
-References: <20171010121513.GC5445@yexl-desktop>
- <20171011023106.izaulhwjcoam55jt@treble>
- <20171011170120.7flnk6r77dords7a@treble>
- <20171017073326.GA23865@js1304-P5Q-DELUXE>
- <CA+55aFxVnFeFcjt=MW=_Uxx6S7nJh5eFxhQCamE5BG6Jr8MXfg@mail.gmail.com>
- <alpine.DEB.2.20.1710181509310.1925@nanos>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D9B636B0033
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 22:43:32 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id y7so5521489pgb.16
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 19:43:32 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b13sor2518384pgu.71.2017.10.18.19.43.31
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 18 Oct 2017 19:43:31 -0700 (PDT)
+Date: Thu, 19 Oct 2017 13:43:19 +1100
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [PATCH 0/2] Optimize mmu_notifier->invalidate_range callback
+Message-ID: <20171019134319.1b856091@MiWiFi-R3-srv>
+In-Reply-To: <20171017031003.7481-1-jglisse@redhat.com>
+References: <20171017031003.7481-1-jglisse@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1710181509310.1925@nanos>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Josh Poimboeuf <jpoimboe@redhat.com>, kernel test robot <xiaolong.ye@intel.com>, Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Jiri Slaby <jslaby@suse.cz>, Mike Galbraith <efault@gmx.de>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, LKP <lkp@01.org>, linux-mm <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>
+To: jglisse@redhat.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Joerg Roedel <jroedel@suse.de>, Suravee Suthikulpanit <suravee.suthikulpanit@amd.com>, David Woodhouse <dwmw2@infradead.org>, Alistair Popple <alistair@popple.id.au>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Donnellan <andrew.donnellan@au1.ibm.com>, iommu@lists.linux-foundation.org, linuxppc-dev@lists.ozlabs.org
 
-On Wed, Oct 18, 2017 at 03:15:03PM +0200, Thomas Gleixner wrote:
-> On Wed, 18 Oct 2017, Linus Torvalds wrote:
-> > On Tue, Oct 17, 2017 at 3:33 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> > >
-> > > It looks like a compiler bug. The code of slob_units() try to read two
-> > > bytes at ffff88001c4afffe. It's valid. But the compiler generates
-> > > wrong code that try to read four bytes.
-> > >
-> > > static slobidx_t slob_units(slob_t *s)
-> > > {
-> > >   if (s->units > 0)
-> > >     return s->units;
-> > >   return 1;
-> > > }
-> > >
-> > > s->units is defined as two bytes in this setup.
-> > >
-> > > Wrongly generated code for this part.
-> > >
-> > > 'mov 0x0(%rbp), %ebp'
-> > >
-> > > %ebp is four bytes.
-> > >
-> > > I guess that this wrong four bytes read cross over the valid memory
-> > > boundary and this issue happend.
-> > 
-> > Hmm. I can see why the compiler would do that (16-bit accesses are
-> > slow), but it's definitely wrong.
-> > 
-> > Does it work ok if that slob_units() code is written as
-> > 
-> >   static slobidx_t slob_units(slob_t *s)
-> >   {
-> >      int units = READ_ONCE(s->units);
-> > 
-> >      if (units > 0)
-> >          return units;
-> >      return 1;
-> >   }
-> > 
-> > which might be an acceptable workaround for now?
-> 
-> Discussed exactly that with Peter Zijlstra yesterday, but we came to the
-> conclusion that this is a whack a mole game. It might fix this slob issue,
-> but what guarantees that we don't have the same problem in some other
-> place? Just duct taping this particular instance makes me nervous.
+On Mon, 16 Oct 2017 23:10:01 -0400
+jglisse@redhat.com wrote:
 
-I have checked that above patch works fine but I agree with Thomas.
+> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>=20
+> (Andrew you already have v1 in your queue of patch 1, patch 2 is new,
+>  i think you can drop it patch 1 v1 for v2, v2 is bit more conservative
+>  and i fixed typos)
+>=20
+> All this only affect user of invalidate_range callback (at this time
+> CAPI arch/powerpc/platforms/powernv/npu-dma.c, IOMMU ATS/PASID in
+> drivers/iommu/amd_iommu_v2.c|intel-svm.c)
+>=20
+> This patchset remove useless double call to mmu_notifier->invalidate_range
+> callback wherever it is safe to do so. The first patch just remove useless
+> call
 
-> Joonsoo says:
-> 
-> > gcc 4.8 and 4.9 fails to generate proper code. gcc 5.1 and
-> > the latest version works fine.
-> 
-> > I guess that this problem is related to the corner case of some
-> > optimization feature since minor code change makes the result
-> > different. And, with -O2, proper code is generated even if gcc 4.8 is
-> > used.
-> 
-> So it would be useful to figure out which optimization bit is causing that
-> and blacklist it for the affected compiler versions.
+As in an extra call? Where does that come from?
 
-I have tried it but cannot find any clue. What I did is that compiling
-with -O2 and disabling some options to make option list as same as
--Os. Some guide line is roughly mentioned in gcc man page. However, I
-cannot reproduce the issue by this way.
+> and add documentation explaining why it is safe to do so. The second
+> patch go further by introducing mmu_notifier_invalidate_range_only_end()
+> which skip callback to invalidate_range this can be done when clearing a
+> pte, pmd or pud with notification which call invalidate_range right after
+> clearing under the page table lock.
+>
 
-Thanks.
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
