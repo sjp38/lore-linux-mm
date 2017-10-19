@@ -1,44 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BB026B0069
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 04:02:02 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id y128so904478pfg.5
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 01:02:02 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id w12si8778488pfa.434.2017.10.19.01.02.01
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 27CD96B0033
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 04:05:06 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id p9so6194115pgc.6
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 01:05:06 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id m66si4209600pfb.72.2017.10.19.01.05.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Oct 2017 01:02:01 -0700 (PDT)
-Date: Thu, 19 Oct 2017 01:01:49 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [Qemu-devel] [RFC 2/2] KVM: add virtio-pmem driver
-Message-ID: <20171019080149.GB10089@infradead.org>
-References: <20171012155027.3277-1-pagupta@redhat.com>
- <20171012155027.3277-3-pagupta@redhat.com>
- <20171017071633.GA9207@infradead.org>
- <1441791227.21027037.1508226056893.JavaMail.zimbra@redhat.com>
- <20171017080236.GA27649@infradead.org>
- <670833322.21037148.1508229041158.JavaMail.zimbra@redhat.com>
- <20171018130339.GB29767@stefanha-x1.localdomain>
- <CAPcyv4h6aFkyHhh4R4DTznbSCLf9CuBoszk0Q1gB5EKNcp_SeQ@mail.gmail.com>
+        Thu, 19 Oct 2017 01:05:05 -0700 (PDT)
+Message-ID: <59E85D2A.1060407@intel.com>
+Date: Thu, 19 Oct 2017 16:07:06 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4h6aFkyHhh4R4DTznbSCLf9CuBoszk0Q1gB5EKNcp_SeQ@mail.gmail.com>
+Subject: Re: [PATCH v16 5/5] virtio-balloon: VIRTIO_BALLOON_F_CTRL_VQ
+References: <1506744354-20979-1-git-send-email-wei.w.wang@intel.com> <1506744354-20979-6-git-send-email-wei.w.wang@intel.com> <20171001060305-mutt-send-email-mst@kernel.org> <286AC319A985734F985F78AFA26841F73932025A@shsmsx102.ccr.corp.intel.com> <20171010180636-mutt-send-email-mst@kernel.org> <59DDB428.4020208@intel.com> <20171011161912-mutt-send-email-mst@kernel.org> <59DEE790.5040809@intel.com> <20171013163503-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20171013163503-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Stefan Hajnoczi <stefanha@gmail.com>, Pankaj Gupta <pagupta@redhat.com>, Christoph Hellwig <hch@infradead.org>, Kevin Wolf <kwolf@redhat.com>, haozhong zhang <haozhong.zhang@intel.com>, Jan Kara <jack@suse.cz>, xiaoguangrong eric <xiaoguangrong.eric@gmail.com>, KVM list <kvm@vger.kernel.org>, David Hildenbrand <david@redhat.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, ross zwisler <ross.zwisler@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Qemu Developers <qemu-devel@nongnu.org>, Linux MM <linux-mm@kvack.org>, Stefan Hajnoczi <stefanha@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Nitesh Narayan Lal <nilal@redhat.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "willy@infradead.org" <willy@infradead.org>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>
 
-On Wed, Oct 18, 2017 at 08:51:37AM -0700, Dan Williams wrote:
-> This use case is not "Persistent Memory". Persistent Memory is
-> something you can map and make persistent with CPU instructions.
-> Anything that requires a driver call is device driver managed "Shared
-> Memory".
+On 10/13/2017 09:38 PM, Michael S. Tsirkin wrote:
+> On Thu, Oct 12, 2017 at 11:54:56AM +0800, Wei Wang wrote:
+>>> But I think flushing is very fragile. You will easily run into races
+>>> if one of the actors gets out of sync and keeps adding data.
+>>> I think adding an ID in the free vq stream is a more robust
+>>> approach.
+>>>
+>> Adding ID to the free vq would need the device to distinguish whether it
+>> receives an ID or a free page hint,
+> Not really.  It's pretty simple: a 64 bit buffer is an ID. A 4K and bigger one
+> is a page.
 
-How is this any different than the existing nvdimm_flush()? If you
-really care about the not driver thing it could easily be a write
-to a doorbell page or a hypercall, but in the end that's just semantics.
+I think we can also use the previous method, free page via in_buf, and 
+id via out_buf.
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
