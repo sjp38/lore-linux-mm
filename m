@@ -1,42 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E45FD6B0033
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 00:29:01 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id j3so5737880pga.5
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 21:29:01 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id n72si8463887pfg.420.2017.10.18.21.29.00
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8652A6B0033
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 00:30:34 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id l24so5705232pgu.17
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 21:30:34 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id g6si6778077pgq.135.2017.10.18.21.30.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Oct 2017 21:29:00 -0700 (PDT)
-Date: Wed, 18 Oct 2017 21:28:59 -0700
+        Wed, 18 Oct 2017 21:30:33 -0700 (PDT)
+Date: Wed, 18 Oct 2017 21:30:32 -0700
 From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: [PATCH v1] mm/mempolicy.c: Fix get_nodes() off-by-one error.
-Message-ID: <20171019042859.GX5109@tassilo.jf.intel.com>
-References: <1507296994-175620-1-git-send-email-luis.felipe.sandoval.castro@intel.com>
- <1507296994-175620-2-git-send-email-luis.felipe.sandoval.castro@intel.com>
- <20171012084633.ipr5cfxsrs3lyb5n@dhcp22.suse.cz>
- <20171012152825.GJ5109@tassilo.jf.intel.com>
- <20171013080403.izjxlrf7ap5zt2d5@dhcp22.suse.cz>
- <A42BA8431884844BBC20FACB734718294A319F85@FMSMSX106.amr.corp.intel.com>
+Subject: Re: [PATCH] zswap: Same-filled pages handling
+Message-ID: <20171019043032.GY5109@tassilo.jf.intel.com>
+References: <CGME20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p1>
+ <20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p1>
+ <8760bci3vl.fsf@linux.intel.com>
+ <20171019011056.GB17308@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <A42BA8431884844BBC20FACB734718294A319F85@FMSMSX106.amr.corp.intel.com>
+In-Reply-To: <20171019011056.GB17308@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Sandoval Castro, Luis Felipe" <luis.felipe.sandoval.castro@intel.com>
-Cc: Michal Hocko <mhocko@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "mingo@kernel.org" <mingo@kernel.org>, "rientjes@google.com" <rientjes@google.com>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, "salls@cs.ucsb.edu" <salls@cs.ucsb.edu>, Cristopher Lameter <cl@linux.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Srividya Desireddy <srividya.dr@samsung.com>, "sjenning@redhat.com" <sjenning@redhat.com>, "ddstreet@ieee.org" <ddstreet@ieee.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "penberg@kernel.org" <penberg@kernel.org>, Dinakar Reddy Pathireddy <dinakar.p@samsung.com>, SHARAN ALLUR <sharan.allur@samsung.com>, RAJIB BASU <rajib.basu@samsung.com>, JUHUN KIM <juhunkim@samsung.com>, "srividya.desireddy@gmail.com" <srividya.desireddy@gmail.com>
 
-On Thu, Oct 19, 2017 at 03:48:09AM +0000, Sandoval Castro, Luis Felipe wrote:
-> On Tue 18-10-17 10:42:34, Luis Felipe Sandoval Castro wrote:
-> 
-> Sorry for the delayed replay, from your feedback I don't think my
-> patch has any chances of being merged... I'm wondering though,
-> if a note in the man pages "range non inclusive" or something
-> like that would help to avoid confusions? Thanks
+> Yes.  Every 64-bit repeating pattern is also a 32-bit repeating pattern.
+> Supporting a 64-bit pattern on a 32-bit kernel is painful, but it makes
+> no sense to *not* support a 64-bit pattern on a 64-bit kernel.  
 
-Yes fixing the man pages is a good idea.
+But a 32bit repeating pattern is not necessarily a 64bit pattern.
+
+>This is the same approach used in zram, fwiw.
+
+Sounds bogus.
 
 -Andi
 
