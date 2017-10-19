@@ -1,101 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BD2106B0033
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 10:22:45 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id x82so8653191qkb.11
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 07:22:45 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id r124si37000qkf.182.2017.10.19.07.22.44
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 463D66B0033
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 10:32:55 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 198so3662809wmx.2
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 07:32:55 -0700 (PDT)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id f51si5462504edf.124.2017.10.19.07.32.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Oct 2017 07:22:44 -0700 (PDT)
-Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
-	by aserp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with ESMTP id v9JEMhiv006280
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 14:22:43 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id v9JEMgvc029996
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 14:22:42 GMT
-Received: from abhmp0017.oracle.com (abhmp0017.oracle.com [141.146.116.23])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id v9JEMgXR005041
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 14:22:42 GMT
-Received: by mail-oi0-f41.google.com with SMTP id f66so15200574oib.2
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 07:22:42 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 19 Oct 2017 07:32:53 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 7BF8999306
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 14:32:53 +0000 (UTC)
+Date: Thu, 19 Oct 2017 15:32:52 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 8/8] mm: Remove __GFP_COLD
+Message-ID: <20171019143252.bviqsb7qxppzz32j@techsingularity.net>
+References: <20171018075952.10627-1-mgorman@techsingularity.net>
+ <20171018075952.10627-9-mgorman@techsingularity.net>
+ <f6505442-98a9-12e4-b2cd-0fa83874c159@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20171018144019.c20bc90461c71fc80ac49ff4@linux-foundation.org>
-References: <201710181834.h61cZcRt%fengguang.wu@intel.com> <20171018144019.c20bc90461c71fc80ac49ff4@linux-foundation.org>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Thu, 19 Oct 2017 10:22:41 -0400
-Message-ID: <CAOAebxsJVrDuMEqC+B4RNH5gFb6u7B70RwCceyuHwquRXiB4Zw@mail.gmail.com>
-Subject: Re: [linux-next:master 6243/6567] WARNING: vmlinux.o(.text.unlikely+0x5fb7):
- Section mismatch in reference from the function __def_free() to the function .init.text:__free_pages_boot_core()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <f6505442-98a9-12e4-b2cd-0fa83874c159@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Mark Brown <broonie@kernel.org>, Steven Sistare <steven.sistare@oracle.com>, Daniel Jordan <daniel.m.jordan@oracle.com>, Bob Picco <bob.picco@oracle.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dave Chinner <david@fromorbit.com>
 
-Hi Andrew,
+On Thu, Oct 19, 2017 at 03:42:12PM +0200, Vlastimil Babka wrote:
+> From b002266c1a826805a50087db851f93e7a87ceb2f Mon Sep 17 00:00:00 2001
+> From: Vlastimil Babka <vbabka@suse.cz>
+> Date: Tue, 17 Oct 2017 16:03:02 +0200
+> Subject: [PATCH] mm, page_alloc: simplify list handling in rmqueue_bulk()
+> 
+> The rmqueue_bulk() function fills an empty pcplist with pages from the free
+> list. It tries to preserve increasing order by pfn to the caller, because it
+> leads to better performance with some I/O controllers, as explained in
+> e084b2d95e48 ("page-allocator: preserve PFN ordering when __GFP_COLD is set").
+> 
+> To preserve the order, it's sufficient to add pages to the tail of the list
+> as they are retrieved. The current code instead adds to the head of the list,
+> but then updates the list head pointer to the last added page, in each step.
+> This does result in the same order, but is needlessly confusing and potentially
+> wasteful, with no apparent benefit. This patch simplifies the code and adjusts
+> comment accordingly.
+> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-Yes, we need __init for both: deferred_init_range() and __def_free().
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
-Thank you,
-Pavel
-
-On Wed, Oct 18, 2017 at 5:40 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Wed, 18 Oct 2017 18:41:44 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
->
->> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
->> head:   a7dd40274d75326ca868479c62090b1198a357ad
->> commit: 430676b385fb341d5a33950bae284d0df2e70117 [6243/6567] mm: deferred_init_memmap improvements
->> config: x86_64-randconfig-it0-10181522 (attached as .config)
->> compiler: gcc-4.9 (Debian 4.9.4-2) 4.9.4
->> reproduce:
->>         git checkout 430676b385fb341d5a33950bae284d0df2e70117
->>         # save the attached .config to linux build tree
->>         make ARCH=x86_64
->>
->> All warnings (new ones prefixed by >>):
->>
->> >> WARNING: vmlinux.o(.text.unlikely+0x5fb7): Section mismatch in reference from the function __def_free() to the function .init.text:__free_pages_boot_core()
->>    The function __def_free() references
->>    the function __init __free_pages_boot_core().
->>    This is often because __def_free lacks a __init
->>    annotation or the annotation of __free_pages_boot_core is wrong.
->
-> This?
->
-> --- a/mm/page_alloc.c~mm-deferred_init_memmap-improvements-fix
-> +++ a/mm/page_alloc.c
-> @@ -1448,7 +1448,7 @@ static inline void __init pgdat_init_rep
->   * Helper for deferred_init_range, free the given range, reset the counters, and
->   * return number of pages freed.
->   */
-> -static inline unsigned long __def_free(unsigned long *nr_free,
-> +static unsigned long __init __def_free(unsigned long *nr_free,
->                                        unsigned long *free_base_pfn,
->                                        struct page **page)
->  {
-> @@ -1462,8 +1462,8 @@ static inline unsigned long __def_free(u
->         return nr;
->  }
->
-> -static unsigned long deferred_init_range(int nid, int zid, unsigned long pfn,
-> -                                        unsigned long end_pfn)
-> +static unsigned long __init deferred_init_range(int nid, int zid,
-> +                               unsigned long pfn, unsigned long end_pfn)
->  {
->         struct mminit_pfnnid_cache nid_init_state = { };
->         unsigned long nr_pgmask = pageblock_nr_pages - 1;
-> _
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
