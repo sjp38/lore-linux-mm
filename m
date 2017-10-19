@@ -1,43 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 59ED06B0038
-	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 21:57:19 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id z11so4595993pfk.23
-        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 18:57:19 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id l25si7411820pfe.112.2017.10.18.18.57.17
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BE6C6B0253
+	for <linux-mm@kvack.org>; Wed, 18 Oct 2017 21:58:08 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id t10so5431751pgo.20
+        for <linux-mm@kvack.org>; Wed, 18 Oct 2017 18:58:08 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id f6si143143plf.94.2017.10.18.18.58.06
         for <linux-mm@kvack.org>;
-        Wed, 18 Oct 2017 18:57:18 -0700 (PDT)
-Date: Thu, 19 Oct 2017 10:57:06 +0900
+        Wed, 18 Oct 2017 18:58:07 -0700 (PDT)
+Date: Thu, 19 Oct 2017 10:57:55 +0900
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: Fix false positive by LOCKDEP_CROSSRELEASE
-Message-ID: <20171019015705.GD32368@X58A-UD3R>
+Subject: Re: [RESEND PATCH 3/3] lockdep: Assign a lock_class per gendisk used
+ for wait_for_completion()
+Message-ID: <20171019015755.GE32368@X58A-UD3R>
 References: <1508319532-24655-1-git-send-email-byungchul.park@lge.com>
- <1508336995.2923.2.camel@wdc.com>
+ <1508319532-24655-4-git-send-email-byungchul.park@lge.com>
+ <20171018095916.gr3n4mal6dz5xs7v@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1508336995.2923.2.camel@wdc.com>
+In-Reply-To: <20171018095916.gr3n4mal6dz5xs7v@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bart Van Assche <Bart.VanAssche@wdc.com>
-Cc: "mingo@kernel.org" <mingo@kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "amir73il@gmail.com" <amir73il@gmail.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "hch@infradead.org" <hch@infradead.org>, "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "oleg@redhat.com" <oleg@redhat.com>, "darrick.wong@oracle.com" <darrick.wong@oracle.com>, "johannes.berg@intel.com" <johannes.berg@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "idryomov@gmail.com" <idryomov@gmail.com>, "tj@kernel.org" <tj@kernel.org>, "kernel-team@lge.com" <kernel-team@lge.com>, "david@fromorbit.com" <david@fromorbit.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: peterz@infradead.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
 
-On Wed, Oct 18, 2017 at 02:29:56PM +0000, Bart Van Assche wrote:
-> On Wed, 2017-10-18 at 18:38 +0900, Byungchul Park wrote:
-> > Several false positives were reported, so I tried to fix them.
-> > 
-> > It would be appreciated if you tell me if it works as expected, or let
-> > me know your opinion.
+On Wed, Oct 18, 2017 at 11:59:16AM +0200, Ingo Molnar wrote:
 > 
-> What I have been wondering about is whether the crosslock checking makes
-> sense from a conceptual point of view. I tried to find documentation for the
-> crosslock checking in Documentation/locking/lockdep-design.txt but
-> couldn't find a description of the crosslock checking. Shouldn't it be
-> documented somewhere what the crosslock checks do and what the theory is
-> behind these checks?
+> * Byungchul Park <byungchul.park@lge.com> wrote:
+> 
+> > diff --git a/block/bio.c b/block/bio.c
+> > index 9a63597..0d4d6c0 100644
+> > --- a/block/bio.c
+> > +++ b/block/bio.c
+> > @@ -941,7 +941,7 @@ int submit_bio_wait(struct bio *bio)
+> >  {
+> >  	struct submit_bio_ret ret;
+> >  
+> > -	init_completion(&ret.event);
+> > +	init_completion_with_map(&ret.event, &bio->bi_disk->lockdep_map);
+> >  	bio->bi_private = &ret;
+> >  	bio->bi_end_io = submit_bio_wait_endio;
+> >  	bio->bi_opf |= REQ_SYNC;
+> > @@ -1382,7 +1382,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
+> >  
+> >  			if (len <= 0)
+> >  				break;
+> > -			
+> > +
+> >  			if (bytes > len)
+> >  				bytes = len;
+> >  
+> 
+> That's a spurious cleanup unrelated to this patch.
 
-Documentation/locking/crossrelease.txt would be helpful.
+I will separate it. Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
