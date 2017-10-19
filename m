@@ -1,94 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D4496B0260
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 11:34:44 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id n4so4213389wrb.8
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:34:44 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id x71si1320525wma.228.2017.10.19.08.34.42
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CD61A6B0033
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 11:43:23 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id q124so3660984wmb.23
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:43:23 -0700 (PDT)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id o44si125915edo.159.2017.10.19.08.43.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Oct 2017 08:34:42 -0700 (PDT)
-Date: Thu, 19 Oct 2017 17:34:34 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v2 2/3] lockdep: Remove BROKEN flag of
- LOCKDEP_CROSSRELEASE
-In-Reply-To: <1508425527.2429.11.camel@wdc.com>
-Message-ID: <alpine.DEB.2.20.1710191718260.1971@nanos>
-References: <1508392531-11284-1-git-send-email-byungchul.park@lge.com>  <1508392531-11284-3-git-send-email-byungchul.park@lge.com> <1508425527.2429.11.camel@wdc.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 19 Oct 2017 08:43:22 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id DB85A98CE4
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 15:43:21 +0000 (UTC)
+Date: Thu, 19 Oct 2017 16:43:21 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 7/8] mm, Remove cold parameter from free_hot_cold_page*
+Message-ID: <20171019154321.qtpzaeftoyyw4iey@techsingularity.net>
+References: <20171018075952.10627-1-mgorman@techsingularity.net>
+ <20171018075952.10627-8-mgorman@techsingularity.net>
+ <9e260f57-b871-81bd-66ee-b08fff949c7c@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <9e260f57-b871-81bd-66ee-b08fff949c7c@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bart Van Assche <Bart.VanAssche@wdc.com>
-Cc: "mingo@kernel.org" <mingo@kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "byungchul.park@lge.com" <byungchul.park@lge.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kernel-team@lge.com" <kernel-team@lge.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dave Chinner <david@fromorbit.com>
 
-On Thu, 19 Oct 2017, Bart Van Assche wrote:
-
-> On Thu, 2017-10-19 at 14:55 +0900, Byungchul Park wrote:
-> > Now the performance regression was fixed, re-enable
-> > CONFIG_LOCKDEP_CROSSRELEASE and CONFIG_LOCKDEP_COMPLETIONS.
-> > 
-> > Signed-off-by: Byungchul Park <byungchul.park@lge.com>
-> > ---
-> >  lib/Kconfig.debug | 4 ++--
-> >  1 file changed, 2 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-> > index 90ea784..fe8fceb 100644
-> > --- a/lib/Kconfig.debug
-> > +++ b/lib/Kconfig.debug
-> > @@ -1138,8 +1138,8 @@ config PROVE_LOCKING
-> >  	select DEBUG_MUTEXES
-> >  	select DEBUG_RT_MUTEXES if RT_MUTEXES
-> >  	select DEBUG_LOCK_ALLOC
-> > -	select LOCKDEP_CROSSRELEASE if BROKEN
-> > -	select LOCKDEP_COMPLETIONS if BROKEN
-> > +	select LOCKDEP_CROSSRELEASE
-> > +	select LOCKDEP_COMPLETIONS
-> >  	select TRACE_IRQFLAGS
-> >  	default n
-> >  	help
+On Thu, Oct 19, 2017 at 03:12:33PM +0200, Vlastimil Babka wrote:
+> On 10/18/2017 09:59 AM, Mel Gorman wrote:
+> > Most callers users of free_hot_cold_page claim the pages being released are
+> > cache hot. The exception is the page reclaim paths where it is likely that
+> > enough pages will be freed in the near future that the per-cpu lists are
+> > going to be recycled and the cache hotness information is lost.
 > 
-> I do not agree with this patch. Although the traditional lock validation
-> code can be proven not to produce false positives, that is not the case for
-> the cross-release checks. These checks are prone to produce false positives.
-> Many kernel developers, including myself, are not interested in spending
-> time on analyzing false positive deadlock reports. So I think that it is
-> wrong to enable cross-release checking unconditionally if PROVE_LOCKING has
-> been enabled. What I think that should happen is that either the cross-
-> release checking code is removed from the kernel or that
-> LOCKDEP_CROSSRELEASE becomes a new kernel configuration option. That will
-> give kernel developers who choose to enable PROVE_LOCKING the freedom to
-> decide whether or not to enable LOCKDEP_CROSSRELEASE.
+> Maybe it would make sense for reclaim to skip pcplists? (out of scope of
+> this series, of course).
+> 
 
-I really disagree with your reasoning completely
+Maybe, but it's a bit risky. The PCP lists are preserved but the number of
+zone->lock acquire/releases increases as now every 14 pages reclaimed will
+be an acquire/release instead of every pcp->high number of pages reclaimed.
+That is a definite cost versus a possibility that the next page allocated no
+that CPU will still be cache hot. That in itself may not happen as
+scanning lots of pages for reclaim may have filled the cache with
+useless information anyway.
 
-1) When lockdep was introduced more than ten years ago it was far from
-   perfect and we spent a reasonable amount of time to improve it, analyze
-   false positives and add the missing annotations all over the tree. That
-   was a process which took years.
+> > As no one
+> > really cares about the hotness of pages being released to the allocator,
+> > just ditch the parameter.
+> > 
+> > The APIs are renamed to indicate that it's no longer about hot/cold pages. It
+> > should also be less confusing as there are subtle differences between them.
+> > __free_pages drops a reference and frees a page when the refcount reaches
+> > zero. free_hot_cold_page handled pages whose refcount was already zero
+> > which is non-obvious from the name. free_unref_page should be more obvious.
+> > 
+> > No performance impact is expected as the overhead is marginal. The parameter
+> > is removed simply because it is a bit stupid to have a useless parameter
+> > copied everywhere.
+> > 
+> > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> 
+> A comment below, though.
+> 
+> ...
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 167e163cf733..13582efc57a0 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -2590,7 +2590,7 @@ void mark_free_pages(struct zone *zone)
+> >  }
+> >  #endif /* CONFIG_PM */
+> >  
+> > -static bool free_hot_cold_page_prepare(struct page *page, unsigned long pfn)
+> > +static bool free_unref_page_prepare(struct page *page, unsigned long pfn)
+> >  {
+> >  	int migratetype;
+> >  
+> > @@ -2602,8 +2602,7 @@ static bool free_hot_cold_page_prepare(struct page *page, unsigned long pfn)
+> >  	return true;
+> >  }
+> >  
+> > -static void free_hot_cold_page_commit(struct page *page, unsigned long pfn,
+> > -				bool cold)
+> > +static void free_unref_page_commit(struct page *page, unsigned long pfn)
+> >  {
+> >  	struct zone *zone = page_zone(page);
+> >  	struct per_cpu_pages *pcp;
+> > @@ -2628,10 +2627,7 @@ static void free_hot_cold_page_commit(struct page *page, unsigned long pfn,
+> >  	}
+> >  
+> >  	pcp = &this_cpu_ptr(zone->pageset)->pcp;
+> > -	if (!cold)
+> > -		list_add(&page->lru, &pcp->lists[migratetype]);
+> > -	else
+> > -		list_add_tail(&page->lru, &pcp->lists[migratetype]);
+> > +	list_add_tail(&page->lru, &pcp->lists[migratetype]);
+> 
+> Did you intentionally use the cold version here? Patch 8/8 uses the hot
+> version in __rmqueue_pcplist() and that makes more sense to me. It
+> should be either negligible or better, not worse.
+> 
 
-2) Surely nobody is interested in wasting time on analyzing false
-   positives, but your (and other peoples) attidute of 'none of my
-   business' is what makes kernel development extremly frustrating.
+This was unintentional, thanks. The fix is below
 
-   It should be in the interest of everybody involved in kernel development
-   to help with improving such features and not to lean back and wait for
-   others to bring it into a shape which allows you to use it as you see
-   fit.
+---8<---
+mm, Remove cold parameter from free_hot_cold_page* -fix
 
-That's not how community works and lockdep would not be in the shape it is
-today, if only a handful of people would have used and improved it. Such
-things only work when used widely and when we get enough information so we
-can address the weak spots.
+As pointed out by Vlastimil Babka, the pages being freed should be added
+to the head, no the tail, of the pcpu list.
 
-Thanks,
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+---
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-	tglx
-
-
-   
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 13582efc57a0..06461553a115 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2627,7 +2627,7 @@ static void free_unref_page_commit(struct page *page, unsigned long pfn)
+ 	}
+ 
+ 	pcp = &this_cpu_ptr(zone->pageset)->pcp;
+-	list_add_tail(&page->lru, &pcp->lists[migratetype]);
++	list_add(&page->lru, &pcp->lists[migratetype]);
+ 	pcp->count++;
+ 	if (pcp->count >= pcp->high) {
+ 		unsigned long batch = READ_ONCE(pcp->batch);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
