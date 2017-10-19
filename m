@@ -1,77 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7854E6B0033
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 03:30:18 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id v2so5182336pfa.10
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 00:30:18 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id k70si5178008pgc.344.2017.10.19.00.30.16
-        for <linux-mm@kvack.org>;
-        Thu, 19 Oct 2017 00:30:17 -0700 (PDT)
-Date: Thu, 19 Oct 2017 16:33:56 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 1/2] mm: drop migrate type checks from has_unmovable_pages
-Message-ID: <20171019073355.GA4486@js1304-P5Q-DELUXE>
-References: <20171013115835.zaehapuucuzl2vlv@dhcp22.suse.cz>
- <20171013120013.698-1-mhocko@kernel.org>
- <20171019025111.GA3852@js1304-P5Q-DELUXE>
- <20171019071503.e7w5fo35lsq6ca54@dhcp22.suse.cz>
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 16BFE6B0033
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 03:35:11 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id v105so75656wrc.11
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 00:35:11 -0700 (PDT)
+Received: from mout.gmx.net (mout.gmx.net. [212.227.17.21])
+        by mx.google.com with ESMTPS id s26si10372371wrs.257.2017.10.19.00.35.09
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Oct 2017 00:35:09 -0700 (PDT)
+Subject: Re: PROBLEM: Remapping hugepages mappings causes kernel to return
+ EINVAL
+References: <93684e4b-9e60-ef3a-ba62-5719fdf7cff9@gmx.de>
+From: "C.Wehrmeyer" <c.wehrmeyer@gmx.de>
+Message-ID: <6b639da5-ad9a-158c-ad4a-7a4e44bd98fc@gmx.de>
+Date: Thu, 19 Oct 2017 09:34:51 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171019071503.e7w5fo35lsq6ca54@dhcp22.suse.cz>
+In-Reply-To: <93684e4b-9e60-ef3a-ba62-5719fdf7cff9@gmx.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Michael Ellerman <mpe@ellerman.id.au>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org
 
-On Thu, Oct 19, 2017 at 09:15:03AM +0200, Michal Hocko wrote:
-> On Thu 19-10-17 11:51:11, Joonsoo Kim wrote:
-> > On Fri, Oct 13, 2017 at 02:00:12PM +0200, Michal Hocko wrote:
-> > > From: Michal Hocko <mhocko@suse.com>
-> > > 
-> > > Michael has noticed that the memory offline tries to migrate kernel code
-> > > pages when doing
-> > >  echo 0 > /sys/devices/system/memory/memory0/online
-> > > 
-> > > The current implementation will fail the operation after several failed
-> > > page migration attempts but we shouldn't even attempt to migrate
-> > > that memory and fail right away because this memory is clearly not
-> > > migrateable. This will become a real problem when we drop the retry loop
-> > > counter resp. timeout.
-> > > 
-> > > The real problem is in has_unmovable_pages in fact. We should fail if
-> > > there are any non migrateable pages in the area. In orther to guarantee
-> > > that remove the migrate type checks because MIGRATE_MOVABLE is not
-> > > guaranteed to contain only migrateable pages. It is merely a heuristic.
-> > > Similarly MIGRATE_CMA does guarantee that the page allocator doesn't
-> > > allocate any non-migrateable pages from the block but CMA allocations
-> > > themselves are unlikely to migrateable. Therefore remove both checks.
-> > 
-> > Hello,
-> > 
-> > This patch will break the CMA user. As you mentioned, CMA allocation
-> > itself isn't migrateable. So, after a single page is allocated through
-> > CMA allocation, has_unmovable_pages() will return true for this
-> > pageblock. Then, futher CMA allocation request to this pageblock will
-> > fail because it requires isolating the pageblock.
-> 
-> Hmm, does this mean that the CMA allocation path depends on
-> has_unmovable_pages to return false here even though the memory is not
-> movable? This sounds really strange to me and kind of abuse of this
+I apologise in case this message is going to arrive multiple times at 
+the mailing list. I've had connection problems this morning while trying 
+to push it through regardless, but it might or might not have been sent 
+properly. I'm sorry for the inconvenience.
 
-Your understanding is correct. Perhaps, abuse or wrong function name.
+On 2017-10-08 18:47 Mike Kravetz wrote:
+> You are correct.  That check in function vma_to_resize() will prevent
+> mremap from growing or relocating hugetlb backed mappings.  This check
+> existed in the 2.6.0 linux kernel, so this restriction has existed for
+> a very long time.  I'm guessing that growing or relocating a hugetlb
+> mapping was never allowed.  Perhaps the mremap man page should list this
+> restriction.
 
-> function. Which path is that? Can we do the migrate type test theres?
+I do not see such mentioning:
 
-alloc_contig_range() -> start_isolate_page_range() ->
-set_migratetype_isolate() -> has_unmovable_pages()
+http://man7.org/linux/man-pages/man2/mremap.2.html
 
-We can add one argument, 'XXX' to set_migratetype_isolate() and change
-it to check migrate type rather than has_unmovable_pages() if 'XXX' is
-specified.
+The author(s) deliberately use the term "page aligned", without 
+specifying the page size that was used creating the initial mapping. And 
+even more:
 
-Thanks.
+> mremap() uses the Linux page table scheme.  mremap() changes the
+> mapping between virtual addresses and memory pages.  This can be used
+> to implement a very efficient realloc(3).
+
+There is not much of a very efficient realloc(3) left if you cannot 
+modify mappings with a higher page size, is there?
+
+> Is there a specific use case where the ability to grow hugetlb mappings
+> is desired?  Adding this functionality would involve more than simply
+> removing the above if statement.  One area of concern would be hugetlb
+> huge page reservations.  If there is a compelling use case, adding the
+> functionality may be worth consideration.  If not, I suggest we just
+> document the limitation.
+
+Paging was introduced to the x86 processor family with the 80386 in 
+1985, with 4 KiBs per default. It's been 32 years since that, and modern 
+CPUs in the consumer market have support for 2 MiB and 1 GiB pages, and 
+yet default allocators usually just stick to the default without 
+bothering whether or not there actually are hugepages available.
+
+One 2-MiB page removes 512 4-KiB pages from the TLB, seeing as at least 
+my TLBs are specialised in buffering one type of pages. I'm certain that 
+at some point in the future the need for deliberately reserving 
+hugepages via the kernel interface is going to be removed, and hugepages 
+will become the usual way of allocating memory.
+
+As for the specific use case: I've written my own allocator that is not 
+bound on the same limitations that usual malloc/realloc/free allocators 
+are bound. As such I want to be able to eliminate as many page walks as 
+possible.
+
+Just excepting the limitation would put Linux down on the same level as 
+the Windows API, where no VirtualRealloc exists. My allocator needs to 
+work with Linux and Windows; for the latter one I'm already managing a 
+table of consecutive mappings in user-space that, if a relocation has to 
+be made, creates an entirely new mapping into which the data of the 
+previous mappings is copied. This is redundant, because the kernel and 
+the process keep their own copies of the mapping table, and this is slow 
+because the kernel could just re-adjust the position within the address 
+space, whereas the process has to memcpy all the data from the old to 
+the new mappings.
+
+Those are the very problems mremap was supposed to remove in the first 
+place. Making the limitation documented is the lazy way that will force 
+implementers to workaround it.
+
+As for any kind of speed penalty that this might introduce (because 
+flags have to be checked, interfaces to be changed, and constants to be 
+replaced): hugepages will also remove the need to allocate memory. My 
+allocator just doesn't call the kernel each time it requires memory, but 
+only when it is absolutely necessary. That necessity can be postponed 
+the larger the mapping is that I can allocate in one go.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
