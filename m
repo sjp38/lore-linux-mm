@@ -1,30 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EC9B26B0069
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 04:05:56 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id n4so3596138wrb.8
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 01:05:56 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 70A266B0033
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 04:10:57 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id q124so3066377wmb.23
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 01:10:57 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id z67sor82037wrc.26.2017.10.19.01.05.55
+        by mx.google.com with SMTPS id 123sor207912wmv.26.2017.10.19.01.10.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 19 Oct 2017 01:05:55 -0700 (PDT)
-Date: Thu, 19 Oct 2017 10:05:53 +0200
+        Thu, 19 Oct 2017 01:10:56 -0700 (PDT)
+Date: Thu, 19 Oct 2017 10:10:53 +0200
 From: Ingo Molnar <mingo@kernel.org>
 Subject: Re: [PATCH 1/2] lockdep: Introduce CROSSRELEASE_STACK_TRACE and make
  it not unwind as default
-Message-ID: <20171019080553.s22nd7j2t22cimyx@gmail.com>
+Message-ID: <20171019081053.2mmzzjgfwgtv5lz3@gmail.com>
 References: <1508318006-2090-1-git-send-email-byungchul.park@lge.com>
  <20171018100944.g2mc6yorhtm5piom@gmail.com>
  <20171019043240.GA3310@X58A-UD3R>
  <20171019055730.mlpoz333ekflacs2@gmail.com>
  <20171019061112.GB3310@X58A-UD3R>
- <20171019062212.n55vzg4khtds3mqk@gmail.com>
- <20171019063610.GD3310@X58A-UD3R>
+ <20171019062255.GC3310@X58A-UD3R>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171019063610.GD3310@X58A-UD3R>
+In-Reply-To: <20171019062255.GC3310@X58A-UD3R>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Byungchul Park <byungchul.park@lge.com>
@@ -33,23 +32,59 @@ Cc: peterz@infradead.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linu
 
 * Byungchul Park <byungchul.park@lge.com> wrote:
 
-> On Thu, Oct 19, 2017 at 08:22:12AM +0200, Ingo Molnar wrote:
-> > There's no current crash regression that I know of - I'm just outlining the 
-> > conditions of getting all this re-enabled in the next merge window.
+> On Thu, Oct 19, 2017 at 03:11:12PM +0900, Byungchul Park wrote:
+> > On Thu, Oct 19, 2017 at 07:57:30AM +0200, Ingo Molnar wrote:
+> > > 
+> > > * Byungchul Park <byungchul.park@lge.com> wrote:
+> > > 
+> > > > On Wed, Oct 18, 2017 at 12:09:44PM +0200, Ingo Molnar wrote:
+> > > > > BTW., have you attempted limiting the depth of the stack traces? I suspect more 
+> > > > > than 2-4 are rarely required to disambiguate the calling context.
+> > > > 
+> > > > I did it for you. Let me show you the result.
+> > > > 
+> > > > 1. No lockdep:				2.756558155 seconds time elapsed                ( +-  0.09% )
+> > > > 2. Lockdep:					2.968710420 seconds time elapsed		( +-  0.12% )
+> > > > 3. Lockdep + Crossrelease 5 entries:		3.153839636 seconds time elapsed                ( +-  0.31% )
+> > > > 4. Lockdep + Crossrelease 3 entries:		3.137205534 seconds time elapsed                ( +-  0.87% )
+> > > > 5. Lockdep + Crossrelease + This patch:	2.963669551 seconds time elapsed		( +-  0.11% )
+> > > 
+> > > I think the lockdep + crossrelease + full-stack numbers are missing?
 > > 
-> > Instead of sending two series, could you please send a series that includes both 
-> > these fixing + re-enabling patches, plus the false positive fixes?
+> > Ah, the last version of crossrelease merged into vanilla, records 5
+> > entries, since I thought it overloads too much if full stack is used,
+> > and 5 entries are enough. Don't you think so?
 > > 
-> > In particular I think the cross-release re-enabling should be done as the last 
-> > patch, so that any future bisections of new false positives won't be made more 
-> > difficult by re-introducing the old false positives near the end of the bisection.
+> > > But yeah, looks like single-entry-stacktrace crossrelease only has a +0.2% 
+> > > performance cost (with 0.1% noise), while lockdep itself has a +7.7% cost.
+> > > 
+> > > That's very reasonable and we can keep the single-entry cross-release feature 
+> > > enabled by default as part of CONFIG_PROVE_LOCKING=y - assuming all the crashes 
+> > 
+> > BTW, is there any crash by cross-release I don't know? Of course, I know
+> > cases of false positives, but I don't about crash.
 > 
-> I agree. But I already sent v2 before you told me..
+> Are you talking about the oops by 'null pointer dereference' by unwinder a
+> few weeks ago?
 > 
-> Do you want me to send patches fixing false positives in the thread
-> fixing performance regression?
+> At the time, cross-release was falsely accused. AFAIK, cross-release has
+> not crashed system yet.
 
-No need, I'll reorder them and let you know if there's any problem left.
+I'm talking about the crash fixed here:
+
+  8b405d5c5d09: locking/lockdep: Fix stacktrace mess
+
+Which was introduced by your patch:
+
+  ce07a9415f26: locking/lockdep: Make check_prev_add() able to handle external stack_trace
+
+... which was a preparatory patch for cross-release. So 'technically' it's not a 
+cross-release crash, but was very much related. It even says so in the changelog:
+
+  Actually crossrelease needs to do other than saving a stack_trace.
+  So pass a stack_trace and callback to handle it, to check_prev_add().
+
+... so let's not pretend it wasn't related, ok?
 
 Thanks,
 
