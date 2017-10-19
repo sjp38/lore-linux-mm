@@ -1,98 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 57E2B6B0038
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 17:21:05 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id u27so6941010pfg.12
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 14:21:05 -0700 (PDT)
-Received: from out0-213.mail.aliyun.com (out0-213.mail.aliyun.com. [140.205.0.213])
-        by mx.google.com with ESMTPS id u127si9143654pgc.803.2017.10.19.14.21.03
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C1E66B0038
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 18:25:21 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id l21so8366389ioe.14
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 15:25:21 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x65sor1264321itf.94.2017.10.19.15.25.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Oct 2017 14:21:04 -0700 (PDT)
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-Subject: [RFC PATCH] fs: fsnotify: account fsnotify metadata to kmemcg
-Date: Fri, 20 Oct 2017 05:20:56 +0800
-Message-Id: <1508448056-21779-1-git-send-email-yang.s@alibaba-inc.com>
+        (Google Transport Security);
+        Thu, 19 Oct 2017 15:25:19 -0700 (PDT)
+From: Shakeel Butt <shakeelb@google.com>
+Subject: [PATCH v2] mm: mlock: remove lru_add_drain_all()
+Date: Thu, 19 Oct 2017 15:25:07 -0700
+Message-Id: <20171019222507.2894-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jack@suse.cz, amir73il@gmail.com
-Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Yisheng Xie <xieyisheng1@huawei.com>, Ingo Molnar <mingo@kernel.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>
+Cc: Balbir Singh <bsingharora@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
 
-We observed some misbehaved user applications might consume significant
-amount of fsnotify slabs silently. It'd better to account those slabs in
-kmemcg so that we can get heads up before misbehaved applications use too
-much memory silently.
+lru_add_drain_all() is not required by mlock() and it will drain
+everything that has been cached at the time mlock is called. And
+that is not really related to the memory which will be faulted in
+(and cached) and mlocked by the syscall itself.
 
-Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
+Without lru_add_drain_all() the mlocked pages can remain on pagevecs
+and be moved to evictable LRUs. However they will eventually be moved
+back to unevictable LRU by reclaim. So, we can safely remove
+lru_add_drain_all() from mlock syscall. Also there is no need for
+local lru_add_drain() as it will be called deep inside __mm_populate()
+(in follow_page_pte()).
+
+On larger machines the overhead of lru_add_drain_all() in mlock() can
+be significant when mlocking data already in memory. We have observed
+high latency in mlock() due to lru_add_drain_all() when the users
+were mlocking in memory tmpfs files.
+
+Signed-off-by: Shakeel Butt <shakeelb@google.com>
 ---
- fs/notify/dnotify/dnotify.c        | 4 ++--
- fs/notify/fanotify/fanotify_user.c | 6 +++---
- fs/notify/fsnotify.c               | 2 +-
- fs/notify/inotify/inotify_user.c   | 2 +-
- 4 files changed, 7 insertions(+), 7 deletions(-)
+Changelog since v1:
+- updated commit message
 
-diff --git a/fs/notify/dnotify/dnotify.c b/fs/notify/dnotify/dnotify.c
-index cba3283..3ec6233 100644
---- a/fs/notify/dnotify/dnotify.c
-+++ b/fs/notify/dnotify/dnotify.c
-@@ -379,8 +379,8 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
+ mm/mlock.c | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/mm/mlock.c b/mm/mlock.c
+index dfc6f1912176..3ceb2935d1e0 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -669,8 +669,6 @@ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t fla
+ 	if (!can_do_mlock())
+ 		return -EPERM;
  
- static int __init dnotify_init(void)
- {
--	dnotify_struct_cache = KMEM_CACHE(dnotify_struct, SLAB_PANIC);
--	dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC);
-+	dnotify_struct_cache = KMEM_CACHE(dnotify_struct, SLAB_PANIC|SLAB_ACCOUNT);
-+	dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC|SLAB_ACCOUNT);
+-	lru_add_drain_all();	/* flush pagevec */
+-
+ 	len = PAGE_ALIGN(len + (offset_in_page(start)));
+ 	start &= PAGE_MASK;
  
- 	dnotify_group = fsnotify_alloc_group(&dnotify_fsnotify_ops);
- 	if (IS_ERR(dnotify_group))
-diff --git a/fs/notify/fanotify/fanotify_user.c b/fs/notify/fanotify/fanotify_user.c
-index 907a481..7d62dee 100644
---- a/fs/notify/fanotify/fanotify_user.c
-+++ b/fs/notify/fanotify/fanotify_user.c
-@@ -947,11 +947,11 @@ static int fanotify_add_inode_mark(struct fsnotify_group *group,
-  */
- static int __init fanotify_user_setup(void)
- {
--	fanotify_mark_cache = KMEM_CACHE(fsnotify_mark, SLAB_PANIC);
--	fanotify_event_cachep = KMEM_CACHE(fanotify_event_info, SLAB_PANIC);
-+	fanotify_mark_cache = KMEM_CACHE(fsnotify_mark, SLAB_PANIC|SLAB_ACCOUNT);
-+	fanotify_event_cachep = KMEM_CACHE(fanotify_event_info, SLAB_PANIC|SLAB_ACCOUNT);
- #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
- 	fanotify_perm_event_cachep = KMEM_CACHE(fanotify_perm_event_info,
--						SLAB_PANIC);
-+						SLAB_PANIC|SLAB_ACCOUNT);
- #endif
+@@ -797,9 +795,6 @@ SYSCALL_DEFINE1(mlockall, int, flags)
+ 	if (!can_do_mlock())
+ 		return -EPERM;
  
- 	return 0;
-diff --git a/fs/notify/fsnotify.c b/fs/notify/fsnotify.c
-index 0c4583b..82620ac 100644
---- a/fs/notify/fsnotify.c
-+++ b/fs/notify/fsnotify.c
-@@ -386,7 +386,7 @@ static __init int fsnotify_init(void)
- 		panic("initializing fsnotify_mark_srcu");
+-	if (flags & MCL_CURRENT)
+-		lru_add_drain_all();	/* flush pagevec */
+-
+ 	lock_limit = rlimit(RLIMIT_MEMLOCK);
+ 	lock_limit >>= PAGE_SHIFT;
  
- 	fsnotify_mark_connector_cachep = KMEM_CACHE(fsnotify_mark_connector,
--						    SLAB_PANIC);
-+						    SLAB_PANIC|SLAB_ACCOUNT);
- 
- 	return 0;
- }
-diff --git a/fs/notify/inotify/inotify_user.c b/fs/notify/inotify/inotify_user.c
-index 7cc7d3f..57b32ff 100644
---- a/fs/notify/inotify/inotify_user.c
-+++ b/fs/notify/inotify/inotify_user.c
-@@ -785,7 +785,7 @@ static int __init inotify_user_setup(void)
- 
- 	BUG_ON(hweight32(ALL_INOTIFY_BITS) != 21);
- 
--	inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark, SLAB_PANIC);
-+	inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark, SLAB_PANIC|SLAB_ACCOUNT);
- 
- 	inotify_max_queued_events = 16384;
- 	init_user_ns.ucount_max[UCOUNT_INOTIFY_INSTANCES] = 128;
 -- 
-1.8.3.1
+2.15.0.rc0.271.g36b669edcc-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
