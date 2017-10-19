@@ -1,91 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 271746B0261
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:32:11 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id a32so3959184wrc.12
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 05:32:11 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b200si983744wme.254.2017.10.19.05.32.09
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AD1A6B0268
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:33:32 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id n4so3969652wrb.8
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 05:33:32 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t66sor368659wme.35.2017.10.19.05.33.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Oct 2017 05:32:09 -0700 (PDT)
-Date: Thu, 19 Oct 2017 14:32:06 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: mlock: remove lru_add_drain_all()
-Message-ID: <20171019123206.3etacullgnarbnad@dhcp22.suse.cz>
-References: <20171018231730.42754-1-shakeelb@google.com>
+        (Google Transport Security);
+        Thu, 19 Oct 2017 05:33:31 -0700 (PDT)
+Date: Thu, 19 Oct 2017 14:33:25 +0200
+From: =?UTF-8?B?VG9tw6HFoSBHb2xlbWJpb3Zza8O9?= <tgolembi@redhat.com>
+Subject: Re: [PATCH v2 0/1] linux: Buffers/caches in VirtIO Balloon driver
+ stats
+Message-ID: <20171019143325.12b6b8aa@fiorina>
+In-Reply-To: <20171005155118.51a5bea3@fiorina>
+References: <cover.1505998455.git.tgolembi@redhat.com>
+	<20171005155118.51a5bea3@fiorina>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171018231730.42754-1-shakeelb@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Yisheng Xie <xieyisheng1@huawei.com>, Ingo Molnar <mingo@kernel.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, virtualization@lists.linux-foundation.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, virtio-dev@lists.oasis-open.org
+Cc: Wei Wang <wei.w.wang@intel.com>, Shaohua Li <shli@fb.com>, Huang Ying <ying.huang@intel.com>, "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>
 
-On Wed 18-10-17 16:17:30, Shakeel Butt wrote:
-> Recently we have observed high latency in mlock() in our generic
-> library and noticed that users have started using tmpfs files even
-> without swap and the latency was due to expensive remote LRU cache
-> draining.
+On Thu, 5 Oct 2017 15:51:18 +0200
+Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com> wrote:
 
-some numbers would be really nice
- 
-> Is lru_add_drain_all() required by mlock()? The answer is no and the
-> reason it is still in mlock() is to rapidly move mlocked pages to
-> unevictable LRU.
+> On Thu, 21 Sep 2017 14:55:40 +0200
+> Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com> wrote:
+>=20
+> > Linux driver part
+> >=20
+> > v2:
+> > - fixed typos
+> >=20
+> > Tom=C3=A1=C5=A1 Golembiovsk=C3=BD (1):
+> >   virtio_balloon: include buffers and cached memory statistics
+> >=20
+> >  drivers/virtio/virtio_balloon.c     | 11 +++++++++++
+> >  include/uapi/linux/virtio_balloon.h |  4 +++-
+> >  mm/swap_state.c                     |  1 +
+> >  3 files changed, 15 insertions(+), 1 deletion(-)
+> >=20
+> > --=20
+> > 2.14.1
+> >=20
+>=20
+> ping
 
-Is this really true? lru_add_drain_all will flush the previously cached
-LRU pages. We are not flushing after the pages have been faulted in so
-this might not do anything wrt. mlocked pages, right?
+ping
 
-> Without lru_add_drain_all() the mlocked pages which
-> were on pagevec at mlock() time will be moved to evictable LRUs but
-> will eventually be moved back to unevictable LRU by reclaim. So, we
-> can safely remove lru_add_drain_all() from mlock(). Also there is no
-> need for local lru_add_drain() as it will be called deep inside
-> __mm_populate() (in follow_page_pte()).
-
-Anyway, I do agree that lru_add_drain_all here is pointless. Either we
-should drain after the memory has been faulted in and mlocked or not at
-all. So the patch looks good to me I am just not sure about the
-changelog.
- 
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
-> ---
->  mm/mlock.c | 5 -----
->  1 file changed, 5 deletions(-)
-> 
-> diff --git a/mm/mlock.c b/mm/mlock.c
-> index dfc6f1912176..3ceb2935d1e0 100644
-> --- a/mm/mlock.c
-> +++ b/mm/mlock.c
-> @@ -669,8 +669,6 @@ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t fla
->  	if (!can_do_mlock())
->  		return -EPERM;
->  
-> -	lru_add_drain_all();	/* flush pagevec */
-> -
->  	len = PAGE_ALIGN(len + (offset_in_page(start)));
->  	start &= PAGE_MASK;
->  
-> @@ -797,9 +795,6 @@ SYSCALL_DEFINE1(mlockall, int, flags)
->  	if (!can_do_mlock())
->  		return -EPERM;
->  
-> -	if (flags & MCL_CURRENT)
-> -		lru_add_drain_all();	/* flush pagevec */
-> -
->  	lock_limit = rlimit(RLIMIT_MEMLOCK);
->  	lock_limit >>= PAGE_SHIFT;
->  
-> -- 
-> 2.15.0.rc1.287.g2b38de12cc-goog
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+--=20
+Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
