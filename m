@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A4E1A6B025E
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CF7FA6B025F
 	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 01:55:35 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id b192so5873387pga.14
+Received: by mail-pg0-f70.google.com with SMTP id y7so5860295pgb.16
         for <linux-mm@kvack.org>; Wed, 18 Oct 2017 22:55:35 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id v22si8577353pfd.212.2017.10.18.22.55.33
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id i2si8997411plk.126.2017.10.18.22.55.33
         for <linux-mm@kvack.org>;
         Wed, 18 Oct 2017 22:55:33 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v2 1/3] lockdep: Introduce CROSSRELEASE_STACK_TRACE and make it not unwind as default
-Date: Thu, 19 Oct 2017 14:55:29 +0900
-Message-Id: <1508392531-11284-2-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v2 3/3] lockdep: Add a kernel parameter, crossrelease_fullstack
+Date: Thu, 19 Oct 2017 14:55:31 +0900
+Message-Id: <1508392531-11284-4-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1508392531-11284-1-git-send-email-byungchul.park@lge.com>
 References: <1508392531-11284-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,121 +19,96 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@lge.com
 
-Johan Hovold reported a performance regression by crossrelease like:
+Make whether to allow recording full stack, in cross-release feature,
+switchable at boot time via a kernel parameter, 'crossrelease_fullstack'.
+In case of a splat with no stack trace, one could just reboot and set
+the kernel parameter to get the full data without having to recompile
+the kernel.
 
-> Boot time (from "Linux version" to login prompt) had in fact doubled
-> since 4.13 where it took 17 seconds (with my current config) compared to
-> the 35 seconds I now see with 4.14-rc4.
->
-> I quick bisect pointed to lockdep and specifically the following commit:
->
-> 	28a903f63ec0 ("locking/lockdep: Handle non(or multi)-acquisition
-> 	               of a crosslock")
->
-> which I've verified is the commit which doubled the boot time (compared
-> to 28a903f63ec0^) (added by lockdep crossrelease series [1]).
+Change CONFIG_CROSSRELEASE_STACK_TRACE default from N to Y, and
+introduce the new kernel parameter.
 
-Currently crossrelease performs unwind on every acquisition. But, that
-overloads systems too much. So this patch makes unwind optional and set
-it to N as default. Instead, it records only acquire_ip normally. Of
-course, unwind is sometimes required for full analysis. In that case, we
-can set CROSSRELEASE_STACK_TRACE to Y and use it.
-
-In my qemu ubuntu machin (x86_64, 4 cores, 512M), the regression was
-fixed like, measuring booting times with 'perf stat --null --repeat 10
-$QEMU', where $QEMU launchs a kernel with init=/bin/true:
-
-1. No lockdep enabled
-
- Performance counter stats for 'qemu_booting_time.sh bzImage' (10 runs):
-
-       2.756558155 seconds time elapsed                    ( +-  0.09% )
-
-2. Lockdep enabled
-
- Performance counter stats for 'qemu_booting_time.sh bzImage' (10 runs):
-
-       2.968710420 seconds time elapsed                    ( +-  0.12% )
-
-3. Lockdep enabled + crossrelease enabled
-
- Performance counter stats for 'qemu_booting_time.sh bzImage' (10 runs):
-
-       3.153839636 seconds time elapsed                    ( +-  0.31% )
-
-4. Lockdep enabled + crossrelease enabled + this patch applied
-
- Performance counter stats for 'qemu_booting_time.sh bzImage' (10 runs):
-
-       2.963669551 seconds time elapsed                    ( +-  0.11% )
-
+Suggested-by: Thomas Gleixner <tglx@linutronix.de>
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- include/linux/lockdep.h  |  4 ++++
- kernel/locking/lockdep.c |  5 +++++
- lib/Kconfig.debug        | 15 +++++++++++++++
- 3 files changed, 24 insertions(+)
+ Documentation/admin-guide/kernel-parameters.txt |  3 +++
+ kernel/locking/lockdep.c                        | 18 ++++++++++++++++--
+ lib/Kconfig.debug                               |  5 +++--
+ 3 files changed, 22 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
-index bfa8e0b..70358b5 100644
---- a/include/linux/lockdep.h
-+++ b/include/linux/lockdep.h
-@@ -278,7 +278,11 @@ struct held_lock {
- };
+diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+index ead7f40..4107b01 100644
+--- a/Documentation/admin-guide/kernel-parameters.txt
++++ b/Documentation/admin-guide/kernel-parameters.txt
+@@ -709,6 +709,9 @@
+ 			It will be ignored when crashkernel=X,high is not used
+ 			or memory reserved is below 4G.
  
- #ifdef CONFIG_LOCKDEP_CROSSRELEASE
-+#ifdef CONFIG_CROSSRELEASE_STACK_TRACE
- #define MAX_XHLOCK_TRACE_ENTRIES 5
-+#else
-+#define MAX_XHLOCK_TRACE_ENTRIES 1
-+#endif
++	crossrelease_fullstack
++			[KNL] Allow to record full stack trace in cross-release
++
+ 	cryptomgr.notests
+                         [KNL] Disable crypto self-tests
  
- /*
-  * This is for keeping locks waiting for commit so that true dependencies
 diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index e36e652..5c2ddf2 100644
+index 5c2ddf2..feba887 100644
 --- a/kernel/locking/lockdep.c
 +++ b/kernel/locking/lockdep.c
-@@ -4863,8 +4863,13 @@ static void add_xhlock(struct held_lock *hlock)
- 	xhlock->trace.nr_entries = 0;
+@@ -76,6 +76,15 @@
+ #define lock_stat 0
+ #endif
+ 
++static int crossrelease_fullstack;
++static int __init allow_crossrelease_fullstack(char *str)
++{
++	crossrelease_fullstack = 1;
++	return 0;
++}
++
++early_param("crossrelease_fullstack", allow_crossrelease_fullstack);
++
+ /*
+  * lockdep_lock: protects the lockdep graph, the hashes and the
+  *               class/list/hash allocators.
+@@ -4864,8 +4873,13 @@ static void add_xhlock(struct held_lock *hlock)
  	xhlock->trace.max_entries = MAX_XHLOCK_TRACE_ENTRIES;
  	xhlock->trace.entries = xhlock->trace_entries;
-+#ifdef CONFIG_CROSSRELEASE_STACK_TRACE
- 	xhlock->trace.skip = 3;
- 	save_stack_trace(&xhlock->trace);
-+#else
-+	xhlock->trace.nr_entries = 1;
-+	xhlock->trace.entries[0] = hlock->acquire_ip;
-+#endif
- }
- 
- static inline int same_context_xhlock(struct hist_lock *xhlock)
+ #ifdef CONFIG_CROSSRELEASE_STACK_TRACE
+-	xhlock->trace.skip = 3;
+-	save_stack_trace(&xhlock->trace);
++	if (crossrelease_fullstack) {
++		xhlock->trace.skip = 3;
++		save_stack_trace(&xhlock->trace);
++	} else {
++		xhlock->trace.nr_entries = 1;
++		xhlock->trace.entries[0] = hlock->acquire_ip;
++	}
+ #else
+ 	xhlock->trace.nr_entries = 1;
+ 	xhlock->trace.entries[0] = hlock->acquire_ip;
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 3db9167..90ea784 100644
+index fe8fceb..132536d 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
-@@ -1225,6 +1225,21 @@ config LOCKDEP_COMPLETIONS
- 	 A deadlock caused by wait_for_completion() and complete() can be
- 	 detected by lockdep using crossrelease feature.
+@@ -1228,7 +1228,7 @@ config LOCKDEP_COMPLETIONS
+ config CROSSRELEASE_STACK_TRACE
+ 	bool "Record more than one entity of stack trace in crossrelease"
+ 	depends on LOCKDEP_CROSSRELEASE
+-	default n
++	default y
+ 	help
+ 	 The lockdep "cross-release" feature needs to record stack traces
+ 	 (of calling functions) for all acquisitions, for eventual later
+@@ -1238,7 +1238,8 @@ config CROSSRELEASE_STACK_TRACE
+ 	 full analysis. This option turns on the saving of the full stack
+ 	 trace entries.
  
-+config CROSSRELEASE_STACK_TRACE
-+	bool "Record more than one entity of stack trace in crossrelease"
-+	depends on LOCKDEP_CROSSRELEASE
-+	default n
-+	help
-+	 The lockdep "cross-release" feature needs to record stack traces
-+	 (of calling functions) for all acquisitions, for eventual later
-+	 use during analysis. By default only a single caller is recorded,
-+	 because the unwind operation can be very expensive with deeper
-+	 stack chains. However, sometimes deeper traces are required for
-+	 full analysis. This option turns on the saving of the full stack
-+	 trace entries.
-+
-+	 If unsure, say N.
-+
+-	 If unsure, say N.
++	 To make the feature actually on, set "crossrelease_fullstack"
++	 kernel parameter, too.
+ 
  config DEBUG_LOCKDEP
  	bool "Lock dependency engine debugging"
- 	depends on DEBUG_KERNEL && LOCKDEP
 -- 
 1.9.1
 
