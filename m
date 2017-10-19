@@ -1,57 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 412266B0038
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 15:12:09 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id u138so3969156wmu.19
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 12:12:09 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id f55si12670404wrf.288.2017.10.19.12.12.08
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D2D8E6B0038
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 15:19:19 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id r79so4497674wrb.7
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 12:19:19 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r201sor551909wme.51.2017.10.19.12.19.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Oct 2017 12:12:08 -0700 (PDT)
-Date: Thu, 19 Oct 2017 21:12:00 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v2 2/3] lockdep: Remove BROKEN flag of
- LOCKDEP_CROSSRELEASE
-In-Reply-To: <alpine.DEB.2.20.1710192021480.2054@nanos>
-Message-ID: <alpine.DEB.2.20.1710192107000.2054@nanos>
-References: <1508392531-11284-1-git-send-email-byungchul.park@lge.com>  <1508392531-11284-3-git-send-email-byungchul.park@lge.com>  <1508425527.2429.11.camel@wdc.com>  <alpine.DEB.2.20.1710191718260.1971@nanos> <1508428021.2429.22.camel@wdc.com>
- <alpine.DEB.2.20.1710192021480.2054@nanos>
+        (Google Transport Security);
+        Thu, 19 Oct 2017 12:19:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <edbbda21-85ad-2bbe-4e09-298133fd471b@linux.vnet.ibm.com>
+References: <20171018231730.42754-1-shakeelb@google.com> <edbbda21-85ad-2bbe-4e09-298133fd471b@linux.vnet.ibm.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Thu, 19 Oct 2017 12:19:16 -0700
+Message-ID: <CALvZod5qS1WRc_RgaR2abLic221Os3amnouKKuPbRF9KJ2NC8g@mail.gmail.com>
+Subject: Re: [PATCH] mm: mlock: remove lru_add_drain_all()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bart Van Assche <Bart.VanAssche@wdc.com>
-Cc: "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "byungchul.park@lge.com" <byungchul.park@lge.com>, "kernel-team@lge.com" <kernel-team@lge.com>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Yisheng Xie <xieyisheng1@huawei.com>, Ingo Molnar <mingo@kernel.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 19 Oct 2017, Thomas Gleixner wrote:
-> That's not a lockdep problem and neither can the pure locking dependency
-> tracking know that a particular deadlock is not possible by design. It can
-> merily record the dependency chains and detect circular dependencies.
-> 
-> There is enough code which is obviously correct in terms of locking which
-> has lockdep annotations in one form or the other (nesting, different
-> lock_class_keys etc.). These annotations are there to teach lockdep about
-> false positives. It's pretty much the same with the cross release feature
-> and we won't get these annotations into the code when people disable it 
+On Wed, Oct 18, 2017 at 11:24 PM, Anshuman Khandual
+<khandual@linux.vnet.ibm.com> wrote:
+> On 10/19/2017 04:47 AM, Shakeel Butt wrote:
+>> Recently we have observed high latency in mlock() in our generic
+>> library and noticed that users have started using tmpfs files even
+>> without swap and the latency was due to expensive remote LRU cache
+>> draining.
+>
+> With and without this I patch I dont see much difference in number
+> of instructions executed in the kernel for mlock() system call on
+> POWER8 platform just after reboot (all the pagevecs might not been
+> filled by then though). There is an improvement but its very less.
+>
+> Could you share your latency numbers and how this patch is making
+> them better.
+>
 
-And just for the record, I wasted enough of my time already to decode 'can
-not happen' dead locks where completions or other wait primitives have been
-involved. I rather spend time annotating stuff after analyzing it proper
-than chasing happens once in a blue moon lockups which are completely
-unexplainable.
+The latency is very dependent on the workload and the number of cores
+on the machine. On production workload, the customers were complaining
+single mlock() was taking around 10 seconds on tmpfs files which were
+already in memory.
 
-That's why lockdep exists in the first place. Ingo, Steven, myself and
-others spent an insane amount of time to fix locking bugs all over the tree
-when we started the preempt RT work. Lockdep was a rescue because it forced
-people to look at their own crap and if it was 100% clear that lockdep
-tripped a false positive either lockdep was fixed or the code in question
-annotated, which is a good thing because that's documentation at the same
-time.
+>>
+>> Is lru_add_drain_all() required by mlock()? The answer is no and the
+>> reason it is still in mlock() is to rapidly move mlocked pages to
+>> unevictable LRU. Without lru_add_drain_all() the mlocked pages which
+>> were on pagevec at mlock() time will be moved to evictable LRUs but
+>> will eventually be moved back to unevictable LRU by reclaim. So, we
+>
+> Wont this affect the performance during reclaim ?
+>
 
-Thanks,
+Yes, but reclaim is already a slow path and to seriously impact
+reclaim we will need a very very antagonistic workload which is very
+hard to trigger (i.e. for each mlock on a cpu, the pages being mlocked
+happen to be on the cache of other cpus).
 
-	tglx
+>> can safely remove lru_add_drain_all() from mlock(). Also there is no
+>> need for local lru_add_drain() as it will be called deep inside
+>> __mm_populate() (in follow_page_pte()).
+>
+> The following commit which originally added lru_add_drain_all()
+> during mlock() and mlockall() has similar explanation.
+>
+> 8891d6da ("mm: remove lru_add_drain_all() from the munlock path")
+>
+> "In addition, this patch add lru_add_drain_all() to sys_mlock()
+> and sys_mlockall().  it isn't must.  but it reduce the failure
+> of moving to unevictable list.  its failure can rescue in
+> vmscan later.  but reducing is better."
+>
+> Which sounds like either we have to handle the active to inactive
+> LRU movement during reclaim or it can be done here to speed up
+> reclaim later on.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
