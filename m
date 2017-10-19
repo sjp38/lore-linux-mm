@@ -1,73 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C1E66B0038
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 18:25:21 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id l21so8366389ioe.14
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 15:25:21 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x65sor1264321itf.94.2017.10.19.15.25.19
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 05C5D6B0253
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 18:51:45 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id m189so9603223qke.21
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 15:51:45 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a27si7490258qtd.351.2017.10.19.15.51.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 19 Oct 2017 15:25:19 -0700 (PDT)
-From: Shakeel Butt <shakeelb@google.com>
-Subject: [PATCH v2] mm: mlock: remove lru_add_drain_all()
-Date: Thu, 19 Oct 2017 15:25:07 -0700
-Message-Id: <20171019222507.2894-1-shakeelb@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Oct 2017 15:51:44 -0700 (PDT)
+Date: Fri, 20 Oct 2017 06:51:10 +0800
+From: Ming Lei <ming.lei@redhat.com>
+Subject: Re: [PATCH v3 07/49] bcache: comment on direct access to bvec table
+Message-ID: <20171019225109.GA27130@ming.t460p>
+References: <20170808084548.18963-1-ming.lei@redhat.com>
+ <20170808084548.18963-8-ming.lei@redhat.com>
+ <20170810112603.GD20308@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20170810112603.GD20308@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Yisheng Xie <xieyisheng1@huawei.com>, Ingo Molnar <mingo@kernel.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>
-Cc: Balbir Singh <bsingharora@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Jens Axboe <axboe@fb.com>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-bcache@vger.kernel.org
 
-lru_add_drain_all() is not required by mlock() and it will drain
-everything that has been cached at the time mlock is called. And
-that is not really related to the memory which will be faulted in
-(and cached) and mlocked by the syscall itself.
+On Thu, Aug 10, 2017 at 04:26:03AM -0700, Christoph Hellwig wrote:
+> I think all this bcache code needs bigger attention.  For one
+> bio_alloc_pages is only used in bcache, so we should move it in there.
 
-Without lru_add_drain_all() the mlocked pages can remain on pagevecs
-and be moved to evictable LRUs. However they will eventually be moved
-back to unevictable LRU by reclaim. So, we can safely remove
-lru_add_drain_all() from mlock syscall. Also there is no need for
-local lru_add_drain() as it will be called deep inside __mm_populate()
-(in follow_page_pte()).
+Looks a good idea.
 
-On larger machines the overhead of lru_add_drain_all() in mlock() can
-be significant when mlocking data already in memory. We have observed
-high latency in mlock() due to lru_add_drain_all() when the users
-were mlocking in memory tmpfs files.
+> 
+> Second the way  bio_alloc_pages is currently written looks potentially
+> dangerous for multi-page biovecs, so we should think about a better
+> calling convention.  The way bcache seems to generally use it is by
+> allocating a bio, then calling bch_bio_map on it and then calling
+> bio_alloc_pages.  I think it just needs a new bio_alloc_pages calling
+> convention that passes the size to be allocated and stop looking into
+> the segment count.
 
-Signed-off-by: Shakeel Butt <shakeelb@google.com>
----
-Changelog since v1:
-- updated commit message
+Looks a good idea, will try to do in this way.
 
- mm/mlock.c | 5 -----
- 1 file changed, 5 deletions(-)
+> 
+> Second bch_bio_map isn't something we should be doing in a driver,
+> it should be rewritten using bio_add_page.
 
-diff --git a/mm/mlock.c b/mm/mlock.c
-index dfc6f1912176..3ceb2935d1e0 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -669,8 +669,6 @@ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t fla
- 	if (!can_do_mlock())
- 		return -EPERM;
- 
--	lru_add_drain_all();	/* flush pagevec */
--
- 	len = PAGE_ALIGN(len + (offset_in_page(start)));
- 	start &= PAGE_MASK;
- 
-@@ -797,9 +795,6 @@ SYSCALL_DEFINE1(mlockall, int, flags)
- 	if (!can_do_mlock())
- 		return -EPERM;
- 
--	if (flags & MCL_CURRENT)
--		lru_add_drain_all();	/* flush pagevec */
--
- 	lock_limit = rlimit(RLIMIT_MEMLOCK);
- 	lock_limit >>= PAGE_SHIFT;
- 
+Yes, the idea way is to use bio_add_page always, but given
+bch_bio_map() is used on a fresh bio, it is safe, and this
+work can be done in another bcache cleanup patch.
+
+> 
+> > diff --git a/drivers/md/bcache/btree.c b/drivers/md/bcache/btree.c
+> > index 866dcf78ff8e..3da595ae565b 100644
+> > --- a/drivers/md/bcache/btree.c
+> > +++ b/drivers/md/bcache/btree.c
+> > @@ -431,6 +431,7 @@ static void do_btree_node_write(struct btree *b)
+> >  
+> >  		continue_at(cl, btree_node_write_done, NULL);
+> >  	} else {
+> > +		/* No harm for multipage bvec since the new is just allocated */
+> >  		b->bio->bi_vcnt = 0;
+> 
+> This should go away - bio_alloc_pages or it's replacement should not
+> modify bi_vcnt on failure.
+
+OK.
+
+> 
+> > +	/* single page bio, safe for multipage bvec */
+> >  	dc->sb_bio.bi_io_vec[0].bv_page = sb_page;
+> 
+> needs to use bio_add_page.
+
+OK.
+
+> 
+> > +	/* single page bio, safe for multipage bvec */
+> >  	ca->sb_bio.bi_io_vec[0].bv_page = sb_page;
+> 
+> needs to use bio_add_page.
+
+OK.
+
 -- 
-2.15.0.rc0.271.g36b669edcc-goog
+Ming
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
