@@ -1,59 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AD1A6B0268
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:33:32 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id n4so3969652wrb.8
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 05:33:32 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t66sor368659wme.35.2017.10.19.05.33.31
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FFAD6B0268
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:35:32 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id h191so3485940wmd.15
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 05:35:32 -0700 (PDT)
+Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id 140si1108202wmp.197.2017.10.19.05.35.31
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 19 Oct 2017 05:33:31 -0700 (PDT)
-Date: Thu, 19 Oct 2017 14:33:25 +0200
-From: =?UTF-8?B?VG9tw6HFoSBHb2xlbWJpb3Zza8O9?= <tgolembi@redhat.com>
-Subject: Re: [PATCH v2 0/1] linux: Buffers/caches in VirtIO Balloon driver
- stats
-Message-ID: <20171019143325.12b6b8aa@fiorina>
-In-Reply-To: <20171005155118.51a5bea3@fiorina>
-References: <cover.1505998455.git.tgolembi@redhat.com>
-	<20171005155118.51a5bea3@fiorina>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 19 Oct 2017 05:35:31 -0700 (PDT)
+Date: Thu, 19 Oct 2017 13:34:53 +0100
+From: Russell King - ARM Linux <linux@armlinux.org.uk>
+Subject: Re: [PATCH 03/11] arm: Kconfig: enable KASan
+Message-ID: <20171019123453.GV20805@n2100.armlinux.org.uk>
+References: <20171011082227.20546-1-liuwenliang@huawei.com>
+ <20171011082227.20546-4-liuwenliang@huawei.com>
+ <a3902e32-0141-9616-ba3e-9cbbd396b99a@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <a3902e32-0141-9616-ba3e-9cbbd396b99a@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, virtualization@lists.linux-foundation.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, virtio-dev@lists.oasis-open.org
-Cc: Wei Wang <wei.w.wang@intel.com>, Shaohua Li <shli@fb.com>, Huang Ying <ying.huang@intel.com>, "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>
+To: Florian Fainelli <f.fainelli@gmail.com>
+Cc: Abbott Liu <liuwenliang@huawei.com>, aryabinin@virtuozzo.com, afzal.mohd.ma@gmail.com, labbott@redhat.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, cdall@linaro.org, marc.zyngier@arm.com, catalin.marinas@arm.com, akpm@linux-foundation.org, mawilcox@microsoft.com, tglx@linutronix.de, thgarnie@google.com, keescook@chromium.org, arnd@arndb.de, vladimir.murzin@arm.com, tixy@linaro.org, ard.biesheuvel@linaro.org, robin.murphy@arm.com, mingo@kernel.org, grygorii.strashko@linaro.org, opendmb@gmail.com, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, zengweilin@huawei.com, linux-mm@kvack.org, dylix.dailei@huawei.com, glider@google.com, dvyukov@google.com, jiazhenghua@huawei.com, linux-arm-kernel@lists.infradead.org, heshaoliang@huawei.com
 
-On Thu, 5 Oct 2017 15:51:18 +0200
-Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com> wrote:
+On Wed, Oct 11, 2017 at 12:15:44PM -0700, Florian Fainelli wrote:
+> On 10/11/2017 01:22 AM, Abbott Liu wrote:
+> > From: Andrey Ryabinin <a.ryabinin@samsung.com>
+> > 
+> > This patch enable kernel address sanitizer for arm.
+> > 
+> > Cc: Andrey Ryabinin <a.ryabinin@samsung.com>
+> > Signed-off-by: Abbott Liu <liuwenliang@huawei.com>
+> 
+> This needs to be the last patch in the series, otherwise you allow
+> people between patch 3 and 11 to have varying degrees of experience with
+> this patch series depending on their system type (LPAE or not, etc.)
 
-> On Thu, 21 Sep 2017 14:55:40 +0200
-> Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com> wrote:
->=20
-> > Linux driver part
-> >=20
-> > v2:
-> > - fixed typos
-> >=20
-> > Tom=C3=A1=C5=A1 Golembiovsk=C3=BD (1):
-> >   virtio_balloon: include buffers and cached memory statistics
-> >=20
-> >  drivers/virtio/virtio_balloon.c     | 11 +++++++++++
-> >  include/uapi/linux/virtio_balloon.h |  4 +++-
-> >  mm/swap_state.c                     |  1 +
-> >  3 files changed, 15 insertions(+), 1 deletion(-)
-> >=20
-> > --=20
-> > 2.14.1
-> >=20
->=20
-> ping
+As the series stands, if patches 1-3 are applied, and KASAN is enabled,
+there are various constants that end up being undefined, and the kernel
+build will fail.  That is, of course, not acceptable.
 
-ping
+KASAN must not be available until support for it is functionally
+complete.
 
---=20
-Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com>
+-- 
+RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
+FTTC broadband for 0.8mile line in suburbia: sync at 8.8Mbps down 630kbps up
+According to speedtest.net: 8.21Mbps down 510kbps up
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
