@@ -1,61 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4275D6B0033
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 11:05:55 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id s75so7034384pgs.12
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:05:55 -0700 (PDT)
-Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com. [68.232.141.245])
-        by mx.google.com with ESMTPS id d125si5864037pgc.444.2017.10.19.08.05.53
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 81CB86B0253
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 11:10:07 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id 10so8365810qty.10
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:10:07 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id r48si3130781qtb.100.2017.10.19.08.10.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Oct 2017 08:05:53 -0700 (PDT)
-From: Bart Van Assche <Bart.VanAssche@wdc.com>
-Subject: Re: [PATCH v2 2/3] lockdep: Remove BROKEN flag of
- LOCKDEP_CROSSRELEASE
-Date: Thu, 19 Oct 2017 15:05:28 +0000
-Message-ID: <1508425527.2429.11.camel@wdc.com>
-References: <1508392531-11284-1-git-send-email-byungchul.park@lge.com>
-	 <1508392531-11284-3-git-send-email-byungchul.park@lge.com>
-In-Reply-To: <1508392531-11284-3-git-send-email-byungchul.park@lge.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <B65C9874EB6996468254414660B41357@namprd04.prod.outlook.com>
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        Thu, 19 Oct 2017 08:10:06 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9JF9oHT041024
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 11:10:05 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2dpwvc2hrd-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 11:09:54 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 19 Oct 2017 15:57:05 +0100
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v9JEv1JC22282364
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 14:57:02 GMT
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v9JEv1P6032149
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 01:57:01 +1100
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [PATCH] mm/swap: Use page flags to determine LRU list in __activate_page()
+Date: Thu, 19 Oct 2017 20:26:57 +0530
+Message-Id: <20171019145657.11199-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "mingo@kernel.org" <mingo@kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "byungchul.park@lge.com" <byungchul.park@lge.com>
-Cc: "tglx@linutronix.de" <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kernel-team@lge.com" <kernel-team@lge.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, shli@kernel.org
 
-T24gVGh1LCAyMDE3LTEwLTE5IGF0IDE0OjU1ICswOTAwLCBCeXVuZ2NodWwgUGFyayB3cm90ZToN
-Cj4gTm93IHRoZSBwZXJmb3JtYW5jZSByZWdyZXNzaW9uIHdhcyBmaXhlZCwgcmUtZW5hYmxlDQo+
-IENPTkZJR19MT0NLREVQX0NST1NTUkVMRUFTRSBhbmQgQ09ORklHX0xPQ0tERVBfQ09NUExFVElP
-TlMuDQo+IA0KPiBTaWduZWQtb2ZmLWJ5OiBCeXVuZ2NodWwgUGFyayA8Ynl1bmdjaHVsLnBhcmtA
-bGdlLmNvbT4NCj4gLS0tDQo+ICBsaWIvS2NvbmZpZy5kZWJ1ZyB8IDQgKystLQ0KPiAgMSBmaWxl
-IGNoYW5nZWQsIDIgaW5zZXJ0aW9ucygrKSwgMiBkZWxldGlvbnMoLSkNCj4gDQo+IGRpZmYgLS1n
-aXQgYS9saWIvS2NvbmZpZy5kZWJ1ZyBiL2xpYi9LY29uZmlnLmRlYnVnDQo+IGluZGV4IDkwZWE3
-ODQuLmZlOGZjZWIgMTAwNjQ0DQo+IC0tLSBhL2xpYi9LY29uZmlnLmRlYnVnDQo+ICsrKyBiL2xp
-Yi9LY29uZmlnLmRlYnVnDQo+IEBAIC0xMTM4LDggKzExMzgsOCBAQCBjb25maWcgUFJPVkVfTE9D
-S0lORw0KPiAgCXNlbGVjdCBERUJVR19NVVRFWEVTDQo+ICAJc2VsZWN0IERFQlVHX1JUX01VVEVY
-RVMgaWYgUlRfTVVURVhFUw0KPiAgCXNlbGVjdCBERUJVR19MT0NLX0FMTE9DDQo+IC0Jc2VsZWN0
-IExPQ0tERVBfQ1JPU1NSRUxFQVNFIGlmIEJST0tFTg0KPiAtCXNlbGVjdCBMT0NLREVQX0NPTVBM
-RVRJT05TIGlmIEJST0tFTg0KPiArCXNlbGVjdCBMT0NLREVQX0NST1NTUkVMRUFTRQ0KPiArCXNl
-bGVjdCBMT0NLREVQX0NPTVBMRVRJT05TDQo+ICAJc2VsZWN0IFRSQUNFX0lSUUZMQUdTDQo+ICAJ
-ZGVmYXVsdCBuDQo+ICAJaGVscA0KDQpJIGRvIG5vdCBhZ3JlZSB3aXRoIHRoaXMgcGF0Y2guIEFs
-dGhvdWdoIHRoZSB0cmFkaXRpb25hbCBsb2NrIHZhbGlkYXRpb24NCmNvZGUgY2FuIGJlIHByb3Zl
-biBub3QgdG8gcHJvZHVjZSBmYWxzZSBwb3NpdGl2ZXMsIHRoYXQgaXMgbm90IHRoZSBjYXNlIGZv
-cg0KdGhlIGNyb3NzLXJlbGVhc2UgY2hlY2tzLiBUaGVzZSBjaGVja3MgYXJlIHByb25lIHRvIHBy
-b2R1Y2UgZmFsc2UgcG9zaXRpdmVzLg0KTWFueSBrZXJuZWwgZGV2ZWxvcGVycywgaW5jbHVkaW5n
-IG15c2VsZiwgYXJlIG5vdCBpbnRlcmVzdGVkIGluIHNwZW5kaW5nDQp0aW1lIG9uIGFuYWx5emlu
-ZyBmYWxzZSBwb3NpdGl2ZSBkZWFkbG9jayByZXBvcnRzLiBTbyBJIHRoaW5rIHRoYXQgaXQgaXMN
-Cndyb25nIHRvIGVuYWJsZSBjcm9zcy1yZWxlYXNlIGNoZWNraW5nIHVuY29uZGl0aW9uYWxseSBp
-ZiBQUk9WRV9MT0NLSU5HIGhhcw0KYmVlbiBlbmFibGVkLiBXaGF0IEkgdGhpbmsgdGhhdCBzaG91
-bGQgaGFwcGVuIGlzIHRoYXQgZWl0aGVyIHRoZSBjcm9zcy0NCnJlbGVhc2UgY2hlY2tpbmcgY29k
-ZSBpcyByZW1vdmVkIGZyb20gdGhlIGtlcm5lbCBvciB0aGF0DQpMT0NLREVQX0NST1NTUkVMRUFT
-RSBiZWNvbWVzIGEgbmV3IGtlcm5lbCBjb25maWd1cmF0aW9uIG9wdGlvbi4gVGhhdCB3aWxsDQpn
-aXZlIGtlcm5lbCBkZXZlbG9wZXJzIHdobyBjaG9vc2UgdG8gZW5hYmxlIFBST1ZFX0xPQ0tJTkcg
-dGhlIGZyZWVkb20gdG8NCmRlY2lkZSB3aGV0aGVyIG9yIG5vdCB0byBlbmFibGUgTE9DS0RFUF9D
-Uk9TU1JFTEVBU0UuDQoNCkJhcnQu
+Its already assumed that the PageActive flag is clear on the input
+page, hence page_lru(page) will pick the base LRU for the page. In
+the same way page_lru(page) will pick active base LRU, once the
+flag PageActive is set on the page. This change of LRU list should
+happen implicitly through the page flags instead of being hard
+coded.
+
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+---
+ mm/swap.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/mm/swap.c b/mm/swap.c
+index fcd82bc..494276b 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -275,12 +275,10 @@ static void __activate_page(struct page *page, struct lruvec *lruvec,
+ {
+ 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
+ 		int file = page_is_file_cache(page);
+-		int lru = page_lru_base_type(page);
+ 
+-		del_page_from_lru_list(page, lruvec, lru);
++		del_page_from_lru_list(page, lruvec, page_lru(page));
+ 		SetPageActive(page);
+-		lru += LRU_ACTIVE;
+-		add_page_to_lru_list(page, lruvec, lru);
++		add_page_to_lru_list(page, lruvec, page_lru(page));
+ 		trace_mm_lru_activate(page);
+ 
+ 		__count_vm_event(PGACTIVATE);
+-- 
+1.8.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
