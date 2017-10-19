@@ -1,166 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 482366B0033
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 04:20:48 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id i196so6249196pgd.2
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 01:20:48 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w6si8932371plz.428.2017.10.19.01.20.46
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C48E6B0033
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 04:33:25 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id m189so8087321qke.21
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 01:33:25 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id e8si6695953qtk.427.2017.10.19.01.33.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Oct 2017 01:20:47 -0700 (PDT)
-Date: Thu, 19 Oct 2017 10:20:41 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm: drop migrate type checks from has_unmovable_pages
-Message-ID: <20171019082041.5zudpqacaxjhe4gw@dhcp22.suse.cz>
-References: <20171013115835.zaehapuucuzl2vlv@dhcp22.suse.cz>
- <20171013120013.698-1-mhocko@kernel.org>
- <20171019025111.GA3852@js1304-P5Q-DELUXE>
- <20171019071503.e7w5fo35lsq6ca54@dhcp22.suse.cz>
- <20171019073355.GA4486@js1304-P5Q-DELUXE>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171019073355.GA4486@js1304-P5Q-DELUXE>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Oct 2017 01:33:24 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9J8T2lX013598
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 04:33:23 -0400
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2dppye4vpx-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 04:33:23 -0400
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 19 Oct 2017 09:33:20 +0100
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v9J8XGnZ21758000
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:33:18 GMT
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v9J8XAFe001848
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 19:33:10 +1100
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [RFC] mm/swap: Rename pagevec_lru_move_fn() as pagevec_lruvec_move_fn()
+Date: Thu, 19 Oct 2017 14:03:14 +0530
+Message-Id: <20171019083314.12614-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: linux-mm@kvack.org, Michael Ellerman <mpe@ellerman.id.au>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 19-10-17 16:33:56, Joonsoo Kim wrote:
-> On Thu, Oct 19, 2017 at 09:15:03AM +0200, Michal Hocko wrote:
-> > On Thu 19-10-17 11:51:11, Joonsoo Kim wrote:
-[...]
-> > > Hello,
-> > > 
-> > > This patch will break the CMA user. As you mentioned, CMA allocation
-> > > itself isn't migrateable. So, after a single page is allocated through
-> > > CMA allocation, has_unmovable_pages() will return true for this
-> > > pageblock. Then, futher CMA allocation request to this pageblock will
-> > > fail because it requires isolating the pageblock.
-> > 
-> > Hmm, does this mean that the CMA allocation path depends on
-> > has_unmovable_pages to return false here even though the memory is not
-> > movable? This sounds really strange to me and kind of abuse of this
-> 
-> Your understanding is correct. Perhaps, abuse or wrong function name.
->
-> > function. Which path is that? Can we do the migrate type test theres?
-> 
-> alloc_contig_range() -> start_isolate_page_range() ->
-> set_migratetype_isolate() -> has_unmovable_pages()
+The function pagevec_lru_move_fn() actually moves pages from various
+per cpu pagevecs into per node lruvecs with a custom function which
+knows how to handle individual pages present in any given pagevec.
+Because it does movement between pagevecs and lruvecs as whole not
+to an individual list element, the name should reflect it.
 
-I see. It seems that the CMA and memory hotplug have a very different
-view on what should happen during isolation.
- 
-> We can add one argument, 'XXX' to set_migratetype_isolate() and change
-> it to check migrate type rather than has_unmovable_pages() if 'XXX' is
-> specified.
-
-Can we use the migratetype argument and do the special thing for
-MIGRATE_CMA? Like the following diff?
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 ---
-diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-index d4cd2014fa6f..fa9db0c7b54e 100644
---- a/include/linux/page-isolation.h
-+++ b/include/linux/page-isolation.h
-@@ -30,7 +30,7 @@ static inline bool is_migrate_isolate(int migratetype)
- #endif
+ mm/swap.c | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/mm/swap.c b/mm/swap.c
+index a77d68f..fcd82bc 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -185,7 +185,7 @@ int get_kernel_page(unsigned long start, int write, struct page **pages)
+ }
+ EXPORT_SYMBOL_GPL(get_kernel_page);
  
- bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
--			 bool skip_hwpoisoned_pages);
-+			 int migratetype, bool skip_hwpoisoned_pages);
- void set_pageblock_migratetype(struct page *page, int migratetype);
- int move_freepages_block(struct zone *zone, struct page *page,
- 				int migratetype, int *num_movable);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index bc50d746a82f..ad2ea7069d14 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7362,6 +7362,7 @@ void *__init alloc_large_system_hash(const char *tablename,
-  * race condition. So you can't expect this function should be exact.
-  */
- bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
-+			 int migratetype,
- 			 bool skip_hwpoisoned_pages)
+-static void pagevec_lru_move_fn(struct pagevec *pvec,
++static void pagevec_lruvec_move_fn(struct pagevec *pvec,
+ 	void (*move_fn)(struct page *page, struct lruvec *lruvec, void *arg),
+ 	void *arg)
  {
- 	unsigned long pfn, iter, found;
-@@ -7373,6 +7374,15 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 	if (zone_idx(zone) == ZONE_MOVABLE)
- 		return false;
+@@ -235,7 +235,7 @@ static void pagevec_move_tail(struct pagevec *pvec)
+ {
+ 	int pgmoved = 0;
  
-+	/*
-+	 * CMA allocations (alloc_contig_range) really need to mark isolate
-+	 * CMA pageblocks even when they are not movable in fact so consider
-+	 * them movable here.
-+	 */
-+	if (is_migrate_cma(migratetype) &&
-+			is_migrate_cma(get_pageblock_migratetype(page)))
-+		return false;
-+
- 	pfn = page_to_pfn(page);
- 	for (found = 0, iter = 0; iter < pageblock_nr_pages; iter++) {
- 		unsigned long check = pfn + iter;
-@@ -7458,7 +7468,7 @@ bool is_pageblock_removable_nolock(struct page *page)
- 	if (!zone_spans_pfn(zone, pfn))
- 		return false;
- 
--	return !has_unmovable_pages(zone, page, 0, true);
-+	return !has_unmovable_pages(zone, page, 0, MIGRATE_MOVABLE, true);
+-	pagevec_lru_move_fn(pvec, pagevec_move_tail_fn, &pgmoved);
++	pagevec_lruvec_move_fn(pvec, pagevec_move_tail_fn, &pgmoved);
+ 	__count_vm_events(PGROTATED, pgmoved);
  }
  
- #if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA)
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 757410d9f758..8616f5332c77 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -14,7 +14,7 @@
- #define CREATE_TRACE_POINTS
- #include <trace/events/page_isolation.h>
+@@ -294,7 +294,7 @@ static void activate_page_drain(int cpu)
+ 	struct pagevec *pvec = &per_cpu(activate_page_pvecs, cpu);
  
--static int set_migratetype_isolate(struct page *page,
-+static int set_migratetype_isolate(struct page *page, int migratetype,
- 				bool skip_hwpoisoned_pages)
- {
- 	struct zone *zone;
-@@ -51,7 +51,7 @@ static int set_migratetype_isolate(struct page *page,
- 	 * FIXME: Now, memory hotplug doesn't call shrink_slab() by itself.
- 	 * We just check MOVABLE pages.
- 	 */
--	if (!has_unmovable_pages(zone, page, arg.pages_found,
-+	if (!has_unmovable_pages(zone, page, arg.pages_found, migratetype,
- 				 skip_hwpoisoned_pages))
- 		ret = 0;
+ 	if (pagevec_count(pvec))
+-		pagevec_lru_move_fn(pvec, __activate_page, NULL);
++		pagevec_lruvec_move_fn(pvec, __activate_page, NULL);
+ }
  
-@@ -63,14 +63,14 @@ static int set_migratetype_isolate(struct page *page,
- out:
- 	if (!ret) {
- 		unsigned long nr_pages;
--		int migratetype = get_pageblock_migratetype(page);
-+		int mt = get_pageblock_migratetype(page);
+ static bool need_activate_page_drain(int cpu)
+@@ -310,7 +310,7 @@ void activate_page(struct page *page)
  
- 		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
- 		zone->nr_isolate_pageblock++;
- 		nr_pages = move_freepages_block(zone, page, MIGRATE_ISOLATE,
- 									NULL);
- 
--		__mod_zone_freepage_state(zone, -nr_pages, migratetype);
-+		__mod_zone_freepage_state(zone, -nr_pages, mt);
+ 		get_page(page);
+ 		if (!pagevec_add(pvec, page) || PageCompound(page))
+-			pagevec_lru_move_fn(pvec, __activate_page, NULL);
++			pagevec_lruvec_move_fn(pvec, __activate_page, NULL);
+ 		put_cpu_var(activate_page_pvecs);
  	}
+ }
+@@ -620,11 +620,11 @@ void lru_add_drain_cpu(int cpu)
  
- 	spin_unlock_irqrestore(&zone->lock, flags);
-@@ -182,7 +182,7 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
- 	     pfn += pageblock_nr_pages) {
- 		page = __first_valid_page(pfn, pageblock_nr_pages);
- 		if (page &&
--		    set_migratetype_isolate(page, skip_hwpoisoned_pages)) {
-+		    set_migratetype_isolate(page, migratetype, skip_hwpoisoned_pages)) {
- 			undo_pfn = pfn;
- 			goto undo;
- 		}
+ 	pvec = &per_cpu(lru_deactivate_file_pvecs, cpu);
+ 	if (pagevec_count(pvec))
+-		pagevec_lru_move_fn(pvec, lru_deactivate_file_fn, NULL);
++		pagevec_lruvec_move_fn(pvec, lru_deactivate_file_fn, NULL);
+ 
+ 	pvec = &per_cpu(lru_lazyfree_pvecs, cpu);
+ 	if (pagevec_count(pvec))
+-		pagevec_lru_move_fn(pvec, lru_lazyfree_fn, NULL);
++		pagevec_lruvec_move_fn(pvec, lru_lazyfree_fn, NULL);
+ 
+ 	activate_page_drain(cpu);
+ }
+@@ -650,7 +650,8 @@ void deactivate_file_page(struct page *page)
+ 		struct pagevec *pvec = &get_cpu_var(lru_deactivate_file_pvecs);
+ 
+ 		if (!pagevec_add(pvec, page) || PageCompound(page))
+-			pagevec_lru_move_fn(pvec, lru_deactivate_file_fn, NULL);
++			pagevec_lruvec_move_fn(pvec,
++					lru_deactivate_file_fn, NULL);
+ 		put_cpu_var(lru_deactivate_file_pvecs);
+ 	}
+ }
+@@ -670,7 +671,7 @@ void mark_page_lazyfree(struct page *page)
+ 
+ 		get_page(page);
+ 		if (!pagevec_add(pvec, page) || PageCompound(page))
+-			pagevec_lru_move_fn(pvec, lru_lazyfree_fn, NULL);
++			pagevec_lruvec_move_fn(pvec, lru_lazyfree_fn, NULL);
+ 		put_cpu_var(lru_lazyfree_pvecs);
+ 	}
+ }
+@@ -901,7 +902,7 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
+  */
+ void __pagevec_lru_add(struct pagevec *pvec)
+ {
+-	pagevec_lru_move_fn(pvec, __pagevec_lru_add_fn, NULL);
++	pagevec_lruvec_move_fn(pvec, __pagevec_lru_add_fn, NULL);
+ }
+ EXPORT_SYMBOL(__pagevec_lru_add);
+ 
 -- 
-Michal Hocko
-SUSE Labs
+1.8.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
