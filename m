@@ -1,58 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B9AB16B0038
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 14:21:29 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id n82so8604110oig.22
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 11:21:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x12sor6099208otg.223.2017.10.19.11.21.27
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 49C306B0069
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 14:53:06 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id m189so9169265qke.21
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 11:53:06 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id b10si1486735qtc.127.2017.10.19.11.53.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 19 Oct 2017 11:21:27 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Oct 2017 11:53:05 -0700 (PDT)
+From: Roman Gushchin <guro@fb.com>
+Subject: [RESEND v12 1/6] mm, oom: refactor the oom_kill_process() function
+Date: Thu, 19 Oct 2017 19:52:13 +0100
+Message-ID: <20171019185218.12663-2-guro@fb.com>
+In-Reply-To: <20171019185218.12663-1-guro@fb.com>
+References: <20171019185218.12663-1-guro@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <20171019080149.GB10089@infradead.org>
-References: <20171012155027.3277-1-pagupta@redhat.com> <20171012155027.3277-3-pagupta@redhat.com>
- <20171017071633.GA9207@infradead.org> <1441791227.21027037.1508226056893.JavaMail.zimbra@redhat.com>
- <20171017080236.GA27649@infradead.org> <670833322.21037148.1508229041158.JavaMail.zimbra@redhat.com>
- <20171018130339.GB29767@stefanha-x1.localdomain> <CAPcyv4h6aFkyHhh4R4DTznbSCLf9CuBoszk0Q1gB5EKNcp_SeQ@mail.gmail.com>
- <20171019080149.GB10089@infradead.org>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 19 Oct 2017 11:21:26 -0700
-Message-ID: <CAPcyv4j=Cdp68C15HddKaErpve2UGRfSTiL6bHiS=3gQybz9pg@mail.gmail.com>
-Subject: Re: [Qemu-devel] [RFC 2/2] KVM: add virtio-pmem driver
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Stefan Hajnoczi <stefanha@gmail.com>, Pankaj Gupta <pagupta@redhat.com>, Kevin Wolf <kwolf@redhat.com>, haozhong zhang <haozhong.zhang@intel.com>, Jan Kara <jack@suse.cz>, xiaoguangrong eric <xiaoguangrong.eric@gmail.com>, KVM list <kvm@vger.kernel.org>, David Hildenbrand <david@redhat.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, ross zwisler <ross.zwisler@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Qemu Developers <qemu-devel@nongnu.org>, Linux MM <linux-mm@kvack.org>, Stefan Hajnoczi <stefanha@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Nitesh Narayan Lal <nilal@redhat.com>
+To: linux-mm@kvack.org
+Cc: Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Oct 19, 2017 at 1:01 AM, Christoph Hellwig <hch@infradead.org> wrote:
-> On Wed, Oct 18, 2017 at 08:51:37AM -0700, Dan Williams wrote:
->> This use case is not "Persistent Memory". Persistent Memory is
->> something you can map and make persistent with CPU instructions.
->> Anything that requires a driver call is device driver managed "Shared
->> Memory".
->
-> How is this any different than the existing nvdimm_flush()? If you
-> really care about the not driver thing it could easily be a write
-> to a doorbell page or a hypercall, but in the end that's just semantics.
+The oom_kill_process() function consists of two logical parts:
+the first one is responsible for considering task's children as
+a potential victim and printing the debug information.
+The second half is responsible for sending SIGKILL to all
+tasks sharing the mm struct with the given victim.
 
-The difference is that nvdimm_flush() is not mandatory, and that the
-platform will automatically perform the same flush at power-fail.
-Applications should be able to assume that if they are using MAP_SYNC
-that no other coordination with the kernel or the hypervisor is
-necessary.
+This commit splits the oom_kill_process() function with
+an intention to re-use the the second half: __oom_kill_process().
 
-Advertising this as a generic Persistent Memory range to the guest
-means that the guest could theoretically use it with device-dax where
-there is no driver or filesystem sync interface. The hypervisor will
-be waiting for flush notifications and the guest will just issue cache
-flushes and sfence instructions. So, as far as I can see we need to
-differentiate this virtio-model from standard "Persistent Memory" to
-the guest and remove the possibility of guests/applications making the
-wrong assumption.
+The cgroup-aware OOM killer will kill multiple tasks
+belonging to the victim cgroup. We don't need to print
+the debug information for the each task, as well as play
+with task selection (considering task's children),
+so we can't use the existing oom_kill_process().
 
-Non-ODP RDMA in a guest comes to mind...
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: David Rientjes <rientjes@google.com>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: kernel-team@fb.com
+Cc: cgroups@vger.kernel.org
+Cc: linux-doc@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+---
+ mm/oom_kill.c | 123 +++++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 65 insertions(+), 58 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 26add8a0d1f7..0b9f36117989 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -842,68 +842,12 @@ static bool task_will_free_mem(struct task_struct *task)
+ 	return ret;
+ }
+ 
+-static void oom_kill_process(struct oom_control *oc, const char *message)
++static void __oom_kill_process(struct task_struct *victim)
+ {
+-	struct task_struct *p = oc->chosen;
+-	unsigned int points = oc->chosen_points;
+-	struct task_struct *victim = p;
+-	struct task_struct *child;
+-	struct task_struct *t;
++	struct task_struct *p;
+ 	struct mm_struct *mm;
+-	unsigned int victim_points = 0;
+-	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+-					      DEFAULT_RATELIMIT_BURST);
+ 	bool can_oom_reap = true;
+ 
+-	/*
+-	 * If the task is already exiting, don't alarm the sysadmin or kill
+-	 * its children or threads, just give it access to memory reserves
+-	 * so it can die quickly
+-	 */
+-	task_lock(p);
+-	if (task_will_free_mem(p)) {
+-		mark_oom_victim(p);
+-		wake_oom_reaper(p);
+-		task_unlock(p);
+-		put_task_struct(p);
+-		return;
+-	}
+-	task_unlock(p);
+-
+-	if (__ratelimit(&oom_rs))
+-		dump_header(oc, p);
+-
+-	pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
+-		message, task_pid_nr(p), p->comm, points);
+-
+-	/*
+-	 * If any of p's children has a different mm and is eligible for kill,
+-	 * the one with the highest oom_badness() score is sacrificed for its
+-	 * parent.  This attempts to lose the minimal amount of work done while
+-	 * still freeing memory.
+-	 */
+-	read_lock(&tasklist_lock);
+-	for_each_thread(p, t) {
+-		list_for_each_entry(child, &t->children, sibling) {
+-			unsigned int child_points;
+-
+-			if (process_shares_mm(child, p->mm))
+-				continue;
+-			/*
+-			 * oom_badness() returns 0 if the thread is unkillable
+-			 */
+-			child_points = oom_badness(child,
+-				oc->memcg, oc->nodemask, oc->totalpages);
+-			if (child_points > victim_points) {
+-				put_task_struct(victim);
+-				victim = child;
+-				victim_points = child_points;
+-				get_task_struct(victim);
+-			}
+-		}
+-	}
+-	read_unlock(&tasklist_lock);
+-
+ 	p = find_lock_task_mm(victim);
+ 	if (!p) {
+ 		put_task_struct(victim);
+@@ -977,6 +921,69 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ }
+ #undef K
+ 
++static void oom_kill_process(struct oom_control *oc, const char *message)
++{
++	struct task_struct *p = oc->chosen;
++	unsigned int points = oc->chosen_points;
++	struct task_struct *victim = p;
++	struct task_struct *child;
++	struct task_struct *t;
++	unsigned int victim_points = 0;
++	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
++					      DEFAULT_RATELIMIT_BURST);
++
++	/*
++	 * If the task is already exiting, don't alarm the sysadmin or kill
++	 * its children or threads, just give it access to memory reserves
++	 * so it can die quickly
++	 */
++	task_lock(p);
++	if (task_will_free_mem(p)) {
++		mark_oom_victim(p);
++		wake_oom_reaper(p);
++		task_unlock(p);
++		put_task_struct(p);
++		return;
++	}
++	task_unlock(p);
++
++	if (__ratelimit(&oom_rs))
++		dump_header(oc, p);
++
++	pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
++		message, task_pid_nr(p), p->comm, points);
++
++	/*
++	 * If any of p's children has a different mm and is eligible for kill,
++	 * the one with the highest oom_badness() score is sacrificed for its
++	 * parent.  This attempts to lose the minimal amount of work done while
++	 * still freeing memory.
++	 */
++	read_lock(&tasklist_lock);
++	for_each_thread(p, t) {
++		list_for_each_entry(child, &t->children, sibling) {
++			unsigned int child_points;
++
++			if (process_shares_mm(child, p->mm))
++				continue;
++			/*
++			 * oom_badness() returns 0 if the thread is unkillable
++			 */
++			child_points = oom_badness(child,
++				oc->memcg, oc->nodemask, oc->totalpages);
++			if (child_points > victim_points) {
++				put_task_struct(victim);
++				victim = child;
++				victim_points = child_points;
++				get_task_struct(victim);
++			}
++		}
++	}
++	read_unlock(&tasklist_lock);
++
++	__oom_kill_process(victim);
++}
++
+ /*
+  * Determines whether the kernel must panic because of the panic_on_oom sysctl.
+  */
+-- 
+2.13.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
