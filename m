@@ -1,47 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 553536B0033
+	by kanga.kvack.org (Postfix) with ESMTP id 7FBBE6B0069
 	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 01:55:35 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id p87so4982825pfj.21
+Received: by mail-pf0-f198.google.com with SMTP id g75so5011385pfg.4
         for <linux-mm@kvack.org>; Wed, 18 Oct 2017 22:55:35 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id e7si2441047plk.63.2017.10.18.22.55.33
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id o6si9000039plh.437.2017.10.18.22.55.33
         for <linux-mm@kvack.org>;
-        Wed, 18 Oct 2017 22:55:33 -0700 (PDT)
+        Wed, 18 Oct 2017 22:55:34 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v2 2/3] lockdep: Remove BROKEN flag of LOCKDEP_CROSSRELEASE
-Date: Thu, 19 Oct 2017 14:55:30 +0900
-Message-Id: <1508392531-11284-3-git-send-email-byungchul.park@lge.com>
-In-Reply-To: <1508392531-11284-1-git-send-email-byungchul.park@lge.com>
-References: <1508392531-11284-1-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v2 0/3] crossrelease: make it not unwind by default
+Date: Thu, 19 Oct 2017 14:55:28 +0900
+Message-Id: <1508392531-11284-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@lge.com
 
-Now the performance regression was fixed, re-enable
-CONFIG_LOCKDEP_CROSSRELEASE and CONFIG_LOCKDEP_COMPLETIONS.
+Change from v1
+- Fix kconfig description as Ingo suggested
+- Fix commit message writing out CONFIG_ variable
+- Introduce a new kernel parameter, crossrelease_fullstack
+- Replace the number with the output of *perf*
 
-Signed-off-by: Byungchul Park <byungchul.park@lge.com>
----
- lib/Kconfig.debug | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+Byungchul Park (3):
+  lockdep: Introduce CROSSRELEASE_STACK_TRACE and make it not unwind as
+    default
+  lockdep: Remove BROKEN flag of LOCKDEP_CROSSRELEASE
+  lockdep: Add a kernel parameter, crossrelease_fullstack
 
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 90ea784..fe8fceb 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -1138,8 +1138,8 @@ config PROVE_LOCKING
- 	select DEBUG_MUTEXES
- 	select DEBUG_RT_MUTEXES if RT_MUTEXES
- 	select DEBUG_LOCK_ALLOC
--	select LOCKDEP_CROSSRELEASE if BROKEN
--	select LOCKDEP_COMPLETIONS if BROKEN
-+	select LOCKDEP_CROSSRELEASE
-+	select LOCKDEP_COMPLETIONS
- 	select TRACE_IRQFLAGS
- 	default n
- 	help
+ Documentation/admin-guide/kernel-parameters.txt |  3 +++
+ include/linux/lockdep.h                         |  4 ++++
+ kernel/locking/lockdep.c                        | 23 +++++++++++++++++++++--
+ lib/Kconfig.debug                               | 20 ++++++++++++++++++--
+ 4 files changed, 46 insertions(+), 4 deletions(-)
+
 -- 
 1.9.1
 
