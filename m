@@ -1,54 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 409FE6B025F
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:06:28 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id q18so3371994wmg.18
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 05:06:28 -0700 (PDT)
-Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id l4si3015376wre.58.2017.10.19.05.06.26
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FB3E6B0261
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:21:24 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id g10so2813578wrg.6
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 05:21:24 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u12si11632827wre.448.2017.10.19.05.21.22
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Oct 2017 05:06:27 -0700 (PDT)
-Date: Thu, 19 Oct 2017 13:05:55 +0100
-From: Russell King - ARM Linux <linux@armlinux.org.uk>
-Subject: Re: [PATCH 02/11] replace memory function
-Message-ID: <20171019120555.GU20805@n2100.armlinux.org.uk>
-References: <20171011082227.20546-1-liuwenliang@huawei.com>
- <20171011082227.20546-3-liuwenliang@huawei.com>
+        Thu, 19 Oct 2017 05:21:22 -0700 (PDT)
+Date: Thu, 19 Oct 2017 14:21:18 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm: drop migrate type checks from has_unmovable_pages
+Message-ID: <20171019122118.y6cndierwl2vnguj@dhcp22.suse.cz>
+References: <20171013115835.zaehapuucuzl2vlv@dhcp22.suse.cz>
+ <20171013120013.698-1-mhocko@kernel.org>
+ <20171019025111.GA3852@js1304-P5Q-DELUXE>
+ <20171019071503.e7w5fo35lsq6ca54@dhcp22.suse.cz>
+ <20171019073355.GA4486@js1304-P5Q-DELUXE>
+ <20171019082041.5zudpqacaxjhe4gw@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171011082227.20546-3-liuwenliang@huawei.com>
+In-Reply-To: <20171019082041.5zudpqacaxjhe4gw@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Abbott Liu <liuwenliang@huawei.com>
-Cc: aryabinin@virtuozzo.com, afzal.mohd.ma@gmail.com, f.fainelli@gmail.com, labbott@redhat.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, cdall@linaro.org, marc.zyngier@arm.com, catalin.marinas@arm.com, akpm@linux-foundation.org, mawilcox@microsoft.com, tglx@linutronix.de, thgarnie@google.com, keescook@chromium.org, arnd@arndb.de, vladimir.murzin@arm.com, tixy@linaro.org, ard.biesheuvel@linaro.org, robin.murphy@arm.com, mingo@kernel.org, grygorii.strashko@linaro.org, opendmb@gmail.com, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, zengweilin@huawei.com, linux-mm@kvack.org, dylix.dailei@huawei.com, glider@google.com, dvyukov@google.com, jiazhenghua@huawei.com, linux-arm-kernel@lists.infradead.org, heshaoliang@huawei.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: linux-mm@kvack.org, Michael Ellerman <mpe@ellerman.id.au>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Oct 11, 2017 at 04:22:18PM +0800, Abbott Liu wrote:
-> From: Andrey Ryabinin <a.ryabinin@samsung.com>
+On Thu 19-10-17 10:20:41, Michal Hocko wrote:
+> On Thu 19-10-17 16:33:56, Joonsoo Kim wrote:
+> > On Thu, Oct 19, 2017 at 09:15:03AM +0200, Michal Hocko wrote:
+> > > On Thu 19-10-17 11:51:11, Joonsoo Kim wrote:
+> [...]
+> > > > Hello,
+> > > > 
+> > > > This patch will break the CMA user. As you mentioned, CMA allocation
+> > > > itself isn't migrateable. So, after a single page is allocated through
+> > > > CMA allocation, has_unmovable_pages() will return true for this
+> > > > pageblock. Then, futher CMA allocation request to this pageblock will
+> > > > fail because it requires isolating the pageblock.
+> > > 
+> > > Hmm, does this mean that the CMA allocation path depends on
+> > > has_unmovable_pages to return false here even though the memory is not
+> > > movable? This sounds really strange to me and kind of abuse of this
+> > 
+> > Your understanding is correct. Perhaps, abuse or wrong function name.
+> >
+> > > function. Which path is that? Can we do the migrate type test theres?
+> > 
+> > alloc_contig_range() -> start_isolate_page_range() ->
+> > set_migratetype_isolate() -> has_unmovable_pages()
 > 
-> Functions like memset/memmove/memcpy do a lot of memory accesses.
-> If bad pointer passed to one of these function it is important
-> to catch this. Compiler's instrumentation cannot do this since
-> these functions are written in assembly.
+> I see. It seems that the CMA and memory hotplug have a very different
+> view on what should happen during isolation.
+>  
+> > We can add one argument, 'XXX' to set_migratetype_isolate() and change
+> > it to check migrate type rather than has_unmovable_pages() if 'XXX' is
+> > specified.
 > 
-> KASan replaces memory functions with manually instrumented variants.
-> Original functions declared as weak symbols so strong definitions
-> in mm/kasan/kasan.c could replace them. Original functions have aliases
-> with '__' prefix in name, so we could call non-instrumented variant
-> if needed.
+> Can we use the migratetype argument and do the special thing for
+> MIGRATE_CMA? Like the following diff?
 
-KASAN in the decompressor makes no sense, so I think you need to
-mark the decompressor compilation as such in this patch so it,
-as a whole, sees no change.
-
--- 
-RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
-FTTC broadband for 0.8mile line in suburbia: sync at 8.8Mbps down 630kbps up
-According to speedtest.net: 8.21Mbps down 510kbps up
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+And with the full changelog.
+---
