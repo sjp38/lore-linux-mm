@@ -1,433 +1,483 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2943F6B0253
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 06:53:14 -0400 (EDT)
-Received: by mail-ua0-f197.google.com with SMTP id 7so4428824uak.19
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 03:53:14 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s3sor5578847vkh.57.2017.10.19.03.53.12
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DCEB6B0033
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 07:10:16 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id u138so3389965wmu.19
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 04:10:16 -0700 (PDT)
+Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id p18si7009750wrh.310.2017.10.19.04.10.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 19 Oct 2017 03:53:12 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 19 Oct 2017 04:10:14 -0700 (PDT)
+Date: Thu, 19 Oct 2017 12:09:22 +0100
+From: Russell King - ARM Linux <linux@armlinux.org.uk>
+Subject: Re: [PATCH 01/11] Initialize the mapping of KASan shadow memory
+Message-ID: <20171019110921.GS20805@n2100.armlinux.org.uk>
+References: <20171011082227.20546-1-liuwenliang@huawei.com>
+ <20171011082227.20546-2-liuwenliang@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20171019032811.GC5246@redhat.com>
-References: <20171017031003.7481-1-jglisse@redhat.com> <20171017031003.7481-2-jglisse@redhat.com>
- <20171019140426.21f51957@MiWiFi-R3-srv> <20171019032811.GC5246@redhat.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Thu, 19 Oct 2017 21:53:11 +1100
-Message-ID: <CAKTCnz=5GL_Bbu=kqywgW98uxpvYqCo2+KyzzGb67BmnKju3bw@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm/mmu_notifier: avoid double notification when it is
- useless v2
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171011082227.20546-2-liuwenliang@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Nadav Amit <nadav.amit@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Joerg Roedel <jroedel@suse.de>, Suravee Suthikulpanit <suravee.suthikulpanit@amd.com>, David Woodhouse <dwmw2@infradead.org>, Alistair Popple <alistair@popple.id.au>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Donnellan <andrew.donnellan@au1.ibm.com>, iommu@lists.linux-foundation.org, "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, linux-next <linux-next@vger.kernel.org>
+To: Abbott Liu <liuwenliang@huawei.com>
+Cc: aryabinin@virtuozzo.com, afzal.mohd.ma@gmail.com, f.fainelli@gmail.com, labbott@redhat.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, cdall@linaro.org, marc.zyngier@arm.com, catalin.marinas@arm.com, akpm@linux-foundation.org, mawilcox@microsoft.com, tglx@linutronix.de, thgarnie@google.com, keescook@chromium.org, arnd@arndb.de, vladimir.murzin@arm.com, tixy@linaro.org, ard.biesheuvel@linaro.org, robin.murphy@arm.com, mingo@kernel.org, grygorii.strashko@linaro.org, glider@google.com, dvyukov@google.com, opendmb@gmail.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, jiazhenghua@huawei.com, dylix.dailei@huawei.com, zengweilin@huawei.com, heshaoliang@huawei.com
 
-On Thu, Oct 19, 2017 at 2:28 PM, Jerome Glisse <jglisse@redhat.com> wrote:
-> On Thu, Oct 19, 2017 at 02:04:26PM +1100, Balbir Singh wrote:
->> On Mon, 16 Oct 2017 23:10:02 -0400
->> jglisse@redhat.com wrote:
->>
->> > From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
->> >
->> > +           /*
->> > +            * No need to call mmu_notifier_invalidate_range() as we a=
-re
->> > +            * downgrading page table protection not changing it to po=
-int
->> > +            * to a new page.
->> > +            *
->> > +            * See Documentation/vm/mmu_notifier.txt
->> > +            */
->> >             if (pmdp) {
->> >  #ifdef CONFIG_FS_DAX_PMD
->> >                     pmd_t pmd;
->> > @@ -628,7 +635,6 @@ static void dax_mapping_entry_mkclean(struct addre=
-ss_space *mapping,
->> >                     pmd =3D pmd_wrprotect(pmd);
->> >                     pmd =3D pmd_mkclean(pmd);
->> >                     set_pmd_at(vma->vm_mm, address, pmdp, pmd);
->> > -                   mmu_notifier_invalidate_range(vma->vm_mm, start, e=
-nd);
->>
->> Could the secondary TLB still see the mapping as dirty and propagate the=
- dirty bit back?
->
-> I am assuming hardware does sane thing of setting the dirty bit only
-> when walking the CPU page table when device does a write fault ie
-> once the device get a write TLB entry the dirty is set by the IOMMU
-> when walking the page table before returning the lookup result to the
-> device and that it won't be set again latter (ie propagated back
-> latter).
->
+On Wed, Oct 11, 2017 at 04:22:17PM +0800, Abbott Liu wrote:
+> diff --git a/arch/arm/include/asm/pgalloc.h b/arch/arm/include/asm/pgalloc.h
+> index b2902a5..10cee6a 100644
+> --- a/arch/arm/include/asm/pgalloc.h
+> +++ b/arch/arm/include/asm/pgalloc.h
+> @@ -50,8 +50,11 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
+>   */
+>  #define pmd_alloc_one(mm,addr)		({ BUG(); ((pmd_t *)2); })
+>  #define pmd_free(mm, pmd)		do { } while (0)
+> +#ifndef CONFIG_KASAN
+>  #define pud_populate(mm,pmd,pte)	BUG()
+> -
+> +#else
+> +#define pud_populate(mm,pmd,pte)	do { } while (0)
+> +#endif
 
-The other possibility is that the hardware things the page is writable
-and already
-marked dirty. It allows writes and does not set the dirty bit?
+Please explain this change - we don't have a "pud" as far as the rest of
+the Linux MM layer is concerned, so why do we need it for kasan?
 
-> I should probably have spell that out and maybe some of the ATS/PASID
-> implementer did not do that.
->
->>
->> >  unlock_pmd:
->> >                     spin_unlock(ptl);
->> >  #endif
->> > @@ -643,7 +649,6 @@ static void dax_mapping_entry_mkclean(struct addre=
-ss_space *mapping,
->> >                     pte =3D pte_wrprotect(pte);
->> >                     pte =3D pte_mkclean(pte);
->> >                     set_pte_at(vma->vm_mm, address, ptep, pte);
->> > -                   mmu_notifier_invalidate_range(vma->vm_mm, start, e=
-nd);
->>
->> Ditto
->>
->> >  unlock_pte:
->> >                     pte_unmap_unlock(ptep, ptl);
->> >             }
->> > diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier=
-.h
->> > index 6866e8126982..49c925c96b8a 100644
->> > --- a/include/linux/mmu_notifier.h
->> > +++ b/include/linux/mmu_notifier.h
->> > @@ -155,7 +155,8 @@ struct mmu_notifier_ops {
->> >      * shared page-tables, it not necessary to implement the
->> >      * invalidate_range_start()/end() notifiers, as
->> >      * invalidate_range() alread catches the points in time when an
->> > -    * external TLB range needs to be flushed.
->> > +    * external TLB range needs to be flushed. For more in depth
->> > +    * discussion on this see Documentation/vm/mmu_notifier.txt
->> >      *
->> >      * The invalidate_range() function is called under the ptl
->> >      * spin-lock and not allowed to sleep.
->> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
->> > index c037d3d34950..ff5bc647b51d 100644
->> > --- a/mm/huge_memory.c
->> > +++ b/mm/huge_memory.c
->> > @@ -1186,8 +1186,15 @@ static int do_huge_pmd_wp_page_fallback(struct =
-vm_fault *vmf, pmd_t orig_pmd,
->> >             goto out_free_pages;
->> >     VM_BUG_ON_PAGE(!PageHead(page), page);
->> >
->> > +   /*
->> > +    * Leave pmd empty until pte is filled note we must notify here as
->> > +    * concurrent CPU thread might write to new page before the call t=
-o
->> > +    * mmu_notifier_invalidate_range_end() happens which can lead to a
->> > +    * device seeing memory write in different order than CPU.
->> > +    *
->> > +    * See Documentation/vm/mmu_notifier.txt
->> > +    */
->> >     pmdp_huge_clear_flush_notify(vma, haddr, vmf->pmd);
->> > -   /* leave pmd empty until pte is filled */
->> >
->> >     pgtable =3D pgtable_trans_huge_withdraw(vma->vm_mm, vmf->pmd);
->> >     pmd_populate(vma->vm_mm, &_pmd, pgtable);
->> > @@ -2026,8 +2033,15 @@ static void __split_huge_zero_page_pmd(struct v=
-m_area_struct *vma,
->> >     pmd_t _pmd;
->> >     int i;
->> >
->> > -   /* leave pmd empty until pte is filled */
->> > -   pmdp_huge_clear_flush_notify(vma, haddr, pmd);
->> > +   /*
->> > +    * Leave pmd empty until pte is filled note that it is fine to del=
-ay
->> > +    * notification until mmu_notifier_invalidate_range_end() as we ar=
-e
->> > +    * replacing a zero pmd write protected page with a zero pte write
->> > +    * protected page.
->> > +    *
->> > +    * See Documentation/vm/mmu_notifier.txt
->> > +    */
->> > +   pmdp_huge_clear_flush(vma, haddr, pmd);
->>
->> Shouldn't the secondary TLB know if the page size changed?
->
-> It should not matter, we are talking virtual to physical on behalf
-> of a device against a process address space. So the hardware should
-> not care about the page size.
->
+I suspect it comes from the way we wrap up the page tables - where ARM
+does it one way (because it has to) vs the subsequently merged method
+which is completely upside down to what ARMs doing, and therefore is
+totally incompatible and impossible to fit in with our way.
 
-Does that not indicate how much the device can access? Could it try
-to access more than what is mapped?
+> diff --git a/arch/arm/include/asm/proc-fns.h b/arch/arm/include/asm/proc-fns.h
+> index f2e1af4..6e26714 100644
+> --- a/arch/arm/include/asm/proc-fns.h
+> +++ b/arch/arm/include/asm/proc-fns.h
+> @@ -131,6 +131,15 @@ extern void cpu_resume(void);
+>  		pg &= ~(PTRS_PER_PGD*sizeof(pgd_t)-1);	\
+>  		(pgd_t *)phys_to_virt(pg);		\
+>  	})
+> +
+> +#define cpu_set_ttbr0(val)					\
+> +	do {							\
+> +		u64 ttbr = val;					\
+> +		__asm__("mcrr	p15, 0, %Q0, %R0, c2"		\
+> +			: : "r" (ttbr));	\
+> +	} while (0)
+> +
+> +
+>  #else
+>  #define cpu_get_pgd()	\
+>  	({						\
+> @@ -140,6 +149,30 @@ extern void cpu_resume(void);
+>  		pg &= ~0x3fff;				\
+>  		(pgd_t *)phys_to_virt(pg);		\
+>  	})
+> +
+> +#define cpu_set_ttbr(nr, val)					\
+> +	do {							\
+> +		u64 ttbr = val;					\
+> +		__asm__("mcr	p15, 0, %0, c2, c0, 0"		\
+> +			: : "r" (ttbr));			\
+> +	} while (0)
+> +
+> +#define cpu_get_ttbr(nr)					\
+> +	({							\
+> +		unsigned long ttbr;				\
+> +		__asm__("mrc	p15, 0, %0, c2, c0, 0"		\
+> +			: "=r" (ttbr));				\
+> +		ttbr;						\
+> +	})
+> +
+> +#define cpu_set_ttbr0(val)					\
+> +	do {							\
+> +		u64 ttbr = val;					\
+> +		__asm__("mcr	p15, 0, %0, c2, c0, 0"		\
+> +			: : "r" (ttbr));			\
+> +	} while (0)
+> +
+> +
+>  #endif
+>  
+>  #else	/*!CONFIG_MMU */
+> diff --git a/arch/arm/include/asm/thread_info.h b/arch/arm/include/asm/thread_info.h
+> index 1d468b5..52c4858 100644
+> --- a/arch/arm/include/asm/thread_info.h
+> +++ b/arch/arm/include/asm/thread_info.h
+> @@ -16,7 +16,11 @@
+>  #include <asm/fpstate.h>
+>  #include <asm/page.h>
+>  
+> +#ifdef CONFIG_KASAN
+> +#define THREAD_SIZE_ORDER       2
+> +#else
+>  #define THREAD_SIZE_ORDER	1
+> +#endif
+>  #define THREAD_SIZE		(PAGE_SIZE << THREAD_SIZE_ORDER)
+>  #define THREAD_START_SP		(THREAD_SIZE - 8)
+>  
+> diff --git a/arch/arm/kernel/head-common.S b/arch/arm/kernel/head-common.S
+> index 8733012..c17f4a2 100644
+> --- a/arch/arm/kernel/head-common.S
+> +++ b/arch/arm/kernel/head-common.S
+> @@ -101,7 +101,11 @@ __mmap_switched:
+>  	str	r2, [r6]			@ Save atags pointer
+>  	cmp	r7, #0
+>  	strne	r0, [r7]			@ Save control register values
+> +#ifdef CONFIG_KASAN
+> +	b	kasan_early_init
+> +#else
+>  	b	start_kernel
+> +#endif
+>  ENDPROC(__mmap_switched)
+>  
+>  	.align	2
+> diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
+> index 8e9a3e4..985d9a3 100644
+> --- a/arch/arm/kernel/setup.c
+> +++ b/arch/arm/kernel/setup.c
+> @@ -62,6 +62,7 @@
+>  #include <asm/unwind.h>
+>  #include <asm/memblock.h>
+>  #include <asm/virt.h>
+> +#include <asm/kasan.h>
+>  
+>  #include "atags.h"
+>  
+> @@ -1108,6 +1109,7 @@ void __init setup_arch(char **cmdline_p)
+>  	early_ioremap_reset();
+>  
+>  	paging_init(mdesc);
+> +	kasan_init();
+>  	request_standard_resources(mdesc);
+>  
+>  	if (mdesc->restart)
+> diff --git a/arch/arm/mm/Makefile b/arch/arm/mm/Makefile
+> index 950d19b..498c316 100644
+> --- a/arch/arm/mm/Makefile
+> +++ b/arch/arm/mm/Makefile
+> @@ -106,4 +106,9 @@ obj-$(CONFIG_CACHE_L2X0)	+= cache-l2x0.o l2c-l2x0-resume.o
+>  obj-$(CONFIG_CACHE_L2X0_PMU)	+= cache-l2x0-pmu.o
+>  obj-$(CONFIG_CACHE_XSC3L2)	+= cache-xsc3l2.o
+>  obj-$(CONFIG_CACHE_TAUROS2)	+= cache-tauros2.o
+> +
+> +KASAN_SANITIZE_kasan_init.o    := n
+> +obj-$(CONFIG_KASAN)            += kasan_init.o
 
-> Moreover if any of the new 512 (assuming 2MB huge and 4K pages) zero
-> 4K pages is replace by something new then a device TLB shootdown will
-> happen before the new page is set.
->
-> Only issue i can think of is if the IOMMU TLB (if there is one) or
-> the device TLB (you do expect that there is one) does not invalidate
-> TLB entry if the TLB shootdown is smaller than the TLB entry. That
-> would be idiotic but yes i know hardware bug.
->
->
->>
->> >
->> >     pgtable =3D pgtable_trans_huge_withdraw(mm, pmd);
->> >     pmd_populate(mm, &_pmd, pgtable);
->> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> > index 1768efa4c501..63a63f1b536c 100644
->> > --- a/mm/hugetlb.c
->> > +++ b/mm/hugetlb.c
->> > @@ -3254,9 +3254,14 @@ int copy_hugetlb_page_range(struct mm_struct *d=
-st, struct mm_struct *src,
->> >                     set_huge_swap_pte_at(dst, addr, dst_pte, entry, sz=
-);
->> >             } else {
->> >                     if (cow) {
->> > +                           /*
->> > +                            * No need to notify as we are downgrading=
- page
->> > +                            * table protection not changing it to poi=
-nt
->> > +                            * to a new page.
->> > +                            *
->> > +                            * See Documentation/vm/mmu_notifier.txt
->> > +                            */
->> >                             huge_ptep_set_wrprotect(src, addr, src_pte=
-);
->>
->> OK.. so we could get write faults on write accesses from the device.
->>
->> > -                           mmu_notifier_invalidate_range(src, mmun_st=
-art,
->> > -                                                              mmun_en=
-d);
->> >                     }
->> >                     entry =3D huge_ptep_get(src_pte);
->> >                     ptepage =3D pte_page(entry);
->> > @@ -4288,7 +4293,12 @@ unsigned long hugetlb_change_protection(struct =
-vm_area_struct *vma,
->> >      * and that page table be reused and filled with junk.
->> >      */
->> >     flush_hugetlb_tlb_range(vma, start, end);
->> > -   mmu_notifier_invalidate_range(mm, start, end);
->> > +   /*
->> > +    * No need to call mmu_notifier_invalidate_range() we are downgrad=
-ing
->> > +    * page table protection not changing it to point to a new page.
->> > +    *
->> > +    * See Documentation/vm/mmu_notifier.txt
->> > +    */
->> >     i_mmap_unlock_write(vma->vm_file->f_mapping);
->> >     mmu_notifier_invalidate_range_end(mm, start, end);
->> >
->> > diff --git a/mm/ksm.c b/mm/ksm.c
->> > index 6cb60f46cce5..be8f4576f842 100644
->> > --- a/mm/ksm.c
->> > +++ b/mm/ksm.c
->> > @@ -1052,8 +1052,13 @@ static int write_protect_page(struct vm_area_st=
-ruct *vma, struct page *page,
->> >              * So we clear the pte and flush the tlb before the check
->> >              * this assure us that no O_DIRECT can happen after the ch=
-eck
->> >              * or in the middle of the check.
->> > +            *
->> > +            * No need to notify as we are downgrading page table to r=
-ead
->> > +            * only not changing it to point to a new page.
->> > +            *
->> > +            * See Documentation/vm/mmu_notifier.txt
->> >              */
->> > -           entry =3D ptep_clear_flush_notify(vma, pvmw.address, pvmw.=
-pte);
->> > +           entry =3D ptep_clear_flush(vma, pvmw.address, pvmw.pte);
->> >             /*
->> >              * Check that no O_DIRECT or similar I/O is in progress on=
- the
->> >              * page
->> > @@ -1136,7 +1141,13 @@ static int replace_page(struct vm_area_struct *=
-vma, struct page *page,
->> >     }
->> >
->> >     flush_cache_page(vma, addr, pte_pfn(*ptep));
->> > -   ptep_clear_flush_notify(vma, addr, ptep);
->> > +   /*
->> > +    * No need to notify as we are replacing a read only page with ano=
-ther
->> > +    * read only page with the same content.
->> > +    *
->> > +    * See Documentation/vm/mmu_notifier.txt
->> > +    */
->> > +   ptep_clear_flush(vma, addr, ptep);
->> >     set_pte_at_notify(mm, addr, ptep, newpte);
->> >
->> >     page_remove_rmap(page, false);
->> > diff --git a/mm/rmap.c b/mm/rmap.c
->> > index 061826278520..6b5a0f219ac0 100644
->> > --- a/mm/rmap.c
->> > +++ b/mm/rmap.c
->> > @@ -937,10 +937,15 @@ static bool page_mkclean_one(struct page *page, =
-struct vm_area_struct *vma,
->> >  #endif
->> >             }
->> >
->> > -           if (ret) {
->> > -                   mmu_notifier_invalidate_range(vma->vm_mm, cstart, =
-cend);
->> > +           /*
->> > +            * No need to call mmu_notifier_invalidate_range() as we a=
-re
->> > +            * downgrading page table protection not changing it to po=
-int
->> > +            * to a new page.
->> > +            *
->> > +            * See Documentation/vm/mmu_notifier.txt
->> > +            */
->> > +           if (ret)
->> >                     (*cleaned)++;
->> > -           }
->> >     }
->> >
->> >     mmu_notifier_invalidate_range_end(vma->vm_mm, start, end);
->> > @@ -1424,6 +1429,10 @@ static bool try_to_unmap_one(struct page *page,=
- struct vm_area_struct *vma,
->> >                     if (pte_soft_dirty(pteval))
->> >                             swp_pte =3D pte_swp_mksoft_dirty(swp_pte);
->> >                     set_pte_at(mm, pvmw.address, pvmw.pte, swp_pte);
->> > +                   /*
->> > +                    * No need to invalidate here it will synchronize =
-on
->> > +                    * against the special swap migration pte.
->> > +                    */
->> >                     goto discard;
->> >             }
->> >
->> > @@ -1481,6 +1490,9 @@ static bool try_to_unmap_one(struct page *page, =
-struct vm_area_struct *vma,
->> >                      * will take care of the rest.
->> >                      */
->> >                     dec_mm_counter(mm, mm_counter(page));
->> > +                   /* We have to invalidate as we cleared the pte */
->> > +                   mmu_notifier_invalidate_range(mm, address,
->> > +                                                 address + PAGE_SIZE)=
-;
->> >             } else if (IS_ENABLED(CONFIG_MIGRATION) &&
->> >                             (flags & (TTU_MIGRATION|TTU_SPLIT_FREEZE))=
-) {
->> >                     swp_entry_t entry;
->> > @@ -1496,6 +1508,10 @@ static bool try_to_unmap_one(struct page *page,=
- struct vm_area_struct *vma,
->> >                     if (pte_soft_dirty(pteval))
->> >                             swp_pte =3D pte_swp_mksoft_dirty(swp_pte);
->> >                     set_pte_at(mm, address, pvmw.pte, swp_pte);
->> > +                   /*
->> > +                    * No need to invalidate here it will synchronize =
-on
->> > +                    * against the special swap migration pte.
->> > +                    */
->> >             } else if (PageAnon(page)) {
->> >                     swp_entry_t entry =3D { .val =3D page_private(subp=
-age) };
->> >                     pte_t swp_pte;
->> > @@ -1507,6 +1523,8 @@ static bool try_to_unmap_one(struct page *page, =
-struct vm_area_struct *vma,
->> >                             WARN_ON_ONCE(1);
->> >                             ret =3D false;
->> >                             /* We have to invalidate as we cleared the=
- pte */
->> > +                           mmu_notifier_invalidate_range(mm, address,
->> > +                                                   address + PAGE_SIZ=
-E);
->> >                             page_vma_mapped_walk_done(&pvmw);
->> >                             break;
->> >                     }
->> > @@ -1514,6 +1532,9 @@ static bool try_to_unmap_one(struct page *page, =
-struct vm_area_struct *vma,
->> >                     /* MADV_FREE page check */
->> >                     if (!PageSwapBacked(page)) {
->> >                             if (!PageDirty(page)) {
->> > +                                   /* Invalidate as we cleared the pt=
-e */
->> > +                                   mmu_notifier_invalidate_range(mm,
->> > +                                           address, address + PAGE_SI=
-ZE);
->> >                                     dec_mm_counter(mm, MM_ANONPAGES);
->> >                                     goto discard;
->> >                             }
->> > @@ -1547,13 +1568,39 @@ static bool try_to_unmap_one(struct page *page=
-, struct vm_area_struct *vma,
->> >                     if (pte_soft_dirty(pteval))
->> >                             swp_pte =3D pte_swp_mksoft_dirty(swp_pte);
->> >                     set_pte_at(mm, address, pvmw.pte, swp_pte);
->> > -           } else
->> > +                   /* Invalidate as we cleared the pte */
->> > +                   mmu_notifier_invalidate_range(mm, address,
->> > +                                                 address + PAGE_SIZE)=
-;
->> > +           } else {
->> > +                   /*
->> > +                    * We should not need to notify here as we reach t=
-his
->> > +                    * case only from freeze_page() itself only call f=
-rom
->> > +                    * split_huge_page_to_list() so everything below m=
-ust
->> > +                    * be true:
->> > +                    *   - page is not anonymous
->> > +                    *   - page is locked
->> > +                    *
->> > +                    * So as it is a locked file back page thus it can=
- not
->> > +                    * be remove from the page cache and replace by a =
-new
->> > +                    * page before mmu_notifier_invalidate_range_end s=
-o no
->> > +                    * concurrent thread might update its page table t=
-o
->> > +                    * point at new page while a device still is using=
- this
->> > +                    * page.
->> > +                    *
->> > +                    * See Documentation/vm/mmu_notifier.txt
->> > +                    */
->> >                     dec_mm_counter(mm, mm_counter_file(page));
->> > +           }
->> >  discard:
->> > +           /*
->> > +            * No need to call mmu_notifier_invalidate_range() it has =
-be
->> > +            * done above for all cases requiring it to happen under p=
-age
->> > +            * table lock before mmu_notifier_invalidate_range_end()
->> > +            *
->> > +            * See Documentation/vm/mmu_notifier.txt
->> > +            */
->> >             page_remove_rmap(subpage, PageHuge(page));
->> >             put_page(page);
->> > -           mmu_notifier_invalidate_range(mm, address,
->> > -                                         address + PAGE_SIZE);
->> >     }
->> >
->> >     mmu_notifier_invalidate_range_end(vma->vm_mm, start, end);
->>
->> Looking at the patchset, I understand the efficiency, but I am concerned
->> with correctness.
->
-> I am fine in holding this off from reaching Linus but only way to flush t=
-his
-> issues out if any is to have this patch in linux-next or somewhere were t=
-hey
-> get a chance of being tested.
->
+Why is this placed in the middle of the cache object listing?
 
-Yep, I would like to see some additional testing around npu and get Alistai=
-r
-Popple to comment as well
+> +
+> +
+>  obj-$(CONFIG_CACHE_UNIPHIER)	+= cache-uniphier.o
+> diff --git a/arch/arm/mm/kasan_init.c b/arch/arm/mm/kasan_init.c
+> new file mode 100644
+> index 0000000..2bf0782
+> --- /dev/null
+> +++ b/arch/arm/mm/kasan_init.c
+> @@ -0,0 +1,257 @@
+> +#include <linux/bootmem.h>
+> +#include <linux/kasan.h>
+> +#include <linux/kernel.h>
+> +#include <linux/memblock.h>
+> +#include <linux/start_kernel.h>
+> +
+> +#include <asm/cputype.h>
+> +#include <asm/highmem.h>
+> +#include <asm/mach/map.h>
+> +#include <asm/memory.h>
+> +#include <asm/page.h>
+> +#include <asm/pgalloc.h>
+> +#include <asm/pgtable.h>
+> +#include <asm/procinfo.h>
+> +#include <asm/proc-fns.h>
+> +#include <asm/tlbflush.h>
+> +#include <asm/cp15.h>
+> +#include <linux/sched/task.h>
+> +
+> +#include "mm.h"
+> +
+> +static pgd_t tmp_page_table[PTRS_PER_PGD] __initdata __aligned(1ULL << 14);
+> +
+> +pmd_t tmp_pmd_table[PTRS_PER_PMD] __page_aligned_bss;
+> +
+> +static __init void *kasan_alloc_block(size_t size, int node)
+> +{
+> +	return memblock_virt_alloc_try_nid(size, size, __pa(MAX_DMA_ADDRESS),
+> +					BOOTMEM_ALLOC_ACCESSIBLE, node);
+> +}
+> +
+> +static void __init kasan_early_pmd_populate(unsigned long start, unsigned long end, pud_t *pud)
+> +{
+> +	unsigned long addr;
+> +	unsigned long next;
+> +	pmd_t *pmd;
+> +
+> +	pmd = pmd_offset(pud, start);
+> +	for (addr = start; addr < end;) {
+> +		pmd_populate_kernel(&init_mm, pmd, kasan_zero_pte);
+> +		next = pmd_addr_end(addr, end);
+> +		addr = next;
+> +		flush_pmd_entry(pmd);
+> +		pmd++;
+> +	}
+> +}
+> +
+> +static void __init kasan_early_pud_populate(unsigned long start, unsigned long end, pgd_t *pgd)
+> +{
+> +	unsigned long addr;
+> +	unsigned long next;
+> +	pud_t *pud;
+> +
+> +	pud = pud_offset(pgd, start);
+> +	for (addr = start; addr < end;) {
+> +		next = pud_addr_end(addr, end);
+> +		kasan_early_pmd_populate(addr, next, pud);
+> +		addr = next;
+> +		pud++;
+> +	}
+> +}
+> +
+> +void __init kasan_map_early_shadow(pgd_t *pgdp)
+> +{
+> +	int i;
+> +	unsigned long start = KASAN_SHADOW_START;
+> +	unsigned long end = KASAN_SHADOW_END;
+> +	unsigned long addr;
+> +	unsigned long next;
+> +	pgd_t *pgd;
+> +
+> +	for (i = 0; i < PTRS_PER_PTE; i++)
+> +		set_pte_at(&init_mm, KASAN_SHADOW_START + i*PAGE_SIZE,
+> +			&kasan_zero_pte[i], pfn_pte(
+> +				virt_to_pfn(kasan_zero_page),
+> +				__pgprot(_L_PTE_DEFAULT | L_PTE_DIRTY | L_PTE_XN)));
+> +
+> +	pgd = pgd_offset_k(start);
+> +	for (addr = start; addr < end;) {
+> +		next = pgd_addr_end(addr, end);
+> +		kasan_early_pud_populate(addr, next, pgd);
+> +		addr = next;
+> +		pgd++;
+> +	}
+> +}
+> +
+> +extern struct proc_info_list *lookup_processor_type(unsigned int);
+> +
+> +void __init kasan_early_init(void)
+> +{
+> +	struct proc_info_list *list;
+> +
+> +	/*
+> +	 * locate processor in the list of supported processor
+> +	 * types.  The linker builds this table for us from the
+> +	 * entries in arch/arm/mm/proc-*.S
+> +	 */
+> +	list = lookup_processor_type(read_cpuid_id());
+> +	if (list) {
+> +#ifdef MULTI_CPU
+> +		processor = *list->proc;
+> +#endif
+> +	}
+> +
+> +	BUILD_BUG_ON(KASAN_SHADOW_OFFSET != KASAN_SHADOW_END - (1UL << 29));
+> +
+> +
+> +	kasan_map_early_shadow(swapper_pg_dir);
+> +	start_kernel();
+> +}
+> +
+> +static void __init clear_pgds(unsigned long start,
+> +			unsigned long end)
+> +{
+> +	for (; start && start < end; start += PMD_SIZE)
+> +		pmd_clear(pmd_off_k(start));
+> +}
+> +
+> +pte_t * __meminit kasan_pte_populate(pmd_t *pmd, unsigned long addr, int node)
+> +{
+> +	pte_t *pte = pte_offset_kernel(pmd, addr);
+> +	if (pte_none(*pte)) {
+> +		pte_t entry;
+> +		void *p = kasan_alloc_block(PAGE_SIZE, node);
+> +		if (!p)
+> +			return NULL;
+> +		entry = pfn_pte(virt_to_pfn(p), __pgprot(_L_PTE_DEFAULT | L_PTE_DIRTY | L_PTE_XN));
+> +		set_pte_at(&init_mm, addr, pte, entry);
+> +	}
+> +	return pte;
+> +}
+> +
+> +pmd_t * __meminit kasan_pmd_populate(pud_t *pud, unsigned long addr, int node)
+> +{
+> +	pmd_t *pmd = pmd_offset(pud, addr);
+> +	if (pmd_none(*pmd)) {
+> +		void *p = kasan_alloc_block(PAGE_SIZE, node);
+> +		if (!p)
+> +			return NULL;
+> +		pmd_populate_kernel(&init_mm, pmd, p);
+> +	}
+> +	return pmd;
+> +}
+> +
+> +pud_t * __meminit kasan_pud_populate(pgd_t *pgd, unsigned long addr, int node)
+> +{
+> +	pud_t *pud = pud_offset(pgd, addr);
+> +	if (pud_none(*pud)) {
+> +		void *p = kasan_alloc_block(PAGE_SIZE, node);
+> +		if (!p)
+> +			return NULL;
+> +		pr_err("populating pud addr %lx\n", addr);
+> +		pud_populate(&init_mm, pud, p);
+> +	}
+> +	return pud;
+> +}
+> +
+> +pgd_t * __meminit kasan_pgd_populate(unsigned long addr, int node)
+> +{
+> +	pgd_t *pgd = pgd_offset_k(addr);
+> +	if (pgd_none(*pgd)) {
+> +		void *p = kasan_alloc_block(PAGE_SIZE, node);
+> +		if (!p)
+> +			return NULL;
+> +		pgd_populate(&init_mm, pgd, p);
+> +	}
+> +	return pgd;
+> +}
 
-> Note that the second patch is always safe. I agree that this one might
-> not be if hardware implementation is idiotic (well that would be my
-> opinion and any opinion/point of view can be challenge :))
+This all looks wrong - you are aware that on non-LPAE platforms, there
+is only a _two_ level page table - the top level page table is 16K in
+size, and each _individual_ lower level page table is actually 1024
+bytes, but we do some special handling in the kernel to combine two
+together.  It looks to me that you allocate memory for each Linux-
+abstracted page table level whether the hardware needs it or not.
 
+Is there any reason why the pre-existing "create_mapping()" function
+can't be used, and you've had to rewrite that code here?
 
-You mean the only_end variant that avoids shootdown after pmd/pte changes
-that avoid the _start/_end and have just the only_end variant? That seemed
-reasonable to me, but I've not tested it or evaluated it in depth
+> +
+> +static int __init create_mapping(unsigned long start, unsigned long end, int node)
+> +{
+> +	unsigned long addr = start;
+> +	pgd_t *pgd;
+> +	pud_t *pud;
+> +	pmd_t *pmd;
+> +	pte_t *pte;
 
-Balbir Singh.
+A blank line would help between the auto variables and the code of the
+function.
+
+> +	pr_info("populating shadow for %lx, %lx\n", start, end);
+
+Blank line here too please.
+
+> +	for (; addr < end; addr += PAGE_SIZE) {
+> +		pgd = kasan_pgd_populate(addr, node);
+> +		if (!pgd)
+> +			return -ENOMEM;
+> +
+> +		pud = kasan_pud_populate(pgd, addr, node);
+> +		if (!pud)
+> +			return -ENOMEM;
+> +
+> +		pmd = kasan_pmd_populate(pud, addr, node);
+> +		if (!pmd)
+> +			return -ENOMEM;
+> +
+> +		pte = kasan_pte_populate(pmd, addr, node);
+> +		if (!pte)
+> +			return -ENOMEM;
+> +	}
+> +	return 0;
+> +}
+> +
+> +
+> +void __init kasan_init(void)
+> +{
+> +	struct memblock_region *reg;
+> +	u64 orig_ttbr0;
+> +
+> +	orig_ttbr0 = cpu_get_ttbr(0);
+> +
+> +#ifdef CONFIG_ARM_LPAE
+> +	memcpy(tmp_pmd_table, pgd_page_vaddr(*pgd_offset_k(KASAN_SHADOW_START)), sizeof(tmp_pmd_table));
+> +	memcpy(tmp_page_table, swapper_pg_dir, sizeof(tmp_page_table));
+> +	set_pgd(&tmp_page_table[pgd_index(KASAN_SHADOW_START)], __pgd(__pa(tmp_pmd_table) | PMD_TYPE_TABLE | L_PGD_SWAPPER));
+> +	cpu_set_ttbr0(__pa(tmp_page_table));
+> +#else
+> +	memcpy(tmp_page_table, swapper_pg_dir, sizeof(tmp_page_table));
+> +	cpu_set_ttbr0(__pa(tmp_page_table));
+> +#endif
+> +	flush_cache_all();
+> +	local_flush_bp_all();
+> +	local_flush_tlb_all();
+
+What are you trying to achieve with all this complexity?  Some comments
+might be useful, especially for those of us who don't know the internals
+of kasan.
+
+> +
+> +	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
+> +
+> +	kasan_populate_zero_shadow(
+> +		kasan_mem_to_shadow((void *)KASAN_SHADOW_START),
+> +		kasan_mem_to_shadow((void *)KASAN_SHADOW_END));
+> +
+> +	kasan_populate_zero_shadow(kasan_mem_to_shadow((void *)VMALLOC_START),
+> +				kasan_mem_to_shadow((void *)-1UL) + 1);
+> +
+> +	for_each_memblock(memory, reg) {
+> +		void *start = __va(reg->base);
+> +		void *end = __va(reg->base + reg->size);
+
+Isn't this going to complain if the translation macro debugging is enabled?
+
+> +
+> +		if (reg->base + reg->size > arm_lowmem_limit)
+> +			end = __va(arm_lowmem_limit);
+> +		if (start >= end)
+> +			break;
+> +
+> +		create_mapping((unsigned long)kasan_mem_to_shadow(start),
+> +			(unsigned long)kasan_mem_to_shadow(end),
+> +			NUMA_NO_NODE);
+> +	}
+> +
+> +	/*1.the module's global variable is in MODULES_VADDR ~ MODULES_END,so we need mapping.
+> +	  *2.PKMAP_BASE ~ PKMAP_BASE+PMD_SIZE's shadow and MODULES_VADDR ~ MODULES_END's shadow
+> +	  *  is in the same PMD_SIZE, so we cant use kasan_populate_zero_shadow.
+> +	  *
+> +	  **/
+> +	create_mapping((unsigned long)kasan_mem_to_shadow((void *)MODULES_VADDR),
+> +		(unsigned long)kasan_mem_to_shadow((void *)(PKMAP_BASE+PMD_SIZE)),
+> +		NUMA_NO_NODE);
+> +	cpu_set_ttbr0(orig_ttbr0);
+> +	flush_cache_all();
+> +	local_flush_bp_all();
+> +	local_flush_tlb_all();
+> +	memset(kasan_zero_page, 0, PAGE_SIZE);
+> +	pr_info("Kernel address sanitizer initialized\n");
+> +	init_task.kasan_depth = 0;
+> +}
+> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+> index 6f319fb..12749da 100644
+> --- a/mm/kasan/kasan.c
+> +++ b/mm/kasan/kasan.c
+> @@ -358,7 +358,7 @@ void kasan_cache_create(struct kmem_cache *cache, size_t *size,
+>  	if (redzone_adjust > 0)
+>  		*size += redzone_adjust;
+>  
+> -	*size = min(KMALLOC_MAX_SIZE, max(*size, cache->object_size +
+> +	*size = min((size_t)KMALLOC_MAX_SIZE, max(*size, cache->object_size +
+>  					optimal_redzone(cache->object_size)));
+>  
+>  	/*
+> -- 
+> 2.9.0
+> 
+
+-- 
+RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
+FTTC broadband for 0.8mile line in suburbia: sync at 8.8Mbps down 630kbps up
+According to speedtest.net: 8.21Mbps down 510kbps up
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
