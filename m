@@ -1,61 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D055F6B0038
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 19:37:43 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id t101so9350081ioe.0
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 16:37:43 -0700 (PDT)
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A27456B0038
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 19:52:14 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id l196so9057084itl.15
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 16:52:14 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w11si12610906ioi.258.2017.10.19.16.37.42
+        by mx.google.com with ESMTPS id y80si13167177ioe.288.2017.10.19.16.52.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Oct 2017 16:37:43 -0700 (PDT)
-Date: Fri, 20 Oct 2017 07:37:32 +0800
+        Thu, 19 Oct 2017 16:52:13 -0700 (PDT)
+Date: Fri, 20 Oct 2017 07:52:02 +0800
 From: Ming Lei <ming.lei@redhat.com>
-Subject: Re: [PATCH v3 20/49] block: introduce bio_for_each_segment_mp()
-Message-ID: <20171019233731.GD27130@ming.t460p>
+Subject: Re: [PATCH v3 41/49] xfs: convert to bio_for_each_segment_all_sp()
+Message-ID: <20171019235201.GE27130@ming.t460p>
 References: <20170808084548.18963-1-ming.lei@redhat.com>
- <20170808084548.18963-21-ming.lei@redhat.com>
- <20170810121110.GC14607@infradead.org>
+ <20170808084548.18963-42-ming.lei@redhat.com>
+ <20170808163232.GO24087@magnolia>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20170810121110.GC14607@infradead.org>
+In-Reply-To: <20170808163232.GO24087@magnolia>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Jens Axboe <axboe@fb.com>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-xfs@vger.kernel.org
 
-On Thu, Aug 10, 2017 at 05:11:10AM -0700, Christoph Hellwig wrote:
-> First: as mentioned in the previous patches I really hate the name
-> scheme with the _sp and _mp postfixes.
+On Tue, Aug 08, 2017 at 09:32:32AM -0700, Darrick J. Wong wrote:
+> On Tue, Aug 08, 2017 at 04:45:40PM +0800, Ming Lei wrote:
 > 
-> To be clear and understandable we should always name the versions
-> that iterate over segments *segment* and the ones that iterate over
-> pages *page*.  To make sure we have a clean compile break for code
-> using the old _segment name I'd suggest to move to pass the bvec_iter
-> argument by reference, which is the right thing to do anyway.
+> Sure would be nice to have a changelog explaining why we're doing this.
+> 
+> > Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
+> > Cc: linux-xfs@vger.kernel.org
+> > Signed-off-by: Ming Lei <ming.lei@redhat.com>
+> > ---
+> >  fs/xfs/xfs_aops.c | 3 ++-
+> >  1 file changed, 2 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+> > index 6bf120bb1a17..94df43dcae0b 100644
+> > --- a/fs/xfs/xfs_aops.c
+> > +++ b/fs/xfs/xfs_aops.c
+> > @@ -139,6 +139,7 @@ xfs_destroy_ioend(
+> >  	for (bio = &ioend->io_inline_bio; bio; bio = next) {
+> >  		struct bio_vec	*bvec;
+> >  		int		i;
+> > +		struct bvec_iter_all bia;
+> >  
+> >  		/*
+> >  		 * For the last bio, bi_private points to the ioend, so we
+> > @@ -150,7 +151,7 @@ xfs_destroy_ioend(
+> >  			next = bio->bi_private;
+> >  
+> >  		/* walk each page on bio, ending page IO on them */
+> > -		bio_for_each_segment_all(bvec, bio, i)
+> > +		bio_for_each_segment_all_sp(bvec, bio, i, bia)
+> 
+> It's confusing that you're splitting the old bio_for_each_segment_all
+> into multipage and singlepage variants, but bio_for_each_segment_all
+> continues to exist?
 
-The most confusing thing is that bio_for_each_segment() and
-bio_for_each_segment_all() has been used to iterate pages for long time.
-That is why I add _sp/_mp in this patchset to make the uses explicitly
-and avoid to confuse people.
+No, it shouldn't, will remove it in V4.
 
-My plan is to switch to the real bio_for_each_segment() for iterating
-real segment and bio_for_each_page() for iterating page after we reach
-mutlipage bvec, and that is basically a mechanical change.
+> 
+> Hmm, the new multipage variant aliases the name bio_for_each_segment_all,
+> so clearly the _all function's sematics have changed a bit, but its name
+> and signature haven't, which seems likely to trip up someone who didn't
+> notice the behavioral change.
 
-> As far as the implementation goes I don't think we actually need
-> to pass the mp argument down.  Instead we always call the full-segment
-> version of  bvec_iter_len / __bvec_iter_advance and then have an
-> inner loop that moves the fake bvecs forward inside each full-segment
-> one - that is implement the per-page version on top of the per-segment
-> one.
+bio_for_each_segment_all_mp() is introduced for providing previous
+sematics of bio_for_each_segment_all(), and there is few cases in
+which bvec table need to be updated.
 
-For iterating in way of real segment(multipage bvec) instead of page, we
-don't need the inner loop for moving page by page to the fake bvec, that
-is why the 'mp' argument is introduced. If this argument is dropped, we
-have to find another similar way to decide to fetch one segment or one
-page each time.
+> 
+> Is it still valid to call bio_for_each_segment_all?  I get the feeling
+
+No, bio_for_each_segment_all_mp() should be used instead. But my plan is
+to rename bio_for_each_segment_all_mp() into bio_for_each_segment_all()
+and bio_for_each_segment_all_sp() into bio_for_each_page() once this
+patchset is merged.
+
+> from this patchset that you're really supposed to decide whether you
+> want one page at a time or more than one page at a time and choose _sp
+> or _mp?
+
+Yeah.
+
+> 
+> (And, seeing how this was the only patch sent to this list, the chances
+> are higher of someone missing out on these subtle changes...)
+
+OK, will CC you the cover letter next time.
 
 -- 
 Ming
