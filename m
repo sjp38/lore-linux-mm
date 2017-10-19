@@ -1,56 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B62876B0038
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 15:45:43 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id k7so4516729wre.22
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 12:45:43 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id i3si900862edc.271.2017.10.19.12.45.42
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CC7716B0038
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 15:46:52 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 196so3971245wma.6
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 12:46:52 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 16sor665109wmw.69.2017.10.19.12.46.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 19 Oct 2017 12:45:42 -0700 (PDT)
-Date: Thu, 19 Oct 2017 15:45:34 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RESEND v12 0/6] cgroup-aware OOM killer
-Message-ID: <20171019194534.GA5502@cmpxchg.org>
-References: <20171019185218.12663-1-guro@fb.com>
+        (Google Transport Security);
+        Thu, 19 Oct 2017 12:46:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171019185218.12663-1-guro@fb.com>
+In-Reply-To: <20171019193542.l5baqknxnfhljjkr@dhcp22.suse.cz>
+References: <20171018231730.42754-1-shakeelb@google.com> <20171019123206.3etacullgnarbnad@dhcp22.suse.cz>
+ <CALvZod40MmJ6F9ecKHsCkxyxnf_QR4pNqh55GENqqKKYpendMw@mail.gmail.com> <20171019193542.l5baqknxnfhljjkr@dhcp22.suse.cz>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Thu, 19 Oct 2017 12:46:50 -0700
+Message-ID: <CALvZod5HcYVcGQff2Em_4uxqVm4rQMnO4RJYhJKQ-NtXzvO17g@mail.gmail.com>
+Subject: Re: [PATCH] mm: mlock: remove lru_add_drain_all()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Yisheng Xie <xieyisheng1@huawei.com>, Ingo Molnar <mingo@kernel.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Oct 19, 2017 at 07:52:12PM +0100, Roman Gushchin wrote:
-> This patchset makes the OOM killer cgroup-aware.
+> [...]
+>>
+>> Sorry for the confusion. I wanted to say that if the pages which are
+>> being mlocked are on caches of remote cpus then lru_add_drain_all will
+>> move them to their corresponding LRUs and then remaining functionality
+>> of mlock will move them again from their evictable LRUs to unevictable
+>> LRU.
+>
+> yes, but the point is that we are draining pages which might be not
+> directly related to pages which _will_ be mlocked by the syscall. In
+> fact those will stay on the cache. This is the primary reason why this
+> draining doesn't make much sense.
+>
+> Or am I still misunderstanding what you are saying here?
+>
 
-Hi Andrew,
-
-I believe this code is ready for merging upstream, and it seems Michal
-is in agreement. There are two main things to consider, however.
-
-David would have really liked for this patchset to include knobs to
-influence how the algorithm picks cgroup victims. The rest of us
-agreed that this is beyond the scope of these patches, that the
-patches don't need it to be useful, and that there is nothing
-preventing anyone from adding configurability later on. David
-subsequently nacked the series as he considers it incomplete. Neither
-Michal nor I see technical merit in David's nack.
-
-Michal acked the implementation, but on the condition that the new
-behavior be opt-in, to not surprise existing users. I *think* we agree
-that respecting the cgroup topography during global OOM is what we
-should have been doing when cgroups were initially introduced; where
-we disagree is that I think users shouldn't have to opt in to
-improvements. We have done much more invasive changes to the victim
-selection without actual regressions in the past. Further, this change
-only applies to mounts of the new cgroup2. Tejun also wasn't convinced
-of the risk for regression, and too would prefer cgroup-awareness to
-be the default in cgroup2. I would ask for patch 5/6 to be dropped.
-
-Thanks
+lru_add_drain_all() will drain everything irrespective if those pages
+are being mlocked or not.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
