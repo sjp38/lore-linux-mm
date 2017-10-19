@@ -1,75 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 98E226B0038
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 11:33:27 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id k7so7101247pga.8
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:33:27 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bi10si3589977plb.824.2017.10.19.08.33.26
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D4496B0260
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 11:34:44 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id n4so4213389wrb.8
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:34:44 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id x71si1320525wma.228.2017.10.19.08.34.42
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Oct 2017 08:33:26 -0700 (PDT)
-Date: Thu, 19 Oct 2017 17:33:22 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/swap: Use page flags to determine LRU list in
- __activate_page()
-Message-ID: <20171019153322.c4uqalws7l7fdzcx@dhcp22.suse.cz>
-References: <20171019145657.11199-1-khandual@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 19 Oct 2017 08:34:42 -0700 (PDT)
+Date: Thu, 19 Oct 2017 17:34:34 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v2 2/3] lockdep: Remove BROKEN flag of
+ LOCKDEP_CROSSRELEASE
+In-Reply-To: <1508425527.2429.11.camel@wdc.com>
+Message-ID: <alpine.DEB.2.20.1710191718260.1971@nanos>
+References: <1508392531-11284-1-git-send-email-byungchul.park@lge.com>  <1508392531-11284-3-git-send-email-byungchul.park@lge.com> <1508425527.2429.11.camel@wdc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171019145657.11199-1-khandual@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, shli@kernel.org
+To: Bart Van Assche <Bart.VanAssche@wdc.com>
+Cc: "mingo@kernel.org" <mingo@kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "byungchul.park@lge.com" <byungchul.park@lge.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kernel-team@lge.com" <kernel-team@lge.com>
 
-On Thu 19-10-17 20:26:57, Anshuman Khandual wrote:
-> Its already assumed that the PageActive flag is clear on the input
-> page, hence page_lru(page) will pick the base LRU for the page. In
-> the same way page_lru(page) will pick active base LRU, once the
-> flag PageActive is set on the page. This change of LRU list should
-> happen implicitly through the page flags instead of being hard
-> coded.
+On Thu, 19 Oct 2017, Bart Van Assche wrote:
 
-The patch description tells what but it doesn't explain _why_? Does the
-resulting code is better, more optimized or is this a pure readability
-thing?
-
-All I can see is that page_lru is more complex and a large part of it
-can be optimized away which has been done manually here. I suspect the
-compiler can deduce the same thing.
-
-> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-> ---
->  mm/swap.c | 6 ++----
->  1 file changed, 2 insertions(+), 4 deletions(-)
+> On Thu, 2017-10-19 at 14:55 +0900, Byungchul Park wrote:
+> > Now the performance regression was fixed, re-enable
+> > CONFIG_LOCKDEP_CROSSRELEASE and CONFIG_LOCKDEP_COMPLETIONS.
+> > 
+> > Signed-off-by: Byungchul Park <byungchul.park@lge.com>
+> > ---
+> >  lib/Kconfig.debug | 4 ++--
+> >  1 file changed, 2 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+> > index 90ea784..fe8fceb 100644
+> > --- a/lib/Kconfig.debug
+> > +++ b/lib/Kconfig.debug
+> > @@ -1138,8 +1138,8 @@ config PROVE_LOCKING
+> >  	select DEBUG_MUTEXES
+> >  	select DEBUG_RT_MUTEXES if RT_MUTEXES
+> >  	select DEBUG_LOCK_ALLOC
+> > -	select LOCKDEP_CROSSRELEASE if BROKEN
+> > -	select LOCKDEP_COMPLETIONS if BROKEN
+> > +	select LOCKDEP_CROSSRELEASE
+> > +	select LOCKDEP_COMPLETIONS
+> >  	select TRACE_IRQFLAGS
+> >  	default n
+> >  	help
 > 
-> diff --git a/mm/swap.c b/mm/swap.c
-> index fcd82bc..494276b 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -275,12 +275,10 @@ static void __activate_page(struct page *page, struct lruvec *lruvec,
->  {
->  	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
->  		int file = page_is_file_cache(page);
-> -		int lru = page_lru_base_type(page);
->  
-> -		del_page_from_lru_list(page, lruvec, lru);
-> +		del_page_from_lru_list(page, lruvec, page_lru(page));
->  		SetPageActive(page);
-> -		lru += LRU_ACTIVE;
-> -		add_page_to_lru_list(page, lruvec, lru);
-> +		add_page_to_lru_list(page, lruvec, page_lru(page));
->  		trace_mm_lru_activate(page);
->  
->  		__count_vm_event(PGACTIVATE);
-> -- 
-> 1.8.5.2
+> I do not agree with this patch. Although the traditional lock validation
+> code can be proven not to produce false positives, that is not the case for
+> the cross-release checks. These checks are prone to produce false positives.
+> Many kernel developers, including myself, are not interested in spending
+> time on analyzing false positive deadlock reports. So I think that it is
+> wrong to enable cross-release checking unconditionally if PROVE_LOCKING has
+> been enabled. What I think that should happen is that either the cross-
+> release checking code is removed from the kernel or that
+> LOCKDEP_CROSSRELEASE becomes a new kernel configuration option. That will
+> give kernel developers who choose to enable PROVE_LOCKING the freedom to
+> decide whether or not to enable LOCKDEP_CROSSRELEASE.
 
--- 
-Michal Hocko
-SUSE Labs
+I really disagree with your reasoning completely
+
+1) When lockdep was introduced more than ten years ago it was far from
+   perfect and we spent a reasonable amount of time to improve it, analyze
+   false positives and add the missing annotations all over the tree. That
+   was a process which took years.
+
+2) Surely nobody is interested in wasting time on analyzing false
+   positives, but your (and other peoples) attidute of 'none of my
+   business' is what makes kernel development extremly frustrating.
+
+   It should be in the interest of everybody involved in kernel development
+   to help with improving such features and not to lean back and wait for
+   others to bring it into a shape which allows you to use it as you see
+   fit.
+
+That's not how community works and lockdep would not be in the shape it is
+today, if only a handful of people would have used and improved it. Such
+things only work when used widely and when we get enough information so we
+can address the weak spots.
+
+Thanks,
+
+	tglx
+
+
+   
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
