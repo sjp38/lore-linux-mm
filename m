@@ -1,137 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CD61A6B0033
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 11:43:23 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id q124so3660984wmb.23
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:43:23 -0700 (PDT)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id o44si125915edo.159.2017.10.19.08.43.22
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B38FB6B0033
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 11:47:08 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id t10so7144547pgo.20
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:47:08 -0700 (PDT)
+Received: from esa5.hgst.iphmx.com (esa5.hgst.iphmx.com. [216.71.153.144])
+        by mx.google.com with ESMTPS id k24si289008pff.616.2017.10.19.08.47.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Oct 2017 08:43:22 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id DB85A98CE4
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 15:43:21 +0000 (UTC)
-Date: Thu, 19 Oct 2017 16:43:21 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 7/8] mm, Remove cold parameter from free_hot_cold_page*
-Message-ID: <20171019154321.qtpzaeftoyyw4iey@techsingularity.net>
-References: <20171018075952.10627-1-mgorman@techsingularity.net>
- <20171018075952.10627-8-mgorman@techsingularity.net>
- <9e260f57-b871-81bd-66ee-b08fff949c7c@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Oct 2017 08:47:06 -0700 (PDT)
+From: Bart Van Assche <Bart.VanAssche@wdc.com>
+Subject: Re: [PATCH v2 2/3] lockdep: Remove BROKEN flag of
+ LOCKDEP_CROSSRELEASE
+Date: Thu, 19 Oct 2017 15:47:03 +0000
+Message-ID: <1508428021.2429.22.camel@wdc.com>
+References: <1508392531-11284-1-git-send-email-byungchul.park@lge.com>
+	 <1508392531-11284-3-git-send-email-byungchul.park@lge.com>
+	 <1508425527.2429.11.camel@wdc.com>
+	 <alpine.DEB.2.20.1710191718260.1971@nanos>
+In-Reply-To: <alpine.DEB.2.20.1710191718260.1971@nanos>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <39530C4220687A418C2E4D18327AB09C@namprd04.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <9e260f57-b871-81bd-66ee-b08fff949c7c@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dave Chinner <david@fromorbit.com>
+To: "tglx@linutronix.de" <tglx@linutronix.de>
+Cc: "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "byungchul.park@lge.com" <byungchul.park@lge.com>, "kernel-team@lge.com" <kernel-team@lge.com>
 
-On Thu, Oct 19, 2017 at 03:12:33PM +0200, Vlastimil Babka wrote:
-> On 10/18/2017 09:59 AM, Mel Gorman wrote:
-> > Most callers users of free_hot_cold_page claim the pages being released are
-> > cache hot. The exception is the page reclaim paths where it is likely that
-> > enough pages will be freed in the near future that the per-cpu lists are
-> > going to be recycled and the cache hotness information is lost.
-> 
-> Maybe it would make sense for reclaim to skip pcplists? (out of scope of
-> this series, of course).
-> 
-
-Maybe, but it's a bit risky. The PCP lists are preserved but the number of
-zone->lock acquire/releases increases as now every 14 pages reclaimed will
-be an acquire/release instead of every pcp->high number of pages reclaimed.
-That is a definite cost versus a possibility that the next page allocated no
-that CPU will still be cache hot. That in itself may not happen as
-scanning lots of pages for reclaim may have filled the cache with
-useless information anyway.
-
-> > As no one
-> > really cares about the hotness of pages being released to the allocator,
-> > just ditch the parameter.
-> > 
-> > The APIs are renamed to indicate that it's no longer about hot/cold pages. It
-> > should also be less confusing as there are subtle differences between them.
-> > __free_pages drops a reference and frees a page when the refcount reaches
-> > zero. free_hot_cold_page handled pages whose refcount was already zero
-> > which is non-obvious from the name. free_unref_page should be more obvious.
-> > 
-> > No performance impact is expected as the overhead is marginal. The parameter
-> > is removed simply because it is a bit stupid to have a useless parameter
-> > copied everywhere.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> 
-> A comment below, though.
-> 
-> ...
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 167e163cf733..13582efc57a0 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -2590,7 +2590,7 @@ void mark_free_pages(struct zone *zone)
-> >  }
-> >  #endif /* CONFIG_PM */
-> >  
-> > -static bool free_hot_cold_page_prepare(struct page *page, unsigned long pfn)
-> > +static bool free_unref_page_prepare(struct page *page, unsigned long pfn)
-> >  {
-> >  	int migratetype;
-> >  
-> > @@ -2602,8 +2602,7 @@ static bool free_hot_cold_page_prepare(struct page *page, unsigned long pfn)
-> >  	return true;
-> >  }
-> >  
-> > -static void free_hot_cold_page_commit(struct page *page, unsigned long pfn,
-> > -				bool cold)
-> > +static void free_unref_page_commit(struct page *page, unsigned long pfn)
-> >  {
-> >  	struct zone *zone = page_zone(page);
-> >  	struct per_cpu_pages *pcp;
-> > @@ -2628,10 +2627,7 @@ static void free_hot_cold_page_commit(struct page *page, unsigned long pfn,
-> >  	}
-> >  
-> >  	pcp = &this_cpu_ptr(zone->pageset)->pcp;
-> > -	if (!cold)
-> > -		list_add(&page->lru, &pcp->lists[migratetype]);
-> > -	else
-> > -		list_add_tail(&page->lru, &pcp->lists[migratetype]);
-> > +	list_add_tail(&page->lru, &pcp->lists[migratetype]);
-> 
-> Did you intentionally use the cold version here? Patch 8/8 uses the hot
-> version in __rmqueue_pcplist() and that makes more sense to me. It
-> should be either negligible or better, not worse.
-> 
-
-This was unintentional, thanks. The fix is below
-
----8<---
-mm, Remove cold parameter from free_hot_cold_page* -fix
-
-As pointed out by Vlastimil Babka, the pages being freed should be added
-to the head, no the tail, of the pcpu list.
-
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/page_alloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 13582efc57a0..06461553a115 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2627,7 +2627,7 @@ static void free_unref_page_commit(struct page *page, unsigned long pfn)
- 	}
- 
- 	pcp = &this_cpu_ptr(zone->pageset)->pcp;
--	list_add_tail(&page->lru, &pcp->lists[migratetype]);
-+	list_add(&page->lru, &pcp->lists[migratetype]);
- 	pcp->count++;
- 	if (pcp->count >= pcp->high) {
- 		unsigned long batch = READ_ONCE(pcp->batch);
+T24gVGh1LCAyMDE3LTEwLTE5IGF0IDE3OjM0ICswMjAwLCBUaG9tYXMgR2xlaXhuZXIgd3JvdGU6
+DQo+IEkgcmVhbGx5IGRpc2FncmVlIHdpdGggeW91ciByZWFzb25pbmcgY29tcGxldGVseQ0KPiAN
+Cj4gMSkgV2hlbiBsb2NrZGVwIHdhcyBpbnRyb2R1Y2VkIG1vcmUgdGhhbiB0ZW4geWVhcnMgYWdv
+IGl0IHdhcyBmYXIgZnJvbQ0KPiAgICBwZXJmZWN0IGFuZCB3ZSBzcGVudCBhIHJlYXNvbmFibGUg
+YW1vdW50IG9mIHRpbWUgdG8gaW1wcm92ZSBpdCwgYW5hbHl6ZQ0KPiAgICBmYWxzZSBwb3NpdGl2
+ZXMgYW5kIGFkZCB0aGUgbWlzc2luZyBhbm5vdGF0aW9ucyBhbGwgb3ZlciB0aGUgdHJlZS4gVGhh
+dA0KPiAgICB3YXMgYSBwcm9jZXNzIHdoaWNoIHRvb2sgeWVhcnMuDQo+IA0KPiAyKSBTdXJlbHkg
+bm9ib2R5IGlzIGludGVyZXN0ZWQgaW4gd2FzdGluZyB0aW1lIG9uIGFuYWx5emluZyBmYWxzZQ0K
+PiAgICBwb3NpdGl2ZXMsIGJ1dCB5b3VyIChhbmQgb3RoZXIgcGVvcGxlcykgYXR0aWR1dGUgb2Yg
+J25vbmUgb2YgbXkNCj4gICAgYnVzaW5lc3MnIGlzIHdoYXQgbWFrZXMga2VybmVsIGRldmVsb3Bt
+ZW50IGV4dHJlbWx5IGZydXN0cmF0aW5nLg0KPiANCj4gICAgSXQgc2hvdWxkIGJlIGluIHRoZSBp
+bnRlcmVzdCBvZiBldmVyeWJvZHkgaW52b2x2ZWQgaW4ga2VybmVsIGRldmVsb3BtZW50DQo+ICAg
+IHRvIGhlbHAgd2l0aCBpbXByb3Zpbmcgc3VjaCBmZWF0dXJlcyBhbmQgbm90IHRvIGxlYW4gYmFj
+ayBhbmQgd2FpdCBmb3INCj4gICAgb3RoZXJzIHRvIGJyaW5nIGl0IGludG8gYSBzaGFwZSB3aGlj
+aCBhbGxvd3MgeW91IHRvIHVzZSBpdCBhcyB5b3Ugc2VlDQo+ICAgIGZpdC4NCj4gDQo+IFRoYXQn
+cyBub3QgaG93IGNvbW11bml0eSB3b3JrcyBhbmQgbG9ja2RlcCB3b3VsZCBub3QgYmUgaW4gdGhl
+IHNoYXBlIGl0IGlzDQo+IHRvZGF5LCBpZiBvbmx5IGEgaGFuZGZ1bCBvZiBwZW9wbGUgd291bGQg
+aGF2ZSB1c2VkIGFuZCBpbXByb3ZlZCBpdC4gU3VjaA0KPiB0aGluZ3Mgb25seSB3b3JrIHdoZW4g
+dXNlZCB3aWRlbHkgYW5kIHdoZW4gd2UgZ2V0IGVub3VnaCBpbmZvcm1hdGlvbiBzbyB3ZQ0KPiBj
+YW4gYWRkcmVzcyB0aGUgd2VhayBzcG90cy4NCg0KSGVsbG8gVGhvbWFzLA0KDQpJdCBzZWVtcyBs
+aWtlIHlvdSBhcmUgbWlzc2luZyBteSBwb2ludC4gQ3Jvc3MtcmVsZWFzZSBjaGVja2luZyBpcyBy
+ZWFsbHkNCipicm9rZW4qIGFzIGEgY29uY2VwdC4gSXQgaXMgaW1wb3NzaWJsZSB0byBpbXByb3Zl
+IGl0IHRvIHRoZSBzYW1lIHJlbGlhYmlsaXR5DQpsZXZlbCBhcyB0aGUga2VybmVsIHY0LjEzIGxv
+Y2tkZXAgY29kZS4gSGVuY2UgbXkgcmVxdWVzdCB0byBtYWtlIGl0IHBvc3NpYmxlDQp0byBkaXNh
+YmxlIGNyb3NzLXJlbGVhc2UgY2hlY2tpbmcgaWYgUFJPVkVfTE9DS0lORyBpcyBlbmFibGVkLg0K
+DQpDb25zaWRlciB0aGUgZm9sbG93aW5nIGV4YW1wbGUgZnJvbSB0aGUgY3Jvc3MtcmVsZWFzZSBk
+b2N1bWVudGF0aW9uOg0KDQogICBUQVNLIFgJCQkgICBUQVNLIFkNCiAgIC0tLS0tLQkJCSAgIC0t
+LS0tLQ0KCQkJCSAgIGFjcXVpcmUgQVgNCiAgIGFjcXVpcmUgQiAvKiBBIGRlcGVuZGVuY3kgJ0FY
+IC0+IEInIGV4aXN0cyAqLw0KICAgcmVsZWFzZSBCDQogICByZWxlYXNlIEFYIGhlbGQgYnkgWQ0K
+DQpNeSB1bmRlcnN0YW5kaW5nIGlzIHRoYXQgdGhlIGNyb3NzLXJlbGVhc2UgY29kZSB3aWxsIGFk
+ZCAoQVgsIEIpIHRvIHRoZSBsb2NrDQpvcmRlciBncmFwaCBhZnRlciBoYXZpbmcgZW5jb3VudGVy
+ZWQgdGhlIGFib3ZlIGNvZGUuIEkgdGhpbmsgdGhhdCdzIHdyb25nDQpiZWNhdXNlIGlmIHRoZSBm
+b2xsb3dpbmcgc2VxdWVuY2UgKFk6IGFjcXVpcmUgQVgsIFg6IGFjcXVpcmUgQiwgWDogcmVsZWFz
+ZSBCKQ0KaXMgZW5jb3VudGVyZWQgYWdhaW4gdGhhdCB0aGVyZSBpcyBubyBndWFyYW50ZWUgdGhh
+dCBBWCBjYW4gb25seSBiZSByZWxlYXNlZA0KYnkgWC4gQW55IHRhc2sgb3RoZXIgdGhhbiBYIGNv
+dWxkIHJlbGVhc2UgdGhhdCBzeW5jaHJvbml6YXRpb24gb2JqZWN0IHRvby4NCg0KQmFydC4=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
