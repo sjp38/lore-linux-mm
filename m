@@ -1,46 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D35926B0033
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:47:56 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id y10so3522833wmd.4
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 05:47:56 -0700 (PDT)
-Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id t144si1110078wmt.249.2017.10.19.05.47.55
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E24A6B0033
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:49:35 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id l24so6797713pgu.22
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 05:49:35 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a8si8647720pgu.368.2017.10.19.05.49.34
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Oct 2017 05:47:55 -0700 (PDT)
-Date: Thu, 19 Oct 2017 13:47:15 +0100
-From: Russell King - ARM Linux <linux@armlinux.org.uk>
-Subject: Re: [PATCH 05/11] Disable kasan's instrumentation
-Message-ID: <20171019124714.GZ20805@n2100.armlinux.org.uk>
-References: <20171011082227.20546-1-liuwenliang@huawei.com>
- <20171011082227.20546-6-liuwenliang@huawei.com>
+        Thu, 19 Oct 2017 05:49:34 -0700 (PDT)
+Date: Thu, 19 Oct 2017 14:49:31 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm, thp: introduce dedicated transparent huge page
+ allocation interfaces
+Message-ID: <20171019124931.p5zdvs2kdwu73mwh@dhcp22.suse.cz>
+References: <1508145557-9944-1-git-send-email-changbin.du@intel.com>
+ <1508145557-9944-2-git-send-email-changbin.du@intel.com>
+ <20171017102052.ltc2lb6r7kloazgs@dhcp22.suse.cz>
+ <20171018110026.GA4352@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171011082227.20546-6-liuwenliang@huawei.com>
+In-Reply-To: <20171018110026.GA4352@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Abbott Liu <liuwenliang@huawei.com>
-Cc: aryabinin@virtuozzo.com, afzal.mohd.ma@gmail.com, f.fainelli@gmail.com, labbott@redhat.com, kirill.shutemov@linux.intel.com, mhocko@suse.com, cdall@linaro.org, marc.zyngier@arm.com, catalin.marinas@arm.com, akpm@linux-foundation.org, mawilcox@microsoft.com, tglx@linutronix.de, thgarnie@google.com, keescook@chromium.org, arnd@arndb.de, vladimir.murzin@arm.com, tixy@linaro.org, ard.biesheuvel@linaro.org, robin.murphy@arm.com, mingo@kernel.org, glider@google.com, dvyukov@google.com, opendmb@gmail.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, jiazhenghua@huawei.com, dylix.dailei@huawei.com, zengweilin@huawei.com, heshaoliang@huawei.com
+To: "Du, Changbin" <changbin.du@intel.com>
+Cc: akpm@linux-foundation.org, corbet@lwn.net, hughd@google.com, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Oct 11, 2017 at 04:22:21PM +0800, Abbott Liu wrote:
-> From: Andrey Ryabinin <a.ryabinin@samsung.com>
+On Wed 18-10-17 19:00:26, Du, Changbin wrote:
+> Hi Hocko,
 > 
->  To avoid some build and runtime errors, compiler's instrumentation must
->  be disabled for code not linked with kernel image.
+> On Tue, Oct 17, 2017 at 12:20:52PM +0200, Michal Hocko wrote:
+> > [CC Kirill]
+> > 
+> > On Mon 16-10-17 17:19:16, changbin.du@intel.com wrote:
+> > > From: Changbin Du <changbin.du@intel.com>
+> > > 
+> > > This patch introduced 4 new interfaces to allocate a prepared
+> > > transparent huge page.
+> > >   - alloc_transhuge_page_vma
+> > >   - alloc_transhuge_page_nodemask
+> > >   - alloc_transhuge_page_node
+> > >   - alloc_transhuge_page
+> > > 
+> > > The aim is to remove duplicated code and simplify transparent
+> > > huge page allocation. These are similar to alloc_hugepage_xxx
+> > > which are for hugetlbfs pages. This patch does below changes:
+> > >   - define alloc_transhuge_page_xxx interfaces
+> > >   - apply them to all existing code
+> > >   - declare prep_transhuge_page as static since no others use it
+> > >   - remove alloc_hugepage_vma definition since it no longer has users
+> > 
+> > So what exactly is the advantage of the new API? The diffstat doesn't
+> > sound very convincing to me.
+> >
+> The caller only need one step to allocate thp. Several LOCs removed for all the
+> caller side with this change. So it's little more convinent.
 
-How does that explain the change to unwind.c ?
-
-Does this also disable the string macro changes?
-
-In any case, this should certainly precede patch 4, and very probably
-patch 2.
-
+Yeah, but the overall result is more code. So I am not really convinced. 
 -- 
-RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
-FTTC broadband for 0.8mile line in suburbia: sync at 8.8Mbps down 630kbps up
-According to speedtest.net: 8.21Mbps down 510kbps up
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
