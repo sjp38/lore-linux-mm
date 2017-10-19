@@ -1,148 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B5ABA6B0253
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 13:02:42 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id k70so7998752itk.11
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 10:02:42 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c63si1669752itg.168.2017.10.19.10.02.41
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B9AB16B0038
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 14:21:29 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id n82so8604110oig.22
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 11:21:29 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x12sor6099208otg.223.2017.10.19.11.21.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Oct 2017 10:02:41 -0700 (PDT)
-Date: Thu, 19 Oct 2017 13:02:38 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [rfc 2/2] smaps: Show zone device memory used
-Message-ID: <20171019170238.GB3044@redhat.com>
-References: <20171018063123.21983-1-bsingharora@gmail.com>
- <20171018063123.21983-2-bsingharora@gmail.com>
- <d33c5a32-2b1a-85c7-be68-d006517b1ecd@linux.vnet.ibm.com>
- <20171019064858.11c812e6@MiWiFi-R3-srv>
+        (Google Transport Security);
+        Thu, 19 Oct 2017 11:21:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20171019064858.11c812e6@MiWiFi-R3-srv>
+In-Reply-To: <20171019080149.GB10089@infradead.org>
+References: <20171012155027.3277-1-pagupta@redhat.com> <20171012155027.3277-3-pagupta@redhat.com>
+ <20171017071633.GA9207@infradead.org> <1441791227.21027037.1508226056893.JavaMail.zimbra@redhat.com>
+ <20171017080236.GA27649@infradead.org> <670833322.21037148.1508229041158.JavaMail.zimbra@redhat.com>
+ <20171018130339.GB29767@stefanha-x1.localdomain> <CAPcyv4h6aFkyHhh4R4DTznbSCLf9CuBoszk0Q1gB5EKNcp_SeQ@mail.gmail.com>
+ <20171019080149.GB10089@infradead.org>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 19 Oct 2017 11:21:26 -0700
+Message-ID: <CAPcyv4j=Cdp68C15HddKaErpve2UGRfSTiL6bHiS=3gQybz9pg@mail.gmail.com>
+Subject: Re: [Qemu-devel] [RFC 2/2] KVM: add virtio-pmem driver
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, mhocko@suse.com
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Stefan Hajnoczi <stefanha@gmail.com>, Pankaj Gupta <pagupta@redhat.com>, Kevin Wolf <kwolf@redhat.com>, haozhong zhang <haozhong.zhang@intel.com>, Jan Kara <jack@suse.cz>, xiaoguangrong eric <xiaoguangrong.eric@gmail.com>, KVM list <kvm@vger.kernel.org>, David Hildenbrand <david@redhat.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, ross zwisler <ross.zwisler@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Qemu Developers <qemu-devel@nongnu.org>, Linux MM <linux-mm@kvack.org>, Stefan Hajnoczi <stefanha@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Nitesh Narayan Lal <nilal@redhat.com>
 
-On Thu, Oct 19, 2017 at 06:48:58AM +1100, Balbir Singh wrote:
-> On Wed, 18 Oct 2017 12:40:43 +0530
-> Anshuman Khandual <khandual@linux.vnet.ibm.com> wrote:
-> 
-> > On 10/18/2017 12:01 PM, Balbir Singh wrote:
-> > > With HMM, we can have either public or private zone
-> > > device pages. With private zone device pages, they should
-> > > show up as swapped entities. For public zone device pages  
-> > 
-> > Might be missing something here but why they should show up
-> > as swapped entities ? Could you please elaborate.
-> >
-> 
-> For migrated entries, my use case is to
-> 
-> 1. malloc()/mmap() memory
-> 2. call migrate_vma()
-> 3. Look at smaps
-> 
-> It's probably not clear in the changelog.
+On Thu, Oct 19, 2017 at 1:01 AM, Christoph Hellwig <hch@infradead.org> wrote:
+> On Wed, Oct 18, 2017 at 08:51:37AM -0700, Dan Williams wrote:
+>> This use case is not "Persistent Memory". Persistent Memory is
+>> something you can map and make persistent with CPU instructions.
+>> Anything that requires a driver call is device driver managed "Shared
+>> Memory".
+>
+> How is this any different than the existing nvdimm_flush()? If you
+> really care about the not driver thing it could easily be a write
+> to a doorbell page or a hypercall, but in the end that's just semantics.
 
-My only worry is about API, is smaps consider as userspace API ?
-My fear here is that maybe we will want to report device memory
-differently in the future and have different category of device
-memory. Even thought right now i can only think of wanting to
-differentiate between public and private device memory but right
-now as you pointed out this is reported as swap out.
+The difference is that nvdimm_flush() is not mandatory, and that the
+platform will automatically perform the same flush at power-fail.
+Applications should be able to assume that if they are using MAP_SYNC
+that no other coordination with the kernel or the hypervisor is
+necessary.
 
-Otherwise patches looks good and you got:
+Advertising this as a generic Persistent Memory range to the guest
+means that the guest could theoretically use it with device-dax where
+there is no driver or filesystem sync interface. The hypervisor will
+be waiting for flush notifications and the guest will just issue cache
+flushes and sfence instructions. So, as far as I can see we need to
+differentiate this virtio-model from standard "Persistent Memory" to
+the guest and remove the possibility of guests/applications making the
+wrong assumption.
 
-Reviewed-by: Jerome Glisse <jglisse@redhat.com>
-
-> 
-> > > the smaps output can be confusing and incomplete.
-> > > 
-> > > This patch adds a new attribute to just smaps to show
-> > > device memory usage.  
-> > 
-> > If we are any way adding a new entry here then why not one
-> > more for private device memory pages as well. Just being
-> > curious.
-> > 
-> 
-> Well, how do you define visibility of device private memory?
-> Device private is either seen as swapped out or when migrated
-> back is visible as a part of the mm. Am I missing anything?
-> 
-> > > 
-> > > Signed-off-by: Balbir Singh <bsingharora@gmail.com>
-> > > ---
-> > >  fs/proc/task_mmu.c | 17 +++++++++++++++--
-> > >  1 file changed, 15 insertions(+), 2 deletions(-)
-> > > 
-> > > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> > > index 9f1e2b2b5f5a..b7f32f42ee93 100644
-> > > --- a/fs/proc/task_mmu.c
-> > > +++ b/fs/proc/task_mmu.c
-> > > @@ -451,6 +451,7 @@ struct mem_size_stats {
-> > >  	unsigned long shared_hugetlb;
-> > >  	unsigned long private_hugetlb;
-> > >  	unsigned long first_vma_start;
-> > > +	unsigned long device_memory;
-> > >  	u64 pss;
-> > >  	u64 pss_locked;
-> > >  	u64 swap_pss;
-> > > @@ -463,12 +464,22 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
-> > >  	int i, nr = compound ? 1 << compound_order(page) : 1;
-> > >  	unsigned long size = nr * PAGE_SIZE;
-> > >  
-> > > +	/*
-> > > +	 * We don't want to process public zone device pages further
-> > > +	 * than just showing how much device memory we have
-> > > +	 */
-> > > +	if (is_zone_device_page(page)) {  
-> > 
-> > Should not this contain both public and private device pages.
-> > 
-> 
-> This page is received from _vm_normal_page(.., true), I don't
-> think device private pages show up here.
-> 
-> > > +		mss->device_memory += size;
-> > > +		return;
-> > > +	}
-> > > +
-> > >  	if (PageAnon(page)) {
-> > >  		mss->anonymous += size;
-> > >  		if (!PageSwapBacked(page) && !dirty && !PageDirty(page))
-> > >  			mss->lazyfree += size;
-> > >  	}
-> > >  
-> > > +  
-> > 
-> > Stray new line.
-> > 
-> 
-> I can remove it
-> 
-> > >  	mss->resident += size;
-> > >  	/* Accumulate the size in pages that have been accessed. */
-> > >  	if (young || page_is_young(page) || PageReferenced(page))
-> > > @@ -833,7 +844,8 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
-> > >  			   "Private_Hugetlb: %7lu kB\n"
-> > >  			   "Swap:           %8lu kB\n"
-> > >  			   "SwapPss:        %8lu kB\n"
-> > > -			   "Locked:         %8lu kB\n",
-> > > +			   "Locked:         %8lu kB\n"  
-> > 
-> > Stray changed line.
-> 
-> ?? The line has changed
-> 
-> 
-> Thanks for the review!
-> 
-> Balbir Singh.
+Non-ODP RDMA in a guest comes to mind...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
