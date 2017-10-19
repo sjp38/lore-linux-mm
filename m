@@ -1,73 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 81CB86B0253
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 11:10:07 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id 10so8365810qty.10
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:10:07 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id r48si3130781qtb.100.2017.10.19.08.10.06
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id ABB066B025F
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 11:10:57 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id w24so7086694pgm.7
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 08:10:57 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id l21si3218220pfk.427.2017.10.19.08.10.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Oct 2017 08:10:06 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9JF9oHT041024
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 11:10:05 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2dpwvc2hrd-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 11:09:54 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 19 Oct 2017 15:57:05 +0100
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v9JEv1JC22282364
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 14:57:02 GMT
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v9JEv1P6032149
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 01:57:01 +1100
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [PATCH] mm/swap: Use page flags to determine LRU list in __activate_page()
-Date: Thu, 19 Oct 2017 20:26:57 +0530
-Message-Id: <20171019145657.11199-1-khandual@linux.vnet.ibm.com>
+        Thu, 19 Oct 2017 08:10:56 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -mm -V2] mm, pagemap: Fix soft dirty marking for PMD migration entry
+Date: Thu, 19 Oct 2017 23:10:46 +0800
+Message-Id: <20171019151046.3443-1-ying.huang@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, shli@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Arnd Bergmann <arnd@arndb.de>, Hugh Dickins <hughd@google.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Daniel Colascione <dancol@google.com>, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Its already assumed that the PageActive flag is clear on the input
-page, hence page_lru(page) will pick the base LRU for the page. In
-the same way page_lru(page) will pick active base LRU, once the
-flag PageActive is set on the page. This change of LRU list should
-happen implicitly through the page flags instead of being hard
-coded.
+From: Huang Ying <ying.huang@intel.com>
 
-Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Now, when the page table is walked in the implementation of
+/proc/<pid>/pagemap, pmd_soft_dirty() is used for both the PMD huge
+page map and the PMD migration entries.  That is wrong,
+pmd_swp_soft_dirty() should be used for the PMD migration entries
+instead because the different page table entry flag is used.
+Otherwise, the soft dirty information in /proc/<pid>/pagemap may be
+wrong.
+
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
+Cc: Daniel Colascione <dancol@google.com>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Fixes: 84c3fc4e9c56 ("mm: thp: check pmd migration entry in common path")
 ---
- mm/swap.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ fs/proc/task_mmu.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
 
-diff --git a/mm/swap.c b/mm/swap.c
-index fcd82bc..494276b 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -275,12 +275,10 @@ static void __activate_page(struct page *page, struct lruvec *lruvec,
- {
- 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
- 		int file = page_is_file_cache(page);
--		int lru = page_lru_base_type(page);
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 2593a0c609d7..01aad772f8db 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -1311,13 +1311,15 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
+ 		pmd_t pmd = *pmdp;
+ 		struct page *page = NULL;
  
--		del_page_from_lru_list(page, lruvec, lru);
-+		del_page_from_lru_list(page, lruvec, page_lru(page));
- 		SetPageActive(page);
--		lru += LRU_ACTIVE;
--		add_page_to_lru_list(page, lruvec, lru);
-+		add_page_to_lru_list(page, lruvec, page_lru(page));
- 		trace_mm_lru_activate(page);
+-		if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(pmd))
++		if (vma->vm_flags & VM_SOFTDIRTY)
+ 			flags |= PM_SOFT_DIRTY;
  
- 		__count_vm_event(PGACTIVATE);
+ 		if (pmd_present(pmd)) {
+ 			page = pmd_page(pmd);
+ 
+ 			flags |= PM_PRESENT;
++			if (pmd_soft_dirty(pmd))
++				flags |= PM_SOFT_DIRTY;
+ 			if (pm->show_pfn)
+ 				frame = pmd_pfn(pmd) +
+ 					((addr & ~PMD_MASK) >> PAGE_SHIFT);
+@@ -1329,6 +1331,8 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
+ 			frame = swp_type(entry) |
+ 				(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
+ 			flags |= PM_SWAP;
++			if (pmd_swp_soft_dirty(pmd))
++				flags |= PM_SOFT_DIRTY;
+ 			VM_BUG_ON(!is_pmd_migration_entry(pmd));
+ 			page = migration_entry_to_page(entry);
+ 		}
 -- 
-1.8.5.2
+2.14.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
