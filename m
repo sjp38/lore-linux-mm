@@ -1,82 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A95BB6B0038
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 17:09:48 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id v105so1127782wrc.11
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 14:09:48 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k6si1697485wme.199.2017.10.19.14.09.46
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 57E2B6B0038
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 17:21:05 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id u27so6941010pfg.12
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 14:21:05 -0700 (PDT)
+Received: from out0-213.mail.aliyun.com (out0-213.mail.aliyun.com. [140.205.0.213])
+        by mx.google.com with ESMTPS id u127si9143654pgc.803.2017.10.19.14.21.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Oct 2017 14:09:46 -0700 (PDT)
-Date: Thu, 19 Oct 2017 23:09:45 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RESEND v12 0/6] cgroup-aware OOM killer
-Message-ID: <20171019210945.b75znan5kkxy7zxl@dhcp22.suse.cz>
-References: <20171019185218.12663-1-guro@fb.com>
- <20171019194534.GA5502@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171019194534.GA5502@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Oct 2017 14:21:04 -0700 (PDT)
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Subject: [RFC PATCH] fs: fsnotify: account fsnotify metadata to kmemcg
+Date: Fri, 20 Oct 2017 05:20:56 +0800
+Message-Id: <1508448056-21779-1-git-send-email-yang.s@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>
+To: jack@suse.cz, amir73il@gmail.com
+Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 19-10-17 15:45:34, Johannes Weiner wrote:
-> On Thu, Oct 19, 2017 at 07:52:12PM +0100, Roman Gushchin wrote:
-> > This patchset makes the OOM killer cgroup-aware.
-> 
-> Hi Andrew,
-> 
-> I believe this code is ready for merging upstream, and it seems Michal
-> is in agreement. There are two main things to consider, however.
-> 
-> David would have really liked for this patchset to include knobs to
-> influence how the algorithm picks cgroup victims. The rest of us
-> agreed that this is beyond the scope of these patches, that the
-> patches don't need it to be useful, and that there is nothing
-> preventing anyone from adding configurability later on. David
-> subsequently nacked the series as he considers it incomplete. Neither
-> Michal nor I see technical merit in David's nack.
+We observed some misbehaved user applications might consume significant
+amount of fsnotify slabs silently. It'd better to account those slabs in
+kmemcg so that we can get heads up before misbehaved applications use too
+much memory silently.
 
-agreed
+Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
+---
+ fs/notify/dnotify/dnotify.c        | 4 ++--
+ fs/notify/fanotify/fanotify_user.c | 6 +++---
+ fs/notify/fsnotify.c               | 2 +-
+ fs/notify/inotify/inotify_user.c   | 2 +-
+ 4 files changed, 7 insertions(+), 7 deletions(-)
 
-> Michal acked the implementation, but on the condition that the new
-> behavior be opt-in, to not surprise existing users.
-
-and just to make it clear I have also said I will _not_ nack if that is
-not the case.
-
-> I *think* we agree
-> that respecting the cgroup topography during global OOM is what we
-> should have been doing when cgroups were initially introduced;
-
-We do not agree here though. I am not convinced that respecting the
-cgroup topography is an universal win. It is true that there is no best
-OOM victim selection strategy but what we have currently is the simplest
-option and as such the most robust one. I can tell from the past year
-experience that many of those clever heuristics actually contributed to
-lockups and non-deterministic behavior.
-
-> where
-> we disagree is that I think users shouldn't have to opt in to
-> improvements. We have done much more invasive changes to the victim
-> selection without actual regressions in the past. Further, this change
-> only applies to mounts of the new cgroup2.
-
-which basically means that the behavior will change under many users
-feet because the respecitve cgroup configuration is chosen by somebody
-else (e.g. systemd) so I do not really buy "only v2 behavior"
-
-> Tejun also wasn't convinced
-> of the risk for regression, and too would prefer cgroup-awareness to
-> be the default in cgroup2. I would ask for patch 5/6 to be dropped.
-
+diff --git a/fs/notify/dnotify/dnotify.c b/fs/notify/dnotify/dnotify.c
+index cba3283..3ec6233 100644
+--- a/fs/notify/dnotify/dnotify.c
++++ b/fs/notify/dnotify/dnotify.c
+@@ -379,8 +379,8 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
+ 
+ static int __init dnotify_init(void)
+ {
+-	dnotify_struct_cache = KMEM_CACHE(dnotify_struct, SLAB_PANIC);
+-	dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC);
++	dnotify_struct_cache = KMEM_CACHE(dnotify_struct, SLAB_PANIC|SLAB_ACCOUNT);
++	dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC|SLAB_ACCOUNT);
+ 
+ 	dnotify_group = fsnotify_alloc_group(&dnotify_fsnotify_ops);
+ 	if (IS_ERR(dnotify_group))
+diff --git a/fs/notify/fanotify/fanotify_user.c b/fs/notify/fanotify/fanotify_user.c
+index 907a481..7d62dee 100644
+--- a/fs/notify/fanotify/fanotify_user.c
++++ b/fs/notify/fanotify/fanotify_user.c
+@@ -947,11 +947,11 @@ static int fanotify_add_inode_mark(struct fsnotify_group *group,
+  */
+ static int __init fanotify_user_setup(void)
+ {
+-	fanotify_mark_cache = KMEM_CACHE(fsnotify_mark, SLAB_PANIC);
+-	fanotify_event_cachep = KMEM_CACHE(fanotify_event_info, SLAB_PANIC);
++	fanotify_mark_cache = KMEM_CACHE(fsnotify_mark, SLAB_PANIC|SLAB_ACCOUNT);
++	fanotify_event_cachep = KMEM_CACHE(fanotify_event_info, SLAB_PANIC|SLAB_ACCOUNT);
+ #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+ 	fanotify_perm_event_cachep = KMEM_CACHE(fanotify_perm_event_info,
+-						SLAB_PANIC);
++						SLAB_PANIC|SLAB_ACCOUNT);
+ #endif
+ 
+ 	return 0;
+diff --git a/fs/notify/fsnotify.c b/fs/notify/fsnotify.c
+index 0c4583b..82620ac 100644
+--- a/fs/notify/fsnotify.c
++++ b/fs/notify/fsnotify.c
+@@ -386,7 +386,7 @@ static __init int fsnotify_init(void)
+ 		panic("initializing fsnotify_mark_srcu");
+ 
+ 	fsnotify_mark_connector_cachep = KMEM_CACHE(fsnotify_mark_connector,
+-						    SLAB_PANIC);
++						    SLAB_PANIC|SLAB_ACCOUNT);
+ 
+ 	return 0;
+ }
+diff --git a/fs/notify/inotify/inotify_user.c b/fs/notify/inotify/inotify_user.c
+index 7cc7d3f..57b32ff 100644
+--- a/fs/notify/inotify/inotify_user.c
++++ b/fs/notify/inotify/inotify_user.c
+@@ -785,7 +785,7 @@ static int __init inotify_user_setup(void)
+ 
+ 	BUG_ON(hweight32(ALL_INOTIFY_BITS) != 21);
+ 
+-	inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark, SLAB_PANIC);
++	inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark, SLAB_PANIC|SLAB_ACCOUNT);
+ 
+ 	inotify_max_queued_events = 16384;
+ 	init_user_ns.ucount_max[UCOUNT_INOTIFY_INSTANCES] = 128;
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
