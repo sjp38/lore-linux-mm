@@ -1,58 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 463D66B0033
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 10:32:55 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 198so3662809wmx.2
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 07:32:55 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id f51si5462504edf.124.2017.10.19.07.32.53
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D0966B0033
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 10:53:02 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id v78so7001756pgb.18
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 07:53:02 -0700 (PDT)
+Received: from esa6.hgst.iphmx.com (esa6.hgst.iphmx.com. [216.71.154.45])
+        by mx.google.com with ESMTPS id g12si9881928plj.33.2017.10.19.07.53.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 19 Oct 2017 07:32:53 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 7BF8999306
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 14:32:53 +0000 (UTC)
-Date: Thu, 19 Oct 2017 15:32:52 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 8/8] mm: Remove __GFP_COLD
-Message-ID: <20171019143252.bviqsb7qxppzz32j@techsingularity.net>
-References: <20171018075952.10627-1-mgorman@techsingularity.net>
- <20171018075952.10627-9-mgorman@techsingularity.net>
- <f6505442-98a9-12e4-b2cd-0fa83874c159@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 19 Oct 2017 07:53:01 -0700 (PDT)
+From: Bart Van Assche <Bart.VanAssche@wdc.com>
+Subject: Re: Fix false positive by LOCKDEP_CROSSRELEASE
+Date: Thu, 19 Oct 2017 14:52:56 +0000
+Message-ID: <1508424774.2429.1.camel@wdc.com>
+References: <1508319532-24655-1-git-send-email-byungchul.park@lge.com>
+	 <1508336995.2923.2.camel@wdc.com> <20171019015705.GD32368@X58A-UD3R>
+In-Reply-To: <20171019015705.GD32368@X58A-UD3R>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <65485D8A1A7E2F488AC2566D9B74AA48@namprd04.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <f6505442-98a9-12e4-b2cd-0fa83874c159@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Dave Chinner <david@fromorbit.com>
+To: "byungchul.park@lge.com" <byungchul.park@lge.com>
+Cc: "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "hch@infradead.org" <hch@infradead.org>, "amir73il@gmail.com" <amir73il@gmail.com>, "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "oleg@redhat.com" <oleg@redhat.com>, "darrick.wong@oracle.com" <darrick.wong@oracle.com>, "johannes.berg@intel.com" <johannes.berg@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "idryomov@gmail.com" <idryomov@gmail.com>, "tj@kernel.org" <tj@kernel.org>, "kernel-team@lge.com" <kernel-team@lge.com>, "david@fromorbit.com" <david@fromorbit.com>
 
-On Thu, Oct 19, 2017 at 03:42:12PM +0200, Vlastimil Babka wrote:
-> From b002266c1a826805a50087db851f93e7a87ceb2f Mon Sep 17 00:00:00 2001
-> From: Vlastimil Babka <vbabka@suse.cz>
-> Date: Tue, 17 Oct 2017 16:03:02 +0200
-> Subject: [PATCH] mm, page_alloc: simplify list handling in rmqueue_bulk()
-> 
-> The rmqueue_bulk() function fills an empty pcplist with pages from the free
-> list. It tries to preserve increasing order by pfn to the caller, because it
-> leads to better performance with some I/O controllers, as explained in
-> e084b2d95e48 ("page-allocator: preserve PFN ordering when __GFP_COLD is set").
-> 
-> To preserve the order, it's sufficient to add pages to the tail of the list
-> as they are retrieved. The current code instead adds to the head of the list,
-> but then updates the list head pointer to the last added page, in each step.
-> This does result in the same order, but is needlessly confusing and potentially
-> wasteful, with no apparent benefit. This patch simplifies the code and adjusts
-> comment accordingly.
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
-
--- 
-Mel Gorman
-SUSE Labs
+T24gVGh1LCAyMDE3LTEwLTE5IGF0IDEwOjU3ICswOTAwLCBCeXVuZ2NodWwgUGFyayB3cm90ZToN
+Cj4gT24gV2VkLCBPY3QgMTgsIDIwMTcgYXQgMDI6Mjk6NTZQTSArMDAwMCwgQmFydCBWYW4gQXNz
+Y2hlIHdyb3RlOg0KPiA+IE9uIFdlZCwgMjAxNy0xMC0xOCBhdCAxODozOCArMDkwMCwgQnl1bmdj
+aHVsIFBhcmsgd3JvdGU6DQo+ID4gPiBTZXZlcmFsIGZhbHNlIHBvc2l0aXZlcyB3ZXJlIHJlcG9y
+dGVkLCBzbyBJIHRyaWVkIHRvIGZpeCB0aGVtLg0KPiA+ID4gDQo+ID4gPiBJdCB3b3VsZCBiZSBh
+cHByZWNpYXRlZCBpZiB5b3UgdGVsbCBtZSBpZiBpdCB3b3JrcyBhcyBleHBlY3RlZCwgb3IgbGV0
+DQo+ID4gPiBtZSBrbm93IHlvdXIgb3Bpbmlvbi4NCj4gPiANCj4gPiBXaGF0IEkgaGF2ZSBiZWVu
+IHdvbmRlcmluZyBhYm91dCBpcyB3aGV0aGVyIHRoZSBjcm9zc2xvY2sgY2hlY2tpbmcgbWFrZXMN
+Cj4gPiBzZW5zZSBmcm9tIGEgY29uY2VwdHVhbCBwb2ludCBvZiB2aWV3LiBJIHRyaWVkIHRvIGZp
+bmQgZG9jdW1lbnRhdGlvbiBmb3IgdGhlDQo+ID4gY3Jvc3Nsb2NrIGNoZWNraW5nIGluIERvY3Vt
+ZW50YXRpb24vbG9ja2luZy9sb2NrZGVwLWRlc2lnbi50eHQgYnV0DQo+ID4gY291bGRuJ3QgZmlu
+ZCBhIGRlc2NyaXB0aW9uIG9mIHRoZSBjcm9zc2xvY2sgY2hlY2tpbmcuIFNob3VsZG4ndCBpdCBi
+ZQ0KPiA+IGRvY3VtZW50ZWQgc29tZXdoZXJlIHdoYXQgdGhlIGNyb3NzbG9jayBjaGVja3MgZG8g
+YW5kIHdoYXQgdGhlIHRoZW9yeSBpcw0KPiA+IGJlaGluZCB0aGVzZSBjaGVja3M/DQo+IA0KPiBE
+b2N1bWVudGF0aW9uL2xvY2tpbmcvY3Jvc3NyZWxlYXNlLnR4dCB3b3VsZCBiZSBoZWxwZnVsLg0K
+DQpUaGF0IGRvY3VtZW50IGlzIGluY29tcGxldGUuIEl0IGRvZXMgbm90IG1lbnRpb24gdGhhdCBh
+bHRob3VnaCBpdCBjYW4gYmUNCnByb3ZlbiB0aGF0IHRoZSB0cmFkaXRpb25hbCBsb2NrIHZhbGlk
+YXRpb24gY29kZSB3b24ndCBwcm9kdWNlIGZhbHNlDQpwb3NpdGl2ZXMsIHRoYXQgdGhlIGNyb3Nz
+LXJlbGVhc2UgY2hlY2tzIGRvIG5vdCBoYXZlIGEgc29saWQgdGhlb3JldGljYWwNCmZvdW5kYXRp
+b24gYW5kIGFyZSBwcm9uZSB0byBwcm9kdWNlIGZhbHNlIHBvc2l0aXZlIHJlcG9ydHMuDQoNCkJh
+cnQu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
