@@ -1,111 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 13F116B0260
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 11:08:01 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b85so10563468pfj.22
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:08:01 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id b190si824661pga.635.2017.10.20.08.07.59
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 894156B0038
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 11:23:04 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id q4so11279515oic.12
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:23:04 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i25sor552689ote.310.2017.10.20.08.23.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 20 Oct 2017 08:07:59 -0700 (PDT)
-Subject: Re: [RFC PATCH 2/2] mm,oom: Try last second allocation after selecting an OOM victim.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201708242340.ICG00066.JtFOFVSMOHOLFQ@I-love.SAKURA.ne.jp>
-	<20170825080020.GE25498@dhcp22.suse.cz>
-	<201709090955.HFA57316.QFOSVMtFOJLFOH@I-love.SAKURA.ne.jp>
-	<201710172204.AGG30740.tVHJFFOQLMSFOO@I-love.SAKURA.ne.jp>
-	<20171020124009.joie5neol3gbdmxe@dhcp22.suse.cz>
-In-Reply-To: <20171020124009.joie5neol3gbdmxe@dhcp22.suse.cz>
-Message-Id: <201710202318.IJE26050.SFVFMOLHQJOOtF@I-love.SAKURA.ne.jp>
-Date: Fri, 20 Oct 2017 23:18:19 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (Google Transport Security);
+        Fri, 20 Oct 2017 08:23:03 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20171020075735.GA14378@lst.de>
+References: <150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <150846714747.24336.14704246566580871364.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171020075735.GA14378@lst.de>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 20 Oct 2017 08:23:02 -0700
+Message-ID: <CAPcyv4hA1nrhDf=DA6_j7s7ezGOBhvEVZ8cu81DNui_p3bhhaA@mail.gmail.com>
+Subject: Re: [PATCH v3 02/13] dax: require 'struct page' for filesystem dax
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com
-Cc: aarcange@redhat.com, hannes@cmpxchg.org, akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, mjaggi@caviumnetworks.com, mgorman@suse.de, oleg@redhat.com, vdavydov.dev@gmail.com, vbabka@suse.cz
+To: Christoph Hellwig <hch@lst.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>
 
-Michal Hocko wrote:
-> On Tue 17-10-17 22:04:59, Tetsuo Handa wrote:
-> > Below is updated patch. The motivation of this patch is to guarantee that
-> > the thread (it can be SCHED_IDLE priority) calling out_of_memory() can use
-> > enough CPU resource by saving CPU resource wasted by threads (they can be
-> > !SCHED_IDLE priority) waiting for out_of_memory(). Thus, replace
-> > mutex_trylock() with mutex_lock_killable().
-> 
-> So what exactly guanratees SCHED_IDLE running while other high priority
-> processes keep preempting it while it holds the oom lock? Not everybody
-> is inside the allocation path to get out of the way.
+On Fri, Oct 20, 2017 at 12:57 AM, Christoph Hellwig <hch@lst.de> wrote:
+>> --- a/arch/powerpc/sysdev/axonram.c
+>> +++ b/arch/powerpc/sysdev/axonram.c
+>> @@ -172,6 +172,7 @@ static size_t axon_ram_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff,
+>>
+>>  static const struct dax_operations axon_ram_dax_ops = {
+>>       .direct_access = axon_ram_dax_direct_access,
+>> +
+>>       .copy_from_iter = axon_ram_copy_from_iter,
+>
+> Unrelated whitespace change.  That being said - I don't think axonram has
+> devmap support in any form, so this basically becomes dead code, doesn't
+> it?
+>
+>> diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
+>> index 7abb240847c0..e7e5db07e339 100644
+>> --- a/drivers/s390/block/dcssblk.c
+>> +++ b/drivers/s390/block/dcssblk.c
+>> @@ -52,6 +52,7 @@ static size_t dcssblk_dax_copy_from_iter(struct dax_device *dax_dev,
+>>
+>>  static const struct dax_operations dcssblk_dax_ops = {
+>>       .direct_access = dcssblk_dax_direct_access,
+>> +
+>>       .copy_from_iter = dcssblk_dax_copy_from_iter,
+>
+> Same comments apply here.
 
-I think that that is a too much worry. If you worry such possibility,
-current assumption
-
-	/*
-	 * Acquire the oom lock.  If that fails, somebody else is
-	 * making progress for us.
-	 */
-
-is horribly broken. Also, high priority threads keep preempting will
-prevent low priority threads from reaching __alloc_pages_may_oom()
-because preemption will occur not only during a low priority thread is
-holding oom_lock but also while oom_lock is not held. We can try to
-reduce preemption while oom_lock is held by scattering around
-preempt_disable()/preempt_enable(). But you said you don't want to
-disable preemption during OOM kill operation when I proposed scattering
-patch, didn't you?
-
-So, I think that worrying about high priority threads preventing the low
-priority thread with oom_lock held is too much. Preventing high priority
-threads waiting for oom_lock from disturbing the low priority thread with
-oom_lock held by wasting CPU resource will be sufficient.
-
-If you don't like it, the only way will be to offload to a dedicated
-kernel thread (like the OOM reaper) so that allocating threads are
-no longer blocked by oom_lock. That's a big change.
-
-> > 
-> > By replacing mutex_trylock() with mutex_lock_killable(), it might prevent
-> > the OOM reaper from start reaping immediately. Thus, remove mutex_lock() from
-> > the OOM reaper.
-> 
-> oom_lock shouldn't be necessary in oom_reaper anymore and that is worth
-> a separate patch.
-
-I'll propose as a separate patch after we apply "mm, oom:
-task_will_free_mem(current) should ignore MMF_OOM_SKIP for once." or
-we call __alloc_pages_slowpath() with oom_lock held.
-
->  
-> > By removing mutex_lock() from the OOM reaper, the race window of needlessly
-> > selecting next OOM victim becomes wider, for the last second allocation
-> > attempt no longer waits for the OOM reaper. Thus, do the really last
-> > allocation attempt after selecting an OOM victim using the same watermark.
-> > 
-> > Can we go with this direction?
-> 
-> The patch is just too cluttered. You do not want to use
-> __alloc_pages_slowpath. get_page_from_freelist would be more
-> appropriate. Also doing alloc_pages_before_oomkill two times seems to be
-> excessive.
-
-This patch is intentionally calling __alloc_pages_slowpath() because
-it handles ALLOC_OOM by calling __gfp_pfmemalloc_flags(). If this patch
-calls only get_page_from_freelist(), we will fail to try ALLOC_OOM before
-calling out_of_memory() (when current thread is selected as OOM victim
-while waiting for oom_lock) and just before sending SIGKILL (when
-task_will_free_mem(current) in out_of_memory() returned false because
-MMF_OOM_SKIP was set before ALLOC_OOM allocation is attempted) unless
-we apply "mm, oom: task_will_free_mem(current) should ignore MMF_OOM_SKIP
-for once.".
-
-> 
-> That being said, make sure you adrress all the concerns brought up by
-> Andrea and Johannes in the above email thread first.
-
-I don't think there are concerns if we wait for oom_lock.
-The only concern will be do not depend on __GFP_DIRECT_RECLAIM allocation
-while oom_lock is held. Andrea and Johannes, what are your concerns?
+Yes, however it seems these drivers / platforms have been living with
+the lack of struct page for a long time. So they either don't use DAX,
+or they have a constrained use case that never triggers
+get_user_pages(). If it is the latter then they could introduce a new
+configuration option that bypasses the pfn_t_devmap() check in
+bdev_dax_supported() and fix up the get_user_pages() paths to fail.
+So, I'd like to understand how these drivers have been using DAX
+support without struct page to see if we need a workaround or we can
+go ahead delete this support. If the usage is limited to
+execute-in-place perhaps we can do a constrained ->direct_access() for
+just that case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
