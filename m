@@ -1,53 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A20CA6B0038
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 03:57:36 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id k4so4522330wmc.20
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 00:57:36 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id 42si364173wrl.550.2017.10.20.00.57.35
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BAB286B0038
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 04:01:02 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id z80so9148943pff.11
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 01:01:02 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id r1si379954pgo.519.2017.10.20.01.01.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Oct 2017 00:57:35 -0700 (PDT)
-Date: Fri, 20 Oct 2017 09:57:35 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH v3 02/13] dax: require 'struct page' for filesystem dax
-Message-ID: <20171020075735.GA14378@lst.de>
-References: <150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com> <150846714747.24336.14704246566580871364.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Fri, 20 Oct 2017 01:01:01 -0700 (PDT)
+Date: Fri, 20 Oct 2017 01:00:49 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [Qemu-devel] [RFC 2/2] KVM: add virtio-pmem driver
+Message-ID: <20171020080049.GA25471@infradead.org>
+References: <20171012155027.3277-1-pagupta@redhat.com>
+ <20171012155027.3277-3-pagupta@redhat.com>
+ <20171017071633.GA9207@infradead.org>
+ <1441791227.21027037.1508226056893.JavaMail.zimbra@redhat.com>
+ <20171017080236.GA27649@infradead.org>
+ <670833322.21037148.1508229041158.JavaMail.zimbra@redhat.com>
+ <20171018130339.GB29767@stefanha-x1.localdomain>
+ <CAPcyv4h6aFkyHhh4R4DTznbSCLf9CuBoszk0Q1gB5EKNcp_SeQ@mail.gmail.com>
+ <20171019080149.GB10089@infradead.org>
+ <CAPcyv4j=Cdp68C15HddKaErpve2UGRfSTiL6bHiS=3gQybz9pg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <150846714747.24336.14704246566580871364.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <CAPcyv4j=Cdp68C15HddKaErpve2UGRfSTiL6bHiS=3gQybz9pg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, linux-nvdimm@lists.01.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, hch@lst.de, Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Stefan Hajnoczi <stefanha@gmail.com>, Pankaj Gupta <pagupta@redhat.com>, Kevin Wolf <kwolf@redhat.com>, haozhong zhang <haozhong.zhang@intel.com>, Jan Kara <jack@suse.cz>, xiaoguangrong eric <xiaoguangrong.eric@gmail.com>, KVM list <kvm@vger.kernel.org>, David Hildenbrand <david@redhat.com>, linux-nvdimm <linux-nvdimm@ml01.01.org>, ross zwisler <ross.zwisler@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Qemu Developers <qemu-devel@nongnu.org>, Linux MM <linux-mm@kvack.org>, Stefan Hajnoczi <stefanha@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Nitesh Narayan Lal <nilal@redhat.com>
 
-> --- a/arch/powerpc/sysdev/axonram.c
-> +++ b/arch/powerpc/sysdev/axonram.c
-> @@ -172,6 +172,7 @@ static size_t axon_ram_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff,
->  
->  static const struct dax_operations axon_ram_dax_ops = {
->  	.direct_access = axon_ram_dax_direct_access,
-> +
->  	.copy_from_iter = axon_ram_copy_from_iter,
+On Thu, Oct 19, 2017 at 11:21:26AM -0700, Dan Williams wrote:
+> The difference is that nvdimm_flush() is not mandatory, and that the
+> platform will automatically perform the same flush at power-fail.
+> Applications should be able to assume that if they are using MAP_SYNC
+> that no other coordination with the kernel or the hypervisor is
+> necessary.
+> 
+> Advertising this as a generic Persistent Memory range to the guest
+> means that the guest could theoretically use it with device-dax where
+> there is no driver or filesystem sync interface. The hypervisor will
+> be waiting for flush notifications and the guest will just issue cache
+> flushes and sfence instructions. So, as far as I can see we need to
+> differentiate this virtio-model from standard "Persistent Memory" to
+> the guest and remove the possibility of guests/applications making the
+> wrong assumption.
 
-Unrelated whitespace change.  That being said - I don't think axonram has
-devmap support in any form, so this basically becomes dead code, doesn't
-it?
-
-> diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
-> index 7abb240847c0..e7e5db07e339 100644
-> --- a/drivers/s390/block/dcssblk.c
-> +++ b/drivers/s390/block/dcssblk.c
-> @@ -52,6 +52,7 @@ static size_t dcssblk_dax_copy_from_iter(struct dax_device *dax_dev,
->  
->  static const struct dax_operations dcssblk_dax_ops = {
->  	.direct_access = dcssblk_dax_direct_access,
-> +
->  	.copy_from_iter = dcssblk_dax_copy_from_iter,
-
-Same comments apply here.
+So add a flag that it is not.  We already have the nd_volatile type,
+that is special.  For now only in Linux, but I think adding this type
+to the spec eventually would be very useful for efficiently exposing
+directly mappable device to VM guests.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
