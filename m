@@ -1,92 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8847C6B0069
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 13:47:59 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id l5so11833974oib.0
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 10:47:59 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g104sor690969otg.304.2017.10.20.10.47.58
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F22D6B025E
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 13:49:59 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id z96so6045192wrb.21
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 10:49:59 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id q30si647863edc.284.2017.10.20.10.49.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 20 Oct 2017 10:47:58 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Oct 2017 10:49:58 -0700 (PDT)
+Subject: Re: [PATCH 1/1] mm:hugetlbfs: Fix hwpoison reserve accounting
+References: <20171019230007.17043-1-mike.kravetz@oracle.com>
+ <20171019230007.17043-2-mike.kravetz@oracle.com>
+ <20171020023019.GA9318@hori1.linux.bs1.fc.nec.co.jp>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <5016e528-8ea9-7597-3420-086ae57f3d9d@oracle.com>
+Date: Fri, 20 Oct 2017 10:49:46 -0700
 MIME-Version: 1.0
-In-Reply-To: <CAEvLuNbH0azyfSydbu3yNZ-_xY-G_5YrDDneCwcFbv+NgYd10w@mail.gmail.com>
-References: <20171019200323.42491-1-nehaagarwal@google.com>
- <20171020071250.ftqn2d356yekkp5k@dhcp22.suse.cz> <CAEvLuNbH0azyfSydbu3yNZ-_xY-G_5YrDDneCwcFbv+NgYd10w@mail.gmail.com>
-From: Neha Agarwal <nehaagarwal@google.com>
-Date: Fri, 20 Oct 2017 10:47:57 -0700
-Message-ID: <CAEvLuNbo=zf1aC9k7sitZgYPD=P1Awwne4mmUSRtJc0EF1xcAA@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm, thp: make deferred_split_shrinker memcg-aware
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20171020023019.GA9318@hori1.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Dan Williams <dan.j.williams@intel.com>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Kemi Wang <kemi.wang@intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Shaohua Li <shli@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>
 
-On Fri, Oct 20, 2017 at 9:47 AM, Neha Agarwal <nehaagarwal@google.com> wrote:
-> [Sorry for multiple emails, it wasn't in plain text before, thus resending.]
->
-> On Fri, Oct 20, 2017 at 12:12 AM, Michal Hocko <mhocko@kernel.org> wrote:
->> On Thu 19-10-17 13:03:23, Neha Agarwal wrote:
->>> deferred_split_shrinker is NUMA aware. Making it memcg-aware if
->>> CONFIG_MEMCG is enabled to prevent shrinking memory of memcg(s) that are
->>> not under memory pressure. This change isolates memory pressure across
->>> memcgs from deferred_split_shrinker perspective, by not prematurely
->>> splitting huge pages for the memcg that is not under memory pressure.
->>
->> Why do we need this? THP pages are usually not shared between memcgs. Or
->> do you have a real world example where this is not the case? Your patch
->> is adding quite a lot of (and to be really honest very ugly) code so
->> there better should be a _very_ good reason to justify it. I haven't
->> looked very closely to the code, at least all those ifdefs in the code
->> are too ugly to live.
->> --
->> Michal Hocko
->> SUSE Labs
->
-> Hi Michal,
->
-> Let me try to pitch the motivation first:
-> In the case of NUMA-aware shrinker, memory pressure may lead to
-> splitting and freeing subpages within a THP, irrespective of whether
-> the page belongs to the memcg that is under memory pressure. THP
-> sharing between memcgs is not a pre-condition for above to happen.
+On 10/19/2017 07:30 PM, Naoya Horiguchi wrote:
+> On Thu, Oct 19, 2017 at 04:00:07PM -0700, Mike Kravetz wrote:
+> 
+> Thank you for addressing this. The patch itself looks good to me, but
+> the reported issue (negative reserve count) doesn't reproduce in my trial
+> with v4.14-rc5, so could you share the exact procedure for this issue?
 
-I think I got confused here. The point I want to make is that when a
-memcg is under memory pressure, only memcg-aware shrinkers are called.
-However, a memcg with partially-mapped THPs (which can be split and
-thus free up subpages) should be be able to split such THPs, to avoid
-oom-kills under memory pressure. By making this shrinker memcg-aware,
-we will be able to free up subpages by splitting partially-mapped THPs
-under memory pressure.
+Sure, but first one question on your test scenario below.
 
->
-> Let's consider two memcgs: memcg-A and memcg-B. Say memcg-A is under
-> memory pressure that is hitting its limit. If this memory pressure
-> invokes the shrinker (non-memcg-aware) and splits pages from memcg-B
-> queued for deferred splits, then that won't reduce memcg-A's usage. It
-> will reduce memcg-B's usage. Also, why should memcg-A's memory
-> pressure reduce memcg-B's usage.
->
-> By making this shrinker memcg-aware, we can invoke respective memcg
-> shrinkers to handle the memory pressure. Furthermore, with this
-> approach we can isolate the THPs of other memcg(s) (not under memory
-> pressure) from premature splits. Isolation aids in reducing
-> performance impact when we have several memcgs on the same machine.
->
-> Regarding ifdef ugliness: I get your point and agree with you on that.
-> I think I can do a better job at restricting the ugliness, will post
-> another version.
->
-> --
-> Thanks,
-> Neha Agarwal
+> 
+> When error handler runs over a huge page, the reserve count is incremented
+> so I'm not sure why the reserve count goes negative.
 
+I'm not sure I follow.  What specific code is incrementing the reserve
+count?  
 
+>                                                      My operation is like below:
+> 
+>   $ sysctl vm.nr_hugepages=10
+>   $ grep HugePages_ /proc/meminfo
+>   HugePages_Total:      10
+>   HugePages_Free:       10
+>   HugePages_Rsvd:        0
+>   HugePages_Surp:        0
+>   $ ./test_alloc_generic -B hugetlb_file -N1 -L "mmap access memory_error_injection:error_type=madv_hard"  // allocate a 2MB file on hugetlbfs, then madvise(MADV_HWPOISON) on it.
+>   $ grep HugePages_ /proc/meminfo
+>   HugePages_Total:      10
+>   HugePages_Free:        9
+>   HugePages_Rsvd:        1  // reserve count is incremented
+>   HugePages_Surp:        0
+
+This is confusing to me.  I can not create a test where there is a reserve
+count after poisoning page.
+
+I tried to recreate your test.  Running unmodified 4.14.0-rc5.
+
+Before test
+-----------
+HugePages_Total:       1
+HugePages_Free:        1
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+
+After open(creat) and mmap of 2MB hugetlbfs file
+------------------------------------------------
+HugePages_Total:       1
+HugePages_Free:        1
+HugePages_Rsvd:        1
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+
+Reserve count is 1 as expected/normal
+
+After madvise(MADV_HWPOISON) of the single huge page in mapping/file
+--------------------------------------------------------------------
+HugePages_Total:       1
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+
+In this case, the reserve (and free) count were decremented.  Note that
+before the poison operation the page was not associated with the mapping/
+file.  I did not look closely at the code, but assume the madvise may
+cause the page to be 'faulted in'.
+
+The counts remain the same when the program exits
+-------------------------------------------------
+HugePages_Total:       1
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+
+Remove the file (rm /var/opt/oracle/hugepool/foo)
+-------------------------------------------------
+HugePages_Total:       1
+HugePages_Free:        0
+HugePages_Rsvd:    18446744073709551615
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+
+I am still confused about how your test maintains a reserve count after
+poisoning.  It may be a good idea for you to test my patch with your
+test scenario as I can not recreate here.
 
 -- 
-Thanks,
-Neha Agarwal
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
