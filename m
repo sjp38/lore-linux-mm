@@ -1,172 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B8346B0038
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 16:00:02 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id v2so11536889pfa.10
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 13:00:02 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id w85si1196067pfa.410.2017.10.20.13.00.00
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 453296B025F
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 16:00:11 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id v78so11500758pfk.8
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 13:00:11 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id z33si937319plb.555.2017.10.20.13.00.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Oct 2017 13:00:00 -0700 (PDT)
+        Fri, 20 Oct 2017 13:00:10 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 3/4] x86/boot/compressed/64: Introduce place_trampoline()
-Date: Fri, 20 Oct 2017 22:59:33 +0300
-Message-Id: <20171020195934.32108-4-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20171020195934.32108-1-kirill.shutemov@linux.intel.com>
-References: <20171020195934.32108-1-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 0/4] Boot-time switching between 4- and 5-level paging for 4.15, Part 2
+Date: Fri, 20 Oct 2017 22:59:30 +0300
+Message-Id: <20171020195934.32108-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-If bootloader enables 64-bit mode with 4-level paging, we need to
-switch over to 5-level paging. The switching requires disabling paging.
-It works fine if kernel itself is loaded below 4G.
+Hi Ingo,
 
-If bootloader put the kernel above 4G (not sure if anybody does this),
-we would loose control as soon as paging is disabled as code becomes
-unreachable.
+Here's the second bunch of patches that prepare kernel to boot-time switching
+between paging modes.
 
-To handle the situation, we need a trampoline in lower memory that would
-take care about switching on 5-level paging.
+It's a small one. I hope we can get it in quick. :)
 
-Apart from trampoline itself we also need place to store top level page
-table in lower memory as we don't have a way to load 64-bit value into
-CR3 from 32-bit mode. We only really need 8-bytes there as we only use
-the very first entry of the page table. But we allocate whole page
-anyway. We cannot have the code in the same because, there's hazard that
-a CPU would read page table speculatively and get confused seeing
-garbage.
+I include the zsmalloc patch again. We need something to address the issue.
+If we would find a better solution, we can come back to the topic and
+rework it.
 
-This patch introduces place_trampoline() that finds right spot in lower
-memory for trampoline, copies trampoline code there and setups new top
-level page table for 5-level paging.
+Apart from zsmalloc patch, the patchset includes changes to decompression
+code. I reworked these patches. They are split not exactly the way you've
+described before, but I hope it's sensible anyway.
 
-At this point we do all the preparation, but not yet use trampoline.
-It will be done in following patch.
+Please review and consider applying.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/boot/compressed/head_64.S   | 13 +++++++++++
- arch/x86/boot/compressed/pagetable.c | 42 ++++++++++++++++++++++++++++++++++++
- arch/x86/boot/compressed/pagetable.h | 18 ++++++++++++++++
- 3 files changed, 73 insertions(+)
+Kirill A. Shutemov (4):
+  mm/zsmalloc: Prepare to variable MAX_PHYSMEM_BITS
+  x86/boot/compressed/64: Detect and handle 5-level paging at boot-time
+  x86/boot/compressed/64: Introduce place_trampoline()
+  x86/boot/compressed/64: Handle 5-level paging boot if kernel is above 4G
+
+ arch/x86/boot/compressed/head_64.S          | 99 ++++++++++++++++++++---------
+ arch/x86/boot/compressed/pagetable.c        | 61 ++++++++++++++++++
+ arch/x86/boot/compressed/pagetable.h        | 18 ++++++
+ arch/x86/include/asm/pgtable-3level_types.h |  1 +
+ arch/x86/include/asm/pgtable_64_types.h     |  2 +
+ mm/zsmalloc.c                               | 13 ++--
+ 6 files changed, 158 insertions(+), 36 deletions(-)
  create mode 100644 arch/x86/boot/compressed/pagetable.h
 
-diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
-index 6ac8239af2b6..4d1555b39de0 100644
---- a/arch/x86/boot/compressed/head_64.S
-+++ b/arch/x86/boot/compressed/head_64.S
-@@ -315,6 +315,18 @@ ENTRY(startup_64)
- 	 * The first step is go into compatibility mode.
- 	 */
- 
-+	/*
-+	 * Find suitable place for trampoline and populate it.
-+	 * The address will be stored in RCX.
-+	 *
-+	 * RSI holds real mode data and need to be preserved across
-+	 * a function call.
-+	 */
-+	pushq	%rsi
-+	call	place_trampoline
-+	popq	%rsi
-+	movq	%rax, %rcx
-+
- 	/* Clear additional page table */
- 	leaq	lvl5_pgtable(%rbx), %rdi
- 	xorq	%rax, %rax
-@@ -474,6 +486,7 @@ relocated:
- 
- 	.code32
- #ifdef CONFIG_X86_5LEVEL
-+ENTRY(lvl5_trampoline_src)
- compatible_mode:
- 	/* Setup data and stack segments */
- 	movl	$__KERNEL_DS, %eax
-diff --git a/arch/x86/boot/compressed/pagetable.c b/arch/x86/boot/compressed/pagetable.c
-index 76d25a82e3ac..a04fb69a453f 100644
---- a/arch/x86/boot/compressed/pagetable.c
-+++ b/arch/x86/boot/compressed/pagetable.c
-@@ -23,6 +23,8 @@
- #undef CONFIG_AMD_MEM_ENCRYPT
- 
- #include "misc.h"
-+#include "pagetable.h"
-+#include "../string.h"
- 
- /* These actually do the work of building the kernel identity maps. */
- #include <asm/init.h>
-@@ -167,4 +169,44 @@ int need_to_enabled_l5(void)
- 
- 	return 1;
- }
-+
-+#define BIOS_START_MIN		0x20000U	/* 128K, less than this is insane */
-+#define BIOS_START_MAX		0x9f000U	/* 640K, absolute maximum */
-+
-+unsigned long *place_trampoline()
-+{
-+	unsigned long bios_start, ebda_start, trampoline_start, *trampoline;
-+
-+	/* Based on reserve_bios_regions() */
-+
-+	ebda_start = *(unsigned short *)0x40e << 4;
-+	bios_start = *(unsigned short *)0x413 << 10;
-+
-+	if (bios_start < BIOS_START_MIN || bios_start > BIOS_START_MAX)
-+		bios_start = BIOS_START_MAX;
-+
-+	if (ebda_start > BIOS_START_MIN && ebda_start < bios_start)
-+		bios_start = ebda_start;
-+
-+	/* Place trampoline below end of low memory, aligned to 4k */
-+	trampoline_start = bios_start - LVL5_TRAMPOLINE_SIZE;
-+	trampoline_start = round_down(trampoline_start, PAGE_SIZE);
-+
-+	trampoline = (unsigned long *)trampoline_start;
-+
-+	/* Clear trampoline memory first */
-+	memset(trampoline, 0, LVL5_TRAMPOLINE_SIZE);
-+
-+	/* Copy trampoline code in place */
-+	memcpy(trampoline + LVL5_TRAMPOLINE_CODE_OFF / sizeof(unsigned long),
-+			&lvl5_trampoline_src, LVL5_TRAMPOLINE_CODE_SIZE);
-+
-+	/*
-+	 * Setup current CR3 as the first and the only entry in a new top level
-+	 * page table.
-+	 */
-+	trampoline[0] = __read_cr3() + _PAGE_TABLE_NOENC;
-+
-+	return trampoline;
-+}
- #endif
-diff --git a/arch/x86/boot/compressed/pagetable.h b/arch/x86/boot/compressed/pagetable.h
-new file mode 100644
-index 000000000000..906436cc1c02
---- /dev/null
-+++ b/arch/x86/boot/compressed/pagetable.h
-@@ -0,0 +1,18 @@
-+#ifndef BOOT_COMPRESSED_PAGETABLE_H
-+#define BOOT_COMPRESSED_PAGETABLE_H
-+
-+#define LVL5_TRAMPOLINE_SIZE		(2 * PAGE_SIZE)
-+
-+#define LVL5_TRAMPOLINE_PGTABLE_OFF	0
-+
-+#define LVL5_TRAMPOLINE_CODE_OFF	PAGE_SIZE
-+#define LVL5_TRAMPOLINE_CODE_SIZE	0x40
-+
-+#define LVL5_TRAMPOLINE_STACK_END	LVL5_TRAMPOLINE_SIZE
-+
-+#ifndef __ASSEMBLER__
-+
-+extern void (*lvl5_trampoline_src)(void *return_ptr);
-+
-+#endif /* __ASSEMBLER__ */
-+#endif /* BOOT_COMPRESSED_PAGETABLE_H */
 -- 
 2.14.2
 
