@@ -1,85 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FFF66B0281
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:18:11 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id f27so1061112wra.9
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 05:18:11 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r13sor609774edc.15.2017.10.20.05.18.09
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FEFB6B0038
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:39:21 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id u27so10071008pfg.12
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 05:39:21 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id m63si579184pld.191.2017.10.20.05.39.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 20 Oct 2017 05:18:09 -0700 (PDT)
-Date: Fri, 20 Oct 2017 15:18:07 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 0/6] Boot-time switching between 4- and 5-level paging
- for 4.15, Part 1
-Message-ID: <20171020121807.jevj35a4nqqop7vt@node.shutemov.name>
-References: <20170929140821.37654-1-kirill.shutemov@linux.intel.com>
- <20171003082754.no6ym45oirah53zp@node.shutemov.name>
- <20171017154241.f4zaxakfl7fcrdz5@node.shutemov.name>
- <20171020081853.lmnvaiydxhy5c63t@gmail.com>
- <20171020094913.GA5359@bgram>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171020094913.GA5359@bgram>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Oct 2017 05:39:20 -0700 (PDT)
+Message-ID: <1508503151.5572.27.camel@kernel.org>
+Subject: Re: [PATCH v3 11/13] fs: use smp_load_acquire in
+ break_{layout,lease}
+From: Jeffrey Layton <jlayton@kernel.org>
+Date: Fri, 20 Oct 2017 08:39:11 -0400
+In-Reply-To: <150846719726.24336.3564801642993121646.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: 
+	<150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com>
+	 <150846719726.24336.3564801642993121646.stgit@dwillia2-desk3.amr.corp.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Ingo Molnar <mingo@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
+Cc: linux-xfs@vger.kernel.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, hch@lst.de, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Fri, Oct 20, 2017 at 02:49:13AM -0700, Minchan Kim wrote:
-> Hi Ingo,
+On Thu, 2017-10-19 at 19:39 -0700, Dan Williams wrote:
+> Commit 128a37852234 "fs: fix data races on inode->i_flctx" converted
+> checks of inode->i_flctx to use smp_load_acquire(), but it did not
+> convert break_layout(). smp_load_acquire() includes a READ_ONCE(). There
+> should be no functional difference since __break_lease repeats the
+> sequence, but this is a clean up to unify all ->i_flctx lookups on a
+> common pattern.
 > 
-> On Fri, Oct 20, 2017 at 10:18:53AM +0200, Ingo Molnar wrote:
-> > 
-> > * Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> > 
-> > > On Tue, Oct 03, 2017 at 11:27:54AM +0300, Kirill A. Shutemov wrote:
-> > > > On Fri, Sep 29, 2017 at 05:08:15PM +0300, Kirill A. Shutemov wrote:
-> > > > > The first bunch of patches that prepare kernel to boot-time switching
-> > > > > between paging modes.
-> > > > > 
-> > > > > Please review and consider applying.
-> > > > 
-> > > > Ping?
-> > > 
-> > > Ingo, is there anything I can do to get review easier for you?
-> > 
-> > Yeah, what is the conclusion on the sub-discussion of patch #2:
-> > 
-> >   [PATCH 2/6] mm/zsmalloc: Prepare to variable MAX_PHYSMEM_BITS
-> > 
-> > ... do we want to skip it entirely and use the other 5 patches?
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Cc: Jeff Layton <jlayton@poochiereds.net>
+> Cc: "J. Bruce Fields" <bfields@fieldses.org>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>  include/linux/fs.h |   10 ++++++----
+>  1 file changed, 6 insertions(+), 4 deletions(-)
 > 
-> Sorry for the too much late reply, Kirill.
-> Yes, you can skip it.
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index 13dab191a23e..eace2c5396a7 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -2281,8 +2281,9 @@ static inline int break_lease(struct inode *inode, unsigned int mode)
+>  	 * could end up racing with tasks trying to set a new lease on this
+>  	 * file.
+>  	 */
+> -	smp_mb();
+> -	if (inode->i_flctx && !list_empty_careful(&inode->i_flctx->flc_lease))
+> +	struct file_lock_context *ctx = smp_load_acquire(&inode->i_flctx);
+> +
+> +	if (ctx && !list_empty_careful(&ctx->flc_lease))
+>  		return __break_lease(inode, mode, FL_LEASE);
+>  	return 0;
+>  }
+> @@ -2325,8 +2326,9 @@ static inline int break_deleg_wait(struct inode **delegated_inode)
+>  
+>  static inline int break_layout(struct inode *inode, bool wait)
+>  {
+> -	smp_mb();
+> -	if (inode->i_flctx && !list_empty_careful(&inode->i_flctx->flc_lease))
+> +	struct file_lock_context *ctx = smp_load_acquire(&inode->i_flctx);
+> +
+> +	if (ctx && !list_empty_careful(&ctx->flc_lease))
+>  		return __break_lease(inode,
+>  				wait ? O_WRONLY : O_WRONLY | O_NONBLOCK,
+>  				FL_LAYOUT);
 > 
-> As Nitin said in that patch's thread, zsmalloc has assumed
-> PFN_BIT is (BITS_PER_LONG - PAGE_SHIFT) so it already covers
-> X86_5LEVEL well, I think.
-> 
-> In summary, there is no need to change it.
-> I hope it helps to merge this patchset series.
 
-Acctually, no, we need something.
+Nice catch. This can go in independently of the rest of the patches in
+the series, I think. I'll assume Andrew is picking this up since he's in
+the "To:", but let me know if you need me to get it.
 
-The problem is that later in the series[1] we make MAX_PHYSMEM_BITS
-dynamic. It's not a simple constant anymore.
-
-But zsmalloc uses it to define _PFN_BIT, which, with few hoops, defines
-ZS_SIZE_CLASSES. ZS_SIZE_CLASSES is used to specify size of a field in
-'struct zs_pool' and build fails if it's not constant.
-
-My patch addresses this, but there are more than one solution to the
-problem.
-
-Which way do you prefer to get it fixed?
-
-[1] https://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git/commit/?h=la57/boot-switching/v8&id=57f669244fab9081a4343b59373ff43170ef328f
-
--- 
- Kirill A. Shutemov
+Reviewed-by: Jeff Layton <jlayton@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
