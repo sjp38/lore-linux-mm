@@ -1,152 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AA5A86B0280
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:17:23 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id n14so10072607pfh.15
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 05:17:23 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id k70si662748pgc.344.2017.10.20.05.17.22
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FFF66B0281
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:18:11 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id f27so1061112wra.9
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 05:18:11 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r13sor609774edc.15.2017.10.20.05.18.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Oct 2017 05:17:22 -0700 (PDT)
-From: Elena Reshetova <elena.reshetova@intel.com>
-Subject: [PATCH 15/15] bdi: convert bdi_writeback_congested.refcnt from atomic_t to refcount_t
-Date: Fri, 20 Oct 2017 15:15:57 +0300
-Message-Id: <1508501757-15784-16-git-send-email-elena.reshetova@intel.com>
-In-Reply-To: <1508501757-15784-1-git-send-email-elena.reshetova@intel.com>
-References: <1508501757-15784-1-git-send-email-elena.reshetova@intel.com>
+        (Google Transport Security);
+        Fri, 20 Oct 2017 05:18:09 -0700 (PDT)
+Date: Fri, 20 Oct 2017 15:18:07 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 0/6] Boot-time switching between 4- and 5-level paging
+ for 4.15, Part 1
+Message-ID: <20171020121807.jevj35a4nqqop7vt@node.shutemov.name>
+References: <20170929140821.37654-1-kirill.shutemov@linux.intel.com>
+ <20171003082754.no6ym45oirah53zp@node.shutemov.name>
+ <20171017154241.f4zaxakfl7fcrdz5@node.shutemov.name>
+ <20171020081853.lmnvaiydxhy5c63t@gmail.com>
+ <20171020094913.GA5359@bgram>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171020094913.GA5359@bgram>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mingo@redhat.com
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, peterz@infradead.org, gregkh@linuxfoundation.org, viro@zeniv.linux.org.uk, tj@kernel.org, hannes@cmpxchg.org, lizefan@huawei.com, acme@kernel.org, alexander.shishkin@linux.intel.com, eparis@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, luto@kernel.org, keescook@chromium.org, tglx@linutronix.de, dvhart@infradead.org, ebiederm@xmission.com, linux-mm@kvack.org, axboe@kernel.dk, Elena Reshetova <elena.reshetova@intel.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Ingo Molnar <mingo@kernel.org>, Ingo Molnar <mingo@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-atomic_t variables are currently used to implement reference
-counters with the following properties:
- - counter is initialized to 1 using atomic_set()
- - a resource is freed upon counter reaching zero
- - once counter reaches zero, its further
-   increments aren't allowed
- - counter schema uses basic atomic operations
-   (set, inc, inc_not_zero, dec_and_test, etc.)
+On Fri, Oct 20, 2017 at 02:49:13AM -0700, Minchan Kim wrote:
+> Hi Ingo,
+> 
+> On Fri, Oct 20, 2017 at 10:18:53AM +0200, Ingo Molnar wrote:
+> > 
+> > * Kirill A. Shutemov <kirill@shutemov.name> wrote:
+> > 
+> > > On Tue, Oct 03, 2017 at 11:27:54AM +0300, Kirill A. Shutemov wrote:
+> > > > On Fri, Sep 29, 2017 at 05:08:15PM +0300, Kirill A. Shutemov wrote:
+> > > > > The first bunch of patches that prepare kernel to boot-time switching
+> > > > > between paging modes.
+> > > > > 
+> > > > > Please review and consider applying.
+> > > > 
+> > > > Ping?
+> > > 
+> > > Ingo, is there anything I can do to get review easier for you?
+> > 
+> > Yeah, what is the conclusion on the sub-discussion of patch #2:
+> > 
+> >   [PATCH 2/6] mm/zsmalloc: Prepare to variable MAX_PHYSMEM_BITS
+> > 
+> > ... do we want to skip it entirely and use the other 5 patches?
+> 
+> Sorry for the too much late reply, Kirill.
+> Yes, you can skip it.
+> 
+> As Nitin said in that patch's thread, zsmalloc has assumed
+> PFN_BIT is (BITS_PER_LONG - PAGE_SHIFT) so it already covers
+> X86_5LEVEL well, I think.
+> 
+> In summary, there is no need to change it.
+> I hope it helps to merge this patchset series.
 
-Such atomic variables should be converted to a newly provided
-refcount_t type and API that prevents accidental counter overflows
-and underflows. This is important since overflows and underflows
-can lead to use-after-free situation and be exploitable.
+Acctually, no, we need something.
 
-The variable bdi_writeback_congested.refcnt is used as pure reference counter.
-Convert it to refcount_t and fix up the operations.
+The problem is that later in the series[1] we make MAX_PHYSMEM_BITS
+dynamic. It's not a simple constant anymore.
 
-Suggested-by: Kees Cook <keescook@chromium.org>
-Reviewed-by: David Windsor <dwindsor@gmail.com>
-Reviewed-by: Hans Liljestrand <ishkamiel@gmail.com>
-Signed-off-by: Elena Reshetova <elena.reshetova@intel.com>
----
- include/linux/backing-dev-defs.h |  3 ++-
- include/linux/backing-dev.h      |  4 ++--
- mm/backing-dev.c                 | 14 ++++++++------
- 3 files changed, 12 insertions(+), 9 deletions(-)
+But zsmalloc uses it to define _PFN_BIT, which, with few hoops, defines
+ZS_SIZE_CLASSES. ZS_SIZE_CLASSES is used to specify size of a field in
+'struct zs_pool' and build fails if it's not constant.
 
-diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
-index b7c7be6..429fe3b 100644
---- a/include/linux/backing-dev-defs.h
-+++ b/include/linux/backing-dev-defs.h
-@@ -4,6 +4,7 @@
- #include <linux/list.h>
- #include <linux/radix-tree.h>
- #include <linux/rbtree.h>
-+#include <linux/refcount.h>
- #include <linux/spinlock.h>
- #include <linux/percpu_counter.h>
- #include <linux/percpu-refcount.h>
-@@ -75,7 +76,7 @@ enum wb_reason {
-  */
- struct bdi_writeback_congested {
- 	unsigned long state;		/* WB_[a]sync_congested flags */
--	atomic_t refcnt;		/* nr of attached wb's and blkg */
-+	refcount_t refcnt;		/* nr of attached wb's and blkg */
- 
- #ifdef CONFIG_CGROUP_WRITEBACK
- 	struct backing_dev_info *__bdi;	/* the associated bdi, set to NULL
-diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index e6f5037..f3b38c4 100644
---- a/include/linux/backing-dev.h
-+++ b/include/linux/backing-dev.h
-@@ -401,13 +401,13 @@ static inline bool inode_cgwb_enabled(struct inode *inode)
- static inline struct bdi_writeback_congested *
- wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
- {
--	atomic_inc(&bdi->wb_congested->refcnt);
-+	refcount_inc(&bdi->wb_congested->refcnt);
- 	return bdi->wb_congested;
- }
- 
- static inline void wb_congested_put(struct bdi_writeback_congested *congested)
- {
--	if (atomic_dec_and_test(&congested->refcnt))
-+	if (refcount_dec_and_test(&congested->refcnt))
- 		kfree(congested);
- }
- 
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index 74b52df..e92a20f 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -440,14 +440,17 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
- 			node = &parent->rb_left;
- 		else if (congested->blkcg_id > blkcg_id)
- 			node = &parent->rb_right;
--		else
--			goto found;
-+		else {
-+			refcount_inc(&congested->refcnt);
-+ 			goto found;
-+		}
- 	}
- 
- 	if (new_congested) {
- 		/* !found and storage for new one already allocated, insert */
- 		congested = new_congested;
- 		new_congested = NULL;
-+		refcount_set(&congested->refcnt, 1);
- 		rb_link_node(&congested->rb_node, parent, node);
- 		rb_insert_color(&congested->rb_node, &bdi->cgwb_congested_tree);
- 		goto found;
-@@ -460,13 +463,12 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
- 	if (!new_congested)
- 		return NULL;
- 
--	atomic_set(&new_congested->refcnt, 0);
-+	refcount_set(&new_congested->refcnt, 0);
- 	new_congested->__bdi = bdi;
- 	new_congested->blkcg_id = blkcg_id;
- 	goto retry;
- 
- found:
--	atomic_inc(&congested->refcnt);
- 	spin_unlock_irqrestore(&cgwb_lock, flags);
- 	kfree(new_congested);
- 	return congested;
-@@ -483,7 +485,7 @@ void wb_congested_put(struct bdi_writeback_congested *congested)
- 	unsigned long flags;
- 
- 	local_irq_save(flags);
--	if (!atomic_dec_and_lock(&congested->refcnt, &cgwb_lock)) {
-+	if (!refcount_dec_and_lock(&congested->refcnt, &cgwb_lock)) {
- 		local_irq_restore(flags);
- 		return;
- 	}
-@@ -793,7 +795,7 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
- 	if (!bdi->wb_congested)
- 		return -ENOMEM;
- 
--	atomic_set(&bdi->wb_congested->refcnt, 1);
-+	refcount_set(&bdi->wb_congested->refcnt, 1);
- 
- 	err = wb_init(&bdi->wb, bdi, 1, GFP_KERNEL);
- 	if (err) {
+My patch addresses this, but there are more than one solution to the
+problem.
+
+Which way do you prefer to get it fixed?
+
+[1] https://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git/commit/?h=la57/boot-switching/v8&id=57f669244fab9081a4343b59373ff43170ef328f
+
 -- 
-2.7.4
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
