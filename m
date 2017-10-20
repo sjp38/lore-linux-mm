@@ -1,64 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DA8C6B0038
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 03:30:54 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id u78so4510267wmd.13
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 00:30:54 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u50sor153229wrf.57.2017.10.20.00.30.53
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 88D736B0038
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 03:47:52 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id g90so5364286wrd.14
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 00:47:52 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id y6si348824wrb.228.2017.10.20.00.47.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 20 Oct 2017 00:30:53 -0700 (PDT)
-Date: Fri, 20 Oct 2017 09:30:50 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v2 2/3] lockdep: Remove BROKEN flag of
- LOCKDEP_CROSSRELEASE
-Message-ID: <20171020073050.nyaqynbbkeltr7iq@gmail.com>
-References: <1508392531-11284-1-git-send-email-byungchul.park@lge.com>
- <1508392531-11284-3-git-send-email-byungchul.park@lge.com>
- <1508425527.2429.11.camel@wdc.com>
- <alpine.DEB.2.20.1710191718260.1971@nanos>
- <1508428021.2429.22.camel@wdc.com>
- <alpine.DEB.2.20.1710192021480.2054@nanos>
- <alpine.DEB.2.20.1710192107000.2054@nanos>
- <1508444515.2429.55.camel@wdc.com>
- <alpine.DEB.2.20.1710192233130.2054@nanos>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Oct 2017 00:47:51 -0700 (PDT)
+Date: Fri, 20 Oct 2017 09:47:50 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH v3 00/13] dax: fix dma vs truncate and remove
+	'page-less' support
+Message-ID: <20171020074750.GA13568@lst.de>
+References: <150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1710192233130.2054@nanos>
+In-Reply-To: <150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Bart Van Assche <Bart.VanAssche@wdc.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "byungchul.park@lge.com" <byungchul.park@lge.com>, "kernel-team@lge.com" <kernel-team@lge.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave.hansen@linux.intel.com>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm@kvack.org, Paul Mackerras <paulus@samba.org>, Sean Hefty <sean.hefty@intel.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <mawilcox@microsoft.com>, linux-rdma@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, Jeff Moyer <jmoyer@redhat.com>, hch@lst.de, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Doug Ledford <dledford@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-nvdimm@lists.01.org, Alexander Viro <viro@zeniv.linux.org.uk>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
+> The solution presented is not pretty. It creates a stream of leases, one
+> for each get_user_pages() invocation, and polls page reference counts
+> until DMA stops. We're missing a reliable way to not only trap the
+> DMA-idle event, but also block new references being taken on pages while
+> truncate is allowed to progress. "[PATCH v3 12/13] dax: handle truncate of
+> dma-busy pages" presents other options considered, and notes that this
+> solution can only be viewed as a stop-gap.
 
-* Thomas Gleixner <tglx@linutronix.de> wrote:
+I'd like to brainstorm how we can do something better.
 
-> That would just make the door open for evading lockdep. This has been
-> discussed when lockdep was introduced and with a lot of other 'annoying'
-> debug features we've seen the same discussion happening.
-> 
-> When they get introduced the number of real issues and false positives is
-> high, but once the dust settles it's just business as usual and the overall
-> code quality improves and the number of hard to decode problems shrinks.
+How about:
 
-Yes, also note that it's typical that the proportion of false positives 
-*increases* once a lock debugging feature enters a more mature period of its 
-existence, because real deadlocks tend to be fixed at the development stage 
-without us ever seeing them.
-
-I.e. for every lockdep-debugged bug fixed upstream I'm pretty sure there are at 
-least 10 times as many bugs that were fixed in earlier stages of development, 
-without ever hitting the upstream kernel. At least that's the rough proportion
-for locking bugs I introduce ;-)
-
-So even false positives are not a problem as long as their annotation improves the 
-code or documents it better.
-
-Thanks,
-
-	Ingo
+If we hit a page with an elevated refcount in truncate / hole puch
+etc for a DAX file system we do not free the blocks in the file system,
+but add it to the extent busy list.  We mark the page as delayed
+free (e.g. page flag?) so that when it finally hits refcount zero we
+call back into the file system to remove it from the busy list.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
