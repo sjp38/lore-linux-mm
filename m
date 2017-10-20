@@ -1,56 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 72F496B0038
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 13:27:25 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id t134so11651027oih.6
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 10:27:25 -0700 (PDT)
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8847C6B0069
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 13:47:59 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id l5so11833974oib.0
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 10:47:59 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t23sor666864oth.274.2017.10.20.10.27.23
+        by mx.google.com with SMTPS id g104sor690969otg.304.2017.10.20.10.47.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 20 Oct 2017 10:27:23 -0700 (PDT)
+        Fri, 20 Oct 2017 10:47:58 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20171020163221.GB26320@lst.de>
-References: <150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150846720244.24336.16885325309403883980.stgit@dwillia2-desk3.amr.corp.intel.com>
- <1508504726.5572.41.camel@kernel.org> <CAPcyv4hXCJYTkUKs6NiOp=8kgExu+bgZnVn_v+Os7fVUc2NxFg@mail.gmail.com>
- <20171020163221.GB26320@lst.de>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 20 Oct 2017 10:27:22 -0700
-Message-ID: <CAPcyv4iGN6KO_ggJ-vTHCPWanudY3Gq6n=+9sbnMsnTeF56uJA@mail.gmail.com>
-Subject: Re: [PATCH v3 12/13] dax: handle truncate of dma-busy pages
+In-Reply-To: <CAEvLuNbH0azyfSydbu3yNZ-_xY-G_5YrDDneCwcFbv+NgYd10w@mail.gmail.com>
+References: <20171019200323.42491-1-nehaagarwal@google.com>
+ <20171020071250.ftqn2d356yekkp5k@dhcp22.suse.cz> <CAEvLuNbH0azyfSydbu3yNZ-_xY-G_5YrDDneCwcFbv+NgYd10w@mail.gmail.com>
+From: Neha Agarwal <nehaagarwal@google.com>
+Date: Fri, 20 Oct 2017 10:47:57 -0700
+Message-ID: <CAEvLuNbo=zf1aC9k7sitZgYPD=P1Awwne4mmUSRtJc0EF1xcAA@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm, thp: make deferred_split_shrinker memcg-aware
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Jeff Layton <jlayton@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Dave Hansen <dave.hansen@linux.intel.com>, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "J. Bruce Fields" <bfields@fieldses.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-xfs@vger.kernel.org, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Dan Williams <dan.j.williams@intel.com>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Kemi Wang <kemi.wang@intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Shaohua Li <shli@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Fri, Oct 20, 2017 at 9:32 AM, Christoph Hellwig <hch@lst.de> wrote:
-> On Fri, Oct 20, 2017 at 08:42:00AM -0700, Dan Williams wrote:
->> I agree, but it needs quite a bit more thought and restructuring of
->> the truncate path. I also wonder how we reclaim those stranded
->> filesystem blocks, but a first approximation is wait for the
->> administrator to delete them or auto-delete them at the next mount.
->> XFS seems well prepared to reflink-swap these DMA blocks around, but
->> I'm not sure about EXT4.
+On Fri, Oct 20, 2017 at 9:47 AM, Neha Agarwal <nehaagarwal@google.com> wrote:
+> [Sorry for multiple emails, it wasn't in plain text before, thus resending.]
 >
-> reflink still is an optional and experimental feature in XFS.  That
-> being said we should not need to swap block pointers around on disk.
-> We just need to prevent the block allocator from reusing the blocks
-> for new allocations, and we have code for that, both for transactions
-> that haven't been committed to disk yet, and for deleted blocks
-> undergoing discard operations.
+> On Fri, Oct 20, 2017 at 12:12 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>> On Thu 19-10-17 13:03:23, Neha Agarwal wrote:
+>>> deferred_split_shrinker is NUMA aware. Making it memcg-aware if
+>>> CONFIG_MEMCG is enabled to prevent shrinking memory of memcg(s) that are
+>>> not under memory pressure. This change isolates memory pressure across
+>>> memcgs from deferred_split_shrinker perspective, by not prematurely
+>>> splitting huge pages for the memcg that is not under memory pressure.
+>>
+>> Why do we need this? THP pages are usually not shared between memcgs. Or
+>> do you have a real world example where this is not the case? Your patch
+>> is adding quite a lot of (and to be really honest very ugly) code so
+>> there better should be a _very_ good reason to justify it. I haven't
+>> looked very closely to the code, at least all those ifdefs in the code
+>> are too ugly to live.
+>> --
+>> Michal Hocko
+>> SUSE Labs
 >
-> But as mentioned in my second mail from this morning I'm not even
-> sure we need that.  For short-term elevated page counts like normal
-> get_user_pages users I think we can just wait for the page count
-> to reach zero, while for abuses of get_user_pages for long term
-> pinning memory (not sure if anyone but rdma is doing that) we'll need
-> something like FL_LAYOUT leases to release the mapping.
+> Hi Michal,
+>
+> Let me try to pitch the motivation first:
+> In the case of NUMA-aware shrinker, memory pressure may lead to
+> splitting and freeing subpages within a THP, irrespective of whether
+> the page belongs to the memcg that is under memory pressure. THP
+> sharing between memcgs is not a pre-condition for above to happen.
 
-I'll take a look at hooking this up through a page-idle callback. Can
-I get some breadcrumbs to grep for from XFS folks on how to set/clear
-the busy state of extents?
+I think I got confused here. The point I want to make is that when a
+memcg is under memory pressure, only memcg-aware shrinkers are called.
+However, a memcg with partially-mapped THPs (which can be split and
+thus free up subpages) should be be able to split such THPs, to avoid
+oom-kills under memory pressure. By making this shrinker memcg-aware,
+we will be able to free up subpages by splitting partially-mapped THPs
+under memory pressure.
+
+>
+> Let's consider two memcgs: memcg-A and memcg-B. Say memcg-A is under
+> memory pressure that is hitting its limit. If this memory pressure
+> invokes the shrinker (non-memcg-aware) and splits pages from memcg-B
+> queued for deferred splits, then that won't reduce memcg-A's usage. It
+> will reduce memcg-B's usage. Also, why should memcg-A's memory
+> pressure reduce memcg-B's usage.
+>
+> By making this shrinker memcg-aware, we can invoke respective memcg
+> shrinkers to handle the memory pressure. Furthermore, with this
+> approach we can isolate the THPs of other memcg(s) (not under memory
+> pressure) from premature splits. Isolation aids in reducing
+> performance impact when we have several memcgs on the same machine.
+>
+> Regarding ifdef ugliness: I get your point and agree with you on that.
+> I think I can do a better job at restricting the ugliness, will post
+> another version.
+>
+> --
+> Thanks,
+> Neha Agarwal
+
+
+
+-- 
+Thanks,
+Neha Agarwal
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
