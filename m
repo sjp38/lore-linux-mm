@@ -1,84 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FEFB6B0038
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:39:21 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id u27so10071008pfg.12
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 05:39:21 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id m63si579184pld.191.2017.10.20.05.39.20
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 329FC6B025E
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:40:14 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id f27so1086510wra.9
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 05:40:14 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 189si896224wmr.24.2017.10.20.05.40.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Oct 2017 05:39:20 -0700 (PDT)
-Message-ID: <1508503151.5572.27.camel@kernel.org>
-Subject: Re: [PATCH v3 11/13] fs: use smp_load_acquire in
- break_{layout,lease}
-From: Jeffrey Layton <jlayton@kernel.org>
-Date: Fri, 20 Oct 2017 08:39:11 -0400
-In-Reply-To: <150846719726.24336.3564801642993121646.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: 
-	<150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com>
-	 <150846719726.24336.3564801642993121646.stgit@dwillia2-desk3.amr.corp.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 20 Oct 2017 05:40:12 -0700 (PDT)
+Date: Fri, 20 Oct 2017 14:40:09 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [RFC PATCH 2/2] mm,oom: Try last second allocation after
+ selecting an OOM victim.
+Message-ID: <20171020124009.joie5neol3gbdmxe@dhcp22.suse.cz>
+References: <1503577106-9196-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20170824131836.GN5943@dhcp22.suse.cz>
+ <201708242340.ICG00066.JtFOFVSMOHOLFQ@I-love.SAKURA.ne.jp>
+ <20170825080020.GE25498@dhcp22.suse.cz>
+ <201709090955.HFA57316.QFOSVMtFOJLFOH@I-love.SAKURA.ne.jp>
+ <201710172204.AGG30740.tVHJFFOQLMSFOO@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201710172204.AGG30740.tVHJFFOQLMSFOO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
-Cc: linux-xfs@vger.kernel.org, linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, hch@lst.de, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: aarcange@redhat.com, hannes@cmpxchg.org, akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, mjaggi@caviumnetworks.com, mgorman@suse.de, oleg@redhat.com, vdavydov.dev@gmail.com, vbabka@suse.cz
 
-On Thu, 2017-10-19 at 19:39 -0700, Dan Williams wrote:
-> Commit 128a37852234 "fs: fix data races on inode->i_flctx" converted
-> checks of inode->i_flctx to use smp_load_acquire(), but it did not
-> convert break_layout(). smp_load_acquire() includes a READ_ONCE(). There
-> should be no functional difference since __break_lease repeats the
-> sequence, but this is a clean up to unify all ->i_flctx lookups on a
-> common pattern.
-> 
-> Cc: Christoph Hellwig <hch@lst.de>
-> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-> Cc: Jeff Layton <jlayton@poochiereds.net>
-> Cc: "J. Bruce Fields" <bfields@fieldses.org>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> ---
->  include/linux/fs.h |   10 ++++++----
->  1 file changed, 6 insertions(+), 4 deletions(-)
-> 
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 13dab191a23e..eace2c5396a7 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -2281,8 +2281,9 @@ static inline int break_lease(struct inode *inode, unsigned int mode)
->  	 * could end up racing with tasks trying to set a new lease on this
->  	 * file.
->  	 */
-> -	smp_mb();
-> -	if (inode->i_flctx && !list_empty_careful(&inode->i_flctx->flc_lease))
-> +	struct file_lock_context *ctx = smp_load_acquire(&inode->i_flctx);
-> +
-> +	if (ctx && !list_empty_careful(&ctx->flc_lease))
->  		return __break_lease(inode, mode, FL_LEASE);
->  	return 0;
->  }
-> @@ -2325,8 +2326,9 @@ static inline int break_deleg_wait(struct inode **delegated_inode)
->  
->  static inline int break_layout(struct inode *inode, bool wait)
->  {
-> -	smp_mb();
-> -	if (inode->i_flctx && !list_empty_careful(&inode->i_flctx->flc_lease))
-> +	struct file_lock_context *ctx = smp_load_acquire(&inode->i_flctx);
-> +
-> +	if (ctx && !list_empty_careful(&ctx->flc_lease))
->  		return __break_lease(inode,
->  				wait ? O_WRONLY : O_WRONLY | O_NONBLOCK,
->  				FL_LAYOUT);
-> 
+On Tue 17-10-17 22:04:59, Tetsuo Handa wrote:
+[...]
+> I checked http://lkml.kernel.org/r/20160128163802.GA15953@dhcp22.suse.cz but
+> I didn't find reason to use high watermark for the last second allocation
+> attempt. The only thing required for avoiding livelock will be "do not
+> depend on __GFP_DIRECT_RECLAIM allocation while oom_lock is held".
 
-Nice catch. This can go in independently of the rest of the patches in
-the series, I think. I'll assume Andrew is picking this up since he's in
-the "To:", but let me know if you need me to get it.
+Andrea tried to explain it http://lkml.kernel.org/r/20160128190204.GJ12228@redhat.com
+"
+: Elaborating the comment: the reason for the high wmark is to reduce
+: the likelihood of livelocks and be sure to invoke the OOM killer, if
+: we're still under pressure and reclaim just failed. The high wmark is
+: used to be sure the failure of reclaim isn't going to be ignored. If
+: using the min wmark like you propose there's risk of livelock or
+: anyway of delayed OOM killer invocation.
+: 
+: The reason for doing one last wmark check (regardless of the wmark
+: used) before invoking the oom killer, was just to be sure another OOM
+: killer invocation hasn't already freed a ton of memory while we were
+: stuck in reclaim. A lot of free memory generated by the OOM killer,
+: won't make a parallel reclaim more likely to succeed, it just creates
+: free memory, but reclaim only succeeds when it finds "freeable" memory
+: and it makes progress in converting it to free memory. So for the
+: purpose of this last check, the high wmark would work fine as lots of
+: free memory would have been generated in such case.
+"
 
-Reviewed-by: Jeff Layton <jlayton@kernel.org>
+I've had some problems with this reasoning for the current OOM killer
+logic but I haven't been convincing enough. Maybe you will have a better
+luck.
+
+> Below is updated patch. The motivation of this patch is to guarantee that
+> the thread (it can be SCHED_IDLE priority) calling out_of_memory() can use
+> enough CPU resource by saving CPU resource wasted by threads (they can be
+> !SCHED_IDLE priority) waiting for out_of_memory(). Thus, replace
+> mutex_trylock() with mutex_lock_killable().
+
+So what exactly guanratees SCHED_IDLE running while other high priority
+processes keep preempting it while it holds the oom lock? Not everybody
+is inside the allocation path to get out of the way.
+> 
+> By replacing mutex_trylock() with mutex_lock_killable(), it might prevent
+> the OOM reaper from start reaping immediately. Thus, remove mutex_lock() from
+> the OOM reaper.
+
+oom_lock shouldn't be necessary in oom_reaper anymore and that is worth
+a separate patch.
+ 
+> By removing mutex_lock() from the OOM reaper, the race window of needlessly
+> selecting next OOM victim becomes wider, for the last second allocation
+> attempt no longer waits for the OOM reaper. Thus, do the really last
+> allocation attempt after selecting an OOM victim using the same watermark.
+> 
+> Can we go with this direction?
+
+The patch is just too cluttered. You do not want to use
+__alloc_pages_slowpath. get_page_from_freelist would be more
+appropriate. Also doing alloc_pages_before_oomkill two times seems to be
+excessive.
+
+That being said, make sure you adrress all the concerns brought up by
+Andrea and Johannes in the above email thread first.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
