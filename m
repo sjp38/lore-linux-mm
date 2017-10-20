@@ -1,120 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F22D6B025E
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 13:49:59 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id z96so6045192wrb.21
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 10:49:59 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id q30si647863edc.284.2017.10.20.10.49.57
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C1AE6B0069
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 14:02:04 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id q4so11730085oic.12
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 11:02:04 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j7si464067oiy.118.2017.10.20.11.02.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Oct 2017 10:49:58 -0700 (PDT)
-Subject: Re: [PATCH 1/1] mm:hugetlbfs: Fix hwpoison reserve accounting
-References: <20171019230007.17043-1-mike.kravetz@oracle.com>
- <20171019230007.17043-2-mike.kravetz@oracle.com>
- <20171020023019.GA9318@hori1.linux.bs1.fc.nec.co.jp>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <5016e528-8ea9-7597-3420-086ae57f3d9d@oracle.com>
-Date: Fri, 20 Oct 2017 10:49:46 -0700
+        Fri, 20 Oct 2017 11:02:02 -0700 (PDT)
+Date: Fri, 20 Oct 2017 20:02:00 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: RFC: spurious UFFD_EVENT_FORK with pending signals
+Message-ID: <20171020180200.GG3394@redhat.com>
+References: <20171007151609.GH16918@redhat.com>
+ <20171009061949.GA20101@rapoport-lnx>
 MIME-Version: 1.0
-In-Reply-To: <20171020023019.GA9318@hori1.linux.bs1.fc.nec.co.jp>
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171009061949.GA20101@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, mhocko@suse.com, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Prakash Sangappa <prakash.sangappa@oracle.com>, Pavel Emelyanov <xemul@virtuozzo.com>
 
-On 10/19/2017 07:30 PM, Naoya Horiguchi wrote:
-> On Thu, Oct 19, 2017 at 04:00:07PM -0700, Mike Kravetz wrote:
-> 
-> Thank you for addressing this. The patch itself looks good to me, but
-> the reported issue (negative reserve count) doesn't reproduce in my trial
-> with v4.14-rc5, so could you share the exact procedure for this issue?
+On Mon, Oct 09, 2017 at 09:19:50AM +0300, Mike Rapoport wrote:
+> Indeed in CRIU we don't close the parent uffd and a couple of spurious
+> UFFD_EVENT_FORK won't cause a real problem. Yet, if we'll run out of file
+> descriptors because of signal flood during migration, even with graceful
+> failure we'd loose the migrated process entirely.
 
-Sure, but first one question on your test scenario below.
+That's precisely the problem. The only risk is file descriptor exhaustion.
 
-> 
-> When error handler runs over a huge page, the reserve count is incremented
-> so I'm not sure why the reserve count goes negative.
+> Currently userfault related code in fork.c neatly fits into dup_mmap() and
+> moving the uffd structures up into the callers would be ugly :(
 
-I'm not sure I follow.  What specific code is incrementing the reserve
-count?  
+Which is why for now I'm going to patch the selftest with a #define
+that can be undefined if the fork stops generating false
+positives.
 
->                                                      My operation is like below:
-> 
->   $ sysctl vm.nr_hugepages=10
->   $ grep HugePages_ /proc/meminfo
->   HugePages_Total:      10
->   HugePages_Free:       10
->   HugePages_Rsvd:        0
->   HugePages_Surp:        0
->   $ ./test_alloc_generic -B hugetlb_file -N1 -L "mmap access memory_error_injection:error_type=madv_hard"  // allocate a 2MB file on hugetlbfs, then madvise(MADV_HWPOISON) on it.
->   $ grep HugePages_ /proc/meminfo
->   HugePages_Total:      10
->   HugePages_Free:        9
->   HugePages_Rsvd:        1  // reserve count is incremented
->   HugePages_Surp:        0
+And this is needed only because the selftests cannot handle non
+cooperative workload, and for it, the spurious fork event is otherwise
+unexpected.
 
-This is confusing to me.  I can not create a test where there is a reserve
-count after poisoning page.
+You couldn't notice this with CRIU (unless the manager run out fds).
 
-I tried to recreate your test.  Running unmodified 4.14.0-rc5.
+> I'm going to experiment with the list of userfaultfd_ctx in mm_struct, it
+> seems to me that it may have additional value, e.g. to simplify
+> userfaultfd_event_wait_completion(). I'll need a bit of time to see if I'm
+> not talking complete nonsense :)
 
-Before test
------------
-HugePages_Total:       1
-HugePages_Free:        1
-HugePages_Rsvd:        0
-HugePages_Surp:        0
-Hugepagesize:       2048 kB
+Up to you, it's only a (minor) issue for non cooperative usage.
 
-After open(creat) and mmap of 2MB hugetlbfs file
-------------------------------------------------
-HugePages_Total:       1
-HugePages_Free:        1
-HugePages_Rsvd:        1
-HugePages_Surp:        0
-Hugepagesize:       2048 kB
+> > diff --git a/tools/testing/selftests/vm/userfaultfd.c b/tools/testing/selftests/vm/userfaultfd.c
 
-Reserve count is 1 as expected/normal
+I'll submit the selftest fix after I split this up and submit it, but
+in the meantime if you work on this, to test any kernel change to the
+event fork, you can apply the patch I already sent and define those
+two:
 
-After madvise(MADV_HWPOISON) of the single huge page in mapping/file
---------------------------------------------------------------------
-HugePages_Total:       1
-HugePages_Free:        0
-HugePages_Rsvd:        0
-HugePages_Surp:        0
-Hugepagesize:       2048 kB
+#define REPRODUCE_SPURIOUS_UFFD_EVENT_FORK_IN_SIG_TEST
+#define REPRODUCE_SPURIOUS_UFFD_EVENT_FORK_IN_EVENTS_TEST
 
-In this case, the reserve (and free) count were decremented.  Note that
-before the poison operation the page was not associated with the mapping/
-file.  I did not look closely at the code, but assume the madvise may
-cause the page to be 'faulted in'.
+You'll reproduce the spurious fork events immediately with it. Perhaps
+the background signal flood can be slowed down a bit over time but it
+doesn't seem to slow down the workload too much, it starts and stops
+the signal flood (needed for immediate reproduction) every other second.
 
-The counts remain the same when the program exits
--------------------------------------------------
-HugePages_Total:       1
-HugePages_Free:        0
-HugePages_Rsvd:        0
-HugePages_Surp:        0
-Hugepagesize:       2048 kB
-
-Remove the file (rm /var/opt/oracle/hugepool/foo)
--------------------------------------------------
-HugePages_Total:       1
-HugePages_Free:        0
-HugePages_Rsvd:    18446744073709551615
-HugePages_Surp:        0
-Hugepagesize:       2048 kB
-
-I am still confused about how your test maintains a reserve count after
-poisoning.  It may be a good idea for you to test my patch with your
-test scenario as I can not recreate here.
-
--- 
-Mike Kravetz
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
