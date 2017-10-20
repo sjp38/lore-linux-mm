@@ -1,82 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D716B6B025F
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 02:50:01 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id r6so8894059pfj.14
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 23:50:01 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id b3si237643plr.706.2017.10.19.23.50.00
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 814486B0038
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 03:02:25 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id v78so8918329pfk.8
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 00:02:25 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q61si265342plb.218.2017.10.20.00.02.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Oct 2017 23:50:00 -0700 (PDT)
-Date: Fri, 20 Oct 2017 14:43:06 +0800
-From: "Du, Changbin" <changbin.du@intel.com>
-Subject: Re: swapper/0: page allocation failure: order:0,
- mode:0x1204010(GFP_NOWAIT|__GFP_COMP|__GFP_RECLAIMABLE|__GFP_NOTRACK),
- nodemask=(null)
-Message-ID: <20171020064305.GA13688@intel.com>
-References: <CABXGCsPEkwzKUU9OPRDOMue7TpWa4axTWg0FbXZAq+JZmoubGw@mail.gmail.com>
- <20171019035641.GB23773@intel.com>
- <CABXGCsPL0pUHo_M-KxB3mabfdGMSHPC0uchLBBt0JCzF2BYBww@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 20 Oct 2017 00:02:24 -0700 (PDT)
+Date: Fri, 20 Oct 2017 09:02:20 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm: drop migrate type checks from has_unmovable_pages
+Message-ID: <20171020070220.t4o573zymgto5kmi@dhcp22.suse.cz>
+References: <20171013115835.zaehapuucuzl2vlv@dhcp22.suse.cz>
+ <20171013120013.698-1-mhocko@kernel.org>
+ <20171019025111.GA3852@js1304-P5Q-DELUXE>
+ <20171019071503.e7w5fo35lsq6ca54@dhcp22.suse.cz>
+ <20171019073355.GA4486@js1304-P5Q-DELUXE>
+ <20171019082041.5zudpqacaxjhe4gw@dhcp22.suse.cz>
+ <20171019122118.y6cndierwl2vnguj@dhcp22.suse.cz>
+ <20171020021329.GB10438@js1304-P5Q-DELUXE>
+ <20171020055922.x2mj6j66obmp52da@dhcp22.suse.cz>
+ <20171020065014.GA11145@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="xHFwDpU9dbj6ez1V"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CABXGCsPL0pUHo_M-KxB3mabfdGMSHPC0uchLBBt0JCzF2BYBww@mail.gmail.com>
+In-Reply-To: <20171020065014.GA11145@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>
-Cc: "Du, Changbin" <changbin.du@intel.com>, linux-mm@kvack.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: linux-mm@kvack.org, Michael Ellerman <mpe@ellerman.id.au>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
+On Fri 20-10-17 15:50:14, Joonsoo Kim wrote:
+> On Fri, Oct 20, 2017 at 07:59:22AM +0200, Michal Hocko wrote:
+> > On Fri 20-10-17 11:13:29, Joonsoo Kim wrote:
+> > > On Thu, Oct 19, 2017 at 02:21:18PM +0200, Michal Hocko wrote:
+> > > > On Thu 19-10-17 10:20:41, Michal Hocko wrote:
+> > > > > On Thu 19-10-17 16:33:56, Joonsoo Kim wrote:
+> > > > > > On Thu, Oct 19, 2017 at 09:15:03AM +0200, Michal Hocko wrote:
+> > > > > > > On Thu 19-10-17 11:51:11, Joonsoo Kim wrote:
+> > > > > [...]
+> > > > > > > > Hello,
+> > > > > > > > 
+> > > > > > > > This patch will break the CMA user. As you mentioned, CMA allocation
+> > > > > > > > itself isn't migrateable. So, after a single page is allocated through
+> > > > > > > > CMA allocation, has_unmovable_pages() will return true for this
+> > > > > > > > pageblock. Then, futher CMA allocation request to this pageblock will
+> > > > > > > > fail because it requires isolating the pageblock.
+> > > > > > > 
+> > > > > > > Hmm, does this mean that the CMA allocation path depends on
+> > > > > > > has_unmovable_pages to return false here even though the memory is not
+> > > > > > > movable? This sounds really strange to me and kind of abuse of this
+> > > > > > 
+> > > > > > Your understanding is correct. Perhaps, abuse or wrong function name.
+> > > > > >
+> > > > > > > function. Which path is that? Can we do the migrate type test theres?
+> > > > > > 
+> > > > > > alloc_contig_range() -> start_isolate_page_range() ->
+> > > > > > set_migratetype_isolate() -> has_unmovable_pages()
+> > > > > 
+> > > > > I see. It seems that the CMA and memory hotplug have a very different
+> > > > > view on what should happen during isolation.
+> > > > >  
+> > > > > > We can add one argument, 'XXX' to set_migratetype_isolate() and change
+> > > > > > it to check migrate type rather than has_unmovable_pages() if 'XXX' is
+> > > > > > specified.
+> > > > > 
+> > > > > Can we use the migratetype argument and do the special thing for
+> > > > > MIGRATE_CMA? Like the following diff?
+> > > > 
+> > > > And with the full changelog.
+> > > > ---
+> > > > >From 8cbd811d741f5dd93d1b21bb3ef94482a4d0bd32 Mon Sep 17 00:00:00 2001
+> > > > From: Michal Hocko <mhocko@suse.com>
+> > > > Date: Thu, 19 Oct 2017 14:14:02 +0200
+> > > > Subject: [PATCH] mm: distinguish CMA and MOVABLE isolation in
+> > > >  has_unmovable_pages
+> > > > 
+> > > > Joonsoo has noticed that "mm: drop migrate type checks from
+> > > > has_unmovable_pages" would break CMA allocator because it relies on
+> > > > has_unmovable_pages returning false even for CMA pageblocks which in
+> > > > fact don't have to be movable:
+> > > > alloc_contig_range
+> > > >   start_isolate_page_range
+> > > >     set_migratetype_isolate
+> > > >       has_unmovable_pages
+> > > > 
+> > > > This is a result of the code sharing between CMA and memory hotplug
+> > > > while each one has a different idea of what has_unmovable_pages should
+> > > > return. This is unfortunate but fixing it properly would require a lot
+> > > > of code duplication.
+> > > > 
+> > > > Fix the issue by introducing the requested migrate type argument
+> > > > and special case MIGRATE_CMA case where CMA page blocks are handled
+> > > > properly. This will work for memory hotplug because it requires
+> > > > MIGRATE_MOVABLE.
+> > > 
+> > > Unfortunately, alloc_contig_range() can be called with
+> > > MIGRATE_MOVABLE so this patch cannot perfectly fix the problem.
+> > 
+> > Yes, alloc_contig_range can be called with MIGRATE_MOVABLE but my
+> > understanding is that only CMA allocator really depends on this weird
+> > semantic and that does MIGRATE_CMA unconditionally.
+> 
+> alloc_contig_range() could be called for partial pages in the
+> pageblock. With your patch, this case also fails unnecessarilly if the
+> other pages in the pageblock is pinned.
 
---xHFwDpU9dbj6ez1V
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Is this really the case for GB pages? Do we really want to mess those
+with CMA blocks and make those blocks basically unusable because GB
+pages are rarely (if at all migrateable)?
 
-On Thu, Oct 19, 2017 at 11:52:49PM +0500, =D0=9C=D0=B8=D1=85=D0=B0=D0=B8=D0=
-=BB =D0=93=D0=B0=D0=B2=D1=80=D0=B8=D0=BB=D0=BE=D0=B2 wrote:
-> On 19 October 2017 at 08:56, Du, Changbin <changbin.du@intel.com> wrote:
-> > On Thu, Oct 19, 2017 at 01:16:48AM +0500, =D0=9C=D0=B8=D1=85=D0=B0=D0=
-=B8=D0=BB =D0=93=D0=B0=D0=B2=D1=80=D0=B8=D0=BB=D0=BE=D0=B2 wrote:
-> > I am curious about this, how can slub try to alloc compound page but th=
-e order
-> > is 0? This is wrong.
->=20
-> Nobody seems to know how this could happen. Can any logs shed light on th=
-is?
->
-After checking the code, kernel can handle such case. So please ignore my l=
-ast
-comment.
+> Until now, there is no user calling alloc_contig_range() with partial
+> pages except CMA allocator but API could support it.
 
-The warning is reporting OOM, first you need confirm if you have enough free
-memory? If that is true, then it is not a programmer error.
+I disagree. If this is a CMA thing it should stay that way. The semantic
+is quite confusing already, please let's not make it even worse.
 
-> --
-> Best Regards,
-> Mike Gavrilov.
+> > > I did a more thinking and found that it's strange to check if there is
+> > > unmovable page in the pageblock during the set_migratetype_isolate().
+> > > set_migratetype_isolate() should be just for setting the migratetype
+> > > of the pageblock. Checking other things should be done by another
+> > > place, for example, before calling the start_isolate_page_range() in
+> > > __offline_pages().
+> > 
+> > How do we guarantee the atomicity?
+> 
+> What atomicity do you mean?
 
---=20
-Thanks,
-Changbin Du
-
---xHFwDpU9dbj6ez1V
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iQEcBAEBAgAGBQJZ6Zr5AAoJEAanuZwLnPNUrj4H/3hHDXYAT9dmv0bCbqhe0b/f
-WkVt/RcUfQHH3Qe6Ciggl7FfmR2cOJFzLn8rsJqGQ/tdva3gKkgI+jno4N00nuEa
-TZf2wlrhI4vvKfPEaYXd1u0oXa/7NhUnuLzpK6x2TNzebuMU5QlhY/gTFXvxzVYI
-/dQvwIGS2mUT0hptzzPYKovx9SX0OZr0H1OnDFWcl2+NH5oq99OWjnTQG4EJUaXd
-0YHQTnfQjR3ZfRPSR/E6nBvA9svBu75KkfM4FIHi/f46/UJgbIZHDkGBGLkNugMW
-6Er5PPjhcIKYU4tp6p33YbEFjnX0OzFLf6LjYNDl1j9rWtNzM6AnYt+iZQ32c/I=
-=XQHO
------END PGP SIGNATURE-----
-
---xHFwDpU9dbj6ez1V--
+Currently we are checking and isolating pages under zone lock. If we
+split that we are losing atomicity, aren't we.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
