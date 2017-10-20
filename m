@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C9DF06B026D
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:16:18 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id z80so10042359pff.11
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 05:16:18 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id e1si544394pln.687.2017.10.20.05.16.17
+	by kanga.kvack.org (Postfix) with ESMTP id A7FD86B026E
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:16:24 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id d28so10086492pfe.1
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 05:16:24 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id d10si665611pgc.100.2017.10.20.05.16.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Oct 2017 05:16:17 -0700 (PDT)
+        Fri, 20 Oct 2017 05:16:23 -0700 (PDT)
 From: Elena Reshetova <elena.reshetova@intel.com>
-Subject: [PATCH 04/15] sched: convert numa_group.refcount to refcount_t
-Date: Fri, 20 Oct 2017 15:15:46 +0300
-Message-Id: <1508501757-15784-5-git-send-email-elena.reshetova@intel.com>
+Subject: [PATCH 05/15] sched/task_struct: convert task_struct.usage to refcount_t
+Date: Fri, 20 Oct 2017 15:15:47 +0300
+Message-Id: <1508501757-15784-6-git-send-email-elena.reshetova@intel.com>
 In-Reply-To: <1508501757-15784-1-git-send-email-elena.reshetova@intel.com>
 References: <1508501757-15784-1-git-send-email-elena.reshetova@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -34,7 +34,7 @@ refcount_t type and API that prevents accidental counter overflows
 and underflows. This is important since overflows and underflows
 can lead to use-after-free situation and be exploitable.
 
-The variable numa_group.refcount is used as pure reference counter.
+The variable task_struct.usage is used as pure reference counter.
 Convert it to refcount_t and fix up the operations.
 
 Suggested-by: Kees Cook <keescook@chromium.org>
@@ -42,64 +42,88 @@ Reviewed-by: David Windsor <dwindsor@gmail.com>
 Reviewed-by: Hans Liljestrand <ishkamiel@gmail.com>
 Signed-off-by: Elena Reshetova <elena.reshetova@intel.com>
 ---
- kernel/sched/fair.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ include/linux/init_task.h  | 2 +-
+ include/linux/sched.h      | 3 ++-
+ include/linux/sched/task.h | 4 ++--
+ kernel/fork.c              | 4 ++--
+ 4 files changed, 7 insertions(+), 6 deletions(-)
 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 27a2241..b4f0eb2 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -1050,7 +1050,7 @@ unsigned int sysctl_numa_balancing_scan_size = 256;
- unsigned int sysctl_numa_balancing_scan_delay = 1000;
+diff --git a/include/linux/init_task.h b/include/linux/init_task.h
+index a85376e..64d86ec 100644
+--- a/include/linux/init_task.h
++++ b/include/linux/init_task.h
+@@ -226,7 +226,7 @@ extern struct cred init_cred;
+ 	INIT_TASK_TI(tsk)						\
+ 	.state		= 0,						\
+ 	.stack		= init_stack,					\
+-	.usage		= ATOMIC_INIT(2),				\
++	.usage		= REFCOUNT_INIT(2),				\
+ 	.flags		= PF_KTHREAD,					\
+ 	.prio		= MAX_PRIO-20,					\
+ 	.static_prio	= MAX_PRIO-20,					\
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 0f897df..47f1101 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -20,6 +20,7 @@
+ #include <linux/seccomp.h>
+ #include <linux/nodemask.h>
+ #include <linux/rcupdate.h>
++#include <linux/refcount.h>
+ #include <linux/resource.h>
+ #include <linux/latencytop.h>
+ #include <linux/sched/prio.h>
+@@ -536,7 +537,7 @@ struct task_struct {
+ 	randomized_struct_fields_start
  
- struct numa_group {
--	atomic_t refcount;
-+	refcount_t refcount;
+ 	void				*stack;
+-	atomic_t			usage;
++	refcount_t			usage;
+ 	/* Per task flags (PF_*), defined further below: */
+ 	unsigned int			flags;
+ 	unsigned int			ptrace;
+diff --git a/include/linux/sched/task.h b/include/linux/sched/task.h
+index a5e6f09..ac4317d 100644
+--- a/include/linux/sched/task.h
++++ b/include/linux/sched/task.h
+@@ -85,13 +85,13 @@ extern void sched_exec(void);
+ #define sched_exec()   {}
+ #endif
  
- 	spinlock_t lock; /* nr_tasks, tasks */
- 	int nr_tasks;
-@@ -1119,7 +1119,7 @@ static unsigned int task_scan_start(struct task_struct *p)
- 		unsigned long shared = group_faults_shared(ng);
- 		unsigned long private = group_faults_priv(ng);
+-#define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
++#define get_task_struct(tsk) do { refcount_inc(&(tsk)->usage); } while(0)
  
--		period *= atomic_read(&ng->refcount);
-+		period *= refcount_read(&ng->refcount);
- 		period *= shared + 1;
- 		period /= private + shared + 1;
- 	}
-@@ -1142,7 +1142,7 @@ static unsigned int task_scan_max(struct task_struct *p)
- 		unsigned long private = group_faults_priv(ng);
- 		unsigned long period = smax;
+ extern void __put_task_struct(struct task_struct *t);
  
--		period *= atomic_read(&ng->refcount);
-+		period *= refcount_read(&ng->refcount);
- 		period *= shared + 1;
- 		period /= private + shared + 1;
- 
-@@ -2227,12 +2227,12 @@ static void task_numa_placement(struct task_struct *p)
- 
- static inline int get_numa_group(struct numa_group *grp)
+ static inline void put_task_struct(struct task_struct *t)
  {
--	return atomic_inc_not_zero(&grp->refcount);
-+	return refcount_inc_not_zero(&grp->refcount);
+-	if (atomic_dec_and_test(&t->usage))
++	if (refcount_dec_and_test(&t->usage))
+ 		__put_task_struct(t);
  }
  
- static inline void put_numa_group(struct numa_group *grp)
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 869850b..68cc7a0 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -649,7 +649,7 @@ static inline void put_signal_struct(struct signal_struct *sig)
+ void __put_task_struct(struct task_struct *tsk)
  {
--	if (atomic_dec_and_test(&grp->refcount))
-+	if (refcount_dec_and_test(&grp->refcount))
- 		kfree_rcu(grp, rcu);
- }
+ 	WARN_ON(!tsk->exit_state);
+-	WARN_ON(atomic_read(&tsk->usage));
++	WARN_ON(refcount_read(&tsk->usage));
+ 	WARN_ON(tsk == current);
  
-@@ -2253,7 +2253,7 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
- 		if (!grp)
- 			return;
- 
--		atomic_set(&grp->refcount, 1);
-+		refcount_set(&grp->refcount, 1);
- 		grp->active_nodes = 1;
- 		grp->max_faults_cpu = 0;
- 		spin_lock_init(&grp->lock);
+ 	cgroup_free(tsk);
+@@ -824,7 +824,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
+ 	 * One for us, one for whoever does the "release_task()" (usually
+ 	 * parent)
+ 	 */
+-	atomic_set(&tsk->usage, 2);
++	refcount_set(&tsk->usage, 2);
+ #ifdef CONFIG_BLK_DEV_IO_TRACE
+ 	tsk->btrace_seq = 0;
+ #endif
 -- 
 2.7.4
 
