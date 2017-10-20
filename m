@@ -1,60 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EB0426B0038
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 18:29:59 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id t134so12416755oih.6
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 15:29:59 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E11536B0253
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 18:40:30 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 78so1175552wmb.15
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 15:40:30 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s12sor861567oie.76.2017.10.20.15.29.58
+        by mx.google.com with SMTPS id v194sor612389wmd.85.2017.10.20.15.40.29
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 20 Oct 2017 15:29:58 -0700 (PDT)
+        Fri, 20 Oct 2017 15:40:29 -0700 (PDT)
+Subject: Re: [PATCH 00/23] Hardened usercopy whitelisting
+References: <1497915397-93805-1-git-send-email-keescook@chromium.org>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <0ad1f8b1-3c9f-adb0-35c3-18619ff5aa25@redhat.com>
+Date: Sat, 21 Oct 2017 00:40:25 +0200
 MIME-Version: 1.0
-In-Reply-To: <20171020162933.GA26320@lst.de>
-References: <150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150846714747.24336.14704246566580871364.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171020075735.GA14378@lst.de> <CAPcyv4hA1nrhDf=DA6_j7s7ezGOBhvEVZ8cu81DNui_p3bhhaA@mail.gmail.com>
- <20171020162933.GA26320@lst.de>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 20 Oct 2017 15:29:57 -0700
-Message-ID: <CAPcyv4jP0ws7dcBrXafS7ON+0_J1BTp_LCB6XB3od4d6db071A@mail.gmail.com>
-Subject: Re: [PATCH v3 02/13] dax: require 'struct page' for filesystem dax
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1497915397-93805-1-git-send-email-keescook@chromium.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>
+To: Kees Cook <keescook@chromium.org>, kernel-hardening@lists.openwall.com
+Cc: David Windsor <dave@nullcore.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Oct 20, 2017 at 9:29 AM, Christoph Hellwig <hch@lst.de> wrote:
-> On Fri, Oct 20, 2017 at 08:23:02AM -0700, Dan Williams wrote:
->> Yes, however it seems these drivers / platforms have been living with
->> the lack of struct page for a long time. So they either don't use DAX,
->> or they have a constrained use case that never triggers
->> get_user_pages(). If it is the latter then they could introduce a new
->> configuration option that bypasses the pfn_t_devmap() check in
->> bdev_dax_supported() and fix up the get_user_pages() paths to fail.
->> So, I'd like to understand how these drivers have been using DAX
->> support without struct page to see if we need a workaround or we can
->> go ahead delete this support. If the usage is limited to
->> execute-in-place perhaps we can do a constrained ->direct_access() for
->> just that case.
->
-> For axonram I doubt anyone is using it any more - it was a very for
-> the IBM Cell blades, which were produce=D1=95 in a rather limited number.
-> And Cell basically seems to be dead as far as I can tell.
->
-> For S/390 Martin might be able to help out what the status of xpram
-> in general and DAX support in particular is.
+On 20/06/2017 01:36, Kees Cook wrote:
+> 
+> This updates the slab allocator to add annotations (useroffset and
+> usersize) to define allowed usercopy regions. Currently, hardened
+> usercopy performs dynamic bounds checking on whole slab cache objects.
+> This is good, but still leaves a lot of kernel slab memory available to
+> be copied to/from userspace in the face of bugs. To further restrict
+> what memory is available for copying, this creates a way to whitelist
+> specific areas of a given slab cache object for copying to/from userspace,
+> allowing much finer granularity of access control. Slab caches that are
+> never exposed to userspace can declare no whitelist for their objects,
+> thereby keeping them unavailable to userspace via dynamic copy operations.
+> (Note, an implicit form of whitelisting is the use of constant sizes
+> in usercopy operations and get_user()/put_user(); these bypass hardened
+> usercopy checks since these sizes cannot change at runtime.)
 
-Ok, I'd also like to kill DAX support in the brd driver. It's a source
-of complexity and maintenance burden for zero benefit. It's the only
-->direct_access() implementation that sleeps and it's the only
-implementation where there is a non-linear relationship between
-sectors and pfns. Having a 1:1 sector to pfn relationship will help
-with the dma-extent-busy management since we don't need to keep
-calling into the driver to map pfns back to sectors once we know the
-pfn[0] sector[0] relationship.
+This breaks KVM completely on x86, due to two ioctls
+(KVM_GET/SET_CPUID2) accessing the cpuid_entries field of struct
+kvm_vcpu_arch.
+
+There's also another broken ioctl, KVM_XEN_HVM_CONFIG, but it is
+obsolete and not a big deal at all.
+
+I can post some patches, but probably not until the beginning of
+November due to travelling.  Please do not send this too close to the
+beginning of the merge window.
+
+Paolo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
