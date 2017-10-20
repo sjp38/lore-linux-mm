@@ -1,130 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E30F76B0038
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 22:30:50 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id q4so9761760oic.12
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 19:30:50 -0700 (PDT)
-Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
-        by mx.google.com with ESMTPS id x73si4634551oif.0.2017.10.19.19.30.49
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D848A6B0038
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 22:45:23 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id d28so8068725pfe.1
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 19:45:23 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id f189si7222490pfa.45.2017.10.19.19.45.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Oct 2017 19:30:49 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 1/1] mm:hugetlbfs: Fix hwpoison reserve accounting
-Date: Fri, 20 Oct 2017 02:30:20 +0000
-Message-ID: <20171020023019.GA9318@hori1.linux.bs1.fc.nec.co.jp>
-References: <20171019230007.17043-1-mike.kravetz@oracle.com>
- <20171019230007.17043-2-mike.kravetz@oracle.com>
-In-Reply-To: <20171019230007.17043-2-mike.kravetz@oracle.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <089536352FB03D45AC41EAD2A70AC4DE@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Thu, 19 Oct 2017 19:45:22 -0700 (PDT)
+Subject: [PATCH v3 00/13] dax: fix dma vs truncate and remove 'page-less'
+ support
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 19 Oct 2017 19:38:56 -0700
+Message-ID: <150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave.hansen@linux.intel.com>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm@kvack.org, Paul Mackerras <paulus@samba.org>, Sean Hefty <sean.hefty@intel.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <mawilcox@microsoft.com>, linux-rdma@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, Jeff Moyer <jmoyer@redhat.com>, hch@lst.de, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Doug Ledford <dledford@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-nvdimm@lists.01.org, Alexander Viro <viro@zeniv.linux.org.uk>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-fsdevel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu, Oct 19, 2017 at 04:00:07PM -0700, Mike Kravetz wrote:
-> Calling madvise(MADV_HWPOISON) on a hugetlbfs page will result in
-> bad (negative) reserved huge page counts.  This may not happen
-> immediately, but may happen later when the underlying file is
-> removed or filesystem unmounted.  For example:
-> AnonHugePages:         0 kB
-> ShmemHugePages:        0 kB
-> HugePages_Total:       1
-> HugePages_Free:        0
-> HugePages_Rsvd:    18446744073709551615
-> HugePages_Surp:        0
-> Hugepagesize:       2048 kB
->
-> In routine hugetlbfs_error_remove_page(), hugetlb_fix_reserve_counts
-> is called after remove_huge_page.  hugetlb_fix_reserve_counts is
-> designed to only be called/used only if a failure is returned from
-> hugetlb_unreserve_pages.  Therefore, call hugetlb_unreserve_pages
-> as required and only call hugetlb_fix_reserve_counts in the unlikely
-> event that hugetlb_unreserve_pages returns an error.
+Changes since v2 [1]:
+* Add 'dax: handle truncate of dma-busy pages' which builds on the
+  removal of page-less dax to fix a latent bug handling dma vs truncate.
+* Disable get_user_pages_fast() for dax
+* Disable RDMA memory registrations against filesystem-DAX mappings for
+  non-ODP (On Demand Paging / Shared Virtual Memory) hardware.
+* Fix a compile error when building with HMM enabled
 
-Hi Mike,
+---
+tl;dr: A brute force approach to ensure that truncate waits for any
+in-flight DMA before freeing filesystem-DAX blocks to the filesystem's
+block allocator.
 
-Thank you for addressing this. The patch itself looks good to me, but
-the reported issue (negative reserve count) doesn't reproduce in my trial
-with v4.14-rc5, so could you share the exact procedure for this issue?
+While reviewing the MAP_DIRECT proposal Christoph noted:
 
-When error handler runs over a huge page, the reserve count is incremented
-so I'm not sure why the reserve count goes negative. My operation is like b=
-elow:
+    get_user_pages on DAX doesn't give the same guarantees as on
+    pagecache or anonymous memory, and that is the problem we need to
+    fix. In fact I'm pretty sure if we try hard enough (and we might
+    have to try very hard) we can see the same problem with plain direct
+    I/O and without any RDMA involved, e.g. do a larger direct I/O write
+    to memory that is mmap()ed from a DAX file, then truncate the DAX
+    file and reallocate the blocks, and we might corrupt that new file.
+    We'll probably need a special setup where there is little other
+    chance but to reallocate those used blocks.
+    
+    So what we need to do first is to fix get_user_pages vs unmapping
+    DAX mmap()ed blocks, be that from a hole punch, truncate, COW
+    operation, etc.
 
-  $ sysctl vm.nr_hugepages=3D10
-  $ grep HugePages_ /proc/meminfo
-  HugePages_Total:      10
-  HugePages_Free:       10
-  HugePages_Rsvd:        0
-  HugePages_Surp:        0
-  $ ./test_alloc_generic -B hugetlb_file -N1 -L "mmap access memory_error_i=
-njection:error_type=3Dmadv_hard"  // allocate a 2MB file on hugetlbfs, then=
- madvise(MADV_HWPOISON) on it.
-  $ grep HugePages_ /proc/meminfo
-  HugePages_Total:      10
-  HugePages_Free:        9
-  HugePages_Rsvd:        1  // reserve count is incremented
-  HugePages_Surp:        0
-  $ rm work/hugetlbfs/testfile
-  $ grep HugePages_ /proc/meminfo
-  HugePages_Total:      10
-  HugePages_Free:        9
-  HugePages_Rsvd:        0  // reserve count is gone
-  HugePages_Surp:        0
-  $ /src/linux-dev/tools/vm/page-types -b hwpoison -x // unpoison the huge =
-page
-  $ grep HugePages_ /proc/meminfo
-  HugePages_Total:      10
-  HugePages_Free:       10  // all huge pages are free (back to the beginni=
-ng)
-  HugePages_Rsvd:        0
-  HugePages_Surp:        0
+I was able to trigger the failure with "[PATCH v3 08/13]
+tools/testing/nvdimm: add 'bio_delay' mechanism" to keep block i/o pages
+busy so a punch-hole operation can truncate the blocks before the DMA
+finishes.
 
-Thanks,
-Naoya Horiguchi
+The solution presented is not pretty. It creates a stream of leases, one
+for each get_user_pages() invocation, and polls page reference counts
+until DMA stops. We're missing a reliable way to not only trap the
+DMA-idle event, but also block new references being taken on pages while
+truncate is allowed to progress. "[PATCH v3 12/13] dax: handle truncate of
+dma-busy pages" presents other options considered, and notes that this
+solution can only be viewed as a stop-gap.
 
->
-> Fixes: 78bb920344b8 ("mm: hwpoison: dissolve in-use hugepage in unrecover=
-able memory error")
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>
-> Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: <stable@vger.kernel.org>
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-> ---
->  fs/hugetlbfs/inode.c | 5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
->
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index 59073e9f01a4..ed113ea17aff 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -842,9 +842,12 @@ static int hugetlbfs_error_remove_page(struct addres=
-s_space *mapping,
->  				struct page *page)
->  {
->  	struct inode *inode =3D mapping->host;
-> +	pgoff_t index =3D page->index;
->
->  	remove_huge_page(page);
-> -	hugetlb_fix_reserve_counts(inode);
-> +	if (unlikely(hugetlb_unreserve_pages(inode, index, index + 1, 1)))
-> +		hugetlb_fix_reserve_counts(inode);
-> +
->  	return 0;
->  }
->
-> --
-> 2.13.6
->
->=
+Given the need to poll page-reference counts this approach builds on the
+removal of 'page-less DAX' support. From the last submission Andrew
+asked for clarification on the move to now require pages for DAX.
+Quoting "[PATCH v3 02/13] dax: require 'struct page' for filesystem
+dax":
+
+    Note that when the initial dax support was being merged a few years
+    back there was concern that struct page was unsuitable for use with
+    next generation persistent memory devices. The theoretical concern
+    was that struct page access, being such a hotly used data structure
+    in the kernel, would lead to media wear out. While that was a
+    reasonable conservative starting position it has not held true in
+    practice. We have long since committed to using
+    devm_memremap_pages() to support higher order kernel functionality
+    that needs get_user_pages() and pfn_to_page().
+ 
+
+---
+
+Dan Williams (13):
+      dax: quiet bdev_dax_supported()
+      dax: require 'struct page' for filesystem dax
+      dax: stop using VM_MIXEDMAP for dax
+      dax: stop using VM_HUGEPAGE for dax
+      dax: stop requiring a live device for dax_flush()
+      dax: store pfns in the radix
+      dax: warn if dma collides with truncate
+      tools/testing/nvdimm: add 'bio_delay' mechanism
+      IB/core: disable memory registration of fileystem-dax vmas
+      mm: disable get_user_pages_fast() for dax
+      fs: use smp_load_acquire in break_{layout,lease}
+      dax: handle truncate of dma-busy pages
+      xfs: wire up FL_ALLOCATED support
+
+
+ arch/powerpc/sysdev/axonram.c         |    1 
+ drivers/dax/device.c                  |    1 
+ drivers/dax/super.c                   |   18 +-
+ drivers/infiniband/core/umem.c        |   49 ++++-
+ drivers/s390/block/dcssblk.c          |    1 
+ fs/Kconfig                            |    1 
+ fs/dax.c                              |  296 ++++++++++++++++++++++++++++-----
+ fs/ext2/file.c                        |    1 
+ fs/ext4/file.c                        |    1 
+ fs/locks.c                            |   17 ++
+ fs/xfs/xfs_aops.c                     |   24 +++
+ fs/xfs/xfs_file.c                     |   66 +++++++
+ fs/xfs/xfs_inode.h                    |    1 
+ fs/xfs/xfs_ioctl.c                    |    7 -
+ include/linux/dax.h                   |   23 +++
+ include/linux/fs.h                    |   32 +++-
+ include/linux/vma.h                   |   33 ++++
+ mm/gup.c                              |   75 ++++----
+ mm/huge_memory.c                      |    8 -
+ mm/ksm.c                              |    3 
+ mm/madvise.c                          |    2 
+ mm/memory.c                           |   20 ++
+ mm/migrate.c                          |    3 
+ mm/mlock.c                            |    5 -
+ mm/mmap.c                             |    8 -
+ tools/testing/nvdimm/Kbuild           |    1 
+ tools/testing/nvdimm/test/iomap.c     |   62 +++++++
+ tools/testing/nvdimm/test/nfit.c      |   34 ++++
+ tools/testing/nvdimm/test/nfit_test.h |    1 
+ 29 files changed, 651 insertions(+), 143 deletions(-)
+ create mode 100644 include/linux/vma.h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
