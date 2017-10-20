@@ -1,55 +1,201 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 453296B025F
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 16:00:11 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id v78so11500758pfk.8
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 13:00:11 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id z33si937319plb.555.2017.10.20.13.00.10
+	by kanga.kvack.org (Postfix) with ESMTP id 4D2DA6B0260
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 16:00:42 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id b85so11500373pfj.22
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 13:00:42 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id g83si1206887pfg.161.2017.10.20.13.00.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Oct 2017 13:00:10 -0700 (PDT)
+        Fri, 20 Oct 2017 13:00:40 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 0/4] Boot-time switching between 4- and 5-level paging for 4.15, Part 2
-Date: Fri, 20 Oct 2017 22:59:30 +0300
-Message-Id: <20171020195934.32108-1-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 4/4] x86/boot/compressed/64: Handle 5-level paging boot if kernel is above 4G
+Date: Fri, 20 Oct 2017 22:59:34 +0300
+Message-Id: <20171020195934.32108-5-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20171020195934.32108-1-kirill.shutemov@linux.intel.com>
+References: <20171020195934.32108-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hi Ingo,
+This patch addresses shortcoming in current boot process on machines
+that supports 5-level paging.
 
-Here's the second bunch of patches that prepare kernel to boot-time switching
-between paging modes.
+If bootloader enables 64-bit mode with 4-level paging, we need to
+switch over to 5-level paging. The switching requires disabling paging.
+It works fine if kernel itself is loaded below 4G.
 
-It's a small one. I hope we can get it in quick. :)
+If bootloader put the kernel above 4G (not sure if anybody does this),
+we would loose control as soon as paging is disabled as code becomes
+unreachable.
 
-I include the zsmalloc patch again. We need something to address the issue.
-If we would find a better solution, we can come back to the topic and
-rework it.
+This patch implements trampoline in lower memory to handle this
+situation.
 
-Apart from zsmalloc patch, the patchset includes changes to decompression
-code. I reworked these patches. They are split not exactly the way you've
-described before, but I hope it's sensible anyway.
+We only need the memory for very short time, until main kernel image
+setup its own page tables.
 
-Please review and consider applying.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ arch/x86/boot/compressed/head_64.S | 72 ++++++++++++++++++++++++--------------
+ 1 file changed, 45 insertions(+), 27 deletions(-)
 
-Kirill A. Shutemov (4):
-  mm/zsmalloc: Prepare to variable MAX_PHYSMEM_BITS
-  x86/boot/compressed/64: Detect and handle 5-level paging at boot-time
-  x86/boot/compressed/64: Introduce place_trampoline()
-  x86/boot/compressed/64: Handle 5-level paging boot if kernel is above 4G
-
- arch/x86/boot/compressed/head_64.S          | 99 ++++++++++++++++++++---------
- arch/x86/boot/compressed/pagetable.c        | 61 ++++++++++++++++++
- arch/x86/boot/compressed/pagetable.h        | 18 ++++++
- arch/x86/include/asm/pgtable-3level_types.h |  1 +
- arch/x86/include/asm/pgtable_64_types.h     |  2 +
- mm/zsmalloc.c                               | 13 ++--
- 6 files changed, 158 insertions(+), 36 deletions(-)
- create mode 100644 arch/x86/boot/compressed/pagetable.h
-
+diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
+index 4d1555b39de0..e8331f5a77f4 100644
+--- a/arch/x86/boot/compressed/head_64.S
++++ b/arch/x86/boot/compressed/head_64.S
+@@ -32,6 +32,7 @@
+ #include <asm/processor-flags.h>
+ #include <asm/asm-offsets.h>
+ #include <asm/bootparam.h>
++#include "pagetable.h"
+ 
+ /*
+  * Locally defined symbols should be marked hidden:
+@@ -288,6 +289,19 @@ ENTRY(startup_64)
+ 	leaq	boot_stack_end(%rbx), %rsp
+ 
+ #ifdef CONFIG_X86_5LEVEL
++/*
++ * We need trampoline in lower memory switch from 4- to 5-level paging for
++ * cases when bootloader put kernel above 4G, but didn't enable 5-level paging
++ * for us.
++ *
++ * We also have to have top page table in lower memory as we don't have a way
++ * to load 64-bit value into CR3 from 32-bit mode. We only need 8-bytes there
++ * as we only use the very first entry of the page table, but we allocate whole
++ * page anyway. We cannot have the code in the same because, there's hazard
++ * that a CPU would read page table speculatively and get confused seeing
++ * garbage.
++ */
++
+ 	/*
+ 	 * Check if we need to enable 5-level paging.
+ 	 * RSI holds real mode data and need to be preserved across
+@@ -309,8 +323,8 @@ ENTRY(startup_64)
+ 	 * long mode would trigger #GP. So we need to switch off long mode
+ 	 * first.
+ 	 *
+-	 * NOTE: This is not going to work if bootloader put us above 4G
+-	 * limit.
++	 * We use trampoline in lower memory to handle situation when
++	 * bootloader put the kernel image above 4G.
+ 	 *
+ 	 * The first step is go into compatibility mode.
+ 	 */
+@@ -327,26 +341,20 @@ ENTRY(startup_64)
+ 	popq	%rsi
+ 	movq	%rax, %rcx
+ 
+-	/* Clear additional page table */
+-	leaq	lvl5_pgtable(%rbx), %rdi
+-	xorq	%rax, %rax
+-	movq	$(PAGE_SIZE/8), %rcx
+-	rep	stosq
+-
+ 	/*
+-	 * Setup current CR3 as the first and only entry in a new top level
+-	 * page table.
++	 * Load address of lvl5 into RDI.
++	 * It will be used to return address from trampoline.
+ 	 */
+-	movq	%cr3, %rdi
+-	leaq	0x7 (%rdi), %rax
+-	movq	%rax, lvl5_pgtable(%rbx)
++	leaq	lvl5(%rip), %rdi
+ 
+ 	/* Switch to compatibility mode (CS.L = 0 CS.D = 1) via far return */
+ 	pushq	$__KERNEL32_CS
+-	leaq	compatible_mode(%rip), %rax
++	leaq	LVL5_TRAMPOLINE_CODE_OFF(%rcx), %rax
+ 	pushq	%rax
+ 	lretq
+ lvl5:
++	/* Restore stack, 32-bit trampoline uses own stack */
++	leaq	boot_stack_end(%rbx), %rsp
+ #endif
+ 
+ 	/* Zero EFLAGS */
+@@ -484,22 +492,30 @@ relocated:
+  */
+ 	jmp	*%rax
+ 
+-	.code32
+ #ifdef CONFIG_X86_5LEVEL
++	.code32
++/*
++ * This is 32-bit trampoline that will be copied over to low memory.
++ *
++ * RDI contains return address (might be above 4G).
++ * ECX contains the base address of trampoline memory.
++ */
+ ENTRY(lvl5_trampoline_src)
+-compatible_mode:
+ 	/* Setup data and stack segments */
+ 	movl	$__KERNEL_DS, %eax
+ 	movl	%eax, %ds
+ 	movl	%eax, %ss
+ 
++	/* Setup new stack at the end of trampoline memory */
++	leal	LVL5_TRAMPOLINE_STACK_END (%ecx), %esp
++
+ 	/* Disable paging */
+ 	movl	%cr0, %eax
+ 	btrl	$X86_CR0_PG_BIT, %eax
+ 	movl	%eax, %cr0
+ 
+ 	/* Point CR3 to 5-level paging */
+-	leal	lvl5_pgtable(%ebx), %eax
++	leal	LVL5_TRAMPOLINE_PGTABLE_OFF (%ecx), %eax
+ 	movl	%eax, %cr3
+ 
+ 	/* Enable PAE and LA57 mode */
+@@ -507,23 +523,29 @@ compatible_mode:
+ 	orl	$(X86_CR4_PAE | X86_CR4_LA57), %eax
+ 	movl	%eax, %cr4
+ 
+-	/* Calculate address we are running at */
+-	call	1f
+-1:	popl	%edi
+-	subl	$1b, %edi
++	/* Calculate address of lvl5_enabled once we are in trampoline */
++	leal	lvl5_enabled - lvl5_trampoline_src + LVL5_TRAMPOLINE_CODE_OFF (%ecx), %eax
+ 
+ 	/* Prepare stack for far return to Long Mode */
+ 	pushl	$__KERNEL_CS
+-	leal	lvl5(%edi), %eax
+-	push	%eax
++	pushl	%eax
+ 
+ 	/* Enable paging back */
+ 	movl	$(X86_CR0_PG | X86_CR0_PE), %eax
+ 	movl	%eax, %cr0
+ 
+ 	lret
++
++	.code64
++lvl5_enabled:
++	/* Return from trampoline */
++	jmp	*%rdi
++
++	/* Bound size of trampoline code */
++	.org	lvl5_trampoline_src + LVL5_TRAMPOLINE_CODE_SIZE
+ #endif
+ 
++	.code32
+ no_longmode:
+ 	/* This isn't an x86-64 CPU so hang */
+ 1:
+@@ -581,7 +603,3 @@ boot_stack_end:
+ 	.balign 4096
+ pgtable:
+ 	.fill BOOT_PGT_SIZE, 1, 0
+-#ifdef CONFIG_X86_5LEVEL
+-lvl5_pgtable:
+-	.fill PAGE_SIZE, 1, 0
+-#endif
 -- 
 2.14.2
 
