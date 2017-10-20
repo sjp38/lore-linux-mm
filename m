@@ -1,81 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E9436B025F
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 12:23:54 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 11so3035385wrb.10
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 09:23:54 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x28sor937478eda.19.2017.10.20.09.23.51
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 343B46B025F
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 12:29:40 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id c42so5993843wrc.13
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 09:29:40 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id c10si1008093wrd.350.2017.10.20.09.29.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 20 Oct 2017 09:23:51 -0700 (PDT)
-Date: Fri, 20 Oct 2017 19:23:49 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 0/6] Boot-time switching between 4- and 5-level paging
- for 4.15, Part 1
-Message-ID: <20171020162349.3kwhdgv7qo45w4lh@node.shutemov.name>
-References: <20170929140821.37654-1-kirill.shutemov@linux.intel.com>
- <20171003082754.no6ym45oirah53zp@node.shutemov.name>
- <20171017154241.f4zaxakfl7fcrdz5@node.shutemov.name>
- <20171020081853.lmnvaiydxhy5c63t@gmail.com>
- <20171020094152.skx5sh5ramq2a3vu@black.fi.intel.com>
- <20171020152346.f6tjybt7i5kzbhld@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Oct 2017 09:29:38 -0700 (PDT)
+Date: Fri, 20 Oct 2017 18:29:33 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH v3 02/13] dax: require 'struct page' for filesystem dax
+Message-ID: <20171020162933.GA26320@lst.de>
+References: <150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com> <150846714747.24336.14704246566580871364.stgit@dwillia2-desk3.amr.corp.intel.com> <20171020075735.GA14378@lst.de> <CAPcyv4hA1nrhDf=DA6_j7s7ezGOBhvEVZ8cu81DNui_p3bhhaA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20171020152346.f6tjybt7i5kzbhld@gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAPcyv4hA1nrhDf=DA6_j7s7ezGOBhvEVZ8cu81DNui_p3bhhaA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>
 
-On Fri, Oct 20, 2017 at 05:23:46PM +0200, Ingo Molnar wrote:
-> 
-> * Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
-> 
-> > On Fri, Oct 20, 2017 at 08:18:53AM +0000, Ingo Molnar wrote:
-> > > 
-> > > * Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> > > 
-> > > > On Tue, Oct 03, 2017 at 11:27:54AM +0300, Kirill A. Shutemov wrote:
-> > > > > On Fri, Sep 29, 2017 at 05:08:15PM +0300, Kirill A. Shutemov wrote:
-> > > > > > The first bunch of patches that prepare kernel to boot-time switching
-> > > > > > between paging modes.
-> > > > > > 
-> > > > > > Please review and consider applying.
-> > > > > 
-> > > > > Ping?
-> > > > 
-> > > > Ingo, is there anything I can do to get review easier for you?
-> > > 
-> > > Yeah, what is the conclusion on the sub-discussion of patch #2:
-> > > 
-> > >   [PATCH 2/6] mm/zsmalloc: Prepare to variable MAX_PHYSMEM_BITS
-> > > 
-> > > ... do we want to skip it entirely and use the other 5 patches?
-> > 
-> > Yes, please. MAX_PHYSMEM_BITS not variable yet in this part of the series.
-> > 
-> > And I will post some version the patch in the next part, if it will be
-> > required.
-> 
-> Could we add TRULY_MAX_PHYSMEM_BITS (with a better name), to be used in places 
-> where memory footprint is not a big concern?
+On Fri, Oct 20, 2017 at 08:23:02AM -0700, Dan Williams wrote:
+> Yes, however it seems these drivers / platforms have been living with
+> the lack of struct page for a long time. So they either don't use DAX,
+> or they have a constrained use case that never triggers
+> get_user_pages(). If it is the latter then they could introduce a new
+> configuration option that bypasses the pfn_t_devmap() check in
+> bdev_dax_supported() and fix up the get_user_pages() paths to fail.
+> So, I'd like to understand how these drivers have been using DAX
+> support without struct page to see if we need a workaround or we can
+> go ahead delete this support. If the usage is limited to
+> execute-in-place perhaps we can do a constrained ->direct_access() for
+> just that case.
 
-That's what I did in the patch. See MAX_POSSIBLE_PHYSMEM_BITS.
-Not sure how good the name is.
+For axonram I doubt anyone is using it any more - it was a very for
+the IBM Cell blades, which were produceN? in a rather limited number.
+And Cell basically seems to be dead as far as I can tell.
 
-> Or, could we keep MAX_PHYSMEM_BITS constant, and introduce a _different_ constant 
-> that is dynamic, and which could be used in the cases where the 5-level paging 
-> config causes too much memory footprint in the common 4-level paging case?
-
-This is more labor intensive case with unclear benefit.
-
-Dynamic MAX_PHYSMEM_BITS doesn't cause any issue in waste majority of
-cases.
-
--- 
- Kirill A. Shutemov
+For S/390 Martin might be able to help out what the status of xpram
+in general and DAX support in particular is.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
