@@ -1,106 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B4176B0268
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:15:56 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id r6so10062624pfj.14
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 05:15:56 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id g207si712128pfb.413.2017.10.20.05.15.54
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DC766B026A
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:16:02 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e64so10083256pfk.0
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 05:16:02 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id p33si557434pld.217.2017.10.20.05.16.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Oct 2017 05:15:54 -0700 (PDT)
+        Fri, 20 Oct 2017 05:16:01 -0700 (PDT)
 From: Elena Reshetova <elena.reshetova@intel.com>
-Subject: [PATCH 00/15] v5 kernel core pieces refcount conversions
-Date: Fri, 20 Oct 2017 15:15:42 +0300
-Message-Id: <1508501757-15784-1-git-send-email-elena.reshetova@intel.com>
+Subject: [PATCH 01/15] sched: convert sighand_struct.count to refcount_t
+Date: Fri, 20 Oct 2017 15:15:43 +0300
+Message-Id: <1508501757-15784-2-git-send-email-elena.reshetova@intel.com>
+In-Reply-To: <1508501757-15784-1-git-send-email-elena.reshetova@intel.com>
+References: <1508501757-15784-1-git-send-email-elena.reshetova@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mingo@redhat.com
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, peterz@infradead.org, gregkh@linuxfoundation.org, viro@zeniv.linux.org.uk, tj@kernel.org, hannes@cmpxchg.org, lizefan@huawei.com, acme@kernel.org, alexander.shishkin@linux.intel.com, eparis@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, luto@kernel.org, keescook@chromium.org, tglx@linutronix.de, dvhart@infradead.org, ebiederm@xmission.com, linux-mm@kvack.org, axboe@kernel.dk, Elena Reshetova <elena.reshetova@intel.com>
 
-Note: this is just a fresh rebase on top of linux-next.
-No functional changes.
+atomic_t variables are currently used to implement reference
+counters with the following properties:
+ - counter is initialized to 1 using atomic_set()
+ - a resource is freed upon counter reaching zero
+ - once counter reaches zero, its further
+   increments aren't allowed
+ - counter schema uses basic atomic operations
+   (set, inc, inc_not_zero, dec_and_test, etc.)
+
+Such atomic variables should be converted to a newly provided
+refcount_t type and API that prevents accidental counter overflows
+and underflows. This is important since overflows and underflows
+can lead to use-after-free situation and be exploitable.
+
+The variable sighand_struct.count is used as pure reference counter.
+Convert it to refcount_t and fix up the operations.
+
+Suggested-by: Kees Cook <keescook@chromium.org>
+Reviewed-by: David Windsor <dwindsor@gmail.com>
+Reviewed-by: Hans Liljestrand <ishkamiel@gmail.com>
+Signed-off-by: Elena Reshetova <elena.reshetova@intel.com>
+---
+ fs/exec.c                    | 4 ++--
+ fs/proc/task_nommu.c         | 2 +-
+ include/linux/init_task.h    | 2 +-
+ include/linux/sched/signal.h | 3 ++-
+ kernel/fork.c                | 8 ++++----
+ 5 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/fs/exec.c b/fs/exec.c
+index 704e195..20dbd98 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1181,7 +1181,7 @@ static int de_thread(struct task_struct *tsk)
+ 	flush_itimer_signals();
+ #endif
  
-
-Changes in v5:
- * Kees catched that the following changes in
-   perf_event_context.refcount and futex_pi_state.refcount
-   are not correct now when ARCH_HAS_REFCOUNT is enabled:
-    -	WARN_ON(!atomic_inc_not_zero(refcount));
-    +	refcount_inc(refcount);
-   So they are now changed back to using refcount_inc_not_zero. 
-
-Changes in v4:
- * just rebase and corrections on linux-next/master
-
-Changes in v3:
- * SoB chain corrected
- * minor corrections based on v2 feedback
- * rebase on linux-next/master as of today
-
-Changes in v2:
- * dropped already merged patches
- * rebase on top of linux-next/master
- * Now by default refcount_t = atomic_t (*) and uses all atomic
-   standard operations unless CONFIG_REFCOUNT_FULL is enabled.
-   This is a compromise for the systems that are critical on
-   performance (such as net) and cannot accept even slight delay
-   on the refcounter operations.
-
-This series, for core kernel components, replaces atomic_t reference
-counters with the new refcount_t type and API (see include/linux/refcount.h).
-By doing this we prevent intentional or accidental
-underflows or overflows that can led to use-after-free vulnerabilities.
-
-The patches are fully independent and can be cherry-picked separately.
-If there are no objections to the patches, please merge them via respective trees.
-
-
-Elena Reshetova (15):
-  sched: convert sighand_struct.count to refcount_t
-  sched: convert signal_struct.sigcnt to refcount_t
-  sched: convert user_struct.__count to refcount_t
-  sched: convert numa_group.refcount to refcount_t
-  sched/task_struct: convert task_struct.usage to refcount_t
-  sched/task_struct: convert task_struct.stack_refcount to refcount_t
-  perf: convert perf_event_context.refcount to refcount_t
-  perf/ring_buffer: convert ring_buffer.refcount to refcount_t
-  perf/ring_buffer: convert ring_buffer.aux_refcount to refcount_t
-  uprobes: convert uprobe.ref to refcount_t
-  nsproxy: convert nsproxy.count to refcount_t
-  groups: convert group_info.usage to refcount_t
-  creds: convert cred.usage to refcount_t
-  kcov: convert kcov.refcount to refcount_t
-  bdi: convert bdi_writeback_congested.refcnt from atomic_t to
-    refcount_t
-
- fs/exec.c                        |  4 ++--
- fs/proc/task_nommu.c             |  2 +-
- include/linux/backing-dev-defs.h |  3 ++-
- include/linux/backing-dev.h      |  4 ++--
- include/linux/cred.h             | 13 ++++++------
- include/linux/init_task.h        |  7 +++---
- include/linux/nsproxy.h          |  6 +++---
- include/linux/perf_event.h       |  3 ++-
- include/linux/sched.h            |  5 +++--
- include/linux/sched/signal.h     |  5 +++--
- include/linux/sched/task.h       |  4 ++--
- include/linux/sched/task_stack.h |  2 +-
- include/linux/sched/user.h       |  5 +++--
- kernel/cred.c                    | 46 ++++++++++++++++++++--------------------
- kernel/events/core.c             | 18 ++++++++--------
- kernel/events/internal.h         |  5 +++--
- kernel/events/ring_buffer.c      |  8 +++----
- kernel/events/uprobes.c          |  8 +++----
- kernel/fork.c                    | 24 ++++++++++-----------
- kernel/groups.c                  |  2 +-
- kernel/kcov.c                    |  9 ++++----
- kernel/nsproxy.c                 |  6 +++---
- kernel/sched/fair.c              | 12 +++++------
- kernel/user.c                    |  8 +++----
- mm/backing-dev.c                 | 14 ++++++------
- 25 files changed, 117 insertions(+), 106 deletions(-)
-
+-	if (atomic_read(&oldsighand->count) != 1) {
++	if (refcount_read(&oldsighand->count) != 1) {
+ 		struct sighand_struct *newsighand;
+ 		/*
+ 		 * This ->sighand is shared with the CLONE_SIGHAND
+@@ -1191,7 +1191,7 @@ static int de_thread(struct task_struct *tsk)
+ 		if (!newsighand)
+ 			return -ENOMEM;
+ 
+-		atomic_set(&newsighand->count, 1);
++		refcount_set(&newsighand->count, 1);
+ 		memcpy(newsighand->action, oldsighand->action,
+ 		       sizeof(newsighand->action));
+ 
+diff --git a/fs/proc/task_nommu.c b/fs/proc/task_nommu.c
+index bdb0d0d..ba680e5 100644
+--- a/fs/proc/task_nommu.c
++++ b/fs/proc/task_nommu.c
+@@ -63,7 +63,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 	else
+ 		bytes += kobjsize(current->files);
+ 
+-	if (current->sighand && atomic_read(&current->sighand->count) > 1)
++	if (current->sighand && refcount_read(&current->sighand->count) > 1)
+ 		sbytes += kobjsize(current->sighand);
+ 	else
+ 		bytes += kobjsize(current->sighand);
+diff --git a/include/linux/init_task.h b/include/linux/init_task.h
+index cc45798..a85376e 100644
+--- a/include/linux/init_task.h
++++ b/include/linux/init_task.h
+@@ -85,7 +85,7 @@ extern struct fs_struct init_fs;
+ extern struct nsproxy init_nsproxy;
+ 
+ #define INIT_SIGHAND(sighand) {						\
+-	.count		= ATOMIC_INIT(1), 				\
++	.count		= REFCOUNT_INIT(1), 				\
+ 	.action		= { { { .sa_handler = SIG_DFL, } }, },		\
+ 	.siglock	= __SPIN_LOCK_UNLOCKED(sighand.siglock),	\
+ 	.signalfd_wqh	= __WAIT_QUEUE_HEAD_INITIALIZER(sighand.signalfd_wqh),	\
+diff --git a/include/linux/sched/signal.h b/include/linux/sched/signal.h
+index c5c137e..b40fbf7 100644
+--- a/include/linux/sched/signal.h
++++ b/include/linux/sched/signal.h
+@@ -7,13 +7,14 @@
+ #include <linux/sched/jobctl.h>
+ #include <linux/sched/task.h>
+ #include <linux/cred.h>
++#include <linux/refcount.h>
+ 
+ /*
+  * Types defining task->signal and task->sighand and APIs using them:
+  */
+ 
+ struct sighand_struct {
+-	atomic_t		count;
++	refcount_t		count;
+ 	struct k_sigaction	action[_NSIG];
+ 	spinlock_t		siglock;
+ 	wait_queue_head_t	signalfd_wqh;
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 7fe10e5..ab4ddc9 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -1381,7 +1381,7 @@ static int copy_sighand(unsigned long clone_flags, struct task_struct *tsk)
+ 	struct sighand_struct *sig;
+ 
+ 	if (clone_flags & CLONE_SIGHAND) {
+-		atomic_inc(&current->sighand->count);
++		refcount_inc(&current->sighand->count);
+ 		return 0;
+ 	}
+ 	sig = kmem_cache_alloc(sighand_cachep, GFP_KERNEL);
+@@ -1389,14 +1389,14 @@ static int copy_sighand(unsigned long clone_flags, struct task_struct *tsk)
+ 	if (!sig)
+ 		return -ENOMEM;
+ 
+-	atomic_set(&sig->count, 1);
++	refcount_set(&sig->count, 1);
+ 	memcpy(sig->action, current->sighand->action, sizeof(sig->action));
+ 	return 0;
+ }
+ 
+ void __cleanup_sighand(struct sighand_struct *sighand)
+ {
+-	if (atomic_dec_and_test(&sighand->count)) {
++	if (refcount_dec_and_test(&sighand->count)) {
+ 		signalfd_cleanup(sighand);
+ 		/*
+ 		 * sighand_cachep is SLAB_TYPESAFE_BY_RCU so we can free it
+@@ -2301,7 +2301,7 @@ static int check_unshare_flags(unsigned long unshare_flags)
+ 			return -EINVAL;
+ 	}
+ 	if (unshare_flags & (CLONE_SIGHAND | CLONE_VM)) {
+-		if (atomic_read(&current->sighand->count) > 1)
++		if (refcount_read(&current->sighand->count) > 1)
+ 			return -EINVAL;
+ 	}
+ 	if (unshare_flags & CLONE_VM) {
 -- 
 2.7.4
 
