@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A9AC6B026C
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:17:17 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id a8so10063828pfc.6
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 05:17:17 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id e4si700060pfl.603.2017.10.20.05.17.15
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AA5A86B0280
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:17:23 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id n14so10072607pfh.15
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 05:17:23 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id k70si662748pgc.344.2017.10.20.05.17.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Oct 2017 05:17:15 -0700 (PDT)
+        Fri, 20 Oct 2017 05:17:22 -0700 (PDT)
 From: Elena Reshetova <elena.reshetova@intel.com>
-Subject: [PATCH 14/15] kcov: convert kcov.refcount to refcount_t
-Date: Fri, 20 Oct 2017 15:15:56 +0300
-Message-Id: <1508501757-15784-15-git-send-email-elena.reshetova@intel.com>
+Subject: [PATCH 15/15] bdi: convert bdi_writeback_congested.refcnt from atomic_t to refcount_t
+Date: Fri, 20 Oct 2017 15:15:57 +0300
+Message-Id: <1508501757-15784-16-git-send-email-elena.reshetova@intel.com>
 In-Reply-To: <1508501757-15784-1-git-send-email-elena.reshetova@intel.com>
 References: <1508501757-15784-1-git-send-email-elena.reshetova@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -34,7 +34,7 @@ refcount_t type and API that prevents accidental counter overflows
 and underflows. This is important since overflows and underflows
 can lead to use-after-free situation and be exploitable.
 
-The variable kcov.refcount is used as pure reference counter.
+The variable bdi_writeback_congested.refcnt is used as pure reference counter.
 Convert it to refcount_t and fix up the operations.
 
 Suggested-by: Kees Cook <keescook@chromium.org>
@@ -42,54 +42,109 @@ Reviewed-by: David Windsor <dwindsor@gmail.com>
 Reviewed-by: Hans Liljestrand <ishkamiel@gmail.com>
 Signed-off-by: Elena Reshetova <elena.reshetova@intel.com>
 ---
- kernel/kcov.c | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
+ include/linux/backing-dev-defs.h |  3 ++-
+ include/linux/backing-dev.h      |  4 ++--
+ mm/backing-dev.c                 | 14 ++++++++------
+ 3 files changed, 12 insertions(+), 9 deletions(-)
 
-diff --git a/kernel/kcov.c b/kernel/kcov.c
-index 461c55e..03c174c 100644
---- a/kernel/kcov.c
-+++ b/kernel/kcov.c
-@@ -19,6 +19,7 @@
- #include <linux/debugfs.h>
- #include <linux/uaccess.h>
- #include <linux/kcov.h>
+diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
+index b7c7be6..429fe3b 100644
+--- a/include/linux/backing-dev-defs.h
++++ b/include/linux/backing-dev-defs.h
+@@ -4,6 +4,7 @@
+ #include <linux/list.h>
+ #include <linux/radix-tree.h>
+ #include <linux/rbtree.h>
 +#include <linux/refcount.h>
- #include <asm/setup.h>
+ #include <linux/spinlock.h>
+ #include <linux/percpu_counter.h>
+ #include <linux/percpu-refcount.h>
+@@ -75,7 +76,7 @@ enum wb_reason {
+  */
+ struct bdi_writeback_congested {
+ 	unsigned long state;		/* WB_[a]sync_congested flags */
+-	atomic_t refcnt;		/* nr of attached wb's and blkg */
++	refcount_t refcnt;		/* nr of attached wb's and blkg */
  
- /* Number of 64-bit words written per one comparison: */
-@@ -43,7 +44,7 @@ struct kcov {
- 	 *  - opened file descriptor
- 	 *  - task with enabled coverage (we can't unwire it from another task)
- 	 */
--	atomic_t		refcount;
-+	refcount_t		refcount;
- 	/* The lock protects mode, size, area and t. */
- 	spinlock_t		lock;
- 	enum kcov_mode		mode;
-@@ -227,12 +228,12 @@ EXPORT_SYMBOL(__sanitizer_cov_trace_switch);
- 
- static void kcov_get(struct kcov *kcov)
+ #ifdef CONFIG_CGROUP_WRITEBACK
+ 	struct backing_dev_info *__bdi;	/* the associated bdi, set to NULL
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index e6f5037..f3b38c4 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -401,13 +401,13 @@ static inline bool inode_cgwb_enabled(struct inode *inode)
+ static inline struct bdi_writeback_congested *
+ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
  {
--	atomic_inc(&kcov->refcount);
-+	refcount_inc(&kcov->refcount);
+-	atomic_inc(&bdi->wb_congested->refcnt);
++	refcount_inc(&bdi->wb_congested->refcnt);
+ 	return bdi->wb_congested;
  }
  
- static void kcov_put(struct kcov *kcov)
+ static inline void wb_congested_put(struct bdi_writeback_congested *congested)
  {
--	if (atomic_dec_and_test(&kcov->refcount)) {
-+	if (refcount_dec_and_test(&kcov->refcount)) {
- 		vfree(kcov->area);
- 		kfree(kcov);
+-	if (atomic_dec_and_test(&congested->refcnt))
++	if (refcount_dec_and_test(&congested->refcnt))
+ 		kfree(congested);
+ }
+ 
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index 74b52df..e92a20f 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -440,14 +440,17 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
+ 			node = &parent->rb_left;
+ 		else if (congested->blkcg_id > blkcg_id)
+ 			node = &parent->rb_right;
+-		else
+-			goto found;
++		else {
++			refcount_inc(&congested->refcnt);
++ 			goto found;
++		}
  	}
-@@ -310,7 +311,7 @@ static int kcov_open(struct inode *inode, struct file *filep)
- 	if (!kcov)
+ 
+ 	if (new_congested) {
+ 		/* !found and storage for new one already allocated, insert */
+ 		congested = new_congested;
+ 		new_congested = NULL;
++		refcount_set(&congested->refcnt, 1);
+ 		rb_link_node(&congested->rb_node, parent, node);
+ 		rb_insert_color(&congested->rb_node, &bdi->cgwb_congested_tree);
+ 		goto found;
+@@ -460,13 +463,12 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
+ 	if (!new_congested)
+ 		return NULL;
+ 
+-	atomic_set(&new_congested->refcnt, 0);
++	refcount_set(&new_congested->refcnt, 0);
+ 	new_congested->__bdi = bdi;
+ 	new_congested->blkcg_id = blkcg_id;
+ 	goto retry;
+ 
+ found:
+-	atomic_inc(&congested->refcnt);
+ 	spin_unlock_irqrestore(&cgwb_lock, flags);
+ 	kfree(new_congested);
+ 	return congested;
+@@ -483,7 +485,7 @@ void wb_congested_put(struct bdi_writeback_congested *congested)
+ 	unsigned long flags;
+ 
+ 	local_irq_save(flags);
+-	if (!atomic_dec_and_lock(&congested->refcnt, &cgwb_lock)) {
++	if (!refcount_dec_and_lock(&congested->refcnt, &cgwb_lock)) {
+ 		local_irq_restore(flags);
+ 		return;
+ 	}
+@@ -793,7 +795,7 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
+ 	if (!bdi->wb_congested)
  		return -ENOMEM;
- 	kcov->mode = KCOV_MODE_DISABLED;
--	atomic_set(&kcov->refcount, 1);
-+	refcount_set(&kcov->refcount, 1);
- 	spin_lock_init(&kcov->lock);
- 	filep->private_data = kcov;
- 	return nonseekable_open(inode, filep);
+ 
+-	atomic_set(&bdi->wb_congested->refcnt, 1);
++	refcount_set(&bdi->wb_congested->refcnt, 1);
+ 
+ 	err = wb_init(&bdi->wb, bdi, 1, GFP_KERNEL);
+ 	if (err) {
 -- 
 2.7.4
 
