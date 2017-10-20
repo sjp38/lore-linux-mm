@@ -1,278 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 625ED6B0253
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 04:44:14 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e64so9350506pfk.0
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 01:44:14 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id f88si483420pfk.57.2017.10.20.01.44.12
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F1726B0038
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 05:12:41 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id u5so5474901wrc.5
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 02:12:41 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p2si627189wme.5.2017.10.20.02.12.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Oct 2017 01:44:12 -0700 (PDT)
-From: changbin.du@intel.com
-Subject: [PATCH v2 2/2] mm: rename page dtor functions to {compound,huge,transhuge}_page__dtor
-Date: Fri, 20 Oct 2017 16:36:28 +0800
-Message-Id: <1508488588-23539-3-git-send-email-changbin.du@intel.com>
-In-Reply-To: <1508488588-23539-1-git-send-email-changbin.du@intel.com>
-References: <1508488588-23539-1-git-send-email-changbin.du@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 20 Oct 2017 02:12:39 -0700 (PDT)
+Date: Fri, 20 Oct 2017 11:12:39 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: swapper/0: page allocation failure: order:0,
+ mode:0x1204010(GFP_NOWAIT|__GFP_COMP|__GFP_RECLAIMABLE|__GFP_NOTRACK),
+ nodemask=(null)
+Message-ID: <20171020091239.cfwapdkx5g7afyp7@dhcp22.suse.cz>
+References: <CABXGCsPEkwzKUU9OPRDOMue7TpWa4axTWg0FbXZAq+JZmoubGw@mail.gmail.com>
+ <20171019035641.GB23773@intel.com>
+ <CABXGCsPL0pUHo_M-KxB3mabfdGMSHPC0uchLBBt0JCzF2BYBww@mail.gmail.com>
+ <20171020064305.GA13688@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20171020064305.GA13688@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, corbet@lwn.net, hughd@google.com
-Cc: linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, khandual@linux.vnet.ibm.com, kirill@shutemov.name, Changbin Du <changbin.du@intel.com>
+To: "Du, Changbin" <changbin.du@intel.com>
+Cc: =?utf-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>, linux-mm@kvack.org
 
-From: Changbin Du <changbin.du@intel.com>
+On Fri 20-10-17 14:43:06, Du, Changbin wrote:
+> On Thu, Oct 19, 2017 at 11:52:49PM +0500, D?D,N?D?D,D>> D?D?D2N?D,D>>D 3/4 D2 wrote:
+> > On 19 October 2017 at 08:56, Du, Changbin <changbin.du@intel.com> wrote:
+> > > On Thu, Oct 19, 2017 at 01:16:48AM +0500, D?D,N?D?D,D>> D?D?D2N?D,D>>D 3/4 D2 wrote:
+> > > I am curious about this, how can slub try to alloc compound page but the order
+> > > is 0? This is wrong.
+> > 
+> > Nobody seems to know how this could happen. Can any logs shed light on this?
+> >
+> After checking the code, kernel can handle such case. So please ignore my last
+> comment.
+> 
+> The warning is reporting OOM, first you need confirm if you have enough free
+> memory? If that is true, then it is not a programmer error.
 
-The current name free_{huge,transhuge}_page are paired with
-alloc_{huge,transhuge}_page functions, but the actual page free
-function is still free_page() which will indirectly call
-free_{huge,transhuge}_page.
-
-So this patch removes this confusion by renaming all the
-compound page dtors to {compound,huge,transhuge}_page__dtor.
-And since we already have a typedef compound_page_dtor,
-rename it to compound_page_dtor_t to avoid name conflict.
-
-Signed-off-by: Changbin Du <changbin.du@intel.com>
-
----
-v2: Improve commit message.
----
- Documentation/vm/hugetlbfs_reserv.txt |  4 ++--
- include/linux/huge_mm.h               |  2 +-
- include/linux/hugetlb.h               |  2 +-
- include/linux/mm.h                    |  8 ++++----
- mm/huge_memory.c                      |  4 ++--
- mm/hugetlb.c                          | 14 +++++++-------
- mm/page_alloc.c                       | 10 +++++-----
- mm/swap.c                             |  2 +-
- mm/userfaultfd.c                      |  2 +-
- 9 files changed, 24 insertions(+), 24 deletions(-)
-
-diff --git a/Documentation/vm/hugetlbfs_reserv.txt b/Documentation/vm/hugetlbfs_reserv.txt
-index 9aca09a..b3ffa3e 100644
---- a/Documentation/vm/hugetlbfs_reserv.txt
-+++ b/Documentation/vm/hugetlbfs_reserv.txt
-@@ -238,7 +238,7 @@ to the global reservation count (resv_huge_pages).
- 
- Freeing Huge Pages
- ------------------
--Huge page freeing is performed by the routine free_huge_page().  This routine
-+Huge page freeing is performed by the routine huge_page_dtor().  This routine
- is the destructor for hugetlbfs compound pages.  As a result, it is only
- passed a pointer to the page struct.  When a huge page is freed, reservation
- accounting may need to be performed.  This would be the case if the page was
-@@ -468,7 +468,7 @@ However, there are several instances where errors are encountered after a huge
- page is allocated but before it is instantiated.  In this case, the page
- allocation has consumed the reservation and made the appropriate subpool,
- reservation map and global count adjustments.  If the page is freed at this
--time (before instantiation and clearing of PagePrivate), then free_huge_page
-+time (before instantiation and clearing of PagePrivate), then huge_page_dtor
- will increment the global reservation count.  However, the reservation map
- indicates the reservation was consumed.  This resulting inconsistent state
- will cause the 'leak' of a reserved huge page.  The global reserve count will
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 184eb38..bd05bc7 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -130,7 +130,7 @@ extern unsigned long thp_get_unmapped_area(struct file *filp,
- 		unsigned long addr, unsigned long len, unsigned long pgoff,
- 		unsigned long flags);
- 
--extern void free_transhuge_page(struct page *page);
-+extern void transhuge_page_dtor(struct page *page);
- 
- extern struct page *alloc_transhuge_page_vma(gfp_t gfp_mask,
- 		struct vm_area_struct *vma, unsigned long addr);
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 8bbbd37..24492c5 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -118,7 +118,7 @@ long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
- 						long freed);
- bool isolate_huge_page(struct page *page, struct list_head *list);
- void putback_active_hugepage(struct page *page);
--void free_huge_page(struct page *page);
-+void huge_page_dtor(struct page *page);
- void hugetlb_fix_reserve_counts(struct inode *inode);
- extern struct mutex *hugetlb_fault_mutex_table;
- u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 065d99d..adfa906 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -616,7 +616,7 @@ void split_page(struct page *page, unsigned int order);
-  * prototype for that function and accessor functions.
-  * These are _only_ valid on the head of a compound page.
-  */
--typedef void compound_page_dtor(struct page *);
-+typedef void compound_page_dtor_t(struct page *);
- 
- /* Keep the enum in sync with compound_page_dtors array in mm/page_alloc.c */
- enum compound_dtor_id {
-@@ -630,7 +630,7 @@ enum compound_dtor_id {
- #endif
- 	NR_COMPOUND_DTORS,
- };
--extern compound_page_dtor * const compound_page_dtors[];
-+extern compound_page_dtor_t * const compound_page_dtors[];
- 
- static inline void set_compound_page_dtor(struct page *page,
- 		enum compound_dtor_id compound_dtor)
-@@ -639,7 +639,7 @@ static inline void set_compound_page_dtor(struct page *page,
- 	page[1].compound_dtor = compound_dtor;
- }
- 
--static inline compound_page_dtor *get_compound_page_dtor(struct page *page)
-+static inline compound_page_dtor_t *get_compound_page_dtor(struct page *page)
- {
- 	VM_BUG_ON_PAGE(page[1].compound_dtor >= NR_COMPOUND_DTORS, page);
- 	return compound_page_dtors[page[1].compound_dtor];
-@@ -657,7 +657,7 @@ static inline void set_compound_order(struct page *page, unsigned int order)
- 	page[1].compound_order = order;
- }
- 
--void free_compound_page(struct page *page);
-+void compound_page_dtor(struct page *page);
- 
- #ifdef CONFIG_MMU
- /*
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 2a960fc..692ea1e 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2715,7 +2715,7 @@ fail:		if (mapping)
- 	return ret;
- }
- 
--void free_transhuge_page(struct page *page)
-+void transhuge_page_dtor(struct page *page)
- {
- 	struct pglist_data *pgdata = NODE_DATA(page_to_nid(page));
- 	unsigned long flags;
-@@ -2726,7 +2726,7 @@ void free_transhuge_page(struct page *page)
- 		list_del(page_deferred_list(page));
- 	}
- 	spin_unlock_irqrestore(&pgdata->split_queue_lock, flags);
--	free_compound_page(page);
-+	compound_page_dtor(page);
- }
- 
- void deferred_split_huge_page(struct page *page)
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 424b0ef..1af2c4e7 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1250,7 +1250,7 @@ static void clear_page_huge_active(struct page *page)
- 	ClearPagePrivate(&page[1]);
- }
- 
--void free_huge_page(struct page *page)
-+void huge_page_dtor(struct page *page)
- {
- 	/*
- 	 * Can't pass hstate in here because it is called from the
-@@ -1363,7 +1363,7 @@ int PageHeadHuge(struct page *page_head)
- 	if (!PageHead(page_head))
- 		return 0;
- 
--	return get_compound_page_dtor(page_head) == free_huge_page;
-+	return get_compound_page_dtor(page_head) == huge_page_dtor;
- }
- 
- pgoff_t __basepage_index(struct page *page)
-@@ -1932,11 +1932,11 @@ static long vma_add_reservation(struct hstate *h,
-  * specific error paths, a huge page was allocated (via alloc_huge_page)
-  * and is about to be freed.  If a reservation for the page existed,
-  * alloc_huge_page would have consumed the reservation and set PagePrivate
-- * in the newly allocated page.  When the page is freed via free_huge_page,
-+ * in the newly allocated page.  When the page is freed via huge_page_dtor,
-  * the global reservation count will be incremented if PagePrivate is set.
-- * However, free_huge_page can not adjust the reserve map.  Adjust the
-+ * However, huge_page_dtor can not adjust the reserve map.  Adjust the
-  * reserve map here to be consistent with global reserve count adjustments
-- * to be made by free_huge_page.
-+ * to be made by huge_page_dtor.
-  */
- static void restore_reserve_on_error(struct hstate *h,
- 			struct vm_area_struct *vma, unsigned long address,
-@@ -1950,7 +1950,7 @@ static void restore_reserve_on_error(struct hstate *h,
- 			 * Rare out of memory condition in reserve map
- 			 * manipulation.  Clear PagePrivate so that
- 			 * global reserve count will not be incremented
--			 * by free_huge_page.  This will make it appear
-+			 * by huge_page_dtor.  This will make it appear
- 			 * as though the reservation for this page was
- 			 * consumed.  This may prevent the task from
- 			 * faulting in the page at a later time.  This
-@@ -2304,7 +2304,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
- 	while (count > persistent_huge_pages(h)) {
- 		/*
- 		 * If this allocation races such that we no longer need the
--		 * page, free_huge_page will handle it by freeing the page
-+		 * page, huge_page_dtor will handle it by freeing the page
- 		 * and reducing the surplus.
- 		 */
- 		spin_unlock(&hugetlb_lock);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 77e4d3c..b31205c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -248,14 +248,14 @@ char * const migratetype_names[MIGRATE_TYPES] = {
- #endif
- };
- 
--compound_page_dtor * const compound_page_dtors[] = {
-+compound_page_dtor_t * const compound_page_dtors[] = {
- 	NULL,
--	free_compound_page,
-+	compound_page_dtor,
- #ifdef CONFIG_HUGETLB_PAGE
--	free_huge_page,
-+	huge_page_dtor,
- #endif
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--	free_transhuge_page,
-+	transhuge_page_dtor,
- #endif
- };
- 
-@@ -586,7 +586,7 @@ static void bad_page(struct page *page, const char *reason,
-  * This usage means that zero-order pages may not be compound.
-  */
- 
--void free_compound_page(struct page *page)
-+void compound_page_dtor(struct page *page)
- {
- 	__free_pages_ok(page, compound_order(page));
- }
-diff --git a/mm/swap.c b/mm/swap.c
-index a77d68f..8f98caf 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -81,7 +81,7 @@ static void __put_single_page(struct page *page)
- 
- static void __put_compound_page(struct page *page)
- {
--	compound_page_dtor *dtor;
-+	compound_page_dtor_t *dtor;
- 
- 	/*
- 	 * __page_cache_release() is supposed to be called for thp, not for
-diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-index 8119270..91d9045 100644
---- a/mm/userfaultfd.c
-+++ b/mm/userfaultfd.c
-@@ -323,7 +323,7 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
- 		 * map of a private mapping, the map was modified to indicate
- 		 * the reservation was consumed when the page was allocated.
- 		 * We clear the PagePrivate flag now so that the global
--		 * reserve count will not be incremented in free_huge_page.
-+		 * reserve count will not be incremented in huge_page_dtor.
- 		 * The reservation map will still indicate the reservation
- 		 * was consumed and possibly prevent later page allocation.
- 		 * This is better than leaking a global reservation.  If no
+The kernel is not OOM. It just failed to allocate for GFP_NOWAIT which
+means that no memory reclaim could be used to free up potentially unused
+page cache. This means that kswapd is not able to free up memory in the
+pace it is allocated. Such an allocation failure shouldn't be critical
+and the caller should have means to fall back to a regular allocation or
+retry later. You can play with min_free_kbytes and increase it to kick
+the background reclaim sooner.
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
