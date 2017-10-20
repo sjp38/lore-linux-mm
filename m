@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 270066B026C
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:16:13 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id p87so10048043pfj.21
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 05:16:13 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id 31si543051ply.748.2017.10.20.05.16.11
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C9DF06B026D
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:16:18 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id z80so10042359pff.11
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 05:16:18 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id e1si544394pln.687.2017.10.20.05.16.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Oct 2017 05:16:11 -0700 (PDT)
+        Fri, 20 Oct 2017 05:16:17 -0700 (PDT)
 From: Elena Reshetova <elena.reshetova@intel.com>
-Subject: [PATCH 03/15] sched: convert user_struct.__count to refcount_t
-Date: Fri, 20 Oct 2017 15:15:45 +0300
-Message-Id: <1508501757-15784-4-git-send-email-elena.reshetova@intel.com>
+Subject: [PATCH 04/15] sched: convert numa_group.refcount to refcount_t
+Date: Fri, 20 Oct 2017 15:15:46 +0300
+Message-Id: <1508501757-15784-5-git-send-email-elena.reshetova@intel.com>
 In-Reply-To: <1508501757-15784-1-git-send-email-elena.reshetova@intel.com>
 References: <1508501757-15784-1-git-send-email-elena.reshetova@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -34,7 +34,7 @@ refcount_t type and API that prevents accidental counter overflows
 and underflows. This is important since overflows and underflows
 can lead to use-after-free situation and be exploitable.
 
-The variable user_struct.__count is used as pure reference counter.
+The variable numa_group.refcount is used as pure reference counter.
 Convert it to refcount_t and fix up the operations.
 
 Suggested-by: Kees Cook <keescook@chromium.org>
@@ -42,80 +42,64 @@ Reviewed-by: David Windsor <dwindsor@gmail.com>
 Reviewed-by: Hans Liljestrand <ishkamiel@gmail.com>
 Signed-off-by: Elena Reshetova <elena.reshetova@intel.com>
 ---
- include/linux/sched/user.h | 5 +++--
- kernel/user.c              | 8 ++++----
- 2 files changed, 7 insertions(+), 6 deletions(-)
+ kernel/sched/fair.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/sched/user.h b/include/linux/sched/user.h
-index 3c07e41..afcbf19 100644
---- a/include/linux/sched/user.h
-+++ b/include/linux/sched/user.h
-@@ -3,6 +3,7 @@
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 27a2241..b4f0eb2 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -1050,7 +1050,7 @@ unsigned int sysctl_numa_balancing_scan_size = 256;
+ unsigned int sysctl_numa_balancing_scan_delay = 1000;
  
- #include <linux/uidgid.h>
- #include <linux/atomic.h>
-+#include <linux/refcount.h>
+ struct numa_group {
+-	atomic_t refcount;
++	refcount_t refcount;
  
- struct key;
+ 	spinlock_t lock; /* nr_tasks, tasks */
+ 	int nr_tasks;
+@@ -1119,7 +1119,7 @@ static unsigned int task_scan_start(struct task_struct *p)
+ 		unsigned long shared = group_faults_shared(ng);
+ 		unsigned long private = group_faults_priv(ng);
  
-@@ -10,7 +11,7 @@ struct key;
-  * Some day this will be a full-fledged user tracking system..
-  */
- struct user_struct {
--	atomic_t __count;	/* reference count */
-+	refcount_t __count;	/* reference count */
- 	atomic_t processes;	/* How many processes does this user have? */
- 	atomic_t sigpending;	/* How many pending signals does this user have? */
- #ifdef CONFIG_FANOTIFY
-@@ -54,7 +55,7 @@ extern struct user_struct root_user;
- extern struct user_struct * alloc_uid(kuid_t);
- static inline struct user_struct *get_uid(struct user_struct *u)
- {
--	atomic_inc(&u->__count);
-+	refcount_inc(&u->__count);
- 	return u;
- }
- extern void free_uid(struct user_struct *);
-diff --git a/kernel/user.c b/kernel/user.c
-index 00281ad..c072348 100644
---- a/kernel/user.c
-+++ b/kernel/user.c
-@@ -90,7 +90,7 @@ static DEFINE_SPINLOCK(uidhash_lock);
- 
- /* root_user.__count is 1, for init task cred */
- struct user_struct root_user = {
--	.__count	= ATOMIC_INIT(1),
-+	.__count	= REFCOUNT_INIT(1),
- 	.processes	= ATOMIC_INIT(1),
- 	.sigpending	= ATOMIC_INIT(0),
- 	.locked_shm     = 0,
-@@ -116,7 +116,7 @@ static struct user_struct *uid_hash_find(kuid_t uid, struct hlist_head *hashent)
- 
- 	hlist_for_each_entry(user, hashent, uidhash_node) {
- 		if (uid_eq(user->uid, uid)) {
--			atomic_inc(&user->__count);
-+			refcount_inc(&user->__count);
- 			return user;
- 		}
+-		period *= atomic_read(&ng->refcount);
++		period *= refcount_read(&ng->refcount);
+ 		period *= shared + 1;
+ 		period /= private + shared + 1;
  	}
-@@ -163,7 +163,7 @@ void free_uid(struct user_struct *up)
- 		return;
+@@ -1142,7 +1142,7 @@ static unsigned int task_scan_max(struct task_struct *p)
+ 		unsigned long private = group_faults_priv(ng);
+ 		unsigned long period = smax;
  
- 	local_irq_save(flags);
--	if (atomic_dec_and_lock(&up->__count, &uidhash_lock))
-+	if (refcount_dec_and_lock(&up->__count, &uidhash_lock))
- 		free_user(up, flags);
- 	else
- 		local_irq_restore(flags);
-@@ -184,7 +184,7 @@ struct user_struct *alloc_uid(kuid_t uid)
- 			goto out_unlock;
+-		period *= atomic_read(&ng->refcount);
++		period *= refcount_read(&ng->refcount);
+ 		period *= shared + 1;
+ 		period /= private + shared + 1;
  
- 		new->uid = uid;
--		atomic_set(&new->__count, 1);
-+		refcount_set(&new->__count, 1);
+@@ -2227,12 +2227,12 @@ static void task_numa_placement(struct task_struct *p)
  
- 		/*
- 		 * Before adding this, check whether we raced
+ static inline int get_numa_group(struct numa_group *grp)
+ {
+-	return atomic_inc_not_zero(&grp->refcount);
++	return refcount_inc_not_zero(&grp->refcount);
+ }
+ 
+ static inline void put_numa_group(struct numa_group *grp)
+ {
+-	if (atomic_dec_and_test(&grp->refcount))
++	if (refcount_dec_and_test(&grp->refcount))
+ 		kfree_rcu(grp, rcu);
+ }
+ 
+@@ -2253,7 +2253,7 @@ static void task_numa_group(struct task_struct *p, int cpupid, int flags,
+ 		if (!grp)
+ 			return;
+ 
+-		atomic_set(&grp->refcount, 1);
++		refcount_set(&grp->refcount, 1);
+ 		grp->active_nodes = 1;
+ 		grp->max_faults_cpu = 0;
+ 		spin_lock_init(&grp->lock);
 -- 
 2.7.4
 
