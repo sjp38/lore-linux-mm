@@ -1,42 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DD4386B0038
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 17:52:28 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id i133so745284vke.0
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 14:52:28 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id j60sor816247uad.40.2017.10.20.14.52.28
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D0AC76B0253
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 17:56:00 -0400 (EDT)
+Received: by mail-ua0-f198.google.com with SMTP id d12so7109932uaj.18
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 14:56:00 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h123sor829175vka.272.2017.10.20.14.56.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 20 Oct 2017 14:52:28 -0700 (PDT)
+        Fri, 20 Oct 2017 14:56:00 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20171020131142.z7kxvmlukg4z2shv@dhcp22.suse.cz>
-References: <20171018063123.21983-1-bsingharora@gmail.com> <20171020131142.z7kxvmlukg4z2shv@dhcp22.suse.cz>
+In-Reply-To: <20171020130845.m5sodqlqktrcxkks@dhcp22.suse.cz>
+References: <20171018063123.21983-1-bsingharora@gmail.com> <20171018063123.21983-2-bsingharora@gmail.com>
+ <20171020130845.m5sodqlqktrcxkks@dhcp22.suse.cz>
 From: Balbir Singh <bsingharora@gmail.com>
-Date: Sat, 21 Oct 2017 08:52:27 +1100
-Message-ID: <CAKTCnzn4oh1807rwm3yF4THgn79ps35_OKcOTmKA8wfw=KULaw@mail.gmail.com>
-Subject: Re: [rfc 1/2] mm/hmm: Allow smaps to see zone device public pages
+Date: Sat, 21 Oct 2017 08:55:59 +1100
+Message-ID: <CAKTCnzkdoC6aVKSkTS95+MyVLHbMaEiUXaAJUXSicmdCZPNCNw@mail.gmail.com>
+Subject: Re: [rfc 2/2] smaps: Show zone device memory used
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.com>
 Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-On Sat, Oct 21, 2017 at 12:11 AM, Michal Hocko <mhocko@suse.com> wrote:
-> On Wed 18-10-17 17:31:22, Balbir Singh wrote:
->> vm_normal_page() normally does not return zone device public
->> pages. In the absence of the visibility the output from smaps
->> is limited and confusing. It's hard to figure out where the
->> pages are. This patch uses _vm_normal_page() to expose them
->> for accounting
+On Sat, Oct 21, 2017 at 12:08 AM, Michal Hocko <mhocko@suse.com> wrote:
+> On Wed 18-10-17 17:31:23, Balbir Singh wrote:
+>> With HMM, we can have either public or private zone
+>> device pages. With private zone device pages, they should
+>> show up as swapped entities. For public zone device pages
+>> the smaps output can be confusing and incomplete.
+>>
+>> This patch adds a new attribute to just smaps to show
+>> device memory usage.
 >
-> Maybe I am missing something but does this patch make any sense without
-> patch 2? If no why they are not folded into a single one?
+> As this will become user API which we will have to maintain for ever I
+> would really like to hear about who is going to use this information and
+> what for.
 
+This is something I observed when running some tests with HMM/CDM.
+The issue I had was that there was no visibility of what happened to the
+pages after the following sequence
 
-I can fold them into one patch. The first patch when applied will just provide
-visibility and they'll show as regular resident pages. The second patch
-then accounts only for them being device memory.
+1. malloc/mmap pages
+2. migrate_vma() to ZONE_DEVICE (hmm/cdm space)
+3. look at smaps
+
+If we look at smaps after 1 and the pages are faulted in we can see the
+pages for the region, but at point 3, there is absolutely no visibility of
+what happened to the pages. I thought smaps is a good way to provide
+the visibility as most developers use that interface. It's more to fix the
+inconsistency I saw w.r.t visibility and accounting.
 
 Balbir Singh.
 
