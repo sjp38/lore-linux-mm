@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 199776B0275
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:16:49 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id z11so10019740pfk.23
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 05:16:49 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id g127si637148pgc.772.2017.10.20.05.16.47
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 70B636B0277
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:16:54 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b85so10028707pfj.22
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 05:16:54 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id u2si538048pls.461.2017.10.20.05.16.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Oct 2017 05:16:47 -0700 (PDT)
+        Fri, 20 Oct 2017 05:16:53 -0700 (PDT)
 From: Elena Reshetova <elena.reshetova@intel.com>
-Subject: [PATCH 09/15] perf/ring_buffer: convert ring_buffer.aux_refcount to refcount_t
-Date: Fri, 20 Oct 2017 15:15:51 +0300
-Message-Id: <1508501757-15784-10-git-send-email-elena.reshetova@intel.com>
+Subject: [PATCH 10/15] uprobes: convert uprobe.ref to refcount_t
+Date: Fri, 20 Oct 2017 15:15:52 +0300
+Message-Id: <1508501757-15784-11-git-send-email-elena.reshetova@intel.com>
 In-Reply-To: <1508501757-15784-1-git-send-email-elena.reshetova@intel.com>
 References: <1508501757-15784-1-git-send-email-elena.reshetova@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -34,7 +34,7 @@ refcount_t type and API that prevents accidental counter overflows
 and underflows. This is important since overflows and underflows
 can lead to use-after-free situation and be exploitable.
 
-The variable ring_buffer.aux_refcount is used as pure reference counter.
+The variable uprobe.ref is used as pure reference counter.
 Convert it to refcount_t and fix up the operations.
 
 Suggested-by: Kees Cook <keescook@chromium.org>
@@ -42,68 +42,47 @@ Reviewed-by: David Windsor <dwindsor@gmail.com>
 Reviewed-by: Hans Liljestrand <ishkamiel@gmail.com>
 Signed-off-by: Elena Reshetova <elena.reshetova@intel.com>
 ---
- kernel/events/core.c        | 2 +-
- kernel/events/internal.h    | 2 +-
- kernel/events/ring_buffer.c | 6 +++---
- 3 files changed, 5 insertions(+), 5 deletions(-)
+ kernel/events/uprobes.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/kernel/events/core.c b/kernel/events/core.c
-index 66d7e18..3848480 100644
---- a/kernel/events/core.c
-+++ b/kernel/events/core.c
-@@ -5182,7 +5182,7 @@ static void perf_mmap_close(struct vm_area_struct *vma)
+diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
+index 8d42d8f..3514b42 100644
+--- a/kernel/events/uprobes.c
++++ b/kernel/events/uprobes.c
+@@ -66,7 +66,7 @@ static struct percpu_rw_semaphore dup_mmap_sem;
  
- 		/* this has to be the last one */
- 		rb_free_aux(rb);
--		WARN_ON_ONCE(atomic_read(&rb->aux_refcount));
-+		WARN_ON_ONCE(refcount_read(&rb->aux_refcount));
+ struct uprobe {
+ 	struct rb_node		rb_node;	/* node in the rb tree */
+-	atomic_t		ref;
++	refcount_t		ref;
+ 	struct rw_semaphore	register_rwsem;
+ 	struct rw_semaphore	consumer_rwsem;
+ 	struct list_head	pending_list;
+@@ -371,13 +371,13 @@ set_orig_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long v
  
- 		mutex_unlock(&event->mmap_mutex);
- 	}
-diff --git a/kernel/events/internal.h b/kernel/events/internal.h
-index 1cdd9fa..cc5b545 100644
---- a/kernel/events/internal.h
-+++ b/kernel/events/internal.h
-@@ -48,7 +48,7 @@ struct ring_buffer {
- 	atomic_t			aux_mmap_count;
- 	unsigned long			aux_mmap_locked;
- 	void				(*free_aux)(void *);
--	atomic_t			aux_refcount;
-+	refcount_t			aux_refcount;
- 	void				**aux_pages;
- 	void				*aux_priv;
- 
-diff --git a/kernel/events/ring_buffer.c b/kernel/events/ring_buffer.c
-index 86e1379..08838cd6 100644
---- a/kernel/events/ring_buffer.c
-+++ b/kernel/events/ring_buffer.c
-@@ -357,7 +357,7 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
- 	if (!atomic_read(&rb->aux_mmap_count))
- 		goto err;
- 
--	if (!atomic_inc_not_zero(&rb->aux_refcount))
-+	if (!refcount_inc_not_zero(&rb->aux_refcount))
- 		goto err;
- 
- 	/*
-@@ -655,7 +655,7 @@ int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
- 	 * we keep a refcount here to make sure either of the two can
- 	 * reference them safely.
- 	 */
--	atomic_set(&rb->aux_refcount, 1);
-+	refcount_set(&rb->aux_refcount, 1);
- 
- 	rb->aux_overwrite = overwrite;
- 	rb->aux_watermark = watermark;
-@@ -674,7 +674,7 @@ int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
- 
- void rb_free_aux(struct ring_buffer *rb)
+ static struct uprobe *get_uprobe(struct uprobe *uprobe)
  {
--	if (atomic_dec_and_test(&rb->aux_refcount))
-+	if (refcount_dec_and_test(&rb->aux_refcount))
- 		__rb_free_aux(rb);
+-	atomic_inc(&uprobe->ref);
++	refcount_inc(&uprobe->ref);
+ 	return uprobe;
  }
  
+ static void put_uprobe(struct uprobe *uprobe)
+ {
+-	if (atomic_dec_and_test(&uprobe->ref))
++	if (refcount_dec_and_test(&uprobe->ref))
+ 		kfree(uprobe);
+ }
+ 
+@@ -459,7 +459,7 @@ static struct uprobe *__insert_uprobe(struct uprobe *uprobe)
+ 	rb_link_node(&uprobe->rb_node, parent, p);
+ 	rb_insert_color(&uprobe->rb_node, &uprobes_tree);
+ 	/* get access + creation ref */
+-	atomic_set(&uprobe->ref, 2);
++	refcount_set(&uprobe->ref, 2);
+ 
+ 	return u;
+ }
 -- 
 2.7.4
 
