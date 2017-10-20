@@ -1,75 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A66FC6B0069
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 12:47:40 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id h6so11536916oia.17
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 09:47:40 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id q10sor653129otb.117.2017.10.20.09.47.39
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AA516B025E
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 12:58:53 -0400 (EDT)
+Received: by mail-ua0-f198.google.com with SMTP id c28so6695019uaa.17
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 09:58:53 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id t7si230973vkt.312.2017.10.20.09.58.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 20 Oct 2017 09:47:39 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20171020071250.ftqn2d356yekkp5k@dhcp22.suse.cz>
-References: <20171019200323.42491-1-nehaagarwal@google.com> <20171020071250.ftqn2d356yekkp5k@dhcp22.suse.cz>
-From: Neha Agarwal <nehaagarwal@google.com>
-Date: Fri, 20 Oct 2017 09:47:38 -0700
-Message-ID: <CAEvLuNbH0azyfSydbu3yNZ-_xY-G_5YrDDneCwcFbv+NgYd10w@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm, thp: make deferred_split_shrinker memcg-aware
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Oct 2017 09:58:52 -0700 (PDT)
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Subject: [PATCH v9 07/10] mm: Add address parameter to arch_validate_prot()
+Date: Fri, 20 Oct 2017 10:58:00 -0600
+Message-Id: <24966e414aa0e3e6b6b1b8df6d680f32736b86d5.1508364660.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1508364660.git.khalid.aziz@oracle.com>
+References: <cover.1508364660.git.khalid.aziz@oracle.com>
+In-Reply-To: <cover.1508364660.git.khalid.aziz@oracle.com>
+References: <cover.1508364660.git.khalid.aziz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Dan Williams <dan.j.williams@intel.com>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Kemi Wang <kemi.wang@intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Shaohua Li <shli@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: akpm@linux-foundation.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, davem@davemloft.net, dave.hansen@linux.intel.com
+Cc: Khalid Aziz <khalid.aziz@oracle.com>, bsingharora@gmail.com, nborisov@suse.com, aarcange@redhat.com, tj@kernel.org, mgorman@suse.de, vbabka@suse.cz, nadav.amit@gmail.com, aneesh.kumar@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, heiko.carstens@de.ibm.com, ak@linux.intel.com, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sparclinux@vger.kernel.org, Khalid Aziz <khalid@gonehiking.org>
 
-[Sorry for multiple emails, it wasn't in plain text before, thus resending.]
+A protection flag may not be valid across entire address space and
+hence arch_validate_prot() might need the address a protection bit is
+being set on to ensure it is a valid protection flag. For example, sparc
+processors support memory corruption detection (as part of ADI feature)
+flag on memory addresses mapped on to physical RAM but not on PFN mapped
+pages or addresses mapped on to devices. This patch adds address to the
+parameters being passed to arch_validate_prot() so protection bits can
+be validated in the relevant context.
 
-On Fri, Oct 20, 2017 at 12:12 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Thu 19-10-17 13:03:23, Neha Agarwal wrote:
->> deferred_split_shrinker is NUMA aware. Making it memcg-aware if
->> CONFIG_MEMCG is enabled to prevent shrinking memory of memcg(s) that are
->> not under memory pressure. This change isolates memory pressure across
->> memcgs from deferred_split_shrinker perspective, by not prematurely
->> splitting huge pages for the memcg that is not under memory pressure.
->
-> Why do we need this? THP pages are usually not shared between memcgs. Or
-> do you have a real world example where this is not the case? Your patch
-> is adding quite a lot of (and to be really honest very ugly) code so
-> there better should be a _very_ good reason to justify it. I haven't
-> looked very closely to the code, at least all those ifdefs in the code
-> are too ugly to live.
-> --
-> Michal Hocko
-> SUSE Labs
+Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
+Cc: Khalid Aziz <khalid@gonehiking.org>
+---
+v8:
+	- Added addr parameter to powerpc arch_validate_prot() (suggested
+	  by Michael Ellerman)
+v7:
+	- new patch
 
-Hi Michal,
+ arch/powerpc/include/asm/mman.h | 4 ++--
+ arch/powerpc/kernel/syscalls.c  | 2 +-
+ include/linux/mman.h            | 2 +-
+ mm/mprotect.c                   | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)
 
-Let me try to pitch the motivation first:
-In the case of NUMA-aware shrinker, memory pressure may lead to
-splitting and freeing subpages within a THP, irrespective of whether
-the page belongs to the memcg that is under memory pressure. THP
-sharing between memcgs is not a pre-condition for above to happen.
-
-Let's consider two memcgs: memcg-A and memcg-B. Say memcg-A is under
-memory pressure that is hitting its limit. If this memory pressure
-invokes the shrinker (non-memcg-aware) and splits pages from memcg-B
-queued for deferred splits, then that won't reduce memcg-A's usage. It
-will reduce memcg-B's usage. Also, why should memcg-A's memory
-pressure reduce memcg-B's usage.
-
-By making this shrinker memcg-aware, we can invoke respective memcg
-shrinkers to handle the memory pressure. Furthermore, with this
-approach we can isolate the THPs of other memcg(s) (not under memory
-pressure) from premature splits. Isolation aids in reducing
-performance impact when we have several memcgs on the same machine.
-
-Regarding ifdef ugliness: I get your point and agree with you on that.
-I think I can do a better job at restricting the ugliness, will post
-another version.
-
+diff --git a/arch/powerpc/include/asm/mman.h b/arch/powerpc/include/asm/mman.h
+index 30922f699341..1d129f4521ac 100644
+--- a/arch/powerpc/include/asm/mman.h
++++ b/arch/powerpc/include/asm/mman.h
+@@ -32,7 +32,7 @@ static inline pgprot_t arch_vm_get_page_prot(unsigned long vm_flags)
+ }
+ #define arch_vm_get_page_prot(vm_flags) arch_vm_get_page_prot(vm_flags)
+ 
+-static inline bool arch_validate_prot(unsigned long prot)
++static inline bool arch_validate_prot(unsigned long prot, unsigned long addr)
+ {
+ 	if (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM | PROT_SAO))
+ 		return false;
+@@ -40,7 +40,7 @@ static inline bool arch_validate_prot(unsigned long prot)
+ 		return false;
+ 	return true;
+ }
+-#define arch_validate_prot(prot) arch_validate_prot(prot)
++#define arch_validate_prot arch_validate_prot
+ 
+ #endif /* CONFIG_PPC64 */
+ #endif	/* _ASM_POWERPC_MMAN_H */
+diff --git a/arch/powerpc/kernel/syscalls.c b/arch/powerpc/kernel/syscalls.c
+index a877bf8269fe..6d90ddbd2d11 100644
+--- a/arch/powerpc/kernel/syscalls.c
++++ b/arch/powerpc/kernel/syscalls.c
+@@ -48,7 +48,7 @@ static inline long do_mmap2(unsigned long addr, size_t len,
+ {
+ 	long ret = -EINVAL;
+ 
+-	if (!arch_validate_prot(prot))
++	if (!arch_validate_prot(prot, addr))
+ 		goto out;
+ 
+ 	if (shift) {
+diff --git a/include/linux/mman.h b/include/linux/mman.h
+index c8367041fafd..b42ad5c9d6a2 100644
+--- a/include/linux/mman.h
++++ b/include/linux/mman.h
+@@ -49,7 +49,7 @@ static inline void vm_unacct_memory(long pages)
+  *
+  * Returns true if the prot flags are valid
+  */
+-static inline bool arch_validate_prot(unsigned long prot)
++static inline bool arch_validate_prot(unsigned long prot, unsigned long addr)
+ {
+ 	return (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_SEM)) == 0;
+ }
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index bd0f409922cb..4f0e46bb1797 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -395,7 +395,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
+ 	end = start + len;
+ 	if (end <= start)
+ 		return -ENOMEM;
+-	if (!arch_validate_prot(prot))
++	if (!arch_validate_prot(prot, start))
+ 		return -EINVAL;
+ 
+ 	reqprot = prot;
 -- 
-Thanks,
-Neha Agarwal
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
