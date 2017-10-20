@@ -1,118 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 426236B0253
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 03:25:54 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id j126so10344317oib.9
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 00:25:54 -0700 (PDT)
-Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id u128si162274oib.144.2017.10.20.00.25.51
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DA8C6B0038
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 03:30:54 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id u78so4510267wmd.13
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 00:30:54 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u50sor153229wrf.57.2017.10.20.00.30.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 20 Oct 2017 00:25:53 -0700 (PDT)
-Message-ID: <59E9A426.5070009@huawei.com>
-Date: Fri, 20 Oct 2017 15:22:14 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (Google Transport Security);
+        Fri, 20 Oct 2017 00:30:53 -0700 (PDT)
+Date: Fri, 20 Oct 2017 09:30:50 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v2 2/3] lockdep: Remove BROKEN flag of
+ LOCKDEP_CROSSRELEASE
+Message-ID: <20171020073050.nyaqynbbkeltr7iq@gmail.com>
+References: <1508392531-11284-1-git-send-email-byungchul.park@lge.com>
+ <1508392531-11284-3-git-send-email-byungchul.park@lge.com>
+ <1508425527.2429.11.camel@wdc.com>
+ <alpine.DEB.2.20.1710191718260.1971@nanos>
+ <1508428021.2429.22.camel@wdc.com>
+ <alpine.DEB.2.20.1710192021480.2054@nanos>
+ <alpine.DEB.2.20.1710192107000.2054@nanos>
+ <1508444515.2429.55.camel@wdc.com>
+ <alpine.DEB.2.20.1710192233130.2054@nanos>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm: drop migrate type checks from has_unmovable_pages
-References: <20171013115835.zaehapuucuzl2vlv@dhcp22.suse.cz> <20171013120013.698-1-mhocko@kernel.org> <20171019025111.GA3852@js1304-P5Q-DELUXE> <20171019071503.e7w5fo35lsq6ca54@dhcp22.suse.cz> <20171019073355.GA4486@js1304-P5Q-DELUXE> <20171019082041.5zudpqacaxjhe4gw@dhcp22.suse.cz> <20171019122118.y6cndierwl2vnguj@dhcp22.suse.cz> <20171020021329.GB10438@js1304-P5Q-DELUXE>
-In-Reply-To: <20171020021329.GB10438@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1710192233130.2054@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Michael Ellerman <mpe@ellerman.id.au>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Bart Van Assche <Bart.VanAssche@wdc.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "byungchul.park@lge.com" <byungchul.park@lge.com>, "kernel-team@lge.com" <kernel-team@lge.com>
 
-On 2017/10/20 10:13, Joonsoo Kim wrote:
 
-> On Thu, Oct 19, 2017 at 02:21:18PM +0200, Michal Hocko wrote:
->> On Thu 19-10-17 10:20:41, Michal Hocko wrote:
->>> On Thu 19-10-17 16:33:56, Joonsoo Kim wrote:
->>>> On Thu, Oct 19, 2017 at 09:15:03AM +0200, Michal Hocko wrote:
->>>>> On Thu 19-10-17 11:51:11, Joonsoo Kim wrote:
->>> [...]
->>>>>> Hello,
->>>>>>
->>>>>> This patch will break the CMA user. As you mentioned, CMA allocation
->>>>>> itself isn't migrateable. So, after a single page is allocated through
->>>>>> CMA allocation, has_unmovable_pages() will return true for this
->>>>>> pageblock. Then, futher CMA allocation request to this pageblock will
->>>>>> fail because it requires isolating the pageblock.
->>>>>
->>>>> Hmm, does this mean that the CMA allocation path depends on
->>>>> has_unmovable_pages to return false here even though the memory is not
->>>>> movable? This sounds really strange to me and kind of abuse of this
->>>>
->>>> Your understanding is correct. Perhaps, abuse or wrong function name.
->>>>
->>>>> function. Which path is that? Can we do the migrate type test theres?
->>>>
->>>> alloc_contig_range() -> start_isolate_page_range() ->
->>>> set_migratetype_isolate() -> has_unmovable_pages()
->>>
->>> I see. It seems that the CMA and memory hotplug have a very different
->>> view on what should happen during isolation.
->>>  
->>>> We can add one argument, 'XXX' to set_migratetype_isolate() and change
->>>> it to check migrate type rather than has_unmovable_pages() if 'XXX' is
->>>> specified.
->>>
->>> Can we use the migratetype argument and do the special thing for
->>> MIGRATE_CMA? Like the following diff?
->>
->> And with the full changelog.
->> ---
->> >From 8cbd811d741f5dd93d1b21bb3ef94482a4d0bd32 Mon Sep 17 00:00:00 2001
->> From: Michal Hocko <mhocko@suse.com>
->> Date: Thu, 19 Oct 2017 14:14:02 +0200
->> Subject: [PATCH] mm: distinguish CMA and MOVABLE isolation in
->>  has_unmovable_pages
->>
->> Joonsoo has noticed that "mm: drop migrate type checks from
->> has_unmovable_pages" would break CMA allocator because it relies on
->> has_unmovable_pages returning false even for CMA pageblocks which in
->> fact don't have to be movable:
->> alloc_contig_range
->>   start_isolate_page_range
->>     set_migratetype_isolate
->>       has_unmovable_pages
->>
->> This is a result of the code sharing between CMA and memory hotplug
->> while each one has a different idea of what has_unmovable_pages should
->> return. This is unfortunate but fixing it properly would require a lot
->> of code duplication.
->>
->> Fix the issue by introducing the requested migrate type argument
->> and special case MIGRATE_CMA case where CMA page blocks are handled
->> properly. This will work for memory hotplug because it requires
->> MIGRATE_MOVABLE.
-> 
-> Unfortunately, alloc_contig_range() can be called with
-> MIGRATE_MOVABLE so this patch cannot perfectly fix the problem.
-> 
-> I did a more thinking and found that it's strange to check if there is
-> unmovable page in the pageblock during the set_migratetype_isolate().
-> set_migratetype_isolate() should be just for setting the migratetype
-> of the pageblock. Checking other things should be done by another
-> place, for example, before calling the start_isolate_page_range() in
-> __offline_pages().
-> 
-> Thanks.
-> 
+* Thomas Gleixner <tglx@linutronix.de> wrote:
 
-Hi Joonsoo,
+> That would just make the door open for evading lockdep. This has been
+> discussed when lockdep was introduced and with a lot of other 'annoying'
+> debug features we've seen the same discussion happening.
+> 
+> When they get introduced the number of real issues and false positives is
+> high, but once the dust settles it's just business as usual and the overall
+> code quality improves and the number of hard to decode problems shrinks.
 
-How about add a flag to skip or not has_unmovable_pages() in set_migratetype_isolate()?
-Something like the skip_hwpoisoned_pages.
+Yes, also note that it's typical that the proportion of false positives 
+*increases* once a lock debugging feature enters a more mature period of its 
+existence, because real deadlocks tend to be fixed at the development stage 
+without us ever seeing them.
+
+I.e. for every lockdep-debugged bug fixed upstream I'm pretty sure there are at 
+least 10 times as many bugs that were fixed in earlier stages of development, 
+without ever hitting the upstream kernel. At least that's the rough proportion
+for locking bugs I introduce ;-)
+
+So even false positives are not a problem as long as their annotation improves the 
+code or documents it better.
 
 Thanks,
-Xishi Qiu
 
-> 
-> .
-> 
-
-
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
