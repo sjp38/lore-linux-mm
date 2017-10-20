@@ -1,64 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D83106B025E
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 11:07:22 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 4so1198687wrt.8
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:07:22 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n128sor414015wma.79.2017.10.20.08.07.21
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 13F116B0260
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 11:08:01 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id b85so10563468pfj.22
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 08:08:01 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id b190si824661pga.635.2017.10.20.08.07.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 20 Oct 2017 08:07:21 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20171020061902.sqz5vklhtqrawelf@dhcp22.suse.cz>
-References: <20171019222507.2894-1-shakeelb@google.com> <20171020061902.sqz5vklhtqrawelf@dhcp22.suse.cz>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Fri, 20 Oct 2017 08:07:19 -0700
-Message-ID: <CALvZod6YGNKPi6-ny-eoP0+uQOWokP2hh+iNvKewT6XJdtgKrw@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: mlock: remove lru_add_drain_all()
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 20 Oct 2017 08:07:59 -0700 (PDT)
+Subject: Re: [RFC PATCH 2/2] mm,oom: Try last second allocation after selecting an OOM victim.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201708242340.ICG00066.JtFOFVSMOHOLFQ@I-love.SAKURA.ne.jp>
+	<20170825080020.GE25498@dhcp22.suse.cz>
+	<201709090955.HFA57316.QFOSVMtFOJLFOH@I-love.SAKURA.ne.jp>
+	<201710172204.AGG30740.tVHJFFOQLMSFOO@I-love.SAKURA.ne.jp>
+	<20171020124009.joie5neol3gbdmxe@dhcp22.suse.cz>
+In-Reply-To: <20171020124009.joie5neol3gbdmxe@dhcp22.suse.cz>
+Message-Id: <201710202318.IJE26050.SFVFMOLHQJOOtF@I-love.SAKURA.ne.jp>
+Date: Fri, 20 Oct 2017 23:18:19 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Yisheng Xie <xieyisheng1@huawei.com>, Ingo Molnar <mingo@kernel.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Balbir Singh <bsingharora@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: mhocko@suse.com
+Cc: aarcange@redhat.com, hannes@cmpxchg.org, akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, mjaggi@caviumnetworks.com, mgorman@suse.de, oleg@redhat.com, vdavydov.dev@gmail.com, vbabka@suse.cz
 
-On Thu, Oct 19, 2017 at 11:19 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Thu 19-10-17 15:25:07, Shakeel Butt wrote:
->> lru_add_drain_all() is not required by mlock() and it will drain
->> everything that has been cached at the time mlock is called. And
->> that is not really related to the memory which will be faulted in
->> (and cached) and mlocked by the syscall itself.
->>
->> Without lru_add_drain_all() the mlocked pages can remain on pagevecs
->> and be moved to evictable LRUs. However they will eventually be moved
->> back to unevictable LRU by reclaim. So, we can safely remove
->> lru_add_drain_all() from mlock syscall. Also there is no need for
->> local lru_add_drain() as it will be called deep inside __mm_populate()
->> (in follow_page_pte()).
->
-> This paragraph can be still a bit confusing. I suspect you meant to say
-> something like: "If anything lru_add_drain_all" should be called _after_
-> pages have been mlocked and faulted in but even that is not strictly
-> needed because those pages would get to the appropriate LRUs lazily
-> during the reclaim path. Moreover follow_page_pte (gup) will drain the
-> local pcp LRU cache."
->
+Michal Hocko wrote:
+> On Tue 17-10-17 22:04:59, Tetsuo Handa wrote:
+> > Below is updated patch. The motivation of this patch is to guarantee that
+> > the thread (it can be SCHED_IDLE priority) calling out_of_memory() can use
+> > enough CPU resource by saving CPU resource wasted by threads (they can be
+> > !SCHED_IDLE priority) waiting for out_of_memory(). Thus, replace
+> > mutex_trylock() with mutex_lock_killable().
+> 
+> So what exactly guanratees SCHED_IDLE running while other high priority
+> processes keep preempting it while it holds the oom lock? Not everybody
+> is inside the allocation path to get out of the way.
 
-Andrew, can you please replace the second paragraph of the commit with
-Michal's suggested paragraph.
+I think that that is a too much worry. If you worry such possibility,
+current assumption
 
->> On larger machines the overhead of lru_add_drain_all() in mlock() can
->> be significant when mlocking data already in memory. We have observed
->> high latency in mlock() due to lru_add_drain_all() when the users
->> were mlocking in memory tmpfs files.
->>
->> Signed-off-by: Shakeel Butt <shakeelb@google.com>
->
-> Anyway, this patch makes a lot of sense to me. Feel free to add
-> Acked-by: Michal Hocko <mhocko@suse.com>
->
+	/*
+	 * Acquire the oom lock.  If that fails, somebody else is
+	 * making progress for us.
+	 */
 
-Thanks.
+is horribly broken. Also, high priority threads keep preempting will
+prevent low priority threads from reaching __alloc_pages_may_oom()
+because preemption will occur not only during a low priority thread is
+holding oom_lock but also while oom_lock is not held. We can try to
+reduce preemption while oom_lock is held by scattering around
+preempt_disable()/preempt_enable(). But you said you don't want to
+disable preemption during OOM kill operation when I proposed scattering
+patch, didn't you?
+
+So, I think that worrying about high priority threads preventing the low
+priority thread with oom_lock held is too much. Preventing high priority
+threads waiting for oom_lock from disturbing the low priority thread with
+oom_lock held by wasting CPU resource will be sufficient.
+
+If you don't like it, the only way will be to offload to a dedicated
+kernel thread (like the OOM reaper) so that allocating threads are
+no longer blocked by oom_lock. That's a big change.
+
+> > 
+> > By replacing mutex_trylock() with mutex_lock_killable(), it might prevent
+> > the OOM reaper from start reaping immediately. Thus, remove mutex_lock() from
+> > the OOM reaper.
+> 
+> oom_lock shouldn't be necessary in oom_reaper anymore and that is worth
+> a separate patch.
+
+I'll propose as a separate patch after we apply "mm, oom:
+task_will_free_mem(current) should ignore MMF_OOM_SKIP for once." or
+we call __alloc_pages_slowpath() with oom_lock held.
+
+>  
+> > By removing mutex_lock() from the OOM reaper, the race window of needlessly
+> > selecting next OOM victim becomes wider, for the last second allocation
+> > attempt no longer waits for the OOM reaper. Thus, do the really last
+> > allocation attempt after selecting an OOM victim using the same watermark.
+> > 
+> > Can we go with this direction?
+> 
+> The patch is just too cluttered. You do not want to use
+> __alloc_pages_slowpath. get_page_from_freelist would be more
+> appropriate. Also doing alloc_pages_before_oomkill two times seems to be
+> excessive.
+
+This patch is intentionally calling __alloc_pages_slowpath() because
+it handles ALLOC_OOM by calling __gfp_pfmemalloc_flags(). If this patch
+calls only get_page_from_freelist(), we will fail to try ALLOC_OOM before
+calling out_of_memory() (when current thread is selected as OOM victim
+while waiting for oom_lock) and just before sending SIGKILL (when
+task_will_free_mem(current) in out_of_memory() returned false because
+MMF_OOM_SKIP was set before ALLOC_OOM allocation is attempted) unless
+we apply "mm, oom: task_will_free_mem(current) should ignore MMF_OOM_SKIP
+for once.".
+
+> 
+> That being said, make sure you adrress all the concerns brought up by
+> Andrea and Johannes in the above email thread first.
+
+I don't think there are concerns if we wait for oom_lock.
+The only concern will be do not depend on __GFP_DIRECT_RECLAIM allocation
+while oom_lock is held. Andrea and Johannes, what are your concerns?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
