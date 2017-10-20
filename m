@@ -1,57 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D0AC76B0253
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 17:56:00 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id d12so7109932uaj.18
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 14:56:00 -0700 (PDT)
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EB0426B0038
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 18:29:59 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id t134so12416755oih.6
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 15:29:59 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h123sor829175vka.272.2017.10.20.14.56.00
+        by mx.google.com with SMTPS id s12sor861567oie.76.2017.10.20.15.29.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 20 Oct 2017 14:56:00 -0700 (PDT)
+        Fri, 20 Oct 2017 15:29:58 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20171020130845.m5sodqlqktrcxkks@dhcp22.suse.cz>
-References: <20171018063123.21983-1-bsingharora@gmail.com> <20171018063123.21983-2-bsingharora@gmail.com>
- <20171020130845.m5sodqlqktrcxkks@dhcp22.suse.cz>
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Sat, 21 Oct 2017 08:55:59 +1100
-Message-ID: <CAKTCnzkdoC6aVKSkTS95+MyVLHbMaEiUXaAJUXSicmdCZPNCNw@mail.gmail.com>
-Subject: Re: [rfc 2/2] smaps: Show zone device memory used
+In-Reply-To: <20171020162933.GA26320@lst.de>
+References: <150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <150846714747.24336.14704246566580871364.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171020075735.GA14378@lst.de> <CAPcyv4hA1nrhDf=DA6_j7s7ezGOBhvEVZ8cu81DNui_p3bhhaA@mail.gmail.com>
+ <20171020162933.GA26320@lst.de>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 20 Oct 2017 15:29:57 -0700
+Message-ID: <CAPcyv4jP0ws7dcBrXafS7ON+0_J1BTp_LCB6XB3od4d6db071A@mail.gmail.com>
+Subject: Re: [PATCH v3 02/13] dax: require 'struct page' for filesystem dax
 Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-mm <linux-mm@kvack.org>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>
 
-On Sat, Oct 21, 2017 at 12:08 AM, Michal Hocko <mhocko@suse.com> wrote:
-> On Wed 18-10-17 17:31:23, Balbir Singh wrote:
->> With HMM, we can have either public or private zone
->> device pages. With private zone device pages, they should
->> show up as swapped entities. For public zone device pages
->> the smaps output can be confusing and incomplete.
->>
->> This patch adds a new attribute to just smaps to show
->> device memory usage.
+On Fri, Oct 20, 2017 at 9:29 AM, Christoph Hellwig <hch@lst.de> wrote:
+> On Fri, Oct 20, 2017 at 08:23:02AM -0700, Dan Williams wrote:
+>> Yes, however it seems these drivers / platforms have been living with
+>> the lack of struct page for a long time. So they either don't use DAX,
+>> or they have a constrained use case that never triggers
+>> get_user_pages(). If it is the latter then they could introduce a new
+>> configuration option that bypasses the pfn_t_devmap() check in
+>> bdev_dax_supported() and fix up the get_user_pages() paths to fail.
+>> So, I'd like to understand how these drivers have been using DAX
+>> support without struct page to see if we need a workaround or we can
+>> go ahead delete this support. If the usage is limited to
+>> execute-in-place perhaps we can do a constrained ->direct_access() for
+>> just that case.
 >
-> As this will become user API which we will have to maintain for ever I
-> would really like to hear about who is going to use this information and
-> what for.
+> For axonram I doubt anyone is using it any more - it was a very for
+> the IBM Cell blades, which were produce=D1=95 in a rather limited number.
+> And Cell basically seems to be dead as far as I can tell.
+>
+> For S/390 Martin might be able to help out what the status of xpram
+> in general and DAX support in particular is.
 
-This is something I observed when running some tests with HMM/CDM.
-The issue I had was that there was no visibility of what happened to the
-pages after the following sequence
-
-1. malloc/mmap pages
-2. migrate_vma() to ZONE_DEVICE (hmm/cdm space)
-3. look at smaps
-
-If we look at smaps after 1 and the pages are faulted in we can see the
-pages for the region, but at point 3, there is absolutely no visibility of
-what happened to the pages. I thought smaps is a good way to provide
-the visibility as most developers use that interface. It's more to fix the
-inconsistency I saw w.r.t visibility and accounting.
-
-Balbir Singh.
+Ok, I'd also like to kill DAX support in the brd driver. It's a source
+of complexity and maintenance burden for zero benefit. It's the only
+->direct_access() implementation that sleeps and it's the only
+implementation where there is a non-linear relationship between
+sectors and pfns. Having a 1:1 sector to pfn relationship will help
+with the dma-extent-busy management since we don't need to keep
+calling into the driver to map pfns back to sectors once we know the
+pfn[0] sector[0] relationship.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
