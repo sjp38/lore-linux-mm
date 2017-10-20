@@ -1,127 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 260736B025F
-	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 23:14:44 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id t71so8551414ywc.22
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 20:14:44 -0700 (PDT)
-Received: from mail-yw0-x244.google.com (mail-yw0-x244.google.com. [2607:f8b0:4002:c05::244])
-        by mx.google.com with ESMTPS id j131si485ybc.226.2017.10.19.20.14.43
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E2046B0069
+	for <linux-mm@kvack.org>; Thu, 19 Oct 2017 23:50:13 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id 72so9459128itk.3
+        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 20:50:13 -0700 (PDT)
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id 29si42294iol.168.2017.10.19.20.50.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Oct 2017 20:14:43 -0700 (PDT)
-Received: by mail-yw0-x244.google.com with SMTP id w5so5308883ywg.11
-        for <linux-mm@kvack.org>; Thu, 19 Oct 2017 20:14:43 -0700 (PDT)
+        Thu, 19 Oct 2017 20:50:12 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH -mm -V2] mm, pagemap: Fix soft dirty marking for PMD
+ migration entry
+Date: Fri, 20 Oct 2017 03:48:53 +0000
+Message-ID: <52a62b0e-f525-f532-3723-b8baf54357bf@ah.jp.nec.com>
+References: <20171019151046.3443-1-ying.huang@intel.com>
+In-Reply-To: <20171019151046.3443-1-ying.huang@intel.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <2DA51B898B8A6F4EBCE48EA950273C60@gisp.nec.co.jp>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <1508448056-21779-1-git-send-email-yang.s@alibaba-inc.com>
-References: <1508448056-21779-1-git-send-email-yang.s@alibaba-inc.com>
-From: Amir Goldstein <amir73il@gmail.com>
-Date: Fri, 20 Oct 2017 06:14:37 +0300
-Message-ID: <CAOQ4uxhPhXrMLu18TGKDA=ezUVHara95qJQ+BTCio8BHm-u6NA@mail.gmail.com>
-Subject: Re: [RFC PATCH] fs: fsnotify: account fsnotify metadata to kmemcg
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.s@alibaba-inc.com>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
+To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, David Rientjes <rientjes@google.com>, Arnd Bergmann <arnd@arndb.de>, Hugh Dickins <hughd@google.com>, =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Daniel Colascione <dancol@google.com>, Zi Yan <zi.yan@cs.rutgers.edu>
 
-On Fri, Oct 20, 2017 at 12:20 AM, Yang Shi <yang.s@alibaba-inc.com> wrote:
-> We observed some misbehaved user applications might consume significant
-> amount of fsnotify slabs silently. It'd better to account those slabs in
-> kmemcg so that we can get heads up before misbehaved applications use too
-> much memory silently.
-
-In what way do they misbehave? create a lot of marks? create a lot of events?
-Not reading events in their queue?
-The latter case is more interesting:
-
-Process A is the one that asked to get the events.
-Process B is the one that is generating the events and queuing them on
-the queue that is owned by process A, who is also to blame if the queue
-is not being read.
-
-So why should process B be held accountable for memory pressure
-caused by, say, an FAN_UNLIMITED_QUEUE that process A created and
-doesn't read from.
-
-Is it possible to get an explicit reference to the memcg's  events cache
-at fsnotify_group creation time, store it in the group struct and then allocate
-events from the event cache associated with the group (the listener) rather
-than the cache associated with the task generating the event?
-
-Amir.
-
->
-> Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
-> ---
->  fs/notify/dnotify/dnotify.c        | 4 ++--
->  fs/notify/fanotify/fanotify_user.c | 6 +++---
->  fs/notify/fsnotify.c               | 2 +-
->  fs/notify/inotify/inotify_user.c   | 2 +-
->  4 files changed, 7 insertions(+), 7 deletions(-)
->
-> diff --git a/fs/notify/dnotify/dnotify.c b/fs/notify/dnotify/dnotify.c
-> index cba3283..3ec6233 100644
-> --- a/fs/notify/dnotify/dnotify.c
-> +++ b/fs/notify/dnotify/dnotify.c
-> @@ -379,8 +379,8 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
->
->  static int __init dnotify_init(void)
->  {
-> -       dnotify_struct_cache = KMEM_CACHE(dnotify_struct, SLAB_PANIC);
-> -       dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC);
-> +       dnotify_struct_cache = KMEM_CACHE(dnotify_struct, SLAB_PANIC|SLAB_ACCOUNT);
-> +       dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC|SLAB_ACCOUNT);
->
->         dnotify_group = fsnotify_alloc_group(&dnotify_fsnotify_ops);
->         if (IS_ERR(dnotify_group))
-> diff --git a/fs/notify/fanotify/fanotify_user.c b/fs/notify/fanotify/fanotify_user.c
-> index 907a481..7d62dee 100644
-> --- a/fs/notify/fanotify/fanotify_user.c
-> +++ b/fs/notify/fanotify/fanotify_user.c
-> @@ -947,11 +947,11 @@ static int fanotify_add_inode_mark(struct fsnotify_group *group,
->   */
->  static int __init fanotify_user_setup(void)
->  {
-> -       fanotify_mark_cache = KMEM_CACHE(fsnotify_mark, SLAB_PANIC);
-> -       fanotify_event_cachep = KMEM_CACHE(fanotify_event_info, SLAB_PANIC);
-> +       fanotify_mark_cache = KMEM_CACHE(fsnotify_mark, SLAB_PANIC|SLAB_ACCOUNT);
-> +       fanotify_event_cachep = KMEM_CACHE(fanotify_event_info, SLAB_PANIC|SLAB_ACCOUNT);
->  #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
->         fanotify_perm_event_cachep = KMEM_CACHE(fanotify_perm_event_info,
-> -                                               SLAB_PANIC);
-> +                                               SLAB_PANIC|SLAB_ACCOUNT);
->  #endif
->
->         return 0;
-> diff --git a/fs/notify/fsnotify.c b/fs/notify/fsnotify.c
-> index 0c4583b..82620ac 100644
-> --- a/fs/notify/fsnotify.c
-> +++ b/fs/notify/fsnotify.c
-> @@ -386,7 +386,7 @@ static __init int fsnotify_init(void)
->                 panic("initializing fsnotify_mark_srcu");
->
->         fsnotify_mark_connector_cachep = KMEM_CACHE(fsnotify_mark_connector,
-> -                                                   SLAB_PANIC);
-> +                                                   SLAB_PANIC|SLAB_ACCOUNT);
->
->         return 0;
->  }
-> diff --git a/fs/notify/inotify/inotify_user.c b/fs/notify/inotify/inotify_user.c
-> index 7cc7d3f..57b32ff 100644
-> --- a/fs/notify/inotify/inotify_user.c
-> +++ b/fs/notify/inotify/inotify_user.c
-> @@ -785,7 +785,7 @@ static int __init inotify_user_setup(void)
->
->         BUG_ON(hweight32(ALL_INOTIFY_BITS) != 21);
->
-> -       inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark, SLAB_PANIC);
-> +       inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark, SLAB_PANIC|SLAB_ACCOUNT);
->
->         inotify_max_queued_events = 16384;
->         init_user_ns.ucount_max[UCOUNT_INOTIFY_INSTANCES] = 128;
-> --
-> 1.8.3.1
->
+DQoNCk9uIDEwLzIwLzIwMTcgMTI6MTAgQU0sIEh1YW5nLCBZaW5nIHdyb3RlOg0KPiBGcm9tOiBI
+dWFuZyBZaW5nIDx5aW5nLmh1YW5nQGludGVsLmNvbT4NCj4gDQo+IE5vdywgd2hlbiB0aGUgcGFn
+ZSB0YWJsZSBpcyB3YWxrZWQgaW4gdGhlIGltcGxlbWVudGF0aW9uIG9mDQo+IC9wcm9jLzxwaWQ+
+L3BhZ2VtYXAsIHBtZF9zb2Z0X2RpcnR5KCkgaXMgdXNlZCBmb3IgYm90aCB0aGUgUE1EIGh1Z2UN
+Cj4gcGFnZSBtYXAgYW5kIHRoZSBQTUQgbWlncmF0aW9uIGVudHJpZXMuICBUaGF0IGlzIHdyb25n
+LA0KPiBwbWRfc3dwX3NvZnRfZGlydHkoKSBzaG91bGQgYmUgdXNlZCBmb3IgdGhlIFBNRCBtaWdy
+YXRpb24gZW50cmllcw0KPiBpbnN0ZWFkIGJlY2F1c2UgdGhlIGRpZmZlcmVudCBwYWdlIHRhYmxl
+IGVudHJ5IGZsYWcgaXMgdXNlZC4NCj4gT3RoZXJ3aXNlLCB0aGUgc29mdCBkaXJ0eSBpbmZvcm1h
+dGlvbiBpbiAvcHJvYy88cGlkPi9wYWdlbWFwIG1heSBiZQ0KPiB3cm9uZy4NCj4gDQo+IENjOiBN
+aWNoYWwgSG9ja28gPG1ob2Nrb0BzdXNlLmNvbT4NCj4gQ2M6ICJLaXJpbGwgQS4gU2h1dGVtb3Yi
+IDxraXJpbGwuc2h1dGVtb3ZAbGludXguaW50ZWwuY29tPg0KPiBDYzogRGF2aWQgUmllbnRqZXMg
+PHJpZW50amVzQGdvb2dsZS5jb20+DQo+IENjOiBBcm5kIEJlcmdtYW5uIDxhcm5kQGFybmRiLmRl
+Pg0KPiBDYzogSHVnaCBEaWNraW5zIDxodWdoZEBnb29nbGUuY29tPg0KPiBDYzogIkrDqXLDtG1l
+IEdsaXNzZSIgPGpnbGlzc2VAcmVkaGF0LmNvbT4NCj4gQ2M6IERhbmllbCBDb2xhc2Npb25lIDxk
+YW5jb2xAZ29vZ2xlLmNvbT4NCj4gQ2M6IFppIFlhbiA8emkueWFuQGNzLnJ1dGdlcnMuZWR1Pg0K
+PiBDYzogTmFveWEgSG9yaWd1Y2hpIDxuLWhvcmlndWNoaUBhaC5qcC5uZWMuY29tPg0KPiBTaWdu
+ZWQtb2ZmLWJ5OiAiSHVhbmcsIFlpbmciIDx5aW5nLmh1YW5nQGludGVsLmNvbT4NCj4gRml4ZXM6
+IDg0YzNmYzRlOWM1NiAoIm1tOiB0aHA6IGNoZWNrIHBtZCBtaWdyYXRpb24gZW50cnkgaW4gY29t
+bW9uIHBhdGgiKQ0KPiAtLS0NCj4gIGZzL3Byb2MvdGFza19tbXUuYyB8IDYgKysrKystDQo+ICAx
+IGZpbGUgY2hhbmdlZCwgNSBpbnNlcnRpb25zKCspLCAxIGRlbGV0aW9uKC0pDQo+IA0KPiBkaWZm
+IC0tZ2l0IGEvZnMvcHJvYy90YXNrX21tdS5jIGIvZnMvcHJvYy90YXNrX21tdS5jDQo+IGluZGV4
+IDI1OTNhMGM2MDlkNy4uMDFhYWQ3NzJmOGRiIDEwMDY0NA0KPiAtLS0gYS9mcy9wcm9jL3Rhc2tf
+bW11LmMNCj4gKysrIGIvZnMvcHJvYy90YXNrX21tdS5jDQo+IEBAIC0xMzExLDEzICsxMzExLDE1
+IEBAIHN0YXRpYyBpbnQgcGFnZW1hcF9wbWRfcmFuZ2UocG1kX3QgKnBtZHAsIHVuc2lnbmVkIGxv
+bmcgYWRkciwgdW5zaWduZWQgbG9uZyBlbmQsDQo+ICAJCXBtZF90IHBtZCA9ICpwbWRwOw0KPiAg
+CQlzdHJ1Y3QgcGFnZSAqcGFnZSA9IE5VTEw7DQo+ICANCj4gLQkJaWYgKCh2bWEtPnZtX2ZsYWdz
+ICYgVk1fU09GVERJUlRZKSB8fCBwbWRfc29mdF9kaXJ0eShwbWQpKQ0KPiArCQlpZiAodm1hLT52
+bV9mbGFncyAmIFZNX1NPRlRESVJUWSkNCj4gIAkJCWZsYWdzIHw9IFBNX1NPRlRfRElSVFk7DQoN
+CnJpZ2h0LCBjaGVja2luZyBiaXRzIGluIHBtZCBtdXN0IGJlIGRvbmUgYWZ0ZXIgcG1kX3ByZXNl
+bnQgaXMgY29uZmlybWVkLg0KDQpBY2tlZC1ieTogTmFveWEgSG9yaWd1Y2hpIDxuLWhvcmlndWNo
+aUBhaC5qcC5uZWMuY29tPg0KDQpUaGFua3MsDQpOYW95YSBIb3JpZ3VjaGkNCg0KPiAgDQo+ICAJ
+CWlmIChwbWRfcHJlc2VudChwbWQpKSB7DQo+ICAJCQlwYWdlID0gcG1kX3BhZ2UocG1kKTsNCj4g
+IA0KPiAgCQkJZmxhZ3MgfD0gUE1fUFJFU0VOVDsNCj4gKwkJCWlmIChwbWRfc29mdF9kaXJ0eShw
+bWQpKQ0KPiArCQkJCWZsYWdzIHw9IFBNX1NPRlRfRElSVFk7DQo+ICAJCQlpZiAocG0tPnNob3df
+cGZuKQ0KPiAgCQkJCWZyYW1lID0gcG1kX3BmbihwbWQpICsNCj4gIAkJCQkJKChhZGRyICYgflBN
+RF9NQVNLKSA+PiBQQUdFX1NISUZUKTsNCj4gQEAgLTEzMjksNiArMTMzMSw4IEBAIHN0YXRpYyBp
+bnQgcGFnZW1hcF9wbWRfcmFuZ2UocG1kX3QgKnBtZHAsIHVuc2lnbmVkIGxvbmcgYWRkciwgdW5z
+aWduZWQgbG9uZyBlbmQsDQo+ICAJCQlmcmFtZSA9IHN3cF90eXBlKGVudHJ5KSB8DQo+ICAJCQkJ
+KHN3cF9vZmZzZXQoZW50cnkpIDw8IE1BWF9TV0FQRklMRVNfU0hJRlQpOw0KPiAgCQkJZmxhZ3Mg
+fD0gUE1fU1dBUDsNCj4gKwkJCWlmIChwbWRfc3dwX3NvZnRfZGlydHkocG1kKSkNCj4gKwkJCQlm
+bGFncyB8PSBQTV9TT0ZUX0RJUlRZOw0KPiAgCQkJVk1fQlVHX09OKCFpc19wbWRfbWlncmF0aW9u
+X2VudHJ5KHBtZCkpOw0KPiAgCQkJcGFnZSA9IG1pZ3JhdGlvbl9lbnRyeV90b19wYWdlKGVudHJ5
+KTsNCj4gIAkJfQ0KPiA=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
