@@ -1,75 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 148706B025F
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 21:43:59 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id i125so3386939lfe.23
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 18:43:59 -0700 (PDT)
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F0E06B0261
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 22:24:01 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id j98so3454801lfi.0
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 19:24:01 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n27sor335128lja.56.2017.10.20.18.43.57
+        by mx.google.com with SMTPS id r76sor352001lja.96.2017.10.20.19.23.59
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 20 Oct 2017 18:43:57 -0700 (PDT)
+        Fri, 20 Oct 2017 19:23:59 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20171020195934.32108-2-kirill.shutemov@linux.intel.com>
-References: <20171020195934.32108-1-kirill.shutemov@linux.intel.com> <20171020195934.32108-2-kirill.shutemov@linux.intel.com>
-From: Nitin Gupta <ngupta@vflare.org>
-Date: Fri, 20 Oct 2017 18:43:55 -0700
-Message-ID: <CAPkvG_cyvK9ds6_L2MWmFBwuzOa0jabiKr6KmVetVWOZOTX=Fg@mail.gmail.com>
-Subject: Re: [PATCH 1/4] mm/zsmalloc: Prepare to variable MAX_PHYSMEM_BITS
+In-Reply-To: <1508529532.3029.15.camel@wdc.com>
+References: <1508319532-24655-1-git-send-email-byungchul.park@lge.com>
+ <1508319532-24655-2-git-send-email-byungchul.park@lge.com>
+ <1508455438.4542.4.camel@wdc.com> <alpine.DEB.2.20.1710200829340.3083@nanos> <1508529532.3029.15.camel@wdc.com>
+From: Byungchul Park <max.byungchul.park@gmail.com>
+Date: Sat, 21 Oct 2017 11:23:58 +0900
+Message-ID: <CANrsvRNnOp_rgEWG2FGg7qaEQi=yEyhiZkpWSW62w21BvJ9Shg@mail.gmail.com>
+Subject: Re: [RESEND PATCH 1/3] completion: Add support for initializing
+ completion with lockdep_map
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Bart Van Assche <Bart.VanAssche@wdc.com>
+Cc: "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "hch@infradead.org" <hch@infradead.org>, "amir73il@gmail.com" <amir73il@gmail.com>, "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "oleg@redhat.com" <oleg@redhat.com>, "darrick.wong@oracle.com" <darrick.wong@oracle.com>, "johannes.berg@intel.com" <johannes.berg@intel.com>, "byungchul.park@lge.com" <byungchul.park@lge.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "idryomov@gmail.com" <idryomov@gmail.com>, "tj@kernel.org" <tj@kernel.org>, "kernel-team@lge.com" <kernel-team@lge.com>, "david@fromorbit.com" <david@fromorbit.com>
 
-On Fri, Oct 20, 2017 at 12:59 PM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> With boot-time switching between paging mode we will have variable
-> MAX_PHYSMEM_BITS.
+On Sat, Oct 21, 2017 at 4:58 AM, Bart Van Assche <Bart.VanAssche@wdc.com> wrote:
+> Sorry but I'm not sure that's the best possible answer. In my opinion
+> avoiding that completion objects have dependencies on other lock objects,
+> e.g. by avoiding to wait on a completion object while holding a mutex, is a
+> far superior strategy over adding cross-release checking to completion
+> objects. The former strategy namely makes it unnecessary to add
+> cross-release checking to completion objects because that strategy ensures
+> that these completion objects cannot get involved in a deadlock. The latter
+
+It's true if we force it. But do you think it's possible?
+
+> strategy can lead to false positive deadlock reports by the lockdep code,
+
+What do you think false positives come from? It comes from assigning
+lock classes falsely where we should more care, rather than lockdep code
+itself. The same is applicable to cross-release.
+
+> something none of us wants.
 >
-> Let's use the maximum variable possible for CONFIG_X86_5LEVEL=y
-> configuration to define zsmalloc data structures.
->
-> The patch introduces MAX_POSSIBLE_PHYSMEM_BITS to cover such case.
-> It also suits well to handle PAE special case.
->
+> A possible alternative strategy could be to enable cross-release checking
+> only for those completion objects for which waiting occurs inside a critical
+> section.
 
+Of course, it already did. Cross-release doesn't consider any waiting
+outside of critical sections at all, and it should do.
 
-I see that with your upcoming patch, MAX_PHYSMEM_BITS is turned into a
-variable for x86_64 case as: (pgtable_l5_enabled ? 52 : 46).
+> As explained in another e-mail thread, unlike the lock inversion checking
+> performed by the <= v4.13 lockdep code, cross-release checking is a heuristic
+> that does not have a sound theoretical basis. The lock validator is an
 
-Even with this change, I don't see a need for this new
-MAX_POSSIBLE_PHYSMEM_BITS constant.
+It's not heuristic but based on the same theoretical basis as <=4.13
+lockdep. I mean, the key basis is:
 
+   1) What causes deadlock
+   2) What is a dependency
+   3) Build a dependency when identified
 
-> -#ifndef MAX_PHYSMEM_BITS
-> -#ifdef CONFIG_HIGHMEM64G
-> -#define MAX_PHYSMEM_BITS 36
-> -#else /* !CONFIG_HIGHMEM64G */
-> +#ifndef MAX_POSSIBLE_PHYSMEM_BITS
-> +#ifdef MAX_PHYSMEM_BITS
-> +#define MAX_POSSIBLE_PHYSMEM_BITS MAX_PHYSMEM_BITS
-> +#else
+> important tool for kernel developers. It is important that it produces as few
+> false positives as possible. Since the cross-release checks are enabled
+> automatically when enabling lockdep, I think it is normal that I, as a kernel
+> developer, care that the cross-release checks produce as few false positives
+> as possible.
 
-
-This ifdef on HIGHMEM64G is redundant, as x86 already defines
-MAX_PHYSMEM_BITS = 36 in PAE case. So, all that zsmalloc should do is:
-
-#ifndef MAX_PHYSMEM_BITS
-#define MAX_PHYSMEM_BITS BITS_PER_LONG
-#endif
-
-.. and then no change is needed for rest of derived constants like _PFN_BITS.
-
-It is upto every arch to define correct MAX_PHYSMEM_BITS (variable or constant)
-based on whatever configurations the arch supports. If not defined,
-zsmalloc picks
-a reasonable default of BITS_PER_LONG.
-
-I will send a patch which makes the change to remove ifdef on CONFIG_HIGHMEM64G.
-
-Thanks,
-Nitin
+No doubt. That's why I proposed these patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
