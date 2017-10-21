@@ -1,118 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A82AC6B0038
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 21:17:29 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id d67so12168566qkg.3
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 18:17:29 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id z1si1758643qkf.342.2017.10.20.18.17.27
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 95E326B0253
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 21:23:08 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b85so12262373pfj.22
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 18:23:08 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id o69sor712562pfj.107.2017.10.20.18.23.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Oct 2017 18:17:28 -0700 (PDT)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v1] mm: broken deferred calculation
-Date: Fri, 20 Oct 2017 21:17:07 -0400
-Message-Id: <20171021011707.15191-1-pasha.tatashin@oracle.com>
+        (Google Transport Security);
+        Fri, 20 Oct 2017 18:23:07 -0700 (PDT)
+Message-ID: <1508548981.5662.4.camel@gmail.com>
+Subject: Re: [rfc 2/2] smaps: Show zone device memory used
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Sat, 21 Oct 2017 12:23:01 +1100
+In-Reply-To: <20171019170238.GB3044@redhat.com>
+References: <20171018063123.21983-1-bsingharora@gmail.com>
+	 <20171018063123.21983-2-bsingharora@gmail.com>
+	 <d33c5a32-2b1a-85c7-be68-d006517b1ecd@linux.vnet.ibm.com>
+	 <20171019064858.11c812e6@MiWiFi-R3-srv> <20171019170238.GB3044@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, mhocko@kernel.org, akpm@linux-foundation.org
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, mhocko@suse.com
 
-In reset_deferred_meminit we determine number of pages that must not be
-deferred. We initialize pages for at least 2G of memory, but also pages for
-reserved memory in this node.
+On Thu, 2017-10-19 at 13:02 -0400, Jerome Glisse wrote:
+> On Thu, Oct 19, 2017 at 06:48:58AM +1100, Balbir Singh wrote:
+> > On Wed, 18 Oct 2017 12:40:43 +0530
+> > Anshuman Khandual <khandual@linux.vnet.ibm.com> wrote:
+> > 
+> > > On 10/18/2017 12:01 PM, Balbir Singh wrote:
+> > > > With HMM, we can have either public or private zone
+> > > > device pages. With private zone device pages, they should
+> > > > show up as swapped entities. For public zone device pages  
+> > > 
+> > > Might be missing something here but why they should show up
+> > > as swapped entities ? Could you please elaborate.
+> > > 
+> > 
+> > For migrated entries, my use case is to
+> > 
+> > 1. malloc()/mmap() memory
+> > 2. call migrate_vma()
+> > 3. Look at smaps
+> > 
+> > It's probably not clear in the changelog.
+> 
+> My only worry is about API, is smaps consider as userspace API ?
 
-The reserved memory is determined in this function:
-memblock_reserved_memory_within(), which operates over physical addresses,
-and returns size in bytes. However, reset_deferred_meminit() assumes that
-that this function operates with pfns, and returns page count.
+Yes, do you think choosing DevicePublicMemory would help?
 
-The result is that in the best case machine boots slower than expected
-due to initializing more pages than needed in single thread, and in the
-worst case panics because fewer than needed pages are initialized early.
+> My fear here is that maybe we will want to report device memory
+> differently in the future and have different category of device
 
-Fixes: 864b9a393dcb ("mm: consider memblock reservations for deferred memory initialization sizing")
+You are right, things will change and we'll probably see more things
+in ZONE_DEVICE, but I am not sure how they'd show up in smaps or
+can't think of it at the moment. The reason for my patch is was
+that I expect only device public memory to have a need to be
+visible in smaps as we do migration from regular memory to device
+public memory and vice-versa.
 
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
----
- include/linux/mmzone.h |  3 ++-
- mm/page_alloc.c        | 27 ++++++++++++++++++---------
- 2 files changed, 20 insertions(+), 10 deletions(-)
+> memory. Even thought right now i can only think of wanting to
+> differentiate between public and private device memory but right
+> now as you pointed out this is reported as swap out.
+> 
+> Otherwise patches looks good and you got:
+> 
+> Reviewed-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index a6f361931d52..d45ba78c7e42 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -699,7 +699,8 @@ typedef struct pglist_data {
- 	 * is the first PFN that needs to be initialised.
- 	 */
- 	unsigned long first_deferred_pfn;
--	unsigned long static_init_size;
-+	/* Number of non-deferred pages */
-+	unsigned long static_init_pgcnt;
- #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 97687b38da05..16419cdbbb7a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -289,28 +289,37 @@ EXPORT_SYMBOL(nr_online_nodes);
- int page_group_by_mobility_disabled __read_mostly;
- 
- #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
-+
-+/*
-+ * Determine how many pages need to be initialized durig early boot
-+ * (non-deferred initialization).
-+ * The value of first_deferred_pfn will be set later, once non-deferred pages
-+ * are initialized, but for now set it ULONG_MAX.
-+ */
- static inline void reset_deferred_meminit(pg_data_t *pgdat)
- {
--	unsigned long max_initialise;
--	unsigned long reserved_lowmem;
-+	phys_addr_t start_addr, end_addr;
-+	unsigned long max_pgcnt;
-+	unsigned long reserved;
- 
- 	/*
- 	 * Initialise at least 2G of a node but also take into account that
- 	 * two large system hashes that can take up 1GB for 0.25TB/node.
- 	 */
--	max_initialise = max(2UL << (30 - PAGE_SHIFT),
--		(pgdat->node_spanned_pages >> 8));
-+	max_pgcnt = max(2UL << (30 - PAGE_SHIFT),
-+			(pgdat->node_spanned_pages >> 8));
- 
- 	/*
- 	 * Compensate the all the memblock reservations (e.g. crash kernel)
- 	 * from the initial estimation to make sure we will initialize enough
- 	 * memory to boot.
- 	 */
--	reserved_lowmem = memblock_reserved_memory_within(pgdat->node_start_pfn,
--			pgdat->node_start_pfn + max_initialise);
--	max_initialise += reserved_lowmem;
-+	start_addr = PFN_PHYS(pgdat->node_start_pfn);
-+	end_addr = PFN_PHYS(pgdat->node_start_pfn + max_pgcnt);
-+	reserved = memblock_reserved_memory_within(start_addr, end_addr);
-+	max_pgcnt += PHYS_PFN(reserved);
- 
--	pgdat->static_init_size = min(max_initialise, pgdat->node_spanned_pages);
-+	pgdat->static_init_pgcnt = min(max_pgcnt, pgdat->node_spanned_pages);
- 	pgdat->first_deferred_pfn = ULONG_MAX;
- }
- 
-@@ -337,7 +346,7 @@ static inline bool update_defer_init(pg_data_t *pgdat,
- 	if (zone_end < pgdat_end_pfn(pgdat))
- 		return true;
- 	(*nr_initialised)++;
--	if ((*nr_initialised > pgdat->static_init_size) &&
-+	if ((*nr_initialised > pgdat->static_init_pgcnt) &&
- 	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
- 		pgdat->first_deferred_pfn = pfn;
- 		return false;
--- 
-2.14.2
+Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
