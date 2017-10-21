@@ -1,84 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CCE3D6B0038
-	for <linux-mm@kvack.org>; Sat, 21 Oct 2017 04:09:49 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 11so3992292wrb.10
-        for <linux-mm@kvack.org>; Sat, 21 Oct 2017 01:09:49 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n2si434679wme.57.2017.10.21.01.09.46
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 232B66B0253
+	for <linux-mm@kvack.org>; Sat, 21 Oct 2017 04:11:42 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id m72so5595564wmc.0
+        for <linux-mm@kvack.org>; Sat, 21 Oct 2017 01:11:42 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id j130si428492wmd.165.2017.10.21.01.11.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 21 Oct 2017 01:09:46 -0700 (PDT)
-Date: Sat, 21 Oct 2017 10:09:43 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: mlock: remove lru_add_drain_all()
-Message-ID: <20171021080943.q6b6ac5uucs3vyxc@dhcp22.suse.cz>
-References: <20171019222507.2894-1-shakeelb@google.com>
- <CAKTCnznZzFAwc88NW6EJw5vDF_=ARmjPDiP-of=s3geuYNKYTA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 21 Oct 2017 01:11:41 -0700 (PDT)
+Date: Sat, 21 Oct 2017 10:11:40 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH v3 12/13] dax: handle truncate of dma-busy pages
+Message-ID: <20171021081140.GA21101@lst.de>
+References: <150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com> <150846720244.24336.16885325309403883980.stgit@dwillia2-desk3.amr.corp.intel.com> <1508504726.5572.41.camel@kernel.org> <CAPcyv4hXCJYTkUKs6NiOp=8kgExu+bgZnVn_v+Os7fVUc2NxFg@mail.gmail.com> <20171020163221.GB26320@lst.de> <CAPcyv4iGN6KO_ggJ-vTHCPWanudY3Gq6n=+9sbnMsnTeF56uJA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAKTCnznZzFAwc88NW6EJw5vDF_=ARmjPDiP-of=s3geuYNKYTA@mail.gmail.com>
+In-Reply-To: <CAPcyv4iGN6KO_ggJ-vTHCPWanudY3Gq6n=+9sbnMsnTeF56uJA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Shakeel Butt <shakeelb@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Yisheng Xie <xieyisheng1@huawei.com>, Ingo Molnar <mingo@kernel.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Christoph Hellwig <hch@lst.de>, Jeff Layton <jlayton@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, Dave Hansen <dave.hansen@linux.intel.com>, Dave Chinner <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "J. Bruce Fields" <bfields@fieldses.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-xfs@vger.kernel.org, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
 
-On Sat 21-10-17 08:51:04, Balbir Singh wrote:
-> On Fri, Oct 20, 2017 at 9:25 AM, Shakeel Butt <shakeelb@google.com> wrote:
-> > lru_add_drain_all() is not required by mlock() and it will drain
-> > everything that has been cached at the time mlock is called. And
-> > that is not really related to the memory which will be faulted in
-> > (and cached) and mlocked by the syscall itself.
-> >
-> > Without lru_add_drain_all() the mlocked pages can remain on pagevecs
-> > and be moved to evictable LRUs. However they will eventually be moved
-> > back to unevictable LRU by reclaim. So, we can safely remove
-> > lru_add_drain_all() from mlock syscall. Also there is no need for
-> > local lru_add_drain() as it will be called deep inside __mm_populate()
-> > (in follow_page_pte()).
-> >
-> > On larger machines the overhead of lru_add_drain_all() in mlock() can
-> > be significant when mlocking data already in memory. We have observed
-> > high latency in mlock() due to lru_add_drain_all() when the users
-> > were mlocking in memory tmpfs files.
-> >
-> > Signed-off-by: Shakeel Butt <shakeelb@google.com>
-> > ---
-> 
-> I'm afraid I still don't fully understand the impact in terms of numbers and
-> statistics as seen from inside a cgroup.
+On Fri, Oct 20, 2017 at 10:27:22AM -0700, Dan Williams wrote:
+> I'll take a look at hooking this up through a page-idle callback. Can
+> I get some breadcrumbs to grep for from XFS folks on how to set/clear
+> the busy state of extents?
 
-I really fail to see why there would be anything cgroup specific here.
+As Brian pointed out it's the xfs_extent_busy.c file (and I pointed
+out the same in a reply to the previous series).  Be careful because
+you'll need a refcount or flags now that there are different busy
+reasons.
 
-> My understanding is that we'll slowly
-> see the unreclaimable stats go up as we drain the pvec's across CPU's
-
-Not really. Draining is a bit tricky. Anonymous PF (gup) use
-lru_cache_add_active_or_unevictable so we bypass the LRU cache
-on mlocked pages altogether. Filemap faults go via cache and
-__pagevec_lru_add_fn to flush a full cache is not mlock aware. But gup
-(follow_page_pte) path tries to move existing and mapped pages to the
-unevictable LRU list. So yes we can see lazy mlock pages on evictable
-LRU but reclaim will get them to the unevictable list when needed.
-This should be mostly reduced to file mappings. But I haven't checked
-the code recently and mlock is quite tricky so I might misremember.
-
-In any case lru_add_drain_all is quite tangent to all this AFAICS.
-
-> I understand the optimization and I can see why lru_add_drain_all() is
-> expensive.
-
-not only it is expensive it is paying price for previous caching which
-might not be directly related to the mlock syscall.
- 
-> Acked-by: Balbir Singh <bsingharora@gmail.com>
-> 
-> Balbir Singh.
-
--- 
-Michal Hocko
-SUSE Labs
+I still think we'd be better off just blocking on an elevated page
+count directly in truncate as that will avoid all the busy list
+manipulations.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
