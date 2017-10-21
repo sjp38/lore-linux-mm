@@ -1,480 +1,618 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BF486B0038
-	for <linux-mm@kvack.org>; Sat, 21 Oct 2017 11:47:11 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id f66so14034882oib.1
-        for <linux-mm@kvack.org>; Sat, 21 Oct 2017 08:47:11 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 19si974905oie.278.2017.10.21.08.47.09
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B94B76B0038
+	for <linux-mm@kvack.org>; Sat, 21 Oct 2017 15:18:28 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id u70so13435093pfa.2
+        for <linux-mm@kvack.org>; Sat, 21 Oct 2017 12:18:28 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id c72si2701683pfe.264.2017.10.21.12.18.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 21 Oct 2017 08:47:09 -0700 (PDT)
-Date: Sat, 21 Oct 2017 11:47:03 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 1/2] mm/mmu_notifier: avoid double notification when it
- is useless v2
-Message-ID: <20171021154703.GA30458@redhat.com>
-References: <20171017031003.7481-1-jglisse@redhat.com>
- <20171017031003.7481-2-jglisse@redhat.com>
- <20171019140426.21f51957@MiWiFi-R3-srv>
- <20171019032811.GC5246@redhat.com>
- <CAKTCnz=5GL_Bbu=kqywgW98uxpvYqCo2+KyzzGb67BmnKju3bw@mail.gmail.com>
- <20171019165823.GA3044@redhat.com>
- <1508565280.5662.6.camel@gmail.com>
+        Sat, 21 Oct 2017 12:18:27 -0700 (PDT)
+Date: Sun, 22 Oct 2017 03:17:53 +0800
+From: kbuild test robot <lkp@intel.com>
+Subject: Re: [PATCH v2 4/4] lockdep: Assign a lock_class per gendisk used for
+ wait_for_completion()
+Message-ID: <201710220321.mlkK3TVN%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: multipart/mixed; boundary="UlVJffcvxoiEqYs2"
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1508565280.5662.6.camel@gmail.com>
+In-Reply-To: <1508396607-25362-5-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Nadav Amit <nadav.amit@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Joerg Roedel <jroedel@suse.de>, Suravee Suthikulpanit <suravee.suthikulpanit@amd.com>, David Woodhouse <dwmw2@infradead.org>, Alistair Popple <alistair@popple.id.au>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Donnellan <andrew.donnellan@au1.ibm.com>, iommu@lists.linux-foundation.org, "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, linux-next <linux-next@vger.kernel.org>
-
-On Sat, Oct 21, 2017 at 04:54:40PM +1100, Balbir Singh wrote:
-> On Thu, 2017-10-19 at 12:58 -0400, Jerome Glisse wrote:
-> > On Thu, Oct 19, 2017 at 09:53:11PM +1100, Balbir Singh wrote:
-> > > On Thu, Oct 19, 2017 at 2:28 PM, Jerome Glisse <jglisse@redhat.com> wrote:
-> > > > On Thu, Oct 19, 2017 at 02:04:26PM +1100, Balbir Singh wrote:
-> > > > > On Mon, 16 Oct 2017 23:10:02 -0400
-> > > > > jglisse@redhat.com wrote:
-> > > > > 
-> > > > > > From: Jerome Glisse <jglisse@redhat.com>
-> > > > > > 
-> > > > > > +           /*
-> > > > > > +            * No need to call mmu_notifier_invalidate_range() as we are
-> > > > > > +            * downgrading page table protection not changing it to point
-> > > > > > +            * to a new page.
-> > > > > > +            *
-> > > > > > +            * See Documentation/vm/mmu_notifier.txt
-> > > > > > +            */
-> > > > > >             if (pmdp) {
-> > > > > >  #ifdef CONFIG_FS_DAX_PMD
-> > > > > >                     pmd_t pmd;
-> > > > > > @@ -628,7 +635,6 @@ static void dax_mapping_entry_mkclean(struct address_space *mapping,
-> > > > > >                     pmd = pmd_wrprotect(pmd);
-> > > > > >                     pmd = pmd_mkclean(pmd);
-> > > > > >                     set_pmd_at(vma->vm_mm, address, pmdp, pmd);
-> > > > > > -                   mmu_notifier_invalidate_range(vma->vm_mm, start, end);
-> > > > > 
-> > > > > Could the secondary TLB still see the mapping as dirty and propagate the dirty bit back?
-> > > > 
-> > > > I am assuming hardware does sane thing of setting the dirty bit only
-> > > > when walking the CPU page table when device does a write fault ie
-> > > > once the device get a write TLB entry the dirty is set by the IOMMU
-> > > > when walking the page table before returning the lookup result to the
-> > > > device and that it won't be set again latter (ie propagated back
-> > > > latter).
-> > > > 
-> > > 
-> > > The other possibility is that the hardware things the page is writable
-> > > and already
-> > > marked dirty. It allows writes and does not set the dirty bit?
-> > 
-> > I thought about this some more and the patch can not regress anything
-> > that is not broken today. So if we assume that device can propagate
-> > dirty bit because it can cache the write protection than all current
-> > code is broken for two reasons:
-> > 
-> > First one is current code clear pte entry, build a new pte value with
-> > write protection and update pte entry with new pte value. So any PASID/
-> > ATS platform that allows device to cache the write bit and set dirty
-> > bit anytime after that can race during that window and you would loose
-> > the dirty bit of the device. That is not that bad as you are gonna
-> > propagate the dirty bit to the struct page.
-> 
-> But they stay consistent with the notifiers, so from the OS perspective
-> it notifies of any PTE changes as they happen. When the ATS platform sees
-> invalidation, it invalidates it's PTE's as well.
-> 
-> I was speaking of the case where the ATS platform could assume it has
-> write access and has not seen any invalidation, the OS could return
-> back to user space or the caller with write bit clear, but the ATS
-> platform could still do a write since it's not seen the invalidation.
-
-I understood what you said and what is above apply. I am removing only
-one of the invalidation not both. So with that patch the invalidation
-is delayed after the page table lock drop but before dax/page_mkclean
-returns. Hence any further activity will be read only on any device too
-once we exit those functions.
-
-The only difference is the window during which device can report dirty
-pte. Before that patch the 2 "~bogus~" window were small:
-  First window between pmd/pte_get_clear_flush and set_pte/pmd
-  Second window between set_pte/pmd and mmu_notifier_invalidate_range
-
-The first window stay the same, the second window is bigger, potentialy
-lot bigger if thread is prempted before mmu_notifier_invalidate_range_end
-
-But that is fine as in that case the page is reported as dirty and thus
-we are not missing anything and the kernel code does not care about
-seeing read only pte mark as dirty.
-
-> 
-> > 
-> > Second one is if the dirty bit is propagated back to the new write
-> > protected pte. Quick look at code it seems that when we zap pte or
-> > or mkclean we don't check that the pte has write permission but only
-> > care about the dirty bit. So it should not have any bad consequence.
-> > 
-> > After this patch only the second window is bigger and thus more likely
-> > to happen. But nothing sinister should happen from that.
-> > 
-> > 
-> > > 
-> > > > I should probably have spell that out and maybe some of the ATS/PASID
-> > > > implementer did not do that.
-> > > > 
-> > > > > 
-> > > > > >  unlock_pmd:
-> > > > > >                     spin_unlock(ptl);
-> > > > > >  #endif
-> > > > > > @@ -643,7 +649,6 @@ static void dax_mapping_entry_mkclean(struct address_space *mapping,
-> > > > > >                     pte = pte_wrprotect(pte);
-> > > > > >                     pte = pte_mkclean(pte);
-> > > > > >                     set_pte_at(vma->vm_mm, address, ptep, pte);
-> > > > > > -                   mmu_notifier_invalidate_range(vma->vm_mm, start, end);
-> > > > > 
-> > > > > Ditto
-> > > > > 
-> > > > > >  unlock_pte:
-> > > > > >                     pte_unmap_unlock(ptep, ptl);
-> > > > > >             }
-> > > > > > diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-> > > > > > index 6866e8126982..49c925c96b8a 100644
-> > > > > > --- a/include/linux/mmu_notifier.h
-> > > > > > +++ b/include/linux/mmu_notifier.h
-> > > > > > @@ -155,7 +155,8 @@ struct mmu_notifier_ops {
-> > > > > >      * shared page-tables, it not necessary to implement the
-> > > > > >      * invalidate_range_start()/end() notifiers, as
-> > > > > >      * invalidate_range() alread catches the points in time when an
-> > > > > > -    * external TLB range needs to be flushed.
-> > > > > > +    * external TLB range needs to be flushed. For more in depth
-> > > > > > +    * discussion on this see Documentation/vm/mmu_notifier.txt
-> > > > > >      *
-> > > > > >      * The invalidate_range() function is called under the ptl
-> > > > > >      * spin-lock and not allowed to sleep.
-> > > > > > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > > > > > index c037d3d34950..ff5bc647b51d 100644
-> > > > > > --- a/mm/huge_memory.c
-> > > > > > +++ b/mm/huge_memory.c
-> > > > > > @@ -1186,8 +1186,15 @@ static int do_huge_pmd_wp_page_fallback(struct vm_fault *vmf, pmd_t orig_pmd,
-> > > > > >             goto out_free_pages;
-> > > > > >     VM_BUG_ON_PAGE(!PageHead(page), page);
-> > > > > > 
-> > > > > > +   /*
-> > > > > > +    * Leave pmd empty until pte is filled note we must notify here as
-> > > > > > +    * concurrent CPU thread might write to new page before the call to
-> > > > > > +    * mmu_notifier_invalidate_range_end() happens which can lead to a
-> > > > > > +    * device seeing memory write in different order than CPU.
-> > > > > > +    *
-> > > > > > +    * See Documentation/vm/mmu_notifier.txt
-> > > > > > +    */
-> > > > > >     pmdp_huge_clear_flush_notify(vma, haddr, vmf->pmd);
-> > > > > > -   /* leave pmd empty until pte is filled */
-> > > > > > 
-> > > > > >     pgtable = pgtable_trans_huge_withdraw(vma->vm_mm, vmf->pmd);
-> > > > > >     pmd_populate(vma->vm_mm, &_pmd, pgtable);
-> > > > > > @@ -2026,8 +2033,15 @@ static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
-> > > > > >     pmd_t _pmd;
-> > > > > >     int i;
-> > > > > > 
-> > > > > > -   /* leave pmd empty until pte is filled */
-> > > > > > -   pmdp_huge_clear_flush_notify(vma, haddr, pmd);
-> > > > > > +   /*
-> > > > > > +    * Leave pmd empty until pte is filled note that it is fine to delay
-> > > > > > +    * notification until mmu_notifier_invalidate_range_end() as we are
-> > > > > > +    * replacing a zero pmd write protected page with a zero pte write
-> > > > > > +    * protected page.
-> > > > > > +    *
-> > > > > > +    * See Documentation/vm/mmu_notifier.txt
-> > > > > > +    */
-> > > > > > +   pmdp_huge_clear_flush(vma, haddr, pmd);
-> > > > > 
-> > > > > Shouldn't the secondary TLB know if the page size changed?
-> > > > 
-> > > > It should not matter, we are talking virtual to physical on behalf
-> > > > of a device against a process address space. So the hardware should
-> > > > not care about the page size.
-> > > > 
-> > > 
-> > > Does that not indicate how much the device can access? Could it try
-> > > to access more than what is mapped?
-> > 
-> > Assuming device has huge TLB and 2MB huge page with 4K small page.
-> > You are going from one 1 TLB covering a 2MB zero page to 512 TLB
-> > each covering 4K. Both case is read only and both case are pointing
-> > to same data (ie zero).
-> > 
-> > It is fine to delay the TLB invalidate on the device to the call of
-> > mmu_notifier_invalidate_range_end(). The device will keep using the
-> > huge TLB for a little longer but both CPU and device are looking at
-> > same data.
-> > 
-> > Now if there is a racing thread that replace one of the 512 zeor page
-> > after the split but before mmu_notifier_invalidate_range_end() that
-> > code path would call mmu_notifier_invalidate_range() before changing
-> > the pte to point to something else. Which should shoot down the device
-> > TLB (it would be a serious device bug if this did not work).
-> 
-> OK.. This seems reasonable, but I'd really like to see if it can be
-> tested
-
-Well hard to test, many factors first each device might react differently.
-Device that only store TLB at 4k granularity are fine. Clever device that
-can store TLB for 4k, 2M, ... can ignore an invalidation that is smaller
-than their TLB entry ie getting a 4K invalidation would not invalidate a
-2MB TLB entry in the device. I consider this as buggy. I will go look at
-the PCIE ATS specification one more time and see if there is any wording
-related that. I might bring up a question to the PCIE standard body if not.
-
-Second factor is that it is a race between split zero and a write fault.
-I can probably do a crappy patch that msleep if split happens against a
-given mm to increase the race window. But i would be testing against one
-device (right now i can only access AMD IOMMUv2 devices with discret ATS
-GPU)
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: kbuild-all@01.org, peterz@infradead.org, mingo@kernel.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
 
 
-> 
-> > 
-> > 
-> > > 
-> > > > Moreover if any of the new 512 (assuming 2MB huge and 4K pages) zero
-> > > > 4K pages is replace by something new then a device TLB shootdown will
-> > > > happen before the new page is set.
-> > > > 
-> > > > Only issue i can think of is if the IOMMU TLB (if there is one) or
-> > > > the device TLB (you do expect that there is one) does not invalidate
-> > > > TLB entry if the TLB shootdown is smaller than the TLB entry. That
-> > > > would be idiotic but yes i know hardware bug.
-> > > > 
-> > > > 
-> > > > > 
-> > > > > > 
-> > > > > >     pgtable = pgtable_trans_huge_withdraw(mm, pmd);
-> > > > > >     pmd_populate(mm, &_pmd, pgtable);
-> > > > > > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > > > > > index 1768efa4c501..63a63f1b536c 100644
-> > > > > > --- a/mm/hugetlb.c
-> > > > > > +++ b/mm/hugetlb.c
-> > > > > > @@ -3254,9 +3254,14 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
-> > > > > >                     set_huge_swap_pte_at(dst, addr, dst_pte, entry, sz);
-> > > > > >             } else {
-> > > > > >                     if (cow) {
-> > > > > > +                           /*
-> > > > > > +                            * No need to notify as we are downgrading page
-> > > > > > +                            * table protection not changing it to point
-> > > > > > +                            * to a new page.
-> > > > > > +                            *
-> > > > > > +                            * See Documentation/vm/mmu_notifier.txt
-> > > > > > +                            */
-> > > > > >                             huge_ptep_set_wrprotect(src, addr, src_pte);
-> > > > > 
-> > > > > OK.. so we could get write faults on write accesses from the device.
-> > > > > 
-> > > > > > -                           mmu_notifier_invalidate_range(src, mmun_start,
-> > > > > > -                                                              mmun_end);
-> > > > > >                     }
-> > > > > >                     entry = huge_ptep_get(src_pte);
-> > > > > >                     ptepage = pte_page(entry);
-> > > > > > @@ -4288,7 +4293,12 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
-> > > > > >      * and that page table be reused and filled with junk.
-> > > > > >      */
-> > > > > >     flush_hugetlb_tlb_range(vma, start, end);
-> > > > > > -   mmu_notifier_invalidate_range(mm, start, end);
-> > > > > > +   /*
-> > > > > > +    * No need to call mmu_notifier_invalidate_range() we are downgrading
-> > > > > > +    * page table protection not changing it to point to a new page.
-> > > > > > +    *
-> > > > > > +    * See Documentation/vm/mmu_notifier.txt
-> > > > > > +    */
-> > > > > >     i_mmap_unlock_write(vma->vm_file->f_mapping);
-> > > > > >     mmu_notifier_invalidate_range_end(mm, start, end);
-> > > > > > 
-> > > > > > diff --git a/mm/ksm.c b/mm/ksm.c
-> > > > > > index 6cb60f46cce5..be8f4576f842 100644
-> > > > > > --- a/mm/ksm.c
-> > > > > > +++ b/mm/ksm.c
-> > > > > > @@ -1052,8 +1052,13 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
-> > > > > >              * So we clear the pte and flush the tlb before the check
-> > > > > >              * this assure us that no O_DIRECT can happen after the check
-> > > > > >              * or in the middle of the check.
-> > > > > > +            *
-> > > > > > +            * No need to notify as we are downgrading page table to read
-> > > > > > +            * only not changing it to point to a new page.
-> > > > > > +            *
-> > > > > > +            * See Documentation/vm/mmu_notifier.txt
-> > > > > >              */
-> > > > > > -           entry = ptep_clear_flush_notify(vma, pvmw.address, pvmw.pte);
-> > > > > > +           entry = ptep_clear_flush(vma, pvmw.address, pvmw.pte);
-> > > > > >             /*
-> > > > > >              * Check that no O_DIRECT or similar I/O is in progress on the
-> > > > > >              * page
-> > > > > > @@ -1136,7 +1141,13 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
-> > > > > >     }
-> > > > > > 
-> > > > > >     flush_cache_page(vma, addr, pte_pfn(*ptep));
-> > > > > > -   ptep_clear_flush_notify(vma, addr, ptep);
-> > > > > > +   /*
-> > > > > > +    * No need to notify as we are replacing a read only page with another
-> > > > > > +    * read only page with the same content.
-> > > > > > +    *
-> > > > > > +    * See Documentation/vm/mmu_notifier.txt
-> > > > > > +    */
-> > > > > > +   ptep_clear_flush(vma, addr, ptep);
-> > > > > >     set_pte_at_notify(mm, addr, ptep, newpte);
-> > > > > > 
-> > > > > >     page_remove_rmap(page, false);
-> > > > > > diff --git a/mm/rmap.c b/mm/rmap.c
-> > > > > > index 061826278520..6b5a0f219ac0 100644
-> > > > > > --- a/mm/rmap.c
-> > > > > > +++ b/mm/rmap.c
-> > > > > > @@ -937,10 +937,15 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
-> > > > > >  #endif
-> > > > > >             }
-> > > > > > 
-> > > > > > -           if (ret) {
-> > > > > > -                   mmu_notifier_invalidate_range(vma->vm_mm, cstart, cend);
-> > > > > > +           /*
-> > > > > > +            * No need to call mmu_notifier_invalidate_range() as we are
-> > > > > > +            * downgrading page table protection not changing it to point
-> > > > > > +            * to a new page.
-> > > > > > +            *
-> > > > > > +            * See Documentation/vm/mmu_notifier.txt
-> > > > > > +            */
-> > > > > > +           if (ret)
-> > > > > >                     (*cleaned)++;
-> > > > > > -           }
-> > > > > >     }
-> > > > > > 
-> > > > > >     mmu_notifier_invalidate_range_end(vma->vm_mm, start, end);
-> > > > > > @@ -1424,6 +1429,10 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
-> > > > > >                     if (pte_soft_dirty(pteval))
-> > > > > >                             swp_pte = pte_swp_mksoft_dirty(swp_pte);
-> > > > > >                     set_pte_at(mm, pvmw.address, pvmw.pte, swp_pte);
-> > > > > > +                   /*
-> > > > > > +                    * No need to invalidate here it will synchronize on
-> > > > > > +                    * against the special swap migration pte.
-> > > > > > +                    */
-> > > > > >                     goto discard;
-> > > > > >             }
-> > > > > > 
-> > > > > > @@ -1481,6 +1490,9 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
-> > > > > >                      * will take care of the rest.
-> > > > > >                      */
-> > > > > >                     dec_mm_counter(mm, mm_counter(page));
-> > > > > > +                   /* We have to invalidate as we cleared the pte */
-> > > > > > +                   mmu_notifier_invalidate_range(mm, address,
-> > > > > > +                                                 address + PAGE_SIZE);
-> > > > > >             } else if (IS_ENABLED(CONFIG_MIGRATION) &&
-> > > > > >                             (flags & (TTU_MIGRATION|TTU_SPLIT_FREEZE))) {
-> > > > > >                     swp_entry_t entry;
-> > > > > > @@ -1496,6 +1508,10 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
-> > > > > >                     if (pte_soft_dirty(pteval))
-> > > > > >                             swp_pte = pte_swp_mksoft_dirty(swp_pte);
-> > > > > >                     set_pte_at(mm, address, pvmw.pte, swp_pte);
-> > > > > > +                   /*
-> > > > > > +                    * No need to invalidate here it will synchronize on
-> > > > > > +                    * against the special swap migration pte.
-> > > > > > +                    */
-> > > > > >             } else if (PageAnon(page)) {
-> > > > > >                     swp_entry_t entry = { .val = page_private(subpage) };
-> > > > > >                     pte_t swp_pte;
-> > > > > > @@ -1507,6 +1523,8 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
-> > > > > >                             WARN_ON_ONCE(1);
-> > > > > >                             ret = false;
-> > > > > >                             /* We have to invalidate as we cleared the pte */
-> > > > > > +                           mmu_notifier_invalidate_range(mm, address,
-> > > > > > +                                                   address + PAGE_SIZE);
-> > > > > >                             page_vma_mapped_walk_done(&pvmw);
-> > > > > >                             break;
-> > > > > >                     }
-> > > > > > @@ -1514,6 +1532,9 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
-> > > > > >                     /* MADV_FREE page check */
-> > > > > >                     if (!PageSwapBacked(page)) {
-> > > > > >                             if (!PageDirty(page)) {
-> > > > > > +                                   /* Invalidate as we cleared the pte */
-> > > > > > +                                   mmu_notifier_invalidate_range(mm,
-> > > > > > +                                           address, address + PAGE_SIZE);
-> > > > > >                                     dec_mm_counter(mm, MM_ANONPAGES);
-> > > > > >                                     goto discard;
-> > > > > >                             }
-> > > > > > @@ -1547,13 +1568,39 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
-> > > > > >                     if (pte_soft_dirty(pteval))
-> > > > > >                             swp_pte = pte_swp_mksoft_dirty(swp_pte);
-> > > > > >                     set_pte_at(mm, address, pvmw.pte, swp_pte);
-> > > > > > -           } else
-> > > > > > +                   /* Invalidate as we cleared the pte */
-> > > > > > +                   mmu_notifier_invalidate_range(mm, address,
-> > > > > > +                                                 address + PAGE_SIZE);
-> > > > > > +           } else {
-> > > > > > +                   /*
-> > > > > > +                    * We should not need to notify here as we reach this
-> > > > > > +                    * case only from freeze_page() itself only call from
-> > > > > > +                    * split_huge_page_to_list() so everything below must
-> > > > > > +                    * be true:
-> > > > > > +                    *   - page is not anonymous
-> > > > > > +                    *   - page is locked
-> > > > > > +                    *
-> > > > > > +                    * So as it is a locked file back page thus it can not
-> > > > > > +                    * be remove from the page cache and replace by a new
-> > > > > > +                    * page before mmu_notifier_invalidate_range_end so no
-> > > > > > +                    * concurrent thread might update its page table to
-> > > > > > +                    * point at new page while a device still is using this
-> > > > > > +                    * page.
-> > > > > > +                    *
-> > > > > > +                    * See Documentation/vm/mmu_notifier.txt
-> > > > > > +                    */
-> > > > > >                     dec_mm_counter(mm, mm_counter_file(page));
-> > > > > > +           }
-> > > > > >  discard:
-> > > > > > +           /*
-> > > > > > +            * No need to call mmu_notifier_invalidate_range() it has be
-> > > > > > +            * done above for all cases requiring it to happen under page
-> > > > > > +            * table lock before mmu_notifier_invalidate_range_end()
-> > > > > > +            *
-> > > > > > +            * See Documentation/vm/mmu_notifier.txt
-> > > > > > +            */
-> > > > > >             page_remove_rmap(subpage, PageHuge(page));
-> > > > > >             put_page(page);
-> > > > > > -           mmu_notifier_invalidate_range(mm, address,
-> > > > > > -                                         address + PAGE_SIZE);
-> > > > > >     }
-> > > > > > 
-> > > > > >     mmu_notifier_invalidate_range_end(vma->vm_mm, start, end);
-> > > > > 
-> > > > > Looking at the patchset, I understand the efficiency, but I am concerned
-> > > > > with correctness.
-> > > > 
-> > > > I am fine in holding this off from reaching Linus but only way to flush this
-> > > > issues out if any is to have this patch in linux-next or somewhere were they
-> > > > get a chance of being tested.
-> > > > 
-> > > 
-> > > Yep, I would like to see some additional testing around npu and get Alistair
-> > > Popple to comment as well
-> > 
-> > I think this patch is fine. The only one race window that it might make
-> > bigger should have no bad consequences.
-> > 
-> > > 
-> > > > Note that the second patch is always safe. I agree that this one might
-> > > > not be if hardware implementation is idiotic (well that would be my
-> > > > opinion and any opinion/point of view can be challenge :))
-> > > 
-> > > 
-> > > You mean the only_end variant that avoids shootdown after pmd/pte changes
-> > > that avoid the _start/_end and have just the only_end variant? That seemed
-> > > reasonable to me, but I've not tested it or evaluated it in depth
-> > 
-> > Yes, patch 2/2 in this serie is definitly fine. It invalidate the device
-> > TLB right after clearing pte entry and avoid latter unecessary invalidation
-> > of same TLB.
-> > 
-> > Jerome
-> 
-> Balbir Singh.
-> 
+--UlVJffcvxoiEqYs2
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+Hi Byungchul,
+
+[auto build test ERROR on linus/master]
+[also build test ERROR on v4.14-rc5 next-20171018]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+
+url:    https://github.com/0day-ci/linux/commits/Byungchul-Park/Fix-false-positives-by-cross-release-feature/20171022-022121
+config: i386-randconfig-x002-201743 (attached as .config)
+compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+reproduce:
+        # save the attached .config to linux build tree
+        make ARCH=i386 
+
+All errors (new ones prefixed by >>):
+
+   block/genhd.c: In function '__alloc_disk_node':
+>> block/genhd.c:1407:24: error: 'struct gendisk' has no member named 'lockdep_map'
+     lockdep_init_map(&disk->lockdep_map, lock_name, key, 0);
+                           ^~
+
+vim +1407 block/genhd.c
+
+  1356	
+  1357	struct gendisk *__alloc_disk_node(int minors, int node_id, struct lock_class_key *key, const char *lock_name)
+  1358	{
+  1359		struct gendisk *disk;
+  1360		struct disk_part_tbl *ptbl;
+  1361	
+  1362		if (minors > DISK_MAX_PARTS) {
+  1363			printk(KERN_ERR
+  1364				"block: can't allocated more than %d partitions\n",
+  1365				DISK_MAX_PARTS);
+  1366			minors = DISK_MAX_PARTS;
+  1367		}
+  1368	
+  1369		disk = kzalloc_node(sizeof(struct gendisk), GFP_KERNEL, node_id);
+  1370		if (disk) {
+  1371			if (!init_part_stats(&disk->part0)) {
+  1372				kfree(disk);
+  1373				return NULL;
+  1374			}
+  1375			disk->node_id = node_id;
+  1376			if (disk_expand_part_tbl(disk, 0)) {
+  1377				free_part_stats(&disk->part0);
+  1378				kfree(disk);
+  1379				return NULL;
+  1380			}
+  1381			ptbl = rcu_dereference_protected(disk->part_tbl, 1);
+  1382			rcu_assign_pointer(ptbl->part[0], &disk->part0);
+  1383	
+  1384			/*
+  1385			 * set_capacity() and get_capacity() currently don't use
+  1386			 * seqcounter to read/update the part0->nr_sects. Still init
+  1387			 * the counter as we can read the sectors in IO submission
+  1388			 * patch using seqence counters.
+  1389			 *
+  1390			 * TODO: Ideally set_capacity() and get_capacity() should be
+  1391			 * converted to make use of bd_mutex and sequence counters.
+  1392			 */
+  1393			seqcount_init(&disk->part0.nr_sects_seq);
+  1394			if (hd_ref_init(&disk->part0)) {
+  1395				hd_free_part(&disk->part0);
+  1396				kfree(disk);
+  1397				return NULL;
+  1398			}
+  1399	
+  1400			disk->minors = minors;
+  1401			rand_initialize_disk(disk);
+  1402			disk_to_dev(disk)->class = &block_class;
+  1403			disk_to_dev(disk)->type = &disk_type;
+  1404			device_initialize(disk_to_dev(disk));
+  1405		}
+  1406	
+> 1407		lockdep_init_map(&disk->lockdep_map, lock_name, key, 0);
+  1408	
+  1409		return disk;
+  1410	}
+  1411	EXPORT_SYMBOL(__alloc_disk_node);
+  1412	
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+
+--UlVJffcvxoiEqYs2
+Content-Type: application/gzip
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
+
+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
+yaNtGczJf845U/4H/HiTEaCUAQA=
+
+--UlVJffcvxoiEqYs2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
