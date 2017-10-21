@@ -1,219 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E81D6B0038
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 19:32:13 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id a8so12119078pfc.6
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 16:32:13 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id d190si1415345pfg.504.2017.10.20.16.32.11
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A82AC6B0038
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 21:17:29 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id d67so12168566qkg.3
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 18:17:29 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id z1si1758643qkf.342.2017.10.20.18.17.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Oct 2017 16:32:11 -0700 (PDT)
-Date: Fri, 20 Oct 2017 16:32:09 -0700
-From: Sharath Kumar Bhat <sharath.k.bhat@linux.intel.com>
-Subject: [PATCH] mm: fix movable_node kernel command-line
-Message-ID: <ad310dfbfb86ef4f1f9a173cad1a030e879d572e.1508536900.git.sharath.k.bhat@linux.intel.com>
-Reply-To: sharath.k.bhat@linux.intel.com
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+        Fri, 20 Oct 2017 18:17:28 -0700 (PDT)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [PATCH v1] mm: broken deferred calculation
+Date: Fri, 20 Oct 2017 21:17:07 -0400
+Message-Id: <20171021011707.15191-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, mhocko@kernel.org, akpm@linux-foundation.org
 
-Currently when booted with the 'movable_node' kernel command-line the user
-can not have both the functionality of 'movable_node' and at the same time
-specify more movable memory than the total size of hotpluggable memories.
+In reset_deferred_meminit we determine number of pages that must not be
+deferred. We initialize pages for at least 2G of memory, but also pages for
+reserved memory in this node.
 
-This is a problem because it limits the total amount of movable memory in
-the system to the total size of hotpluggable memories and in a system the
-total size of hotpluggable memories can be very small or all hotpluggable
-memories could have been offlined. The 'movable_node' parameter was aimed
-to provide the entire memory of hotpluggable NUMA nodes to applications
-without any kernel allocations in them. The 'movable_node' option will be
-useful if those hotpluggable nodes have special memory like MCDRAM as in
-KNL which is a high bandwidth memory and the user would like to use all of
-it for applications. But in doing so the 'movable_node' command-line poses
-this limitation and does not allow the user to specify more movable memory
-in addition to the hotpluggable memories.
+The reserved memory is determined in this function:
+memblock_reserved_memory_within(), which operates over physical addresses,
+and returns size in bytes. However, reset_deferred_meminit() assumes that
+that this function operates with pfns, and returns page count.
 
-With this change the existing 'movablecore=' and 'kernelcore=' command-line
-parameters can be specified in addition to the 'movable_node' kernel
-parameter. This allows the user to boot the kernel with an increased amount
-of movable memory in the system and still have only movable memory in
-hotpluggable NUMA nodes.
+The result is that in the best case machine boots slower than expected
+due to initializing more pages than needed in single thread, and in the
+worst case panics because fewer than needed pages are initialized early.
 
-Ex:
+Fixes: 864b9a393dcb ("mm: consider memblock reservations for deferred memory initialization sizing")
 
-Hardware  : Intel(R) Xeon Phi(TM) CPU 7250, SNC4 flat (cluster mode)
-NUMA Nodes: 8
-            0-3 DDR Memory (Non-hotpluggable)
-            4-7 High Bandwidth Memory (Hotpluggable)
-
-Kernel command-line parameters: kernelcore=16G movable_node
-
-Before this patch,
-----------------------------------
-NUMA Node Zone    #Pages
-----------------------------------
-Node 0    DMA        3999
-Node 0    DMA32    756023
-Node 0    Normal  5505024
-Node 1    Normal  6291456
-Node 2    Normal  6291456
-Node 3    Normal  6291456
-Node 4    Movable 1048576
-Node 5    Movable 1048576
-Node 6    Movable 1048576
-Node 7    Movable 1048576
-----------------------------------
-Total non-movable pages: 95.9 GB
-Total movable pages    : 16.0 GB
-----------------------------------
-
-After this patch,
-----------------------------------
-NUMA Node Zone    #Pages
-----------------------------------
-Node 0    DMA        3999
-Node 0    DMA32    756023
-Node 0    Normal   288768
-Node 0    Movable 5216256
-Node 1    Normal  1048576
-Node 1    Movable 5242880
-Node 2    Normal  1048576
-Node 2    Movable 5242880
-Node 3    Normal  1048576
-Node 3    Movable 5242880
-Node 4    Movable 1048576
-Node 5    Movable 1048576
-Node 6    Movable 1048576
-Node 7    Movable 1048576
-----------------------------------
-Total non-movable pages: 16.0 GB
-Total movable pages    : 95.9 GB
-----------------------------------
-
-Signed-off-by: Sharath Kumar Bhat <sharath.k.bhat@linux.intel.com>
+Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 ---
- Documentation/admin-guide/kernel-parameters.txt | 13 +++++++++++-
- mm/page_alloc.c                                 | 28 ++++++++++++++++++++++++-
- 2 files changed, 39 insertions(+), 2 deletions(-)
+ include/linux/mmzone.h |  3 ++-
+ mm/page_alloc.c        | 27 ++++++++++++++++++---------
+ 2 files changed, 20 insertions(+), 10 deletions(-)
 
-diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index 0549662..81957e8 100644
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -1807,6 +1807,11 @@
- 			so you can NOT specify nn[KMGTPE] and "mirror" at the same
- 			time.
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index a6f361931d52..d45ba78c7e42 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -699,7 +699,8 @@ typedef struct pglist_data {
+ 	 * is the first PFN that needs to be initialised.
+ 	 */
+ 	unsigned long first_deferred_pfn;
+-	unsigned long static_init_size;
++	/* Number of non-deferred pages */
++	unsigned long static_init_pgcnt;
+ #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
  
-+			When nn[KMGTPE] is specified along with movable_node
-+			kernel parameter then only non-movable nodes are
-+			considered for spreading the requested size while the
-+			movable nodes have all movable memory.
-+
- 	kgdbdbgp=	[KGDB,HW] kgdb over EHCI usb debug port.
- 			Format: <Controller#>[,poll interval]
- 			The controller # is the number of the ehci usb debug
-@@ -2324,7 +2329,13 @@
- 			value but may be more. If movablecore on its own
- 			is specified, the administrator must be careful
- 			that the amount of memory usable for all allocations
--			is not too small.
-+			is not too small. If movablecore is specified along
-+			with movable_node then movablecore indicates the total
-+			movable memory requested in the system that includes
-+			movable memory in both movable and non-movable nodes.
-+			When movable_node is specified, the minimum movable
-+			memory allocated will be at least the total size of
-+			movable nodes memory.
- 
- 	movable_node	[KNL] Boot-time switch to make hotplugable memory
- 			NUMA nodes to be movable. This means that the memory
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 77e4d3c..4a3579e 100644
+index 97687b38da05..16419cdbbb7a 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -6338,20 +6338,28 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 	unsigned long totalpages = early_calculate_totalpages();
- 	int usable_nodes = nodes_weight(node_states[N_MEMORY]);
- 	struct memblock_region *r;
-+	nodemask_t movable_nodes;
-+	unsigned long movable_node_pages = 0;
+@@ -289,28 +289,37 @@ EXPORT_SYMBOL(nr_online_nodes);
+ int page_group_by_mobility_disabled __read_mostly;
  
- 	/* Need to find movable_zone earlier when movable_node is specified. */
- 	find_usable_zone_for_movable();
+ #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
++
++/*
++ * Determine how many pages need to be initialized durig early boot
++ * (non-deferred initialization).
++ * The value of first_deferred_pfn will be set later, once non-deferred pages
++ * are initialized, but for now set it ULONG_MAX.
++ */
+ static inline void reset_deferred_meminit(pg_data_t *pgdat)
+ {
+-	unsigned long max_initialise;
+-	unsigned long reserved_lowmem;
++	phys_addr_t start_addr, end_addr;
++	unsigned long max_pgcnt;
++	unsigned long reserved;
  
  	/*
- 	 * If movable_node is specified, ignore kernelcore and movablecore
--	 * options.
-+	 * options on hotpluggable nodes.
+ 	 * Initialise at least 2G of a node but also take into account that
+ 	 * two large system hashes that can take up 1GB for 0.25TB/node.
  	 */
-+	nodes_clear(movable_nodes);
- 	if (movable_node_is_enabled()) {
- 		for_each_memblock(memory, r) {
- 			if (!memblock_is_hotpluggable(r))
- 				continue;
-+			if (PFN_UP(r->base) >= PFN_DOWN(r->base + r->size))
-+				continue;
+-	max_initialise = max(2UL << (30 - PAGE_SHIFT),
+-		(pgdat->node_spanned_pages >> 8));
++	max_pgcnt = max(2UL << (30 - PAGE_SHIFT),
++			(pgdat->node_spanned_pages >> 8));
  
- 			nid = r->nid;
-+			node_set(nid, movable_nodes);
-+			movable_node_pages += PFN_DOWN(r->base + r->size) -
-+						PFN_UP(r->base);
- 
- 			usable_startpfn = PFN_DOWN(r->base);
- 			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
-@@ -6359,6 +6367,14 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 				usable_startpfn;
- 		}
- 
-+		if (required_kernelcore || required_movablecore) {
-+			usable_nodes -= nodes_weight(movable_nodes);
-+			if (usable_nodes > 0 &&
-+			    totalpages > movable_node_pages) {
-+				totalpages -= movable_node_pages;
-+				goto core_options;
-+			}
-+		}
- 		goto out2;
- 	}
- 
-@@ -6392,6 +6408,7 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 		goto out2;
- 	}
- 
-+core_options:
  	/*
- 	 * If movablecore=nn[KMG] was specified, calculate what size of
- 	 * kernelcore that corresponds so that memory usable for
-@@ -6403,6 +6420,12 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 	if (required_movablecore) {
- 		unsigned long corepages;
+ 	 * Compensate the all the memblock reservations (e.g. crash kernel)
+ 	 * from the initial estimation to make sure we will initialize enough
+ 	 * memory to boot.
+ 	 */
+-	reserved_lowmem = memblock_reserved_memory_within(pgdat->node_start_pfn,
+-			pgdat->node_start_pfn + max_initialise);
+-	max_initialise += reserved_lowmem;
++	start_addr = PFN_PHYS(pgdat->node_start_pfn);
++	end_addr = PFN_PHYS(pgdat->node_start_pfn + max_pgcnt);
++	reserved = memblock_reserved_memory_within(start_addr, end_addr);
++	max_pgcnt += PHYS_PFN(reserved);
  
-+		if (movable_node_is_enabled()) {
-+			if (required_movablecore > movable_node_pages)
-+				required_movablecore -= movable_node_pages;
-+			else
-+				goto out2;
-+		}
- 		/*
- 		 * Round-up so that ZONE_MOVABLE is at least as large as what
- 		 * was requested by the user
-@@ -6431,6 +6454,9 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 	for_each_node_state(nid, N_MEMORY) {
- 		unsigned long start_pfn, end_pfn;
+-	pgdat->static_init_size = min(max_initialise, pgdat->node_spanned_pages);
++	pgdat->static_init_pgcnt = min(max_pgcnt, pgdat->node_spanned_pages);
+ 	pgdat->first_deferred_pfn = ULONG_MAX;
+ }
  
-+		/* Skip movable nodes if any */
-+		if (node_isset(nid, movable_nodes))
-+			continue;
- 		/*
- 		 * Recalculate kernelcore_node if the division per node
- 		 * now exceeds what is necessary to satisfy the requested
+@@ -337,7 +346,7 @@ static inline bool update_defer_init(pg_data_t *pgdat,
+ 	if (zone_end < pgdat_end_pfn(pgdat))
+ 		return true;
+ 	(*nr_initialised)++;
+-	if ((*nr_initialised > pgdat->static_init_size) &&
++	if ((*nr_initialised > pgdat->static_init_pgcnt) &&
+ 	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
+ 		pgdat->first_deferred_pfn = pfn;
+ 		return false;
 -- 
-1.8.3.1
+2.14.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
