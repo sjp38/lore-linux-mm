@@ -1,74 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F0E06B0261
-	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 22:24:01 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id j98so3454801lfi.0
-        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 19:24:01 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r76sor352001lja.96.2017.10.20.19.23.59
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 520B96B0266
+	for <linux-mm@kvack.org>; Fri, 20 Oct 2017 23:04:13 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id e89so12594241ioi.16
+        for <linux-mm@kvack.org>; Fri, 20 Oct 2017 20:04:13 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id c189sor63412ith.74.2017.10.20.20.04.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 20 Oct 2017 19:23:59 -0700 (PDT)
+        Fri, 20 Oct 2017 20:04:12 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1508529532.3029.15.camel@wdc.com>
-References: <1508319532-24655-1-git-send-email-byungchul.park@lge.com>
- <1508319532-24655-2-git-send-email-byungchul.park@lge.com>
- <1508455438.4542.4.camel@wdc.com> <alpine.DEB.2.20.1710200829340.3083@nanos> <1508529532.3029.15.camel@wdc.com>
-From: Byungchul Park <max.byungchul.park@gmail.com>
-Date: Sat, 21 Oct 2017 11:23:58 +0900
-Message-ID: <CANrsvRNnOp_rgEWG2FGg7qaEQi=yEyhiZkpWSW62w21BvJ9Shg@mail.gmail.com>
-Subject: Re: [RESEND PATCH 1/3] completion: Add support for initializing
- completion with lockdep_map
+In-Reply-To: <0015a75a-3624-2ec7-ae21-4753cf072e61@redhat.com>
+References: <1497915397-93805-1-git-send-email-keescook@chromium.org>
+ <0ad1f8b1-3c9f-adb0-35c3-18619ff5aa25@redhat.com> <0015a75a-3624-2ec7-ae21-4753cf072e61@redhat.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Fri, 20 Oct 2017 20:04:11 -0700
+Message-ID: <CAGXu5jKtNqnDA_vU5KaPuVJNCK0hBMGgYh6Ut0BVHvpu315XnA@mail.gmail.com>
+Subject: Re: [PATCH 00/23] Hardened usercopy whitelisting
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bart Van Assche <Bart.VanAssche@wdc.com>
-Cc: "tglx@linutronix.de" <tglx@linutronix.de>, "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "hch@infradead.org" <hch@infradead.org>, "amir73il@gmail.com" <amir73il@gmail.com>, "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "oleg@redhat.com" <oleg@redhat.com>, "darrick.wong@oracle.com" <darrick.wong@oracle.com>, "johannes.berg@intel.com" <johannes.berg@intel.com>, "byungchul.park@lge.com" <byungchul.park@lge.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "idryomov@gmail.com" <idryomov@gmail.com>, "tj@kernel.org" <tj@kernel.org>, "kernel-team@lge.com" <kernel-team@lge.com>, "david@fromorbit.com" <david@fromorbit.com>
+To: Paolo Bonzini <pbonzini@redhat.com>
+Cc: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, David Windsor <dave@nullcore.net>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Sat, Oct 21, 2017 at 4:58 AM, Bart Van Assche <Bart.VanAssche@wdc.com> wrote:
-> Sorry but I'm not sure that's the best possible answer. In my opinion
-> avoiding that completion objects have dependencies on other lock objects,
-> e.g. by avoiding to wait on a completion object while holding a mutex, is a
-> far superior strategy over adding cross-release checking to completion
-> objects. The former strategy namely makes it unnecessary to add
-> cross-release checking to completion objects because that strategy ensures
-> that these completion objects cannot get involved in a deadlock. The latter
-
-It's true if we force it. But do you think it's possible?
-
-> strategy can lead to false positive deadlock reports by the lockdep code,
-
-What do you think false positives come from? It comes from assigning
-lock classes falsely where we should more care, rather than lockdep code
-itself. The same is applicable to cross-release.
-
-> something none of us wants.
+On Fri, Oct 20, 2017 at 4:25 PM, Paolo Bonzini <pbonzini@redhat.com> wrote:
+> On 21/10/2017 00:40, Paolo Bonzini wrote:
+>> This breaks KVM completely on x86, due to two ioctls
+>> (KVM_GET/SET_CPUID2) accessing the cpuid_entries field of struct
+>> kvm_vcpu_arch.
+>>
+>> There's also another broken ioctl, KVM_XEN_HVM_CONFIG, but it is
+>> obsolete and not a big deal at all.
+>>
+>> I can post some patches, but probably not until the beginning of
+>> November due to travelling.  Please do not send this too close to the
+>> beginning of the merge window.
 >
-> A possible alternative strategy could be to enable cross-release checking
-> only for those completion objects for which waiting occurs inside a critical
-> section.
+> Sleeping is overrated, sending patches now...
 
-Of course, it already did. Cross-release doesn't consider any waiting
-outside of critical sections at all, and it should do.
+Oh awesome, thank you very much for tracking this down and building fixes!
 
-> As explained in another e-mail thread, unlike the lock inversion checking
-> performed by the <= v4.13 lockdep code, cross-release checking is a heuristic
-> that does not have a sound theoretical basis. The lock validator is an
+I'll insert these into the usercopy whitelisting series, and see if I
+can find any similar cases.
 
-It's not heuristic but based on the same theoretical basis as <=4.13
-lockdep. I mean, the key basis is:
+Thanks!
 
-   1) What causes deadlock
-   2) What is a dependency
-   3) Build a dependency when identified
+-Kees
 
-> important tool for kernel developers. It is important that it produces as few
-> false positives as possible. Since the cross-release checks are enabled
-> automatically when enabling lockdep, I think it is normal that I, as a kernel
-> developer, care that the cross-release checks produce as few false positives
-> as possible.
-
-No doubt. That's why I proposed these patches.
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
