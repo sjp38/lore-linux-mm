@@ -1,124 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B93606B0253
-	for <linux-mm@kvack.org>; Sun, 22 Oct 2017 07:50:54 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id x7so14264400pfa.19
-        for <linux-mm@kvack.org>; Sun, 22 Oct 2017 04:50:54 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id k190si3461494pgc.648.2017.10.22.04.50.51
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 471EB6B0038
+	for <linux-mm@kvack.org>; Sun, 22 Oct 2017 08:18:50 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id e123so15713395oig.14
+        for <linux-mm@kvack.org>; Sun, 22 Oct 2017 05:18:50 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [45.249.212.187])
+        by mx.google.com with ESMTPS id r1si1611580otr.486.2017.10.22.05.18.46
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 22 Oct 2017 04:50:52 -0700 (PDT)
-Subject: Re: [PATCH v1 1/3] virtio-balloon: replace the coarse-grained balloon_lock
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1508500466-21165-1-git-send-email-wei.w.wang@intel.com>
-	<1508500466-21165-2-git-send-email-wei.w.wang@intel.com>
-	<201710221420.FHG17654.OOMFQSFJVFHLtO@I-love.SAKURA.ne.jp>
-	<59EC7FF5.6070906@intel.com>
-In-Reply-To: <59EC7FF5.6070906@intel.com>
-Message-Id: <201710222050.GIF35945.FHOMQFOVSFLtOJ@I-love.SAKURA.ne.jp>
-Date: Sun, 22 Oct 2017 20:50:44 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Sun, 22 Oct 2017 05:18:48 -0700 (PDT)
+From: "Liuwenliang (Lamb)" <liuwenliang@huawei.com>
+Subject: Re: [PATCH 04/11] Define the virtual space of KASan's shadow region
+Date: Sun, 22 Oct 2017 12:12:58 +0000
+Message-ID: <B8AC3E80E903784988AB3003E3E97330C005CED4@dggemm510-mbx.china.huawei.com>
+References: <20171011082227.20546-5-liuwenliang@huawei.com>
+ <201710141957.mbxeZJHB%fengguang.wu@intel.com>
+ <B8AC3E80E903784988AB3003E3E97330C005B9BF@dggemm510-mbx.china.huawei.com>
+ <CAKv+Gu98M9PZk3qm0PYC8nQ3zMvLZmNmOn4=hNdFE7NTBuHbgg@mail.gmail.com>
+ <B8AC3E80E903784988AB3003E3E97330C005CAC2@dggemm510-mbx.china.huawei.com>
+ <20171019124357.GY20805@n2100.armlinux.org.uk>
+In-Reply-To: <20171019124357.GY20805@n2100.armlinux.org.uk>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wei.w.wang@intel.com, mst@redhat.com
-Cc: mhocko@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, virtualization@lists.linux-foundation.org
+To: Russell King - ARM Linux <linux@armlinux.org.uk>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, kbuild test robot <lkp@intel.com>, "kbuild-all@01.org" <kbuild-all@01.org>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "cdall@linaro.org" <cdall@linaro.org>, "marc.zyngier@arm.com" <marc.zyngier@arm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "mingo@kernel.org" <mingo@kernel.org>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiazhenghua <jiazhenghua@huawei.com>, Dailei <dylix.dailei@huawei.com>, Zengweilin <zengweilin@huawei.com>, Heshaoliang <heshaoliang@huawei.com>
 
-Wei Wang wrote:
-> >> @@ -162,20 +160,20 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
-> >>   			msleep(200);
-> >>   			break;
-> >>   		}
-> >> -		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
-> >> -		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
-> >> +		set_page_pfns(vb, pfns + num_pfns, page);
-> >>   		if (!virtio_has_feature(vb->vdev,
-> >>   					VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
-> >>   			adjust_managed_page_count(page, -1);
-> >>   	}
-> >>   
-> >> -	num_allocated_pages = vb->num_pfns;
-> >> +	mutex_lock(&vb->inflate_lock);
-> >>   	/* Did we get any? */
-> >> -	if (vb->num_pfns != 0)
-> >> -		tell_host(vb, vb->inflate_vq);
-> >> -	mutex_unlock(&vb->balloon_lock);
-> >> +	if (num_pfns != 0)
-> >> +		tell_host(vb, vb->inflate_vq, pfns, num_pfns);
-> >> +	mutex_unlock(&vb->inflate_lock);
-> >> +	atomic64_add(num_pfns, &vb->num_pages);
-> > Isn't this addition too late? If leak_balloon() is called due to
-> > out_of_memory(), it will fail to find up to dated vb->num_pages value.
-> 
-> Not really. I think the old way of implementation above:
-> "vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE"
-> isn't quite accurate, because "vb->num_page" should reflect the number of
-> pages that have already been inflated, which means those pages have
-> already been given to the host via "tell_host()".
-> 
-> If we update "vb->num_page" earlier before tell_host(), then it will 
-> include the pages
-> that haven't been given to the host, which I think shouldn't be counted 
-> as inflated pages.
-> 
-> On the other hand, OOM will use leak_balloon() to release the pages that 
-> should
-> have already been inflated.
+On Tue, Oct 19, 2017 at 20:41 17PM +0000, Russell King - ARM Linux:
+>On Mon, Oct 16, 2017 at 11:42:05AM +0000, Liuwenliang (Lamb) wrote:
+>> On 10/16/2017 07:03 PM, Abbott Liu wrote:
+> >arch/arm/kernel/entry-armv.S:348: Error: selected processor does not sup=
+port `movw r1,
+>>   #:lower16:((((0xC0000000-0x01000000)>>3)+((0xC0000000-0x01000000)-(1<<=
+29))))' in ARM mode
+>> >arch/arm/kernel/entry-armv.S:348: Error: selected processor does not su=
+pport `movt r1,
+>>   #:upper16:((((0xC0000000-0x01000000)>>3)+((0xC0000000-0x01000000)-(1<<=
+29))))' in ARM mode
+>>=20
+>> Thanks for building test. This error can be solved by following code:
+>> --- a/arch/arm/kernel/entry-armv.S
+>> +++ b/arch/arm/kernel/entry-armv.S
+>> @@ -188,8 +188,7 @@ ENDPROC(__und_invalid)
+>>         get_thread_info tsk
+>>         ldr     r0, [tsk, #TI_ADDR_LIMIT]
+>>  #ifdef CONFIG_KASAN
+>> -   movw r1, #:lower16:TASK_SIZE
+>> -   movt r1, #:upper16:TASK_SIZE
+>> + ldr r1, =3DTASK_SIZE
+>>  #else
+>>         mov r1, #TASK_SIZE
+>>  #endif
+>
+>We can surely do better than this with macros and condition support -
+>we can build-time test in the assembler whether TASK_SIZE can fit in a
+>normal "mov", whether we can use the movw/movt instructions, or fall
+>back to ldr if necessary.  I'd rather we avoided "ldr" here where
+>possible.
 
-But leak_balloon() finds max inflated pages from vb->num_pages, doesn't it?
+Thanks for your review.
+I don't know why we need to avoided "ldr". The "ldr" maybe cause the=20
+performance fall down, but it will be very limited, and as we know the=20
+performance of kasan version is lower than the normal version. And usually
+we don't use kasan version in our product, we only use kasan version when=20
+we want to debug some memory corruption problem in laboratory(not not in
+commercial product) because the performance of kasan version is lower than
+normal version.
 
-> 
-> >>   
-> >>   	/* We can only do one array worth at a time. */
-> >> -	num = min(num, ARRAY_SIZE(vb->pfns));
-> >> +	num = min_t(size_t, num, VIRTIO_BALLOON_ARRAY_PFNS_MAX);
-> >>   
-> >> -	mutex_lock(&vb->balloon_lock);
-> >>   	/* We can't release more pages than taken */
-> >> -	num = min(num, (size_t)vb->num_pages);
-> >> -	for (vb->num_pfns = 0; vb->num_pfns < num;
-> >> -	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
-> >> +	num = min_t(size_t, num, atomic64_read(&vb->num_pages));
-> >> +	for (num_pfns = 0; num_pfns < num;
-> >> +	     num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
-> >>   		page = balloon_page_dequeue(vb_dev_info);
-> > If balloon_page_dequeue() can be concurrently called by both host's request
-> > and guest's OOM event, is (!dequeued_page) test in balloon_page_dequeue() safe?
-> 
-> 
-> I'm not sure about the question. The "dequeue_page" is a local variable
-> in the function, why would it be unsafe for two invocations (the shared
-> b_dev_info->pages are operated under a lock)?
+So I think we can accept the influence of the performance by using "ldr" he=
+re.=20
 
-I'm not MM person nor virtio person. I'm commenting from point of view of
-safe programming. My question is, isn't there possibility of hitting
 
-	if (unlikely(list_empty(&b_dev_info->pages) &&
-		     !b_dev_info->isolated_pages))
-		BUG();
 
-when things run concurrently.
 
-Wei Wang wrote:
-> On 10/22/2017 12:11 PM, Tetsuo Handa wrote:
-> > Michael S. Tsirkin wrote:
-> >>> -	num_freed_pages = leak_balloon(vb, oom_pages);
-> >>> +
-> >>> +	/* Don't deflate more than the number of inflated pages */
-> >>> +	while (npages && atomic64_read(&vb->num_pages))
-> >>> +		npages -= leak_balloon(vb, npages);
-> > don't we need to abort if leak_balloon() returned 0 for some reason?
-> 
-> I don't think so. Returning 0 should be a normal case when the host tries
-> to give back some pages to the guest, but there is no pages that have ever
-> been inflated. For example, right after booting the guest, the host sends a
-> deflating request to give the guest 1G memory, leak_balloon should return 0,
-> and guest wouldn't get 1 more G memory.
-> 
-My question is, isn't there possibility of leak_balloon() returning 0 for
-reasons other than vb->num_pages == 0 ? If yes, this can cause infinite loop
-(i.e. lockups) when things run concurrently.
+On Tue, Oct 19, 2017 at 20:44 17PM +0000, Russell King - ARM Linux:
+>On Tue, Oct 17, 2017 at 11:27:19AM +0000, Liuwenliang (Lamb) wrote:
+>> ---c0a3b198:       b6e00000        .word   0xb6e00000   //TASK_SIZE:0xb6=
+e00000
+>
+>It's probably going to be better all round to round TASK_SIZE down
+>to something that fits in an 8-bit rotated constant anyway (like
+>we already guarantee) which would mean this patch is not necessary.
+
+Thanks for you review.
+If we enable CONFIG_KASAN, we need steal 130MByte(0xb6e00000 ~ 0xbf000000) =
+from user space.
+If we change to steal 130MByte(0xb6000000 ~ 0xbe200000) , the 14MB of user =
+space is going to be=20
+wasted. I think it is better to to use "ldr" whose influence to the system =
+are very limited than to waste=20
+14MB user space by chaned TASK_SIZE from 0xb6e00000 from 0xb6000000.
+
+
+If TASK_SIZE is an 8-bit rotated constant, the compiler can convert "ldr rx=
+,=3DTASK_SIZE" into mov rx, #TASK_SIZE
+If TASK_SIZE is not an 8-bit rotated constant, the compiler can convert "ld=
+r rx,=3DTASK_SIZE" into ldr rx, [pc,xxx],
+So we can use ldr to replace mov. Here is the code which is tested by me:
+
+diff --git a/arch/arm/kernel/entry-armv.S b/arch/arm/kernel/entry-armv.S
+index f9efea3..00a1833 100644
+--- a/arch/arm/kernel/entry-armv.S
++++ b/arch/arm/kernel/entry-armv.S
+@@ -187,12 +187,7 @@ ENDPROC(__und_invalid)
+
+        get_thread_info tsk
+        ldr     r0, [tsk, #TI_ADDR_LIMIT]
+-#ifdef CONFIG_KASAN
+-   movw r1, #:lower16:TASK_SIZE
+-   movt r1, #:upper16:TASK_SIZE
+-#else
+-   mov r1, #TASK_SIZE
+-#endif
++ ldr r1, =3DTASK_SIZE
+        str     r1, [tsk, #TI_ADDR_LIMIT]
+        str     r0, [sp, #SVC_ADDR_LIMIT]
+
+@@ -446,7 +441,8 @@ ENDPROC(__fiq_abt)
+        @ if it was interrupted in a critical region.  Here we
+        @ perform a quick test inline since it should be false
+        @ 99.9999% of the time.  The rest is done out of line.
+-   cmp     r4, #TASK_SIZE
++ ldr r0, =3DTASK_SIZE
++ cmp r4, r0
+        blhs    kuser_cmpxchg64_fixup
+ #endif
+ #endif
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
