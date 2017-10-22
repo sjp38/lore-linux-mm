@@ -1,137 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 219296B0038
-	for <linux-mm@kvack.org>; Sun, 22 Oct 2017 14:06:11 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id 4so4080651wrt.8
-        for <linux-mm@kvack.org>; Sun, 22 Oct 2017 11:06:11 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f19sor1957090wre.78.2017.10.22.11.06.08
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 22 Oct 2017 11:06:08 -0700 (PDT)
-Date: Sun, 22 Oct 2017 20:05:57 +0200
-From: =?UTF-8?B?VG9tw6HFoSBHb2xlbWJpb3Zza8O9?= <tgolembi@redhat.com>
-Subject: Re: [PATCH v2 1/1] virtio_balloon: include buffers and cached
- memory statistics
-Message-ID: <20171022200557.02558e37@fiorina>
-In-Reply-To: <20171019160405-mutt-send-email-mst@kernel.org>
-References: <cover.1505998455.git.tgolembi@redhat.com>
-	<b13f11c03ed394bd8ad367dc90996ed134ea98da.1505998455.git.tgolembi@redhat.com>
-	<20171019160405-mutt-send-email-mst@kernel.org>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CA7F56B0033
+	for <linux-mm@kvack.org>; Sun, 22 Oct 2017 19:53:46 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id v78so14946401pfk.8
+        for <linux-mm@kvack.org>; Sun, 22 Oct 2017 16:53:46 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id d125si4054218pgc.444.2017.10.22.16.53.44
+        for <linux-mm@kvack.org>;
+        Sun, 22 Oct 2017 16:53:45 -0700 (PDT)
+Date: Mon, 23 Oct 2017 08:53:35 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v2 4/4] lockdep: Assign a lock_class per gendisk used for
+ wait_for_completion()
+Message-ID: <20171022235334.GH3310@X58A-UD3R>
+References: <1508392531-11284-1-git-send-email-byungchul.park@lge.com>
+ <1508396607-25362-1-git-send-email-byungchul.park@lge.com>
+ <1508396607-25362-5-git-send-email-byungchul.park@lge.com>
+ <20171020144451.GA16793@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171020144451.GA16793@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, virtio-dev@lists.oasis-open.org, Wei Wang <wei.w.wang@intel.com>, Shaohua Li <shli@fb.com>, Huang Ying <ying.huang@intel.com>, Jason Wang <jasowang@redhat.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: peterz@infradead.org, mingo@kernel.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, idryomov@gmail.com, kernel-team@lge.com
 
-On Thu, 19 Oct 2017 16:12:20 +0300
-"Michael S. Tsirkin" <mst@redhat.com> wrote:
+On Fri, Oct 20, 2017 at 07:44:51AM -0700, Christoph Hellwig wrote:
+> The Subject prefix for this should be "block:".
+> 
+> > @@ -945,7 +945,7 @@ int submit_bio_wait(struct bio *bio)
+> >  {
+> >  	struct submit_bio_ret ret;
+> >  
+> > -	init_completion(&ret.event);
+> > +	init_completion_with_map(&ret.event, &bio->bi_disk->lockdep_map);
+> 
+> FYI, I have an outstanding patch to simplify this a lot, which
+> switches this to DECLARE_COMPLETION_ONSTACK.  I can delay this or let
+> you pick it up with your series, but we'll need a variant of
+> DECLARE_COMPLETION_ONSTACK with the lockdep annotations.
 
-> On Thu, Sep 21, 2017 at 02:55:41PM +0200, Tom=C3=A1=C5=A1 Golembiovsk=C3=
-=BD wrote:
-> > Add a new fields, VIRTIO_BALLOON_S_BUFFERS and VIRTIO_BALLOON_S_CACHED,
-> > to virtio_balloon memory statistics protocol. The values correspond to
-> > 'Buffers' and 'Cached' in /proc/meminfo.
-> >=20
-> > To be able to compute the value of 'Cached' memory it is necessary to
-> > export total_swapcache_pages() to modules.
-> >=20
-> > Signed-off-by: Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com>
->=20
-> Does 'Buffers' actually make sense? It's a temporary storage -
-> wouldn't it be significantly out of date by the time
-> host receives it?
+Hello,
 
-That would be best answered by somebody from kernel. But my personal
-opinion is that it would not be out of date. The amount of memory
-dedicated to Buffers does not seem to fluctuate too much.
+I'm sorry for late.
 
-    Tomas
+I think your patch makes block code simpler and better. I like it.
 
+But, I just wonder if it's related to my series. Is it proper to add
+your patch into my series?
 
-> > ---
-> >  drivers/virtio/virtio_balloon.c     | 11 +++++++++++
-> >  include/uapi/linux/virtio_balloon.h |  4 +++-
-> >  mm/swap_state.c                     |  1 +
-> >  3 files changed, 15 insertions(+), 1 deletion(-)
-> >=20
-> > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_ba=
-lloon.c
-> > index f0b3a0b9d42f..c2558ec47a62 100644
-> > --- a/drivers/virtio/virtio_balloon.c
-> > +++ b/drivers/virtio/virtio_balloon.c
-> > @@ -244,12 +244,19 @@ static unsigned int update_balloon_stats(struct v=
-irtio_balloon *vb)
-> >  	struct sysinfo i;
-> >  	unsigned int idx =3D 0;
-> >  	long available;
-> > +	long cached;
-> > =20
-> >  	all_vm_events(events);
-> >  	si_meminfo(&i);
-> > =20
-> >  	available =3D si_mem_available();
-> > =20
-> > +	cached =3D global_node_page_state(NR_FILE_PAGES) -
-> > +			total_swapcache_pages() - i.bufferram;
-> > +	if (cached < 0)
-> > +		cached =3D 0;
-> > +
-> > +
-> >  #ifdef CONFIG_VM_EVENT_COUNTERS
-> >  	update_stat(vb, idx++, VIRTIO_BALLOON_S_SWAP_IN,
-> >  				pages_to_bytes(events[PSWPIN]));
-> > @@ -264,6 +271,10 @@ static unsigned int update_balloon_stats(struct vi=
-rtio_balloon *vb)
-> >  				pages_to_bytes(i.totalram));
-> >  	update_stat(vb, idx++, VIRTIO_BALLOON_S_AVAIL,
-> >  				pages_to_bytes(available));
-> > +	update_stat(vb, idx++, VIRTIO_BALLOON_S_BUFFERS,
-> > +				pages_to_bytes(i.bufferram));
-> > +	update_stat(vb, idx++, VIRTIO_BALLOON_S_CACHED,
-> > +				pages_to_bytes(cached));
-> > =20
-> >  	return idx;
-> >  }
-> > diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/v=
-irtio_balloon.h
-> > index 343d7ddefe04..d5dc8a56a497 100644
-> > --- a/include/uapi/linux/virtio_balloon.h
-> > +++ b/include/uapi/linux/virtio_balloon.h
-> > @@ -52,7 +52,9 @@ struct virtio_balloon_config {
-> >  #define VIRTIO_BALLOON_S_MEMFREE  4   /* Total amount of free memory */
-> >  #define VIRTIO_BALLOON_S_MEMTOT   5   /* Total amount of memory */
-> >  #define VIRTIO_BALLOON_S_AVAIL    6   /* Available memory as in /proc =
-*/
-> > -#define VIRTIO_BALLOON_S_NR       7
-> > +#define VIRTIO_BALLOON_S_BUFFERS  7   /* Buffers memory as in /proc */
-> > +#define VIRTIO_BALLOON_S_CACHED   8   /* Cached memory as in /proc */
-> > +#define VIRTIO_BALLOON_S_NR       9
-> > =20
-> >  /*
-> >   * Memory statistics structure.
-> > diff --git a/mm/swap_state.c b/mm/swap_state.c
-> > index 71ce2d1ccbf7..f3a4ff7d6c52 100644
-> > --- a/mm/swap_state.c
-> > +++ b/mm/swap_state.c
-> > @@ -95,6 +95,7 @@ unsigned long total_swapcache_pages(void)
-> >  	rcu_read_unlock();
-> >  	return ret;
-> >  }
-> > +EXPORT_SYMBOL_GPL(total_swapcache_pages);
-> > =20
-> >  static atomic_t swapin_readahead_hits =3D ATOMIC_INIT(4);
->=20
-> Need an ack from MM crowd on that.
->=20
-> > --=20
-> > 2.14.1
+Thanks,
+Byungchul
 
-
---=20
-Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com>
+> Patch below for reference:
+> 
+> ---
+> >From d65b89843c9f82c0744643515ba51dd10e66e67b Mon Sep 17 00:00:00 2001
+> From: Christoph Hellwig <hch@lst.de>
+> Date: Thu, 5 Oct 2017 18:31:02 +0200
+> Subject: block: use DECLARE_COMPLETION_ONSTACK in submit_bio_wait
+> 
+> Simplify the code by getting rid of the submit_bio_ret structure.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  block/bio.c | 19 +++++--------------
+>  1 file changed, 5 insertions(+), 14 deletions(-)
+> 
+> diff --git a/block/bio.c b/block/bio.c
+> index 8338304ea256..4e18e959fc0a 100644
+> --- a/block/bio.c
+> +++ b/block/bio.c
+> @@ -917,17 +917,9 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
+>  }
+>  EXPORT_SYMBOL_GPL(bio_iov_iter_get_pages);
+>  
+> -struct submit_bio_ret {
+> -	struct completion event;
+> -	int error;
+> -};
+> -
+>  static void submit_bio_wait_endio(struct bio *bio)
+>  {
+> -	struct submit_bio_ret *ret = bio->bi_private;
+> -
+> -	ret->error = blk_status_to_errno(bio->bi_status);
+> -	complete(&ret->event);
+> +	complete(bio->bi_private);
+>  }
+>  
+>  /**
+> @@ -943,16 +935,15 @@ static void submit_bio_wait_endio(struct bio *bio)
+>   */
+>  int submit_bio_wait(struct bio *bio)
+>  {
+> -	struct submit_bio_ret ret;
+> +	DECLARE_COMPLETION_ONSTACK(done);
+>  
+> -	init_completion(&ret.event);
+> -	bio->bi_private = &ret;
+> +	bio->bi_private = &done;
+>  	bio->bi_end_io = submit_bio_wait_endio;
+>  	bio->bi_opf |= REQ_SYNC;
+>  	submit_bio(bio);
+> -	wait_for_completion_io(&ret.event);
+> +	wait_for_completion_io(&done);
+>  
+> -	return ret.error;
+> +	return blk_status_to_errno(bio->bi_status);
+>  }
+>  EXPORT_SYMBOL(submit_bio_wait);
+>  
+> -- 
+> 2.14.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
