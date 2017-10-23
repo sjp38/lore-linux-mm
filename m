@@ -1,61 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5980E6B0033
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 08:22:03 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id z55so9990226wrz.2
-        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 05:22:03 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j9sor3617148edf.30.2017.10.23.05.22.01
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DE09A6B025E
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 08:22:57 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id n8so853093wmg.4
+        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 05:22:57 -0700 (PDT)
+Received: from mout.gmx.net (mout.gmx.net. [212.227.15.19])
+        by mx.google.com with ESMTPS id m70si3410077wmh.265.2017.10.23.05.22.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 23 Oct 2017 05:22:02 -0700 (PDT)
-Date: Mon, 23 Oct 2017 15:21:59 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 0/6] Boot-time switching between 4- and 5-level paging
- for 4.15, Part 1
-Message-ID: <20171023122159.wyztmsbgt5k2d4tb@node.shutemov.name>
-References: <20170929140821.37654-1-kirill.shutemov@linux.intel.com>
- <20171003082754.no6ym45oirah53zp@node.shutemov.name>
- <20171017154241.f4zaxakfl7fcrdz5@node.shutemov.name>
- <20171020081853.lmnvaiydxhy5c63t@gmail.com>
- <20171020094152.skx5sh5ramq2a3vu@black.fi.intel.com>
- <20171020152346.f6tjybt7i5kzbhld@gmail.com>
- <20171020162349.3kwhdgv7qo45w4lh@node.shutemov.name>
- <20171023115658.geccs22o2t733np3@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Oct 2017 05:22:56 -0700 (PDT)
+Subject: Re: PROBLEM: Remapping hugepages mappings causes kernel to return
+ EINVAL
+References: <93684e4b-9e60-ef3a-ba62-5719fdf7cff9@gmx.de>
+ <6b639da5-ad9a-158c-ad4a-7a4e44bd98fc@gmx.de>
+ <5fb8955d-23af-ec85-a19f-3a5b26cc04d1@oracle.com>
+ <20171023114210.j7ip75ewoy2tiqs4@dhcp22.suse.cz>
+From: "C.Wehrmeyer" <c.wehrmeyer@gmx.de>
+Message-ID: <e2cc07b7-3c5e-a166-0bb2-eff92fc70cd1@gmx.de>
+Date: Mon, 23 Oct 2017 14:22:30 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171023115658.geccs22o2t733np3@gmail.com>
+In-Reply-To: <20171023114210.j7ip75ewoy2tiqs4@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Mon, Oct 23, 2017 at 01:56:58PM +0200, Ingo Molnar wrote:
-> 
-> * Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> 
-> > > Or, could we keep MAX_PHYSMEM_BITS constant, and introduce a _different_ constant 
-> > > that is dynamic, and which could be used in the cases where the 5-level paging 
-> > > config causes too much memory footprint in the common 4-level paging case?
-> > 
-> > This is more labor intensive case with unclear benefit.
-> > 
-> > Dynamic MAX_PHYSMEM_BITS doesn't cause any issue in wast majority of
-> > cases.
-> 
-> Almost nothing uses it - and even in those few cases it caused problems.
+On 2017-10-23 13:42, Michal Hocko wrote:
+> I do not remember any such a request either. I can see some merit in the
+> described use case. It is not specific on why hugetlb pages are used for
+> the allocator memory because that comes with it own issues.
 
-It's used in many places indirectly. See MAXMEM.
+That is yet for the user to specify. As of now hugepages still require a 
+special setup that not all people might have as of now - to my knowledge 
+a kernel being compiled with CONFIG_TRANSPARENT_HUGEPAGE=y and a number 
+of such pages being allocated either through the kernel boot line or 
+through /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages. I'm 
+deliberately ignoring 1-GiB pages here because those are only 
+allocatable during boot, when no processes have been spawned and memory 
+is still not fragmented.
 
-> Making a variable that 'looks' like a constant macro dynamic in a rare Kconfig 
-> scenario is asking for trouble.
+My point is that I can see people not being too eager to support 1 GiB 
+pages as of now unless for very specific use case. 2-MiB pages, on the 
+other hand, shouldn't have those limitations anymore. User-space 
+programs should be capable of allocating such pages without the need for 
+the user to fiddle with nr_hugepages beforehand.
 
-We expect boot-time page mode switching to be enabled in kernel of next
-generation enterprise distros. It shoudn't be that rare.
+Some time ago I've written some code to detect TLB capabilities on my 
+current testing CPU, those are the results:
 
--- 
- Kirill A. Shutemov
+[TLB] Instruction TLB: 2M/4M pages, fully associative, 8 entries
+[TLB] Data TLB: 4 KByte pages, 4-way set associative, 64 entries
+[TLB] Data TLB: 2 MByte or 4 MByte pages, 4-way set associative, 32 
+entries and a separate array with 1 GByte pages, 4-way set associative, 
+4 entries
+[TLB] Instruction TLB: 4KByte pages, 8-way set associative, 64 entries
+[STLB] Shared 2nd-Level TLB: 4 KByte/2MByte pages, 8-way associative, 
+1024 entries
+
+With the knowledge that allocations in the Mebibyte range aren't 
+uncommon at all nowadays and that one 2-MiB page eliminates the need for 
+512 4-KiB pages, we really should make advances towards treating 2-MiB 
+pages just as casual as older pages. Allocators can still query if the 
+kernel supports the specified page size, and specifying MAP_HUGETLB | 
+MAP_HUGE_2MB would still be required in order to not break older 
+programs, but from my perspective there is a lot to gain here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
