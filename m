@@ -1,119 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CA7F56B0033
-	for <linux-mm@kvack.org>; Sun, 22 Oct 2017 19:53:46 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id v78so14946401pfk.8
-        for <linux-mm@kvack.org>; Sun, 22 Oct 2017 16:53:46 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id d125si4054218pgc.444.2017.10.22.16.53.44
-        for <linux-mm@kvack.org>;
-        Sun, 22 Oct 2017 16:53:45 -0700 (PDT)
-Date: Mon, 23 Oct 2017 08:53:35 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v2 4/4] lockdep: Assign a lock_class per gendisk used for
- wait_for_completion()
-Message-ID: <20171022235334.GH3310@X58A-UD3R>
-References: <1508392531-11284-1-git-send-email-byungchul.park@lge.com>
- <1508396607-25362-1-git-send-email-byungchul.park@lge.com>
- <1508396607-25362-5-git-send-email-byungchul.park@lge.com>
- <20171020144451.GA16793@infradead.org>
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F3436B0033
+	for <linux-mm@kvack.org>; Sun, 22 Oct 2017 20:24:55 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id e195so15971489itc.20
+        for <linux-mm@kvack.org>; Sun, 22 Oct 2017 17:24:55 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s20sor3247444ioa.274.2017.10.22.17.24.54
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Sun, 22 Oct 2017 17:24:54 -0700 (PDT)
+Date: Sun, 22 Oct 2017 17:24:51 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RESEND v12 0/6] cgroup-aware OOM killer
+In-Reply-To: <20171019194534.GA5502@cmpxchg.org>
+Message-ID: <alpine.DEB.2.10.1710221715010.70210@chino.kir.corp.google.com>
+References: <20171019185218.12663-1-guro@fb.com> <20171019194534.GA5502@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171020144451.GA16793@infradead.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: peterz@infradead.org, mingo@kernel.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, idryomov@gmail.com, kernel-team@lge.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>
 
-On Fri, Oct 20, 2017 at 07:44:51AM -0700, Christoph Hellwig wrote:
-> The Subject prefix for this should be "block:".
+On Thu, 19 Oct 2017, Johannes Weiner wrote:
+
+> David would have really liked for this patchset to include knobs to
+> influence how the algorithm picks cgroup victims. The rest of us
+> agreed that this is beyond the scope of these patches, that the
+> patches don't need it to be useful, and that there is nothing
+> preventing anyone from adding configurability later on. David
+> subsequently nacked the series as he considers it incomplete. Neither
+> Michal nor I see technical merit in David's nack.
 > 
-> > @@ -945,7 +945,7 @@ int submit_bio_wait(struct bio *bio)
-> >  {
-> >  	struct submit_bio_ret ret;
-> >  
-> > -	init_completion(&ret.event);
-> > +	init_completion_with_map(&ret.event, &bio->bi_disk->lockdep_map);
+
+The nack is for three reasons:
+
+ (1) unfair comparison of root mem cgroup usage to bias against that mem 
+     cgroup from oom kill in system oom conditions,
+
+ (2) the ability of users to completely evade the oom killer by attaching
+     all processes to child cgroups either purposefully or unpurposefully,
+     and
+
+ (3) the inability of userspace to effectively control oom victim  
+     selection.
+
+For (1), the difference in v12 is adding the rss of all processes attached 
+to the root mem cgroup as the evaluation.  This is not the same criteria 
+that child cgroups are evaluated on, and they are compared using that 
+bias.  It is very trivial to provide a fair comparison as was suggested in 
+v11.
+
+For (2), users who do
+
+	for i in $(cat cgroup.procs); do mkdir $i; echo $i > $i/cgroup.procs; done
+
+can completely evade the oom killer and this may be part of their standard 
+operating procedure for restricting resources with other cgroups other 
+than the mem cgroup.  Again, it's an unfair comparison to all other 
+cgroups on the system.
+
+For (3), users need the ability to protect important cgroups, such as 
+protecting a cgroup that is limited to 50% of system memory.  They need 
+the ability to kill processes from other cgroups to protect these 
+important processes.  This is nothing new: the oom killer has always 
+provided the ability to bias against important processes.
+
+There was follow-up email on all of these points where very trivial 
+changes were suggested to address all three of these issues, and which 
+Roman has implemented in one form or another in previous iterations with 
+the bonus that no accounting to the root mem cgroup needs to be done.
+
+> Michal acked the implementation, but on the condition that the new
+> behavior be opt-in, to not surprise existing users. I *think* we agree
+> that respecting the cgroup topography during global OOM is what we
+> should have been doing when cgroups were initially introduced; where
+> we disagree is that I think users shouldn't have to opt in to
+> improvements. We have done much more invasive changes to the victim
+> selection without actual regressions in the past. Further, this change
+> only applies to mounts of the new cgroup2. Tejun also wasn't convinced
+> of the risk for regression, and too would prefer cgroup-awareness to
+> be the default in cgroup2. I would ask for patch 5/6 to be dropped.
 > 
-> FYI, I have an outstanding patch to simplify this a lot, which
-> switches this to DECLARE_COMPLETION_ONSTACK.  I can delay this or let
-> you pick it up with your series, but we'll need a variant of
-> DECLARE_COMPLETION_ONSTACK with the lockdep annotations.
 
-Hello,
-
-I'm sorry for late.
-
-I think your patch makes block code simpler and better. I like it.
-
-But, I just wonder if it's related to my series. Is it proper to add
-your patch into my series?
-
-Thanks,
-Byungchul
-
-> Patch below for reference:
-> 
-> ---
-> >From d65b89843c9f82c0744643515ba51dd10e66e67b Mon Sep 17 00:00:00 2001
-> From: Christoph Hellwig <hch@lst.de>
-> Date: Thu, 5 Oct 2017 18:31:02 +0200
-> Subject: block: use DECLARE_COMPLETION_ONSTACK in submit_bio_wait
-> 
-> Simplify the code by getting rid of the submit_bio_ret structure.
-> 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->  block/bio.c | 19 +++++--------------
->  1 file changed, 5 insertions(+), 14 deletions(-)
-> 
-> diff --git a/block/bio.c b/block/bio.c
-> index 8338304ea256..4e18e959fc0a 100644
-> --- a/block/bio.c
-> +++ b/block/bio.c
-> @@ -917,17 +917,9 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
->  }
->  EXPORT_SYMBOL_GPL(bio_iov_iter_get_pages);
->  
-> -struct submit_bio_ret {
-> -	struct completion event;
-> -	int error;
-> -};
-> -
->  static void submit_bio_wait_endio(struct bio *bio)
->  {
-> -	struct submit_bio_ret *ret = bio->bi_private;
-> -
-> -	ret->error = blk_status_to_errno(bio->bi_status);
-> -	complete(&ret->event);
-> +	complete(bio->bi_private);
->  }
->  
->  /**
-> @@ -943,16 +935,15 @@ static void submit_bio_wait_endio(struct bio *bio)
->   */
->  int submit_bio_wait(struct bio *bio)
->  {
-> -	struct submit_bio_ret ret;
-> +	DECLARE_COMPLETION_ONSTACK(done);
->  
-> -	init_completion(&ret.event);
-> -	bio->bi_private = &ret;
-> +	bio->bi_private = &done;
->  	bio->bi_end_io = submit_bio_wait_endio;
->  	bio->bi_opf |= REQ_SYNC;
->  	submit_bio(bio);
-> -	wait_for_completion_io(&ret.event);
-> +	wait_for_completion_io(&done);
->  
-> -	return ret.error;
-> +	return blk_status_to_errno(bio->bi_status);
->  }
->  EXPORT_SYMBOL(submit_bio_wait);
->  
-> -- 
-> 2.14.2
+I agree with Michal that the new victim selection should be opt-in with 
+CGRP_GROUP_OOM.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
