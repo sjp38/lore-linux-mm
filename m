@@ -1,115 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 64CF16B0033
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 06:44:40 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id m6so14767714qtc.6
-        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 03:44:40 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id g48si2459599qtk.317.2017.10.23.03.44.38
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B7076B0069
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 06:45:54 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id z80so16036166pff.11
+        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 03:45:54 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id a1si3905585plt.229.2017.10.23.03.45.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Oct 2017 03:44:39 -0700 (PDT)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9NAiORg048046
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 06:44:38 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2dse3tt919-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 06:44:37 -0400
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Mon, 23 Oct 2017 11:44:34 +0100
-Date: Mon, 23 Oct 2017 12:44:27 +0200
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH v3 02/13] dax: require 'struct page' for filesystem dax
-In-Reply-To: <CAPcyv4hqiV6oHMgFik3MBTw5SJ6hcq4RzngPn2Xtp9kAv1E+Ow@mail.gmail.com>
-References: <150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<150846714747.24336.14704246566580871364.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<20171020075735.GA14378@lst.de>
-	<CAPcyv4hA1nrhDf=DA6_j7s7ezGOBhvEVZ8cu81DNui_p3bhhaA@mail.gmail.com>
-	<20171020162933.GA26320@lst.de>
-	<20171023071835.67ee5210@mschwideX1>
-	<CAPcyv4hqiV6oHMgFik3MBTw5SJ6hcq4RzngPn2Xtp9kAv1E+Ow@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+        Mon, 23 Oct 2017 03:45:42 -0700 (PDT)
+From: "Reshetova, Elena" <elena.reshetova@intel.com>
+Subject: RE: [PATCH 01/15] sched: convert sighand_struct.count to refcount_t
+Date: Mon, 23 Oct 2017 10:45:35 +0000
+Message-ID: <2236FBA76BA1254E88B949DDB74E612B802B439C@IRSMSX102.ger.corp.intel.com>
+References: <1508501757-15784-1-git-send-email-elena.reshetova@intel.com>
+ <1508501757-15784-2-git-send-email-elena.reshetova@intel.com>
+ <alpine.DEB.2.20.1710201430420.4531@nanos>
+ <2236FBA76BA1254E88B949DDB74E612B802B4359@IRSMSX102.ger.corp.intel.com>
+ <alpine.DEB.2.20.1710231223450.4241@nanos>
+In-Reply-To: <alpine.DEB.2.20.1710231223450.4241@nanos>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
-Message-Id: <20171023124427.10d15ee3@mschwideX1>
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: "mingo@redhat.com" <mingo@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "tj@kernel.org" <tj@kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "lizefan@huawei.com" <lizefan@huawei.com>, "acme@kernel.org" <acme@kernel.org>, "alexander.shishkin@linux.intel.com" <alexander.shishkin@linux.intel.com>, "eparis@redhat.com" <eparis@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "arnd@arndb.de" <arnd@arndb.de>, "luto@kernel.org" <luto@kernel.org>, "keescook@chromium.org" <keescook@chromium.org>, "dvhart@infradead.org" <dvhart@infradead.org>, "ebiederm@xmission.com" <ebiederm@xmission.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "axboe@kernel.dk" <axboe@kernel.dk>
 
-On Mon, 23 Oct 2017 01:55:20 -0700
-Dan Williams <dan.j.williams@intel.com> wrote:
-
-> On Sun, Oct 22, 2017 at 10:18 PM, Martin Schwidefsky
-> <schwidefsky@de.ibm.com> wrote:
-> > On Fri, 20 Oct 2017 18:29:33 +0200
-> > Christoph Hellwig <hch@lst.de> wrote:
-> > =20
-> >> On Fri, Oct 20, 2017 at 08:23:02AM -0700, Dan Williams wrote: =20
-> >> > Yes, however it seems these drivers / platforms have been living with
-> >> > the lack of struct page for a long time. So they either don't use DA=
-X,
-> >> > or they have a constrained use case that never triggers
-> >> > get_user_pages(). If it is the latter then they could introduce a new
-> >> > configuration option that bypasses the pfn_t_devmap() check in
-> >> > bdev_dax_supported() and fix up the get_user_pages() paths to fail.
-> >> > So, I'd like to understand how these drivers have been using DAX
-> >> > support without struct page to see if we need a workaround or we can
-> >> > go ahead delete this support. If the usage is limited to
-> >> > execute-in-place perhaps we can do a constrained ->direct_access() f=
-or
-> >> > just that case. =20
-> >>
-> >> For axonram I doubt anyone is using it any more - it was a very for
-> >> the IBM Cell blades, which were produce=D1=95 in a rather limited numb=
-er.
-> >> And Cell basically seems to be dead as far as I can tell.
-> >>
-> >> For S/390 Martin might be able to help out what the status of xpram
-> >> in general and DAX support in particular is. =20
+> On Mon, 23 Oct 2017, Reshetova, Elena wrote:
+> > > On Fri, 20 Oct 2017, Elena Reshetova wrote:
+> > > How did you make sure that these atomic operations have no other
+> > > serialization effect and can be replaced with refcount?
 > >
-> > The goes back to the time where DAX was called XIP. The initial design
-> > point has been *not* to have struct pages for a large read-only memory
-> > area. There is a block device driver for z/VM that maps a DCSS segment
-> > somewhere in memore (no struct page!) with e.g. the complete /usr
-> > filesystem. The xpram driver is a different beast and has nothing to
-> > do with XIP/DAX.
-> >
-> > Now, if any there are very few users of the dcssblk driver out there.
-> > The idea to save a few megabyte for /usr never really took of.
-> >
-> > We have to look at our get_user_pages() implementation to see how hard
-> > it would be to make it fail if the target address is for an area without
-> > struct pages. =20
+> > What serialization effects? Are you taking about smth else than memory
+> > ordering?
 >=20
-> For read-only memory I think we can enable a subset of DAX, and
-> explicitly turn off the paths that require get_user_pages(). However,
-> I wonder if anyone has tested DAX with dcssblk because fork() requires
-> get_user_pages()?
+> Well, the memory ordering constraints can be part of serialization
+> mechanisms. Unfortunately they are not well documented ....
+
+Would you be able to point to any documentation or examples of this?
+I would be happy to understand more, it is really not smth very straightfor=
+ward.
+
+The reason I also don't want to confuse people even more with this ordering=
+ issue
+is that it can be different if you use arch. specific implementation vs. ar=
+ch. independent.
+So, it is not as simple as to say "refcount_t would always result in weak m=
+emory ordering",
+it really depends what REFCOUNT config option is "on", what arch. you are r=
+unning on etc.
+Nothing to add is that by default refount_t =3D atomic_t unless you start e=
+nabling
+the related configs...
 =20
-I did not test it recently, someone else might have. Gerald?
+>=20
+> > For memory ordering my current hope is that we can just make refcount_t
+> > to use same strict atomic primitives and then it would not make any
+> > difference.  I think this would be the simplest way for everyone since =
+I
+> > think even some maintainers are having issues understanding all the
+> > implications of "relaxed" ordering.
+>=20
+> Well, that would make indeed the conversion simpler because then it is ju=
+st
+> a drop in replacement. Albeit there might be some places which benefit of
+> the relaxed ordering as on some architectures strict ordering is expensiv=
+e.
 
-Looking at the code I see this in the s390 version of gup_pte_range:
+Well refcount_t was not meant to provide any other benefits from atomic_t a=
+part from
+better security guarantees and potentially better written code (less possib=
+ilities to do smth
+stupid with a smaller API). If someone really have an issue with speed, the=
+y should be enabling
+arch. specific refcount_t implementation for their arch. anyway and then it=
+ is hopefully does
+it the best possible/faster way.=20
 
-        mask =3D (write ? _PAGE_PROTECT : 0) | _PAGE_INVALID | _PAGE_SPECIA=
-L;
-	...
-                if ((pte_val(pte) & mask) !=3D 0)
-                        return 0;
-	...
+Best Regards,
+Elena.
 
-The XIP code used the pte_mkspecial mechanics to make it work. As far as
-I can see the pfn_t_devmap returns true for the DAX mappins, yes?
-Then I would say that dcssblk and DAX currently do not work together.
-
---=20
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
+>=20
+> Thanks,
+>=20
+> 	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
