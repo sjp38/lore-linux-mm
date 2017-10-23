@@ -1,159 +1,192 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C5A2B6B0033
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 03:34:54 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id j126so17660247oib.9
-        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 00:34:54 -0700 (PDT)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id e8si1947983oib.8.2017.10.23.00.34.52
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 444DA6B0033
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 04:10:17 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id r6so15817439pfj.14
+        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 01:10:17 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m6si4969554pff.595.2017.10.23.01.10.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Oct 2017 00:34:53 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 1/1] mm:hugetlbfs: Fix hwpoison reserve accounting
-Date: Mon, 23 Oct 2017 07:32:59 +0000
-Message-ID: <20171023073258.GA5115@hori1.linux.bs1.fc.nec.co.jp>
-References: <20171019230007.17043-1-mike.kravetz@oracle.com>
- <20171019230007.17043-2-mike.kravetz@oracle.com>
- <20171020023019.GA9318@hori1.linux.bs1.fc.nec.co.jp>
- <5016e528-8ea9-7597-3420-086ae57f3d9d@oracle.com>
-In-Reply-To: <5016e528-8ea9-7597-3420-086ae57f3d9d@oracle.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <9757830B7DCA5644B8C854230E3B38EC@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 23 Oct 2017 01:10:15 -0700 (PDT)
+Date: Mon, 23 Oct 2017 10:10:09 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm: drop migrate type checks from has_unmovable_pages
+Message-ID: <20171023081009.7fyz3gfrmurvj635@dhcp22.suse.cz>
+References: <20171019025111.GA3852@js1304-P5Q-DELUXE>
+ <20171019071503.e7w5fo35lsq6ca54@dhcp22.suse.cz>
+ <20171019073355.GA4486@js1304-P5Q-DELUXE>
+ <20171019082041.5zudpqacaxjhe4gw@dhcp22.suse.cz>
+ <20171019122118.y6cndierwl2vnguj@dhcp22.suse.cz>
+ <20171020021329.GB10438@js1304-P5Q-DELUXE>
+ <20171020055922.x2mj6j66obmp52da@dhcp22.suse.cz>
+ <20171020065014.GA11145@js1304-P5Q-DELUXE>
+ <20171020070220.t4o573zymgto5kmi@dhcp22.suse.cz>
+ <20171023052309.GB23082@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171023052309.GB23082@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: linux-mm@kvack.org, Michael Ellerman <mpe@ellerman.id.au>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Oct 20, 2017 at 10:49:46AM -0700, Mike Kravetz wrote:
-> On 10/19/2017 07:30 PM, Naoya Horiguchi wrote:
-> > On Thu, Oct 19, 2017 at 04:00:07PM -0700, Mike Kravetz wrote:
-> >
-> > Thank you for addressing this. The patch itself looks good to me, but
-> > the reported issue (negative reserve count) doesn't reproduce in my tri=
-al
-> > with v4.14-rc5, so could you share the exact procedure for this issue?
->
-> Sure, but first one question on your test scenario below.
->
-> >
-> > When error handler runs over a huge page, the reserve count is incremen=
-ted
-> > so I'm not sure why the reserve count goes negative.
->
-> I'm not sure I follow.  What specific code is incrementing the reserve
-> count?
+On Mon 23-10-17 14:23:09, Joonsoo Kim wrote:
+> On Fri, Oct 20, 2017 at 09:02:20AM +0200, Michal Hocko wrote:
+> > On Fri 20-10-17 15:50:14, Joonsoo Kim wrote:
+> > > On Fri, Oct 20, 2017 at 07:59:22AM +0200, Michal Hocko wrote:
+> > > > On Fri 20-10-17 11:13:29, Joonsoo Kim wrote:
+> > > > > On Thu, Oct 19, 2017 at 02:21:18PM +0200, Michal Hocko wrote:
+> > > > > > On Thu 19-10-17 10:20:41, Michal Hocko wrote:
+> > > > > > > On Thu 19-10-17 16:33:56, Joonsoo Kim wrote:
+> > > > > > > > On Thu, Oct 19, 2017 at 09:15:03AM +0200, Michal Hocko wrote:
+> > > > > > > > > On Thu 19-10-17 11:51:11, Joonsoo Kim wrote:
+> > > > > > > [...]
+> > > > > > > > > > Hello,
+> > > > > > > > > > 
+> > > > > > > > > > This patch will break the CMA user. As you mentioned, CMA allocation
+> > > > > > > > > > itself isn't migrateable. So, after a single page is allocated through
+> > > > > > > > > > CMA allocation, has_unmovable_pages() will return true for this
+> > > > > > > > > > pageblock. Then, futher CMA allocation request to this pageblock will
+> > > > > > > > > > fail because it requires isolating the pageblock.
+> > > > > > > > > 
+> > > > > > > > > Hmm, does this mean that the CMA allocation path depends on
+> > > > > > > > > has_unmovable_pages to return false here even though the memory is not
+> > > > > > > > > movable? This sounds really strange to me and kind of abuse of this
+> > > > > > > > 
+> > > > > > > > Your understanding is correct. Perhaps, abuse or wrong function name.
+> > > > > > > >
+> > > > > > > > > function. Which path is that? Can we do the migrate type test theres?
+> > > > > > > > 
+> > > > > > > > alloc_contig_range() -> start_isolate_page_range() ->
+> > > > > > > > set_migratetype_isolate() -> has_unmovable_pages()
+> > > > > > > 
+> > > > > > > I see. It seems that the CMA and memory hotplug have a very different
+> > > > > > > view on what should happen during isolation.
+> > > > > > >  
+> > > > > > > > We can add one argument, 'XXX' to set_migratetype_isolate() and change
+> > > > > > > > it to check migrate type rather than has_unmovable_pages() if 'XXX' is
+> > > > > > > > specified.
+> > > > > > > 
+> > > > > > > Can we use the migratetype argument and do the special thing for
+> > > > > > > MIGRATE_CMA? Like the following diff?
+> > > > > > 
+> > > > > > And with the full changelog.
+> > > > > > ---
+> > > > > > >From 8cbd811d741f5dd93d1b21bb3ef94482a4d0bd32 Mon Sep 17 00:00:00 2001
+> > > > > > From: Michal Hocko <mhocko@suse.com>
+> > > > > > Date: Thu, 19 Oct 2017 14:14:02 +0200
+> > > > > > Subject: [PATCH] mm: distinguish CMA and MOVABLE isolation in
+> > > > > >  has_unmovable_pages
+> > > > > > 
+> > > > > > Joonsoo has noticed that "mm: drop migrate type checks from
+> > > > > > has_unmovable_pages" would break CMA allocator because it relies on
+> > > > > > has_unmovable_pages returning false even for CMA pageblocks which in
+> > > > > > fact don't have to be movable:
+> > > > > > alloc_contig_range
+> > > > > >   start_isolate_page_range
+> > > > > >     set_migratetype_isolate
+> > > > > >       has_unmovable_pages
+> > > > > > 
+> > > > > > This is a result of the code sharing between CMA and memory hotplug
+> > > > > > while each one has a different idea of what has_unmovable_pages should
+> > > > > > return. This is unfortunate but fixing it properly would require a lot
+> > > > > > of code duplication.
+> > > > > > 
+> > > > > > Fix the issue by introducing the requested migrate type argument
+> > > > > > and special case MIGRATE_CMA case where CMA page blocks are handled
+> > > > > > properly. This will work for memory hotplug because it requires
+> > > > > > MIGRATE_MOVABLE.
+> > > > > 
+> > > > > Unfortunately, alloc_contig_range() can be called with
+> > > > > MIGRATE_MOVABLE so this patch cannot perfectly fix the problem.
+> > > > 
+> > > > Yes, alloc_contig_range can be called with MIGRATE_MOVABLE but my
+> > > > understanding is that only CMA allocator really depends on this weird
+> > > > semantic and that does MIGRATE_CMA unconditionally.
+> > > 
+> > > alloc_contig_range() could be called for partial pages in the
+> > > pageblock. With your patch, this case also fails unnecessarilly if the
+> > > other pages in the pageblock is pinned.
+> > 
+> > Is this really the case for GB pages? Do we really want to mess those
+> 
+> No, but, as I mentioned already, this API can be called with less
+> pages. I know that there is no user with less pages at this moment but
+> I cannot see any point to reduce this API's capability.
 
-The call path is like below:
+I am still confused. So when exactly would you want to use this api for
+MIGRATE_MOVABLE and use a partial MIGRATE_CMA pageblock?
 
-  hugetlbfs_error_remove_page
-    hugetlb_fix_reserve_counts
-      hugepage_subpool_get_pages(spool, 1)
-        hugetlb_acct_memory(h, 1);
-          gather_surplus_pages
-            h->resv_huge_pages +=3D delta;
+> > with CMA blocks and make those blocks basically unusable because GB
+> > pages are rarely (if at all migrateable)?
+> > 
+> > > Until now, there is no user calling alloc_contig_range() with partial
+> > > pages except CMA allocator but API could support it.
+> > 
+> > I disagree. If this is a CMA thing it should stay that way. The semantic
+> > is quite confusing already, please let's not make it even worse.
+> 
+> It is already used by other component.
+> 
+> I'm not sure what is the confusing semantic you mentioned. I think
+> that set_migratetype_isolate() has confusing semantic and should be
+> fixed since making the pageblock isolated doesn't need to check if
+> there is unmovable page or not. Do you think that
+> set_migratetype_isolate() need to check it? If so, why?
 
->
-> >                                                      My operation is li=
-ke below:
-> >
-> >   $ sysctl vm.nr_hugepages=3D10
-> >   $ grep HugePages_ /proc/meminfo
-> >   HugePages_Total:      10
-> >   HugePages_Free:       10
-> >   HugePages_Rsvd:        0
-> >   HugePages_Surp:        0
-> >   $ ./test_alloc_generic -B hugetlb_file -N1 -L "mmap access memory_err=
-or_injection:error_type=3Dmadv_hard"  // allocate a 2MB file on hugetlbfs, =
-then madvise(MADV_HWPOISON) on it.
-> >   $ grep HugePages_ /proc/meminfo
-> >   HugePages_Total:      10
-> >   HugePages_Free:        9
-> >   HugePages_Rsvd:        1  // reserve count is incremented
-> >   HugePages_Surp:        0
->
-> This is confusing to me.  I can not create a test where there is a reserv=
-e
-> count after poisoning page.
->
-> I tried to recreate your test.  Running unmodified 4.14.0-rc5.
->
-> Before test
-> -----------
-> HugePages_Total:       1
-> HugePages_Free:        1
-> HugePages_Rsvd:        0
-> HugePages_Surp:        0
-> Hugepagesize:       2048 kB
->
-> After open(creat) and mmap of 2MB hugetlbfs file
-> ------------------------------------------------
-> HugePages_Total:       1
-> HugePages_Free:        1
-> HugePages_Rsvd:        1
-> HugePages_Surp:        0
-> Hugepagesize:       2048 kB
->
-> Reserve count is 1 as expected/normal
->
-> After madvise(MADV_HWPOISON) of the single huge page in mapping/file
-> --------------------------------------------------------------------
-> HugePages_Total:       1
-> HugePages_Free:        0
-> HugePages_Rsvd:        0
-> HugePages_Surp:        0
-> Hugepagesize:       2048 kB
->
-> In this case, the reserve (and free) count were decremented.  Note that
-> before the poison operation the page was not associated with the mapping/
-> file.  I did not look closely at the code, but assume the madvise may
-> cause the page to be 'faulted in'.
->
-> The counts remain the same when the program exits
-> -------------------------------------------------
-> HugePages_Total:       1
-> HugePages_Free:        0
-> HugePages_Rsvd:        0
-> HugePages_Surp:        0
-> Hugepagesize:       2048 kB
->
-> Remove the file (rm /var/opt/oracle/hugepool/foo)
-> -------------------------------------------------
-> HugePages_Total:       1
-> HugePages_Free:        0
-> HugePages_Rsvd:    18446744073709551615
-> HugePages_Surp:        0
-> Hugepagesize:       2048 kB
->
-> I am still confused about how your test maintains a reserve count after
-> poisoning.  It may be a good idea for you to test my patch with your
-> test scenario as I can not recreate here.
+My intuitive understanding of set_migratetype_isolate is that it either
+suceeds and that means that the given pfn range can be isolated for the
+given type of allocation (be it movable or cma). No new pages will be
+allocated from this range to allow converging into a free range in a
+finit amount of time. At least this is how the hotplug code would like
+to use it and I suppose that the alloc_contig_range would like to
+guarantee the same to not rely on a fixed amount of migration attempts.
 
-Interestingly, I found that this reproduces if all hugetlb pages are
-reserved when poisoning.
-Your testing meets the condition, and mine doesn't.
+> > > > > I did a more thinking and found that it's strange to check if there is
+> > > > > unmovable page in the pageblock during the set_migratetype_isolate().
+> > > > > set_migratetype_isolate() should be just for setting the migratetype
+> > > > > of the pageblock. Checking other things should be done by another
+> > > > > place, for example, before calling the start_isolate_page_range() in
+> > > > > __offline_pages().
+> > > > 
+> > > > How do we guarantee the atomicity?
+> > > 
+> > > What atomicity do you mean?
+> > 
+> > Currently we are checking and isolating pages under zone lock. If we
+> > split that we are losing atomicity, aren't we.
+> 
+> I think that it can be done easily.
+> 
+> set_migratetype_isolate() {
+>         lock
+>         __set_migratetype_isolate();
+>         unlock
+> }
+> 
+> set_migratetype_isolate_if_no_unmovable_pages() {
+>         lock
+>         if (has_unmovable_pages())
+>                 fail
+>         else
+>                 __set_migratetype_isolate()
+>         unlock
+> }
 
-In gather_surplus_pages() we determine whether we extend hugetlb pool
-with surplus pages like below:
+So you are essentially suggesting to split the API for
+alloc_contig_range and hotplug users? Care to send a patch? It is not
+like I would really love this but I would really like to have this issue
+addressed because I really do want all other patches which depend on
+this to be merged in the next release cycle.
 
-    needed =3D (h->resv_huge_pages + delta) - h->free_huge_pages;
-    if (needed <=3D 0) {
-            h->resv_huge_pages +=3D delta;
-            return 0;
-    }
-    ...
-
-needed is 1 if h->resv_huge_pages =3D=3D h->free_huge_pages, and then
-the reserve count gets inconsistent.
-I confirmed that your patch fixes the issue, so I'm OK with it.
-
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
-Thanks,
-Naoya Horiguchi=
+That being said, I would much rather see MIGRATE_CMA case special cased
+than duplicate the already confusing API but I will not insist of
+course.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
