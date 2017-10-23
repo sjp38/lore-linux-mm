@@ -1,98 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D316D6B0033
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 17:27:43 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 78so3136266wmb.15
-        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 14:27:43 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id 46si3494078wrw.433.2017.10.23.14.27.42
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F0C96B0033
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 17:52:07 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 76so17078695pfr.3
+        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 14:52:07 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id x1si3187014plb.289.2017.10.23.14.52.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Oct 2017 14:27:42 -0700 (PDT)
-Date: Mon, 23 Oct 2017 23:27:41 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: 4.14-rc2 on thinkpad x220: out of memory when inserting mmc card
-Message-ID: <20171023212741.GA12782@amd>
-References: <20171001093704.GA12626@amd>
- <20171001102647.GA23908@amd>
- <201710011957.ICF15708.OOLOHFSQMFFVJt@I-love.SAKURA.ne.jp>
- <72c93a69-610f-027e-c028-379b97b6f388@intel.com>
- <20171002084131.GA24414@amd>
- <CACRpkdbatrt0Uxf8653iiV-OKkgcc0Ziog_L4oDVTJVNqtNN0Q@mail.gmail.com>
- <20171002130353.GA25433@amd>
- <184b3552-851c-7015-dd80-76f6eebc33cc@intel.com>
- <20171023093109.GI32228@amd>
- <CACRpkdaa6qq91+dQ43EZDvDefbM3tjwLX5e+nNZouwXM0xJ=4w@mail.gmail.com>
+        Mon, 23 Oct 2017 14:52:06 -0700 (PDT)
+Subject: Re: [PATCH] mm: fix movable_node kernel command-line
+References: <20171023160314.GA11853@linux.intel.com>
+ <20171023161554.zltjcls34kr4234m@dhcp22.suse.cz>
+ <20171023171435.GA12025@linux.intel.com>
+ <20171023172008.kr6dzpe63nfpgps7@dhcp22.suse.cz>
+ <20171023173544.GA12198@linux.intel.com>
+ <20171023174905.ap4uz6puggeqnz3s@dhcp22.suse.cz>
+ <20171023184852.GB12198@linux.intel.com>
+ <20171023190459.odyu26rqhuja4trj@dhcp22.suse.cz>
+ <20171023192524.GC12198@linux.intel.com>
+ <20171023193536.c7yptc4tpesa4ffl@dhcp22.suse.cz>
+ <20171023195637.GE12198@linux.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <0ed8144f-4447-e2de-47f7-ea1fc16f0b25@intel.com>
+Date: Mon, 23 Oct 2017 14:52:04 -0700
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="oyUTqETQ0mS9luUI"
-Content-Disposition: inline
-In-Reply-To: <CACRpkdaa6qq91+dQ43EZDvDefbM3tjwLX5e+nNZouwXM0xJ=4w@mail.gmail.com>
+In-Reply-To: <20171023195637.GE12198@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Walleij <linus.walleij@linaro.org>
-Cc: Adrian Hunter <adrian.hunter@intel.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, linux-mm@kvack.org
+To: sharath.k.bhat@linux.intel.com, Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org
 
+On 10/23/2017 12:56 PM, Sharath Kumar Bhat wrote:
+>> I am sorry for being dense here but why cannot you mark that memory
+>> hotplugable? I assume you are under the control to set attributes of the
+>> memory to the guest.
+> When I said two OS's I meant multi-kernel environment sharing the same
+> hardware and not VMs. So we do not have the control to mark the memory
+> hotpluggable as done by BIOS through SRAT.
 
---oyUTqETQ0mS9luUI
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+If you are going as far as to pass in custom kernel command-line
+arguments, there's a bunch of other fun stuff you can do.  ACPI table
+overrides come to mind.
 
-On Mon 2017-10-23 14:16:40, Linus Walleij wrote:
-> On Mon, Oct 23, 2017 at 11:31 AM, Pavel Machek <pavel@ucw.cz> wrote:
->=20
-> >> > Thinkpad X220... how do I tell if I was using them? I believe so,
-> >> > because I uncovered bug in them before.
-> >>
-> >> You are certainly using bounce buffers.  What does lspci -knn show?
-> >
-> > Here is the output:
-> > 0d:00.0 System peripheral [0880]: Ricoh Co Ltd PCIe SDXC/MMC Host Contr=
-oller [1180:e823] (rev 07)
-> >         Subsystem: Lenovo Device [17aa:21da]
-> >         Kernel driver in use: sdhci-pci
->=20
-> So that is a Ricoh driver, one of the few that was supposed to benefit
-> from bounce buffers.
->=20
-> Except that if you actually turned it on:
-> > [10994.302196] kworker/2:1: page allocation failure: order:4,
-> so it doesn't have enough memory to use these bounce buffers
-> anyway.
+> This facility can be used by platform/BIOS vendors to provide a Linux
+> compatible environment without modifying the underlying platform firmware.
 
-Well, look at archives: driver failed completely when allocation failed.=20
-
-> I'm now feel it was the right thing to delete them.
-
-Which means I may have been geting benefit -- when it worked. I
-believe solution is to allocate at driver probing time.
-
-(OTOH ... SPI is slow compared to rest of the system, right? Where
-does the benefit come from?)
-
-									Pavel
-
-
-
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
-
---oyUTqETQ0mS9luUI
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAlnuXs0ACgkQMOfwapXb+vIYcwCeI58Zgqs30Jwo2akGea9juTmi
-eccAn1EdAgek8vxV8IKC9nYpZdbzdage
-=0tO5
------END PGP SIGNATURE-----
-
---oyUTqETQ0mS9luUI--
+https://www.kernel.org/doc/Documentation/acpi/initrd_table_override.txt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
