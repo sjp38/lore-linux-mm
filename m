@@ -1,81 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 63CB66B025E
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 05:37:51 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id l46so11261444uai.12
-        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 02:37:51 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i187sor2602129vkh.117.2017.10.23.02.37.50
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5363C6B0033
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 06:22:15 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id a192so11561072pge.1
+        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 03:22:15 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id v14si4720117pgc.214.2017.10.23.03.22.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 23 Oct 2017 02:37:50 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Oct 2017 03:22:07 -0700 (PDT)
+From: "Reshetova, Elena" <elena.reshetova@intel.com>
+Subject: RE: [PATCH 01/15] sched: convert sighand_struct.count to refcount_t
+Date: Mon, 23 Oct 2017 10:22:01 +0000
+Message-ID: <2236FBA76BA1254E88B949DDB74E612B802B4359@IRSMSX102.ger.corp.intel.com>
+References: <1508501757-15784-1-git-send-email-elena.reshetova@intel.com>
+ <1508501757-15784-2-git-send-email-elena.reshetova@intel.com>
+ <alpine.DEB.2.20.1710201430420.4531@nanos>
+In-Reply-To: <alpine.DEB.2.20.1710201430420.4531@nanos>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20171023093645.z7b3id3ny6c4vovf@dhcp22.suse.cz>
-References: <20171018063123.21983-1-bsingharora@gmail.com> <20171018063123.21983-2-bsingharora@gmail.com>
- <20171020130845.m5sodqlqktrcxkks@dhcp22.suse.cz> <CAKTCnzkdoC6aVKSkTS95+MyVLHbMaEiUXaAJUXSicmdCZPNCNw@mail.gmail.com>
- <20171023084911.glsz6sd22mq2ey2o@dhcp22.suse.cz> <CAKTCnz=n3CFEhYb=WOENPB6ENrLoMg4_hRP2Tc70GLjc8aMVhg@mail.gmail.com>
- <20171023093645.z7b3id3ny6c4vovf@dhcp22.suse.cz>
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Mon, 23 Oct 2017 20:37:49 +1100
-Message-ID: <CAKTCnz=2Esw_=UVXcuHA4Pd0ZiViw57nxCXMYRSc2Sv2AC5S6g@mail.gmail.com>
-Subject: Re: [rfc 2/2] smaps: Show zone device memory used
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-mm <linux-mm@kvack.org>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: "mingo@redhat.com" <mingo@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "tj@kernel.org" <tj@kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "lizefan@huawei.com" <lizefan@huawei.com>, "acme@kernel.org" <acme@kernel.org>, "alexander.shishkin@linux.intel.com" <alexander.shishkin@linux.intel.com>, "eparis@redhat.com" <eparis@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "arnd@arndb.de" <arnd@arndb.de>, "luto@kernel.org" <luto@kernel.org>, "keescook@chromium.org" <keescook@chromium.org>, "dvhart@infradead.org" <dvhart@infradead.org>, "ebiederm@xmission.com" <ebiederm@xmission.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "axboe@kernel.dk" <axboe@kernel.dk>
 
-On Mon, Oct 23, 2017 at 8:36 PM, Michal Hocko <mhocko@suse.com> wrote:
-> On Mon 23-10-17 20:32:25, Balbir Singh wrote:
->> On Mon, Oct 23, 2017 at 7:49 PM, Michal Hocko <mhocko@suse.com> wrote:
->> > On Sat 21-10-17 08:55:59, Balbir Singh wrote:
->> >> On Sat, Oct 21, 2017 at 12:08 AM, Michal Hocko <mhocko@suse.com> wrote:
->> >> > On Wed 18-10-17 17:31:23, Balbir Singh wrote:
->> >> >> With HMM, we can have either public or private zone
->> >> >> device pages. With private zone device pages, they should
->> >> >> show up as swapped entities. For public zone device pages
->> >> >> the smaps output can be confusing and incomplete.
->> >> >>
->> >> >> This patch adds a new attribute to just smaps to show
->> >> >> device memory usage.
->> >> >
->> >> > As this will become user API which we will have to maintain for ever I
->> >> > would really like to hear about who is going to use this information and
->> >> > what for.
->> >>
->> >> This is something I observed when running some tests with HMM/CDM.
->> >> The issue I had was that there was no visibility of what happened to the
->> >> pages after the following sequence
->> >>
->> >> 1. malloc/mmap pages
->> >> 2. migrate_vma() to ZONE_DEVICE (hmm/cdm space)
->> >> 3. look at smaps
->> >>
->> >> If we look at smaps after 1 and the pages are faulted in we can see the
->> >> pages for the region, but at point 3, there is absolutely no visibility of
->> >> what happened to the pages. I thought smaps is a good way to provide
->> >> the visibility as most developers use that interface. It's more to fix the
->> >> inconsistency I saw w.r.t visibility and accounting.
->> >
->> > Yes I can see how this can be confusing. But, well, I have grown overly
->> > cautious regarding user APIs over time. So I would rather not add
->> > something new until we have a real user with a usecase in mind. We can
->> > always add this later but once we have exposed the accounting we are
->> > bound to maintain it for ever.
->>
->> I see your point. But we are beginning to build on top of this. I'll just add
->> it as a private patch in my patchset. But soon, we'll need to address HMM/CDM
->> pages of different sizes as well. My problem right now is to ensure correctness
->> of the design and expectations and a large part of it is tracking
->> where the pages are.
+> On Fri, 20 Oct 2017, Elena Reshetova wrote:
+>=20
+> > atomic_t variables are currently used to implement reference
+> > counters with the following properties:
+> >  - counter is initialized to 1 using atomic_set()
+> >  - a resource is freed upon counter reaching zero
+> >  - once counter reaches zero, its further
+> >    increments aren't allowed
+> >  - counter schema uses basic atomic operations
+> >    (set, inc, inc_not_zero, dec_and_test, etc.)
+> >
+> > Such atomic variables should be converted to a newly provided
+> > refcount_t type and API that prevents accidental counter overflows
+> > and underflows. This is important since overflows and underflows
+> > can lead to use-after-free situation and be exploitable.
+> >
+> > The variable sighand_struct.count is used as pure reference counter.
+>=20
+> This still does not mention that atomic_t !=3D recfcount_t ordering wise =
+and
+> why you think that this does not matter in that use case.
 >
-> I would wait for more experiences to carve a userspace API into stone.
-> Adding one for debugging purposes is almost _always_ a bad idea that
-> back fires sooner or later.
+>
+> And looking deeper:
+>=20
+> > @@ -1381,7 +1381,7 @@ static int copy_sighand(unsigned long clone_flags=
+,
+> struct task_struct *tsk)
+> >  	struct sighand_struct *sig;
+> >
+> >  	if (clone_flags & CLONE_SIGHAND) {
+> > -		atomic_inc(&current->sighand->count);
+> > +		refcount_inc(&current->sighand->count);
+> >  		return 0;
+>=20
+> >  void __cleanup_sighand(struct sighand_struct *sighand)
+> >  {
+> > -	if (atomic_dec_and_test(&sighand->count)) {
+> > +	if (refcount_dec_and_test(&sighand->count)) {
+>=20
+> How did you make sure that these atomic operations have no other
+> serialization effect and can be replaced with refcount?
 
-Fair enough, I am going to keep these in my private branch for now
+What serialization effects? Are you taking about smth else than memory
+ordering?=20
 
-Balbir Singh.
+For memory ordering my current hope is that we can just make refcount_t
+to use same strict atomic primitives and then it would not make any differe=
+nce.
+I think this would be the simplest way for everyone since I think even some=
+ maintainers
+are having issues understanding all the implications of "relaxed" ordering.=
+=20
+
+Best Regards,
+Elena
+
+>=20
+> I complained about that before and Peter explained it to you in great
+> length, but you just resend the same thing again. Where is the correctnes=
+s
+> analysis? Seriously, for this kind of stuff it's not sufficient to use a
+> coccinelle script and copy boiler plate change logs and be done with it.
+>=20
+> Thanks,
+>=20
+> 	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
