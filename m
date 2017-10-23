@@ -1,60 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 657336B0253
-	for <linux-mm@kvack.org>; Sun, 22 Oct 2017 23:07:41 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id h7so14330687qth.13
-        for <linux-mm@kvack.org>; Sun, 22 Oct 2017 20:07:41 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 11si3443591qts.306.2017.10.22.20.07.40
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A0E436B0253
+	for <linux-mm@kvack.org>; Sun, 22 Oct 2017 23:10:16 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id z55so9358792wrz.2
+        for <linux-mm@kvack.org>; Sun, 22 Oct 2017 20:10:16 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y204sor884914wmg.61.2017.10.22.20.10.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 22 Oct 2017 20:07:40 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9N33wGJ127392
-	for <linux-mm@kvack.org>; Sun, 22 Oct 2017 23:07:39 -0400
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ds3j2yvhj-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 22 Oct 2017 23:07:39 -0400
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Mon, 23 Oct 2017 04:07:37 +0100
-Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v9N37YxH15204552
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 03:07:35 GMT
-Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
-	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v9N37XbR027264
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 14:07:33 +1100
-Subject: Re: [RFC] mm/swap: Rename pagevec_lru_move_fn() as
- pagevec_lruvec_move_fn()
-References: <20171019083314.12614-1-khandual@linux.vnet.ibm.com>
- <20171019152918.2wrn6slrq7ashvpj@dhcp22.suse.cz>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Mon, 23 Oct 2017 08:37:31 +0530
+        (Google Transport Security);
+        Sun, 22 Oct 2017 20:10:15 -0700 (PDT)
+Date: Mon, 23 Oct 2017 12:10:05 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/4] mm/zsmalloc: Prepare to variable MAX_PHYSMEM_BITS
+Message-ID: <20171023031005.GA5981@bgram>
+References: <20171020195934.32108-1-kirill.shutemov@linux.intel.com>
+ <20171020195934.32108-2-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20171019152918.2wrn6slrq7ashvpj@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <bd9e0b37-ab4b-32da-63b9-425089f9ec00@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171020195934.32108-2-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On 10/19/2017 08:59 PM, Michal Hocko wrote:
-> On Thu 19-10-17 14:03:14, Anshuman Khandual wrote:
->> The function pagevec_lru_move_fn() actually moves pages from various
->> per cpu pagevecs into per node lruvecs with a custom function which
->> knows how to handle individual pages present in any given pagevec.
->> Because it does movement between pagevecs and lruvecs as whole not
->> to an individual list element, the name should reflect it.
-> I find the original name quite understandable (and shorter). I do not
-> think this is worth changing. It is just a code churn without a good
-> reason.
+On Fri, Oct 20, 2017 at 10:59:31PM +0300, Kirill A. Shutemov wrote:
+> With boot-time switching between paging mode we will have variable
+> MAX_PHYSMEM_BITS.
 > 
+> Let's use the maximum variable possible for CONFIG_X86_5LEVEL=y
+> configuration to define zsmalloc data structures.
+> 
+> The patch introduces MAX_POSSIBLE_PHYSMEM_BITS to cover such case.
+> It also suits well to handle PAE special case.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Nitin Gupta <ngupta@vflare.org>
+> Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Acked-by: Minchan Kim <minchan@kernel.org>
 
-Sure, I understand.
+Nitin:
+
+I think this patch works and it would be best for Kirill to be able to do.
+So if you have better idea to clean it up, let's make it as another patch
+regardless of this patch series.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
