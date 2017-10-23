@@ -1,91 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 217436B0033
-	for <linux-mm@kvack.org>; Sun, 22 Oct 2017 22:08:30 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 15so3232563pgc.16
-        for <linux-mm@kvack.org>; Sun, 22 Oct 2017 19:08:30 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id u186si4176698pgb.578.2017.10.22.19.08.27
-        for <linux-mm@kvack.org>;
-        Sun, 22 Oct 2017 19:08:28 -0700 (PDT)
-Date: Mon, 23 Oct 2017 11:08:22 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [RESEND PATCH 1/3] completion: Add support for initializing
- completion with lockdep_map
-Message-ID: <20171023020822.GI3310@X58A-UD3R>
-References: <1508319532-24655-1-git-send-email-byungchul.park@lge.com>
- <1508319532-24655-2-git-send-email-byungchul.park@lge.com>
- <1508455438.4542.4.camel@wdc.com>
- <alpine.DEB.2.20.1710200829340.3083@nanos>
- <1508529532.3029.15.camel@wdc.com>
- <CANrsvRNnOp_rgEWG2FGg7qaEQi=yEyhiZkpWSW62w21BvJ9Shg@mail.gmail.com>
- <1508682894.2564.8.camel@wdc.com>
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CBB316B0033
+	for <linux-mm@kvack.org>; Sun, 22 Oct 2017 23:06:17 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id z50so14342356qtj.9
+        for <linux-mm@kvack.org>; Sun, 22 Oct 2017 20:06:17 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id 95si5619902qku.363.2017.10.22.20.06.16
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 22 Oct 2017 20:06:16 -0700 (PDT)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9N33vCb123374
+	for <linux-mm@kvack.org>; Sun, 22 Oct 2017 23:06:15 -0400
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2drw0ckcpy-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 22 Oct 2017 23:06:15 -0400
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Mon, 23 Oct 2017 04:06:13 +0100
+Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id v9N35uqG25493752
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 03:05:58 GMT
+Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
+	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id v9N35uKx025189
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 14:05:56 +1100
+Subject: Re: [PATCH V3] selftests/vm: Add tests validating mremap mirror
+ functionality
+References: <20171018055502.31752-1-khandual@linux.vnet.ibm.com>
+ <472ed67c-7c14-29d3-ac22-e9340a05bc06@oracle.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Mon, 23 Oct 2017 08:35:54 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1508682894.2564.8.camel@wdc.com>
+In-Reply-To: <472ed67c-7c14-29d3-ac22-e9340a05bc06@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Message-Id: <958ed0c9-6c52-ce4e-e347-eb5d11e84e5f@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bart Van Assche <Bart.VanAssche@wdc.com>
-Cc: "max.byungchul.park@gmail.com" <max.byungchul.park@gmail.com>, "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "hch@infradead.org" <hch@infradead.org>, "amir73il@gmail.com" <amir73il@gmail.com>, "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "oleg@redhat.com" <oleg@redhat.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "darrick.wong@oracle.com" <darrick.wong@oracle.com>, "johannes.berg@intel.com" <johannes.berg@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "idryomov@gmail.com" <idryomov@gmail.com>, "tj@kernel.org" <tj@kernel.org>, "kernel-team@lge.com" <kernel-team@lge.com>, "david@fromorbit.com" <david@fromorbit.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: mhocko@kernel.org, shuahkh@osg.samsung.com, Andrew Morton <akpm@linux-foundation.org>
 
-On Sun, Oct 22, 2017 at 02:34:56PM +0000, Bart Van Assche wrote:
-> On Sat, 2017-10-21 at 11:23 +0900, Byungchul Park wrote:
-> > On Sat, Oct 21, 2017 at 4:58 AM, Bart Van Assche <Bart.VanAssche@wdc.com> wrote:
-> > > As explained in another e-mail thread, unlike the lock inversion checking
-> > > performed by the <= v4.13 lockdep code, cross-release checking is a heuristic
-> > > that does not have a sound theoretical basis. The lock validator is an
-> > 
-> > It's not heuristic but based on the same theoretical basis as <=4.13
-> > lockdep. I mean, the key basis is:
-> > 
-> >    1) What causes deadlock
-> >    2) What is a dependency
-> >    3) Build a dependency when identified
+On 10/20/2017 04:54 AM, Mike Kravetz wrote:
+> On 10/17/2017 10:55 PM, Anshuman Khandual wrote:
+>> This adds two tests to validate mirror functionality with mremap()
+>> system call on shared and private anon mappings. After the commit
+>> dba58d3b8c5 ("mm/mremap: fail map duplication attempts for private
+>> mappings"), any attempt to mirror private anon mapping will fail.
+>>
+>> Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
+>> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> The tests themselves look fine.  However, they are pretty simple and
+> could very easily be combined into one 'mremap_mirror.c' file.  I
+> would prefer that they be combined, but it is not a deal breaker.
 > 
-> Sorry but I doubt that that statement is correct. The publication [1] contains
-
-IMHO, the paper is talking about totally different things wrt
-deadlocks by wait_for_event/event, that is, lost events.
-
-Furthermore, it doesn't rely on dependencies itself, but just lock
-ordering 'case by case', which is a subset of the more general concept.
-
-> a proof that an algorithm that is closely related to the traditional lockdep
-> lock inversion detector is able to detect all deadlocks and does not report
-
-I can admit this.
-
-> false positives for programs that only use mutexes as synchronization objects.
-
-I want to ask you. What makes false positives avoidable in the paper?
-
-> The comment of the authors of that paper for programs that use mutexes,
-> condition variables and semaphores is as follows: "It is unclear how to extend
-> the lock-graph-based algorithm in Section 3 to efficiently consider the effects
-> of condition variables and semaphores. Therefore, when considering all three
-> synchronization mechanisms, we currently use a naive algorithm that checks each
-
-Right. The paper seems to use a naive algorigm for that cases, not
-replying on dependencies, which they should.
-
-> feasible permutation of the trace for deadlock." In other words, if you have
-> found an approach for detecting potential deadlocks for programs that use these
-> three kinds of synchronization objects and that does not report false positives
-> then that's a breakthrough that's worth publishing in a journal or in the
-> proceedings of a scientific conference.
-
-Please, point out logical problems of cross-release than saying it's
-impossbile according to the paper. I think you'd better understand how
-cross-release works *first*. I'll do my best to help you do.
-
-> Bart.
+> Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
 > 
-> [1] Agarwal, Rahul, and Scott D. Stoller. "Run-time detection of potential
-> deadlocks for programs with locks, semaphores, and condition variables." In
-> Proceedings of the 2006 workshop on Parallel and distributed systems: testing
-> and debugging, pp. 51-60. ACM, 2006.
-> (https://pdfs.semanticscholar.org/9324/fc0b5d5cd5e05d551a3e98757122039946a2.pdf).
+
+Hello Andrew/Shuah,
+
+Is this okay or should I resend this patch with both tests folded
+into one test case file ?
+
+- Anshuman
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
