@@ -1,93 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 87D4D6B0253
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 01:22:11 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id b192so10991269pga.14
-        for <linux-mm@kvack.org>; Sun, 22 Oct 2017 22:22:11 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id i73si4406616pgc.409.2017.10.22.22.22.09
-        for <linux-mm@kvack.org>;
-        Sun, 22 Oct 2017 22:22:10 -0700 (PDT)
-Date: Mon, 23 Oct 2017 14:26:02 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 1/2] mm: drop migrate type checks from has_unmovable_pages
-Message-ID: <20171023052602.GC23082@js1304-P5Q-DELUXE>
-References: <20171013115835.zaehapuucuzl2vlv@dhcp22.suse.cz>
- <20171013120013.698-1-mhocko@kernel.org>
- <20171019025111.GA3852@js1304-P5Q-DELUXE>
- <20171019071503.e7w5fo35lsq6ca54@dhcp22.suse.cz>
- <20171019073355.GA4486@js1304-P5Q-DELUXE>
- <20171019082041.5zudpqacaxjhe4gw@dhcp22.suse.cz>
- <20171019122118.y6cndierwl2vnguj@dhcp22.suse.cz>
- <20171020021329.GB10438@js1304-P5Q-DELUXE>
- <59E9A426.5070009@huawei.com>
- <20171020081700.fec53qxieeqouhwi@dhcp22.suse.cz>
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CA27E6B0033
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 01:25:48 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id p77so4480504lfg.2
+        for <linux-mm@kvack.org>; Sun, 22 Oct 2017 22:25:48 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a13sor8980lfa.28.2017.10.22.22.25.47
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Sun, 22 Oct 2017 22:25:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171020081700.fec53qxieeqouhwi@dhcp22.suse.cz>
+In-Reply-To: <20171023031005.GA5981@bgram>
+References: <20171020195934.32108-1-kirill.shutemov@linux.intel.com>
+ <20171020195934.32108-2-kirill.shutemov@linux.intel.com> <20171023031005.GA5981@bgram>
+From: Nitin Gupta <ngupta@vflare.org>
+Date: Sun, 22 Oct 2017 22:25:46 -0700
+Message-ID: <CAPkvG_drcJVNzz2WSGzMhwc=oWcv4tQSbtfOM0wdV3_20=yKfA@mail.gmail.com>
+Subject: Re: [PATCH 1/4] mm/zsmalloc: Prepare to variable MAX_PHYSMEM_BITS
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, linux-mm@kvack.org, Michael Ellerman <mpe@ellerman.id.au>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-On Fri, Oct 20, 2017 at 10:17:00AM +0200, Michal Hocko wrote:
-> On Fri 20-10-17 15:22:14, Xishi Qiu wrote:
-> > On 2017/10/20 10:13, Joonsoo Kim wrote:
-> > 
-> > > On Thu, Oct 19, 2017 at 02:21:18PM +0200, Michal Hocko wrote:
-> [...]
-> > >> >From 8cbd811d741f5dd93d1b21bb3ef94482a4d0bd32 Mon Sep 17 00:00:00 2001
-> > >> From: Michal Hocko <mhocko@suse.com>
-> > >> Date: Thu, 19 Oct 2017 14:14:02 +0200
-> > >> Subject: [PATCH] mm: distinguish CMA and MOVABLE isolation in
-> > >>  has_unmovable_pages
-> > >>
-> > >> Joonsoo has noticed that "mm: drop migrate type checks from
-> > >> has_unmovable_pages" would break CMA allocator because it relies on
-> > >> has_unmovable_pages returning false even for CMA pageblocks which in
-> > >> fact don't have to be movable:
-> > >> alloc_contig_range
-> > >>   start_isolate_page_range
-> > >>     set_migratetype_isolate
-> > >>       has_unmovable_pages
-> > >>
-> > >> This is a result of the code sharing between CMA and memory hotplug
-> > >> while each one has a different idea of what has_unmovable_pages should
-> > >> return. This is unfortunate but fixing it properly would require a lot
-> > >> of code duplication.
-> > >>
-> > >> Fix the issue by introducing the requested migrate type argument
-> > >> and special case MIGRATE_CMA case where CMA page blocks are handled
-> > >> properly. This will work for memory hotplug because it requires
-> > >> MIGRATE_MOVABLE.
-> > > 
-> > > Unfortunately, alloc_contig_range() can be called with
-> > > MIGRATE_MOVABLE so this patch cannot perfectly fix the problem.
-> > > 
-> > > I did a more thinking and found that it's strange to check if there is
-> > > unmovable page in the pageblock during the set_migratetype_isolate().
-> > > set_migratetype_isolate() should be just for setting the migratetype
-> > > of the pageblock. Checking other things should be done by another
-> > > place, for example, before calling the start_isolate_page_range() in
-> > > __offline_pages().
-> > > 
-> > > Thanks.
-> > > 
-> > 
-> > Hi Joonsoo,
-> > 
-> > How about add a flag to skip or not has_unmovable_pages() in set_migratetype_isolate()?
-> > Something like the skip_hwpoisoned_pages.
-> 
-> I believe this is what Joonsoo was proposing actually. I cannot say I
+On Sun, Oct 22, 2017 at 8:10 PM, Minchan Kim <minchan@kernel.org> wrote:
+> On Fri, Oct 20, 2017 at 10:59:31PM +0300, Kirill A. Shutemov wrote:
+>> With boot-time switching between paging mode we will have variable
+>> MAX_PHYSMEM_BITS.
+>>
+>> Let's use the maximum variable possible for CONFIG_X86_5LEVEL=y
+>> configuration to define zsmalloc data structures.
+>>
+>> The patch introduces MAX_POSSIBLE_PHYSMEM_BITS to cover such case.
+>> It also suits well to handle PAE special case.
+>>
+>> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>> Cc: Minchan Kim <minchan@kernel.org>
+>> Cc: Nitin Gupta <ngupta@vflare.org>
+>> Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+> Acked-by: Minchan Kim <minchan@kernel.org>
+>
+> Nitin:
+>
+> I think this patch works and it would be best for Kirill to be able to do.
+> So if you have better idea to clean it up, let's make it as another patch
+> regardless of this patch series.
+>
 
-Yes, I initially suggested this idea but change my mind. Now, I think
-that problem is not in has_unmovable_pages() but in
-set_migratetype_isolate(). So different solution is needed. See my other
-reply to Michal.
 
-Thanks.
+I was looking into dynamically allocating size_class array to avoid that
+compile error, but yes, that can be done in a future patch. So, for this patch:
+
+Reviewed-by: Nitin Gupta <ngupta@vflare.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
