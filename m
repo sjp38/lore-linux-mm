@@ -1,58 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 846876B0033
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 08:52:16 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 78so2590557wmb.15
-        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 05:52:16 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c133si3331374wmd.133.2017.10.23.05.52.15
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2070E6B0033
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 10:00:40 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id t69so6785981wmt.7
+        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 07:00:40 -0700 (PDT)
+Received: from mout.gmx.net (mout.gmx.net. [212.227.15.18])
+        by mx.google.com with ESMTPS id b45si5777183wrg.225.2017.10.23.07.00.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 23 Oct 2017 05:52:15 -0700 (PDT)
-Date: Mon, 23 Oct 2017 14:52:13 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: fix movable_node kernel command-line
-Message-ID: <20171023125213.whdiev6bjxr72gow@dhcp22.suse.cz>
-References: <ad310dfbfb86ef4f1f9a173cad1a030e879d572e.1508536900.git.sharath.k.bhat@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Oct 2017 07:00:34 -0700 (PDT)
+Subject: Re: PROBLEM: Remapping hugepages mappings causes kernel to return
+ EINVAL
+References: <93684e4b-9e60-ef3a-ba62-5719fdf7cff9@gmx.de>
+ <6b639da5-ad9a-158c-ad4a-7a4e44bd98fc@gmx.de>
+ <5fb8955d-23af-ec85-a19f-3a5b26cc04d1@oracle.com>
+ <20171023114210.j7ip75ewoy2tiqs4@dhcp22.suse.cz>
+ <e2cc07b7-3c5e-a166-0bb2-eff92fc70cd1@gmx.de>
+ <20171023124122.tjmrbcwo2btzk3li@dhcp22.suse.cz>
+From: "C.Wehrmeyer" <c.wehrmeyer@gmx.de>
+Message-ID: <b6cbb960-d0f1-0630-a2a1-e00bab4af0a1@gmx.de>
+Date: Mon, 23 Oct 2017 16:00:13 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ad310dfbfb86ef4f1f9a173cad1a030e879d572e.1508536900.git.sharath.k.bhat@linux.intel.com>
+In-Reply-To: <20171023124122.tjmrbcwo2btzk3li@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sharath Kumar Bhat <sharath.k.bhat@linux.intel.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Fri 20-10-17 16:32:09, Sharath Kumar Bhat wrote:
-> Currently when booted with the 'movable_node' kernel command-line the user
-> can not have both the functionality of 'movable_node' and at the same time
-> specify more movable memory than the total size of hotpluggable memories.
+On 2017-10-23 14:41, Michal Hocko wrote:
+> On Mon 23-10-17 14:22:30, C.Wehrmeyer wrote:
+>> On 2017-10-23 13:42, Michal Hocko wrote:
+>>> I do not remember any such a request either. I can see some merit in the
+>>> described use case. It is not specific on why hugetlb pages are used for
+>>> the allocator memory because that comes with it own issues.
+>>
+>> That is yet for the user to specify. As of now hugepages still require a
+>> special setup that not all people might have as of now - to my knowledge a
+>> kernel being compiled with CONFIG_TRANSPARENT_HUGEPAGE=y and a number of
+>> such pages being allocated either through the kernel boot line or through
 > 
-> This is a problem because it limits the total amount of movable memory in
-> the system to the total size of hotpluggable memories and in a system the
-> total size of hotpluggable memories can be very small or all hotpluggable
-> memories could have been offlined. The 'movable_node' parameter was aimed
-> to provide the entire memory of hotpluggable NUMA nodes to applications
-> without any kernel allocations in them. The 'movable_node' option will be
-> useful if those hotpluggable nodes have special memory like MCDRAM as in
-> KNL which is a high bandwidth memory and the user would like to use all of
-> it for applications. But in doing so the 'movable_node' command-line poses
-> this limitation and does not allow the user to specify more movable memory
-> in addition to the hotpluggable memories.
-> 
-> With this change the existing 'movablecore=' and 'kernelcore=' command-line
-> parameters can be specified in addition to the 'movable_node' kernel
-> parameter. This allows the user to boot the kernel with an increased amount
-> of movable memory in the system and still have only movable memory in
-> hotpluggable NUMA nodes.
+> CONFIG_TRANSPARENT_HUGEPAGE has nothing to do with hugetlb pages. These
+> are THP which do not need any special configuration and mremap works on
+> them.
 
-I really detest making the already cluttered kernelcore* handling even
-more so. Why cannot your MCDRAM simply announce itself as hotplugable?
-Also it is not really clear to me how can you control that only your
-specific memory type gets into movable zone.
--- 
-Michal Hocko
-SUSE Labs
+I was not aware of the fact that HP != THP, so thank you for clarifying 
+that.
+
+> This is no longer true. GB pages can be allocated during runtime as
+> well.
+
+Didn't know that as well. I just knew the last time I tested this it was 
+not possible.
+
+>> 2-MiB pages, on the other hand,
+>> shouldn't have those limitations anymore. User-space programs should be
+>> capable of allocating such pages without the need for the user to fiddle
+>> with nr_hugepages beforehand.
+> 
+> And that is what we have THP for...
+
+Then I might have been using it incorrectly? I've been digging through 
+Documentation/vm/transhuge.txt after your initial pointing out, and 
+verified that the kernel uses THPs pretty much always, without the usage 
+of madvise:
+
+# cat /sys/kernel/mm/transparent_hugepage/enabled
+[always] madvise never
+
+And just to be very sure I've added:
+
+if (madvise(buf1,ALLOC_SIZE_1,MADV_HUGEPAGE)) {
+         errno_tmp = errno;
+         fprintf(stderr,"madvise: %u\n",errno_tmp);
+         goto out;
+}
+
+/*Make sure the mapping is actually used*/
+memset(buf1,'!',ALLOC_SIZE_1);
+
+/*Give me time for monitoring*/
+sleep(2000);
+
+right after the mmap call. I've also made sure that nothing is being 
+optimised away by the compiler. With a 2MiB mapping being requested this 
+should be a good opportunity for the kernel, and yet when I try to 
+figure out how many THPs my processes uses:
+
+$ cat /proc/21986/smaps  | grep 'AnonHuge'
+
+I just end up with lots of:
+
+AnonHugePages:         0 kB
+
+And cat /proc/meminfo | grep 'Huge' doesn't change significantly as 
+well. Am I just doing something wrong here, or shouldn't I trust the THP 
+mechanisms to actually allocate hugepages for me?
+
+> General purpose allocator playing with hugetlb
+> pages is rather tricky and I would be really cautious there. I would
+> rather play with THP to reduce the TLB footprint.
+
+May one ask why you'd recommend to be cautious here? I understand that 
+actual huge pages can slow down certain things - swapping comes to mind 
+immediately, which is probably the reason why Linux (used to?) lock such 
+pages in memory as well.
+
+I once again want to emphasise that this is my first time writing to the 
+mailing list. It might be redundant, but I'm not yet used to any 
+conventions or technical details you're familiar with.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
