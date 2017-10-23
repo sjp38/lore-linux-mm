@@ -1,133 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AD7A56B0033
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 05:31:12 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id y39so9555874wrd.17
-        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 02:31:12 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id x127si3117310wmb.52.2017.10.23.02.31.10
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E4AE46B0069
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 05:32:26 -0400 (EDT)
+Received: by mail-ua0-f199.google.com with SMTP id v7so11515856uaf.5
+        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 02:32:26 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id x6sor2673767uac.2.2017.10.23.02.32.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Oct 2017 02:31:11 -0700 (PDT)
-Date: Mon, 23 Oct 2017 11:31:09 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: 4.14-rc2 on thinkpad x220: out of memory when inserting mmc card
-Message-ID: <20171023093109.GI32228@amd>
-References: <20170905194739.GA31241@amd>
- <20171001093704.GA12626@amd>
- <20171001102647.GA23908@amd>
- <201710011957.ICF15708.OOLOHFSQMFFVJt@I-love.SAKURA.ne.jp>
- <72c93a69-610f-027e-c028-379b97b6f388@intel.com>
- <20171002084131.GA24414@amd>
- <CACRpkdbatrt0Uxf8653iiV-OKkgcc0Ziog_L4oDVTJVNqtNN0Q@mail.gmail.com>
- <20171002130353.GA25433@amd>
- <184b3552-851c-7015-dd80-76f6eebc33cc@intel.com>
+        (Google Transport Security);
+        Mon, 23 Oct 2017 02:32:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="lqaZmxkhekPBfBzr"
-Content-Disposition: inline
-In-Reply-To: <184b3552-851c-7015-dd80-76f6eebc33cc@intel.com>
+In-Reply-To: <20171023084911.glsz6sd22mq2ey2o@dhcp22.suse.cz>
+References: <20171018063123.21983-1-bsingharora@gmail.com> <20171018063123.21983-2-bsingharora@gmail.com>
+ <20171020130845.m5sodqlqktrcxkks@dhcp22.suse.cz> <CAKTCnzkdoC6aVKSkTS95+MyVLHbMaEiUXaAJUXSicmdCZPNCNw@mail.gmail.com>
+ <20171023084911.glsz6sd22mq2ey2o@dhcp22.suse.cz>
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Mon, 23 Oct 2017 20:32:25 +1100
+Message-ID: <CAKTCnz=n3CFEhYb=WOENPB6ENrLoMg4_hRP2Tc70GLjc8aMVhg@mail.gmail.com>
+Subject: Re: [rfc 2/2] smaps: Show zone device memory used
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Adrian Hunter <adrian.hunter@intel.com>
-Cc: Linus Walleij <linus.walleij@linaro.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.com>
+Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-mm <linux-mm@kvack.org>
 
+On Mon, Oct 23, 2017 at 7:49 PM, Michal Hocko <mhocko@suse.com> wrote:
+> On Sat 21-10-17 08:55:59, Balbir Singh wrote:
+>> On Sat, Oct 21, 2017 at 12:08 AM, Michal Hocko <mhocko@suse.com> wrote:
+>> > On Wed 18-10-17 17:31:23, Balbir Singh wrote:
+>> >> With HMM, we can have either public or private zone
+>> >> device pages. With private zone device pages, they should
+>> >> show up as swapped entities. For public zone device pages
+>> >> the smaps output can be confusing and incomplete.
+>> >>
+>> >> This patch adds a new attribute to just smaps to show
+>> >> device memory usage.
+>> >
+>> > As this will become user API which we will have to maintain for ever I
+>> > would really like to hear about who is going to use this information and
+>> > what for.
+>>
+>> This is something I observed when running some tests with HMM/CDM.
+>> The issue I had was that there was no visibility of what happened to the
+>> pages after the following sequence
+>>
+>> 1. malloc/mmap pages
+>> 2. migrate_vma() to ZONE_DEVICE (hmm/cdm space)
+>> 3. look at smaps
+>>
+>> If we look at smaps after 1 and the pages are faulted in we can see the
+>> pages for the region, but at point 3, there is absolutely no visibility of
+>> what happened to the pages. I thought smaps is a good way to provide
+>> the visibility as most developers use that interface. It's more to fix the
+>> inconsistency I saw w.r.t visibility and accounting.
+>
+> Yes I can see how this can be confusing. But, well, I have grown overly
+> cautious regarding user APIs over time. So I would rather not add
+> something new until we have a real user with a usecase in mind. We can
+> always add this later but once we have exposed the accounting we are
+> bound to maintain it for ever.
 
---lqaZmxkhekPBfBzr
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+I see your point. But we are beginning to build on top of this. I'll just add
+it as a private patch in my patchset. But soon, we'll need to address HMM/CDM
+pages of different sizes as well. My problem right now is to ensure correctness
+of the design and expectations and a large part of it is tracking
+where the pages
+are.
 
-Hi!
-
-> >> Did you use bounce buffers? Those were improving performance on
-> >> some laptops with TI or Ricoh host controllers and nothing else was
-> >> ever really using it (as can be seen from the commit).
-> >=20
-> > Thinkpad X220... how do I tell if I was using them? I believe so,
-> > because I uncovered bug in them before.
->=20
-> You are certainly using bounce buffers.  What does lspci -knn show?
-
-Here is the output:
-									Pavel
-
-00:00.0 Host bridge [0600]: Intel Corporation 2nd Generation Core Processor=
- Family DRAM Controller [8086:0104] (rev 09)
-	Subsystem: Lenovo Device [17aa:21da]
-00:02.0 VGA compatible controller [0300]: Intel Corporation 2nd Generation =
-Core Processor Family Integrated Graphics Controller [8086:0126] (rev 09)
-	Subsystem: Lenovo Device [17aa:21da]
-	Kernel driver in use: i915
-00:16.0 Communication controller [0780]: Intel Corporation 6 Series/C200 Se=
-ries Chipset Family MEI Controller #1 [8086:1c3a] (rev 04)
-	Subsystem: Lenovo Device [17aa:21da]
-00:19.0 Ethernet controller [0200]: Intel Corporation 82579LM Gigabit Netwo=
-rk Connection [8086:1502] (rev 04)
-	Subsystem: Lenovo Device [17aa:21ce]
-	Kernel driver in use: e1000e
-00:1a.0 USB controller [0c03]: Intel Corporation 6 Series/C200 Series Chips=
-et Family USB Enhanced Host Controller #2 [8086:1c2d] (rev 04)
-	Subsystem: Lenovo Device [17aa:21da]
-	Kernel driver in use: ehci-pci
-00:1b.0 Audio device [0403]: Intel Corporation 6 Series/C200 Series Chipset=
- Family High Definition Audio Controller [8086:1c20] (rev 04)
-	Subsystem: Lenovo Device [17aa:21da]
-	Kernel driver in use: snd_hda_intel
-00:1c.0 PCI bridge [0604]: Intel Corporation 6 Series/C200 Series Chipset F=
-amily PCI Express Root Port 1 [8086:1c10] (rev b4)
-	Kernel driver in use: pcieport
-00:1c.1 PCI bridge [0604]: Intel Corporation 6 Series/C200 Series Chipset F=
-amily PCI Express Root Port 2 [8086:1c12] (rev b4)
-	Kernel driver in use: pcieport
-00:1c.3 PCI bridge [0604]: Intel Corporation 6 Series/C200 Series Chipset F=
-amily PCI Express Root Port 4 [8086:1c16] (rev b4)
-	Kernel driver in use: pcieport
-00:1c.4 PCI bridge [0604]: Intel Corporation 6 Series/C200 Series Chipset F=
-amily PCI Express Root Port 5 [8086:1c18] (rev b4)
-	Kernel driver in use: pcieport
-00:1d.0 USB controller [0c03]: Intel Corporation 6 Series/C200 Series Chips=
-et Family USB Enhanced Host Controller #1 [8086:1c26] (rev 04)
-	Subsystem: Lenovo Device [17aa:21da]
-	Kernel driver in use: ehci-pci
-00:1f.0 ISA bridge [0601]: Intel Corporation QM67 Express Chipset Family LP=
-C Controller [8086:1c4f] (rev 04)
-	Subsystem: Lenovo Device [17aa:21da]
-00:1f.2 SATA controller [0106]: Intel Corporation 6 Series/C200 Series Chip=
-set Family 6 port SATA AHCI Controller [8086:1c03] (rev 04)
-	Subsystem: Lenovo Device [17aa:21da]
-	Kernel driver in use: ahci
-00:1f.3 SMBus [0c05]: Intel Corporation 6 Series/C200 Series Chipset Family=
- SMBus Controller [8086:1c22] (rev 04)
-	Subsystem: Lenovo Device [17aa:21da]
-03:00.0 Network controller [0280]: Intel Corporation Centrino Wireless-N 10=
-00 [Condor Peak] [8086:0084]
-	Subsystem: Intel Corporation Centrino Wireless-N 1000 BGN [8086:1315]
-	Kernel driver in use: iwlwifi
-0d:00.0 System peripheral [0880]: Ricoh Co Ltd PCIe SDXC/MMC Host Controlle=
-r [1180:e823] (rev 07)
-	Subsystem: Lenovo Device [17aa:21da]
-	Kernel driver in use: sdhci-pci
-
-
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
-
---lqaZmxkhekPBfBzr
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAlnttt0ACgkQMOfwapXb+vLqXgCfaIFUz7qLZCB0/U9SaBZ82hUr
-r5MAnj6hXymhFTkY860ps3dku4LXlMTw
-=IRor
------END PGP SIGNATURE-----
-
---lqaZmxkhekPBfBzr--
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
