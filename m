@@ -1,90 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F3436B0033
-	for <linux-mm@kvack.org>; Sun, 22 Oct 2017 20:24:55 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id e195so15971489itc.20
-        for <linux-mm@kvack.org>; Sun, 22 Oct 2017 17:24:55 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id s20sor3247444ioa.274.2017.10.22.17.24.54
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 22 Oct 2017 17:24:54 -0700 (PDT)
-Date: Sun, 22 Oct 2017 17:24:51 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RESEND v12 0/6] cgroup-aware OOM killer
-In-Reply-To: <20171019194534.GA5502@cmpxchg.org>
-Message-ID: <alpine.DEB.2.10.1710221715010.70210@chino.kir.corp.google.com>
-References: <20171019185218.12663-1-guro@fb.com> <20171019194534.GA5502@cmpxchg.org>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 217436B0033
+	for <linux-mm@kvack.org>; Sun, 22 Oct 2017 22:08:30 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 15so3232563pgc.16
+        for <linux-mm@kvack.org>; Sun, 22 Oct 2017 19:08:30 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id u186si4176698pgb.578.2017.10.22.19.08.27
+        for <linux-mm@kvack.org>;
+        Sun, 22 Oct 2017 19:08:28 -0700 (PDT)
+Date: Mon, 23 Oct 2017 11:08:22 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [RESEND PATCH 1/3] completion: Add support for initializing
+ completion with lockdep_map
+Message-ID: <20171023020822.GI3310@X58A-UD3R>
+References: <1508319532-24655-1-git-send-email-byungchul.park@lge.com>
+ <1508319532-24655-2-git-send-email-byungchul.park@lge.com>
+ <1508455438.4542.4.camel@wdc.com>
+ <alpine.DEB.2.20.1710200829340.3083@nanos>
+ <1508529532.3029.15.camel@wdc.com>
+ <CANrsvRNnOp_rgEWG2FGg7qaEQi=yEyhiZkpWSW62w21BvJ9Shg@mail.gmail.com>
+ <1508682894.2564.8.camel@wdc.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1508682894.2564.8.camel@wdc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>
+To: Bart Van Assche <Bart.VanAssche@wdc.com>
+Cc: "max.byungchul.park@gmail.com" <max.byungchul.park@gmail.com>, "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "hch@infradead.org" <hch@infradead.org>, "amir73il@gmail.com" <amir73il@gmail.com>, "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "oleg@redhat.com" <oleg@redhat.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "darrick.wong@oracle.com" <darrick.wong@oracle.com>, "johannes.berg@intel.com" <johannes.berg@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "idryomov@gmail.com" <idryomov@gmail.com>, "tj@kernel.org" <tj@kernel.org>, "kernel-team@lge.com" <kernel-team@lge.com>, "david@fromorbit.com" <david@fromorbit.com>
 
-On Thu, 19 Oct 2017, Johannes Weiner wrote:
-
-> David would have really liked for this patchset to include knobs to
-> influence how the algorithm picks cgroup victims. The rest of us
-> agreed that this is beyond the scope of these patches, that the
-> patches don't need it to be useful, and that there is nothing
-> preventing anyone from adding configurability later on. David
-> subsequently nacked the series as he considers it incomplete. Neither
-> Michal nor I see technical merit in David's nack.
+On Sun, Oct 22, 2017 at 02:34:56PM +0000, Bart Van Assche wrote:
+> On Sat, 2017-10-21 at 11:23 +0900, Byungchul Park wrote:
+> > On Sat, Oct 21, 2017 at 4:58 AM, Bart Van Assche <Bart.VanAssche@wdc.com> wrote:
+> > > As explained in another e-mail thread, unlike the lock inversion checking
+> > > performed by the <= v4.13 lockdep code, cross-release checking is a heuristic
+> > > that does not have a sound theoretical basis. The lock validator is an
+> > 
+> > It's not heuristic but based on the same theoretical basis as <=4.13
+> > lockdep. I mean, the key basis is:
+> > 
+> >    1) What causes deadlock
+> >    2) What is a dependency
+> >    3) Build a dependency when identified
 > 
+> Sorry but I doubt that that statement is correct. The publication [1] contains
 
-The nack is for three reasons:
+IMHO, the paper is talking about totally different things wrt
+deadlocks by wait_for_event/event, that is, lost events.
 
- (1) unfair comparison of root mem cgroup usage to bias against that mem 
-     cgroup from oom kill in system oom conditions,
+Furthermore, it doesn't rely on dependencies itself, but just lock
+ordering 'case by case', which is a subset of the more general concept.
 
- (2) the ability of users to completely evade the oom killer by attaching
-     all processes to child cgroups either purposefully or unpurposefully,
-     and
+> a proof that an algorithm that is closely related to the traditional lockdep
+> lock inversion detector is able to detect all deadlocks and does not report
 
- (3) the inability of userspace to effectively control oom victim  
-     selection.
+I can admit this.
 
-For (1), the difference in v12 is adding the rss of all processes attached 
-to the root mem cgroup as the evaluation.  This is not the same criteria 
-that child cgroups are evaluated on, and they are compared using that 
-bias.  It is very trivial to provide a fair comparison as was suggested in 
-v11.
+> false positives for programs that only use mutexes as synchronization objects.
 
-For (2), users who do
+I want to ask you. What makes false positives avoidable in the paper?
 
-	for i in $(cat cgroup.procs); do mkdir $i; echo $i > $i/cgroup.procs; done
+> The comment of the authors of that paper for programs that use mutexes,
+> condition variables and semaphores is as follows: "It is unclear how to extend
+> the lock-graph-based algorithm in Section 3 to efficiently consider the effects
+> of condition variables and semaphores. Therefore, when considering all three
+> synchronization mechanisms, we currently use a naive algorithm that checks each
 
-can completely evade the oom killer and this may be part of their standard 
-operating procedure for restricting resources with other cgroups other 
-than the mem cgroup.  Again, it's an unfair comparison to all other 
-cgroups on the system.
+Right. The paper seems to use a naive algorigm for that cases, not
+replying on dependencies, which they should.
 
-For (3), users need the ability to protect important cgroups, such as 
-protecting a cgroup that is limited to 50% of system memory.  They need 
-the ability to kill processes from other cgroups to protect these 
-important processes.  This is nothing new: the oom killer has always 
-provided the ability to bias against important processes.
+> feasible permutation of the trace for deadlock." In other words, if you have
+> found an approach for detecting potential deadlocks for programs that use these
+> three kinds of synchronization objects and that does not report false positives
+> then that's a breakthrough that's worth publishing in a journal or in the
+> proceedings of a scientific conference.
 
-There was follow-up email on all of these points where very trivial 
-changes were suggested to address all three of these issues, and which 
-Roman has implemented in one form or another in previous iterations with 
-the bonus that no accounting to the root mem cgroup needs to be done.
+Please, point out logical problems of cross-release than saying it's
+impossbile according to the paper. I think you'd better understand how
+cross-release works *first*. I'll do my best to help you do.
 
-> Michal acked the implementation, but on the condition that the new
-> behavior be opt-in, to not surprise existing users. I *think* we agree
-> that respecting the cgroup topography during global OOM is what we
-> should have been doing when cgroups were initially introduced; where
-> we disagree is that I think users shouldn't have to opt in to
-> improvements. We have done much more invasive changes to the victim
-> selection without actual regressions in the past. Further, this change
-> only applies to mounts of the new cgroup2. Tejun also wasn't convinced
-> of the risk for regression, and too would prefer cgroup-awareness to
-> be the default in cgroup2. I would ask for patch 5/6 to be dropped.
+> Bart.
 > 
-
-I agree with Michal that the new victim selection should be opt-in with 
-CGRP_GROUP_OOM.
+> [1] Agarwal, Rahul, and Scott D. Stoller. "Run-time detection of potential
+> deadlocks for programs with locks, semaphores, and condition variables." In
+> Proceedings of the 2006 workshop on Parallel and distributed systems: testing
+> and debugging, pp. 51-60. ACM, 2006.
+> (https://pdfs.semanticscholar.org/9324/fc0b5d5cd5e05d551a3e98757122039946a2.pdf).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
