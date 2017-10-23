@@ -1,75 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 17D266B0033
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 07:42:16 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id t188so16149821pfd.20
-        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 04:42:16 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 482C66B0033
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 07:49:52 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id o44so9958370wrf.0
+        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 04:49:52 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y9si3972646pli.234.2017.10.23.04.42.14
+        by mx.google.com with ESMTPS id j7si3077035wmh.183.2017.10.23.04.49.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 23 Oct 2017 04:42:14 -0700 (PDT)
-Date: Mon, 23 Oct 2017 13:42:10 +0200
+        Mon, 23 Oct 2017 04:49:51 -0700 (PDT)
+Date: Mon, 23 Oct 2017 13:49:48 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: PROBLEM: Remapping hugepages mappings causes kernel to return
- EINVAL
-Message-ID: <20171023114210.j7ip75ewoy2tiqs4@dhcp22.suse.cz>
-References: <93684e4b-9e60-ef3a-ba62-5719fdf7cff9@gmx.de>
- <6b639da5-ad9a-158c-ad4a-7a4e44bd98fc@gmx.de>
- <5fb8955d-23af-ec85-a19f-3a5b26cc04d1@oracle.com>
+Subject: Re: [RESEND v12 0/6] cgroup-aware OOM killer
+Message-ID: <20171023114948.qzmo7emqbigfff7h@dhcp22.suse.cz>
+References: <20171019185218.12663-1-guro@fb.com>
+ <20171019194534.GA5502@cmpxchg.org>
+ <alpine.DEB.2.10.1710221715010.70210@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5fb8955d-23af-ec85-a19f-3a5b26cc04d1@oracle.com>
+In-Reply-To: <alpine.DEB.2.10.1710221715010.70210@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: "C.Wehrmeyer" <c.wehrmeyer@gmx.de>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
+To: David Rientjes <rientjes@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>
 
-On Fri 20-10-17 15:42:25, Mike Kravetz wrote:
-> On 10/19/2017 12:34 AM, C.Wehrmeyer wrote:
-[...]
-> > As for the specific use case: I've written my own allocator that is
-> > not bound on the same limitations that usual malloc/realloc/free
-> > allocators are bound. As such I want to be able to eliminate as many
-> > page walks as possible.
-> >
-> > Just excepting the limitation would put Linux down on the same level
-> > as the Windows API, where no VirtualRealloc exists. My allocator
-> > needs to work with Linux and Windows; for the latter one I'm already
-> > managing a table of consecutive mappings in user-space that, if
-> > a relocation has to be made, creates an entirely new mapping
-> > into which the data of the previous mappings is copied. This is
-> > redundant, because the kernel and the process keep their own copies
-> > of the mapping table, and this is slow because the kernel could just
-> > re-adjust the position within the address space, whereas the process
-> > has to memcpy all the data from the old to the new mappings.
-> >
-> > Those are the very problems mremap was supposed to remove in the
-> > first place. Making the limitation documented is the lazy way that
-> > will force implementers to workaround it.
+On Sun 22-10-17 17:24:51, David Rientjes wrote:
+> On Thu, 19 Oct 2017, Johannes Weiner wrote:
 > 
-> mremap has never supported moving or growing hugetlb mappings.  Someone
-> (before git history) added this explicit check to the mremap code.  Perhaps
-> it was done when huge page support was introduced?
+> > David would have really liked for this patchset to include knobs to
+> > influence how the algorithm picks cgroup victims. The rest of us
+> > agreed that this is beyond the scope of these patches, that the
+> > patches don't need it to be useful, and that there is nothing
+> > preventing anyone from adding configurability later on. David
+> > subsequently nacked the series as he considers it incomplete. Neither
+> > Michal nor I see technical merit in David's nack.
+> > 
+> 
+> The nack is for three reasons:
+> 
+>  (1) unfair comparison of root mem cgroup usage to bias against that mem 
+>      cgroup from oom kill in system oom conditions,
 
-yes, that is the case.
+Most users who are going to use this feature right now will have
+most of the userspace in their containers rather than in the root
+memcg. The root memcg will always be special and as such there will
+never be a universal best way to handle it. We should to satisfy most of
+usecases. I would consider this something that is an open for a further
+discussion but nothing that should stand in the way.
  
-> I am of the opinion that we should simply document this limitation.  AFAIK,
-> this this the first time anyone has asked about it in 15 years.  What is the
-> opinion of others?
+>  (2) the ability of users to completely evade the oom killer by attaching
+>      all processes to child cgroups either purposefully or unpurposefully,
+>      and
 
-I do not remember any such a request either. I can see some merit in the
-described use case. It is not specific on why hugetlb pages are used for
-the allocator memory because that comes with it own issues. If somebody
-is really thrilled enough to implement this the remapping feature for
-hugetlb I wouldn't be opposed as long as the implementation is clean and
-wouldn't add an additional mess to the code base. I suspect that the vma
-enlarging might be a hard deal. Anyway starting with a documentation
-update sounds like a good thing anyway. In any case such a feature will
-be available only for new kernels so people should be aware of the state
-on older kernels.
+This doesn't differ from the current state where a task can purposefully
+or unpurposefully hide itself from the global memory killer by spawning
+new processes.
+ 
+>  (3) the inability of userspace to effectively control oom victim  
+>      selection.
 
+this is not requested by the current usecase and it has been pointed out
+that this will be possible to implement on top of the foundation of this
+patchset.
+
+So again, nothing to nack the work as is.
 -- 
 Michal Hocko
 SUSE Labs
