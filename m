@@ -1,138 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D92E46B0033
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 07:55:52 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id g6so11656830pgn.11
-        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 04:55:52 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bb11si3944808plb.330.2017.10.23.04.55.51
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EA1606B0033
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 07:57:07 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id r202so6623096wmd.17
+        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 04:57:07 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id b74sor1204385wme.62.2017.10.23.04.57.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 23 Oct 2017 04:55:51 -0700 (PDT)
-Date: Mon, 23 Oct 2017 13:55:47 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v1] mm: broken deferred calculation
-Message-ID: <20171023115547.qscf33ep2lhm75pi@dhcp22.suse.cz>
-References: <20171021011707.15191-1-pasha.tatashin@oracle.com>
+        (Google Transport Security);
+        Mon, 23 Oct 2017 04:57:06 -0700 (PDT)
+Date: Mon, 23 Oct 2017 13:56:58 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 0/6] Boot-time switching between 4- and 5-level paging
+ for 4.15, Part 1
+Message-ID: <20171023115658.geccs22o2t733np3@gmail.com>
+References: <20170929140821.37654-1-kirill.shutemov@linux.intel.com>
+ <20171003082754.no6ym45oirah53zp@node.shutemov.name>
+ <20171017154241.f4zaxakfl7fcrdz5@node.shutemov.name>
+ <20171020081853.lmnvaiydxhy5c63t@gmail.com>
+ <20171020094152.skx5sh5ramq2a3vu@black.fi.intel.com>
+ <20171020152346.f6tjybt7i5kzbhld@gmail.com>
+ <20171020162349.3kwhdgv7qo45w4lh@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171021011707.15191-1-pasha.tatashin@oracle.com>
+In-Reply-To: <20171020162349.3kwhdgv7qo45w4lh@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, akpm@linux-foundation.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 20-10-17 21:17:07, Pavel Tatashin wrote:
-> In reset_deferred_meminit we determine number of pages that must not be
-> deferred. We initialize pages for at least 2G of memory, but also pages for
-> reserved memory in this node.
+
+* Kirill A. Shutemov <kirill@shutemov.name> wrote:
+
+> > Or, could we keep MAX_PHYSMEM_BITS constant, and introduce a _different_ constant 
+> > that is dynamic, and which could be used in the cases where the 5-level paging 
+> > config causes too much memory footprint in the common 4-level paging case?
 > 
-> The reserved memory is determined in this function:
-> memblock_reserved_memory_within(), which operates over physical addresses,
-> and returns size in bytes. However, reset_deferred_meminit() assumes that
-> that this function operates with pfns, and returns page count.
+> This is more labor intensive case with unclear benefit.
 > 
-> The result is that in the best case machine boots slower than expected
-> due to initializing more pages than needed in single thread, and in the
-> worst case panics because fewer than needed pages are initialized early.
+> Dynamic MAX_PHYSMEM_BITS doesn't cause any issue in waste majority of
+> cases.
 
-Hmm, I have definitely screwed up pfns and addresses here. I am
-wondering how this could work in the end. I remember this has been
-tested on the PPC machine which exhibited the problem.
+Almost nothing uses it - and even in those few cases it caused problems.
 
-> Fixes: 864b9a393dcb ("mm: consider memblock reservations for deferred memory initialization sizing")
-> 
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Making a variable that 'looks' like a constant macro dynamic in a rare Kconfig 
+scenario is asking for trouble.
 
-Thanks for catching that! The patch could have been simpler without all
-the renames but I have no objections here.
-Acked-by: Michal Hocko <mhocko@suse.com>
+Thanks,
 
-> ---
->  include/linux/mmzone.h |  3 ++-
->  mm/page_alloc.c        | 27 ++++++++++++++++++---------
->  2 files changed, 20 insertions(+), 10 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index a6f361931d52..d45ba78c7e42 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -699,7 +699,8 @@ typedef struct pglist_data {
->  	 * is the first PFN that needs to be initialised.
->  	 */
->  	unsigned long first_deferred_pfn;
-> -	unsigned long static_init_size;
-> +	/* Number of non-deferred pages */
-> +	unsigned long static_init_pgcnt;
->  #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
->  
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 97687b38da05..16419cdbbb7a 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -289,28 +289,37 @@ EXPORT_SYMBOL(nr_online_nodes);
->  int page_group_by_mobility_disabled __read_mostly;
->  
->  #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
-> +
-> +/*
-> + * Determine how many pages need to be initialized durig early boot
-> + * (non-deferred initialization).
-> + * The value of first_deferred_pfn will be set later, once non-deferred pages
-> + * are initialized, but for now set it ULONG_MAX.
-> + */
->  static inline void reset_deferred_meminit(pg_data_t *pgdat)
->  {
-> -	unsigned long max_initialise;
-> -	unsigned long reserved_lowmem;
-> +	phys_addr_t start_addr, end_addr;
-> +	unsigned long max_pgcnt;
-> +	unsigned long reserved;
->  
->  	/*
->  	 * Initialise at least 2G of a node but also take into account that
->  	 * two large system hashes that can take up 1GB for 0.25TB/node.
->  	 */
-> -	max_initialise = max(2UL << (30 - PAGE_SHIFT),
-> -		(pgdat->node_spanned_pages >> 8));
-> +	max_pgcnt = max(2UL << (30 - PAGE_SHIFT),
-> +			(pgdat->node_spanned_pages >> 8));
->  
->  	/*
->  	 * Compensate the all the memblock reservations (e.g. crash kernel)
->  	 * from the initial estimation to make sure we will initialize enough
->  	 * memory to boot.
->  	 */
-> -	reserved_lowmem = memblock_reserved_memory_within(pgdat->node_start_pfn,
-> -			pgdat->node_start_pfn + max_initialise);
-> -	max_initialise += reserved_lowmem;
-> +	start_addr = PFN_PHYS(pgdat->node_start_pfn);
-> +	end_addr = PFN_PHYS(pgdat->node_start_pfn + max_pgcnt);
-> +	reserved = memblock_reserved_memory_within(start_addr, end_addr);
-> +	max_pgcnt += PHYS_PFN(reserved);
->  
-> -	pgdat->static_init_size = min(max_initialise, pgdat->node_spanned_pages);
-> +	pgdat->static_init_pgcnt = min(max_pgcnt, pgdat->node_spanned_pages);
->  	pgdat->first_deferred_pfn = ULONG_MAX;
->  }
->  
-> @@ -337,7 +346,7 @@ static inline bool update_defer_init(pg_data_t *pgdat,
->  	if (zone_end < pgdat_end_pfn(pgdat))
->  		return true;
->  	(*nr_initialised)++;
-> -	if ((*nr_initialised > pgdat->static_init_size) &&
-> +	if ((*nr_initialised > pgdat->static_init_pgcnt) &&
->  	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
->  		pgdat->first_deferred_pfn = pfn;
->  		return false;
-> -- 
-> 2.14.2
-
--- 
-Michal Hocko
-SUSE Labs
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
