@@ -1,55 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EA1606B0033
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 07:57:07 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id r202so6623096wmd.17
-        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 04:57:07 -0700 (PDT)
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B526B6B0033
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 08:16:42 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id y15so16840163ita.22
+        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 05:16:42 -0700 (PDT)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b74sor1204385wme.62.2017.10.23.04.57.06
+        by mx.google.com with SMTPS id j126sor2705732itb.105.2017.10.23.05.16.41
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 23 Oct 2017 04:57:06 -0700 (PDT)
-Date: Mon, 23 Oct 2017 13:56:58 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 0/6] Boot-time switching between 4- and 5-level paging
- for 4.15, Part 1
-Message-ID: <20171023115658.geccs22o2t733np3@gmail.com>
-References: <20170929140821.37654-1-kirill.shutemov@linux.intel.com>
- <20171003082754.no6ym45oirah53zp@node.shutemov.name>
- <20171017154241.f4zaxakfl7fcrdz5@node.shutemov.name>
- <20171020081853.lmnvaiydxhy5c63t@gmail.com>
- <20171020094152.skx5sh5ramq2a3vu@black.fi.intel.com>
- <20171020152346.f6tjybt7i5kzbhld@gmail.com>
- <20171020162349.3kwhdgv7qo45w4lh@node.shutemov.name>
+        Mon, 23 Oct 2017 05:16:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171020162349.3kwhdgv7qo45w4lh@node.shutemov.name>
+In-Reply-To: <20171023093109.GI32228@amd>
+References: <20170905194739.GA31241@amd> <20171001093704.GA12626@amd>
+ <20171001102647.GA23908@amd> <201710011957.ICF15708.OOLOHFSQMFFVJt@I-love.SAKURA.ne.jp>
+ <72c93a69-610f-027e-c028-379b97b6f388@intel.com> <20171002084131.GA24414@amd>
+ <CACRpkdbatrt0Uxf8653iiV-OKkgcc0Ziog_L4oDVTJVNqtNN0Q@mail.gmail.com>
+ <20171002130353.GA25433@amd> <184b3552-851c-7015-dd80-76f6eebc33cc@intel.com> <20171023093109.GI32228@amd>
+From: Linus Walleij <linus.walleij@linaro.org>
+Date: Mon, 23 Oct 2017 14:16:40 +0200
+Message-ID: <CACRpkdaa6qq91+dQ43EZDvDefbM3tjwLX5e+nNZouwXM0xJ=4w@mail.gmail.com>
+Subject: Re: 4.14-rc2 on thinkpad x220: out of memory when inserting mmc card
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Adrian Hunter <adrian.hunter@intel.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, linux-mm@kvack.org
 
+On Mon, Oct 23, 2017 at 11:31 AM, Pavel Machek <pavel@ucw.cz> wrote:
 
-* Kirill A. Shutemov <kirill@shutemov.name> wrote:
+>> > Thinkpad X220... how do I tell if I was using them? I believe so,
+>> > because I uncovered bug in them before.
+>>
+>> You are certainly using bounce buffers.  What does lspci -knn show?
+>
+> Here is the output:
+> 0d:00.0 System peripheral [0880]: Ricoh Co Ltd PCIe SDXC/MMC Host Controller [1180:e823] (rev 07)
+>         Subsystem: Lenovo Device [17aa:21da]
+>         Kernel driver in use: sdhci-pci
 
-> > Or, could we keep MAX_PHYSMEM_BITS constant, and introduce a _different_ constant 
-> > that is dynamic, and which could be used in the cases where the 5-level paging 
-> > config causes too much memory footprint in the common 4-level paging case?
-> 
-> This is more labor intensive case with unclear benefit.
-> 
-> Dynamic MAX_PHYSMEM_BITS doesn't cause any issue in waste majority of
-> cases.
+So that is a Ricoh driver, one of the few that was supposed to benefit
+from bounce buffers.
 
-Almost nothing uses it - and even in those few cases it caused problems.
+Except that if you actually turned it on:
+> [10994.302196] kworker/2:1: page allocation failure: order:4,
+so it doesn't have enough memory to use these bounce buffers
+anyway.
 
-Making a variable that 'looks' like a constant macro dynamic in a rare Kconfig 
-scenario is asking for trouble.
+I'm now feel it was the right thing to delete them.
 
-Thanks,
+I assume the problem doesn't appear in later -rc:s am I right?
 
-	Ingo
+Yours,
+Linus Walleij
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
