@@ -1,70 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 482C66B0033
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 07:49:52 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id o44so9958370wrf.0
-        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 04:49:52 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D92E46B0033
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 07:55:52 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id g6so11656830pgn.11
+        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 04:55:52 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j7si3077035wmh.183.2017.10.23.04.49.50
+        by mx.google.com with ESMTPS id bb11si3944808plb.330.2017.10.23.04.55.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 23 Oct 2017 04:49:51 -0700 (PDT)
-Date: Mon, 23 Oct 2017 13:49:48 +0200
+        Mon, 23 Oct 2017 04:55:51 -0700 (PDT)
+Date: Mon, 23 Oct 2017 13:55:47 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RESEND v12 0/6] cgroup-aware OOM killer
-Message-ID: <20171023114948.qzmo7emqbigfff7h@dhcp22.suse.cz>
-References: <20171019185218.12663-1-guro@fb.com>
- <20171019194534.GA5502@cmpxchg.org>
- <alpine.DEB.2.10.1710221715010.70210@chino.kir.corp.google.com>
+Subject: Re: [PATCH v1] mm: broken deferred calculation
+Message-ID: <20171023115547.qscf33ep2lhm75pi@dhcp22.suse.cz>
+References: <20171021011707.15191-1-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1710221715010.70210@chino.kir.corp.google.com>
+In-Reply-To: <20171021011707.15191-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, akpm@linux-foundation.org
 
-On Sun 22-10-17 17:24:51, David Rientjes wrote:
-> On Thu, 19 Oct 2017, Johannes Weiner wrote:
+On Fri 20-10-17 21:17:07, Pavel Tatashin wrote:
+> In reset_deferred_meminit we determine number of pages that must not be
+> deferred. We initialize pages for at least 2G of memory, but also pages for
+> reserved memory in this node.
 > 
-> > David would have really liked for this patchset to include knobs to
-> > influence how the algorithm picks cgroup victims. The rest of us
-> > agreed that this is beyond the scope of these patches, that the
-> > patches don't need it to be useful, and that there is nothing
-> > preventing anyone from adding configurability later on. David
-> > subsequently nacked the series as he considers it incomplete. Neither
-> > Michal nor I see technical merit in David's nack.
-> > 
+> The reserved memory is determined in this function:
+> memblock_reserved_memory_within(), which operates over physical addresses,
+> and returns size in bytes. However, reset_deferred_meminit() assumes that
+> that this function operates with pfns, and returns page count.
 > 
-> The nack is for three reasons:
+> The result is that in the best case machine boots slower than expected
+> due to initializing more pages than needed in single thread, and in the
+> worst case panics because fewer than needed pages are initialized early.
+
+Hmm, I have definitely screwed up pfns and addresses here. I am
+wondering how this could work in the end. I remember this has been
+tested on the PPC machine which exhibited the problem.
+
+> Fixes: 864b9a393dcb ("mm: consider memblock reservations for deferred memory initialization sizing")
 > 
->  (1) unfair comparison of root mem cgroup usage to bias against that mem 
->      cgroup from oom kill in system oom conditions,
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 
-Most users who are going to use this feature right now will have
-most of the userspace in their containers rather than in the root
-memcg. The root memcg will always be special and as such there will
-never be a universal best way to handle it. We should to satisfy most of
-usecases. I would consider this something that is an open for a further
-discussion but nothing that should stand in the way.
- 
->  (2) the ability of users to completely evade the oom killer by attaching
->      all processes to child cgroups either purposefully or unpurposefully,
->      and
+Thanks for catching that! The patch could have been simpler without all
+the renames but I have no objections here.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-This doesn't differ from the current state where a task can purposefully
-or unpurposefully hide itself from the global memory killer by spawning
-new processes.
- 
->  (3) the inability of userspace to effectively control oom victim  
->      selection.
+> ---
+>  include/linux/mmzone.h |  3 ++-
+>  mm/page_alloc.c        | 27 ++++++++++++++++++---------
+>  2 files changed, 20 insertions(+), 10 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index a6f361931d52..d45ba78c7e42 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -699,7 +699,8 @@ typedef struct pglist_data {
+>  	 * is the first PFN that needs to be initialised.
+>  	 */
+>  	unsigned long first_deferred_pfn;
+> -	unsigned long static_init_size;
+> +	/* Number of non-deferred pages */
+> +	unsigned long static_init_pgcnt;
+>  #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
+>  
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 97687b38da05..16419cdbbb7a 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -289,28 +289,37 @@ EXPORT_SYMBOL(nr_online_nodes);
+>  int page_group_by_mobility_disabled __read_mostly;
+>  
+>  #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+> +
+> +/*
+> + * Determine how many pages need to be initialized durig early boot
+> + * (non-deferred initialization).
+> + * The value of first_deferred_pfn will be set later, once non-deferred pages
+> + * are initialized, but for now set it ULONG_MAX.
+> + */
+>  static inline void reset_deferred_meminit(pg_data_t *pgdat)
+>  {
+> -	unsigned long max_initialise;
+> -	unsigned long reserved_lowmem;
+> +	phys_addr_t start_addr, end_addr;
+> +	unsigned long max_pgcnt;
+> +	unsigned long reserved;
+>  
+>  	/*
+>  	 * Initialise at least 2G of a node but also take into account that
+>  	 * two large system hashes that can take up 1GB for 0.25TB/node.
+>  	 */
+> -	max_initialise = max(2UL << (30 - PAGE_SHIFT),
+> -		(pgdat->node_spanned_pages >> 8));
+> +	max_pgcnt = max(2UL << (30 - PAGE_SHIFT),
+> +			(pgdat->node_spanned_pages >> 8));
+>  
+>  	/*
+>  	 * Compensate the all the memblock reservations (e.g. crash kernel)
+>  	 * from the initial estimation to make sure we will initialize enough
+>  	 * memory to boot.
+>  	 */
+> -	reserved_lowmem = memblock_reserved_memory_within(pgdat->node_start_pfn,
+> -			pgdat->node_start_pfn + max_initialise);
+> -	max_initialise += reserved_lowmem;
+> +	start_addr = PFN_PHYS(pgdat->node_start_pfn);
+> +	end_addr = PFN_PHYS(pgdat->node_start_pfn + max_pgcnt);
+> +	reserved = memblock_reserved_memory_within(start_addr, end_addr);
+> +	max_pgcnt += PHYS_PFN(reserved);
+>  
+> -	pgdat->static_init_size = min(max_initialise, pgdat->node_spanned_pages);
+> +	pgdat->static_init_pgcnt = min(max_pgcnt, pgdat->node_spanned_pages);
+>  	pgdat->first_deferred_pfn = ULONG_MAX;
+>  }
+>  
+> @@ -337,7 +346,7 @@ static inline bool update_defer_init(pg_data_t *pgdat,
+>  	if (zone_end < pgdat_end_pfn(pgdat))
+>  		return true;
+>  	(*nr_initialised)++;
+> -	if ((*nr_initialised > pgdat->static_init_size) &&
+> +	if ((*nr_initialised > pgdat->static_init_pgcnt) &&
+>  	    (pfn & (PAGES_PER_SECTION - 1)) == 0) {
+>  		pgdat->first_deferred_pfn = pfn;
+>  		return false;
+> -- 
+> 2.14.2
 
-this is not requested by the current usecase and it has been pointed out
-that this will be possible to implement on top of the foundation of this
-patchset.
-
-So again, nothing to nack the work as is.
 -- 
 Michal Hocko
 SUSE Labs
