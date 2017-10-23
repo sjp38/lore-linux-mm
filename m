@@ -1,75 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CD7846B0033
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 07:33:19 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id z77so1252359wmc.16
-        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 04:33:19 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 17D266B0033
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 07:42:16 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id t188so16149821pfd.20
+        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 04:42:16 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z3si5468123wrb.55.2017.10.23.04.33.18
+        by mx.google.com with ESMTPS id y9si3972646pli.234.2017.10.23.04.42.14
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 23 Oct 2017 04:33:18 -0700 (PDT)
-Date: Mon, 23 Oct 2017 13:33:15 +0200
+        Mon, 23 Oct 2017 04:42:14 -0700 (PDT)
+Date: Mon, 23 Oct 2017 13:42:10 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, thp: make deferred_split_shrinker memcg-aware
-Message-ID: <20171023113315.jfu75pl4hytakjog@dhcp22.suse.cz>
-References: <20171019200323.42491-1-nehaagarwal@google.com>
- <20171020071250.ftqn2d356yekkp5k@dhcp22.suse.cz>
- <CAEvLuNbH0azyfSydbu3yNZ-_xY-G_5YrDDneCwcFbv+NgYd10w@mail.gmail.com>
- <CAEvLuNbo=zf1aC9k7sitZgYPD=P1Awwne4mmUSRtJc0EF1xcAA@mail.gmail.com>
+Subject: Re: PROBLEM: Remapping hugepages mappings causes kernel to return
+ EINVAL
+Message-ID: <20171023114210.j7ip75ewoy2tiqs4@dhcp22.suse.cz>
+References: <93684e4b-9e60-ef3a-ba62-5719fdf7cff9@gmx.de>
+ <6b639da5-ad9a-158c-ad4a-7a4e44bd98fc@gmx.de>
+ <5fb8955d-23af-ec85-a19f-3a5b26cc04d1@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAEvLuNbo=zf1aC9k7sitZgYPD=P1Awwne4mmUSRtJc0EF1xcAA@mail.gmail.com>
+In-Reply-To: <5fb8955d-23af-ec85-a19f-3a5b26cc04d1@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Neha Agarwal <nehaagarwal@google.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Dan Williams <dan.j.williams@intel.com>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Kemi Wang <kemi.wang@intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Shaohua Li <shli@fb.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: "C.Wehrmeyer" <c.wehrmeyer@gmx.de>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Fri 20-10-17 10:47:57, Neha Agarwal wrote:
-> On Fri, Oct 20, 2017 at 9:47 AM, Neha Agarwal <nehaagarwal@google.com> wrote:
-> > [Sorry for multiple emails, it wasn't in plain text before, thus resending.]
+On Fri 20-10-17 15:42:25, Mike Kravetz wrote:
+> On 10/19/2017 12:34 AM, C.Wehrmeyer wrote:
+[...]
+> > As for the specific use case: I've written my own allocator that is
+> > not bound on the same limitations that usual malloc/realloc/free
+> > allocators are bound. As such I want to be able to eliminate as many
+> > page walks as possible.
 > >
-> > On Fri, Oct 20, 2017 at 12:12 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> >> On Thu 19-10-17 13:03:23, Neha Agarwal wrote:
-> >>> deferred_split_shrinker is NUMA aware. Making it memcg-aware if
-> >>> CONFIG_MEMCG is enabled to prevent shrinking memory of memcg(s) that are
-> >>> not under memory pressure. This change isolates memory pressure across
-> >>> memcgs from deferred_split_shrinker perspective, by not prematurely
-> >>> splitting huge pages for the memcg that is not under memory pressure.
-> >>
-> >> Why do we need this? THP pages are usually not shared between memcgs. Or
-> >> do you have a real world example where this is not the case? Your patch
-> >> is adding quite a lot of (and to be really honest very ugly) code so
-> >> there better should be a _very_ good reason to justify it. I haven't
-> >> looked very closely to the code, at least all those ifdefs in the code
-> >> are too ugly to live.
-> >> --
-> >> Michal Hocko
-> >> SUSE Labs
+> > Just excepting the limitation would put Linux down on the same level
+> > as the Windows API, where no VirtualRealloc exists. My allocator
+> > needs to work with Linux and Windows; for the latter one I'm already
+> > managing a table of consecutive mappings in user-space that, if
+> > a relocation has to be made, creates an entirely new mapping
+> > into which the data of the previous mappings is copied. This is
+> > redundant, because the kernel and the process keep their own copies
+> > of the mapping table, and this is slow because the kernel could just
+> > re-adjust the position within the address space, whereas the process
+> > has to memcpy all the data from the old to the new mappings.
 > >
-> > Hi Michal,
-> >
-> > Let me try to pitch the motivation first:
-> > In the case of NUMA-aware shrinker, memory pressure may lead to
-> > splitting and freeing subpages within a THP, irrespective of whether
-> > the page belongs to the memcg that is under memory pressure. THP
-> > sharing between memcgs is not a pre-condition for above to happen.
+> > Those are the very problems mremap was supposed to remove in the
+> > first place. Making the limitation documented is the lazy way that
+> > will force implementers to workaround it.
 > 
-> I think I got confused here. The point I want to make is that when a
-> memcg is under memory pressure, only memcg-aware shrinkers are called.
-> However, a memcg with partially-mapped THPs (which can be split and
-> thus free up subpages) should be be able to split such THPs, to avoid
-> oom-kills under memory pressure. By making this shrinker memcg-aware,
-> we will be able to free up subpages by splitting partially-mapped THPs
-> under memory pressure.
+> mremap has never supported moving or growing hugetlb mappings.  Someone
+> (before git history) added this explicit check to the mremap code.  Perhaps
+> it was done when huge page support was introduced?
 
-I still do not understand, sorry. How can we result in OOM due to THP
-splitting. Please make sure to describe user visible effects that you
-are seeing and why you think they need fixing along with a description
-on how the fix works.
+yes, that is the case.
+ 
+> I am of the opinion that we should simply document this limitation.  AFAIK,
+> this this the first time anyone has asked about it in 15 years.  What is the
+> opinion of others?
 
-So far I am kinda lost to see what you are trying to achieve and why.
+I do not remember any such a request either. I can see some merit in the
+described use case. It is not specific on why hugetlb pages are used for
+the allocator memory because that comes with it own issues. If somebody
+is really thrilled enough to implement this the remapping feature for
+hugetlb I wouldn't be opposed as long as the implementation is clean and
+wouldn't add an additional mess to the code base. I suspect that the vma
+enlarging might be a hard deal. Anyway starting with a documentation
+update sounds like a good thing anyway. In any case such a feature will
+be available only for new kernels so people should be aware of the state
+on older kernels.
+
 -- 
 Michal Hocko
 SUSE Labs
