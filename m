@@ -1,82 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D0D46B025F
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 12:15:58 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id y128so12214939pfg.5
-        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 09:15:58 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 3si4210557plt.516.2017.10.23.09.15.56
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A1AC6B0261
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 12:47:24 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id o44so10370096wrf.0
+        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 09:47:24 -0700 (PDT)
+Received: from mout.gmx.net (mout.gmx.net. [212.227.15.19])
+        by mx.google.com with ESMTPS id c10si2029176wrg.554.2017.10.23.09.47.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 23 Oct 2017 09:15:57 -0700 (PDT)
-Date: Mon, 23 Oct 2017 18:15:54 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: fix movable_node kernel command-line
-Message-ID: <20171023161554.zltjcls34kr4234m@dhcp22.suse.cz>
-References: <ad310dfbfb86ef4f1f9a173cad1a030e879d572e.1508536900.git.sharath.k.bhat@linux.intel.com>
- <20171023125213.whdiev6bjxr72gow@dhcp22.suse.cz>
- <20171023160314.GA11853@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 23 Oct 2017 09:47:22 -0700 (PDT)
+Subject: Re: PROBLEM: Remapping hugepages mappings causes kernel to return
+ EINVAL
+References: <93684e4b-9e60-ef3a-ba62-5719fdf7cff9@gmx.de>
+ <6b639da5-ad9a-158c-ad4a-7a4e44bd98fc@gmx.de>
+ <5fb8955d-23af-ec85-a19f-3a5b26cc04d1@oracle.com>
+ <20171023114210.j7ip75ewoy2tiqs4@dhcp22.suse.cz>
+ <e2cc07b7-3c5e-a166-0bb2-eff92fc70cd1@gmx.de>
+ <20171023124122.tjmrbcwo2btzk3li@dhcp22.suse.cz>
+ <b6cbb960-d0f1-0630-a2a1-e00bab4af0a1@gmx.de>
+ <20171023161316.ajrxgd2jzo3u52eu@dhcp22.suse.cz>
+From: "C.Wehrmeyer" <c.wehrmeyer@gmx.de>
+Message-ID: <93ffc1c8-3401-2bea-732a-17d373d2f24c@gmx.de>
+Date: Mon, 23 Oct 2017 18:46:59 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171023160314.GA11853@linux.intel.com>
+In-Reply-To: <20171023161316.ajrxgd2jzo3u52eu@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sharath Kumar Bhat <sharath.k.bhat@linux.intel.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Mon 23-10-17 09:03:14, Sharath Kumar Bhat wrote:
-> On Mon, Oct 23, 2017 at 02:52:13PM +0200, Michal Hocko wrote:
-> > On Fri 20-10-17 16:32:09, Sharath Kumar Bhat wrote:
-> > > Currently when booted with the 'movable_node' kernel command-line the user
-> > > can not have both the functionality of 'movable_node' and at the same time
-> > > specify more movable memory than the total size of hotpluggable memories.
-> > > 
-> > > This is a problem because it limits the total amount of movable memory in
-> > > the system to the total size of hotpluggable memories and in a system the
-> > > total size of hotpluggable memories can be very small or all hotpluggable
-> > > memories could have been offlined. The 'movable_node' parameter was aimed
-> > > to provide the entire memory of hotpluggable NUMA nodes to applications
-> > > without any kernel allocations in them. The 'movable_node' option will be
-> > > useful if those hotpluggable nodes have special memory like MCDRAM as in
-> > > KNL which is a high bandwidth memory and the user would like to use all of
-> > > it for applications. But in doing so the 'movable_node' command-line poses
-> > > this limitation and does not allow the user to specify more movable memory
-> > > in addition to the hotpluggable memories.
-> > > 
-> > > With this change the existing 'movablecore=' and 'kernelcore=' command-line
-> > > parameters can be specified in addition to the 'movable_node' kernel
-> > > parameter. This allows the user to boot the kernel with an increased amount
-> > > of movable memory in the system and still have only movable memory in
-> > > hotpluggable NUMA nodes.
-> > 
-> > I really detest making the already cluttered kernelcore* handling even
-> > more so. Why cannot your MCDRAM simply announce itself as hotplugable?
-> > Also it is not really clear to me how can you control that only your
-> > specific memory type gets into movable zone.
-> > -- 
-> > Michal Hocko
-> > SUSE Labs
+On 23-10-17 18:13, Michal Hocko wrote:
+> On Mon 23-10-17 16:00:13, C.Wehrmeyer wrote:
+>> And just to be very sure I've added:
+>>
+>> if (madvise(buf1,ALLOC_SIZE_1,MADV_HUGEPAGE)) {
+>>          errno_tmp = errno;
+>>          fprintf(stderr,"madvise: %u\n",errno_tmp);
+>>          goto out;
+>> }
+>>
+>> /*Make sure the mapping is actually used*/
+>> memset(buf1,'!',ALLOC_SIZE_1);
 > 
-> In the example MCDRAM is already being announced as hotpluggable and
-> 'movable_node' is also used to ensure that there is no kernel allocations
-> in that. This is a required functionality but when done so user can not have
-> movable zone in other non-hotpluggable memories in addition to hotpluggable
-> memory.
-> 
-> This change wont affect any of the present use cases such as 'kernelcore='
-> or 'movablecore=' or using only 'movable_node'. They continue to work as
-> before.
-> 
-> In addition to those it lets admin to specify 'kernelcore=' or
-> 'movablecore=' when using 'movable_node' command-line
+> Is the buffer aligned to 2MB?
 
-So, why exactly do we need this functionality? kernelcore is an ugly
-interface, I am not entirely thrilled into extending it even more.
+When I omit MAP_HUGETLB for the flags that mmap receives - no.
 
--- 
-Michal Hocko
-SUSE Labs
+#define ALLOC_SIZE_1 (2 * 1024 * 1024)
+[...]
+buf1 = mmap (
+         NULL,
+         ALLOC_SIZE_1,
+         prot, /*PROT_READ | PROT_WRITE*/
+         flags /*MAP_PRIVATE | MAP_ANONYMOUS*/,
+         -1,
+         0
+);
+
+In such a case buf1 usually contains addresses which are aligned to 4 
+KiBs, such as 0x7f07d76e9000. 2-MiB-aligned addresses, such as 
+0x7f89f5e00000, are only produced with MAP_HUGETLB - which, if I 
+understood the documentation correctly, is not the point of THPs as they 
+are supposed to be transparent.
+
+I'm not exactly sure how I'm supposed to force mmap to give me any other 
+kind of address, if that is going to be your suggestion - unless I'd 
+read the mapping configuration for the current process and find myself a 
+spot where I can tell mmap to create a mapping for me using MAP_FIXED. 
+But that wouldn't be transparent, either.
+
+>> /*Give me time for monitoring*/
+>> sleep(2000);
+>>
+>> right after the mmap call. I've also made sure that nothing is being
+>> optimised away by the compiler. With a 2MiB mapping being requested this
+>> should be a good opportunity for the kernel, and yet when I try to figure
+>> out how many THPs my processes uses:
+>>
+>> $ cat /proc/21986/smaps  | grep 'AnonHuge'
+>>
+>> I just end up with lots of:
+>>
+>> AnonHugePages:         0 kB
+>>
+>> And cat /proc/meminfo | grep 'Huge' doesn't change significantly as well. Am
+>> I just doing something wrong here, or shouldn't I trust the THP mechanisms
+>> to actually allocate hugepages for me?
+> 
+> If the mapping is aligned properly then the rest is up to system and
+> availability of large physically contiguous memory blocks.
+
+I have about 5 GiBs of free memory right now, and while I can not 
+guarantee that memory fragmentation prevents the kernel from using THP, 
+manually reserving 256 2-MiB pages through nr_hugepages and then freeing 
+them works just fine. Yes, after allocating them I checked if 
+nr_hugepages actually was 256. And yet, after immediately running my 
+program, there would be no change any of the AnonHugePages elements that 
+smaps exports. Also (while omitting MAP_HUGETLB) buf1 remains to be 
+aligned to 4 KiB.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
