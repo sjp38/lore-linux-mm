@@ -1,55 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F0C96B0033
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 17:52:07 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 76so17078695pfr.3
-        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 14:52:07 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id x1si3187014plb.289.2017.10.23.14.52.06
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 88BD86B0253
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 18:10:08 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b6so15908662pff.18
+        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 15:10:08 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id 190si5375135pgi.574.2017.10.23.15.10.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Oct 2017 14:52:06 -0700 (PDT)
-Subject: Re: [PATCH] mm: fix movable_node kernel command-line
-References: <20171023160314.GA11853@linux.intel.com>
- <20171023161554.zltjcls34kr4234m@dhcp22.suse.cz>
- <20171023171435.GA12025@linux.intel.com>
- <20171023172008.kr6dzpe63nfpgps7@dhcp22.suse.cz>
- <20171023173544.GA12198@linux.intel.com>
- <20171023174905.ap4uz6puggeqnz3s@dhcp22.suse.cz>
- <20171023184852.GB12198@linux.intel.com>
- <20171023190459.odyu26rqhuja4trj@dhcp22.suse.cz>
- <20171023192524.GC12198@linux.intel.com>
- <20171023193536.c7yptc4tpesa4ffl@dhcp22.suse.cz>
- <20171023195637.GE12198@linux.intel.com>
+        Mon, 23 Oct 2017 15:10:07 -0700 (PDT)
+Subject: Re: [RFC] mmap(MAP_CONTIG)
+References: <21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com>
 From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <0ed8144f-4447-e2de-47f7-ea1fc16f0b25@intel.com>
-Date: Mon, 23 Oct 2017 14:52:04 -0700
+Message-ID: <b2dee13d-a19a-2b53-7317-7227749375d9@intel.com>
+Date: Mon, 23 Oct 2017 15:10:05 -0700
 MIME-Version: 1.0
-In-Reply-To: <20171023195637.GE12198@linux.intel.com>
+In-Reply-To: <21f1ec96-2822-1189-1c95-79a2bb491571@oracle.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sharath.k.bhat@linux.intel.com, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Guy Shattah <sguy@mellanox.com>, Christoph Lameter <cl@linux.com>
 
-On 10/23/2017 12:56 PM, Sharath Kumar Bhat wrote:
->> I am sorry for being dense here but why cannot you mark that memory
->> hotplugable? I assume you are under the control to set attributes of the
->> memory to the guest.
-> When I said two OS's I meant multi-kernel environment sharing the same
-> hardware and not VMs. So we do not have the control to mark the memory
-> hotpluggable as done by BIOS through SRAT.
+On 10/03/2017 04:56 PM, Mike Kravetz wrote:
+> mmap(MAP_CONTIG) would have the following semantics:
+> - The entire mapping (length size) would be backed by physically contiguous
+>   pages.
+> - If 'length' physically contiguous pages can not be allocated, then mmap
+>   will fail.
+> - MAP_CONTIG only works with MAP_ANONYMOUS mappings.
+> - MAP_CONTIG will lock the associated pages in memory.  As such, the same
+>   privileges and limits that apply to mlock will also apply to MAP_CONTIG.
+> - A MAP_CONTIG mapping can not be expanded.
 
-If you are going as far as to pass in custom kernel command-line
-arguments, there's a bunch of other fun stuff you can do.  ACPI table
-overrides come to mind.
+Do you also need to lock out the NUMA migration APIs somehow?  What
+about KSM (or does it already ignore VM_LOCKED)?
 
-> This facility can be used by platform/BIOS vendors to provide a Linux
-> compatible environment without modifying the underlying platform firmware.
-
-https://www.kernel.org/doc/Documentation/acpi/initrd_table_override.txt
+> - At fork time, private MAP_CONTIG mappings will be converted to regular
+>   (non-MAP_CONTIG) mapping in the child.  As such a COW fault in the child
+>   will not require a contiguous allocation.
+Maybe we should just define it as acting as if it had MADV_DONTFORK set
+on it, and also that it doesn't allow MADV_DONTFORK to be called on it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
