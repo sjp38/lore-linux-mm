@@ -1,67 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 671C06B026F
-	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 05:40:44 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id p186so7785431wmd.11
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 02:40:44 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i67sor293967wmc.45.2017.10.24.02.40.43
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 29D976B0273
+	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 06:05:20 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 78so3722914wmb.15
+        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 03:05:20 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id t3sor306751wmc.54.2017.10.24.03.05.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 24 Oct 2017 02:40:43 -0700 (PDT)
-Date: Tue, 24 Oct 2017 11:40:40 +0200
+        Tue, 24 Oct 2017 03:05:19 -0700 (PDT)
+Date: Tue, 24 Oct 2017 12:05:16 +0200
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 0/6] Boot-time switching between 4- and 5-level paging
- for 4.15, Part 1
-Message-ID: <20171024094039.4lonzocjt5kras7m@gmail.com>
-References: <20171003082754.no6ym45oirah53zp@node.shutemov.name>
- <20171017154241.f4zaxakfl7fcrdz5@node.shutemov.name>
- <20171020081853.lmnvaiydxhy5c63t@gmail.com>
- <20171020094152.skx5sh5ramq2a3vu@black.fi.intel.com>
- <20171020152346.f6tjybt7i5kzbhld@gmail.com>
- <20171020162349.3kwhdgv7qo45w4lh@node.shutemov.name>
- <20171023115658.geccs22o2t733np3@gmail.com>
- <20171023122159.wyztmsbgt5k2d4tb@node.shutemov.name>
- <20171023124014.mtklgmydspnvfcvg@gmail.com>
- <20171023124811.4i73242s5dotnn5k@node.shutemov.name>
+Subject: Re: [PATCH v3 2/8] lockdep: Introduce CROSSRELEASE_STACK_TRACE and
+ make it not unwind as default
+Message-ID: <20171024100516.f2a2uzknqfum77w2@gmail.com>
+References: <1508837889-16932-1-git-send-email-byungchul.park@lge.com>
+ <1508837889-16932-3-git-send-email-byungchul.park@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171023124811.4i73242s5dotnn5k@node.shutemov.name>
+In-Reply-To: <1508837889-16932-3-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: peterz@infradead.org, axboe@kernel.dk, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
 
 
-* Kirill A. Shutemov <kirill@shutemov.name> wrote:
+* Byungchul Park <byungchul.park@lge.com> wrote:
 
-> On Mon, Oct 23, 2017 at 02:40:14PM +0200, Ingo Molnar wrote:
-> > 
-> > * Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> > 
-> > > > Making a variable that 'looks' like a constant macro dynamic in a rare Kconfig 
-> > > > scenario is asking for trouble.
-> > > 
-> > > We expect boot-time page mode switching to be enabled in kernel of next
-> > > generation enterprise distros. It shoudn't be that rare.
-> > 
-> > My point remains even with not-so-rare Kconfig dependency.
-> 
-> I don't follow how introducing new variable that depends on Kconfig option
-> would help with the situation.
+> Johan Hovold reported a performance regression by crossrelease like:
 
-A new, properly named variable or function (max_physmem_bits or 
-max_physmem_bits()) that is not all uppercase would make it abundantly clear that 
-it is not a constant but a runtime value.
-
-> We would end up with inverse situation: people would use MAX_PHYSMEM_BITS
-> where the new variable need to be used and we will in the same situation.
-
-It should result in sub-optimal resource allocations worst-case, right?
-
-We could also rename it to MAX_POSSIBLE_PHYSMEM_BITS to make it clear that the 
-real number of bits can be lower.
+Pplease add Reported-by and Analyzed-by tags - you didn't even Cc: Johan!
 
 Thanks,
 
