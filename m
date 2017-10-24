@@ -1,176 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C94666B0287
-	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 11:27:33 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 11so8924905wrb.10
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 08:27:33 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 807546B0289
+	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 11:30:41 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k15so11932932wrc.1
+        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 08:30:41 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o18si375696wrg.431.2017.10.24.08.25.29
+        by mx.google.com with ESMTPS id u54si389508wrf.243.2017.10.24.08.30.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Oct 2017 08:25:29 -0700 (PDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 16/17] ext4: Support for synchronous DAX faults
-Date: Tue, 24 Oct 2017 17:24:13 +0200
-Message-Id: <20171024152415.22864-17-jack@suse.cz>
-In-Reply-To: <20171024152415.22864-1-jack@suse.cz>
-References: <20171024152415.22864-1-jack@suse.cz>
+        Tue, 24 Oct 2017 08:30:38 -0700 (PDT)
+Date: Tue, 24 Oct 2017 17:30:37 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH -mm] mm, swap: Fix false error message in
+ __swp_swapcount()
+Message-ID: <20171024153037.gjemriarubzoqai5@dhcp22.suse.cz>
+References: <20171024024700.23679-1-ying.huang@intel.com>
+ <20171024083809.lrw23yumkassclgm@dhcp22.suse.cz>
+ <87vaj4poff.fsf@yhuang-dev.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87vaj4poff.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, linux-ext4@vger.kernel.org, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Chen <tim.c.chen@linux.intel.com>, Minchan Kim <minchan@kernel.org>, stable@vger.kernel.org, Christian Kujau <lists@nerdbynature.de>
 
-We return IOMAP_F_DIRTY flag from ext4_iomap_begin() when asked to
-prepare blocks for writing and the inode has some uncommitted metadata
-changes. In the fault handler ext4_dax_fault() we then detect this case
-(through VM_FAULT_NEEDDSYNC return value) and call helper
-dax_finish_sync_fault() to flush metadata changes and insert page table
-entry. Note that this will also dirty corresponding radix tree entry
-which is what we want - fsync(2) will still provide data integrity
-guarantees for applications not using userspace flushing. And
-applications using userspace flushing can avoid calling fsync(2) and
-thus avoid the performance overhead.
+On Tue 24-10-17 23:15:32, Huang, Ying wrote:
+> Hi, Michal,
+> 
+> Michal Hocko <mhocko@kernel.org> writes:
+> 
+> > On Tue 24-10-17 10:47:00, Huang, Ying wrote:
+> >> From: Ying Huang <ying.huang@intel.com>
+> >> 
+> >> __swp_swapcount() is used in __read_swap_cache_async().  Where the
+> >> invalid swap entry (offset > max) may be supplied during swap
+> >> readahead.  But __swp_swapcount() will print error message for these
+> >> expected invalid swap entry as below, which will make the users
+> >> confusing.
+> >   ^^
+> > confused... And I have to admit this changelog has left me confused as
+> > well. What is an invalid swap entry in the readahead? Ohh, let me
+> > re-real Fixes: commit. It didn't really help "We can avoid needlessly
+> > allocating page for swap slots that are not used by anyone.  No pages
+> > have to be read in for these slots."
+> >
+> > Could you be more specific about when and how this happens please?
+> 
+> Sorry for confusing.
+> 
+> When page fault occurs for a swap entry, the original swap readahead
+> (not new VMA base swap readahead) may readahead several swap entries
+> after the fault swap entry.  The readahead algorithm calculates some of
+> the swap entries to readahead via increasing the offset of the fault
+> swap entry without checking whether they are beyond the end of the swap
+> device and it rely on the __swp_swapcount() and swapcache_prepare() to
+> check it.  Although __swp_swapcount() checks for the swap entry passed
+> in, it will complain with error message for the expected invalid swap
+> entry.  This makes the end user confusing.
+> 
+> Is this a little clearer.
 
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- fs/ext4/file.c       | 15 ++++++++++++++-
- fs/ext4/inode.c      | 15 +++++++++++++++
- fs/jbd2/journal.c    | 17 +++++++++++++++++
- include/linux/jbd2.h |  1 +
- 4 files changed, 47 insertions(+), 1 deletion(-)
-
-diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-index 208adfc3e673..08a1d1a33a90 100644
---- a/fs/ext4/file.c
-+++ b/fs/ext4/file.c
-@@ -26,6 +26,7 @@
- #include <linux/quotaops.h>
- #include <linux/pagevec.h>
- #include <linux/uio.h>
-+#include <linux/mman.h>
- #include "ext4.h"
- #include "ext4_jbd2.h"
- #include "xattr.h"
-@@ -295,6 +296,7 @@ static int ext4_dax_huge_fault(struct vm_fault *vmf,
- 	 */
- 	bool write = (vmf->flags & FAULT_FLAG_WRITE) &&
- 		(vmf->vma->vm_flags & VM_SHARED);
-+	pfn_t pfn;
- 
- 	if (write) {
- 		sb_start_pagefault(sb);
-@@ -310,9 +312,12 @@ static int ext4_dax_huge_fault(struct vm_fault *vmf,
- 	} else {
- 		down_read(&EXT4_I(inode)->i_mmap_sem);
- 	}
--	result = dax_iomap_fault(vmf, pe_size, NULL, &ext4_iomap_ops);
-+	result = dax_iomap_fault(vmf, pe_size, &pfn, &ext4_iomap_ops);
- 	if (write) {
- 		ext4_journal_stop(handle);
-+		/* Handling synchronous page fault? */
-+		if (result & VM_FAULT_NEEDDSYNC)
-+			result = dax_finish_sync_fault(vmf, pe_size, pfn);
- 		up_read(&EXT4_I(inode)->i_mmap_sem);
- 		sb_end_pagefault(sb);
- 	} else {
-@@ -350,6 +355,13 @@ static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
- 	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
- 		return -EIO;
- 
-+	/*
-+	 * We don't support synchronous mappings for non-DAX files. At least
-+	 * until someone comes with a sensible use case.
-+	 */
-+	if (!IS_DAX(file_inode(file)) && (vma->vm_flags & VM_SYNC))
-+		return -EOPNOTSUPP;
-+
- 	file_accessed(file);
- 	if (IS_DAX(file_inode(file))) {
- 		vma->vm_ops = &ext4_dax_vm_ops;
-@@ -719,6 +731,7 @@ const struct file_operations ext4_file_operations = {
- 	.compat_ioctl	= ext4_compat_ioctl,
- #endif
- 	.mmap		= ext4_file_mmap,
-+	.mmap_supported_flags = MAP_SYNC,
- 	.open		= ext4_file_open,
- 	.release	= ext4_release_file,
- 	.fsync		= ext4_sync_file,
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index 31db875bc7a1..13a198924a0f 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -3394,6 +3394,19 @@ static int ext4_releasepage(struct page *page, gfp_t wait)
- }
- 
- #ifdef CONFIG_FS_DAX
-+static bool ext4_inode_datasync_dirty(struct inode *inode)
-+{
-+	journal_t *journal = EXT4_SB(inode->i_sb)->s_journal;
-+
-+	if (journal)
-+		return !jbd2_transaction_committed(journal,
-+					EXT4_I(inode)->i_datasync_tid);
-+	/* Any metadata buffers to write? */
-+	if (!list_empty(&inode->i_mapping->private_list))
-+		return true;
-+	return inode->i_state & I_DIRTY_DATASYNC;
-+}
-+
- static int ext4_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
- 			    unsigned flags, struct iomap *iomap)
- {
-@@ -3466,6 +3479,8 @@ static int ext4_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
- 	}
- 
- 	iomap->flags = 0;
-+	if ((flags & IOMAP_WRITE) && ext4_inode_datasync_dirty(inode))
-+		iomap->flags |= IOMAP_F_DIRTY;
- 	iomap->bdev = inode->i_sb->s_bdev;
- 	iomap->dax_dev = sbi->s_daxdev;
- 	iomap->offset = first_block << blkbits;
-diff --git a/fs/jbd2/journal.c b/fs/jbd2/journal.c
-index 7d5ef3bf3f3e..fa8cde498b4b 100644
---- a/fs/jbd2/journal.c
-+++ b/fs/jbd2/journal.c
-@@ -738,6 +738,23 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
- 	return err;
- }
- 
-+/* Return 1 when transaction with given tid has already committed. */
-+int jbd2_transaction_committed(journal_t *journal, tid_t tid)
-+{
-+	int ret = 1;
-+
-+	read_lock(&journal->j_state_lock);
-+	if (journal->j_running_transaction &&
-+	    journal->j_running_transaction->t_tid == tid)
-+		ret = 0;
-+	if (journal->j_committing_transaction &&
-+	    journal->j_committing_transaction->t_tid == tid)
-+		ret = 0;
-+	read_unlock(&journal->j_state_lock);
-+	return ret;
-+}
-+EXPORT_SYMBOL(jbd2_transaction_committed);
-+
- /*
-  * When this function returns the transaction corresponding to tid
-  * will be completed.  If the transaction has currently running, start
-diff --git a/include/linux/jbd2.h b/include/linux/jbd2.h
-index 606b6bce3a5b..296d1e0ea87b 100644
---- a/include/linux/jbd2.h
-+++ b/include/linux/jbd2.h
-@@ -1367,6 +1367,7 @@ int jbd2_log_start_commit(journal_t *journal, tid_t tid);
- int __jbd2_log_start_commit(journal_t *journal, tid_t tid);
- int jbd2_journal_start_commit(journal_t *journal, tid_t *tid);
- int jbd2_log_wait_commit(journal_t *journal, tid_t tid);
-+int jbd2_transaction_committed(journal_t *journal, tid_t tid);
- int jbd2_complete_transaction(journal_t *journal, tid_t tid);
- int jbd2_log_do_checkpoint(journal_t *journal);
- int jbd2_trans_will_send_data_barrier(journal_t *journal, tid_t tid);
+yes, this makes more sense (modulo the same typo ;)). Can you make this
+information into the changelog please? Thanks.
 -- 
-2.12.3
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
