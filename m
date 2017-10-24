@@ -1,75 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 20BF06B0033
-	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 04:33:21 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 11so8376956wrb.10
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 01:33:21 -0700 (PDT)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.17.22])
-        by mx.google.com with ESMTPS id 128si678730wmr.119.2017.10.24.01.33.19
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DE4726B0033
+	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 04:38:13 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id b79so18096009pfk.9
+        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 01:38:13 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y7si5048142plk.60.2017.10.24.01.38.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Oct 2017 01:33:19 -0700 (PDT)
-Subject: Re: PROBLEM: Remapping hugepages mappings causes kernel to return
- EINVAL
-References: <20171023114210.j7ip75ewoy2tiqs4@dhcp22.suse.cz>
- <e2cc07b7-3c5e-a166-0bb2-eff92fc70cd1@gmx.de>
- <20171023124122.tjmrbcwo2btzk3li@dhcp22.suse.cz>
- <b6cbb960-d0f1-0630-a2a1-e00bab4af0a1@gmx.de>
- <20171023161316.ajrxgd2jzo3u52eu@dhcp22.suse.cz>
- <93ffc1c8-3401-2bea-732a-17d373d2f24c@gmx.de>
- <20171023165717.qx5qluryshz62zv5@dhcp22.suse.cz>
- <b138bcf8-0a66-a988-4040-520d767da266@gmx.de>
- <20171023180232.luayzqacnkepnm57@dhcp22.suse.cz>
- <0c934e18-5436-792f-2b2c-ebca3ae2d786@gmx.de>
- <20171024081232.6to62flr7h3qgxvv@dhcp22.suse.cz>
-From: "C.Wehrmeyer" <c.wehrmeyer@gmx.de>
-Message-ID: <e1e39e93-5746-6a69-355f-228f00a05213@gmx.de>
-Date: Tue, 24 Oct 2017 10:32:59 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 24 Oct 2017 01:38:12 -0700 (PDT)
+Date: Tue, 24 Oct 2017 10:38:09 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH -mm] mm, swap: Fix false error message in
+ __swp_swapcount()
+Message-ID: <20171024083809.lrw23yumkassclgm@dhcp22.suse.cz>
+References: <20171024024700.23679-1-ying.huang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20171024081232.6to62flr7h3qgxvv@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171024024700.23679-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Chen <tim.c.chen@linux.intel.com>, Minchan Kim <minchan@kernel.org>, stable@vger.kernel.org, Christian Kujau <lists@nerdbynature.de>
 
-On 2017-10-24 10:12, Michal Hocko wrote:
-> On Tue 24-10-17 09:41:46, C.Wehrmeyer wrote:
-> [...]
->> 1. Provide mmap with some sort of flag (which would be redundant IMHO) in
->> order to churn out properly aligned pages (not transparent, but the current
->> MAP_HUGETLB flag isn't either).
+On Tue 24-10-17 10:47:00, Huang, Ying wrote:
+> From: Ying Huang <ying.huang@intel.com>
 > 
-> You can easily implement such a thing in userspace. In fact glibc has
-> already done that for you.
+> __swp_swapcount() is used in __read_swap_cache_async().  Where the
+> invalid swap entry (offset > max) may be supplied during swap
+> readahead.  But __swp_swapcount() will print error message for these
+> expected invalid swap entry as below, which will make the users
+> confusing.
+  ^^
+confused... And I have to admit this changelog has left me confused as
+well. What is an invalid swap entry in the readahead? Ohh, let me
+re-real Fixes: commit. It didn't really help "We can avoid needlessly
+allocating page for swap slots that are not used by anyone.  No pages
+have to be read in for these slots."
 
-That's not the point. The point is that it's not *transparent*. Let me 
-paraphrase your statements:
+Could you be more specific about when and how this happens please?
+ 
+>   swap_info_get: Bad swap offset entry 0200f8a7
+> 
+> So the swap entry checking code in __swp_swapcount() is changed to
+> avoid printing error message for it.  To avoid to duplicate code with
+> __swap_duplicate(), a new helper function named
+> __swap_info_get_silence() is added and invoked in both places.
+> 
+> Cc: Tim Chen <tim.c.chen@linux.intel.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: <stable@vger.kernel.org> # 4.11-4.13
+> Reported-by: Christian Kujau <lists@nerdbynature.de>
+> Fixes: e8c26ab60598 ("mm/swap: skip readahead for unreferenced swap slots")
+> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> ---
+>  mm/swapfile.c | 42 ++++++++++++++++++++++++++++--------------
+>  1 file changed, 28 insertions(+), 14 deletions(-)
+> 
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 3074b02eaa09..3193aa670c90 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -1107,6 +1107,30 @@ static struct swap_info_struct *swap_info_get_cont(swp_entry_t entry,
+>  	return p;
+>  }
+>  
+> +static struct swap_info_struct *__swap_info_get_silence(swp_entry_t entry)
+> +{
+> +	struct swap_info_struct *p;
+> +	unsigned long offset, type;
+> +
+> +	if (non_swap_entry(entry))
+> +		goto out;
+> +
+> +	type = swp_type(entry);
+> +	if (type >= nr_swapfiles)
+> +		goto bad_file;
+> +	p = swap_info[type];
+> +	offset = swp_offset(entry);
+> +	if (unlikely(offset >= p->max))
+> +		goto out;
+> +
+> +	return p;
+> +
+> +bad_file:
+> +	pr_err("swap_info_get_silence: %s%08lx\n", Bad_file, entry.val);
+> +out:
+> +	return NULL;
+> +}
+> +
+>  static unsigned char __swap_entry_free(struct swap_info_struct *p,
+>  				       swp_entry_t entry, unsigned char usage)
+>  {
+> @@ -1357,7 +1381,7 @@ int __swp_swapcount(swp_entry_t entry)
+>  	int count = 0;
+>  	struct swap_info_struct *si;
+>  
+> -	si = __swap_info_get(entry);
+> +	si = __swap_info_get_silence(entry);
+>  	if (si)
+>  		count = swap_swapcount(si, entry);
+>  	return count;
+> @@ -3356,22 +3380,16 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
+>  {
+>  	struct swap_info_struct *p;
+>  	struct swap_cluster_info *ci;
+> -	unsigned long offset, type;
+> +	unsigned long offset;
+>  	unsigned char count;
+>  	unsigned char has_cache;
+>  	int err = -EINVAL;
+>  
+> -	if (non_swap_entry(entry))
+> +	p = __swap_info_get_silence(entry);
+> +	if (!p)
+>  		goto out;
+>  
+> -	type = swp_type(entry);
+> -	if (type >= nr_swapfiles)
+> -		goto bad_file;
+> -	p = swap_info[type];
+>  	offset = swp_offset(entry);
+> -	if (unlikely(offset >= p->max))
+> -		goto out;
+> -
+>  	ci = lock_cluster_or_swap_info(p, offset);
+>  
+>  	count = p->swap_map[offset];
+> @@ -3418,10 +3436,6 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
+>  	unlock_cluster_or_swap_info(p, ci);
+>  out:
+>  	return err;
+> -
+> -bad_file:
+> -	pr_err("swap_dup: %s%08lx\n", Bad_file, entry.val);
+> -	goto out;
+>  }
+>  
+>  /*
+> -- 
+> 2.14.2
+> 
 
-"Yes, you can have hugepages by just allocating things normally. THPs 
-will then be used - maybe. Even though you might know best how much 
-memory you actually require it requires you to fiddle with the mappings 
-in order to get complete hugepages coverage, because mmap does not 
-provide a mechanism for that. Or you can just live with your mappings 
-only being half-hugepaged. How is that not transparent?"
-
-Unfortunately the ratio (512) is big enough that I'm not completely OK 
-with that. And in the distant future, when we all use 1-GiB pages, that 
-ratio becomes even bigger.
-
-> [...]
-> I think there is still some confusion here. Kernel will try to fault in
-> THP pages on properly aligned addresses. So if you create a larger
-> mapping than the THP size then you will get a THP (assuming the memory
-> is not fragmented). It is just the unaligned addresses will get regular
-> pages.
-
-OK, I wasn't sure about that one as well - which is why I didn't dare to 
-lay hands on the kernel. It DOES support variable-sized-pages. That does 
-not change the fact, however, that when THPs are enabled mmap should 
-give userspace properly aligned pages exactly to avoid those smaller pages.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
