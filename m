@@ -1,51 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C2DCA6B0033
-	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 19:45:52 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 76so19549830pfr.3
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 16:45:52 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id i10si849380pgs.259.2017.10.24.16.45.45
-        for <linux-mm@kvack.org>;
-        Tue, 24 Oct 2017 16:45:46 -0700 (PDT)
-Date: Wed, 25 Oct 2017 08:45:38 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v3 4/8] lockdep: Add a kernel parameter,
- crossrelease_fullstack
-Message-ID: <20171024234538.GM3310@X58A-UD3R>
-References: <1508837889-16932-1-git-send-email-byungchul.park@lge.com>
- <1508837889-16932-5-git-send-email-byungchul.park@lge.com>
- <20171024100858.2rw7wnhtj7d3iyzk@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171024100858.2rw7wnhtj7d3iyzk@gmail.com>
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F2496B0033
+	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 19:57:26 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id p54so18419969qtc.5
+        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 16:57:26 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id i39si1225505qtb.445.2017.10.24.16.57.25
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Oct 2017 16:57:25 -0700 (PDT)
+From: Prakash Sangappa <prakash.sangappa@oracle.com>
+Subject: [PATCH] Hugetlb pages rss accounting is incorrect in /proc/<pid>/smaps
+Date: Tue, 24 Oct 2017 16:56:08 -0700
+Message-Id: <1508889368-14489-1-git-send-email-prakash.sangappa@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: peterz@infradead.org, axboe@kernel.dk, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, mhocko@suse.com, minchan@kernel.org, rientjes@google.com, dancol@google.com, prakash.sangappa@oracle.com
 
-On Tue, Oct 24, 2017 at 12:08:58PM +0200, Ingo Molnar wrote:
-> This is really unnecessarily complex.
+Resident set size(Rss) accounting of hugetlb pages is not done
+currently in /proc/<pid>/smaps. The pmap command reads rss from
+this file and so it shows Rss to be 0 in pmap -x output for
+hugetlb mapped vmas. This patch fixes it.
 
-I mis-understood your suggestion. I will change it.
+Signed-off-by: Prakash Sangappa <prakash.sangappa@oracle.com>
+---
+ fs/proc/task_mmu.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-> The proper logic is to introduce the crossrelease_fullstack boot parameter, and to 
-> also have a Kconfig option that enables it: 
-> 
-> 	CONFIG_BOOTPARAM_LOCKDEP_CROSSRELEASE_FULLSTACK=y
-> 
-> No #ifdefs please - just an "if ()" branch dependent on the current value of 
-> crossrelease_fullstack.
-
-Ok. I will.
-
-Thanks,
-Byungchul
-
-> Thanks,
-> 
-> 	Ingo
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 5589b4b..c7e1048 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -724,6 +724,7 @@ static int smaps_hugetlb_range(pte_t *pte, unsigned long hmask,
+ 			mss->shared_hugetlb += huge_page_size(hstate_vma(vma));
+ 		else
+ 			mss->private_hugetlb += huge_page_size(hstate_vma(vma));
++		mss->resident += huge_page_size(hstate_vma(vma));
+ 	}
+ 	return 0;
+ }
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
