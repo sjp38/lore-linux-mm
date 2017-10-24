@@ -1,68 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CAF966B0253
-	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 12:30:20 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id r202so8270826wmd.17
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 09:30:20 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i29si463072wrb.95.2017.10.24.09.30.19
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B3496B025E
+	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 13:23:44 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id e75so990407wmi.22
+        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 10:23:44 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id r42si536306eda.155.2017.10.24.10.23.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Oct 2017 09:30:19 -0700 (PDT)
-Date: Tue, 24 Oct 2017 18:30:17 +0200
-From: Michal Hocko <mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 24 Oct 2017 10:23:37 -0700 (PDT)
+Date: Tue, 24 Oct 2017 13:23:30 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
-Message-ID: <20171024163017.oawitc3mcohhhv6d@dhcp22.suse.cz>
-References: <CALvZod7YN4JCG7Anm2FViyZ0-APYy+nxEd3nyxe5LT_P0FC9wg@mail.gmail.com>
- <20171009062426.hmqedtqz5hkmhnff@dhcp22.suse.cz>
- <xr93a810xl77.fsf@gthelen.svl.corp.google.com>
- <20171009202613.GA15027@cmpxchg.org>
+Message-ID: <20171024172330.GA3973@cmpxchg.org>
+References: <20171009202613.GA15027@cmpxchg.org>
  <20171010091430.giflzlayvjblx5bu@dhcp22.suse.cz>
  <20171010141733.GB16710@cmpxchg.org>
  <20171010142434.bpiqmsbb7gttrlcb@dhcp22.suse.cz>
  <20171012190312.GA5075@cmpxchg.org>
  <20171013063555.pa7uco43mod7vrkn@dhcp22.suse.cz>
- <20171024154511.GA32340@cmpxchg.org>
+ <20171013070001.mglwdzdrqjt47clz@dhcp22.suse.cz>
+ <20171013152421.yf76n7jui3z5bbn4@dhcp22.suse.cz>
+ <20171024160637.GB32340@cmpxchg.org>
+ <20171024162213.n6jrpz3t5pldkgxy@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171024154511.GA32340@cmpxchg.org>
+In-Reply-To: <20171024162213.n6jrpz3t5pldkgxy@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
+To: Michal Hocko <mhocko@kernel.org>
 Cc: Greg Thelen <gthelen@google.com>, Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 24-10-17 11:45:11, Johannes Weiner wrote:
-> On Fri, Oct 13, 2017 at 08:35:55AM +0200, Michal Hocko wrote:
-> > On Thu 12-10-17 15:03:12, Johannes Weiner wrote:
-> > > All I'm saying is that, when the syscall-context fails to charge, we
-> > > should do mem_cgroup_oom() to set up the async OOM killer, let the
-> > > charge succeed over the hard limit - since the OOM killer will most
-> > > likely get us back below the limit - then mem_cgroup_oom_synchronize()
-> > > before the syscall returns to userspace.
+On Tue, Oct 24, 2017 at 06:22:13PM +0200, Michal Hocko wrote:
+> On Tue 24-10-17 12:06:37, Johannes Weiner wrote:
+> > >  	 *
+> > > -	 * That's why we don't do anything here except remember the
+> > > -	 * OOM context and then deal with it at the end of the page
+> > > -	 * fault when the stack is unwound, the locks are released,
+> > > -	 * and when we know whether the fault was overall successful.
+> > > +	 * Please note that mem_cgroup_oom_synchronize might fail to find a
+> > > +	 * victim and then we have rely on mem_cgroup_oom_synchronize otherwise
+> > > +	 * we would fall back to the global oom killer in pagefault_out_of_memory
 > > 
-> > OK, then we are on the same page now. Your initial wording didn't
-> > mention async OOM killer. This makes more sense. Although I would argue
-> > that we can retry the charge as long as out_of_memory finds a victim.
-> > This would return ENOMEM to the pathological cases where no victims
-> > could be found.
+> > Ah, that's why... Ugh, that's really duct-tapey.
 > 
-> I think that's much worse because it's even harder to test and verify
-> your applications against.
+> As you know, I really hate the #PF OOM path. We should get rid of it.
 
-Well, the main distinction to the global OOM killer is that we panic
-when there is no oom victim eligible which we cannot do in the memcg
-context. So we have to bail somehow and I would be really careful to
-allow for a runaway from the hard limit just because we are out of all
-eligible tasks. Returning ENOMEM sounds like a safer option to me.
+I agree, but this isn't getting rid of it, it just adds more layers.
 
-> If syscalls can return -ENOMEM on OOM, they should do so reliably.
+> > > @@ -2007,8 +2021,11 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+> > >  
+> > >  	mem_cgroup_event(mem_over_limit, MEMCG_OOM);
+> > >  
+> > > -	mem_cgroup_oom(mem_over_limit, gfp_mask,
+> > > -		       get_order(nr_pages * PAGE_SIZE));
+> > > +	if (mem_cgroup_oom(mem_over_limit, gfp_mask,
+> > > +		       get_order(nr_pages * PAGE_SIZE))) {
+> > > +		nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+> > > +		goto retry;
+> > > +	}
+> > 
+> > As per the previous email, this has to goto force, otherwise we return
+> > -ENOMEM from syscalls once in a blue moon, which makes verification an
+> > absolute nightmare. The behavior should be reliable, without weird p99
+> > corner cases.
+> >
+> > I think what we should be doing here is: if a charge fails, set up an
+> > oom context and force the charge; add mem_cgroup_oom_synchronize() to
+> > the end of syscalls and kernel-context faults.
+> 
+> What would prevent a runaway in case the only process in the memcg is
+> oom unkillable then?
 
-The main problem is that we do not know which syscalls can return ENOMEM
+In such a scenario, the page fault handler would busy-loop right now.
 
--- 
-Michal Hocko
-SUSE Labs
+Disabling oom kills is a privileged operation with dire consequences
+if used incorrectly. You can panic the kernel with it. Why should the
+cgroup OOM killer implement protective semantics around this setting?
+Breaching the limit in such a setup is entirely acceptable.
+
+Really, I think it's an enormous mistake to start modeling semantics
+based on the most contrived and non-sensical edge case configurations.
+Start the discussion with what is sane and what most users should
+optimally experience, and keep the cornercases simple.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
