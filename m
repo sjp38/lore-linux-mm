@@ -1,25 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 123F56B0033
-	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 06:09:03 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id j15so4729716wre.15
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 03:09:03 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E0CE46B0038
+	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 06:10:05 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id n8so2027684wmg.4
+        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 03:10:05 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s109sor3572170wrc.36.2017.10.24.03.09.01
+        by mx.google.com with SMTPS id r13sor3665597wrc.10.2017.10.24.03.10.04
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 24 Oct 2017 03:09:01 -0700 (PDT)
-Date: Tue, 24 Oct 2017 12:08:58 +0200
+        Tue, 24 Oct 2017 03:10:04 -0700 (PDT)
+Date: Tue, 24 Oct 2017 12:10:01 +0200
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v3 4/8] lockdep: Add a kernel parameter,
- crossrelease_fullstack
-Message-ID: <20171024100858.2rw7wnhtj7d3iyzk@gmail.com>
+Subject: Re: [PATCH v3 7/8] genhd.h: Remove trailing white space
+Message-ID: <20171024101001.cv6e5llflnkzhuim@gmail.com>
 References: <1508837889-16932-1-git-send-email-byungchul.park@lge.com>
- <1508837889-16932-5-git-send-email-byungchul.park@lge.com>
+ <1508837889-16932-8-git-send-email-byungchul.park@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1508837889-16932-5-git-send-email-byungchul.park@lge.com>
+In-Reply-To: <1508837889-16932-8-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Byungchul Park <byungchul.park@lge.com>
@@ -28,105 +27,40 @@ Cc: peterz@infradead.org, axboe@kernel.dk, tglx@linutronix.de, linux-kernel@vger
 
 * Byungchul Park <byungchul.park@lge.com> wrote:
 
-> Make whether to allow recording full stack, in cross-release feature,
-> switchable at boot time via a kernel parameter, 'crossrelease_fullstack'.
-> In case of a splat with no stack trace, one could just reboot and set
-> the kernel parameter to get the full data without having to recompile
-> the kernel.
-> 
-> Change CONFIG_CROSSRELEASE_STACK_TRACE default from N to Y, and
-> introduce the new kernel parameter.
+> Trailing white space is not accepted in kernel coding style. Remove
+> them.
 > 
 > Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 > ---
->  Documentation/admin-guide/kernel-parameters.txt |  3 +++
->  kernel/locking/lockdep.c                        | 18 ++++++++++++++++--
->  lib/Kconfig.debug                               |  5 +++--
->  3 files changed, 22 insertions(+), 4 deletions(-)
+>  include/linux/genhd.h | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 > 
-> diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-> index ead7f40..4107b01 100644
-> --- a/Documentation/admin-guide/kernel-parameters.txt
-> +++ b/Documentation/admin-guide/kernel-parameters.txt
-> @@ -709,6 +709,9 @@
->  			It will be ignored when crashkernel=X,high is not used
->  			or memory reserved is below 4G.
+> diff --git a/include/linux/genhd.h b/include/linux/genhd.h
+> index ea652bf..6d85a75 100644
+> --- a/include/linux/genhd.h
+> +++ b/include/linux/genhd.h
+> @@ -3,7 +3,7 @@
 >  
-> +	crossrelease_fullstack
-> +			[KNL] Allow to record full stack trace in cross-release
-> +
->  	cryptomgr.notests
->                          [KNL] Disable crypto self-tests
->  
-> diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-> index 5c2ddf2..feba887 100644
-> --- a/kernel/locking/lockdep.c
-> +++ b/kernel/locking/lockdep.c
-> @@ -76,6 +76,15 @@
->  #define lock_stat 0
->  #endif
->  
-> +static int crossrelease_fullstack;
-> +static int __init allow_crossrelease_fullstack(char *str)
-> +{
-> +	crossrelease_fullstack = 1;
-> +	return 0;
-> +}
-> +
-> +early_param("crossrelease_fullstack", allow_crossrelease_fullstack);
-> +
 >  /*
->   * lockdep_lock: protects the lockdep graph, the hashes and the
->   *               class/list/hash allocators.
-> @@ -4864,8 +4873,13 @@ static void add_xhlock(struct held_lock *hlock)
->  	xhlock->trace.max_entries = MAX_XHLOCK_TRACE_ENTRIES;
->  	xhlock->trace.entries = xhlock->trace_entries;
->  #ifdef CONFIG_CROSSRELEASE_STACK_TRACE
-> -	xhlock->trace.skip = 3;
-> -	save_stack_trace(&xhlock->trace);
-> +	if (crossrelease_fullstack) {
-> +		xhlock->trace.skip = 3;
-> +		save_stack_trace(&xhlock->trace);
-> +	} else {
-> +		xhlock->trace.nr_entries = 1;
-> +		xhlock->trace.entries[0] = hlock->acquire_ip;
-> +	}
->  #else
->  	xhlock->trace.nr_entries = 1;
->  	xhlock->trace.entries[0] = hlock->acquire_ip;
-> diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-> index fe8fceb..132536d 100644
-> --- a/lib/Kconfig.debug
-> +++ b/lib/Kconfig.debug
-> @@ -1228,7 +1228,7 @@ config LOCKDEP_COMPLETIONS
->  config CROSSRELEASE_STACK_TRACE
->  	bool "Record more than one entity of stack trace in crossrelease"
->  	depends on LOCKDEP_CROSSRELEASE
-> -	default n
-> +	default y
->  	help
->  	 The lockdep "cross-release" feature needs to record stack traces
->  	 (of calling functions) for all acquisitions, for eventual later
-> @@ -1238,7 +1238,8 @@ config CROSSRELEASE_STACK_TRACE
->  	 full analysis. This option turns on the saving of the full stack
->  	 trace entries.
->  
-> -	 If unsure, say N.
-> +	 To make the feature actually on, set "crossrelease_fullstack"
-> +	 kernel parameter, too.
->  
->  config DEBUG_LOCKDEP
->  	bool "Lock dependency engine debugging"
+>   * 	genhd.h Copyright (C) 1992 Drew Eckhardt
+> - *	Generic hard disk header file by  
+> + *	Generic hard disk header file by
+>   * 		Drew Eckhardt
+>   *
+>   *		<drew@colorado.edu>
+> @@ -471,7 +471,7 @@ struct bsd_disklabel {
+>  	__s16	d_type;			/* drive type */
+>  	__s16	d_subtype;		/* controller/d_type specific */
+>  	char	d_typename[16];		/* type name, e.g. "eagle" */
+> -	char	d_packname[16];			/* pack identifier */ 
+> +	char	d_packname[16];			/* pack identifier */
+>  	__u32	d_secsize;		/* # of bytes per sector */
+>  	__u32	d_nsectors;		/* # of data sectors per track */
+>  	__u32	d_ntracks;		/* # of tracks per cylinder */
 
-This is really unnecessarily complex.
-
-The proper logic is to introduce the crossrelease_fullstack boot parameter, and to 
-also have a Kconfig option that enables it: 
-
-	CONFIG_BOOTPARAM_LOCKDEP_CROSSRELEASE_FULLSTACK=y
-
-No #ifdefs please - just an "if ()" branch dependent on the current value of 
-crossrelease_fullstack.
+This patch should not be part of this lockdep series - please send it to Jens 
+separately - who might or might not apply it, depending on the subsystem's policy 
+regarding whitespace-only patches.
 
 Thanks,
 
