@@ -1,111 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E80B46B0038
-	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 16:06:41 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id 4so7401542wrt.8
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 13:06:41 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D165A6B0038
+	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 16:15:28 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id r18so15156151pgu.9
+        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 13:15:28 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a22si748424wra.459.2017.10.24.13.06.40
+        by mx.google.com with ESMTPS id t13si625869pgp.250.2017.10.24.13.15.26
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Oct 2017 13:06:40 -0700 (PDT)
-Date: Tue, 24 Oct 2017 22:06:39 +0200
+        Tue, 24 Oct 2017 13:15:27 -0700 (PDT)
+Date: Tue, 24 Oct 2017 22:15:22 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: swapper/0: page allocation failure: order:0,
- mode:0x1204010(GFP_NOWAIT|__GFP_COMP|__GFP_RECLAIMABLE|__GFP_NOTRACK),
- nodemask=(null)
-Message-ID: <20171024200639.2pyxkw2cucwxrtlb@dhcp22.suse.cz>
-References: <CABXGCsPEkwzKUU9OPRDOMue7TpWa4axTWg0FbXZAq+JZmoubGw@mail.gmail.com>
- <20171019035641.GB23773@intel.com>
- <CABXGCsPL0pUHo_M-KxB3mabfdGMSHPC0uchLBBt0JCzF2BYBww@mail.gmail.com>
- <20171020064305.GA13688@intel.com>
- <20171020091239.cfwapdkx5g7afyp7@dhcp22.suse.cz>
- <CABXGCsMZ0hFFJyPU2cu+JDLHZ+5eO5i=8FOv71biwpY5neyofA@mail.gmail.com>
+Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
+Message-ID: <20171024201522.3z2fjnfywgx2egqx@dhcp22.suse.cz>
+References: <20171010142434.bpiqmsbb7gttrlcb@dhcp22.suse.cz>
+ <20171012190312.GA5075@cmpxchg.org>
+ <20171013063555.pa7uco43mod7vrkn@dhcp22.suse.cz>
+ <20171013070001.mglwdzdrqjt47clz@dhcp22.suse.cz>
+ <20171013152421.yf76n7jui3z5bbn4@dhcp22.suse.cz>
+ <20171024160637.GB32340@cmpxchg.org>
+ <20171024162213.n6jrpz3t5pldkgxy@dhcp22.suse.cz>
+ <20171024172330.GA3973@cmpxchg.org>
+ <20171024175558.uxqtxwhjgu6ceadk@dhcp22.suse.cz>
+ <20171024185854.GA6154@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CABXGCsMZ0hFFJyPU2cu+JDLHZ+5eO5i=8FOv71biwpY5neyofA@mail.gmail.com>
+In-Reply-To: <20171024185854.GA6154@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>
-Cc: "Du, Changbin" <changbin.du@intel.com>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Greg Thelen <gthelen@google.com>, Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 25-10-17 00:30:18, D?D,N?D?D,D>> D?D?D2N?D,D>>D 3/4 D2 wrote:
-> On 20 October 2017 at 14:12, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Fri 20-10-17 14:43:06, Du, Changbin wrote:
-> >> On Thu, Oct 19, 2017 at 11:52:49PM +0500, D?D,N?D?D,D>> D?D?D2N?D,D>>D 3/4 D2 wrote:
-> >> > On 19 October 2017 at 08:56, Du, Changbin <changbin.du@intel.com> wrote:
-> >> > > On Thu, Oct 19, 2017 at 01:16:48AM +0500, D?D,N?D?D,D>> D?D?D2N?D,D>>D 3/4 D2 wrote:
-> >> > > I am curious about this, how can slub try to alloc compound page but the order
-> >> > > is 0? This is wrong.
-> >> >
-> >> > Nobody seems to know how this could happen. Can any logs shed light on this?
-> >> >
-> >> After checking the code, kernel can handle such case. So please ignore my last
-> >> comment.
-> >>
-> >> The warning is reporting OOM, first you need confirm if you have enough free
-> >> memory? If that is true, then it is not a programmer error.
-> >
-> > The kernel is not OOM. It just failed to allocate for GFP_NOWAIT which
-> > means that no memory reclaim could be used to free up potentially unused
-> > page cache. This means that kswapd is not able to free up memory in the
-> > pace it is allocated. Such an allocation failure shouldn't be critical
-> > and the caller should have means to fall back to a regular allocation or
-> > retry later. You can play with min_free_kbytes and increase it to kick
-> > the background reclaim sooner.
+On Tue 24-10-17 14:58:54, Johannes Weiner wrote:
+> On Tue, Oct 24, 2017 at 07:55:58PM +0200, Michal Hocko wrote:
+> > On Tue 24-10-17 13:23:30, Johannes Weiner wrote:
+> > > On Tue, Oct 24, 2017 at 06:22:13PM +0200, Michal Hocko wrote:
+> > [...]
+> > > > What would prevent a runaway in case the only process in the memcg is
+> > > > oom unkillable then?
+> > > 
+> > > In such a scenario, the page fault handler would busy-loop right now.
+> > > 
+> > > Disabling oom kills is a privileged operation with dire consequences
+> > > if used incorrectly. You can panic the kernel with it. Why should the
+> > > cgroup OOM killer implement protective semantics around this setting?
+> > > Breaching the limit in such a setup is entirely acceptable.
+> > > 
+> > > Really, I think it's an enormous mistake to start modeling semantics
+> > > based on the most contrived and non-sensical edge case configurations.
+> > > Start the discussion with what is sane and what most users should
+> > > optimally experience, and keep the cornercases simple.
+> > 
+> > I am not really seeing your concern about the semantic. The most
+> > important property of the hard limit is to protect from runaways and
+> > stop them if they happen. Users can use the softer variant (high limit)
+> > if they are not afraid of those scenarios. It is not so insane to
+> > imagine that a master task (which I can easily imagine would be oom
+> > disabled) has a leak and runaway as a result.
 > 
-> Michal, thanks for clarification.
-> It means if any application allocate for GFP_NOWAIT and we not having
-> enough free memory (RAM) we will got this warning.
-> For example:
-> $ free -ht
->               total        used        free      shared  buff/cache   available
-> Mem:            30G         27G        277M        1,6G        2,8G        593M
-> Swap:           59G         21G         38G
-> Total:          89G         48G         38G
-> I see that computer have total free 38G, but only 277M available free RAM.
-> So if we try allocate now more than 277M we get this warning again, right?
+> Then you're screwed either way. Where do you return -ENOMEM in a page
+> fault path that cannot OOM kill anything? Your choice is between
+> maintaining the hard limit semantics or going into an infinite loop.
 
-Well, not really. As soon as we hit a so called low watermark the
-background reclaim (kswapd) kicks in and that will try to free up some
-of the reclaimable memory. Allocations are still allowed to go on. It is
-only when we hit min watermark when the allocation has to perform the
-memory reclaim in the allocation context (so called direct reclaim).
-GFP_NOWAIT request cannot sleep and as such they cannot perform the
-direct reclaim and have to fail. So this thing usually happens when the
-allocation pace is larger than the background reclaim can free up in the
-background.
- 
-> I try reproduce it with kernel 4.13.8, but get another warning:
+in the PF path yes. And I would argue that this is a reasonable
+compromise to provide the gurantee the hard limit is giving us (and
+the resulting isolation which is the whole point). Btw. we are already
+having that behavior. All we are talking about is the non-PF path which
+ENOMEMs right now and the meta-patch tried to handle it more gracefully
+and only ENOMEM when there is no other option.
+
+> I fail to see how this setup has any impact on the semantics we pick
+> here. And even if it were real, it's really not what most users do.
+
+sure, such a scenario is really on the edge but my main point was that
+the hard limit is an enforcement of an isolation guarantee (as much as
+possible of course).
+
+> > We are not talking only about the page fault path. There are other
+> > allocation paths to consume a lot of memory and spill over and break
+> > the isolation restriction. So it makes much more sense to me to fail
+> > the allocation in such a situation rather than allow the runaway to
+> > continue. Just consider that such a situation shouldn't happen in
+> > the first place because there should always be an eligible task to
+> > kill - who would own all the memory otherwise?
 > 
-> [ 3551.169126] chrome: page allocation stalls for 11542ms, order:0,
-> mode:0x14280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), nodemask=(null)
+> Okay, then let's just stick to the current behavior.
 
-this is a sleeping allocation which means that it is allowed to perform
-the direct reclaim and that took a lot of time here. This is really
-unusual and worth debugging some more.
-
-[...]
-> [ 3551.169590] Mem-Info:
-> [ 3551.169595] active_anon:6904352 inactive_anon:520427 isolated_anon:0
->                 active_file:55480 inactive_file:38890 isolated_file:0
->                 unevictable:1836 dirty:556 writeback:0 unstable:0
->                 slab_reclaimable:67559 slab_unreclaimable:95967
->                 mapped:353547 shmem:480723 pagetables:89161 bounce:0
->                 free:49404 free_pcp:1474 free_cma:0
-
-This tells us that there is quite some page cache (file LRUs) to reclaim
-so I am wondering what could have caused such a delay. In order to debug
-this some more we would need an additional debugging information. I
-usually enable vmscan tracepoints to watch for events during the
-reclaim.
-
-[...]
-> it's same problem?
-
-so no, this looks like a separate issue.
+I am definitely not pushing that thing right now. It is good to discuss
+it, though. The more kernel allocations we will track the more careful we
+will have to be. So maybe we will have to reconsider the current
+approach. I am not sure we need it _right now_ but I feel we will
+eventually have to reconsider it.
 -- 
 Michal Hocko
 SUSE Labs
