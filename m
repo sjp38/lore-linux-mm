@@ -1,132 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A20706B0033
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 22:47:29 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id 191so13215346pgd.0
-        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 19:47:29 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id z12si5763259pgc.582.2017.10.23.19.47.26
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id ECF236B0253
+	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 00:13:07 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id 15so13342059pgc.21
+        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 21:13:07 -0700 (PDT)
+Received: from out4441.biz.mail.alibaba.com (out4441.biz.mail.alibaba.com. [47.88.44.41])
+        by mx.google.com with ESMTPS id 12si4886107pld.340.2017.10.23.21.12.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Oct 2017 19:47:26 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -mm] mm, swap: Fix false error message in __swp_swapcount()
-Date: Tue, 24 Oct 2017 10:47:00 +0800
-Message-Id: <20171024024700.23679-1-ying.huang@intel.com>
+        Mon, 23 Oct 2017 21:12:58 -0700 (PDT)
+Subject: Re: [RFC PATCH] fs: fsnotify: account fsnotify metadata to kmemcg
+References: <1508448056-21779-1-git-send-email-yang.s@alibaba-inc.com>
+ <CAOQ4uxhPhXrMLu18TGKDA=ezUVHara95qJQ+BTCio8BHm-u6NA@mail.gmail.com>
+ <b530521e-5215-f735-444a-13f722d90e40@alibaba-inc.com>
+ <CAOQ4uxhFOoSknnG-0Jyv+=iCDjVNnAg6SiO-msxw4tORkVKJGQ@mail.gmail.com>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <5b80a088-05f1-c9af-5b71-e1128fbb36a7@alibaba-inc.com>
+Date: Tue, 24 Oct 2017 12:12:37 +0800
+MIME-Version: 1.0
+In-Reply-To: <CAOQ4uxhFOoSknnG-0Jyv+=iCDjVNnAg6SiO-msxw4tORkVKJGQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ying Huang <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.com>, stable@vger.kernel.org, Christian Kujau <lists@nerdbynature.de>
+To: Amir Goldstein <amir73il@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
 
-From: Ying Huang <ying.huang@intel.com>
 
-__swp_swapcount() is used in __read_swap_cache_async().  Where the
-invalid swap entry (offset > max) may be supplied during swap
-readahead.  But __swp_swapcount() will print error message for these
-expected invalid swap entry as below, which will make the users
-confusing.
 
-  swap_info_get: Bad swap offset entry 0200f8a7
+On 10/22/17 1:24 AM, Amir Goldstein wrote:
+> On Sat, Oct 21, 2017 at 12:07 AM, Yang Shi <yang.s@alibaba-inc.com> wrote:
+>>
+>>
+>> On 10/19/17 8:14 PM, Amir Goldstein wrote:
+>>>
+>>> On Fri, Oct 20, 2017 at 12:20 AM, Yang Shi <yang.s@alibaba-inc.com> wrote:
+>>>>
+>>>> We observed some misbehaved user applications might consume significant
+>>>> amount of fsnotify slabs silently. It'd better to account those slabs in
+>>>> kmemcg so that we can get heads up before misbehaved applications use too
+>>>> much memory silently.
+>>>
+>>>
+>>> In what way do they misbehave? create a lot of marks? create a lot of
+>>> events?
+>>> Not reading events in their queue?
+>>
+>>
+>> It looks both a lot marks and events. I'm not sure if it is the latter case.
+>> If I knew more about the details of the behavior, I would elaborated more in
+>> the commit log.
+> 
+> If you are not sure, do not refer to user application as "misbehaved".
+> Is updatedb(8) a misbehaved application because it produces a lot of access
+> events?
 
-So the swap entry checking code in __swp_swapcount() is changed to
-avoid printing error message for it.  To avoid to duplicate code with
-__swap_duplicate(), a new helper function named
-__swap_info_get_silence() is added and invoked in both places.
+Should be not. It sounds like our in-house applications. But, it is a 
+sort of blackbox to me.
 
-Cc: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: <stable@vger.kernel.org> # 4.11-4.13
-Reported-by: Christian Kujau <lists@nerdbynature.de>
-Fixes: e8c26ab60598 ("mm/swap: skip readahead for unreferenced swap slots")
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
----
- mm/swapfile.c | 42 ++++++++++++++++++++++++++++--------------
- 1 file changed, 28 insertions(+), 14 deletions(-)
+> It would be better if you provide the dry facts of your setup and slab counters
+> and say that you are missing information to analyse the distribution of slab
+> usage because of missing kmemcg accounting.
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 3074b02eaa09..3193aa670c90 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1107,6 +1107,30 @@ static struct swap_info_struct *swap_info_get_cont(swp_entry_t entry,
- 	return p;
- }
- 
-+static struct swap_info_struct *__swap_info_get_silence(swp_entry_t entry)
-+{
-+	struct swap_info_struct *p;
-+	unsigned long offset, type;
-+
-+	if (non_swap_entry(entry))
-+		goto out;
-+
-+	type = swp_type(entry);
-+	if (type >= nr_swapfiles)
-+		goto bad_file;
-+	p = swap_info[type];
-+	offset = swp_offset(entry);
-+	if (unlikely(offset >= p->max))
-+		goto out;
-+
-+	return p;
-+
-+bad_file:
-+	pr_err("swap_info_get_silence: %s%08lx\n", Bad_file, entry.val);
-+out:
-+	return NULL;
-+}
-+
- static unsigned char __swap_entry_free(struct swap_info_struct *p,
- 				       swp_entry_t entry, unsigned char usage)
- {
-@@ -1357,7 +1381,7 @@ int __swp_swapcount(swp_entry_t entry)
- 	int count = 0;
- 	struct swap_info_struct *si;
- 
--	si = __swap_info_get(entry);
-+	si = __swap_info_get_silence(entry);
- 	if (si)
- 		count = swap_swapcount(si, entry);
- 	return count;
-@@ -3356,22 +3380,16 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
- {
- 	struct swap_info_struct *p;
- 	struct swap_cluster_info *ci;
--	unsigned long offset, type;
-+	unsigned long offset;
- 	unsigned char count;
- 	unsigned char has_cache;
- 	int err = -EINVAL;
- 
--	if (non_swap_entry(entry))
-+	p = __swap_info_get_silence(entry);
-+	if (!p)
- 		goto out;
- 
--	type = swp_type(entry);
--	if (type >= nr_swapfiles)
--		goto bad_file;
--	p = swap_info[type];
- 	offset = swp_offset(entry);
--	if (unlikely(offset >= p->max))
--		goto out;
--
- 	ci = lock_cluster_or_swap_info(p, offset);
- 
- 	count = p->swap_map[offset];
-@@ -3418,10 +3436,6 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
- 	unlock_cluster_or_swap_info(p, ci);
- out:
- 	return err;
--
--bad_file:
--	pr_err("swap_dup: %s%08lx\n", Bad_file, entry.val);
--	goto out;
- }
- 
- /*
--- 
-2.14.2
+Yes, sure. Will add such information in the commit log for the new version.
+
+> 
+> 
+>>
+>>> The latter case is more interesting:
+>>>
+>>> Process A is the one that asked to get the events.
+>>> Process B is the one that is generating the events and queuing them on
+>>> the queue that is owned by process A, who is also to blame if the queue
+>>> is not being read.
+>>
+>>
+>> I agree it is not fair to account the memory to the generator. But, afaik,
+>> accounting non-current memcg is not how memcg is designed and works. Please
+>> see the below for some details.
+>>
+>>>
+>>> So why should process B be held accountable for memory pressure
+>>> caused by, say, an FAN_UNLIMITED_QUEUE that process A created and
+>>> doesn't read from.
+>>>
+>>> Is it possible to get an explicit reference to the memcg's  events cache
+>>> at fsnotify_group creation time, store it in the group struct and then
+>>> allocate
+>>> events from the event cache associated with the group (the listener)
+>>> rather
+>>> than the cache associated with the task generating the event?
+>>
+>>
+>> I don't think current memcg design can do this. Because kmem accounting
+>> happens at allocation (when calling kmem_cache_alloc) stage, and get the
+>> associated memcg from current task, so basically who does the allocation who
+>> get it accounted. If the producer is in the different memcg of consumer, it
+>> should be just accounted to the producer memcg, although the problem might
+>> be caused by the producer.
+>>
+>> However, afaik, both producer and consumer are typically in the same memcg.
+>> So, this might be not a big issue. But, I do admit such unfair accounting
+>> may happen.
+>>
+> 
+> That is a reasonable argument, but please make a comment on that fact in
+> commit message and above creation of events cache, so that it is clear that
+> event slab accounting is mostly heuristic.
+
+Yes, will add such information in the new version.
+
+> 
+> But I think there is another problem, not introduced by your change, but could
+> be amplified because of it - when a non-permission event allocation fails, the
+> event is silently dropped, AFAICT, with no indication to listener.
+> That seems like a bug to me, because there is a perfectly safe way to deal with
+> event allocation failure - queue the overflow event.
+
+I'm not sure if such issue could be amplified by the accounting since 
+once the usage exceeds the limit any following kmem allocation would 
+fail. So, it might fail at fsnotify event allocation, or other places, 
+i.e. fork, open syscall, etc. So, in most cases the generator even can't 
+generate new event any more.
+
+The typical output from my LTP test is filesystem dcache allocation 
+error or fork error due to kmem limit is reached.
+
+> I am not going to be the one to determine if fixing this alleged bug is a
+> prerequisite for merging your patch, but I think enforcing memory limits on
+> event allocation could amplify that bug, so it should be fixed.
+> 
+> The upside is that with both your accounting fix and ENOMEM = overlflow
+> fix, it going to be easy to write a test that verifies both of them:
+> - Run a listener in memcg with limited kmem and unlimited (or very
+> large) event queue
+> - Produce events inside memcg without listener reading them
+> - Read event and expect an OVERFLOW even
+> 
+> This is a simple variant of LTP tests inotify05 and fanotify05.
+
+I tried to test your patch with LTP, but it sounds not that easy to 
+setup a scenario to make fsnotify event allocation just hit the kmem 
+limit, since the limit may be hit before a new event is allocated, for 
+example allocating dentry cache in open syscall may hit the limit.
+
+So, it sounds the overflow event might be not generated by the producer 
+in most cases.
+
+Thanks,
+Yang
+
+> 
+> I realize that is user application behavior change and that documentation
+> implies that an OVERFLOW event is not expected when using
+> FAN_UNLIMITED_QUEUE, but IMO no one will come shouting
+> if we stop silently dropping events, so it is better to fix this and update
+> documentation.
+> 
+> Attached a compile-tested patch to implement overflow on ENOMEM
+> Hope this helps to test your patch and then we can merge both, accompanied
+> with LTP tests for inotify and fanotify.
+> 
+> Amir.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
