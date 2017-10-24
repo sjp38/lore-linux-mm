@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A5E26B0261
-	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 05:39:07 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id f85so18135475pfe.7
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 02:39:07 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A08206B026B
+	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 05:39:16 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id u27so13987394pgn.3
+        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 02:39:16 -0700 (PDT)
 Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id x65si6786819pfk.375.2017.10.24.02.38.59
+        by mx.google.com with ESMTP id d11si6213214pgt.43.2017.10.24.02.38.59
         for <linux-mm@kvack.org>;
-        Tue, 24 Oct 2017 02:38:59 -0700 (PDT)
+        Tue, 24 Oct 2017 02:39:00 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v3 4/8] lockdep: Add a kernel parameter, crossrelease_fullstack
-Date: Tue, 24 Oct 2017 18:38:05 +0900
-Message-Id: <1508837889-16932-5-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v3 5/8] completion: Add support for initializing completion with lockdep_map
+Date: Tue, 24 Oct 2017 18:38:06 +0900
+Message-Id: <1508837889-16932-6-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1508837889-16932-1-git-send-email-byungchul.park@lge.com>
 References: <1508837889-16932-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,95 +19,66 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org, axboe@kernel.dk
 Cc: tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
 
-Make whether to allow recording full stack, in cross-release feature,
-switchable at boot time via a kernel parameter, 'crossrelease_fullstack'.
-In case of a splat with no stack trace, one could just reboot and set
-the kernel parameter to get the full data without having to recompile
-the kernel.
+Sometimes, we want to initialize completions with sparate lockdep maps
+to assign lock classes as desired. For example, the workqueue code
+needs to directly manage lockdep maps, since only the code is aware of
+how to classify lockdep maps properly.
 
-Change CONFIG_CROSSRELEASE_STACK_TRACE default from N to Y, and
-introduce the new kernel parameter.
+Provide additional macros initializing completions in that way.
 
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- Documentation/admin-guide/kernel-parameters.txt |  3 +++
- kernel/locking/lockdep.c                        | 18 ++++++++++++++++--
- lib/Kconfig.debug                               |  5 +++--
- 3 files changed, 22 insertions(+), 4 deletions(-)
+ include/linux/completion.h | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
 
-diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index ead7f40..4107b01 100644
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -709,6 +709,9 @@
- 			It will be ignored when crashkernel=X,high is not used
- 			or memory reserved is below 4G.
+diff --git a/include/linux/completion.h b/include/linux/completion.h
+index cae5400..02f8cde 100644
+--- a/include/linux/completion.h
++++ b/include/linux/completion.h
+@@ -49,6 +49,13 @@ static inline void complete_release_commit(struct completion *x)
+ 	lock_commit_crosslock((struct lockdep_map *)&x->map);
+ }
  
-+	crossrelease_fullstack
-+			[KNL] Allow to record full stack trace in cross-release
++#define init_completion_map(x, m)					\
++do {									\
++	lockdep_init_map_crosslock((struct lockdep_map *)&(x)->map,	\
++			(m)->name, (m)->key, 0);				\
++	__init_completion(x);						\
++} while (0)
 +
- 	cryptomgr.notests
-                         [KNL] Disable crypto self-tests
- 
-diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index 5c2ddf2..feba887 100644
---- a/kernel/locking/lockdep.c
-+++ b/kernel/locking/lockdep.c
-@@ -76,6 +76,15 @@
- #define lock_stat 0
+ #define init_completion(x)						\
+ do {									\
+ 	static struct lock_class_key __key;				\
+@@ -58,6 +65,7 @@ static inline void complete_release_commit(struct completion *x)
+ 	__init_completion(x);						\
+ } while (0)
+ #else
++#define init_completion_map(x, m) __init_completion(x)
+ #define init_completion(x) __init_completion(x)
+ static inline void complete_acquire(struct completion *x) {}
+ static inline void complete_release(struct completion *x) {}
+@@ -73,6 +81,9 @@ static inline void complete_release_commit(struct completion *x) {}
+ 	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait) }
  #endif
  
-+static int crossrelease_fullstack;
-+static int __init allow_crossrelease_fullstack(char *str)
-+{
-+	crossrelease_fullstack = 1;
-+	return 0;
-+}
++#define COMPLETION_INITIALIZER_ONSTACK_MAP(work, map) \
++	(*({ init_completion_map(&(work), &(map)); &(work); }))
 +
-+early_param("crossrelease_fullstack", allow_crossrelease_fullstack);
-+
- /*
-  * lockdep_lock: protects the lockdep graph, the hashes and the
-  *               class/list/hash allocators.
-@@ -4864,8 +4873,13 @@ static void add_xhlock(struct held_lock *hlock)
- 	xhlock->trace.max_entries = MAX_XHLOCK_TRACE_ENTRIES;
- 	xhlock->trace.entries = xhlock->trace_entries;
- #ifdef CONFIG_CROSSRELEASE_STACK_TRACE
--	xhlock->trace.skip = 3;
--	save_stack_trace(&xhlock->trace);
-+	if (crossrelease_fullstack) {
-+		xhlock->trace.skip = 3;
-+		save_stack_trace(&xhlock->trace);
-+	} else {
-+		xhlock->trace.nr_entries = 1;
-+		xhlock->trace.entries[0] = hlock->acquire_ip;
-+	}
+ #define COMPLETION_INITIALIZER_ONSTACK(work) \
+ 	(*({ init_completion(&work); &work; }))
+ 
+@@ -102,8 +113,11 @@ static inline void complete_release_commit(struct completion *x) {}
+ #ifdef CONFIG_LOCKDEP
+ # define DECLARE_COMPLETION_ONSTACK(work) \
+ 	struct completion work = COMPLETION_INITIALIZER_ONSTACK(work)
++# define DECLARE_COMPLETION_ONSTACK_MAP(work, map) \
++	struct completion work = COMPLETION_INITIALIZER_ONSTACK_MAP(work, map)
  #else
- 	xhlock->trace.nr_entries = 1;
- 	xhlock->trace.entries[0] = hlock->acquire_ip;
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index fe8fceb..132536d 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -1228,7 +1228,7 @@ config LOCKDEP_COMPLETIONS
- config CROSSRELEASE_STACK_TRACE
- 	bool "Record more than one entity of stack trace in crossrelease"
- 	depends on LOCKDEP_CROSSRELEASE
--	default n
-+	default y
- 	help
- 	 The lockdep "cross-release" feature needs to record stack traces
- 	 (of calling functions) for all acquisitions, for eventual later
-@@ -1238,7 +1238,8 @@ config CROSSRELEASE_STACK_TRACE
- 	 full analysis. This option turns on the saving of the full stack
- 	 trace entries.
+ # define DECLARE_COMPLETION_ONSTACK(work) DECLARE_COMPLETION(work)
++# define DECLARE_COMPLETION_ONSTACK_MAP(work, map) DECLARE_COMPLETION(work)
+ #endif
  
--	 If unsure, say N.
-+	 To make the feature actually on, set "crossrelease_fullstack"
-+	 kernel parameter, too.
- 
- config DEBUG_LOCKDEP
- 	bool "Lock dependency engine debugging"
+ /**
 -- 
 1.9.1
 
