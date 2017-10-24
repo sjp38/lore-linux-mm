@@ -1,49 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 66A456B0038
-	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 16:17:18 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id u138so8668978wmu.19
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 13:17:18 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id j18sor571242wrd.31.2017.10.24.13.17.17
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D1FF36B0038
+	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 17:10:10 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id a192so15259469pge.1
+        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 14:10:10 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id p13si611599pll.609.2017.10.24.14.10.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 24 Oct 2017 13:17:17 -0700 (PDT)
-Date: Wed, 25 Oct 2017 05:17:08 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH -mm] mm, swap: Fix false error message in
- __swp_swapcount()
-Message-ID: <20171024201708.GA25022@bgram>
-References: <20171024024700.23679-1-ying.huang@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Oct 2017 14:10:09 -0700 (PDT)
+Date: Tue, 24 Oct 2017 15:10:07 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH] mmap.2: Add description of MAP_SHARED_VALIDATE and
+ MAP_SYNC
+Message-ID: <20171024211007.GA1611@linux.intel.com>
+References: <20171024152415.22864-1-jack@suse.cz>
+ <20171024152415.22864-19-jack@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171024024700.23679-1-ying.huang@intel.com>
+In-Reply-To: <20171024152415.22864-19-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Chen <tim.c.chen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, stable@vger.kernel.org, Christian Kujau <lists@nerdbynature.de>
+To: Jan Kara <jack@suse.cz>
+Cc: Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, linux-ext4@vger.kernel.org, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Oct 24, 2017 at 10:47:00AM +0800, Huang, Ying wrote:
-> From: Ying Huang <ying.huang@intel.com>
-> 
-> __swp_swapcount() is used in __read_swap_cache_async().  Where the
-> invalid swap entry (offset > max) may be supplied during swap
-> readahead.  But __swp_swapcount() will print error message for these
-> expected invalid swap entry as below, which will make the users
-> confusing.
-> 
->   swap_info_get: Bad swap offset entry 0200f8a7
-> 
-> So the swap entry checking code in __swp_swapcount() is changed to
-> avoid printing error message for it.  To avoid to duplicate code with
-> __swap_duplicate(), a new helper function named
-> __swap_info_get_silence() is added and invoked in both places.
+On Tue, Oct 24, 2017 at 05:24:15PM +0200, Jan Kara wrote:
+> Signed-off-by: Jan Kara <jack@suse.cz>
 
-It's the problem caused by readahead, not __swap_info_get which is low-end
-primitive function. Instead, please fix high-end swapin_readahead to limit
-to last valid block as handling to avoid swap header which is special case,
-too.
+This looks unchanged since the previous version?
+
+> ---
+>  man2/mmap.2 | 30 ++++++++++++++++++++++++++++++
+>  1 file changed, 30 insertions(+)
+> 
+> diff --git a/man2/mmap.2 b/man2/mmap.2
+> index 47c3148653be..598ff0c64f7f 100644
+> --- a/man2/mmap.2
+> +++ b/man2/mmap.2
+> @@ -125,6 +125,21 @@ are carried through to the underlying file.
+>  to the underlying file requires the use of
+>  .BR msync (2).)
+>  .TP
+> +.B MAP_SHARED_VALIDATE
+> +The same as
+> +.B MAP_SHARED
+> +except that
+> +.B MAP_SHARED
+> +mappings ignore unknown flags in
+> +.IR flags .
+> +In contrast when creating mapping of
+> +.B MAP_SHARED_VALIDATE
+> +mapping type, the kernel verifies all passed flags are known and fails the
+> +mapping with
+> +.BR EOPNOTSUPP
+> +otherwise. This mapping type is also required to be able to use some mapping
+> +flags.
+> +.TP
+>  .B MAP_PRIVATE
+>  Create a private copy-on-write mapping.
+>  Updates to the mapping are not visible to other processes
+> @@ -352,6 +367,21 @@ option.
+>  Because of the security implications,
+>  that option is normally enabled only on embedded devices
+>  (i.e., devices where one has complete control of the contents of user memory).
+> +.TP
+> +.BR MAP_SYNC " (since Linux 4.15)"
+> +This flags is available only with
+> +.B MAP_SHARED_VALIDATE
+> +mapping type. Mappings of
+> +.B MAP_SHARED
+> +type will silently ignore this flag.
+> +This flag is supported only for files supporting DAX (direct mapping of persistent
+> +memory). For other files, creating mapping with this flag results in
+> +.B EOPNOTSUPP
+> +error. Shared file mappings with this flag provide the guarantee that while
+> +some memory is writeably mapped in the address space of the process, it will
+> +be visible in the same file at the same offset even after the system crashes or
+> +is rebooted. This allows users of such mappings to make data modifications
+> +persistent in a more efficient way using appropriate CPU instructions.
+>  .PP
+>  Of the above flags, only
+>  .B MAP_FIXED
+> -- 
+> 2.12.3
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
