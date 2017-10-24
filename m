@@ -1,210 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DD3F6B0270
-	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 05:39:17 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id y128so13825828pfg.5
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 02:39:17 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id c9si6163309pgf.322.2017.10.24.02.39.01
-        for <linux-mm@kvack.org>;
-        Tue, 24 Oct 2017 02:39:01 -0700 (PDT)
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v3 8/8] block: Assign a lock_class per gendisk used for wait_for_completion()
-Date: Tue, 24 Oct 2017 18:38:09 +0900
-Message-Id: <1508837889-16932-9-git-send-email-byungchul.park@lge.com>
-In-Reply-To: <1508837889-16932-1-git-send-email-byungchul.park@lge.com>
-References: <1508837889-16932-1-git-send-email-byungchul.park@lge.com>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 671C06B026F
+	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 05:40:44 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id p186so7785431wmd.11
+        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 02:40:44 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i67sor293967wmc.45.2017.10.24.02.40.43
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 24 Oct 2017 02:40:43 -0700 (PDT)
+Date: Tue, 24 Oct 2017 11:40:40 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 0/6] Boot-time switching between 4- and 5-level paging
+ for 4.15, Part 1
+Message-ID: <20171024094039.4lonzocjt5kras7m@gmail.com>
+References: <20171003082754.no6ym45oirah53zp@node.shutemov.name>
+ <20171017154241.f4zaxakfl7fcrdz5@node.shutemov.name>
+ <20171020081853.lmnvaiydxhy5c63t@gmail.com>
+ <20171020094152.skx5sh5ramq2a3vu@black.fi.intel.com>
+ <20171020152346.f6tjybt7i5kzbhld@gmail.com>
+ <20171020162349.3kwhdgv7qo45w4lh@node.shutemov.name>
+ <20171023115658.geccs22o2t733np3@gmail.com>
+ <20171023122159.wyztmsbgt5k2d4tb@node.shutemov.name>
+ <20171023124014.mtklgmydspnvfcvg@gmail.com>
+ <20171023124811.4i73242s5dotnn5k@node.shutemov.name>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171023124811.4i73242s5dotnn5k@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peterz@infradead.org, mingo@kernel.org, axboe@kernel.dk
-Cc: tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Darrick and Dave Chinner posted the following warning:
 
-> ======================================================
-> WARNING: possible circular locking dependency detected
-> 4.14.0-rc1-fixes #1 Tainted: G        W
-> ------------------------------------------------------
-> loop0/31693 is trying to acquire lock:
->  (&(&ip->i_mmaplock)->mr_lock){++++}, at: [<ffffffffa00f1b0c>] xfs_ilock+0x23c/0x330 [xfs]
->
-> but now in release context of a crosslock acquired at the following:
->  ((complete)&ret.event){+.+.}, at: [<ffffffff81326c1f>] submit_bio_wait+0x7f/0xb0
->
-> which lock already depends on the new lock.
->
-> the existing dependency chain (in reverse order) is:
->
-> -> #2 ((complete)&ret.event){+.+.}:
->        lock_acquire+0xab/0x200
->        wait_for_completion_io+0x4e/0x1a0
->        submit_bio_wait+0x7f/0xb0
->        blkdev_issue_zeroout+0x71/0xa0
->        xfs_bmapi_convert_unwritten+0x11f/0x1d0 [xfs]
->        xfs_bmapi_write+0x374/0x11f0 [xfs]
->        xfs_iomap_write_direct+0x2ac/0x430 [xfs]
->        xfs_file_iomap_begin+0x20d/0xd50 [xfs]
->        iomap_apply+0x43/0xe0
->        dax_iomap_rw+0x89/0xf0
->        xfs_file_dax_write+0xcc/0x220 [xfs]
->        xfs_file_write_iter+0xf0/0x130 [xfs]
->        __vfs_write+0xd9/0x150
->        vfs_write+0xc8/0x1c0
->        SyS_write+0x45/0xa0
->        entry_SYSCALL_64_fastpath+0x1f/0xbe
->
-> -> #1 (&xfs_nondir_ilock_class){++++}:
->        lock_acquire+0xab/0x200
->        down_write_nested+0x4a/0xb0
->        xfs_ilock+0x263/0x330 [xfs]
->        xfs_setattr_size+0x152/0x370 [xfs]
->        xfs_vn_setattr+0x6b/0x90 [xfs]
->        notify_change+0x27d/0x3f0
->        do_truncate+0x5b/0x90
->        path_openat+0x237/0xa90
->        do_filp_open+0x8a/0xf0
->        do_sys_open+0x11c/0x1f0
->        entry_SYSCALL_64_fastpath+0x1f/0xbe
->
-> -> #0 (&(&ip->i_mmaplock)->mr_lock){++++}:
->        up_write+0x1c/0x40
->        xfs_iunlock+0x1d0/0x310 [xfs]
->        xfs_file_fallocate+0x8a/0x310 [xfs]
->        loop_queue_work+0xb7/0x8d0
->        kthread_worker_fn+0xb9/0x1f0
->
-> Chain exists of:
->   &(&ip->i_mmaplock)->mr_lock --> &xfs_nondir_ilock_class --> (complete)&ret.event
->
->  Possible unsafe locking scenario by crosslock:
->
->        CPU0                    CPU1
->        ----                    ----
->   lock(&xfs_nondir_ilock_class);
->   lock((complete)&ret.event);
->                                lock(&(&ip->i_mmaplock)->mr_lock);
->                                unlock((complete)&ret.event);
->
->                *** DEADLOCK ***
+* Kirill A. Shutemov <kirill@shutemov.name> wrote:
 
-The warning is a false positive, caused by the fact that all
-wait_for_completion()s in submit_bio_wait() are waiting with the same
-lock class.
+> On Mon, Oct 23, 2017 at 02:40:14PM +0200, Ingo Molnar wrote:
+> > 
+> > * Kirill A. Shutemov <kirill@shutemov.name> wrote:
+> > 
+> > > > Making a variable that 'looks' like a constant macro dynamic in a rare Kconfig 
+> > > > scenario is asking for trouble.
+> > > 
+> > > We expect boot-time page mode switching to be enabled in kernel of next
+> > > generation enterprise distros. It shoudn't be that rare.
+> > 
+> > My point remains even with not-so-rare Kconfig dependency.
+> 
+> I don't follow how introducing new variable that depends on Kconfig option
+> would help with the situation.
 
-However, some bios have nothing to do with others, for example, the case
-might happen while using loop devices, between bios of an upper device
-and a lower device(=loop device).
+A new, properly named variable or function (max_physmem_bits or 
+max_physmem_bits()) that is not all uppercase would make it abundantly clear that 
+it is not a constant but a runtime value.
 
-The safest way to assign different lock classes to different devices is
-to do it for each gendisk. In other words, this patch assigns a
-lockdep_map per gendisk and uses it when initializing completion in
-submit_bio_wait().
+> We would end up with inverse situation: people would use MAX_PHYSMEM_BITS
+> where the new variable need to be used and we will in the same situation.
 
-Of course, it might be too conservative. But, making it safest for now
-and extended by block layer experts later is good, atm.
+It should result in sub-optimal resource allocations worst-case, right?
 
-Signed-off-by: Byungchul Park <byungchul.park@lge.com>
----
- block/bio.c           |  2 +-
- block/genhd.c         | 13 +++++--------
- include/linux/genhd.h | 22 ++++++++++++++++++++--
- 3 files changed, 26 insertions(+), 11 deletions(-)
+We could also rename it to MAX_POSSIBLE_PHYSMEM_BITS to make it clear that the 
+real number of bits can be lower.
 
-diff --git a/block/bio.c b/block/bio.c
-index 5e901bf..cc60213 100644
---- a/block/bio.c
-+++ b/block/bio.c
-@@ -935,7 +935,7 @@ static void submit_bio_wait_endio(struct bio *bio)
-  */
- int submit_bio_wait(struct bio *bio)
- {
--	DECLARE_COMPLETION_ONSTACK(done);
-+	DECLARE_COMPLETION_ONSTACK_MAP(done, bio->bi_disk->lockdep_map);
- 
- 	bio->bi_private = &done;
- 	bio->bi_end_io = submit_bio_wait_endio;
-diff --git a/block/genhd.c b/block/genhd.c
-index dd305c6..f195d22 100644
---- a/block/genhd.c
-+++ b/block/genhd.c
-@@ -1354,13 +1354,7 @@ dev_t blk_lookup_devt(const char *name, int partno)
- }
- EXPORT_SYMBOL(blk_lookup_devt);
- 
--struct gendisk *alloc_disk(int minors)
--{
--	return alloc_disk_node(minors, NUMA_NO_NODE);
--}
--EXPORT_SYMBOL(alloc_disk);
--
--struct gendisk *alloc_disk_node(int minors, int node_id)
-+struct gendisk *__alloc_disk_node(int minors, int node_id, struct lock_class_key *key, const char *lock_name)
- {
- 	struct gendisk *disk;
- 	struct disk_part_tbl *ptbl;
-@@ -1409,9 +1403,12 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
- 		disk_to_dev(disk)->type = &disk_type;
- 		device_initialize(disk_to_dev(disk));
- 	}
-+
-+	lockdep_init_map(&disk->lockdep_map, lock_name, key, 0);
-+
- 	return disk;
- }
--EXPORT_SYMBOL(alloc_disk_node);
-+EXPORT_SYMBOL(__alloc_disk_node);
- 
- struct kobject *get_disk(struct gendisk *disk)
- {
-diff --git a/include/linux/genhd.h b/include/linux/genhd.h
-index 6d85a75..9832e3c 100644
---- a/include/linux/genhd.h
-+++ b/include/linux/genhd.h
-@@ -206,6 +206,9 @@ struct gendisk {
- #endif	/* CONFIG_BLK_DEV_INTEGRITY */
- 	int node_id;
- 	struct badblocks *bb;
-+#ifdef CONFIG_LOCKDEP_COMPLETIONS
-+	struct lockdep_map lockdep_map;
-+#endif
- };
- 
- static inline struct gendisk *part_to_disk(struct hd_struct *part)
-@@ -590,8 +593,7 @@ extern struct hd_struct * __must_check add_partition(struct gendisk *disk,
- extern void delete_partition(struct gendisk *, int);
- extern void printk_all_partitions(void);
- 
--extern struct gendisk *alloc_disk_node(int minors, int node_id);
--extern struct gendisk *alloc_disk(int minors);
-+extern struct gendisk *__alloc_disk_node(int minors, int node_id, struct lock_class_key *key, const char *lock_name);
- extern struct kobject *get_disk(struct gendisk *disk);
- extern void put_disk(struct gendisk *disk);
- extern void blk_register_region(dev_t devt, unsigned long range,
-@@ -615,6 +617,22 @@ extern ssize_t part_fail_store(struct device *dev,
- 			       const char *buf, size_t count);
- #endif /* CONFIG_FAIL_MAKE_REQUEST */
- 
-+#ifdef CONFIG_LOCKDEP_COMPLETIONS
-+#define alloc_disk_node(m, id) \
-+({									\
-+	static struct lock_class_key __key;				\
-+	const char *__lock_name;					\
-+									\
-+	__lock_name = "(complete)"#m"("#id")";				\
-+									\
-+	__alloc_disk_node(m, id, &__key, __lock_name);			\
-+})
-+#else
-+#define alloc_disk_node(m, id)	__alloc_disk_node(m, id, NULL, NULL)
-+#endif
-+
-+#define alloc_disk(m)		alloc_disk_node(m, NUMA_NO_NODE)
-+
- static inline int hd_ref_init(struct hd_struct *part)
- {
- 	if (percpu_ref_init(&part->ref, __delete_partition, 0,
--- 
-1.9.1
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
