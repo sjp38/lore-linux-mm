@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A08206B026B
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C6BA96B026D
 	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 05:39:16 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u27so13987394pgn.3
+Received: by mail-pf0-f198.google.com with SMTP id b85so18107290pfj.22
         for <linux-mm@kvack.org>; Tue, 24 Oct 2017 02:39:16 -0700 (PDT)
 Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id d11si6213214pgt.43.2017.10.24.02.38.59
+        by mx.google.com with ESMTP id n9si5207178pll.526.2017.10.24.02.39.00
         for <linux-mm@kvack.org>;
-        Tue, 24 Oct 2017 02:39:00 -0700 (PDT)
+        Tue, 24 Oct 2017 02:39:01 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v3 5/8] completion: Add support for initializing completion with lockdep_map
-Date: Tue, 24 Oct 2017 18:38:06 +0900
-Message-Id: <1508837889-16932-6-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v3 7/8] genhd.h: Remove trailing white space
+Date: Tue, 24 Oct 2017 18:38:08 +0900
+Message-Id: <1508837889-16932-8-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1508837889-16932-1-git-send-email-byungchul.park@lge.com>
 References: <1508837889-16932-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,66 +19,36 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org, axboe@kernel.dk
 Cc: tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
 
-Sometimes, we want to initialize completions with sparate lockdep maps
-to assign lock classes as desired. For example, the workqueue code
-needs to directly manage lockdep maps, since only the code is aware of
-how to classify lockdep maps properly.
-
-Provide additional macros initializing completions in that way.
+Trailing white space is not accepted in kernel coding style. Remove
+them.
 
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- include/linux/completion.h | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ include/linux/genhd.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/completion.h b/include/linux/completion.h
-index cae5400..02f8cde 100644
---- a/include/linux/completion.h
-+++ b/include/linux/completion.h
-@@ -49,6 +49,13 @@ static inline void complete_release_commit(struct completion *x)
- 	lock_commit_crosslock((struct lockdep_map *)&x->map);
- }
+diff --git a/include/linux/genhd.h b/include/linux/genhd.h
+index ea652bf..6d85a75 100644
+--- a/include/linux/genhd.h
++++ b/include/linux/genhd.h
+@@ -3,7 +3,7 @@
  
-+#define init_completion_map(x, m)					\
-+do {									\
-+	lockdep_init_map_crosslock((struct lockdep_map *)&(x)->map,	\
-+			(m)->name, (m)->key, 0);				\
-+	__init_completion(x);						\
-+} while (0)
-+
- #define init_completion(x)						\
- do {									\
- 	static struct lock_class_key __key;				\
-@@ -58,6 +65,7 @@ static inline void complete_release_commit(struct completion *x)
- 	__init_completion(x);						\
- } while (0)
- #else
-+#define init_completion_map(x, m) __init_completion(x)
- #define init_completion(x) __init_completion(x)
- static inline void complete_acquire(struct completion *x) {}
- static inline void complete_release(struct completion *x) {}
-@@ -73,6 +81,9 @@ static inline void complete_release_commit(struct completion *x) {}
- 	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait) }
- #endif
- 
-+#define COMPLETION_INITIALIZER_ONSTACK_MAP(work, map) \
-+	(*({ init_completion_map(&(work), &(map)); &(work); }))
-+
- #define COMPLETION_INITIALIZER_ONSTACK(work) \
- 	(*({ init_completion(&work); &work; }))
- 
-@@ -102,8 +113,11 @@ static inline void complete_release_commit(struct completion *x) {}
- #ifdef CONFIG_LOCKDEP
- # define DECLARE_COMPLETION_ONSTACK(work) \
- 	struct completion work = COMPLETION_INITIALIZER_ONSTACK(work)
-+# define DECLARE_COMPLETION_ONSTACK_MAP(work, map) \
-+	struct completion work = COMPLETION_INITIALIZER_ONSTACK_MAP(work, map)
- #else
- # define DECLARE_COMPLETION_ONSTACK(work) DECLARE_COMPLETION(work)
-+# define DECLARE_COMPLETION_ONSTACK_MAP(work, map) DECLARE_COMPLETION(work)
- #endif
- 
- /**
+ /*
+  * 	genhd.h Copyright (C) 1992 Drew Eckhardt
+- *	Generic hard disk header file by  
++ *	Generic hard disk header file by
+  * 		Drew Eckhardt
+  *
+  *		<drew@colorado.edu>
+@@ -471,7 +471,7 @@ struct bsd_disklabel {
+ 	__s16	d_type;			/* drive type */
+ 	__s16	d_subtype;		/* controller/d_type specific */
+ 	char	d_typename[16];		/* type name, e.g. "eagle" */
+-	char	d_packname[16];			/* pack identifier */ 
++	char	d_packname[16];			/* pack identifier */
+ 	__u32	d_secsize;		/* # of bytes per sector */
+ 	__u32	d_nsectors;		/* # of data sectors per track */
+ 	__u32	d_ntracks;		/* # of tracks per cylinder */
 -- 
 1.9.1
 
