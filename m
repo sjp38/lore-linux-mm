@@ -1,169 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C120F6B0033
-	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 11:15:56 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id h28so18699381pfh.16
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 08:15:56 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id k8si289456pli.74.2017.10.24.08.15.36
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3792D6B0253
+	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 11:25:30 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id z96so11827048wrb.21
+        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 08:25:30 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 81si365958wmj.84.2017.10.24.08.25.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Oct 2017 08:15:36 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm] mm, swap: Fix false error message in __swp_swapcount()
-References: <20171024024700.23679-1-ying.huang@intel.com>
-	<20171024083809.lrw23yumkassclgm@dhcp22.suse.cz>
-Date: Tue, 24 Oct 2017 23:15:32 +0800
-In-Reply-To: <20171024083809.lrw23yumkassclgm@dhcp22.suse.cz> (Michal Hocko's
-	message of "Tue, 24 Oct 2017 10:38:09 +0200")
-Message-ID: <87vaj4poff.fsf@yhuang-dev.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 24 Oct 2017 08:25:28 -0700 (PDT)
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH 04/17] dax: Factor out getting of pfn out of iomap
+Date: Tue, 24 Oct 2017 17:24:01 +0200
+Message-Id: <20171024152415.22864-5-jack@suse.cz>
+In-Reply-To: <20171024152415.22864-1-jack@suse.cz>
+References: <20171024152415.22864-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Chen <tim.c.chen@linux.intel.com>, Minchan Kim <minchan@kernel.org>, stable@vger.kernel.org, Christian Kujau <lists@nerdbynature.de>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, linux-ext4@vger.kernel.org, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
 
-Hi, Michal,
+Factor out code to get pfn out of iomap that is shared between PTE and
+PMD fault path.
 
-Michal Hocko <mhocko@kernel.org> writes:
+Reviewed-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ fs/dax.c | 83 +++++++++++++++++++++++++++++++++-------------------------------
+ 1 file changed, 43 insertions(+), 40 deletions(-)
 
-> On Tue 24-10-17 10:47:00, Huang, Ying wrote:
->> From: Ying Huang <ying.huang@intel.com>
->> 
->> __swp_swapcount() is used in __read_swap_cache_async().  Where the
->> invalid swap entry (offset > max) may be supplied during swap
->> readahead.  But __swp_swapcount() will print error message for these
->> expected invalid swap entry as below, which will make the users
->> confusing.
->   ^^
-> confused... And I have to admit this changelog has left me confused as
-> well. What is an invalid swap entry in the readahead? Ohh, let me
-> re-real Fixes: commit. It didn't really help "We can avoid needlessly
-> allocating page for swap slots that are not used by anyone.  No pages
-> have to be read in for these slots."
->
-> Could you be more specific about when and how this happens please?
-
-Sorry for confusing.
-
-When page fault occurs for a swap entry, the original swap readahead
-(not new VMA base swap readahead) may readahead several swap entries
-after the fault swap entry.  The readahead algorithm calculates some of
-the swap entries to readahead via increasing the offset of the fault
-swap entry without checking whether they are beyond the end of the swap
-device and it rely on the __swp_swapcount() and swapcache_prepare() to
-check it.  Although __swp_swapcount() checks for the swap entry passed
-in, it will complain with error message for the expected invalid swap
-entry.  This makes the end user confusing.
-
-Is this a little clearer.
-
-Best Regards,
-Huang, Ying
-
->>   swap_info_get: Bad swap offset entry 0200f8a7
->> 
->> So the swap entry checking code in __swp_swapcount() is changed to
->> avoid printing error message for it.  To avoid to duplicate code with
->> __swap_duplicate(), a new helper function named
->> __swap_info_get_silence() is added and invoked in both places.
->> 
->> Cc: Tim Chen <tim.c.chen@linux.intel.com>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: Michal Hocko <mhocko@suse.com>
->> Cc: <stable@vger.kernel.org> # 4.11-4.13
->> Reported-by: Christian Kujau <lists@nerdbynature.de>
->> Fixes: e8c26ab60598 ("mm/swap: skip readahead for unreferenced swap slots")
->> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
->> ---
->>  mm/swapfile.c | 42 ++++++++++++++++++++++++++++--------------
->>  1 file changed, 28 insertions(+), 14 deletions(-)
->> 
->> diff --git a/mm/swapfile.c b/mm/swapfile.c
->> index 3074b02eaa09..3193aa670c90 100644
->> --- a/mm/swapfile.c
->> +++ b/mm/swapfile.c
->> @@ -1107,6 +1107,30 @@ static struct swap_info_struct *swap_info_get_cont(swp_entry_t entry,
->>  	return p;
->>  }
->>  
->> +static struct swap_info_struct *__swap_info_get_silence(swp_entry_t entry)
->> +{
->> +	struct swap_info_struct *p;
->> +	unsigned long offset, type;
->> +
->> +	if (non_swap_entry(entry))
->> +		goto out;
->> +
->> +	type = swp_type(entry);
->> +	if (type >= nr_swapfiles)
->> +		goto bad_file;
->> +	p = swap_info[type];
->> +	offset = swp_offset(entry);
->> +	if (unlikely(offset >= p->max))
->> +		goto out;
->> +
->> +	return p;
->> +
->> +bad_file:
->> +	pr_err("swap_info_get_silence: %s%08lx\n", Bad_file, entry.val);
->> +out:
->> +	return NULL;
->> +}
->> +
->>  static unsigned char __swap_entry_free(struct swap_info_struct *p,
->>  				       swp_entry_t entry, unsigned char usage)
->>  {
->> @@ -1357,7 +1381,7 @@ int __swp_swapcount(swp_entry_t entry)
->>  	int count = 0;
->>  	struct swap_info_struct *si;
->>  
->> -	si = __swap_info_get(entry);
->> +	si = __swap_info_get_silence(entry);
->>  	if (si)
->>  		count = swap_swapcount(si, entry);
->>  	return count;
->> @@ -3356,22 +3380,16 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
->>  {
->>  	struct swap_info_struct *p;
->>  	struct swap_cluster_info *ci;
->> -	unsigned long offset, type;
->> +	unsigned long offset;
->>  	unsigned char count;
->>  	unsigned char has_cache;
->>  	int err = -EINVAL;
->>  
->> -	if (non_swap_entry(entry))
->> +	p = __swap_info_get_silence(entry);
->> +	if (!p)
->>  		goto out;
->>  
->> -	type = swp_type(entry);
->> -	if (type >= nr_swapfiles)
->> -		goto bad_file;
->> -	p = swap_info[type];
->>  	offset = swp_offset(entry);
->> -	if (unlikely(offset >= p->max))
->> -		goto out;
->> -
->>  	ci = lock_cluster_or_swap_info(p, offset);
->>  
->>  	count = p->swap_map[offset];
->> @@ -3418,10 +3436,6 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
->>  	unlock_cluster_or_swap_info(p, ci);
->>  out:
->>  	return err;
->> -
->> -bad_file:
->> -	pr_err("swap_dup: %s%08lx\n", Bad_file, entry.val);
->> -	goto out;
->>  }
->>  
->>  /*
->> -- 
->> 2.14.2
->> 
+diff --git a/fs/dax.c b/fs/dax.c
+index 0bc42ac294ca..116eef8d6c69 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -825,30 +825,53 @@ static sector_t dax_iomap_sector(struct iomap *iomap, loff_t pos)
+ 	return iomap->blkno + (((pos & PAGE_MASK) - iomap->offset) >> 9);
+ }
+ 
+-static int dax_insert_mapping(struct vm_fault *vmf, struct iomap *iomap,
+-			      loff_t pos, void *entry)
++static int dax_iomap_pfn(struct iomap *iomap, loff_t pos, size_t size,
++			 pfn_t *pfnp)
+ {
+ 	const sector_t sector = dax_iomap_sector(iomap, pos);
+-	struct vm_area_struct *vma = vmf->vma;
+-	struct address_space *mapping = vma->vm_file->f_mapping;
+-	unsigned long vaddr = vmf->address;
+-	void *ret, *kaddr;
+ 	pgoff_t pgoff;
++	void *kaddr;
+ 	int id, rc;
+-	pfn_t pfn;
++	long length;
+ 
+-	rc = bdev_dax_pgoff(iomap->bdev, sector, PAGE_SIZE, &pgoff);
++	rc = bdev_dax_pgoff(iomap->bdev, sector, size, &pgoff);
+ 	if (rc)
+ 		return rc;
+-
+ 	id = dax_read_lock();
+-	rc = dax_direct_access(iomap->dax_dev, pgoff, PHYS_PFN(PAGE_SIZE),
+-			       &kaddr, &pfn);
+-	if (rc < 0) {
+-		dax_read_unlock(id);
+-		return rc;
++	length = dax_direct_access(iomap->dax_dev, pgoff, PHYS_PFN(size),
++				   &kaddr, pfnp);
++	if (length < 0) {
++		rc = length;
++		goto out;
+ 	}
++	rc = -EINVAL;
++	if (PFN_PHYS(length) < size)
++		goto out;
++	if (pfn_t_to_pfn(*pfnp) & (PHYS_PFN(size)-1))
++		goto out;
++	/* For larger pages we need devmap */
++	if (length > 1 && !pfn_t_devmap(*pfnp))
++		goto out;
++	rc = 0;
++out:
+ 	dax_read_unlock(id);
++	return rc;
++}
++
++static int dax_insert_mapping(struct vm_fault *vmf, struct iomap *iomap,
++			      loff_t pos, void *entry)
++{
++	const sector_t sector = dax_iomap_sector(iomap, pos);
++	struct vm_area_struct *vma = vmf->vma;
++	struct address_space *mapping = vma->vm_file->f_mapping;
++	unsigned long vaddr = vmf->address;
++	void *ret;
++	int rc;
++	pfn_t pfn;
++
++	rc = dax_iomap_pfn(iomap, pos, PAGE_SIZE, &pfn);
++	if (rc < 0)
++		return rc;
+ 
+ 	ret = dax_insert_mapping_entry(mapping, vmf, entry, sector, 0);
+ 	if (IS_ERR(ret))
+@@ -1223,46 +1246,26 @@ static int dax_pmd_insert_mapping(struct vm_fault *vmf, struct iomap *iomap,
+ {
+ 	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
+ 	const sector_t sector = dax_iomap_sector(iomap, pos);
+-	struct dax_device *dax_dev = iomap->dax_dev;
+-	struct block_device *bdev = iomap->bdev;
+ 	struct inode *inode = mapping->host;
+-	const size_t size = PMD_SIZE;
+-	void *ret = NULL, *kaddr;
+-	long length = 0;
+-	pgoff_t pgoff;
++	void *ret = NULL;
+ 	pfn_t pfn = {};
+-	int id;
++	int rc;
+ 
+-	if (bdev_dax_pgoff(bdev, sector, size, &pgoff) != 0)
++	rc = dax_iomap_pfn(iomap, pos, PMD_SIZE, &pfn);
++	if (rc < 0)
+ 		goto fallback;
+ 
+-	id = dax_read_lock();
+-	length = dax_direct_access(dax_dev, pgoff, PHYS_PFN(size), &kaddr, &pfn);
+-	if (length < 0)
+-		goto unlock_fallback;
+-	length = PFN_PHYS(length);
+-
+-	if (length < size)
+-		goto unlock_fallback;
+-	if (pfn_t_to_pfn(pfn) & PG_PMD_COLOUR)
+-		goto unlock_fallback;
+-	if (!pfn_t_devmap(pfn))
+-		goto unlock_fallback;
+-	dax_read_unlock(id);
+-
+ 	ret = dax_insert_mapping_entry(mapping, vmf, entry, sector,
+ 			RADIX_DAX_PMD);
+ 	if (IS_ERR(ret))
+ 		goto fallback;
+ 
+-	trace_dax_pmd_insert_mapping(inode, vmf, length, pfn, ret);
++	trace_dax_pmd_insert_mapping(inode, vmf, PMD_SIZE, pfn, ret);
+ 	return vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd,
+ 			pfn, vmf->flags & FAULT_FLAG_WRITE);
+ 
+-unlock_fallback:
+-	dax_read_unlock(id);
+ fallback:
+-	trace_dax_pmd_insert_mapping_fallback(inode, vmf, length, pfn, ret);
++	trace_dax_pmd_insert_mapping_fallback(inode, vmf, PMD_SIZE, pfn, ret);
+ 	return VM_FAULT_FALLBACK;
+ }
+ 
+-- 
+2.12.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
