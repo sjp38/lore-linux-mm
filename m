@@ -1,92 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D85C66B0033
-	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 08:25:31 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id k15so11668334wrc.1
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 05:25:31 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 31si129941wri.328.2017.10.24.05.25.30
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E7216B0033
+	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 08:47:49 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 196so8080662wma.6
+        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 05:47:49 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a69sor67732wme.83.2017.10.24.05.47.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Oct 2017 05:25:30 -0700 (PDT)
-Date: Tue, 24 Oct 2017 14:25:26 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm: drop migrate type checks from has_unmovable_pages
-Message-ID: <20171024122526.3kmabkcbmj4johli@dhcp22.suse.cz>
-References: <20171019082041.5zudpqacaxjhe4gw@dhcp22.suse.cz>
- <20171019122118.y6cndierwl2vnguj@dhcp22.suse.cz>
- <20171020021329.GB10438@js1304-P5Q-DELUXE>
- <20171020055922.x2mj6j66obmp52da@dhcp22.suse.cz>
- <20171020065014.GA11145@js1304-P5Q-DELUXE>
- <20171020070220.t4o573zymgto5kmi@dhcp22.suse.cz>
- <20171023052309.GB23082@js1304-P5Q-DELUXE>
- <20171023081009.7fyz3gfrmurvj635@dhcp22.suse.cz>
- <20171024044423.GA31424@js1304-P5Q-DELUXE>
- <fdb6b325-8de8-b809-81eb-c164736d6a58@suse.cz>
+        (Google Transport Security);
+        Tue, 24 Oct 2017 05:47:44 -0700 (PDT)
+Date: Tue, 24 Oct 2017 14:47:41 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 0/6] Boot-time switching between 4- and 5-level paging
+ for 4.15, Part 1
+Message-ID: <20171024124741.ux74rtbu2vqaf6zt@gmail.com>
+References: <20171020081853.lmnvaiydxhy5c63t@gmail.com>
+ <20171020094152.skx5sh5ramq2a3vu@black.fi.intel.com>
+ <20171020152346.f6tjybt7i5kzbhld@gmail.com>
+ <20171020162349.3kwhdgv7qo45w4lh@node.shutemov.name>
+ <20171023115658.geccs22o2t733np3@gmail.com>
+ <20171023122159.wyztmsbgt5k2d4tb@node.shutemov.name>
+ <20171023124014.mtklgmydspnvfcvg@gmail.com>
+ <20171023124811.4i73242s5dotnn5k@node.shutemov.name>
+ <20171024094039.4lonzocjt5kras7m@gmail.com>
+ <20171024113819.pli7ifesp2u2rexi@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <fdb6b325-8de8-b809-81eb-c164736d6a58@suse.cz>
+In-Reply-To: <20171024113819.pli7ifesp2u2rexi@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 24-10-17 10:12:58, Vlastimil Babka wrote:
-> On 10/24/2017 06:44 AM, Joonsoo Kim wrote:
-> >>> I'm not sure what is the confusing semantic you mentioned. I think
-> >>> that set_migratetype_isolate() has confusing semantic and should be
-> >>> fixed since making the pageblock isolated doesn't need to check if
-> >>> there is unmovable page or not. Do you think that
-> >>> set_migratetype_isolate() need to check it? If so, why?
-> >>
-> >> My intuitive understanding of set_migratetype_isolate is that it either
-> >> suceeds and that means that the given pfn range can be isolated for the
-> >> given type of allocation (be it movable or cma). No new pages will be
-> >> allocated from this range to allow converging into a free range in a
-> >> finit amount of time. At least this is how the hotplug code would like
-> >> to use it and I suppose that the alloc_contig_range would like to
-> >> guarantee the same to not rely on a fixed amount of migration attempts.
+
+* Kirill A. Shutemov <kirill@shutemov.name> wrote:
+
+> On Tue, Oct 24, 2017 at 11:40:40AM +0200, Ingo Molnar wrote:
 > > 
-> > Yes, alloc_contig_range() also want to guarantee the similar thing.
-> > Major difference between them is 'given pfn range'. memory hotplug
-> > works by pageblock unit but alloc_contig_range() doesn't.
-> > alloc_contig_range() works by the page unit. However, there is no easy
-> > way to isolate individual page so it uses pageblock isolation
-> > regardless of 'given pfn range'. In this case, checking movability of
-> > all pages on the pageblock would cause the problem as I mentioned
-> > before.
+> > * Kirill A. Shutemov <kirill@shutemov.name> wrote:
+> > 
+> > > On Mon, Oct 23, 2017 at 02:40:14PM +0200, Ingo Molnar wrote:
+> > > > 
+> > > > * Kirill A. Shutemov <kirill@shutemov.name> wrote:
+> > > > 
+> > > > > > Making a variable that 'looks' like a constant macro dynamic in a rare Kconfig 
+> > > > > > scenario is asking for trouble.
+> > > > > 
+> > > > > We expect boot-time page mode switching to be enabled in kernel of next
+> > > > > generation enterprise distros. It shoudn't be that rare.
+> > > > 
+> > > > My point remains even with not-so-rare Kconfig dependency.
+> > > 
+> > > I don't follow how introducing new variable that depends on Kconfig option
+> > > would help with the situation.
+> > 
+> > A new, properly named variable or function (max_physmem_bits or 
+> > max_physmem_bits()) that is not all uppercase would make it abundantly clear that 
+> > it is not a constant but a runtime value.
 > 
-> I couldn't look too closely yet, but do I understand correctly that the
-> *potential* problem (because as you say there are no such
-> alloc_contig_range callers) you are describing is not newly introduced
-> by Michal's series? Then his patch fixing the introduced regression
-> should be enough for now, and further improvements could be posted on
-> top, and not vice versa? Please don't take it wrong, I agree the current
-> state is a bit of a mess and improvements are welcome. Also it seems to
-> me that Michal is right, and there's nothing preventing
-> alloc_contig_range() to allocate from CMA pageblocks for non-CMA
-> purposes (likely not movable), and that should be also fixed?
+> Would we need to rename every uppercase macros that would depend on
+> max_physmem_bits()? Like MAXMEM.
 
-OK, it seems I understand Joonsoo's concern more now. And I agree with
-Vlastimil, that it is better to plug the immediate regression with a
-minimal patch and discuss general improvements of the pfn based
-allocator separatelly. There are more things to clear up there,
-including the proper API (alloc_contig_range is just too low level for
-anybody to use) as well as the MIGRATE_* flags usage (e.g. I am not
-really sure GB pages usage of MIGRATE_MOVABLE is really correct).
-alloc_contig_range looks like an internal CMA function which has been
-(ab)used for a different purpose to me rather than a well thought
-through interface. MAP_CONTIG discussion has shown some interest in
-an API for large allocations so I _believe_ we should think that through
-befire we grow more unexpected users.
+MAXMEM isn't used in too many places either - what's the total impact of it?
 
-I am definitely willing to help there.
+> > > We would end up with inverse situation: people would use MAX_PHYSMEM_BITS
+> > > where the new variable need to be used and we will in the same situation.
+> > 
+> > It should result in sub-optimal resource allocations worst-case, right?
+> 
+> I don't think it's the worst case.
+> 
+> For instance, virt_addr_valid() depends indirectly on it:
+> 
+>   virt_addr_valid()
+>     __virt_addr_valid()
+>       phys_addr_valid()
+>         boot_cpu_data.x86_phys_bits (initialized with MAX_PHYSMEM_BITS)
+> 
+> virt_addr_valid() is used in things like implementation /dev/kmem.
+> 
+> To me it's far more risky than occasional build breakage for
+> CONFIG_X86_5LEVEL=y.
 
-Is that something you would agree with Joonsoo?
--- 
-Michal Hocko
-SUSE Labs
+So why do we have two variables here, one boot_cpu_data.x86_phys_bits and the 
+other MAX_PHYSMEM_BITS - both set once during boot?
+
+I'm trying to find a clean solution for this all - hiding a boot time dependency 
+into a constant-looking value doesn't feel clean.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
