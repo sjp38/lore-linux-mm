@@ -1,133 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DF2E26B0033
-	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 20:46:22 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id b189so20042481oia.10
-        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 17:46:22 -0700 (PDT)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id y28si2702514oty.487.2017.10.23.17.46.20
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D18386B0033
+	for <linux-mm@kvack.org>; Mon, 23 Oct 2017 21:20:11 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id v78so12956280pgb.18
+        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 18:20:11 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id h13si4225580pgq.28.2017.10.23.18.20.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Oct 2017 17:46:21 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 1/1] mm:hugetlbfs: Fix hwpoison reserve accounting
-Date: Tue, 24 Oct 2017 00:46:05 +0000
-Message-ID: <20171024004605.GA19663@hori1.linux.bs1.fc.nec.co.jp>
-References: <20171019230007.17043-1-mike.kravetz@oracle.com>
- <20171019230007.17043-2-mike.kravetz@oracle.com>
- <20171020023019.GA9318@hori1.linux.bs1.fc.nec.co.jp>
- <5016e528-8ea9-7597-3420-086ae57f3d9d@oracle.com>
- <20171023073258.GA5115@hori1.linux.bs1.fc.nec.co.jp>
- <26945734-ac7e-f71e-dbfa-0b0f0fdaff32@oracle.com>
-In-Reply-To: <26945734-ac7e-f71e-dbfa-0b0f0fdaff32@oracle.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <5660F1F4E820CC4B8F5D48232D4ACF16@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Mon, 23 Oct 2017 18:20:10 -0700 (PDT)
+Date: Mon, 23 Oct 2017 18:06:33 -0700
+From: Sharath Kumar Bhat <sharath.k.bhat@linux.intel.com>
+Subject: Re: [PATCH] mm: fix movable_node kernel command-line
+Message-ID: <20171024010633.GA2723@linux.intel.com>
+Reply-To: sharath.k.bhat@linux.intel.com
+References: <20171023171435.GA12025@linux.intel.com>
+ <20171023172008.kr6dzpe63nfpgps7@dhcp22.suse.cz>
+ <20171023173544.GA12198@linux.intel.com>
+ <20171023174905.ap4uz6puggeqnz3s@dhcp22.suse.cz>
+ <20171023184852.GB12198@linux.intel.com>
+ <20171023190459.odyu26rqhuja4trj@dhcp22.suse.cz>
+ <20171023192524.GC12198@linux.intel.com>
+ <20171023193536.c7yptc4tpesa4ffl@dhcp22.suse.cz>
+ <20171023195637.GE12198@linux.intel.com>
+ <0ed8144f-4447-e2de-47f7-ea1fc16f0b25@intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0ed8144f-4447-e2de-47f7-ea1fc16f0b25@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: sharath.k.bhat@linux.intel.com, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, akpm@linux-foundation.org
 
-On Mon, Oct 23, 2017 at 11:20:02AM -0700, Mike Kravetz wrote:
-> On 10/23/2017 12:32 AM, Naoya Horiguchi wrote:
-> > On Fri, Oct 20, 2017 at 10:49:46AM -0700, Mike Kravetz wrote:
-> >> On 10/19/2017 07:30 PM, Naoya Horiguchi wrote:
-> >>> On Thu, Oct 19, 2017 at 04:00:07PM -0700, Mike Kravetz wrote:
-> >>>
-> >>> Thank you for addressing this. The patch itself looks good to me, but
-> >>> the reported issue (negative reserve count) doesn't reproduce in my t=
-rial
-> >>> with v4.14-rc5, so could you share the exact procedure for this issue=
-?
-> >>
-> >> Sure, but first one question on your test scenario below.
-> >>
-> >>>
-> >>> When error handler runs over a huge page, the reserve count is increm=
-ented
-> >>> so I'm not sure why the reserve count goes negative.
-> >>
-> >> I'm not sure I follow.  What specific code is incrementing the reserve
-> >> count?
-> >=20
-> > The call path is like below:
-> >=20
-> >   hugetlbfs_error_remove_page
-> >     hugetlb_fix_reserve_counts
-> >       hugepage_subpool_get_pages(spool, 1)
-> >         hugetlb_acct_memory(h, 1);
-> >           gather_surplus_pages
-> >             h->resv_huge_pages +=3D delta;
-> >=20
->=20
-> Ah OK.  This is a result of call to hugetlb_fix_reserve_counts which
-> I believe is incorrect in most instances, and is unlikely to happen=20
-> with my patch.
->=20
-> >>
-> >> Remove the file (rm /var/opt/oracle/hugepool/foo)
-> >> -------------------------------------------------
-> >> HugePages_Total:       1
-> >> HugePages_Free:        0
-> >> HugePages_Rsvd:    18446744073709551615
-> >> HugePages_Surp:        0
-> >> Hugepagesize:       2048 kB
-> >>
-> >> I am still confused about how your test maintains a reserve count afte=
-r
-> >> poisoning.  It may be a good idea for you to test my patch with your
-> >> test scenario as I can not recreate here.
-> >=20
-> > Interestingly, I found that this reproduces if all hugetlb pages are
-> > reserved when poisoning.
-> > Your testing meets the condition, and mine doesn't.
-> >=20
-> > In gather_surplus_pages() we determine whether we extend hugetlb pool
-> > with surplus pages like below:
-> >=20
-> >     needed =3D (h->resv_huge_pages + delta) - h->free_huge_pages;
-> >     if (needed <=3D 0) {
-> >             h->resv_huge_pages +=3D delta;
-> >             return 0;
-> >     }
-> >     ...
-> >=20
-> > needed is 1 if h->resv_huge_pages =3D=3D h->free_huge_pages, and then
-> > the reserve count gets inconsistent.
-> > I confirmed that your patch fixes the issue, so I'm OK with it.
->=20
-> Thanks.  That now makes sense to me.
->=20
-> hugetlb_fix_reserve_counts (which results in gather_surplus_pages being
-> called), is only designed to be called in the extremely rare cases when
-> we have free'ed a huge page but are unable to free the reservation entry.
->=20
-> Just curious, when the hugetlb_fix_reserve_counts call was added to
-> hugetlbfs_error_remove_page, was the intention to preserve the original
-> reservation?=20
+On Mon, Oct 23, 2017 at 02:52:04PM -0700, Dave Hansen wrote:
+> On 10/23/2017 12:56 PM, Sharath Kumar Bhat wrote:
+> >> I am sorry for being dense here but why cannot you mark that memory
+> >> hotplugable? I assume you are under the control to set attributes of the
+> >> memory to the guest.
+> > When I said two OS's I meant multi-kernel environment sharing the same
+> > hardware and not VMs. So we do not have the control to mark the memory
+> > hotpluggable as done by BIOS through SRAT.
+> 
+> If you are going as far as to pass in custom kernel command-line
+> arguments, there's a bunch of other fun stuff you can do.  ACPI table
+> overrides come to mind.
+> 
+> > This facility can be used by platform/BIOS vendors to provide a Linux
+> > compatible environment without modifying the underlying platform firmware.
+> 
+> https://www.kernel.org/doc/Documentation/acpi/initrd_table_override.txt
 
-No, the intention was to remove the reservation of the error hugepage
-which was unmapped and isolated from normal hugepage's lifecycle.
-The error hugepage is not freed back to hugepage pool, but it should be
-handled in the same manner as freeing from the perspective of reserve count=
-.
-
-When I was writing commit 78bb920344b8, I experienced some reserve count
-mismatch, and wrongly borrowed the code from truncation code.
-
-> I remember thinking hard about that for the hole punch
-> case and came to the conclusion that it was easier and less error prone
-> to remove the reservation as well.  That will also happen in the error
-> case with the patch I provided.
-
-Yes, hole punching seems sililar to poisoning except that the final destina=
-tion
-of the target page differs. So we can make the same conclusion here.
-
-Thanks,
-Naoya Horiguchi=
+I think ACPI table override won't be a generic solution to this problem and
+instead would be a platform/architecture dependent solution which may not
+be flexible for the users on different architectures. And moreover
+'movable_node' is implemented with an assumption to provide the entire
+hotpluggable memory as movable zone. This ACPI override would be against
+that assumption. Also ACPI override would introduce additional topology
+changes. Again this would have to change every time the total movable
+memory requirement changes and the whole system and apps have to be
+re-tuned (for job launch ex: numactl etc) to comphrehend this change.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
