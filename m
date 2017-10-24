@@ -1,205 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4716C6B025F
-	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 00:40:30 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id l24so13351347pgu.22
-        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 21:40:30 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id e8si6399483pfd.331.2017.10.23.21.40.27
-        for <linux-mm@kvack.org>;
-        Mon, 23 Oct 2017 21:40:29 -0700 (PDT)
-Date: Tue, 24 Oct 2017 13:44:23 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 1/2] mm: drop migrate type checks from has_unmovable_pages
-Message-ID: <20171024044423.GA31424@js1304-P5Q-DELUXE>
-References: <20171019071503.e7w5fo35lsq6ca54@dhcp22.suse.cz>
- <20171019073355.GA4486@js1304-P5Q-DELUXE>
- <20171019082041.5zudpqacaxjhe4gw@dhcp22.suse.cz>
- <20171019122118.y6cndierwl2vnguj@dhcp22.suse.cz>
- <20171020021329.GB10438@js1304-P5Q-DELUXE>
- <20171020055922.x2mj6j66obmp52da@dhcp22.suse.cz>
- <20171020065014.GA11145@js1304-P5Q-DELUXE>
- <20171020070220.t4o573zymgto5kmi@dhcp22.suse.cz>
- <20171023052309.GB23082@js1304-P5Q-DELUXE>
- <20171023081009.7fyz3gfrmurvj635@dhcp22.suse.cz>
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A755E6B0253
+	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 01:42:08 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id w2so24718845ywa.7
+        for <linux-mm@kvack.org>; Mon, 23 Oct 2017 22:42:08 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k19sor3390754ywe.475.2017.10.23.22.42.05
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 23 Oct 2017 22:42:05 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171023081009.7fyz3gfrmurvj635@dhcp22.suse.cz>
+In-Reply-To: <5b80a088-05f1-c9af-5b71-e1128fbb36a7@alibaba-inc.com>
+References: <1508448056-21779-1-git-send-email-yang.s@alibaba-inc.com>
+ <CAOQ4uxhPhXrMLu18TGKDA=ezUVHara95qJQ+BTCio8BHm-u6NA@mail.gmail.com>
+ <b530521e-5215-f735-444a-13f722d90e40@alibaba-inc.com> <CAOQ4uxhFOoSknnG-0Jyv+=iCDjVNnAg6SiO-msxw4tORkVKJGQ@mail.gmail.com>
+ <5b80a088-05f1-c9af-5b71-e1128fbb36a7@alibaba-inc.com>
+From: Amir Goldstein <amir73il@gmail.com>
+Date: Tue, 24 Oct 2017 08:42:04 +0300
+Message-ID: <CAOQ4uxiVbA1HxPt9mjn-AL0XzMuOYU5dMeMoHxZbxHLzaS=niQ@mail.gmail.com>
+Subject: Re: [RFC PATCH] fs: fsnotify: account fsnotify metadata to kmemcg
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Michael Ellerman <mpe@ellerman.id.au>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Yang Shi <yang.s@alibaba-inc.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
 
-On Mon, Oct 23, 2017 at 10:10:09AM +0200, Michal Hocko wrote:
-> On Mon 23-10-17 14:23:09, Joonsoo Kim wrote:
-> > On Fri, Oct 20, 2017 at 09:02:20AM +0200, Michal Hocko wrote:
-> > > On Fri 20-10-17 15:50:14, Joonsoo Kim wrote:
-> > > > On Fri, Oct 20, 2017 at 07:59:22AM +0200, Michal Hocko wrote:
-> > > > > On Fri 20-10-17 11:13:29, Joonsoo Kim wrote:
-> > > > > > On Thu, Oct 19, 2017 at 02:21:18PM +0200, Michal Hocko wrote:
-> > > > > > > On Thu 19-10-17 10:20:41, Michal Hocko wrote:
-> > > > > > > > On Thu 19-10-17 16:33:56, Joonsoo Kim wrote:
-> > > > > > > > > On Thu, Oct 19, 2017 at 09:15:03AM +0200, Michal Hocko wrote:
-> > > > > > > > > > On Thu 19-10-17 11:51:11, Joonsoo Kim wrote:
-> > > > > > > > [...]
-> > > > > > > > > > > Hello,
-> > > > > > > > > > > 
-> > > > > > > > > > > This patch will break the CMA user. As you mentioned, CMA allocation
-> > > > > > > > > > > itself isn't migrateable. So, after a single page is allocated through
-> > > > > > > > > > > CMA allocation, has_unmovable_pages() will return true for this
-> > > > > > > > > > > pageblock. Then, futher CMA allocation request to this pageblock will
-> > > > > > > > > > > fail because it requires isolating the pageblock.
-> > > > > > > > > > 
-> > > > > > > > > > Hmm, does this mean that the CMA allocation path depends on
-> > > > > > > > > > has_unmovable_pages to return false here even though the memory is not
-> > > > > > > > > > movable? This sounds really strange to me and kind of abuse of this
-> > > > > > > > > 
-> > > > > > > > > Your understanding is correct. Perhaps, abuse or wrong function name.
-> > > > > > > > >
-> > > > > > > > > > function. Which path is that? Can we do the migrate type test theres?
-> > > > > > > > > 
-> > > > > > > > > alloc_contig_range() -> start_isolate_page_range() ->
-> > > > > > > > > set_migratetype_isolate() -> has_unmovable_pages()
-> > > > > > > > 
-> > > > > > > > I see. It seems that the CMA and memory hotplug have a very different
-> > > > > > > > view on what should happen during isolation.
-> > > > > > > >  
-> > > > > > > > > We can add one argument, 'XXX' to set_migratetype_isolate() and change
-> > > > > > > > > it to check migrate type rather than has_unmovable_pages() if 'XXX' is
-> > > > > > > > > specified.
-> > > > > > > > 
-> > > > > > > > Can we use the migratetype argument and do the special thing for
-> > > > > > > > MIGRATE_CMA? Like the following diff?
-> > > > > > > 
-> > > > > > > And with the full changelog.
-> > > > > > > ---
-> > > > > > > >From 8cbd811d741f5dd93d1b21bb3ef94482a4d0bd32 Mon Sep 17 00:00:00 2001
-> > > > > > > From: Michal Hocko <mhocko@suse.com>
-> > > > > > > Date: Thu, 19 Oct 2017 14:14:02 +0200
-> > > > > > > Subject: [PATCH] mm: distinguish CMA and MOVABLE isolation in
-> > > > > > >  has_unmovable_pages
-> > > > > > > 
-> > > > > > > Joonsoo has noticed that "mm: drop migrate type checks from
-> > > > > > > has_unmovable_pages" would break CMA allocator because it relies on
-> > > > > > > has_unmovable_pages returning false even for CMA pageblocks which in
-> > > > > > > fact don't have to be movable:
-> > > > > > > alloc_contig_range
-> > > > > > >   start_isolate_page_range
-> > > > > > >     set_migratetype_isolate
-> > > > > > >       has_unmovable_pages
-> > > > > > > 
-> > > > > > > This is a result of the code sharing between CMA and memory hotplug
-> > > > > > > while each one has a different idea of what has_unmovable_pages should
-> > > > > > > return. This is unfortunate but fixing it properly would require a lot
-> > > > > > > of code duplication.
-> > > > > > > 
-> > > > > > > Fix the issue by introducing the requested migrate type argument
-> > > > > > > and special case MIGRATE_CMA case where CMA page blocks are handled
-> > > > > > > properly. This will work for memory hotplug because it requires
-> > > > > > > MIGRATE_MOVABLE.
-> > > > > > 
-> > > > > > Unfortunately, alloc_contig_range() can be called with
-> > > > > > MIGRATE_MOVABLE so this patch cannot perfectly fix the problem.
-> > > > > 
-> > > > > Yes, alloc_contig_range can be called with MIGRATE_MOVABLE but my
-> > > > > understanding is that only CMA allocator really depends on this weird
-> > > > > semantic and that does MIGRATE_CMA unconditionally.
-> > > > 
-> > > > alloc_contig_range() could be called for partial pages in the
-> > > > pageblock. With your patch, this case also fails unnecessarilly if the
-> > > > other pages in the pageblock is pinned.
-> > > 
-> > > Is this really the case for GB pages? Do we really want to mess those
-> > 
-> > No, but, as I mentioned already, this API can be called with less
-> > pages. I know that there is no user with less pages at this moment but
-> > I cannot see any point to reduce this API's capability.
-> 
-> I am still confused. So when exactly would you want to use this api for
-> MIGRATE_MOVABLE and use a partial MIGRATE_CMA pageblock?
-> 
-> > > with CMA blocks and make those blocks basically unusable because GB
-> > > pages are rarely (if at all migrateable)?
-> > > 
-> > > > Until now, there is no user calling alloc_contig_range() with partial
-> > > > pages except CMA allocator but API could support it.
-> > > 
-> > > I disagree. If this is a CMA thing it should stay that way. The semantic
-> > > is quite confusing already, please let's not make it even worse.
-> > 
-> > It is already used by other component.
-> > 
-> > I'm not sure what is the confusing semantic you mentioned. I think
-> > that set_migratetype_isolate() has confusing semantic and should be
-> > fixed since making the pageblock isolated doesn't need to check if
-> > there is unmovable page or not. Do you think that
-> > set_migratetype_isolate() need to check it? If so, why?
-> 
-> My intuitive understanding of set_migratetype_isolate is that it either
-> suceeds and that means that the given pfn range can be isolated for the
-> given type of allocation (be it movable or cma). No new pages will be
-> allocated from this range to allow converging into a free range in a
-> finit amount of time. At least this is how the hotplug code would like
-> to use it and I suppose that the alloc_contig_range would like to
-> guarantee the same to not rely on a fixed amount of migration attempts.
+On Tue, Oct 24, 2017 at 7:12 AM, Yang Shi <yang.s@alibaba-inc.com> wrote:
+>
+>
+> On 10/22/17 1:24 AM, Amir Goldstein wrote:
+>>
+>> On Sat, Oct 21, 2017 at 12:07 AM, Yang Shi <yang.s@alibaba-inc.com> wrote:
+>>>
+>>>
+>>>
+>>> On 10/19/17 8:14 PM, Amir Goldstein wrote:
+>>>>
+>>>>
+>>>> On Fri, Oct 20, 2017 at 12:20 AM, Yang Shi <yang.s@alibaba-inc.com>
+>>>> wrote:
+>>>>>
+>>>>>
+>>>>> We observed some misbehaved user applications might consume significant
+>>>>> amount of fsnotify slabs silently. It'd better to account those slabs
+>>>>> in
+>>>>> kmemcg so that we can get heads up before misbehaved applications use
+>>>>> too
+>>>>> much memory silently.
+>>>>
+>>>>
+>>>>
+>>>> In what way do they misbehave? create a lot of marks? create a lot of
+>>>> events?
+>>>> Not reading events in their queue?
+>>>
+>>>
+>>>
+>>> It looks both a lot marks and events. I'm not sure if it is the latter
+>>> case.
+>>> If I knew more about the details of the behavior, I would elaborated more
+>>> in
+>>> the commit log.
+>>
+>>
+>> If you are not sure, do not refer to user application as "misbehaved".
+>> Is updatedb(8) a misbehaved application because it produces a lot of
+>> access
+>> events?
+>
+>
+> Should be not. It sounds like our in-house applications. But, it is a sort
+> of blackbox to me.
+>
 
-Yes, alloc_contig_range() also want to guarantee the similar thing.
-Major difference between them is 'given pfn range'. memory hotplug
-works by pageblock unit but alloc_contig_range() doesn't.
-alloc_contig_range() works by the page unit. However, there is no easy
-way to isolate individual page so it uses pageblock isolation
-regardless of 'given pfn range'. In this case, checking movability of
-all pages on the pageblock would cause the problem as I mentioned
-before.
+If you know which process is "misbehaving" you can look at
+ls -l /proc/<pid>/fd |grep notify
+and see the anonymous inotify/fanotify file descriptors
 
-> 
-> > > > > > I did a more thinking and found that it's strange to check if there is
-> > > > > > unmovable page in the pageblock during the set_migratetype_isolate().
-> > > > > > set_migratetype_isolate() should be just for setting the migratetype
-> > > > > > of the pageblock. Checking other things should be done by another
-> > > > > > place, for example, before calling the start_isolate_page_range() in
-> > > > > > __offline_pages().
-> > > > > 
-> > > > > How do we guarantee the atomicity?
-> > > > 
-> > > > What atomicity do you mean?
-> > > 
-> > > Currently we are checking and isolating pages under zone lock. If we
-> > > split that we are losing atomicity, aren't we.
-> > 
-> > I think that it can be done easily.
-> > 
-> > set_migratetype_isolate() {
-> >         lock
-> >         __set_migratetype_isolate();
-> >         unlock
-> > }
-> > 
-> > set_migratetype_isolate_if_no_unmovable_pages() {
-> >         lock
-> >         if (has_unmovable_pages())
-> >                 fail
-> >         else
-> >                 __set_migratetype_isolate()
-> >         unlock
-> > }
-> 
-> So you are essentially suggesting to split the API for
-> alloc_contig_range and hotplug users? Care to send a patch? It is not
-> like I would really love this but I would really like to have this issue
-> addressed because I really do want all other patches which depend on
-> this to be merged in the next release cycle.
-> 
-> That being said, I would much rather see MIGRATE_CMA case special cased
-> than duplicate the already confusing API but I will not insist of
-> course.
+then you can look at  /proc/<pid>/fdinfo/<fd> file of those
+file descriptors to learn more about the fanotify flags etc.
 
-Okay. I atteach the patch. Andrew, could you revert Michal's series
-and apply this patch first? Perhaps, Michal will resend his series on
-top of this one.
+...
 
-Thanks.
+>
+>>
+>> But I think there is another problem, not introduced by your change, but
+>> could
+>> be amplified because of it - when a non-permission event allocation fails,
+>> the
+>> event is silently dropped, AFAICT, with no indication to listener.
+>> That seems like a bug to me, because there is a perfectly safe way to deal
+>> with
+>> event allocation failure - queue the overflow event.
+>
+>
+> I'm not sure if such issue could be amplified by the accounting since once
+> the usage exceeds the limit any following kmem allocation would fail. So, it
+> might fail at fsnotify event allocation, or other places, i.e. fork, open
+> syscall, etc. So, in most cases the generator even can't generate new event
+> any more.
+>
+
+To be clear, I did not mean that kmem limit would cause a storm of dropped
+events. I meant if you have a listener outside memcp watching a single file
+for access/modifications and you have many containers each with its own
+limited memcg, then event drops probability goes to infinity as you run more
+of those kmem limited containers with event producers.
+
+> The typical output from my LTP test is filesystem dcache allocation error or
+> fork error due to kmem limit is reached.
+
+And that should be considered a success result of the test.
+The only failure case is when producer touches the file and event is
+not delivered
+nor an overflow event delivered.
+You can probably try to reduce allocation failure for fork and dentry by:
+1. pin dentry cache of subject file on test init by opening the file
+2. set the low kmem limit after forking
+
+Then you should probably loop the test enough times
+in some of the times, producer may fail to access the file
+in others if will succeed and produce events properly
+and many some times, producer will access the file and event
+will be dropped, so event count is lower than access count.
 
 
---------------->8-------------------
+
+>
+>> I am not going to be the one to determine if fixing this alleged bug is a
+>> prerequisite for merging your patch, but I think enforcing memory limits
+>> on
+>> event allocation could amplify that bug, so it should be fixed.
+>>
+>> The upside is that with both your accounting fix and ENOMEM = overlflow
+>> fix, it going to be easy to write a test that verifies both of them:
+>> - Run a listener in memcg with limited kmem and unlimited (or very
+>> large) event queue
+>> - Produce events inside memcg without listener reading them
+>> - Read event and expect an OVERFLOW even
+>>
+>> This is a simple variant of LTP tests inotify05 and fanotify05.
+>
+>
+> I tried to test your patch with LTP, but it sounds not that easy to setup a
+> scenario to make fsnotify event allocation just hit the kmem limit, since
+> the limit may be hit before a new event is allocated, for example allocating
+> dentry cache in open syscall may hit the limit.
+>
+> So, it sounds the overflow event might be not generated by the producer in
+> most cases.
+>
+
+Right. not as simple, but maybe still possible as I described above.
+Assuming that my patch is not buggy...
+
+Thanks,
+Amir.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
