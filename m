@@ -1,119 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A18B6B0033
-	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 08:19:15 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id d21so2373564wma.20
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 05:19:15 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D85C66B0033
+	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 08:25:31 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id k15so11668334wrc.1
+        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 05:25:31 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x126si122330wmd.120.2017.10.24.05.19.01
+        by mx.google.com with ESMTPS id 31si129941wri.328.2017.10.24.05.25.30
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Oct 2017 05:19:01 -0700 (PDT)
-Date: Tue, 24 Oct 2017 14:18:59 +0200
+        Tue, 24 Oct 2017 05:25:30 -0700 (PDT)
+Date: Tue, 24 Oct 2017 14:25:26 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
-Message-ID: <20171024121859.4zd3zaafnjnlem4i@dhcp22.suse.cz>
-References: <20171009062426.hmqedtqz5hkmhnff@dhcp22.suse.cz>
- <xr93a810xl77.fsf@gthelen.svl.corp.google.com>
- <20171009202613.GA15027@cmpxchg.org>
- <20171010091430.giflzlayvjblx5bu@dhcp22.suse.cz>
- <20171010141733.GB16710@cmpxchg.org>
- <20171010142434.bpiqmsbb7gttrlcb@dhcp22.suse.cz>
- <20171012190312.GA5075@cmpxchg.org>
- <20171013063555.pa7uco43mod7vrkn@dhcp22.suse.cz>
- <20171013070001.mglwdzdrqjt47clz@dhcp22.suse.cz>
- <20171013152421.yf76n7jui3z5bbn4@dhcp22.suse.cz>
+Subject: Re: [PATCH 1/2] mm: drop migrate type checks from has_unmovable_pages
+Message-ID: <20171024122526.3kmabkcbmj4johli@dhcp22.suse.cz>
+References: <20171019082041.5zudpqacaxjhe4gw@dhcp22.suse.cz>
+ <20171019122118.y6cndierwl2vnguj@dhcp22.suse.cz>
+ <20171020021329.GB10438@js1304-P5Q-DELUXE>
+ <20171020055922.x2mj6j66obmp52da@dhcp22.suse.cz>
+ <20171020065014.GA11145@js1304-P5Q-DELUXE>
+ <20171020070220.t4o573zymgto5kmi@dhcp22.suse.cz>
+ <20171023052309.GB23082@js1304-P5Q-DELUXE>
+ <20171023081009.7fyz3gfrmurvj635@dhcp22.suse.cz>
+ <20171024044423.GA31424@js1304-P5Q-DELUXE>
+ <fdb6b325-8de8-b809-81eb-c164736d6a58@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171013152421.yf76n7jui3z5bbn4@dhcp22.suse.cz>
+In-Reply-To: <fdb6b325-8de8-b809-81eb-c164736d6a58@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-Does this sound something that you would be interested in? I can spend
-som more time on it if it is worthwhile.
+On Tue 24-10-17 10:12:58, Vlastimil Babka wrote:
+> On 10/24/2017 06:44 AM, Joonsoo Kim wrote:
+> >>> I'm not sure what is the confusing semantic you mentioned. I think
+> >>> that set_migratetype_isolate() has confusing semantic and should be
+> >>> fixed since making the pageblock isolated doesn't need to check if
+> >>> there is unmovable page or not. Do you think that
+> >>> set_migratetype_isolate() need to check it? If so, why?
+> >>
+> >> My intuitive understanding of set_migratetype_isolate is that it either
+> >> suceeds and that means that the given pfn range can be isolated for the
+> >> given type of allocation (be it movable or cma). No new pages will be
+> >> allocated from this range to allow converging into a free range in a
+> >> finit amount of time. At least this is how the hotplug code would like
+> >> to use it and I suppose that the alloc_contig_range would like to
+> >> guarantee the same to not rely on a fixed amount of migration attempts.
+> > 
+> > Yes, alloc_contig_range() also want to guarantee the similar thing.
+> > Major difference between them is 'given pfn range'. memory hotplug
+> > works by pageblock unit but alloc_contig_range() doesn't.
+> > alloc_contig_range() works by the page unit. However, there is no easy
+> > way to isolate individual page so it uses pageblock isolation
+> > regardless of 'given pfn range'. In this case, checking movability of
+> > all pages on the pageblock would cause the problem as I mentioned
+> > before.
+> 
+> I couldn't look too closely yet, but do I understand correctly that the
+> *potential* problem (because as you say there are no such
+> alloc_contig_range callers) you are describing is not newly introduced
+> by Michal's series? Then his patch fixing the introduced regression
+> should be enough for now, and further improvements could be posted on
+> top, and not vice versa? Please don't take it wrong, I agree the current
+> state is a bit of a mess and improvements are welcome. Also it seems to
+> me that Michal is right, and there's nothing preventing
+> alloc_contig_range() to allocate from CMA pageblocks for non-CMA
+> purposes (likely not movable), and that should be also fixed?
 
-On Fri 13-10-17 17:24:21, Michal Hocko wrote:
-> Well, it actually occured to me that this would trigger the global oom
-> killer in case no memcg specific victim can be found which is definitely
-> not something we would like to do. This should work better. I am not
-> sure we can trigger this corner case but we should cover it and it
-> actually doesn't make the code much worse.
-> ---
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index d5f3a62887cf..7b370f070b82 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1528,26 +1528,40 @@ static void memcg_oom_recover(struct mem_cgroup *memcg)
->  
->  static void mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
->  {
-> -	if (!current->memcg_may_oom)
-> -		return;
->  	/*
->  	 * We are in the middle of the charge context here, so we
->  	 * don't want to block when potentially sitting on a callstack
->  	 * that holds all kinds of filesystem and mm locks.
->  	 *
-> -	 * Also, the caller may handle a failed allocation gracefully
-> -	 * (like optional page cache readahead) and so an OOM killer
-> -	 * invocation might not even be necessary.
-> +	 * cgroup v1 allowes sync users space handling so we cannot afford
-> +	 * to get stuck here for that configuration. That's why we don't do
-> +	 * anything here except remember the OOM context and then deal with
-> +	 * it at the end of the page fault when the stack is unwound, the
-> +	 * locks are released, and when we know whether the fault was overall
-> +	 * successful.
-> +	 *
-> +	 * On the other hand, in-kernel OOM killer allows for an async victim
-> +	 * memory reclaim (oom_reaper) and that means that we are not solely
-> +	 * relying on the oom victim to make a forward progress so we can stay
-> +	 * in the the try_charge context and keep retrying as long as there
-> +	 * are oom victims to select.
->  	 *
-> -	 * That's why we don't do anything here except remember the
-> -	 * OOM context and then deal with it at the end of the page
-> -	 * fault when the stack is unwound, the locks are released,
-> -	 * and when we know whether the fault was overall successful.
-> +	 * Please note that mem_cgroup_oom_synchronize might fail to find a
-> +	 * victim and then we have rely on mem_cgroup_oom_synchronize otherwise
-> +	 * we would fall back to the global oom killer in pagefault_out_of_memory
->  	 */
-> +	if (!memcg->oom_kill_disable &&
-> +			mem_cgroup_out_of_memory(memcg, mask, order))
-> +		return true;
-> +
-> +	if (!current->memcg_may_oom)
-> +		return false;
->  	css_get(&memcg->css);
->  	current->memcg_in_oom = memcg;
->  	current->memcg_oom_gfp_mask = mask;
->  	current->memcg_oom_order = order;
-> +
-> +	return false;
->  }
->  
->  /**
-> @@ -2007,8 +2021,11 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  
->  	mem_cgroup_event(mem_over_limit, MEMCG_OOM);
->  
-> -	mem_cgroup_oom(mem_over_limit, gfp_mask,
-> -		       get_order(nr_pages * PAGE_SIZE));
-> +	if (mem_cgroup_oom(mem_over_limit, gfp_mask,
-> +		       get_order(nr_pages * PAGE_SIZE))) {
-> +		nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-> +		goto retry;
-> +	}
->  nomem:
->  	if (!(gfp_mask & __GFP_NOFAIL))
->  		return -ENOMEM;
-> -- 
-> Michal Hocko
-> SUSE Labs
+OK, it seems I understand Joonsoo's concern more now. And I agree with
+Vlastimil, that it is better to plug the immediate regression with a
+minimal patch and discuss general improvements of the pfn based
+allocator separatelly. There are more things to clear up there,
+including the proper API (alloc_contig_range is just too low level for
+anybody to use) as well as the MIGRATE_* flags usage (e.g. I am not
+really sure GB pages usage of MIGRATE_MOVABLE is really correct).
+alloc_contig_range looks like an internal CMA function which has been
+(ab)used for a different purpose to me rather than a well thought
+through interface. MAP_CONTIG discussion has shown some interest in
+an API for large allocations so I _believe_ we should think that through
+befire we grow more unexpected users.
 
+I am definitely willing to help there.
+
+Is that something you would agree with Joonsoo?
 -- 
 Michal Hocko
 SUSE Labs
