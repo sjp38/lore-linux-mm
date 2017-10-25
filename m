@@ -1,80 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CE536B0033
-	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 04:56:15 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id s75so16526247pgs.12
-        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 01:56:15 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id b14si1316120pgr.78.2017.10.25.01.56.13
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CD186B0069
+	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 04:56:31 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id y5so12187431pgq.15
+        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 01:56:31 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id m27si1570389pgn.59.2017.10.25.01.56.29
         for <linux-mm@kvack.org>;
-        Wed, 25 Oct 2017 01:56:13 -0700 (PDT)
+        Wed, 25 Oct 2017 01:56:30 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v5 0/9] cross-release: Enhence performance and fix false positives
-Date: Wed, 25 Oct 2017 17:55:56 +0900
-Message-Id: <1508921765-15396-1-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v5 1/9] block: use DECLARE_COMPLETION_ONSTACK in submit_bio_wait
+Date: Wed, 25 Oct 2017 17:55:57 +0900
+Message-Id: <1508921765-15396-2-git-send-email-byungchul.park@lge.com>
+In-Reply-To: <1508921765-15396-1-git-send-email-byungchul.park@lge.com>
+References: <1508921765-15396-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org, axboe@kernel.dk
-Cc: johan@kernel.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
+Cc: johan@kernel.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com, Christoph Hellwig <hch@lst.de>
 
-Changes from v4
-- Use a prefix "(completion)" instead of "(complete)" for completions
-- Use a prefix "(wq_completion)" instead of "(complete)" for workqueue's map
-- Use a prefix "(work_completion)" instead of "(complete)" for work's map
-- Use a prefix "(gendisk_completion)" instead of "(complete)" for gendisk's map
-- Provide empty lockdep_map structure for !CONFIG_LOCKDEP
-- Remove #ifdef in this series as much as possible
-- Use canocical variable names in all_disk_node() macro
+From: Christoph Hellwig <hch@lst.de>
 
-Changes from v3
-- Exclude a patch removing white space
-- Enhance commit messages as Ingo suggested
-- Re-design patches adding a boot param and a Kconfig allowing unwind
-- Simplify a patch assigning lock classes to genhds as Ingo suggested
-- Add proper tags in commit messages e.g. reported-by and analyzed-by
+Simplify the code by getting rid of the submit_bio_ret structure.
 
-Changes from v2
-- Combine 2 serises, fixing false positives and enhance performance
-- Add Christoph Hellwig's patch simplifying submit_bio_wait() code
-- Add 2 more 'init with lockdep map' macros for completionm
-- Rename init_completion_with_map() to init_completion_map()
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ block/bio.c | 19 +++++--------------
+ 1 file changed, 5 insertions(+), 14 deletions(-)
 
-Changes from v1
-- Fix kconfig description as Ingo suggested
-- Fix commit message writing out CONFIG_ variable
-- Introduce a new kernel parameter, crossrelease_fullstack
-- Replace the number with the output of *perf*
-- Separate a patch removing white space
-
-Byungchul Park (8):
-  locking/lockdep: Provide empty lockdep_map structure for
-    !CONFIG_LOCKDEP
-  completion: Change the prefix of lock name for completion variable
-  locking/lockdep: Add a boot parameter allowing unwind in cross-release
-    and disable it by default
-  locking/lockdep: Remove the BROKEN flag from
-    CONFIG_LOCKDEP_CROSSRELEASE and CONFIG_LOCKDEP_COMPLETIONS
-  locking/lockdep: Introduce
-    CONFIG_BOOTPARAM_LOCKDEP_CROSSRELEASE_FULLSTACK
-  completion: Add support for initializing completion with lockdep_map
-  workqueue: Remove unnecessary acquisitions wrt workqueue flush
-  block: Assign a lock_class per gendisk used for wait_for_completion()
-
-Christoph Hellwig (1):
-  block: use DECLARE_COMPLETION_ONSTACK in submit_bio_wait
-
- Documentation/admin-guide/kernel-parameters.txt |  3 +++
- block/bio.c                                     | 19 +++++--------------
- block/genhd.c                                   | 10 ++--------
- include/linux/completion.h                      | 18 ++++++++++++++++--
- include/linux/genhd.h                           | 22 ++++++++++++++++++++--
- include/linux/lockdep.h                         |  5 +++++
- include/linux/workqueue.h                       |  4 ++--
- kernel/locking/lockdep.c                        | 23 +++++++++++++++++++++--
- kernel/workqueue.c                              | 19 +++----------------
- lib/Kconfig.debug                               | 19 +++++++++++++++++--
- 10 files changed, 94 insertions(+), 48 deletions(-)
-
+diff --git a/block/bio.c b/block/bio.c
+index 5f5472e..99d0ca5 100644
+--- a/block/bio.c
++++ b/block/bio.c
+@@ -917,17 +917,9 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
+ }
+ EXPORT_SYMBOL_GPL(bio_iov_iter_get_pages);
+ 
+-struct submit_bio_ret {
+-	struct completion event;
+-	int error;
+-};
+-
+ static void submit_bio_wait_endio(struct bio *bio)
+ {
+-	struct submit_bio_ret *ret = bio->bi_private;
+-
+-	ret->error = blk_status_to_errno(bio->bi_status);
+-	complete(&ret->event);
++	complete(bio->bi_private);
+ }
+ 
+ /**
+@@ -943,16 +935,15 @@ static void submit_bio_wait_endio(struct bio *bio)
+  */
+ int submit_bio_wait(struct bio *bio)
+ {
+-	struct submit_bio_ret ret;
++	DECLARE_COMPLETION_ONSTACK(done);
+ 
+-	init_completion(&ret.event);
+-	bio->bi_private = &ret;
++	bio->bi_private = &done;
+ 	bio->bi_end_io = submit_bio_wait_endio;
+ 	bio->bi_opf |= REQ_SYNC;
+ 	submit_bio(bio);
+-	wait_for_completion_io(&ret.event);
++	wait_for_completion_io(&done);
+ 
+-	return ret.error;
++	return blk_status_to_errno(bio->bi_status);
+ }
+ EXPORT_SYMBOL(submit_bio_wait);
+ 
 -- 
 1.9.1
 
