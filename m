@@ -1,110 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BE1FD6B0033
-	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 10:12:25 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z55so58194wrz.2
-        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 07:12:25 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 868DF6B0033
+	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 11:05:53 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id p96so121011wrb.12
+        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 08:05:53 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g50si1517255eda.8.2017.10.25.07.12.24
+        by mx.google.com with ESMTPS id 63si1734954edn.197.2017.10.25.08.05.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 25 Oct 2017 07:12:24 -0700 (PDT)
-Date: Wed, 25 Oct 2017 16:12:21 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
-Message-ID: <20171025141221.xm4cqp2z6nunr6vy@dhcp22.suse.cz>
-References: <20171013152421.yf76n7jui3z5bbn4@dhcp22.suse.cz>
- <20171024160637.GB32340@cmpxchg.org>
- <20171024162213.n6jrpz3t5pldkgxy@dhcp22.suse.cz>
- <20171024172330.GA3973@cmpxchg.org>
- <20171024175558.uxqtxwhjgu6ceadk@dhcp22.suse.cz>
- <20171024185854.GA6154@cmpxchg.org>
- <20171024201522.3z2fjnfywgx2egqx@dhcp22.suse.cz>
- <xr93r2tr67pp.fsf@gthelen.svl.corp.google.com>
- <20171025071522.xyw4lsvdv4xsbhbo@dhcp22.suse.cz>
- <20171025131151.GA8210@cmpxchg.org>
+        Wed, 25 Oct 2017 08:05:51 -0700 (PDT)
+Date: Wed, 25 Oct 2017 17:05:49 +0200
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [RFC PATCH 2/2] mm,oom: Try last second allocation after
+ selecting an OOM victim.
+Message-ID: <20171025150548.nvuwc3y3m5vi23uk@dhcp22.suse.cz>
+References: <20171024114104.twg73jvyjevovkjm@dhcp22.suse.cz>
+ <201710251948.EJH00500.MOOStFLFQOHFJV@I-love.SAKURA.ne.jp>
+ <20171025110955.jsc4lqjbg6ww5va6@dhcp22.suse.cz>
+ <201710252115.JII86453.tFFSLHQOOOVMJF@I-love.SAKURA.ne.jp>
+ <20171025124147.bvd4huwtykf6icmb@dhcp22.suse.cz>
+ <201710252358.IIA46427.HFFSOOOQLtFMJV@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171025131151.GA8210@cmpxchg.org>
+In-Reply-To: <201710252358.IIA46427.HFFSOOOQLtFMJV@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Greg Thelen <gthelen@google.com>, Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: hannes@cmpxchg.org, aarcange@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, mjaggi@caviumnetworks.com, mgorman@suse.de, oleg@redhat.com, vdavydov.dev@gmail.com, vbabka@suse.cz
 
-On Wed 25-10-17 09:11:51, Johannes Weiner wrote:
-> On Wed, Oct 25, 2017 at 09:15:22AM +0200, Michal Hocko wrote:
-[...]
-> > ... we shouldn't make it more loose though.
-> 
-> Then we can end this discussion right now. I pointed out right from
-> the start that the only way to replace -ENOMEM with OOM killing in the
-> syscall is to force charges. If we don't, we either deadlock or still
-> return -ENOMEM occasionally. Nobody has refuted that this is the case.
-
-Yes this is true. I guess we are back to the non-failing allocations
-discussion...  Currently we are too ENOMEM happy for memcg !PF paths which
-can lead to weird issues Greg has pointed out earlier. Going to opposite
-direction to basically never ENOMEM and rather pretend a success (which
-allows runaways for extreme setups with no oom eligible tasks) sounds
-like going from one extreme to another. This basically means that those
-charges will effectively GFP_NOFAIL. Too much to guarantee IMHO.
-
-> > > The current thread can loop in syscall exit until
-> > > usage is reconciled (either via reclaim or kill).  This seems consistent
-> > > with pagefault oom handling and compatible with overcommit use case.
+On Wed 25-10-17 23:58:33, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Wed 25-10-17 21:15:24, Tetsuo Handa wrote:
+> > > Michal Hocko wrote:
+> > > > On Wed 25-10-17 19:48:09, Tetsuo Handa wrote:
+> > > > > Michal Hocko wrote:
+> > > > [...]
+> > > > > > The OOM killer is the last hand break. At the time you hit the OOM
+> > > > > > condition your system is usually hard to use anyway. And that is why I
+> > > > > > do care to make this path deadlock free. I have mentioned multiple times
+> > > > > > that I find real life triggers much more important than artificial DoS
+> > > > > > like workloads which make your system unsuable long before you hit OOM
+> > > > > > killer.
+> > > > > 
+> > > > > Unable to invoke the OOM killer (i.e. OOM lockup) is worse than hand break injury.
+> > > > > 
+> > > > > If you do care to make this path deadlock free, you had better stop depending on
+> > > > > mutex_trylock(&oom_lock). Not only printk() from oom_kill_process() can trigger
+> > > > > deadlock due to console_sem versus oom_lock dependency but also
+> > > > 
+> > > > And this means that we have to fix printk. Completely silent oom path is
+> > > > out of question IMHO
+> > > 
+> > > We cannot fix printk() without giving enough CPU resource to printk().
 > > 
-> > But we do not really want to make the syscall exit path any more complex
-> > or more expensive than it is. The point is that we shouldn't be afraid
-> > about triggering the oom killer from the charge patch because we do have
-> > async OOM killer. This is very same with the standard allocator path. So
-> > why should be memcg any different?
+> > This is a separate discussion but having a basically unbound time spent
+> > in printk is simply a no-go.
+> >  
+> > > I don't think "Completely silent oom path" can happen, for warn_alloc() is called
+> > > again when it is retried. But anyway, let's remove warn_alloc().
+> > 
+> > I mean something else. We simply cannot do the oom killing without
+> > telling userspace about that. And printk is the only API we can use for
+> > that.
 > 
-> I have nothing against triggering the OOM killer from the allocation
-> path. I am dead-set against making the -ENOMEM return from syscalls
-> rare and unpredictable.
+> I thought something like
+> 
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3872,6 +3872,7 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+>         unsigned int stall_timeout = 10 * HZ;
+>         unsigned int cpuset_mems_cookie;
+>         int reserve_flags;
+> +       static DEFINE_MUTEX(warn_lock);
+> 
+>         /*
+>          * In the slowpath, we sanity check order to avoid ever trying to
+> @@ -4002,11 +4003,15 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+>                 goto nopage;
+> 
+>         /* Make sure we know about allocations which stall for too long */
+> -       if (time_after(jiffies, alloc_start + stall_timeout)) {
+> -               warn_alloc(gfp_mask & ~__GFP_NOWARN, ac->nodemask,
+> -                       "page allocation stalls for %ums, order:%u",
+> -                       jiffies_to_msecs(jiffies-alloc_start), order);
+> -               stall_timeout += 10 * HZ;
+> +       if (time_after(jiffies, alloc_start + stall_timeout) &&
+> +           mutex_trylock(&warn_lock)) {
+> +               if (!mutex_is_locked(&oom_lock)) {
 
-Isn't that the case when we put memcg out of the picture already? More
-on that below.
+The check for oom_lock just doesn't make any sense. The lock can be take
+at any time after the check.
 
-> They're a challenge as it is.  The only sane options are to stick with
-> the status quo,
+> +                       warn_alloc(gfp_mask & ~__GFP_NOWARN, ac->nodemask,
+> +                                  "page allocation stalls for %ums, order:%u",
+> +                                  jiffies_to_msecs(jiffies-alloc_start), order);
+> +                       stall_timeout += 10 * HZ;
+> +               }
+> +               mutex_unlock(&warn_lock);
+>         }
+> 
+>         /* Avoid recursion of direct reclaim */
+> 
+> for isolating the OOM killer messages and the stall warning messages (in order to
+> break continuation condition in console_unlock()), and
+> 
+> @@ -3294,7 +3294,7 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+>          * Acquire the oom lock.  If that fails, somebody else is
+>          * making progress for us.
+>          */
+> -       if (!mutex_trylock(&oom_lock)) {
+> +       if (mutex_lock_killable(&oom_lock)) {
+>                 *did_some_progress = 1;
+>                 schedule_timeout_uninterruptible(1);
+>                 return NULL;
+> 
+> for giving printk() enough CPU resource.
+> 
+> What you thought is avoid using printk() from out_of_memory() in case enough
+> CPU resource is not given, isn't it? Then, that is out of question.
 
-One thing that really worries me about the current status quo is that
-the behavior depends on whether you run under memcg or not. The global
-policy is "almost never fail unless something horrible is going on".
-But we _do not_ guarantee that ENOMEM stays inside the kernel.
+No I meant that we simply _have to_ use printk from the OOM killer.
 
-So if we need to do something about that I would think we need an
-universal solution rather than something memcg specific. Sure global
-ENOMEMs are so rare that nobody will probably trigger those but that is
-just a wishful thinking...
-
-So how about we start with a BIG FAT WARNING for the failure case?
-Something resembling warn_alloc for the failure case.
----
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 5d9323028870..3ba62c73eee5 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1547,9 +1547,14 @@ static bool mem_cgroup_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
- 	 * victim and then we have rely on mem_cgroup_oom_synchronize otherwise
- 	 * we would fall back to the global oom killer in pagefault_out_of_memory
- 	 */
--	if (!memcg->oom_kill_disable &&
--			mem_cgroup_out_of_memory(memcg, mask, order))
--		return true;
-+	if (!memcg->oom_kill_disable) {
-+		if (mem_cgroup_out_of_memory(memcg, mask, order))
-+			return true;
-+
-+		WARN(!current->memcg_may_oom,
-+				"Memory cgroup charge failed because of no reclaimable memory! "
-+				"This looks like a misconfiguration or a kernel bug.");
-+	}
- 
- 	if (!current->memcg_may_oom)
- 		return false;
 -- 
 Michal Hocko
 SUSE Labs
