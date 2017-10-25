@@ -1,207 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E71B86B026B
-	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 04:56:36 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id y128so16131997pfg.5
-        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 01:56:36 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id y74si1694964pfi.88.2017.10.25.01.56.34
-        for <linux-mm@kvack.org>;
-        Wed, 25 Oct 2017 01:56:35 -0700 (PDT)
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v5 9/9] block: Assign a lock_class per gendisk used for wait_for_completion()
-Date: Wed, 25 Oct 2017 17:56:05 +0900
-Message-Id: <1508921765-15396-10-git-send-email-byungchul.park@lge.com>
-In-Reply-To: <1508921765-15396-1-git-send-email-byungchul.park@lge.com>
-References: <1508921765-15396-1-git-send-email-byungchul.park@lge.com>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 471F36B0033
+	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 06:05:26 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id c202so24501488oih.8
+        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 03:05:26 -0700 (PDT)
+Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id z206si699307oiz.285.2017.10.25.03.05.16
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 25 Oct 2017 03:05:25 -0700 (PDT)
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Subject: [PATCH 2/2] scsi: megaraid: Track the page allocations for struct fusion_context
+Date: Wed, 25 Oct 2017 17:57:08 +0800
+Message-ID: <1508925428-51660-2-git-send-email-xieyisheng1@huawei.com>
+In-Reply-To: <1508925428-51660-1-git-send-email-xieyisheng1@huawei.com>
+References: <1508925428-51660-1-git-send-email-xieyisheng1@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peterz@infradead.org, mingo@kernel.org, axboe@kernel.dk
-Cc: johan@kernel.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
+To: kashyap.desai@broadcom.com, sumit.saxena@broadcom.com, shivasharan.srikanteshwara@broadcom.com, jejb@linux.vnet.ibm.com, martin.petersen@oracle.com
+Cc: megaraidlinux.pdl@broadcom.com, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, Yisheng Xie <xieyisheng1@huawei.com>, linux-mm@kvack.org, Shu Wang <shuwang@redhat.com>
 
-Darrick posted the following warning and Dave Chinner analyzed it:
+I have get many kmemleak reports just similar to commit 70c54e210ee9
+(scsi: megaraid_sas: fix memleak in megasas_alloc_cmdlist_fusion)
+on v4.14-rc6, however it seems have a different stroy:
 
-> ======================================================
-> WARNING: possible circular locking dependency detected
-> 4.14.0-rc1-fixes #1 Tainted: G        W
-> ------------------------------------------------------
-> loop0/31693 is trying to acquire lock:
->  (&(&ip->i_mmaplock)->mr_lock){++++}, at: [<ffffffffa00f1b0c>] xfs_ilock+0x23c/0x330 [xfs]
->
-> but now in release context of a crosslock acquired at the following:
->  ((complete)&ret.event){+.+.}, at: [<ffffffff81326c1f>] submit_bio_wait+0x7f/0xb0
->
-> which lock already depends on the new lock.
->
-> the existing dependency chain (in reverse order) is:
->
-> -> #2 ((complete)&ret.event){+.+.}:
->        lock_acquire+0xab/0x200
->        wait_for_completion_io+0x4e/0x1a0
->        submit_bio_wait+0x7f/0xb0
->        blkdev_issue_zeroout+0x71/0xa0
->        xfs_bmapi_convert_unwritten+0x11f/0x1d0 [xfs]
->        xfs_bmapi_write+0x374/0x11f0 [xfs]
->        xfs_iomap_write_direct+0x2ac/0x430 [xfs]
->        xfs_file_iomap_begin+0x20d/0xd50 [xfs]
->        iomap_apply+0x43/0xe0
->        dax_iomap_rw+0x89/0xf0
->        xfs_file_dax_write+0xcc/0x220 [xfs]
->        xfs_file_write_iter+0xf0/0x130 [xfs]
->        __vfs_write+0xd9/0x150
->        vfs_write+0xc8/0x1c0
->        SyS_write+0x45/0xa0
->        entry_SYSCALL_64_fastpath+0x1f/0xbe
->
-> -> #1 (&xfs_nondir_ilock_class){++++}:
->        lock_acquire+0xab/0x200
->        down_write_nested+0x4a/0xb0
->        xfs_ilock+0x263/0x330 [xfs]
->        xfs_setattr_size+0x152/0x370 [xfs]
->        xfs_vn_setattr+0x6b/0x90 [xfs]
->        notify_change+0x27d/0x3f0
->        do_truncate+0x5b/0x90
->        path_openat+0x237/0xa90
->        do_filp_open+0x8a/0xf0
->        do_sys_open+0x11c/0x1f0
->        entry_SYSCALL_64_fastpath+0x1f/0xbe
->
-> -> #0 (&(&ip->i_mmaplock)->mr_lock){++++}:
->        up_write+0x1c/0x40
->        xfs_iunlock+0x1d0/0x310 [xfs]
->        xfs_file_fallocate+0x8a/0x310 [xfs]
->        loop_queue_work+0xb7/0x8d0
->        kthread_worker_fn+0xb9/0x1f0
->
-> Chain exists of:
->   &(&ip->i_mmaplock)->mr_lock --> &xfs_nondir_ilock_class --> (complete)&ret.event
->
->  Possible unsafe locking scenario by crosslock:
->
->        CPU0                    CPU1
->        ----                    ----
->   lock(&xfs_nondir_ilock_class);
->   lock((complete)&ret.event);
->                                lock(&(&ip->i_mmaplock)->mr_lock);
->                                unlock((complete)&ret.event);
->
->                *** DEADLOCK ***
+unreferenced object 0xffff8b5139d9d2c0 (size 192):
+  comm "kworker/0:0", pid 3, jiffies 4294689182 (age 11347.731s)
+  hex dump (first 32 bytes):
+    00 33 84 7b 41 8b ff ff 00 33 84 7b 00 00 00 00  .3.{A....3.{....
+    00 30 8c 7b 41 8b ff ff 00 30 8c 7b 00 00 00 00  .0.{A....0.{....
+  backtrace:
+    [<ffffffff927461ea>] kmemleak_alloc+0x4a/0xa0
+    [<ffffffff92215eee>] kmem_cache_alloc_trace+0xce/0x1d0
+    [<ffffffffc03f96e4>] megasas_alloc_cmdlist_fusion+0xd4/0x180 [megaraid_sas]
+    [<ffffffffc03f9df5>] megasas_alloc_cmds_fusion+0x25/0x410 [megaraid_sas]
+    [<ffffffffc03fb05d>] megasas_init_adapter_fusion+0x21d/0x6e0 [megaraid_sas]
+    [<ffffffffc03f70e8>] megasas_init_fw+0x338/0xd00 [megaraid_sas]
+    [<ffffffffc03f806e>] megasas_probe_one.part.34+0x5be/0x1040 [megaraid_sas]
+    [<ffffffffc03f8b36>] megasas_probe_one+0x46/0xc0 [megaraid_sas]
+    [<ffffffff923c0ec5>] local_pci_probe+0x45/0xa0
+    [<ffffffff9209fcf4>] work_for_cpu_fn+0x14/0x20
+    [<ffffffff920a2e09>] process_one_work+0x149/0x360
+    [<ffffffff920a3578>] worker_thread+0x1d8/0x3c0
+    [<ffffffff920a8bb9>] kthread+0x109/0x140
+    [<ffffffff92751bc5>] ret_from_fork+0x25/0x30
+    [<ffffffffffffffff>] 0xffffffffffffffff
 
-The warning is a false positive, caused by the fact that all
-wait_for_completion()s in submit_bio_wait() are waiting with the same
-lock class.
+Struct fusion_context may alloc by get_free_pages, which contain
+pointers to other slab allocations(via megasas_alloc_cmdlist_fusion).
+Since kmemleak does not track/scan page allocations, the slab objects
+will be reported as leaks(false positives). This patch adds kmemleak
+callbacks to allow tracking of such pages.
 
-However, some bios have nothing to do with others, for example, the case
-might happen while using loop devices, between bios of an upper device
-and a lower device(=loop device).
-
-The safest way to assign different lock classes to different devices is
-to do it for each gendisk. In other words, this patch assigns a
-lockdep_map per gendisk and uses it when initializing completion in
-submit_bio_wait().
-
-Of course, it might be too conservative. But, making it safest for now
-and extended by block layer experts later is good, at the moment.
-
-Reported-by: Darrick J. Wong <darrick.wong@oracle.com>
-Analyzed-by: Dave Chinner <david@fromorbit.com>
-Signed-off-by: Byungchul Park <byungchul.park@lge.com>
+Cc: linux-mm@kvack.org
+Cc: Shu Wang <shuwang@redhat.com>
+Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
 ---
- block/bio.c           |  2 +-
- block/genhd.c         | 10 ++--------
- include/linux/genhd.h | 22 ++++++++++++++++++++--
- 3 files changed, 23 insertions(+), 11 deletions(-)
+ drivers/scsi/megaraid/megaraid_sas_fusion.c | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)
 
-diff --git a/block/bio.c b/block/bio.c
-index 99d0ca5..a3cb1d1 100644
---- a/block/bio.c
-+++ b/block/bio.c
-@@ -935,7 +935,7 @@ static void submit_bio_wait_endio(struct bio *bio)
-  */
- int submit_bio_wait(struct bio *bio)
- {
--	DECLARE_COMPLETION_ONSTACK(done);
-+	DECLARE_COMPLETION_ONSTACK_MAP(done, bio->bi_disk->lockdep_map);
+diff --git a/drivers/scsi/megaraid/megaraid_sas_fusion.c b/drivers/scsi/megaraid/megaraid_sas_fusion.c
+index 11bd2e6..9a1be45 100644
+--- a/drivers/scsi/megaraid/megaraid_sas_fusion.c
++++ b/drivers/scsi/megaraid/megaraid_sas_fusion.c
+@@ -48,6 +48,7 @@
+ #include <linux/mutex.h>
+ #include <linux/poll.h>
+ #include <linux/vmalloc.h>
++#include <linux/kmemleak.h>
  
- 	bio->bi_private = &done;
- 	bio->bi_end_io = submit_bio_wait_endio;
-diff --git a/block/genhd.c b/block/genhd.c
-index dd305c6..630c0da 100644
---- a/block/genhd.c
-+++ b/block/genhd.c
-@@ -1354,13 +1354,7 @@ dev_t blk_lookup_devt(const char *name, int partno)
- }
- EXPORT_SYMBOL(blk_lookup_devt);
- 
--struct gendisk *alloc_disk(int minors)
--{
--	return alloc_disk_node(minors, NUMA_NO_NODE);
--}
--EXPORT_SYMBOL(alloc_disk);
--
--struct gendisk *alloc_disk_node(int minors, int node_id)
-+struct gendisk *__alloc_disk_node(int minors, int node_id)
- {
- 	struct gendisk *disk;
- 	struct disk_part_tbl *ptbl;
-@@ -1411,7 +1405,7 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
+ #include <scsi/scsi.h>
+ #include <scsi/scsi_cmnd.h>
+@@ -4512,6 +4513,14 @@ void megasas_fusion_ocr_wq(struct work_struct *work)
+ 			dev_err(&instance->pdev->dev, "Failed from %s %d\n", __func__, __LINE__);
+ 			return -ENOMEM;
+ 		}
++	} else {
++		/*
++		 * Allow kmemleak to scan these pages as they contain pointers
++		 * to additional allocations via megasas_alloc_cmdlist_fusion.
++		 */
++		size_t size = (size_t)PAGE_SIZE << instance->ctrl_context_pages;
++
++		kmemleak_alloc(instance->ctrl_context, size, 1, GFP_KERNEL);
  	}
- 	return disk;
+ 
+ 	fusion = instance->ctrl_context;
+@@ -4548,9 +4557,15 @@ void megasas_fusion_ocr_wq(struct work_struct *work)
+ 
+ 		if (is_vmalloc_addr(fusion))
+ 			vfree(fusion);
+-		else
++		else {
++			/*
++			 * Remove kmemleak object previously allocated in
++			 * megasas_alloc_fusion_context.
++			 */
++			kmemleak_free(fusion);
+ 			free_pages((ulong)fusion,
+ 				instance->ctrl_context_pages);
++		}
+ 	}
  }
--EXPORT_SYMBOL(alloc_disk_node);
-+EXPORT_SYMBOL(__alloc_disk_node);
  
- struct kobject *get_disk(struct gendisk *disk)
- {
-diff --git a/include/linux/genhd.h b/include/linux/genhd.h
-index 6d85a75..6c24b04 100644
---- a/include/linux/genhd.h
-+++ b/include/linux/genhd.h
-@@ -206,6 +206,7 @@ struct gendisk {
- #endif	/* CONFIG_BLK_DEV_INTEGRITY */
- 	int node_id;
- 	struct badblocks *bb;
-+	struct lockdep_map lockdep_map;
- };
- 
- static inline struct gendisk *part_to_disk(struct hd_struct *part)
-@@ -590,8 +591,7 @@ extern struct hd_struct * __must_check add_partition(struct gendisk *disk,
- extern void delete_partition(struct gendisk *, int);
- extern void printk_all_partitions(void);
- 
--extern struct gendisk *alloc_disk_node(int minors, int node_id);
--extern struct gendisk *alloc_disk(int minors);
-+extern struct gendisk *__alloc_disk_node(int minors, int node_id);
- extern struct kobject *get_disk(struct gendisk *disk);
- extern void put_disk(struct gendisk *disk);
- extern void blk_register_region(dev_t devt, unsigned long range,
-@@ -615,6 +615,24 @@ extern ssize_t part_fail_store(struct device *dev,
- 			       const char *buf, size_t count);
- #endif /* CONFIG_FAIL_MAKE_REQUEST */
- 
-+#define alloc_disk_node(minors, node_id)				\
-+({									\
-+	static struct lock_class_key __key;				\
-+	const char *__name;						\
-+	struct gendisk *__disk;						\
-+									\
-+	__name = "(gendisk_completion)"#minors"("#node_id")";		\
-+									\
-+	__disk = __alloc_disk_node(minors, node_id);			\
-+									\
-+	if (__disk)							\
-+		lockdep_init_map(&__disk->lockdep_map, __name, &__key, 0); \
-+									\
-+	__disk;								\
-+})
-+
-+#define alloc_disk(minors) alloc_disk_node(minors, NUMA_NO_NODE)
-+
- static inline int hd_ref_init(struct hd_struct *part)
- {
- 	if (percpu_ref_init(&part->ref, __delete_partition, 0,
 -- 
-1.9.1
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
