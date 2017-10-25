@@ -1,43 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D0D8B6B025F
-	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 21:02:05 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id l24so15599143pgu.22
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 18:02:05 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id t6si822914plo.827.2017.10.24.18.02.04
-        for <linux-mm@kvack.org>;
-        Tue, 24 Oct 2017 18:02:04 -0700 (PDT)
-Date: Wed, 25 Oct 2017 10:01:55 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v3 2/8] lockdep: Introduce CROSSRELEASE_STACK_TRACE and
- make it not unwind as default
-Message-ID: <20171025010155.GO3310@X58A-UD3R>
-References: <1508837889-16932-1-git-send-email-byungchul.park@lge.com>
- <1508837889-16932-3-git-send-email-byungchul.park@lge.com>
- <20171024100516.f2a2uzknqfum77w2@gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id CFB466B0033
+	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 22:32:57 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 15so8410694pgc.16
+        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 19:32:57 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id s1si1074488pge.122.2017.10.24.19.32.54
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Oct 2017 19:32:55 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm] mm, swap: Fix false error message in __swp_swapcount()
+References: <20171024024700.23679-1-ying.huang@intel.com>
+	<20171024201708.GA25022@bgram>
+Date: Wed, 25 Oct 2017 10:32:52 +0800
+In-Reply-To: <20171024201708.GA25022@bgram> (Minchan Kim's message of "Wed, 25
+	Oct 2017 05:17:08 +0900")
+Message-ID: <8737686jor.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171024100516.f2a2uzknqfum77w2@gmail.com>
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: peterz@infradead.org, axboe@kernel.dk, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Chen <tim.c.chen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, stable@vger.kernel.org, Christian Kujau <lists@nerdbynature.de>
 
-On Tue, Oct 24, 2017 at 12:05:16PM +0200, Ingo Molnar wrote:
-> 
-> * Byungchul Park <byungchul.park@lge.com> wrote:
-> 
-> > Johan Hovold reported a performance regression by crossrelease like:
-> 
-> Pplease add Reported-by and Analyzed-by tags - you didn't even Cc: Johan!
+Minchan Kim <minchan@kernel.org> writes:
 
-Excuse me but, I am sure, whom is the issue analyzed by? Me?
+> On Tue, Oct 24, 2017 at 10:47:00AM +0800, Huang, Ying wrote:
+>> From: Ying Huang <ying.huang@intel.com>
+>> 
+>> __swp_swapcount() is used in __read_swap_cache_async().  Where the
+>> invalid swap entry (offset > max) may be supplied during swap
+>> readahead.  But __swp_swapcount() will print error message for these
+>> expected invalid swap entry as below, which will make the users
+>> confusing.
+>> 
+>>   swap_info_get: Bad swap offset entry 0200f8a7
+>> 
+>> So the swap entry checking code in __swp_swapcount() is changed to
+>> avoid printing error message for it.  To avoid to duplicate code with
+>> __swap_duplicate(), a new helper function named
+>> __swap_info_get_silence() is added and invoked in both places.
+>
+> It's the problem caused by readahead, not __swap_info_get which is low-end
+> primitive function. Instead, please fix high-end swapin_readahead to limit
+> to last valid block as handling to avoid swap header which is special case,
+> too.
 
-> Thanks,
-> 
-> 	Ingo
+Yes.  You are right, will send the new version.
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
