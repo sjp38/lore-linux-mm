@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BE3AB6B0033
-	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 01:53:22 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id o88so9712796wrb.18
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 22:53:22 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DEC56B0033
+	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 01:55:31 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k15so12843973wrc.1
+        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 22:55:31 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m84sor531317wmc.28.2017.10.24.22.53.20
+        by mx.google.com with SMTPS id r192sor552854wme.43.2017.10.24.22.55.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 24 Oct 2017 22:53:20 -0700 (PDT)
-Date: Wed, 25 Oct 2017 07:53:17 +0200
+        Tue, 24 Oct 2017 22:55:30 -0700 (PDT)
+Date: Wed, 25 Oct 2017 07:55:27 +0200
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v3 2/8] lockdep: Introduce CROSSRELEASE_STACK_TRACE and
- make it not unwind as default
-Message-ID: <20171025055317.qfy3re25jni2cza6@gmail.com>
+Subject: Re: [PATCH v3 8/8] block: Assign a lock_class per gendisk used for
+ wait_for_completion()
+Message-ID: <20171025055527.jm5scb5vr26g63un@gmail.com>
 References: <1508837889-16932-1-git-send-email-byungchul.park@lge.com>
- <1508837889-16932-3-git-send-email-byungchul.park@lge.com>
- <20171024100516.f2a2uzknqfum77w2@gmail.com>
- <20171025010155.GO3310@X58A-UD3R>
+ <1508837889-16932-9-git-send-email-byungchul.park@lge.com>
+ <20171024101551.sftqsy5mk34fxru7@gmail.com>
+ <20171025002612.GN3310@X58A-UD3R>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171025010155.GO3310@X58A-UD3R>
+In-Reply-To: <20171025002612.GN3310@X58A-UD3R>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Byungchul Park <byungchul.park@lge.com>
@@ -30,22 +30,24 @@ Cc: peterz@infradead.org, axboe@kernel.dk, tglx@linutronix.de, linux-kernel@vger
 
 * Byungchul Park <byungchul.park@lge.com> wrote:
 
-> On Tue, Oct 24, 2017 at 12:05:16PM +0200, Ingo Molnar wrote:
-> > 
-> > * Byungchul Park <byungchul.park@lge.com> wrote:
-> > 
-> > > Johan Hovold reported a performance regression by crossrelease like:
-> > 
-> > Pplease add Reported-by and Analyzed-by tags - you didn't even Cc: Johan!
+> > Isn't lockdep_map a zero size structure that is always defined? If yes then 
+> > there's no need for an #ifdef.
 > 
-> Excuse me but, I am sure, whom is the issue analyzed by? Me?
+> No, a zero size structure for lockdep_map is not provided yet.
+> There are two options I can do:
+> 
+> 1. Add a zero size structure for lockdep_map and remove #ifdef
+> 2. Replace CONFIG_LOCKDEP_COMPLETIONS with CONFIG_LOCKDEP here.
+> 
+> Or something else?
+> 
+> Which one do you prefer?
 
-Well, Johan tracked it all down for us, Thomas gave the right suggestion to fix 
-the performance regression, so I meant something like:
+Ok, could we try #1 in a new patch and re-spin the simplified block layer patch on 
+top of that?
 
-  Reported-by: Johan Hovold <johan@kernel.org>
-  Bisected-by: Johan Hovold <johan@kernel.org>
-  Analyzed-by: Thomas Gleixner <tglx@linutronix.de>
+The less ugly a debug facility's impact on unrelated kernel is, the better - 
+especially when it comes to annotating false positives.
 
 Thanks,
 
