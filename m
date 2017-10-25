@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C74C36B0260
-	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 18:49:31 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id f85so875909pfe.7
-        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 15:49:31 -0700 (PDT)
-Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
-        by mx.google.com with ESMTPS id 92si2153599plw.30.2017.10.25.15.49.29
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A8B26B0261
+	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 18:49:32 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id a192so1037610pge.1
+        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 15:49:32 -0700 (PDT)
+Received: from out4441.biz.mail.alibaba.com (out4441.biz.mail.alibaba.com. [47.88.44.41])
+        by mx.google.com with ESMTPS id o2si2119733plk.250.2017.10.25.15.49.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Oct 2017 15:49:30 -0700 (PDT)
+        Wed, 25 Oct 2017 15:49:31 -0700 (PDT)
 From: "Yang Shi" <yang.s@alibaba-inc.com>
-Subject: [PATCH 1/2] mm: extract common code for calculating total memory size
-Date: Thu, 26 Oct 2017 06:48:59 +0800
-Message-Id: <1508971740-118317-2-git-send-email-yang.s@alibaba-inc.com>
+Subject: [PATCH 2/2] mm: oom: dump single excessive slab cache when oom
+Date: Thu, 26 Oct 2017 06:49:00 +0800
+Message-Id: <1508971740-118317-3-git-send-email-yang.s@alibaba-inc.com>
 In-Reply-To: <1508971740-118317-1-git-send-email-yang.s@alibaba-inc.com>
 References: <1508971740-118317-1-git-send-email-yang.s@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,89 +20,128 @@ List-ID: <linux-mm.kvack.org>
 To: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org
 Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Total memory size is needed by unreclaimable slub oom to check if
-significant memory is used by a single slab. But, the caculation work is
-done in show_mem(), so extracting the common code in order to share with
-others.
+Per the discussion with David [1], it looks more reasonable to just dump
+the single excessive slab cache instead of dumping all slab caches when
+oom.
 
+Dump single excessive slab cache if its size is > 10% of total system
+memory size when oom regardless it is unreclaimable.
+
+[1] https://marc.info/?l=linux-mm&m=150819933626604&w=2
+
+Suggested-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
 ---
- include/linux/mm.h | 25 +++++++++++++++++++++++++
- lib/show_mem.c     | 20 +-------------------
- 2 files changed, 26 insertions(+), 19 deletions(-)
+ mm/oom_kill.c    | 22 +---------------------
+ mm/slab.h        |  4 ++--
+ mm/slab_common.c | 21 ++++++++++++++++-----
+ 3 files changed, 19 insertions(+), 28 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 935c4d4..e21b81e 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2050,6 +2050,31 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
- static inline void zero_resv_unavail(void) {}
- #endif
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 26add8a..f996f29 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -162,25 +162,6 @@ static bool oom_unkillable_task(struct task_struct *p,
+ 	return false;
+ }
  
-+static inline void calc_mem_size(unsigned long *total, unsigned long *reserved,
-+				 unsigned long *highmem)
+-/*
+- * Print out unreclaimble slabs info when unreclaimable slabs amount is greater
+- * than all user memory (LRU pages)
+- */
+-static bool is_dump_unreclaim_slabs(void)
+-{
+-	unsigned long nr_lru;
+-
+-	nr_lru = global_node_page_state(NR_ACTIVE_ANON) +
+-		 global_node_page_state(NR_INACTIVE_ANON) +
+-		 global_node_page_state(NR_ACTIVE_FILE) +
+-		 global_node_page_state(NR_INACTIVE_FILE) +
+-		 global_node_page_state(NR_ISOLATED_ANON) +
+-		 global_node_page_state(NR_ISOLATED_FILE) +
+-		 global_node_page_state(NR_UNEVICTABLE);
+-
+-	return (global_node_page_state(NR_SLAB_UNRECLAIMABLE) > nr_lru);
+-}
+-
+ /**
+  * oom_badness - heuristic function to determine which candidate task to kill
+  * @p: task struct of which task we should calculate
+@@ -443,8 +424,7 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
+ 		mem_cgroup_print_oom_info(oc->memcg, p);
+ 	else {
+ 		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
+-		if (is_dump_unreclaim_slabs())
+-			dump_unreclaimable_slab();
++		dump_slab_cache();
+ 	}
+ 	if (sysctl_oom_dump_tasks)
+ 		dump_tasks(oc->memcg, oc->nodemask);
+diff --git a/mm/slab.h b/mm/slab.h
+index 6a86025..818b569 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -507,9 +507,9 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
+ int memcg_slab_show(struct seq_file *m, void *p);
+ 
+ #if defined(CONFIG_SLAB) || defined(CONFIG_SLUB_DEBUG)
+-void dump_unreclaimable_slab(void);
++void dump_slab_cache(void);
+ #else
+-static inline void dump_unreclaimable_slab(void)
++static inline void dump_slab_cache(void)
+ {
+ }
+ #endif
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 1b14fe0..e5bfa07 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -1311,7 +1311,18 @@ static int slab_show(struct seq_file *m, void *p)
+ 	return 0;
+ }
+ 
+-void dump_unreclaimable_slab(void)
++static bool inline is_dump_slabs(struct kmem_cache *s, struct slabinfo *sinfo)
 +{
-+	pg_data_t *pgdat;
++	unsigned long total = 0, reserved = 0, highmem = 0;
++	unsigned long slab_size = sinfo->num_objs * s->size;
 +
-+	for_each_online_pgdat(pgdat) {
-+		unsigned long flags;
-+		int zoneid;
++	calc_mem_size(&total, &reserved, &highmem);
 +
-+		pgdat_resize_lock(pgdat, &flags);
-+		for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
-+			struct zone *zone = &pgdat->node_zones[zoneid];
-+			if (!populated_zone(zone))
-+				continue;
-+
-+			*total += zone->present_pages;
-+			*reserved += zone->present_pages - zone->managed_pages;
-+
-+			if (is_highmem_idx(zoneid))
-+				*highmem += zone->present_pages;
-+		}
-+		pgdat_resize_unlock(pgdat, &flags);
-+	}
++	/* Check if single slab > 10% of total memory size */
++	return (slab_size > (total * PAGE_SIZE / 10));
 +}
 +
- extern void set_dma_reserve(unsigned long new_dma_reserve);
- extern void memmap_init_zone(unsigned long, int, unsigned long,
- 				unsigned long, enum memmap_context);
-diff --git a/lib/show_mem.c b/lib/show_mem.c
-index 0beaa1d..115475e 100644
---- a/lib/show_mem.c
-+++ b/lib/show_mem.c
-@@ -11,30 +11,12 @@
- 
- void show_mem(unsigned int filter, nodemask_t *nodemask)
++void dump_slab_cache(void)
  {
--	pg_data_t *pgdat;
- 	unsigned long total = 0, reserved = 0, highmem = 0;
+ 	struct kmem_cache *s, *s2;
+ 	struct slabinfo sinfo;
+@@ -1324,20 +1335,20 @@ void dump_unreclaimable_slab(void)
+ 	 * without acquiring the mutex.
+ 	 */
+ 	if (!mutex_trylock(&slab_mutex)) {
+-		pr_warn("excessive unreclaimable slab but cannot dump stats\n");
++		pr_warn("excessive slab cache but cannot dump stats\n");
+ 		return;
+ 	}
  
- 	printk("Mem-Info:\n");
- 	show_free_areas(filter, nodemask);
+-	pr_info("Unreclaimable slab info:\n");
++	pr_info("The list of excessive single slab cache:\n");
+ 	pr_info("Name                      Used          Total\n");
  
--	for_each_online_pgdat(pgdat) {
--		unsigned long flags;
--		int zoneid;
--
--		pgdat_resize_lock(pgdat, &flags);
--		for (zoneid = 0; zoneid < MAX_NR_ZONES; zoneid++) {
--			struct zone *zone = &pgdat->node_zones[zoneid];
--			if (!populated_zone(zone))
--				continue;
--
--			total += zone->present_pages;
--			reserved += zone->present_pages - zone->managed_pages;
--
--			if (is_highmem_idx(zoneid))
--				highmem += zone->present_pages;
--		}
--		pgdat_resize_unlock(pgdat, &flags);
--	}
-+	calc_mem_size(&total, &reserved, &highmem);
+ 	list_for_each_entry_safe(s, s2, &slab_caches, list) {
+-		if (!is_root_cache(s) || (s->flags & SLAB_RECLAIM_ACCOUNT))
++		if (!is_root_cache(s))
+ 			continue;
  
- 	printk("%lu pages RAM\n", total);
- 	printk("%lu pages HighMem/MovableOnly\n", highmem);
+ 		get_slabinfo(s, &sinfo);
+ 
+-		if (sinfo.num_objs > 0)
++		if (is_dump_slabs(s, &sinfo))
+ 			pr_info("%-17s %10luKB %10luKB\n", cache_name(s),
+ 				(sinfo.active_objs * s->size) / 1024,
+ 				(sinfo.num_objs * s->size) / 1024);
 -- 
 1.8.3.1
 
