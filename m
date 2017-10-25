@@ -1,112 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C2DB96B0033
-	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 02:38:56 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 76so20268455pfr.3
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 23:38:56 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g1si1387558pgc.3.2017.10.24.23.38.55
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 501D26B0033
+	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 02:51:34 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id l196so22341104itl.15
+        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 23:51:34 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u133sor1130232ita.146.2017.10.24.23.51.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 24 Oct 2017 23:38:55 -0700 (PDT)
-Date: Wed, 25 Oct 2017 08:38:52 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: fix movable_node kernel command-line
-Message-ID: <20171025063852.nunaquo5wevayejf@dhcp22.suse.cz>
-References: <20171023174905.ap4uz6puggeqnz3s@dhcp22.suse.cz>
- <20171023184852.GB12198@linux.intel.com>
- <20171023190459.odyu26rqhuja4trj@dhcp22.suse.cz>
- <20171023192524.GC12198@linux.intel.com>
- <20171023193536.c7yptc4tpesa4ffl@dhcp22.suse.cz>
- <20171023195637.GE12198@linux.intel.com>
- <0ed8144f-4447-e2de-47f7-ea1fc16f0b25@intel.com>
- <20171024010633.GA2723@linux.intel.com>
- <20171024071906.64ikc733x53zmgzu@dhcp22.suse.cz>
- <20171025005314.GA2636@linux.intel.com>
+        (Google Transport Security);
+        Tue, 24 Oct 2017 23:51:33 -0700 (PDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
+In-Reply-To: <20171024201522.3z2fjnfywgx2egqx@dhcp22.suse.cz>
+References: <20171010142434.bpiqmsbb7gttrlcb@dhcp22.suse.cz> <20171012190312.GA5075@cmpxchg.org> <20171013063555.pa7uco43mod7vrkn@dhcp22.suse.cz> <20171013070001.mglwdzdrqjt47clz@dhcp22.suse.cz> <20171013152421.yf76n7jui3z5bbn4@dhcp22.suse.cz> <20171024160637.GB32340@cmpxchg.org> <20171024162213.n6jrpz3t5pldkgxy@dhcp22.suse.cz> <20171024172330.GA3973@cmpxchg.org> <20171024175558.uxqtxwhjgu6ceadk@dhcp22.suse.cz> <20171024185854.GA6154@cmpxchg.org> <20171024201522.3z2fjnfywgx2egqx@dhcp22.suse.cz>
+Date: Tue, 24 Oct 2017 23:51:30 -0700
+Message-ID: <xr93r2tr67pp.fsf@gthelen.svl.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171025005314.GA2636@linux.intel.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sharath Kumar Bhat <sharath.k.bhat@linux.intel.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 24-10-17 17:53:14, Sharath Kumar Bhat wrote:
-> On Tue, Oct 24, 2017 at 09:19:06AM +0200, Michal Hocko wrote:
-> > On Mon 23-10-17 18:06:33, Sharath Kumar Bhat wrote:
-[...]
-> > > And moreover
-> > > 'movable_node' is implemented with an assumption to provide the entire
-> > > hotpluggable memory as movable zone. This ACPI override would be against
-> > > that assumption.
-> > 
-> > This is true and in fact movable_node should become movable_memory over
-> > time and only ranges marked as movable would become really movable. This
-> > is a rather non-trivial change to do and there is not a great demand for
-> > the feature so it is low on my TODO list.
-> 
-> Do you mean to have a single kernel command-line 'movable_memory=' for this
-> purpose and remove all other kernel command-line parameters such as
-> 'kernelcore=', 'movablecore=' and 'movable_node'?
+Michal Hocko <mhocko@kernel.org> wrote:
 
-yes.
+> On Tue 24-10-17 14:58:54, Johannes Weiner wrote:
+>> On Tue, Oct 24, 2017 at 07:55:58PM +0200, Michal Hocko wrote:
+>> > On Tue 24-10-17 13:23:30, Johannes Weiner wrote:
+>> > > On Tue, Oct 24, 2017 at 06:22:13PM +0200, Michal Hocko wrote:
+>> > [...]
+>> > > > What would prevent a runaway in case the only process in the memcg is
+>> > > > oom unkillable then?
+>> > > 
+>> > > In such a scenario, the page fault handler would busy-loop right now.
+>> > > 
+>> > > Disabling oom kills is a privileged operation with dire consequences
+>> > > if used incorrectly. You can panic the kernel with it. Why should the
+>> > > cgroup OOM killer implement protective semantics around this setting?
+>> > > Breaching the limit in such a setup is entirely acceptable.
+>> > > 
+>> > > Really, I think it's an enormous mistake to start modeling semantics
+>> > > based on the most contrived and non-sensical edge case configurations.
+>> > > Start the discussion with what is sane and what most users should
+>> > > optimally experience, and keep the cornercases simple.
+>> > 
+>> > I am not really seeing your concern about the semantic. The most
+>> > important property of the hard limit is to protect from runaways and
+>> > stop them if they happen. Users can use the softer variant (high limit)
+>> > if they are not afraid of those scenarios. It is not so insane to
+>> > imagine that a master task (which I can easily imagine would be oom
+>> > disabled) has a leak and runaway as a result.
+>> 
+>> Then you're screwed either way. Where do you return -ENOMEM in a page
+>> fault path that cannot OOM kill anything? Your choice is between
+>> maintaining the hard limit semantics or going into an infinite loop.
+>
+> in the PF path yes. And I would argue that this is a reasonable
+> compromise to provide the gurantee the hard limit is giving us (and
+> the resulting isolation which is the whole point). Btw. we are already
+> having that behavior. All we are talking about is the non-PF path which
+> ENOMEMs right now and the meta-patch tried to handle it more gracefully
+> and only ENOMEM when there is no other option.
+>
+>> I fail to see how this setup has any impact on the semantics we pick
+>> here. And even if it were real, it's really not what most users do.
+>
+> sure, such a scenario is really on the edge but my main point was that
+> the hard limit is an enforcement of an isolation guarantee (as much as
+> possible of course).
+>
+>> > We are not talking only about the page fault path. There are other
+>> > allocation paths to consume a lot of memory and spill over and break
+>> > the isolation restriction. So it makes much more sense to me to fail
+>> > the allocation in such a situation rather than allow the runaway to
+>> > continue. Just consider that such a situation shouldn't happen in
+>> > the first place because there should always be an eligible task to
+>> > kill - who would own all the memory otherwise?
+>> 
+>> Okay, then let's just stick to the current behavior.
+>
+> I am definitely not pushing that thing right now. It is good to discuss
+> it, though. The more kernel allocations we will track the more careful we
+> will have to be. So maybe we will have to reconsider the current
+> approach. I am not sure we need it _right now_ but I feel we will
+> eventually have to reconsider it.
 
-> because after the kernel
-> boots up we can not gurantee that a contig memory range can be made zone
-> movable since any kernel allocations could pre-exist.
+The kernel already attempts to charge radix_tree_nodes.  If they fail
+then we fallback to unaccounted memory.  So the memcg limit already
+isn't an air tight constraint.
 
-No, I meant that the zone association would be done _only_ based by
-memory attributes exported by ACPI or whatever is used to configure
-memory ranges on the particular platform. So an early init code.
+I agree that unchecked overcharging could be bad, but wonder if we could
+overcharge kmem so long as there is a pending oom kill victim.  If
+current is the victim or no victim, then fail allocations (as is
+currently done).  The current thread can loop in syscall exit until
+usage is reconciled (either via reclaim or kill).  This seems consistent
+with pagefault oom handling and compatible with overcommit use case.
 
-> > > Also ACPI override would introduce additional topology
-> > > changes. Again this would have to change every time the total movable
-> > > memory requirement changes and the whole system and apps have to be
-> > > re-tuned (for job launch ex: numactl etc) to comphrehend this change.
-> > 
-> > This is something you have to do anyway when the topology of the system
-> > changes each boot.
-> 
-> No, this is a manual tuning for job-launch, mem policy handling code etc.
-> which would be done once for a platform. But in this case based on the
-> application need the amount of movable memory will change so it is really
-> unfair to ask user to re-work their job launch and apps for every such
-> changes.
+Here's an example of an overcommit case we've found quite useful.  Memcg A has
+memory which is shared between children B and C.  B is more important the C.
+B and C are unprivileged, neither has the authority to kill the other.
 
-I am still confused. Why does the application even care about
-movability?
- 
-> > That being said, I would really prefer to actually _remove_ kernel_core
-> > parameter altogether. It is messy (just look at find_zone_movable_pfns_for_nodes
-> > at al.) and the original usecase it has been added for [1] does not hold
-> > anymore. Adding more stuff to workaround issues which can be handled
-> > more cleanly is definitely not a right way to go.
-> 
-> I agree that kernelcore handling is non-trivial in that function. But the
-> changes introduced by this patch are under 'movable_node' case handling in
-> find_zone_movable_pfns_for_nodes() and it does not cause any change to the
-> existing kernelcore behavior of the code. Also this enables all
-> multi-kernel users to make use of this functionality untill later when
-> new interface would be available for the same purpose.
+    /A(limit=100MB) - B(limit=80MB,prio=high)
+                     \ C(limit=80MB,prio=low)
 
-The point is to not build on top and rather get rid of it completely.
- 
-> > [1] note that MOVABLE_ZONE has been originally added to help the
-> > fragmentation avoidance.
-> 
-> Isn't this true even now since ZONE_MOVABLE will populate only
-> MIGRATE_MOVABLE free list of pages? and other zones could have
-> MIGRATE_UNMOVABLE pages?
+If memcg charge drives B.usage+C.usage>=A.limit, then C should be killed due to
+its low priority.  B pagefault can kill, but if a syscall returns ENOMEM then B
+can't do anything useful with it.
 
-My point was that the original motivation is gone because our compaction
-code doesn't really depend on movable zone. So the movable zone is more
-about making sure that the specific memory is migratable and so
-offlineable.
-
--- 
-Michal Hocko
-SUSE Labs
+I know there are related oom killer victim selections discussions afoot.
+Even with classic oom_score_adj killing it's possible to heavily bias
+oom killer to select C over B.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
