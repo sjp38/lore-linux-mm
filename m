@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EE7726B0260
-	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 04:56:33 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id x7so20486559pfa.19
-        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 01:56:33 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 370696B0266
+	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 04:56:35 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 15so16605107pgc.21
+        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 01:56:35 -0700 (PDT)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id z27si1680386pfi.281.2017.10.25.01.56.31
+        by mx.google.com with ESMTP id l197si1555165pga.371.2017.10.25.01.56.32
         for <linux-mm@kvack.org>;
-        Wed, 25 Oct 2017 01:56:31 -0700 (PDT)
+        Wed, 25 Oct 2017 01:56:33 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v5 4/9] locking/lockdep: Add a boot parameter allowing unwind in cross-release and disable it by default
-Date: Wed, 25 Oct 2017 17:56:00 +0900
-Message-Id: <1508921765-15396-5-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v5 7/9] completion: Add support for initializing completion with lockdep_map
+Date: Wed, 25 Oct 2017 17:56:03 +0900
+Message-Id: <1508921765-15396-8-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1508921765-15396-1-git-send-email-byungchul.park@lge.com>
 References: <1508921765-15396-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,122 +19,66 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org, axboe@kernel.dk
 Cc: johan@kernel.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
 
-Johan Hovold reported a heavy performance regression caused by lockdep
-cross-release:
+Sometimes, we want to initialize completions with sparate lockdep maps
+to assign lock classes as desired. For example, the workqueue code
+needs to directly manage lockdep maps, since only the code is aware of
+how to classify lockdep maps properly.
 
- > Boot time (from "Linux version" to login prompt) had in fact doubled
- > since 4.13 where it took 17 seconds (with my current config) compared to
- > the 35 seconds I now see with 4.14-rc4.
- >
- > I quick bisect pointed to lockdep and specifically the following commit:
- >
- >	28a903f63ec0 ("locking/lockdep: Handle non(or multi)-acquisition
- >	               of a crosslock")
- >
- > which I've verified is the commit which doubled the boot time (compared
- > to 28a903f63ec0^) (added by lockdep crossrelease series [1]).
+Provide additional macros initializing completions in that way.
 
-Currently cross-release performs unwind on every acquisition, but that
-is very expensive.
-
-This patch makes unwind optional and disables it by default and only
-records acquire_ip.
-
-Full stack traces are sometimes required for full analysis, in which
-case a boot paramter, crossrelease_fullstack, can be specified.
-
-On my qemu Ubuntu machine (x86_64, 4 cores, 512M), the regression was
-fixed. We measure boot times with 'perf stat --null --repeat 10 $QEMU',
-where $QEMU launches a kernel with init=/bin/true:
-
-1. No lockdep enabled:
-
- Performance counter stats for 'qemu_booting_time.sh bzImage' (10 runs):
-
-       2.756558155 seconds time elapsed                    ( +-  0.09% )
-
-2. Lockdep enabled:
-
- Performance counter stats for 'qemu_booting_time.sh bzImage' (10 runs):
-
-       2.968710420 seconds time elapsed                    ( +-  0.12% )
-
-3. Lockdep enabled + cross-release enabled:
-
- Performance counter stats for 'qemu_booting_time.sh bzImage' (10 runs):
-
-       3.153839636 seconds time elapsed                    ( +-  0.31% )
-
-4. Lockdep enabled + cross-release enabled + this patch applied:
-
- Performance counter stats for 'qemu_booting_time.sh bzImage' (10 runs):
-
-       2.963669551 seconds time elapsed                    ( +-  0.11% )
-
-I.e. lockdep cross-release performance is now indistinguishable from
-vanilla lockdep.
-
-Reported-by: Johan Hovold <johan@kernel.org>
-Bisected-by: Johan Hovold <johan@kernel.org>
-Analyzed-by: Thomas Gleixner <tglx@linutronix.de>
-Suggested-by: Thomas Gleixner <tglx@linutronix.de>
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- Documentation/admin-guide/kernel-parameters.txt |  3 +++
- kernel/locking/lockdep.c                        | 19 +++++++++++++++++--
- 2 files changed, 20 insertions(+), 2 deletions(-)
+ include/linux/completion.h | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
 
-diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index ead7f40..4107b01 100644
---- a/Documentation/admin-guide/kernel-parameters.txt
-+++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -709,6 +709,9 @@
- 			It will be ignored when crashkernel=X,high is not used
- 			or memory reserved is below 4G.
- 
-+	crossrelease_fullstack
-+			[KNL] Allow to record full stack trace in cross-release
-+
- 	cryptomgr.notests
-                         [KNL] Disable crypto self-tests
- 
-diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index e36e652..160b5d6 100644
---- a/kernel/locking/lockdep.c
-+++ b/kernel/locking/lockdep.c
-@@ -76,6 +76,15 @@
- #define lock_stat 0
- #endif
- 
-+static int crossrelease_fullstack;
-+static int __init allow_crossrelease_fullstack(char *str)
-+{
-+	crossrelease_fullstack = 1;
-+	return 0;
-+}
-+
-+early_param("crossrelease_fullstack", allow_crossrelease_fullstack);
-+
- /*
-  * lockdep_lock: protects the lockdep graph, the hashes and the
-  *               class/list/hash allocators.
-@@ -4863,8 +4872,14 @@ static void add_xhlock(struct held_lock *hlock)
- 	xhlock->trace.nr_entries = 0;
- 	xhlock->trace.max_entries = MAX_XHLOCK_TRACE_ENTRIES;
- 	xhlock->trace.entries = xhlock->trace_entries;
--	xhlock->trace.skip = 3;
--	save_stack_trace(&xhlock->trace);
-+
-+	if (crossrelease_fullstack) {
-+		xhlock->trace.skip = 3;
-+		save_stack_trace(&xhlock->trace);
-+	} else {
-+		xhlock->trace.nr_entries = 1;
-+		xhlock->trace.entries[0] = hlock->acquire_ip;
-+	}
+diff --git a/include/linux/completion.h b/include/linux/completion.h
+index 9121803..4da4991 100644
+--- a/include/linux/completion.h
++++ b/include/linux/completion.h
+@@ -49,6 +49,13 @@ static inline void complete_release_commit(struct completion *x)
+ 	lock_commit_crosslock((struct lockdep_map *)&x->map);
  }
  
- static inline int same_context_xhlock(struct hist_lock *xhlock)
++#define init_completion_map(x, m)					\
++do {									\
++	lockdep_init_map_crosslock((struct lockdep_map *)&(x)->map,	\
++			(m)->name, (m)->key, 0);				\
++	__init_completion(x);						\
++} while (0)
++
+ #define init_completion(x)						\
+ do {									\
+ 	static struct lock_class_key __key;				\
+@@ -58,6 +65,7 @@ static inline void complete_release_commit(struct completion *x)
+ 	__init_completion(x);						\
+ } while (0)
+ #else
++#define init_completion_map(x, m) __init_completion(x)
+ #define init_completion(x) __init_completion(x)
+ static inline void complete_acquire(struct completion *x) {}
+ static inline void complete_release(struct completion *x) {}
+@@ -73,6 +81,9 @@ static inline void complete_release_commit(struct completion *x) {}
+ 	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait) }
+ #endif
+ 
++#define COMPLETION_INITIALIZER_ONSTACK_MAP(work, map) \
++	(*({ init_completion_map(&(work), &(map)); &(work); }))
++
+ #define COMPLETION_INITIALIZER_ONSTACK(work) \
+ 	(*({ init_completion(&work); &work; }))
+ 
+@@ -102,8 +113,11 @@ static inline void complete_release_commit(struct completion *x) {}
+ #ifdef CONFIG_LOCKDEP
+ # define DECLARE_COMPLETION_ONSTACK(work) \
+ 	struct completion work = COMPLETION_INITIALIZER_ONSTACK(work)
++# define DECLARE_COMPLETION_ONSTACK_MAP(work, map) \
++	struct completion work = COMPLETION_INITIALIZER_ONSTACK_MAP(work, map)
+ #else
+ # define DECLARE_COMPLETION_ONSTACK(work) DECLARE_COMPLETION(work)
++# define DECLARE_COMPLETION_ONSTACK_MAP(work, map) DECLARE_COMPLETION(work)
+ #endif
+ 
+ /**
 -- 
 1.9.1
 
