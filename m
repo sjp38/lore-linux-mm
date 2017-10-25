@@ -1,85 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D8F486B0033
-	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 03:07:27 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id g6so16355288pgn.11
-        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 00:07:27 -0700 (PDT)
-Received: from esa1.hgst.iphmx.com (esa1.hgst.iphmx.com. [68.232.141.245])
-        by mx.google.com with ESMTPS id y1si1546584pfy.314.2017.10.25.00.07.26
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 121976B0033
+	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 03:15:27 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id f27so8314350wra.9
+        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 00:15:27 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m76si1480956wmi.31.2017.10.25.00.15.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Oct 2017 00:07:26 -0700 (PDT)
-From: Bart Van Assche <Bart.VanAssche@wdc.com>
-Subject: Re: [RESEND PATCH 1/3] completion: Add support for initializing
- completion with lockdep_map
-Date: Wed, 25 Oct 2017 07:07:06 +0000
-Message-ID: <1508915222.2947.15.camel@wdc.com>
-References: <1508319532-24655-1-git-send-email-byungchul.park@lge.com>
-	 <1508319532-24655-2-git-send-email-byungchul.park@lge.com>
-	 <1508455438.4542.4.camel@wdc.com>
-	 <alpine.DEB.2.20.1710200829340.3083@nanos>
-	 <1508529532.3029.15.camel@wdc.com>
-	 <CANrsvRNnOp_rgEWG2FGg7qaEQi=yEyhiZkpWSW62w21BvJ9Shg@mail.gmail.com>
-	 <1508682894.2564.8.camel@wdc.com> <20171023020822.GI3310@X58A-UD3R>
-In-Reply-To: <20171023020822.GI3310@X58A-UD3R>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <53F10DDA73D0334D8FA30A344F17E505@namprd04.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 25 Oct 2017 00:15:25 -0700 (PDT)
+Date: Wed, 25 Oct 2017 09:15:22 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
+Message-ID: <20171025071522.xyw4lsvdv4xsbhbo@dhcp22.suse.cz>
+References: <20171013063555.pa7uco43mod7vrkn@dhcp22.suse.cz>
+ <20171013070001.mglwdzdrqjt47clz@dhcp22.suse.cz>
+ <20171013152421.yf76n7jui3z5bbn4@dhcp22.suse.cz>
+ <20171024160637.GB32340@cmpxchg.org>
+ <20171024162213.n6jrpz3t5pldkgxy@dhcp22.suse.cz>
+ <20171024172330.GA3973@cmpxchg.org>
+ <20171024175558.uxqtxwhjgu6ceadk@dhcp22.suse.cz>
+ <20171024185854.GA6154@cmpxchg.org>
+ <20171024201522.3z2fjnfywgx2egqx@dhcp22.suse.cz>
+ <xr93r2tr67pp.fsf@gthelen.svl.corp.google.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <xr93r2tr67pp.fsf@gthelen.svl.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "byungchul.park@lge.com" <byungchul.park@lge.com>
-Cc: "mingo@kernel.org" <mingo@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "hch@infradead.org" <hch@infradead.org>, "amir73il@gmail.com" <amir73il@gmail.com>, "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "oleg@redhat.com" <oleg@redhat.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "darrick.wong@oracle.com" <darrick.wong@oracle.com>, "johannes.berg@intel.com" <johannes.berg@intel.com>, "max.byungchul.park@gmail.com" <max.byungchul.park@gmail.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "idryomov@gmail.com" <idryomov@gmail.com>, "tj@kernel.org" <tj@kernel.org>, "kernel-team@lge.com" <kernel-team@lge.com>, "david@fromorbit.com" <david@fromorbit.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-T24gTW9uLCAyMDE3LTEwLTIzIGF0IDExOjA4ICswOTAwLCBCeXVuZ2NodWwgUGFyayB3cm90ZToN
-Cj4gT24gU3VuLCBPY3QgMjIsIDIwMTcgYXQgMDI6MzQ6NTZQTSArMDAwMCwgQmFydCBWYW4gQXNz
-Y2hlIHdyb3RlOg0KPiA+IE9uIFNhdCwgMjAxNy0xMC0yMSBhdCAxMToyMyArMDkwMCwgQnl1bmdj
-aHVsIFBhcmsgd3JvdGU6DQo+ID4gPiBPbiBTYXQsIE9jdCAyMSwgMjAxNyBhdCA0OjU4IEFNLCBC
-YXJ0IFZhbiBBc3NjaGUgPEJhcnQuVmFuQXNzY2hlQHdkYy5jb20+IHdyb3RlOg0KPiA+ID4gPiBB
-cyBleHBsYWluZWQgaW4gYW5vdGhlciBlLW1haWwgdGhyZWFkLCB1bmxpa2UgdGhlIGxvY2sgaW52
-ZXJzaW9uIGNoZWNraW5nDQo+ID4gPiA+IHBlcmZvcm1lZCBieSB0aGUgPD0gdjQuMTMgbG9ja2Rl
-cCBjb2RlLCBjcm9zcy1yZWxlYXNlIGNoZWNraW5nIGlzIGEgaGV1cmlzdGljDQo+ID4gPiA+IHRo
-YXQgZG9lcyBub3QgaGF2ZSBhIHNvdW5kIHRoZW9yZXRpY2FsIGJhc2lzLiBUaGUgbG9jayB2YWxp
-ZGF0b3IgaXMgYW4NCj4gPiA+IA0KPiA+ID4gSXQncyBub3QgaGV1cmlzdGljIGJ1dCBiYXNlZCBv
-biB0aGUgc2FtZSB0aGVvcmV0aWNhbCBiYXNpcyBhcyA8PTQuMTMNCj4gPiA+IGxvY2tkZXAuIEkg
-bWVhbiwgdGhlIGtleSBiYXNpcyBpczoNCj4gPiA+IA0KPiA+ID4gICAgMSkgV2hhdCBjYXVzZXMg
-ZGVhZGxvY2sNCj4gPiA+ICAgIDIpIFdoYXQgaXMgYSBkZXBlbmRlbmN5DQo+ID4gPiAgICAzKSBC
-dWlsZCBhIGRlcGVuZGVuY3kgd2hlbiBpZGVudGlmaWVkDQo+ID4gDQo+ID4gU29ycnkgYnV0IEkg
-ZG91YnQgdGhhdCB0aGF0IHN0YXRlbWVudCBpcyBjb3JyZWN0LiBUaGUgcHVibGljYXRpb24gWzFd
-IGNvbnRhaW5zDQo+IA0KPiBJTUhPLCB0aGUgcGFwZXIgaXMgdGFsa2luZyBhYm91dCB0b3RhbGx5
-IGRpZmZlcmVudCB0aGluZ3Mgd3J0DQo+IGRlYWRsb2NrcyBieSB3YWl0X2Zvcl9ldmVudC9ldmVu
-dCwgdGhhdCBpcywgbG9zdCBldmVudHMuDQoNClBsZWFzZSByZXJlYWQgdGhlIHBhcGVyIHRpdGxl
-LiBUaGUgYXV0aG9ycyBvZiB0aGUgcGFwZXIgZXhwbGFpbiB0aGF0IHRoZWlyIGFsZ29yaXRobQ0K
-Y2FuIGRldGVjdCBsb3N0IGV2ZW50cyBidXQgdGhlIG1vc3Qgc2lnbmlmaWNhbnQgY29udHJpYnV0
-aW9uIG9mIHRoZSBwYXBlciBpcyBkZWFkbG9jaw0KZGV0ZWN0aW9uLg0KDQo+ID4gZmFsc2UgcG9z
-aXRpdmVzIGZvciBwcm9ncmFtcyB0aGF0IG9ubHkgdXNlIG11dGV4ZXMgYXMgc3luY2hyb25pemF0
-aW9uIG9iamVjdHMuDQo+IA0KPiBJIHdhbnQgdG8gYXNrIHlvdS4gV2hhdCBtYWtlcyBmYWxzZSBw
-b3NpdGl2ZXMgYXZvaWRhYmxlIGluIHRoZSBwYXBlcj8NCg0KVGhlIGFsZ29yaXRobSB1c2VkIHRv
-IGRldGVjdCBkZWFkbG9ja3MuIFRoYXQgYWxnb3JpdGhtIGhhcyBiZWVuIGV4cGxhaW5lZCBjbGVh
-cmx5DQppbiB0aGUgcGFwZXIuDQoNCj4gPiBUaGUgY29tbWVudCBvZiB0aGUgYXV0aG9ycyBvZiB0
-aGF0IHBhcGVyIGZvciBwcm9ncmFtcyB0aGF0IHVzZSBtdXRleGVzLA0KPiA+IGNvbmRpdGlvbiB2
-YXJpYWJsZXMgYW5kIHNlbWFwaG9yZXMgaXMgYXMgZm9sbG93czogIkl0IGlzIHVuY2xlYXIgaG93
-IHRvIGV4dGVuZA0KPiA+IHRoZSBsb2NrLWdyYXBoLWJhc2VkIGFsZ29yaXRobSBpbiBTZWN0aW9u
-IDMgdG8gZWZmaWNpZW50bHkgY29uc2lkZXIgdGhlIGVmZmVjdHMNCj4gPiBvZiBjb25kaXRpb24g
-dmFyaWFibGVzIGFuZCBzZW1hcGhvcmVzLiBUaGVyZWZvcmUsIHdoZW4gY29uc2lkZXJpbmcgYWxs
-IHRocmVlDQo+ID4gc3luY2hyb25pemF0aW9uIG1lY2hhbmlzbXMsIHdlIGN1cnJlbnRseSB1c2Ug
-YSBuYWl2ZSBhbGdvcml0aG0gdGhhdCBjaGVja3MgZWFjaA0KPiA+IGZlYXNpYmxlIHBlcm11dGF0
-aW9uIG9mIHRoZSB0cmFjZSBmb3IgZGVhZGxvY2suIiBJbiBvdGhlciB3b3JkcywgaWYgeW91IGhh
-dmUNCj4gPiBmb3VuZCBhbiBhcHByb2FjaCBmb3IgZGV0ZWN0aW5nIHBvdGVudGlhbCBkZWFkbG9j
-a3MgZm9yIHByb2dyYW1zIHRoYXQgdXNlIHRoZXNlDQo+ID4gdGhyZWUga2luZHMgb2Ygc3luY2hy
-b25pemF0aW9uIG9iamVjdHMgYW5kIHRoYXQgZG9lcyBub3QgcmVwb3J0IGZhbHNlIHBvc2l0aXZl
-cw0KPiA+IHRoZW4gdGhhdCdzIGEgYnJlYWt0aHJvdWdoIHRoYXQncyB3b3J0aCBwdWJsaXNoaW5n
-IGluIGEgam91cm5hbCBvciBpbiB0aGUNCj4gPiBwcm9jZWVkaW5ncyBvZiBhIHNjaWVudGlmaWMg
-Y29uZmVyZW5jZS4NCj4gDQo+IFBsZWFzZSwgcG9pbnQgb3V0IGxvZ2ljYWwgcHJvYmxlbXMgb2Yg
-Y3Jvc3MtcmVsZWFzZSB0aGFuIHNheWluZyBpdCdzDQo+IGltcG9zc2JpbGUgYWNjb3JkaW5nIHRv
-IHRoZSBwYXBlci4NCg0KSXNuJ3QgdGhhdCB0aGUgc2FtZT8gSWYgaXQncyBpbXBvc3NpYmxlIHRv
-IHVzZSBsb2NrLWdyYXBocyBmb3IgZGV0ZWN0aW5nIGRlYWRsb2Nrcw0KaW4gcHJvZ3JhbXMgdGhh
-dCB1c2UgbXV0ZXhlcywgc2VtYXBob3JlcyBhbmQgY29uZGl0aW9uIHZhcmlhYmxlcyB3aXRob3V0
-IHRyaWdnZXJpbmcNCmZhbHNlIHBvc2l0aXZlcyB0aGF0IG1lYW5zIHRoYXQgZXZlcnkgYXBwcm9h
-Y2ggdGhhdCB0cmllcyB0byBkZXRlY3QgZGVhZGxvY2tzIGFuZA0KdGhhdCBpcyBiYXNlZCBvbiBs
-b2NrIGdyYXBocywgaW5jbHVkaW5nIGNyb3NzLXJlbGVhc2UsIG11c3QgcmVwb3J0IGZhbHNlIHBv
-c2l0aXZlcw0KZm9yIGNlcnRhaW4gcHJvZ3JhbXMuDQoNCkJhcnQuDQo=
+On Tue 24-10-17 23:51:30, Greg Thelen wrote:
+> Michal Hocko <mhocko@kernel.org> wrote:
+[...]
+> > I am definitely not pushing that thing right now. It is good to discuss
+> > it, though. The more kernel allocations we will track the more careful we
+> > will have to be. So maybe we will have to reconsider the current
+> > approach. I am not sure we need it _right now_ but I feel we will
+> > eventually have to reconsider it.
+> 
+> The kernel already attempts to charge radix_tree_nodes.  If they fail
+> then we fallback to unaccounted memory. 
+
+I am not sure which code path you have in mind. All I can see is that we
+drop __GFP_ACCOUNT when preloading radix tree nodes. Anyway...
+
+> So the memcg limit already
+> isn't an air tight constraint.
+
+... we shouldn't make it more loose though.
+
+> I agree that unchecked overcharging could be bad, but wonder if we could
+> overcharge kmem so long as there is a pending oom kill victim.
+
+Why is this any better than simply trying to charge as long as the oom
+killer makes progress?
+
+> If
+> current is the victim or no victim, then fail allocations (as is
+> currently done).
+
+we actually force the charge in that case so we will proceed.
+
+> The current thread can loop in syscall exit until
+> usage is reconciled (either via reclaim or kill).  This seems consistent
+> with pagefault oom handling and compatible with overcommit use case.
+
+But we do not really want to make the syscall exit path any more complex
+or more expensive than it is. The point is that we shouldn't be afraid
+about triggering the oom killer from the charge patch because we do have
+async OOM killer. This is very same with the standard allocator path. So
+why should be memcg any different?
+
+> Here's an example of an overcommit case we've found quite useful.  Memcg A has
+> memory which is shared between children B and C.  B is more important the C.
+> B and C are unprivileged, neither has the authority to kill the other.
+> 
+>     /A(limit=100MB) - B(limit=80MB,prio=high)
+>                      \ C(limit=80MB,prio=low)
+> 
+> If memcg charge drives B.usage+C.usage>=A.limit, then C should be killed due to
+> its low priority.  B pagefault can kill, but if a syscall returns ENOMEM then B
+> can't do anything useful with it.
+
+well, my proposal was to not return ENOMEM and rather loop in the charge
+path and wait for the oom killer to free up some charges. Who gets
+killed is really out of scope of this discussion.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
