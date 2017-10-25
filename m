@@ -1,298 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D67676B025F
-	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 12:24:05 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id c21so228169wrg.16
-        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 09:24:05 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 34si1890812edj.475.2017.10.25.09.24.03
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 159566B0260
+	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 12:24:11 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id j58so343106qtj.7
+        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 09:24:11 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id y36si2733111qta.196.2017.10.25.09.24.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Oct 2017 09:24:04 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9PGHHdc050210
-	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 12:24:02 -0400
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2dtvckpd7u-1
+        Wed, 25 Oct 2017 09:24:10 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9PGMnFn102937
+	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 12:24:09 -0400
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2dtvgmdhjr-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 12:24:02 -0400
+	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 12:24:08 -0400
 Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 25 Oct 2017 17:24:00 +0100
+	Wed, 25 Oct 2017 17:24:06 +0100
 From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [RFC PATCH 2/3] userfaultfd: non-cooperative: generalize wake key structure
-Date: Wed, 25 Oct 2017 19:23:36 +0300
+Subject: [RFC PATCH 3/3] userfaultfd: non-cooperative: allow synchronous EVENT_REMOVE
+Date: Wed, 25 Oct 2017 19:23:37 +0300
 In-Reply-To: <1508948617-22505-1-git-send-email-rppt@linux.vnet.ibm.com>
 References: <1508948617-22505-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1508948617-22505-3-git-send-email-rppt@linux.vnet.ibm.com>
+Message-Id: <1508948617-22505-4-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>
 Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, Pavel Emelyanov <xemul@virtuozzo.com>, Mike Kravetz <mike.kravetz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-api <linux-api@vger.kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-Upcoming support for synchronous non-page-fault events will require
-userfaultfd_wake_function to be able to differentiate between the event
-types. Depending on the event type, different parameters will define if the
-wait queue element should be awaken. This requires more general structure
-than userfaultfd_wake_range to be used as the "key" parameter for
-userfaultfd_wake_function.
-This patch introduces userfaultfd_wake_key that is used for waking up
-threads waiting on page-fault and non-cooperative events.
+In non-cooperative case, multi-threaded userfaultfd monitor may encounter a
+race between UFFDIO_COPY and the processing of UFFD_EVENT_REMOVE.
+Unlike the page faults that suspend the faulting thread until the page
+fault is resolved, other events resume exectution of the thread that caused
+the event immediately after delivering the notification to the userfaultfd
+monitor. The monitor may run UFFDIO_COPY in parallel with the event
+processing and this may result in memory corruption.
+With UFFD_EVENT_REMOVE_SYNC introduced by this patch, it would be possible
+to block the non-cooperative thread until the userfaultfd monitor will
+explicitly wake it.
 
 Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
 ---
- fs/userfaultfd.c | 112 +++++++++++++++++++++++++++++++++++--------------------
- 1 file changed, 72 insertions(+), 40 deletions(-)
+ fs/userfaultfd.c                 | 32 +++++++++++++++++++++++++++++++-
+ include/uapi/linux/userfaultfd.h | 11 +++++++++++
+ 2 files changed, 42 insertions(+), 1 deletion(-)
 
 diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index efa8b4240039..67cec38473b8 100644
+index 67cec38473b8..06a6475c1bf5 100644
 --- a/fs/userfaultfd.c
 +++ b/fs/userfaultfd.c
-@@ -91,21 +91,43 @@ struct userfaultfd_wake_range {
- 	unsigned long len;
- };
+@@ -658,6 +658,14 @@ static void userfaultfd_event_complete(struct userfaultfd_ctx *ctx,
+ {
+ 	struct userfaultfd_wake_key key = { 0 };
  
-+struct userfaultfd_wake_key {
-+	u8 event;
-+	union {
-+		struct userfaultfd_wake_range range;
-+	} arg;
-+};
++	/*
++	 * For synchronous events we don't wake up the thread that
++	 * caused the event. The userfault monitor has to explicitly
++	 * wake it with ioctl(UFFDIO_WAKE_SYNC_EVENT)
++	 */
++	if (ewq->msg.event & UFFD_EVENT_FLAG_SYNC)
++		return;
 +
-+static bool userfaultfd_should_wake(struct userfaultfd_wait_queue *uwq,
-+				    struct userfaultfd_wake_key *key)
+ 	key.event = ewq->msg.event;
+ 	 __wake_up_locked_key(&ctx->event_wqh, TASK_NORMAL, &key);
+ }
+@@ -778,7 +786,8 @@ bool userfaultfd_remove(struct vm_area_struct *vma,
+ 	struct userfaultfd_wait_queue ewq;
+ 
+ 	ctx = vma->vm_userfaultfd_ctx.ctx;
+-	if (!ctx || !(ctx->features & UFFD_FEATURE_EVENT_REMOVE))
++	if (!ctx || !(ctx->features & UFFD_FEATURE_EVENT_REMOVE ||
++		      ctx->features & UFFD_FEATURE_EVENT_REMOVE_SYNC))
+ 		return true;
+ 
+ 	userfaultfd_ctx_get(ctx);
+@@ -787,6 +796,9 @@ bool userfaultfd_remove(struct vm_area_struct *vma,
+ 	msg_init(&ewq.msg);
+ 
+ 	ewq.msg.event = UFFD_EVENT_REMOVE;
++	if (ctx->features & UFFD_FEATURE_EVENT_REMOVE_SYNC)
++		ewq.msg.event |= UFFD_EVENT_FLAG_SYNC;
++
+ 	ewq.msg.arg.remove.start = start;
+ 	ewq.msg.arg.remove.end = end;
+ 
+@@ -1670,6 +1682,21 @@ static int userfaultfd_wake(struct userfaultfd_ctx *ctx,
+ 	return ret;
+ }
+ 
++static int userfaultfd_wake_sync_event(struct userfaultfd_ctx *ctx,
++				       unsigned long arg)
 +{
-+	if (key->event != uwq->msg.event)
-+		return false;
++	struct userfaultfd_wake_key key = {
++		.event = arg,
++	};
 +
-+	if (key->event == UFFD_EVENT_PAGEFAULT) {
-+		unsigned long start, len, address;
++	spin_lock(&ctx->event_wqh.lock);
++	if (waitqueue_active(&ctx->event_wqh))
++		__wake_up_locked_key(&ctx->event_wqh, TASK_NORMAL, &key);
++	spin_unlock(&ctx->event_wqh.lock);
 +
-+		/* len == 0 means wake all */
-+		address = uwq->msg.arg.pagefault.address;
-+		start = key->arg.range.start;
-+		len = key->arg.range.len;
-+		if (len && (start > address || start + len <= address))
-+			return false;
-+	}
-+
-+	return true;
++	return 0;
 +}
 +
- static int userfaultfd_wake_function(wait_queue_entry_t *wq, unsigned mode,
--				     int wake_flags, void *key)
-+				     int wake_flags, void *_key)
+ static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
+ 			    unsigned long arg)
  {
--	struct userfaultfd_wake_range *range = key;
-+	struct userfaultfd_wake_key *key = _key;
- 	int ret;
- 	struct userfaultfd_wait_queue *uwq;
--	unsigned long start, len;
+@@ -1842,6 +1869,9 @@ static long userfaultfd_ioctl(struct file *file, unsigned cmd,
+ 	case UFFDIO_WAKE:
+ 		ret = userfaultfd_wake(ctx, arg);
+ 		break;
++	case UFFDIO_WAKE_SYNC_EVENT:
++		ret = userfaultfd_wake_sync_event(ctx, arg);
++		break;
+ 	case UFFDIO_COPY:
+ 		ret = userfaultfd_copy(ctx, arg);
+ 		break;
+diff --git a/include/uapi/linux/userfaultfd.h b/include/uapi/linux/userfaultfd.h
+index d6d1f65cb3c3..32b96a048baf 100644
+--- a/include/uapi/linux/userfaultfd.h
++++ b/include/uapi/linux/userfaultfd.h
+@@ -21,6 +21,7 @@
+ #define UFFD_API_FEATURES (UFFD_FEATURE_EVENT_FORK |		\
+ 			   UFFD_FEATURE_EVENT_REMAP |		\
+ 			   UFFD_FEATURE_EVENT_REMOVE |	\
++			   UFFD_FEATURE_EVENT_REMOVE_SYNC |	\
+ 			   UFFD_FEATURE_EVENT_UNMAP |		\
+ 			   UFFD_FEATURE_MISSING_HUGETLBFS |	\
+ 			   UFFD_FEATURE_MISSING_SHMEM |		\
+@@ -51,6 +52,7 @@
+ #define _UFFDIO_WAKE			(0x02)
+ #define _UFFDIO_COPY			(0x03)
+ #define _UFFDIO_ZEROPAGE		(0x04)
++#define _UFFDIO_WAKE_SYNC_EVENT		(0x05)
+ #define _UFFDIO_API			(0x3F)
  
- 	uwq = container_of(wq, struct userfaultfd_wait_queue, wq);
- 	ret = 0;
--	/* len == 0 means wake all */
--	start = range->start;
--	len = range->len;
--	if (len && (start > uwq->msg.arg.pagefault.address ||
--		    start + len <= uwq->msg.arg.pagefault.address))
-+	if (!userfaultfd_should_wake(uwq, key))
- 		goto out;
- 	WRITE_ONCE(uwq->waken, true);
- 	/*
-@@ -580,7 +602,7 @@ static void userfaultfd_event_wait_completion(struct userfaultfd_ctx *ctx,
- 		goto out;
+ /* userfaultfd ioctl ids */
+@@ -67,6 +69,7 @@
+ 				      struct uffdio_copy)
+ #define UFFDIO_ZEROPAGE		_IOWR(UFFDIO, _UFFDIO_ZEROPAGE,	\
+ 				      struct uffdio_zeropage)
++#define UFFDIO_WAKE_SYNC_EVENT	_IOR(UFFDIO, _UFFDIO_WAKE_SYNC_EVENT, __u32)
  
- 	ewq->ctx = ctx;
--	init_waitqueue_entry(&ewq->wq, current);
-+	userfaultfd_init_waitqueue(ctx, ewq);
+ /* read() structure */
+ struct uffd_msg {
+@@ -118,6 +121,13 @@ struct uffd_msg {
+ #define UFFD_EVENT_REMOVE	0x15
+ #define UFFD_EVENT_UNMAP	0x16
  
- 	spin_lock(&ctx->event_wqh.lock);
- 	/*
-@@ -590,7 +612,7 @@ static void userfaultfd_event_wait_completion(struct userfaultfd_ctx *ctx,
- 	__add_wait_queue(&ctx->event_wqh, &ewq->wq);
- 	for (;;) {
- 		set_current_state(TASK_KILLABLE);
--		if (ewq->msg.event == 0)
-+		if (READ_ONCE(ewq->waken))
- 			break;
- 		if (ACCESS_ONCE(ctx->released) ||
- 		    fatal_signal_pending(current)) {
-@@ -634,9 +656,10 @@ static void userfaultfd_event_wait_completion(struct userfaultfd_ctx *ctx,
- static void userfaultfd_event_complete(struct userfaultfd_ctx *ctx,
- 				       struct userfaultfd_wait_queue *ewq)
- {
--	ewq->msg.event = 0;
--	wake_up_locked(&ctx->event_wqh);
--	__remove_wait_queue(&ctx->event_wqh, &ewq->wq);
-+	struct userfaultfd_wake_key key = { 0 };
++/*
++ * Events that are delivered synchronously. The causing thread is
++ * blocked until the event is handled by the userfault monitor
++ */
++#define UFFD_EVENT_FLAG_SYNC	0x80
++#define UFFD_EVENT_REMOVE_SYNC	(UFFD_EVENT_REMOVE | UFFD_EVENT_FLAG_SYNC)
 +
-+	key.event = ewq->msg.event;
-+	 __wake_up_locked_key(&ctx->event_wqh, TASK_NORMAL, &key);
- }
+ /* flags for UFFD_EVENT_PAGEFAULT */
+ #define UFFD_PAGEFAULT_FLAG_WRITE	(1<<0)	/* If this was a write fault */
+ #define UFFD_PAGEFAULT_FLAG_WP		(1<<1)	/* If reason is VM_UFFD_WP */
+@@ -175,6 +185,7 @@ struct uffdio_api {
+ #define UFFD_FEATURE_EVENT_UNMAP		(1<<6)
+ #define UFFD_FEATURE_SIGBUS			(1<<7)
+ #define UFFD_FEATURE_THREAD_ID			(1<<8)
++#define UFFD_FEATURE_EVENT_REMOVE_SYNC		(1<<9)
+ 	__u64 features;
  
- int dup_userfaultfd(struct vm_area_struct *vma, struct list_head *fcs)
-@@ -836,7 +859,12 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
- 	struct mm_struct *mm = ctx->mm;
- 	struct vm_area_struct *vma, *prev;
- 	/* len == 0 means wake all */
--	struct userfaultfd_wake_range range = { .len = 0, };
-+	struct userfaultfd_wake_key key = {
-+		.event = UFFD_EVENT_PAGEFAULT,
-+		.arg.range = {
-+			.len = 0,
-+		},
-+	};
- 	unsigned long new_flags;
- 
- 	ACCESS_ONCE(ctx->released) = true;
-@@ -884,8 +912,8 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
- 	 * the fault_*wqh.
- 	 */
- 	spin_lock(&ctx->fault_pending_wqh.lock);
--	__wake_up_locked_key(&ctx->fault_pending_wqh, TASK_NORMAL, &range);
--	__wake_up_locked_key(&ctx->fault_wqh, TASK_NORMAL, &range);
-+	__wake_up_locked_key(&ctx->fault_pending_wqh, TASK_NORMAL, &key);
-+	__wake_up_locked_key(&ctx->fault_wqh, TASK_NORMAL, &key);
- 	spin_unlock(&ctx->fault_pending_wqh.lock);
- 
- 	/* Flush pending events that may still wait on event_wqh */
-@@ -1192,20 +1220,20 @@ static ssize_t userfaultfd_read(struct file *file, char __user *buf,
- }
- 
- static void __wake_userfault(struct userfaultfd_ctx *ctx,
--			     struct userfaultfd_wake_range *range)
-+			     struct userfaultfd_wake_key *key)
- {
- 	spin_lock(&ctx->fault_pending_wqh.lock);
- 	/* wake all in the range and autoremove */
- 	if (waitqueue_active(&ctx->fault_pending_wqh))
- 		__wake_up_locked_key(&ctx->fault_pending_wqh, TASK_NORMAL,
--				     range);
-+				     key);
- 	if (waitqueue_active(&ctx->fault_wqh))
--		__wake_up_locked_key(&ctx->fault_wqh, TASK_NORMAL, range);
-+		__wake_up_locked_key(&ctx->fault_wqh, TASK_NORMAL, key);
- 	spin_unlock(&ctx->fault_pending_wqh.lock);
- }
- 
- static __always_inline void wake_userfault(struct userfaultfd_ctx *ctx,
--					   struct userfaultfd_wake_range *range)
-+					   struct userfaultfd_wake_key *key)
- {
- 	unsigned seq;
- 	bool need_wakeup;
-@@ -1232,7 +1260,7 @@ static __always_inline void wake_userfault(struct userfaultfd_ctx *ctx,
- 		cond_resched();
- 	} while (read_seqcount_retry(&ctx->refile_seq, seq));
- 	if (need_wakeup)
--		__wake_userfault(ctx, range);
-+		__wake_userfault(ctx, key);
- }
- 
- static __always_inline int validate_range(struct mm_struct *mm,
-@@ -1558,10 +1586,11 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
- 			 * permanently and it avoids userland to call
- 			 * UFFDIO_WAKE explicitly.
- 			 */
--			struct userfaultfd_wake_range range;
--			range.start = start;
--			range.len = vma_end - start;
--			wake_userfault(vma->vm_userfaultfd_ctx.ctx, &range);
-+			struct userfaultfd_wake_key key;
-+			key.event = UFFD_EVENT_PAGEFAULT;
-+			key.arg.range.start = start;
-+			key.arg.range.len = vma_end - start;
-+			wake_userfault(vma->vm_userfaultfd_ctx.ctx, &key);
- 		}
- 
- 		new_flags = vma->vm_flags & ~(VM_UFFD_MISSING | VM_UFFD_WP);
-@@ -1613,7 +1642,7 @@ static int userfaultfd_wake(struct userfaultfd_ctx *ctx,
- {
- 	int ret;
- 	struct uffdio_range uffdio_wake;
--	struct userfaultfd_wake_range range;
-+	struct userfaultfd_wake_key key;
- 	const void __user *buf = (void __user *)arg;
- 
- 	ret = -EFAULT;
-@@ -1624,16 +1653,17 @@ static int userfaultfd_wake(struct userfaultfd_ctx *ctx,
- 	if (ret)
- 		goto out;
- 
--	range.start = uffdio_wake.start;
--	range.len = uffdio_wake.len;
-+	key.event = UFFD_EVENT_PAGEFAULT;
-+	key.arg.range.start = uffdio_wake.start;
-+	key.arg.range.len = uffdio_wake.len;
- 
- 	/*
- 	 * len == 0 means wake all and we don't want to wake all here,
- 	 * so check it again to be sure.
- 	 */
--	VM_BUG_ON(!range.len);
-+	VM_BUG_ON(!key.arg.range.len);
- 
--	wake_userfault(ctx, &range);
-+	wake_userfault(ctx, &key);
- 	ret = 0;
- 
- out:
-@@ -1646,7 +1676,7 @@ static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
- 	__s64 ret;
- 	struct uffdio_copy uffdio_copy;
- 	struct uffdio_copy __user *user_uffdio_copy;
--	struct userfaultfd_wake_range range;
-+	struct userfaultfd_wake_key key;
- 
- 	user_uffdio_copy = (struct uffdio_copy __user *) arg;
- 
-@@ -1682,12 +1712,13 @@ static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
- 		goto out;
- 	BUG_ON(!ret);
- 	/* len == 0 would wake all */
--	range.len = ret;
-+	key.event = UFFD_EVENT_PAGEFAULT;
-+	key.arg.range.len = ret;
- 	if (!(uffdio_copy.mode & UFFDIO_COPY_MODE_DONTWAKE)) {
--		range.start = uffdio_copy.dst;
--		wake_userfault(ctx, &range);
-+		key.arg.range.start = uffdio_copy.dst;
-+		wake_userfault(ctx, &key);
- 	}
--	ret = range.len == uffdio_copy.len ? 0 : -EAGAIN;
-+	ret = key.arg.range.len == uffdio_copy.len ? 0 : -EAGAIN;
- out:
- 	return ret;
- }
-@@ -1698,7 +1729,7 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
- 	__s64 ret;
- 	struct uffdio_zeropage uffdio_zeropage;
- 	struct uffdio_zeropage __user *user_uffdio_zeropage;
--	struct userfaultfd_wake_range range;
-+	struct userfaultfd_wake_key key;
- 
- 	user_uffdio_zeropage = (struct uffdio_zeropage __user *) arg;
- 
-@@ -1729,12 +1760,13 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
- 		goto out;
- 	/* len == 0 would wake all */
- 	BUG_ON(!ret);
--	range.len = ret;
-+	key.event = UFFD_EVENT_PAGEFAULT;
-+	key.arg.range.len = ret;
- 	if (!(uffdio_zeropage.mode & UFFDIO_ZEROPAGE_MODE_DONTWAKE)) {
--		range.start = uffdio_zeropage.range.start;
--		wake_userfault(ctx, &range);
-+		key.arg.range.start = uffdio_zeropage.range.start;
-+		wake_userfault(ctx, &key);
- 	}
--	ret = range.len == uffdio_zeropage.range.len ? 0 : -EAGAIN;
-+	ret = key.arg.range.len == uffdio_zeropage.range.len ? 0 : -EAGAIN;
- out:
- 	return ret;
- }
+ 	__u64 ioctls;
 -- 
 2.7.4
 
