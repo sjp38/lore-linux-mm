@@ -1,133 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BE286B0253
-	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 18:01:38 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id b6so793597pff.18
-        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 15:01:38 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id u6si2069759pld.277.2017.10.25.15.01.36
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 305976B0033
+	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 18:45:58 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id e68so1599200oih.21
+        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 15:45:58 -0700 (PDT)
+Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
+        by mx.google.com with ESMTPS id x12si1126629otg.28.2017.10.25.15.45.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 25 Oct 2017 15:01:36 -0700 (PDT)
-Date: Wed, 25 Oct 2017 15:01:32 -0700
-From: Sharath Kumar Bhat <sharath.k.bhat@linux.intel.com>
-Subject: Re: [PATCH] mm: fix movable_node kernel command-line
-Message-ID: <20171025220132.GA2614@linux.intel.com>
-Reply-To: sharath.k.bhat@linux.intel.com
-References: <20171023184852.GB12198@linux.intel.com>
- <20171023190459.odyu26rqhuja4trj@dhcp22.suse.cz>
- <20171023192524.GC12198@linux.intel.com>
- <20171023193536.c7yptc4tpesa4ffl@dhcp22.suse.cz>
- <20171023195637.GE12198@linux.intel.com>
- <0ed8144f-4447-e2de-47f7-ea1fc16f0b25@intel.com>
- <20171024010633.GA2723@linux.intel.com>
- <20171024071906.64ikc733x53zmgzu@dhcp22.suse.cz>
- <20171025005314.GA2636@linux.intel.com>
- <20171025063852.nunaquo5wevayejf@dhcp22.suse.cz>
+        Wed, 25 Oct 2017 15:45:53 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] Hugetlb pages rss accounting is incorrect in
+ /proc/<pid>/smaps
+Date: Wed, 25 Oct 2017 22:45:10 +0000
+Message-ID: <20171025224508.GA18691@hori1.linux.bs1.fc.nec.co.jp>
+References: <1508889368-14489-1-git-send-email-prakash.sangappa@oracle.com>
+ <20171025065527.wmii7ce5y5i4exx5@dhcp22.suse.cz>
+In-Reply-To: <20171025065527.wmii7ce5y5i4exx5@dhcp22.suse.cz>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <B2CA56BE5818424693BACB162DD983A3@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171025063852.nunaquo5wevayejf@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Sharath Kumar Bhat <sharath.k.bhat@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: Prakash Sangappa <prakash.sangappa@oracle.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "minchan@kernel.org" <minchan@kernel.org>, "rientjes@google.com" <rientjes@google.com>, "dancol@google.com" <dancol@google.com>
 
-On Wed, Oct 25, 2017 at 08:38:52AM +0200, Michal Hocko wrote:
-> On Tue 24-10-17 17:53:14, Sharath Kumar Bhat wrote:
-> > On Tue, Oct 24, 2017 at 09:19:06AM +0200, Michal Hocko wrote:
-> > > On Mon 23-10-17 18:06:33, Sharath Kumar Bhat wrote:
-> [...]
-> > > > And moreover
-> > > > 'movable_node' is implemented with an assumption to provide the entire
-> > > > hotpluggable memory as movable zone. This ACPI override would be against
-> > > > that assumption.
-> > > 
-> > > This is true and in fact movable_node should become movable_memory over
-> > > time and only ranges marked as movable would become really movable. This
-> > > is a rather non-trivial change to do and there is not a great demand for
-> > > the feature so it is low on my TODO list.
-> > 
-> > Do you mean to have a single kernel command-line 'movable_memory=' for this
-> > purpose and remove all other kernel command-line parameters such as
-> > 'kernelcore=', 'movablecore=' and 'movable_node'?
-> 
-> yes.
+On Wed, Oct 25, 2017 at 08:55:27AM +0200, Michal Hocko wrote:
+> [CCing Naoya]
+>=20
+> On Tue 24-10-17 16:56:08, Prakash Sangappa wrote:
+> > Resident set size(Rss) accounting of hugetlb pages is not done
+> > currently in /proc/<pid>/smaps. The pmap command reads rss from
+> > this file and so it shows Rss to be 0 in pmap -x output for
+> > hugetlb mapped vmas. This patch fixes it.
+>=20
+> We do not account in rss because we do have a dedicated counters
+> depending on whether the hugetlb page is mapped privately or it is
+> shared. The reason this is not in RSS IIRC is that a large unexpected
+> RSS from hugetlb pages might confuse system monitors.
 
-Ok then I believe it will let user to specify multiple memory ranges so
-that admin can explicitly choose to have movable zones in either
-hotpluggable or non-hotpluggable memories. Because in this use case the
-requirement is to have the movable zones in both hotpluggable and
-non-hotpluggable memories.
+Yes, that was the intention of separate counters for hugetlb.
 
-> 
-> > because after the kernel
-> > boots up we can not gurantee that a contig memory range can be made zone
-> > movable since any kernel allocations could pre-exist.
-> 
-> No, I meant that the zone association would be done _only_ based by
-> memory attributes exported by ACPI or whatever is used to configure
-> memory ranges on the particular platform. So an early init code.
-> 
-> > > > Also ACPI override would introduce additional topology
-> > > > changes. Again this would have to change every time the total movable
-> > > > memory requirement changes and the whole system and apps have to be
-> > > > re-tuned (for job launch ex: numactl etc) to comphrehend this change.
-> > > 
-> > > This is something you have to do anyway when the topology of the system
-> > > changes each boot.
-> > 
-> > No, this is a manual tuning for job-launch, mem policy handling code etc.
-> > which would be done once for a platform. But in this case based on the
-> > application need the amount of movable memory will change so it is really
-> > unfair to ask user to re-work their job launch and apps for every such
-> > changes.
-> 
-> I am still confused. Why does the application even care about
-> movability?
+> This is one of
+> those backward compatibility issues when you start accounting something
+> too late.
 
-Right its not about movability, since 'movable_node' assumes that the entire
-memory node is hotpluggable, to stay compatible with it the memory ranges of
-non-hotpluggable memory that we want to be movable zone should be exposed as
-a complete node. This increases the number of NUMA nodes and the total
-no.of such nodes changes as the movable memory requirement changes.
+So new monitoring applications are supposed to check the new counters
+to track hugetlb usages.
 
->  
-> > > That being said, I would really prefer to actually _remove_ kernel_core
-> > > parameter altogether. It is messy (just look at find_zone_movable_pfns_for_nodes
-> > > at al.) and the original usecase it has been added for [1] does not hold
-> > > anymore. Adding more stuff to workaround issues which can be handled
-> > > more cleanly is definitely not a right way to go.
-> > 
-> > I agree that kernelcore handling is non-trivial in that function. But the
-> > changes introduced by this patch are under 'movable_node' case handling in
-> > find_zone_movable_pfns_for_nodes() and it does not cause any change to the
-> > existing kernelcore behavior of the code. Also this enables all
-> > multi-kernel users to make use of this functionality untill later when
-> > new interface would be available for the same purpose.
-> 
-> The point is to not build on top and rather get rid of it completely.
+Thanks,
+Naoya Horiguchi
 
-I thought you mentioned its a low priority on the TODO list and you
-dont expect to see it in the near future. So till then there is no
-existing solution that one case use.
 
->  
-> > > [1] note that MOVABLE_ZONE has been originally added to help the
-> > > fragmentation avoidance.
-> > 
-> > Isn't this true even now since ZONE_MOVABLE will populate only
-> > MIGRATE_MOVABLE free list of pages? and other zones could have
-> > MIGRATE_UNMOVABLE pages?
-> 
-> My point was that the original motivation is gone because our compaction
-> code doesn't really depend on movable zone. So the movable zone is more
-> about making sure that the specific memory is migratable and so
-> offlineable.
-> 
-> -- 
+>=20
+> > Signed-off-by: Prakash Sangappa <prakash.sangappa@oracle.com>
+> > ---
+> >  fs/proc/task_mmu.c | 1 +
+> >  1 file changed, 1 insertion(+)
+> >=20
+> > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> > index 5589b4b..c7e1048 100644
+> > --- a/fs/proc/task_mmu.c
+> > +++ b/fs/proc/task_mmu.c
+> > @@ -724,6 +724,7 @@ static int smaps_hugetlb_range(pte_t *pte, unsigned=
+ long hmask,
+> >  			mss->shared_hugetlb +=3D huge_page_size(hstate_vma(vma));
+> >  		else
+> >  			mss->private_hugetlb +=3D huge_page_size(hstate_vma(vma));
+> > +		mss->resident +=3D huge_page_size(hstate_vma(vma));
+> >  	}
+> >  	return 0;
+> >  }
+> > --=20
+> > 2.7.4
+> >=20
+>=20
+> --=20
 > Michal Hocko
 > SUSE Labs
+>=20
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
