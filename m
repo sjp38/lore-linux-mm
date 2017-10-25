@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A053D6B025E
-	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 04:56:32 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id a8so20472954pfc.6
-        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 01:56:32 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id p5si1549676pgf.113.2017.10.25.01.56.30
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7047E6B025F
+	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 04:56:33 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id f85so20433301pfe.7
+        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 01:56:33 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id a22si1353915plm.225.2017.10.25.01.56.31
         for <linux-mm@kvack.org>;
-        Wed, 25 Oct 2017 01:56:31 -0700 (PDT)
+        Wed, 25 Oct 2017 01:56:32 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v5 3/9] completion: Change the prefix of lock name for completion variable
-Date: Wed, 25 Oct 2017 17:55:59 +0900
-Message-Id: <1508921765-15396-4-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v5 5/9] locking/lockdep: Remove the BROKEN flag from CONFIG_LOCKDEP_CROSSRELEASE and CONFIG_LOCKDEP_COMPLETIONS
+Date: Wed, 25 Oct 2017 17:56:01 +0900
+Message-Id: <1508921765-15396-6-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1508921765-15396-1-git-send-email-byungchul.park@lge.com>
 References: <1508921765-15396-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,40 +19,29 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org, axboe@kernel.dk
 Cc: johan@kernel.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
 
-CONFIG_LOCKDEP_COMPLETIONS uses "(complete)" as a prefix of lock name
-for completion variable.
+Now that the performance regression is fixed, re-enable
+CONFIG_LOCKDEP_CROSSRELEASE=y and CONFIG_LOCKDEP_COMPLETIONS=y.
 
-However, "complete" is a verb or adjective and lock symbol names
-should be nouns. Use "(completion)" instead, for normal completions.
-
-Suggested-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- include/linux/completion.h | 4 ++--
+ lib/Kconfig.debug | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/completion.h b/include/linux/completion.h
-index cae5400..9121803 100644
---- a/include/linux/completion.h
-+++ b/include/linux/completion.h
-@@ -53,7 +53,7 @@ static inline void complete_release_commit(struct completion *x)
- do {									\
- 	static struct lock_class_key __key;				\
- 	lockdep_init_map_crosslock((struct lockdep_map *)&(x)->map,	\
--			"(complete)" #x,				\
-+			"(completion)" #x,				\
- 			&__key, 0);					\
- 	__init_completion(x);						\
- } while (0)
-@@ -67,7 +67,7 @@ static inline void complete_release_commit(struct completion *x) {}
- #ifdef CONFIG_LOCKDEP_COMPLETIONS
- #define COMPLETION_INITIALIZER(work) \
- 	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait), \
--	STATIC_CROSS_LOCKDEP_MAP_INIT("(complete)" #work, &(work)) }
-+	STATIC_CROSS_LOCKDEP_MAP_INIT("(completion)" #work, &(work)) }
- #else
- #define COMPLETION_INITIALIZER(work) \
- 	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait) }
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index 3db9167..4bef610 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -1138,8 +1138,8 @@ config PROVE_LOCKING
+ 	select DEBUG_MUTEXES
+ 	select DEBUG_RT_MUTEXES if RT_MUTEXES
+ 	select DEBUG_LOCK_ALLOC
+-	select LOCKDEP_CROSSRELEASE if BROKEN
+-	select LOCKDEP_COMPLETIONS if BROKEN
++	select LOCKDEP_CROSSRELEASE
++	select LOCKDEP_COMPLETIONS
+ 	select TRACE_IRQFLAGS
+ 	default n
+ 	help
 -- 
 1.9.1
 
