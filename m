@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 370696B0266
-	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 04:56:35 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 15so16605107pgc.21
-        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 01:56:35 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id l197si1555165pga.371.2017.10.25.01.56.32
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 816936B0268
+	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 04:56:36 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id p2so20504929pfk.13
+        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 01:56:36 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id x185si1547143pgx.10.2017.10.25.01.56.33
         for <linux-mm@kvack.org>;
-        Wed, 25 Oct 2017 01:56:33 -0700 (PDT)
+        Wed, 25 Oct 2017 01:56:34 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v5 7/9] completion: Add support for initializing completion with lockdep_map
-Date: Wed, 25 Oct 2017 17:56:03 +0900
-Message-Id: <1508921765-15396-8-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v5 8/9] workqueue: Remove unnecessary acquisitions wrt workqueue flush
+Date: Wed, 25 Oct 2017 17:56:04 +0900
+Message-Id: <1508921765-15396-9-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1508921765-15396-1-git-send-email-byungchul.park@lge.com>
 References: <1508921765-15396-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,66 +19,89 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org, axboe@kernel.dk
 Cc: johan@kernel.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
 
-Sometimes, we want to initialize completions with sparate lockdep maps
-to assign lock classes as desired. For example, the workqueue code
-needs to directly manage lockdep maps, since only the code is aware of
-how to classify lockdep maps properly.
-
-Provide additional macros initializing completions in that way.
+The workqueue added manual acquisitions to catch deadlock cases.
+Now crossrelease was introduced, some of those are redundant, since
+wait_for_completion() already includes the acquisition for itself.
+Remove it.
 
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- include/linux/completion.h | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ include/linux/workqueue.h |  4 ++--
+ kernel/workqueue.c        | 19 +++----------------
+ 2 files changed, 5 insertions(+), 18 deletions(-)
 
-diff --git a/include/linux/completion.h b/include/linux/completion.h
-index 9121803..4da4991 100644
---- a/include/linux/completion.h
-+++ b/include/linux/completion.h
-@@ -49,6 +49,13 @@ static inline void complete_release_commit(struct completion *x)
- 	lock_commit_crosslock((struct lockdep_map *)&x->map);
- }
- 
-+#define init_completion_map(x, m)					\
-+do {									\
-+	lockdep_init_map_crosslock((struct lockdep_map *)&(x)->map,	\
-+			(m)->name, (m)->key, 0);				\
-+	__init_completion(x);						\
-+} while (0)
-+
- #define init_completion(x)						\
- do {									\
+diff --git a/include/linux/workqueue.h b/include/linux/workqueue.h
+index f3c47a0..0544ad3 100644
+--- a/include/linux/workqueue.h
++++ b/include/linux/workqueue.h
+@@ -218,7 +218,7 @@ static inline void destroy_delayed_work_on_stack(struct delayed_work *work) { }
+ 									\
+ 		__init_work((_work), _onstack);				\
+ 		(_work)->data = (atomic_long_t) WORK_DATA_INIT();	\
+-		lockdep_init_map(&(_work)->lockdep_map, #_work, &__key, 0); \
++		lockdep_init_map(&(_work)->lockdep_map, "(work_completion)"#_work, &__key, 0); \
+ 		INIT_LIST_HEAD(&(_work)->entry);			\
+ 		(_work)->func = (_func);				\
+ 	} while (0)
+@@ -399,7 +399,7 @@ enum {
  	static struct lock_class_key __key;				\
-@@ -58,6 +65,7 @@ static inline void complete_release_commit(struct completion *x)
- 	__init_completion(x);						\
- } while (0)
- #else
-+#define init_completion_map(x, m) __init_completion(x)
- #define init_completion(x) __init_completion(x)
- static inline void complete_acquire(struct completion *x) {}
- static inline void complete_release(struct completion *x) {}
-@@ -73,6 +81,9 @@ static inline void complete_release_commit(struct completion *x) {}
- 	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait) }
- #endif
+ 	const char *__lock_name;					\
+ 									\
+-	__lock_name = #fmt#args;					\
++	__lock_name = "(wq_completion)"#fmt#args;			\
+ 									\
+ 	__alloc_workqueue_key((fmt), (flags), (max_active),		\
+ 			      &__key, __lock_name, ##args);		\
+diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+index c77fdf6..ee05d19 100644
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -2496,15 +2496,8 @@ static void insert_wq_barrier(struct pool_workqueue *pwq,
+ 	INIT_WORK_ONSTACK(&barr->work, wq_barrier_func);
+ 	__set_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(&barr->work));
  
-+#define COMPLETION_INITIALIZER_ONSTACK_MAP(work, map) \
-+	(*({ init_completion_map(&(work), &(map)); &(work); }))
+-	/*
+-	 * Explicitly init the crosslock for wq_barrier::done, make its lock
+-	 * key a subkey of the corresponding work. As a result we won't
+-	 * build a dependency between wq_barrier::done and unrelated work.
+-	 */
+-	lockdep_init_map_crosslock((struct lockdep_map *)&barr->done.map,
+-				   "(complete)wq_barr::done",
+-				   target->lockdep_map.key, 1);
+-	__init_completion(&barr->done);
++	init_completion_map(&barr->done, &target->lockdep_map);
 +
- #define COMPLETION_INITIALIZER_ONSTACK(work) \
- 	(*({ init_completion(&work); &work; }))
+ 	barr->task = current;
  
-@@ -102,8 +113,11 @@ static inline void complete_release_commit(struct completion *x) {}
- #ifdef CONFIG_LOCKDEP
- # define DECLARE_COMPLETION_ONSTACK(work) \
- 	struct completion work = COMPLETION_INITIALIZER_ONSTACK(work)
-+# define DECLARE_COMPLETION_ONSTACK_MAP(work, map) \
-+	struct completion work = COMPLETION_INITIALIZER_ONSTACK_MAP(work, map)
- #else
- # define DECLARE_COMPLETION_ONSTACK(work) DECLARE_COMPLETION(work)
-+# define DECLARE_COMPLETION_ONSTACK_MAP(work, map) DECLARE_COMPLETION(work)
- #endif
+ 	/*
+@@ -2610,16 +2603,13 @@ void flush_workqueue(struct workqueue_struct *wq)
+ 	struct wq_flusher this_flusher = {
+ 		.list = LIST_HEAD_INIT(this_flusher.list),
+ 		.flush_color = -1,
+-		.done = COMPLETION_INITIALIZER_ONSTACK(this_flusher.done),
++		.done = COMPLETION_INITIALIZER_ONSTACK_MAP(this_flusher.done, wq->lockdep_map),
+ 	};
+ 	int next_color;
  
- /**
+ 	if (WARN_ON(!wq_online))
+ 		return;
+ 
+-	lock_map_acquire(&wq->lockdep_map);
+-	lock_map_release(&wq->lockdep_map);
+-
+ 	mutex_lock(&wq->mutex);
+ 
+ 	/*
+@@ -2882,9 +2872,6 @@ bool flush_work(struct work_struct *work)
+ 	if (WARN_ON(!wq_online))
+ 		return false;
+ 
+-	lock_map_acquire(&work->lockdep_map);
+-	lock_map_release(&work->lockdep_map);
+-
+ 	if (start_flush_work(work, &barr)) {
+ 		wait_for_completion(&barr.done);
+ 		destroy_work_on_stack(&barr.work);
 -- 
 1.9.1
 
