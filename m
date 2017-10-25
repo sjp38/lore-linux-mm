@@ -1,57 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BC82E6B0033
-	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 06:13:32 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id v88so6802404wrb.22
-        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 03:13:32 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d17sor1116194wra.44.2017.10.25.03.13.31
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 674256B0033
+	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 06:47:20 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id f187so414966itb.6
+        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 03:47:20 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id r84si1750905itr.52.2017.10.25.03.47.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 25 Oct 2017 03:13:31 -0700 (PDT)
-Date: Wed, 25 Oct 2017 12:13:28 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH v5 9/9] block: Assign a lock_class per gendisk used for
- wait_for_completion()
-Message-ID: <20171025101328.b6fg32m2oazh3zro@gmail.com>
-References: <1508921765-15396-1-git-send-email-byungchul.park@lge.com>
- <1508921765-15396-10-git-send-email-byungchul.park@lge.com>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 25 Oct 2017 03:47:19 -0700 (PDT)
+Subject: Re: [PATCH] mm,page_alloc: Serialize out_of_memory() and allocation stall messages.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1508410262-4797-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20171019114424.4db2hohyyogpjq5f@dhcp22.suse.cz>
+	<201710201920.FCE43223.FQMVJOtOOSFFLH@I-love.SAKURA.ne.jp>
+	<201710242023.GHE48971.SQHtFFLFVJOMOO@I-love.SAKURA.ne.jp>
+In-Reply-To: <201710242023.GHE48971.SQHtFFLFVJOMOO@I-love.SAKURA.ne.jp>
+Message-Id: <201710251947.BIF34353.OFFFStOHQMJLVO@I-love.SAKURA.ne.jp>
+Date: Wed, 25 Oct 2017 19:47:04 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1508921765-15396-10-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <byungchul.park@lge.com>, Jens Axboe <axboe@kernel.dk>
-Cc: peterz@infradead.org, johan@kernel.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xiyou.wangcong@gmail.com, hannes@cmpxchg.org, pmladek@suse.com, sergey.senozhatsky@gmail.com, yuwang.yuwang@alibaba-inc.com
 
-
-* Byungchul Park <byungchul.park@lge.com> wrote:
-
-> Darrick posted the following warning and Dave Chinner analyzed it:
+Tetsuo Handa wrote:
+> While warn_alloc() messages are completely unreadable, what we should note are that
 > 
-> > ======================================================
-> > WARNING: possible circular locking dependency detected
-> > 4.14.0-rc1-fixes #1 Tainted: G        W
+>  (a) out_of_memory() => oom_kill_process() => dump_header() => show_mem() => printk()
+>      got stuck at console_unlock() despite this is schedulable context.
+> 
+> ----------
+> 2180:   for (;;) {
+> 2181:           struct printk_log *msg;
+> 2182:           size_t ext_len = 0;
+> 2183:           size_t len;
+> 2184:
+> 2185:           printk_safe_enter_irqsave(flags);
+> 2186:           raw_spin_lock(&logbuf_lock);
+> (...snipped...)
+> 2228:           console_idx = log_next(console_idx);
+> 2229:           console_seq++;
+> 2230:           raw_spin_unlock(&logbuf_lock);
+> 2231:
+> 2232:           stop_critical_timings();        /* don't trace print latency */
+> 2233:           call_console_drivers(ext_text, ext_len, text, len);
+> 2234:           start_critical_timings();
+> 2235:           printk_safe_exit_irqrestore(flags); // console_unlock+0x24e/0x4c0 is here.
+> 2236:
+> 2237:           if (do_cond_resched)
+> 2238:                   cond_resched();
+> 2239:   }
+> ----------
 
-> Reported-by: Darrick J. Wong <darrick.wong@oracle.com>
-> Analyzed-by: Dave Chinner <david@fromorbit.com>
-> Signed-off-by: Byungchul Park <byungchul.park@lge.com>
-> ---
->  block/bio.c           |  2 +-
->  block/genhd.c         | 10 ++--------
->  include/linux/genhd.h | 22 ++++++++++++++++++++--
->  3 files changed, 23 insertions(+), 11 deletions(-)
-
-Ok, this patch looks good to me now, I'll wait to get an Ack or Nak from Jens for 
-these changes.
-
-Jens: this patch has some dependencies in prior lockdep changes, so I'd like to 
-carry it in the locking tree for a v4.15 merge.
-
-Thanks,
-
-	Ingo
+It turned out that cond_resched() was not called due to do_cond_resched == 0 due to
+preemptible() == 0 due to CONFIG_PREEMPT_COUNT=n despite CONFIG_PREEMPT_VOLUNTARY=y,
+for CONFIG_PREEMPT_VOLUNTARY itself does not select CONFIG_PREEMPT_COUNT. Surprising...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
