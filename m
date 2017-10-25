@@ -1,112 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 471F36B0033
-	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 06:05:26 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id c202so24501488oih.8
-        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 03:05:26 -0700 (PDT)
-Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id z206si699307oiz.285.2017.10.25.03.05.16
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BC82E6B0033
+	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 06:13:32 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id v88so6802404wrb.22
+        for <linux-mm@kvack.org>; Wed, 25 Oct 2017 03:13:32 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d17sor1116194wra.44.2017.10.25.03.13.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 25 Oct 2017 03:05:25 -0700 (PDT)
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Subject: [PATCH 2/2] scsi: megaraid: Track the page allocations for struct fusion_context
-Date: Wed, 25 Oct 2017 17:57:08 +0800
-Message-ID: <1508925428-51660-2-git-send-email-xieyisheng1@huawei.com>
-In-Reply-To: <1508925428-51660-1-git-send-email-xieyisheng1@huawei.com>
-References: <1508925428-51660-1-git-send-email-xieyisheng1@huawei.com>
+        (Google Transport Security);
+        Wed, 25 Oct 2017 03:13:31 -0700 (PDT)
+Date: Wed, 25 Oct 2017 12:13:28 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v5 9/9] block: Assign a lock_class per gendisk used for
+ wait_for_completion()
+Message-ID: <20171025101328.b6fg32m2oazh3zro@gmail.com>
+References: <1508921765-15396-1-git-send-email-byungchul.park@lge.com>
+ <1508921765-15396-10-git-send-email-byungchul.park@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1508921765-15396-10-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kashyap.desai@broadcom.com, sumit.saxena@broadcom.com, shivasharan.srikanteshwara@broadcom.com, jejb@linux.vnet.ibm.com, martin.petersen@oracle.com
-Cc: megaraidlinux.pdl@broadcom.com, linux-scsi@vger.kernel.org, linux-kernel@vger.kernel.org, Yisheng Xie <xieyisheng1@huawei.com>, linux-mm@kvack.org, Shu Wang <shuwang@redhat.com>
+To: Byungchul Park <byungchul.park@lge.com>, Jens Axboe <axboe@kernel.dk>
+Cc: peterz@infradead.org, johan@kernel.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
 
-I have get many kmemleak reports just similar to commit 70c54e210ee9
-(scsi: megaraid_sas: fix memleak in megasas_alloc_cmdlist_fusion)
-on v4.14-rc6, however it seems have a different stroy:
 
-unreferenced object 0xffff8b5139d9d2c0 (size 192):
-  comm "kworker/0:0", pid 3, jiffies 4294689182 (age 11347.731s)
-  hex dump (first 32 bytes):
-    00 33 84 7b 41 8b ff ff 00 33 84 7b 00 00 00 00  .3.{A....3.{....
-    00 30 8c 7b 41 8b ff ff 00 30 8c 7b 00 00 00 00  .0.{A....0.{....
-  backtrace:
-    [<ffffffff927461ea>] kmemleak_alloc+0x4a/0xa0
-    [<ffffffff92215eee>] kmem_cache_alloc_trace+0xce/0x1d0
-    [<ffffffffc03f96e4>] megasas_alloc_cmdlist_fusion+0xd4/0x180 [megaraid_sas]
-    [<ffffffffc03f9df5>] megasas_alloc_cmds_fusion+0x25/0x410 [megaraid_sas]
-    [<ffffffffc03fb05d>] megasas_init_adapter_fusion+0x21d/0x6e0 [megaraid_sas]
-    [<ffffffffc03f70e8>] megasas_init_fw+0x338/0xd00 [megaraid_sas]
-    [<ffffffffc03f806e>] megasas_probe_one.part.34+0x5be/0x1040 [megaraid_sas]
-    [<ffffffffc03f8b36>] megasas_probe_one+0x46/0xc0 [megaraid_sas]
-    [<ffffffff923c0ec5>] local_pci_probe+0x45/0xa0
-    [<ffffffff9209fcf4>] work_for_cpu_fn+0x14/0x20
-    [<ffffffff920a2e09>] process_one_work+0x149/0x360
-    [<ffffffff920a3578>] worker_thread+0x1d8/0x3c0
-    [<ffffffff920a8bb9>] kthread+0x109/0x140
-    [<ffffffff92751bc5>] ret_from_fork+0x25/0x30
-    [<ffffffffffffffff>] 0xffffffffffffffff
+* Byungchul Park <byungchul.park@lge.com> wrote:
 
-Struct fusion_context may alloc by get_free_pages, which contain
-pointers to other slab allocations(via megasas_alloc_cmdlist_fusion).
-Since kmemleak does not track/scan page allocations, the slab objects
-will be reported as leaks(false positives). This patch adds kmemleak
-callbacks to allow tracking of such pages.
+> Darrick posted the following warning and Dave Chinner analyzed it:
+> 
+> > ======================================================
+> > WARNING: possible circular locking dependency detected
+> > 4.14.0-rc1-fixes #1 Tainted: G        W
 
-Cc: linux-mm@kvack.org
-Cc: Shu Wang <shuwang@redhat.com>
-Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
----
- drivers/scsi/megaraid/megaraid_sas_fusion.c | 17 ++++++++++++++++-
- 1 file changed, 16 insertions(+), 1 deletion(-)
+> Reported-by: Darrick J. Wong <darrick.wong@oracle.com>
+> Analyzed-by: Dave Chinner <david@fromorbit.com>
+> Signed-off-by: Byungchul Park <byungchul.park@lge.com>
+> ---
+>  block/bio.c           |  2 +-
+>  block/genhd.c         | 10 ++--------
+>  include/linux/genhd.h | 22 ++++++++++++++++++++--
+>  3 files changed, 23 insertions(+), 11 deletions(-)
 
-diff --git a/drivers/scsi/megaraid/megaraid_sas_fusion.c b/drivers/scsi/megaraid/megaraid_sas_fusion.c
-index 11bd2e6..9a1be45 100644
---- a/drivers/scsi/megaraid/megaraid_sas_fusion.c
-+++ b/drivers/scsi/megaraid/megaraid_sas_fusion.c
-@@ -48,6 +48,7 @@
- #include <linux/mutex.h>
- #include <linux/poll.h>
- #include <linux/vmalloc.h>
-+#include <linux/kmemleak.h>
- 
- #include <scsi/scsi.h>
- #include <scsi/scsi_cmnd.h>
-@@ -4512,6 +4513,14 @@ void megasas_fusion_ocr_wq(struct work_struct *work)
- 			dev_err(&instance->pdev->dev, "Failed from %s %d\n", __func__, __LINE__);
- 			return -ENOMEM;
- 		}
-+	} else {
-+		/*
-+		 * Allow kmemleak to scan these pages as they contain pointers
-+		 * to additional allocations via megasas_alloc_cmdlist_fusion.
-+		 */
-+		size_t size = (size_t)PAGE_SIZE << instance->ctrl_context_pages;
-+
-+		kmemleak_alloc(instance->ctrl_context, size, 1, GFP_KERNEL);
- 	}
- 
- 	fusion = instance->ctrl_context;
-@@ -4548,9 +4557,15 @@ void megasas_fusion_ocr_wq(struct work_struct *work)
- 
- 		if (is_vmalloc_addr(fusion))
- 			vfree(fusion);
--		else
-+		else {
-+			/*
-+			 * Remove kmemleak object previously allocated in
-+			 * megasas_alloc_fusion_context.
-+			 */
-+			kmemleak_free(fusion);
- 			free_pages((ulong)fusion,
- 				instance->ctrl_context_pages);
-+		}
- 	}
- }
- 
--- 
-1.7.12.4
+Ok, this patch looks good to me now, I'll wait to get an Ack or Nak from Jens for 
+these changes.
+
+Jens: this patch has some dependencies in prior lockdep changes, so I'd like to 
+carry it in the locking tree for a v4.15 merge.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
