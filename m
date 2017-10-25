@@ -1,200 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2661B6B0033
-	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 20:34:55 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id g6so15557914pgn.11
-        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 17:34:55 -0700 (PDT)
-Received: from out0-218.mail.aliyun.com (out0-218.mail.aliyun.com. [140.205.0.218])
-        by mx.google.com with ESMTPS id s11si794625plp.812.2017.10.24.17.34.48
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BDB186B0253
+	for <linux-mm@kvack.org>; Tue, 24 Oct 2017 20:53:17 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id b79so19654998pfk.9
+        for <linux-mm@kvack.org>; Tue, 24 Oct 2017 17:53:17 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id q1si818306plb.368.2017.10.24.17.53.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Oct 2017 17:34:49 -0700 (PDT)
-Subject: Re: [RFC PATCH] fs: fsnotify: account fsnotify metadata to kmemcg
-References: <1508448056-21779-1-git-send-email-yang.s@alibaba-inc.com>
- <CAOQ4uxhPhXrMLu18TGKDA=ezUVHara95qJQ+BTCio8BHm-u6NA@mail.gmail.com>
- <b530521e-5215-f735-444a-13f722d90e40@alibaba-inc.com>
- <CAOQ4uxhFOoSknnG-0Jyv+=iCDjVNnAg6SiO-msxw4tORkVKJGQ@mail.gmail.com>
- <5b80a088-05f1-c9af-5b71-e1128fbb36a7@alibaba-inc.com>
- <CAOQ4uxiVbA1HxPt9mjn-AL0XzMuOYU5dMeMoHxZbxHLzaS=niQ@mail.gmail.com>
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-Message-ID: <1400291b-0fe7-3a22-2f8a-84ff488b8fc1@alibaba-inc.com>
-Date: Wed, 25 Oct 2017 08:34:41 +0800
+        Tue, 24 Oct 2017 17:53:16 -0700 (PDT)
+Date: Tue, 24 Oct 2017 17:53:14 -0700
+From: Sharath Kumar Bhat <sharath.k.bhat@linux.intel.com>
+Subject: Re: [PATCH] mm: fix movable_node kernel command-line
+Message-ID: <20171025005314.GA2636@linux.intel.com>
+Reply-To: sharath.k.bhat@linux.intel.com
+References: <20171023173544.GA12198@linux.intel.com>
+ <20171023174905.ap4uz6puggeqnz3s@dhcp22.suse.cz>
+ <20171023184852.GB12198@linux.intel.com>
+ <20171023190459.odyu26rqhuja4trj@dhcp22.suse.cz>
+ <20171023192524.GC12198@linux.intel.com>
+ <20171023193536.c7yptc4tpesa4ffl@dhcp22.suse.cz>
+ <20171023195637.GE12198@linux.intel.com>
+ <0ed8144f-4447-e2de-47f7-ea1fc16f0b25@intel.com>
+ <20171024010633.GA2723@linux.intel.com>
+ <20171024071906.64ikc733x53zmgzu@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAOQ4uxiVbA1HxPt9mjn-AL0XzMuOYU5dMeMoHxZbxHLzaS=niQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171024071906.64ikc733x53zmgzu@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Amir Goldstein <amir73il@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Sharath Kumar Bhat <sharath.k.bhat@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, akpm@linux-foundation.org
 
-
-
-On 10/23/17 10:42 PM, Amir Goldstein wrote:
-> On Tue, Oct 24, 2017 at 7:12 AM, Yang Shi <yang.s@alibaba-inc.com> wrote:
->>
->>
->> On 10/22/17 1:24 AM, Amir Goldstein wrote:
->>>
->>> On Sat, Oct 21, 2017 at 12:07 AM, Yang Shi <yang.s@alibaba-inc.com> wrote:
->>>>
->>>>
->>>>
->>>> On 10/19/17 8:14 PM, Amir Goldstein wrote:
->>>>>
->>>>>
->>>>> On Fri, Oct 20, 2017 at 12:20 AM, Yang Shi <yang.s@alibaba-inc.com>
->>>>> wrote:
->>>>>>
->>>>>>
->>>>>> We observed some misbehaved user applications might consume significant
->>>>>> amount of fsnotify slabs silently. It'd better to account those slabs
->>>>>> in
->>>>>> kmemcg so that we can get heads up before misbehaved applications use
->>>>>> too
->>>>>> much memory silently.
->>>>>
->>>>>
->>>>>
->>>>> In what way do they misbehave? create a lot of marks? create a lot of
->>>>> events?
->>>>> Not reading events in their queue?
->>>>
->>>>
->>>>
->>>> It looks both a lot marks and events. I'm not sure if it is the latter
->>>> case.
->>>> If I knew more about the details of the behavior, I would elaborated more
->>>> in
->>>> the commit log.
->>>
->>>
->>> If you are not sure, do not refer to user application as "misbehaved".
->>> Is updatedb(8) a misbehaved application because it produces a lot of
->>> access
->>> events?
->>
->>
->> Should be not. It sounds like our in-house applications. But, it is a sort
->> of blackbox to me.
->>
+On Tue, Oct 24, 2017 at 09:19:06AM +0200, Michal Hocko wrote:
+> On Mon 23-10-17 18:06:33, Sharath Kumar Bhat wrote:
+> > On Mon, Oct 23, 2017 at 02:52:04PM -0700, Dave Hansen wrote:
+> > > On 10/23/2017 12:56 PM, Sharath Kumar Bhat wrote:
+> > > >> I am sorry for being dense here but why cannot you mark that memory
+> > > >> hotplugable? I assume you are under the control to set attributes of the
+> > > >> memory to the guest.
+> > > > When I said two OS's I meant multi-kernel environment sharing the same
+> > > > hardware and not VMs. So we do not have the control to mark the memory
+> > > > hotpluggable as done by BIOS through SRAT.
+> > > 
+> > > If you are going as far as to pass in custom kernel command-line
+> > > arguments, there's a bunch of other fun stuff you can do.  ACPI table
+> > > overrides come to mind.
 > 
-> If you know which process is "misbehaving" you can look at
-> ls -l /proc/<pid>/fd |grep notify
-> and see the anonymous inotify/fanotify file descriptors
+> absolutely agreed!
 > 
-> then you can look at  /proc/<pid>/fdinfo/<fd> file of those
-> file descriptors to learn more about the fanotify flags etc.
+> > > > This facility can be used by platform/BIOS vendors to provide a Linux
+> > > > compatible environment without modifying the underlying platform firmware.
+> > > 
+> > > https://www.kernel.org/doc/Documentation/acpi/initrd_table_override.txt
+> > 
+> > I think ACPI table override won't be a generic solution to this problem and
+> > instead would be a platform/architecture dependent solution which may not
+> > be flexible for the users on different architectures.
+> 
+> Do you have any specific architecture in mind?
 
-Thanks for the hints.
+There are no such restrictions related to architectures that we can run on
+though we are currently testing on KNL, Xeon.
 
 > 
-> ...
+> > And moreover
+> > 'movable_node' is implemented with an assumption to provide the entire
+> > hotpluggable memory as movable zone. This ACPI override would be against
+> > that assumption.
 > 
->>
->>>
->>> But I think there is another problem, not introduced by your change, but
->>> could
->>> be amplified because of it - when a non-permission event allocation fails,
->>> the
->>> event is silently dropped, AFAICT, with no indication to listener.
->>> That seems like a bug to me, because there is a perfectly safe way to deal
->>> with
->>> event allocation failure - queue the overflow event.
->>
->>
->> I'm not sure if such issue could be amplified by the accounting since once
->> the usage exceeds the limit any following kmem allocation would fail. So, it
->> might fail at fsnotify event allocation, or other places, i.e. fork, open
->> syscall, etc. So, in most cases the generator even can't generate new event
->> any more.
->>
-> 
-> To be clear, I did not mean that kmem limit would cause a storm of dropped
-> events. I meant if you have a listener outside memcp watching a single file
-> for access/modifications and you have many containers each with its own
-> limited memcg, then event drops probability goes to infinity as you run more
-> of those kmem limited containers with event producers.
-> 
->> The typical output from my LTP test is filesystem dcache allocation error or
->> fork error due to kmem limit is reached.
-> 
-> And that should be considered a success result of the test.
-> The only failure case is when producer touches the file and event is
-> not delivered
-> nor an overflow event delivered.
-> You can probably try to reduce allocation failure for fork and dentry by:
-> 1. pin dentry cache of subject file on test init by opening the file
-> 2. set the low kmem limit after forking
-> 
-> Then you should probably loop the test enough times
-> in some of the times, producer may fail to access the file
-> in others if will succeed and produce events properly
-> and many some times, producer will access the file and event
-> will be dropped, so event count is lower than access count.
+> This is true and in fact movable_node should become movable_memory over
+> time and only ranges marked as movable would become really movable. This
+> is a rather non-trivial change to do and there is not a great demand for
+> the feature so it is low on my TODO list.
 
-I still have not very direct test result shows the patch works as 
-expected. But, I did get some prove from running fanotify test *without* 
-your overflow event patch.
-
-Running fanotify without your overflow patch, sometimes I can see:
-
-[  122.222455] SLUB: Unable to allocate memory on node -1, 
-gfp=0x14000c0(GFP_KERNEL)
-[  122.224198]   cache: fanotify_event_info(110:fsnotify), object size: 
-56, buffer size: 88, default order: 0, min order: 0
-[  122.226578]   node 0: slabs: 11, objs: 506, free: 0
-[  122.227655]   node 1: slabs: 0, objs: 0, free: 0
-[  122.229251] SLUB: Unable to allocate memory on node -1, 
-gfp=0x14000c0(GFP_KERNEL)
-[  122.230912]   cache: fanotify_event_info(110:fsnotify), object size: 
-56, buffer size: 88, default order: 0, min order: 0
-[  122.233266]   node 0: slabs: 11, objs: 506, free: 0
-[  122.234337]   node 1: slabs: 0, objs: 0, free: 0
-
-The slub oom information is printed a couple of times, it should mean 
-neither the event is delivered nor the overflow event is delivered.
-
-With your overflow patch, I've never seen such message.
-
-Regards,
-Yang
+Do you mean to have a single kernel command-line 'movable_memory=' for this
+purpose and remove all other kernel command-line parameters such as
+'kernelcore=', 'movablecore=' and 'movable_node'? because after the kernel
+boots up we can not gurantee that a contig memory range can be made zone
+movable since any kernel allocations could pre-exist.
 
 > 
+> > Also ACPI override would introduce additional topology
+> > changes. Again this would have to change every time the total movable
+> > memory requirement changes and the whole system and apps have to be
+> > re-tuned (for job launch ex: numactl etc) to comphrehend this change.
 > 
+> This is something you have to do anyway when the topology of the system
+> changes each boot.
+
+No, this is a manual tuning for job-launch, mem policy handling code etc.
+which would be done once for a platform. But in this case based on the
+application need the amount of movable memory will change so it is really
+unfair to ask user to re-work their job launch and apps for every such
+changes.
+
 > 
->>
->>> I am not going to be the one to determine if fixing this alleged bug is a
->>> prerequisite for merging your patch, but I think enforcing memory limits
->>> on
->>> event allocation could amplify that bug, so it should be fixed.
->>>
->>> The upside is that with both your accounting fix and ENOMEM = overlflow
->>> fix, it going to be easy to write a test that verifies both of them:
->>> - Run a listener in memcg with limited kmem and unlimited (or very
->>> large) event queue
->>> - Produce events inside memcg without listener reading them
->>> - Read event and expect an OVERFLOW even
->>>
->>> This is a simple variant of LTP tests inotify05 and fanotify05.
->>
->>
->> I tried to test your patch with LTP, but it sounds not that easy to setup a
->> scenario to make fsnotify event allocation just hit the kmem limit, since
->> the limit may be hit before a new event is allocated, for example allocating
->> dentry cache in open syscall may hit the limit.
->>
->> So, it sounds the overflow event might be not generated by the producer in
->> most cases.
->>
+> That being said, I would really prefer to actually _remove_ kernel_core
+> parameter altogether. It is messy (just look at find_zone_movable_pfns_for_nodes
+> at al.) and the original usecase it has been added for [1] does not hold
+> anymore. Adding more stuff to workaround issues which can be handled
+> more cleanly is definitely not a right way to go.
+
+I agree that kernelcore handling is non-trivial in that function. But the
+changes introduced by this patch are under 'movable_node' case handling in
+find_zone_movable_pfns_for_nodes() and it does not cause any change to the
+existing kernelcore behavior of the code. Also this enables all
+multi-kernel users to make use of this functionality untill later when
+new interface would be available for the same purpose.
+
 > 
-> Right. not as simple, but maybe still possible as I described above.
-> Assuming that my patch is not buggy...
-> 
-> Thanks,
-> Amir.
-> 
+> [1] note that MOVABLE_ZONE has been originally added to help the
+> fragmentation avoidance.
+
+Isn't this true even now since ZONE_MOVABLE will populate only
+MIGRATE_MOVABLE free list of pages? and other zones could have
+MIGRATE_UNMOVABLE pages?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
