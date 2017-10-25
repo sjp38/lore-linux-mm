@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6866D6B025F
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 79C3A6B0260
 	for <linux-mm@kvack.org>; Wed, 25 Oct 2017 01:11:42 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id p9so16170277pgc.6
+Received: by mail-pf0-f197.google.com with SMTP id v78so20004286pfk.8
         for <linux-mm@kvack.org>; Tue, 24 Oct 2017 22:11:42 -0700 (PDT)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id e4si1274860pgn.134.2017.10.24.22.11.39
+        by mx.google.com with ESMTP id c10si1265075pgn.609.2017.10.24.22.11.39
         for <linux-mm@kvack.org>;
         Tue, 24 Oct 2017 22:11:40 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v4 5/7] completion: Add support for initializing completion with lockdep_map
-Date: Wed, 25 Oct 2017 14:11:10 +0900
-Message-Id: <1508908272-15757-6-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v4 4/7] locking/lockdep: Introduce CONFIG_BOOTPARAM_LOCKDEP_CROSSRELEASE_FULLSTACK
+Date: Wed, 25 Oct 2017 14:11:09 +0900
+Message-Id: <1508908272-15757-5-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1508908272-15757-1-git-send-email-byungchul.park@lge.com>
 References: <1508908272-15757-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,66 +19,59 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org, axboe@kernel.dk
 Cc: johan@kernel.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tj@kernel.org, johannes.berg@intel.com, oleg@redhat.com, amir73il@gmail.com, david@fromorbit.com, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org, hch@infradead.org, idryomov@gmail.com, kernel-team@lge.com
 
-Sometimes, we want to initialize completions with sparate lockdep maps
-to assign lock classes as desired. For example, the workqueue code
-needs to directly manage lockdep maps, since only the code is aware of
-how to classify lockdep maps properly.
+The boot parameter, crossrelease_fullstack, was introduced to control
+whether to enable unwind in cross-release or not. Add a Kconfig doing
+the same thing.
 
-Provide additional macros initializing completions in that way.
-
+Suggested-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- include/linux/completion.h | 14 ++++++++++++++
- 1 file changed, 14 insertions(+)
+ kernel/locking/lockdep.c |  4 ++++
+ lib/Kconfig.debug        | 15 +++++++++++++++
+ 2 files changed, 19 insertions(+)
 
-diff --git a/include/linux/completion.h b/include/linux/completion.h
-index cae5400..02f8cde 100644
---- a/include/linux/completion.h
-+++ b/include/linux/completion.h
-@@ -49,6 +49,13 @@ static inline void complete_release_commit(struct completion *x)
- 	lock_commit_crosslock((struct lockdep_map *)&x->map);
- }
- 
-+#define init_completion_map(x, m)					\
-+do {									\
-+	lockdep_init_map_crosslock((struct lockdep_map *)&(x)->map,	\
-+			(m)->name, (m)->key, 0);				\
-+	__init_completion(x);						\
-+} while (0)
-+
- #define init_completion(x)						\
- do {									\
- 	static struct lock_class_key __key;				\
-@@ -58,6 +65,7 @@ static inline void complete_release_commit(struct completion *x)
- 	__init_completion(x);						\
- } while (0)
- #else
-+#define init_completion_map(x, m) __init_completion(x)
- #define init_completion(x) __init_completion(x)
- static inline void complete_acquire(struct completion *x) {}
- static inline void complete_release(struct completion *x) {}
-@@ -73,6 +81,9 @@ static inline void complete_release_commit(struct completion *x) {}
- 	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait) }
+diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+index 160b5d6..db933d0 100644
+--- a/kernel/locking/lockdep.c
++++ b/kernel/locking/lockdep.c
+@@ -76,7 +76,11 @@
+ #define lock_stat 0
  #endif
  
-+#define COMPLETION_INITIALIZER_ONSTACK_MAP(work, map) \
-+	(*({ init_completion_map(&(work), &(map)); &(work); }))
++#ifdef CONFIG_BOOTPARAM_LOCKDEP_CROSSRELEASE_FULLSTACK
++static int crossrelease_fullstack = 1;
++#else
+ static int crossrelease_fullstack;
++#endif
+ static int __init allow_crossrelease_fullstack(char *str)
+ {
+ 	crossrelease_fullstack = 1;
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index 4bef610..e4b54a5 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -1225,6 +1225,21 @@ config LOCKDEP_COMPLETIONS
+ 	 A deadlock caused by wait_for_completion() and complete() can be
+ 	 detected by lockdep using crossrelease feature.
+ 
++config BOOTPARAM_LOCKDEP_CROSSRELEASE_FULLSTACK
++	bool "Enable the boot parameter, crossrelease_fullstack"
++	depends on LOCKDEP_CROSSRELEASE
++	default n
++	help
++	 The lockdep "cross-release" feature needs to record stack traces
++	 (of calling functions) for all acquisitions, for eventual later
++	 use during analysis. By default only a single caller is recorded,
++	 because the unwind operation can be very expensive with deeper
++	 stack chains.
 +
- #define COMPLETION_INITIALIZER_ONSTACK(work) \
- 	(*({ init_completion(&work); &work; }))
- 
-@@ -102,8 +113,11 @@ static inline void complete_release_commit(struct completion *x) {}
- #ifdef CONFIG_LOCKDEP
- # define DECLARE_COMPLETION_ONSTACK(work) \
- 	struct completion work = COMPLETION_INITIALIZER_ONSTACK(work)
-+# define DECLARE_COMPLETION_ONSTACK_MAP(work, map) \
-+	struct completion work = COMPLETION_INITIALIZER_ONSTACK_MAP(work, map)
- #else
- # define DECLARE_COMPLETION_ONSTACK(work) DECLARE_COMPLETION(work)
-+# define DECLARE_COMPLETION_ONSTACK_MAP(work, map) DECLARE_COMPLETION(work)
- #endif
- 
- /**
++	 However a boot parameter, crossrelease_fullstack, was
++	 introduced since sometimes deeper traces are required for full
++	 analysis. This option turns on the boot parameter.
++
+ config DEBUG_LOCKDEP
+ 	bool "Lock dependency engine debugging"
+ 	depends on DEBUG_KERNEL && LOCKDEP
 -- 
 1.9.1
 
