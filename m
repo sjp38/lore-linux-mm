@@ -1,97 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A9376B0033
-	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 11:48:11 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id v2so2649353pfa.10
-        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 08:48:11 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i12si3559112pgn.621.2017.10.26.08.48.08
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 35BCB6B0033
+	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 12:15:40 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e64so2723323pfk.0
+        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 09:15:40 -0700 (PDT)
+Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
+        by mx.google.com with ESMTPS id y1si1893634plk.261.2017.10.26.09.15.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 26 Oct 2017 08:48:08 -0700 (PDT)
-Date: Thu, 26 Oct 2017 17:48:04 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 17/17] xfs: support for synchronous DAX faults
-Message-ID: <20171026154804.GF31161@quack2.suse.cz>
-References: <20171024152415.22864-1-jack@suse.cz>
- <20171024152415.22864-18-jack@suse.cz>
- <20171024222322.GX3666@dastard>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Oct 2017 09:15:38 -0700 (PDT)
+Subject: Re: [PATCH 2/2] mm: oom: dump single excessive slab cache when oom
+References: <1508971740-118317-1-git-send-email-yang.s@alibaba-inc.com>
+ <1508971740-118317-3-git-send-email-yang.s@alibaba-inc.com>
+ <20171026145312.6svuzriij33vzgw7@dhcp22.suse.cz>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <44577b73-2e2d-5571-4c8b-3233e3776a52@alibaba-inc.com>
+Date: Fri, 27 Oct 2017 00:15:17 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171024222322.GX3666@dastard>
+In-Reply-To: <20171026145312.6svuzriij33vzgw7@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, linux-ext4@vger.kernel.org, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 25-10-17 09:23:22, Dave Chinner wrote:
-> On Tue, Oct 24, 2017 at 05:24:14PM +0200, Jan Kara wrote:
-> > From: Christoph Hellwig <hch@lst.de>
-> > 
-> > Return IOMAP_F_DIRTY from xfs_file_iomap_begin() when asked to prepare
-> > blocks for writing and the inode is pinned, and has dirty fields other
-> > than the timestamps.
+
+
+On 10/26/17 7:53 AM, Michal Hocko wrote:
+> On Thu 26-10-17 06:49:00, Yang Shi wrote:
+>> Per the discussion with David [1], it looks more reasonable to just dump
 > 
-> That's "fdatasync dirty", not "fsync dirty".
+> Please try to avoid external references in the changelog as much as
+> possible.
 
-Correct.
+OK.
 
-> IOMAP_F_DIRTY needs a far better description of it's semantics than
-> "/* block mapping is not yet on persistent storage */" so we know
-> exactly what filesystems are supposed to be implementing here. I
-> suspect that what it really is meant to say is:
 > 
-> /*
->  * IOMAP_F_DIRTY indicates the inode has uncommitted metadata to
->  * written data and requires fdatasync to commit to persistent storage.
->  */
-
-I'll update the comment. Thanks!
-
-> [....]
+>> the single excessive slab cache instead of dumping all slab caches when
+>> oom.
 > 
-> > diff --git a/fs/xfs/xfs_iomap.c b/fs/xfs/xfs_iomap.c
-> > index f179bdf1644d..b43be199fbdf 100644
-> > --- a/fs/xfs/xfs_iomap.c
-> > +++ b/fs/xfs/xfs_iomap.c
-> > @@ -33,6 +33,7 @@
-> >  #include "xfs_error.h"
-> >  #include "xfs_trans.h"
-> >  #include "xfs_trans_space.h"
-> > +#include "xfs_inode_item.h"
-> >  #include "xfs_iomap.h"
-> >  #include "xfs_trace.h"
-> >  #include "xfs_icache.h"
-> > @@ -1086,6 +1087,10 @@ xfs_file_iomap_begin(
-> >  		trace_xfs_iomap_found(ip, offset, length, 0, &imap);
-> >  	}
-> >  
-> > +	if ((flags & IOMAP_WRITE) && xfs_ipincount(ip) &&
-> > +	    (ip->i_itemp->ili_fsync_fields & ~XFS_ILOG_TIMESTAMP))
-> > +		iomap->flags |= IOMAP_F_DIRTY;
+> You meant to say
+> "to just dump all slab caches which excess 10% of the total memory."
 > 
-> This is the very definition of an inode that is "fdatasync dirty".
+> While we are at it. Abusing calc_mem_size seems to be rather clumsy and
+> tt is not nodemask aware so you the whole thing is dubious for NUMA
+> constrained OOMs.
+
+Since we just need the total memory size of the node for NUMA 
+constrained OOM, we should be able to use show_mem_node_skip() to bring 
+in nodemask.
+
 > 
-> Hmmmm, shouldn't this also be set for read faults, too?
+> The more I think about this the more I am convinced that this is just
+> fiddling with the code without a good reason and without much better
+> outcome.
 
-No, read faults don't need to set IOMAP_F_DIRTY since user cannot write any
-data to the page which he'd then like to be persistent. The only reason why
-I thought it could be useful for a while was that it would be nice to make
-MAP_SYNC mapping provide the guarantee that data you see now is the data
-you'll see after a crash but we cannot provide that guarantee for RO
-mapping anyway if someone else has the page mapped as well. So I just
-decided not to return IOMAP_F_DIRTY for read faults.
+I don't get you. Do you mean the benefit is not that much with just 
+dumping excessive slab caches?
 
-But now that I look at XFS implementation again, it misses handling
-of VM_FAULT_NEEDSYNC in xfs_filemap_pfn_mkwrite() (ext4 gets this right).
-I'll fix this by using __xfs_filemap_fault() for xfs_filemap_pfn_mkwrite()
-as well since it mostly duplicates it anyway... Thanks for inquiring!
+Thanks,
+Yang
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+
+>   
+>> Dump single excessive slab cache if its size is > 10% of total system
+> 
+> s@single@all@
+> 
+>> memory size when oom regardless it is unreclaimable.
+>>
+>> [1] https://marc.info/?l=linux-mm&m=150819933626604&w=2
+>>
+>> Suggested-by: David Rientjes <rientjes@google.com>
+>> Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
+>> ---
+>>   mm/oom_kill.c    | 22 +---------------------
+>>   mm/slab.h        |  4 ++--
+>>   mm/slab_common.c | 21 ++++++++++++++++-----
+>>   3 files changed, 19 insertions(+), 28 deletions(-)
+>>
+>> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+>> index 26add8a..f996f29 100644
+>> --- a/mm/oom_kill.c
+>> +++ b/mm/oom_kill.c
+>> @@ -162,25 +162,6 @@ static bool oom_unkillable_task(struct task_struct *p,
+>>   	return false;
+>>   }
+>>   
+>> -/*
+>> - * Print out unreclaimble slabs info when unreclaimable slabs amount is greater
+>> - * than all user memory (LRU pages)
+>> - */
+>> -static bool is_dump_unreclaim_slabs(void)
+>> -{
+>> -	unsigned long nr_lru;
+>> -
+>> -	nr_lru = global_node_page_state(NR_ACTIVE_ANON) +
+>> -		 global_node_page_state(NR_INACTIVE_ANON) +
+>> -		 global_node_page_state(NR_ACTIVE_FILE) +
+>> -		 global_node_page_state(NR_INACTIVE_FILE) +
+>> -		 global_node_page_state(NR_ISOLATED_ANON) +
+>> -		 global_node_page_state(NR_ISOLATED_FILE) +
+>> -		 global_node_page_state(NR_UNEVICTABLE);
+>> -
+>> -	return (global_node_page_state(NR_SLAB_UNRECLAIMABLE) > nr_lru);
+>> -}
+>> -
+>>   /**
+>>    * oom_badness - heuristic function to determine which candidate task to kill
+>>    * @p: task struct of which task we should calculate
+>> @@ -443,8 +424,7 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
+>>   		mem_cgroup_print_oom_info(oc->memcg, p);
+>>   	else {
+>>   		show_mem(SHOW_MEM_FILTER_NODES, oc->nodemask);
+>> -		if (is_dump_unreclaim_slabs())
+>> -			dump_unreclaimable_slab();
+>> +		dump_slab_cache();
+>>   	}
+>>   	if (sysctl_oom_dump_tasks)
+>>   		dump_tasks(oc->memcg, oc->nodemask);
+>> diff --git a/mm/slab.h b/mm/slab.h
+>> index 6a86025..818b569 100644
+>> --- a/mm/slab.h
+>> +++ b/mm/slab.h
+>> @@ -507,9 +507,9 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
+>>   int memcg_slab_show(struct seq_file *m, void *p);
+>>   
+>>   #if defined(CONFIG_SLAB) || defined(CONFIG_SLUB_DEBUG)
+>> -void dump_unreclaimable_slab(void);
+>> +void dump_slab_cache(void);
+>>   #else
+>> -static inline void dump_unreclaimable_slab(void)
+>> +static inline void dump_slab_cache(void)
+>>   {
+>>   }
+>>   #endif
+>> diff --git a/mm/slab_common.c b/mm/slab_common.c
+>> index 1b14fe0..e5bfa07 100644
+>> --- a/mm/slab_common.c
+>> +++ b/mm/slab_common.c
+>> @@ -1311,7 +1311,18 @@ static int slab_show(struct seq_file *m, void *p)
+>>   	return 0;
+>>   }
+>>   
+>> -void dump_unreclaimable_slab(void)
+>> +static bool inline is_dump_slabs(struct kmem_cache *s, struct slabinfo *sinfo)
+>> +{
+>> +	unsigned long total = 0, reserved = 0, highmem = 0;
+>> +	unsigned long slab_size = sinfo->num_objs * s->size;
+>> +
+>> +	calc_mem_size(&total, &reserved, &highmem);
+>> +
+>> +	/* Check if single slab > 10% of total memory size */
+>> +	return (slab_size > (total * PAGE_SIZE / 10));
+>> +}
+>> +
+>> +void dump_slab_cache(void)
+>>   {
+>>   	struct kmem_cache *s, *s2;
+>>   	struct slabinfo sinfo;
+>> @@ -1324,20 +1335,20 @@ void dump_unreclaimable_slab(void)
+>>   	 * without acquiring the mutex.
+>>   	 */
+>>   	if (!mutex_trylock(&slab_mutex)) {
+>> -		pr_warn("excessive unreclaimable slab but cannot dump stats\n");
+>> +		pr_warn("excessive slab cache but cannot dump stats\n");
+>>   		return;
+>>   	}
+>>   
+>> -	pr_info("Unreclaimable slab info:\n");
+>> +	pr_info("The list of excessive single slab cache:\n");
+>>   	pr_info("Name                      Used          Total\n");
+>>   
+>>   	list_for_each_entry_safe(s, s2, &slab_caches, list) {
+>> -		if (!is_root_cache(s) || (s->flags & SLAB_RECLAIM_ACCOUNT))
+>> +		if (!is_root_cache(s))
+>>   			continue;
+>>   
+>>   		get_slabinfo(s, &sinfo);
+>>   
+>> -		if (sinfo.num_objs > 0)
+>> +		if (is_dump_slabs(s, &sinfo))
+>>   			pr_info("%-17s %10luKB %10luKB\n", cache_name(s),
+>>   				(sinfo.active_objs * s->size) / 1024,
+>>   				(sinfo.num_objs * s->size) / 1024);
+>> -- 
+>> 1.8.3.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
