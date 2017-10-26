@@ -1,58 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 051586B0033
-	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 05:02:26 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id z11so1951285pfk.23
-        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 02:02:25 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id r9si3296665pfg.482.2017.10.26.02.02.24
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3164E6B0033
+	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 06:18:40 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id 82so2904270oid.11
+        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 03:18:40 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id y28si1519841oty.487.2017.10.26.03.18.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Oct 2017 02:02:25 -0700 (PDT)
-Received: from mail-it0-f50.google.com (mail-it0-f50.google.com [209.85.214.50])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 887A82195A
-	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 09:02:24 +0000 (UTC)
-Received: by mail-it0-f50.google.com with SMTP id n195so13105405itg.1
-        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 02:02:24 -0700 (PDT)
+        Thu, 26 Oct 2017 03:18:38 -0700 (PDT)
+Date: Thu, 26 Oct 2017 12:18:33 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH v5 07/22] mm: Protect VMA modifications using VMA
+ sequence count
+Message-ID: <20171026101833.GF563@redhat.com>
+References: <1507729966-10660-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1507729966-10660-8-git-send-email-ldufour@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20171026090045.GA6438@nazgul.tnic>
-References: <1507089272-32733-1-git-send-email-ricardo.neri-calderon@linux.intel.com>
- <1507089272-32733-3-git-send-email-ricardo.neri-calderon@linux.intel.com>
- <CALCETrUced9TVsMQ=cjFfDuDfLQsZWu0GOoRCmHn4PsSwrfOdw@mail.gmail.com> <20171026090045.GA6438@nazgul.tnic>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Thu, 26 Oct 2017 02:02:02 -0700
-Message-ID: <CALCETrXw2r-HD+9SwT0ndRVX2YR-_g6BKEfDd6i0ci5q_Z4S4Q@mail.gmail.com>
-Subject: Re: [PATCH v9 02/29] x86/boot: Relocate definition of the initial
- state of CR0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1507729966-10660-8-git-send-email-ldufour@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@suse.de>
-Cc: Andy Lutomirski <luto@kernel.org>, Ricardo Neri <ricardo.neri-calderon@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Brian Gerst <brgerst@gmail.com>, Chris Metcalf <cmetcalf@mellanox.com>, Dave Hansen <dave.hansen@linux.intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Liang Z Li <liang.z.li@intel.com>, Masami Hiramatsu <mhiramat@kernel.org>, Huang Rui <ray.huang@amd.com>, Jiri Slaby <jslaby@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Michael S. Tsirkin" <mst@redhat.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Vlastimil Babka <vbabka@suse.cz>, Chen Yucong <slaoub@gmail.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Shuah Khan <shuah@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, "Neri, Ricardo" <ricardo.neri@intel.com>, Dave Hansen <dave.hansen@intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Thu, Oct 26, 2017 at 2:00 AM, Borislav Petkov <bp@suse.de> wrote:
-> On Thu, Oct 26, 2017 at 12:51:25AM -0700, Andy Lutomirski wrote:
->> with the slight caveat that I think it might be a wee bit better if
->> UMIP emulation used a separate define UMIP_REPORTED_CR0.
->
-> Why, do you see CR0_STATE and UMIP_REPORTED_CR0 becoming different at
-> some point?
+Hello Laurent,
 
-I'm assuming that UMIP_REPORTED_CR0 will never change.  If CR0 gets a
-new field that we set some day, then I assume that CR0_STATE would add
-that bit but UMIP_REPORTED_CR0 would not.
+Message-ID: <7ca80231-fe02-a3a7-84bc-ce81690ea051@intel.com> shows
+significant slowdown even for brk/malloc ops both single and
+multi threaded.
 
->
-> --
-> Regards/Gruss,
->     Boris.
->
-> SUSE Linux GmbH, GF: Felix Imend=C3=B6rffer, Jane Smithard, Graham Norton=
-, HRB 21284 (AG N=C3=BCrnberg)
-> --
+The single threaded case I think is the most important because it has
+zero chance of getting back any benefit later during page faults.
+
+Could you check if:
+
+1. it's possible change vm_write_begin to be a noop if mm->mm_count is
+   <= 1? Hint: clone() will run single threaded so there's no way it can run
+   in the middle of a being/end critical section (clone could set an
+   MMF flag to possibly keep the sequence counter activated if a child
+   thread exits and mm_count drops to 1 while the other cpu is in the
+   middle of a critical section in the other thread).
+
+2. Same thing with RCU freeing of vmas. Wouldn't it be nicer if RCU
+   freeing happened only once a MMF flag is set? That will at least
+   reduce the risk of temporary memory waste until the next RCU grace
+   period. The read of the MMF will scale fine. Of course to allow
+   point 1 and 2 then the page fault should also take the mmap_sem
+   until the MMF flag is set.
+
+Could you also investigate a much bigger change: I wonder if it's
+possible to drop the sequence number entirely from the vma and stop
+using sequence numbers entirely (which is likely the source of the
+single threaded regression in point 1 that may explain the report in
+the above message-id), and just call the vma rbtree lookup once again
+and check that everything is still the same in the vma and the PT lock
+obtained is still a match to finish the anon page fault and fill the
+pte?
+
+Then of course we also need to add a method to the read-write
+semaphore so it tells us if there's already one user holding the read
+mmap_sem and we're the second one.  If we're the second one (or more
+than second) only then we should skip taking the down_read mmap_sem.
+Even a multithreaded app won't ever skip taking the mmap_sem until
+there's sign of runtime contention, and it won't have to run the way
+more expensive sequence number-less revalidation during page faults,
+unless we get an immediate scalability payoff because we already know
+the mmap_sem is already contended and there are multiple nested
+threads in the page fault handler of the same mm.
+
+Perhaps we'd need something more advanced than a
+down_read_trylock_if_not_hold() (which has to guaranteed not to write
+to any cacheline) and we'll have to count the per-thread exponential
+backoff of mmap_sem frequency, but starting with
+down_read_trylock_if_not_hold() would be good I think.
+
+This is not how the current patch works, the current patch uses a
+sequence number because it pretends to go lockless always and in turn
+has to slow down all vma updates fast paths or the revalidation
+slowsdown performance for page fault too much (as it always
+revalidates).
+
+I think it would be much better to go speculative only when there's
+"detected" runtime contention on the mmap_sem with
+down_read_trylock_if_not_hold() and that will make the revalidation
+cost not an issue to worry about because normally we won't have to
+revalidate the vma at all during page fault. In turn by making the
+revalidation more expensive by starting a vma rbtree lookup from
+scratch, we can drop the sequence number entirely and that should
+simplify the patch tremendously because all vm_write_begin/end would
+disappear from the patch and in turn the mmap/brk slowdown measured by
+the message-id above, should disappear as well.
+   
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
