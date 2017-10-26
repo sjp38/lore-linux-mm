@@ -1,208 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 18BBA6B0033
-	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 07:41:04 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id c21so1498409wrg.16
-        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 04:41:04 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w25si3283414edd.51.2017.10.26.04.41.02
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EB266B0033
+	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 08:48:03 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id v9so3269654oif.15
+        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 05:48:03 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id h15si1632828otd.302.2017.10.26.05.48.00
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 26 Oct 2017 04:41:02 -0700 (PDT)
-Date: Thu, 26 Oct 2017 13:41:00 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: don't warn about allocations which stall for too long
-Message-ID: <20171026114100.tfb3xemvumg2a7su@dhcp22.suse.cz>
-References: <1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        Thu, 26 Oct 2017 05:48:01 -0700 (PDT)
+Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
+References: <xr93r2tr67pp.fsf@gthelen.svl.corp.google.com>
+ <20171025071522.xyw4lsvdv4xsbhbo@dhcp22.suse.cz>
+ <20171025131151.GA8210@cmpxchg.org>
+ <20171025141221.xm4cqp2z6nunr6vy@dhcp22.suse.cz>
+ <20171025164402.GA11582@cmpxchg.org>
+ <20171025172924.i7du5wnkeihx2fgl@dhcp22.suse.cz>
+ <20171025181106.GA14967@cmpxchg.org>
+ <20171025190057.mqmnprhce7kvsfz7@dhcp22.suse.cz>
+ <20171025211359.GA17899@cmpxchg.org>
+ <xr931slqdery.fsf@gthelen.svl.corp.google.com>
+ <20171026074958.tmtxkyymmsqtgr7w@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <37dfc087-200f-cc8c-b317-bd9c228636d5@I-love.SAKURA.ne.jp>
+Date: Thu, 26 Oct 2017 21:45:56 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <20171026074958.tmtxkyymmsqtgr7w@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
+To: Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 26-10-17 20:28:59, Tetsuo Handa wrote:
-> Commit 63f53dea0c9866e9 ("mm: warn about allocations which stall for too
-> long") was a great step for reducing possibility of silent hang up problem
-> caused by memory allocation stalls. But this commit reverts it, for it is
-> possible to trigger OOM lockup and/or soft lockups when many threads
-> concurrently called warn_alloc() (in order to warn about memory allocation
-> stalls) due to current implementation of printk(), and it is difficult to
-> obtain useful information due to limitation of synchronous warning
-> approach.
+On 2017/10/26 16:49, Michal Hocko wrote:
+> On Wed 25-10-17 15:49:21, Greg Thelen wrote:
+>> Johannes Weiner <hannes@cmpxchg.org> wrote:
+>>
+>>> On Wed, Oct 25, 2017 at 09:00:57PM +0200, Michal Hocko wrote:
+> [...]
+>>>> So just to make it clear you would be OK with the retry on successful
+>>>> OOM killer invocation and force charge on oom failure, right?
+>>>
+>>> Yeah, that sounds reasonable to me.
+>>
+>> Assuming we're talking about retrying within try_charge(), then there's
+>> a detail to iron out...
+>>
+>> If there is a pending oom victim blocked on a lock held by try_charge() caller
+>> (the "#2 Locks" case), then I think repeated calls to out_of_memory() will
+>> return true until the victim either gets MMF_OOM_SKIP or disappears.
 > 
-> Current printk() implementation flushes all pending logs using the context
-> of a thread which called console_unlock(). printk() should be able to flush
-> all pending logs eventually unless somebody continues appending to printk()
-> buffer.
-> 
-> Since warn_alloc() started appending to printk() buffer while waiting for
-> oom_kill_process() to make forward progress when oom_kill_process() is
-> processing pending logs, it became possible for warn_alloc() to force
-> oom_kill_process() loop inside printk(). As a result, warn_alloc()
-> significantly increased possibility of preventing oom_kill_process() from
-> making forward progress.
-> 
-> ---------- Pseudo code start ----------
-> Before warn_alloc() was introduced:
-> 
->   retry:
->     if (mutex_trylock(&oom_lock)) {
->       while (atomic_read(&printk_pending_logs) > 0) {
->         atomic_dec(&printk_pending_logs);
->         print_one_log();
->       }
->       // Send SIGKILL here.
->       mutex_unlock(&oom_lock)
->     }
->     goto retry;
-> 
-> After warn_alloc() was introduced:
-> 
->   retry:
->     if (mutex_trylock(&oom_lock)) {
->       while (atomic_read(&printk_pending_logs) > 0) {
->         atomic_dec(&printk_pending_logs);
->         print_one_log();
->       }
->       // Send SIGKILL here.
->       mutex_unlock(&oom_lock)
->     } else if (waited_for_10seconds()) {
->       atomic_inc(&printk_pending_logs);
->     }
->     goto retry;
-> ---------- Pseudo code end ----------
-> 
-> Although waited_for_10seconds() becomes true once per 10 seconds, unbounded
-> number of threads can call waited_for_10seconds() at the same time. Also,
-> since threads doing waited_for_10seconds() keep doing almost busy loop, the
-> thread doing print_one_log() can use little CPU resource. Therefore, this
-> situation can be simplified like
-> 
-> ---------- Pseudo code start ----------
->   retry:
->     if (mutex_trylock(&oom_lock)) {
->       while (atomic_read(&printk_pending_logs) > 0) {
->         atomic_dec(&printk_pending_logs);
->         print_one_log();
->       }
->       // Send SIGKILL here.
->       mutex_unlock(&oom_lock)
->     } else {
->       atomic_inc(&printk_pending_logs);
->     }
->     goto retry;
-> ---------- Pseudo code end ----------
-> 
-> when printk() is called faster than print_one_log() can process a log.
-> 
-> One of possible mitigation would be to introduce a new lock in order to
-> make sure that no other series of printk() (either oom_kill_process() or
-> warn_alloc()) can append to printk() buffer when one series of printk()
-> (either oom_kill_process() or warn_alloc()) is already in progress. Such
-> serialization will also help obtaining kernel messages in readable form.
-> 
-> ---------- Pseudo code start ----------
->   retry:
->     if (mutex_trylock(&oom_lock)) {
->       mutex_lock(&oom_printk_lock);
->       while (atomic_read(&printk_pending_logs) > 0) {
->         atomic_dec(&printk_pending_logs);
->         print_one_log();
->       }
->       // Send SIGKILL here.
->       mutex_unlock(&oom_printk_lock);
->       mutex_unlock(&oom_lock)
->     } else {
->       if (mutex_trylock(&oom_printk_lock)) {
->         atomic_inc(&printk_pending_logs);
->         mutex_unlock(&oom_printk_lock);
->       }
->     }
->     goto retry;
-> ---------- Pseudo code end ----------
-> 
-> But this commit does not go that direction, for we don't want to introduce
-> a new lock dependency, and we unlikely be able to obtain useful information
-> even if we serialized oom_kill_process() and warn_alloc().
-> 
-> Synchronous approach is prone to unexpected results (e.g. too late [1], too
-> frequent [2], overlooked [3]). As far as I know, warn_alloc() never helped
-> with providing information other than "something is going wrong".
-> I want to consider asynchronous approach which can obtain information
-> during stalls with possibly relevant threads (e.g. the owner of oom_lock
-> and kswapd-like threads) and serve as a trigger for actions (e.g. turn
-> on/off tracepoints, ask libvirt daemon to take a memory dump of stalling
-> KVM guest for diagnostic purpose).
-> 
-> This commit temporarily looses ability to report e.g. OOM lockup due to
-> unable to invoke the OOM killer due to !__GFP_FS allocation request.
-> But asynchronous approach will be able to detect such situation and emit
-> warning. Thus, let's remove warn_alloc().
-> 
-> [1] https://bugzilla.kernel.org/show_bug.cgi?id=192981
-> [2] http://lkml.kernel.org/r/CAM_iQpWuPVGc2ky8M-9yukECtS+zKjiDasNymX7rMcBjBFyM_A@mail.gmail.com
-> [3] commit db73ee0d46379922 ("mm, vmscan: do not loop on too_many_isolated for ever"))
-> 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Reported-by: Cong Wang <xiyou.wangcong@gmail.com>
-> Reported-by: yuwang.yuwang <yuwang.yuwang@alibaba-inc.com>
-> Reported-by: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Cc: Petr Mladek <pmladek@suse.com>
+> true. And oom_reaper guarantees that MMF_OOM_SKIP gets set in the finit
+> amount of time.
 
-The changelog is a bit excessive but it points out the real problem is
-that printk is simply not ready for the sync warning which is good to
-document and I hope that this will get addressed in a foreseeable future.
-For the mean time it is simply better to remove the warning rather than
-risk more issues.
+Just a confirmation. You are talking about kmemcg, aren't you? And kmemcg
+depends on CONFIG_MMU=y, doesn't it? If no, there is no such guarantee.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/page_alloc.c | 10 ----------
->  1 file changed, 10 deletions(-)
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 97687b3..a4edfba 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3856,8 +3856,6 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
->  	enum compact_result compact_result;
->  	int compaction_retries;
->  	int no_progress_loops;
-> -	unsigned long alloc_start = jiffies;
-> -	unsigned int stall_timeout = 10 * HZ;
->  	unsigned int cpuset_mems_cookie;
->  	int reserve_flags;
->  
-> @@ -3989,14 +3987,6 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
->  	if (!can_direct_reclaim)
->  		goto nopage;
->  
-> -	/* Make sure we know about allocations which stall for too long */
-> -	if (time_after(jiffies, alloc_start + stall_timeout)) {
-> -		warn_alloc(gfp_mask & ~__GFP_NOWARN, ac->nodemask,
-> -			"page allocation stalls for %ums, order:%u",
-> -			jiffies_to_msecs(jiffies-alloc_start), order);
-> -		stall_timeout += 10 * HZ;
-> -	}
-> -
->  	/* Avoid recursion of direct reclaim */
->  	if (current->flags & PF_MEMALLOC)
->  		goto nopage;
-> -- 
-> 1.8.3.1
+>> So a force
+>> charge fallback might be a needed even with oom killer successful invocations.
+>> Or we'll need to teach out_of_memory() to return three values (e.g. NO_VICTIM,
+>> NEW_VICTIM, PENDING_VICTIM) and try_charge() can loop on NEW_VICTIM.
+> 
+> No we, really want to wait for the oom victim to do its job. The only
+> thing we should be worried about is when out_of_memory doesn't invoke
+> the reaper. There is only one case like that AFAIK - GFP_NOFS request. I
+> have to think about this case some more. We currently fail in that case
+> the request.
+> 
 
--- 
-Michal Hocko
-SUSE Labs
+Do we really need to apply
+
+	/*
+	 * The OOM killer does not compensate for IO-less reclaim.
+	 * pagefault_out_of_memory lost its gfp context so we have to
+	 * make sure exclude 0 mask - all other users should have at least
+	 * ___GFP_DIRECT_RECLAIM to get here.
+	 */
+	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS))
+		return true;
+
+unconditionally?
+
+We can encourage !__GFP_FS allocations to use __GFP_NORETRY or
+__GFP_RETRY_MAYFAIL if their allocations are not important.
+Then, only important !__GFP_FS allocations will be checked here.
+I think that we can allow such important allocations to invoke the OOM
+killer (i.e. remove this check) because situation is already hopeless
+if important !__GFP_FS allocations cannot make progress.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
