@@ -1,59 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DE8926B0033
-	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 10:24:56 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 136so1928311wmu.10
-        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 07:24:56 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A2E396B0033
+	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 10:31:50 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id s66so1946595wmf.14
+        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 07:31:50 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id x44si390120edb.125.2017.10.26.07.24.55
+        by mx.google.com with ESMTPS id 34si3479677edi.496.2017.10.26.07.31.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 26 Oct 2017 07:24:55 -0700 (PDT)
-Date: Thu, 26 Oct 2017 10:24:45 -0400
+        Thu, 26 Oct 2017 07:31:49 -0700 (PDT)
+Date: Thu, 26 Oct 2017 10:31:40 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RESEND v12 0/6] cgroup-aware OOM killer
-Message-ID: <20171026142445.GA21147@cmpxchg.org>
-References: <20171019185218.12663-1-guro@fb.com>
- <20171019194534.GA5502@cmpxchg.org>
- <alpine.DEB.2.10.1710221715010.70210@chino.kir.corp.google.com>
+Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
+Message-ID: <20171026143140.GB21147@cmpxchg.org>
+References: <xr93r2tr67pp.fsf@gthelen.svl.corp.google.com>
+ <20171025071522.xyw4lsvdv4xsbhbo@dhcp22.suse.cz>
+ <20171025131151.GA8210@cmpxchg.org>
+ <20171025141221.xm4cqp2z6nunr6vy@dhcp22.suse.cz>
+ <20171025164402.GA11582@cmpxchg.org>
+ <20171025172924.i7du5wnkeihx2fgl@dhcp22.suse.cz>
+ <20171025181106.GA14967@cmpxchg.org>
+ <20171025190057.mqmnprhce7kvsfz7@dhcp22.suse.cz>
+ <20171025211359.GA17899@cmpxchg.org>
+ <xr931slqdery.fsf@gthelen.svl.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1710221715010.70210@chino.kir.corp.google.com>
+In-Reply-To: <xr931slqdery.fsf@gthelen.svl.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Sun, Oct 22, 2017 at 05:24:51PM -0700, David Rientjes wrote:
-> On Thu, 19 Oct 2017, Johannes Weiner wrote:
+On Wed, Oct 25, 2017 at 03:49:21PM -0700, Greg Thelen wrote:
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
 > 
-> > David would have really liked for this patchset to include knobs to
-> > influence how the algorithm picks cgroup victims. The rest of us
-> > agreed that this is beyond the scope of these patches, that the
-> > patches don't need it to be useful, and that there is nothing
-> > preventing anyone from adding configurability later on. David
-> > subsequently nacked the series as he considers it incomplete. Neither
-> > Michal nor I see technical merit in David's nack.
-> > 
+> > On Wed, Oct 25, 2017 at 09:00:57PM +0200, Michal Hocko wrote:
+> >> On Wed 25-10-17 14:11:06, Johannes Weiner wrote:
+> >> > "Safe" is a vague term, and it doesn't make much sense to me in this
+> >> > situation. The OOM behavior should be predictable and consistent.
+> >> > 
+> >> > Yes, global might in the rarest cases also return -ENOMEM. Maybe. We
+> >> > don't have to do that in memcg because we're not physically limited.
+> >> 
+> >> OK, so here seems to be the biggest disconnect. Being physically or
+> >> artificially constrained shouldn't make much difference IMHO. In both
+> >> cases the resource is simply limited for the consumer. And once all the
+> >> attempts to fit within the limit fail then the request for the resource
+> >> has to fail.
+> >
+> > It's a huge difference. In the global case, we have to make trade-offs
+> > to not deadlock the kernel. In the memcg case, we have to make a trade
+> > off between desirable OOM behavior and desirable meaning of memory.max.
+> >
+> > If we can borrow a resource temporarily from the ether to resolve the
+> > OOM situation, I don't see why we shouldn't. We're only briefly
+> > ignoring the limit to make sure the allocating task isn't preventing
+> > the OOM victim from exiting or the OOM reaper from reaping. It's more
+> > of an implementation detail than interface.
+> >
+> > The only scenario you brought up where this might be the permanent
+> > overrun is the single, oom-disabled task. And I explained why that is
+> > a silly argument, why that's the least problematic consequence of
+> > oom-disabling, and why it probably shouldn't even be configurable.
+> >
+> > The idea that memory.max must never be breached is an extreme and
+> > narrow view. As Greg points out, there are allocations we do not even
+> > track. There are other scenarios that force allocations. They may
+> > violate the limit on paper, but they're not notably weakening the goal
+> > of memory.max - isolating workloads from each other.
+> >
+> > Let's look at it this way.
+> >
+> > There are two deadlock relationships the OOM killer needs to solve
+> > between the triggerer and the potential OOM victim:
+> >
+> > 	#1 Memory. The triggerer needs memory that the victim has,
+> > 	    but the victim needs some additional memory to release it.
+> >
+> > 	#2 Locks. The triggerer needs memory that the victim has, but
+> > 	    the victim needs a lock the triggerer holds to release it.
+> >
+> > We have no qualms letting the victim temporarily (until the victim's
+> > exit) ignore memory.max to resolve the memory deadlock #1.
+> >
+> > I don't understand why it's such a stretch to let the triggerer
+> > temporarily (until the victim's exit) ignore memory.max to resolve the
+> > locks deadlock #2. [1]
+> >
+> > We need both for the OOM killer to function correctly.
+> >
+> > We've solved #1 both for memcg and globally. But we haven't solved #2.
+> > Global can still deadlock, and memcg copped out and returns -ENOMEM.
+> >
+> > Adding speculative OOM killing before the -ENOMEM makes things more
+> > muddy and unpredictable. It doesn't actually solve deadlock #2.
+> >
+> > [1] And arguably that's what we should be doing in the global case
+> >     too: give the triggerer access to reserves. If you recall this
+> >     thread here: https://patchwork.kernel.org/patch/6088511/
+> >
+> >> > > So the only change I am really proposing is to keep retrying as long
+> >> > > as the oom killer makes a forward progress and ENOMEM otherwise.
+> >> > 
+> >> > That's the behavior change I'm against.
+> >> 
+> >> So just to make it clear you would be OK with the retry on successful
+> >> OOM killer invocation and force charge on oom failure, right?
+> >
+> > Yeah, that sounds reasonable to me.
 > 
-> The nack is for three reasons:
+> Assuming we're talking about retrying within try_charge(), then there's
+> a detail to iron out...
 > 
->  (1) unfair comparison of root mem cgroup usage to bias against that mem 
->      cgroup from oom kill in system oom conditions,
-> 
->  (2) the ability of users to completely evade the oom killer by attaching
->      all processes to child cgroups either purposefully or unpurposefully,
->      and
-> 
->  (3) the inability of userspace to effectively control oom victim  
->      selection.
+> If there is a pending oom victim blocked on a lock held by try_charge() caller
+> (the "#2 Locks" case), then I think repeated calls to out_of_memory() will
+> return true until the victim either gets MMF_OOM_SKIP or disappears.  So a force
+> charge fallback might be a needed even with oom killer successful invocations.
+> Or we'll need to teach out_of_memory() to return three values (e.g. NO_VICTIM,
+> NEW_VICTIM, PENDING_VICTIM) and try_charge() can loop on NEW_VICTIM.
 
-My apologies if my summary was too reductionist.
-
-That being said, the arguments you repeat here have come up in
-previous threads and been responded to. This doesn't change my
-conclusion that your NAK is bogus.
+True. I was assuming we'd retry MEM_CGROUP_RECLAIM_RETRIES times at a
+maximum, even if the OOM killer indicates a kill has been issued. What
+you propose makes sense too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
