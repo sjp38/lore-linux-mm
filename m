@@ -1,49 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F054E6B025F
-	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 03:51:48 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id b85so1820486pfj.22
-        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 00:51:48 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id c87si3224984pfk.441.2017.10.26.00.51.47
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D9516B0033
+	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 04:16:12 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 15so2190089pgc.21
+        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 01:16:12 -0700 (PDT)
+Received: from mga02.intel.com ([134.134.136.20])
+        by mx.google.com with ESMTPS id c7si3014401pgn.653.2017.10.26.01.16.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Oct 2017 00:51:48 -0700 (PDT)
-Received: from mail-it0-f50.google.com (mail-it0-f50.google.com [209.85.214.50])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id A48EA21959
-	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 07:51:47 +0000 (UTC)
-Received: by mail-it0-f50.google.com with SMTP id y15so4175481ita.4
-        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 00:51:47 -0700 (PDT)
+        Thu, 26 Oct 2017 01:16:10 -0700 (PDT)
+Subject: Re: [v5,22/22] powerpc/mm: Add speculative page fault
+References: <1507729966-10660-23-git-send-email-ldufour@linux.vnet.ibm.com>
+From: kemi <kemi.wang@intel.com>
+Message-ID: <7ca80231-fe02-a3a7-84bc-ce81690ea051@intel.com>
+Date: Thu, 26 Oct 2017 16:14:21 +0800
 MIME-Version: 1.0
-In-Reply-To: <1507089272-32733-3-git-send-email-ricardo.neri-calderon@linux.intel.com>
-References: <1507089272-32733-1-git-send-email-ricardo.neri-calderon@linux.intel.com>
- <1507089272-32733-3-git-send-email-ricardo.neri-calderon@linux.intel.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Thu, 26 Oct 2017 00:51:25 -0700
-Message-ID: <CALCETrUced9TVsMQ=cjFfDuDfLQsZWu0GOoRCmHn4PsSwrfOdw@mail.gmail.com>
-Subject: Re: [PATCH v9 02/29] x86/boot: Relocate definition of the initial
- state of CR0
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <1507729966-10660-23-git-send-email-ldufour@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ricardo Neri <ricardo.neri-calderon@linux.intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Brian Gerst <brgerst@gmail.com>, Chris Metcalf <cmetcalf@mellanox.com>, Dave Hansen <dave.hansen@linux.intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Liang Z Li <liang.z.li@intel.com>, Masami Hiramatsu <mhiramat@kernel.org>, Huang Rui <ray.huang@amd.com>, Jiri Slaby <jslaby@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Michael S. Tsirkin" <mst@redhat.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Vlastimil Babka <vbabka@suse.cz>, Chen Yucong <slaoub@gmail.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Shuah Khan <shuah@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, "Neri, Ricardo" <ricardo.neri@intel.com>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Tue, Oct 3, 2017 at 8:54 PM, Ricardo Neri
-<ricardo.neri-calderon@linux.intel.com> wrote:
-> Both head_32.S and head_64.S utilize the same value to initialize the
-> control register CR0. Also, other parts of the kernel might want to access
-> this initial definition (e.g., emulation code for User-Mode Instruction
-> Prevention uses this state to provide a sane dummy value for CR0 when
-> emulating the smsw instruction). Thus, relocate this definition to a
-> header file from which it can be conveniently accessed.
+Some regression is found by LKP-tools(linux kernel performance) on this patch series
+tested on Intel 2s/4s Skylake platform. 
+The regression result is sorted by the metric will-it-scale.per_process_ops.
 
-Reviewed-by: Andy Lutomirski <luto@kernel.org>
+Branch:Laurent-Dufour/Speculative-page-faults/20171011-213456(V4 patch series)
+Commit id:
+     base:9a4b4dd1d8700dd5771f11dd2c048e4363efb493
+     head:56a4a8962fb32555a42eefdc9a19eeedd3e8c2e6
+Benchmark suite:will-it-scale
+Download link:https://github.com/antonblanchard/will-it-scale/tree/master/tests
+Metrics:
+     will-it-scale.per_process_ops=processes/nr_cpu
+     will-it-scale.per_thread_ops=threads/nr_cpu
 
-with the slight caveat that I think it might be a wee bit better if
-UMIP emulation used a separate define UMIP_REPORTED_CR0.
+tbox:lkp-skl-4sp1(nr_cpu=192,memory=768G)
+kconfig:CONFIG_TRANSPARENT_HUGEPAGE is not set
+testcase        base            change          head            metric                   
+brk1            2251803         -18.1%          1843535         will-it-scale.per_process_ops
+                341101          -17.5%          281284          will-it-scale.per_thread_ops
+malloc1         48833           -9.2%           44343           will-it-scale.per_process_ops
+                31555           +2.9%           32473           will-it-scale.per_thread_ops
+page_fault3     913019          -8.5%           835203          will-it-scale.per_process_ops
+                233978          -18.1%          191593          will-it-scale.per_thread_ops
+mmap2           95892           -6.6%           89536           will-it-scale.per_process_ops
+                90180           -13.7%          77803           will-it-scale.per_thread_ops
+mmap1           109586          -4.7%           104414          will-it-scale.per_process_ops
+                104477          -12.4%          91484           will-it-scale.per_thread_ops
+sched_yield     4964649         -2.1%           4859927         will-it-scale.per_process_ops
+                4946759         -1.7%           4864924         will-it-scale.per_thread_ops
+write1          1345159         -1.3%           1327719         will-it-scale.per_process_ops
+                1228754         -2.2%           1201915         will-it-scale.per_thread_ops
+page_fault2     202519          -1.0%           200545          will-it-scale.per_process_ops
+                96573           -10.4%          86526           will-it-scale.per_thread_ops
+page_fault1     225608          -0.9%           223585          will-it-scale.per_process_ops
+                105945          +14.4%          121199          will-it-scale.per_thread_ops
+
+tbox:lkp-skl-4sp1(nr_cpu=192,memory=768G)
+kconfig:CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS=y
+testcase        base            change          head            metric                   
+context_switch1 333780          -23.0%          256927          will-it-scale.per_process_ops
+brk1            2263539         -18.8%          1837462         will-it-scale.per_process_ops
+                325854          -15.7%          274752          will-it-scale.per_thread_ops
+malloc1         48746           -13.5%          42148           will-it-scale.per_process_ops
+mmap1           106860          -12.4%          93634           will-it-scale.per_process_ops
+                98082           -18.9%          79506           will-it-scale.per_thread_ops
+mmap2           92468           -11.3%          82059           will-it-scale.per_process_ops
+                80468           -8.9%           73343           will-it-scale.per_thread_ops
+page_fault3     900709          -9.1%           818851          will-it-scale.per_process_ops
+                229837          -18.3%          187769          will-it-scale.per_thread_ops
+write1          1327409         -1.7%           1305048         will-it-scale.per_process_ops
+                1215658         -1.6%           1196479         will-it-scale.per_thread_ops
+writeseek3      300639          -1.6%           295882          will-it-scale.per_process_ops
+                231118          -2.2%           225929          will-it-scale.per_thread_ops
+signal1         122011          -1.5%           120155          will-it-scale.per_process_ops
+futex1          5123778         -1.2%           5062087         will-it-scale.per_process_ops
+page_fault2     202321          -1.0%           200289          will-it-scale.per_process_ops
+                93073           -9.8%           83927           will-it-scale.per_thread_ops
+
+tbox:lkp-skl-2sp2(nr_cpu=112,memory=64G)
+kconfig:CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS=y
+testcase        base            change          head            metric                   
+brk1            2177903         -20.0%          1742054         will-it-scale.per_process_ops
+                434558          -15.3%          367896          will-it-scale.per_thread_ops
+malloc1         64871           -10.3%          58174           will-it-scale.per_process_ops
+page_fault3     882435          -9.0%           802892          will-it-scale.per_process_ops
+                299176          -15.7%          252170          will-it-scale.per_thread_ops
+mmap2           124567          -8.3%           114214          will-it-scale.per_process_ops
+                110674          -12.1%          97272           will-it-scale.per_thread_ops
+mmap1           137205          -7.8%           126440          will-it-scale.per_process_ops
+                128973          -15.1%          109560          will-it-scale.per_thread_ops
+context_switch1 343790          -7.2%           319209          will-it-scale.per_process_ops
+page_fault2     161891          -2.1%           158458          will-it-scale.per_process_ops
+                123278          -5.4%           116629          will-it-scale.per_thread_ops
+malloc2         14354856        -1.8%           14096856        will-it-scale.per_process_ops
+read2           1204838         -1.7%           1183993         will-it-scale.per_process_ops
+futex1          5017718         -1.6%           4938677         will-it-scale.per_process_ops
+                1408250         -1.0%           1394022         will-it-scale.per_thread_ops
+writeseek3      399651          -1.4%           393935          will-it-scale.per_process_ops
+signal1         157952          -1.0%           156302          will-it-scale.per_process_ops
+
+On 2017a1'10ae??11ae?JPY 21:52, Laurent Dufour wrote:
+> This patch enable the speculative page fault on the PowerPC
+> architecture.
+> 
+> This will try a speculative page fault without holding the mmap_sem,
+> if it returns with VM_FAULT_RETRY, the mmap_sem is acquired and the
+> traditional page fault processing is done.
+> 
+> Build on if CONFIG_SPF is defined (currently for BOOK3S_64 && SMP).
+> 
+> Signed-off-by: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+> ---
+>  arch/powerpc/mm/fault.c | 17 +++++++++++++++++
+>  1 file changed, 17 insertions(+)
+> 
+> diff --git a/arch/powerpc/mm/fault.c b/arch/powerpc/mm/fault.c
+> index 4797d08581ce..c018c2554cc8 100644
+> --- a/arch/powerpc/mm/fault.c
+> +++ b/arch/powerpc/mm/fault.c
+> @@ -442,6 +442,20 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
+>  	if (is_exec)
+>  		flags |= FAULT_FLAG_INSTRUCTION;
+>  
+> +#ifdef CONFIG_SPF
+> +	if (is_user) {
+> +		/* let's try a speculative page fault without grabbing the
+> +		 * mmap_sem.
+> +		 */
+> +		fault = handle_speculative_fault(mm, address, flags);
+> +		if (!(fault & VM_FAULT_RETRY)) {
+> +			perf_sw_event(PERF_COUNT_SW_SPF, 1,
+> +				      regs, address);
+> +			goto done;
+> +		}
+> +	}
+> +#endif /* CONFIG_SPF */
+> +
+>  	/* When running in the kernel we expect faults to occur only to
+>  	 * addresses in user space.  All other faults represent errors in the
+>  	 * kernel and should generate an OOPS.  Unfortunately, in the case of an
+> @@ -526,6 +540,9 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
+>  
+>  	up_read(&current->mm->mmap_sem);
+>  
+> +#ifdef CONFIG_SPF
+> +done:
+> +#endif
+>  	if (unlikely(fault & VM_FAULT_ERROR))
+>  		return mm_fault_error(regs, address, fault);
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
