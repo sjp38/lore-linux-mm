@@ -1,71 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EB6A16B025F
-	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 03:50:00 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id y83so1395270wmc.8
-        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 00:50:00 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g12si3206784edm.471.2017.10.26.00.49.59
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F054E6B025F
+	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 03:51:48 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id b85so1820486pfj.22
+        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 00:51:48 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id c87si3224984pfk.441.2017.10.26.00.51.47
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 26 Oct 2017 00:49:59 -0700 (PDT)
-Date: Thu, 26 Oct 2017 09:49:58 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
-Message-ID: <20171026074958.tmtxkyymmsqtgr7w@dhcp22.suse.cz>
-References: <xr93r2tr67pp.fsf@gthelen.svl.corp.google.com>
- <20171025071522.xyw4lsvdv4xsbhbo@dhcp22.suse.cz>
- <20171025131151.GA8210@cmpxchg.org>
- <20171025141221.xm4cqp2z6nunr6vy@dhcp22.suse.cz>
- <20171025164402.GA11582@cmpxchg.org>
- <20171025172924.i7du5wnkeihx2fgl@dhcp22.suse.cz>
- <20171025181106.GA14967@cmpxchg.org>
- <20171025190057.mqmnprhce7kvsfz7@dhcp22.suse.cz>
- <20171025211359.GA17899@cmpxchg.org>
- <xr931slqdery.fsf@gthelen.svl.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Oct 2017 00:51:48 -0700 (PDT)
+Received: from mail-it0-f50.google.com (mail-it0-f50.google.com [209.85.214.50])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id A48EA21959
+	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 07:51:47 +0000 (UTC)
+Received: by mail-it0-f50.google.com with SMTP id y15so4175481ita.4
+        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 00:51:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <xr931slqdery.fsf@gthelen.svl.corp.google.com>
+In-Reply-To: <1507089272-32733-3-git-send-email-ricardo.neri-calderon@linux.intel.com>
+References: <1507089272-32733-1-git-send-email-ricardo.neri-calderon@linux.intel.com>
+ <1507089272-32733-3-git-send-email-ricardo.neri-calderon@linux.intel.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Thu, 26 Oct 2017 00:51:25 -0700
+Message-ID: <CALCETrUced9TVsMQ=cjFfDuDfLQsZWu0GOoRCmHn4PsSwrfOdw@mail.gmail.com>
+Subject: Re: [PATCH v9 02/29] x86/boot: Relocate definition of the initial
+ state of CR0
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Ricardo Neri <ricardo.neri-calderon@linux.intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Brian Gerst <brgerst@gmail.com>, Chris Metcalf <cmetcalf@mellanox.com>, Dave Hansen <dave.hansen@linux.intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Liang Z Li <liang.z.li@intel.com>, Masami Hiramatsu <mhiramat@kernel.org>, Huang Rui <ray.huang@amd.com>, Jiri Slaby <jslaby@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Michael S. Tsirkin" <mst@redhat.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Vlastimil Babka <vbabka@suse.cz>, Chen Yucong <slaoub@gmail.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Shuah Khan <shuah@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, "Neri, Ricardo" <ricardo.neri@intel.com>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed 25-10-17 15:49:21, Greg Thelen wrote:
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
-> 
-> > On Wed, Oct 25, 2017 at 09:00:57PM +0200, Michal Hocko wrote:
-[...]
-> >> So just to make it clear you would be OK with the retry on successful
-> >> OOM killer invocation and force charge on oom failure, right?
-> >
-> > Yeah, that sounds reasonable to me.
-> 
-> Assuming we're talking about retrying within try_charge(), then there's
-> a detail to iron out...
-> 
-> If there is a pending oom victim blocked on a lock held by try_charge() caller
-> (the "#2 Locks" case), then I think repeated calls to out_of_memory() will
-> return true until the victim either gets MMF_OOM_SKIP or disappears.
+On Tue, Oct 3, 2017 at 8:54 PM, Ricardo Neri
+<ricardo.neri-calderon@linux.intel.com> wrote:
+> Both head_32.S and head_64.S utilize the same value to initialize the
+> control register CR0. Also, other parts of the kernel might want to access
+> this initial definition (e.g., emulation code for User-Mode Instruction
+> Prevention uses this state to provide a sane dummy value for CR0 when
+> emulating the smsw instruction). Thus, relocate this definition to a
+> header file from which it can be conveniently accessed.
 
-true. And oom_reaper guarantees that MMF_OOM_SKIP gets set in the finit
-amount of time.
+Reviewed-by: Andy Lutomirski <luto@kernel.org>
 
-> So a force
-> charge fallback might be a needed even with oom killer successful invocations.
-> Or we'll need to teach out_of_memory() to return three values (e.g. NO_VICTIM,
-> NEW_VICTIM, PENDING_VICTIM) and try_charge() can loop on NEW_VICTIM.
-
-No we, really want to wait for the oom victim to do its job. The only
-thing we should be worried about is when out_of_memory doesn't invoke
-the reaper. There is only one case like that AFAIK - GFP_NOFS request. I
-have to think about this case some more. We currently fail in that case
-the request.
-
--- 
-Michal Hocko
-SUSE Labs
+with the slight caveat that I think it might be a wee bit better if
+UMIP emulation used a separate define UMIP_REPORTED_CR0.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
