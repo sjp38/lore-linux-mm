@@ -1,128 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A2E396B0033
-	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 10:31:50 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id s66so1946595wmf.14
-        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 07:31:50 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 34si3479677edi.496.2017.10.26.07.31.49
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D92C6B0033
+	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 10:34:04 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id g6so2944198pgn.11
+        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 07:34:04 -0700 (PDT)
+Received: from BJEXCAS006.didichuxing.com ([36.110.17.22])
+        by mx.google.com with ESMTPS id 202si3445071pgg.496.2017.10.26.07.34.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 26 Oct 2017 07:31:49 -0700 (PDT)
-Date: Thu, 26 Oct 2017 10:31:40 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
-Message-ID: <20171026143140.GB21147@cmpxchg.org>
-References: <xr93r2tr67pp.fsf@gthelen.svl.corp.google.com>
- <20171025071522.xyw4lsvdv4xsbhbo@dhcp22.suse.cz>
- <20171025131151.GA8210@cmpxchg.org>
- <20171025141221.xm4cqp2z6nunr6vy@dhcp22.suse.cz>
- <20171025164402.GA11582@cmpxchg.org>
- <20171025172924.i7du5wnkeihx2fgl@dhcp22.suse.cz>
- <20171025181106.GA14967@cmpxchg.org>
- <20171025190057.mqmnprhce7kvsfz7@dhcp22.suse.cz>
- <20171025211359.GA17899@cmpxchg.org>
- <xr931slqdery.fsf@gthelen.svl.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 26 Oct 2017 07:34:03 -0700 (PDT)
+Date: Thu, 26 Oct 2017 22:33:56 +0800
+From: weiping zhang <zhangweiping@didichuxing.com>
+Subject: Re: [PATCH] bdi: add check before create debugfs dir or files
+Message-ID: <20171026143336.GA13166@source.didichuxing.com>
+References: <20171025152312.GA23944@source.didichuxing.com>
+ <20171026135405.GC31161@quack2.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <xr931slqdery.fsf@gthelen.svl.corp.google.com>
+In-Reply-To: <20171026135405.GC31161@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: axboe@kernel.dk, linux-mm@kvack.org
 
-On Wed, Oct 25, 2017 at 03:49:21PM -0700, Greg Thelen wrote:
-> Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Thu, Oct 26, 2017 at 03:54:05PM +0200, Jan Kara wrote:
+> On Wed 25-10-17 23:23:18, weiping zhang wrote:
+> > we should make sure parents directory exist, and then create dir or
+> > files under that.
+> > 
+> > Signed-off-by: weiping zhang <zhangweiping@didichuxing.com>
 > 
-> > On Wed, Oct 25, 2017 at 09:00:57PM +0200, Michal Hocko wrote:
-> >> On Wed 25-10-17 14:11:06, Johannes Weiner wrote:
-> >> > "Safe" is a vague term, and it doesn't make much sense to me in this
-> >> > situation. The OOM behavior should be predictable and consistent.
-> >> > 
-> >> > Yes, global might in the rarest cases also return -ENOMEM. Maybe. We
-> >> > don't have to do that in memcg because we're not physically limited.
-> >> 
-> >> OK, so here seems to be the biggest disconnect. Being physically or
-> >> artificially constrained shouldn't make much difference IMHO. In both
-> >> cases the resource is simply limited for the consumer. And once all the
-> >> attempts to fit within the limit fail then the request for the resource
-> >> has to fail.
-> >
-> > It's a huge difference. In the global case, we have to make trade-offs
-> > to not deadlock the kernel. In the memcg case, we have to make a trade
-> > off between desirable OOM behavior and desirable meaning of memory.max.
-> >
-> > If we can borrow a resource temporarily from the ether to resolve the
-> > OOM situation, I don't see why we shouldn't. We're only briefly
-> > ignoring the limit to make sure the allocating task isn't preventing
-> > the OOM victim from exiting or the OOM reaper from reaping. It's more
-> > of an implementation detail than interface.
-> >
-> > The only scenario you brought up where this might be the permanent
-> > overrun is the single, oom-disabled task. And I explained why that is
-> > a silly argument, why that's the least problematic consequence of
-> > oom-disabling, and why it probably shouldn't even be configurable.
-> >
-> > The idea that memory.max must never be breached is an extreme and
-> > narrow view. As Greg points out, there are allocations we do not even
-> > track. There are other scenarios that force allocations. They may
-> > violate the limit on paper, but they're not notably weakening the goal
-> > of memory.max - isolating workloads from each other.
-> >
-> > Let's look at it this way.
-> >
-> > There are two deadlock relationships the OOM killer needs to solve
-> > between the triggerer and the potential OOM victim:
-> >
-> > 	#1 Memory. The triggerer needs memory that the victim has,
-> > 	    but the victim needs some additional memory to release it.
-> >
-> > 	#2 Locks. The triggerer needs memory that the victim has, but
-> > 	    the victim needs a lock the triggerer holds to release it.
-> >
-> > We have no qualms letting the victim temporarily (until the victim's
-> > exit) ignore memory.max to resolve the memory deadlock #1.
-> >
-> > I don't understand why it's such a stretch to let the triggerer
-> > temporarily (until the victim's exit) ignore memory.max to resolve the
-> > locks deadlock #2. [1]
-> >
-> > We need both for the OOM killer to function correctly.
-> >
-> > We've solved #1 both for memcg and globally. But we haven't solved #2.
-> > Global can still deadlock, and memcg copped out and returns -ENOMEM.
-> >
-> > Adding speculative OOM killing before the -ENOMEM makes things more
-> > muddy and unpredictable. It doesn't actually solve deadlock #2.
-> >
-> > [1] And arguably that's what we should be doing in the global case
-> >     too: give the triggerer access to reserves. If you recall this
-> >     thread here: https://patchwork.kernel.org/patch/6088511/
-> >
-> >> > > So the only change I am really proposing is to keep retrying as long
-> >> > > as the oom killer makes a forward progress and ENOMEM otherwise.
-> >> > 
-> >> > That's the behavior change I'm against.
-> >> 
-> >> So just to make it clear you would be OK with the retry on successful
-> >> OOM killer invocation and force charge on oom failure, right?
-> >
-> > Yeah, that sounds reasonable to me.
+> OK, this looks reasonable to me but instead of instead of just leaving
+> debugfs in half-initialized state, we should rather properly tear it down,
+> return error from bdi_debug_register() and handle it in
+> bdi_register_va()...
 > 
-> Assuming we're talking about retrying within try_charge(), then there's
-> a detail to iron out...
 > 
-> If there is a pending oom victim blocked on a lock held by try_charge() caller
-> (the "#2 Locks" case), then I think repeated calls to out_of_memory() will
-> return true until the victim either gets MMF_OOM_SKIP or disappears.  So a force
-> charge fallback might be a needed even with oom killer successful invocations.
-> Or we'll need to teach out_of_memory() to return three values (e.g. NO_VICTIM,
-> NEW_VICTIM, PENDING_VICTIM) and try_charge() can loop on NEW_VICTIM.
+At beginning I try to return error code to caller, then I find
+bdi_register_owner's return value was not checked in device_add_disk,
+so I think there may have some stories. But now, I found we must check
+bdi_register_owner in device_add_disk, otherwise bdi may lead some
+undefined behavior. blk_mq_debugfs_register also has same issue.
 
-True. I was assuming we'd retry MEM_CGROUP_RECLAIM_RETRIES times at a
-maximum, even if the OOM killer indicates a kill has been issued. What
-you propose makes sense too.
+I will send new patch series to fix these issues.
+
+
+--
+weiping
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
