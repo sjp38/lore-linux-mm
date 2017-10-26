@@ -1,158 +1,322 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BD026B025F
-	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 09:10:35 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id l85so2372294qkh.19
-        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 06:10:35 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id z8si4437847qkz.250.2017.10.26.06.10.34
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AB666B0033
+	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 09:21:00 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id h200so3326779oib.18
+        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 06:21:00 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o62si1412090oif.392.2017.10.26.06.20.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Oct 2017 06:10:34 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9QD9tY5078251
-	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 09:10:33 -0400
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2dudc69rs2-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 09:10:31 -0400
-Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Thu, 26 Oct 2017 14:08:15 +0100
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH] pids: introduce find_get_task_by_vpid helper
-Date: Thu, 26 Oct 2017 16:07:58 +0300
-Message-Id: <1509023278-20604-1-git-send-email-rppt@linux.vnet.ibm.com>
+        Thu, 26 Oct 2017 06:20:58 -0700 (PDT)
+From: marcandre.lureau@redhat.com
+Subject: [PATCH RFC] shmem: add hugetlbfs sealing
+Date: Thu, 26 Oct 2017 15:20:52 +0200
+Message-Id: <20171026132052.28504-1-marcandre.lureau@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Darren Hart <dvhart@infradead.org>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <bsingharora@gmail.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: linux-mm@kvack.org
+Cc: hughd@google.com, nyc@holomorphy.com, mike.kravetz@oracle.com, =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
 
-There are several functions that do find_task_by_vpid() followed by
-get_task_struct(). We can use a helper function instead.
+From: Marc-AndrA(C) Lureau <marcandre.lureau@redhat.com>
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Hi,
+
+Recently, Mike Kravetz added hugetlbfs support to memfd. However, he
+didn't need sealing support. One of the reasons to use memfd is to
+have shared memory sealing when doing IPC. Qemu uses shared memory &
+hugetables with vhost-user (used by dpdk). I am adding memfd support
+in qemu, for convenience and security reasons. It would be great if
+hugetlbfs had sealing support. I don't have much experience with
+kernel & mm, but I came up with the following patch. It works with a
+slightly modified memfd_test.c, enabling most tests again (only
+pwrite() has to be skipped). I would like to have some early feedback
+before I send a cleaned up series on the lkml.
+
+Thanks!
+
+Signed-off-by: Marc-AndrA(C) Lureau <marcandre.lureau@redhat.com>
 ---
- include/linux/sched.h  |  5 +++++
- kernel/futex.c         |  7 +------
- kernel/pid.c           | 13 +++++++++++++
- kernel/ptrace.c        |  6 +-----
- kernel/taskstats.c     |  6 +-----
- mm/process_vm_access.c |  6 +-----
- 6 files changed, 22 insertions(+), 21 deletions(-)
+ fs/hugetlbfs/inode.c     | 36 ++++++++++++++++++++++++----------
+ include/linux/hugetlb.h  | 11 +++++++++++
+ include/linux/shmem_fs.h |  2 --
+ mm/shmem.c               | 51 +++++++++++++++++++++++++-----------------------
+ 4 files changed, 64 insertions(+), 36 deletions(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 26a7df4e558c..4c3af5255fcf 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1484,6 +1484,11 @@ static inline struct thread_info *task_thread_info(struct task_struct *task)
- extern struct task_struct *find_task_by_vpid(pid_t nr);
- extern struct task_struct *find_task_by_pid_ns(pid_t nr, struct pid_namespace *ns);
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 59073e9f01a4..a39c315e6d0c 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -55,16 +55,6 @@ struct hugetlbfs_config {
+ 	umode_t			mode;
+ };
  
-+/*
-+ * find a task by its virtual pid and get the task struct
-+ */
-+extern struct task_struct *find_get_task_by_vpid(pid_t nr);
-+
- extern int wake_up_state(struct task_struct *tsk, unsigned int state);
- extern int wake_up_process(struct task_struct *tsk);
- extern void wake_up_new_task(struct task_struct *tsk);
-diff --git a/kernel/futex.c b/kernel/futex.c
-index 0518a0bfc746..6446aa9f2288 100644
---- a/kernel/futex.c
-+++ b/kernel/futex.c
-@@ -870,12 +870,7 @@ static struct task_struct *futex_find_get_task(pid_t pid)
- {
- 	struct task_struct *p;
- 
--	rcu_read_lock();
--	p = find_task_by_vpid(pid);
--	if (p)
--		get_task_struct(p);
+-struct hugetlbfs_inode_info {
+-	struct shared_policy policy;
+-	struct inode vfs_inode;
+-};
 -
--	rcu_read_unlock();
-+	p = find_get_task_by_vpid(pid);
+-static inline struct hugetlbfs_inode_info *HUGETLBFS_I(struct inode *inode)
+-{
+-	return container_of(inode, struct hugetlbfs_inode_info, vfs_inode);
+-}
+-
+ int sysctl_hugetlb_shm_group;
  
- 	return p;
- }
-diff --git a/kernel/pid.c b/kernel/pid.c
-index 020dedbdf066..ead086b0ef8e 100644
---- a/kernel/pid.c
-+++ b/kernel/pid.c
-@@ -462,6 +462,19 @@ struct task_struct *find_task_by_vpid(pid_t vnr)
- 	return find_task_by_pid_ns(vnr, task_active_pid_ns(current));
- }
+ enum {
+@@ -520,8 +510,16 @@ static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
  
-+struct task_struct *find_get_task_by_vpid(pid_t nr)
+ 	if (hole_end > hole_start) {
+ 		struct address_space *mapping = inode->i_mapping;
++		struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
+ 
+ 		inode_lock(inode);
++
++		/* protected by i_mutex */
++		if (info->seals & F_SEAL_WRITE) {
++			inode_unlock(inode);
++			return -EPERM;
++		}
++
+ 		i_mmap_lock_write(mapping);
+ 		if (!RB_EMPTY_ROOT(&mapping->i_mmap.rb_root))
+ 			hugetlb_vmdelete_list(&mapping->i_mmap,
+@@ -539,6 +537,7 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
+ 				loff_t len)
+ {
+ 	struct inode *inode = file_inode(file);
++	struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
+ 	struct address_space *mapping = inode->i_mapping;
+ 	struct hstate *h = hstate_inode(inode);
+ 	struct vm_area_struct pseudo_vma;
+@@ -570,6 +569,12 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
+ 	if (error)
+ 		goto out;
+ 
++	/* do we need this if FL_KEEP_SIZE is mandatory? let's be careful */
++	if ((info->seals & F_SEAL_GROW) && offset + len > inode->i_size) {
++		error = -EPERM;
++		goto out;
++	}
++
+ 	/*
+ 	 * Initialize a pseudo vma as this is required by the huge page
+ 	 * allocation routines.  If NUMA is configured, use page index
+@@ -660,6 +665,7 @@ static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
+ 	struct hstate *h = hstate_inode(inode);
+ 	int error;
+ 	unsigned int ia_valid = attr->ia_valid;
++	struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
+ 
+ 	BUG_ON(!inode);
+ 
+@@ -668,9 +674,16 @@ static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
+ 		return error;
+ 
+ 	if (ia_valid & ATTR_SIZE) {
++		loff_t oldsize = inode->i_size;
++		loff_t newsize = attr->ia_size;
++
+ 		error = -EINVAL;
+ 		if (attr->ia_size & ~huge_page_mask(h))
+ 			return -EINVAL;
++		/* protected by i_mutex */
++		if ((newsize < oldsize && (info->seals & F_SEAL_SHRINK)) ||
++		    (newsize > oldsize && (info->seals & F_SEAL_GROW)))
++			return -EPERM;
+ 		error = hugetlb_vmtruncate(inode, attr->ia_size);
+ 		if (error)
+ 			return error;
+@@ -723,6 +736,8 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
+ 
+ 	inode = new_inode(sb);
+ 	if (inode) {
++		struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
++
+ 		inode->i_ino = get_next_ino();
+ 		inode_init_owner(inode, dir, mode);
+ 		lockdep_set_class(&inode->i_mapping->i_mmap_rwsem,
+@@ -730,6 +745,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
+ 		inode->i_mapping->a_ops = &hugetlbfs_aops;
+ 		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+ 		inode->i_mapping->private_data = resv_map;
++		info->seals = F_SEAL_SEAL;
+ 		switch (mode & S_IFMT) {
+ 		default:
+ 			init_special_inode(inode, mode, dev);
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 8bbbd37ab105..42945aa3bcc1 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -44,6 +44,17 @@ extern int gup_huge_pd(hugepd_t hugepd, unsigned long addr,
+ #include <linux/shm.h>
+ #include <asm/tlbflush.h>
+ 
++struct hugetlbfs_inode_info {
++    struct shared_policy policy;
++    struct inode vfs_inode;
++    unsigned int seals;
++};
++
++static inline struct hugetlbfs_inode_info *HUGETLBFS_I(struct inode *inode)
 +{
-+	struct task_struct *task;
-+
-+	rcu_read_lock();
-+	task = find_task_by_vpid(nr);
-+	if (task)
-+		get_task_struct(task);
-+	rcu_read_unlock();
-+
-+	return task;
++    return container_of(inode, struct hugetlbfs_inode_info, vfs_inode);
 +}
 +
- struct pid *get_task_pid(struct task_struct *task, enum pid_type type)
- {
- 	struct pid *pid;
-diff --git a/kernel/ptrace.c b/kernel/ptrace.c
-index 84b1367935e4..91efc97674ce 100644
---- a/kernel/ptrace.c
-+++ b/kernel/ptrace.c
-@@ -1103,11 +1103,7 @@ static struct task_struct *ptrace_get_task_struct(pid_t pid)
- {
- 	struct task_struct *child;
+ struct hugepage_subpool {
+ 	spinlock_t lock;
+ 	long count;
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index b6c3540e07bc..557d0c3b6eca 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -109,8 +109,6 @@ extern void shmem_uncharge(struct inode *inode, long pages);
  
--	rcu_read_lock();
--	child = find_task_by_vpid(pid);
--	if (child)
--		get_task_struct(child);
--	rcu_read_unlock();
-+	child = find_get_task_by_vpid(pid);
+ #ifdef CONFIG_TMPFS
  
- 	if (!child)
- 		return ERR_PTR(-ESRCH);
-diff --git a/kernel/taskstats.c b/kernel/taskstats.c
-index 4559e914452b..4e62a4a8fa91 100644
---- a/kernel/taskstats.c
-+++ b/kernel/taskstats.c
-@@ -194,11 +194,7 @@ static int fill_stats_for_pid(pid_t pid, struct taskstats *stats)
+-extern int shmem_add_seals(struct file *file, unsigned int seals);
+-extern int shmem_get_seals(struct file *file);
+ extern long shmem_fcntl(struct file *file, unsigned int cmd, unsigned long arg);
+ 
+ #else
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 07a1d22807be..6ceb5f43cb10 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -2722,10 +2722,10 @@ static int shmem_wait_for_pins(struct address_space *mapping)
+ 		     F_SEAL_GROW | \
+ 		     F_SEAL_WRITE)
+ 
+-int shmem_add_seals(struct file *file, unsigned int seals)
++static int memfd_add_seals(struct file *file, unsigned int seals)
  {
- 	struct task_struct *tsk;
+ 	struct inode *inode = file_inode(file);
+-	struct shmem_inode_info *info = SHMEM_I(inode);
++	unsigned int *info_seals;
+ 	int error;
  
--	rcu_read_lock();
--	tsk = find_task_by_vpid(pid);
--	if (tsk)
--		get_task_struct(tsk);
--	rcu_read_unlock();
-+	tsk = find_get_task_by_vpid(pid);
- 	if (!tsk)
- 		return -ESRCH;
- 	fill_stats(current_user_ns(), task_active_pid_ns(current), tsk, stats);
-diff --git a/mm/process_vm_access.c b/mm/process_vm_access.c
-index 8973cd231ece..16424b9ae424 100644
---- a/mm/process_vm_access.c
-+++ b/mm/process_vm_access.c
-@@ -197,11 +197,7 @@ static ssize_t process_vm_rw_core(pid_t pid, struct iov_iter *iter,
+ 	/*
+@@ -2758,8 +2758,13 @@ int shmem_add_seals(struct file *file, unsigned int seals)
+ 	 * other file types.
+ 	 */
+ 
+-	if (file->f_op != &shmem_file_operations)
++	if (file->f_op == &shmem_file_operations)
++		info_seals = &SHMEM_I(inode)->seals;
++	else if (file->f_op == &hugetlbfs_file_operations)
++		info_seals = &HUGETLBFS_I(inode)->seals;
++	else
+ 		return -EINVAL;
++
+ 	if (!(file->f_mode & FMODE_WRITE))
+ 		return -EPERM;
+ 	if (seals & ~(unsigned int)F_ALL_SEALS)
+@@ -2767,12 +2772,12 @@ int shmem_add_seals(struct file *file, unsigned int seals)
+ 
+ 	inode_lock(inode);
+ 
+-	if (info->seals & F_SEAL_SEAL) {
++	if (*info_seals & F_SEAL_SEAL) {
+ 		error = -EPERM;
+ 		goto unlock;
  	}
  
- 	/* Get process information */
--	rcu_read_lock();
--	task = find_task_by_vpid(pid);
--	if (task)
--		get_task_struct(task);
--	rcu_read_unlock();
-+	task = find_get_task_by_vpid(pid);
- 	if (!task) {
- 		rc = -ESRCH;
- 		goto free_proc_pages;
+-	if ((seals & F_SEAL_WRITE) && !(info->seals & F_SEAL_WRITE)) {
++	if ((seals & F_SEAL_WRITE) && !(*info_seals & F_SEAL_WRITE)) {
+ 		error = mapping_deny_writable(file->f_mapping);
+ 		if (error)
+ 			goto unlock;
+@@ -2784,23 +2789,24 @@ int shmem_add_seals(struct file *file, unsigned int seals)
+ 		}
+ 	}
+ 
+-	info->seals |= seals;
++	*info_seals |= seals;
+ 	error = 0;
+ 
+ unlock:
+ 	inode_unlock(inode);
+ 	return error;
+ }
+-EXPORT_SYMBOL_GPL(shmem_add_seals);
+ 
+-int shmem_get_seals(struct file *file)
++static int memfd_get_seals(struct file *file)
+ {
+-	if (file->f_op != &shmem_file_operations)
+-		return -EINVAL;
++	if (file->f_op == &shmem_file_operations)
++		return SHMEM_I(file_inode(file))->seals;
++
++	if (file->f_op == &hugetlbfs_file_operations)
++		return HUGETLBFS_I(file_inode(file))->seals;
+ 
+-	return SHMEM_I(file_inode(file))->seals;
++	return -EINVAL;
+ }
+-EXPORT_SYMBOL_GPL(shmem_get_seals);
+ 
+ long shmem_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
+ {
+@@ -2812,10 +2818,10 @@ long shmem_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
+ 		if (arg > UINT_MAX)
+ 			return -EINVAL;
+ 
+-		error = shmem_add_seals(file, arg);
++		error = memfd_add_seals(file, arg);
+ 		break;
+ 	case F_GET_SEALS:
+-		error = shmem_get_seals(file);
++		error = memfd_get_seals(file);
+ 		break;
+ 	default:
+ 		error = -EINVAL;
+@@ -3659,19 +3665,16 @@ SYSCALL_DEFINE2(memfd_create,
+ 		const char __user *, uname,
+ 		unsigned int, flags)
+ {
+-	struct shmem_inode_info *info;
+ 	struct file *file;
+ 	int fd, error;
+ 	char *name;
+ 	long len;
++	unsigned int *info_seals;
+ 
+ 	if (!(flags & MFD_HUGETLB)) {
+ 		if (flags & ~(unsigned int)MFD_ALL_FLAGS)
+ 			return -EINVAL;
+ 	} else {
+-		/* Sealing not supported in hugetlbfs (MFD_HUGETLB) */
+-		if (flags & MFD_ALLOW_SEALING)
+-			return -EINVAL;
+ 		/* Allow huge page size encoding in flags. */
+ 		if (flags & ~(unsigned int)(MFD_ALL_FLAGS |
+ 				(MFD_HUGE_MASK << MFD_HUGE_SHIFT)))
+@@ -3723,13 +3726,13 @@ SYSCALL_DEFINE2(memfd_create,
+ 	file->f_mode |= FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE;
+ 	file->f_flags |= O_RDWR | O_LARGEFILE;
+ 
++	if (flags & MFD_HUGETLB)
++		info_seals = &HUGETLBFS_I(file_inode(file))->seals;
++	else
++		info_seals = &SHMEM_I(file_inode(file))->seals;
++
+ 	if (flags & MFD_ALLOW_SEALING) {
+-		/*
+-		 * flags check at beginning of function ensures
+-		 * this is not a hugetlbfs (MFD_HUGETLB) file.
+-		 */
+-		info = SHMEM_I(file_inode(file));
+-		info->seals &= ~F_SEAL_SEAL;
++		*info_seals &= ~F_SEAL_SEAL;
+ 	}
+ 
+ 	fd_install(fd, file);
 -- 
-2.7.4
+2.15.0.rc0.40.gaefcc5f6f
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
